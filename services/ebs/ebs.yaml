@@ -1,0 +1,10 @@
+---
+apiVersion: storage.k8s.io/v1beta1
+kind: StorageClass
+metadata:
+  name: zk-pv
+provisioner: kubernetes.io/aws-ebs
+parameters:
+  type: gp2
+  encrypted: "true"
+  #kmsKeyId: arn:aws:kms:us-east-1:810056373490:key/dd31ed73-5b2c-4ee3-a3fe-34c60f14a1be

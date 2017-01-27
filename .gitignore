@@ -1,0 +1,7 @@
+.terraform
+*tfstate*
+keys/
+k8s/data
+k8s/kubernetes.tf
+secrets.tfvars
+secrets.yaml

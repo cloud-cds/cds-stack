@@ -1,0 +1,131 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jupyterhub-config-py
+data:
+  jupyterhub-config.py: |-
+    c = get_config()
+    import os
+    c.JupyterHub.ip = '0.0.0.0'
+    c.JupyterHub.hub_ip = '0.0.0.0'
+    c.JupyterHub.extra_log_file = '/var/log/jupyterhub.log'
+    c.JupyterHub.db_url = 'sqlite:////tmp/jupyterhub.sqlite'
+    c.JupyterHub.cookie_secret_file = '/tmp/jupyterhub_cookie_secret'
+    c.JupyterHub.cleanup_servers = False
+    # SSL
+    #c.JupyterHub.ssl_key = os.environ['SSL_KEY']
+    #c.JupyterHub.ssl_cert = os.environ['SSL_CERT']
+    #c.JupyterHub.port = 443
+    c.JupyterHub.confirm_no_ssl = True
+    # Authenticator
+    # Github Authenticator
+    #c.JupyterHub.authenticator_class = 'oauthenticator.GitHubOAuthenticator'
+    #c.GitHubOAuthenticator.client_id = os.environ['OAUTH_CLIENT_ID']
+    #c.GitHubOAuthenticator.client_secret = os.environ['OAUTH_CLIENT_SECRET']
+    #c.GitHubOAuthenticator.oauth_callback_url = os.environ['OAUTH_CALLBACK_URL']
+    c.JupyterHub.authenticator_class = 'dummyauthenticator.DummyAuthenticator'
+    # Kube Spawner
+    c.JupyterHub.spawner_class = 'kubespawner.KubeSpawner'
+    #c.KubeSpawner.namespace = 'jupyterhub'
+    c.KubeSpawner.hub_connect_ip = os.environ['KSPAWN_HUB_IP']
+    c.KubeSpawner.hub_connect_port = int(os.environ['KSPAWN_HUB_PORT'])
+    c.KubeSpawner.start_timeout = 60 * 5
+    c.KubeSpawner.singleuser_image_spec = os.environ['KUBESPAWN_IMAGE']
+    c.KubeSpawner.cpu_limit = float(os.environ['KUBESPAWN_CPU_LIMIT'])
+    c.KubeSpawner.mem_limit = os.environ['KUBESPAWN_MEM_LIMIT']
+    # Each user gets their own persistentVolumeClaim
+    c.KubeSpawner.notebook_dir = '~/notebooks'
+    c.KubeSpawner.user_storage_capacity = '100Mi'
+    c.KubeSpawner.user_storage_class = 'jupyter-nfs'
+    c.KubeSpawner.volumes = [{
+        'name' : 'notebook-volume',
+        'persistentVolumeClaim' : {
+            'claimName' : 'claim-{username}-{userid}',
+        },
+    }]
+    c.KubeSpawner.volume_mounts = [{
+        'name' : 'notebook-volume',
+        'mountPath' : '/home/{username}/notebooks',
+    }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jupyterhub
+  labels:
+    app: jupyterhub
+spec:
+  type: LoadBalancer
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
+  selector:
+    app: jupyterhub
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: jupyterhub
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: jupyterhub
+    spec:
+      containers:
+      - name: jupyterhub
+        image: jupyterhub/jupyterhub
+        ports:
+          - name: proxy
+            containerPort: 8000
+        command:
+        - sh
+        - -c
+        - pip install jupyterhub-kubespawner jupyterhub-dummyauthenticator && jupyterhub
+        env:
+        - name: SSL_KEY
+          value: "/etc/letsencrypt/live/jupyter.cluster.opsdx.daiware.io/privkey.pem"
+        - name: SSL_CERT
+          value: "/etc/letsencrypt/live/jupyter.cluster.opsdx.daiware.io/fullchain.pem"
+        - name: KSPAWN_HUB_IP
+          value: "jupyterhub.default.svc.cluster.local"
+        - name: KSPAWN_HUB_PORT
+          value: "80"
+        - name: KUBESPAWN_IMAGE
+          value: 'yuvipanda/simple-singleuser:v1'
+        - name: KUBESPAWN_CPU_LIMIT
+          value: '1'
+        - name: KUBESPAWN_CPU_REQUEST
+          value: '1'
+        - name: KUBESPAWN_MEM_LIMIT
+          value: '2G'
+        - name: KUBESPAWN_MEM_REQUEST
+          value: '256M'
+        - name: OAUTH_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: jupyterhub-secrets
+              key: oauth-client-id
+        - name: OAUTH_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: jupyterhub-secrets
+              key: oauth-client-secret
+        - name: OAUTH_CALLBACK_URL
+          valueFrom:
+            secretKeyRef:
+              name: jupyterhub-secrets
+              key: oauth-callback-url
+        volumeMounts:
+          - name: config-volume
+            mountPath: "/srv/jupyterhub/"
+      volumes:
+        - name: config-volume
+          configMap:
+            name: jupyterhub-config-py
+            items:
+              - key: jupyterhub-config.py
+                path: jupyterhub_config.py
