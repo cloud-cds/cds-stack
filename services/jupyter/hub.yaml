@@ -18,13 +18,12 @@ data:
     #c.JupyterHub.ssl_cert = os.environ['SSL_CERT']
     #c.JupyterHub.port = 443
     c.JupyterHub.confirm_no_ssl = True
-    # Authenticator
     # Github Authenticator
-    #c.JupyterHub.authenticator_class = 'oauthenticator.GitHubOAuthenticator'
-    #c.GitHubOAuthenticator.client_id = os.environ['OAUTH_CLIENT_ID']
-    #c.GitHubOAuthenticator.client_secret = os.environ['OAUTH_CLIENT_SECRET']
-    #c.GitHubOAuthenticator.oauth_callback_url = os.environ['OAUTH_CALLBACK_URL']
-    c.JupyterHub.authenticator_class = 'dummyauthenticator.DummyAuthenticator'
+    c.JupyterHub.authenticator_class = 'oauthenticator.GitHubOAuthenticator'
+    c.GitHubOAuthenticator.client_id = os.environ['OAUTH_CLIENT_ID']
+    c.GitHubOAuthenticator.client_secret = os.environ['OAUTH_CLIENT_SECRET']
+    c.GitHubOAuthenticator.oauth_callback_url = os.environ['OAUTH_CALLBACK_URL']
+    c.Authenticator.whitelist = { 'yanif', 'zad', 'mpeven' }
     # Kube Spawner
     c.JupyterHub.spawner_class = 'kubespawner.KubeSpawner'
     #c.KubeSpawner.namespace = 'jupyterhub'
@@ -35,7 +34,7 @@ data:
     c.KubeSpawner.cpu_limit = float(os.environ['KUBESPAWN_CPU_LIMIT'])
     c.KubeSpawner.mem_limit = os.environ['KUBESPAWN_MEM_LIMIT']
     # Each user gets their own persistentVolumeClaim
-    c.KubeSpawner.notebook_dir = '~/notebooks'
+    c.KubeSpawner.environment = dict(NOTEBOOK_DIR=lambda sp: sp.format_string('/home/{username}/notebooks'))
     c.KubeSpawner.user_storage_capacity = '100Mi'
     c.KubeSpawner.user_storage_class = 'jupyter-nfs'
     c.KubeSpawner.volumes = [{
@@ -53,13 +52,16 @@ apiVersion: v1
 kind: Service
 metadata:
   name: jupyterhub
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:acm:us-east-1:810056373490:certificate/fa4d8d9e-b99a-40e1-83f9-150e2e09fb70
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: tcp
   labels:
     app: jupyterhub
 spec:
   type: LoadBalancer
   ports:
     - protocol: TCP
-      port: 80
+      port: 443
       targetPort: 8000
   selector:
     app: jupyterhub
@@ -84,7 +86,7 @@ spec:
         command:
         - sh
         - -c
-        - pip install jupyterhub-kubespawner jupyterhub-dummyauthenticator && jupyterhub
+        - pip install jupyterhub-kubespawner oauthenticator && jupyterhub
         env:
         - name: SSL_KEY
           value: "/etc/letsencrypt/live/jupyter.cluster.opsdx.daiware.io/privkey.pem"
@@ -93,9 +95,9 @@ spec:
         - name: KSPAWN_HUB_IP
           value: "jupyterhub.default.svc.cluster.local"
         - name: KSPAWN_HUB_PORT
-          value: "80"
+          value: "443"
         - name: KUBESPAWN_IMAGE
-          value: 'yuvipanda/simple-singleuser:v1'
+          value: '810056373490.dkr.ecr.us-east-1.amazonaws.com/tensorflow:tfplus.0.0.1'
         - name: KUBESPAWN_CPU_LIMIT
           value: '1'
         - name: KUBESPAWN_CPU_REQUEST

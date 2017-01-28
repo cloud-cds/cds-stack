@@ -4,7 +4,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: jupyterhub-nfs-server-storage
   annotations:
-    volume.beta.kubernetes.io/storage-class: zk-pv
+    volume.beta.kubernetes.io/storage-class: ebs-pv
 spec:
   accessModes: ["ReadWriteOnce"]
   resources:

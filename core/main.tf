@@ -27,9 +27,19 @@ resource "aws_eip" "natgw" {
   vpc = true
 }
 
+# Generic utility subnet (e.g., for extra ALBs)
+resource "aws_subnet" "utility" {
+  vpc_id = "${aws_vpc.default.id}"
+  cidr_block = "10.0.200.0/24"
+}
+
 ###########
 # Outputs
 
 output "vpc_id" {
   value = "${aws_vpc.default.id}"
+}
+
+output "utility_subnet_id" {
+  value = "${aws_subnet.utility.id}"
 }

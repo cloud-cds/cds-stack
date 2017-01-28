@@ -6,3 +6,12 @@ resource "aws_s3_bucket" "kops-state-store" {
         enabled = true
     }
 }
+
+# Tensorlow container registry.
+resource "aws_ecr_repository" "tensorflow" {
+  name = "tensorflow"
+}
+
+output "tensorflow_registry_url" {
+  value = "${aws_ecr_repository.tensorflow.repository_url}"
+}

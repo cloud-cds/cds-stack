@@ -49,6 +49,7 @@ module "db" {
 
 module "k8s" {
   source = "./k8s"
+  dummy_file = "foo"
 }
 
 module "ebs" {
@@ -76,6 +77,14 @@ module "jupyter" {
   local_shell = "${var.local_shell}"
 }
 
+
+######################
+# Outputs
+
 output "vpc_id" {
   value = "${module.core.vpc_id}"
+}
+
+output "tensorflow_registry_url" {
+  value = "${module.storage.tensorflow_registry_url}"
 }
