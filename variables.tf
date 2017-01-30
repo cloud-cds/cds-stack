@@ -58,6 +58,18 @@ variable "admin_email" {
   description = "System administrator email"
 }
 
+########################################
+# Auditing & logging.
+
+variable "audit_sns_protocol" {
+  description = "Protocol for receiving audit log ready notifications"
+  default = "https"
+}
+
+variable "audit_sns_endpoint" {
+  description = "Endpoint for receiving audit log ready notifications"
+}
+
 
 ##################################
 # DNS variables

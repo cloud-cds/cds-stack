@@ -30,11 +30,12 @@ data:
     c.KubeSpawner.hub_connect_ip = os.environ['KSPAWN_HUB_IP']
     c.KubeSpawner.hub_connect_port = int(os.environ['KSPAWN_HUB_PORT'])
     c.KubeSpawner.start_timeout = 60 * 5
-    c.KubeSpawner.singleuser_image_spec = os.environ['KUBESPAWN_IMAGE']
-    c.KubeSpawner.cpu_limit = float(os.environ['KUBESPAWN_CPU_LIMIT'])
-    c.KubeSpawner.mem_limit = os.environ['KUBESPAWN_MEM_LIMIT']
+    c.KubeSpawner.singleuser_uid = 0
+    c.KubeSpawner.singleuser_image_spec = os.environ['KSPAWN_IMAGE']
+    c.KubeSpawner.cpu_limit = float(os.environ['KSPAWN_CPU_LIMIT'])
+    c.KubeSpawner.mem_limit = os.environ['KSPAWN_MEM_LIMIT']
     # Each user gets their own persistentVolumeClaim
-    c.KubeSpawner.environment = dict(NOTEBOOK_DIR=lambda sp: sp.format_string('/home/{username}/notebooks'))
+    c.KubeSpawner.environment = dict(GRANT_SUDO='yes', NOTEBOOK_DIR=lambda sp: sp.format_string('/home/{username}/notebooks'))
     c.KubeSpawner.user_storage_capacity = '100Mi'
     c.KubeSpawner.user_storage_class = 'jupyter-nfs'
     c.KubeSpawner.volumes = [{
@@ -47,6 +48,9 @@ data:
         'name' : 'notebook-volume',
         'mountPath' : '/home/{username}/notebooks',
     }]
+    c.KubeSpawner.with_api_access = True
+    if 'KSPAWN_NODE_SELECTOR' in os.environ and os.environ['KSPAWN_NODE_SELECTOR']:
+        c.KubeSpawner.node_selector = dict((k,v) for k, v in (kv.split(':') for kv in os.environ['KSPAWN_NODE_SELECTOR'].split(',')))
 ---
 apiVersion: v1
 kind: Service
@@ -86,7 +90,7 @@ spec:
         command:
         - sh
         - -c
-        - pip install jupyterhub-kubespawner oauthenticator && jupyterhub
+        - pip install git+git://github.com/yanif/kubespawner.git oauthenticator && jupyterhub
         env:
         - name: SSL_KEY
           value: "/etc/letsencrypt/live/jupyter.cluster.opsdx.daiware.io/privkey.pem"
@@ -96,16 +100,18 @@ spec:
           value: "jupyterhub.default.svc.cluster.local"
         - name: KSPAWN_HUB_PORT
           value: "443"
-        - name: KUBESPAWN_IMAGE
-          value: '810056373490.dkr.ecr.us-east-1.amazonaws.com/tensorflow:tfplus.0.0.1'
-        - name: KUBESPAWN_CPU_LIMIT
+        - name: KSPAWN_IMAGE
+          value: '810056373490.dkr.ecr.us-east-1.amazonaws.com/tensorflow:tfplus.0.0.2'
+        - name: KSPAWN_CPU_LIMIT
           value: '1'
-        - name: KUBESPAWN_CPU_REQUEST
+        - name: KSPAWN_CPU_REQUEST
           value: '1'
-        - name: KUBESPAWN_MEM_LIMIT
+        - name: KSPAWN_MEM_LIMIT
           value: '2G'
-        - name: KUBESPAWN_MEM_REQUEST
+        - name: KSPAWN_MEM_REQUEST
           value: '256M'
+        #- name: KSPAWN_NODE_SELECTOR
+        #  value: 'opsdx/role:tf-train'
         - name: OAUTH_CLIENT_ID
           valueFrom:
             secretKeyRef:

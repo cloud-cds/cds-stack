@@ -22,6 +22,15 @@ module "core" {
   private_key_path  = "${var.private_key_path}"
 }
 
+module "audit" {
+  source = "./audit"
+  aws_id             = "${var.aws_id}"
+  aws_region         = "${var.aws_region}"
+  local_shell        = "${var.local_shell}"
+  audit_sns_protocol = "${var.audit_sns_protocol}"
+  audit_sns_endpoint = "${var.audit_sns_endpoint}"
+}
+
 module "dns" {
   source = "./dns"
   k8s_domain = "${var.k8s_domain}"
@@ -50,6 +59,12 @@ module "db" {
 module "k8s" {
   source = "./k8s"
   dummy_file = "foo"
+  local_shell  = "${var.local_shell}"
+  web_instance = "t2.medium"
+  gpu_instance = "p2.xlarge"
+  cpu_instance = "c4.large"
+  jnb_instance = "t2.large"
+  enable_nodesets = 1
 }
 
 module "ebs" {
