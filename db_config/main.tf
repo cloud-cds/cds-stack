@@ -15,3 +15,9 @@ resource "postgresql_database" "db_api_dev" {
   name     = "${var.db_name_dev}"
   owner    = "${var.db_username}"
 }
+
+resource "postgresql_database" "db_deis" {
+  provider = "postgresql.api"
+  name     = "${var.db_name_deis}"
+  owner    = "${var.db_username}"
+}

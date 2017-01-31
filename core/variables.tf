@@ -50,3 +50,15 @@ variable "public_key_path" {
 variable "private_key_path" {
   description = "OpsDX private key path"
 }
+
+
+#########################################
+# Controller instance.
+
+variable "domain_zone_id" {
+  description = "OpsDX domain name"
+}
+
+variable "controller_dns_name" {
+  description = "OpsDX controller instance dns name"
+}

@@ -10,6 +10,11 @@ variable "db_name_dev" {
   description = "Development DB name"
 }
 
+variable "db_name_deis" {
+  default = "opsdx_deis"
+  description = "Deis Workflow DB name"
+}
+
 variable "db_username" {
   default = "opsdx_root"
   description = "User name"

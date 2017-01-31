@@ -6,6 +6,11 @@ provider "aws" {
   profile    = "opsdx"
 }
 
+module "dns" {
+  source = "./dns"
+  k8s_domain = "${var.k8s_domain}"
+}
+
 module "core" {
   source = "./core"
 
@@ -20,6 +25,9 @@ module "core" {
   key_name          = "${var.key_name}"
   public_key_path   = "${var.public_key_path}"
   private_key_path  = "${var.private_key_path}"
+
+  domain_zone_id      = "${module.dns.zone_id}"
+  controller_dns_name = "controller.${var.k8s_domain}"
 }
 
 module "audit" {
@@ -29,11 +37,6 @@ module "audit" {
   local_shell        = "${var.local_shell}"
   audit_sns_protocol = "${var.audit_sns_protocol}"
   audit_sns_endpoint = "${var.audit_sns_endpoint}"
-}
-
-module "dns" {
-  source = "./dns"
-  k8s_domain = "${var.k8s_domain}"
 }
 
 module "storage" {
@@ -50,11 +53,11 @@ module "db" {
   db_availability_zone2 = "${var.db_availability_zone2}"
 }
 
-# module "db_config" {
-#   source = "./db_config"
-#   db_ip       = "${module.db.db_ip}"
-#   db_password = "${var.db_password}"
-# }
+module "db_config" {
+  source = "./db_config"
+  db_ip       = "${module.db.db_ip}"
+  db_password = "${var.db_password}"
+}
 
 module "k8s" {
   source = "./k8s"
@@ -92,6 +95,10 @@ module "jupyter" {
   local_shell = "${var.local_shell}"
 }
 
+module "deis" {
+  source = "./services/deis"
+  local_shell = "${var.local_shell}"
+}
 
 ######################
 # Outputs
@@ -100,6 +107,14 @@ output "vpc_id" {
   value = "${module.core.vpc_id}"
 }
 
+output "db_ip" {
+  value = "${module.db.db_ip}"
+}
+
 output "tensorflow_registry_url" {
   value = "${module.storage.tensorflow_registry_url}"
+}
+
+output "deis_registry_url" {
+  value = "${module.deis.deis_registry_url}"
 }
