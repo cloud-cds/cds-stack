@@ -15,3 +15,12 @@ resource "aws_ecr_repository" "tensorflow" {
 output "tensorflow_registry_url" {
   value = "${aws_ecr_repository.tensorflow.repository_url}"
 }
+
+# Trews-ETL container registry.
+resource "aws_ecr_repository" "trews_etl" {
+  name = "trews-etl"
+}
+
+output "trews_etl_registry_url" {
+  value = "${aws_ecr_repository.trews_etl.repository_url}"
+}
