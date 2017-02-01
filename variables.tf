@@ -105,6 +105,13 @@ variable "db_availability_zone2" {
   default = "us-east-1c"
 }
 
+####################################
+# Files
+
+variable "aws_trews_etl_package" {
+  description = "AWS Lambda deployment package"
+  default = "services/trews_etl/aws_lambda/2017-02-01-010038-trews-etl-lambda.zip"
+}
 
 ####################################
 # Command execution

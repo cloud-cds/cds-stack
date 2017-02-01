@@ -1,7 +1,7 @@
 ############################
 # ETL via AWS Lambda
 
-variable "etl_zip" {}
+variable "aws_trews_etl_package" {}
 
 resource "aws_iam_role" "etl_lambda_role" {
     name = "opsdx-role-etl-lambda"
@@ -58,10 +58,10 @@ POLICY
 resource "aws_lambda_function" "etl_lambda" {
     function_name    = "opsdx-etl-lambda"
     handler          = "service.handler"
-    filename         = "${var.etl_zip}"
+    filename         = "${var.aws_trews_etl_package}"
     role             = "${aws_iam_role.etl_lambda_role.arn}"
     runtime          = "python2.7"
-    source_code_hash = "${base64sha256(file("${var.etl_zip}"))}"
+    source_code_hash = "${base64sha256(file("${var.aws_trews_etl_package}"))}"
     timeout          = 300
 }
 

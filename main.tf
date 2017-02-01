@@ -102,7 +102,7 @@ module "deis" {
 
 module "trews_etl" {
   source = "./services/trews_etl"
-  etl_zip = "2017-02-01-010038-trews-etl-lambda.zip"
+  aws_trews_etl_package = "${var.aws_trews_etl_package}"
 }
 
 ######################
