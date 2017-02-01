@@ -100,6 +100,11 @@ module "deis" {
   local_shell = "${var.local_shell}"
 }
 
+module "trews_etl" {
+  source = "./services/trews_etl"
+  etl_zip = "2017-02-01-010038-trews-etl-lambda.zip"
+}
+
 ######################
 # Outputs
 
