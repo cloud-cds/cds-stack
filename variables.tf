@@ -75,7 +75,11 @@ variable "audit_sns_endpoint" {
 # DNS variables
 
 variable "k8s_domain" {
-  description = "k8s cluster domain"
+  description = "k8s test cluster domain"
+}
+
+variable "opsdx_domain" {
+  description = "k8s production cluster domain"
 }
 
 #######################

@@ -9,6 +9,7 @@ provider "aws" {
 module "dns" {
   source = "./dns"
   k8s_domain = "${var.k8s_domain}"
+  opsdx_domain = "${var.opsdx_domain}"
 }
 
 module "core" {
