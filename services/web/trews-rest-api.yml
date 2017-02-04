@@ -1,0 +1,75 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+data:
+  nginx-config: |-
+    server {
+        listen 80 default_server;
+        listen [::]:80 default_server;
+        #listen 443 ssl default_server;
+        #ssl_certificate /etc/nginx/ssl/nginx.crt;
+        #ssl_certificate_key /etc/nginx/ssl/nginx.key;
+        root /var/www/html;
+        index index.html index.htm index.nginx-debian.html;
+        server_name _;
+        location /trews-api/ {
+                proxy_pass http://localhost:8000;
+        }
+    }
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: trews-rest-api
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: trews-rest-api
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.7.9
+        ports:
+        - containerPort: 80
+        volumeMounts:
+          - name: config-volume
+            mountPath: "/etc/nginx/sites-enabled/"
+      - name: trew-rest-api
+        image: 810056373490.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.0.1
+        ports:
+        - containerPort: 8000
+        env:
+        - name: psql_user
+          value: "opsdx_root"
+        - name: psql_db
+          value: "opsdx_dev"
+        - name: psql_host
+          value: "opsdx.ciwxogstcj0q.us-east-1.rds.amazonaws.com"
+        - name: psql_port
+          value: "5432"
+        - name: psql_password
+          value: "houseful.TWill6District#blister"
+      volumes:
+        - name: config-volume
+          configMap:
+            name: nginx-config
+            items:
+              - key: nginx-config
+                path: default
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: trews-rest-svc
+  labels:
+    app: trews-rest-api
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+  selector:
+    app: trews-rest-api

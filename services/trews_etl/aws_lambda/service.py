@@ -19,7 +19,7 @@ def handler(event, context):
         "spec": {
           "containers": [{
             "name": "trews-etl",
-            "image": "810056373490.dkr.ecr.us-east-1.amazonaws.com/trews-etl:0.0.1",
+            "image": "810056373490.dkr.ecr.us-east-1.amazonaws.com/trews-etl:0.0.2",
           }],
           "restartPolicy": "Never"
         }
