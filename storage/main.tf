@@ -7,6 +7,15 @@ resource "aws_s3_bucket" "kops-state-store" {
     }
 }
 
+resource "aws_s3_bucket" "kops-prod-state-store" {
+    bucket = "opsdx-kops-prod-state-store"
+    acl = "private"
+
+    versioning {
+        enabled = true
+    }
+}
+
 # Tensorlow container registry.
 resource "aws_ecr_repository" "tensorflow" {
   name = "tensorflow"
