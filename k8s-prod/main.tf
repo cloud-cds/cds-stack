@@ -1,0 +1,1 @@
+variable "dummy_file" {}

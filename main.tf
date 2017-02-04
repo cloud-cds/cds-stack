@@ -71,6 +71,17 @@ module "k8s" {
   enable_nodesets = 1
 }
 
+module "k8s-prod" {
+  source = "./k8s-prod"
+  dummy_file = "foo"
+  local_shell  = "${var.local_shell}"
+  web_instance = "t2.medium"
+  gpu_instance = "p2.xlarge"
+  cpu_instance = "c4.large"
+  jnb_instance = "t2.large"
+  enable_nodesets = 1
+}
+
 module "ebs" {
   source = "./services/ebs"
   local_shell = "${var.local_shell}"
