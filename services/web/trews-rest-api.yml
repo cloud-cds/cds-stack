@@ -37,7 +37,7 @@ spec:
         - containerPort: 80
         volumeMounts:
           - name: config-volume
-            mountPath: "/etc/nginx/sites-enabled/"
+            mountPath: "/etc/nginx/conf.d/"
       - name: trew-rest-api
         image: 810056373490.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.0.1
         ports:
