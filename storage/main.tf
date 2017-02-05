@@ -35,6 +35,11 @@ resource "aws_ecr_repository" "trews_rest_api" {
   name = "trews-rest-api"
 }
 
+# Trews-nginx container registry.
+resource "aws_ecr_repository" "trews_nginx" {
+  name = "trews-nginx"
+}
+
 output "trews_etl_registry_url" {
   value = "${aws_ecr_repository.trews_etl.repository_url}"
 }
@@ -42,3 +47,9 @@ output "trews_etl_registry_url" {
 output "trews_rest_api_registry_url" {
   value = "${aws_ecr_repository.trews_rest_api.repository_url}"
 }
+
+output "trews_nginx_registry_url" {
+  value = "${aws_ecr_repository.trews_nginx.repository_url}"
+}
+
+
