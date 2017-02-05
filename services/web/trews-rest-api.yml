@@ -31,15 +31,15 @@ spec:
         app: trews-rest-api
     spec:
       containers:
-      - name: nginx
-        image: nginx:1.7.9
+      - name: trews-nginx
+        image: 810056373490.dkr.ecr.us-east-1.amazonaws.com/trews-nginx:0.0.3
         ports:
         - containerPort: 80
         volumeMounts:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
-      - name: trew-rest-api
-        image: 810056373490.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.0.1
+      - name: trews-rest-api
+        image: 810056373490.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.0.3
         ports:
         - containerPort: 8000
         env:
