@@ -135,6 +135,103 @@ resource "aws_route53_record" "controller" {
    records = ["${aws_instance.cluster_controller.public_ip}"]
 }
 
+#################
+# redash.io instance
+
+# Our redash.io security group, to access the instance over SSH.
+resource "aws_security_group" "opsdx_redash_sg" {
+  name        = "opsdx-redash-sg"
+  description = "OpsDX Redash SG"
+  vpc_id      = "${aws_vpc.default.id}"
+
+  # SSH access from anywhere
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Allow incoming HTTP connections
+  ingress {
+    from_port = 80
+    to_port = 80
+    protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Allow incoming HTTPs connections
+  ingress {
+    from_port = 443
+    to_port = 443
+    protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Unrestricted outbound internet access
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_instance" "cluster_redash" {
+  connection {
+    type        = "ssh"
+    user        = "ubuntu"
+    agent       = false
+    private_key = "${file(var.private_key_path)}"
+  }
+
+  instance_type = "t2.medium"
+  count         = "1"
+
+  # Lookup the correct AMI based on the region we specified
+  ami = "ami-3ff16228"
+
+  # The name of our SSH keypair we created above.
+  key_name = "${aws_key_pair.auth.id}"
+
+  # Block device specifications
+  root_block_device {
+    volume_size = 20
+  }
+
+  # Our Security group to allow HTTP and SSH access
+  vpc_security_group_ids = ["${aws_security_group.opsdx_redash_sg.id}"]
+
+  subnet_id = "${aws_subnet.public_utility.id}"
+
+  tags {
+    Name = "opsdx-redash"
+  }
+}
+
+resource "aws_route53_record" "redash" {
+   zone_id = "${var.domain_zone_id}"
+   name    = "${var.redash_dns_name}"
+   type    = "A"
+   ttl     = "300"
+   records = ["${aws_instance.cluster_redash.public_ip}"]
+}
+
+################
+# TODO TREWS Rest API
+
+#resource "aws_route53_record" "trews" {
+#  zone_id = "${var.domain_zone_id}"
+#  name = "${var.trews_dns_name}"
+#  type = "A"
+#
+#  alias {
+#    name = "${trews.main.dns_name}"
+#    zone_id = "${aws_elb.main.zone_id}"
+#    evaluate_target_health = true
+#  }
+#}
+
 
 ###########
 # Outputs

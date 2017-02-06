@@ -28,7 +28,9 @@ module "core" {
   private_key_path  = "${var.private_key_path}"
 
   domain_zone_id      = "${module.dns.zone_id}"
-  controller_dns_name = "controller.${var.k8s_domain}"
+  controller_dns_name = "controller.${var.k8s_domain}" 
+  redash_dns_name = "redash.${var.k8s_domain}" 
+  trews_dns_name = "trews.${var.k8s_domain}"
 }
 
 module "audit" {

@@ -62,3 +62,14 @@ variable "domain_zone_id" {
 variable "controller_dns_name" {
   description = "OpsDX controller instance dns name"
 }
+
+# redash.io instance
+variable "redash_dns_name" {
+  description = "redash.io instance dns name"
+}
+
+
+# TREWS service
+variable "trews_dns_name" {
+  description = "OpsDX TREWS Rest API and Web Frontend instance dns name"
+}
