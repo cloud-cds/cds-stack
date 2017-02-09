@@ -1,10 +1,6 @@
 .terraform
 *tfstate*
 keys/
-k8s/data
-k8s/kubernetes.tf
-k8s-prod/data
-k8s-prod/kubernetes.tf
 secrets.tfvars
 secrets.yaml
 .DS_Store
