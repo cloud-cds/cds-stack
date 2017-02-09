@@ -25,6 +25,12 @@ resource "aws_autoscaling_group" "master-us-east-1b-masters-cluster-opsdx-io" {
   vpc_zone_identifier  = ["${aws_subnet.us-east-1b-cluster-opsdx-io.id}"]
 
   tag = {
+    key                 = "Component"
+    value               = "k8s-master-1b"
+    propagate_at_launch = true
+  }
+
+  tag = {
     key                 = "KubernetesCluster"
     value               = "cluster.opsdx.io"
     propagate_at_launch = true
@@ -49,6 +55,12 @@ resource "aws_autoscaling_group" "master-us-east-1c-masters-cluster-opsdx-io" {
   max_size             = 1
   min_size             = 1
   vpc_zone_identifier  = ["${aws_subnet.us-east-1c-cluster-opsdx-io.id}"]
+
+  tag = {
+    key                 = "Component"
+    value               = "k8s-master-1c"
+    propagate_at_launch = true
+  }
 
   tag = {
     key                 = "KubernetesCluster"
@@ -77,6 +89,12 @@ resource "aws_autoscaling_group" "master-us-east-1d-masters-cluster-opsdx-io" {
   vpc_zone_identifier  = ["${aws_subnet.us-east-1d-cluster-opsdx-io.id}"]
 
   tag = {
+    key                 = "Component"
+    value               = "k8s-master-1d"
+    propagate_at_launch = true
+  }
+
+  tag = {
     key                 = "KubernetesCluster"
     value               = "cluster.opsdx.io"
     propagate_at_launch = true
@@ -101,6 +119,12 @@ resource "aws_autoscaling_group" "nodes-cluster-opsdx-io" {
   max_size             = 3
   min_size             = 3
   vpc_zone_identifier  = ["${aws_subnet.us-east-1b-cluster-opsdx-io.id}", "${aws_subnet.us-east-1c-cluster-opsdx-io.id}", "${aws_subnet.us-east-1d-cluster-opsdx-io.id}"]
+
+  tag = {
+    key                 = "Component"
+    value               = "k8s-node"
+    propagate_at_launch = true
+  }
 
   tag = {
     key                 = "KubernetesCluster"
