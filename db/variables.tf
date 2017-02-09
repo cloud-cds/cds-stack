@@ -1,3 +1,7 @@
+variable "deployment_tag" {
+  description = "Tag prefix for AWS deployment"
+}
+
 ################
 # AWS Provider
 variable "vpc_id" {}
@@ -11,7 +15,7 @@ data "aws_vpc" "default" {
 
 variable "db_identifier" {
   description = "Identifier for your DB"
-  default = "opsdx"
+  default = "opsdx-prod"
 }
 
 variable "db_storage" {
@@ -37,13 +41,8 @@ variable "db_instance_class" {
 }
 
 variable "db_name_prod" {
-  default = "opsdx"
+  default = "opsdx_prod"
   description = "Production DB name"
-}
-
-variable "db_name_dev" {
-  default = "opsdx_dev"
-  description = "Development DB name"
 }
 
 variable "db_username" {

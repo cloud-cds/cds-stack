@@ -12,25 +12,20 @@ module "dns" {
   opsdx_domain = "${var.opsdx_domain}"
 }
 
+module "common" {
+  source = "./common"
+}
+
 module "core" {
   source = "./core"
 
-  aws_region        = "${var.aws_region}"
-  aws_base_ami      = "${var.aws_base_ami}"
-  aws_amis          = "${var.aws_amis}"
-
-  aws_id            = "${var.aws_id}"
-  access_key        = "${var.access_key}"
-  secret_key        = "${var.secret_key}"
-
-  key_name          = "${var.key_name}"
-  public_key_path   = "${var.public_key_path}"
+  auth_key          = "${module.common.auth_key}"
   private_key_path  = "${var.private_key_path}"
 
+  controller_ami      = "${module.common.controller_ami}"
   domain_zone_id      = "${module.dns.zone_id}"
   controller_dns_name = "controller.${var.k8s_domain}" 
-  redash_dns_name = "redash.${var.k8s_domain}" 
-  trews_dns_name = "trews.${var.k8s_domain}"
+  trews_dns_name      = "trews.${var.k8s_domain}"
 }
 
 module "audit" {
@@ -42,10 +37,6 @@ module "audit" {
   audit_sns_endpoint = "${var.audit_sns_endpoint}"
 }
 
-module "storage" {
-  source = "./storage"
-}
-
 module "db" {
   source = "./db"
   vpc_id                = "${module.core.vpc_id}"
@@ -54,12 +45,6 @@ module "db" {
   db_availability_zone1 = "${var.db_availability_zone1}"
   db_subnet2_cidr       = "${var.db_subnet2_cidr}"
   db_availability_zone2 = "${var.db_availability_zone2}"
-}
-
-module "db_config" {
-  source = "./db_config"
-  db_ip       = "${module.db.db_ip}"
-  db_password = "${var.db_password}"
 }
 
 module "k8s" {
@@ -73,44 +58,8 @@ module "k8s" {
   enable_nodesets = 1
 }
 
-module "k8s-prod" {
-  source = "./k8s-prod"
-  dummy_file = "foo"
-  local_shell  = "${var.local_shell}"
-  web_instance = "t2.medium"
-  gpu_instance = "p2.xlarge"
-  cpu_instance = "c4.large"
-  jnb_instance = "t2.large"
-  enable_nodesets = 1
-}
-
-module "ebs" {
-  source = "./services/ebs"
-  local_shell = "${var.local_shell}"
-}
-
-module "zookeeper" {
-  source = "./services/zookeeper"
-  local_shell = "${var.local_shell}"
-}
-
-module "confluent" {
-  source = "./services/confluent"
-  local_shell = "${var.local_shell}"
-}
-
 module "web" {
   source      = "./services/web"
-  local_shell = "${var.local_shell}"
-}
-
-module "jupyter" {
-  source = "./services/jupyter"
-  local_shell = "${var.local_shell}"
-}
-
-module "deis" {
-  source = "./services/deis"
   local_shell = "${var.local_shell}"
 }
 
@@ -128,12 +77,4 @@ output "vpc_id" {
 
 output "db_ip" {
   value = "${module.db.db_ip}"
-}
-
-output "tensorflow_registry_url" {
-  value = "${module.storage.tensorflow_registry_url}"
-}
-
-output "deis_registry_url" {
-  value = "${module.deis.deis_registry_url}"
 }

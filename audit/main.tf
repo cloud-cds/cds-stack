@@ -9,7 +9,7 @@ variable "audit_sns_endpoint" {}
 # Auditing
 
 # Terraform construction of KMS log encryption key.
-resource "aws_kms_key" "aws_log" {
+resource "aws_kms_key" "aws_prod_log" {
     description         = "Log encryption key for OpsDX"
     enable_key_rotation = true
     policy = <<POLICY
@@ -134,14 +134,14 @@ resource "aws_kms_key" "aws_log" {
 POLICY
 }
 
-resource "aws_kms_alias" "aws_log" {
-    name = "alias/opsdx-cloudtrail"
-    target_key_id = "${aws_kms_key.aws_log.key_id}"
+resource "aws_kms_alias" "aws_prod_log" {
+    name = "alias/opsdx-prod-trail"
+    target_key_id = "${aws_kms_key.aws_prod_log.key_id}"
 }
 
 # Log notification topic
-resource "aws_sns_topic" "log_ready" {
-  name = "opsdx-log-ready"
+resource "aws_sns_topic" "prod_log_ready" {
+  name = "opsdx-prod-log-ready"
   policy = <<POLICY
 {
   "Version": "2012-10-17",
@@ -152,7 +152,7 @@ resource "aws_sns_topic" "log_ready" {
       "Service": "cloudtrail.amazonaws.com"
     },
     "Action": "SNS:Publish",
-    "Resource": "arn:aws:sns:*:*:opsdx-log-ready"
+    "Resource": "arn:aws:sns:*:*:opsdx-prod-log-ready"
   }]
 }
 POLICY
@@ -170,14 +170,14 @@ resource "null_resource" "subscribe_audit_log_sns" {
 }
 
 # Cloudwatch group for CloudTrail audit
-resource "aws_cloudwatch_log_group" "audit_logs" {
-  name = "opsdx-log-audit"
-  retention_in_days = "14"
+resource "aws_cloudwatch_log_group" "prod_audit_logs" {
+  name = "opsdx-prod-log-audit"
+  retention_in_days = "30"
 }
 
 # AWS IAM Role for CloudTrail => CloudWatch push.
-resource "aws_iam_role" "cloudtrail_push" {
-  name = "opsdx-role-ctpush"
+resource "aws_iam_role" "prod_cloudtrail_push" {
+  name = "opsdx-prod-role-ctpush"
   assume_role_policy = <<POLICY
 {
   "Version": "2012-10-17",
@@ -194,9 +194,9 @@ resource "aws_iam_role" "cloudtrail_push" {
 POLICY
 }
 
-resource "aws_iam_role_policy" "ctpush_policy" {
-  name = "opsdx-policy-ctpush"
-  role = "${aws_iam_role.cloudtrail_push.id}"
+resource "aws_iam_role_policy" "prod_ctpush_policy" {
+  name = "opsdx-prod-policy-ctpush"
+  role = "${aws_iam_role.prod_cloudtrail_push.id}"
   policy = <<POLICY
 {
   "Version": "2012-10-17",
@@ -208,7 +208,7 @@ resource "aws_iam_role_policy" "ctpush_policy" {
         "logs:CreateLogStream"
       ],
       "Resource": [
-        "arn:aws:logs:${var.aws_region}:${var.aws_id}:log-group:opsdx-log-audit:log-stream:${var.aws_id}_CloudTrail_${var.aws_region}*"
+        "arn:aws:logs:${var.aws_region}:${var.aws_id}:log-group:opsdx-prod-log-audit:log-stream:${var.aws_id}_CloudTrail_${var.aws_region}*"
       ]
     },
     {
@@ -218,7 +218,7 @@ resource "aws_iam_role_policy" "ctpush_policy" {
         "logs:PutLogEvents"
       ],
       "Resource": [
-        "arn:aws:logs:${var.aws_region}:${var.aws_id}:log-group:opsdx-log-audit:log-stream:${var.aws_id}_CloudTrail_${var.aws_region}*"
+        "arn:aws:logs:${var.aws_region}:${var.aws_id}:log-group:opsdx-prod-log-audit:log-stream:${var.aws_id}_CloudTrail_${var.aws_region}*"
       ]
     }
   ]
@@ -227,21 +227,21 @@ POLICY
 }
 
 # Audit trail
-resource "aws_cloudtrail" "audit" {
-    name = "opsdx-trail"
-    s3_bucket_name             = "${aws_s3_bucket.audit_logs.id}"
-    sns_topic_name             = "${aws_sns_topic.log_ready.id}"
-    kms_key_id                 = "${aws_kms_key.aws_log.arn}"
+resource "aws_cloudtrail" "audit_prod" {
+    name = "opsdx-prod-trail"
+    s3_bucket_name             = "${aws_s3_bucket.prod_audit_logs.id}"
+    sns_topic_name             = "${aws_sns_topic.prod_log_ready.id}"
+    kms_key_id                 = "${aws_kms_key.aws_prod_log.arn}"
     enable_log_file_validation = true
     is_multi_region_trail      = true
 
-    cloud_watch_logs_group_arn = "${aws_cloudwatch_log_group.audit_logs.arn}"
-    cloud_watch_logs_role_arn  = "${aws_iam_role.cloudtrail_push.arn}"
+    cloud_watch_logs_group_arn = "${aws_cloudwatch_log_group.prod_audit_logs.arn}"
+    cloud_watch_logs_role_arn  = "${aws_iam_role.prod_cloudtrail_push.arn}"
 }
 
 # Audit log bucket
-resource "aws_s3_bucket" "audit_logs" {
-    bucket = "opsdx-audit-logs"
+resource "aws_s3_bucket" "prod_audit_logs" {
+    bucket = "opsdx-prod-audit-logs"
     force_destroy = true
     policy = <<POLICY
 {
@@ -254,7 +254,7 @@ resource "aws_s3_bucket" "audit_logs" {
               "Service": "cloudtrail.amazonaws.com"
             },
             "Action": "s3:GetBucketAcl",
-            "Resource": "arn:aws:s3:::opsdx-audit-logs"
+            "Resource": "arn:aws:s3:::opsdx-prod-audit-logs"
         },
         {
             "Sid": "AWSCloudTrailWrite",
@@ -263,7 +263,7 @@ resource "aws_s3_bucket" "audit_logs" {
               "Service": "cloudtrail.amazonaws.com"
             },
             "Action": "s3:PutObject",
-            "Resource": "arn:aws:s3:::opsdx-audit-logs/*",
+            "Resource": "arn:aws:s3:::opsdx-prod-audit-logs/*",
             "Condition": {
                 "StringEquals": {
                     "s3:x-amz-acl": "bucket-owner-full-control"
