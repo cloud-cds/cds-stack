@@ -1,3 +1,6 @@
+variable "deploy_name" {}
+variable "deploy_stack" {}
+
 variable "aws_id" {}
 variable "aws_region" {}
 variable "local_shell" {}
@@ -165,7 +168,7 @@ POLICY
 # For now, we subscribe here, and must manually confirm the subscription back to SNS.
 resource "null_resource" "subscribe_audit_log_sns" {
   provisioner "local-exec" {
-    command = "${var.local_shell} audit/subscribe_audit_log_sns.sh ${aws_sns_topic.log_ready.arn} ${var.audit_sns_protocol} ${var.audit_sns_endpoint}"
+    command = "${var.local_shell} audit/subscribe_audit_log_sns.sh ${aws_sns_topic.prod_log_ready.arn} ${var.audit_sns_protocol} ${var.audit_sns_endpoint}"
   }
 }
 
@@ -173,6 +176,11 @@ resource "null_resource" "subscribe_audit_log_sns" {
 resource "aws_cloudwatch_log_group" "prod_audit_logs" {
   name = "opsdx-prod-log-audit"
   retention_in_days = "30"
+  tags {
+    Name = "${var.deploy_name}"
+    Stack = "${var.deploy_stack}"
+    Component = "Audit Logs"
+  }
 }
 
 # AWS IAM Role for CloudTrail => CloudWatch push.
@@ -228,15 +236,21 @@ POLICY
 
 # Audit trail
 resource "aws_cloudtrail" "audit_prod" {
-    name = "opsdx-prod-trail"
-    s3_bucket_name             = "${aws_s3_bucket.prod_audit_logs.id}"
-    sns_topic_name             = "${aws_sns_topic.prod_log_ready.id}"
-    kms_key_id                 = "${aws_kms_key.aws_prod_log.arn}"
-    enable_log_file_validation = true
-    is_multi_region_trail      = true
+  name = "opsdx-prod-trail"
+  s3_bucket_name             = "${aws_s3_bucket.prod_audit_logs.id}"
+  sns_topic_name             = "${aws_sns_topic.prod_log_ready.id}"
+  kms_key_id                 = "${aws_kms_key.aws_prod_log.arn}"
+  enable_log_file_validation = true
+  is_multi_region_trail      = true
 
-    cloud_watch_logs_group_arn = "${aws_cloudwatch_log_group.prod_audit_logs.arn}"
-    cloud_watch_logs_role_arn  = "${aws_iam_role.prod_cloudtrail_push.arn}"
+  cloud_watch_logs_group_arn = "${aws_cloudwatch_log_group.prod_audit_logs.arn}"
+  cloud_watch_logs_role_arn  = "${aws_iam_role.prod_cloudtrail_push.arn}"
+
+  tags {
+    Name = "${var.deploy_name}"
+    Stack = "${var.deploy_stack}"
+    Component = "Audit Logs"
+  }
 }
 
 # Audit log bucket
@@ -273,4 +287,10 @@ resource "aws_s3_bucket" "prod_audit_logs" {
     ]
 }
 POLICY
+
+  tags {
+    Name = "${var.deploy_name}"
+    Stack = "${var.deploy_stack}"
+    Component = "Audit Logs"
+  }
 }

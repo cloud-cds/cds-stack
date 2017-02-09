@@ -8,28 +8,37 @@ provider "aws" {
 
 module "dns" {
   source = "./dns"
-  k8s_domain = "${var.k8s_domain}"
-  opsdx_domain = "${var.opsdx_domain}"
+  domain = "${var.domain}"
 }
 
 module "common" {
   source = "./common"
+  deploy_name  = "${var.deploy_name}"
+  deploy_stack = "${var.deploy_stack}"
+  key_name     = "${var.key_name}"
 }
 
 module "core" {
   source = "./core"
+
+  deploy_name  = "${var.deploy_name}"
+  deploy_stack = "${var.deploy_stack}"
 
   auth_key          = "${module.common.auth_key}"
   private_key_path  = "${var.private_key_path}"
 
   controller_ami      = "${module.common.controller_ami}"
   domain_zone_id      = "${module.dns.zone_id}"
-  controller_dns_name = "controller.${var.k8s_domain}" 
-  trews_dns_name      = "trews.${var.k8s_domain}"
+  controller_dns_name = "controller.${var.domain}" 
+  trews_dns_name      = "trews.${var.domain}"
 }
 
 module "audit" {
   source = "./audit"
+
+  deploy_name  = "${var.deploy_name}"
+  deploy_stack = "${var.deploy_stack}"
+
   aws_id             = "${var.aws_id}"
   aws_region         = "${var.aws_region}"
   local_shell        = "${var.local_shell}"
@@ -39,6 +48,10 @@ module "audit" {
 
 module "db" {
   source = "./db"
+
+  deploy_name  = "${var.deploy_name}"
+  deploy_stack = "${var.deploy_stack}"
+
   vpc_id                = "${module.core.vpc_id}"
   db_password           = "${var.db_password}"
   db_subnet1_cidr       = "${var.db_subnet1_cidr}"

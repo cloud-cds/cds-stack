@@ -17,6 +17,14 @@ variable "secret_key" {
 ######################################
 # Deployment
 
+variable "deploy_name" {
+  description = "Name Tag for AWS deployments"
+}
+
+variable "deploy_stack" {
+  description = "Stack Tag for AWS deployments"
+}
+
 variable "aws_region" {
   description = "AWS region to launch servers."
   default = "us-east-1"
@@ -74,12 +82,8 @@ variable "audit_sns_endpoint" {
 ##################################
 # DNS variables
 
-variable "k8s_domain" {
-  description = "k8s test cluster domain"
-}
-
-variable "opsdx_domain" {
-  description = "k8s production cluster domain"
+variable "domain" {
+  description = "Production cluster domain name"
 }
 
 #######################

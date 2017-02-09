@@ -1,12 +1,16 @@
-variable "deployment_tag" {
-  description = "Tag prefix for AWS deployment"
+variable "deploy_name" {
+  description = "Name Tag for AWS deployment"
+}
+
+variable "deploy_stack" {
+  description = "Stack Tag for AWS deployment"
 }
 
 ################
 # AWS Provider
 variable "vpc_id" {}
 
-data "aws_vpc" "default" {
+data "aws_vpc" "prod" {
   id = "${var.vpc_id}"
 }
 

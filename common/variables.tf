@@ -1,5 +1,9 @@
-variable "deployment_tag" {
-  description = "Tag prefix for AWS"
+variable "deploy_name" {
+  description = "Name Tag for AWS"
+}
+
+variable "deploy_stack" {
+  description = "Stack Tag for AWS"
 }
 
 ######################################

@@ -4,7 +4,9 @@ resource "aws_subnet" "prod_db_subnet1" {
   availability_zone = "${var.db_availability_zone1}"
   map_public_ip_on_launch = true
   tags {
-    Name = "${var.deployment_tag} DB SN1"
+    Name = "${var.deploy_name}"
+    Stack = "${var.deploy_stack}"
+    Component = "DB SN1"
   }
 }
 
@@ -14,7 +16,9 @@ resource "aws_subnet" "prod_db_subnet2" {
   availability_zone = "${var.db_availability_zone2}"
   map_public_ip_on_launch = true
   tags {
-    Name = "${var.deployment_tag} DB SN2"
+    Name = "${var.deploy_name}"
+    Stack = "${var.deploy_stack}"
+    Component = "DB SN2"
   }
 }
 
@@ -23,7 +27,9 @@ resource "aws_db_subnet_group" "prod_db_subnet_group" {
   description = "OpsDX Production DB SNG"
   subnet_ids  = ["${aws_subnet.prod_db_subnet1.id}", "${aws_subnet.prod_db_subnet2.id}"]
   tags {
-     Name = "${var.deployment_tag} DB SNG"
+    Name = "${var.deploy_name}"
+    Stack = "${var.deploy_stack}"
+    Component = "DB SNG"
   }
 }
 
@@ -49,7 +55,9 @@ resource "aws_security_group" "prod_db_sg" {
   }
 
   tags {
-    Name = "${var.deployment_tag} DB SG"
+    Name = "${var.deploy_name}"
+    Stack = "${var.deploy_stack}"
+    Component = "DB SG"
   }
 }
 
@@ -74,7 +82,9 @@ resource "aws_db_instance" "db_prod" {
   publicly_accessible     = true
   storage_encrypted       = true
   tags {
-    Name = "${var.deployment_tag} DB"
+    Name = "${var.deploy_name}"
+    Stack = "${var.deploy_stack}"
+    Component = "DB RDS"
   }
 }
 

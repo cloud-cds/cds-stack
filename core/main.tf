@@ -3,7 +3,9 @@ resource "aws_vpc" "prod" {
   cidr_block = "10.0.0.0/16"
   enable_dns_hostnames = true
   tags {
-    Name = "${var.deployment_tag} VPC"
+    Name = "${var.deploy_name}"
+    Stack = "${var.deploy_stack}"
+    Component = "VPC"
   }
 }
 
@@ -11,7 +13,9 @@ resource "aws_vpc" "prod" {
 resource "aws_internet_gateway" "prod" {
   vpc_id = "${aws_vpc.prod.id}"
   tags {
-    Name = "${var.deployment_tag} GW"
+    Name = "${var.deploy_name}"
+    Stack = "${var.deploy_stack}"
+    Component = "GW"
   }
 }
 
@@ -22,17 +26,14 @@ resource "aws_route" "internet_access" {
   gateway_id             = "${aws_internet_gateway.prod.id}"
 }
 
-# Create an elastic IP for the NAT gateway.
-resource "aws_eip" "prod-natgw" {
-  vpc = true
-}
-
 # Generic utility subnet (e.g., for extra ALBs)
 resource "aws_subnet" "prod_utility" {
   vpc_id = "${aws_vpc.prod.id}"
   cidr_block = "10.0.200.0/24"
   tags {
-    Name = "${var.deployment_tag} Utility"
+    Name = "${var.deploy_name}"
+    Stack = "${var.deploy_stack}"
+    Component = "Private Utility Subnet"
   }
 }
 
@@ -42,7 +43,9 @@ resource "aws_subnet" "prod_public_utility" {
   cidr_block = "10.0.201.0/24"
   map_public_ip_on_launch = true
   tags {
-    Name = "${var.deployment_tag} Public Utility"
+    Name = "${var.deploy_name}"
+    Stack = "${var.deploy_stack}"
+    Component = "Public Utility Subnet"
   }
 }
 
@@ -71,9 +74,10 @@ resource "aws_security_group" "prod_controller_sg" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
   tags {
-    Name = "${var.deployment_tag} Controller SG"
+    Name = "${var.deploy_name}"
+    Stack = "${var.deploy_stack}"
+    Component = "Controller Security Group"
   }
 }
 
@@ -106,7 +110,9 @@ resource "aws_instance" "prod_cluster_controller" {
   subnet_id = "${aws_subnet.prod_public_utility.id}"
 
   tags {
-    Name = "${var.deployment_tag} Controller"
+    Name = "${var.deploy_name}"
+    Stack = "${var.deploy_stack}"
+    Component = "Controller"
   }
 }
 
