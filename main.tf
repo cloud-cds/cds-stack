@@ -53,11 +53,15 @@ module "db" {
   deploy_stack = "${var.deploy_stack}"
 
   vpc_id                = "${module.core.vpc_id}"
+  db_username           = "${var.db_username}"
   db_password           = "${var.db_password}"
   db_subnet1_cidr       = "${var.db_subnet1_cidr}"
   db_availability_zone1 = "${var.db_availability_zone1}"
   db_subnet2_cidr       = "${var.db_subnet2_cidr}"
   db_availability_zone2 = "${var.db_availability_zone2}"
+
+  domain_zone_id  = "${module.dns.zone_id}"
+  db_dns_name     = "db.${var.domain}"
 }
 
 module "k8s" {
@@ -73,6 +77,12 @@ module "web" {
 module "trews_etl" {
   source = "./services/trews_etl"
   aws_trews_etl_package = "${var.aws_trews_etl_package}"
+  db_host             = "db.${var.domain}"
+  db_name             = "${module.db.prod_db_name}"
+  db_username         = "${var.db_username}"
+  db_password         = "${var.db_password}"
+  jhapi_client_id     = "${var.jhapi_client_id}"
+  jhapi_client_secret = "${var.jhapi_client_secret}"
 }
 
 ######################

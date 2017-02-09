@@ -88,6 +88,14 @@ resource "aws_db_instance" "db_prod" {
   }
 }
 
+resource "aws_route53_record" "prod_db" {
+   zone_id = "${var.domain_zone_id}"
+   name    = "${var.db_dns_name}"
+   type    = "CNAME"
+   ttl     = "300"
+   records = ["${aws_db_instance.db_prod.address}"]
+}
+
 ###########
 # Outputs
 
@@ -97,5 +105,9 @@ output "db_subnet_group_id" {
 
 output "db_ip" {
   value = "${aws_db_instance.db_prod.address}"
+}
+
+output "prod_db_name" {
+  value = "${var.db_name_prod}"
 }
 

@@ -50,7 +50,6 @@ variable "db_name_prod" {
 }
 
 variable "db_username" {
-  default = "opsdx_root"
   description = "User name"
 }
 
@@ -81,3 +80,8 @@ variable "db_availability_zone2" {
   default = "us-east-1c"
 }
 
+######################
+# DNS
+
+variable "domain_zone_id" {}
+variable "db_dns_name" {}

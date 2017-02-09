@@ -89,6 +89,10 @@ variable "domain" {
 #######################
 # DB
 
+variable "db_username" {
+  description = "DB admin account"
+}
+
 variable "db_password" {
   description = "DB Password"
 }
@@ -111,6 +115,17 @@ variable "db_subnet2_cidr" {
 variable "db_availability_zone2" {
   description = "Multi-AZ DB zone 2"
   default = "us-east-1c"
+}
+
+####################################
+# JH API
+
+variable "jhapi_client_id" {
+  description = "EPIC JHAPI Login"
+}
+
+variable "jhapi_client_secret" {
+  description = "EPIC JHAPI Secret"
 }
 
 ####################################
