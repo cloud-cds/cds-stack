@@ -43,6 +43,12 @@ resource "aws_autoscaling_group" "master-us-east-1b-masters-cluster-opsdx-io" {
   }
 
   tag = {
+    key                 = "Stack"
+    value               = "Production"
+    propagate_at_launch = true
+  }
+
+  tag = {
     key                 = "k8s.io/role/master"
     value               = "1"
     propagate_at_launch = true
@@ -71,6 +77,12 @@ resource "aws_autoscaling_group" "master-us-east-1c-masters-cluster-opsdx-io" {
   tag = {
     key                 = "Name"
     value               = "master-us-east-1c.masters.cluster.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Stack"
+    value               = "Production"
     propagate_at_launch = true
   }
 
@@ -107,6 +119,12 @@ resource "aws_autoscaling_group" "master-us-east-1d-masters-cluster-opsdx-io" {
   }
 
   tag = {
+    key                 = "Stack"
+    value               = "Production"
+    propagate_at_launch = true
+  }
+
+  tag = {
     key                 = "k8s.io/role/master"
     value               = "1"
     propagate_at_launch = true
@@ -116,9 +134,8 @@ resource "aws_autoscaling_group" "master-us-east-1d-masters-cluster-opsdx-io" {
 resource "aws_autoscaling_group" "nodes-cluster-opsdx-io" {
   name                 = "nodes.cluster.opsdx.io"
   launch_configuration = "${aws_launch_configuration.nodes-cluster-opsdx-io.id}"
-  max_size             = 3
-  desired_capacity     = 3
-  min_size             = 10
+  max_size             = 10
+  min_size             = 3
   vpc_zone_identifier  = ["${aws_subnet.us-east-1b-cluster-opsdx-io.id}", "${aws_subnet.us-east-1c-cluster-opsdx-io.id}", "${aws_subnet.us-east-1d-cluster-opsdx-io.id}"]
 
   tag = {
@@ -136,6 +153,12 @@ resource "aws_autoscaling_group" "nodes-cluster-opsdx-io" {
   tag = {
     key                 = "Name"
     value               = "nodes.cluster.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Stack"
+    value               = "Production"
     propagate_at_launch = true
   }
 
@@ -243,7 +266,7 @@ resource "aws_eip" "us-east-1d-cluster-opsdx-io" {
 }
 
 resource "aws_elb" "api-cluster-opsdx-io" {
-  name = "api-cluster"
+  name = "api-prod-cluster"
 
   listener = {
     instance_port     = 443
