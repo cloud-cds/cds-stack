@@ -39,9 +39,11 @@ resource "aws_route53_record" "prod_rest_api" {
 #############################
 # Application logging.
 
+variable "web_logs_name" { default = "opsdx-web-logs-prod" }
+
 # Cloudwatch group for application logging
 resource "aws_cloudwatch_log_group" "web_logs_prod" {
-  name = "opsdx-web-logs-prod"
+  name = "${var.web_logs_name}"
   retention_in_days = "30"
   tags {
     Name = "${var.deploy_name}"
@@ -52,7 +54,7 @@ resource "aws_cloudwatch_log_group" "web_logs_prod" {
 
 # Production log bucket
 resource "aws_s3_bucket" "web_logs_prod" {
-  bucket = "opsdx-web-logs-prod"
+  bucket = "${var.web_logs_name}"
   force_destroy = true
 
   policy = <<POLICY
@@ -65,7 +67,7 @@ resource "aws_s3_bucket" "web_logs_prod" {
             "Principal": {
               "Service": "logs.${var.aws_region}.amazonaws.com"
             },
-            "Resource": "arn:aws:s3:::opsdx-web-logs-prod"
+            "Resource": "arn:aws:s3:::${var.web_logs_name}"
         },
         {
             "Action": "s3:PutObject",
@@ -73,7 +75,7 @@ resource "aws_s3_bucket" "web_logs_prod" {
             "Principal": {
               "Service": "logs.${var.aws_region}.amazonaws.com"
             },
-            "Resource": "arn:aws:s3:::opsdx-web-logs-prod/*",
+            "Resource": "arn:aws:s3:::${var.web_logs_name}/*",
             "Condition": {
                 "StringEquals": {
                     "s3:x-amz-acl": "bucket-owner-full-control"
@@ -94,7 +96,7 @@ POLICY
 
 # AWS IAM Role for Kinesis Firehose => S3 push.
 resource "aws_iam_role" "web_prod_logs_fs3_push" {
-  name = "opsdx-role-web-prod-logs-fs3-push"
+  name = "${var.web_logs_name}-role-fs3-push"
   assume_role_policy = <<POLICY
 {
   "Statement": [
@@ -113,8 +115,8 @@ resource "aws_iam_role" "web_prod_logs_fs3_push" {
 POLICY
 }
 
-resource "aws_iam_role_policy" "web_prod_logs_fs3_push_policy" {
-  name = "opsdx-policy-web-prod-logs-fs3-push"
+resource "aws_iam_role_policy" "web_prod_logs_fs3_push" {
+  name = "${var.web_logs_name}-policy-fs3-push"
   role = "${aws_iam_role.web_prod_logs_fs3_push.id}"
   policy = <<POLICY
 {
@@ -128,8 +130,8 @@ resource "aws_iam_role_policy" "web_prod_logs_fs3_push_policy" {
                   "s3:ListBucketMultipartUploads",
                   "s3:PutObject" ],
       "Resource": [
-        "arn:aws:s3:::opsdx-web-logs-prod",
-        "arn:aws:s3:::opsdx-web-logs-prod/*"
+        "arn:aws:s3:::${var.web_logs_name}",
+        "arn:aws:s3:::${var.web_logs_name}/*"
       ]
     }
   ]
@@ -139,7 +141,7 @@ POLICY
 
 # Kinesis Firehose stream
 resource "aws_kinesis_firehose_delivery_stream" "web_prod_log_stream" {
-    name          = "opsdx-web-prod-logs-stream"
+    name          = "${var.web_logs_name}-stream"
     destination   = "s3"
     s3_configuration {
       role_arn   = "${aws_iam_role.web_prod_logs_fs3_push.arn}"
@@ -150,7 +152,7 @@ resource "aws_kinesis_firehose_delivery_stream" "web_prod_log_stream" {
 
 # AWS IAM Role for CloudWatch Logs => Kinesis Firehose push.
 resource "aws_iam_role" "web_prod_logs_cwf_push" {
-  name = "opsdx-role-web-prod-logs-cwf-push"
+  name = "${var.web_logs_name}-role-cwf-push"
   assume_role_policy = <<POLICY
 {
   "Statement": [
@@ -166,8 +168,8 @@ resource "aws_iam_role" "web_prod_logs_cwf_push" {
 POLICY
 }
 
-resource "aws_iam_role_policy" "web_prod_logs_cwf_push_policy" {
-  name = "opsdx-policy-web-prod-logs-cwf-push"
+resource "aws_iam_role_policy" "web_prod_logs_cwf_push" {
+  name = "${var.web_logs_name}-policy-cwf-push"
   role = "${aws_iam_role.web_prod_logs_cwf_push.id}"
   policy = <<POLICY
 {
