@@ -25,6 +25,10 @@ variable "deploy_stack" {
   description = "Stack Tag for AWS deployments"
 }
 
+variable "deploy_prefix" {
+  description = "AWS Resource Name Prefix for Deployment"
+}
+
 variable "aws_region" {
   description = "AWS region to launch servers."
   default = "us-east-1"
