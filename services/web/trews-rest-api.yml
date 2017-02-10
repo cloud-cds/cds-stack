@@ -32,7 +32,7 @@ spec:
     spec:
       containers:
       - name: trews-nginx
-        image: 810056373490.dkr.ecr.us-east-1.amazonaws.com/trews-nginx:0.0.3
+        image: 810056373490.dkr.ecr.us-east-1.amazonaws.com/trews-nginx:0.0.4
         ports:
         - containerPort: 80
         volumeMounts:
@@ -67,9 +67,15 @@ metadata:
   name: trews-rest-svc
   labels:
     app: trews-rest-api
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:acm:us-east-1:810056373490:certificate/b372e073-86d9-4fd0-8f9d-3158cdb675c2
+    service.beta.kubernetes.io/aws-load-balancer-ssl-ports: https
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: tcp
 spec:
   type: LoadBalancer
   ports:
-  - port: 80
+  - port: 443
+    name: https
+    targetPort: 80
   selector:
     app: trews-rest-api
