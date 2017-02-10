@@ -117,6 +117,49 @@ variable "db_availability_zone2" {
   default = "us-east-1c"
 }
 
+###################################
+# K8s
+
+variable "k8s_server_host" {
+  description = "Kubernetes master host"
+}
+
+variable "k8s_server_port" {
+  description = "Kubernetes master port"
+}
+
+variable "k8s_name" {
+  description = "Kubernetes context name"
+}
+
+variable "k8s_server" {
+  description = "Kubernetes master dns name"
+}
+
+variable "k8s_user" {
+  description = "Kubernetes username"
+}
+
+variable "k8s_pass" {
+  description = "Kubernetes password"
+}
+
+variable "k8s_cert_auth" {
+  description = "Kubernetes certificate auth data"
+}
+
+variable "k8s_cert" {
+  description = "Kubernetes client certificate data"
+}
+
+variable "k8s_key" {
+  description = "Kubernetes client key data"
+}
+
+variable "k8s_token" {
+  description = "Kubernetes service account token"
+}
+
 ####################################
 # JH API
 
@@ -133,7 +176,6 @@ variable "jhapi_client_secret" {
 
 variable "aws_trews_etl_package" {
   description = "AWS Lambda deployment package"
-  default = "services/trews_etl/aws_lambda/dist/2017-02-03-202345-trews-etl-lambda.zip"
 }
 
 ####################################

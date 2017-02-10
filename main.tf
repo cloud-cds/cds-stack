@@ -76,7 +76,21 @@ module "web" {
 
 module "trews_etl" {
   source = "./services/trews_etl"
+
   aws_trews_etl_package = "${var.aws_trews_etl_package}"
+
+  k8s_server_host = "${var.k8s_server_host}"
+  k8s_server_port = "${var.k8s_server_port}"
+
+  k8s_name      = "${var.k8s_name}"
+  k8s_server    = "${var.k8s_server}"
+  k8s_user      = "${var.k8s_user}"
+  k8s_pass      = "${var.k8s_pass}"
+  k8s_cert_auth = "${var.k8s_cert_auth}"
+  k8s_cert      = "${var.k8s_cert}"
+  k8s_key       = "${var.k8s_key}"
+  k8s_token     = "${var.k8s_token}"
+
   db_host             = "db.${var.domain}"
   db_name             = "${module.db.prod_db_name}"
   db_username         = "${var.db_username}"

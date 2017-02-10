@@ -39,16 +39,16 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: trews-rest-api
-        image: 810056373490.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.0.3
+        image: 810056373490.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.0.4
         ports:
         - containerPort: 8000
         env:
         - name: psql_user
           value: "opsdx_root"
         - name: psql_db
-          value: "opsdx_dev"
+          value: "opsdx_prod"
         - name: psql_host
-          value: "opsdx.ciwxogstcj0q.us-east-1.rds.amazonaws.com"
+          value: "db.opsdx.io"
         - name: psql_port
           value: "5432"
         - name: psql_password

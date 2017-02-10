@@ -2,6 +2,19 @@
 # ETL via AWS Lambda
 
 variable "aws_trews_etl_package" {}
+
+variable "k8s_server_host" {}
+variable "k8s_server_port" {}
+
+variable "k8s_name" {}
+variable "k8s_server" {}
+variable "k8s_user" {}
+variable "k8s_pass" {}
+variable "k8s_cert_auth" {}
+variable "k8s_cert" {}
+variable "k8s_key" {}
+variable "k8s_token" {}
+
 variable "db_host" {}
 variable "db_port" { default = 5432 }
 variable "db_name" {}
@@ -71,6 +84,18 @@ resource "aws_lambda_function" "prod_etl_lambda" {
     timeout          = 300
     environment {
       variables {
+        PYKUBE_KUBERNETES_SERVICE_HOST = "${var.k8s_server_host}"
+        PYKUBE_KUBERNETES_SERVICE_PORT = "${var.k8s_server_port}"
+
+        kube_name      = "${var.k8s_name}"
+        kube_server    = "${var.k8s_server}"
+        kube_cert_auth = "${var.k8s_cert_auth}"
+        kube_user      = "${var.k8s_user}"
+        kube_pass      = "${var.k8s_pass}"
+        #kube_cert      = "${var.k8s_cert}"
+        #kube_key       = "${var.k8s_key}"
+        #kube_token     = "${var.k8s_token}"
+
         db_host  = "${var.db_host}"
         db_port  = "${var.db_port}"
         db_name  = "${var.db_name}"
