@@ -17,6 +17,14 @@ variable "secret_key" {
 ######################################
 # Deployment
 
+variable "deploy_name" {
+  description = "Name Tag for AWS deployments"
+}
+
+variable "deploy_stack" {
+  description = "Stack Tag for AWS deployments"
+}
+
 variable "aws_region" {
   description = "AWS region to launch servers."
   default = "us-east-1"
@@ -74,12 +82,16 @@ variable "audit_sns_endpoint" {
 ##################################
 # DNS variables
 
-variable "k8s_domain" {
-  description = "k8s test cluster domain"
+variable "domain" {
+  description = "Cluster domain name"
 }
 
 #######################
 # DB
+
+variable "db_username" {
+  description = "DB admin account"
+}
 
 variable "db_password" {
   description = "DB Password"
@@ -105,12 +117,65 @@ variable "db_availability_zone2" {
   default = "us-east-1c"
 }
 
+###################################
+# K8s
+
+variable "k8s_server_host" {
+  description = "Kubernetes master host"
+}
+
+variable "k8s_server_port" {
+  description = "Kubernetes master port"
+}
+
+variable "k8s_name" {
+  description = "Kubernetes context name"
+}
+
+variable "k8s_server" {
+  description = "Kubernetes master dns name"
+}
+
+variable "k8s_user" {
+  description = "Kubernetes username"
+}
+
+variable "k8s_pass" {
+  description = "Kubernetes password"
+}
+
+variable "k8s_cert_auth" {
+  description = "Kubernetes certificate auth data"
+}
+
+variable "k8s_cert" {
+  description = "Kubernetes client certificate data"
+}
+
+variable "k8s_key" {
+  description = "Kubernetes client key data"
+}
+
+variable "k8s_token" {
+  description = "Kubernetes service account token"
+}
+
+####################################
+# JH API
+
+variable "jhapi_client_id" {
+  description = "EPIC JHAPI Login"
+}
+
+variable "jhapi_client_secret" {
+  description = "EPIC JHAPI Secret"
+}
+
 ####################################
 # Files
 
 variable "aws_trews_etl_package" {
   description = "AWS Lambda deployment package"
-  default = "services/trews_etl/aws_lambda/dist/2017-02-03-202345-trews-etl-lambda.zip"
 }
 
 ####################################

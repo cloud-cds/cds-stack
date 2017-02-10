@@ -1,17 +1,35 @@
+variable "deploy_name" {
+  description = "Name Tag for AWS deployment"
+}
+
+variable "deploy_stack" {
+  description = "Stack Tag for AWS deployment"
+}
+
+variable "deploy_prefix" {
+  description = "AWS Resource Name Prefix for Deployment"
+}
+
 ################
 # AWS Provider
 variable "vpc_id" {}
 
-data "aws_vpc" "default" {
+data "aws_vpc" "main" {
   id = "${var.vpc_id}"
 }
+
+######################
+# DNS
+
+variable "domain_zone_id" {}
+variable "db_dns_name" {}
 
 ######################################
 # RDS DB
 
 variable "db_identifier" {
-  description = "Identifier for your DB"
-  default = "opsdx"
+  description = "RDS Resource Identifier"
+  default = "${var.deploy_prefix}"
 }
 
 variable "db_storage" {
@@ -36,18 +54,12 @@ variable "db_instance_class" {
   description = "Instance class"
 }
 
-variable "db_name_prod" {
-  default = "opsdx"
-  description = "Production DB name"
-}
-
-variable "db_name_dev" {
-  default = "opsdx_dev"
-  description = "Development DB name"
+variable "db_name" {
+  description = "DB name"
+  default = "${replace(var.deploy_prefix, "-", "_")}"
 }
 
 variable "db_username" {
-  default = "opsdx_root"
   description = "User name"
 }
 
@@ -77,4 +89,3 @@ variable "db_availability_zone2" {
   description = "Multi-AZ DB zone 2"
   default = "us-east-1c"
 }
-

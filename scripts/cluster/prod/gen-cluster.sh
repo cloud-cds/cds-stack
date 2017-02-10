@@ -8,7 +8,7 @@ kops create cluster \
     --zones us-east-1b,us-east-1c,us-east-1d \
     --master-zones us-east-1b,us-east-1c,us-east-1d \
     --dns-zone opsdx.io \
-    --node-size t2.medium \
+    --node-size t2.large \
     --master-size t2.medium \
     --ssh-public-key keys/tf-opsdx.pub \
     --topology=private \
