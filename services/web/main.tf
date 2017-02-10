@@ -146,7 +146,14 @@ resource "aws_kinesis_firehose_delivery_stream" "web_prod_log_stream" {
     s3_configuration {
       role_arn   = "${aws_iam_role.web_prod_logs_fs3_push.arn}"
       bucket_arn = "${aws_s3_bucket.web_logs_prod.arn}"
-      #s3_data_compression = "GZIP" #TODO: enable compression after testing
+      # TODO: after testing, enable:
+      #
+      #s3_data_compression = "GZIP"
+      #
+      #kms_key_arn = ""
+      #
+      # Log failures (i.e., delivery errors) to a cloudwatch logs group
+      #cloudwatch_logging_options = {}
     }
 }
 
