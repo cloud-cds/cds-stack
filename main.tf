@@ -29,7 +29,7 @@ module "core" {
 
   controller_ami      = "${module.common.controller_ami}"
   domain_zone_id      = "${module.dns.zone_id}"
-  controller_dns_name = "controller.${var.domain}" 
+  controller_dns_name = "controller.${var.domain}"
   trews_dns_name      = "trews.${var.domain}"
 }
 
@@ -70,8 +70,13 @@ module "k8s" {
 }
 
 module "web" {
-  source      = "./services/web"
-  local_shell = "${var.local_shell}"
+  source       = "./services/web"
+  deploy_name  = "${var.deploy_name}"
+  deploy_stack = "${var.deploy_stack}"
+  aws_id       = "${var.aws_id}"
+  aws_region   = "${var.aws_region}"
+
+  local_shell       = "${var.local_shell}"
   domain_zone_id    = "${module.dns.zone_id}"
   web_dns_name      = "api.${var.domain}"
   web_hostname_file = "services/web/hostname"
