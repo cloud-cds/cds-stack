@@ -78,10 +78,6 @@ variable "k8s_domain" {
   description = "k8s test cluster domain"
 }
 
-variable "opsdx_domain" {
-  description = "k8s production cluster domain"
-}
-
 #######################
 # DB
 

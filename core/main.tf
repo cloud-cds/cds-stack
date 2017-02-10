@@ -22,11 +22,6 @@ resource "aws_route" "internet_access" {
   gateway_id             = "${aws_internet_gateway.default.id}"
 }
 
-# Create an elastic IP for the NAT gateway.
-resource "aws_eip" "natgw" {
-  vpc = true
-}
-
 # Generic utility subnet (e.g., for extra ALBs)
 resource "aws_subnet" "utility" {
   vpc_id = "${aws_vpc.default.id}"
