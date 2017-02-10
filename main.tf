@@ -72,6 +72,9 @@ module "k8s" {
 module "web" {
   source      = "./services/web"
   local_shell = "${var.local_shell}"
+  domain_zone_id    = "${module.dns.zone_id}"
+  web_dns_name      = "api.${var.domain}"
+  web_hostname_file = "services/web/hostname"
 }
 
 module "trews_etl" {
