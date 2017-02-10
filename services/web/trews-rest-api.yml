@@ -24,7 +24,7 @@ kind: Deployment
 metadata:
   name: trews-rest-api
 spec:
-  replicas: 1
+  replicas: 3
   template:
     metadata:
       labels:
