@@ -2,85 +2,9 @@ provider "aws" {
   region = "us-east-1"
 }
 
-resource "aws_autoscaling_attachment" "master-us-east-1a-masters-cluster-dev-opsdx-io" {
-  elb = "${aws_elb.api-cluster-dev-opsdx-io.id}"
-  autoscaling_group_name = "${aws_autoscaling_group.master-us-east-1a-masters-cluster-dev-opsdx-io.id}"
-}
-
-resource "aws_autoscaling_attachment" "master-us-east-1c-masters-cluster-dev-opsdx-io" {
-  elb = "${aws_elb.api-cluster-dev-opsdx-io.id}"
-  autoscaling_group_name = "${aws_autoscaling_group.master-us-east-1c-masters-cluster-dev-opsdx-io.id}"
-}
-
 resource "aws_autoscaling_attachment" "master-us-east-1d-masters-cluster-dev-opsdx-io" {
   elb = "${aws_elb.api-cluster-dev-opsdx-io.id}"
   autoscaling_group_name = "${aws_autoscaling_group.master-us-east-1d-masters-cluster-dev-opsdx-io.id}"
-}
-
-resource "aws_autoscaling_group" "master-us-east-1a-masters-cluster-dev-opsdx-io" {
-  name = "master-us-east-1a.masters.cluster.dev.opsdx.io"
-  launch_configuration = "${aws_launch_configuration.master-us-east-1a-masters-cluster-dev-opsdx-io.id}"
-  max_size = 1
-  min_size = 1
-  vpc_zone_identifier = ["${aws_subnet.us-east-1a-cluster-dev-opsdx-io.id}"]
-  tag = {
-    key = "Component"
-    value = "Master-1a"
-    propagate_at_launch = true
-  }
-  tag = {
-    key = "KubernetesCluster"
-    value = "cluster.dev.opsdx.io"
-    propagate_at_launch = true
-  }
-  tag = {
-    key = "Name"
-    value = "master-us-east-1a.masters.cluster.dev.opsdx.io"
-    propagate_at_launch = true
-  }
-  tag = {
-    key = "Stack"
-    value = "Development"
-    propagate_at_launch = true
-  }
-  tag = {
-    key = "k8s.io/role/master"
-    value = "1"
-    propagate_at_launch = true
-  }
-}
-
-resource "aws_autoscaling_group" "master-us-east-1c-masters-cluster-dev-opsdx-io" {
-  name = "master-us-east-1c.masters.cluster.dev.opsdx.io"
-  launch_configuration = "${aws_launch_configuration.master-us-east-1c-masters-cluster-dev-opsdx-io.id}"
-  max_size = 1
-  min_size = 1
-  vpc_zone_identifier = ["${aws_subnet.us-east-1c-cluster-dev-opsdx-io.id}"]
-  tag = {
-    key = "Component"
-    value = "Master-1c"
-    propagate_at_launch = true
-  }
-  tag = {
-    key = "KubernetesCluster"
-    value = "cluster.dev.opsdx.io"
-    propagate_at_launch = true
-  }
-  tag = {
-    key = "Name"
-    value = "master-us-east-1c.masters.cluster.dev.opsdx.io"
-    propagate_at_launch = true
-  }
-  tag = {
-    key = "Stack"
-    value = "Development"
-    propagate_at_launch = true
-  }
-  tag = {
-    key = "k8s.io/role/master"
-    value = "1"
-    propagate_at_launch = true
-  }
 }
 
 resource "aws_autoscaling_group" "master-us-east-1d-masters-cluster-dev-opsdx-io" {
@@ -121,7 +45,7 @@ resource "aws_autoscaling_group" "nodes-cluster-dev-opsdx-io" {
   launch_configuration = "${aws_launch_configuration.nodes-cluster-dev-opsdx-io.id}"
   max_size = 10
   min_size = 3
-  vpc_zone_identifier = ["${aws_subnet.us-east-1a-cluster-dev-opsdx-io.id}", "${aws_subnet.us-east-1c-cluster-dev-opsdx-io.id}", "${aws_subnet.us-east-1d-cluster-dev-opsdx-io.id}"]
+  vpc_zone_identifier = ["${aws_subnet.us-east-1d-cluster-dev-opsdx-io.id}"]
   tag = {
     key = "Component"
     value = "Node"
@@ -149,58 +73,6 @@ resource "aws_autoscaling_group" "nodes-cluster-dev-opsdx-io" {
   }
 }
 
-resource "aws_ebs_volume" "us-east-1a-etcd-events-cluster-dev-opsdx-io" {
-  availability_zone = "us-east-1a"
-  size = 20
-  type = "gp2"
-  encrypted = false
-  tags = {
-    KubernetesCluster = "cluster.dev.opsdx.io"
-    Name = "us-east-1a.etcd-events.cluster.dev.opsdx.io"
-    "k8s.io/etcd/events" = "us-east-1a/us-east-1a,us-east-1c,us-east-1d"
-    "k8s.io/role/master" = "1"
-  }
-}
-
-resource "aws_ebs_volume" "us-east-1a-etcd-main-cluster-dev-opsdx-io" {
-  availability_zone = "us-east-1a"
-  size = 20
-  type = "gp2"
-  encrypted = false
-  tags = {
-    KubernetesCluster = "cluster.dev.opsdx.io"
-    Name = "us-east-1a.etcd-main.cluster.dev.opsdx.io"
-    "k8s.io/etcd/main" = "us-east-1a/us-east-1a,us-east-1c,us-east-1d"
-    "k8s.io/role/master" = "1"
-  }
-}
-
-resource "aws_ebs_volume" "us-east-1c-etcd-events-cluster-dev-opsdx-io" {
-  availability_zone = "us-east-1c"
-  size = 20
-  type = "gp2"
-  encrypted = false
-  tags = {
-    KubernetesCluster = "cluster.dev.opsdx.io"
-    Name = "us-east-1c.etcd-events.cluster.dev.opsdx.io"
-    "k8s.io/etcd/events" = "us-east-1c/us-east-1a,us-east-1c,us-east-1d"
-    "k8s.io/role/master" = "1"
-  }
-}
-
-resource "aws_ebs_volume" "us-east-1c-etcd-main-cluster-dev-opsdx-io" {
-  availability_zone = "us-east-1c"
-  size = 20
-  type = "gp2"
-  encrypted = false
-  tags = {
-    KubernetesCluster = "cluster.dev.opsdx.io"
-    Name = "us-east-1c.etcd-main.cluster.dev.opsdx.io"
-    "k8s.io/etcd/main" = "us-east-1c/us-east-1a,us-east-1c,us-east-1d"
-    "k8s.io/role/master" = "1"
-  }
-}
-
 resource "aws_ebs_volume" "us-east-1d-etcd-events-cluster-dev-opsdx-io" {
   availability_zone = "us-east-1d"
   size = 20
@@ -209,7 +81,7 @@ resource "aws_ebs_volume" "us-east-1d-etcd-events-cluster-dev-opsdx-io" {
   tags = {
     KubernetesCluster = "cluster.dev.opsdx.io"
     Name = "us-east-1d.etcd-events.cluster.dev.opsdx.io"
-    "k8s.io/etcd/events" = "us-east-1d/us-east-1a,us-east-1c,us-east-1d"
+    "k8s.io/etcd/events" = "us-east-1d/us-east-1d"
     "k8s.io/role/master" = "1"
   }
 }
@@ -222,17 +94,9 @@ resource "aws_ebs_volume" "us-east-1d-etcd-main-cluster-dev-opsdx-io" {
   tags = {
     KubernetesCluster = "cluster.dev.opsdx.io"
     Name = "us-east-1d.etcd-main.cluster.dev.opsdx.io"
-    "k8s.io/etcd/main" = "us-east-1d/us-east-1a,us-east-1c,us-east-1d"
+    "k8s.io/etcd/main" = "us-east-1d/us-east-1d"
     "k8s.io/role/master" = "1"
   }
-}
-
-resource "aws_eip" "us-east-1a-cluster-dev-opsdx-io" {
-  vpc = true
-}
-
-resource "aws_eip" "us-east-1c-cluster-dev-opsdx-io" {
-  vpc = true
 }
 
 resource "aws_eip" "us-east-1d-cluster-dev-opsdx-io" {
@@ -248,7 +112,7 @@ resource "aws_elb" "api-cluster-dev-opsdx-io" {
     lb_protocol = "TCP"
   }
   security_groups = ["${aws_security_group.api-elb-cluster-dev-opsdx-io.id}"]
-  subnets = ["${aws_subnet.utility-us-east-1a-cluster-dev-opsdx-io.id}", "${aws_subnet.utility-us-east-1c-cluster-dev-opsdx-io.id}", "${aws_subnet.utility-us-east-1d-cluster-dev-opsdx-io.id}"]
+  subnets = ["${aws_subnet.utility-us-east-1d-cluster-dev-opsdx-io.id}"]
   health_check = {
     target = "TCP:443"
     healthy_threshold = 2
@@ -299,44 +163,6 @@ resource "aws_key_pair" "kubernetes-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21
   public_key = "${file("${path.module}/data/aws_key_pair_kubernetes.cluster.dev.opsdx.io-94a22f95b3ccfd3f4da6d21522592b23_public_key")}"
 }
 
-resource "aws_launch_configuration" "master-us-east-1a-masters-cluster-dev-opsdx-io" {
-  name_prefix = "master-us-east-1a.masters.cluster.dev.opsdx.io-"
-  image_id = "ami-4bb3e05c"
-  instance_type = "t2.medium"
-  key_name = "${aws_key_pair.kubernetes-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
-  iam_instance_profile = "${aws_iam_instance_profile.masters-cluster-dev-opsdx-io.id}"
-  security_groups = ["${aws_security_group.masters-cluster-dev-opsdx-io.id}"]
-  associate_public_ip_address = false
-  user_data = "${file("${path.module}/data/aws_launch_configuration_master-us-east-1a.masters.cluster.dev.opsdx.io_user_data")}"
-  root_block_device = {
-    volume_type = "gp2"
-    volume_size = 20
-    delete_on_termination = true
-  }
-  lifecycle = {
-    create_before_destroy = true
-  }
-}
-
-resource "aws_launch_configuration" "master-us-east-1c-masters-cluster-dev-opsdx-io" {
-  name_prefix = "master-us-east-1c.masters.cluster.dev.opsdx.io-"
-  image_id = "ami-4bb3e05c"
-  instance_type = "t2.medium"
-  key_name = "${aws_key_pair.kubernetes-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
-  iam_instance_profile = "${aws_iam_instance_profile.masters-cluster-dev-opsdx-io.id}"
-  security_groups = ["${aws_security_group.masters-cluster-dev-opsdx-io.id}"]
-  associate_public_ip_address = false
-  user_data = "${file("${path.module}/data/aws_launch_configuration_master-us-east-1c.masters.cluster.dev.opsdx.io_user_data")}"
-  root_block_device = {
-    volume_type = "gp2"
-    volume_size = 20
-    delete_on_termination = true
-  }
-  lifecycle = {
-    create_before_destroy = true
-  }
-}
-
 resource "aws_launch_configuration" "master-us-east-1d-masters-cluster-dev-opsdx-io" {
   name_prefix = "master-us-east-1d.masters.cluster.dev.opsdx.io-"
   image_id = "ami-4bb3e05c"
@@ -375,16 +201,6 @@ resource "aws_launch_configuration" "nodes-cluster-dev-opsdx-io" {
   }
 }
 
-resource "aws_nat_gateway" "us-east-1a-cluster-dev-opsdx-io" {
-  allocation_id = "${aws_eip.us-east-1a-cluster-dev-opsdx-io.id}"
-  subnet_id = "${aws_subnet.utility-us-east-1a-cluster-dev-opsdx-io.id}"
-}
-
-resource "aws_nat_gateway" "us-east-1c-cluster-dev-opsdx-io" {
-  allocation_id = "${aws_eip.us-east-1c-cluster-dev-opsdx-io.id}"
-  subnet_id = "${aws_subnet.utility-us-east-1c-cluster-dev-opsdx-io.id}"
-}
-
 resource "aws_nat_gateway" "us-east-1d-cluster-dev-opsdx-io" {
   allocation_id = "${aws_eip.us-east-1d-cluster-dev-opsdx-io.id}"
   subnet_id = "${aws_subnet.utility-us-east-1d-cluster-dev-opsdx-io.id}"
@@ -394,18 +210,6 @@ resource "aws_route" "0-0-0-0--0" {
   route_table_id = "${aws_route_table.cluster-dev-opsdx-io.id}"
   destination_cidr_block = "0.0.0.0/0"
   gateway_id = "igw-e2153385"
-}
-
-resource "aws_route" "private-us-east-1a-0-0-0-0--0" {
-  route_table_id = "${aws_route_table.private-us-east-1a-cluster-dev-opsdx-io.id}"
-  destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id = "${aws_nat_gateway.us-east-1a-cluster-dev-opsdx-io.id}"
-}
-
-resource "aws_route" "private-us-east-1c-0-0-0-0--0" {
-  route_table_id = "${aws_route_table.private-us-east-1c-cluster-dev-opsdx-io.id}"
-  destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id = "${aws_nat_gateway.us-east-1c-cluster-dev-opsdx-io.id}"
 }
 
 resource "aws_route" "private-us-east-1d-0-0-0-0--0" {
@@ -433,22 +237,6 @@ resource "aws_route_table" "cluster-dev-opsdx-io" {
   }
 }
 
-resource "aws_route_table" "private-us-east-1a-cluster-dev-opsdx-io" {
-  vpc_id = "vpc-6fd4b409"
-  tags = {
-    KubernetesCluster = "cluster.dev.opsdx.io"
-    Name = "private-us-east-1a.cluster.dev.opsdx.io"
-  }
-}
-
-resource "aws_route_table" "private-us-east-1c-cluster-dev-opsdx-io" {
-  vpc_id = "vpc-6fd4b409"
-  tags = {
-    KubernetesCluster = "cluster.dev.opsdx.io"
-    Name = "private-us-east-1c.cluster.dev.opsdx.io"
-  }
-}
-
 resource "aws_route_table" "private-us-east-1d-cluster-dev-opsdx-io" {
   vpc_id = "vpc-6fd4b409"
   tags = {
@@ -457,29 +245,9 @@ resource "aws_route_table" "private-us-east-1d-cluster-dev-opsdx-io" {
   }
 }
 
-resource "aws_route_table_association" "private-us-east-1a-cluster-dev-opsdx-io" {
-  subnet_id = "${aws_subnet.us-east-1a-cluster-dev-opsdx-io.id}"
-  route_table_id = "${aws_route_table.private-us-east-1a-cluster-dev-opsdx-io.id}"
-}
-
-resource "aws_route_table_association" "private-us-east-1c-cluster-dev-opsdx-io" {
-  subnet_id = "${aws_subnet.us-east-1c-cluster-dev-opsdx-io.id}"
-  route_table_id = "${aws_route_table.private-us-east-1c-cluster-dev-opsdx-io.id}"
-}
-
 resource "aws_route_table_association" "private-us-east-1d-cluster-dev-opsdx-io" {
   subnet_id = "${aws_subnet.us-east-1d-cluster-dev-opsdx-io.id}"
   route_table_id = "${aws_route_table.private-us-east-1d-cluster-dev-opsdx-io.id}"
-}
-
-resource "aws_route_table_association" "utility-us-east-1a-cluster-dev-opsdx-io" {
-  subnet_id = "${aws_subnet.utility-us-east-1a-cluster-dev-opsdx-io.id}"
-  route_table_id = "${aws_route_table.cluster-dev-opsdx-io.id}"
-}
-
-resource "aws_route_table_association" "utility-us-east-1c-cluster-dev-opsdx-io" {
-  subnet_id = "${aws_subnet.utility-us-east-1c-cluster-dev-opsdx-io.id}"
-  route_table_id = "${aws_route_table.cluster-dev-opsdx-io.id}"
 }
 
 resource "aws_route_table_association" "utility-us-east-1d-cluster-dev-opsdx-io" {
@@ -634,29 +402,9 @@ resource "aws_security_group_rule" "node-to-master-udp-6784" {
   protocol = "udp"
 }
 
-resource "aws_subnet" "us-east-1a-cluster-dev-opsdx-io" {
-  vpc_id = "vpc-6fd4b409"
-  cidr_block = "10.0.32.0/19"
-  availability_zone = "us-east-1a"
-  tags = {
-    KubernetesCluster = "cluster.dev.opsdx.io"
-    Name = "us-east-1a.cluster.dev.opsdx.io"
-  }
-}
-
-resource "aws_subnet" "us-east-1c-cluster-dev-opsdx-io" {
-  vpc_id = "vpc-6fd4b409"
-  cidr_block = "10.0.64.0/19"
-  availability_zone = "us-east-1c"
-  tags = {
-    KubernetesCluster = "cluster.dev.opsdx.io"
-    Name = "us-east-1c.cluster.dev.opsdx.io"
-  }
-}
-
 resource "aws_subnet" "us-east-1d-cluster-dev-opsdx-io" {
   vpc_id = "vpc-6fd4b409"
-  cidr_block = "10.0.96.0/19"
+  cidr_block = "10.0.32.0/19"
   availability_zone = "us-east-1d"
   tags = {
     KubernetesCluster = "cluster.dev.opsdx.io"
@@ -664,29 +412,9 @@ resource "aws_subnet" "us-east-1d-cluster-dev-opsdx-io" {
   }
 }
 
-resource "aws_subnet" "utility-us-east-1a-cluster-dev-opsdx-io" {
-  vpc_id = "vpc-6fd4b409"
-  cidr_block = "10.0.0.0/22"
-  availability_zone = "us-east-1a"
-  tags = {
-    KubernetesCluster = "cluster.dev.opsdx.io"
-    Name = "utility-us-east-1a.cluster.dev.opsdx.io"
-  }
-}
-
-resource "aws_subnet" "utility-us-east-1c-cluster-dev-opsdx-io" {
-  vpc_id = "vpc-6fd4b409"
-  cidr_block = "10.0.4.0/22"
-  availability_zone = "us-east-1c"
-  tags = {
-    KubernetesCluster = "cluster.dev.opsdx.io"
-    Name = "utility-us-east-1c.cluster.dev.opsdx.io"
-  }
-}
-
 resource "aws_subnet" "utility-us-east-1d-cluster-dev-opsdx-io" {
   vpc_id = "vpc-6fd4b409"
-  cidr_block = "10.0.8.0/22"
+  cidr_block = "10.0.0.0/22"
   availability_zone = "us-east-1d"
   tags = {
     KubernetesCluster = "cluster.dev.opsdx.io"

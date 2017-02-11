@@ -5,8 +5,8 @@ export NETWORK_CIDR=10.0.0.0/16
 
 kops create cluster \
     --node-count 3 \
-    --zones us-east-1a,us-east-1c,us-east-1d \
-    --master-zones us-east-1a,us-east-1c,us-east-1d \
+    --zones us-east-1d \
+    --master-zones us-east-1d \
     --dns-zone dev.opsdx.io \
     --node-size t2.large \
     --master-size t2.medium \
