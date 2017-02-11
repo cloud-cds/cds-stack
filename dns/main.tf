@@ -1,4 +1,6 @@
-variable "domain" {}
+variable "domain" {
+  default = "opsdx.io"
+}
 
 resource "aws_route53_zone" "main" {
    name = "${var.domain}"

@@ -1,0 +1,15 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: trews-etl
+spec:
+  template:
+    metadata:
+      name: trews-etl
+    spec:
+      containers:
+      - name: trews-etl
+        image: 810056373490.dkr.ecr.us-east-1.amazonaws.com/trews-etl:0.0.2
+        command: []
+      restartPolicy: Never
+
