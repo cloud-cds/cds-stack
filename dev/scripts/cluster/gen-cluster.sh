@@ -1,4 +1,4 @@
-export NAME=dev.cluster.opsdx.io
+export NAME=cluster.dev.opsdx.io
 export KOPS_STATE_STORE=s3://opsdx-kops-dev
 export VPC_ID=$(terraform output -state=stage1/.terraform/terraform.tfstate -json | jq '.vpc_id.value' | sed 's/\"//g')
 export NETWORK_CIDR=10.0.0.0/16

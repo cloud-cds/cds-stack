@@ -8,7 +8,7 @@ def handler(event, context):
     "name": os.environ["kube_name"],
     "server": os.environ["kube_server"],
     "certificate-authority-data": os.environ["kube_cert_auth"].rstrip(),
-    "user": os.environ["kube_user"], 
+    "user": os.environ["kube_user"],
     "pass": os.environ["kube_pass"]
   }
 
@@ -36,7 +36,7 @@ users:
 
   with open('/tmp/kube_config', 'w') as kube_config_file:
     kube_config_file.write(kube_doc)
-    kube_config_file.close() 
+    kube_config_file.close()
 
   config = pykube.KubeConfig.from_file("/tmp/kube_config")
   api = pykube.HTTPClient(config)
@@ -54,7 +54,7 @@ users:
         "spec": {
           "containers": [{
             "name": "trews-etl",
-            "image": "810056373490.dkr.ecr.us-east-1.amazonaws.com/trews-etl:0.0.3",
+            "image": "359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-etl:0.0.3",
             "env": [
               {"name": "db_host",             "value": os.environ["db_host"]},
               {"name": "db_port",             "value": os.environ["db_port"]},

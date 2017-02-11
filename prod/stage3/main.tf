@@ -26,6 +26,7 @@ module "web" {
 
 module "trews_etl" {
   source = "./services/trews_etl"
+  deploy_prefix = "${var.deploy_prefix}"
 
   aws_trews_etl_package = "${var.aws_trews_etl_package}"
 
