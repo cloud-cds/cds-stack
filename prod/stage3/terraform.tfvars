@@ -4,6 +4,6 @@ terragrunt = {
   }
 
   dependencies {
-    paths = ["../../dns", "../stage1", "../stage2"]
+    paths = ["../stage2"]
   }
 }
