@@ -10,6 +10,21 @@ data "aws_route53_zone" "main" {
   name = "${var.domain}."
 }
 
+module "ebs" {
+  source = "./services/ebs"
+  local_shell = "${var.local_shell}"
+}
+
+module "zookeeper" {
+  source = "./services/zookeeper"
+  local_shell = "${var.local_shell}"
+}
+
+module "confluent" {
+  source = "./services/confluent"
+  local_shell = "${var.local_shell}"
+}
+
 module "web" {
   source        = "./services/web"
   deploy_name   = "${var.deploy_name}"
