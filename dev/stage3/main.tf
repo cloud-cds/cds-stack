@@ -32,6 +32,7 @@ module "confluent" {
 
 module "deis" {
   source = "./services/deis"
+  deploy_prefix = "${var.deploy_prefix}"
   local_shell = "${var.local_shell}"
 }
 

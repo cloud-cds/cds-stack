@@ -1,3 +1,6 @@
+#####################################
+# S3 buckets
+
 resource "aws_s3_bucket" "kops-dev" {
     bucket = "opsdx-kops-dev"
     acl = "private"
@@ -15,6 +18,9 @@ resource "aws_s3_bucket" "kops-prod" {
         enabled = true
     }
 }
+
+############################################
+# ECR repositories
 
 # Tensorlow container registry.
 resource "aws_ecr_repository" "tensorflow" {
