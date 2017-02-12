@@ -13,7 +13,7 @@ kops create cluster \
     --ssh-public-key keys/tf-opsdx-dev.pub \
     --topology=private \
     --networking=weave \
-    --network-cidr="10.0.0.0/16" \
+    --network-cidr="${NETWORK_CIDR}" \
     --vpc=${VPC_ID} \
     ${NAME}
 

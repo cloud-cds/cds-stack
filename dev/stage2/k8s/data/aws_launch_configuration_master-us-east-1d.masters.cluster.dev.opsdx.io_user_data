@@ -17,7 +17,7 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-NODEUP_URL=https://kubeupv2.s3.amazonaws.com/kops/1.5.0-alpha3/linux/amd64/nodeup
+NODEUP_URL=https://kubeupv2.s3.amazonaws.com/kops/1.5.1/linux/amd64/nodeup
 NODEUP_HASH=
 
 function ensure-install-dir() {
@@ -141,9 +141,9 @@ Tags:
 channels:
 - s3://opsdx-kops-dev/cluster.dev.opsdx.io/addons/bootstrap-channel.yaml
 protokubeImage:
-  hash: 77375db9712e5aaf05d0bb20f8152008610afd47
-  name: protokube:1.5.0-alpha3
-  source: https://kubeupv2.s3.amazonaws.com/kops/1.5.0-alpha3/images/protokube.tar.gz
+  hash: 6805cba0ea13805b2fa439914679a083be7ac959
+  name: protokube:1.5.1
+  source: https://kubeupv2.s3.amazonaws.com/kops/1.5.1/images/protokube.tar.gz
 
 __EOF_KUBE_ENV
 
