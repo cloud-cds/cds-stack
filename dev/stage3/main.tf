@@ -25,6 +25,16 @@ module "confluent" {
   local_shell = "${var.local_shell}"
 }
 
+#module "jupyter" {
+#  source = "./services/jupyter"
+#  local_shell = "${var.local_shell}"
+#}
+
+module "deis" {
+  source = "./services/deis"
+  local_shell = "${var.local_shell}"
+}
+
 module "web" {
   source        = "./services/web"
   deploy_name   = "${var.deploy_name}"
