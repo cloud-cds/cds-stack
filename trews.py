@@ -14,7 +14,7 @@ class TREWSResource(object):
         resp.content_type = 'text/html'
         resp.status = falcon.HTTP_200  # This is the default status
 
-        resp.body = ("""\nTREWS -- Targeted Real-time Early Warning Score\n""")
+        resp.body = ("""\nTREWS -- Targeted Real-time Early Warning Service\n""")
 
 
     def decrypt(self, ciphertext):

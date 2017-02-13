@@ -8,6 +8,8 @@ import urllib
 import data_example
 import ujson as json
 import dashan_query as query
+import watchtower, logging
+import json
 #hashed_key = 'C8ED911A8907EFE4C1DE24CA67DF5FA2'
 #hashed_key = '\xC8\xED\x91\x1A\x89\x07\xEF\xE4\xC1\xDE\x24\xCA\x67\xDF\x5F\xA2'
 #hashed_key = 'e7cde81226f1d5e03c2681035692964d'
@@ -75,16 +77,36 @@ class TREWSDecrypt(object):
              = [row[top3_cols[i]] for i, row in twf.iterrows()]
 
     def on_post(self, req, resp):
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger(__name__)
+        logger.addHandler(watchtower.CloudWatchLogHandler(log_group="opsdx-web-logs-prod", create_log_group=False))
+        
+        logger.info(
+            {
+                'req': {
+                    'protocol': req.protocol,
+                    'method': req.method.
+                    'host': req.host,
+                    'subdomain': req.subdomain,
+                    'app': req.app,
+                    'access_route': req.access_route,
+                    'remote_addr': req.remote_addr
+                }
+            }
+            )
         try:
             raw_json = req.stream.read()
+            logger.info(raw_json)
         except Exception as ex:
+            logger.info(json.dumps(ex, default=lambda o: o.__dict__))
             raise falcon.HTTPError(falcon.HTTP_400,
                 'Error',
                 ex.message)
  
         try:
             req_body = json.loads(raw_json)
-        except ValueError:
+        except ValueError as ex:
+            logger.info(json.dumps(ex, default=lambda o: o.__dict__))
             raise falcon.HTTPError(falcon.HTTP_400,
                 'Malformed JSON',
                 'Could not decode the request body. The '
@@ -101,7 +123,12 @@ class TREWSDecrypt(object):
                 self.update_response_json(data, eid)
         resp.body = json.dumps(data)
         resp.status = falcon.HTTP_200
-
+        logger.info(
+            json.dumps({
+                'resp.body': data ,
+                'resp.status': falcon.HTTP_200
+            })
+        )
 
 
 
