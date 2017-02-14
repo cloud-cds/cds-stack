@@ -9,6 +9,8 @@ from jinja2 import Environment, FileSystemLoader
 import os
 STATIC_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(STATIC_DIR, 'static')
+import logging
+
 
 URL = '/'
 URL_STATIC = URL
@@ -48,6 +50,7 @@ class TREWSStaticResource(object):
             resp.body = j2_env.get_template(INDEX_FILENAME).render(
                     keys=KEYS
                 )
+            logging.info("falcon logging example: user request on index.html")
         else:
             with open(filename, 'r') as f:
                 resp.body = f.read() 
