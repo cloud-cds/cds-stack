@@ -51,8 +51,11 @@ class TREWSAPI(object):
     def update_response_json(self, data, eid):
         """
         TODO: update other part
-        update chart data
         """
+        # update criteria
+        
+
+        # update chart data
         data['pat_id'] = eid
         df = query.get_trews(eid)
         twf = get_twf(eid)
