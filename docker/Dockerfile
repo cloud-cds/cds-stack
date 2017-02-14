@@ -24,6 +24,6 @@ WORKDIR /trews_rest_api
 
 # Set the default command to execute
 # when creating a new container
-CMD gunicorn -b localhost:8000 trews:app
+CMD gunicorn -b localhost:80 trews:app
 
 
