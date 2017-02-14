@@ -29,6 +29,8 @@ class TREWSStaticResource(object):
         resp.status = falcon.HTTP_200
         if req.path.endswith('css'):
             resp.content_type = 'text/css'
+        elif req.path.endswith('json'):
+            resp.content_type = 'application/json'
         elif req.path.endswith('js'):
             resp.content_type = 'application/javascript'
         else:    
