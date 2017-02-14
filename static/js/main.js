@@ -128,7 +128,7 @@ window.onload = function() {
 */
 var endpoints = new function() {
 	this.url = (window.location.hostname.indexOf("localhost") > -1) ? 
-		"http://trews-api.dev.opsdx.io/api" :
+		"http://localhost:8000/api" :
 		window.location.protocol + "//" + window.location.hostname + "/api";
 	this.numTries = 1;
 	this.getPatientData = function(actionType, actionData) {
