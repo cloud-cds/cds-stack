@@ -1,0 +1,15 @@
+{
+  "name": "angularjs-ie8-build",
+  "version": "1.4.7",
+  "homepage": "https://github.com/fergaldoyle/angular.js-ie8-builds",
+  "authors": [
+    "Fergal Doyle"
+  ],
+  "description": "A build of AngularJS 1.4 with polyfils and some changes to bring back IE8 compatibilty",
+  "main": "dist/angular.js",
+  "moduleType": [
+    "globals"
+  ],
+  "ignore": [ "example" ],
+  "license": "MIT"
+}

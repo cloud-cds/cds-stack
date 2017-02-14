@@ -265,5 +265,31 @@ patient_data_example = {
         'severe_sepsis_onset':{
             'timestamp': 1483656309
         }
-    }
+    },
+    "notifications":[
+        {
+            "id":1,
+            "alert_code":100,
+            "read":True,
+            "time_stamp":1483656309000
+        },
+        {
+            "id":2,
+            "alert_code":101,
+            "read":True,
+            "time_stamp":1483656309000
+        },
+        {
+            "id":3,
+            "alert_code":200,
+            "read":True,
+            "time_stamp":1483656309000
+        },
+        {
+            "id":4,
+            "alert_code":201,
+            "read":False,
+            "time_stamp":1483656309000
+        }
+    ]
 }

@@ -4,11 +4,11 @@ dashan_query.py
 import os
 
 DB_CONN_STR = 'postgresql://{}:{}@{}:{}/{}'
-user = os.environ['psql_user']
-host = os.environ['psql_host']
-db = os.environ['psql_db']
-port = os.environ['psql_port']
-password = os.environ['psql_password']
+user = os.environ['db_user']
+host = os.environ['db_host']
+db = os.environ['db_name']
+port = os.environ['db_port']
+password = os.environ['db_password']
 DB_CONN_STR = DB_CONN_STR.format(user, password, host, port, db)
 
 from sqlalchemy import create_engine

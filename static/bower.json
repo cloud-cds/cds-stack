@@ -1,0 +1,23 @@
+{
+  "name": "trews_frontend",
+  "homepage": "https://github.com/dashan-emr/trews_frontend",
+  "authors": [
+    "Suchi Saria Mike Peven Max Yeo Andong Zhan"
+  ],
+  "description": "Providing a guide for dealing with Severe Sepsis and patients with Sepsis Shock.",
+  "main": "main.html",
+  "keywords": [
+    "Trews",
+    "Sepsis",
+    "Medicine"
+  ],
+  "license": "none",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "name": "angularjs-ie8-build",
+  "version": "1.4.7",
+  "homepage": "https://github.com/fergaldoyle/angular.js-ie8-builds",
+  "authors": [
+    "Fergal Doyle"
+  ],
+  "description": "A build of AngularJS 1.4 with polyfils and some changes to bring back IE8 compatibilty",
+  "main": "dist/angular.js",
+  "moduleType": [
+    "globals"
+  ],
+  "ignore": [
+    "example"
+  ],
+  "license": "MIT",
+  "_release": "1.4.7",
+  "_resolution": {
+    "type": "version",
+    "tag": "1.4.7",
+    "commit": "79f6a95db365730b1131dea05fb0f0628038b79f"
+  },
+  "_source": "https://github.com/fergaldoyle/angular.js-ie8-builds.git",
+  "_target": "^1.4.7",
+  "_originalSource": "angularjs-ie8-build",
+  "_direct": true
+}
