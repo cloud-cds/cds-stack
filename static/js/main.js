@@ -771,6 +771,11 @@ function graph(json, xmin, xmax, ymin, ymax) {
 	$("#graphdiv").height(graphWidth * .3225);
 	var placeholder = $("#graphdiv");
 
+	var currentTREWS = json['current_trewscore'];
+
+	// update trewscore in header
+	$('h1 span').text(currentTREWS);
+
 	var data = [];
 	var dataLength = json['chart_values']['timestamp'].length;
 	for (var i = 0; i < dataLength; i += 1) {
