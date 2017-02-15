@@ -823,8 +823,9 @@ function graph(json, xmin, xmax, ymin, ymax) {
 			max: xmax,
 			mode: "time",
 			tickColor: "#EEEEEE",
-			timeformat: "%H:%M",
+			timeformat: "%b %e %H:%M",
 			timezone: "browser",
+			monthNames: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
 			font: {
 				size: 11,
 				lineHeight: 13,
