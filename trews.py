@@ -10,7 +10,7 @@ import os
 STATIC_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(STATIC_DIR, 'static')
 import logging
-
+import json
 
 URL = '/'
 URL_STATIC = URL
