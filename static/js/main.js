@@ -179,7 +179,7 @@ var endpoints = new function() {
 		trews.isTest = true;
 		$.ajax({
 			type: 'GET',
-			url: 'js/data_example.json',
+			url: 'js/data_example2.json',
 			contentType: 'json',
 			xhrFields: {
 				withCredentials: false
@@ -337,6 +337,8 @@ var graphComponent = new function() {
 	this.json = {};
 	this.xmin = 0;
 	this.xmax = 0;
+	this.ymin = 0;
+	this.ymax = 0;
 	$("<div id='tooltip'></div>").appendTo("body");
 	this.render = function(json) {
 		if (json['chart_values'] == undefined) {
@@ -344,9 +346,12 @@ var graphComponent = new function() {
 		}
 		this.json = json;
 		this.xmin = json['chart_values']['timestamp'][0];
+		this.ymin = json['chart_values']['trewscore'][0];
 		var max = json['chart_values']['timestamp'][json['chart_values']['timestamp'].length - 1];
 		this.xmax = ((max - this.xmin) / 6) + max;
-		graph(json, this.xmin, this.xmax);
+		max = json['chart_values']['trewscore'][json['chart_values']['trewscore'].length - 1];
+		this.ymax = ((max - this.ymin) / 6) + max;
+		graph(json, this.xmin, this.xmax, this.ymin, this.ymax);
 	}
 	window.onresize = function() {
 		graphComponent.render(graphComponent.json, graphComponent.xmin, graphComponent.xmax);
@@ -734,7 +739,7 @@ var notifications = new function() {
 	}
 }
 
-function graph(json, xmin, xmax) {
+function graph(json, xmin, xmax, ymin, ymax) {
 	var graphWidth = Math.floor($('#graph-wrapper').width()) - 60;
 	$("#graphdiv").width(graphWidth);
 	$("#graphdiv").height(graphWidth * .3225);
@@ -746,6 +751,8 @@ function graph(json, xmin, xmax) {
 		data.push([json['chart_values']['timestamp'][i], 
 			json['chart_values']['trewscore'][i]]);
 	}
+
+	console.log(data, xmin, xmax);
 
 	var xlast = json['chart_values']['timestamp'][dataLength - 1];
 	var ylast = json['chart_values']['trewscore'][dataLength - 1];
@@ -769,8 +776,8 @@ function graph(json, xmin, xmax) {
 		},
 		crosshair: {mode: "x"},
 		yaxis: {
-			min: 0.0,
-			max: 1.0,
+			min: ymin, // should be 0.0
+			max: ymax, // sould be 1.0
 			ticks: [[0, "0"], [0.5, "0.5"]],
 			tickColor: "#e64535",
 			font: {
