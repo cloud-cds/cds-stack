@@ -36,6 +36,28 @@ def get_twf(eid):
     df = pd.read_sql_query(get_twf_sql,con=engine)
     return df
 
+def get_criteria(eid):
+    engine = create_engine(DB_CONN_STR)
+    get_criteria_sql = \
+    '''
+    select * from criteria 
+    where pat_id = '%s'
+    ''' % eid
+    df = pd.read_sql_query(get_criteria_sql,con=engine)
+    return df
+
+def override_criteria(eid, name, value, user='user'):
+    engine = create_engine(DB_CONN_STR)
+    if name == 'sus-edit':
+        override_sql = """
+        update criteria set
+        override_time = now(),
+        override_user = '%(user)s',
+        value = '%(val)s'
+        where pat_id = '%(pid)s' and name = 'suspicion_of_infection'
+        """ % {'user': user, 'val':value, 'pid': eid}
+        engine.execute(override_sql)
+
 def eid_exist(eid):
     engine = create_engine(DB_CONN_STR)
     connection = engine.connect()
