@@ -231,7 +231,7 @@ var controller =  new function() {
 	this.sendLog = function(json) {
 		$.ajax({
 			type: "POST",
-			url: this.url,
+			url: "log",
 			data: JSON.stringify(json),
 			dataType: "json"
 		}).done(function(result) {
