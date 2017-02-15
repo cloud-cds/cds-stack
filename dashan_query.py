@@ -46,15 +46,40 @@ def get_criteria(eid):
     df = pd.read_sql_query(get_criteria_sql,con=engine)
     return df
 
+def update_notifications():
+    engine = create_engine(DB_CONN_STR)
+    engine.execute("select update_notifications()")
+    
+
+
+def get_notifications(eid):
+    engine = create_engine(DB_CONN_STR)
+    get_notifications_sql = \
+    '''
+    select * from notifications 
+    where pat_id = '%s'
+    ''' % eid
+    df = pd.read_sql_query(get_notifications_sql,con=engine)
+    print df.head()
+    notifications = []
+    for idx, row in df.iterrows():
+        notification = row['message']
+        notification['id'] = row['notification_id']
+        notifications.append(notification)
+
+    return notifications
+
 def override_criteria(eid, name, value, user='user'):
     engine = create_engine(DB_CONN_STR)
-    if name == 'sus-edit':
+    if name == u'sus-edit':
         override_sql = """
+        set time zone 'EST';
         update criteria set
         override_time = now(),
+        update_date = now(),
         override_user = '%(user)s',
         value = '%(val)s'
-        where pat_id = '%(pid)s' and name = 'suspicion_of_infection'
+        where pat_id = '%(pid)s' and name = 'suspicion_of_infection';
         """ % {'user': user, 'val':value, 'pid': eid}
         engine.execute(override_sql)
 

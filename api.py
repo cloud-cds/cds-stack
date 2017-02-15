@@ -64,6 +64,7 @@ class TREWSAPI(object):
     def take_action(self, action, eid):
         if action['actionType'] == u'override':
             query.override_criteria(eid, action['criteria'], action['value'])
+            query.update_notifications()
 
     def update_criteria(self, criteria, data):
         
@@ -152,10 +153,12 @@ class TREWSAPI(object):
                         data['severe_sepsis']['suspicion_of_infection']['update_time']
                         ]
                 )[2]
+            data['chart_data']['severe_sepsis_onset']['timestamp'] = data['severe_sepsis']['onset_time']
         else:
             data['severe_sepsis']['is_met'] = False 
         logging.debug(json.dumps(data['severe_sepsis'], indent=4))
 
+        
 
 
     def update_response_json(self, data, eid):
@@ -194,6 +197,9 @@ class TREWSAPI(object):
         data['chart_data']['chart_values']['tf_3_value'] \
              = [row[top3_cols[i]] for i, row in twf.iterrows()]
 
+        # update_notifications
+        data['notifications'] = query.get_notifications(eid)
+
     def on_post(self, req, resp):
         # logger = logging.getLogger(__name__)
         # logger.addHandler(watchtower.CloudWatchLogHandler(log_group="opsdx-web-logs-prod", create_log_group=False))
@@ -213,7 +219,7 @@ class TREWSAPI(object):
         #     )
         try:
             raw_json = req.stream.read()
-            # logger.info(raw_json)
+            logging.debug(raw_json)
         except Exception as ex:
             # logger.info(json.dumps(ex, default=lambda o: o.__dict__))
             raise falcon.HTTPError(falcon.HTTP_400,
