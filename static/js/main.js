@@ -118,6 +118,10 @@ window.onload = function() {
 	overrideModal.init();
 	notifications.init();
 	$('#fake-console').text(window.location);
+	$('#fake-console').hide();
+	$('#show-console').click(function() {
+		$('#fake-console').toggle();
+	})
 	// Bugsnag.notify("ErrorName", "Test Error");
 };
 
@@ -771,11 +775,6 @@ function graph(json, xmin, xmax, ymin, ymax) {
 	$("#graphdiv").height(graphWidth * .3225);
 	var placeholder = $("#graphdiv");
 
-	var currentTREWS = json['current_trewscore'];
-
-	// update trewscore in header
-	$('h1 span').text(currentTREWS);
-
 	var data = [];
 	var dataLength = json['chart_values']['timestamp'].length;
 	for (var i = 0; i < dataLength; i += 1) {
@@ -787,6 +786,9 @@ function graph(json, xmin, xmax, ymin, ymax) {
 
 	var xlast = json['chart_values']['timestamp'][dataLength - 1];
 	var ylast = json['chart_values']['trewscore'][dataLength - 1];
+
+	// update trewscore in header
+	$('h1 span').text(Number(ylast).toFixed(1));
 
 	var plot = $.plot(placeholder, [
 		{ data: data, label: "Trewscore", color: "#ca011a"}
