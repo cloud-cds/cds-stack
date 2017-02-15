@@ -121,6 +121,10 @@ window.onload = function() {
 	// Bugsnag.notify("ErrorName", "Test Error");
 };
 
+window.onerror = function(error, url, line) {
+    controller.sendLog({acc:'error', data:'ERR:'+error+' URL:'+url+' L:'+line});
+};
+
 /**
  * Endpoints Object handles sending and receing post requests to server.
  * Handles different connectivity states Inlcuding normal use, testing
@@ -213,6 +217,28 @@ var controller =  new function() {
 			globalJson['chart_data']['septic_shock_onset']['timestamp']);
 		graphComponent.render(globalJson["chart_data"]);
 		notifications.render(globalJson['notifications']);
+	}
+	this.displayJSError = function() {
+		$('#loading').removeClass('done');
+		$('#loading p').html("Javascript Error<span id='test-data'>.</span> Please rest<span id='see-blank'>a</span>rt application or contact trews@opsdx.io");
+		$('#test-data').click(function() {
+			endpoints.test();
+		});
+		$('#see-blank').click(function() {
+			$('#loading').addClass('done');
+		});
+	}
+	this.sendLog = function(json) {
+		$.ajax({
+			type: "POST",
+			url: this.url,
+			data: JSON.stringify(json),
+			dataType: "json"
+		}).done(function(result) {
+			controller.displayJSError();
+		}).fail(function(result) {
+			controller.displayJSError();
+		});
 	}
 }
 
@@ -752,7 +778,7 @@ function graph(json, xmin, xmax, ymin, ymax) {
 			json['chart_values']['trewscore'][i]]);
 	}
 
-	console.log(data, xmin, xmax);
+	// console.log(data, xmin, xmax);
 
 	var xlast = json['chart_values']['timestamp'][dataLength - 1];
 	var ylast = json['chart_values']['trewscore'][dataLength - 1];
