@@ -23,7 +23,7 @@ KEYS = {
     'blood_culture': '4',
     'antibiotics': '5',
     'fluid': '1',
-    "vasopressors": '5' # Note: not sure
+    "vasopressors": '7' 
 }
 
 
@@ -63,7 +63,6 @@ class TREWSStaticResource(object):
                     elif loc.startswith("1103"):
                         loc = 'HCGH'
                         KEYS['antibiotics'] = '3'
-                        KEYS['vasopressors'] = '7'
                     elif loc.startswith("1104"):
                         loc = 'Sibley'
                     elif loc.startswith("1105"):
