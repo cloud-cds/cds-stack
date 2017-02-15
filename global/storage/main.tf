@@ -22,6 +22,11 @@ resource "aws_s3_bucket" "kops-prod" {
 ############################################
 # ECR repositories
 
+# Fluentd cluster-wide logging container registry.
+resource "aws_ecr_repository" "opsdx_cluster_logging" {
+  name = "opsdx-cluster-logging"
+}
+
 # Tensorlow container registry.
 resource "aws_ecr_repository" "tensorflow" {
   name = "tensorflow"
@@ -44,6 +49,10 @@ resource "aws_ecr_repository" "trews_nginx" {
 
 #############################
 # Outputs
+
+output "logging_registry_url" {
+  value = "${aws_ecr_repository.opsdx_cluster_logging.repository_url}"
+}
 
 output "tensorflow_registry_url" {
   value = "${aws_ecr_repository.tensorflow.repository_url}"

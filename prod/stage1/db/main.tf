@@ -79,7 +79,7 @@ resource "aws_db_instance" "db" {
   db_subnet_group_name    = "${aws_db_subnet_group.db_subnet_group.id}"
   backup_retention_period = 2
   multi_az                = true
-  publicly_accessible     = true
+  publicly_accessible     = false
   storage_encrypted       = true
   tags {
     Name = "${var.deploy_name}"
