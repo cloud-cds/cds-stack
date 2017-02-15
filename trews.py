@@ -17,11 +17,13 @@ URL_STATIC = URL
 URL_API = URL + "api"
 INDEX_FILENAME = 'index.html'
 
+# default keys for JHH
 KEYS = {
-    'initial_lactate': '1',
-    'blood_culture': '2',
-    'antibiotics': '3',
-    'fluid': '4'
+    'lactate': '2',
+    'blood_culture': '4',
+    'antibiotics': '5',
+    'fluid': '1',
+    "vasopressors": '5' # Note: not sure
 }
 
 
@@ -45,6 +47,33 @@ class TREWSStaticResource(object):
             abspath = abspath[1:]
         filename = os.path.join(STATIC_DIR, abspath)
         if filename.endswith(INDEX_FILENAME):
+            # TODO: customize order keys based on LOC
+            # TODO parse parameters from query string
+            parameters = req.params
+            hospital = 'JHH'
+            if 'LOC' in parameters:
+                loc = parameters['LOC']
+                if len(loc) == 6:
+                    if loc.startswith("1101"):
+                        loc = 'JHH'
+                    elif loc.startswith("1102"):
+                        loc = 'BMC'
+                        KEYS['antibiotics'] = '6'
+                        KEYS['vasopressors'] = '13'
+                    elif loc.startswith("1103"):
+                        loc = 'HCGH'
+                        KEYS['antibiotics'] = '3'
+                        KEYS['vasopressors'] = '7'
+                    elif loc.startswith("1104"):
+                        loc = 'Sibley'
+                    elif loc.startswith("1105"):
+                        loc = 'Suburban'
+                    elif loc.startswith("1107"):
+                        loc = 'KKI'
+                else:
+                    logging.error("LOC parsing error:" + loc)
+            else:
+                logging.error("No LOC in query string. Use JHH as default hospital")
             j2_env = Environment(loader=FileSystemLoader(STATIC_DIR),
                                                  trim_blocks=True)
             resp.body = j2_env.get_template(INDEX_FILENAME).render(
