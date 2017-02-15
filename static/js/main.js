@@ -440,6 +440,16 @@ function strToTime(str) {
 	return m + "/" + d + "/" + y + " " + h + ":" + min;
 }
 /**
+ * FID to human readable
+ * Takes an fid as a string and converts it to its human readable counterpart
+*/
+function humanReadable(str) {
+	if (FID_TO_HUMAN_READABLE[str]) {
+    return FID_TO_HUMAN_READABLE[str];
+  }
+  return str;
+}
+/**
  * Gets URL Parameters.  Returns the parameter value for the inpuuted variable
  * returns false if no variable found
  * source: https://css-tricks.com/snippets/javascript/get-url-variables/
@@ -854,14 +864,14 @@ function graph(json, xmin, xmax, ymin, ymax) {
 								<h4 class='value'>" + strToTime(x) + "</h4>\
 							</div>";
 			features += "<div class='row cf'>\
-							<h4 class='name'>" + FID_TO_HUMAN_READABLE[json['chart_values']['tf_1_name'][dataIndex]] + "</h4>\
-							<h4 class='value'>" + FID_TO_HUMAN_READABLE[json['chart_values']['tf_1_value'][dataIndex]] + "</h4>\
+							<h4 class='name'>" + humanReadable(json['chart_values']['tf_1_name'][dataIndex]) + "</h4>\
+							<h4 class='value'>" + humanReadable(json['chart_values']['tf_1_value'][dataIndex]) + "</h4>\
 						</div><div class='row cf'>\
-							<h4 class='name'>" + FID_TO_HUMAN_READABLE[json['chart_values']['tf_2_name'][dataIndex]] + "</h4>\
-							<h4 class='value'>" + FID_TO_HUMAN_READABLE[json['chart_values']['tf_2_value'][dataIndex]] + "</h4>\
+							<h4 class='name'>" + humanReadable(json['chart_values']['tf_2_name'][dataIndex]) + "</h4>\
+							<h4 class='value'>" + humanReadable(json['chart_values']['tf_2_value'][dataIndex]) + "</h4>\
 						</div><div class='row cf'>\
-							<h4 class='name'>" + FID_TO_HUMAN_READABLE[json['chart_values']['tf_3_name'][dataIndex]] + "</h4>\
-							<h4 class='value'>" + FID_TO_HUMAN_READABLE[json['chart_values']['tf_3_value'][dataIndex]] + "</h4>\
+							<h4 class='name'>" + humanReadable(json['chart_values']['tf_3_name'][dataIndex]) + "</h4>\
+							<h4 class='value'>" + humanReadable(json['chart_values']['tf_3_value'][dataIndex]) + "</h4>\
 						</div>";
 
 			$("#tooltip").html(features)
