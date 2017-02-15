@@ -15,6 +15,7 @@ import logging
 URL = '/'
 URL_STATIC = URL
 URL_API = URL + "api"
+URL_LOG = URL + "log"
 INDEX_FILENAME = 'index.html'
 
 # default keys for JHH
@@ -83,6 +84,16 @@ class TREWSStaticResource(object):
             with open(filename, 'r') as f:
                 resp.body = f.read() 
 
+class TREWSLog(object):
+    def on_post(self, req, resp):
+        try:
+            log_json = req.stream.read()
+            logging.info(json.dumps(log_json, indent=4))
+        except Exception as ex:
+            # logger.info(json.dumps(ex, default=lambda o: o.__dict__))
+            raise falcon.HTTPError(falcon.HTTP_400,
+                'Error',
+                ex.message)
 
 app = falcon.API()
 
@@ -92,9 +103,10 @@ app = falcon.API()
 
 trews_www = TREWSStaticResource()
 trews_api = api.TREWSAPI()
-
+trews_log = TREWSLog()
 handler = TREWSStaticResource().on_get
 app.add_route(URL_API, trews_api)
+app.add_route(URL_LOG, trews_log)
 app.add_sink(handler, prefix=URL_STATIC)
 # app.add_route('/trews-api/', trews_www)
 

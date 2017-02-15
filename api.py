@@ -140,6 +140,7 @@ class TREWSAPI(object):
         data['severe_sepsis']['organ_dysfunction']["num_met"] = od_cnt
         if od_cnt > 0:
             data['severe_sepsis']['organ_dysfunction']['onset_time'] = sorted(od_onsets)[0]
+        # update severe_sepsis
         if data['severe_sepsis']['sirs']['is_met'] and \
             data['severe_sepsis']['organ_dysfunction']['is_met'] and\
             data['severe_sepsis']['suspicion_of_infection']['value'] != 'No Infection':
