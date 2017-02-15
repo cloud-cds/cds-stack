@@ -88,7 +88,7 @@ class TREWSLog(object):
     def on_post(self, req, resp):
         try:
             log_json = req.stream.read()
-            logging.info(json.dumps(log_json, indent=4))
+            logging.error(json.dumps(log_json, indent=4))
         except Exception as ex:
             # logger.info(json.dumps(ex, default=lambda o: o.__dict__))
             raise falcon.HTTPError(falcon.HTTP_400,
