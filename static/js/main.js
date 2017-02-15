@@ -146,7 +146,7 @@ var endpoints = new function() {
 			return;
 		}
 		if (postBody['q'] == null) {
-			$('#loading p').html("No Patient Identifier entered. Please restart application or contact trews@jhu.edu<br />" + window.location);
+			$('#loading p').html("No Patient Identifier entered. Please restart application or contact trews@opsdx.io<br />" + window.location);
 			return;
 		}
 		$.ajax({
@@ -162,7 +162,7 @@ var endpoints = new function() {
 		}).fail(function(result) {
 			endpoints.numTries += 1;
 			if (endpoints.numTries > 3) {
-				$('#loading p').html("Connection Failed<span id='test-data'>.</span> Please rest<span id='see-blank'>a</span>rt application or contact trews@jhu.edu");
+				$('#loading p').html("Connection Failed<span id='test-data'>.</span> Please rest<span id='see-blank'>a</span>rt application or contact trews@opsdx.io");
 				$('#test-data').click(function() {
 					endpoints.test();
 				});
