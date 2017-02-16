@@ -135,7 +135,7 @@ window.onerror = function(error, url, line) {
  * and improper connection.
 */
 var endpoints = new function() {
-	this.url = (window.location.hostname.indexOf("localhost") > -1) ?
+	this.url = (window.location.hostname.indexOf("localhost") > -1) ? 
 		"http://localhost:8000/api" :
 		window.location.protocol + "//" + window.location.hostname + "/api";
 	this.numTries = 1;
@@ -257,11 +257,11 @@ var severeSepsisComponent = new function() {
 	}
 
 	this.sirSlot = new slotComponent(
-		$("[data-trews='sir']"),
+		$("[data-trews='sir']"), 
 		$('#expand-sir'),
 		severe_sepsis['sirs']);
 	this.orgSlot = new slotComponent(
-		$("[data-trews='org']"),
+		$("[data-trews='org']"), 
 		$('#expand-org'),
 		severe_sepsis['organ_dysfunction']);
 
@@ -273,7 +273,7 @@ var severeSepsisComponent = new function() {
 			this.susCtn.find('.selection').hide();
 			this.susCtn.find('.status h4').text(this.sus['value']);
 			this.susCtn.find('.status h5').text(
-				"by " + this.sus['update_user'] +
+				"by " + this.sus['update_user'] + 
 				" at " + timeLapsed(new Date(this.sus['update_time'])));
 		}
 	}
@@ -291,11 +291,11 @@ var severeSepsisComponent = new function() {
 var septicShockComponent = new function() {
 	this.ctn = $("[data-trews='septicShock']");
 	this.tenSlot = new slotComponent(
-		$("[data-trews='tension']"),
+		$("[data-trews='tension']"), 
 		$('#expand-ten'),
 		septic_shock['tension']);
 	this.fusSlot = new slotComponent(
-		$("[data-trews='fusion']"),
+		$("[data-trews='fusion']"), 
 		$('#expand-fus'),
 		septic_shock['fusion']);
 
@@ -374,10 +374,6 @@ var graphComponent = new function() {
 		if (json['chart_values'] == undefined) {
 			return;
 		}
-    for (var i=0;i<json['chart_values']['trewscore'].length;i++) {
-      var myrng = new Math.seedrandom(getQueryVariable('PATID') + i);
-      json['chart_values']['trewscore'][i] = myrng() + 0.5;
-    }
 		this.json = json;
 		this.xmin = json['chart_values']['timestamp'][0];
 		this.ymin = json['chart_values']['trewscore'][0];
@@ -581,7 +577,7 @@ var dropdown = new function() {
 		dropdown.reset();
 		$(this).addClass('shown');
 		dropdown.fill($(this).attr('data-trews'));
-		dropdown.draw($(this).offset().left + ($(this).width()/2),
+		dropdown.draw($(this).offset().left + ($(this).width()/2), 
 			$(this).offset().top + $(this).height());
 	});
 	$('body').click(function() {
@@ -782,7 +778,7 @@ function graph(json, xmin, xmax, ymin, ymax) {
 	var data = [];
 	var dataLength = json['chart_values']['timestamp'].length;
 	for (var i = 0; i < dataLength; i += 1) {
-		data.push([json['chart_values']['timestamp'][i],
+		data.push([json['chart_values']['timestamp'][i], 
 			json['chart_values']['trewscore'][i]]);
 	}
 
@@ -808,7 +804,7 @@ function graph(json, xmin, xmax, ymin, ymax) {
 			hoverable: true,
 			clickable: true,
 			markings: [{color: "#555",lineWidth: 1,xaxis: {from: xlast,to: xlast}}],
-			margin: {top: 40,left: 0,bottom: 0,right: 0},
+			margin: {top: 40,left: 0,bottom: 0,right: 0}, 
 			borderWidth: {top: 0,left: 1,bottom: 1,right: 0}
 		},
 		crosshair: {mode: "x"},
@@ -825,7 +821,7 @@ function graph(json, xmin, xmax, ymin, ymax) {
 			}
 		},
 		xaxis: {
-			min: xmin,
+			min: xmin, 
 			max: xmax,
 			mode: "time",
 			tickColor: "#EEEEEE",
