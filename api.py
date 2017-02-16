@@ -177,10 +177,7 @@ class TREWSAPI(object):
         data['chart_data']['patient_arrival']['timestamp'] =  admittime
         df = query.get_trews(eid)
         twf = query.get_cdm(eid)
-        print twf.shape
-        for col in twf.columns.values:
-            print col
-
+        
         data['chart_data']['chart_values']['timestamp'] = [tsp_to_unix_epoch(tsp) for tsp in df.tsp]
         data['chart_data']['chart_values']['trewscore'] = [s.item() for s in df.trewscore.values]
         df_data = df.drop(['enc_id','trewscore','tsp'],1)
@@ -240,7 +237,7 @@ class TREWSAPI(object):
         #     )
         try:
             raw_json = req.stream.read()
-            logging.debug(raw_json)
+            logging.debug(json.dumps(raw_json, indent=4))
         except Exception as ex:
             # logger.info(json.dumps(ex, default=lambda o: o.__dict__))
             raise falcon.HTTPError(falcon.HTTP_400,
@@ -273,7 +270,7 @@ class TREWSAPI(object):
 
         resp.body = json.dumps(data)
         resp.status = falcon.HTTP_200
-        # logging.debug(json.dumps(data, indent=4 ))
+        logging.debug(json.dumps(data, indent=4 ))
 
 
 
