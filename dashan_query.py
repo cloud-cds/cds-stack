@@ -36,6 +36,29 @@ def get_twf(eid):
     df = pd.read_sql_query(get_twf_sql,con=engine)
     return df
 
+
+def get_cdm(eid):
+    engine = create_engine(DB_CONN_STR)
+
+    get_twf_sql = \
+    '''
+    select cdm_twf.* from cdm_twf inner join pat_enc on cdm_twf.enc_id = pat_enc.enc_id
+    where pat_enc.pat_id = '%s' order by tsp
+    ''' % eid
+    df_twf = pd.read_sql_query(get_twf_sql,con=engine)
+    get_s_sql = \
+    '''
+    select cdm_s.* from cdm_s inner join pat_enc on cdm_s.enc_id = pat_enc.enc_id
+    where pat_enc.pat_id = '%s'
+    ''' % eid
+    df_s = pd.read_sql_query(get_s_sql,con=engine)
+    for idx, row in df_s.iterrows():
+        fid = row['fid']
+        value = row['value']
+        df_twf[fid] = value
+    return df_twf
+
+
 def get_criteria(eid):
     engine = create_engine(DB_CONN_STR)
     get_criteria_sql = \

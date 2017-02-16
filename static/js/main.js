@@ -376,11 +376,11 @@ var graphComponent = new function() {
 		}
 		this.json = json;
 		this.xmin = json['chart_values']['timestamp'][0];
-		this.ymin = json['chart_values']['trewscore'][0];
+		this.ymin = 0;//json['chart_values']['trewscore'][0];
 		var max = json['chart_values']['timestamp'][json['chart_values']['timestamp'].length - 1];
 		this.xmax = ((max - this.xmin) / 6) + max;
 		max = json['chart_values']['trewscore'][json['chart_values']['trewscore'].length - 1];
-		this.ymax = ((max - this.ymin) / 6) + max;
+		this.ymax = 1; //((max - this.ymin) / 6) + max;
 		graph(json, this.xmin, this.xmax, this.ymin, this.ymax);
 	}
 	window.onresize = function() {

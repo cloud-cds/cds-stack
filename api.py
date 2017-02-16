@@ -173,7 +173,11 @@ class TREWSAPI(object):
         self.update_criteria(criteria, data)
 
         df = query.get_trews(eid)
-        twf = query.get_twf(eid)
+        twf = query.get_cdm(eid)
+        print twf.shape
+        for col in twf.columns.values:
+            print col
+
         data['chart_data']['chart_values']['timestamp'] = [tsp_to_int(tsp) for tsp in df.tsp]
         data['chart_data']['chart_values']['trewscore'] = [s.item() for s in df.trewscore.values]
         df_data = df.drop(['enc_id','trewscore','tsp'],1)
@@ -182,20 +186,34 @@ class TREWSAPI(object):
         top1_cols = [df_rank.columns.values[t][0] for t in top1]
         data['chart_data']['chart_values']['tf_1_name'] \
             = [df_rank.columns.values[t][0] for t in top1]
-        data['chart_data']['chart_values']['tf_1_value'] \
-             = [row[top1_cols[i]] for i, row in twf.iterrows()]
+        data['chart_data']['chart_values']['tf_1_value'] = []
+        for i, row in twf.iterrows():
+            if top1_cols[i] in row:
+                data['chart_data']['chart_values']['tf_1_value'].append(row[top1_cols[i]])
+            else:
+                data['chart_data']['chart_values']['tf_1_value'].append(0)
         top2 = (df_rank.as_matrix() < 2.5) & (df_rank.as_matrix() > 1.5)
         top2_cols = [df_rank.columns.values[t][0] for t in top2]
         data['chart_data']['chart_values']['tf_2_name'] \
             = [df_rank.columns.values[t][0] for t in top2]
-        data['chart_data']['chart_values']['tf_2_value'] \
-             = [row[top2_cols[i]] for i, row in twf.iterrows()]
+        # data['chart_data']['chart_values']['tf_2_value'] \
+        #      = [row[top2_cols[i]] for i, row in twf.iterrows()]
+        for i, row in twf.iterrows():
+            if top2_cols[i] in row:
+                data['chart_data']['chart_values']['tf_2_value'].append(row[top2_cols[i]])
+            else:
+                data['chart_data']['chart_values']['tf_2_value'].append(0)
         top3 = (df_rank.as_matrix() < 3.5) & (df_rank.as_matrix() > 2.5)
         top3_cols = [df_rank.columns.values[t][0] for t in top3]
         data['chart_data']['chart_values']['tf_3_name'] \
             = [df_rank.columns.values[t][0] for t in top3]
-        data['chart_data']['chart_values']['tf_3_value'] \
-             = [row[top3_cols[i]] for i, row in twf.iterrows()]
+        # data['chart_data']['chart_values']['tf_3_value'] \
+        #      = [row[top3_cols[i]] for i, row in twf.iterrows()]
+        for i, row in twf.iterrows():
+            if top3_cols[i] in row:
+                data['chart_data']['chart_values']['tf_3_value'].append(row[top3_cols[i]])
+            else:
+                data['chart_data']['chart_values']['tf_3_value'].append(0)
 
         # update_notifications
         data['notifications'] = query.get_notifications(eid)
