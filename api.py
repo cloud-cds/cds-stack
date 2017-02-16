@@ -14,7 +14,8 @@ import time
 import datetime
 import pandas as pd
 import numpy as np
-logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
+import logging
+logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.DEBUG)
 #hashed_key = 'C8ED911A8907EFE4C1DE24CA67DF5FA2'
 #hashed_key = '\xC8\xED\x91\x1A\x89\x07\xEF\xE4\xC1\xDE\x24\xCA\x67\xDF\x5F\xA2'
 #hashed_key = 'e7cde81226f1d5e03c2681035692964d'
@@ -176,44 +177,84 @@ class TREWSAPI(object):
         admittime = query.get_admittime(eid)
         data['chart_data']['patient_arrival']['timestamp'] =  admittime
         df = query.get_trews(eid)
-        twf = query.get_cdm(eid)
+        cdm = query.get_cdm(eid)
         
         data['chart_data']['chart_values']['timestamp'] = [tsp_to_unix_epoch(tsp) for tsp in df.tsp]
         data['chart_data']['chart_values']['trewscore'] = [s.item() for s in df.trewscore.values]
-        df_data = df.drop(['enc_id','trewscore','tsp'],1)
-        df_rank = df_data.rank(axis=1, method='max', ascending=False)
-        top1 = df_rank.as_matrix() < 1.5
-        top1_cols = [df_rank.columns.values[t][0] for t in top1]
-        data['chart_data']['chart_values']['tf_1_name'] \
-            = [df_rank.columns.values[t][0] for t in top1]
-        data['chart_data']['chart_values']['tf_1_value'] = []
-        for i, row in twf.iterrows():
-            if top1_cols[i] in row:
-                data['chart_data']['chart_values']['tf_1_value'].append(row[top1_cols[i]])
+        df_trews = df.drop(['enc_id','trewscore','tsp'],1)
+
+
+        # for each row sort by column
+        sorted_trews = [row.sort_values(ascending=False) for idx, row in df_trews.iterrows()]
+        # for idx, row in df_trews.iterrows():
+        #     sorted_row = row.sort_values(ascending=False)
+        #     print sorted_row.index[0], sorted_row[0]
+        data['chart_data']['chart_values']['tf_1_name'] = [row.index[0] for row in sorted_trews]
+        vals = []
+        for i, row in enumerate(sorted_trews):
+            fid = row.index[0]
+            if fid in cdm.iloc[i]:
+                vals.append(cdm.iloc[i][fid])
             else:
-                data['chart_data']['chart_values']['tf_1_value'].append(0)
-        top2 = (df_rank.as_matrix() < 2.5) & (df_rank.as_matrix() > 1.5)
-        top2_cols = [df_rank.columns.values[t][0] for t in top2]
-        data['chart_data']['chart_values']['tf_2_name'] \
-            = [df_rank.columns.values[t][0] for t in top2]
-        # data['chart_data']['chart_values']['tf_2_value'] \
-        #      = [row[top2_cols[i]] for i, row in twf.iterrows()]
-        for i, row in twf.iterrows():
-            if top2_cols[i] in row:
-                data['chart_data']['chart_values']['tf_2_value'].append(row[top2_cols[i]])
+                vals.append(None)
+        data['chart_data']['chart_values']['tf_1_value'] = vals
+
+        data['chart_data']['chart_values']['tf_2_name'] = [row.index[1] for row in sorted_trews]
+
+        vals = []
+        for i, row in enumerate(sorted_trews):
+            fid = row.index[1]
+            if fid in cdm.iloc[i]:
+                vals.append(cdm.iloc[i][fid])
             else:
-                data['chart_data']['chart_values']['tf_2_value'].append(0)
-        top3 = (df_rank.as_matrix() < 3.5) & (df_rank.as_matrix() > 2.5)
-        top3_cols = [df_rank.columns.values[t][0] for t in top3]
-        data['chart_data']['chart_values']['tf_3_name'] \
-            = [df_rank.columns.values[t][0] for t in top3]
-        # data['chart_data']['chart_values']['tf_3_value'] \
-        #      = [row[top3_cols[i]] for i, row in twf.iterrows()]
-        for i, row in twf.iterrows():
-            if top3_cols[i] in row:
-                data['chart_data']['chart_values']['tf_3_value'].append(row[top3_cols[i]])
+                vals.append(None)
+        data['chart_data']['chart_values']['tf_2_value'] = vals
+
+        data['chart_data']['chart_values']['tf_3_name'] = [row.index[2] for row in sorted_trews]
+
+        vals = []
+        for i, row in enumerate(sorted_trews):
+            fid = row.index[2]
+            if fid in cdm.iloc[i]:
+                vals.append(cdm.iloc[i][fid])
             else:
-                data['chart_data']['chart_values']['tf_3_value'].append(0)
+                vals.append(None)
+        data['chart_data']['chart_values']['tf_3_value'] = vals
+
+
+        # df_rank = df_trews.rank(axis=1, method='max', ascending=False)
+        # top1 = df_rank.as_matrix() < 1.5
+        # top1_cols = [df_rank.columns.values[t][0] for t in top1]
+        # data['chart_data']['chart_values']['tf_1_name'] \
+        #     = [df_rank.columns.values[t][0] for t in top1]
+        # data['chart_data']['chart_values']['tf_1_value'] = []
+        # for i, row in cdm.iterrows():
+        #     if top1_cols[i] in row:
+        #         data['chart_data']['chart_values']['tf_1_value'].append(row[top1_cols[i]])
+        #     else:
+        #         data['chart_data']['chart_values']['tf_1_value'].append(0)
+        # top2 = (df_rank.as_matrix() < 2.5) & (df_rank.as_matrix() > 1.5)
+        # top2_cols = [df_rank.columns.values[t][0] for t in top2]
+        # data['chart_data']['chart_values']['tf_2_name'] \
+        #     = [df_rank.columns.values[t][0] for t in top2]
+        # # data['chart_data']['chart_values']['tf_2_value'] \
+        # #      = [row[top2_cols[i]] for i, row in cdm.iterrows()]
+        # for i, row in cdm.iterrows():
+        #     if top2_cols[i] in row:
+        #         data['chart_data']['chart_values']['tf_2_value'].append(row[top2_cols[i]])
+        #     else:
+        #         data['chart_data']['chart_values']['tf_2_value'].append(0)
+        # top3 = (df_rank.as_matrix() < 3.5) & (df_rank.as_matrix() > 2.5)
+        # top3_cols = [df_rank.columns.values[t][0] for t in top3]
+        # data['chart_data']['chart_values']['tf_3_name'] \
+        #     = [df_rank.columns.values[t][0] for t in top3]
+        # # data['chart_data']['chart_values']['tf_3_value'] \
+        # #      = [row[top3_cols[i]] for i, row in cdm.iterrows()]
+        # for i, row in cdm.iterrows():
+        #     if top3_cols[i] in row:
+        #         data['chart_data']['chart_values']['tf_3_value'].append(row[top3_cols[i]])
+        #     else:
+        #         data['chart_data']['chart_values']['tf_3_value'].append(0)
 
         # update_notifications
         data['notifications'] = query.get_notifications(eid)
@@ -267,10 +308,12 @@ class TREWSAPI(object):
                 if action is not None:
                     self.take_action(action, eid)
                 self.update_response_json(data, eid)
-
-        resp.body = json.dumps(data)
-        resp.status = falcon.HTTP_200
-        logging.debug(json.dumps(data, indent=4 ))
+                resp.body = json.dumps(data)
+                resp.status = falcon.HTTP_200
+                logging.debug(json.dumps(data, indent=4 ))
+            else:
+                resp.status = falcon.HTTP_400
+                resp.body = json.dumps({'message': 'no patient found'})
 
 
 

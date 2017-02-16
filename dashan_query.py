@@ -11,7 +11,8 @@ db = os.environ['db_name']
 port = os.environ['db_port']
 password = os.environ['db_password']
 DB_CONN_STR = DB_CONN_STR.format(user, password, host, port, db)
-
+import logging
+logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.DEBUG)
 from sqlalchemy import create_engine
 import pandas as pd
 def get_trews(eid):
@@ -120,7 +121,9 @@ def override_criteria(eid, name, value, user='user'):
         value = '%(val)s'
         where pat_id = '%(pid)s' and name = 'suspicion_of_infection';
         """ % {'user': user, 'val':value, 'pid': eid}
+        logging.debug("override_sql:" + override_sql)
         engine.execute(override_sql)
+
 
 def eid_exist(eid):
     engine = create_engine(DB_CONN_STR)
@@ -132,30 +135,55 @@ def eid_exist(eid):
     return False
 
 if __name__ == '__main__':
-    eid = 'E1000109xx'
-    print eid_exist(eid)
-    eid = 'E100010907'
+    # eid = 'E1000109xx'
+    # print eid_exist(eid)
+    eid = 'E100194473'
     print eid_exist(eid)
     df = get_trews(eid)
     print df.head()
-    df_data = df.drop(['enc_id','trewscore','tsp'],1)
-    df_rank = df_data.rank(axis=1, method='max', ascending=False)
-    twf = get_twf(eid)
-    top1 = df_rank.as_matrix() < 1.5
-    top1_cols = [df_rank.columns.values[t][0] for t in top1]
-    top1_weights = df_data.as_matrix()[top1]
-    top1_values = [row[top1_cols[i]] for i, row in twf.iterrows()]
-    top2 = (df_rank.as_matrix() < 2.5) & (df_rank.as_matrix() > 1.5)
-    top2_cols = [df_rank.columns.values[t][0] for t in top2]
-    top2_weights = df_data.as_matrix()[top2]
-    top3 = (df_rank.as_matrix() < 3.5) & (df_rank.as_matrix() > 2.5)
-    top3_cols = [df_rank.columns.values[t][0] for t in top3]
-    top3_weights = df_data.as_matrix()[top3]
-    print top1_cols
-    print top1_weights
-    print top1_values
-    print len(top1_cols)
-    print top3_cols
-    print top3_weights
-    print len(top3_cols)
+    df_trews = df.drop(['enc_id','trewscore','tsp'],1)
+    
+    cdm = get_cdm(eid)
+
+    # for each row sort by column
+    # for idx, row in df_trews.iterrows():
+    #     sorted_row = row.sort_values(ascending=False)
+    #     print sorted_row
+    #     print sorted_row.index[0]
+    #     if sorted_row.index[0] in cdm.iloc[idx]:
+    #         print cdm.iloc[idx][sorted_row.index[0]]  
+    #     else:
+    #         print 0
+    sorted_trews = [row.sort_values(ascending=False) for idx, row in df_trews.iterrows()]
+        
+    names =  [row.index[0] for row in sorted_trews]
+    vals = []
+    for i, row in enumerate(sorted_trews):
+        fid = row.index[0]
+        if fid in cdm.iloc[i]:
+            vals.append(cdm.iloc[i][fid])
+        else:
+            vals.append(0)
+    for i, n in enumerate(names):
+        print n, vals[i]
+        #, sorted_row.index[1], sorted_row[1], sorted_row.index[2], sorted_row[2]
+
+    # df_rank = df_trews.rank(axis=1, method='max', ascending=False)
+    # top1 = df_rank.as_matrix() < 1.5
+    # top1_cols = [df_rank.columns.values[t][0] for t in top1]
+    # top1_weights = df_trews.as_matrix()[top1]
+    # top1_values = [row[top1_cols[i]] for i, row in cdm.iterrows()]
+    # top2 = (df_rank.as_matrix() < 2.5) & (df_rank.as_matrix() > 1.5)
+    # top2_cols = [df_rank.columns.values[t][0] for t in top2]
+    # top2_weights = df_trews.as_matrix()[top2]
+    # top3 = (df_rank.as_matrix() < 3.5) & (df_rank.as_matrix() > 2.5)
+    # top3_cols = [df_rank.columns.values[t][0] for t in top3]
+    # top3_weights = df_trews.as_matrix()[top3]
+    # print top1_cols
+    # print top1_weights
+    # print top1_values
+    # print len(top1_cols)
+    # print top3_cols
+    # print top3_weights
+    # print len(top3_cols)
     
