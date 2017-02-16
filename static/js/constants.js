@@ -419,6 +419,7 @@ var FID_TO_HUMAN_READABLE = {
   "crystalloid_fluid": "Total Crystalloid Fluid",
   "wbc": "WBC",
   "weight": "Weight",
+  "admit_weight": "Admission Weight",
   "hemoglobin": "Hemoglobin",
   "spo2": "SpO2",
   "platelets": "Platelets",
