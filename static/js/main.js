@@ -865,13 +865,13 @@ function graph(json, xmin, xmax, ymin, ymax) {
 							</div>";
 			features += "<div class='row cf'>\
 							<h4 class='name'>" + humanReadable(json['chart_values']['tf_1_name'][dataIndex]) + "</h4>\
-							<h4 class='value'>" + humanReadable(json['chart_values']['tf_1_value'][dataIndex]) + "</h4>\
+							<h4 class='value'>" + json['chart_values']['tf_1_value'][dataIndex] + "</h4>\
 						</div><div class='row cf'>\
 							<h4 class='name'>" + humanReadable(json['chart_values']['tf_2_name'][dataIndex]) + "</h4>\
-							<h4 class='value'>" + humanReadable(json['chart_values']['tf_2_value'][dataIndex]) + "</h4>\
+							<h4 class='value'>" + humanReadable(json['chart_values']['tf_2_value'][dataIndex] + "</h4>\
 						</div><div class='row cf'>\
-							<h4 class='name'>" + humanReadable(json['chart_values']['tf_3_name'][dataIndex]) + "</h4>\
-							<h4 class='value'>" + humanReadable(json['chart_values']['tf_3_value'][dataIndex]) + "</h4>\
+							<h4 class='name'>" + json['chart_values']['tf_3_name'][dataIndex]) + "</h4>\
+							<h4 class='value'>" + json['chart_values']['tf_3_value'][dataIndex] + "</h4>\
 						</div>";
 
 			$("#tooltip").html(features)
