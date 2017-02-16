@@ -13,6 +13,7 @@ import json
 import time
 import datetime
 import pandas as pd
+import numpy as np
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 #hashed_key = 'C8ED911A8907EFE4C1DE24CA67DF5FA2'
 #hashed_key = '\xC8\xED\x91\x1A\x89\x07\xEF\xE4\xC1\xDE\x24\xCA\x67\xDF\x5F\xA2'
@@ -23,7 +24,7 @@ MODE = AES.MODE_CBC
 
 DECRYPTED = False
 
-def tsp_to_int(tsp):
+def tsp_to_unix_epoch(tsp):
     if tsp is None or pd.isnull(tsp):
         return None 
     else:
@@ -95,8 +96,8 @@ class TREWSAPI(object):
                 "name": row['name'],
                 "is_met": row['is_met'],
                 "value": row['value'],
-                "measurement_time": tsp_to_int(row['measurement_time']),
-                "override_time": tsp_to_int(row['override_time']),
+                "measurement_time": tsp_to_unix_epoch(row['measurement_time']),
+                "override_time": tsp_to_unix_epoch(row['override_time']),
                 "override_user": row['override_user'],
                 "override_value": row['override_value'],
             }
@@ -172,13 +173,15 @@ class TREWSAPI(object):
         # update criteria from database query
         self.update_criteria(criteria, data)
 
+        admittime = query.get_admittime(eid)
+        data['chart_data']['patient_arrival']['timestamp'] =  admittime
         df = query.get_trews(eid)
         twf = query.get_cdm(eid)
         print twf.shape
         for col in twf.columns.values:
             print col
 
-        data['chart_data']['chart_values']['timestamp'] = [tsp_to_int(tsp) for tsp in df.tsp]
+        data['chart_data']['chart_values']['timestamp'] = [tsp_to_unix_epoch(tsp) for tsp in df.tsp]
         data['chart_data']['chart_values']['trewscore'] = [s.item() for s in df.trewscore.values]
         df_data = df.drop(['enc_id','trewscore','tsp'],1)
         df_rank = df_data.rank(axis=1, method='max', ascending=False)

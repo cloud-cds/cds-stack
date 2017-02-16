@@ -2,6 +2,7 @@
 dashan_query.py
 """
 import os
+import datetime
 
 DB_CONN_STR = 'postgresql://{}:{}@{}:{}/{}'
 user = os.environ['db_user']
@@ -36,6 +37,21 @@ def get_twf(eid):
     df = pd.read_sql_query(get_twf_sql,con=engine)
     return df
 
+
+def get_admittime(eid):
+    engine = create_engine(DB_CONN_STR)
+
+    get_admittime_sql = \
+    '''
+    select value::timestamp from cdm_s inner join pat_enc on pat_enc.enc_id = cdm_s.enc_id
+    where pat_id = '%s' and fid = 'admittime'
+    ''' % eid
+    df_admittime = pd.read_sql_query(get_admittime_sql,con=engine)
+    if df_admittime is None or df_admittime.empty:
+        return None 
+    else:
+        return df_admittime.value.values[0].astype(datetime.datetime)/1000000
+    
 
 def get_cdm(eid):
     engine = create_engine(DB_CONN_STR)
