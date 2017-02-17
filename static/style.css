@@ -523,21 +523,30 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li {
     text-align: center;
 }
 /* Now */
-#now {
+.graph-tag {
     position: absolute;
     top: 0;
     color: #555;
     text-align: center;
     width: 50px;
     margin-left: -25px;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    padding: 2px;
 }
-#now h3 {
+#patient-arrival-graph-tag.graph-tag,
+#severe-sepsis-graph-tag.graph-tag,
+#septic-shock-graph-tag.graph-tag {
+    width: 108px;
+    margin-left: -56px;
+}
+.graph-tag h3 {
     margin: 0;
     font-weight: 700;
-    font-size: 16px;
-    line-height: 25px;
+    font-size: 12px;
+    line-height: 16px;
 }
-#now h6 {
+.graph-tag h6 {
     margin: 0;
     font-weight: 400;
     font-size: 12px;

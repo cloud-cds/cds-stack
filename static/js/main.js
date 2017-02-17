@@ -168,6 +168,10 @@ var endpoints = new function() {
 			controller.refresh();
 			// $('#fake-console').text(result);
 		}).fail(function(result) {
+			if (result.status == 400) {
+				$('#loading p').html(result.responseJSON['message'] + ".<br/>  Connection Failed<span id='test-data'>.</span> Please rest<span id='see-blank'>a</span>rt application or contact trews@opsdx.io");
+				return;
+			}
 			endpoints.numTries += 1;
 			if (endpoints.numTries > 3) {
 				$('#loading p').html("Connection Failed<span id='test-data'>.</span> Please rest<span id='see-blank'>a</span>rt application or contact trews@opsdx.io");
@@ -381,13 +385,14 @@ var graphComponent = new function() {
 		this.xmax = ((max - this.xmin) / 6) + max;
 		max = json['chart_values']['trewscore'][json['chart_values']['trewscore'].length - 1];
 		this.ymax = 1; //((max - this.ymin) / 6) + max;
+		// this.ymin = Math.min.apply(null, json['chart_values']['trewscore']);
+		// this.ymax = Math.max.apply(null, json['chart_values']['trewscore']) * 1.16;
 		graph(json, this.xmin, this.xmax, this.ymin, this.ymax);
 	}
 	window.onresize = function() {
 		graphComponent.render(graphComponent.json, graphComponent.xmin, graphComponent.xmax);
 	}
 }
-
 
 
 
@@ -800,28 +805,52 @@ function graph(json, xmin, xmax, ymin, ymax) {
 	// update trewscore in header
 	$('h1 span').text(Number(ylast).toFixed(1));
 
+	var verticalMarkings = [
+		{color: "#555",lineWidth: 1,xaxis: {from: xlast,to: xlast}}
+	]
+
+	var arrivalx = (json['patient_arrival']['timestamp'] != undefined) ? json['patient_arrival']['timestamp'] : null;
+	var severeOnsetx = (json['severe_sepsis_onset']['timestamp'] != undefined) ? json['severe_sepsis_onset']['timestamp'] : null;
+	var shockOnsetx = (json['septic_shock_onset']['timestamp'] != undefined) ? json['septic_shock_onset']['timestamp'] : null;
+	
+	if (json['patient_arrival']['timestamp'] != undefined) {
+		var arrivalMark = {color: "#ccc",lineWidth: 1,xaxis: {from: arrivalx,to: arrivalx}};
+		var arrivaly = json['chart_values']['trewscore'].indexOf(arrivalx);
+		verticalMarkings.push(arrivalMark);
+	}
+	if (json['severe_sepsis_onset']['timestamp'] != undefined) {
+		var severeMark = {color: "#ccc",lineWidth: 1,xaxis: {from: severeOnsetx,to: severeOnsetx}};
+		var severeOnsety = json['chart_values']['trewscore'].indexOf(severeOnsetx);
+		verticalMarkings.push(severeMark);
+	}
+	if (json['septic_shock_onset']['timestamp'] != undefined) {
+		var shockMark = {color: "#ccc",lineWidth: 1,xaxis: {from: shockOnsetx,to: shockOnsetx}};
+		var shockOnsety = json['chart_values']['trewscore'].indexOf(shockOnsetx);
+		verticalMarkings.push(shockMark);
+	}
+
 	var plot = $.plot(placeholder, [
 		{ data: data, label: "Trewscore", color: "#ca011a"}
 	], {
 		series: {
 			lines: {show: true},
 			points: {show: true},
-			threshold: [{below: .5,	color: "#000000"}]
+			threshold: [{below: json['trewscore_threshold'], color: "#000000"}]
 		},
 		curvedLines: {apply: true},
 		legend: {show: false},
 		grid: {
 			hoverable: true,
 			clickable: true,
-			markings: [{color: "#555",lineWidth: 1,xaxis: {from: xlast,to: xlast}}],
-			margin: {top: 40,left: 0,bottom: 0,right: 0},
+			markings: verticalMarkings,
+			margin: {top: 40,left: 0,bottom: 0,right: 0}, 
 			borderWidth: {top: 0,left: 1,bottom: 1,right: 0}
 		},
 		crosshair: {mode: "x"},
 		yaxis: {
 			min: ymin, // should be 0.0
 			max: ymax, // sould be 1.0
-			ticks: [[0, "0"], [0.5, "0.5"]],
+			ticks: [[0, "0"], [json['trewscore_threshold'], json['trewscore_threshold']]],
 			tickColor: "#e64535",
 			font: {
 				size: 11,
@@ -884,13 +913,26 @@ function graph(json, xmin, xmax, ymin, ymax) {
 
 	// Chart Drawing Addistions
 	var o = plot.pointOffset({ x: xlast, y: ylast});
-	var xLastTime = new Date(xlast);
-	placeholder.append("<div id='now' style='left:" + o.left + "px;'>\
-			<h3>Now</h3>\
-			<h6>" + xLastTime.getHours() + ":" + xLastTime.getMinutes() + "</h6>\
-			</div>");
+	graphTag(plot, xlast, ylast, "Now", "now");
+	if (arrivalx && arrivaly) {
+		graphTag(plot, arrivalx, arrivaly, "Patient<br/>Arrival", "patient-arrival-graph-tag");
+	}
+	if (severeOnsetx && severeOnsety) {
+		graphTag(plot, severeOnsetx, severeOnsety, "Onset of<br/>Severe Sepsis", "severe-sepsis-graph-tag");
+	}
+	if (shockOnsetx && shockOnsety) {
+		graphTag(plot, shockOnsetx, shockOnsety, "Onset of<br/>Septic Shock", "septic-shock-graph-tag");
+	}
 	placeholder.append("<div id='threshold' style='left:" + o.left + "px;'>\
 			<h3>Septic Shock<br />Risk Threshold</h3>\
 			</div>");
-
+}
+function graphTag(plot, x, y, text, id) {
+	var placeholder = $("#graphdiv");
+	var o = plot.pointOffset({ x: x, y: y});
+	var xLastTime = new Date(x);
+	placeholder.append("<div id='" + id + "' class='graph-tag' style='left:" + o.left + "px;'>\
+			<h3>" + text + "</h3>\
+			<h6>" + xLastTime.getHours() + ":" + xLastTime.getMinutes() + "</h6>\
+		</div>");
 }
