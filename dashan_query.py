@@ -127,21 +127,21 @@ def override_criteria(eid, name, value, user='user'):
         conn = engine.connect()
        #conn.execute("set time zone 'EST';")
         conn.execute(override_sql)
-        conn.execute("select update_pat_notifications(%s)" % eid)
+        conn.execute("select update_pat_notifications('%s')" % eid)
         conn.close()
-        push_notifications_to_epic()
+        push_notifications_to_epic(eid, engine)
 
-def push_notifications_to_epic(eid):
-        cursor = self.select_with_sql("""
+def push_notifications_to_epic(eid, engine):
+        notifications_sql = """
             select notifications.pat_id, visit_id, count(*) from notifications 
             inner join pat_enc on notifications.pat_id = pat_enc.pat_id
-            where pat_id = %s
+            where pat_id = '%s'
             group by notifications.pat_id, visit_id
-            """ % eid)
-        notifications = cursor.fetchall()
+            """ % eid
+        notifications = pd.read_sql_query(notifications_sql, con=engine)
         patients = [ {'pat_id': n['pat_id'], 'visit_id': n['visit_id'], 'notifications': n['count'], 
-                            'current_time': datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")} for n in notifications]
-        cursor.close()
+                            'current_time': datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")} for i, n in notifications.iterrows()]
+
         client_id = os.environ['jhapi_client_id'], 
         client_secret = os.environ['jhapi_client_secret']
         loader = load.Loader('stage', client_id, client_secret)
