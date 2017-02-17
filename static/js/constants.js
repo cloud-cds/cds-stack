@@ -13,7 +13,8 @@ var INFECTIONS = [
 "Bacteremia",
 "Cellulitis",
 "UTI",
-"Pneumonia"
+"Pneumonia",
+"No Infection"
 ]
 
 var ALERT_CODES = {
