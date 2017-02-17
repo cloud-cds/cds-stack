@@ -26,6 +26,8 @@ variable "db_password" {}
 variable "jhapi_client_id" {}
 variable "jhapi_client_secret" {}
 
+variable "etl_lambda_firing_rate_mins" {}
+
 variable "TREWS_ETL_SERVER" {}
 variable "TREWS_ETL_HOSPITAL" {}
 variable "TREWS_ETL_HOURS" {}
@@ -120,8 +122,8 @@ resource "aws_lambda_function" "etl_lambda" {
 
 resource "aws_cloudwatch_event_rule" "etl_schedule_rule" {
     name = "${var.deploy_prefix}-etl-schedule-rule"
-    description = "Fires every 15 minutes"
-    schedule_expression = "rate(15 minutes)"
+    description = "Fires every ${var.etl_lambda_firing_rate_mins} minutes"
+    schedule_expression = "rate(${var.etl_lambda_firing_rate_mins} minutes)"
 }
 
 resource "aws_cloudwatch_event_target" "etl_schedule_target" {
