@@ -221,15 +221,15 @@
 		"hypotension":{  
 			"display_name":"Persistent Hypotension",
 			"name":"hypotension",
-			"is_met":true,
+			"is_met":false,
 			"criteria":[  
 				{  
 					"display_name":"Systolic blood pressure (SBP) < 90",
 					"name":"systolic_bp",
 					"override_time":null,
-					"value":81,
-					"is_met":true,
-					"measurement_time":"2016\/05\/12 10:23:00",
+					"value":null,
+					"is_met":false,
+					"measurement_time":null,
 					"orveride_user":null
 				},
 				{  
@@ -251,7 +251,7 @@
 					"orveride_user":null
 				}
 			],
-			"onset_time":1483656309000,
+			"onset_time":null,
 			"num_met":1
 		},
 		"display_name":"Septic Shock Criteria",

@@ -101,6 +101,7 @@ class TREWSAPI(object):
                                          "mean_arterial_pressure",
                                          "decrease_in_sbp"
                                         ]
+        HYPOPERFUSION = ['init_lactate']
         sirs_cnt = 0
         od_cnt = 0
         sirs_onsets = []
@@ -132,7 +133,7 @@ class TREWSAPI(object):
                 data['severe_sepsis']['sirs']['criteria'][sirs_idx] = criterion
                 if criterion["is_met"]:
                     sirs_cnt += 1
-                    if criterion['override_time']:
+                    if criterion['override_user']:
                         sirs_onsets.append(criterion['override_time'])
                     else:
                         sirs_onsets.append(criterion['measurement_time'])
@@ -142,11 +143,40 @@ class TREWSAPI(object):
                 data['severe_sepsis']['organ_dysfunction']['criteria'][od_idx] = criterion
                 if criterion["is_met"]:
                     od_cnt += 1
-                    if criterion['override_time']:
+                    if criterion['override_user']:
                         od_onsets.append(criterion['override_time'])
                     else:
                         od_onsets.append(criterion['measurement_time'])
-                    
+            
+            # septic shock
+            ss_onsets = []
+            hp_cnt = 0
+            if criterion["name"] in HYPOTENSION:
+                hp_idx = HYPOTENSION.index(criterion["name"])
+                data['septic_shock']['hypotension']['criteria'][hp_idx] = criterion
+                if criterion["is_met"]:
+                    hp_cnt += 1
+                    if criterion['override_user']:
+                        ss_onsets.append(criterion['override_time'])
+                    else:
+                        ss_onsets.append(criterion['measurement_time'])
+            hpf_cnt = 0
+            if criterion["name"] in HYPOPERFUSION:
+                hpf_idx = HYPOPERFUSION.index(criterion["name"])
+                data['septic_shock']['hypoperfusion']['criteria'][hp_idx] = criterion
+                if criterion["is_met"]:
+                    hpf_cnt += 1
+                    if criterion['override_user']:
+                        ss_onsets.append(criterion['override_time'])
+                    else:
+                        ss_onsets.append(criterion['measurement_time'])
+            if criterion["name"] == 'crystalloid_fluid':
+                if criterion['is_met']:
+                    data['septic_shock']['fluid_administered'] = True
+                    if criterion['override_user']:
+                        data['septic_shock']['fluid_administered_time'] = criterion['override_time']
+                    else:
+                        data['septic_shock']['fluid_administered_time'] = criterion['measurement_time']
 
         # update sirs
         data['severe_sepsis']['sirs']['is_met'] = sirs_cnt > 1
@@ -173,6 +203,10 @@ class TREWSAPI(object):
             data['chart_data']['severe_sepsis_onset']['timestamp'] = data['severe_sepsis']['onset_time']
         else:
             data['severe_sepsis']['is_met'] = 0
+        # update septic shock
+        if data['septic_shock']['fluid_administered'] and (hpf_cnt + hp_cnt > 0):
+            data['septic_shock'] = True 
+            data['septic_shock']['onset_time'] = sorted(sorted(ss_onsets)[0], data['septic_shock']['fluid_administered_time'])[1]
         logging.debug(json.dumps(data['severe_sepsis'], indent=4))
 
         

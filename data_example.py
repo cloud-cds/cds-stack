@@ -1,44 +1,44 @@
 suspicion_of_infection = {
     "name": "suspicion_of_infection",
     "value": "No Infection",
-    "update_time": 1483656309,
+    "update_time": None,
     "update_user": "user"
 }
 sirs = {
     "name": "sirs",
     "is_met": False,
     "onset_time": None,
-    "num_met": 1,
+    "num_met": 0,
     "criteria": [
         {
             "name": "sirs_temp",
             "is_met": False,
-            "value": 37,
-            "measurement_time": 1483656309,
+            "value": None,
+            "measurement_time": None,
             "override_time": None,
             "orveride_user": None
         },
         {
             "name": "heart_rate",
             "is_met": False,
-            "value": 86,
-            "measurement_time": 1483656309,
+            "value": None,
+            "measurement_time": None,
             "override_time": None,
             "orveride_user": None
         },
         {
             "name": "respiratory_rate",
             "is_met": False,
-            "value": 15,
-            "measurement_time": 1483656309,
+            "value": None,
+            "measurement_time": None,
             "override_time": None,
             "orveride_user": None
         },
         {
             "name": "wbc",
             "is_met": True,
-            "value": "13,700",
-            "measurement_time": 1483656309,
+            "value": None,
+            "measurement_time": None,
             "override_time": None,
             "orveride_user": None
         }
@@ -53,8 +53,8 @@ organ_dysfunction = {
         {
             "name": "blood_pressure",
             "is_met": False,
-            "value": 91,
-            "measurement_time": 1483656309,
+            "value": None,
+            "measurement_time": None,
             "override_time": None,
             "orveride_user": None
         },
@@ -135,14 +135,14 @@ severe_sepsis = {
 hypotension = {
     "name": "hypotension",
     "is_met": True,
-    "onset_time": 1483656309,
-    "num_met": 1,
+    "onset_time": None,
+    "num_met": 0,
     "criteria": [
         {
             "name": "systolic_bp",
-            "is_met": True,
-            "value": 81,
-            "measurement_time": 1483656309,
+            "is_met": False,
+            "value": None,
+            "measurement_time": None,
             "override_time": None,
             "orveride_user": None
         },
@@ -193,42 +193,42 @@ septic_shock = {
 init_lactate = {
     "name": "init_lactate",
     "status": "status string",
-    "time": 1483656309, 
+    "time": None, 
     "user": "user", 
     "note": "note"
 }
 blood_culture = {
     "name": "blood_culture",
     "status": "status string",
-    "time": 1483656309, 
+    "time": None, 
     "user": "user", 
     "note": "note"
 }
 antibiotics = {
     "name": "antibiotics",
     "status": "status string",
-    "time": 1483656309, 
+    "time": None, 
     "user": "user", 
     "note": "note"
 }
 fluid = {
     "name": "fluid",
     "status": "status string",
-    "time": 1483656309, 
+    "time": None, 
     "user": "user", 
     "note": "note"
 }
 repeat_lactate = {
     "name": "repeat_lactate",
     "status": "status string",
-    "time": 1483656309, 
+    "time": None, 
     "user": "user", 
     "note": "note"
 }
 vasopressors = {
     "name": "vasopressors",
     "status": "status string",
-    "time": 1483656309, 
+    "time": None, 
     "user": "user", 
     "note": "note"
 }
@@ -265,30 +265,5 @@ patient_data_example = {
             'timestamp': None
         }
     },
-    "notifications":[
-        {
-            "id":1,
-            "alert_code":100,
-            "read":True,
-            "time_stamp":1483656309000
-        },
-        {
-            "id":2,
-            "alert_code":101,
-            "read":True,
-            "time_stamp":1483656309000
-        },
-        {
-            "id":3,
-            "alert_code":200,
-            "read":True,
-            "time_stamp":1483656309000
-        },
-        {
-            "id":4,
-            "alert_code":201,
-            "read":False,
-            "time_stamp":1483656309000
-        }
-    ]
+    "notifications": []
 }
