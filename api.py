@@ -15,6 +15,8 @@ import datetime
 import pandas as pd
 import numpy as np
 import logging
+import pprint
+
 logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.DEBUG)
 #hashed_key = 'C8ED911A8907EFE4C1DE24CA67DF5FA2'
 #hashed_key = '\xC8\xED\x91\x1A\x89\x07\xEF\xE4\xC1\xDE\x24\xCA\x67\xDF\x5F\xA2'
@@ -33,6 +35,19 @@ def tsp_to_unix_epoch(tsp):
             tsp = tsp.to_pydatetime()
         tsp = int(tsp.strftime("%s"))*1000
     return tsp
+
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, np.bool_):
+            return bool(obj)
+        else:
+            return super(MyEncoder, self).default(obj)
 
 class TREWSAPI(object):
     def on_get(self, req, resp):
@@ -147,7 +162,7 @@ class TREWSAPI(object):
         if data['severe_sepsis']['sirs']['is_met'] and \
             data['severe_sepsis']['organ_dysfunction']['is_met'] and\
             data['severe_sepsis']['suspicion_of_infection']['value'] != 'No Infection':
-            data['severe_sepsis']['is_met'] = True
+            data['severe_sepsis']['is_met'] = 1
             data['severe_sepsis']['onset_time'] = sorted(
                     [
                         data['severe_sepsis']['sirs']['onset_time'] ,
@@ -157,7 +172,7 @@ class TREWSAPI(object):
                 )[2]
             data['chart_data']['severe_sepsis_onset']['timestamp'] = data['severe_sepsis']['onset_time']
         else:
-            data['severe_sepsis']['is_met'] = False 
+            data['severe_sepsis']['is_met'] = 0
         logging.debug(json.dumps(data['severe_sepsis'], indent=4))
 
         
@@ -308,9 +323,9 @@ class TREWSAPI(object):
                 if action is not None:
                     self.take_action(action, eid)
                 self.update_response_json(data, eid)
-                resp.body = json.dumps(data)
+                resp.body = json.dumps(data, cls=NumpyEncoder)
                 resp.status = falcon.HTTP_200
-                logging.debug(json.dumps(data, indent=4 ))
+                # logging.debug(json.dumps(data, indent=4 ))
             else:
                 resp.status = falcon.HTTP_400
                 resp.body = json.dumps({'message': 'no patient found'})
