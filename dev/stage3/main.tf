@@ -67,6 +67,7 @@ module "trews_etl" {
   k8s_cert      = "${var.k8s_cert}"
   k8s_key       = "${var.k8s_key}"
   k8s_token     = "${var.k8s_token}"
+  k8s_image     = "${var.k8s_image}"
 
   db_host             = "db.${var.domain}"
   db_name             = "${replace(var.deploy_prefix, "-", "_")}"

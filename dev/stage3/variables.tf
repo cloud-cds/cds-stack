@@ -163,6 +163,10 @@ variable "k8s_token" {
   description = "Kubernetes service account token"
 }
 
+variable "k8s_image" {
+  description = "Docker image"
+}
+
 ####################################
 # JH API
 
