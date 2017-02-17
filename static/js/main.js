@@ -746,7 +746,7 @@ var notifications = new function() {
 			var notif = $('<div class="notification"></div>');
 			notif.append('<h3>' + ALERT_CODES[data[i]['alert_code']] + '</h3>')
 			var subtext = $('<div class="subtext cf"></div>');
-			subtext.append('<p>' + timeLapsed(new Date(data[i]['time_stamp'])) + '</p>');
+			subtext.append('<p>' + timeLapsed(new Date(data[i]['timestamp'])) + '</p>');
 			var readLink = $("<a data-trews='" + data[i]['id'] + "'></a>");
 			readLink.unbind();
 			if (data[i]['read']) {
@@ -913,7 +913,7 @@ function graph(json, xmin, xmax, ymin, ymax) {
 
 	// Chart Drawing Addistions
 	var o = plot.pointOffset({ x: xlast, y: ylast});
-	graphTag(plot, xlast, ylast, "Now", "now");
+	graphTag(plot, xlast, ylast, "Most Recent", "now");
 	if (arrivalx && arrivaly) {
 		graphTag(plot, arrivalx, arrivaly, "Patient<br/>Arrival", "patient-arrival-graph-tag");
 	}
