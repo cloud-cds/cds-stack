@@ -80,7 +80,7 @@ class TREWSAPI(object):
 
     def take_action(self, action, eid):
         if action['actionType'] == u'override':
-            query.override_criteria(eid, action['criteria'], action['value'])
+            query.override_criteria(eid, action['actionName'], action['value'])
             query.update_notifications()
 
     def update_criteria(self, criteria, data):
