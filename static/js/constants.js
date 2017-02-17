@@ -7,13 +7,6 @@ var INFECTIONS = [
 "Cellulitis",
 "UTI",
 "Pneumonia",
-"Endocarditis",
-"Meningitis",
-"Gastrointenstinal",
-"Bacteremia",
-"Cellulitis",
-"UTI",
-"Pneumonia",
 "No Infection"
 ]
 
