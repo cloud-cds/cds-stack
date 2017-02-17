@@ -113,6 +113,7 @@ def get_notifications(eid):
     return notifications
 
 def override_criteria(eid, name, value, user='user', is_met='true'):
+    # TODO: add functionalities to update other items in db
     engine = create_engine(DB_CONN_STR)
     if name == u'sus-edit':
         if value == 'No Infection':

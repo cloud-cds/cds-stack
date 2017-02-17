@@ -79,6 +79,7 @@ class TREWSAPI(object):
         return pad_text
 
     def take_action(self, action, eid):
+        # TODO: match and test the consistent API for overriding
         if action['actionType'] == u'override':
             query.override_criteria(eid, action['actionName'], action['value'])
             query.update_notifications()
