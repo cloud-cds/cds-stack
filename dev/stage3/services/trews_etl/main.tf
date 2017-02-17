@@ -25,6 +25,10 @@ variable "db_password" {}
 variable "jhapi_client_id" {}
 variable "jhapi_client_secret" {}
 
+variable "TREWS_ETL_SERVER" {}
+variable "TREWS_ETL_HOSPITAL" {}
+variable "TREWS_ETL_HOURS" {}
+
 resource "aws_iam_role" "etl_lambda_role" {
     name = "${var.deploy_prefix}-role-etl-lambda"
     assume_role_policy = <<POLICY
@@ -105,6 +109,9 @@ resource "aws_lambda_function" "etl_lambda" {
         db_password = "${var.db_password}"
 	      jhapi_client_id = "${var.jhapi_client_id}"
         jhapi_client_secret = "${var.jhapi_client_secret}"
+        TREWS_ETL_SERVER = "${var.TREWS_ETL_SERVER}"
+        TREWS_ETL_HOSPITAL = "${var.TREWS_ETL_HOSPITAL}"
+        TREWS_ETL_HOURS = "${var.TREWS_ETL_HOURS}"
       }
     }
 }

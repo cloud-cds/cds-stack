@@ -74,4 +74,7 @@ module "trews_etl" {
   db_password         = "${var.db_password}"
   jhapi_client_id     = "${var.jhapi_client_id}"
   jhapi_client_secret = "${var.jhapi_client_secret}"
+  TREWS_ETL_SERVER    = "${var.TREWS_ETL_SERVER}"
+  TREWS_ETL_HOSPITAL  = "${var.TREWS_ETL_HOSPITAL}"
+  TREWS_ETL_HOURS     = "${var.TREWS_ETL_HOURS}"
 }

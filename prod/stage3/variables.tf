@@ -187,3 +187,10 @@ variable "aws_trews_etl_package" {
 variable "local_shell" {
   description = "Run a local bash shell (for Windows/MSYS2)"
 }
+
+####################################
+# Trews ETL parameters
+
+variable "TREWS_ETL_SERVER" {}
+variable "TREWS_ETL_HOSPITAL" {}
+variable "TREWS_ETL_HOURS" {}

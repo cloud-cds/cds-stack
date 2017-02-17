@@ -62,7 +62,10 @@ users:
               {"name": "db_user",             "value": os.environ["db_user"]},
               {"name": "db_password",         "value": os.environ["db_password"]},
               {"name": "jhapi_client_id",     "value": os.environ["jhapi_client_id"]},
-              {"name": "jhapi_client_secret", "value": os.environ["jhapi_client_secret"]}
+              {"name": "jhapi_client_secret", "value": os.environ["jhapi_client_secret"]},
+              {"name": "TREWS_ETL_SERVER",    "value": os.environ["TREWS_ETL_SERVER"]},
+              {"name": "TREWS_ETL_HOSPITAL",  "value": os.environ["TREWS_ETL_HOSPITAL"]},
+              {"name": "TREWS_ETL_HOURS",     "value": os.environ["TREWS_ETL_HOURS"]}
             ]
           }],
           "restartPolicy": "Never"
