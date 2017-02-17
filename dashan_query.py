@@ -3,6 +3,8 @@ dashan_query.py
 """
 import os
 import datetime
+from inpatient_updater import load
+
 
 DB_CONN_STR = 'postgresql://{}:{}@{}:{}/{}'
 user = os.environ['db_user']
@@ -112,8 +114,8 @@ def get_notifications(eid):
 def override_criteria(eid, name, value, user='user'):
     engine = create_engine(DB_CONN_STR)
     if name == u'sus-edit':
+        #         set time zone 'EST';
         override_sql = """
-        set time zone 'EST';
         update criteria set
         override_time = now(),
         update_date = now(),
@@ -122,8 +124,28 @@ def override_criteria(eid, name, value, user='user'):
         where pat_id = '%(pid)s' and name = 'suspicion_of_infection';
         """ % {'user': user, 'val':value, 'pid': eid}
         logging.debug("override_sql:" + override_sql)
-        engine.execute(override_sql)
+        conn = engine.connect()
+       #conn.execute("set time zone 'EST';")
+        conn.execute(override_sql)
+        conn.execute("select update_pat_notifications(%s)" % eid)
+        conn.close()
+        push_notifications_to_epic()
 
+def push_notifications_to_epic(eid):
+        cursor = self.select_with_sql("""
+            select notifications.pat_id, visit_id, count(*) from notifications 
+            inner join pat_enc on notifications.pat_id = pat_enc.pat_id
+            where pat_id = %s
+            group by notifications.pat_id, visit_id
+            """ % eid)
+        notifications = cursor.fetchall()
+        patients = [ {'pat_id': n['pat_id'], 'visit_id': n['visit_id'], 'notifications': n['count'], 
+                            'current_time': datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")} for n in notifications]
+        cursor.close()
+        client_id = os.environ['jhapi_client_id'], 
+        client_secret = os.environ['jhapi_client_secret']
+        loader = load.Loader('stage', client_id, client_secret)
+        loader.load_notifications(patients)
 
 def eid_exist(eid):
     engine = create_engine(DB_CONN_STR)
