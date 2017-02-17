@@ -106,6 +106,7 @@ def get_notifications(eid):
     notifications = []
     for idx, row in df.iterrows():
         notification = row['message']
+        notification['timestamp'] = long(notification['timestamp'])
         notification['id'] = row['notification_id']
         notifications.append(notification)
 
