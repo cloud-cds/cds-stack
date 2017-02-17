@@ -54,7 +54,7 @@ users:
         "spec": {
           "containers": [{
             "name": "trews-etl",
-            "image": "359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-etl:0.0.3",
+            "image": "359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-etl:0.0.6",
             "env": [
               {"name": "db_host",             "value": os.environ["db_host"]},
               {"name": "db_port",             "value": os.environ["db_port"]},

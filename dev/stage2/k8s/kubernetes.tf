@@ -48,8 +48,9 @@ resource "aws_autoscaling_group" "master-us-east-1d-masters-cluster-dev-opsdx-io
 resource "aws_autoscaling_group" "nodes-cluster-dev-opsdx-io" {
   name                 = "nodes.cluster.dev.opsdx.io"
   launch_configuration = "${aws_launch_configuration.nodes-cluster-dev-opsdx-io.id}"
-  max_size             = 10
   min_size             = 3
+  desired_capacity     = 5
+  max_size             = 10
   vpc_zone_identifier  = ["${aws_subnet.us-east-1d-cluster-dev-opsdx-io.id}"]
 
   tag = {

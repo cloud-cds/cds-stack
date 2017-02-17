@@ -20,7 +20,7 @@ data:
     c.GitHubOAuthenticator.client_id = os.environ['OAUTH_CLIENT_ID']
     c.GitHubOAuthenticator.client_secret = os.environ['OAUTH_CLIENT_SECRET']
     c.GitHubOAuthenticator.oauth_callback_url = os.environ['OAUTH_CALLBACK_URL']
-    c.Authenticator.whitelist = { 'yanif', 'zad', 'mpeven' }
+    c.Authenticator.whitelist = { 'yanif', 'zad', 'mpeven', 'benring' }
     # Kube Spawner
     c.JupyterHub.spawner_class = 'kubespawner.KubeSpawner'
     #c.KubeSpawner.namespace = 'jupyterhub'
@@ -38,7 +38,7 @@ data:
     c.KubeSpawner.volumes = [{
         'name' : 'notebook-volume',
         'persistentVolumeClaim' : {
-            'claimName' : 'claim-jupyter-{username}-{userid}',
+            'claimName' : 'claim-{username}-{userid}',
         },
     }]
     c.KubeSpawner.volume_mounts = [{
