@@ -10,7 +10,6 @@ var INFECTIONS = [
 "Endocarditis",
 "Meningitis",
 "Gastrointenstinal",
-"Infections",
 "Bacteremia",
 "Cellulitis",
 "UTI",
