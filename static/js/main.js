@@ -294,6 +294,7 @@ var severeSepsisComponent = new function() {
 }
 var septicShockComponent = new function() {
 	this.ctn = $("[data-trews='septicShock']");
+	this.fnote = $('#fluid-note');
 	this.tenSlot = new slotComponent(
 		$("[data-trews='tension']"),
 		$('#expand-ten'),
@@ -309,6 +310,7 @@ var septicShockComponent = new function() {
 		this.ctn.addClass(ctnClass);
 		this.tenSlot.r(json['hypotension']);
 		this.fusSlot.r(json['hypoperfusion']);
+		this.fnote.unbind();
 	}
 }
 
@@ -327,6 +329,9 @@ var workflowsComponent = new function() {
 	}
 
 	this.workflowStatus = function(tag, time) {
+		if (time == null) {
+			return workflows[tag]['not_yet'];
+		}
 		var status = (time == null) ? workflows[tag]['instruction'] : "";
 		switch(tag) {
 			case 'sev3':
@@ -352,6 +357,15 @@ var workflowsComponent = new function() {
 		this.sev3Ctn.find('h2').text(workflows['sev3']['display_name']);
 		this.sev6Ctn.find('h2').text(workflows['sev6']['display_name']);
 		this.sep6Ctn.find('h2').text(workflows['sep6']['display_name']);
+
+		if (severeOnset == null) {
+			this.sev3Ctn.addClass('inactive');
+			this.sev6Ctn.addClass('inactive');
+		}
+		if (shockOnset == null) {
+			this.sep6Ctn.addClass('inactive');
+		}
+
 		this.sev3Ctn.find('.card-subtitle').text(this.workflowStatus('sev3', severeOnset));
 		this.sev6Ctn.find('.card-subtitle').text(this.workflowStatus('sev6', severeOnset));
 		this.sep6Ctn.find('.card-subtitle').text(this.workflowStatus('sep6', shockOnset));
