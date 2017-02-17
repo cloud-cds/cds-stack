@@ -112,23 +112,24 @@ def get_notifications(eid):
 
     return notifications
 
-def override_criteria(eid, name, value, user='user'):
+def override_criteria(eid, name, value, user='user', is_met='true'):
     engine = create_engine(DB_CONN_STR)
     if name == u'sus-edit':
-        #         set time zone 'EST';
+        if value == 'No Infection':
+            is_met = 'false'
         override_sql = """
         update criteria set
         override_time = now(),
         update_date = now(),
         override_user = '%(user)s',
+        is_met = '%(is_met)s',
         value = '%(val)s'
         where pat_id = '%(pid)s' and name = 'suspicion_of_infection';
-        """ % {'user': user, 'val':value, 'pid': eid}
+        select update_pat_notifications('%(pid)s')
+        """ % {'user': user, 'val':value, 'pid': eid, 'is_met': is_met}
         logging.debug("override_sql:" + override_sql)
         conn = engine.connect()
-       #conn.execute("set time zone 'EST';")
         conn.execute(override_sql)
-        conn.execute("select update_pat_notifications('%s')" % eid)
         conn.close()
         push_notifications_to_epic(eid, engine)
 
@@ -136,7 +137,7 @@ def push_notifications_to_epic(eid, engine):
         notifications_sql = """
             select notifications.pat_id, visit_id, count(*) from notifications 
             inner join pat_enc on notifications.pat_id = pat_enc.pat_id
-            where pat_id = '%s'
+            where notifications.pat_id = '%s'
             group by notifications.pat_id, visit_id
             """ % eid
         notifications = pd.read_sql_query(notifications_sql, con=engine)
