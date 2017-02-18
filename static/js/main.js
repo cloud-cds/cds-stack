@@ -147,6 +147,7 @@ var endpoints = new function() {
 			actionType: (actionType) ? actionType : null,
 			action: (actionData) ? actionData : null
 		}
+
 		if (getQueryVariable('test') == 'true' || trews.isTest) {
 			if (getQueryVariable('console') == 'true')
 				console.log(postBody);
@@ -154,7 +155,7 @@ var endpoints = new function() {
 			return;
 		}
 		if (postBody['q'] == null) {
-			$('#loading p').html("No Patient Identifier entered. Please restart application or contact trews@opsdx.io<br />" + window.location);
+			$('#loading p').html("No Patient Identifier entered. Please restart application or contact trews-jhu@opsdx.io<br />" + window.location);
 			return;
 		}
 		$.ajax({
@@ -169,12 +170,12 @@ var endpoints = new function() {
 			// $('#fake-console').text(result);
 		}).fail(function(result) {
 			if (result.status == 400) {
-				$('#loading p').html(result.responseJSON['message'] + ".<br/>  Connection Failed<span id='test-data'>.</span> Please rest<span id='see-blank'>a</span>rt application or contact trews@opsdx.io");
+				$('#loading p').html(result.responseJSON['message'] + ".<br/>  Connection Failed<span id='test-data'>.</span> Please rest<span id='see-blank'>a</span>rt application or contact trews-jhu@opsdx.io");
 				return;
 			}
 			endpoints.numTries += 1;
 			if (endpoints.numTries > 3) {
-				$('#loading p').html("Connection Failed<span id='test-data'>.</span> Please rest<span id='see-blank'>a</span>rt application or contact trews@opsdx.io");
+				$('#loading p').html("Connection Failed<span id='test-data'>.</span> Please rest<span id='see-blank'>a</span>rt application or contact trews-jhu@opsdx.io");
 				$('#test-data').click(function() {
 					endpoints.test();
 				});
@@ -228,7 +229,7 @@ var controller =  new function() {
 	}
 	this.displayJSError = function() {
 		$('#loading').removeClass('done');
-		$('#loading p').html("Javascript Error<span id='test-data'>.</span> Please rest<span id='see-blank'>a</span>rt application or contact trews@opsdx.io");
+		$('#loading p').html("Javascript Error<span id='test-data'>.</span> Please rest<span id='see-blank'>a</span>rt application or contact trews-jhu@opsdx.io");
 		$('#test-data').click(function() {
 			endpoints.test();
 		});
@@ -556,22 +557,16 @@ var dropdown = new function() {
 		$('.edit-btn').removeClass('shown');
 		this.ctn.html("");
 	}
-	this.getAction = function(value) {
-		var action = {
-			"actionType": "override",
-			"card": CONSTANTS[this.d.attr('data-trews')],
-			"criteria": this.d.attr('data-trews'),
-			"value": value
-		}
-		return action;
-	}
 	this.sus = function() {
 		for (var i in INFECTIONS) {
 			var s = $('<h5 class="dropdown-link"></h5>').text(INFECTIONS[i]);
 			this.ctn.append(s);
 		}
 		$('.dropdown-link').click(function() {
-			var action = dropdown.getAction($(this).text());
+			var action = {
+				"actionName": this.d.attr('data-trews'),
+				"value": $(this).text()
+			}
 			endpoints.getPatientData("suspicion_of_infection", action);
 		});
 	}
@@ -584,7 +579,10 @@ var dropdown = new function() {
 			}
 		}
 		$('.dropdown-link').click({index: metCriteriaIndices}, function(e) {
-			var action = dropdown.getAction($(this).text());
+			var action = {
+				"card": CONSTANTS[this.d.attr('data-trews')],
+				"criteria": this.d.attr('data-trews')
+			}
 			overrideModal.launch(action, e.data.index);
 		});
 	}
@@ -685,10 +683,12 @@ var overrideModal = new function() {
 					var value = null;
 					var values = $(".slider-range[data-trews='" + criteria + "']").slider("values");
 				}
-				var criteriaOverride = {
-					"criteria": criteria,
-					"value": value,
-					"values": values
+				var criteriaOverride = { "actionName": criteria }
+				if value {
+					criteriaOverride["value"] = value
+				}
+				if values {
+					criteriaOverride["values"] = values
 				}
 				postData.push(criteriaOverride);
 			}
@@ -826,7 +826,7 @@ function graph(json, xmin, xmax, ymin, ymax) {
 	var arrivalx = (json['patient_arrival']['timestamp'] != undefined) ? json['patient_arrival']['timestamp'] : null;
 	var severeOnsetx = (json['severe_sepsis_onset']['timestamp'] != undefined) ? json['severe_sepsis_onset']['timestamp'] : null;
 	var shockOnsetx = (json['septic_shock_onset']['timestamp'] != undefined) ? json['septic_shock_onset']['timestamp'] : null;
-	
+
 	if (json['patient_arrival']['timestamp'] != undefined) {
 		var arrivalMark = {color: "#ccc",lineWidth: 1,xaxis: {from: arrivalx,to: arrivalx}};
 		//var arrivaly = json['chart_values']['trewscore'].indexOf(arrivalx);
@@ -860,7 +860,7 @@ function graph(json, xmin, xmax, ymin, ymax) {
 			hoverable: true,
 			clickable: true,
 			markings: verticalMarkings,
-			margin: {top: 40,left: 0,bottom: 0,right: 0}, 
+			margin: {top: 40,left: 0,bottom: 0,right: 0},
 			borderWidth: {top: 0,left: 1,bottom: 1,right: 0}
 		},
 		crosshair: {mode: "x"},

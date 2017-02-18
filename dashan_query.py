@@ -51,10 +51,10 @@ def get_admittime(eid):
     ''' % eid
     df_admittime = pd.read_sql_query(get_admittime_sql,con=engine)
     if df_admittime is None or df_admittime.empty:
-        return None 
+        return None
     else:
         return df_admittime.value.values[0].astype(datetime.datetime)/1000000
-    
+
 
 def get_cdm(eid):
     engine = create_engine(DB_CONN_STR)
@@ -82,7 +82,7 @@ def get_criteria(eid):
     engine = create_engine(DB_CONN_STR)
     get_criteria_sql = \
     '''
-    select * from criteria 
+    select * from criteria
     where pat_id = '%s'
     ''' % eid
     df = pd.read_sql_query(get_criteria_sql,con=engine)
@@ -91,14 +91,14 @@ def get_criteria(eid):
 def update_notifications():
     engine = create_engine(DB_CONN_STR)
     engine.execute("select update_notifications()")
-    
+
 
 
 def get_notifications(eid):
     engine = create_engine(DB_CONN_STR)
     get_notifications_sql = \
     '''
-    select * from notifications 
+    select * from notifications
     where pat_id = '%s'
     ''' % eid
     df = pd.read_sql_query(get_notifications_sql,con=engine)
@@ -115,39 +115,34 @@ def get_notifications(eid):
 def override_criteria(eid, name, value, user='user', is_met='true'):
     # TODO: add functionalities to update other items in db
     engine = create_engine(DB_CONN_STR)
-    if name == u'sus-edit':
-        if value == 'No Infection':
-            is_met = 'false'
-        override_sql = """
-        update criteria set
+    override_sql = """
+    update criteria set
         override_time = now(),
         update_date = now(),
         override_user = '%(user)s',
         is_met = '%(is_met)s',
         value = '%(val)s'
-        where pat_id = '%(pid)s' and name = 'suspicion_of_infection';
-        select update_pat_notifications('%(pid)s')
-        """ % {'user': user, 'val':value, 'pid': eid, 'is_met': is_met}
-        logging.debug("override_sql:" + override_sql)
-        conn = engine.connect()
-        conn.execute(override_sql)
-        conn.close()
-        push_notifications_to_epic(eid, engine)
-
-
+    where pat_id = '%(pid)s' and name = '%(fid)s';
+    select update_pat_notifications('%(pid)s')
+    """ % {'user': user, 'fid': name, 'val':value, 'pid': eid, 'is_met': is_met}
+    logging.debug("override_sql:" + override_sql)
+    conn = engine.connect()
+    conn.execute(override_sql)
+    conn.close()
+    push_notifications_to_epic(eid, engine)
 
 def push_notifications_to_epic(eid, engine):
         notifications_sql = """
-            select notifications.pat_id, visit_id, count(*) from notifications 
+            select notifications.pat_id, visit_id, count(*) from notifications
             inner join pat_enc on notifications.pat_id = pat_enc.pat_id
             where notifications.pat_id = '%s'
             group by notifications.pat_id, visit_id
             """ % eid
         notifications = pd.read_sql_query(notifications_sql, con=engine)
-        patients = [ {'pat_id': n['pat_id'], 'visit_id': n['visit_id'], 'notifications': n['count'], 
+        patients = [ {'pat_id': n['pat_id'], 'visit_id': n['visit_id'], 'notifications': n['count'],
                             'current_time': datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")} for i, n in notifications.iterrows()]
 
-        client_id = os.environ['jhapi_client_id'], 
+        client_id = os.environ['jhapi_client_id'],
         client_secret = os.environ['jhapi_client_secret']
         loader = load.Loader('stage', client_id, client_secret)
         loader.load_notifications(patients)
@@ -158,7 +153,7 @@ def eid_exist(eid):
     result = connection.execute("select * from pat_enc where pat_id = '%s'" % eid)
     connection.close()
     for row in result:
-        return True 
+        return True
     return False
 
 if __name__ == '__main__':
@@ -169,7 +164,7 @@ if __name__ == '__main__':
     df = get_trews(eid)
     print df.head()
     df_trews = df.drop(['enc_id','trewscore','tsp'],1)
-    
+
     cdm = get_cdm(eid)
 
     # for each row sort by column
@@ -178,11 +173,11 @@ if __name__ == '__main__':
     #     print sorted_row
     #     print sorted_row.index[0]
     #     if sorted_row.index[0] in cdm.iloc[idx]:
-    #         print cdm.iloc[idx][sorted_row.index[0]]  
+    #         print cdm.iloc[idx][sorted_row.index[0]]
     #     else:
     #         print 0
     sorted_trews = [row.sort_values(ascending=False) for idx, row in df_trews.iterrows()]
-        
+
     names =  [row.index[0] for row in sorted_trews]
     vals = []
     for i, row in enumerate(sorted_trews):
@@ -213,4 +208,4 @@ if __name__ == '__main__':
     # print top3_cols
     # print top3_weights
     # print len(top3_cols)
-    
+

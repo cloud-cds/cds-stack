@@ -29,7 +29,7 @@ DECRYPTED = False
 
 def tsp_to_unix_epoch(tsp):
     if tsp is None or pd.isnull(tsp):
-        return None 
+        return None
     else:
         if type(tsp) != datetime.datetime:
             tsp = tsp.to_pydatetime()
@@ -59,16 +59,16 @@ class TREWSAPI(object):
         resp.status = falcon.HTTP_200  # This is the default status
 
         body = "query_string: " + encrypted_text
-        
+
         decodetext =  base64.b64decode(encrypted_text)
         aes = AES.new(hashed_key, MODE, IV)
         cipher = aes.decrypt(decodetext)
         encoder = PKCS7Encoder()
         pad_text = encoder.decode(cipher)
-        
+
         body += "</br></br>plain_text: " + pad_text
         resp.body = (body)
-        
+
     def decrypt(self, encrypted_text):
         encrypted_text = urllib.unquote(encrypted_text)
         decodetext =  base64.b64decode(encrypted_text)
@@ -78,17 +78,33 @@ class TREWSAPI(object):
         pad_text = encoder.decode(cipher)
         return pad_text
 
-    def take_action(self, action, eid):
-        # TODO: match and test the consistent API for overriding
-        if action['actionType'] == u'override':
-            query.override_criteria(eid, action['actionName'], action['value'])
+    # TODO: match and test the consistent API for overriding
+    def take_action(self, actionType, actionData, eid):
+        if actionType == u'override':
+            for action in actionData:
+                query.override_criteria(eid, action['actionName'], action['value'], is_met='false')
             query.update_notifications()
 
+        elif actionType == u'suspicion_of_infection':
+            is_met = 'true'
+            if actionData['actionName'] == u'sus-edit':
+                if value == 'No Infection':
+                    is_met = 'false'
+
+            query.override_criteria(eid, actionType, actionData['value'], is_met=is_met)
+            query.update_notifications()
+
+        elif actionType == u'notification':
+            logging.warning('Notification actions not implemented')
+
+        else:
+            logging.error('Invalid action type: ' + actionType)
+
     def update_criteria(self, criteria, data):
-        
+
 
         SIRS = ['sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc']
-        ORGAN_DYSFUNCTION = ["blood_pressure", 
+        ORGAN_DYSFUNCTION = ["blood_pressure",
                                                          "mean_arterial_pressure",
                                                          "decrease_in_sbp",
                                                          "respiratory_failure",
@@ -148,7 +164,7 @@ class TREWSAPI(object):
                         od_onsets.append(criterion['override_time'])
                     else:
                         od_onsets.append(criterion['measurement_time'])
-            
+
             # septic shock
             ss_onsets = []
             hp_cnt = 0
@@ -206,11 +222,11 @@ class TREWSAPI(object):
             data['severe_sepsis']['is_met'] = 0
         # update septic shock
         if data['septic_shock']['fluid_administered'] and (hpf_cnt + hp_cnt > 0):
-            data['septic_shock'] = True 
+            data['septic_shock'] = True
             data['septic_shock']['onset_time'] = sorted(sorted(ss_onsets)[0], data['septic_shock']['fluid_administered_time'])[1]
         logging.debug(json.dumps(data['severe_sepsis'], indent=4))
 
-        
+
 
 
     def update_response_json(self, data, eid):
@@ -228,7 +244,7 @@ class TREWSAPI(object):
         data['chart_data']['patient_arrival']['timestamp'] =  admittime
         df = query.get_trews(eid)
         cdm = query.get_cdm(eid)
-        
+
         data['chart_data']['chart_values']['timestamp'] = [tsp_to_unix_epoch(tsp) for tsp in df.tsp]
         data['chart_data']['chart_values']['trewscore'] = [s.item() for s in df.trewscore.values]
         df_trews = df.drop(['enc_id','trewscore','tsp'],1)
@@ -312,7 +328,7 @@ class TREWSAPI(object):
     def on_post(self, req, resp):
         # logger = logging.getLogger(__name__)
         # logger.addHandler(watchtower.CloudWatchLogHandler(log_group="opsdx-web-logs-prod", create_log_group=False))
-        
+
         # logger.info(
         #     {
         #         'req': {
@@ -334,7 +350,7 @@ class TREWSAPI(object):
             raise falcon.HTTPError(falcon.HTTP_400,
                 'Error',
                 ex.message)
- 
+
         try:
             req_body = json.loads(raw_json)
         except ValueError as ex:
@@ -343,20 +359,21 @@ class TREWSAPI(object):
                 'Malformed JSON',
                 'Could not decode the request body. The '
                 'JSON was incorrect. request body = %s' % raw_json)
-        
+
         eid = req_body['q']
         resp.status = falcon.HTTP_202
         data = data_example.patient_data_example
-        
+
         if eid:
             if DECRYPTED:
                 eid = self.decrypt(eid)
                 print("unknown eid: " + eid)
             if query.eid_exist(eid):
                 print("query for eid:" + eid)
-                action = req_body['action']
-                if action is not None:
-                    self.take_action(action, eid)
+                actionType = req_body['actionType']
+                actionData = req_body['action']
+                if actionType is not None and actionData is not None:
+                    self.take_action(actionType, actionData, eid)
                 self.update_response_json(data, eid)
                 resp.body = json.dumps(data, cls=NumpyEncoder)
                 resp.status = falcon.HTTP_200
@@ -378,7 +395,7 @@ class TREWSAPI(object):
         key_size = 128
         hashed_key_1 = bytearray('\x00' * 64)
         hashed_key_2 = bytearray('\x00' * 64)
-        
+
         for i in range(64):
             if i < len(dig):
                 hashed_key_1[i] = dig[i] ^ 0x36
