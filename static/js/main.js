@@ -709,10 +709,10 @@ var overrideModal = new function() {
 					var values = $(".slider-range[data-trews='" + criteria + "']").slider("values");
 				}
 				var criteriaOverride = { "actionName": criteria }
-				if value {
+				if ( value ) {
 					criteriaOverride["value"] = value
 				}
-				if values {
+				if ( values ) {
 					criteriaOverride["values"] = values
 				}
 				postData.push(criteriaOverride);
