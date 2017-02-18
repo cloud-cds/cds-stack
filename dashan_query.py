@@ -134,6 +134,8 @@ def override_criteria(eid, name, value, user='user', is_met='true'):
         conn.close()
         push_notifications_to_epic(eid, engine)
 
+
+
 def push_notifications_to_epic(eid, engine):
         notifications_sql = """
             select notifications.pat_id, visit_id, count(*) from notifications 

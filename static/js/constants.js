@@ -1,7 +1,6 @@
 var INFECTIONS = [
 "Endocarditis",
 "Meningitis",
-"Gastrointenstinal Inffections for Real Tho",
 "Infections",
 "Bacteremia",
 "Cellulitis",
