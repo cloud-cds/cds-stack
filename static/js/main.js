@@ -173,11 +173,14 @@ var endpoints = new function() {
 			dataType: "json"
 		}).done(function(result) {
 			$('#loading').addClass('done');
-			if ( Object.prototype.hasOwnProperty(result, 'trewsData') ) {
+			console.log(result);
+			console.log(result.hasOwnProperty('trewsData'));
+			console.log(result.hasOwnProperty('notifications'));
+			if ( result.hasOwnProperty('trewsData') ) {
 				trews.setData(result.trewsData);
 				controller.refresh();
 				// $('#fake-console').text(result);
-			} else if ( Object.prototype.hasOwnProperty(result, 'notifications') ) {
+			} else if ( result.hasOwnProperty('notifications') ) {
 				trews.setNotifications(result.notifications);
 				controller.refreshNotifications();
 			}
