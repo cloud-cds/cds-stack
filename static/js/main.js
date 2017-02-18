@@ -312,11 +312,15 @@ var severeSepsisComponent = new function() {
 }
 var septicShockComponent = new function() {
 	this.ctn = $("[data-trews='septicShock']");
+
 	this.fnote = $('#fluid-note');
+	this.fnoteBtn = $('#fluid-note-btn');
+
 	this.tenSlot = new slotComponent(
 		$("[data-trews='tension']"),
 		$('#expand-ten'),
 		septic_shock['tension']);
+
 	this.fusSlot = new slotComponent(
 		$("[data-trews='fusion']"),
 		$('#expand-fus'),
@@ -328,8 +332,13 @@ var septicShockComponent = new function() {
 		this.ctn.addClass(ctnClass);
 		this.tenSlot.r(json['hypotension']);
 		this.fusSlot.r(json['hypoperfusion']);
-		this.fnote.unbind();
-		this.fnote.click(function() {
+
+		var fnoteClass = json['is_met'] ? "complete" : null;
+		var fnoteBtnText = json['is_met'] ? "Apply" : "Not Indicated";
+		this.fnote.addClass(fnoteClass);
+		this.fnoteBtn.text(fnoteBtnText)
+		this.fnoteBtn.unbind();
+		this.fnoteBtn.click(function() {
 			var actions = [{
 				"actionName": "crystalloid_fluid",
 				"value": "Not Indicated",
