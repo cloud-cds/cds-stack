@@ -64,7 +64,7 @@ var slotComponent = function(elem, link, constants) {
 	this.hasOverridenCriteria = function() {
 		var list = []
 		for (var c in this.criteria) {
-			if (this.criteria[c]['orveride_user'] != null) {
+			if (this.criteria[c]['override_user'] != null) {
 				list.push(c);
 			}
 		}
@@ -329,6 +329,14 @@ var septicShockComponent = new function() {
 		this.tenSlot.r(json['hypotension']);
 		this.fusSlot.r(json['hypoperfusion']);
 		this.fnote.unbind();
+		this.fnote.click(function() {
+			var actions = [{
+				"actionName": "crystalloid_fluid",
+				"value": "Not Indicated",
+				"is_met": "true"
+			}];
+			endpoints.getPatientData("override", actions);
+		});
 	}
 }
 
@@ -525,13 +533,13 @@ var criteriaComponent = function(c, constants) {
 		var lapsed = timeLapsed(new Date(c['measurement_time']));
 		this.status = "Criteria met " + lapsed + " with a value of <span class='value'>" + c['value'] + "</span>";
 	} else {
-		if (c['orveride_user'] != null) {
+		if (c['override_user'] != null) {
 			this.classComplete = " unmet";
 			this.isOverridden = true;
 			var cLapsed = timeLapsed(new Date(c['measurement_time']));
 			var oLapsed = timeLapsed(new Date(c['override_time']));
 			this.status = "Criteria met " + cLapsed + " with a value of <span class='value'>" + c['value'] + "</span>";
-			this.status += "<br />Overridden by " + c['orveride_user'] + " " + oLapsed;
+			this.status += "<br />Overridden by " + c['override_user'] + " " + oLapsed;
 		} else {
 			this.classComplete = " hidden unmet";
 			this.status = "";
