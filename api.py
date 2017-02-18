@@ -80,7 +80,13 @@ class TREWSAPI(object):
 
     # TODO: match and test the consistent API for overriding
     def take_action(self, actionType, actionData, eid):
-        if actionType == u'override':
+
+        # Match pollNotifications first since this is the most common action.
+        if actionType == u'pollNotifications':
+            notifications = query.get_notifications(eid)
+            return {'notifications': notifications}
+
+        elif actionType == u'override':
             for action in actionData:
                 query.override_criteria(eid, action['actionName'], action['value'], is_met='false')
             query.update_notifications()
@@ -95,10 +101,15 @@ class TREWSAPI(object):
             query.update_notifications()
 
         elif actionType == u'notification':
-            logging.warning('Notification actions not implemented')
+            if 'id' in actionData and 'read' in actionData:
+                query.toggle_notification_read(eid, actionData['id'], actionData['read'])
+            else:
+                logging.error('Invalid notification update action data' + json.dumps(actionData))
 
         else:
             logging.error('Invalid action type: ' + actionType)
+
+        return {'result': 'OK'}
 
     def update_criteria(self, criteria, data):
 
@@ -372,10 +383,16 @@ class TREWSAPI(object):
                 print("query for eid:" + eid)
                 actionType = req_body['actionType']
                 actionData = req_body['action']
-                if actionType is not None and actionData is not None:
-                    self.take_action(actionType, actionData, eid)
-                self.update_response_json(data, eid)
-                resp.body = json.dumps(data, cls=NumpyEncoder)
+
+                response_body = {}
+                if actionType is not None:
+                    response_body = self.take_action(actionType, actionData, eid)
+
+                if actionType != u'pollNotifications':
+                    self.update_response_json(data, eid)
+                    response_body = {'trewsData': data}
+
+                resp.body = json.dumps(response_body, cls=NumpyEncoder)
                 resp.status = falcon.HTTP_200
                 # logging.debug(json.dumps(data, indent=4 ))
             else:

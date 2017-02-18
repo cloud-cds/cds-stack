@@ -8,6 +8,13 @@ var trews = new function() {
 	this.setData = function(data) {
 		this.data = data;
 	}
+	this.setNotifications = function(notifications) {
+		if (this.data) {
+			this.data['notifications'] = notifications;
+		} else {
+			this.data = {'notifications': notifications}
+		}
+	}
 	this.getCriteria = function(slot) {
 		switch(slot) {
 			case 'sirs':
@@ -34,7 +41,7 @@ var trews = new function() {
 		var list = [];
 		var criteria = (slot instanceof String) ? this.getCriteria(slot) : slot
 		for (var c in criteria) {
-			if (criteria[c]['orveride_user'] != null) {
+			if (criteria[c]['override_user'] != null) {
 				list.push(c);
 			}
 		}
@@ -117,6 +124,7 @@ window.onload = function() {
 	dropdown.init();
 	overrideModal.init();
 	notifications.init();
+	notificationRefresher.init();
 	$('#fake-console').text(window.location);
 	$('#fake-console').hide();
 	$('#show-console').click(function() {
@@ -165,9 +173,14 @@ var endpoints = new function() {
 			dataType: "json"
 		}).done(function(result) {
 			$('#loading').addClass('done');
-			trews.setData(result);
-			controller.refresh();
-			// $('#fake-console').text(result);
+			if ( Object.prototype.hasOwnProperty(result, 'trewsData') ) {
+				trews.setData(result.trewsData);
+				controller.refresh();
+				// $('#fake-console').text(result);
+			} else if ( Object.prototype.hasOwnProperty(result, 'notifications') ) {
+				trews.setNotifications(result.notifications);
+				controller.refreshNotifications();
+			}
 		}).fail(function(result) {
 			if (result.status == 400) {
 				$('#loading p').html(result.responseJSON['message'] + ".<br/>  Connection Failed<span id='test-data'>.</span> Please rest<span id='see-blank'>a</span>rt application or contact trews-jhu@opsdx.io");
@@ -206,7 +219,7 @@ var endpoints = new function() {
 	}
 }
 
-var controller =  new function() {
+var controller = new function() {
 	this.clean = function() {
 		$('.criteria').html('');
 	}
@@ -225,6 +238,10 @@ var controller =  new function() {
 			globalJson['chart_data']['severe_sepsis_onset']['timestamp'],
 			globalJson['chart_data']['septic_shock_onset']['timestamp']);
 		graphComponent.render(globalJson["chart_data"]);
+		notifications.render(globalJson['notifications']);
+	}
+	this.refreshNotifications = function() {
+		var globalJson = trews.data;
 		notifications.render(globalJson['notifications']);
 	}
 	this.displayJSError = function() {
@@ -764,7 +781,7 @@ var notifications = new function() {
 			var readLink = $("<a data-trews='" + data[i]['id'] + "'></a>");
 			readLink.unbind();
 			if (data[i]['read']) {
-				// notif.addClass('read');  // holding off this feature for 2/15 launch
+				notif.addClass('read');
 				readLink.text('Mark as unread');
 				readLink.click(function() {
 					var data = {
@@ -784,16 +801,33 @@ var notifications = new function() {
 					endpoints.getPatientData("notification", data);
 				})
 			}
-			// subtext.append(readLink); // holding off this feature for 2/15 launch
+			subtext.append(readLink);
 			notif.append(subtext);
 			this.n.prepend(notif);
 		}
-		// this.nav.find('.num').text(numUnread);  // holding off this feature for 2/15 launch
-		this.nav.find('.num').text(data.length);
+		this.nav.find('.num').text(numUnread);
+		//this.nav.find('.num').text(data.length);  // yanif: commented out with read/unread re-enabled
 		if (data.length > 1) {
 			this.nav.find('.text').text('Notifications');
 		} else {
 			this.nav.find('.text').text('Notification');
+		}
+	}
+}
+
+
+var notificationRefresher = new function() {
+	this.refreshPeriod = 10000;
+	this.refreshTimer = null;
+	this.init = function() {
+		this.refreshTimer = window.setTimeout(function() {
+			endpoints.getPatientData('pollNotifications');
+		}, this.refreshPeriod)
+	}
+	this.terminate = function() {
+		if (this.refreshTimer) {
+			window.clearTimeout(this.refreshTimer)
+			this.refreshTimer = NULL
 		}
 	}
 }
@@ -944,6 +978,7 @@ function graph(json, xmin, xmax, ymin, ymax) {
 			<h3>Septic Shock<br />Risk Threshold</h3>\
 			</div>");
 }
+
 function graphTag(plot, x, y, text, id) {
 	var placeholder = $("#graphdiv");
 	var o = plot.pointOffset({ x: x, y: y});
