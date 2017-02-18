@@ -124,7 +124,7 @@ window.onload = function() {
 	dropdown.init();
 	overrideModal.init();
 	notifications.init();
-	notificationRefresher.init();
+	//notificationRefresher.init();
 	$('#fake-console').text(window.location);
 	$('#fake-console').hide();
 	$('#show-console').click(function() {
