@@ -124,7 +124,7 @@ window.onload = function() {
 	dropdown.init();
 	overrideModal.init();
 	notifications.init();
-	//notificationRefresher.init();
+	notificationRefresher.init();
 	$('#fake-console').text(window.location);
 	$('#fake-console').hide();
 	$('#show-console').click(function() {
@@ -173,9 +173,6 @@ var endpoints = new function() {
 			dataType: "json"
 		}).done(function(result) {
 			$('#loading').addClass('done');
-			console.log(result);
-			console.log(result.hasOwnProperty('trewsData'));
-			console.log(result.hasOwnProperty('notifications'));
 			if ( result.hasOwnProperty('trewsData') ) {
 				trews.setData(result.trewsData);
 				controller.refresh();
@@ -831,14 +828,16 @@ var notificationRefresher = new function() {
 	this.refreshPeriod = 10000;
 	this.refreshTimer = null;
 	this.init = function() {
-		this.refreshTimer = window.setTimeout(function() {
-			endpoints.getPatientData('pollNotifications');
-		}, this.refreshPeriod)
+		this.poll();
+	}
+	this.poll = function() {
+		endpoints.getPatientData('pollNotifications');
+		this.refreshTimer = window.setTimeout(this.poll, this.refreshPeriod);
 	}
 	this.terminate = function() {
 		if (this.refreshTimer) {
 			window.clearTimeout(this.refreshTimer)
-			this.refreshTimer = NULL
+			this.refreshTimer = null
 		}
 	}
 }
