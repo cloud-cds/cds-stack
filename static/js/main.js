@@ -644,7 +644,8 @@ var dropdown = new function() {
 		var editCriteriaIndices = [];
 		for (var i in allCriteria) {
 			editCriteriaIndices.push(i);
-			var s = $('<h5 class="dropdown-link"></h5>').text(EDIT[field][i]);
+			var txt = allCriteria[i]['is_met'] ? ('reset ' + EDIT[field][i]) : (EDIT[field][i] + ' is normal');
+			var s = $('<h5 class="dropdown-link"></h5>').text(txt);
 			this.ctn.append(s);
 		};
 		$('.dropdown-link').click({index: editCriteriaIndices}, function(e) {

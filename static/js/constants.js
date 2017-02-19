@@ -18,29 +18,29 @@ var ALERT_CODES = {
 
 var EDIT = {
 	"sirs": [
-		"temperature is normal",
-		"heart rate is normal",
-		"respiratory rate is normal",
-		"wbc is normal"
+		"temperature",
+		"heart rate",
+		"respiratory rate",
+		"wbc"
 	],
 	"org": [
-		"blood pressure is normal",
-		"mean arterial pressure is normal",
-		"decrease in SBP is normal",
-		"respiratory rate is normal",
-		"creatinine is normal",
-		"bilirubin is normal",
-		"platelet count is normal",
-		"INR is normal",
-		"lactate is normal"
+		"blood pressure",
+		"mean arterial pressure",
+		"decrease in SBP",
+		"respiratory rate",
+		"creatinine",
+		"bilirubin",
+		"platelet count",
+		"INR",
+		"lactate"
 	],
 	"tension": [
-		"SBP is normal",
-		"mean arterial pressure is normal",
-		"decrease in SBP is normal"
+		"SBP",
+		"mean arterial pressure",
+		"decrease in SBP"
 	],
 	"fusion": [
-		"lactate is normal"
+		"lactate"
 	]
 }
 
