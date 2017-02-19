@@ -706,36 +706,42 @@ var overrideModal = new function() {
 		// html += "<input class='override-lockout' data-trews='" + data['id'] + "' type='num'>";
 		return html;
 	}
-	this.makeSliders = function(data) {
-		// console.log(data);
+	this.makeSliders = function(data, index) {
+		var o = trews.data[this.card][this.slot]['criteria'][index]['override_value']
 		if (data['range'] === "true") {
 			$(".slider-range[data-trews='" + data['id'] + "']").slider({
 				range: data['range'],
 				min: data['minAbsolute'],
 				max: data['maxAbsolute'],
 				step: data['step'],
-				values: [data['values'][0], data['values'][1]],
+				values: [
+					(o == null) ? data['values'][0] : (o['lower']) ? o['lower'] : data['values'][0],
+					(o == null) ? data['values'][1] : (o['upper']) ? o['upper'] : data['values'][1]
+				],
 				slide: function( event, ui ) {
 					$(".slider-numbers[data-trews='" + data['id'] + "']").text(ui.values[0] + " - " + ui.values[1]);
 				}
 			});
 			$(".slider-numbers[data-trews='" + data['id'] + "']").text($(".slider-range[data-trews='" + data['id'] + "']").slider("values",0) + " - " + $(".slider-range[data-trews='" + data['id'] + "']").slider("values",1));
 		} else {
+			var oValue = data['value']
 			if (data['range'] === "min") {
 				slideFunction = function(event, ui) {
 					$(".slider-numbers[data-trews='" + data['id'] + "']").text(data['minAbsolute'] + " - " + ui.value);
 				}
+				oValue = (o == null) ? oValue : (o['lower']) ? o['lower'] : oValue
 			} else {
 				slideFunction = function(event, ui) {
 					$(".slider-numbers[data-trews='" + data['id'] + "']").text(ui.value + " - " + data['maxAbsolute']);
 				}
+				oValue = (o == null) ? oValue : (o['upper']) ? o['upper'] : oValue
 			}
 			$(".slider-range[data-trews='" + data['id'] + "']").slider({
 				range: data['range'],
 				min: data['minAbsolute'],
 				max: data['maxAbsolute'],
 				step: data['step'],
-				value: data['value'],
+				value: oValue,
 				slide: slideFunction
 			});
 			if (data['range'] === "min") {
@@ -811,7 +817,7 @@ var overrideModal = new function() {
 		var overrideModal = STATIC[action['card']][action['slot']]['criteria'][action['criteria']]['overrideModal'];
 		for (var i = 0; i < overrideModal.length; i++) {
 			this.ctn.append(this.modalView(overrideModal[i], i));
-			this.makeSliders(overrideModal[i]);
+			this.makeSliders(overrideModal[i], i);
 		}
 		this.ctn.append("<div id='om-actions'><a class='override-cancel'>Cancel</a><a class='override-save'>Save</a>");
 		this.makeActions();
@@ -939,7 +945,7 @@ function graph(json, xmin, xmax, ymin, ymax) {
 	var ylast = json['chart_values']['trewscore'][dataLength - 1];
 
 	// update trewscore in header
-	$('h1 span').text(Number(ylast).toFixed(1));
+	$('h1 span').text(Number(ylast).toFixed(2));
 
 	var verticalMarkings = [
 		{color: "#555",lineWidth: 1,xaxis: {from: xlast,to: xlast}}
