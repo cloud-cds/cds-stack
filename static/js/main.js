@@ -611,6 +611,9 @@ var dropdown = new function() {
 		$('.edit-btn').removeClass('shown');
 		this.ctn.html("");
 	}
+	this.getCtnElem = function(id) {
+		return $("[data-trews='" + id + "']");
+	}
 	this.getAction = function(value) {
 		return {
 			"actionName": this.d.attr('data-trews'),
@@ -629,21 +632,13 @@ var dropdown = new function() {
 			this.ctn.append(s);
 		}
 		$('.dropdown-link').click(function() {
+			var elem = dropdown.getCtnElem('sus-edit');
+			elem.addClass('complete');
 			var action = dropdown.getAction($(this).text());
 			endpoints.getPatientData("suspicion_of_infection", action);
 		});
 	}
 	this.editFields = function(field) {
-		/*
-		var editCriteriaIndices = trews.getMetCriteria(field);
-		for (var i in EDIT[field]) {
-			var idx = jQuery.inArray(i, editCriteriaIndices);
-			if (idx > -1) {
-				var s = $('<h5 class="dropdown-link"></h5>').text(EDIT[field][i]);
-				this.ctn.append(s);
-			}
-		}
-		*/
 		var allCriteria = trews.getCriteria(field);
 		var editCriteriaIndices = [];
 		for (var i in allCriteria) {
@@ -775,6 +770,7 @@ var overrideModal = new function() {
 		if (!Modernizr.opacity) {
 			this.om.addClass('no-opacity');
 		}
+		console.log(action);
 		var overrideModal = STATIC[action['card']][action['criteria']]['criteria'][Number(index[0])]['overrideModal'];
 		for (var i = 0; i < overrideModal.length; i++) {
 			this.ctn.append(this.modalView(overrideModal[i]));

@@ -181,6 +181,12 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li {
     -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=20)";
     opacity: .2;
 }
+.card.inactive a {
+    pointer-events: none;
+}
+.card.inactive a[disabled] {
+    pointer-events: none;
+}
 .card h2 {
     margin: 6px;
     font-size: 16px;
