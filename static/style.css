@@ -433,6 +433,14 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li {
     text-align: center;
     color: #d48219;
 }
+.override-reset {
+    display: block;
+    float: right;
+    font-size: 12px;
+    line-height: 18px;
+    color: #888;
+    cursor: pointer;
+}
 #om-actions {
     text-align: right;
 }

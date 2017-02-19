@@ -294,6 +294,10 @@ var severeSepsisComponent = new function() {
 		if (this.sus['value'] == null) {
 			this.susCtn.find('.status').hide();
 		} else {
+			this.susCtn.addClass('complete');
+			if (this.sus['value'] == 'No Infection') {
+				this.susCtn.removeClass('complete');
+			}
 			this.susCtn.find('.selection').hide();
 			this.susCtn.find('.status h4').text(this.sus['value']);
 			this.susCtn.find('.status h5').text(
@@ -620,11 +624,12 @@ var dropdown = new function() {
 			"value": value
 		};
 	}
-	this.getLaunchAction = function() {
-		var criteria = this.d.attr('data-trews');
-		if ( criteria == 'org' ) { criteria = 'organ_dysfunction'; }
+	this.getLaunchAction = function(criteria) {
+		var slot = this.d.attr('data-trews');
+		if ( slot == 'org' ) { slot = 'organ_dysfunction'; }
 		return {
 			"card": CONSTANTS[this.d.attr('data-trews')],
+			"slot": slot,
 			"criteria": criteria
 		};
 	}
@@ -634,7 +639,6 @@ var dropdown = new function() {
 			this.ctn.append(s);
 		}
 		$('.dropdown-link').click(function() {
-			dropdown.getCtnElem('sus').addClass('complete');
 			var action = dropdown.getAction($(this).text());
 			endpoints.getPatientData("suspicion_of_infection", action);
 		});
@@ -644,13 +648,16 @@ var dropdown = new function() {
 		var editCriteriaIndices = [];
 		for (var i in allCriteria) {
 			editCriteriaIndices.push(i);
-			var txt = allCriteria[i]['is_met'] ? ('reset ' + EDIT[field][i]) : (EDIT[field][i] + ' is normal');
-			var s = $('<h5 class="dropdown-link"></h5>').text(txt);
+			var s = $('<h5 class="dropdown-link" data-trews="' + i + '"></h5>');
+			var txt = allCriteria[i]['override_user'] ? (EDIT[field][i] + ' is customized') : ('customize ' + EDIT[field][i]);
+			var dropdownClass = allCriteria[i]['override_user'] ? 'overridden' : '';
+			s.text(txt);
+			s.addClass(dropdownClass);
 			this.ctn.append(s);
 		};
-		$('.dropdown-link').click({index: editCriteriaIndices}, function(e) {
-			var launchAction = dropdown.getLaunchAction();
-			overrideModal.launch(launchAction, e.data.index);
+		$('.dropdown-link').click(function(e) {
+			var launchAction = dropdown.getLaunchAction($(this).attr('data-trews'));
+			overrideModal.launch(launchAction);
 		});
 	}
 	this.fill = function(i) {
@@ -683,13 +690,17 @@ var dropdown = new function() {
 var overrideModal = new function() {
 	this.om = $('#override-modal');
 	this.ctn = $('<div id="om-content"></div>');
+	this.card = "";
+	this.slot = "";
+	this.criteria = "";
+	this.reset = false;
 	this.init = function() {
 		this.om.append(this.ctn);
 	}
-	this.modalView = function(data) {
+	this.modalView = function(data, index) {
 		var html = "<h3>" + data['header'] + "</h3>";
 		html += "<p>Define a new acceptable range.  The criteria will be met once the patient's " + data['name'] + " falls out of the new range.</p>";
-		html += "<div><span class='slider-numbers' data-trews='" + data['id'] + "'></span></div>"
+		html += "<div><a class='override-reset' data-trews='" + index + "'>reset</a><span class='slider-numbers' data-trews='" + data['id'] + "'></span></div>"
 		html += "<div class='slider-range' data-trews='" + data['id'] + "'></div>";
 		// html += "<p>or define a lockout period.  During this lockout period the criteria will not be met.  The criteria will be reevaluated after once the lockout period ends.</p>";
 		// html += "<input class='override-lockout' data-trews='" + data['id'] + "' type='num'>";
@@ -703,7 +714,7 @@ var overrideModal = new function() {
 				min: data['minAbsolute'],
 				max: data['maxAbsolute'],
 				step: data['step'],
-				values: data['values'],
+				values: [data['values'][0], data['values'][1]],
 				slide: function( event, ui ) {
 					$(".slider-numbers[data-trews='" + data['id'] + "']").text(ui.values[0] + " - " + ui.values[1]);
 				}
@@ -737,6 +748,7 @@ var overrideModal = new function() {
 	this.makeActions = function() {
 		var save = $('.override-save');
 		var cancel = $('.override-cancel');
+		var reset = $('.override-reset');
 		save.unbind();
 		save.click(function() {
 			var sliders = $('.slider-range');
@@ -757,6 +769,7 @@ var overrideModal = new function() {
 				if ( values ) {
 					criteriaOverride["values"] = values
 				}
+				criteriaOverride["reset"] = overrideModal.reset;
 				postData.push(criteriaOverride);
 			}
 			endpoints.getPatientData("override", postData);
@@ -766,16 +779,35 @@ var overrideModal = new function() {
 		cancel.click(function() {
 			overrideModal.om.fadeOut(30);
 		});
+		reset.unbind();
+		reset.click(function() {
+			overrideModal.reset = true;
+			var criteriaOverrideData = STATIC[overrideModal.card][overrideModal.slot]['criteria'][overrideModal.criteria]['overrideModal'][$(this).attr('data-trews')];
+			if (criteriaOverrideData['range'] == 'true') {
+				$(".slider-range[data-trews='" + criteriaOverrideData['id'] + "']").slider("values", criteriaOverrideData['values']);
+				$(".slider-numbers[data-trews='" + criteriaOverrideData['id'] + "']").text(criteriaOverrideData['values'][0] + " - " + criteriaOverrideData['values'][1]);
+			} else {
+				$(".slider-range[data-trews='" + criteriaOverrideData['id'] + "']").slider("value", criteriaOverrideData['value'])
+				if (criteriaOverrideData['range'] == 'min') {
+					$(".slider-numbers[data-trews='" + criteriaOverrideData['id'] + "']").text(criteriaOverrideData['minAbsolute'] + " - " + criteriaOverrideData['value']);
+				} else {
+					$(".slider-numbers[data-trews='" + criteriaOverrideData['id'] + "']").text(criteriaOverrideData['value'] + " - " + criteriaOverrideData['maxAbsolute']);
+				}
+			}
+		})
 	}
-	this.launch = function(action, index) {
+	this.launch = function(action) {
+		this.card = action['card'];
+		this.slot = action['slot'];
+		this.criteria = action['criteria'];
+		this.reset = false;
 		this.ctn.html("");
 		if (!Modernizr.opacity) {
 			this.om.addClass('no-opacity');
 		}
-		console.log(action);
-		var overrideModal = STATIC[action['card']][action['criteria']]['criteria'][Number(index[0])]['overrideModal'];
+		var overrideModal = STATIC[action['card']][action['slot']]['criteria'][action['criteria']]['overrideModal'];
 		for (var i = 0; i < overrideModal.length; i++) {
-			this.ctn.append(this.modalView(overrideModal[i]));
+			this.ctn.append(this.modalView(overrideModal[i], i));
 			this.makeSliders(overrideModal[i]);
 		}
 		this.ctn.append("<div id='om-actions'><a class='override-cancel'>Cancel</a><a class='override-save'>Save</a>");
