@@ -334,10 +334,14 @@ var septicShockComponent = new function() {
 		this.tenSlot.r(json['hypotension']);
 		this.fusSlot.r(json['hypoperfusion']);
 
-		var fnoteClass = json['fluid_administered'] ? "complete" : null;
-		var fnoteBtnText = json['fluid_administered'] ? (json['fluid_override_user'] ? "Reset" : null) : "Not Indicated";
-		this.fnote.addClass(fnoteClass);
 		this.fnoteBtn.unbind();
+		if ( json['fluid_administered'] ) {
+			this.fnote.addClass("complete");
+		} else {
+			this.fnote.removeClass("complete");
+		}
+
+		var fnoteBtnText = json['fluid_administered'] ? (json['fluid_override_user'] ? "Reset" : null) : "Not Indicated";
 		if ( fnoteBtnText ) {
 			this.fnoteBtn.text(fnoteBtnText);
 			var action = {
