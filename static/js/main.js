@@ -335,18 +335,32 @@ var septicShockComponent = new function() {
 		this.fusSlot.r(json['hypoperfusion']);
 
 		var fnoteClass = json['fluid_administered'] ? "complete" : null;
-		var fnoteBtnText = json['fluid_administered'] ? "Indicated" : "Not Indicated";
+		var fnoteBtnText = json['fluid_administered'] ? (json['fluid_override_user'] ? "Reset" : null) : "Not Indicated";
 		this.fnote.addClass(fnoteClass);
-		this.fnoteBtn.text(fnoteBtnText)
 		this.fnoteBtn.unbind();
-		this.fnoteBtn.click(function() {
-			var actions = [{
-				"actionName": "crystalloid_fluid",
-				"value": this.fnoteBtn.text(),
-				"is_met": !json['fluid_administered']
-			}];
-			endpoints.getPatientData("override", actions);
-		});
+		if ( fnoteBtnText ) {
+			this.fnoteBtn.text(fnoteBtnText);
+			var action = {
+				"actionName": 'crystalloid_fluid'
+			};
+
+			if ( fnoteBtnText == 'Not Indicated' ) {
+				action = {
+					"value": 'Not Indicated',
+					"is_met": 'true'
+				}
+			} else {
+				action = {
+					"actionName": 'crystalloid_fluid',
+					"clear": true
+				}
+			}
+			this.fnoteBtn.click(function() {
+				endpoints.getPatientData("override", [action]);
+			});
+		} else {
+			this.fnoteBtn.hide();
+		}
 	}
 }
 
