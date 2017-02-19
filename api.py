@@ -16,6 +16,7 @@ import pandas as pd
 import numpy as np
 import logging
 import pprint
+import copy
 
 logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.DEBUG)
 #hashed_key = 'C8ED911A8907EFE4C1DE24CA67DF5FA2'
@@ -194,6 +195,7 @@ class TREWSAPI(object):
                     else:
                         ss_onsets.append(criterion['measurement_time'])
             hpf_cnt = 0
+
             if criterion["name"] in HYPOPERFUSION:
                 hpf_idx = HYPOPERFUSION.index(criterion["name"])
                 data['septic_shock']['hypoperfusion']['criteria'][hp_idx] = criterion
@@ -203,15 +205,15 @@ class TREWSAPI(object):
                         ss_onsets.append(criterion['override_time'])
                     else:
                         ss_onsets.append(criterion['measurement_time'])
+
             if criterion["name"] == 'crystalloid_fluid':
                 logging.debug('crystalloid_fluid criterion: ' + json.dumps(criterion, indent=4))
-                if criterion['is_met']:
-                    data['septic_shock']['fluid_administered'] = True
-                    if criterion['override_user']:
-                        data['septic_shock']['fluid_administered_time'] = criterion['override_time']
-                        data['septic_shock']['fluid_override_user'] = criterion['override_user']
-                    else:
-                        data['septic_shock']['fluid_administered_time'] = criterion['measurement_time']
+                data['septic_shock']['fluid_administered'] = criterion['is_met'] if 'is_met' in criterion else False
+                if criterion['override_user']:
+                    data['septic_shock']['fluid_administered_time'] = criterion['override_time']
+                    data['septic_shock']['fluid_override_user'] = criterion['override_user']
+                else:
+                    data['septic_shock']['fluid_administered_time'] = criterion['measurement_time']
 
         # update sirs
         data['severe_sepsis']['sirs']['is_met'] = sirs_cnt > 1
@@ -382,7 +384,7 @@ class TREWSAPI(object):
 
         eid = req_body['q']
         resp.status = falcon.HTTP_202
-        data = data_example.patient_data_example
+        data = copy.deepcopy(data_example.patient_data_example)
 
         if eid:
             if DECRYPTED:
