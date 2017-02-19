@@ -377,6 +377,7 @@ var workflowsComponent = new function() {
 	this.sev3Ctn = $("[data-trews='sev3']");
 	this.sev6Ctn = $("[data-trews='sev6']");
 	this.sep6Ctn = $("[data-trews='sep6']");
+	this.orderBtns = $('.place-order');
 
 	this.clean = function() {
 		$("[data-trews='init_lactate'],\
@@ -385,6 +386,13 @@ var workflowsComponent = new function() {
 			[data-trews='fluid'],\
 			[data-trews='re_lactate'],\
 			[data-trews='vasopressors']").html(''); //TODO: add focus exam
+	}
+
+	this.makeButtons = function() {
+		this.orderBtns.unbind();
+		this.orderBtns.click(function() {
+			endpoints.getPatientData('place_order', {'actionName': $(this).attr('data-trews')});
+		});
 	}
 
 	this.workflowStatus = function(tag, time) {
@@ -437,6 +445,8 @@ var workflowsComponent = new function() {
 		var rTask = new taskComponent(rJSON, $("[data-trews='re_lactate']"), workflows['repeat_lactate']);
 
 		var vTask = new taskComponent(vJSON, $("[data-trews='vasopressors']"), workflows['vasopressors']);
+
+		this.makeButtons();
 	}
 }
 
