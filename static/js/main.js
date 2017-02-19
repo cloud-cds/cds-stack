@@ -770,6 +770,9 @@ var overrideModal = new function() {
 					criteriaOverride["values"] = values
 				}
 				criteriaOverride["reset"] = overrideModal.reset;
+
+				var criteriaOverrideData = STATIC[overrideModal.card][overrideModal.slot]['criteria'][overrideModal.criteria]['overrideModal'][i];
+				criteriaOverride["range"] = criteriaOverrideData['range']
 				postData.push(criteriaOverride);
 			}
 			endpoints.getPatientData("override", postData);
