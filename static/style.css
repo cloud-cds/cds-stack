@@ -362,6 +362,9 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li {
     transition: background-color .3s;
     position: relative;
 }
+#dropdown h5.overridden {
+    background-color: #b3e8d1;
+}
 #dropdown h5:hover {
     background-color: #eee;
 }
