@@ -636,8 +636,11 @@ var dropdown = new function() {
 	this.editFields = function(field) {
 		//var editCriteriaIndices = trews.getMetCriteria(field);
 		var editCriteriaIndices = trews.getCriteria(field);
+		console.log(field + ': ' + editCriteriaIndices);
 		for (var i in EDIT[field]) {
-			if (jQuery.inArray(i, editCriteriaIndices) > -1) {
+			var idx = jQuery.inArray(i, editCriteriaIndices);
+			console.log(field + ' ' + i + ': ' + idx);
+			if (idx > -1) {
 				var s = $('<h5 class="dropdown-link"></h5>').text(EDIT[field][i]);
 				this.ctn.append(s);
 			}
