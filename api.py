@@ -92,7 +92,7 @@ class TREWSAPI(object):
                 action_is_clear = 'clear' in action
                 action_is_met = action['is_met'] if 'is_met' in action else ('false' if action_is_clear else 'true')
                 if action_is_clear:
-                    query.clear_override_criteria(eid, action['actionName'], is_met=action_is_met)
+                    query.override_criteria(eid, action['actionName'], is_met=action_is_met, clear=True)
                 else:
                     query.override_criteria(eid, action['actionName'], action['value'], is_met=action_is_met)
             #query.update_notifications()
@@ -207,7 +207,6 @@ class TREWSAPI(object):
                         ss_onsets.append(criterion['measurement_time'])
 
             if criterion["name"] == 'crystalloid_fluid':
-                logging.debug('crystalloid_fluid criterion: ' + json.dumps(criterion, indent=4))
                 data['septic_shock']['fluid_administered'] = criterion['is_met'] if 'is_met' in criterion else False
                 if criterion['override_user']:
                     data['septic_shock']['fluid_administered_time'] = criterion['override_time']
@@ -400,7 +399,6 @@ class TREWSAPI(object):
                     response_body = self.take_action(actionType, actionData, eid)
 
                 if actionType != u'pollNotifications':
-                    logging.debug('data before update_response_json: ' + json.dumps(data['septic_shock'], indent=4))
                     self.update_response_json(data, eid)
                     response_body = {'trewsData': data}
 

@@ -124,59 +124,38 @@ def toggle_notifications_read(eid, notification_id, as_read):
     conn.execute(toggle_notifications_sql)
     conn.close()
 
-def override_criteria(eid, name, value, user='user', is_met='true'):
+def override_criteria(eid, name, value='Unknown', user='user', is_met='true', clear=False):
     # TODO: add functionalities to update other items in db
     engine = create_engine(DB_CONN_STR)
     # override_sql = """
     # update criteria set
     #     override_time = now(),
     #     update_date = now(),
-    #     override_user = '%(user)s',
+    #     override_user = %(user)s,
     #     is_met = '%(is_met)s',
-    #     value = '%(val)s'
+    #     value = %(val)s
     # where pat_id = '%(pid)s' and name = '%(fid)s';
     # select update_pat_notifications('%(pid)s')
     # """ % {'user': user, 'fid': name, 'val':value, 'pid': eid, 'is_met': is_met}
+    params = {
+        'user': ("'" + user + "'") if not clear else 'null',
+        'val': ("'" + value + "'") if not clear else 'null',
+        'fid': name,
+        'pid': eid,
+        'is_met': is_met
+    }
     override_sql = """
     update criteria set
         override_time = now(),
         update_date = now(),
-        override_user = '%(user)s',
+        override_user = %(user)s,
         is_met = '%(is_met)s',
-        value = '%(val)s'
+        value = %(val)s
     where pat_id = '%(pid)s' and name = '%(fid)s'
-    """ % {'user': user, 'fid': name, 'val':value, 'pid': eid, 'is_met': is_met}
+    """ % params
     logging.debug("override_sql:" + override_sql)
     conn = engine.connect()
     conn.execute(override_sql)
-    conn.close()
-    #push_notifications_to_epic(eid, engine)
-
-def clear_override_criteria(eid, name, is_met='false'):
-    # TODO: add functionalities to update other items in db
-    engine = create_engine(DB_CONN_STR)
-    # clear_override_sql = """
-    # update criteria set
-    #     override_time = now(),
-    #     update_date = now(),
-    #     override_user = null,
-    #     is_met = '%(is_met)s',
-    #     value = null
-    # where pat_id = '%(pid)s' and name = '%(fid)s';
-    # select update_pat_notifications('%(pid)s')
-    # """ % {'fid': name, 'pid': eid, 'is_met': is_met}
-    clear_override_sql = """
-    update criteria set
-        override_time = now(),
-        update_date = now(),
-        override_user = null,
-        is_met = '%(is_met)s',
-        value = null
-    where pat_id = '%(pid)s' and name = '%(fid)s'
-    """ % {'fid': name, 'pid': eid, 'is_met': is_met}
-    logging.debug("clear_override_sql:" + clear_override_sql)
-    conn = engine.connect()
-    conn.execute(clear_override_sql)
     conn.close()
     #push_notifications_to_epic(eid, engine)
 
