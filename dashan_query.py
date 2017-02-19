@@ -141,7 +141,7 @@ def override_criteria(eid, name, value, user='user', is_met='true'):
     conn = engine.connect()
     conn.execute(override_sql)
     conn.close()
-    push_notifications_to_epic(eid, engine)
+    #push_notifications_to_epic(eid, engine)
 
 def clear_override_criteria(eid, name, is_met='false'):
     # TODO: add functionalities to update other items in db
@@ -160,7 +160,7 @@ def clear_override_criteria(eid, name, is_met='false'):
     conn = engine.connect()
     conn.execute(clear_override_sql)
     conn.close()
-    push_notifications_to_epic(eid, engine)
+    #push_notifications_to_epic(eid, engine)
 
 def push_notifications_to_epic(eid, engine):
         notifications_sql = """
