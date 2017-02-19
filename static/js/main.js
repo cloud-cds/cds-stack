@@ -157,7 +157,7 @@ var endpoints = new function() {
 			actionType: (actionType) ? actionType : null,
 			action: (actionData) ? actionData : null
 		}
-
+		console.log(postBody);
 		if (getQueryVariable('test') == 'true' || trews.isTest) {
 			if (getQueryVariable('console') == 'true')
 				console.log(postBody);
@@ -755,6 +755,7 @@ var overrideModal = new function() {
 			var postData = [];
 			for (var i = 0; i < sliders.length; i++) {
 				var criteria = sliders[i].getAttribute('data-trews');
+				var criteriaOverrideData = STATIC[overrideModal.card][overrideModal.slot]['criteria'][overrideModal.criteria]['overrideModal'][i];
 				if ($(".slider-range[data-trews='" + criteria + "']").slider("values").length == 0) {
 					var value = $(".slider-range[data-trews='" + criteria + "']").slider("value");
 					var values = null;
@@ -762,7 +763,7 @@ var overrideModal = new function() {
 					var value = null;
 					var values = $(".slider-range[data-trews='" + criteria + "']").slider("values");
 				}
-				var criteriaOverride = { "actionName": criteria }
+				var criteriaOverride = { "actionName": STATIC[overrideModal.card][overrideModal.slot]['criteria'][overrideModal.criteria]['key'] }
 				if ( value ) {
 					criteriaOverride["value"] = value
 				}
@@ -771,7 +772,6 @@ var overrideModal = new function() {
 				}
 				criteriaOverride["reset"] = overrideModal.reset;
 
-				var criteriaOverrideData = STATIC[overrideModal.card][overrideModal.slot]['criteria'][overrideModal.criteria]['overrideModal'][i];
 				criteriaOverride["range"] = criteriaOverrideData['range']
 				postData.push(criteriaOverride);
 			}
