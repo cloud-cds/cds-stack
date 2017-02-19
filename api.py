@@ -98,11 +98,11 @@ class TREWSAPI(object):
                         as_min = action['range'] == 'min'
                         value = ('{{ "lower": %(val)s }}' if as_min else '{{ "upper": %(val)s }} ') % {'val': action['value']}
                         logging.debug('override_criteria value: {} {}' % (action['actionName'], value))
-                        query.override_criteria(eid, action['actionName'], value, is_met=action_is_met)
+                        query.override_criteria(eid, action['actionName'], value=value, is_met=action_is_met)
                     else:
                         value = '{{ "lower": %(l)s, "upper": %(u)s }}' % {'l': action['values'][0], 'u': action['values'][1] }
                         logging.debug('override_criteria values: {} {}' % (action['actionName'], value))
-                        query.override_criteria(eid, action['actionName'], value, is_met=action_is_met)
+                        query.override_criteria(eid, action['actionName'], value=value, is_met=action_is_met)
             #query.update_notifications()
 
         elif actionType == u'suspicion_of_infection':
@@ -112,7 +112,7 @@ class TREWSAPI(object):
                     is_met = 'false'
 
             value = '{{ "text": %(val)s }}' % {'val': actionData['value']}
-            query.override_criteria(eid, actionType, value, is_met=is_met)
+            query.override_criteria(eid, actionType, value=value, is_met=is_met)
             query.update_notifications()
 
         elif actionType == u'notification':
