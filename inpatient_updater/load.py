@@ -2,6 +2,7 @@ from inpatient_updater import http_utils
 from inpatient_updater.config import app_config
 import datetime as dt
 import pandas as pd
+import logging
 
 class Loader:
     def __init__(self, server, client_id, client_secret):
@@ -9,6 +10,9 @@ class Loader:
         self.headers = {'client_id': client_id, 'client_secret': client_secret}
 
     def load_notifications(self, patients):
+        if patients is None:
+            logging.warn('No patients passed in')
+            return None
         resource = '/patients/addflowsheetvalue'
         current_time = str(dt.datetime.utcnow())
         # remove             'Comment':              pat.comment,
