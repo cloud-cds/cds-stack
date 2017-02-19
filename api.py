@@ -100,7 +100,7 @@ class TREWSAPI(object):
         elif actionType == u'suspicion_of_infection':
             is_met = 'true'
             if actionData['actionName'] == u'sus-edit':
-                if value == 'No Infection':
+                if actionData['value'] == 'No Infection':
                     is_met = 'false'
 
             query.override_criteria(eid, actionType, actionData['value'], is_met=is_met)
