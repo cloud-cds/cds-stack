@@ -122,20 +122,23 @@ class TREWSAPI(object):
 
         SIRS = ['sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc']
         ORGAN_DYSFUNCTION = ["blood_pressure",
-                                                         "mean_arterial_pressure",
-                                                         "decrease_in_sbp",
-                                                         "respiratory_failure",
-                                                         "creatinine",
-                                                         "bilirubin",
-                                                         "platelet",
-                                                         "inr",
-                                                         "lactate"
-                                                         ]
+                             "mean_arterial_pressure",
+                             "decrease_in_sbp",
+                             "respiratory_failure",
+                             "creatinine",
+                             "bilirubin",
+                             "platelet",
+                             "inr",
+                             "lactate"
+                             ]
+
         HYPOTENSION = ["systolic_bp",
-                                         "mean_arterial_pressure",
-                                         "decrease_in_sbp"
-                                        ]
+                       "mean_arterial_pressure",
+                       "decrease_in_sbp"
+                      ]
+
         HYPOPERFUSION = ['init_lactate']
+
         sirs_cnt = 0
         od_cnt = 0
         sirs_onsets = []

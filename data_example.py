@@ -36,7 +36,7 @@ sirs = {
         },
         {
             "name": "wbc",
-            "is_met": True,
+            "is_met": False,
             "value": None,
             "measurement_time": None,
             "override_time": None,
@@ -134,7 +134,7 @@ severe_sepsis = {
 
 hypotension = {
     "name": "hypotension",
-    "is_met": True,
+    "is_met": False,
     "onset_time": None,
     "num_met": 0,
     "criteria": [

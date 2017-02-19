@@ -84,9 +84,11 @@ var slotComponent = function(elem, link, constants) {
 			}
 		}
 		this.elem.find('.num-text').text(json['num_met'] + " criteria met. ");
+		/*
 		if (json['num_met'] == 0) {
 			this.elem.find('.edit-btn').addClass('hidden');
 		}
+		*/
 		if (this.hasOverridenCriteria().length == 0) {
 			this.elem.find('.num-overridden').addClass('hidden');
 			this.elem.find('.criteria-overridden').addClass('hidden');
