@@ -207,7 +207,7 @@ var endpoints = new function() {
 		trews.isTest = true;
 		$.ajax({
 			type: 'GET',
-			url: 'js/data_example2.json',
+			url: 'js/data_example.json',
 			contentType: 'json',
 			xhrFields: {
 				withCredentials: false
