@@ -345,15 +345,9 @@ var septicShockComponent = new function() {
 			};
 
 			if ( fnoteBtnText == 'Not Indicated' ) {
-				action = {
-					"value": 'Not Indicated',
-					"is_met": 'true'
-				}
+				action['value'] = 'Not Indicated';
 			} else {
-				action = {
-					"actionName": 'crystalloid_fluid',
-					"clear": true
-				}
+				action['clear'] = true;
 			}
 			this.fnoteBtn.click(function() {
 				endpoints.getPatientData("override", [action]);
