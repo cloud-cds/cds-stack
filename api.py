@@ -204,7 +204,7 @@ class TREWSAPI(object):
                     else:
                         ss_onsets.append(criterion['measurement_time'])
             if criterion["name"] == 'crystalloid_fluid':
-                logging.debug('crystalloid_fluid criterion: ' + json.dumps(criterion), indent=4)
+                logging.debug('crystalloid_fluid criterion: ' + json.dumps(criterion, indent=4))
                 if criterion['is_met']:
                     data['septic_shock']['fluid_administered'] = True
                     if criterion['override_user']:
