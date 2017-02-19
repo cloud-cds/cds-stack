@@ -398,6 +398,7 @@ class TREWSAPI(object):
                     response_body = self.take_action(actionType, actionData, eid)
 
                 if actionType != u'pollNotifications':
+                    logging.debug('data before update_response_json: ' + json.dumps(data['septic_shock'], indent=4))
                     self.update_response_json(data, eid)
                     response_body = {'trewsData': data}
 
