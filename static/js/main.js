@@ -604,16 +604,25 @@ var dropdown = new function() {
 		$('.edit-btn').removeClass('shown');
 		this.ctn.html("");
 	}
+	this.getAction = function(value) {
+		return {
+			"actionName": this.d.attr('data-trews'),
+			"value": value
+		};
+	}
+	this.getLaunchAction = function() {
+		return {
+			"card": CONSTANTS[this.d.attr('data-trews')],
+			"criteria": this.d.attr('data-trews')
+		};
+	}
 	this.sus = function() {
 		for (var i in INFECTIONS) {
 			var s = $('<h5 class="dropdown-link"></h5>').text(INFECTIONS[i]);
 			this.ctn.append(s);
 		}
 		$('.dropdown-link').click(function() {
-			var action = {
-				"actionName": this.d.attr('data-trews'),
-				"value": $(this).text()
-			}
+			var action = this.getAction($(this).text());
 			endpoints.getPatientData("suspicion_of_infection", action);
 		});
 	}
@@ -626,11 +635,8 @@ var dropdown = new function() {
 			}
 		}
 		$('.dropdown-link').click({index: metCriteriaIndices}, function(e) {
-			var action = {
-				"card": CONSTANTS[this.d.attr('data-trews')],
-				"criteria": this.d.attr('data-trews')
-			}
-			overrideModal.launch(action, e.data.index);
+			var launchAction = this.getLaunchAction();
+			overrideModal.launch(launchAction, e.data.index);
 		});
 	}
 	this.fill = function(i) {
