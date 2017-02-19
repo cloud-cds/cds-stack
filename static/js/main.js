@@ -622,7 +622,7 @@ var dropdown = new function() {
 			this.ctn.append(s);
 		}
 		$('.dropdown-link').click(function() {
-			var action = this.getAction($(this).text());
+			var action = dropdown.getAction($(this).text());
 			endpoints.getPatientData("suspicion_of_infection", action);
 		});
 	}
@@ -635,7 +635,7 @@ var dropdown = new function() {
 			}
 		}
 		$('.dropdown-link').click({index: metCriteriaIndices}, function(e) {
-			var launchAction = this.getLaunchAction();
+			var launchAction = dropdown.getLaunchAction();
 			overrideModal.launch(launchAction, e.data.index);
 		});
 	}
