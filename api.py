@@ -94,7 +94,7 @@ class TREWSAPI(object):
                     query.clear_override_criteria(eid, action['actionName'], is_met=action_is_met)
                 else:
                     query.override_criteria(eid, action['actionName'], action['value'], is_met=action_is_met)
-            query.update_notifications()
+            #query.update_notifications()
 
         elif actionType == u'suspicion_of_infection':
             is_met = 'true'
