@@ -634,17 +634,23 @@ var dropdown = new function() {
 		});
 	}
 	this.editFields = function(field) {
-		//var editCriteriaIndices = trews.getMetCriteria(field);
-		var editCriteriaIndices = trews.getCriteria(field);
-		console.log(field + ': ' + editCriteriaIndices);
+		/*
+		var editCriteriaIndices = trews.getMetCriteria(field);
 		for (var i in EDIT[field]) {
 			var idx = jQuery.inArray(i, editCriteriaIndices);
-			console.log(field + ' ' + i + ': ' + idx);
 			if (idx > -1) {
 				var s = $('<h5 class="dropdown-link"></h5>').text(EDIT[field][i]);
 				this.ctn.append(s);
 			}
 		}
+		*/
+		var allCriteria = trews.getCriteria(field);
+		var editCriteriaIndices = [];
+		for (var i in allCriteria) {
+			editCriteriaIndices.push(i);
+			var s = $('<h5 class="dropdown-link"></h5>').text(EDIT[field][i]);
+			this.ctn.append(s);
+		};
 		$('.dropdown-link').click({index: editCriteriaIndices}, function(e) {
 			var launchAction = dropdown.getLaunchAction();
 			overrideModal.launch(launchAction, e.data.index);
