@@ -229,7 +229,7 @@ var controller = new function() {
 		this.clean();
 		var globalJson = trews.data;
 		severeSepsisComponent.render(globalJson["severe_sepsis"]);
-		septicShockComponent.render(globalJson["septic_shock"]);
+		septicShockComponent.render(globalJson["septic_shock"], globalJson['severe_sepsis']['is_met']);
 		workflowsComponent.render(
 			globalJson["Antibiotics"],
 			globalJson["Blood Culture"],
@@ -329,8 +329,9 @@ var septicShockComponent = new function() {
 		$('#expand-fus'),
 		septic_shock['fusion']);
 
-	this.render = function(json) {
+	this.render = function(json, severeSepsis) {
 		this.ctn.find('h2').text(septic_shock['display_name']);
+
 		var ctnClass = json['is_met'] ? "complete" : "";
 		this.ctn.addClass(ctnClass);
 		this.tenSlot.r(json['hypotension']);
@@ -360,6 +361,10 @@ var septicShockComponent = new function() {
 			});
 		} else {
 			this.fnoteBtn.hide();
+		}
+
+		if (!severeSepsis) {
+			this.ctn.addClass('inactive');
 		}
 	}
 }
@@ -629,14 +634,15 @@ var dropdown = new function() {
 		});
 	}
 	this.editFields = function(field) {
-		var metCriteriaIndices = trews.getMetCriteria(field);
+		//var editCriteriaIndices = trews.getMetCriteria(field);
+		var editCriteriaIndices = trews.getCriteria(field);
 		for (var i in EDIT[field]) {
-			if (jQuery.inArray(i, metCriteriaIndices) > -1) {
+			if (jQuery.inArray(i, editCriteriaIndices) > -1) {
 				var s = $('<h5 class="dropdown-link"></h5>').text(EDIT[field][i]);
 				this.ctn.append(s);
 			}
 		}
-		$('.dropdown-link').click({index: metCriteriaIndices}, function(e) {
+		$('.dropdown-link').click({index: editCriteriaIndices}, function(e) {
 			var launchAction = dropdown.getLaunchAction();
 			overrideModal.launch(launchAction, e.data.index);
 		});
