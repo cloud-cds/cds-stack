@@ -621,9 +621,11 @@ var dropdown = new function() {
 		};
 	}
 	this.getLaunchAction = function() {
+		var criteria = this.d.attr('data-trews');
+		if ( criteria == 'org' ) { criteria = 'organ_dysfunction'; }
 		return {
 			"card": CONSTANTS[this.d.attr('data-trews')],
-			"criteria": this.d.attr('data-trews')
+			"criteria": criteria;
 		};
 	}
 	this.sus = function() {
@@ -632,8 +634,7 @@ var dropdown = new function() {
 			this.ctn.append(s);
 		}
 		$('.dropdown-link').click(function() {
-			var elem = dropdown.getCtnElem('sus-edit');
-			elem.addClass('complete');
+			dropdown.getCtnElem('sus').addClass('complete');
 			var action = dropdown.getAction($(this).text());
 			endpoints.getPatientData("suspicion_of_infection", action);
 		});
