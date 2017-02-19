@@ -831,7 +831,7 @@ var notifications = new function() {
 		this.nav.unbind();
 		this.nav.click(function(e) {
 			e.stopPropagation();
-			notifications.n.fadeIn(30);
+			notifications.n.toggle();
 		});
 		$('body').click(function() {
 			notifications.n.fadeOut(30);
