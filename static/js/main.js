@@ -310,6 +310,7 @@ var severeSepsisComponent = new function() {
 		this.orgSlot.r(json['organ_dysfunction']);
 	}
 }
+
 var septicShockComponent = new function() {
 	this.ctn = $("[data-trews='septicShock']");
 
@@ -333,16 +334,16 @@ var septicShockComponent = new function() {
 		this.tenSlot.r(json['hypotension']);
 		this.fusSlot.r(json['hypoperfusion']);
 
-		var fnoteClass = json['is_met'] ? "complete" : null;
-		var fnoteBtnText = json['is_met'] ? "Apply" : "Not Indicated";
+		var fnoteClass = json['fluid_administered'] ? "complete" : null;
+		var fnoteBtnText = json['fluid_administered'] ? "Indicated" : "Not Indicated";
 		this.fnote.addClass(fnoteClass);
 		this.fnoteBtn.text(fnoteBtnText)
 		this.fnoteBtn.unbind();
 		this.fnoteBtn.click(function() {
 			var actions = [{
 				"actionName": "crystalloid_fluid",
-				"value": "Not Indicated",
-				"is_met": "true"
+				"value": this.fnoteBtn.text(),
+				"is_met": !json['fluid_administered']
 			}];
 			endpoints.getPatientData("override", actions);
 		});
