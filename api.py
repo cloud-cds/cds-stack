@@ -241,7 +241,8 @@ class TREWSAPI(object):
         if data['septic_shock']['fluid_administered'] and (hpf_cnt + hp_cnt > 0):
             data['septic_shock'] = True
             data['septic_shock']['onset_time'] = sorted(sorted(ss_onsets)[0], data['septic_shock']['fluid_administered_time'])[1]
-        logging.debug(json.dumps(data['severe_sepsis'], indent=4))
+
+        logging.debug(json.dumps(data, indent=4))
 
 
 
