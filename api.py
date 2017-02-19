@@ -244,7 +244,7 @@ class TREWSAPI(object):
             data['septic_shock']['onset_time'] = sorted(sorted(ss_onsets)[0], data['septic_shock']['fluid_administered_time'])[1]
 
         logging.debug(json.dumps(data['severe_sepsis'], indent=4))
-        #logging.debug(json.dumps(data['septic_shock'], indent=4))
+        logging.debug(json.dumps(data['septic_shock'], indent=4))
 
 
 
