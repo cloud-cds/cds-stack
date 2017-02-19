@@ -88,8 +88,8 @@ class TREWSAPI(object):
 
         elif actionType == u'override':
             for action in actionData:
-                action_is_met = action['is_met'] if 'is_met' in action else 'false'
                 action_is_clear = 'clear' in action
+                action_is_met = action['is_met'] if 'is_met' in action else ('false' if action_is_clear else 'true')
                 if action_is_clear:
                     query.clear_override_criteria(eid, action['actionName'], is_met=action_is_met)
                 else:
