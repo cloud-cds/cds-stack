@@ -625,7 +625,7 @@ var dropdown = new function() {
 		if ( criteria == 'org' ) { criteria = 'organ_dysfunction'; }
 		return {
 			"card": CONSTANTS[this.d.attr('data-trews')],
-			"criteria": criteria;
+			"criteria": criteria
 		};
 	}
 	this.sus = function() {
