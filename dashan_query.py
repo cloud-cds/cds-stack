@@ -53,7 +53,7 @@ def get_admittime(eid):
     if df_admittime is None or df_admittime.empty:
         return None
     else:
-        return df_admittime.value.values[0].astype(datetime.datetime)/1000000
+        return df_admittime.value.values[0].astype(datetime.datetime)/1000000000
 
 
 def get_cdm(eid):
