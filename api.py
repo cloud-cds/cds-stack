@@ -113,7 +113,7 @@ class TREWSAPI(object):
 
             value = '{ "text": "%(val)s" }' % {'val': actionData['value']}
             query.override_criteria(eid, actionType, value=value, is_met=is_met)
-            query.update_notifications()
+            #query.update_notifications()
 
         elif actionType == u'notification':
             if 'id' in actionData and 'read' in actionData:
