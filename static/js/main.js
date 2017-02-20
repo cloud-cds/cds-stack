@@ -410,10 +410,10 @@ var workflowsComponent = new function() {
 			default:
 				var offset = 0;
 		}
-		if (time + offset < Date.now()) {
-			status = "Workflow window over " + timeLapsed(new Date(time + offset));
+		if ((time * 1000) + offset < Date.now()) {
+			status = "Workflow window over " + timeLapsed(new Date((time * 1000) + offset));
 		} else {
-			status = timeRemaining(new Date(time + offset));
+			status = timeRemaining(new Date((time * 1000) + offset));
 		}
 		return status;
 	}
