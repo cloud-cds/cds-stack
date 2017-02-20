@@ -91,7 +91,9 @@ class TREWSAPI(object):
         elif actionType == u'override':
             for action in actionData:
                 action_is_clear = 'clear' in action
-                action_is_met = action['is_met'] if 'is_met' in action else ('false' if action_is_clear else 'true')
+                # Note{andong} In current version, we only customize range not override value
+                #action_is_met = action['is_met'] if 'is_met' in action else ('false' if action_is_clear else 'true')
+                action_is_met = 'false' if action_is_clear else None
                 if action_is_clear:
                     query.override_criteria(eid, action['actionName'], is_met=action_is_met, clear=True)
                 else:
