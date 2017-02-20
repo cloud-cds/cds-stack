@@ -254,6 +254,9 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li {
 .actions a.hidden {
     display: none;
 }
+.actions .place-order {
+    float: right;
+}
 .actions select {
     float: right;
     margin-left: 10px;

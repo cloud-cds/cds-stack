@@ -397,6 +397,7 @@ var workflowsComponent = new function() {
 	this.sev6Ctn = $("[data-trews='sev6']");
 	this.sep6Ctn = $("[data-trews='sep6']");
 	this.orderBtns = $('.place-order');
+	this.notInBtns = $('.notIn');
 
 	this.clean = function() {
 		$("[data-trews='init_lactate'],\
@@ -411,6 +412,10 @@ var workflowsComponent = new function() {
 		this.orderBtns.unbind();
 		this.orderBtns.click(function() {
 			endpoints.getPatientData('place_order', {'actionName': $(this).attr('data-trews')});
+		});
+		this.notInBtns.unbind();
+		this.notInBtns.click(function() {
+			endpoints.getPatientData('order_not_indicated', {'actionName': $(this).attr('data-trews')});
 		});
 	}
 
