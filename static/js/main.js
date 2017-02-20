@@ -111,6 +111,7 @@ var slotComponent = function(elem, link, constants) {
 		this.elem.find('h3').text(this.constants['display_name']);
 		var isCompleteClass = json['is_met'] ? "complete" : null;
 		this.elem.addClass(isCompleteClass);
+		this.elem.find('.criteria-overridden').html('');
 		for (var c in this.criteria) {
 			var component = new criteriaComponent(this.criteria[c], constants['criteria'][c]);
 			if (component.isOverridden) {
