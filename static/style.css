@@ -81,10 +81,19 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li {
     font-weight: 400;
     vertical-align: middle;
 }
+#header h1 span,
+#header h1 div,
+#header h1 i {
+    display: inline-block;
+    vertical-align: middle;
+}
 #header h1 span {
     font-size: 18px;
-    margin-right: 10px;
-    vertical-align: middle;
+    margin-right: 3px;
+}
+#header h1 div,
+#header h1 i {
+    font-size: 14px;
 }
 #header-nav {
     float: right;
