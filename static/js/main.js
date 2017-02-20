@@ -163,12 +163,12 @@ window.onerror = function(error, url, line) {
  * and improper connection.
 */
 var endpoints = new function() {
-	$('body').addClass('waiting');
 	this.url = (window.location.hostname.indexOf("localhost") > -1) ?
 		"http://localhost:8000/api" :
 		window.location.protocol + "//" + window.location.hostname + "/api";
 	this.numTries = 1;
 	this.getPatientData = function(actionType, actionData) {
+		$('body').addClass('waiting');
 		postBody = {
 			q: (getQueryVariable('PATID') === false) ? null : getQueryVariable('PATID'),
 			u: (getQueryVariable('EPICUSERID') === false) ? null : getQueryVariable('EPICUSERID'),
