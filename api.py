@@ -18,7 +18,7 @@ import logging
 import pprint
 import copy
 import re
-
+THRESHOLD = 0.72
 logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.DEBUG)
 #hashed_key = 'C8ED911A8907EFE4C1DE24CA67DF5FA2'
 #hashed_key = '\xC8\xED\x91\x1A\x89\x07\xEF\xE4\xC1\xDE\x24\xCA\x67\xDF\x5F\xA2'
@@ -315,7 +315,7 @@ class TREWSAPI(object):
 
         # update criteria from database query
         self.update_criteria(criteria, data)
-        data['chart_data']['trewscore_threshold'] = 0.796
+        data['chart_data']['trewscore_threshold'] = THRESHOLD
         admittime = query.get_admittime(eid)
         data['chart_data']['patient_arrival']['timestamp'] =  admittime
         df = query.get_trews(eid)
