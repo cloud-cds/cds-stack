@@ -176,7 +176,7 @@ var endpoints = new function() {
 			actionType: (actionType) ? actionType : null,
 			action: (actionData) ? actionData : null
 		}
-		console.log(postBody);
+		// console.log(postBody);
 		if (getQueryVariable('test') == 'true' || trews.isTest) {
 			if (getQueryVariable('console') == 'true')
 				console.log(postBody);
@@ -489,7 +489,7 @@ var graphComponent = new function() {
 		this.render(json);
 	}
 	this.render = function(json) {
-		if (json['chart_values'] == undefined) {
+		if (json == undefined) {
 			return;
 		}
 		if (this.is30) {
