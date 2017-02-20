@@ -1,4 +1,22 @@
 /**
+ * Checks if object is empty
+*/
+function isEmpty(object) {
+	for(var i in object) {
+		return true;
+	}
+	return false;
+}
+
+function isNumber(obj) {
+  return toString.call(obj) === '[object Number]';
+}
+
+function isString(obj) {
+  return toString.call(obj) === '[object String]';
+}
+
+/**
  * State Tree, Maintains most up to date app information
  * from server.  Source of Truth
 */
@@ -29,7 +47,7 @@ var trews = new function() {
 	}
 	this.getMetCriteria = function(slot) {
 		var list = [];
-		var criteria = (typeof(slot) == "string") ? this.getCriteria(slot) : slot
+		var criteria = isString(slot) ? this.getCriteria(slot) : slot
 		for (var c in criteria) {
 			if (criteria[c]['is_met'] == true) {
 				list.push(c);
@@ -322,9 +340,11 @@ var severeSepsisComponent = new function() {
 			}
 			this.susCtn.find('.selection').hide();
 			this.susCtn.find('.status h4').text(this.sus.value);
-			this.susCtn.find('.status h5').text(
-				"by " + this.sus['update_user'] +
-				" at " + timeLapsed(new Date(this.sus['update_time']*1000)));
+			if ( this.sus['update_user'] ) {
+				this.susCtn.find('.status h5').text(
+					"by " + this.sus['update_user'] +
+					" at " + timeLapsed(new Date(this.sus['update_time']*1000)));
+			}
 		}
 	}
 
@@ -601,15 +621,6 @@ function getQueryVariable(variable) {
 function cleanUserId(userId) {
 	return userId.replace(/^\++/, "");
 }
-/**
- * Checks if object is empty
-*/
-function isEmpty(object) {
-	for(var i in object) {
-		return true;
-	}
-	return false;
-}
 
 /**
  * Criteria Component
@@ -619,18 +630,25 @@ function isEmpty(object) {
 var criteriaComponent = function(c, constants) {
 	this.isOverridden = false;
 	this.status = "";
+
+	var displayValue = c['value'];
+	console.log(typeof(displayValue), isNumber(displayValue));
+	if ( displayValue && isNumber(displayValue) ) {
+		displayValue = displayValue.toPrecision(5);
+	}
+
 	if (c['is_met'] && c['measurement_time']) {
 		this.classComplete = " met";
 		var lapsed = timeLapsed(new Date(c['measurement_time']*1000));
 		var strTime = strToTime(new Date(c['measurement_time']*1000));
-		this.status += "Criteria met <span title='" + strTime + "'>" + lapsed + "</span> with a value of <span class='value'>" + c['value'] + "</span>";
+		this.status += "Criteria met <span title='" + strTime + "'>" + lapsed + "</span> with a value of <span class='value'>" + displayValue + "</span>";
 	} else {
 		if (c['override_user'] != null) {
 			this.classComplete = " unmet";
 			this.isOverridden = true;
 			if (c['measurement_time']) {
 				var cLapsed = timeLapsed(new Date(c['measurement_time']*1000));
-				this.status += "Criteria met " + cLapsed + " with a value of <span class='value'>" + c['value'] + "</span>";
+				this.status += "Criteria met " + cLapsed + " with a value of <span class='value'>" + displayValue + "</span>";
 				this.status += (c['override_time']) ? "<br />" : "";
 			}
 			if (c['override_time']) {
