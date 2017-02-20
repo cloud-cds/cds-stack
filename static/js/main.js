@@ -486,15 +486,19 @@ var graphComponent = new function() {
 			return;
 		}
 		this.json = json;
-		this.xmin = json['chart_values']['timestamp'][0];
+		var dataLength = json['chart_values']['timestamp'].length;
+		for (var i = 0; i < dataLength; i += 1) {
+			this.json['chart_values']['timestamp'][i] *= 1000;
+		}
+		this.xmin = this.json['chart_values']['timestamp'][0];
 		this.ymin = 0;//json['chart_values']['trewscore'][0];
-		var max = json['chart_values']['timestamp'][json['chart_values']['timestamp'].length - 1];
+		var max = this.json['chart_values']['timestamp'][this.json['chart_values']['timestamp'].length - 1];
 		this.xmax = ((max - this.xmin) / 6) + max;
-		max = json['chart_values']['trewscore'][json['chart_values']['trewscore'].length - 1];
+		max = this.json['chart_values']['trewscore'][this.json['chart_values']['trewscore'].length - 1];
 		this.ymax = 1; //((max - this.ymin) / 6) + max;
 		// this.ymin = Math.min.apply(null, json['chart_values']['trewscore']);
 		// this.ymax = Math.max.apply(null, json['chart_values']['trewscore']) * 1.16;
-		graph(json, this.xmin, this.xmax, this.ymin, this.ymax);
+		graph(this.json, this.xmin, this.xmax, this.ymin, this.ymax);
 	}
 	window.onresize = function() {
 		graphComponent.render(graphComponent.json, graphComponent.xmin, graphComponent.xmax);
@@ -967,9 +971,9 @@ function graph(json, xmin, xmax, ymin, ymax) {
 		{color: "#555",lineWidth: 1,xaxis: {from: xlast,to: xlast}}
 	]
 
-	var arrivalx = (json['patient_arrival']['timestamp'] != undefined) ? json['patient_arrival']['timestamp'] : null;
-	var severeOnsetx = (json['severe_sepsis_onset']['timestamp'] != undefined) ? json['severe_sepsis_onset']['timestamp'] : null;
-	var shockOnsetx = (json['septic_shock_onset']['timestamp'] != undefined) ? json['septic_shock_onset']['timestamp'] : null;
+	var arrivalx = (json['patient_arrival']['timestamp'] != undefined) ? json['patient_arrival']['timestamp'] * 1000 : null;
+	var severeOnsetx = (json['severe_sepsis_onset']['timestamp'] != undefined) ? json['severe_sepsis_onset']['timestamp'] * 1000 : null;
+	var shockOnsetx = (json['septic_shock_onset']['timestamp'] != undefined) ? json['septic_shock_onset']['timestamp'] * 1000 : null;
 
 	if (json['patient_arrival']['timestamp'] != undefined) {
 		var arrivalMark = {color: "#ccc",lineWidth: 1,xaxis: {from: arrivalx,to: arrivalx}};
