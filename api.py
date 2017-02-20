@@ -17,6 +17,7 @@ import numpy as np
 import logging
 import pprint
 import copy
+import re
 
 logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.DEBUG)
 #hashed_key = 'C8ED911A8907EFE4C1DE24CA67DF5FA2'
@@ -122,7 +123,10 @@ class TREWSAPI(object):
                 logging.error('Invalid notification update action data' + json.dumps(actionData))
 
         elif actionType == u'place_order':
-            query.override_criteria(eid, actionData['actionName'], value='{ "text": "Placed" }')
+            query.override_criteria(eid, actionData['actionName'], value='{ "text": "Ordered" }')
+
+        elif actionType == u'complete_order':
+            query.override_criteria(eid, actionData['actionName'], value='{ "text": "Completed" }')
 
         elif actionType == u'order_not_indicated':
             query.override_criteria(eid, actionData['actionName'], value='{ "text": "Not Indicated" }')
@@ -154,6 +158,15 @@ class TREWSAPI(object):
 
         HYPOPERFUSION = ['init_lactate']
 
+        ORDERS = [ "initial_lactate_order",
+                   "blood_culture_order",
+                   "antibiotics_order",
+                   "crystalloid_fluid_order",
+                   "repeat_lactate_order",
+                   "vasopressors_order",
+                   "focus_exam_order"
+                 ]
+
         sirs_cnt = 0
         od_cnt = 0
         sirs_onsets = []
@@ -175,7 +188,7 @@ class TREWSAPI(object):
             if criterion["name"] == 'suspicion_of_infection':
                 data['severe_sepsis']['suspicion_of_infection'] = {
                     "name": "suspicion_of_infection",
-                    "value": criterion['override_value'] if 'override_value' in criterion else criterion['value'],
+                    "value": criterion['override_value']['text'] if 'override_value' in criterion else criterion['value'],
                     "update_time": criterion['override_time'],
                     "update_user": criterion['override_user']
                 }
@@ -213,11 +226,11 @@ class TREWSAPI(object):
                         ss_onsets.append(criterion['override_time'])
                     else:
                         ss_onsets.append(criterion['measurement_time'])
-            hpf_cnt = 0
 
+            hpf_cnt = 0
             if criterion["name"] in HYPOPERFUSION:
                 hpf_idx = HYPOPERFUSION.index(criterion["name"])
-                data['septic_shock']['hypoperfusion']['criteria'][hp_idx] = criterion
+                data['septic_shock']['hypoperfusion']['criteria'][hpf_idx] = criterion
                 if criterion["is_met"]:
                     hpf_cnt += 1
                     if criterion['override_user']:
@@ -233,16 +246,29 @@ class TREWSAPI(object):
                 else:
                     data['septic_shock']['fluid_administered_time'] = criterion['measurement_time']
 
+            # update orders
+            if criterion["name"] in ORDERS:
+                order_id = re.sub('_order$', '', criterion["name"])
+                data[order_id] = {
+                    "name": order_id,
+                    "status": criterion['override_value']['text'] if 'override_value' in criterion else criterion['value'],
+                    "time": criterion['override_time'] if 'override_time' in criterion else criterion['measurement_time'],
+                    "user": criterion['override_user'],
+                    "note": "note"
+                }
+
         # update sirs
         data['severe_sepsis']['sirs']['is_met'] = sirs_cnt > 1
         data['severe_sepsis']['sirs']["num_met"] = sirs_cnt
         if sirs_cnt > 1:
             data['severe_sepsis']['sirs']['onset_time'] = sorted(sirs_onsets)[1]
+
         # update organ dysfunction
         data['severe_sepsis']['organ_dysfunction']['is_met'] = od_cnt > 0
         data['severe_sepsis']['organ_dysfunction']["num_met"] = od_cnt
         if od_cnt > 0:
             data['severe_sepsis']['organ_dysfunction']['onset_time'] = sorted(od_onsets)[0]
+
         # update severe_sepsis
         if data['severe_sepsis']['sirs']['is_met'] and \
             data['severe_sepsis']['organ_dysfunction']['is_met'] and\
@@ -258,6 +284,7 @@ class TREWSAPI(object):
             data['chart_data']['severe_sepsis_onset']['timestamp'] = data['severe_sepsis']['onset_time']
         else:
             data['severe_sepsis']['is_met'] = 0
+
         # update septic shock
         if data['septic_shock']['fluid_administered'] and (hpf_cnt + hp_cnt > 0):
             data['septic_shock'] = True
