@@ -155,7 +155,7 @@ class TREWSAPI(object):
         # TODO: set up the onset time
         for idx, row in criteria.iterrows():
             # update every criteria
-            logging.debug('getcriteria override_value: ' + row['override_value']);
+            logging.debug('getcriteria override_value: ' + str(row['override_value']));
             criterion = {
                 "name": row['name'],
                 "is_met": row['is_met'],
