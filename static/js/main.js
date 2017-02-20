@@ -163,6 +163,7 @@ window.onerror = function(error, url, line) {
  * and improper connection.
 */
 var endpoints = new function() {
+	$('body').addClass('waiting');
 	this.url = (window.location.hostname.indexOf("localhost") > -1) ?
 		"http://localhost:8000/api" :
 		window.location.protocol + "//" + window.location.hostname + "/api";
@@ -192,6 +193,7 @@ var endpoints = new function() {
 			data: JSON.stringify(postBody),
 			dataType: "json"
 		}).done(function(result) {
+			$('body').removeClass('waiting');
 			$('#loading').addClass('done');
 			if ( result.hasOwnProperty('trewsData') ) {
 				trews.setData(result.trewsData);
@@ -202,6 +204,7 @@ var endpoints = new function() {
 				controller.refreshNotifications();
 			}
 		}).fail(function(result) {
+			$('body').removeClass('waiting');
 			if (result.status == 400) {
 				$('#loading p').html(result.responseJSON['message'] + ".<br/>  Connection Failed<span id='test-data'>.</span> Please rest<span id='see-blank'>a</span>rt application or contact trews-jhu@opsdx.io");
 				return;
