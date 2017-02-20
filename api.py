@@ -121,6 +121,12 @@ class TREWSAPI(object):
             else:
                 logging.error('Invalid notification update action data' + json.dumps(actionData))
 
+        elif actionType == u'place_order':
+            query.override_criteria(eid, actionData['actionName'], value='Placed')
+
+        elif actionType == u'order_not_indicated':
+            query.override_criteria(eid, actionData['actionName'], value='Not Indicated')
+
         else:
             logging.error('Invalid action type: ' + actionType)
 

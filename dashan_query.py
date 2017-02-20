@@ -141,7 +141,6 @@ def override_criteria(eid, name, value='{}', user='user', is_met='true', clear=F
     params = {
         'user': ("'" + user + "'") if not clear else 'null',
         'val': ("'" + value + "'") if not clear else 'null',
-        'override_val': ("'" + override_value + "'") if not clear else 'null',
         'fid': name,
         'pid': eid,
         'is_met': is_met
