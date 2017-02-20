@@ -97,11 +97,11 @@ class TREWSAPI(object):
                     if 'value' in action:
                         as_min = action['range'] == 'min'
                         value = ('[{ "lower": %(val)s }]' if as_min else '[{"upper": %(val)s }]') % {'val': action['value']}
-                        logging.debug('override_criteria value: {} {}' % (action['actionName'], value))
+                        logging.debug('override_criteria value: %(name)s %(val)s' % {'name': action['actionName'], 'val': value})
                         query.override_criteria(eid, action['actionName'], value=value, is_met=action_is_met)
                     else:
                         value = '[{ "lower": %(l)s, "upper": %(u)s }]' % {'l': action['values'][0], 'u': action['values'][1] }
-                        logging.debug('override_criteria values: {} {}' % (action['actionName'], value))
+                        logging.debug('override_criteria values: %(name)s %(val)s' % {'name': action['actionName'], 'val': value})
                         query.override_criteria(eid, action['actionName'], value=value, is_met=action_is_met)
             #query.update_notifications()
 
@@ -122,10 +122,10 @@ class TREWSAPI(object):
                 logging.error('Invalid notification update action data' + json.dumps(actionData))
 
         elif actionType == u'place_order':
-            query.override_criteria(eid, actionData['actionName'], value='Placed')
+            query.override_criteria(eid, actionData['actionName'], value='{ "text": "Placed" }')
 
         elif actionType == u'order_not_indicated':
-            query.override_criteria(eid, actionData['actionName'], value='Not Indicated')
+            query.override_criteria(eid, actionData['actionName'], value='{ "text": "Not Indicated" }')
 
         else:
             logging.error('Invalid action type: ' + actionType)
@@ -175,7 +175,7 @@ class TREWSAPI(object):
             if criterion["name"] == 'suspicion_of_infection':
                 data['severe_sepsis']['suspicion_of_infection'] = {
                     "name": "suspicion_of_infection",
-                    "value": criterion['value'],
+                    "value": criterion['override_value'] if 'override_value' in criterion else criterion['value'],
                     "update_time": criterion['override_time'],
                     "update_user": criterion['override_user']
                 }
