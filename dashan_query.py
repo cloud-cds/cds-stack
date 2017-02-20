@@ -145,7 +145,7 @@ def override_criteria(eid, name, value='{}', user='user', is_met='true', clear=F
             override_value = %(val)s,
             override_user = %(user)s
         where pat_id = '%(pid)s' and name = '%(fid)s';
-        select update_pat_criteria(%(pid)s, %(fid)s);
+        select update_pat_criteria('%(pid)s', '%(fid)s');
         """ % params
     else:    
         params = {
@@ -163,7 +163,6 @@ def override_criteria(eid, name, value='{}', user='user', is_met='true', clear=F
             override_user = %(user)s,
             is_met = '%(is_met)s'
         where pat_id = '%(pid)s' and name = '%(fid)s';
-        select update_pat_criteria(%(pid)s, %(fid)s);
         """ % params
     logging.debug("override_sql:" + override_sql)
     conn = engine.connect()
