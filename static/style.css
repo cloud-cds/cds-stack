@@ -268,9 +268,9 @@ body.waiting {
 .actions a.hidden {
     display: none;
 }
-.actions select {
+.actions p {
     float: right;
-    margin-left: 10px;
+    margin: 0;
 }
 .status {
     margin-top: 10px;
