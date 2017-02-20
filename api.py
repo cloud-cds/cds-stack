@@ -186,9 +186,13 @@ class TREWSAPI(object):
             }
 
             if criterion["name"] == 'suspicion_of_infection':
+                value = criterion['value']
+                if 'override_value' in criterion and 'text' in criterion['override_value']:
+                    value = criterion['override_value']['text']
+
                 data['severe_sepsis']['suspicion_of_infection'] = {
                     "name": "suspicion_of_infection",
-                    "value": criterion['override_value']['text'] if 'override_value' in criterion else criterion['value'],
+                    "value": value,
                     "update_time": criterion['override_time'],
                     "update_user": criterion['override_user']
                 }
@@ -249,9 +253,13 @@ class TREWSAPI(object):
             # update orders
             if criterion["name"] in ORDERS:
                 order_id = re.sub('_order$', '', criterion["name"])
+                value = criterion['value']
+                if 'override_value' in criterion and 'text' in criterion['override_value']:
+                    value = criterion['override_value']['text']
+
                 data[order_id] = {
                     "name": order_id,
-                    "status": criterion['override_value']['text'] if 'override_value' in criterion else criterion['value'],
+                    "status": value,
                     "time": criterion['override_time'] if 'override_time' in criterion else criterion['measurement_time'],
                     "user": criterion['override_user'],
                     "note": "note"
