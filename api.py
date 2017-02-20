@@ -34,7 +34,7 @@ def tsp_to_unix_epoch(tsp):
     else:
         if type(tsp) != datetime.datetime:
             tsp = tsp.to_pydatetime()
-        tsp = int(tsp.strftime("%s"))*1000
+        tsp = int(tsp.strftime("%s"))
     return tsp
 
 class NumpyEncoder(json.JSONEncoder):
