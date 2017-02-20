@@ -279,7 +279,7 @@ class TREWSAPI(object):
 
         # update criteria from database query
         self.update_criteria(criteria, data)
-
+        data['chart_data']['trewscore_threshold'] = 0.796
         admittime = query.get_admittime(eid)
         data['chart_data']['patient_arrival']['timestamp'] =  admittime
         df = query.get_trews(eid)
