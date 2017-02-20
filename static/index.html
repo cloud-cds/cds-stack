@@ -19,7 +19,7 @@
 
 	<link rel="stylesheet" href="bower_components/jquery-ui/themes/base/jquery-ui.css">
 	<link rel="stylesheet" type="text/css" href="style.css">
-	<script src="//d2wy8f7a9ursnm.cloudfront.net/bugsnag-3.min.js" data-apikey="da82367e84aaf2247b676b5ea4d265d0"></script>
+	<!-- <script src="//d2wy8f7a9ursnm.cloudfront.net/bugsnag-3.min.js" data-apikey="da82367e84aaf2247b676b5ea4d265d0"></script> -->
 </head>
 
 <body>
@@ -28,7 +28,7 @@
 	</div>
 	<div id="page">
 		<div id="header">
-			<h1><span>0.78</span>TREWScore v1.0<i id="show-console">.</i>1 (BETA)</h1><div id="fake-console"></div>
+			<h1><span>0.78</span><div>TREWScore v1.0</div><i id="show-console">.</i><div>1 (BETA)</div></h1><div id="fake-console"></div>
 			<div id="header-nav">
 				<li id="header-notifications"><b><img src="img/circle.png"><span class="num">1</span></b><span class="text">Notification</span></li>
 			</div>
@@ -126,45 +126,45 @@
 					<div class="slot" data-trews="init_lactate">
 						<h3></h3>
 						<div class="actions cf">
-							<span class='place-order' data-trews='init_lactate'>
+							<span class='place-order' data-trews='initial_lactate_order'>
 								<OrderTemplate Key="{{ keys['lactate'] }}" OrderMode="IP" RemoveOriginal="True">
 									Place Order
 								</OrderTemplate>
 							</span>
-							<!-- <a class='notIn'>Not Indicated</a> -->
+							<a class='notIn' data-trews='initial_lactate_order'>Not Indicated</a>
 						</div>
 					</div>
 					<div class="slot" data-trews="blood_culture">
 						<h3></h3>
 						<div class="actions cf">
-							<span class='place-order' data-trews='blood_culture'>
+							<span class='place-order' data-trews='blood_culture_order'>
 								<OrderTemplate Key="{{ keys['blood_culture'] }}" OrderMode="IP" RemoveOriginal="True">
 									Place Order
 								</OrderTemplate>
 							</span>
-							<!-- <a class='notIn'>Not Indicated</a> -->
+							<a class='notIn' data-trews='blood_culture_order'>Not Indicated</a>
 						</div>
 					</div>
 					<div class="slot" data-trews="antibiotics">
 						<h3></h3>
 						<div class="actions cf">
-							<span class='place-order' data-trews='antibiotics'>
+							<span class='place-order' data-trews='antibiotics_order'>
 								<OrderTemplate Key="{{ keys['antibiotics'] }}" OrderMode="IP" RemoveOriginal="True">
 									Place Order
 								</OrderTemplate>
 							</span>
-							<!-- <a class='notIn'>Not Indicated</a> -->
+							<a class='notIn' data-trews='antibiotics_order'>Not Indicated</a>
 						</div>
 					</div>
 					<div class="slot last-child" data-trews="fluid">
 						<h3></h3>
 						<div class="actions cf">
-							<span class='place-order' data-trews='fluid'>
+							<span class='place-order' data-trews='crystalloid_fluid_order'>
 								<OrderTemplate Key="{{ keys['fluid'] }}" OrderMode="IP" RemoveOriginal="True">
 									Place Order
 								</OrderTemplate>
 							</span>
-							<!-- <a class='notIn'>Not Indicated</a> -->
+							<a class='notIn' data-trews='crystalloid_fluid_order'>Not Indicated</a>
 						</div>
 					</div>
 				</div>
@@ -173,13 +173,14 @@
 					<h2></h2>
 					<h5 class="card-subtitle"></h5>
 					<div class="slot last-child" data-trews="re_lactate">
+						<h3></h3>
 						<div class="actions cf">
-							<span class='place-order' data-trews='re_lactate'>
+							<span class='place-order' data-trews='repeat_lactate_order'>
 								<OrderTemplate Key="{{ keys['lactate'] }}" OrderMode="IP" RemoveOriginal="True">
 									Place Order
 								</OrderTemplate>
 							</span>
-							<!-- <a class='notIn'>Not Indicated</a> -->
+							<a class='notIn' data-trews='repeat_lactate_order'>Not Indicated</a>
 						</div>
 					</div>
 				</div>
@@ -190,19 +191,20 @@
 					<div class="slot" data-trews="vasopressors">
 						<h3></h3>
 						<div class="actions cf">
-							<span class='place-order' data-trews='vasopressors'>
+							<span class='place-order' data-trews='vasopressors_order'>
 								<OrderTemplate Key="{{ keys['vasopressors'] }}" OrderMode="IP" RemoveOriginal="True">
 									Place Order
 								</OrderTemplate>
 							</span>
-							<!-- <a class='notIn'>Not Indicated</a> -->
+							<a class='notIn' data-trews='vasopressors_order'>Not Indicated</a>
 						</div>
 					</div>
 					<div class="slot last-child">
 						<h3>Focus Exam</h3>
 						<div class="actions cf">
-							<a>Place Order</a>
-							<!-- <a>Not Indicated</a> -->
+							<p>Action coming soon.</p>
+							<!-- <a>Place Order</a>
+							<a>Not Indicated</a> -->
 						</div>
 					</div>
 				</div>

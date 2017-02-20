@@ -49,6 +49,24 @@ var trews = new function() {
 	}
 };
 
+var notificationRefresher = new function() {
+	this.refreshPeriod = 10000;
+	this.refreshTimer = null;
+	this.init = function() {
+		this.poll();
+	}
+	this.poll = function() {
+		endpoints.getPatientData('pollNotifications');
+		this.refreshTimer = window.setTimeout(this.poll, this.refreshPeriod);
+	}
+	this.terminate = function() {
+		if (this.refreshTimer) {
+			window.clearTimeout(this.refreshTimer)
+			this.refreshTimer = null
+		}
+	}
+}
+
 /**
  * Slot Component
  * @param JSON String with data for a slot
@@ -150,6 +168,7 @@ var endpoints = new function() {
 		window.location.protocol + "//" + window.location.hostname + "/api";
 	this.numTries = 1;
 	this.getPatientData = function(actionType, actionData) {
+		$('body').addClass('waiting');
 		postBody = {
 			q: (getQueryVariable('PATID') === false) ? null : getQueryVariable('PATID'),
 			u: (getQueryVariable('EPICUSERID') === false) ? null : getQueryVariable('EPICUSERID'),
@@ -174,6 +193,7 @@ var endpoints = new function() {
 			data: JSON.stringify(postBody),
 			dataType: "json"
 		}).done(function(result) {
+			$('body').removeClass('waiting');
 			$('#loading').addClass('done');
 			if ( result.hasOwnProperty('trewsData') ) {
 				trews.setData(result.trewsData);
@@ -184,6 +204,7 @@ var endpoints = new function() {
 				controller.refreshNotifications();
 			}
 		}).fail(function(result) {
+			$('body').removeClass('waiting');
 			if (result.status == 400) {
 				$('#loading p').html(result.responseJSON['message'] + ".<br/>  Connection Failed<span id='test-data'>.</span> Please rest<span id='see-blank'>a</span>rt application or contact trews-jhu@opsdx.io");
 				return;
@@ -247,6 +268,7 @@ var controller = new function() {
 		notifications.render(globalJson['notifications']);
 	}
 	this.displayJSError = function() {
+		notificationRefresher.terminate();
 		$('#loading').removeClass('done');
 		$('#loading p').html("Javascript Error<span id='test-data'>.</span> Please rest<span id='see-blank'>a</span>rt application or contact trews-jhu@opsdx.io");
 		$('#test-data').click(function() {
@@ -378,6 +400,7 @@ var workflowsComponent = new function() {
 	this.sev6Ctn = $("[data-trews='sev6']");
 	this.sep6Ctn = $("[data-trews='sep6']");
 	this.orderBtns = $('.place-order');
+	this.notInBtns = $('.notIn');
 
 	this.clean = function() {
 		$("[data-trews='init_lactate'],\
@@ -392,6 +415,10 @@ var workflowsComponent = new function() {
 		this.orderBtns.unbind();
 		this.orderBtns.click(function() {
 			endpoints.getPatientData('place_order', {'actionName': $(this).attr('data-trews')});
+		});
+		this.notInBtns.unbind();
+		this.notInBtns.click(function() {
+			endpoints.getPatientData('order_not_indicated', {'actionName': $(this).attr('data-trews')});
 		});
 	}
 
@@ -462,15 +489,19 @@ var graphComponent = new function() {
 			return;
 		}
 		this.json = json;
-		this.xmin = json['chart_values']['timestamp'][0];
+		var dataLength = json['chart_values']['timestamp'].length;
+		for (var i = 0; i < dataLength; i += 1) {
+			this.json['chart_values']['timestamp'][i] *= 1000;
+		}
+		this.xmin = this.json['chart_values']['timestamp'][0];
 		this.ymin = 0;//json['chart_values']['trewscore'][0];
-		var max = json['chart_values']['timestamp'][json['chart_values']['timestamp'].length - 1];
+		var max = this.json['chart_values']['timestamp'][this.json['chart_values']['timestamp'].length - 1];
 		this.xmax = ((max - this.xmin) / 6) + max;
-		max = json['chart_values']['trewscore'][json['chart_values']['trewscore'].length - 1];
+		max = this.json['chart_values']['trewscore'][this.json['chart_values']['trewscore'].length - 1];
 		this.ymax = 1; //((max - this.ymin) / 6) + max;
 		// this.ymin = Math.min.apply(null, json['chart_values']['trewscore']);
 		// this.ymax = Math.max.apply(null, json['chart_values']['trewscore']) * 1.16;
-		graph(json, this.xmin, this.xmax, this.ymin, this.ymax);
+		graph(this.json, this.xmin, this.xmax, this.ymin, this.ymax);
 	}
 	window.onresize = function() {
 		graphComponent.render(graphComponent.json, graphComponent.xmin, graphComponent.xmax);
@@ -918,25 +949,6 @@ var notifications = new function() {
 	}
 }
 
-
-var notificationRefresher = new function() {
-	this.refreshPeriod = 10000;
-	this.refreshTimer = null;
-	this.init = function() {
-		this.poll();
-	}
-	this.poll = function() {
-		endpoints.getPatientData('pollNotifications');
-		this.refreshTimer = window.setTimeout(this.poll, this.refreshPeriod);
-	}
-	this.terminate = function() {
-		if (this.refreshTimer) {
-			window.clearTimeout(this.refreshTimer)
-			this.refreshTimer = null
-		}
-	}
-}
-
 function graph(json, xmin, xmax, ymin, ymax) {
 	var graphWidth = Math.floor($('#graph-wrapper').width()) - 60;
 	$("#graphdiv").width(graphWidth);
@@ -962,9 +974,9 @@ function graph(json, xmin, xmax, ymin, ymax) {
 		{color: "#555",lineWidth: 1,xaxis: {from: xlast,to: xlast}}
 	]
 
-	var arrivalx = (json['patient_arrival']['timestamp'] != undefined) ? json['patient_arrival']['timestamp'] : null;
-	var severeOnsetx = (json['severe_sepsis_onset']['timestamp'] != undefined) ? json['severe_sepsis_onset']['timestamp'] : null;
-	var shockOnsetx = (json['septic_shock_onset']['timestamp'] != undefined) ? json['septic_shock_onset']['timestamp'] : null;
+	var arrivalx = (json['patient_arrival']['timestamp'] != undefined) ? json['patient_arrival']['timestamp'] * 1000 : null;
+	var severeOnsetx = (json['severe_sepsis_onset']['timestamp'] != undefined) ? json['severe_sepsis_onset']['timestamp'] * 1000 : null;
+	var shockOnsetx = (json['septic_shock_onset']['timestamp'] != undefined) ? json['septic_shock_onset']['timestamp'] * 1000 : null;
 
 	if (json['patient_arrival']['timestamp'] != undefined) {
 		var arrivalMark = {color: "#ccc",lineWidth: 1,xaxis: {from: arrivalx,to: arrivalx}};
