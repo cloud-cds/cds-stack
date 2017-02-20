@@ -124,7 +124,8 @@ def toggle_notifications_read(eid, notification_id, as_read):
     conn.execute(toggle_notifications_sql)
     conn.close()
 
-def override_criteria(eid, name, value='Unknown', override_value = None, user='user', is_met='true', clear=False):
+
+def override_criteria(eid, name, value='{}', user='user', is_met='true', clear=False):
     # TODO: add functionalities to update other items in db
     engine = create_engine(DB_CONN_STR)
     # override_sql = """
@@ -149,9 +150,9 @@ def override_criteria(eid, name, value='Unknown', override_value = None, user='u
     update criteria set
         override_time = now()::timestamptz at time zone 'EST',
         update_date = now()::timestamptz at time zone 'EST',
+        override_value = %(val)s,
         override_user = %(user)s,
-        is_met = '%(is_met)s',
-        value = %(val)s
+        is_met = '%(is_met)s'
     where pat_id = '%(pid)s' and name = '%(fid)s'
     """ % params
     logging.debug("override_sql:" + override_sql)

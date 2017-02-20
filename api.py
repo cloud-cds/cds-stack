@@ -94,7 +94,15 @@ class TREWSAPI(object):
                 if action_is_clear:
                     query.override_criteria(eid, action['actionName'], is_met=action_is_met, clear=True)
                 else:
-                    query.override_criteria(eid, action['actionName'], action['value'], is_met=action_is_met)
+                    if 'value' in action:
+                        as_min = action['range'] == 'min'
+                        value = ('[{{ "lower": %(val)s }}]' if as_min else '[{{ "upper": %(val)s }}]') % {'val': action['value']}
+                        logging.debug('override_criteria value: {} {}' % (action['actionName'], value))
+                        query.override_criteria(eid, action['actionName'], value=value, is_met=action_is_met)
+                    else:
+                        value = '[{{ "lower": %(l)s, "upper": %(u)s }}]' % {'l': action['values'][0], 'u': action['values'][1] }
+                        logging.debug('override_criteria values: {} {}' % (action['actionName'], value))
+                        query.override_criteria(eid, action['actionName'], value=value, is_met=action_is_met)
             #query.update_notifications()
 
         elif actionType == u'suspicion_of_infection':
@@ -103,7 +111,8 @@ class TREWSAPI(object):
                 if actionData['value'] == 'No Infection':
                     is_met = 'false'
 
-            query.override_criteria(eid, actionType, actionData['value'], is_met=is_met)
+            value = '{{ "text": %(val)s }}' % {'val': actionData['value']}
+            query.override_criteria(eid, actionType, value=value, is_met=is_met)
             query.update_notifications()
 
         elif actionType == u'notification':
@@ -146,6 +155,7 @@ class TREWSAPI(object):
         # TODO: set up the onset time
         for idx, row in criteria.iterrows():
             # update every criteria
+            logging.debug('getcriteria override_value: ' + row['override_value']);
             criterion = {
                 "name": row['name'],
                 "is_met": row['is_met'],
