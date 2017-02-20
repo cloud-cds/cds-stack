@@ -574,7 +574,8 @@ var criteriaComponent = function(c, constants) {
 	if (c['is_met']) {
 		this.classComplete = " met";
 		var lapsed = timeLapsed(new Date(c['measurement_time']*1000));
-		this.status = "Criteria met " + lapsed + " with a value of <span class='value'>" + c['value'] + "</span>";
+		var strTime = strToTime(new Date(c['measurement_time']*1000));
+		this.status = "Criteria met <span title='" + strTime + "'>" + lapsed + "</span> with a value of <span class='value'>" + c['value'] + "</span>";
 	} else {
 		if (c['override_user'] != null) {
 			this.classComplete = " unmet";
