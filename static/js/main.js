@@ -111,7 +111,7 @@ var slotComponent = function(elem, link, constants) {
 			this.elem.find('.num-overridden').addClass('hidden');
 			this.elem.find('.criteria-overridden').addClass('hidden');
 		} else {
-			this.elem.find('.num-overridden').text(this.hasOverridenCriteria().length + " overriden criteria");
+			this.elem.find('.num-overridden').text(this.hasOverridenCriteria().length + " customized criteria");
 		}
 		this.link.unbind();
 		this.link.click({elem: this.elem}, function(e) {
@@ -171,7 +171,7 @@ var endpoints = new function() {
 		$('body').addClass('waiting');
 		postBody = {
 			q: (getQueryVariable('PATID') === false) ? null : getQueryVariable('PATID'),
-			u: (getQueryVariable('EPICUSERID') === false) ? null : getQueryVariable('EPICUSERID'),
+			u: (getQueryVariable('EPICUSERID') === false) ? null : cleanUserId(getQueryVariable('EPICUSERID')),
 			depid: (getQueryVariable('ENCDEPID') === false) ? null : getQueryVariable('ENCDEPID'),
 			actionType: (actionType) ? actionType : null,
 			action: (actionData) ? actionData : null
@@ -596,6 +596,12 @@ function getQueryVariable(variable) {
 	return(false);
 }
 /**
+ * EPICUSERID is padded with plus signs, this removes them
+*/
+function cleanUserId(userId) {
+	return userId.replace(/^\++/, "");
+}
+/**
  * Checks if object is empty
 */
 function isEmpty(object) {
@@ -625,10 +631,11 @@ var criteriaComponent = function(c, constants) {
 			if (c['measurement_time']) {
 				var cLapsed = timeLapsed(new Date(c['measurement_time']*1000));
 				this.status += "Criteria met " + cLapsed + " with a value of <span class='value'>" + c['value'] + "</span>";
+				this.status += (c['override_time']) ? "<br />" : "";
 			}
 			if (c['override_time']) {
 				var oLapsed = timeLapsed(new Date(c['override_time']*1000));
-				this.status += "<br />Customized by " + c['override_user'] + " " + oLapsed;
+				this.status += "Customized by " + c['override_user'] + " " + oLapsed;
 			}
 		} else {
 			this.classComplete = " hidden unmet";

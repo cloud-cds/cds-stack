@@ -277,6 +277,9 @@ body.waiting {
     opacity: 1;
     visibility: visible;
 }
+.status:first-child {
+    margin-top: 5px;
+}
 .csstransitions .status {
     -ms-transition: opacity .3s, visibility .3s, max-height .3s, margin-top .3s;
     transition: opacity .3s, visibility .3s, max-height .3s, margin-top .3s;    
