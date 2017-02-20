@@ -718,7 +718,7 @@ var overrideModal = new function() {
 		return html;
 	}
 	this.makeSliders = function(data, index) {
-		var o = trews.data[this.card][this.slot]['criteria'][this.criteria]['override_value'][index]
+		var o = trews.data[this.card][this.slot]['criteria'][this.criteria]['override_value']
 		if (data['range'] === "true") {
 			$(".slider-range[data-trews='" + data['id'] + "']").slider({
 				range: data['range'],
@@ -726,8 +726,8 @@ var overrideModal = new function() {
 				max: data['maxAbsolute'],
 				step: data['step'],
 				values: [
-					(o == null) ? data['values'][0] : (o['lower']) ? o['lower'] : data['values'][0],
-					(o == null) ? data['values'][1] : (o['upper']) ? o['upper'] : data['values'][1]
+					(o == null) ? data['values'][0] : (o[index]['lower']) ? o[index]['lower'] : data['values'][0],
+					(o == null) ? data['values'][1] : (o[index]['upper']) ? o[index]['upper'] : data['values'][1]
 				],
 				slide: function( event, ui ) {
 					$(".slider-numbers[data-trews='" + data['id'] + "']").text(ui.values[0] + " - " + ui.values[1]);
@@ -740,12 +740,12 @@ var overrideModal = new function() {
 				slideFunction = function(event, ui) {
 					$(".slider-numbers[data-trews='" + data['id'] + "']").text(data['minAbsolute'] + " - " + ui.value);
 				}
-				oValue = (o == null) ? oValue : (o['lower']) ? o['lower'] : oValue
+				oValue = (o == null) ? oValue : (o[index]['lower']) ? o[index]['lower'] : oValue
 			} else {
 				slideFunction = function(event, ui) {
 					$(".slider-numbers[data-trews='" + data['id'] + "']").text(ui.value + " - " + data['maxAbsolute']);
 				}
-				oValue = (o == null) ? oValue : (o['upper']) ? o['upper'] : oValue
+				oValue = (o == null) ? oValue : (o[index]['upper']) ? o[index]['upper'] : oValue
 			}
 			$(".slider-range[data-trews='" + data['id'] + "']").slider({
 				range: data['range'],
