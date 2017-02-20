@@ -334,6 +334,9 @@ body.waiting {
     background-color: #fff;
     box-shadow: 2px 2px 2px #ddd;
 }
+#tooltip .tooltip-header {
+    background-color: #eee;
+}
 #tooltip .row {
     padding: 3px;
 }

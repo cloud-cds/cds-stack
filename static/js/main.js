@@ -1052,12 +1052,14 @@ function graph(json, xmin, xmax, ymin, ymax) {
 			var x = item.datapoint[0].toFixed(2),
 				y = item.datapoint[1].toFixed(2);
 
-			var features = "<div class='row cf'>\
-								<h4 class='name'>TREWScore</h4>\
-								<h4 class='value'>" + y + "</h4>\
-							</div><div class='row cf'>\
-								<h4 class='name'>Time</h4>\
-								<h4 class='value'>" + strToTime(x) + "</h4>\
+			var features = "<div class='tooltip-header'>\
+								<div class='row cf'>\
+									<h4 class='name'>TREWScore</h4>\
+									<h4 class='value'>" + y + "</h4>\
+								</div><div class='row cf'>\
+									<h4 class='name'>Time</h4>\
+									<h4 class='value'>" + strToTime(x) + "</h4>\
+								</div>\
 							</div>";
 			features += "<div class='row cf'>\
 							<h4 class='name'>" + humanReadable(json['chart_values']['tf_1_name'][dataIndex]) + "</h4>\
