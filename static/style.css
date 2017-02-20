@@ -550,9 +550,6 @@ body.waiting {
 #graph-wrapper {
     padding-bottom: 50px;
 }
-#graph-wrapper .card {
-    padding: 0px 30px;
-}
 #graph-wrapper .card h2 {
     text-align: center;
 }

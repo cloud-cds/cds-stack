@@ -260,7 +260,7 @@ var controller = new function() {
 			globalJson["Vasopressors"],
 			globalJson['chart_data']['severe_sepsis_onset']['timestamp'],
 			globalJson['chart_data']['septic_shock_onset']['timestamp']);
-		graphComponent.render(globalJson["chart_data"]);
+		graphComponent.refresh(globalJson["chart_data"]);
 		notifications.render(globalJson['notifications']);
 	}
 	this.refreshNotifications = function() {
@@ -478,33 +478,39 @@ var workflowsComponent = new function() {
 }
 
 var graphComponent = new function() {
-	this.json = {};
+	this.is30 = true;
 	this.xmin = 0;
 	this.xmax = 0;
 	this.ymin = 0;
 	this.ymax = 0;
 	$("<div id='tooltip'></div>").appendTo("body");
+	this.refresh = function(json) {
+		this.is30 = true;
+		this.render(json);
+	}
 	this.render = function(json) {
 		if (json['chart_values'] == undefined) {
 			return;
 		}
-		this.json = json;
-		var dataLength = json['chart_values']['timestamp'].length;
-		for (var i = 0; i < dataLength; i += 1) {
-			this.json['chart_values']['timestamp'][i] *= 1000;
+		if (this.is30) {
+			var dataLength = json['chart_values']['timestamp'].length;
+			for (var i = 0; i < dataLength; i += 1) {
+				json['chart_values']['timestamp'][i] *= 1000;
+			}
+			this.is30 = false;
 		}
-		this.xmin = this.json['chart_values']['timestamp'][0];
+		this.xmin = json['chart_values']['timestamp'][0];
 		this.ymin = 0;//json['chart_values']['trewscore'][0];
-		var max = this.json['chart_values']['timestamp'][this.json['chart_values']['timestamp'].length - 1];
+		var max = json['chart_values']['timestamp'][json['chart_values']['timestamp'].length - 1];
 		this.xmax = ((max - this.xmin) / 6) + max;
-		max = this.json['chart_values']['trewscore'][this.json['chart_values']['trewscore'].length - 1];
+		max = json['chart_values']['trewscore'][json['chart_values']['trewscore'].length - 1];
 		this.ymax = 1; //((max - this.ymin) / 6) + max;
 		// this.ymin = Math.min.apply(null, json['chart_values']['trewscore']);
 		// this.ymax = Math.max.apply(null, json['chart_values']['trewscore']) * 1.16;
-		graph(this.json, this.xmin, this.xmax, this.ymin, this.ymax);
+		graph(json, this.xmin, this.xmax, this.ymin, this.ymax);
 	}
 	window.onresize = function() {
-		graphComponent.render(graphComponent.json, graphComponent.xmin, graphComponent.xmax);
+		graphComponent.render(trews.data.chart_data, graphComponent.xmin, graphComponent.xmax);
 	}
 }
 
@@ -541,7 +547,8 @@ function timeLapsed(d) {
  */
 function timeRemaining(d) {
 	var remaining = new Date(d - Date.now());
-	return remaining.getHours() + ":" + remaining.getMinutes() + " remaining";
+	var minutes = (remaining.getMinutes() < 10) ? "0" + remaining.getMinutes() : remaining.getMinutes();
+	return remaining.getHours() + ":" + minutes + " remaining";
 }
 
 /**
@@ -549,14 +556,18 @@ function timeRemaining(d) {
  * Takes a string converts it to a Date object and outputs date/time
  * as such: m/d/y h:m
 */
-function strToTime(str) {
+function strToTime(str, timeFirst) {
 	var date = new Date(Number(str));
 	var y = date.getFullYear();
 	var m = date.getMonth() + 1;
 	var d = date.getDate();
 	var h = date.getHours() < 10 ? "0" + date.getHours() : date.getHours();
 	var min = date.getMinutes() < 10 ? "0" + date.getMinutes() : date.getMinutes();
-	return m + "/" + d + "/" + y + " " + h + ":" + min;
+	if (timeFirst) {
+		return h + ":" + min + " " + m + "/" + d + "/" + y;
+	} else {
+		return m + "/" + d + "/" + y + " " + h + ":" + min;
+	}
 }
 /**
  * FID to human readable
@@ -601,20 +612,24 @@ function isEmpty(object) {
  */
 var criteriaComponent = function(c, constants) {
 	this.isOverridden = false;
-
-	if (c['is_met']) {
+	this.status = "";
+	if (c['is_met'] && c['measurement_time']) {
 		this.classComplete = " met";
 		var lapsed = timeLapsed(new Date(c['measurement_time']*1000));
 		var strTime = strToTime(new Date(c['measurement_time']*1000));
-		this.status = "Criteria met <span title='" + strTime + "'>" + lapsed + "</span> with a value of <span class='value'>" + c['value'] + "</span>";
+		this.status += "Criteria met <span title='" + strTime + "'>" + lapsed + "</span> with a value of <span class='value'>" + c['value'] + "</span>";
 	} else {
 		if (c['override_user'] != null) {
 			this.classComplete = " unmet";
 			this.isOverridden = true;
-			var cLapsed = timeLapsed(new Date(c['measurement_time']*1000));
-			var oLapsed = timeLapsed(new Date(c['override_time']*1000));
-			this.status = "Criteria met " + cLapsed + " with a value of <span class='value'>" + c['value'] + "</span>";
-			this.status += "<br />Overridden by " + c['override_user'] + " " + oLapsed;
+			if (c['measurement_time']) {
+				var cLapsed = timeLapsed(new Date(c['measurement_time']*1000));
+				this.status += "Criteria met " + cLapsed + " with a value of <span class='value'>" + c['value'] + "</span>";
+			}
+			if (c['override_time']) {
+				var oLapsed = timeLapsed(new Date(c['override_time']*1000));
+				this.status += "<br />Customized by " + c['override_user'] + " " + oLapsed;
+			}
 		} else {
 			this.classComplete = " hidden unmet";
 			this.status = "";
@@ -950,7 +965,7 @@ var notifications = new function() {
 }
 
 function graph(json, xmin, xmax, ymin, ymax) {
-	var graphWidth = Math.floor($('#graph-wrapper').width()) - 60;
+	var graphWidth = Math.floor($('#graph-wrapper').width()) - 10;
 	$("#graphdiv").width(graphWidth);
 	$("#graphdiv").height(graphWidth * .3225);
 	var placeholder = $("#graphdiv");
@@ -1056,9 +1071,9 @@ function graph(json, xmin, xmax, ymin, ymax) {
 								<div class='row cf'>\
 									<h4 class='name'>TREWScore</h4>\
 									<h4 class='value'>" + y + "</h4>\
-								</div><div class='row cf'>\
+								</div><div class='row cf time'>\
 									<h4 class='name'>Time</h4>\
-									<h4 class='value'>" + strToTime(x) + "</h4>\
+									<h4 class='value'>" + strToTime(x, true) + "</h4>\
 								</div>\
 							</div>";
 			features += "<div class='row cf'>\
@@ -1101,8 +1116,9 @@ function graphTag(plot, x, y, text, id) {
 	var placeholder = $("#graphdiv");
 	var o = plot.pointOffset({ x: x, y: y});
 	var xLastTime = new Date(x);
+	var minutes = (xLastTime.getMinutes() < 10) ? "0" + xLastTime.getMinutes() : xLastTime.getMinutes();
 	placeholder.append("<div id='" + id + "' class='graph-tag' style='left:" + o.left + "px;'>\
 			<h3>" + text + "</h3>\
-			<h6>" + xLastTime.getHours() + ":" + xLastTime.getMinutes() + "</h6>\
+			<h6>" + xLastTime.getHours() + ":" + minutes + "</h6>\
 		</div>");
 }
