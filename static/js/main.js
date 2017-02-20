@@ -321,7 +321,7 @@ var severeSepsisComponent = new function() {
 				this.susCtn.removeClass('complete');
 			}
 			this.susCtn.find('.selection').hide();
-			this.susCtn.find('.status h4').text(this.sus['value']);
+			this.susCtn.find('.status h4').text((typeof(this.sus.value) == 'object') ? this.sus.value.text : this.sus.value);
 			this.susCtn.find('.status h5').text(
 				"by " + this.sus['update_user'] +
 				" at " + timeLapsed(new Date(this.sus['update_time']*1000)));
@@ -1005,7 +1005,6 @@ function graph(json, xmin, xmax, ymin, ymax) {
 			points: {show: true},
 			threshold: [{below: json['trewscore_threshold'], color: "#000000"}]
 		},
-		curvedLines: {apply: true},
 		legend: {show: false},
 		grid: {
 			hoverable: true,
