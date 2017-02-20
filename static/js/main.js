@@ -302,7 +302,7 @@ var severeSepsisComponent = new function() {
 			this.susCtn.find('.status h4').text(this.sus['value']);
 			this.susCtn.find('.status h5').text(
 				"by " + this.sus['update_user'] +
-				" at " + timeLapsed(new Date(this.sus['update_time'])));
+				" at " + timeLapsed(new Date(this.sus['update_time']*1000)));
 		}
 	}
 
@@ -410,10 +410,10 @@ var workflowsComponent = new function() {
 			default:
 				var offset = 0;
 		}
-		if (time + offset < Date.now()) {
-			status = "Workflow window over " + timeLapsed(new Date(time + offset));
+		if ((time * 1000) + offset < Date.now()) {
+			status = "Workflow window over " + timeLapsed(new Date((time * 1000) + offset));
 		} else {
-			status = timeRemaining(new Date(time + offset));
+			status = timeRemaining(new Date((time * 1000) + offset));
 		}
 		return status;
 	}
@@ -573,14 +573,14 @@ var criteriaComponent = function(c, constants) {
 
 	if (c['is_met']) {
 		this.classComplete = " met";
-		var lapsed = timeLapsed(new Date(c['measurement_time']));
+		var lapsed = timeLapsed(new Date(c['measurement_time']*1000));
 		this.status = "Criteria met " + lapsed + " with a value of <span class='value'>" + c['value'] + "</span>";
 	} else {
 		if (c['override_user'] != null) {
 			this.classComplete = " unmet";
 			this.isOverridden = true;
-			var cLapsed = timeLapsed(new Date(c['measurement_time']));
-			var oLapsed = timeLapsed(new Date(c['override_time']));
+			var cLapsed = timeLapsed(new Date(c['measurement_time']*1000));
+			var oLapsed = timeLapsed(new Date(c['override_time']*1000));
 			this.status = "Criteria met " + cLapsed + " with a value of <span class='value'>" + c['value'] + "</span>";
 			this.status += "<br />Overridden by " + c['override_user'] + " " + oLapsed;
 		} else {
@@ -879,7 +879,7 @@ var notifications = new function() {
 			var notif = $('<div class="notification"></div>');
 			notif.append('<h3>' + ALERT_CODES[data[i]['alert_code']] + '</h3>')
 			var subtext = $('<div class="subtext cf"></div>');
-			subtext.append('<p>' + timeLapsed(new Date(data[i]['timestamp'])) + '</p>');
+			subtext.append('<p>' + timeLapsed(new Date(data[i]['timestamp']*1000)) + '</p>');
 			var readLink = $("<a data-trews='" + data[i]['id'] + "'></a>");
 			readLink.unbind();
 			if (data[i]['read']) {
