@@ -49,6 +49,24 @@ var trews = new function() {
 	}
 };
 
+var notificationRefresher = new function() {
+	this.refreshPeriod = 10000;
+	this.refreshTimer = null;
+	this.init = function() {
+		this.poll();
+	}
+	this.poll = function() {
+		endpoints.getPatientData('pollNotifications');
+		this.refreshTimer = window.setTimeout(this.poll, this.refreshPeriod);
+	}
+	this.terminate = function() {
+		if (this.refreshTimer) {
+			window.clearTimeout(this.refreshTimer)
+			this.refreshTimer = null
+		}
+	}
+}
+
 /**
  * Slot Component
  * @param JSON String with data for a slot
@@ -247,6 +265,7 @@ var controller = new function() {
 		notifications.render(globalJson['notifications']);
 	}
 	this.displayJSError = function() {
+		notificationRefresher.terminate();
 		$('#loading').removeClass('done');
 		$('#loading p').html("Javascript Error<span id='test-data'>.</span> Please rest<span id='see-blank'>a</span>rt application or contact trews-jhu@opsdx.io");
 		$('#test-data').click(function() {
@@ -914,25 +933,6 @@ var notifications = new function() {
 			this.nav.find('.text').text('Notifications');
 		} else {
 			this.nav.find('.text').text('Notification');
-		}
-	}
-}
-
-
-var notificationRefresher = new function() {
-	this.refreshPeriod = 10000;
-	this.refreshTimer = null;
-	this.init = function() {
-		this.poll();
-	}
-	this.poll = function() {
-		endpoints.getPatientData('pollNotifications');
-		this.refreshTimer = window.setTimeout(this.poll, this.refreshPeriod);
-	}
-	this.terminate = function() {
-		if (this.refreshTimer) {
-			window.clearTimeout(this.refreshTimer)
-			this.refreshTimer = null
 		}
 	}
 }
