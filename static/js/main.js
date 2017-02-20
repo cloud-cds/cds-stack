@@ -717,7 +717,7 @@ var overrideModal = new function() {
 		return html;
 	}
 	this.makeSliders = function(data, index) {
-		var o = trews.data[this.card][this.slot]['criteria'][index]['override_value']
+		var o = trews.data[this.card][this.slot]['criteria'][this.criteria]['override_value'][index]
 		if (data['range'] === "true") {
 			$(".slider-range[data-trews='" + data['id'] + "']").slider({
 				range: data['range'],
