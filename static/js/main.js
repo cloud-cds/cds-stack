@@ -197,7 +197,7 @@ var endpoints = new function() {
 		// console.log(postBody);
 		if (getQueryVariable('test') == 'true' || trews.isTest) {
 			if (getQueryVariable('console') == 'true')
-				console.log(postBody);
+				//console.log(postBody);
 			this.test();
 			return;
 		}
@@ -632,7 +632,7 @@ var criteriaComponent = function(c, constants) {
 	this.status = "";
 
 	var displayValue = c['value'];
-	console.log(typeof(displayValue), isNumber(displayValue));
+	//console.log(typeof(displayValue), isNumber(displayValue));
 	if ( displayValue && isNumber(displayValue) ) {
 		displayValue = displayValue.toPrecision(5);
 	}
