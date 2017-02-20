@@ -174,7 +174,6 @@ class TREWSAPI(object):
         # TODO: set up the onset time
         for idx, row in criteria.iterrows():
             # update every criteria
-            logging.debug('getcriteria override_value: ' + str(row['override_value']));
             criterion = {
                 "name": row['name'],
                 "is_met": row['is_met'],
@@ -187,7 +186,7 @@ class TREWSAPI(object):
 
             if criterion["name"] == 'suspicion_of_infection':
                 value = criterion['value']
-                if 'override_value' in criterion and 'text' in criterion['override_value']:
+                if ('override_value' in criterion) and (criterion['override_value'] is not None) and ('text' in criterion['override_value']):
                     value = criterion['override_value']['text']
 
                 data['severe_sepsis']['suspicion_of_infection'] = {
@@ -254,7 +253,7 @@ class TREWSAPI(object):
             if criterion["name"] in ORDERS:
                 order_id = re.sub('_order$', '', criterion["name"])
                 value = criterion['value']
-                if 'override_value' in criterion and 'text' in criterion['override_value']:
+                if ('override_value' in criterion) and (criterion['override_value'] is not None) and ('text' in criterion['override_value']):
                     value = criterion['override_value']['text']
 
                 data[order_id] = {
