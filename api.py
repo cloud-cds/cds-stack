@@ -111,7 +111,7 @@ class TREWSAPI(object):
                 if actionData['value'] == 'No Infection':
                     is_met = 'false'
 
-            value = '{ "text": %(val)s }' % {'val': actionData['value']}
+            value = '{ "text": "%(val)s" }' % {'val': actionData['value']}
             query.override_criteria(eid, actionType, value=value, is_met=is_met)
             query.update_notifications()
 
