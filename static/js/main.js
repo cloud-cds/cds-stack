@@ -635,11 +635,11 @@ var criteriaComponent = function(c, constants) {
 	var displayValue = c['value'];
 	if ( displayValue && isNumber(displayValue) ) {
 		displayValue = displayValue.toPrecision(5);
+	}
 
-		// Local conversions.
-		if ( constants['key'] == 'sirs_temp' ) {
-			displayValue = ((displayValue - 32) / 1.8).toPrecision(3	);
-		}
+	// Local conversions.
+	if ( c['name'] == 'sirs_temp' ) {
+		displayValue = ((Number(displayValue) - 32) / 1.8).toPrecision(3);
 	}
 
 	if (c['is_met'] && c['measurement_time']) {
