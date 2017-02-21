@@ -111,7 +111,7 @@ def get_notifications(eid):
 
     return notifications
 
-def toggle_notifications_read(eid, notification_id, as_read):
+def toggle_notification_read(eid, notification_id, as_read):
     engine = create_engine(DB_CONN_STR)
     toggle_notifications_sql = \
     '''
