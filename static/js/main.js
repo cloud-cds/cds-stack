@@ -986,7 +986,12 @@ var notifications = new function() {
 			notif.append(subtext);
 			this.n.prepend(notif);
 		}
-		this.nav.find('.num').text(numUnread);
+		if (numUnread == 0) {
+			this.nav.find('b').hide();
+		} else {
+			this.nav.find('b').show();
+			this.nav.find('.num').text(numUnread);
+		}
 		//this.nav.find('.num').text(data.length);  // yanif: commented out with read/unread re-enabled
 		if (data.length > 1) {
 			this.nav.find('.text').text('Notifications');

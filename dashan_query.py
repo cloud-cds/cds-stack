@@ -116,9 +116,9 @@ def toggle_notification_read(eid, notification_id, as_read):
     toggle_notifications_sql = \
     '''
     update notifications
-        set message = jsonb_set(message, '{read}', '%(val)s', false)
+        set message = jsonb_set(message::jsonb, '{read}'::text[], '%(val)s'::jsonb, false)
     where pat_id = '%(pid)s' and notification_id = %(nid)s
-    ''' % {'pid': eid, 'nid': notification_id, 'val': as_read}
+    ''' % {'pid': eid, 'nid': notification_id, 'val': str(as_read).lower()}
     logging.debug("toggle_notifications_read:" + toggle_notifications_sql)
     conn = engine.connect()
     conn.execute(toggle_notifications_sql)
