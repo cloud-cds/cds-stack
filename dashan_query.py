@@ -111,13 +111,13 @@ def get_notifications(eid):
 
     return notifications
 
-def toggle_notifications_read(eid, notification_id, as_read):
+def toggle_notification_read(eid, notification_id, as_read):
     engine = create_engine(DB_CONN_STR)
     toggle_notifications_sql = \
     '''
     update notifications
         set message = jsonb_set(message, '{read}', '%(val)s', false)
-    where pat_id = %(pid)s and notification_id = %(nid)s
+    where pat_id = '%(pid)s' and notification_id = %(nid)s
     ''' % {'pid': eid, 'nid': notification_id, 'val': as_read}
     logging.debug("toggle_notifications_read:" + toggle_notifications_sql)
     conn = engine.connect()
