@@ -281,8 +281,8 @@ class TREWSAPI(object):
         # update severe_sepsis
         if data['severe_sepsis']['sirs']['is_met'] and \
             data['severe_sepsis']['organ_dysfunction']['is_met'] and\
-            ( data['severe_sepsis']['suspicion_of_infection']['value'] != 'No Infection' \
-                or data['severe_sepsis']['suspicion_of_infection']['value'] is not None):
+            not ( data['severe_sepsis']['suspicion_of_infection']['value'] == 'No Infection' \
+                or data['severe_sepsis']['suspicion_of_infection']['value'] is None):
             data['severe_sepsis']['is_met'] = 1
             data['severe_sepsis']['onset_time'] = sorted(
                     [
