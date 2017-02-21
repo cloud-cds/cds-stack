@@ -158,7 +158,7 @@ class TREWSAPI(object):
                        "decrease_in_sbp"
                       ]
 
-        HYPOPERFUSION = ['init_lactate']
+        HYPOPERFUSION = ['initial_lactate']
 
         ORDERS = [ "initial_lactate_order",
                    "blood_culture_order",
@@ -173,6 +173,9 @@ class TREWSAPI(object):
         od_cnt = 0
         sirs_onsets = []
         od_onsets = []
+        hp_cnt = 0
+        shock_onsets = []
+        hpf_cnt = 0
         # TODO: set up the onset time
         for idx, row in criteria.iterrows():
             # update every criteria
@@ -220,8 +223,8 @@ class TREWSAPI(object):
                         od_onsets.append(criterion['measurement_time'])
 
             # septic shock
-            shock_onsets = []
-            hp_cnt = 0
+            
+            
             if criterion["name"] in HYPOTENSION:
                 hp_idx = HYPOTENSION.index(criterion["name"])
                 data['septic_shock']['hypotension']['criteria'][hp_idx] = criterion
@@ -232,7 +235,7 @@ class TREWSAPI(object):
                     else:
                         shock_onsets.append(criterion['measurement_time'])
 
-            hpf_cnt = 0
+            
             if criterion["name"] in HYPOPERFUSION:
                 hpf_idx = HYPOPERFUSION.index(criterion["name"])
                 data['septic_shock']['hypoperfusion']['criteria'][hpf_idx] = criterion
