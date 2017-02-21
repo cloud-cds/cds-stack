@@ -71,11 +71,11 @@ var notificationRefresher = new function() {
 	this.refreshPeriod = 10000;
 	this.refreshTimer = null;
 	this.init = function() {
-		this.poll();
+		this.poll(this);
 	}
-	this.poll = function() {
+	this.poll = function(obj) {
 		endpoints.getPatientData('pollNotifications');
-		this.refreshTimer = window.setTimeout(this.poll, this.refreshPeriod);
+		obj.refreshTimer = window.setTimeout(function() { obj.poll(obj); }, obj.refreshPeriod);
 	}
 	this.terminate = function() {
 		if (this.refreshTimer) {
