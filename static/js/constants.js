@@ -106,7 +106,7 @@ severe_sepsis = {
 			}]
 		}, {
 			"key": "wbc",
-			"criteria_display_name": "WBC > 12,000 or < 4,000 or >10% bands",
+			"criteria_display_name": "WBC < 4K/uL or > 12K/uL or >10% bands",
 			"dropdown": "Wbc and/or Bands is normal",
 			"overrideModal": [{
 				"id": "override_wbc",
