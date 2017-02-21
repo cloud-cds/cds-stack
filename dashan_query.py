@@ -46,7 +46,7 @@ def get_admittime(eid):
 
     get_admittime_sql = \
     '''
-    select value::timestamp from cdm_s inner join pat_enc on pat_enc.enc_id = cdm_s.enc_id
+    select value::timestamptz from cdm_s inner join pat_enc on pat_enc.enc_id = cdm_s.enc_id
     where pat_id = '%s' and fid = 'admittime'
     ''' % eid
     df_admittime = pd.read_sql_query(get_admittime_sql,con=engine)
@@ -140,8 +140,8 @@ def override_criteria(eid, name, value='{}', user='user', is_met='true', clear=F
         }        
         override_sql = """
         update criteria set
-            override_time = now()::timestamptz at time zone 'EST',
-            update_date = now()::timestamptz at time zone 'EST',
+            override_time = now(),
+            update_date = now(),
             override_value = %(val)s,
             override_user = %(user)s
         where pat_id = '%(pid)s' and name = '%(fid)s';
@@ -157,8 +157,8 @@ def override_criteria(eid, name, value='{}', user='user', is_met='true', clear=F
         }
         override_sql = """
         update criteria set
-            override_time = now()::timestamptz at time zone 'EST',
-            update_date = now()::timestamptz at time zone 'EST',
+            override_time = now(),
+            update_date = now(),
             override_value = %(val)s,
             override_user = %(user)s,
             is_met = '%(is_met)s'
