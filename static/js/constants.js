@@ -116,11 +116,11 @@ var severe_sepsis = {
 				"header": "Override White Blood Count",
 				"name": "White Blood Count",
 				"units": "",
-				"step": 100,
+				"step": 0.1,
 				"range": "true",
-				"minAbsolute": 2000,
-				"maxAbsolute": 15000,
-				"values": [4000, 12000]
+				"minAbsolute": 2,
+				"maxAbsolute": 15,
+				"values": [4, 12]
 			},{
 				"id": "override_bands",
 				"header": "Override Bands",
