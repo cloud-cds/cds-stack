@@ -55,10 +55,10 @@ var CONSTANTS = {
 	"fusion": "septic_shock"
 }
 
-severe_sepsis = {
+var severe_sepsis = {
 	"display_name": "Severe Sepsis Criteria",
 	"suspicion_of_infection": {
-		"display_name": "Suspicion of Infection",
+		"display_name": "Suspicion of Infection"
 	},
 	"sirs": {
 		"display_name": "SIRS Criteria",
@@ -149,7 +149,7 @@ severe_sepsis = {
 				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 180,
-				"value": 90,
+				"value": 90
 			}]
 		}, {
 			"key": "mean_arterial_pressure",
@@ -164,7 +164,7 @@ severe_sepsis = {
 				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 180,
-				"value": 65,
+				"value": 65
 			}]
 		}, {
 			"key": "decrease_in_sbp",
@@ -194,7 +194,7 @@ severe_sepsis = {
 				"range": 'min',
 				"minAbsolute": 0,
 				"maxAbsolute": 200,
-				"value": 100,
+				"value": 100
 			}]
 		}, {
 			"key": "creatinine",
@@ -210,7 +210,7 @@ severe_sepsis = {
 				"minAbsolute": 0.0,
 				"maxAbsolute": 4.0,
 				"value": 2.0
-			},{
+			}, {
 				"id": "override_urine_output",
 				"header": "Override Urine Output",
 				"name": "Urine Output",
@@ -219,7 +219,7 @@ severe_sepsis = {
 				"range": "max",
 				"minAbsolute": 0.0,
 				"maxAbsolute": 3.0,
-				"value": 0.5,
+				"value": 0.5
 			}]
 		}, {
 			"key": "bilirubin",
@@ -249,7 +249,7 @@ severe_sepsis = {
 				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 200000,
-				"value": 100000,
+				"value": 100000
 			}]
 		}, {
 			"key": "inr",
@@ -264,7 +264,7 @@ severe_sepsis = {
 				"range": "min",
 				"minAbsolute": 0,
 				"maxAbsolute": 200000,
-				"value": 100000,
+				"value": 100000
 			},{
 				"id": "override_ptt",
 				"header": "Override PTT",
@@ -295,7 +295,7 @@ severe_sepsis = {
 	}
 }
 
-septic_shock = {
+var septic_shock = {
 	"display_name": "Septic Shock Criteria",
 	"tension": {
 		"display_name": "Persistent Hypotension",
@@ -312,7 +312,7 @@ septic_shock = {
 				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 180,
-				"value": 90,
+				"value": 90
 			}]
 		}, {
 			"key": "mean_arterial_pressure",
@@ -327,7 +327,7 @@ septic_shock = {
 				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 130,
-				"value": 65,
+				"value": 65
 			}]
 		}, {
 			"key": "decrease_in_sbp",
@@ -462,5 +462,5 @@ var FID_TO_HUMAN_READABLE = {
   "lactate": "Lactate",
   "lipase": "Lipase",
   "heart_rate": "Heart Rate",
-  "urine_output": "Urine Output",
+  "urine_output": "Urine Output"
 }
