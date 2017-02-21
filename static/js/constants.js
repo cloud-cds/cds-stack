@@ -64,7 +64,7 @@ severe_sepsis = {
 		"display_name": "SIRS Criteria",
 		"criteria": [{
 			"key": "sirs_temp",
-			"criteria_display_name": "Temperature is > 38.3 or < 36.0",
+			"criteria_display_name": "Temperature is < 36.0 or > 38.3",
 			"dropdown": "Temperature is normal",
 			"overrideModal": [{
 				"id": "override_temp",

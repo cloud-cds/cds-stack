@@ -341,11 +341,13 @@ var severeSepsisComponent = new function() {
 			}
 			this.susCtn.find('.selection').hide();
 			this.susCtn.find('.status h4').text(this.sus.value);
-			if ( this.sus['update_user'] ) {
-				this.susCtn.find('.status h5').text(
-					"by " + this.sus['update_user'] +
-					" at " + timeLapsed(new Date(this.sus['update_time']*1000)));
+
+			var susMsg = null;
+			if ( this.sus['update_user'] ) { susMsg = 'by ' + this.sus['update_user']; }
+			if ( this.sus['update_time'] ) {
+				susMsg = (susMsg ? susMsg + ' ' : '') + 'at ' + timeLapsed(new Date(this.sus['update_time']*1000));
 			}
+			if ( susMsg ) { this.susCtn.find('.status h5').text(susMsg); }
 		}
 	}
 
