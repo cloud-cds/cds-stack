@@ -9,11 +9,11 @@ function isEmpty(object) {
 }
 
 function isNumber(obj) {
-  return toString.call(obj) === '[object Number]';
+  return Object.prototype.toString.call(obj) === '[object Number]';
 }
 
 function isString(obj) {
-  return toString.call(obj) === '[object String]';
+  return Object.prototype.toString.call(obj) === '[object String]';
 }
 
 /**
