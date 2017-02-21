@@ -25,6 +25,12 @@ module.exports = {
           'jquery.flot.navigate.js'
     ],
   },
+  plugins: [
+      new webpack.ProvidePlugin({
+         $: "jquery",
+         jQuery: "jquery"
+     })
+  ],
   output: {
     filename: '[name].bundle.js',
     path: path.resolve(__dirname, 'dist')
