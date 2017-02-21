@@ -220,7 +220,7 @@ class TREWSAPI(object):
                         od_onsets.append(criterion['measurement_time'])
 
             # septic shock
-            ss_onsets = []
+            shock_onsets = []
             hp_cnt = 0
             if criterion["name"] in HYPOTENSION:
                 hp_idx = HYPOTENSION.index(criterion["name"])
@@ -228,9 +228,9 @@ class TREWSAPI(object):
                 if criterion["is_met"]:
                     hp_cnt += 1
                     if criterion['override_user']:
-                        ss_onsets.append(criterion['override_time'])
+                        shock_onsets.append(criterion['override_time'])
                     else:
-                        ss_onsets.append(criterion['measurement_time'])
+                        shock_onsets.append(criterion['measurement_time'])
 
             hpf_cnt = 0
             if criterion["name"] in HYPOPERFUSION:
@@ -239,17 +239,18 @@ class TREWSAPI(object):
                 if criterion["is_met"]:
                     hpf_cnt += 1
                     if criterion['override_user']:
-                        ss_onsets.append(criterion['override_time'])
+                        shock_onsets.append(criterion['override_time'])
                     else:
-                        ss_onsets.append(criterion['measurement_time'])
+                        shock_onsets.append(criterion['measurement_time'])
 
             if criterion["name"] == 'crystalloid_fluid':
-                data['septic_shock']['fluid_administered'] = criterion['is_met'] if 'is_met' in criterion else False
-                if criterion['override_user']:
-                    data['septic_shock']['fluid_administered_time'] = criterion['override_time']
-                    data['septic_shock']['fluid_override_user'] = criterion['override_user']
-                else:
-                    data['septic_shock']['fluid_administered_time'] = criterion['measurement_time']
+                data['septic_shock']['crystalloid_fluid'] = criterion
+                # data['septic_shock']['fluid_administered'] = criterion['is_met'] if 'is_met' in criterion else False
+                # if criterion['override_user']:
+                #     data['septic_shock']['fluid_administered_time'] = criterion['override_time']
+                #     data['septic_shock']['fluid_override_user'] = criterion['override_user']
+                # else:
+                #     data['septic_shock']['fluid_administered_time'] = criterion['measurement_time']
 
             # update orders
             if criterion["name"] in ORDERS:
@@ -296,9 +297,9 @@ class TREWSAPI(object):
             data['severe_sepsis']['is_met'] = 0
 
         # update septic shock
-        if data['septic_shock']['fluid_administered'] and (hpf_cnt + hp_cnt > 0):
+        if (data['septic_shock']['crystalloid_fluid']['is_met'] == 1 and hpf_cnt > 0) or hp_cnt > 0:
             data['septic_shock'] = True
-            data['septic_shock']['onset_time'] = sorted(sorted(ss_onsets)[0], data['septic_shock']['fluid_administered_time'])[1]
+            data['septic_shock']['onset_time'] = sorted(sorted(shock_onsets)[0], data['septic_shock']['fluid_administered_time'])[1]
 
         logging.debug(json.dumps(data['severe_sepsis'], indent=4))
         logging.debug(json.dumps(data['septic_shock'], indent=4))

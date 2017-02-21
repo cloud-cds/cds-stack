@@ -349,7 +349,7 @@ septic_shock = {
 	"fusion": {
 		"display_name": "Tissue Hypoperfusion",
 		"criteria": [{
-			"key": "init_lactate",
+			"key": "initial_lactate",
 			"criteria_display_name": "Initial Lactate level is >= 4 mmol/L",
 			"dropdown": "Initial Lactate Measurement is normal",
 			"overrideModal": [{
