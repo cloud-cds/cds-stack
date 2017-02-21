@@ -549,14 +549,14 @@ function timeLapsed(d) {
 	var DAY = 24 * 60 * 60 * 1000;
 	var elapsed = new Date(Date.now() - d);
 	if (elapsed < MIN) {
-		var units = (elapsed.getSeconds() > 1) ? " secs ago" : " sec ago";
-		return elapsed.getSeconds() + units;
+		var units = (elapsed.getUTCSeconds() > 1) ? " secs ago" : " sec ago";
+		return elapsed.getUTCSeconds() + units;
 	} else if (elapsed < HOUR) {
-		var units = (elapsed.getMinutes() > 1) ? " mins ago" : " min ago";
-		return elapsed.getMinutes() + units;
+		var units = (elapsed.getUTCMinutes() > 1) ? " mins ago" : " min ago";
+		return elapsed.getUTCMinutes() + units;
 	} else if (elapsed < DAY) {
-		var units = (elapsed.getHours() > 1) ? " hrs ago" : " hr ago";
-		return elapsed.getHours() + units;
+		var units = (elapsed.getUTCHours() > 1) ? " hrs ago" : " hr ago";
+		return elapsed.getUTCHours() + units;
 	} else {
 		return "on " + d.toLocaleDateString() + " at " + d.toLocaleTimeString();
 	}
@@ -568,8 +568,8 @@ function timeLapsed(d) {
  */
 function timeRemaining(d) {
 	var remaining = new Date(d - Date.now());
-	var minutes = (remaining.getMinutes() < 10) ? "0" + remaining.getMinutes() : remaining.getMinutes();
-	return remaining.getHours() + ":" + minutes + " remaining";
+	var minutes = (remaining.getUTCMinutes() < 10) ? "0" + remaining.getUTCMinutes() : remaining.getUTCMinutes();
+	return remaining.getUTCHours() + ":" + minutes + " remaining";
 }
 
 /**
@@ -633,9 +633,13 @@ var criteriaComponent = function(c, constants) {
 	this.status = "";
 
 	var displayValue = c['value'];
-	//console.log(typeof(displayValue), isNumber(displayValue));
 	if ( displayValue && isNumber(displayValue) ) {
 		displayValue = displayValue.toPrecision(5);
+
+		// Local conversions.
+		if ( constants['key'] == 'sirs_temp' ) {
+			displayValue = ((displayValue - 32) / 1.8).toPrecision(3	);
+		}
 	}
 
 	if (c['is_met'] && c['measurement_time']) {
