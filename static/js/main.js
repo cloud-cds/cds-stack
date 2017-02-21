@@ -111,6 +111,7 @@ var slotComponent = function(elem, link, constants) {
 		this.elem.find('h3').text(this.constants['display_name']);
 		var isCompleteClass = json['is_met'] ? "complete" : null;
 		this.elem.addClass(isCompleteClass);
+		this.elem.find('.criteria-overridden').html('');
 		for (var c in this.criteria) {
 			var component = new criteriaComponent(this.criteria[c], constants['criteria'][c]);
 			if (component.isOverridden) {
@@ -197,7 +198,7 @@ var endpoints = new function() {
 		// console.log(postBody);
 		if (getQueryVariable('test') == 'true' || trews.isTest) {
 			if (getQueryVariable('console') == 'true')
-				console.log(postBody);
+				//console.log(postBody);
 			this.test();
 			return;
 		}
@@ -632,7 +633,7 @@ var criteriaComponent = function(c, constants) {
 	this.status = "";
 
 	var displayValue = c['value'];
-	console.log(typeof(displayValue), isNumber(displayValue));
+	//console.log(typeof(displayValue), isNumber(displayValue));
 	if ( displayValue && isNumber(displayValue) ) {
 		displayValue = displayValue.toPrecision(5);
 	}
