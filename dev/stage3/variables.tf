@@ -200,5 +200,7 @@ variable "TREWS_ETL_HOSPITAL" {}
 variable "TREWS_ETL_HOURS" {}
 variable "TREWS_ETL_ARCHIVE" {}
 variable "TREWS_ETL_MODE" {}
+variable "TREWS_ETL_DEMO_MODE" {}
 variable "TREWS_ETL_STREAM_HOURS" {}
 variable "TREWS_ETL_STREAM_SLICES" {}
+variable "TREWS_ETL_STREAM_SLEEP_SECS" {}

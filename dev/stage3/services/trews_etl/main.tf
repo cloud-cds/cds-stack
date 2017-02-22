@@ -33,8 +33,10 @@ variable "TREWS_ETL_HOSPITAL" {}
 variable "TREWS_ETL_HOURS" {}
 variable "TREWS_ETL_ARCHIVE" {}
 variable "TREWS_ETL_MODE" {}
+variable "TREWS_ETL_DEMO_MODE" {}
 variable "TREWS_ETL_STREAM_HOURS" {}
 variable "TREWS_ETL_STREAM_SLICES" {}
+variable "TREWS_ETL_STREAM_SLEEP_SECS" {}
 
 resource "aws_iam_role" "etl_lambda_role" {
     name = "${var.deploy_prefix}-role-etl-lambda"
@@ -190,9 +192,10 @@ resource "aws_lambda_function" "etl_lambda_demo" {
         TREWS_ETL_HOSPITAL      = "${var.TREWS_ETL_HOSPITAL}"
         TREWS_ETL_HOURS         = "${var.TREWS_ETL_HOURS}"
         TREWS_ETL_ARCHIVE       = "${var.TREWS_ETL_ARCHIVE}"
-        TREWS_ETL_MODE          = "${var.TREWS_ETL_MODE}"
+        TREWS_ETL_MODE          = "${var.TREWS_ETL_DEMO_MODE}"
         TREWS_ETL_STREAM_HOURS  = "${var.TREWS_ETL_STREAM_HOURS}"
         TREWS_ETL_STREAM_SLICES = "${var.TREWS_ETL_STREAM_SLICES}"
+        TREWS_ETL_STREAM_SLEEP_SECS = "${var.TREWS_ETL_STREAM_SLEEP_SECS}"
       }
     }
 }
