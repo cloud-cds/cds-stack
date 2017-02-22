@@ -115,7 +115,7 @@ var severe_sepsis = {
 				"id": "override_wbc",
 				"header": "Override White Blood Count",
 				"name": "White Blood Count",
-				"units": "",
+				"units": "K/uL",
 				"step": 0.1,
 				"range": "true",
 				"minAbsolute": 2,

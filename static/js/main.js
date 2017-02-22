@@ -667,8 +667,23 @@ var criteriaComponent = function(c, constants) {
 			this.status = "";
 		}
 	}
+	var criteriaString = "";
+	for (var i = 0; i < constants.overrideModal.length; i++) {
+		var name = constants.overrideModal[i].name
+		var unit = constants.overrideModal[i].units
+		if (constants.overrideModal[i].range == 'true') {
+			var crit = constants.overrideModal[i].values
+			criteriaString += name + " < " + crit[0] + unit + " or > " + crit[1] + unit;
+		} else {
+			var crit = constants.overrideModal[i].value
+			var comp = (constants.overrideModal[i].range == 'min') ? ">" : "<";
+			criteriaString += name + " " + comp + " " + crit + unit;
+		}
+		criteriaString += " or ";
+	}
+	criteriaString = criteriaString.slice(0, -4);
 	this.html = "<div class='status" + this.classComplete + "'>\
-					<h4>" + constants['criteria_display_name'] + "</h4>\
+					<h4>" + criteriaString + "</h4>\
 					<h5>" + this.status + "</h5>\
 				</div>";
 	this.r = function() {
