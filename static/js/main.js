@@ -898,7 +898,7 @@ var overrideModal = new function() {
 					criteriaOverride["upper"] = $(".slider-range[data-trews='" + criteria + "']").slider("values", 1);
 				}
 				postData["clear"] = (overrideModal.reset) ? true : false;
-				postData.action.push(criteriaOverride);
+				postData.value.push(criteriaOverride);
 			}
 			endpoints.getPatientData("override", postData);
 			overrideModal.om.fadeOut(30);
