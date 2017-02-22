@@ -89,23 +89,13 @@ class TREWSAPI(object):
             return {'notifications': notifications}
 
         elif actionType == u'override':
-            for action in actionData:
-                action_is_clear = 'clear' in action
-                # Note{andong} In current version, we only customize range not override value
-                #action_is_met = action['is_met'] if 'is_met' in action else ('false' if action_is_clear else 'true')
-                action_is_met = 'false' if action_is_clear else None
-                if action_is_clear:
-                    query.override_criteria(eid, action['actionName'], is_met=action_is_met, clear=True)
-                else:
-                    if 'value' in action:
-                        as_min = action['range'] == 'min'
-                        value = ('[{ "lower": %(val)s }]' if as_min else '[{"upper": %(val)s }]') % {'val': action['value']}
-                        logging.debug('override_criteria value: %(name)s %(val)s' % {'name': action['actionName'], 'val': value})
-                        query.override_criteria(eid, action['actionName'], value=value, is_met=action_is_met)
-                    else:
-                        value = '[{ "lower": %(l)s, "upper": %(u)s }]' % {'l': action['values'][0], 'u': action['values'][1] }
-                        logging.debug('override_criteria values: %(name)s %(val)s' % {'name': action['actionName'], 'val': value})
-                        query.override_criteria(eid, action['actionName'], value=value, is_met=action_is_met)
+            action_is_clear = 'clear' in actionData
+            action_is_met = 'false' if action_is_clear else None
+            if action_is_clear:
+                query.override_criteria(eid, actionData['actionName'], is_met=action_is_met, clear=True)
+            else:
+                logging.debug('override_criteria value: %(name)s %(val)s' % {'name': actionData['actionName'], 'val': actionData['value']})
+                query.override_criteria(eid, action['actionName'], value=actionData['value'], is_met=action_is_met)
             #query.update_notifications()
 
         elif actionType == u'suspicion_of_infection':
