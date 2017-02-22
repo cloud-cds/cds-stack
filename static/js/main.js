@@ -45,6 +45,15 @@ var trews = new function() {
 				return this.data['septic_shock']['hypoperfusion']['criteria'];
 		}
 	}
+	this.getSpecificCriteria = function(slot, key) {
+		var arr = this.getCriteria(slot);
+		for (var i = 0; i < arr.length; i ++) {
+			if (arr[i].name == key) {
+				return arr[i];
+			}
+		}
+		return null;
+	}
 	this.getMetCriteria = function(slot) {
 		var list = [];
 		var criteria = isString(slot) ? this.getCriteria(slot) : slot
@@ -113,7 +122,7 @@ var slotComponent = function(elem, link, constants) {
 		this.elem.addClass(isCompleteClass);
 		this.elem.find('.criteria-overridden').html('');
 		for (var c in this.criteria) {
-			var component = new criteriaComponent(this.criteria[c], constants['criteria'][c]);
+			var component = new criteriaComponent(this.criteria[c], constants['criteria'][c], constants.key);
 			if (component.isOverridden) {
 				this.elem.find('.criteria-overridden').append(component.r());
 			} else {
@@ -271,12 +280,12 @@ var controller = new function() {
 		severeSepsisComponent.render(globalJson["severe_sepsis"]);
 		septicShockComponent.render(globalJson["septic_shock"], globalJson['severe_sepsis']['is_met']);
 		workflowsComponent.render(
-			globalJson["Antibiotics"],
-			globalJson["Blood Culture"],
-			globalJson["Fluid"],
-			globalJson["Initial Lactate"],
-			globalJson["Repeat Lactate"],
-			globalJson["Vasopressors"],
+			globalJson["antibiotics_order"],
+			globalJson["blood_culture_order"],
+			globalJson["crystalloid_fluid_order"],
+			globalJson["initial_lactate_order"],
+			globalJson["repeat_lactate_order"],
+			globalJson["vasopressors_order"],
 			globalJson['chart_data']['severe_sepsis_onset']['timestamp'],
 			globalJson['chart_data']['septic_shock_onset']['timestamp']);
 		graphComponent.refresh(globalJson["chart_data"]);
@@ -630,7 +639,7 @@ function cleanUserId(userId) {
  * @param JSON String
  * @return {String} html for a specific criteria
  */
-var criteriaComponent = function(c, constants) {
+var criteriaComponent = function(c, constants, key) {
 	this.isOverridden = false;
 	this.status = "";
 
@@ -667,8 +676,31 @@ var criteriaComponent = function(c, constants) {
 			this.status = "";
 		}
 	}
+	var criteriaString = "";
+	for (var i = 0; i < constants.overrideModal.length; i++) {
+		var crit = null;
+		if (c['override_user'] != null) {
+			if (Object.keys(trews.getSpecificCriteria(key, constants.key).override_value[i]).length == 1) {
+				crit = trews.getSpecificCriteria(key, constants.key).override_value[i].lower ? trews.getSpecificCriteria(key, constants.key).override_value[i].lower : trews.getSpecificCriteria(key, constants.key).override_value[i].upper;
+			} else {
+				crit = [trews.getSpecificCriteria(key, constants.key).override_value[i].lower, trews.getSpecificCriteria(key, constants.key).override_value[i].upper]
+			}
+		} else {
+			crit = (constants.overrideModal[i].value) ? constants.overrideModal[i].value : constants.overrideModal[i].values
+		}
+		var name = constants.overrideModal[i].name
+		var unit = constants.overrideModal[i].units
+		if (constants.overrideModal[i].range == 'true') {
+			criteriaString += name + " < " + crit[0] + unit + " or > " + crit[1] + unit;
+		} else {
+			var comp = (constants.overrideModal[i].range == 'min') ? ">" : "<";
+			criteriaString += name + " " + comp + " " + crit + unit;
+		}
+		criteriaString += " or ";
+	}
+	criteriaString = criteriaString.slice(0, -4);
 	this.html = "<div class='status" + this.classComplete + "'>\
-					<h4>" + constants['criteria_display_name'] + "</h4>\
+					<h4>" + criteriaString + "</h4>\
 					<h5>" + this.status + "</h5>\
 				</div>";
 	this.r = function() {
@@ -684,14 +716,14 @@ var criteriaComponent = function(c, constants) {
  */
 var taskComponent = function(json, elem, constants) {
 	elem.find('h3').text(constants['display_name']);
-	// var actions = "<div class='actions cf'>\
-	// 					<a class='order'>Place Order</a>\
-	// 					<a class='notIn'>Not Indicated</a>\
-	// 				</div>";
-	// elem.append(actions);
-	// elem.find('.order').click(function() {
-
-	// });
+	elem.removeClass('in-progress');
+	elem.removeClass('complete');
+	if ( json['status'] == 'Ordered' ) {
+		elem.addClass('in-progress')
+	}
+	else if ( json['status'] == 'Completed' ) {
+		elem.addClass('complete')
+	}
 }
 
 var dropdown = new function() {
