@@ -406,13 +406,19 @@ var septicShockComponent = new function() {
 		this.fusSlot.r(json['hypoperfusion']);
 
 		this.fnoteBtn.unbind();
-		if ( json['fluid_administered'] ) {
+		if ( json['crystalloid_fluid']['is_met'] ) {
 			this.fnote.addClass("complete");
 		} else {
 			this.fnote.removeClass("complete");
 		}
 
-		var fnoteBtnText = json['fluid_administered'] ? (json['fluid_override_user'] ? "Reset" : null) : "Not Indicated";
+		var fnoteBtnText = null;
+		if ( json['crystalloid_fluid']['is_met'] ) {
+			if ( json['crystalloid_fluid']['override_user'] ) { fnoteBtnText = "Reset"; }
+		} else {
+			fnoteBtnText = "Not Indicated";
+		}
+
 		if ( fnoteBtnText ) {
 			this.fnoteBtn.text(fnoteBtnText);
 			var action = {
@@ -470,7 +476,7 @@ var workflowsComponent = new function() {
 		if (time == null) {
 			return workflows[tag]['not_yet'];
 		}
-		var status = (time == null) ? workflows[tag]['instruction'] : "";
+		var status = workflows[tag]['instruction'];
 		if (tag == "sev3") {
 			var offset = 3 * 60 * 60 * 1000;
 		} else if (tag = "sev6") {
