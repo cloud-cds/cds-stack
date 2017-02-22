@@ -290,6 +290,10 @@ class TREWSAPI(object):
             data['severe_sepsis']['is_met'] = 0
 
         # update septic shock
+        data['septic_shock']['hypotension']['is_met'] = hp_cnt > 0
+        data['septic_shock']['hypotension']['num_met'] = hp_cnt
+        data['septic_shock']['hypoperfusion']['is_met'] = hpf_cnt > 0
+        data['septic_shock']['hypoperfusion']['num_met'] = hpf_cnt 
         if (data['septic_shock']['crystalloid_fluid']['is_met'] == 1 and hp_cnt > 0) or hpf_cnt > 0:
             data['septic_shock']['is_met'] = True
             # setup onset time
