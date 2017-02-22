@@ -484,10 +484,12 @@ var workflowsComponent = new function() {
 		} else {
 			var offset = 6 * 60 * 60 * 1000;
 		}
-		if ((time * 1000) + offset < Date.now()) {
-			status = "Workflow window over <span title='" + strToTime(new Date((time * 1000) + offset)) + "'>" + timeLapsed(new Date((time * 1000) + offset)) + "</span>";
+		var shiftedTime = (time * 1000) + offset;
+		var wfDate = new Date(shiftedTime);
+		if (shiftedTime < Date.now()) {
+			status = "Workflow window over <span title='" + strToTime(wfDate) + "'>" + timeLapsed(wfDate) + "</span>";
 		} else {
-			status = "<span title='" + strToTime(new Date((time * 1000) + offset)) + "'>" + timeRemaining(new Date((time * 1000) + offset)) + "</span>";
+			status = "<span title='" + strToTime(wfDaate) + "'>" + timeRemaining(wfDate) + "</span>";
 		}
 		return status;
 	}
