@@ -301,10 +301,10 @@ class TREWSAPI(object):
 
         # update septic shock
         if (data['septic_shock']['crystalloid_fluid']['is_met'] == 1 and hpf_cnt > 0) or hp_cnt > 0:
-            data['septic_shock'] = True
+            data['septic_shock']['is_met'] = True
             # setup onset time
             if data['septic_shock']['crystalloid_fluid']['is_met'] == 1 and hpf_cnt > 0:
-                data['septic_shock']['onset_time'] = sorted(shock_onsets_hypotension)[0]
+                data['septic_shock']['onset_time'] = sorted(shock_onsets_hypoperfusion)[0]
                 if hp_cnt > 0:
                     data['septic_shock']['onset_time'] = sorted([data['septic_shock']['onset_time']] +shock_onsets_hypoperfusion)[0]
             else:
