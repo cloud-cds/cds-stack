@@ -684,10 +684,10 @@ var criteriaComponent = function(c, constants) {
  */
 var taskComponent = function(json, elem, constants) {
 	elem.find('h3').text(constants['display_name']);
-	elem.removeClass('partly-complete');
+	elem.removeClass('in-progress');
 	elem.removeClass('complete');
 	if ( json['status'] == 'Ordered' ) {
-		elem.addClass('partly-complete')
+		elem.addClass('in-progress')
 	}
 	else if ( json['status'] == 'Completed' ) {
 		elem.addClass('complete')
