@@ -118,8 +118,11 @@ var slotComponent = function(elem, link, constants) {
 	this.r = function(json) {
 		this.criteria = json['criteria'];
 		this.elem.find('h3').text(this.constants['display_name']);
-		var isCompleteClass = json['is_met'] ? "complete" : null;
-		this.elem.addClass(isCompleteClass);
+		if (json['is_met']) {
+			this.elem.addClass('complete');
+		} else {
+			this.elem.removeClass('complete');
+		}
 		this.elem.find('.criteria-overridden').html('');
 		for (var c in this.criteria) {
 			var component = new criteriaComponent(this.criteria[c], constants['criteria'][c], constants.key);
@@ -362,8 +365,11 @@ var severeSepsisComponent = new function() {
 
 	this.render = function(json) {
 		this.ctn.find('h2').text(severe_sepsis['display_name']);
-		var ctnClass = json['is_met'] ? "complete" : "";
-		this.ctn.addClass(ctnClass);
+		if (json['is_met']) {
+			this.ctn.addClass('complete');
+		} else {
+			this.ctn.removeClass('complete');
+		}
 		this.sus = json['suspicion_of_infection'];
 		this.suspicion(severe_sepsis['suspicion_of_infection']);
 		this.sirSlot.r(json['sirs']);
@@ -390,8 +396,12 @@ var septicShockComponent = new function() {
 	this.render = function(json, severeSepsis) {
 		this.ctn.find('h2').text(septic_shock['display_name']);
 
-		var ctnClass = json['is_met'] ? "complete" : "";
-		this.ctn.addClass(ctnClass);
+		if (json['is_met']) {
+			this.ctn.addClass('complete');
+		} else {
+			this.ctn.removeClass('complete');
+		}
+
 		this.tenSlot.r(json['hypotension']);
 		this.fusSlot.r(json['hypoperfusion']);
 
@@ -423,6 +433,8 @@ var septicShockComponent = new function() {
 
 		if (!severeSepsis) {
 			this.ctn.addClass('inactive');
+		} else {
+			this.ctn.removeClass('inactive');
 		}
 	}
 }
@@ -487,9 +499,14 @@ var workflowsComponent = new function() {
 		if (severeOnset == null) {
 			this.sev3Ctn.addClass('inactive');
 			this.sev6Ctn.addClass('inactive');
+		} else {
+			this.sev3Ctn.removeClass('inactive');
+			this.sev6Ctn.removeClass('inactive');
 		}
 		if (shockOnset == null) {
 			this.sep6Ctn.addClass('inactive');
+		} else {
+			this.sep6Ctn.removeClass('inactive');
 		}
 
 		this.sev3Ctn.find('.card-subtitle').text(this.workflowStatus('sev3', severeOnset));
