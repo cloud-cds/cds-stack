@@ -680,10 +680,12 @@ var criteriaComponent = function(c, constants, key) {
 	for (var i = 0; i < constants.overrideModal.length; i++) {
 		var crit = null;
 		if (c['override_user'] != null) {
-			if (Object.keys(trews.getSpecificCriteria(key, constants.key).override_value[i]).length == 1) {
-				crit = trews.getSpecificCriteria(key, constants.key).override_value[i].lower ? trews.getSpecificCriteria(key, constants.key).override_value[i].lower : trews.getSpecificCriteria(key, constants.key).override_value[i].upper;
-			} else {
-				crit = [trews.getSpecificCriteria(key, constants.key).override_value[i].lower, trews.getSpecificCriteria(key, constants.key).override_value[i].upper]
+			if (trews.getSpecificCriteria(key, constants.key).override_value[i] != undefined) {
+				if (Object.keys(trews.getSpecificCriteria(key, constants.key).override_value[i]).length == 1) {
+					crit = trews.getSpecificCriteria(key, constants.key).override_value[i].lower ? trews.getSpecificCriteria(key, constants.key).override_value[i].lower : trews.getSpecificCriteria(key, constants.key).override_value[i].upper;
+				} else {
+					crit = [trews.getSpecificCriteria(key, constants.key).override_value[i].lower, trews.getSpecificCriteria(key, constants.key).override_value[i].upper]
+				}
 			}
 		} else {
 			crit = (constants.overrideModal[i].value) ? constants.overrideModal[i].value : constants.overrideModal[i].values
