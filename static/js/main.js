@@ -357,11 +357,9 @@ var severeSepsisComponent = new function() {
 			var susMsg = null;
 			if ( this.sus['update_user'] ) { susMsg = 'by ' + this.sus['update_user']; }
 			if ( this.sus['update_time'] ) {
-				var timeToOffset = new Date(this.sus['update_time']*1000);
-				timeToOffset = new Date(this.sus['update_time']*1000 - (timeToOffset.getTimezoneOffset() * 60 * 1000))
-				susMsg = (susMsg ? susMsg + ' ' : '') + 'at <span title="' + strToTime(timeToOffset) + '">' + timeLapsed(timeToOffset) + '</span>';
+				susMsg = (susMsg ? susMsg + ' ' : '') + 'at ' + timeLapsed(new Date(this.sus['update_time']*1000));
 			}
-			if ( susMsg ) { this.susCtn.find('.status h5').html(susMsg); }
+			if ( susMsg ) { this.susCtn.find('.status h5').text(susMsg); }
 		}
 	}
 
@@ -472,21 +470,21 @@ var workflowsComponent = new function() {
 		if (time == null) {
 			return workflows[tag]['not_yet'];
 		}
-		var onset = new Date((time * 1000));
-		onset = new Date((time * 1000) - (onset.getTimezoneOffset() * 60 * 1000));
 		var status = (time == null) ? workflows[tag]['instruction'] : "";
-		var offset = 0;
-		if (tag == "sev3") {
-			offset = 3 * 60 * 60 * 1000;
-		} else if (tag == "sev6") {
-			offset = 6 * 60 * 60 * 1000;
-		} else {
-			offset = 6 * 60 * 60 * 1000;
+		switch(tag) {
+			case 'sev3':
+				var offset = 3 * 60 * 60 * 1000;
+			case 'sev6':
+				var offset = 6 * 60 * 60 * 1000;
+			case 'sep6':
+				var offset = 6 * 60 * 60 * 1000;
+			default:
+				var offset = 0;
 		}
-		if (onset.getTime() + offset < Date.now()) {
-			status = "Workflow window over <span title='" + strToTime(onset) + "'>" + timeLapsed(new Date(onset.getTime() + offset)) + "</span>";
+		if ((time * 1000) + offset < Date.now()) {
+			status = "Workflow window over " + timeLapsed(new Date((time * 1000) + offset));
 		} else {
-			status = "<span title='" + strToTime(onset) + "'>" + timeRemaining(new Date(onset.getTime() + offset)) + "</span>";
+			status = timeRemaining(new Date((time * 1000) + offset));
 		}
 		return status;
 	}
@@ -511,9 +509,9 @@ var workflowsComponent = new function() {
 			this.sep6Ctn.removeClass('inactive');
 		}
 
-		this.sev3Ctn.find('.card-subtitle').html(this.workflowStatus('sev3', severeOnset));
-		this.sev6Ctn.find('.card-subtitle').html(this.workflowStatus('sev6', severeOnset));
-		this.sep6Ctn.find('.card-subtitle').html(this.workflowStatus('sep6', shockOnset));
+		this.sev3Ctn.find('.card-subtitle').text(this.workflowStatus('sev3', severeOnset));
+		this.sev6Ctn.find('.card-subtitle').text(this.workflowStatus('sev6', severeOnset));
+		this.sep6Ctn.find('.card-subtitle').text(this.workflowStatus('sep6', shockOnset));
 
 		var iTask = new taskComponent(iJSON, $("[data-trews='init_lactate']"), workflows['init_lactate']);
 		var bTask = new taskComponent(bJSON, $("[data-trews='blood_culture']"), workflows['blood_culture']);
@@ -577,7 +575,7 @@ function timeLapsed(d) {
 	var MIN = 60 * 1000;
 	var HOUR = 60 * 60 * 1000;
 	var DAY = 24 * 60 * 60 * 1000;
-	var elapsed = new Date((new Date()).getTime() - d.getTime());
+	var elapsed = new Date(Date.now() - d);
 	if (elapsed < MIN) {
 		var units = (elapsed.getUTCSeconds() > 1) ? " secs ago" : " sec ago";
 		return elapsed.getUTCSeconds() + units;
@@ -599,7 +597,7 @@ function timeLapsed(d) {
 function timeRemaining(d) {
 	var remaining = new Date(d - Date.now());
 	var minutes = (remaining.getUTCMinutes() < 10) ? "0" + remaining.getUTCMinutes() : remaining.getUTCMinutes();
-	return remaining.getUTCHours() + " hours and " + minutes + " minutes remaining";
+	return remaining.getUTCHours() + ":" + minutes + " remaining";
 }
 
 /**
@@ -674,23 +672,21 @@ var criteriaComponent = function(c, constants, key) {
 
 	if (c['is_met'] && c['measurement_time']) {
 		this.classComplete = " met";
-		var lapsed = new Date(c['measurement_time']*1000);
-		lapsed = new Date(c['measurement_time']*1000 - (lapsed.getTimezoneOffset() * 60 * 1000))
-		this.status += "Criteria met <span title='" + strToTime(lapsed) + "'>" + timeLapsed(lapsed) + "</span> with a value of <span class='value'>" + displayValue + "</span>";
+		var lapsed = timeLapsed(new Date(c['measurement_time']*1000));
+		var strTime = strToTime(new Date(c['measurement_time']*1000));
+		this.status += "Criteria met <span title='" + strTime + "'>" + lapsed + "</span> with a value of <span class='value'>" + displayValue + "</span>";
 	} else {
 		if (c['override_user'] != null) {
 			this.classComplete = " unmet";
 			this.isOverridden = true;
 			if (c['measurement_time']) {
-				var cLapsed = new Date(c['measurement_time']*1000);
-				cLapsed = new Date(c['measurement_time']*1000 - (cLapsed.getTimezoneOffset() * 60 * 1000))
-				this.status += "Criteria met <span title='" + strToTime(cLapsed) + "'>" + timeLapsed(cLapsed) + "</span> with a value of <span class='value'>" + displayValue + "</span>";
+				var cLapsed = timeLapsed(new Date(c['measurement_time']*1000));
+				this.status += "Criteria met " + cLapsed + " with a value of <span class='value'>" + displayValue + "</span>";
 				this.status += (c['override_time']) ? "<br />" : "";
 			}
 			if (c['override_time']) {
-				var oLapsed = new Date(c['override_time']*1000);
-				oLapsed = new Date(c['override_time']*1000 - (oLapsed.getTimezoneOffset() * 60 * 1000))
-				this.status += "Customized by " + c['override_user'] + " <span title='" + strToTime(oLapsed) + "'>" + timeLapsed(oLapsed) + "</span>";
+				var oLapsed = timeLapsed(new Date(c['override_time']*1000));
+				this.status += "Customized by " + c['override_user'] + " " + oLapsed;
 			}
 		} else {
 			this.classComplete = " hidden unmet";
@@ -1009,9 +1005,7 @@ var notifications = new function() {
 			var notif = $('<div class="notification"></div>');
 			notif.append('<h3>' + ALERT_CODES[data[i]['alert_code']] + '</h3>')
 			var subtext = $('<div class="subtext cf"></div>');
-			var lapsed = new Date(data[i]['timestamp']*1000);
-			lapsed = new Date(data[i]['timestamp']*1000 - (lapsed.getTimezoneOffset() * 60 * 1000));
-			subtext.append('<p><span title="' + strToTime(lapsed) + '">' + timeLapsed(lapsed) + '</span></p>');
+			subtext.append('<p>' + timeLapsed(new Date(data[i]['timestamp']*1000)) + '</p>');
 			var readLink = $("<a data-trews='" + data[i]['id'] + "'></a>");
 			readLink.unbind();
 			if (data[i]['read']) {
