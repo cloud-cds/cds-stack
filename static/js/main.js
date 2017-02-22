@@ -881,28 +881,24 @@ var overrideModal = new function() {
 		save.unbind();
 		save.click(function() {
 			var sliders = $('.slider-range');
-			var postData = [];
+			var postData = {
+				"actionName": STATIC[overrideModal.card][overrideModal.slot]['criteria'][overrideModal.criteria]['key'],
+				"value": [],
+				"clear": false
+			};
 			for (var i = 0; i < sliders.length; i++) {
 				var criteria = sliders[i].getAttribute('data-trews');
 				var criteriaOverrideData = STATIC[overrideModal.card][overrideModal.slot]['criteria'][overrideModal.criteria]['overrideModal'][i];
+				var criteriaOverride = { "range": criteriaOverrideData['range']}
 				if ($(".slider-range[data-trews='" + criteria + "']").slider("values").length == 0) {
-					var value = $(".slider-range[data-trews='" + criteria + "']").slider("value");
-					var values = null;
+					criteriaOverride["lower"] = (criteriaOverrideData['range'] == 'max') ? $(".slider-range[data-trews='" + criteria + "']").slider("value") : null;
+					criteriaOverride["upper"] = (criteriaOverrideData['range'] == 'min') ? $(".slider-range[data-trews='" + criteria + "']").slider("value") : null;
 				} else {
-					var value = null;
-					var values = $(".slider-range[data-trews='" + criteria + "']").slider("values");
+					criteriaOverride["lower"] = $(".slider-range[data-trews='" + criteria + "']").slider("values", 0);
+					criteriaOverride["upper"] = $(".slider-range[data-trews='" + criteria + "']").slider("values", 1);
 				}
-				var criteriaOverride = { "actionName": STATIC[overrideModal.card][overrideModal.slot]['criteria'][overrideModal.criteria]['key'] }
-				if ( value ) {
-					criteriaOverride["value"] = value
-				}
-				if ( values ) {
-					criteriaOverride["values"] = values
-				}
-				criteriaOverride["reset"] = overrideModal.reset;
-
-				criteriaOverride["range"] = criteriaOverrideData['range']
-				postData.push(criteriaOverride);
+				postData["clear"] = (overrideModal.reset) ? true : false;
+				postData.action.push(criteriaOverride);
 			}
 			endpoints.getPatientData("override", postData);
 			overrideModal.om.fadeOut(30);
