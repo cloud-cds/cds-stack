@@ -31,6 +31,8 @@ variable "etl_lambda_firing_rate_mins" {}
 variable "TREWS_ETL_SERVER" {}
 variable "TREWS_ETL_HOSPITAL" {}
 variable "TREWS_ETL_HOURS" {}
+variable "TREWS_ETL_ARCHIVE" {}
+variable "TREWS_ETL_MODE" {}
 
 resource "aws_iam_role" "etl_lambda_role" {
     name = "${var.deploy_prefix}-role-etl-lambda"
@@ -116,6 +118,8 @@ resource "aws_lambda_function" "etl_lambda" {
         TREWS_ETL_SERVER = "${var.TREWS_ETL_SERVER}"
         TREWS_ETL_HOSPITAL = "${var.TREWS_ETL_HOSPITAL}"
         TREWS_ETL_HOURS = "${var.TREWS_ETL_HOURS}"
+        TREWS_ETL_ARCHIVE = "${var.TREWS_ETL_ARCHIVE}"
+        TREWS_ETL_MODE = "${var.TREWS_ETL_MODE}"
       }
     }
 }
