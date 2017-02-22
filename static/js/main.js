@@ -489,7 +489,7 @@ var workflowsComponent = new function() {
 		if (shiftedTime < Date.now()) {
 			status = "Workflow window over <span title='" + strToTime(wfDate) + "'>" + timeLapsed(wfDate) + "</span>";
 		} else {
-			status = "<span title='" + strToTime(wfDaate) + "'>" + timeRemaining(wfDate) + "</span>";
+			status = "<span title='" + strToTime(wfDate) + "'>" + timeRemaining(wfDate) + "</span>";
 		}
 		return status;
 	}
