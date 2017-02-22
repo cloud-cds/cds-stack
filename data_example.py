@@ -200,43 +200,43 @@ septic_shock = {
 initial_lactate_order = {
     "name": "initial_lactate_order",
     "status": "status string",
-    "time": None, 
-    "user": "user", 
+    "time": None,
+    "user": "user",
     "note": "note"
 }
 blood_culture_order = {
     "name": "blood_culture_order",
     "status": "status string",
-    "time": None, 
-    "user": "user", 
+    "time": None,
+    "user": "user",
     "note": "note"
 }
 antibiotics_order = {
     "name": "antibiotics_order",
     "status": "status string",
-    "time": None, 
-    "user": "user", 
+    "time": None,
+    "user": "user",
     "note": "note"
 }
 crystalloid_fluid_order = {
     "name": "crystalloid_fluid_order",
     "status": "status string",
-    "time": None, 
-    "user": "user", 
+    "time": None,
+    "user": "user",
     "note": "note"
 }
 repeat_lactate_order = {
     "name": "repeat_lactate_order",
     "status": "status string",
-    "time": None, 
-    "user": "user", 
+    "time": None,
+    "user": "user",
     "note": "note"
 }
 vasopressors_order = {
     "name": "vasopressors_order",
     "status": "status string",
-    "time": None, 
-    "user": "user", 
+    "time": None,
+    "user": "user",
     "note": "note"
 }
 

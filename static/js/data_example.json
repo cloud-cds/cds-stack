@@ -1,15 +1,13 @@
 {
-	"Antibiotics":{
+	"antibiotics":{
 		"status":"status string",
-		"display_name":"Antibiotics",
 		"name":"antibiotics",
 		"note":"note",
 		"user":"user",
 		"time":1483656309000
 	},
-	"Initial Lactate":{
+	"initial_lactate":{
 		"status":"status string",
-		"display_name":"Initial Lactate",
 		"name":"init_lactate",
 		"note":"note",
 		"user":"user",
@@ -162,25 +160,22 @@
 		},
 		"is_met":false
 	},
-	"Repeat Lactate":{
+	"repeat_lactate":{
 		"status":"status string",
-		"display_name":"Repeat Lactate",
 		"name":"repeat_lactate",
 		"note":"note",
 		"user":"user",
 		"time":1483656309000
 	},
-	"Vasopressors":{
+	"vasopressors":{
 		"status":"status string",
-		"display_name":"Vasopressors",
 		"name":"vasopressors",
 		"note":"note",
 		"user":"user",
 		"time":1483656309000
 	},
-	"Blood Culture":{
+	"blood_culture":{
 		"status":"status string",
-		"display_name":"Blood Culture",
 		"name":"blood_culture",
 		"note":"note",
 		"user":"user",
@@ -209,9 +204,8 @@
 			"timestamp":1397076300
 		}
 	},
-	"Fluid":{
+	"crystalloid_fluid":{
 		"status":"status string",
-		"display_name":"Fluid",
 		"name":"fluid",
 		"note":"note",
 		"user":"user",

@@ -225,6 +225,10 @@ body.waiting {
 .slot.last-child {
     border-bottom: 1px solid #ddd;
 }
+.slot.in-progress {
+    background-color: #777;
+    border-left: 5px solid #999;
+}
 .slot.complete {
     background-color: #eee;
     border-left: 5px solid #aaa;

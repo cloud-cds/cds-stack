@@ -271,12 +271,12 @@ var controller = new function() {
 		severeSepsisComponent.render(globalJson["severe_sepsis"]);
 		septicShockComponent.render(globalJson["septic_shock"], globalJson['severe_sepsis']['is_met']);
 		workflowsComponent.render(
-			globalJson["Antibiotics"],
-			globalJson["Blood Culture"],
-			globalJson["Fluid"],
-			globalJson["Initial Lactate"],
-			globalJson["Repeat Lactate"],
-			globalJson["Vasopressors"],
+			globalJson["antibiotics_order"],
+			globalJson["blood_culture_order"],
+			globalJson["crystalloid_fluid_order"],
+			globalJson["initial_lactate_order"],
+			globalJson["repeat_lactate_order"],
+			globalJson["vasopressors_order"],
 			globalJson['chart_data']['severe_sepsis_onset']['timestamp'],
 			globalJson['chart_data']['septic_shock_onset']['timestamp']);
 		graphComponent.refresh(globalJson["chart_data"]);
@@ -684,14 +684,14 @@ var criteriaComponent = function(c, constants) {
  */
 var taskComponent = function(json, elem, constants) {
 	elem.find('h3').text(constants['display_name']);
-	// var actions = "<div class='actions cf'>\
-	// 					<a class='order'>Place Order</a>\
-	// 					<a class='notIn'>Not Indicated</a>\
-	// 				</div>";
-	// elem.append(actions);
-	// elem.find('.order').click(function() {
-
-	// });
+	elem.removeClass('partly-complete');
+	elem.removeClass('complete');
+	if ( json['status'] == 'Ordered' ) {
+		elem.addClass('partly-complete')
+	}
+	else if ( json['status'] == 'Completed' ) {
+		elem.addClass('complete')
+	}
 }
 
 var dropdown = new function() {
