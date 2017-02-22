@@ -149,6 +149,7 @@ body.waiting {
     width: 70%;
     left: 0;
     overflow: auto;
+    overflow-x: hidden;
 }
 #right-column {
     position: absolute;
