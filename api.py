@@ -261,7 +261,7 @@ class TREWSAPI(object):
                 if ('override_value' in criterion) and (criterion['override_value'] is not None) and ('text' in criterion['override_value']):
                     value = criterion['override_value']['text']
 
-                data[order_id] = {
+                data[criterion["name"]] = {
                     "name": criterion["name"],
                     "status": value,
                     "time": criterion['override_time'] if 'override_time' in criterion else criterion['measurement_time'],
