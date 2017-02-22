@@ -65,7 +65,9 @@ users:
               {"name": "jhapi_client_secret", "value": os.environ["jhapi_client_secret"]},
               {"name": "TREWS_ETL_SERVER",    "value": os.environ["TREWS_ETL_SERVER"]},
               {"name": "TREWS_ETL_HOSPITAL",  "value": os.environ["TREWS_ETL_HOSPITAL"]},
-              {"name": "TREWS_ETL_HOURS",     "value": os.environ["TREWS_ETL_HOURS"]}
+              {"name": "TREWS_ETL_HOURS",     "value": os.environ["TREWS_ETL_HOURS"]},
+              {"name": "TREWS_ETL_ARCHIVE",   "value": os.environ["TREWS_ETL_ARCHIVE"]},
+              {"name": "TREWS_ETL_MODE",      "value": os.environ["TREWS_ETL_MODE"]},
             ]
           }],
           "restartPolicy": "Never"

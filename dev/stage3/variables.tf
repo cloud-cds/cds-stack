@@ -198,3 +198,5 @@ variable "local_shell" {
 variable "TREWS_ETL_SERVER" {}
 variable "TREWS_ETL_HOSPITAL" {}
 variable "TREWS_ETL_HOURS" {}
+variable "TREWS_ETL_ARCHIVE" {}
+variable "TREWS_ETL_MODE" {}

@@ -80,4 +80,6 @@ module "trews_etl" {
   TREWS_ETL_SERVER    = "${var.TREWS_ETL_SERVER}"
   TREWS_ETL_HOSPITAL  = "${var.TREWS_ETL_HOSPITAL}"
   TREWS_ETL_HOURS     = "${var.TREWS_ETL_HOURS}"
+  TREWS_ETL_MODE      = "${var.TREWS_ETL_MODE}"
+  TREWS_ETL_ARCHIVE   = "${var.TREWS_ETL_ARCHIVE}"
 }
