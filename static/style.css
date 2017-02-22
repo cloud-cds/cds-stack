@@ -149,6 +149,7 @@ body.waiting {
     width: 70%;
     left: 0;
     overflow: auto;
+    overflow-x: hidden;
 }
 #right-column {
     position: absolute;
@@ -225,9 +226,25 @@ body.waiting {
 .slot.last-child {
     border-bottom: 1px solid #ddd;
 }
-.slot.in-progress {
-    background-color: #777;
-    border-left: 5px solid #999;
+.slot.in-progress,
+#right-column .slot.complete {
+    border-left: 5px solid #aaa;
+    position: relative;
+}
+.slot.in-progress:before,
+#right-column .slot.complete:before {
+    content: 'ordered';
+    display: block;
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    font-size: 12px;
+    font-style: italic;
+    font-family: Helvetica, Arial, sans-serif;
+    color: #aaa;
+}
+#right-column .slot.complete:before {
+    content: 'complete';
 }
 .slot.complete {
     background-color: #eee;

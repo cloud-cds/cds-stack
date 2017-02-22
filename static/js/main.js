@@ -118,8 +118,11 @@ var slotComponent = function(elem, link, constants) {
 	this.r = function(json) {
 		this.criteria = json['criteria'];
 		this.elem.find('h3').text(this.constants['display_name']);
-		var isCompleteClass = json['is_met'] ? "complete" : null;
-		this.elem.addClass(isCompleteClass);
+		if (json['is_met']) {
+			this.elem.addClass('complete');
+		} else {
+			this.elem.removeClass('complete');
+		}
 		this.elem.find('.criteria-overridden').html('');
 		for (var c in this.criteria) {
 			var component = new criteriaComponent(this.criteria[c], constants['criteria'][c], constants.key);
@@ -354,16 +357,19 @@ var severeSepsisComponent = new function() {
 			var susMsg = null;
 			if ( this.sus['update_user'] ) { susMsg = 'by ' + this.sus['update_user']; }
 			if ( this.sus['update_time'] ) {
-				susMsg = (susMsg ? susMsg + ' ' : '') + 'at ' + timeLapsed(new Date(this.sus['update_time']*1000));
+				susMsg = (susMsg ? susMsg + ' ' : '') + 'at <span title="' + strToTime(new Date(this.sus['update_time']*1000)) + '">' + timeLapsed(new Date(this.sus['update_time']*1000)) + '</span>';
 			}
-			if ( susMsg ) { this.susCtn.find('.status h5').text(susMsg); }
+			if ( susMsg ) { this.susCtn.find('.status h5').html(susMsg); }
 		}
 	}
 
 	this.render = function(json) {
 		this.ctn.find('h2').text(severe_sepsis['display_name']);
-		var ctnClass = json['is_met'] ? "complete" : "";
-		this.ctn.addClass(ctnClass);
+		if (json['is_met']) {
+			this.ctn.addClass('complete');
+		} else {
+			this.ctn.removeClass('complete');
+		}
 		this.sus = json['suspicion_of_infection'];
 		this.suspicion(severe_sepsis['suspicion_of_infection']);
 		this.sirSlot.r(json['sirs']);
@@ -390,8 +396,12 @@ var septicShockComponent = new function() {
 	this.render = function(json, severeSepsis) {
 		this.ctn.find('h2').text(septic_shock['display_name']);
 
-		var ctnClass = json['is_met'] ? "complete" : "";
-		this.ctn.addClass(ctnClass);
+		if (json['is_met']) {
+			this.ctn.addClass('complete');
+		} else {
+			this.ctn.removeClass('complete');
+		}
+
 		this.tenSlot.r(json['hypotension']);
 		this.fusSlot.r(json['hypoperfusion']);
 
@@ -423,6 +433,8 @@ var septicShockComponent = new function() {
 
 		if (!severeSepsis) {
 			this.ctn.addClass('inactive');
+		} else {
+			this.ctn.removeClass('inactive');
 		}
 	}
 }
@@ -459,20 +471,17 @@ var workflowsComponent = new function() {
 			return workflows[tag]['not_yet'];
 		}
 		var status = (time == null) ? workflows[tag]['instruction'] : "";
-		switch(tag) {
-			case 'sev3':
-				var offset = 3 * 60 * 60 * 1000;
-			case 'sev6':
-				var offset = 6 * 60 * 60 * 1000;
-			case 'sep6':
-				var offset = 6 * 60 * 60 * 1000;
-			default:
-				var offset = 0;
+		if (tag == "sev3") {
+			var offset = 3 * 60 * 60 * 1000;
+		} else if (tag = "sev6") {
+			var offset = 6 * 60 * 60 * 1000;
+		} else {
+			var offset = 6 * 60 * 60 * 1000;
 		}
 		if ((time * 1000) + offset < Date.now()) {
-			status = "Workflow window over " + timeLapsed(new Date((time * 1000) + offset));
+			status = "Workflow window over <span title='" + strToTime(new Date((time * 1000) + offset)) + "'>" + timeLapsed(new Date((time * 1000) + offset)) + "</span>";
 		} else {
-			status = timeRemaining(new Date((time * 1000) + offset));
+			status = "<span title='" + strToTime(new Date((time * 1000) + offset)) + "'>" + timeRemaining(new Date((time * 1000) + offset)) + "</span>";
 		}
 		return status;
 	}
@@ -487,14 +496,19 @@ var workflowsComponent = new function() {
 		if (severeOnset == null) {
 			this.sev3Ctn.addClass('inactive');
 			this.sev6Ctn.addClass('inactive');
+		} else {
+			this.sev3Ctn.removeClass('inactive');
+			this.sev6Ctn.removeClass('inactive');
 		}
 		if (shockOnset == null) {
 			this.sep6Ctn.addClass('inactive');
+		} else {
+			this.sep6Ctn.removeClass('inactive');
 		}
 
-		this.sev3Ctn.find('.card-subtitle').text(this.workflowStatus('sev3', severeOnset));
-		this.sev6Ctn.find('.card-subtitle').text(this.workflowStatus('sev6', severeOnset));
-		this.sep6Ctn.find('.card-subtitle').text(this.workflowStatus('sep6', shockOnset));
+		this.sev3Ctn.find('.card-subtitle').html(this.workflowStatus('sev3', severeOnset));
+		this.sev6Ctn.find('.card-subtitle').html(this.workflowStatus('sev6', severeOnset));
+		this.sep6Ctn.find('.card-subtitle').html(this.workflowStatus('sep6', shockOnset));
 
 		var iTask = new taskComponent(iJSON, $("[data-trews='init_lactate']"), workflows['init_lactate']);
 		var bTask = new taskComponent(bJSON, $("[data-trews='blood_culture']"), workflows['blood_culture']);
@@ -580,7 +594,7 @@ function timeLapsed(d) {
 function timeRemaining(d) {
 	var remaining = new Date(d - Date.now());
 	var minutes = (remaining.getUTCMinutes() < 10) ? "0" + remaining.getUTCMinutes() : remaining.getUTCMinutes();
-	return remaining.getUTCHours() + ":" + minutes + " remaining";
+	return remaining.getUTCHours() + " hours and " + minutes + " minutes remaining";
 }
 
 /**
@@ -664,12 +678,14 @@ var criteriaComponent = function(c, constants, key) {
 			this.isOverridden = true;
 			if (c['measurement_time']) {
 				var cLapsed = timeLapsed(new Date(c['measurement_time']*1000));
-				this.status += "Criteria met " + cLapsed + " with a value of <span class='value'>" + displayValue + "</span>";
+				var cStrTime = strToTime(new Date(c['measurement_time']*1000));
+				this.status += "Criteria met <span title='" + cStrTime + "'>" + cLapsed + "</span> with a value of <span class='value'>" + displayValue + "</span>";
 				this.status += (c['override_time']) ? "<br />" : "";
 			}
 			if (c['override_time']) {
 				var oLapsed = timeLapsed(new Date(c['override_time']*1000));
-				this.status += "Customized by " + c['override_user'] + " " + oLapsed;
+				var oStrTime = strToTime(new Date(c['override_time']*1000));
+				this.status += "Customized by " + c['override_user'] + " <span title='" + oStrTime + "'>" + oLapsed + "</span>";
 			}
 		} else {
 			this.classComplete = " hidden unmet";
@@ -680,10 +696,12 @@ var criteriaComponent = function(c, constants, key) {
 	for (var i = 0; i < constants.overrideModal.length; i++) {
 		var crit = null;
 		if (c['override_user'] != null) {
-			if (Object.keys(trews.getSpecificCriteria(key, constants.key).override_value[i]).length == 1) {
-				crit = trews.getSpecificCriteria(key, constants.key).override_value[i].lower ? trews.getSpecificCriteria(key, constants.key).override_value[i].lower : trews.getSpecificCriteria(key, constants.key).override_value[i].upper;
-			} else {
-				crit = [trews.getSpecificCriteria(key, constants.key).override_value[i].lower, trews.getSpecificCriteria(key, constants.key).override_value[i].upper]
+			if (trews.getSpecificCriteria(key, constants.key).override_value[i] != undefined) {
+				if (Object.keys(trews.getSpecificCriteria(key, constants.key).override_value[i]).length == 1) {
+					crit = trews.getSpecificCriteria(key, constants.key).override_value[i].lower ? trews.getSpecificCriteria(key, constants.key).override_value[i].lower : trews.getSpecificCriteria(key, constants.key).override_value[i].upper;
+				} else {
+					crit = [trews.getSpecificCriteria(key, constants.key).override_value[i].lower, trews.getSpecificCriteria(key, constants.key).override_value[i].upper]
+				}
 			}
 		} else {
 			crit = (constants.overrideModal[i].value) ? constants.overrideModal[i].value : constants.overrideModal[i].values
@@ -879,28 +897,24 @@ var overrideModal = new function() {
 		save.unbind();
 		save.click(function() {
 			var sliders = $('.slider-range');
-			var postData = [];
+			var postData = {
+				"actionName": STATIC[overrideModal.card][overrideModal.slot]['criteria'][overrideModal.criteria]['key'],
+				"value": [],
+				"clear": false
+			};
 			for (var i = 0; i < sliders.length; i++) {
 				var criteria = sliders[i].getAttribute('data-trews');
 				var criteriaOverrideData = STATIC[overrideModal.card][overrideModal.slot]['criteria'][overrideModal.criteria]['overrideModal'][i];
+				var criteriaOverride = { "range": criteriaOverrideData['range']}
 				if ($(".slider-range[data-trews='" + criteria + "']").slider("values").length == 0) {
-					var value = $(".slider-range[data-trews='" + criteria + "']").slider("value");
-					var values = null;
+					criteriaOverride["lower"] = (criteriaOverrideData['range'] == 'max') ? $(".slider-range[data-trews='" + criteria + "']").slider("value") : null;
+					criteriaOverride["upper"] = (criteriaOverrideData['range'] == 'min') ? $(".slider-range[data-trews='" + criteria + "']").slider("value") : null;
 				} else {
-					var value = null;
-					var values = $(".slider-range[data-trews='" + criteria + "']").slider("values");
+					criteriaOverride["lower"] = $(".slider-range[data-trews='" + criteria + "']").slider("values", 0);
+					criteriaOverride["upper"] = $(".slider-range[data-trews='" + criteria + "']").slider("values", 1);
 				}
-				var criteriaOverride = { "actionName": STATIC[overrideModal.card][overrideModal.slot]['criteria'][overrideModal.criteria]['key'] }
-				if ( value ) {
-					criteriaOverride["value"] = value
-				}
-				if ( values ) {
-					criteriaOverride["values"] = values
-				}
-				criteriaOverride["reset"] = overrideModal.reset;
-
-				criteriaOverride["range"] = criteriaOverrideData['range']
-				postData.push(criteriaOverride);
+				postData["clear"] = (overrideModal.reset) ? true : false;
+				postData.value.push(criteriaOverride);
 			}
 			endpoints.getPatientData("override", postData);
 			overrideModal.om.fadeOut(30);
