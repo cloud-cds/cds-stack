@@ -174,7 +174,8 @@ class TREWSAPI(object):
         sirs_onsets = []
         od_onsets = []
         hp_cnt = 0
-        shock_onsets = []
+        shock_onsets_hypotension = []
+        shock_onsets_hypoperfusion = []
         hpf_cnt = 0
         # TODO: set up the onset time
         for idx, row in criteria.iterrows():
@@ -231,9 +232,9 @@ class TREWSAPI(object):
                 if criterion["is_met"]:
                     hp_cnt += 1
                     if criterion['override_user']:
-                        shock_onsets.append(criterion['override_time'])
+                        shock_onsets_hypotension.append(criterion['override_time'])
                     else:
-                        shock_onsets.append(criterion['measurement_time'])
+                        shock_onsets_hypotension.append(criterion['measurement_time'])
 
             
             if criterion["name"] in HYPOPERFUSION:
@@ -242,9 +243,9 @@ class TREWSAPI(object):
                 if criterion["is_met"]:
                     hpf_cnt += 1
                     if criterion['override_user']:
-                        shock_onsets.append(criterion['override_time'])
+                        shock_onsets_hypoperfusion.append(criterion['override_time'])
                     else:
-                        shock_onsets.append(criterion['measurement_time'])
+                        shock_onsets_hypoperfusion.append(criterion['measurement_time'])
 
             if criterion["name"] == 'crystalloid_fluid':
                 data['septic_shock']['crystalloid_fluid'] = criterion
@@ -302,8 +303,13 @@ class TREWSAPI(object):
         # update septic shock
         if (data['septic_shock']['crystalloid_fluid']['is_met'] == 1 and hpf_cnt > 0) or hp_cnt > 0:
             data['septic_shock'] = True
-            data['septic_shock']['onset_time'] = sorted(sorted(shock_onsets)[0], data['septic_shock']['fluid_administered_time'])[1]
-
+            # setup onset time
+            if data['septic_shock']['crystalloid_fluid']['is_met'] == 1 and hpf_cnt > 0:
+                data['septic_shock']['onset_time'] = sorted(shock_onsets_hypotension)[0]
+                if hp_cnt > 0:
+                    data['septic_shock']['onset_time'] = sorted([data['septic_shock']['onset_time']] +shock_onsets_hypoperfusion)[0]
+            else:
+                data['septic_shock']['onset_time'] = sorted(shock_onsets_hypotension)[0]
         logging.debug(json.dumps(data['severe_sepsis'], indent=4))
         logging.debug(json.dumps(data['septic_shock'], indent=4))
 
