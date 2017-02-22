@@ -45,6 +45,15 @@ var trews = new function() {
 				return this.data['septic_shock']['hypoperfusion']['criteria'];
 		}
 	}
+	this.getSpecificCriteria = function(slot, key) {
+		var arr = this.getCriteria(slot);
+		for (var i = 0; i < arr.length; i ++) {
+			if (arr[i].name == key) {
+				return arr[i];
+			}
+		}
+		return null;
+	}
 	this.getMetCriteria = function(slot) {
 		var list = [];
 		var criteria = isString(slot) ? this.getCriteria(slot) : slot
@@ -113,7 +122,7 @@ var slotComponent = function(elem, link, constants) {
 		this.elem.addClass(isCompleteClass);
 		this.elem.find('.criteria-overridden').html('');
 		for (var c in this.criteria) {
-			var component = new criteriaComponent(this.criteria[c], constants['criteria'][c]);
+			var component = new criteriaComponent(this.criteria[c], constants['criteria'][c], constants.key);
 			if (component.isOverridden) {
 				this.elem.find('.criteria-overridden').append(component.r());
 			} else {
@@ -630,7 +639,7 @@ function cleanUserId(userId) {
  * @param JSON String
  * @return {String} html for a specific criteria
  */
-var criteriaComponent = function(c, constants) {
+var criteriaComponent = function(c, constants, key) {
 	this.isOverridden = false;
 	this.status = "";
 
@@ -669,13 +678,21 @@ var criteriaComponent = function(c, constants) {
 	}
 	var criteriaString = "";
 	for (var i = 0; i < constants.overrideModal.length; i++) {
+		var crit = null;
+		if (c['override_user'] != null) {
+			if (Object.keys(trews.getSpecificCriteria(key, constants.key).override_value[i]).length == 1) {
+				crit = trews.getSpecificCriteria(key, constants.key).override_value[i].lower ? trews.getSpecificCriteria(key, constants.key).override_value[i].lower : trews.getSpecificCriteria(key, constants.key).override_value[i].upper;
+			} else {
+				crit = [trews.getSpecificCriteria(key, constants.key).override_value[i].lower, trews.getSpecificCriteria(key, constants.key).override_value[i].upper]
+			}
+		} else {
+			crit = (constants.overrideModal[i].value) ? constants.overrideModal[i].value : constants.overrideModal[i].values
+		}
 		var name = constants.overrideModal[i].name
 		var unit = constants.overrideModal[i].units
 		if (constants.overrideModal[i].range == 'true') {
-			var crit = constants.overrideModal[i].values
 			criteriaString += name + " < " + crit[0] + unit + " or > " + crit[1] + unit;
 		} else {
-			var crit = constants.overrideModal[i].value
 			var comp = (constants.overrideModal[i].range == 'min') ? ">" : "<";
 			criteriaString += name + " " + comp + " " + crit + unit;
 		}

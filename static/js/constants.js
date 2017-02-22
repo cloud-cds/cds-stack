@@ -61,6 +61,7 @@ var severe_sepsis = {
 		"display_name": "Suspicion of Infection"
 	},
 	"sirs": {
+		"key": "sirs",
 		"display_name": "SIRS Criteria",
 		"criteria": [{
 			"key": "sirs_temp",
@@ -135,6 +136,7 @@ var severe_sepsis = {
 		}]
 	},
 	"organ_dysfunction": {
+		"key": "org",
 		"display_name": "Organ Dysfunction",
 		"criteria": [{
 			"key": "blood_pressure",
@@ -298,6 +300,7 @@ var severe_sepsis = {
 var septic_shock = {
 	"display_name": "Septic Shock Criteria",
 	"tension": {
+		"key": "tension",
 		"display_name": "Persistent Hypotension",
 		"criteria": [{
 			"key": "systolic_bp",
@@ -347,6 +350,7 @@ var septic_shock = {
 		}]
 	},
 	"fusion": {
+		"key": "fusion",
 		"display_name": "Tissue Hypoperfusion",
 		"criteria": [{
 			"key": "initial_lactate",
