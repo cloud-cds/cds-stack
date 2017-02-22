@@ -357,9 +357,9 @@ var severeSepsisComponent = new function() {
 			var susMsg = null;
 			if ( this.sus['update_user'] ) { susMsg = 'by ' + this.sus['update_user']; }
 			if ( this.sus['update_time'] ) {
-				susMsg = (susMsg ? susMsg + ' ' : '') + 'at ' + timeLapsed(new Date(this.sus['update_time']*1000));
+				susMsg = (susMsg ? susMsg + ' ' : '') + 'at <span title="' + strToTime(new Date(this.sus['update_time']*1000)) + '">' + timeLapsed(new Date(this.sus['update_time']*1000)) + '</span>';
 			}
-			if ( susMsg ) { this.susCtn.find('.status h5').text(susMsg); }
+			if ( susMsg ) { this.susCtn.find('.status h5').html(susMsg); }
 		}
 	}
 
@@ -471,20 +471,17 @@ var workflowsComponent = new function() {
 			return workflows[tag]['not_yet'];
 		}
 		var status = (time == null) ? workflows[tag]['instruction'] : "";
-		switch(tag) {
-			case 'sev3':
-				var offset = 3 * 60 * 60 * 1000;
-			case 'sev6':
-				var offset = 6 * 60 * 60 * 1000;
-			case 'sep6':
-				var offset = 6 * 60 * 60 * 1000;
-			default:
-				var offset = 0;
+		if (tag == "sev3") {
+			var offset = 3 * 60 * 60 * 1000;
+		} else if (tag = "sev6") {
+			var offset = 6 * 60 * 60 * 1000;
+		} else {
+			var offset = 6 * 60 * 60 * 1000;
 		}
 		if ((time * 1000) + offset < Date.now()) {
-			status = "Workflow window over " + timeLapsed(new Date((time * 1000) + offset));
+			status = "Workflow window over <span title='" + strToTime(new Date((time * 1000) + offset)) + "'>" + timeLapsed(new Date((time * 1000) + offset)) + "</span>";
 		} else {
-			status = timeRemaining(new Date((time * 1000) + offset));
+			status = "<span title='" + strToTime(new Date((time * 1000) + offset)) + "'>" + timeRemaining(new Date((time * 1000) + offset)) + "</span>";
 		}
 		return status;
 	}
@@ -509,9 +506,9 @@ var workflowsComponent = new function() {
 			this.sep6Ctn.removeClass('inactive');
 		}
 
-		this.sev3Ctn.find('.card-subtitle').text(this.workflowStatus('sev3', severeOnset));
-		this.sev6Ctn.find('.card-subtitle').text(this.workflowStatus('sev6', severeOnset));
-		this.sep6Ctn.find('.card-subtitle').text(this.workflowStatus('sep6', shockOnset));
+		this.sev3Ctn.find('.card-subtitle').html(this.workflowStatus('sev3', severeOnset));
+		this.sev6Ctn.find('.card-subtitle').html(this.workflowStatus('sev6', severeOnset));
+		this.sep6Ctn.find('.card-subtitle').html(this.workflowStatus('sep6', shockOnset));
 
 		var iTask = new taskComponent(iJSON, $("[data-trews='init_lactate']"), workflows['init_lactate']);
 		var bTask = new taskComponent(bJSON, $("[data-trews='blood_culture']"), workflows['blood_culture']);
@@ -597,7 +594,7 @@ function timeLapsed(d) {
 function timeRemaining(d) {
 	var remaining = new Date(d - Date.now());
 	var minutes = (remaining.getUTCMinutes() < 10) ? "0" + remaining.getUTCMinutes() : remaining.getUTCMinutes();
-	return remaining.getUTCHours() + ":" + minutes + " remaining";
+	return remaining.getUTCHours() + " hours and " + minutes + " minutes remaining";
 }
 
 /**
@@ -681,12 +678,14 @@ var criteriaComponent = function(c, constants, key) {
 			this.isOverridden = true;
 			if (c['measurement_time']) {
 				var cLapsed = timeLapsed(new Date(c['measurement_time']*1000));
-				this.status += "Criteria met " + cLapsed + " with a value of <span class='value'>" + displayValue + "</span>";
+				var cStrTime = strToTime(new Date(c['measurement_time']*1000));
+				this.status += "Criteria met <span title='" + cStrTime + "'>" + cLapsed + "</span> with a value of <span class='value'>" + displayValue + "</span>";
 				this.status += (c['override_time']) ? "<br />" : "";
 			}
 			if (c['override_time']) {
 				var oLapsed = timeLapsed(new Date(c['override_time']*1000));
-				this.status += "Customized by " + c['override_user'] + " " + oLapsed;
+				var oStrTime = strToTime(new Date(c['override_time']*1000));
+				this.status += "Customized by " + c['override_user'] + " <span title='" + oStrTime + "'>" + oLapsed + "</span>";
 			}
 		} else {
 			this.classComplete = " hidden unmet";
