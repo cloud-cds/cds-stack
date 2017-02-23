@@ -347,6 +347,7 @@ var severeSepsisComponent = new function() {
 		if (this.sus['value'] == null) {
 			this.susCtn.find('.status').hide();
 		} else {
+			this.susCtn.find('.status').show();
 			this.susCtn.addClass('complete');
 			if (this.sus['value'] == 'No Infection') {
 				this.susCtn.removeClass('complete');
@@ -561,7 +562,7 @@ var graphComponent = new function() {
 		this.is30 = true;
 		this.render(json);
 	}
-	this.render = function(json) {
+	this.render = function(json, severeOnset, shockOnset) {
 		if (json == undefined) {
 			return;
 		}
@@ -593,10 +594,13 @@ var graphComponent = new function() {
 		this.ymin = (this.ymin > json.trewscore_threshold) ? json.trewscore_threshold - 0.1 : this.ymin;
 		this.ymax = Math.max.apply(null, json['chart_values']['trewscore']) * 1.03;
 		this.ymax = (this.ymax < json.trewscore_threshold) ? json.trewscore_threshold + 0.1 : this.ymax;
-		graph(json, this.xmin, this.xmax, this.ymin, this.ymax);
+		graph(json, severeOnset, shockOnset, this.xmin, this.xmax, this.ymin, this.ymax);
 	}
 	window.onresize = function() {
-		graphComponent.render(trews.data.chart_data, graphComponent.xmin, graphComponent.xmax);
+		graphComponent.render(trews.data.chart_data,
+													trews.data.severe_sepsis.onset_time,
+													trews.data.septic_shock.onset_time,
+													graphComponent.xmin, graphComponent.xmax);
 	}
 }
 
@@ -1087,7 +1091,7 @@ var notifications = new function() {
 	}
 }
 
-function graph(json, xmin, xmax, ymin, ymax) {
+function graph(json, severeOnset, shockOnset, xmin, xmax, ymin, ymax) {
 	var graphWidth = Math.floor($('#graph-wrapper').width()) - 10;
 	$("#graphdiv").width(graphWidth);
 	$("#graphdiv").height(graphWidth * .3225);
@@ -1114,8 +1118,8 @@ function graph(json, xmin, xmax, ymin, ymax) {
 	]
 
 	var arrivalx = (json['patient_arrival']['timestamp'] != undefined) ? json['patient_arrival']['timestamp'] * 1000 : null;
-	var severeOnsetx = (json['severe_sepsis_onset']['timestamp'] != undefined) ? json['severe_sepsis_onset']['timestamp'] * 1000 : null;
-	var shockOnsetx = (json['septic_shock_onset']['timestamp'] != undefined) ? json['septic_shock_onset']['timestamp'] * 1000 : null;
+	var severeOnsetx = (severeOnset != undefined) ? severeOnset * 1000 : null;
+	var shockOnsetx = (shockOnset != undefined) ? shockOnset * 1000 : null;
 
 	if (json['patient_arrival']['timestamp'] != undefined) {
 		var arrivalMark = {color: "#ccc",lineWidth: 1,xaxis: {from: arrivalx,to: arrivalx}};
@@ -1123,13 +1127,13 @@ function graph(json, xmin, xmax, ymin, ymax) {
 		var arrivaly = jQuery.inArray(arrivalx, json['chart_values']['trewscore'])
 		verticalMarkings.push(arrivalMark);
 	}
-	if (json['severe_sepsis_onset']['timestamp'] != undefined) {
+	if (severeOnset != undefined) {
 		var severeMark = {color: "#ccc",lineWidth: 1,xaxis: {from: severeOnsetx,to: severeOnsetx}};
 		//var severeOnsety = json['chart_values']['trewscore'].indexOf(severeOnsetx);
 		var severeOnsety = jQuery.inArray(severeOnsetx, json['chart_values']['trewscore'])
 		verticalMarkings.push(severeMark);
 	}
-	if (json['septic_shock_onset']['timestamp'] != undefined) {
+	if (shockOnset != undefined) {
 		var shockMark = {color: "#ccc",lineWidth: 1,xaxis: {from: shockOnsetx,to: shockOnsetx}};
 		//var shockOnsety = json['chart_values']['trewscore'].indexOf(shockOnsetx);
 		var shockOnsety = jQuery.inArray(shockOnsetx, json['chart_values']['trewscore'])
