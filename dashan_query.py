@@ -128,16 +128,16 @@ def toggle_notification_read(eid, notification_id, as_read):
 def override_criteria(eid, name, value='{}', user='user', is_met='true', clear=False):
     # TODO: add functionalities to update other items in db
     engine = create_engine(DB_CONN_STR)
-    
+
     if is_met is None:
-        # database need to decide is_met 
+        # database need to decide is_met
         params = {
             'user': ("'" + user + "'") if not clear else 'null',
-            'val': ("'" + value + "'") if not clear else 'null',
+            'val': ("'" + (isinstance(value, list) ? json.dumps(value) : value) + "'") if not clear else 'null',
             'fid': name,
             'pid': eid,
-            
-        }        
+
+        }
         override_sql = """
         update criteria set
             override_time = now(),
@@ -147,7 +147,7 @@ def override_criteria(eid, name, value='{}', user='user', is_met='true', clear=F
         where pat_id = '%(pid)s' and name = '%(fid)s';
         select update_pat_criteria('%(pid)s', '%(fid)s');
         """ % params
-    else:    
+    else:
         params = {
             'user': ("'" + user + "'") if not clear else 'null',
             'val': ("'" + value + "'") if not clear else 'null',
