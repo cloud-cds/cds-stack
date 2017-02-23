@@ -18,6 +18,8 @@ import logging
 import pprint
 import copy
 import re
+import calendar
+
 THRESHOLD = 0.80738055150367105
 logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.DEBUG)
 #hashed_key = 'C8ED911A8907EFE4C1DE24CA67DF5FA2'
@@ -28,15 +30,6 @@ IV = '\x00' * 16
 MODE = AES.MODE_CBC
 
 DECRYPTED = False
-
-def tsp_to_unix_epoch(tsp):
-    if tsp is None or pd.isnull(tsp):
-        return None
-    else:
-        if type(tsp) != datetime.datetime:
-            tsp = tsp.to_pydatetime()
-        tsp = int(tsp.strftime("%s"))
-    return tsp
 
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -168,23 +161,25 @@ class TREWSAPI(object):
         shock_onsets_hypoperfusion = []
         hpf_cnt = 0
         # TODO: set up the onset time
+        criteria['override_epoch'] = pd.DatetimeIndex(criteria.override_time).astype(np.int64) // 10**9
+        criteria['measurement_epoch'] = pd.DatetimeIndex(criteria.measurement_time).astype(np.int64) // 10**9
         for idx, row in criteria.iterrows():
             # update every criteria
             criterion = {
                 "name": row['name'],
                 "is_met": row['is_met'],
                 "value": row['value'],
-                "measurement_time": tsp_to_unix_epoch(row['measurement_time']),
-                "override_time": tsp_to_unix_epoch(row['override_time']),
+                "measurement_time": row['measurement_epoch'] if row['measurement_epoch'] > 0 else None,
+                "override_time": row['override_epoch'] if row['override_epoch'] > 0 else None,
                 "override_user": row['override_user'],
                 "override_value": row['override_value'],
             }
-
+            print row
             if criterion["name"] == 'suspicion_of_infection':
                 value = criterion['value']
                 if ('override_value' in criterion) and (criterion['override_value'] is not None) and ('text' in criterion['override_value']):
                     value = criterion['override_value']['text']
-
+                #  TODO: use override time
                 data['severe_sepsis']['suspicion_of_infection'] = {
                     "name": "suspicion_of_infection",
                     "value": value,
@@ -324,8 +319,8 @@ class TREWSAPI(object):
         data['chart_data']['patient_arrival']['timestamp'] =  admittime
         df = query.get_trews(eid)
         cdm = query.get_cdm(eid)
-
-        data['chart_data']['chart_values']['timestamp'] = [tsp_to_unix_epoch(tsp) for tsp in df.tsp]
+        epoch = pd.DatetimeIndex(df.tsp).astype(np.int64) // 10**9
+        data['chart_data']['chart_values']['timestamp'] = epoch.values
         data['chart_data']['chart_values']['trewscore'] = [s.item() for s in df.trewscore.values]
         df_trews = df.drop(['enc_id','trewscore','tsp'],1)
 

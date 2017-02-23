@@ -130,41 +130,25 @@ def override_criteria(eid, name, value='{}', user='user', is_met='true', clear=F
     # TODO: add functionalities to update other items in db
     engine = create_engine(DB_CONN_STR)
 
-    if is_met is None:
-        # database need to decide is_met
-        params = {
-            'user': ("'" + user + "'") if not clear else 'null',
-            'val': ("'" + (json.dumps(value) if isinstance(value, list) else value) + "'") if not clear else 'null',
-            'fid': name,
-            'pid': eid,
 
-        }
-        override_sql = """
-        update criteria set
-            override_time = now(),
-            update_date = now(),
-            override_value = %(val)s,
-            override_user = %(user)s
-        where pat_id = '%(pid)s' and name = '%(fid)s';
-        select update_pat_criteria('%(pid)s', '%(fid)s');
-        """ % params
-    else:
-        params = {
-            'user': ("'" + user + "'") if not clear else 'null',
-            'val': ("'" + value + "'") if not clear else 'null',
-            'fid': name,
-            'pid': eid,
-            'is_met': is_met
-        }
-        override_sql = """
-        update criteria set
-            override_time = now(),
-            update_date = now(),
-            override_value = %(val)s,
-            override_user = %(user)s,
-            is_met = '%(is_met)s'
-        where pat_id = '%(pid)s' and name = '%(fid)s';
-        """ % params
+    # database need to decide is_met
+    params = {
+        'user': ("'" + user + "'") if not clear else 'null',
+        'val': ("'" + (json.dumps(value) if isinstance(value, list) else value) + "'") if not clear else 'null',
+        'fid': name,
+        'pid': eid,
+        'is_met': ("'" + is_met + "'") if is_met is not None else 'is_met'
+    }
+    override_sql = """
+    update criteria set
+        override_time = now(),
+        update_date = now(),
+        override_value = %(val)s,
+        override_user = %(user)s,
+        is_met = %(is_met)s
+    where pat_id = '%(pid)s' and name = '%(fid)s';
+    select update_pat_criteria('%(pid)s', '%(fid)s');
+    """ % params
     logging.debug("override_sql:" + override_sql)
     conn = engine.connect()
     conn.execute(override_sql)
