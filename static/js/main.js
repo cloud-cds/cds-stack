@@ -472,11 +472,18 @@ var workflowsComponent = new function() {
 		});
 	}
 
-	this.workflowStatus = function(tag, time) {
+	this.workflowStatus = function(tag, time, lastOrderTime, completed) {
 		if (time == null) {
 			return workflows[tag]['not_yet'];
 		}
+
 		var status = workflows[tag]['instruction'];
+		if ( completed ) {
+			var completedDate = new Date(lastOrderTime * 1000);
+			status = "Workflow window completed <span title='" + strToTime(completedDate) + "'>" + timeLapsed(completedDate) + "</span>";
+			return status;
+		}
+
 		if (tag == "sev3") {
 			var offset = 3 * 60 * 60 * 1000;
 		} else if (tag = "sev6") {
@@ -514,9 +521,21 @@ var workflowsComponent = new function() {
 			this.sep6Ctn.removeClass('inactive');
 		}
 
-		this.sev3Ctn.find('.card-subtitle').html(this.workflowStatus('sev3', severeOnset));
-		this.sev6Ctn.find('.card-subtitle').html(this.workflowStatus('sev6', severeOnset));
-		this.sep6Ctn.find('.card-subtitle').html(this.workflowStatus('sep6', shockOnset));
+		var sev3LastOrder = Math.max(iJSON['time'], bJSON['time'], aJSON['time'], fJSON['time']);
+		var sev3Complete = iJSON['status'] == 'Completed' &&
+											 bJSON['status'] == 'Completed' &&
+											 aJSON['status'] == 'Completed' &&
+											 fJSON['status'] == 'Completed';
+
+		var sev6LastOrder = Math.max(sev3LastOrder, rJSON['time'])
+		var sev6Complete = sev3Complete && rJSON['status'] == 'Completed';
+
+		var shk6LastOrder = Math.max(sev6LastOrder, vJSON['time'])
+		var shk6Complete = sev6Complete && vJSON['status'] == 'Completed';
+
+		this.sev3Ctn.find('.card-subtitle').html(this.workflowStatus('sev3', severeOnset, sev3LastOrder, sev3Complete));
+		this.sev6Ctn.find('.card-subtitle').html(this.workflowStatus('sev6', severeOnset, sev6LastOrder, sev6Complete));
+		this.sep6Ctn.find('.card-subtitle').html(this.workflowStatus('sep6', shockOnset, shk6LastOrder, shk6Complete));
 
 		var iTask = new taskComponent(iJSON, $("[data-trews='init_lactate']"), workflows['init_lactate']);
 		var bTask = new taskComponent(bJSON, $("[data-trews='blood_culture']"), workflows['blood_culture']);
