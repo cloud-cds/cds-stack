@@ -133,7 +133,7 @@ def override_criteria(eid, name, value='{}', user='user', is_met='true', clear=F
         # database need to decide is_met
         params = {
             'user': ("'" + user + "'") if not clear else 'null',
-            'val': ("'" + (isinstance(value, list) ? json.dumps(value) : value) + "'") if not clear else 'null',
+            'val': ("'" + (json.dumps(value) if isinstance(value, list) else value) + "'") if not clear else 'null',
             'fid': name,
             'pid': eid,
 
