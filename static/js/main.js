@@ -289,8 +289,8 @@ var controller = new function() {
 			globalJson["initial_lactate_order"],
 			globalJson["repeat_lactate_order"],
 			globalJson["vasopressors_order"],
-			globalJson['chart_data']['severe_sepsis_onset']['timestamp'],
-			globalJson['chart_data']['septic_shock_onset']['timestamp']);
+			globalJson['severe_sepsis']['onset_time'],
+			globalJson['septic_shock']['onset_time']);
 		graphComponent.refresh(globalJson["chart_data"]);
 		notifications.render(globalJson['notifications']);
 	}
@@ -487,7 +487,7 @@ var workflowsComponent = new function() {
 		var shiftedTime = (time * 1000) + offset;
 		var wfDate = new Date(shiftedTime);
 		if (shiftedTime < Date.now()) {
-			status = "Workflow window over <span title='" + strToTime(wfDate) + "'>" + timeLapsed(wfDate) + "</span>";
+			status = "Workflow window expired <span title='" + strToTime(wfDate) + "'>" + timeLapsed(wfDate) + "</span>";
 		} else {
 			status = "<span title='" + strToTime(wfDate) + "'>" + timeRemaining(wfDate) + "</span>";
 		}
