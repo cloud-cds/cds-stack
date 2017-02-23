@@ -426,12 +426,12 @@ var septicShockComponent = new function() {
 			};
 
 			if ( fnoteBtnText == 'Not Indicated' ) {
-				action['value'] = 'Not Indicated';
+				action['value'] = [{'text': 'Not Indicated'}];
 			} else {
 				action['clear'] = true;
 			}
 			this.fnoteBtn.click(function() {
-				endpoints.getPatientData("override", [action]);
+				endpoints.getPatientData("override", action);
 			});
 		} else {
 			this.fnoteBtn.hide();
