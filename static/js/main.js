@@ -484,10 +484,12 @@ var workflowsComponent = new function() {
 		} else {
 			var offset = 6 * 60 * 60 * 1000;
 		}
-		if ((time * 1000) + offset < Date.now()) {
-			status = "Workflow window over <span title='" + strToTime(new Date((time * 1000) + offset)) + "'>" + timeLapsed(new Date((time * 1000) + offset)) + "</span>";
+		var shiftedTime = (time * 1000) + offset;
+		var wfDate = new Date(shiftedTime);
+		if (shiftedTime < Date.now()) {
+			status = "Workflow window over <span title='" + strToTime(wfDate) + "'>" + timeLapsed(wfDate) + "</span>";
 		} else {
-			status = "<span title='" + strToTime(new Date((time * 1000) + offset)) + "'>" + timeRemaining(new Date((time * 1000) + offset)) + "</span>";
+			status = "<span title='" + strToTime(wfDate) + "'>" + timeRemaining(wfDate) + "</span>";
 		}
 		return status;
 	}
@@ -551,14 +553,27 @@ var graphComponent = new function() {
 			}
 			this.is30 = false;
 		}
-		this.xmin = json['chart_values']['timestamp'][0];
-		this.ymin = 0;//json['chart_values']['trewscore'][0];
-		var max = json['chart_values']['timestamp'][json['chart_values']['timestamp'].length - 1];
-		this.xmax = ((max - this.xmin) / 6) + max;
+		if (json.chart_values.timestamp.length != 0) {
+			this.xmin = json['chart_values']['timestamp'][0];
+			var max = json['chart_values']['timestamp'][json['chart_values']['timestamp'].length - 1];
+			this.xmax = ((max - this.xmin) / 6) + max;
+		} else {
+			if (json.patient_arrival != null) {
+				this.xmin = json.patient_arrival.timestamp * 1000;
+				this.xmax = ((Date.now() - this.xmin) / 6) + Date.now();
+			} else {
+				this.xmin = (Date.now() * 1000) - (6 * 60 * 60 * 1000)
+				this.xmax = (Date.now() * 1000) + (6 * 60 * 60 * 1000)
+			}
+		}
+		// this.ymin = 0;//json['chart_values']['trewscore'][0];
 		max = json['chart_values']['trewscore'][json['chart_values']['trewscore'].length - 1];
-		this.ymax = 1; //((max - this.ymin) / 6) + max;
-		// this.ymin = Math.min.apply(null, json['chart_values']['trewscore']);
-		// this.ymax = Math.max.apply(null, json['chart_values']['trewscore']) * 1.16;
+		// this.ymax = 1; //((max - this.ymin) / 6) + max;
+		this.ymin = Math.min.apply(null, json['chart_values']['trewscore']);
+		this.ymin = this.ymin - (this.ymin * .03);
+		this.ymin = (this.ymin > json.trewscore_threshold) ? json.trewscore_threshold - 0.1 : this.ymin;
+		this.ymax = Math.max.apply(null, json['chart_values']['trewscore']) * 1.03;
+		this.ymax = (this.ymax < json.trewscore_threshold) ? json.trewscore_threshold + 0.1 : this.ymax;
 		graph(json, this.xmin, this.xmax, this.ymin, this.ymax);
 	}
 	window.onresize = function() {
@@ -1075,7 +1090,8 @@ function graph(json, xmin, xmax, ymin, ymax) {
 	$('h1 span').text(Number(ylast).toFixed(2));
 
 	var verticalMarkings = [
-		{color: "#555",lineWidth: 1,xaxis: {from: xlast,to: xlast}}
+		{color: "#555",lineWidth: 1,xaxis: {from: xlast,to: xlast}},
+		{color: "#e64535",lineWidth: 1,yaxis: {from: json['trewscore_threshold'],to: json['trewscore_threshold']}}
 	]
 
 	var arrivalx = (json['patient_arrival']['timestamp'] != undefined) ? json['patient_arrival']['timestamp'] * 1000 : null;
@@ -1121,8 +1137,9 @@ function graph(json, xmin, xmax, ymin, ymax) {
 		yaxis: {
 			min: ymin, // should be 0.0
 			max: ymax, // sould be 1.0
-			ticks: [[0, "0"], [json['trewscore_threshold'], json['trewscore_threshold']]],
+			ticks: [[0, "0"], [json['trewscore_threshold'], json['trewscore_threshold']], [1, "1"]],
 			tickColor: "#e64535",
+			tickLength: 5,
 			font: {
 				size: 11,
 				lineHeight: 13,
@@ -1186,7 +1203,11 @@ function graph(json, xmin, xmax, ymin, ymax) {
 
 	// Chart Drawing Addistions
 	var o = plot.pointOffset({ x: xlast, y: ylast});
-	graphTag(plot, xlast, ylast, "Most Recent", "now");
+	if (json.chart_values.timestamp.length == 0) {
+		graphTag(plot, xmax, ylast, "Now", "now");
+	} else {
+		graphTag(plot, xlast, ylast, "Most Recent", "now");
+	}
 	if (arrivalx && arrivaly) {
 		graphTag(plot, arrivalx, arrivaly, "Patient<br/>Arrival", "patient-arrival-graph-tag");
 	}
