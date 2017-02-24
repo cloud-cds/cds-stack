@@ -76,6 +76,24 @@ var trews = new function() {
 	}
 };
 
+var dataRefresher = new function() {
+	this.refreshPeriod = 30000;
+	this.refreshTimer = null;
+	this.init = function() {
+		this.poll(this);
+	}
+	this.poll = function(obj) {
+		endpoints.getPatientData();
+		obj.refreshTimer = window.setTimeout(function() { obj.poll(obj); }, obj.refreshPeriod);
+	}
+	this.terminate = function() {
+		if (this.refreshTimer) {
+			window.clearTimeout(this.refreshTimer)
+			this.refreshTimer = null
+		}
+	}
+}
+
 var notificationRefresher = new function() {
 	this.refreshPeriod = 10000;
 	this.refreshTimer = null;
@@ -175,6 +193,7 @@ window.onload = function() {
 	dropdown.init();
 	overrideModal.init();
 	notifications.init();
+	dataRefresher.init();
 	notificationRefresher.init();
 	$('#fake-console').text(window.location);
 	$('#fake-console').hide();
@@ -299,6 +318,7 @@ var controller = new function() {
 		notifications.render(globalJson['notifications']);
 	}
 	this.displayJSError = function() {
+		dataRefresher.terminate();
 		notificationRefresher.terminate();
 		$('#loading').removeClass('done');
 		$('#loading p').html("Javascript Error<span id='test-data'>.</span> Please rest<span id='see-blank'>a</span>rt application or contact trews-jhu@opsdx.io");
@@ -440,8 +460,14 @@ var septicShockComponent = new function() {
 
 		if (!severeSepsis) {
 			this.ctn.addClass('inactive');
+			this.fnoteBtn.addClass('inactive');
+			this.tenSlot.elem.find('.edit-btn').addClass('inactive');
+			this.fusSlot.elem.find('.edit-btn').addClass('inactive');
 		} else {
 			this.ctn.removeClass('inactive');
+			this.fnoteBtn.removeClass('inactive');
+			this.tenSlot.elem.find('.edit-btn').removeClass('inactive');
+			this.fusSlot.elem.find('.edit-btn').removeClass('inactive');
 		}
 	}
 }
@@ -560,7 +586,7 @@ var graphComponent = new function() {
 	$("<div id='tooltip'></div>").appendTo("body");
 	this.refresh = function(json) {
 		this.is30 = true;
-		this.render(json);
+		this.render(json, trews.data.severe_sepsis.onset_time, trews.data.septic_shock.onset_time);
 	}
 	this.render = function(json, severeOnset, shockOnset) {
 		if (json == undefined) {
@@ -1100,8 +1126,7 @@ function graph(json, severeOnset, shockOnset, xmin, xmax, ymin, ymax) {
 	var data = [];
 	var dataLength = json['chart_values']['timestamp'].length;
 	for (var i = 0; i < dataLength; i += 1) {
-		data.push([json['chart_values']['timestamp'][i],
-			json['chart_values']['trewscore'][i]]);
+		data.push([json['chart_values']['timestamp'][i], json['chart_values']['trewscore'][i]]);
 	}
 
 	// console.log(data, xmin, xmax);
@@ -1205,15 +1230,19 @@ function graph(json, severeOnset, shockOnset, xmin, xmax, ymin, ymax) {
 									<h4 class='value'>" + strToTime(x, true) + "</h4>\
 								</div>\
 							</div>";
+
+			var accessIndex = dataIndex >= json['chart_values']['tf_1_name'].length ?
+													json['chart_values']['tf_1_name'].length - 1 : dataIndex;
+
 			features += "<div class='row cf'>\
-							<h4 class='name'>" + humanReadable(json['chart_values']['tf_1_name'][dataIndex]) + "</h4>\
-							<h4 class='value'>" + json['chart_values']['tf_1_value'][dataIndex] + "</h4>\
+							<h4 class='name'>" + humanReadable(json['chart_values']['tf_1_name'][accessIndex]) + "</h4>\
+							<h4 class='value'>" + json['chart_values']['tf_1_value'][accessIndex] + "</h4>\
 						</div><div class='row cf'>\
-							<h4 class='name'>" + humanReadable(json['chart_values']['tf_2_name'][dataIndex]) + "</h4>\
-							<h4 class='value'>" + json['chart_values']['tf_2_value'][dataIndex] + "</h4>\
+							<h4 class='name'>" + humanReadable(json['chart_values']['tf_2_name'][accessIndex]) + "</h4>\
+							<h4 class='value'>" + json['chart_values']['tf_2_value'][accessIndex] + "</h4>\
 						</div><div class='row cf'>\
-							<h4 class='name'>" + humanReadable(json['chart_values']['tf_3_name'][dataIndex]) + "</h4>\
-							<h4 class='value'>" + json['chart_values']['tf_3_value'][dataIndex] + "</h4>\
+							<h4 class='name'>" + humanReadable(json['chart_values']['tf_3_name'][accessIndex]) + "</h4>\
+							<h4 class='value'>" + json['chart_values']['tf_3_value'][accessIndex] + "</h4>\
 						</div>";
 
 			$("#tooltip").html(features)
