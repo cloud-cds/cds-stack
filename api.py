@@ -20,7 +20,7 @@ import copy
 import re
 import calendar
 
-THRESHOLD = 0.80738055150367105
+THRESHOLD = 0.81
 logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.DEBUG)
 #hashed_key = 'C8ED911A8907EFE4C1DE24CA67DF5FA2'
 #hashed_key = '\xC8\xED\x91\x1A\x89\x07\xEF\xE4\xC1\xDE\x24\xCA\x67\xDF\x5F\xA2'
