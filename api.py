@@ -289,15 +289,17 @@ class TREWSAPI(object):
         data['septic_shock']['hypotension']['num_met'] = hp_cnt
         data['septic_shock']['hypoperfusion']['is_met'] = hpf_cnt > 0
         data['septic_shock']['hypoperfusion']['num_met'] = hpf_cnt 
-        if (data['septic_shock']['crystalloid_fluid']['is_met'] == 1 and hp_cnt > 0) or hpf_cnt > 0:
-            data['septic_shock']['is_met'] = True
-            # setup onset time
-            if data['septic_shock']['crystalloid_fluid']['is_met'] == 1 and hp_cnt > 0:
-                data['septic_shock']['onset_time'] = sorted(shock_onsets_hypotension)[0]
-                if hpf_cnt > 0:
-                    data['septic_shock']['onset_time'] = sorted([data['septic_shock']['onset_time']] +shock_onsets_hypoperfusion)[0]
-            else:
-                data['septic_shock']['onset_time'] = sorted(shock_onsets_hypoperfusion)[0]
+        if data['severe_sepsis']['is_met']:
+            # only when severs_sepsis is met
+            if (data['septic_shock']['crystalloid_fluid']['is_met'] == 1 and hp_cnt > 0) or hpf_cnt > 0:
+                data['septic_shock']['is_met'] = True
+                # setup onset time
+                if data['septic_shock']['crystalloid_fluid']['is_met'] == 1 and hp_cnt > 0:
+                    data['septic_shock']['onset_time'] = sorted(shock_onsets_hypotension)[0]
+                    if hpf_cnt > 0:
+                        data['septic_shock']['onset_time'] = sorted([data['septic_shock']['onset_time']] +shock_onsets_hypoperfusion)[0]
+                else:
+                    data['septic_shock']['onset_time'] = sorted(shock_onsets_hypoperfusion)[0]
         logging.debug(json.dumps(data['severe_sepsis'], indent=4))
         logging.debug(json.dumps(data['septic_shock'], indent=4))
 
