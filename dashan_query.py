@@ -83,7 +83,7 @@ def get_criteria(eid):
     engine = create_engine(DB_CONN_STR)
     get_criteria_sql = \
     '''
-    select get_criteria('%s')
+    select * from get_criteria('%s')
     ''' % eid
     df = pd.read_sql_query(get_criteria_sql,con=engine)
     return df
