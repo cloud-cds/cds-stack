@@ -1146,6 +1146,9 @@ function graph(json, severeOnset, shockOnset, xmin, xmax, ymin, ymax) {
 	var severeOnsetx = (severeOnset != undefined) ? severeOnset * 1000 : null;
 	var shockOnsetx = (shockOnset != undefined) ? shockOnset * 1000 : null;
 
+	var severeOnsety = null;
+	var shockOnsety = null;
+
 	if (json['patient_arrival']['timestamp'] != undefined) {
 		var arrivalMark = {color: "#ccc",lineWidth: 1,xaxis: {from: arrivalx,to: arrivalx}};
 		//var arrivaly = json['chart_values']['trewscore'].indexOf(arrivalx);
@@ -1154,14 +1157,14 @@ function graph(json, severeOnset, shockOnset, xmin, xmax, ymin, ymax) {
 	}
 	if (severeOnset != undefined) {
 		var severeMark = {color: "#ccc",lineWidth: 1,xaxis: {from: severeOnsetx,to: severeOnsetx}};
-		//var severeOnsety = json['chart_values']['trewscore'].indexOf(severeOnsetx);
-		var severeOnsety = jQuery.inArray(severeOnsetx, json['chart_values']['trewscore'])
+		//severeOnsety = json['chart_values']['trewscore'].indexOf(severeOnsetx);
+		severeOnsety = jQuery.inArray(severeOnsetx, json['chart_values']['trewscore'])
 		verticalMarkings.push(severeMark);
 	}
 	if (shockOnset != undefined) {
 		var shockMark = {color: "#ccc",lineWidth: 1,xaxis: {from: shockOnsetx,to: shockOnsetx}};
-		//var shockOnsety = json['chart_values']['trewscore'].indexOf(shockOnsetx);
-		var shockOnsety = jQuery.inArray(shockOnsetx, json['chart_values']['trewscore'])
+		//shockOnsety = json['chart_values']['trewscore'].indexOf(shockOnsetx);
+		shockOnsety = jQuery.inArray(shockOnsetx, json['chart_values']['trewscore'])
 		verticalMarkings.push(shockMark);
 	}
 
