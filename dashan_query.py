@@ -83,8 +83,7 @@ def get_criteria(eid):
     engine = create_engine(DB_CONN_STR)
     get_criteria_sql = \
     '''
-    select * from criteria
-    where pat_id = '%s'
+    select get_criteria('%s')
     ''' % eid
     df = pd.read_sql_query(get_criteria_sql,con=engine)
     return df
@@ -127,7 +126,6 @@ def toggle_notification_read(eid, notification_id, as_read):
 
 
 def override_criteria(eid, name, value='{}', user='user', is_met='true', clear=False):
-    # TODO: add functionalities to update other items in db
     engine = create_engine(DB_CONN_STR)
 
 
