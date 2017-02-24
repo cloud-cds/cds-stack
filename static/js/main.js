@@ -391,15 +391,19 @@ var severeSepsisComponent = new function() {
 		this.ctn.find('h2').text(severe_sepsis['display_name']);
 		if (json['is_met']) {
 			this.ctn.addClass('complete');
+			/*
 			this.resetRealtimeBtn.show();
 			this.resetRealtimeBtn.unbind();
 			this.resetRealtimeBtn.click(function() {
 				var action = trews.data['event_id'] == undefined ? null : { "value": trews.data['event_id'] };
 				endpoints.getPatientData("reset_to_realtime", action);
 			});
+			*/
 		} else {
 			this.ctn.removeClass('complete');
+			/*
 			this.resetRealtimeBtn.hide();
+			*/
 		}
 		this.sus = json['suspicion_of_infection'];
 		this.suspicion(severe_sepsis['suspicion_of_infection']);
