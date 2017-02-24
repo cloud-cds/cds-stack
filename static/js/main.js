@@ -143,7 +143,7 @@ var slotComponent = function(elem, link, constants) {
 		}
 		this.elem.find('.criteria-overridden').html('');
 		for (var c in this.criteria) {
-			var component = new criteriaComponent(this.criteria[c], constants['criteria'][c], constants.key);
+			var component = new criteriaComponent(this.criteria[c], constants['criteria'][c], constants.key, this.link.hasClass('hidden'));
 			if (component.isOverridden) {
 				this.elem.find('.criteria-overridden').append(component.r());
 			} else {
@@ -723,7 +723,7 @@ function cleanUserId(userId) {
  * @param JSON String
  * @return {String} html for a specific criteria
  */
-var criteriaComponent = function(c, constants, key) {
+var criteriaComponent = function(c, constants, key, hidden) {
 	this.isOverridden = false;
 	this.status = "";
 
@@ -731,6 +731,8 @@ var criteriaComponent = function(c, constants, key) {
 	if ( displayValue && isNumber(displayValue) ) {
 		displayValue = displayValue.toPrecision(5);
 	}
+
+	var hiddenClass = "";
 
 	// Local conversions.
 	if ( c['name'] == 'sirs_temp' ) {
@@ -758,7 +760,8 @@ var criteriaComponent = function(c, constants, key) {
 				this.status += "Customized by " + c['override_user'] + " <span title='" + oStrTime + "'>" + oLapsed + "</span>";
 			}
 		} else {
-			this.classComplete = " hidden unmet";
+			hiddenClass = (hidden) ? " hidden" : " unhidden";
+			this.classComplete = " unmet";
 			this.status = "";
 		}
 	}
@@ -787,7 +790,7 @@ var criteriaComponent = function(c, constants, key) {
 		criteriaString += " or ";
 	}
 	criteriaString = criteriaString.slice(0, -4);
-	this.html = "<div class='status" + this.classComplete + "'>\
+	this.html = "<div class='status" + this.classComplete + hiddenClass + "'>\
 					<h4>" + criteriaString + "</h4>\
 					<h5>" + this.status + "</h5>\
 				</div>";
