@@ -136,9 +136,9 @@ class TREWSAPI(object):
                              "lactate"
                              ]
 
-        HYPOTENSION = ["systolic_bp",
-                       "mean_arterial_pressure",
-                       "decrease_in_sbp"
+        HYPOTENSION = ["hypotension_map",
+                       "hypotension_sbp",
+                       "hypotension_dsbp"
                       ]
 
         HYPOPERFUSION = ['initial_lactate']
@@ -209,8 +209,8 @@ class TREWSAPI(object):
                         od_onsets.append(criterion['measurement_time'])
 
             # septic shock
-            
-            
+
+
             if criterion["name"] in HYPOTENSION:
                 hp_idx = HYPOTENSION.index(criterion["name"])
                 data['septic_shock']['hypotension']['criteria'][hp_idx] = criterion
@@ -221,7 +221,7 @@ class TREWSAPI(object):
                     else:
                         shock_onsets_hypotension.append(criterion['measurement_time'])
 
-            
+
             if criterion["name"] in HYPOPERFUSION:
                 hpf_idx = HYPOPERFUSION.index(criterion["name"])
                 data['septic_shock']['hypoperfusion']['criteria'][hpf_idx] = criterion
@@ -288,7 +288,7 @@ class TREWSAPI(object):
         data['septic_shock']['hypotension']['is_met'] = hp_cnt > 0
         data['septic_shock']['hypotension']['num_met'] = hp_cnt
         data['septic_shock']['hypoperfusion']['is_met'] = hpf_cnt > 0
-        data['septic_shock']['hypoperfusion']['num_met'] = hpf_cnt 
+        data['septic_shock']['hypoperfusion']['num_met'] = hpf_cnt
         if data['severe_sepsis']['is_met']:
             # only when severs_sepsis is met
             if (data['septic_shock']['crystalloid_fluid']['is_met'] == 1 and hp_cnt > 0) or hpf_cnt > 0:

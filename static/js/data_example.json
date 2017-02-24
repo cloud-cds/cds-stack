@@ -29,7 +29,7 @@
 			"is_met":false,
 			"criteria":[
 				{
-					"display_name":"Systolic Blood Pressue < 90",
+					"display_name":"Systolic Blood Pressure < 90",
 					"name":"blood_pressure",
 					"override_time":null,
 					"value":91,
@@ -219,7 +219,7 @@
 			"criteria":[
 				{
 					"display_name":"Systolic blood pressure (SBP) < 90",
-					"name":"systolic_bp",
+					"name":"hypotension_sbp",
 					"override_time":null,
 					"value":null,
 					"is_met":false,
@@ -228,7 +228,7 @@
 				},
 				{
 					"display_name":"Mean arterial pressue < 65",
-					"name":"mean_arterial_pressure",
+					"name":"hypotension_map",
 					"override_time":null,
 					"value":null,
 					"is_met":false,
@@ -237,7 +237,7 @@
 				},
 				{
 					"display_name":"Decrease in SBP by > 40 mmHg from the last recorded SBP considered normal for given patient",
-					"name":"decrease_in_sbp",
+					"name":"hypotension_dsbp",
 					"override_time":null,
 					"value":null,
 					"is_met":false,

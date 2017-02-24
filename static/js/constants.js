@@ -140,7 +140,7 @@ var severe_sepsis = {
 		"display_name": "Organ Dysfunction",
 		"criteria": [{
 			"key": "blood_pressure",
-			"criteria_display_name": "Systolic Blood Pressue < 90",
+			"criteria_display_name": "Systolic Blood Pressure < 90",
 			"dropdown": "Blood pressure is normal",
 			"overrideModal": [{
 				"id": "override_bp",
@@ -303,7 +303,7 @@ var septic_shock = {
 		"key": "tension",
 		"display_name": "Persistent Hypotension",
 		"criteria": [{
-			"key": "systolic_bp",
+			"key": "hypotension_sbp",
 			"criteria_display_name": "Systolic blood pressure (SBP) < 90",
 			"dropdown": "Systolic Blood Pressure is normal",
 			"overrideModal": [{
@@ -318,7 +318,7 @@ var septic_shock = {
 				"value": 90
 			}]
 		}, {
-			"key": "mean_arterial_pressure",
+			"key": "hypotension_map",
 			"criteria_display_name": "Mean arterial pressue < 65",
 			"dropdown": "Mean Arterial Pressure is normal",
 			"overrideModal": [{
@@ -333,7 +333,7 @@ var septic_shock = {
 				"value": 65
 			}]
 		}, {
-			"key": "decrease_in_sbp",
+			"key": "hypotension_dsbp",
 			"criteria_display_name": "Decrease in SBP by > 40 mmHg from the last recorded SBP considered normal for given patient",
 			"dropdown": "Decrease in sbp is normal",
 			"overrideModal": [{
