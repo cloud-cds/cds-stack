@@ -147,7 +147,7 @@ hypotension = {
             "override_user": None
         },
         {
-            "name": "mean_arterial_pressure",
+            "name": "hypotension_map",
             "is_met": False,
             "value": None,
             "measurement_time": None,
@@ -155,7 +155,7 @@ hypotension = {
             "override_user": None
         },
         {
-            "name": "decrease_in_sbp",
+            "name": "hypotension_dsbp",
             "is_met": False,
             "value": None,
             "measurement_time": None,

@@ -137,8 +137,8 @@ class TREWSAPI(object):
                              ]
 
         HYPOTENSION = ["systolic_bp",
-                       "mean_arterial_pressure",
-                       "decrease_in_sbp"
+                       "hypotension_map",
+                       "hypotension_dsbp"
                       ]
 
         HYPOPERFUSION = ['initial_lactate']
@@ -234,13 +234,7 @@ class TREWSAPI(object):
 
             if criterion["name"] == 'crystalloid_fluid':
                 data['septic_shock']['crystalloid_fluid'] = criterion
-                # data['septic_shock']['fluid_administered'] = criterion['is_met'] if 'is_met' in criterion else False
-                # if criterion['override_user']:
-                #     data['septic_shock']['fluid_administered_time'] = criterion['override_time']
-                #     data['septic_shock']['fluid_override_user'] = criterion['override_user']
-                # else:
-                #     data['septic_shock']['fluid_administered_time'] = criterion['measurement_time']
-
+                
             # update orders
             if criterion["name"] in ORDERS:
                 value = criterion['value']
@@ -295,7 +289,9 @@ class TREWSAPI(object):
                 data['septic_shock']['is_met'] = True
                 # setup onset time
                 if data['septic_shock']['crystalloid_fluid']['is_met'] == 1 and hp_cnt > 0:
-                    data['septic_shock']['onset_time'] = sorted(shock_onsets_hypotension)[0]
+                    max_fluid_time = max(data['septic_shock']['crystalloid_fluid']['override_time'], data['septic_shock']['crystalloid_fluid']['measurement_time'])
+                    data['septic_shock']['onset_time'] = sorted(shock_onsets_hypotension + [max_fluid_time])[-1]
+                    # print shock_onsets_hypotension
                     if hpf_cnt > 0:
                         data['septic_shock']['onset_time'] = sorted([data['septic_shock']['onset_time']] +shock_onsets_hypoperfusion)[0]
                 else:
