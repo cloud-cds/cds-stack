@@ -353,10 +353,13 @@ var severeSepsisComponent = new function() {
 		$('.selection select').append(s);
 	}
 
+	this.resetRealtimeBtn = $("[data-trews='resetRealtime']");
+
 	this.sirSlot = new slotComponent(
 		$("[data-trews='sir']"),
 		$('#expand-sir'),
 		severe_sepsis['sirs']);
+
 	this.orgSlot = new slotComponent(
 		$("[data-trews='org']"),
 		$('#expand-org'),
@@ -388,8 +391,15 @@ var severeSepsisComponent = new function() {
 		this.ctn.find('h2').text(severe_sepsis['display_name']);
 		if (json['is_met']) {
 			this.ctn.addClass('complete');
+			this.resetRealtimeBtn.show();
+			this.resetRealtimeBtn.unbind();
+			this.resetRealtimeBtn.click(function() {
+				var action = trews.data['event_id'] == undefined ? null : { "value": trews.data['event_id'] };
+				endpoints.getPatientData("reset_to_realtime", action);
+			});
 		} else {
 			this.ctn.removeClass('complete');
+			this.resetRealtimeBtn.hide();
 		}
 		this.sus = json['suspicion_of_infection'];
 		this.suspicion(severe_sepsis['suspicion_of_infection']);

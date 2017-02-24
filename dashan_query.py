@@ -154,6 +154,18 @@ def override_criteria(eid, name, value='{}', user='user', is_met='true', clear=F
     conn.close()
     #push_notifications_to_epic(eid, engine)
 
+def reset_to_realtime_criteria(eid, event_id=None):
+    engine = create_engine(DB_CONN_STR)
+    event_where_clause = 'and event_id = %(evid)s' % {'evid' : event_id } if event_id is not None else ''
+    reset_sql = """
+    update criteria_events set is_active = false
+    where pat_id = '%(pid)s' %(where_clause)s
+    """ % {'pid': eid, 'where_clause': event_where_clause}
+    logging.debug("reset_to_realtime_criteria:" + reset_sql)
+    conn = engine.connect()
+    conn.execute(reset_to_realtime_criteria)
+    conn.close()
+
 def push_notifications_to_epic(eid, engine):
         notifications_sql = """
             select notifications.pat_id, visit_id, count(*) from notifications

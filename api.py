@@ -116,6 +116,10 @@ class TREWSAPI(object):
         elif actionType == u'order_not_indicated':
             query.override_criteria(eid, actionData['actionName'], value='{ "text": "Not Indicated" }')
 
+        elif actionType == u'reset_to_realtime':
+            event_id = actionData['value'] if actionData is not None and 'value' in actionData else None
+            query.reset_to_realtime_criteria(eid, event_id)
+
         else:
             logging.error('Invalid action type: ' + actionType)
 
@@ -161,6 +165,10 @@ class TREWSAPI(object):
         shock_onsets_hypotension = []
         shock_onsets_hypoperfusion = []
         hpf_cnt = 0
+
+        # Update the event id.
+        data['event_id'] = criteria['event_id']
+
         # TODO: set up the onset time
         criteria['override_epoch'] = pd.DatetimeIndex(criteria.override_time).astype(np.int64) // 10**9
         criteria['measurement_epoch'] = pd.DatetimeIndex(criteria.measurement_time).astype(np.int64) // 10**9
@@ -235,7 +243,7 @@ class TREWSAPI(object):
 
             if criterion["name"] == 'crystalloid_fluid':
                 data['septic_shock']['crystalloid_fluid'] = criterion
-                
+
             # update orders
             if criterion["name"] in ORDERS:
                 value = criterion['value']
