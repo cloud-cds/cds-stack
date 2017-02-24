@@ -41,8 +41,12 @@ class NumpyEncoder(json.JSONEncoder):
             return obj.tolist()
         elif isinstance(obj, np.bool_):
             return bool(obj)
+        elif isinstance(obj, np.int64):
+            return int(obj)
         else:
-            return super(MyEncoder, self).default(obj)
+            print "encoder:", obj
+            print type(obj)
+            return super(NumpyEncoder, self).default(obj)
 
 class TREWSAPI(object):
     def on_get(self, req, resp):
@@ -167,7 +171,8 @@ class TREWSAPI(object):
         hpf_cnt = 0
 
         # Update the event id.
-        data['event_id'] = criteria['event_id']
+        event_id = str(criteria['event_id'].values[0])
+        data['event_id'] = None if event_id == "nan" else event_id
 
         # TODO: set up the onset time
         criteria['override_epoch'] = pd.DatetimeIndex(criteria.override_time).astype(np.int64) // 10**9
