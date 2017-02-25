@@ -16,6 +16,27 @@ function isString(obj) {
   return Object.prototype.toString.call(obj) === '[object String]';
 }
 
+window.onload = function() {
+	endpoints.getPatientData();
+	dropdown.init();
+	overrideModal.init();
+	notifications.init();
+	toolbar.init()
+	dataRefresher.init();
+	notificationRefresher.init();
+	$('#fake-console').text(window.location);
+	$('#fake-console').hide();
+	$('#show-console').click(function() {
+		$('#fake-console').toggle();
+	})
+	// Bugsnag.notify("ErrorName", "Test Error");
+};
+
+window.onerror = function(error, url, line) {
+    controller.sendLog({acc:'error', data:'ERR:'+error+' URL:'+url+' L:'+line});
+};
+
+
 /**
  * State Tree, Maintains most up to date app information
  * from server.  Source of Truth
@@ -76,6 +97,13 @@ var trews = new function() {
 	}
 };
 
+
+/**
+ * Polling timer loops.
+ * dataRefresher: a timer for periodically retrieving the full trews data object.
+ * notificationRefresher: a timer for periodically retrieving the notifications list.
+ */
+
 var dataRefresher = new function() {
 	this.refreshPeriod = 30000;
 	this.refreshTimer = null;
@@ -112,100 +140,6 @@ var notificationRefresher = new function() {
 	}
 }
 
-/**
- * Slot Component
- * @param JSON String with data for a slot
- * @param HTML element of slot wrapper
- * @param HTML element of expand/minimize link to show/hide all criteria
- * @return {String} html for a specific slot
- */
-var slotComponent = function(elem, link, constants) {
-	this.criteria = {};
-	this.elem = elem;
-	this.link = link;
-	this.constants = constants;
-	this.hasOverridenCriteria = function() {
-		var list = []
-		for (var c in this.criteria) {
-			if (this.criteria[c]['override_user'] != null) {
-				list.push(c);
-			}
-		}
-		return list;
-	}
-	this.r = function(json) {
-		this.criteria = json['criteria'];
-		this.elem.find('h3').text(this.constants['display_name']);
-		if (json['is_met']) {
-			this.elem.addClass('complete');
-		} else {
-			this.elem.removeClass('complete');
-		}
-		this.elem.find('.criteria-overridden').html('');
-		for (var c in this.criteria) {
-			var component = new criteriaComponent(this.criteria[c], constants['criteria'][c], constants.key, this.link.hasClass('hidden'));
-			if (component.isOverridden) {
-				this.elem.find('.criteria-overridden').append(component.r());
-			} else {
-				this.elem.find('.criteria').append(component.r());
-			}
-		}
-		this.elem.find('.num-text').text(json['num_met'] + " criteria met. ");
-		/*
-		if (json['num_met'] == 0) {
-			this.elem.find('.edit-btn').addClass('hidden');
-		}
-		*/
-		if (this.hasOverridenCriteria().length == 0) {
-			this.elem.find('.num-overridden').addClass('hidden');
-			this.elem.find('.criteria-overridden').addClass('hidden');
-		} else {
-			this.elem.find('.num-overridden').text(this.hasOverridenCriteria().length + " customized criteria");
-		}
-		this.link.unbind();
-		this.link.click({elem: this.elem}, function(e) {
-			if ($(this).hasClass('hidden')) {
-				e.data.elem.find('.status.hidden').removeClass('hidden').addClass('unhidden');
-				$(this).text('minimize').removeClass('hidden');
-				if (!Modernizr.csstransitions) {
-					// TODO figure out animations on ie8
-					// $("[data-trews='sir']").find('.status.hidden').animate({
-					// 	opacity: 1
-					// }, 300 );
-				}
-			} else {
-				e.data.elem.find('.status.unhidden').removeClass('unhidden').addClass('hidden');
-				$(this).text('see all').addClass('hidden');
-				this.criteriaHidden = true;
-				if (!Modernizr.csstransitions) {
-					// TODO figure out animations on ie8
-					// $("[data-trews='sir']").find('.status.unhidden').animate({
-					// 	opacity: 0
-					// }, 300 );
-				}
-			}
-		});
-	}
-}
-
-window.onload = function() {
-	endpoints.getPatientData();
-	dropdown.init();
-	overrideModal.init();
-	notifications.init();
-	dataRefresher.init();
-	notificationRefresher.init();
-	$('#fake-console').text(window.location);
-	$('#fake-console').hide();
-	$('#show-console').click(function() {
-		$('#fake-console').toggle();
-	})
-	// Bugsnag.notify("ErrorName", "Test Error");
-};
-
-window.onerror = function(error, url, line) {
-    controller.sendLog({acc:'error', data:'ERR:'+error+' URL:'+url+' L:'+line});
-};
 
 /**
  * Endpoints Object handles sending and receing post requests to server.
@@ -292,6 +226,12 @@ var endpoints = new function() {
 	}
 }
 
+/**
+ * TREWS View Controller.
+ *
+ * A data-driven view controller that refreshes views whenever trews
+ * data and notifications have successfully been retrieved from the endpoint.
+ */
 var controller = new function() {
 	this.clean = function() {
 		$('.criteria').html('');
@@ -312,6 +252,7 @@ var controller = new function() {
 			globalJson['septic_shock']['onset_time']);
 		graphComponent.refresh(globalJson["chart_data"]);
 		notifications.render(globalJson['notifications']);
+		toolbar.render(globalJson["severe_sepsis"]);
 	}
 	this.refreshNotifications = function() {
 		var globalJson = trews.data;
@@ -343,6 +284,83 @@ var controller = new function() {
 	}
 }
 
+
+/**
+ * Slot Component
+ * @param JSON String with data for a slot
+ * @param HTML element of slot wrapper
+ * @param HTML element of expand/minimize link to show/hide all criteria
+ * @return {String} html for a specific slot
+ */
+var slotComponent = function(elem, link, constants) {
+	this.criteria = {};
+	this.elem = elem;
+	this.link = link;
+	this.constants = constants;
+	this.hasOverridenCriteria = function() {
+		var list = []
+		for (var c in this.criteria) {
+			if (this.criteria[c]['override_user'] != null) {
+				list.push(c);
+			}
+		}
+		return list;
+	}
+	this.r = function(json) {
+		this.criteria = json['criteria'];
+		this.elem.find('h3').text(this.constants['display_name']);
+		if (json['is_met']) {
+			this.elem.addClass('complete');
+		} else {
+			this.elem.removeClass('complete');
+		}
+		this.elem.find('.criteria-overridden').html('');
+		for (var c in this.criteria) {
+			var component = new criteriaComponent(this.criteria[c], constants['criteria'][c], constants.key, this.link.hasClass('hidden'));
+			if (component.isOverridden) {
+				this.elem.find('.criteria-overridden').append(component.r());
+			} else {
+				this.elem.find('.criteria').append(component.r());
+			}
+		}
+		this.elem.find('.num-text').text(json['num_met'] + " criteria met. ");
+		/*
+		if (json['num_met'] == 0) {
+			this.elem.find('.edit-btn').addClass('hidden');
+		}
+		*/
+		if (this.hasOverridenCriteria().length == 0) {
+			this.elem.find('.num-overridden').addClass('hidden');
+			this.elem.find('.criteria-overridden').addClass('hidden');
+		} else {
+			this.elem.find('.num-overridden').text(this.hasOverridenCriteria().length + " customized criteria");
+		}
+		this.link.unbind();
+		this.link.click({elem: this.elem}, function(e) {
+			if ($(this).hasClass('hidden')) {
+				e.data.elem.find('.status.hidden').removeClass('hidden').addClass('unhidden');
+				$(this).text('minimize').removeClass('hidden');
+				if (!Modernizr.csstransitions) {
+					// TODO figure out animations on ie8
+					// $("[data-trews='sir']").find('.status.hidden').animate({
+					// 	opacity: 1
+					// }, 300 );
+				}
+			} else {
+				e.data.elem.find('.status.unhidden').removeClass('unhidden').addClass('hidden');
+				$(this).text('see all').addClass('hidden');
+				this.criteriaHidden = true;
+				if (!Modernizr.csstransitions) {
+					// TODO figure out animations on ie8
+					// $("[data-trews='sir']").find('.status.unhidden').animate({
+					// 	opacity: 0
+					// }, 300 );
+				}
+			}
+		});
+	}
+}
+
 var severeSepsisComponent = new function() {
 	this.sus = {};
 	this.ctn = $("[data-trews='severeSepsis']");
@@ -352,8 +370,6 @@ var severeSepsisComponent = new function() {
 		var s = $('<option></option>').text(INFECTIONS[i]);
 		$('.selection select').append(s);
 	}
-
-	this.resetRealtimeBtn = $("[data-trews='resetRealtime']");
 
 	this.sirSlot = new slotComponent(
 		$("[data-trews='sir']"),
@@ -391,19 +407,8 @@ var severeSepsisComponent = new function() {
 		this.ctn.find('h2').text(severe_sepsis['display_name']);
 		if (json['is_met']) {
 			this.ctn.addClass('complete');
-			/*
-			this.resetRealtimeBtn.show();
-			this.resetRealtimeBtn.unbind();
-			this.resetRealtimeBtn.click(function() {
-				var action = trews.data['event_id'] == undefined ? null : { "value": trews.data['event_id'] };
-				endpoints.getPatientData("reset_to_realtime", action);
-			});
-			*/
 		} else {
 			this.ctn.removeClass('complete');
-			/*
-			this.resetRealtimeBtn.hide();
-			*/
 		}
 		this.sus = json['suspicion_of_infection'];
 		this.suspicion(severe_sepsis['suspicion_of_infection']);
@@ -591,6 +596,10 @@ var workflowsComponent = new function() {
 	}
 }
 
+/**
+ * TREWS Chart.
+ * A component and supporting functions representing the TREWScore time series plot.
+ */
 var graphComponent = new function() {
 	this.is30 = true;
 	this.xmin = 0;
@@ -644,93 +653,178 @@ var graphComponent = new function() {
 	}
 }
 
+function graph(json, severeOnset, shockOnset, xmin, xmax, ymin, ymax) {
+	var graphWidth = Math.floor($('#graph-wrapper').width()) - 10;
+	$("#graphdiv").width(graphWidth);
+	$("#graphdiv").height(graphWidth * .3225);
+	var placeholder = $("#graphdiv");
 
-
-// Utilities
-/**
- * outputs a text friendly output of time elapsed
- * @param Date Object, input time
- * @return {String} formatted time lapsed
- */
-function timeLapsed(d) {
-	var MIN = 60 * 1000;
-	var HOUR = 60 * 60 * 1000;
-	var DAY = 24 * 60 * 60 * 1000;
-	var elapsed = new Date(Date.now() - d);
-	if (elapsed < MIN) {
-		var units = (elapsed.getUTCSeconds() > 1) ? " secs ago" : " sec ago";
-		return elapsed.getUTCSeconds() + units;
-	} else if (elapsed < HOUR) {
-		var units = (elapsed.getUTCMinutes() > 1) ? " mins ago" : " min ago";
-		return elapsed.getUTCMinutes() + units;
-	} else if (elapsed < DAY) {
-		var units = (elapsed.getUTCHours() > 1) ? " hrs ago" : " hr ago";
-		return elapsed.getUTCHours() + units;
-	} else {
-		return "on " + d.toLocaleDateString() + " at " + d.toLocaleTimeString();
+	var data = [];
+	var dataLength = json['chart_values']['timestamp'].length;
+	for (var i = 0; i < dataLength; i += 1) {
+		data.push([json['chart_values']['timestamp'][i], json['chart_values']['trewscore'][i]]);
 	}
-}
-/**
- * outputs a text friendly output of time remaining
- * @param Date Object, input time
- * @return {String} formatted time lapsed
- */
-function timeRemaining(d) {
-	var remaining = new Date(d - Date.now());
-	var minutes = (remaining.getUTCMinutes() < 10) ? "0" + remaining.getUTCMinutes() : remaining.getUTCMinutes();
-	return remaining.getUTCHours() + " hours and " + minutes + " minutes remaining";
-}
 
-/**
- * String to Time
- * Takes a string converts it to a Date object and outputs date/time
- * as such: m/d/y h:m
-*/
-function strToTime(str, timeFirst) {
-	var date = new Date(Number(str));
-	var y = date.getFullYear();
-	var m = date.getMonth() + 1;
-	var d = date.getDate();
-	var h = date.getHours() < 10 ? "0" + date.getHours() : date.getHours();
-	var min = date.getMinutes() < 10 ? "0" + date.getMinutes() : date.getMinutes();
-	if (timeFirst) {
-		return h + ":" + min + " " + m + "/" + d + "/" + y;
-	} else {
-		return m + "/" + d + "/" + y + " " + h + ":" + min;
+	// console.log(data, xmin, xmax);
+
+	var xlast = json['chart_values']['timestamp'][dataLength - 1];
+	var ylast = json['chart_values']['trewscore'][dataLength - 1];
+
+	// update trewscore in header
+	$('h1 span').text(Number(ylast).toFixed(2));
+
+	var verticalMarkings = [
+		{color: "#555",lineWidth: 1,xaxis: {from: xlast,to: xlast}},
+		{color: "#e64535",lineWidth: 1,yaxis: {from: json['trewscore_threshold'],to: json['trewscore_threshold']}}
+	]
+
+	var arrivalx = (json['patient_arrival']['timestamp'] != undefined) ? json['patient_arrival']['timestamp'] * 1000 : null;
+	var severeOnsetx = (severeOnset != undefined) ? severeOnset * 1000 : null;
+	var shockOnsetx = (shockOnset != undefined) ? shockOnset * 1000 : null;
+
+	var severeOnsety = null;
+	var shockOnsety = null;
+
+	if (json['patient_arrival']['timestamp'] != undefined) {
+		var arrivalMark = {color: "#ccc",lineWidth: 1,xaxis: {from: arrivalx,to: arrivalx}};
+		//var arrivaly = json['chart_values']['trewscore'].indexOf(arrivalx);
+		var arrivaly = jQuery.inArray(arrivalx, json['chart_values']['trewscore'])
+		verticalMarkings.push(arrivalMark);
 	}
-}
-/**
- * FID to human readable
- * Takes an fid as a string and converts it to its human readable counterpart
-*/
-function humanReadable(str) {
-	if (FID_TO_HUMAN_READABLE[str]) {
-    return FID_TO_HUMAN_READABLE[str];
-  }
-  return str;
-}
-/**
- * Gets URL Parameters.  Returns the parameter value for the inpuuted variable
- * returns false if no variable found
- * source: https://css-tricks.com/snippets/javascript/get-url-variables/
-*/
-function getQueryVariable(variable) {
-	var query = window.location.search.substring(1);
-	var vars = query.split("&");
-	for (var i=0;i<vars.length;i++) {
-		var pair = vars[i].split("=");
-		if (pair[0] == variable){
-			return pair[1];
+	if (severeOnset != undefined) {
+		var severeMark = {color: "#ccc",lineWidth: 1,xaxis: {from: severeOnsetx,to: severeOnsetx}};
+		//severeOnsety = json['chart_values']['trewscore'].indexOf(severeOnsetx);
+		severeOnsety = jQuery.inArray(severeOnsetx, json['chart_values']['trewscore'])
+		verticalMarkings.push(severeMark);
+	}
+	if (shockOnset != undefined) {
+		var shockMark = {color: "#ccc",lineWidth: 1,xaxis: {from: shockOnsetx,to: shockOnsetx}};
+		//shockOnsety = json['chart_values']['trewscore'].indexOf(shockOnsetx);
+		shockOnsety = jQuery.inArray(shockOnsetx, json['chart_values']['trewscore'])
+		verticalMarkings.push(shockMark);
+	}
+
+	var plot = $.plot(placeholder, [
+		{ data: data, label: "Trewscore", color: "#ca011a"}
+	], {
+		series: {
+			lines: {show: true},
+			points: {show: true},
+			threshold: [{below: json['trewscore_threshold'], color: "#000000"}]
+		},
+		legend: {show: false},
+		grid: {
+			hoverable: true,
+			clickable: true,
+			markings: verticalMarkings,
+			margin: {top: 40,left: 0,bottom: 0,right: 0},
+			borderWidth: {top: 0,left: 1,bottom: 1,right: 0}
+		},
+		crosshair: {mode: "x"},
+		yaxis: {
+			min: ymin, // should be 0.0
+			max: ymax, // sould be 1.0
+			ticks: [[0, "0"], [json['trewscore_threshold'], json['trewscore_threshold']], [1, "1"]],
+			tickColor: "#e64535",
+			tickLength: 5,
+			font: {
+				size: 11,
+				lineHeight: 13,
+				family: "Helvetica, Arial, sans-serif",
+				color: "#000"
+			}
+		},
+		xaxis: {
+			min: xmin,
+			max: xmax,
+			mode: "time",
+			tickColor: "#EEEEEE",
+			timeformat: "%b %e %H:%M",
+			timezone: "browser",
+			monthNames: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+			font: {
+				size: 11,
+				lineHeight: 13,
+				family: "Helvetica, Arial, sans-serif",
+				color: "#000"
+			}
 		}
+	});
+
+	$("#graphdiv").bind("plothover", function (event, pos, item) {
+
+		var str = "(" + pos.x.toFixed(2) + ", " + pos.y.toFixed(2) + ")";
+
+		if (item) {
+			var dataIndex = item['dataIndex'];
+			var x = item.datapoint[0].toFixed(2),
+				y = item.datapoint[1].toFixed(2);
+
+			var features = "<div class='tooltip-header'>\
+								<div class='row cf'>\
+									<h4 class='name'>TREWScore</h4>\
+									<h4 class='value'>" + y + "</h4>\
+								</div><div class='row cf time'>\
+									<h4 class='name'>Time</h4>\
+									<h4 class='value'>" + strToTime(x, true) + "</h4>\
+								</div>\
+							</div>";
+
+			var accessIndex = dataIndex >= json['chart_values']['tf_1_name'].length ?
+													json['chart_values']['tf_1_name'].length - 1 : dataIndex;
+
+			features += "<div class='row cf'>\
+							<h4 class='name'>" + humanReadable(json['chart_values']['tf_1_name'][accessIndex]) + "</h4>\
+							<h4 class='value'>" + json['chart_values']['tf_1_value'][accessIndex] + "</h4>\
+						</div><div class='row cf'>\
+							<h4 class='name'>" + humanReadable(json['chart_values']['tf_2_name'][accessIndex]) + "</h4>\
+							<h4 class='value'>" + json['chart_values']['tf_2_value'][accessIndex] + "</h4>\
+						</div><div class='row cf'>\
+							<h4 class='name'>" + humanReadable(json['chart_values']['tf_3_name'][accessIndex]) + "</h4>\
+							<h4 class='value'>" + json['chart_values']['tf_3_value'][accessIndex] + "</h4>\
+						</div>";
+
+			$("#tooltip").html(features)
+				.css({top: item.pageY+5, left: item.pageX+5})
+				.fadeIn(300);
+		} else {
+			$("#tooltip").hide();
+		}
+	});
+
+	// Chart Drawing Addistions
+	var o = plot.pointOffset({ x: xlast, y: ylast});
+	if (json.chart_values.timestamp.length == 0) {
+		graphTag(plot, xmax, ylast, "Now", "now");
+	} else {
+		graphTag(plot, xlast, ylast, "Most Recent", "now");
 	}
-	return(false);
+	if (arrivalx && arrivaly) {
+		graphTag(plot, arrivalx, arrivaly, "Patient<br/>Arrival", "patient-arrival-graph-tag");
+	}
+	if (severeOnsetx && severeOnsety) {
+		graphTag(plot, severeOnsetx, severeOnsety, "Onset of<br/>Severe Sepsis", "severe-sepsis-graph-tag");
+	}
+	if (shockOnsetx && shockOnsety) {
+		graphTag(plot, shockOnsetx, shockOnsety, "Onset of<br/>Septic Shock", "septic-shock-graph-tag");
+	}
+	placeholder.append("<div id='threshold' style='left:" + o.left + "px;'>\
+			<h3>Septic Shock<br />Risk Threshold</h3>\
+			</div>");
 }
-/**
- * EPICUSERID is padded with plus signs, this removes them
-*/
-function cleanUserId(userId) {
-	return userId.replace(/^\++/, "");
+
+function graphTag(plot, x, y, text, id) {
+	var placeholder = $("#graphdiv");
+	var o = plot.pointOffset({ x: x, y: y});
+	var xLastTime = new Date(x);
+	var minutes = (xLastTime.getMinutes() < 10) ? "0" + xLastTime.getMinutes() : xLastTime.getMinutes();
+	placeholder.append("<div id='" + id + "' class='graph-tag' style='left:" + o.left + "px;'>\
+			<h3>" + text + "</h3>\
+			<h6>" + xLastTime.getHours() + ":" + minutes + "</h6>\
+		</div>");
 }
+
+
 
 /**
  * Criteria Component
@@ -1055,6 +1149,10 @@ var overrideModal = new function() {
 	});
 }
 
+/**
+ * Notifications.
+ * This component maintains the notification badge that appears in the toolbar.
+ */
 var notifications = new function() {
 	this.n = $('#notifications');
 	this.nav = $('#header-notifications');
@@ -1087,7 +1185,13 @@ var notifications = new function() {
 			return;
 		}
 		var numUnread = 0;
+		var renderTs = Date.now();
 		for (var i = 0; i < data.length; i++) {
+			// Skip notifications scheduled in the future, as part of the Dashan event queue.
+			var notifTs = new Date(data[i]['timestamp'] * 1000);
+			if (notifTs > renderTs) { continue; }
+
+			// Display the notification.
 			var notif = $('<div class="notification"></div>');
 			notif.append('<h3>' + ALERT_CODES[data[i]['alert_code']] + '</h3>')
 			var subtext = $('<div class="subtext cf"></div>');
@@ -1134,173 +1238,111 @@ var notifications = new function() {
 	}
 }
 
-function graph(json, severeOnset, shockOnset, xmin, xmax, ymin, ymax) {
-	var graphWidth = Math.floor($('#graph-wrapper').width()) - 10;
-	$("#graphdiv").width(graphWidth);
-	$("#graphdiv").height(graphWidth * .3225);
-	var placeholder = $("#graphdiv");
+/**
+ * Toolbar.
+ * This component manages all buttons on the toolbar other than the notifications badge.
+ */
 
-	var data = [];
-	var dataLength = json['chart_values']['timestamp'].length;
-	for (var i = 0; i < dataLength; i += 1) {
-		data.push([json['chart_values']['timestamp'][i], json['chart_values']['trewscore'][i]]);
+var toolbar = new function() {
+	this.resetNav = $('#header-reset-patient');
+	this.init = function() {
+		this.resetNav.unbind();
+		this.resetNav.click(function(e) {
+			var action = trews.data['event_id'] == undefined ? null : { "value": trews.data['event_id'] };
+			endpoints.getPatientData("reset_patient", action);
+		});
 	}
-
-	// console.log(data, xmin, xmax);
-
-	var xlast = json['chart_values']['timestamp'][dataLength - 1];
-	var ylast = json['chart_values']['trewscore'][dataLength - 1];
-
-	// update trewscore in header
-	$('h1 span').text(Number(ylast).toFixed(2));
-
-	var verticalMarkings = [
-		{color: "#555",lineWidth: 1,xaxis: {from: xlast,to: xlast}},
-		{color: "#e64535",lineWidth: 1,yaxis: {from: json['trewscore_threshold'],to: json['trewscore_threshold']}}
-	]
-
-	var arrivalx = (json['patient_arrival']['timestamp'] != undefined) ? json['patient_arrival']['timestamp'] * 1000 : null;
-	var severeOnsetx = (severeOnset != undefined) ? severeOnset * 1000 : null;
-	var shockOnsetx = (shockOnset != undefined) ? shockOnset * 1000 : null;
-
-	var severeOnsety = null;
-	var shockOnsety = null;
-
-	if (json['patient_arrival']['timestamp'] != undefined) {
-		var arrivalMark = {color: "#ccc",lineWidth: 1,xaxis: {from: arrivalx,to: arrivalx}};
-		//var arrivaly = json['chart_values']['trewscore'].indexOf(arrivalx);
-		var arrivaly = jQuery.inArray(arrivalx, json['chart_values']['trewscore'])
-		verticalMarkings.push(arrivalMark);
-	}
-	if (severeOnset != undefined) {
-		var severeMark = {color: "#ccc",lineWidth: 1,xaxis: {from: severeOnsetx,to: severeOnsetx}};
-		//severeOnsety = json['chart_values']['trewscore'].indexOf(severeOnsetx);
-		severeOnsety = jQuery.inArray(severeOnsetx, json['chart_values']['trewscore'])
-		verticalMarkings.push(severeMark);
-	}
-	if (shockOnset != undefined) {
-		var shockMark = {color: "#ccc",lineWidth: 1,xaxis: {from: shockOnsetx,to: shockOnsetx}};
-		//shockOnsety = json['chart_values']['trewscore'].indexOf(shockOnsetx);
-		shockOnsety = jQuery.inArray(shockOnsetx, json['chart_values']['trewscore'])
-		verticalMarkings.push(shockMark);
-	}
-
-	var plot = $.plot(placeholder, [
-		{ data: data, label: "Trewscore", color: "#ca011a"}
-	], {
-		series: {
-			lines: {show: true},
-			points: {show: true},
-			threshold: [{below: json['trewscore_threshold'], color: "#000000"}]
-		},
-		legend: {show: false},
-		grid: {
-			hoverable: true,
-			clickable: true,
-			markings: verticalMarkings,
-			margin: {top: 40,left: 0,bottom: 0,right: 0},
-			borderWidth: {top: 0,left: 1,bottom: 1,right: 0}
-		},
-		crosshair: {mode: "x"},
-		yaxis: {
-			min: ymin, // should be 0.0
-			max: ymax, // sould be 1.0
-			ticks: [[0, "0"], [json['trewscore_threshold'], json['trewscore_threshold']], [1, "1"]],
-			tickColor: "#e64535",
-			tickLength: 5,
-			font: {
-				size: 11,
-				lineHeight: 13,
-				family: "Helvetica, Arial, sans-serif",
-				color: "#000"
-			}
-		},
-		xaxis: {
-			min: xmin,
-			max: xmax,
-			mode: "time",
-			tickColor: "#EEEEEE",
-			timeformat: "%b %e %H:%M",
-			timezone: "browser",
-			monthNames: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
-			font: {
-				size: 11,
-				lineHeight: 13,
-				family: "Helvetica, Arial, sans-serif",
-				color: "#000"
-			}
-		}
-	});
-
-	$("#graphdiv").bind("plothover", function (event, pos, item) {
-
-		var str = "(" + pos.x.toFixed(2) + ", " + pos.y.toFixed(2) + ")";
-
-		if (item) {
-			var dataIndex = item['dataIndex'];
-			var x = item.datapoint[0].toFixed(2),
-				y = item.datapoint[1].toFixed(2);
-
-			var features = "<div class='tooltip-header'>\
-								<div class='row cf'>\
-									<h4 class='name'>TREWScore</h4>\
-									<h4 class='value'>" + y + "</h4>\
-								</div><div class='row cf time'>\
-									<h4 class='name'>Time</h4>\
-									<h4 class='value'>" + strToTime(x, true) + "</h4>\
-								</div>\
-							</div>";
-
-			var accessIndex = dataIndex >= json['chart_values']['tf_1_name'].length ?
-													json['chart_values']['tf_1_name'].length - 1 : dataIndex;
-
-			features += "<div class='row cf'>\
-							<h4 class='name'>" + humanReadable(json['chart_values']['tf_1_name'][accessIndex]) + "</h4>\
-							<h4 class='value'>" + json['chart_values']['tf_1_value'][accessIndex] + "</h4>\
-						</div><div class='row cf'>\
-							<h4 class='name'>" + humanReadable(json['chart_values']['tf_2_name'][accessIndex]) + "</h4>\
-							<h4 class='value'>" + json['chart_values']['tf_2_value'][accessIndex] + "</h4>\
-						</div><div class='row cf'>\
-							<h4 class='name'>" + humanReadable(json['chart_values']['tf_3_name'][accessIndex]) + "</h4>\
-							<h4 class='value'>" + json['chart_values']['tf_3_value'][accessIndex] + "</h4>\
-						</div>";
-
-			$("#tooltip").html(features)
-				.css({top: item.pageY+5, left: item.pageX+5})
-				.fadeIn(300);
+	this.render = function(json) {
+		if (json['is_met']) {
+			this.resetNav.show()
 		} else {
-			$("#tooltip").hide();
+			this.resetNav.hide()
 		}
-	});
-
-	// Chart Drawing Addistions
-	var o = plot.pointOffset({ x: xlast, y: ylast});
-	if (json.chart_values.timestamp.length == 0) {
-		graphTag(plot, xmax, ylast, "Now", "now");
-	} else {
-		graphTag(plot, xlast, ylast, "Most Recent", "now");
 	}
-	if (arrivalx && arrivaly) {
-		graphTag(plot, arrivalx, arrivaly, "Patient<br/>Arrival", "patient-arrival-graph-tag");
-	}
-	if (severeOnsetx && severeOnsety) {
-		graphTag(plot, severeOnsetx, severeOnsety, "Onset of<br/>Severe Sepsis", "severe-sepsis-graph-tag");
-	}
-	if (shockOnsetx && shockOnsety) {
-		graphTag(plot, shockOnsetx, shockOnsety, "Onset of<br/>Septic Shock", "septic-shock-graph-tag");
-	}
-	placeholder.append("<div id='threshold' style='left:" + o.left + "px;'>\
-			<h3>Septic Shock<br />Risk Threshold</h3>\
-			</div>");
 }
 
-function graphTag(plot, x, y, text, id) {
-	var placeholder = $("#graphdiv");
-	var o = plot.pointOffset({ x: x, y: y});
-	var xLastTime = new Date(x);
-	var minutes = (xLastTime.getMinutes() < 10) ? "0" + xLastTime.getMinutes() : xLastTime.getMinutes();
-	placeholder.append("<div id='" + id + "' class='graph-tag' style='left:" + o.left + "px;'>\
-			<h3>" + text + "</h3>\
-			<h6>" + xLastTime.getHours() + ":" + minutes + "</h6>\
-		</div>");
+// Utilities
+/**
+ * outputs a text friendly output of time elapsed
+ * @param Date Object, input time
+ * @return {String} formatted time lapsed
+ */
+function timeLapsed(d) {
+	var MIN = 60 * 1000;
+	var HOUR = 60 * 60 * 1000;
+	var DAY = 24 * 60 * 60 * 1000;
+	var elapsed = new Date(Date.now() - d);
+	if (elapsed < MIN) {
+		var units = (elapsed.getUTCSeconds() > 1) ? " secs ago" : " sec ago";
+		return elapsed.getUTCSeconds() + units;
+	} else if (elapsed < HOUR) {
+		var units = (elapsed.getUTCMinutes() > 1) ? " mins ago" : " min ago";
+		return elapsed.getUTCMinutes() + units;
+	} else if (elapsed < DAY) {
+		var units = (elapsed.getUTCHours() > 1) ? " hrs ago" : " hr ago";
+		return elapsed.getUTCHours() + units;
+	} else {
+		return "on " + d.toLocaleDateString() + " at " + d.toLocaleTimeString();
+	}
+}
+/**
+ * outputs a text friendly output of time remaining
+ * @param Date Object, input time
+ * @return {String} formatted time lapsed
+ */
+function timeRemaining(d) {
+	var remaining = new Date(d - Date.now());
+	var minutes = (remaining.getUTCMinutes() < 10) ? "0" + remaining.getUTCMinutes() : remaining.getUTCMinutes();
+	return remaining.getUTCHours() + " hours and " + minutes + " minutes remaining";
+}
+
+/**
+ * String to Time
+ * Takes a string converts it to a Date object and outputs date/time
+ * as such: m/d/y h:m
+*/
+function strToTime(str, timeFirst) {
+	var date = new Date(Number(str));
+	var y = date.getFullYear();
+	var m = date.getMonth() + 1;
+	var d = date.getDate();
+	var h = date.getHours() < 10 ? "0" + date.getHours() : date.getHours();
+	var min = date.getMinutes() < 10 ? "0" + date.getMinutes() : date.getMinutes();
+	if (timeFirst) {
+		return h + ":" + min + " " + m + "/" + d + "/" + y;
+	} else {
+		return m + "/" + d + "/" + y + " " + h + ":" + min;
+	}
+}
+/**
+ * FID to human readable
+ * Takes an fid as a string and converts it to its human readable counterpart
+*/
+function humanReadable(str) {
+	if (FID_TO_HUMAN_READABLE[str]) {
+    return FID_TO_HUMAN_READABLE[str];
+  }
+  return str;
+}
+/**
+ * Gets URL Parameters.  Returns the parameter value for the inpuuted variable
+ * returns false if no variable found
+ * source: https://css-tricks.com/snippets/javascript/get-url-variables/
+*/
+function getQueryVariable(variable) {
+	var query = window.location.search.substring(1);
+	var vars = query.split("&");
+	for (var i=0;i<vars.length;i++) {
+		var pair = vars[i].split("=");
+		if (pair[0] == variable){
+			return pair[1];
+		}
+	}
+	return(false);
+}
+/**
+ * EPICUSERID is padded with plus signs, this removes them
+*/
+function cleanUserId(userId) {
+	return userId.replace(/^\++/, "");
 }

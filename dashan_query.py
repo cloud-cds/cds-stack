@@ -4,8 +4,12 @@ dashan_query.py
 import os
 import json
 import datetime
+import logging
+import pandas as pd
 from inpatient_updater import load
+from sqlalchemy import create_engine
 
+logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.DEBUG)
 
 DB_CONN_STR = 'postgresql://{}:{}@{}:{}/{}'
 user = os.environ['db_user']
@@ -14,10 +18,7 @@ db = os.environ['db_name']
 port = os.environ['db_port']
 password = os.environ['db_password']
 DB_CONN_STR = DB_CONN_STR.format(user, password, host, port, db)
-import logging
-logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.DEBUG)
-from sqlalchemy import create_engine
-import pandas as pd
+
 def get_trews(eid):
     engine = create_engine(DB_CONN_STR)
     get_trews_sql = \
@@ -154,14 +155,15 @@ def override_criteria(eid, name, value='{}', user='user', is_met='true', clear=F
     conn.close()
     #push_notifications_to_epic(eid, engine)
 
-def reset_to_realtime_criteria(eid, event_id=None):
+def reset_patient(eid, event_id=None):
     engine = create_engine(DB_CONN_STR)
     event_where_clause = 'and event_id = %(evid)s' % {'evid' : event_id } if event_id is not None else ''
     reset_sql = """
     update criteria_events set is_active = false
-    where pat_id = '%(pid)s' %(where_clause)s
+    where pat_id = '%(pid)s' %(where_clause)s;
+    delete from notifications where pat_id = '%(pid)s';
     """ % {'pid': eid, 'where_clause': event_where_clause}
-    logging.debug("reset_to_realtime_criteria:" + reset_sql)
+    logging.debug("reset_patient:" + reset_sql)
     conn = engine.connect()
     conn.execute(reset_to_realtime_criteria)
     conn.close()

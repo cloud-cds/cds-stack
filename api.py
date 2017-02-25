@@ -120,9 +120,9 @@ class TREWSAPI(object):
         elif actionType == u'order_not_indicated':
             query.override_criteria(eid, actionData['actionName'], value='{ "text": "Not Indicated" }')
 
-        elif actionType == u'reset_to_realtime':
+        elif actionType == u'reset_patient':
             event_id = actionData['value'] if actionData is not None and 'value' in actionData else None
-            query.reset_to_realtime_criteria(eid, event_id)
+            query.reset_patient(eid, event_id)
 
         else:
             logging.error('Invalid action type: ' + actionType)
