@@ -170,10 +170,7 @@ def reset_patient(eid, event_id=None):
 
 def push_notifications_to_epic(eid, engine):
         notifications_sql = """
-            select notifications.pat_id, visit_id, min(5, count(*)) from notifications
-            inner join pat_enc on notifications.pat_id = pat_enc.pat_id
-            where notifications.pat_id = '%s'
-            group by notifications.pat_id, visit_id
+            select * from get_notifications_for_epic('%s');
             """ % eid
         notifications = pd.read_sql_query(notifications_sql, con=engine)
         patients = [ {'pat_id': n['pat_id'], 'visit_id': n['visit_id'], 'notifications': n['count'],
