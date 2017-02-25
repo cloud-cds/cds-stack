@@ -147,7 +147,7 @@ def override_criteria(eid, name, value='{}', user='user', is_met='true', clear=F
         is_met = %(is_met)s
     where pat_id = '%(pid)s' and name = '%(fid)s';
     select update_pat_criteria('%(pid)s', '%(fid)s');
-    select update_pat_notifications('%(pid)s');
+    select update_notifications('%(pid)s');
     """ % params
     logging.debug("override_sql:" + override_sql)
     conn = engine.connect()
