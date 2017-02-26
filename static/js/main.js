@@ -180,6 +180,7 @@ var endpoints = new function() {
 			$('body').removeClass('waiting');
 			$('#loading').addClass('done');
 			if ( result.hasOwnProperty('trewsData') ) {
+				console.log('Retrieved', result.trewsData['chart_data']['chart_values']['trewscore'].length, 'TS points');
 				trews.setData(result.trewsData);
 				controller.refresh();
 				// $('#fake-console').text(result);
