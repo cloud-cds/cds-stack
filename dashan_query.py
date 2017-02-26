@@ -153,7 +153,7 @@ def override_criteria(eid, name, value='{}', user='user', is_met='true', clear=F
     conn = engine.connect()
     conn.execute(override_sql)
     conn.close()
-    #push_notifications_to_epic(eid, engine)
+    push_notifications_to_epic(eid, engine)
 
 def reset_patient(eid, event_id=None):
     engine = create_engine(DB_CONN_STR)
