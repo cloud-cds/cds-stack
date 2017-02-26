@@ -126,30 +126,68 @@ def toggle_notification_read(eid, notification_id, as_read):
     conn.close()
 
 
-def override_criteria(eid, name, value='{}', user='user', is_met='true', clear=False):
+def override_criteria(eid, name, value='[{}]', user='user', clear=False):
     engine = create_engine(DB_CONN_STR)
 
-
-    # database need to decide is_met
     params = {
         'user': ("'" + user + "'") if not clear else 'null',
         'val': ("'" + (json.dumps(value) if isinstance(value, list) else value) + "'") if not clear else 'null',
         'fid': name,
-        'pid': eid,
-        'is_met': ("'" + is_met + "'") if is_met is not None else 'is_met'
+        'pid': eid
     }
     override_sql = """
     update criteria set
         override_time = now(),
         update_date = now(),
         override_value = %(val)s,
-        override_user = %(user)s,
-        is_met = %(is_met)s
+        override_user = %(user)s
     where pat_id = '%(pid)s' and name = '%(fid)s';
     select update_pat_criteria('%(pid)s', '%(fid)s');
     select update_notifications('%(pid)s');
     """ % params
-    logging.debug("override_sql:" + override_sql)
+    logging.debug("override_criteria sql:" + override_sql)
+    conn = engine.connect()
+    conn.execute(override_sql)
+    conn.close()
+    push_notifications_to_epic(eid, engine)
+
+def override_suspicion_of_infection(eid, value='[{}]', user='user', infectionType):
+    engine = create_engine(DB_CONN_STR)
+
+    reset_query = ''
+    if infectionType == 'No Infection':
+        reset_query = """
+        delete from notifications where pat_id = '%(pid)s';
+        """ % {'pid': eid}
+
+    params = {
+        'pid': eid,
+        'fid': 'suspicion_of_infection',
+        'user': ("'" + user + "'") if not clear else 'null',
+        'val': ("'" + (json.dumps(value) if isinstance(value, list) else value) + "'") if not clear else 'null',
+        'reset_query': reset_query
+    }
+
+    override_sql = """
+    update criteria set
+        override_time = now(),
+        update_date = now(),
+        override_value = %(val)s,
+        override_user = %(user)s
+    where pat_id = '%(pid)s' and name = '%(fid)s';
+    update criteria_events set
+        override_time = now(),
+        update_date = now(),
+        override_value = %(val)s,
+        override_user = %(user)s
+    where pat_id = '%(pid)s' and name = '%(fid)s'
+    and event_id = (select max(ce.event_id) from criteria_events ce where ce.flag > 0);
+    select update_pat_criteria('%(pid)s', '%(fid)s');
+    %(reset_query)s
+    select update_notifications('%(pid)s');
+    """ % params
+
+    logging.debug("override_suspicion_of_infection sql:" + override_sql)
     conn = engine.connect()
     conn.execute(override_sql)
     conn.close()
@@ -159,9 +197,10 @@ def reset_patient(eid, event_id=None):
     engine = create_engine(DB_CONN_STR)
     event_where_clause = 'and event_id = %(evid)s' % {'evid' : event_id } if event_id is not None else ''
     reset_sql = """
-    update criteria_events set flag = 0
+    update criteria_events set flag = -1
     where pat_id = '%(pid)s' %(where_clause)s;
     delete from notifications where pat_id = '%(pid)s';
+    select update_notifications('%(pid)s');
     """ % {'pid': eid, 'where_clause': event_where_clause}
     logging.debug("reset_patient:" + reset_sql)
     conn = engine.connect()

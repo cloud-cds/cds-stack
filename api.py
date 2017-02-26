@@ -87,21 +87,15 @@ class TREWSAPI(object):
 
         elif actionType == u'override':
             action_is_clear = 'clear' in actionData
-            action_is_met = 'false' if action_is_clear else None
             if action_is_clear:
-                query.override_criteria(eid, actionData['actionName'], is_met=action_is_met, clear=True)
+                query.override_criteria(eid, actionData['actionName'], clear=True)
             else:
                 logging.debug('override_criteria value: %(name)s %(val)s' % {'name': actionData['actionName'], 'val': actionData['value']})
-                query.override_criteria(eid, actionData['actionName'], value=actionData['value'], is_met=action_is_met)
+                query.override_criteria(eid, actionData['actionName'], value=actionData['value'])
 
         elif actionType == u'suspicion_of_infection':
-            is_met = 'true'
-            if actionData['actionName'] == u'sus-edit':
-                if actionData['value'] == 'No Infection':
-                    is_met = 'false'
-
             value = '[{ "text": "%(val)s" }]' % {'val': actionData['value']}
-            query.override_criteria(eid, actionType, value=value, is_met=is_met)
+            query.override_suspicion_of_infection(eid, actionType, value=value, infectionType=actionData['value'])
 
         elif actionType == u'notification':
             if 'id' in actionData and 'read' in actionData:
