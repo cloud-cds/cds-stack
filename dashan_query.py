@@ -159,7 +159,7 @@ def reset_patient(eid, event_id=None):
     engine = create_engine(DB_CONN_STR)
     event_where_clause = 'and event_id = %(evid)s' % {'evid' : event_id } if event_id is not None else ''
     reset_sql = """
-    update criteria_events set is_active = false
+    update criteria_events set flag = 0
     where pat_id = '%(pid)s' %(where_clause)s;
     delete from notifications where pat_id = '%(pid)s';
     """ % {'pid': eid, 'where_clause': event_where_clause}
