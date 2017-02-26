@@ -18,11 +18,12 @@ var ALERT_CODES = {
 	"203": "<b>6hr</b> have passed since <b>Severe Sepsis</b> onset",
 	"204": "<b>6hr</b> have passed since <b>Septic Shock</b> onset",
 	"300": "2/3 Severe Sepsis Criteria met: Enter Suspicion of Infection",
-	"301": "intervention(s) need to be ordered", 										// Should be prefixed with count of number of severe sepsis interventions pending.
-	"302": "intervention(s) need to be ordered", 										// Should be prefixed with count of number of septic shock interventions pending.
-	"303": "intervention(s) need to be completed in the next hour", // Should be prefixed with the number of severe sepsis interventions to be completed before the 3hr window expires.
-	"304": "intervention(s) need to be completed in the next hour", // Should be prefixed with the number of severe sepsis interventions to be completed before the 6hr window expires.
-	"305": "intervention(s) need to be completed in the next hour"  // Should be prefixed with the number of septic shock interventions to be completed before the 6hr window expires.
+	"301": "intervention(s) need to be ordered", 										// Should be prefixed with count of number of severe sepsis 3hr interventions pending.
+	"302": "intervention(s) need to be ordered", 										// Should be prefixed with count of number of severe sepsis 6hr interventions pending.
+	"303": "intervention(s) need to be ordered", 										// Should be prefixed with count of number of septic shock interventions pending.
+	"304": "intervention(s) need to be completed in the next hour", // Should be prefixed with the number of severe sepsis interventions to be completed before the 3hr window expires.
+	"305": "intervention(s) need to be completed in the next hour", // Should be prefixed with the number of severe sepsis interventions to be completed before the 6hr window expires.
+	"306": "intervention(s) need to be completed in the next hour"  // Should be prefixed with the number of septic shock interventions to be completed before the 6hr window expires.
 }
 
 var EDIT = {

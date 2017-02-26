@@ -95,6 +95,23 @@ var trews = new function() {
 		}
 		return list;
 	}
+	this.orderIsDone = function(order_name) {
+		return this.data[order_name]['status'] == 'Completed'
+						|| this.data[order_name]['status'] == 'Not Indicated';
+	}
+	this.getIncompleteSevereSepsis3hr = function() {
+		return (   ( this.orderIsDone('antibiotics_order')       ? 0 : 1 )
+					   + ( this.orderIsDone('initial_lactate_order')   ? 0 : 1 )
+					   + ( this.orderIsDone('blood_culture_order')     ? 0 : 1 )
+					   + ( this.orderIsDone('crystalloid_fluid_order') ? 0 : 1 )
+					 );
+	}
+	this.getIncompleteSevereSepsis6hr = function() {
+		return ( this.orderIsDone('repeat_lactate_order') ? 0 : 1 );
+	}
+	this.getIncompleteSepticShock = function() {
+		return ( this.orderIsDone('vasopressors_order') ? 0 : 1 );
+	}
 };
 
 
@@ -1171,6 +1188,20 @@ var notifications = new function() {
 			e.stopPropagation();
 		});
 	}
+	this.getAlertMsg = function(data) {
+		var alertMsg = ALERT_CODES[data[i]['alert_code']];
+
+		if ( data[i]['alert_code'] == '301' || data[i]['alert_code'] == '304' ) {
+			alertMsg = String(trews.getIncompleteSevereSepsis3hr()) + ' ' + alertMsg;
+		}
+		else if ( data[i]['alert_code'] == '302' || data[i]['alert_code'] == '305' ) {
+			alertMsg = String(trews.getIncompleteSevereSepsis6hr()) + ' ' + alertMsg;
+		}
+		else if ( data[i]['alert_code'] == '303' || data[i]['alert_code'] == '306' ) {
+			alertMsg = String(trews.getIncompleteSepticShock()) + ' ' + alertMsg;
+		}
+		return alertMsg;
+	}
 	this.render = function(data) {
 		this.n.html('');
 		if (data == undefined) {
@@ -1194,7 +1225,7 @@ var notifications = new function() {
 
 			// Display the notification.
 			var notif = $('<div class="notification"></div>');
-			notif.append('<h3>' + ALERT_CODES[data[i]['alert_code']] + '</h3>')
+			notif.append('<h3>' + this.getAlertMsg(data) + '</h3>')
 			var subtext = $('<div class="subtext cf"></div>');
 			subtext.append('<p>' + timeLapsed(new Date(data[i]['timestamp']*1000)) + '</p>');
 			var readLink = $("<a data-trews='" + data[i]['id'] + "'></a>");
