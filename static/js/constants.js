@@ -16,7 +16,8 @@ var ALERT_CODES = {
 	"201": "All criteria for <b>Septic Shock</b> have been met",
 	"202": "<b>3hr</b> have passed since <b>Severe Sepsis</b> onset",
 	"203": "<b>6hr</b> have passed since <b>Severe Sepsis</b> onset",
-	"204": "<b>6hr</b> have passed since <b>Septic Shock</b> onset"
+	"204": "<b>6hr</b> have passed since <b>Septic Shock</b> onset",
+	"300": "2/3 Severe Sepsis Criteria met: Enter Suspicion of Infection"
 }
 
 var EDIT = {
