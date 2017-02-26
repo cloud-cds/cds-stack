@@ -93,7 +93,6 @@ class TREWSAPI(object):
             else:
                 logging.debug('override_criteria value: %(name)s %(val)s' % {'name': actionData['actionName'], 'val': actionData['value']})
                 query.override_criteria(eid, actionData['actionName'], value=actionData['value'], is_met=action_is_met)
-            #query.update_notifications()
 
         elif actionType == u'suspicion_of_infection':
             is_met = 'true'
@@ -103,7 +102,6 @@ class TREWSAPI(object):
 
             value = '[{ "text": "%(val)s" }]' % {'val': actionData['value']}
             query.override_criteria(eid, actionType, value=value, is_met=is_met)
-            #query.update_notifications()
 
         elif actionType == u'notification':
             if 'id' in actionData and 'read' in actionData:
@@ -112,13 +110,13 @@ class TREWSAPI(object):
                 logging.error('Invalid notification update action data' + json.dumps(actionData))
 
         elif actionType == u'place_order':
-            query.override_criteria(eid, actionData['actionName'], value='{ "text": "Ordered" }')
+            query.override_criteria(eid, actionData['actionName'], value='[{ "text": "Ordered" }]')
 
         elif actionType == u'complete_order':
-            query.override_criteria(eid, actionData['actionName'], value='{ "text": "Completed" }')
+            query.override_criteria(eid, actionData['actionName'], value='[{ "text": "Completed" }]')
 
         elif actionType == u'order_not_indicated':
-            query.override_criteria(eid, actionData['actionName'], value='{ "text": "Not Indicated" }')
+            query.override_criteria(eid, actionData['actionName'], value='[{ "text": "Not Indicated" }]')
 
         elif actionType == u'reset_patient':
             event_id = actionData['value'] if actionData is not None and 'value' in actionData else None
