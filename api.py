@@ -95,7 +95,7 @@ class TREWSAPI(object):
 
         elif actionType == u'suspicion_of_infection':
             value = '[{ "text": "%(val)s" }]' % {'val': actionData['value']}
-            query.override_suspicion_of_infection(eid, actionType, value=value, infectionType=actionData['value'])
+            query.override_criteria(eid, actionType, value=value)
 
         elif actionType == u'notification':
             if 'id' in actionData and 'read' in actionData:
