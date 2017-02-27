@@ -78,7 +78,7 @@ class TREWSAPI(object):
         return pad_text
 
     # TODO: match and test the consistent API for overriding
-    def take_action(self, actionType, actionData, eid):
+    def take_action(self, actionType, actionData, eid, uid):
 
         # Match pollNotifications first since this is the most common action.
         if actionType == u'pollNotifications':
@@ -88,14 +88,14 @@ class TREWSAPI(object):
         elif actionType == u'override':
             action_is_clear = 'clear' in actionData
             if action_is_clear:
-                query.override_criteria(eid, actionData['actionName'], clear=True)
+                query.override_criteria(eid, actionData['actionName'], clear=True, user=uid)
             else:
                 logging.debug('override_criteria value: %(name)s %(val)s' % {'name': actionData['actionName'], 'val': actionData['value']})
-                query.override_criteria(eid, actionData['actionName'], value=actionData['value'])
+                query.override_criteria(eid, actionData['actionName'], value=actionData['value'], user=uid)
 
         elif actionType == u'suspicion_of_infection':
             value = '[{ "text": "%(val)s" }]' % {'val': actionData['value']}
-            query.override_criteria(eid, actionType, value=value)
+            query.override_criteria(eid, actionType, value=value, user=uid)
 
         elif actionType == u'notification':
             if 'id' in actionData and 'read' in actionData:
@@ -104,13 +104,13 @@ class TREWSAPI(object):
                 logging.error('Invalid notification update action data' + json.dumps(actionData))
 
         elif actionType == u'place_order':
-            query.override_criteria(eid, actionData['actionName'], value='[{ "text": "Ordered" }]')
+            query.override_criteria(eid, actionData['actionName'], value='[{ "text": "Ordered" }]', user=uid)
 
         elif actionType == u'complete_order':
-            query.override_criteria(eid, actionData['actionName'], value='[{ "text": "Completed" }]')
+            query.override_criteria(eid, actionData['actionName'], value='[{ "text": "Completed" }]', user=uid)
 
         elif actionType == u'order_not_indicated':
-            query.override_criteria(eid, actionData['actionName'], value='[{ "text": "Not Indicated" }]')
+            query.override_criteria(eid, actionData['actionName'], value='[{ "text": "Not Indicated" }]', user=uid)
 
         elif actionType == u'reset_patient':
             event_id = actionData['value'] if actionData is not None and 'value' in actionData else None
@@ -443,6 +443,7 @@ class TREWSAPI(object):
                 'JSON was incorrect. request body = %s' % raw_json)
 
         eid = req_body['q']
+        uid = req_body['u']
         resp.status = falcon.HTTP_202
         data = copy.deepcopy(data_example.patient_data_example)
 
@@ -457,7 +458,7 @@ class TREWSAPI(object):
 
                 response_body = {}
                 if actionType is not None:
-                    response_body = self.take_action(actionType, actionData, eid)
+                    response_body = self.take_action(actionType, actionData, eid, uid)
 
                 if actionType != u'pollNotifications':
                     self.update_response_json(data, eid)
