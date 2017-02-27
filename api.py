@@ -161,10 +161,11 @@ class TREWSAPI(object):
         shock_onsets_hypotension = []
         shock_onsets_hypoperfusion = []
         hpf_cnt = 0
-
+        data['event_id'] = None
         # Update the event id.
-        event_id = str(criteria['event_id'].values[0])
-        data['event_id'] = None if event_id == "nan" else event_id
+        if criteria['event_id'] is not None and len(criteria['event_id'].values) > 0:
+            event_id = str(criteria['event_id'].values[0])
+            data['event_id'] = None if event_id == "nan" else event_id
 
         # TODO: set up the onset time
         criteria['override_epoch'] = pd.DatetimeIndex(criteria.override_time).astype(np.int64) // 10**9
