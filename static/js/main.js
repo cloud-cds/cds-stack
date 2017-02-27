@@ -1189,15 +1189,15 @@ var notifications = new function() {
 		});
 	}
 	this.getAlertMsg = function(data) {
-		var alertMsg = ALERT_CODES[data[i]['alert_code']];
+		var alertMsg = ALERT_CODES[data['alert_code']];
 
-		if ( data[i]['alert_code'] == '301' || data[i]['alert_code'] == '304' ) {
+		if ( data['alert_code'] == '301' || data['alert_code'] == '304' ) {
 			alertMsg = String(trews.getIncompleteSevereSepsis3hr()) + ' ' + alertMsg;
 		}
-		else if ( data[i]['alert_code'] == '302' || data[i]['alert_code'] == '305' ) {
+		else if ( data['alert_code'] == '302' || data['alert_code'] == '305' ) {
 			alertMsg = String(trews.getIncompleteSevereSepsis6hr()) + ' ' + alertMsg;
 		}
-		else if ( data[i]['alert_code'] == '303' || data[i]['alert_code'] == '306' ) {
+		else if ( data['alert_code'] == '303' || data['alert_code'] == '306' ) {
 			alertMsg = String(trews.getIncompleteSepticShock()) + ' ' + alertMsg;
 		}
 		return alertMsg;
@@ -1225,7 +1225,7 @@ var notifications = new function() {
 
 			// Display the notification.
 			var notif = $('<div class="notification"></div>');
-			notif.append('<h3>' + this.getAlertMsg(data) + '</h3>')
+			notif.append('<h3>' + this.getAlertMsg(data[i]) + '</h3>')
 			var subtext = $('<div class="subtext cf"></div>');
 			subtext.append('<p>' + timeLapsed(new Date(data[i]['timestamp']*1000)) + '</p>');
 			var readLink = $("<a data-trews='" + data[i]['id'] + "'></a>");
