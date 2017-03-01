@@ -607,14 +607,14 @@ var workflowsComponent = new function() {
 		this.sev6Ctn.find('.card-subtitle').html(this.workflowStatus('sev6', severeOnset, sev6LastOrder, sev6Complete));
 		this.sep6Ctn.find('.card-subtitle').html(this.workflowStatus('sep6', shockOnset, shk6LastOrder, shk6Complete));
 
-		var iTask = new taskComponent(iJSON, $("[data-trews='init_lactate']"), workflows['init_lactate']);
-		var bTask = new taskComponent(bJSON, $("[data-trews='blood_culture']"), workflows['blood_culture']);
-		var aTask = new taskComponent(aJSON, $("[data-trews='antibiotics']"), workflows['antibiotics']);
-		var fTask = new taskComponent(fJSON, $("[data-trews='fluid']"), workflows['fluid']);
+		var iTask = new taskComponent(iJSON, $("[data-trews='init_lactate']"), workflows['init_lactate'], null);
+		var bTask = new taskComponent(bJSON, $("[data-trews='blood_culture']"), workflows['blood_culture'], null);
+		var aTask = new taskComponent(aJSON, $("[data-trews='antibiotics']"), workflows['antibiotics'], doseLimits['antibiotics']);
+		var fTask = new taskComponent(fJSON, $("[data-trews='fluid']"), workflows['fluid'], doseLimits['fluid']);
 
-		var rTask = new taskComponent(rJSON, $("[data-trews='re_lactate']"), workflows['repeat_lactate']);
+		var rTask = new taskComponent(rJSON, $("[data-trews='re_lactate']"), workflows['repeat_lactate'], null);
 
-		var vTask = new taskComponent(vJSON, $("[data-trews='vasopressors']"), workflows['vasopressors']);
+		var vTask = new taskComponent(vJSON, $("[data-trews='vasopressors']"), workflows['vasopressors'], doseLimits['vasopressors']);
 
 		this.makeButtons();
 	}
@@ -937,21 +937,20 @@ var criteriaComponent = function(c, constants, key, hidden) {
  * @param HTML element of task wrapper
  * @return {String} html for a specific task
  */
-var taskComponent = function(json, elem, constants) {
+var taskComponent = function(json, elem, constants, doseLimit) {
 	elem.find('h3').text(constants['display_name']);
 	elem.removeClass('in-progress');
 	elem.removeClass('complete');
-	if ( json['status'] == 'Ordered' ) {
+	if ( constants['as_dose'] ) {
+		if ( Number(json['status']) > doseLimit ) {
+			elem.addClass('complete');
+		}
+	}
+	else if ( json['status'] == 'Ordered' ) {
 		elem.addClass('in-progress');
 	}
 	else if ( json['status'] == 'Completed' ) {
 		elem.addClass('complete');
-	}
-	else if ( constants['as_dose'] ) {
-		// TODO: use actual dose threshold.
-		if ( Number(json['status']) > 0 ) {
-			elem.addClass('complete');
-		}
 	}
 }
 
@@ -1204,13 +1203,16 @@ var notifications = new function() {
 		var alertMsg = ALERT_CODES[data['alert_code']];
 
 		if ( data['alert_code'] == '301' || data['alert_code'] == '304' ) {
-			alertMsg = String(trews.getIncompleteSevereSepsis3hr()) + ' ' + alertMsg;
+			var n = trews.getIncompleteSevereSepsis3hr();
+			if ( n > 0 ) { alertMsg = String(n) + ' ' + alertMsg; } else { return null; }
 		}
 		else if ( data['alert_code'] == '302' || data['alert_code'] == '305' ) {
-			alertMsg = String(trews.getIncompleteSevereSepsis6hr()) + ' ' + alertMsg;
+			var n = trews.getIncompleteSevereSepsis6hr();
+			if ( n > 0 ) { alertMsg = String(n) + ' ' + alertMsg; } else { return null; }
 		}
 		else if ( data['alert_code'] == '303' || data['alert_code'] == '306' ) {
-			alertMsg = String(trews.getIncompleteSepticShock()) + ' ' + alertMsg;
+			var n = trews.getIncompleteSepticShock();
+			if ( n > 0 ) { alertMsg = String(n) + ' ' + alertMsg; } else { return null; }
 		}
 		return alertMsg;
 	}
@@ -1235,9 +1237,13 @@ var notifications = new function() {
 			var notifTs = new Date(data[i]['timestamp'] * 1000);
 			if (notifTs > renderTs) { continue; }
 
+			// Skip messages if there is no content (used to short-circuit empty interventions).
+			var notifMsg = this.getAlertMsg(data[i]);
+			if ( notifMsg == undefined ) { continue; }
+
 			// Display the notification.
 			var notif = $('<div class="notification"></div>');
-			notif.append('<h3>' + this.getAlertMsg(data[i]) + '</h3>')
+			notif.append('<h3>' + notifMsg + '</h3>')
 			var subtext = $('<div class="subtext cf"></div>');
 			subtext.append('<p>' + timeLapsed(new Date(data[i]['timestamp']*1000)) + '</p>');
 			var readLink = $("<a data-trews='" + data[i]['id'] + "'></a>");
