@@ -89,10 +89,6 @@ def get_criteria(eid):
     df = pd.read_sql_query(get_criteria_sql,con=engine)
     return df
 
-def update_notifications():
-    engine = create_engine(DB_CONN_STR)
-    engine.execute("select update_notifications()")
-
 
 def get_notifications(eid):
     engine = create_engine(DB_CONN_STR)
@@ -140,12 +136,7 @@ def override_criteria(eid, name, value='[{}]', user='user', clear=False):
         override_value = %(val)s,
         override_user = %(user)s
     where pat_id = '%(pid)s' and name = '%(fid)s';
-    update criteria_events set flag = -1
-    where pat_id = '%(pid)s'
-    and event_id = (select max(ce.event_id) from criteria_events ce where ce.flag > 0);
-    select update_pat_criteria('%(pid)s', '%(fid)s');
-    delete from notifications where pat_id = '%(pid)s';
-    select update_notifications('%(pid)s');
+    select override_criteria_snapshot('%(pid)s');
     """ % params
     logging.debug("override_criteria sql:" + override_sql)
     conn = engine.connect()
@@ -160,7 +151,7 @@ def reset_patient(eid, event_id=None):
     update criteria_events set flag = -1
     where pat_id = '%(pid)s' %(where_clause)s;
     delete from notifications where pat_id = '%(pid)s';
-    select update_notifications('%(pid)s');
+    select override_criteria_snapshot('%(pid)s');
     """ % {'pid': eid, 'where_clause': event_where_clause}
     logging.debug("reset_patient:" + reset_sql)
     conn = engine.connect()
