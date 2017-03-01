@@ -433,7 +433,8 @@ body.waiting {
 }
 /* End Dropdown */
 /* Override Modal also called om */
-#override-modal {
+#override-modal,
+.modal {
     position: absolute;
     z-index: 1;
     top: 0;
@@ -443,10 +444,12 @@ body.waiting {
     background-color: rgba(0,0,0,.9);
     display: none;
 }
-#override-modal:before {
+#override-modal:before,
+.modal:before {
     display: none;
 }
-#override-modal.no-opacity:before {
+#override-modal.no-opacity:before,
+.modal.no-opacity:before {
     z-index: -1;
     position: absolute;
     content: "";
@@ -460,7 +463,8 @@ body.waiting {
     -khtml-opacity: 0.5;
     opacity: 0.5;
 }
-#om-content {
+#om-content,
+.modal-content {
     width: 100%;
     max-width: 600px;
     max-height: 100%;
@@ -469,11 +473,13 @@ body.waiting {
     padding: 20px 40px;
     margin: 0 auto;
 }
-#override-modal h3 {
+#override-modal h3,
+.modal h3 {
     font-size: 20px;
     color: #555;
 }
-#override-modal p {
+#override-modal p,
+.modal p {
     font-size: 12px;
 }
 .slider-numbers {
@@ -490,10 +496,12 @@ body.waiting {
     color: #888;
     cursor: pointer;
 }
-#om-actions {
+#om-actions,
+.modal-actions {
     text-align: right;
 }
-#om-actions a {
+#om-actions a,
+.modal-actions a {
     margin-top: 30px;
     display: inline-block;
     padding: 10px 20px;
@@ -501,15 +509,35 @@ body.waiting {
     font-size: 14px;
     transition: background-color .3s, color .3s;
 }
-#om-actions a:hover {
+#om-actions a:hover,
+.modal-actions a:hover {
     background-color: #eee;
 }
-.override-save {
+.override-save,
+#feedback-submit {
     color: #10b66d;
 }
-.override-cancel {
+.override-cancel,
+#feedback-cancel {
     float: left;
     color: #ba1313;
+}
+#feedback textarea {
+    width: 100%;
+    max-width: 100%;
+    height: 100px;
+    max-height: 300px;
+    font-size: 14px;
+}
+.modal b {
+    margin-top: 5px;
+    display: block;
+}
+.modal b.error {
+    color: #ba1313;
+}
+.moda; b.success {
+    color: #10b66d;
 }
 /* End Override Modal also called om */
 /* Notifications */
