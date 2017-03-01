@@ -186,10 +186,10 @@ class TREWSAPI(object):
                 value = criterion['value']
                 if ('override_value' in criterion) and (criterion['override_value'] is not None) and ('text' in criterion['override_value']):
                     value = criterion['override_value']['text']
-                #  TODO: use override time
+                
                 data['severe_sepsis']['suspicion_of_infection'] = {
                     "name": "suspicion_of_infection",
-                    "value": value,
+                    "value": criterion['override_value'][0]['text'] if criterion['override_value'] else None,
                     "update_time": criterion['override_time'],
                     "update_user": criterion['override_user']
                 }
