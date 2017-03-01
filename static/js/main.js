@@ -586,16 +586,23 @@ var workflowsComponent = new function() {
 		}
 
 		var sev3LastOrder = Math.max(iJSON['time'], bJSON['time'], aJSON['time'], fJSON['time']);
+
+		var doseLimits = {
+			'antibiotics': 0,
+			'fluid': 0,
+			'vasopressors': 0
+		};
+
 		var sev3Complete = iJSON['status'] == 'Completed' &&
 											 bJSON['status'] == 'Completed' &&
-											 aJSON['status'] == 'Completed' &&
-											 fJSON['status'] == 'Completed';
+											 Number(aJSON['status'] ? aJSON['status'] : 0) > doseLimits['antibiotics'] &&
+											 Number(fJSON['status'] ? fJSON['status'] : 0) > doseLimits['fluid'];
 
 		var sev6LastOrder = Math.max(sev3LastOrder, rJSON['time'])
 		var sev6Complete = sev3Complete && rJSON['status'] == 'Completed';
 
 		var shk6LastOrder = Math.max(sev6LastOrder, vJSON['time'])
-		var shk6Complete = sev6Complete && vJSON['status'] == 'Completed';
+		var shk6Complete = sev6Complete && Number(vJSON['status'] ? vJSON['status'] : 0) > 0;
 
 		this.sev3Ctn.find('.card-subtitle').html(this.workflowStatus('sev3', severeOnset, sev3LastOrder, sev3Complete));
 		this.sev6Ctn.find('.card-subtitle').html(this.workflowStatus('sev6', severeOnset, sev6LastOrder, sev6Complete));
