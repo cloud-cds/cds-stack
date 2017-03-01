@@ -395,22 +395,28 @@ workflows = {
 		"not_yet": "No septic shock, no action required."
 	},
 	"init_lactate": {
-		"display_name": "Initial Lactate"
+		"display_name": "Initial Lactate",
+		"as_dose": false
 	},
 	"blood_culture": {
-		"display_name": "Blood Culture"
+		"display_name": "Blood Culture",
+		"as_dose": false
 	},
 	"antibiotics": {
-		"display_name": "Antibiotics"
+		"display_name": "Antibiotics",
+		"as_dose": true
 	},
 	"fluid": {
-		"display_name": "Fluid"
+		"display_name": "Fluid",
+		"as_dose": true
 	},
 	"repeat_lactate": {
-		"display_name": "Repeat Lactate"
-	},
+		"display_name": "Repeat Lactate",
+		"as_dose": false
+		},
 	"vasopressors": {
-		"display_name": "Vasopressors"
+		"display_name": "Vasopressors",
+		"as_dose": true
 	}
 }
 
