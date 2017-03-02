@@ -186,7 +186,7 @@ class TREWSAPI(object):
                 value = criterion['value']
                 if ('override_value' in criterion) and (criterion['override_value'] is not None) and ('text' in criterion['override_value']):
                     value = criterion['override_value']['text']
-                
+
                 data['severe_sepsis']['suspicion_of_infection'] = {
                     "name": "suspicion_of_infection",
                     "value": criterion['override_value'][0]['text'] if criterion['override_value'] else None,
@@ -444,7 +444,7 @@ class TREWSAPI(object):
                 'JSON was incorrect. request body = %s' % raw_json)
 
         eid = req_body['q']
-        uid = req_body['u'] if 'u' in req_body else 'user'
+        uid = req_body['u'] if 'u' in req_body and req_body['u'] is not None else 'user'
         resp.status = falcon.HTTP_202
         data = copy.deepcopy(data_example.patient_data_example)
 
