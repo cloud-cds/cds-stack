@@ -300,6 +300,18 @@ var controller = new function() {
 			controller.displayJSError();
 		});
 	}
+	this.sendFeedback = function(json) {
+		$.ajax({
+			type: "POST",
+			url: "feedback",
+			data: JSON.stringify(json),
+			dataType: "json"
+		}).done(function(result) {
+			toolbar.feedbackSuccess();
+		}).fail(function(result) {
+			toolbar.feedbackError();
+		});
+	}
 }
 
 
@@ -1295,12 +1307,43 @@ var notifications = new function() {
 
 var toolbar = new function() {
 	this.resetNav = $('#header-reset-patient');
+	this.feedback = $('#feedback');
+
 	this.init = function() {
 		this.resetNav.unbind();
 		this.resetNav.click(function(e) {
 			var action = trews.data['event_id'] == undefined ? null : { "value": trews.data['event_id'] };
 			endpoints.getPatientData("reset_patient", action);
 		});
+		$('#header-feedback').click(function() { // Show feedback form
+			toolbar.feedback.show();
+		})
+		$('#feedback').click(function() { //hide feedback form
+			toolbar.feedback.hide();
+		})
+		$('#feedback-cancel').click(function () { //hide feedback form and clear
+			toolbar.feedback.find('b').remove()
+			toolbar.feedback.find('textarea').val('')
+			toolbar.feedback.hide();
+		})
+		$('#feedback .modal-content').click(function(e) { // prevent feedback form from closing when click inside feedback form
+			e.stopPropagation();
+		})
+		$('#feedback-submit').click(function() { // submit feedback form
+			postBody = {
+				'q': (getQueryVariable('PATID') === false) ? null : getQueryVariable('PATID'),
+				'u': (getQueryVariable('EPICUSERID') === false) ? null : cleanUserId(getQueryVariable('EPICUSERID')),
+				'depid': (getQueryVariable('ENCDEPID') === false) ? null : getQueryVariable('ENCDEPID'),
+				'feedback': toolbar.feedback.find('textarea').val()
+			}
+			controller.sendFeedback(postBody);
+		})
+	}
+	this.feedbackSuccess = function() {
+		this.feedback.find('p').append('<b class="success">Feedback Submitted!</b>')
+	}
+	this.feedbackError = function() {
+		this.feedback.find('p').append('<b class="error">There was an error, please try again or email trews-jhu@opsdx.io</b>')
 	}
 	this.render = function(json) {
 		if (json['is_met']) {

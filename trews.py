@@ -11,11 +11,13 @@ STATIC_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(STATIC_DIR, 'static')
 import logging
 import json
+import boto3
 
 URL = '/'
 URL_STATIC = URL
 URL_API = URL + "api"
 URL_LOG = URL + "log"
+URL_FEEDBACK = URL + "feedback"
 INDEX_FILENAME = 'index.html'
 
 # default keys for JHH
@@ -24,7 +26,7 @@ KEYS = {
     'blood_culture': '4',
     'antibiotics': '5',
     'fluid': '1',
-    "vasopressors": '7' 
+    "vasopressors": '7'
 }
 
 
@@ -38,7 +40,7 @@ class TREWSStaticResource(object):
             resp.content_type = 'application/json'
         elif req.path.endswith('js'):
             resp.content_type = 'application/javascript'
-        else:    
+        else:
             resp.content_type = 'text/html'
 
         abspath = req.path
@@ -82,7 +84,7 @@ class TREWSStaticResource(object):
             logging.info("falcon logging example: user request on index.html")
         else:
             with open(filename, 'r') as f:
-                resp.body = f.read() 
+                resp.body = f.read()
 
 class TREWSLog(object):
     def on_post(self, req, resp):
@@ -95,18 +97,54 @@ class TREWSLog(object):
                 'Error',
                 ex.message)
 
+class TREWSFeedback(object):
+    def on_post(self, req, resp):
+        try:
+            payload = json.loads(req.stream.read().decode('utf-8'))
+            subject = 'Feedback'
+            html_text = [
+                ("Physician", str(payload['u'])),
+                ("Current patient in view", str(payload['q'])),
+                ("Department", str(payload['dep_id'])),
+                ("Feedback", str(payload['feedback'])),
+            ]
+            body = "".join(["<h4>{}</h4><p>{}</p>".format(x, y) for x,y in html_text])
+            client = boto3.client('ses',
+                region_name             = os.environ['aws_region'],
+                aws_access_key_id       = os.environ['aws_access_key_id'],
+                aws_secret_access_key   = os.environ['aws_secret_access_key'],
+            )
+            client.send_email(
+                Source      = 'mpeven@gmail.com',
+                Destination = {
+                    'ToAddresses': [ 'trews-jhu@opsdx.io', 'mpeven@gmail.com', ],
+                },
+                Message     = {
+                    'Subject': { 'Data': subject, },
+                    'Body': {
+                        'Html': { 'Data': body, },
+                    },
+                }
+            )
+        except Exception as ex:
+            # logger.info(json.dumps(ex, default=lambda o: o.__dict__))
+            raise falcon.HTTPError(falcon.HTTP_400,
+                'Error',
+                ex.message)
+
+
 app = falcon.API()
-
-
 
 # Resources are represented by long-lived class instances
 
 trews_www = TREWSStaticResource()
 trews_api = api.TREWSAPI()
 trews_log = TREWSLog()
+trews_feedback = TREWSFeedback()
 handler = TREWSStaticResource().on_get
 app.add_route(URL_API, trews_api)
 app.add_route(URL_LOG, trews_log)
+app.add_route(URL_FEEDBACK, trews_feedback)
 app.add_sink(handler, prefix=URL_STATIC)
 # app.add_route('/trews-api/', trews_www)
 
