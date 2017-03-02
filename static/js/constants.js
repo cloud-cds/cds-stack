@@ -6,7 +6,8 @@ var INFECTIONS = [
 "Cellulitis",
 "UTI",
 "Pneumonia",
-"No Infection"
+"No Infection",
+"reset"
 ]
 
 var ALERT_CODES = {
