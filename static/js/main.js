@@ -367,7 +367,7 @@ var slotComponent = function(elem, link, constants) {
 			}
 		}
 		this.elem.find('.num-text').text(json['num_met'] + " criteria met. ");
-		this.elem.find('.edit-btn').addClass('hidden'); // Yanif: Temporarily disabling overrides.
+		// this.elem.find('.edit-btn').addClass('hidden'); // Yanif: (REENABLED; Temporarily disabling overrides).
 		/*
 		if (json['num_met'] == 0) {
 			this.elem.find('.edit-btn').addClass('hidden');
@@ -556,7 +556,7 @@ var workflowsComponent = new function() {
 		this.orderBtns.click(function() {
 			endpoints.getPatientData('place_order', {'actionName': $(this).attr('data-trews')});
 		});
-		this.notInBtns.hide(); // Yanif: Temporarily disabling orders 'Not Indicated' buttons
+		// this.notInBtns.hide(); // Yanif: (RE-ENABLED; Temporarily disabling orders 'Not Indicated' buttons)
 		this.notInBtns.unbind();
 		this.notInBtns.click(function() {
 			endpoints.getPatientData('order_not_indicated', {'actionName': $(this).attr('data-trews')});
@@ -881,8 +881,10 @@ var criteriaComponent = function(c, constants, key, hidden) {
 	this.status = "";
 
 	var displayValue = c['value'];
+	var precision = constants['precision'] == undefined ? 5 : constants['precision'];
+
 	if ( displayValue && ( isNumber(displayValue) || !isNaN(Number(displayValue)) ) ) {
-		displayValue = Number(displayValue).toPrecision(5);
+		displayValue = Number(displayValue).toPrecision(precision);
 	}
 
 	var hiddenClass = "";
