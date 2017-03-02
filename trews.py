@@ -26,7 +26,7 @@ KEYS = {
     'blood_culture': '4',
     'antibiotics': '5',
     'fluid': '1',
-    "vasopressors": '7' 
+    "vasopressors": '7'
 }
 
 
@@ -40,7 +40,7 @@ class TREWSStaticResource(object):
             resp.content_type = 'application/json'
         elif req.path.endswith('js'):
             resp.content_type = 'application/javascript'
-        else:    
+        else:
             resp.content_type = 'text/html'
 
         abspath = req.path
@@ -84,7 +84,7 @@ class TREWSStaticResource(object):
             logging.info("falcon logging example: user request on index.html")
         else:
             with open(filename, 'r') as f:
-                resp.body = f.read() 
+                resp.body = f.read()
 
 class TREWSLog(object):
     def on_post(self, req, resp):
@@ -102,23 +102,26 @@ class TREWSFeedback(object):
         try:
             payload = json.loads(req.stream.read().decode('utf-8'))
             subject = 'Feedback'
-            body = 'Physician: ' + str(payload['u']) + '\n' +\
-                   'Current patient view: ' + str(payload['q']) + '\n' +\
-                   'Department: ' + str(payload['dep_id']) + '\n' +\
-                   'Feedback: ' + str(payload['feedback']) + '\n' +\
+            html_text = [
+                ("Physician", str(payload['u'])),
+                ("Current patient in view", str(payload['q'])),
+                ("Department", str(payload['dep_id'])),
+                ("Feedback", str(payload['feedback'])),
+            ]
+            body = "".join(["<h4>{}</h4><p>{}</p>".format(x, y) for x,y in html_text])
             client = boto3.client('ses',
+                region_name             = os.environ['aws_region'],
                 aws_access_key_id       = os.environ['aws_access_key_id'],
                 aws_secret_access_key   = os.environ['aws_secret_access_key'],
             )
             client.send_email(
-                Source      = 'trews-jhu@opsdx.io',
+                Source      = 'mpeven@gmail.com',
                 Destination = {
-                    'ToAddresses': [ 'mpeven@gmail.com', ],
+                    'ToAddresses': [ 'trews-jhu@opsdx.io', 'mpeven@gmail.com', ],
                 },
                 Message     = {
                     'Subject': { 'Data': subject, },
-                    'Body': { 
-                        'Text': { 'Data': body, },
+                    'Body': {
                         'Html': { 'Data': body, },
                     },
                 }
