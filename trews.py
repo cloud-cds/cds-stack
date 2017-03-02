@@ -100,13 +100,23 @@ class TREWSLog(object):
 class TREWSFeedback(object):
     def on_post(self, req, resp):
         try:
-            payload = json.loads(req.stream.read().decode('utf-8'))
-            subject = 'Feedback - {}'.format(str(payload['u']))
+            raw_json = req.stream.read()
+        except Exception as ex:
+            raise falcon.HTTPError(falcon.HTTP_400, 'Error', ex.message)
+
+        try:
+            result_json = json.loads(raw_json, encoding='utf-8')
+        except ValueError:
+            raise falcon.HTTPError(falcon.HTTP_400, 'Malformed JSON',
+                'Could not decode the request body. The JSON was incorrect.')
+
+        try:
+            subject = 'Feedback - {}'.format(str(result_json['u']))
             html_text = [
-                ("Physician", str(payload['u'])),
-                ("Current patient in view", str(payload['q'])),
-                ("Department", str(payload['depid'])),
-                ("Feedback", str(payload['feedback'])),
+                ("Physician", str(result_json['u'])),
+                ("Current patient in view", str(result_json['q'])),
+                ("Department", str(result_json['depid'])),
+                ("Feedback", str(result_json['feedback'])),
             ]
             body = "".join(["<h4>{}</h4><p>{}</p>".format(x, y) for x,y in html_text])
             client = boto3.client('ses',
@@ -126,11 +136,10 @@ class TREWSFeedback(object):
                     },
                 }
             )
+            resp.status = falcon.HTTP_200
+            resp.body = json.dumps(result_json, encoding='utf-8')
         except Exception as ex:
-            # logger.info(json.dumps(ex, default=lambda o: o.__dict__))
-            raise falcon.HTTPError(falcon.HTTP_400,
-                'Error',
-                ex.message)
+            raise falcon.HTTPError(falcon.HTTP_400, 'Error sending email', ex.message)
 
 
 app = falcon.API()
