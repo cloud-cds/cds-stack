@@ -426,14 +426,14 @@ var severeSepsisComponent = new function() {
 
 	this.suspicion = function(json) {
 		this.susCtn.find('h3').text(json['display_name']);
+		this.susCtn.removeClass('complete');
 		if (this.sus['value'] == null) {
 			this.susCtn.find('.status').hide();
 		} else {
-			this.susCtn.find('.status').show();
-			this.susCtn.addClass('complete');
-			if (this.sus['value'] == 'No Infection') {
-				this.susCtn.removeClass('complete');
+			if (this.sus['value'] != 'No Infection') {
+				this.susCtn.addClass('complete');
 			}
+			this.susCtn.find('.status').show();
 			this.susCtn.find('.selection').hide();
 			this.susCtn.find('.status h4').text(this.sus.value);
 
