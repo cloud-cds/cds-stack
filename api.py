@@ -95,7 +95,7 @@ class TREWSAPI(object):
                 query.override_criteria(eid, actionData['actionName'], value=actionData['value'], user=uid)
 
         elif actionType == u'suspicion_of_infection':
-            if actionData['vale'] == 'reset':
+            if actionData['value'] == 'reset':
                 query.override_criteria(eid, actionData['actionName'], clear=True, user=uid)
             else:
                 value = '[{ "text": "%(val)s" }]' % {'val': actionData['value']}
