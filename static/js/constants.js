@@ -413,11 +413,17 @@ workflows = {
 	"repeat_lactate": {
 		"display_name": "Repeat Lactate",
 		"as_dose": false
-		},
+	},
 	"vasopressors": {
 		"display_name": "Vasopressors",
 		"as_dose": true
 	}
+}
+
+var doseLimits = {
+	'antibiotics': 0,
+	'fluid': 0,
+	'vasopressors': 0
 }
 
 var STATIC = {
