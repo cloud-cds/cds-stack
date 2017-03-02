@@ -371,8 +371,8 @@ var septic_shock = {
 				"step": 0.01,
 				"range": "min",
 				"minAbsolute": 0,
-				"maxAbsolute": 4,
-				"value": 2
+				"maxAbsolute": 8,
+				"value": 4
 			}]
 		}]
 	}
