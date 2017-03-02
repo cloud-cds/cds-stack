@@ -444,7 +444,7 @@ class TREWSAPI(object):
                 'JSON was incorrect. request body = %s' % raw_json)
 
         eid = req_body['q']
-        uid = req_body['u']
+        uid = req_body['u'] if 'u' in req_body else 'user'
         resp.status = falcon.HTTP_202
         data = copy.deepcopy(data_example.patient_data_example)
 
