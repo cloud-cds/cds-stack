@@ -498,7 +498,7 @@ var septicShockComponent = new function() {
 
 		var fnoteBtnText = null;
 		if ( json['crystalloid_fluid']['is_met'] ) {
-			if ( json['crystalloid_fluid']['override_user'] ) { fnoteBtnText = "Reset"; }
+			fnoteBtnText = "Reset";
 		} else {
 			fnoteBtnText = "Not Indicated";
 		}
@@ -556,6 +556,7 @@ var workflowsComponent = new function() {
 		this.orderBtns.click(function() {
 			endpoints.getPatientData('place_order', {'actionName': $(this).attr('data-trews')});
 		});
+		this.notInBtns.hide(); // Yanif: Temporarily disabling orders 'Not Indicated' buttons
 		this.notInBtns.unbind();
 		this.notInBtns.click(function() {
 			endpoints.getPatientData('order_not_indicated', {'actionName': $(this).attr('data-trews')});
