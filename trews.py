@@ -11,11 +11,13 @@ STATIC_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(STATIC_DIR, 'static')
 import logging
 import json
+import boto3
 
 URL = '/'
 URL_STATIC = URL
 URL_API = URL + "api"
 URL_LOG = URL + "log"
+URL_FEEDBACK = URL + "feedback"
 INDEX_FILENAME = 'index.html'
 
 # default keys for JHH
@@ -95,18 +97,51 @@ class TREWSLog(object):
                 'Error',
                 ex.message)
 
+class TREWSFeedback(object):
+    def on_post(self, req, resp):
+        try:
+            payload = json.loads(req.stream.read().decode('utf-8'))
+            subject = 'Feedback'
+            body = 'Physician: ' + str(payload['u']) + '\n' +\
+                   'Current patient view: ' + str(payload['q']) + '\n' +\
+                   'Department: ' + str(payload['dep_id']) + '\n' +\
+                   'Feedback: ' + str(payload['feedback']) + '\n' +\
+            client = boto3.client('ses',
+                aws_access_key_id       = os.environ['aws_access_key_id'],
+                aws_secret_access_key   = os.environ['aws_secret_access_key'],
+            )
+            client.send_email(
+                Source      = 'trews-jhu@opsdx.io',
+                Destination = {
+                    'ToAddresses': [ 'mpeven@gmail.com', ],
+                },
+                Message     = {
+                    'Subject': { 'Data': subject, },
+                    'Body': { 
+                        'Text': { 'Data': body, },
+                        'Html': { 'Data': body, },
+                    },
+                }
+            )
+        except Exception as ex:
+            # logger.info(json.dumps(ex, default=lambda o: o.__dict__))
+            raise falcon.HTTPError(falcon.HTTP_400,
+                'Error',
+                ex.message)
+
+
 app = falcon.API()
-
-
 
 # Resources are represented by long-lived class instances
 
 trews_www = TREWSStaticResource()
 trews_api = api.TREWSAPI()
 trews_log = TREWSLog()
+trews_feedback = TREWSFeedback()
 handler = TREWSStaticResource().on_get
 app.add_route(URL_API, trews_api)
 app.add_route(URL_LOG, trews_log)
+app.add_route(URL_FEEDBACK, trews_feedback)
 app.add_sink(handler, prefix=URL_STATIC)
 # app.add_route('/trews-api/', trews_www)
 
