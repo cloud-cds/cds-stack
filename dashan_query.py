@@ -168,7 +168,7 @@ def push_notifications_to_epic(eid, engine):
 
         client_id = os.environ['jhapi_client_id'],
         client_secret = os.environ['jhapi_client_secret']
-        loader = load.Loader('stage', client_id, client_secret)
+        loader = load.Loader('prod', client_id, client_secret)
         loader.load_notifications(patients)
 
 def eid_exist(eid):
