@@ -105,7 +105,7 @@ class TREWSFeedback(object):
             html_text = [
                 ("Physician", str(payload['u'])),
                 ("Current patient in view", str(payload['q'])),
-                ("Department", str(payload['dep_id'])),
+                ("Department", str(payload['depid'])),
                 ("Feedback", str(payload['feedback'])),
             ]
             body = "".join(["<h4>{}</h4><p>{}</p>".format(x, y) for x,y in html_text])
