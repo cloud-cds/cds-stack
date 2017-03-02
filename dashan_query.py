@@ -155,7 +155,7 @@ def reset_patient(eid, event_id=None):
     """ % {'pid': eid, 'where_clause': event_where_clause}
     logging.debug("reset_patient:" + reset_sql)
     conn = engine.connect()
-    conn.execute(reset_to_realtime_criteria)
+    conn.execute(reset_sql)
     conn.close()
 
 def push_notifications_to_epic(eid, engine):
