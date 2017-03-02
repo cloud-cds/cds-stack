@@ -99,7 +99,7 @@ var trews = new function() {
 		var orderWorkflowKeys = {
 			'antibiotics_order'       : 'antibiotics',
 			'blood_culture_order'     : 'blood_culture',
-			'initial_lactate_order'   : 'initial_lactate',
+			'initial_lactate_order'   : 'init_lactate',
 			'crystalloid_fluid_order' : 'fluid',
 			'repeat_lactate_order'    : 'repeat_lactate',
 			'vasopressors_order'      : 'vasopressors'
