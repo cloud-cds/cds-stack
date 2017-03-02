@@ -101,7 +101,7 @@ class TREWSFeedback(object):
     def on_post(self, req, resp):
         try:
             payload = json.loads(req.stream.read().decode('utf-8'))
-            subject = 'Feedback'
+            subject = 'Feedback - {}'.format(str(payload['u']))
             html_text = [
                 ("Physician", str(payload['u'])),
                 ("Current patient in view", str(payload['q'])),
@@ -115,7 +115,7 @@ class TREWSFeedback(object):
                 aws_secret_access_key   = os.environ['aws_secret_access_key'],
             )
             client.send_email(
-                Source      = 'mpeven@gmail.com',
+                Source      = 'trews-jhu@opsdx.io',
                 Destination = {
                     'ToAddresses': [ 'trews-jhu@opsdx.io', 'mpeven@gmail.com', ],
                 },
