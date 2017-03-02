@@ -367,6 +367,7 @@ var slotComponent = function(elem, link, constants) {
 			}
 		}
 		this.elem.find('.num-text').text(json['num_met'] + " criteria met. ");
+		this.elem.find('.edit-btn').addClass('hidden'); // Yanif: Temporarily disabling overrides.
 		/*
 		if (json['num_met'] == 0) {
 			this.elem.find('.edit-btn').addClass('hidden');
