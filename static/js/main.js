@@ -925,7 +925,8 @@ var criteriaComponent = function(c, constants, key, hidden) {
 		var crit = null;
 		if (c['override_user'] != null) {
 			if (trews.getSpecificCriteria(key, constants.key).override_value[i] != undefined) {
-				if (Object.keys(trews.getSpecificCriteria(key, constants.key).override_value[i]).length == 1) {
+				if (trews.getSpecificCriteria(key, constants.key).override_value[i].range == 'min' ||
+					trews.getSpecificCriteria(key, constants.key).override_value[i].range == 'max') {
 					crit = trews.getSpecificCriteria(key, constants.key).override_value[i].lower ? trews.getSpecificCriteria(key, constants.key).override_value[i].lower : trews.getSpecificCriteria(key, constants.key).override_value[i].upper;
 				} else {
 					crit = [trews.getSpecificCriteria(key, constants.key).override_value[i].lower, trews.getSpecificCriteria(key, constants.key).override_value[i].upper]
