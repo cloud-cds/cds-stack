@@ -881,8 +881,8 @@ var criteriaComponent = function(c, constants, key, hidden) {
 	this.status = "";
 
 	var displayValue = c['value'];
-	if ( displayValue && isNumber(displayValue) ) {
-		displayValue = displayValue.toPrecision(5);
+	if ( displayValue && ( isNumber(displayValue) || !isNaN(Number(displayValue)) ) ) {
+		displayValue = Number(displayValue).toPrecision(5);
 	}
 
 	var hiddenClass = "";
