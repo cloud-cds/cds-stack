@@ -19,7 +19,7 @@ WHERE res.RESULT_STATUS_C IN (
 		,4,5
 		)
 	AND res.lab_status_c >= 3
-and 
+and
 
 comp.BASE_NAME in
 (
