@@ -86,7 +86,7 @@ class TREWSAPI(object):
             return {'notifications': notifications}
 
         elif actionType == u'override':
-            action_is_clear = 'clear' in actionData
+            action_is_clear = 'clear' in actionData and actionData['clear']
             logging.debug('override_criteria action %(clear)s: %(v)s' % {'v': json.dumps(actionData), 'clear': action_is_clear})
             if action_is_clear:
                 query.override_criteria(eid, actionData['actionName'], clear=True, user=uid)
