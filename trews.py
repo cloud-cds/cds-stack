@@ -46,6 +46,7 @@ class TREWSStaticResource(object):
         abspath = req.path
         if abspath == '' or abspath == '/':
             abspath = INDEX_FILENAME
+            logging.info("index request uri:" + req.relative_uri)
         elif abspath.startswith('/'):
             abspath = abspath[1:]
         filename = os.path.join(STATIC_DIR, abspath)
