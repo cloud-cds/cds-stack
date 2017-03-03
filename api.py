@@ -306,8 +306,8 @@ class TREWSAPI(object):
                         data['septic_shock']['onset_time'] = sorted([data['septic_shock']['onset_time']] +shock_onsets_hypoperfusion)[0]
                 else:
                     data['septic_shock']['onset_time'] = sorted(shock_onsets_hypoperfusion)[0]
-        logging.debug(json.dumps(data['severe_sepsis'], indent=4))
-        logging.debug(json.dumps(data['septic_shock'], indent=4))
+        #logging.debug(json.dumps(data['severe_sepsis'], indent=4))
+        #logging.debug(json.dumps(data['septic_shock'], indent=4))
 
 
 
