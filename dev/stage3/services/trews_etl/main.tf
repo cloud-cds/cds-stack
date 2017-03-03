@@ -128,6 +128,7 @@ resource "aws_lambda_function" "etl_lambda" {
         TREWS_ETL_MODE          = "${var.TREWS_ETL_MODE}"
         TREWS_ETL_STREAM_HOURS  = "${var.TREWS_ETL_STREAM_HOURS}"
         TREWS_ETL_STREAM_SLICES = "${var.TREWS_ETL_STREAM_SLICES}"
+        TREWS_ETL_STREAM_SLEEP_SECS = "${var.TREWS_ETL_STREAM_SLEEP_SECS}"
       }
     }
 }
