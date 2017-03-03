@@ -10,6 +10,12 @@ data "aws_route53_zone" "main" {
   name = "${var.domain}."
 }
 
+module "deis" {
+  source = "./services/deis"
+  deploy_prefix = "${var.deploy_prefix}"
+  local_shell = "${var.local_shell}"
+}
+
 module "web" {
   source        = "./services/web"
   deploy_name   = "${var.deploy_name}"
@@ -37,10 +43,13 @@ module "trews_etl" {
   k8s_server    = "${var.k8s_server}"
   k8s_user      = "${var.k8s_user}"
   k8s_pass      = "${var.k8s_pass}"
+  k8s_image     = "${var.k8s_image}"
   k8s_cert_auth = "${var.k8s_cert_auth}"
   k8s_cert      = "${var.k8s_cert}"
   k8s_key       = "${var.k8s_key}"
   k8s_token     = "${var.k8s_token}"
+
+  etl_lambda_firing_rate_mins = "10"
 
   db_host             = "db.${var.domain}"
   db_name             = "${replace(var.deploy_prefix, "-", "_")}"
@@ -48,7 +57,14 @@ module "trews_etl" {
   db_password         = "${var.db_password}"
   jhapi_client_id     = "${var.jhapi_client_id}"
   jhapi_client_secret = "${var.jhapi_client_secret}"
-  TREWS_ETL_SERVER    = "${var.TREWS_ETL_SERVER}"
-  TREWS_ETL_HOSPITAL  = "${var.TREWS_ETL_HOSPITAL}"
-  TREWS_ETL_HOURS     = "${var.TREWS_ETL_HOURS}"
+
+  TREWS_ETL_SERVER            = "${var.TREWS_ETL_SERVER}"
+  TREWS_ETL_HOSPITAL          = "${var.TREWS_ETL_HOSPITAL}"
+  TREWS_ETL_HOURS             = "${var.TREWS_ETL_HOURS}"
+  TREWS_ETL_ARCHIVE           = "${var.TREWS_ETL_ARCHIVE}"
+  TREWS_ETL_MODE              = "${var.TREWS_ETL_MODE}"
+  TREWS_ETL_DEMO_MODE         = "${var.TREWS_ETL_DEMO_MODE}"
+  TREWS_ETL_STREAM_HOURS      = "${var.TREWS_ETL_STREAM_HOURS}"
+  TREWS_ETL_STREAM_SLICES     = "${var.TREWS_ETL_STREAM_SLICES}"
+  TREWS_ETL_STREAM_SLEEP_SECS = "${var.TREWS_ETL_STREAM_SLEEP_SECS}"
 }

@@ -54,18 +54,23 @@ users:
         "spec": {
           "containers": [{
             "name": "trews-etl",
-            "image": "359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-etl:0.0.3",
+            "image": os.environ["kube_image"],
             "env": [
-              {"name": "db_host",             "value": os.environ["db_host"]},
-              {"name": "db_port",             "value": os.environ["db_port"]},
-              {"name": "db_name",             "value": os.environ["db_name"]},
-              {"name": "db_user",             "value": os.environ["db_user"]},
-              {"name": "db_password",         "value": os.environ["db_password"]},
-              {"name": "jhapi_client_id",     "value": os.environ["jhapi_client_id"]},
-              {"name": "jhapi_client_secret", "value": os.environ["jhapi_client_secret"]},
-              {"name": "TREWS_ETL_SERVER",    "value": os.environ["TREWS_ETL_SERVER"]},
-              {"name": "TREWS_ETL_HOSPITAL",  "value": os.environ["TREWS_ETL_HOSPITAL"]},
-              {"name": "TREWS_ETL_HOURS",     "value": os.environ["TREWS_ETL_HOURS"]}
+              {"name": "db_host",                     "value": os.environ["db_host"]},
+              {"name": "db_port",                     "value": os.environ["db_port"]},
+              {"name": "db_name",                     "value": os.environ["db_name"]},
+              {"name": "db_user",                     "value": os.environ["db_user"]},
+              {"name": "db_password",                 "value": os.environ["db_password"]},
+              {"name": "jhapi_client_id",             "value": os.environ["jhapi_client_id"]},
+              {"name": "jhapi_client_secret",         "value": os.environ["jhapi_client_secret"]},
+              {"name": "TREWS_ETL_SERVER",            "value": os.environ["TREWS_ETL_SERVER"]},
+              {"name": "TREWS_ETL_HOSPITAL",          "value": os.environ["TREWS_ETL_HOSPITAL"]},
+              {"name": "TREWS_ETL_HOURS",             "value": os.environ["TREWS_ETL_HOURS"]},
+              {"name": "TREWS_ETL_ARCHIVE",           "value": os.environ["TREWS_ETL_ARCHIVE"]},
+              {"name": "TREWS_ETL_MODE",              "value": os.environ["TREWS_ETL_MODE"]},
+              {"name": "TREWS_ETL_STREAM_HOURS" ,     "value": os.environ["TREWS_ETL_STREAM_HOURS"]},
+              {"name": "TREWS_ETL_STREAM_SLICES",     "value": os.environ["TREWS_ETL_STREAM_SLICES"]},
+              {"name": "TREWS_ETL_STREAM_SLEEP_SECS", "value": os.environ["TREWS_ETL_STREAM_SLEEP_SECS"]}
             ]
           }],
           "restartPolicy": "Never"

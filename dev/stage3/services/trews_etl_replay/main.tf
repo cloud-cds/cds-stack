@@ -1,8 +1,9 @@
-############################
-# ETL via AWS Lambda
+######################################
+# Stream demo lambda.
 
 variable "deploy_prefix" {}
 
+variable "etl_lambda_role_arn" {}
 variable "aws_trews_etl_package" {}
 
 variable "k8s_server_host" {}
@@ -26,8 +27,6 @@ variable "db_password" {}
 variable "jhapi_client_id" {}
 variable "jhapi_client_secret" {}
 
-variable "etl_lambda_firing_rate_mins" {}
-
 variable "TREWS_ETL_SERVER" {}
 variable "TREWS_ETL_HOSPITAL" {}
 variable "TREWS_ETL_HOURS" {}
@@ -38,62 +37,11 @@ variable "TREWS_ETL_STREAM_HOURS" {}
 variable "TREWS_ETL_STREAM_SLICES" {}
 variable "TREWS_ETL_STREAM_SLEEP_SECS" {}
 
-resource "aws_iam_role" "etl_lambda_role" {
-    name = "${var.deploy_prefix}-role-etl-lambda"
-    assume_role_policy = <<POLICY
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Action": "sts:AssumeRole",
-      "Principal": {
-        "Service": "lambda.amazonaws.com"
-      },
-      "Effect": "Allow",
-      "Sid": ""
-    }
-  ]
-}
-POLICY
-}
-
-resource "aws_iam_role_policy" "etl_lambda_policy" {
-  name = "${var.deploy_prefix}-policy-etl-lambda"
-  role = "${aws_iam_role.etl_lambda_role.id}"
-  policy = <<POLICY
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [ "lambda:InvokeFunction",
-                  "logs:CreateLogGroup",
-                  "logs:CreateLogStream",
-                  "logs:PutLogEvents",
-                  "ec2:CreateNetworkInterface",
-                  "ec2:DescribeNetworkInterfaces",
-                  "ec2:DeleteNetworkInterface",
-                  "kms:Decrypt",
-                  "kms:DescribeKey",
-                  "kms:GetKeyPolicy"
-                  ],
-      "Resource": [
-        "*"
-      ]
-    }
-  ]
-}
-POLICY
-}
-
-
-# ETL Lambda functions for production and development databases.
-
-resource "aws_lambda_function" "etl_lambda" {
-    function_name    = "${var.deploy_prefix}-etl-lambda"
+resource "aws_lambda_function" "etl_lambda_demo" {
+    function_name    = "${var.deploy_prefix}-etl-lambda-demo"
     handler          = "service.handler"
     filename         = "${var.aws_trews_etl_package}"
-    role             = "${aws_iam_role.etl_lambda_role.arn}"
+    role             = "${var.etl_lambda_role_arn}"
     runtime          = "python2.7"
     source_code_hash = "${base64sha256(file("${var.aws_trews_etl_package}"))}"
     timeout          = 300
@@ -125,34 +73,10 @@ resource "aws_lambda_function" "etl_lambda" {
         TREWS_ETL_HOSPITAL          = "${var.TREWS_ETL_HOSPITAL}"
         TREWS_ETL_HOURS             = "${var.TREWS_ETL_HOURS}"
         TREWS_ETL_ARCHIVE           = "${var.TREWS_ETL_ARCHIVE}"
-        TREWS_ETL_MODE              = "${var.TREWS_ETL_MODE}"
+        TREWS_ETL_MODE              = "${var.TREWS_ETL_DEMO_MODE}"
         TREWS_ETL_STREAM_HOURS      = "${var.TREWS_ETL_STREAM_HOURS}"
         TREWS_ETL_STREAM_SLICES     = "${var.TREWS_ETL_STREAM_SLICES}"
         TREWS_ETL_STREAM_SLEEP_SECS = "${var.TREWS_ETL_STREAM_SLEEP_SECS}"
       }
     }
-}
-
-resource "aws_cloudwatch_event_rule" "etl_schedule_rule" {
-    name = "${var.deploy_prefix}-etl-schedule-rule"
-    description = "Fires every ${var.etl_lambda_firing_rate_mins} minutes"
-    schedule_expression = "rate(${var.etl_lambda_firing_rate_mins} minutes)"
-}
-
-resource "aws_cloudwatch_event_target" "etl_schedule_target" {
-    rule      = "${aws_cloudwatch_event_rule.etl_schedule_rule.name}"
-    target_id = "${replace(var.deploy_prefix, "-", "_")}_etl_lambda"
-    arn       = "${aws_lambda_function.etl_lambda.arn}"
-}
-
-resource "aws_lambda_permission" "etl_cloudwatch_permissions" {
-    statement_id  = "ETLPeriodicExecution"
-    action        = "lambda:InvokeFunction"
-    function_name = "${aws_lambda_function.etl_lambda.function_name}"
-    principal     = "events.amazonaws.com"
-    source_arn    = "${aws_cloudwatch_event_rule.etl_schedule_rule.arn}"
-}
-
-output "etl_lambda_role_arn" {
-  value = "${aws_iam_role.etl_lambda_role.arn}"
 }

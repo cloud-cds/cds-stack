@@ -163,6 +163,10 @@ variable "k8s_token" {
   description = "Kubernetes service account token"
 }
 
+variable "k8s_image" {
+  description = "Docker image"
+}
+
 ####################################
 # JH API
 
@@ -194,3 +198,9 @@ variable "local_shell" {
 variable "TREWS_ETL_SERVER" {}
 variable "TREWS_ETL_HOSPITAL" {}
 variable "TREWS_ETL_HOURS" {}
+variable "TREWS_ETL_ARCHIVE" {}
+variable "TREWS_ETL_MODE" {}
+variable "TREWS_ETL_DEMO_MODE" {}
+variable "TREWS_ETL_STREAM_HOURS" {}
+variable "TREWS_ETL_STREAM_SLICES" {}
+variable "TREWS_ETL_STREAM_SLEEP_SECS" {}

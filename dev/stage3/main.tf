@@ -69,7 +69,7 @@ module "trews_etl" {
   k8s_token     = "${var.k8s_token}"
   k8s_image     = "${var.k8s_image}"
 
-  etl_lambda_firing_rate_mins = "5"
+  etl_lambda_firing_rate_mins = "10"
 
   db_host             = "db.${var.domain}"
   db_name             = "${replace(var.deploy_prefix, "-", "_")}"
@@ -78,13 +78,51 @@ module "trews_etl" {
   jhapi_client_id     = "${var.jhapi_client_id}"
   jhapi_client_secret = "${var.jhapi_client_secret}"
 
-  TREWS_ETL_SERVER        = "${var.TREWS_ETL_SERVER}"
-  TREWS_ETL_HOSPITAL      = "${var.TREWS_ETL_HOSPITAL}"
-  TREWS_ETL_HOURS         = "${var.TREWS_ETL_HOURS}"
-  TREWS_ETL_ARCHIVE       = "${var.TREWS_ETL_ARCHIVE}"
-  TREWS_ETL_MODE          = "${var.TREWS_ETL_MODE}"
-  TREWS_ETL_DEMO_MODE     = "${var.TREWS_ETL_DEMO_MODE}"
-  TREWS_ETL_STREAM_HOURS  = "${var.TREWS_ETL_STREAM_HOURS}"
-  TREWS_ETL_STREAM_SLICES = "${var.TREWS_ETL_STREAM_SLICES}"
+  TREWS_ETL_SERVER            = "${var.TREWS_ETL_SERVER}"
+  TREWS_ETL_HOSPITAL          = "${var.TREWS_ETL_HOSPITAL}"
+  TREWS_ETL_HOURS             = "${var.TREWS_ETL_HOURS}"
+  TREWS_ETL_ARCHIVE           = "${var.TREWS_ETL_ARCHIVE}"
+  TREWS_ETL_MODE              = "${var.TREWS_ETL_MODE}"
+  TREWS_ETL_DEMO_MODE         = "${var.TREWS_ETL_DEMO_MODE}"
+  TREWS_ETL_STREAM_HOURS      = "${var.TREWS_ETL_STREAM_HOURS}"
+  TREWS_ETL_STREAM_SLICES     = "${var.TREWS_ETL_STREAM_SLICES}"
+  TREWS_ETL_STREAM_SLEEP_SECS = "${var.TREWS_ETL_STREAM_SLEEP_SECS}"
+}
+
+module "trews_etl_replay" {
+  source = "./services/trews_etl_replay"
+  deploy_prefix = "${var.deploy_prefix}"
+
+  etl_lambda_role_arn = "${module.trews_etl.etl_lambda_role_arn}"
+  aws_trews_etl_package = "${var.aws_trews_etl_package}"
+
+  k8s_server_host = "${var.k8s_server_host}"
+  k8s_server_port = "${var.k8s_server_port}"
+
+  k8s_name      = "${var.k8s_name}"
+  k8s_server    = "${var.k8s_server}"
+  k8s_user      = "${var.k8s_user}"
+  k8s_pass      = "${var.k8s_pass}"
+  k8s_cert_auth = "${var.k8s_cert_auth}"
+  k8s_cert      = "${var.k8s_cert}"
+  k8s_key       = "${var.k8s_key}"
+  k8s_token     = "${var.k8s_token}"
+  k8s_image     = "${var.k8s_image}"
+
+  db_host             = "db.${var.domain}"
+  db_name             = "${replace(var.deploy_prefix, "-", "_")}"
+  db_username         = "${var.db_username}"
+  db_password         = "${var.db_password}"
+  jhapi_client_id     = "${var.jhapi_client_id}"
+  jhapi_client_secret = "${var.jhapi_client_secret}"
+
+  TREWS_ETL_SERVER            = "${var.TREWS_ETL_SERVER}"
+  TREWS_ETL_HOSPITAL          = "${var.TREWS_ETL_HOSPITAL}"
+  TREWS_ETL_HOURS             = "${var.TREWS_ETL_HOURS}"
+  TREWS_ETL_ARCHIVE           = "${var.TREWS_ETL_ARCHIVE}"
+  TREWS_ETL_MODE              = "${var.TREWS_ETL_MODE}"
+  TREWS_ETL_DEMO_MODE         = "${var.TREWS_ETL_DEMO_MODE}"
+  TREWS_ETL_STREAM_HOURS      = "${var.TREWS_ETL_STREAM_HOURS}"
+  TREWS_ETL_STREAM_SLICES     = "${var.TREWS_ETL_STREAM_SLICES}"
   TREWS_ETL_STREAM_SLEEP_SECS = "${var.TREWS_ETL_STREAM_SLEEP_SECS}"
 }
