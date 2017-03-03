@@ -940,7 +940,7 @@ var criteriaComponent = function(c, constants, key, hidden) {
 		if (constants.overrideModal[i].range == 'true') {
 			criteriaString += name + " < " + crit[0] + unit + " or > " + crit[1] + unit;
 		} else {
-			var comp = (constants.overrideModal[i].range == 'min') ? ">" : "<";
+			var comp = (constants.overrideModal[i].range == 'min') ? "<" : ">";
 			criteriaString += name + " " + comp + " " + crit + unit;
 		}
 		criteriaString += " or ";
@@ -1080,7 +1080,8 @@ var overrideModal = new function() {
 		return html;
 	}
 	this.makeSliders = function(data, index) {
-		var o = trews.data[this.card][this.slot]['criteria'][this.criteria]['override_value']
+		var o = trews.data[this.card][this.slot]['criteria'][this.criteria]['override_value'];
+
 		if (data['range'] === "true") {
 			$(".slider-range[data-trews='" + data['id'] + "']").slider({
 				range: data['range'],
@@ -1098,17 +1099,20 @@ var overrideModal = new function() {
 			$(".slider-numbers[data-trews='" + data['id'] + "']").text($(".slider-range[data-trews='" + data['id'] + "']").slider("values",0) + " - " + $(".slider-range[data-trews='" + data['id'] + "']").slider("values",1));
 		} else {
 			var oValue = data['value']
+
+			// Slider callback functions set the text values to show the 'acceptable' range.
 			if (data['range'] === "min") {
 				slideFunction = function(event, ui) {
-					$(".slider-numbers[data-trews='" + data['id'] + "']").text(data['minAbsolute'] + " - " + ui.value);
+					$(".slider-numbers[data-trews='" + data['id'] + "']").text(ui.value + " - " + data['maxAbsolute']);
 				}
 				oValue = (o == null) ? oValue : (o[index]['lower']) ? o[index]['lower'] : oValue
 			} else {
 				slideFunction = function(event, ui) {
-					$(".slider-numbers[data-trews='" + data['id'] + "']").text(ui.value + " - " + data['maxAbsolute']);
+					$(".slider-numbers[data-trews='" + data['id'] + "']").text(data['minAbsolute'] + " - " + ui.value);
 				}
 				oValue = (o == null) ? oValue : (o[index]['upper']) ? o[index]['upper'] : oValue
 			}
+
 			$(".slider-range[data-trews='" + data['id'] + "']").slider({
 				range: data['range'],
 				min: data['minAbsolute'],
@@ -1117,10 +1121,12 @@ var overrideModal = new function() {
 				value: oValue,
 				slide: slideFunction
 			});
+
+			// Sliders also initially show the 'acceptable' range.
 			if (data['range'] === "min") {
-				$(".slider-numbers[data-trews='" + data['id'] + "']").text(data['minAbsolute'] + " - " + $(".slider-range[data-trews='" + data['id'] + "']").slider("value"));
-			} else {
 				$(".slider-numbers[data-trews='" + data['id'] + "']").text($(".slider-range[data-trews='" + data['id'] + "']").slider("value") + " - " + data['maxAbsolute']);
+			} else {
+				$(".slider-numbers[data-trews='" + data['id'] + "']").text(data['minAbsolute'] + " - " + $(".slider-range[data-trews='" + data['id'] + "']").slider("value"));
 			}
 		}
 	}
@@ -1141,8 +1147,8 @@ var overrideModal = new function() {
 				var criteriaOverrideData = STATIC[overrideModal.card][overrideModal.slot]['criteria'][overrideModal.criteria]['overrideModal'][i];
 				var criteriaOverride = { "range": criteriaOverrideData['range']}
 				if ($(".slider-range[data-trews='" + criteria + "']").slider("values").length == 0) {
-					criteriaOverride["lower"] = (criteriaOverrideData['range'] == 'max') ? $(".slider-range[data-trews='" + criteria + "']").slider("value") : null;
-					criteriaOverride["upper"] = (criteriaOverrideData['range'] == 'min') ? $(".slider-range[data-trews='" + criteria + "']").slider("value") : null;
+					criteriaOverride["lower"] = (criteriaOverrideData['range'] == 'min') ? $(".slider-range[data-trews='" + criteria + "']").slider("value") : null;
+					criteriaOverride["upper"] = (criteriaOverrideData['range'] == 'max') ? $(".slider-range[data-trews='" + criteria + "']").slider("value") : null;
 				} else {
 					criteriaOverride["lower"] = $(".slider-range[data-trews='" + criteria + "']").slider("values", 0);
 					criteriaOverride["upper"] = $(".slider-range[data-trews='" + criteria + "']").slider("values", 1);
@@ -1167,9 +1173,9 @@ var overrideModal = new function() {
 			} else {
 				$(".slider-range[data-trews='" + criteriaOverrideData['id'] + "']").slider("value", criteriaOverrideData['value'])
 				if (criteriaOverrideData['range'] == 'min') {
-					$(".slider-numbers[data-trews='" + criteriaOverrideData['id'] + "']").text(criteriaOverrideData['minAbsolute'] + " - " + criteriaOverrideData['value']);
-				} else {
 					$(".slider-numbers[data-trews='" + criteriaOverrideData['id'] + "']").text(criteriaOverrideData['value'] + " - " + criteriaOverrideData['maxAbsolute']);
+				} else {
+					$(".slider-numbers[data-trews='" + criteriaOverrideData['id'] + "']").text(criteriaOverrideData['minAbsolute'] + " - " + criteriaOverrideData['value']);
 				}
 			}
 		})

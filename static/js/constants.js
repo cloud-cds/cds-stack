@@ -97,7 +97,7 @@ var severe_sepsis = {
 				"name": "Heart Rate",
 				"units": "/min",
 				"step": 1,
-				"range": "min",
+				"range": "max",
 				"minAbsolute": 20,
 				"maxAbsolute": 240,
 				"value": 90
@@ -113,7 +113,7 @@ var severe_sepsis = {
 				"name": "Respiratory Rate",
 				"units": "/min",
 				"step": 1,
-				"range": "min",
+				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 80,
 				"value": 20
@@ -139,7 +139,7 @@ var severe_sepsis = {
 				"name": "Bands",
 				"units": "%",
 				"step": 0.1,
-				"range": "min",
+				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 15,
 				"value": 10
@@ -160,7 +160,7 @@ var severe_sepsis = {
 				"name": "Systolic Blood Pressure",
 				"units": "mmHg",
 				"step": 1,
-				"range": "max",
+				"range": "min",
 				"minAbsolute": 0,
 				"maxAbsolute": 180,
 				"value": 90
@@ -176,7 +176,7 @@ var severe_sepsis = {
 				"name": "Mean Arterial Pressure",
 				"units": "mmHg",
 				"step": 1,
-				"range": "max",
+				"range": "min",
 				"minAbsolute": 0,
 				"maxAbsolute": 180,
 				"value": 65
@@ -192,7 +192,7 @@ var severe_sepsis = {
 				"name": "Decrease in Systolic Blood Pressure",
 				"units": "mmHg",
 				"step": 1,
-				"range": "min",
+				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 100,
 				"value": 40
@@ -208,7 +208,7 @@ var severe_sepsis = {
 				"name": "Respiratory Failure",
 				"units": "",
 				"step": 1,
-				"range": 'min',
+				"range": 'max',
 				"minAbsolute": 0,
 				"maxAbsolute": 200,
 				"value": 100
@@ -224,7 +224,7 @@ var severe_sepsis = {
 				"name": "Creatinine",
 				"units": "mg/dL",
 				"step": 0.1,
-				"range": "min",
+				"range": "max",
 				"minAbsolute": 0.0,
 				"maxAbsolute": 4.0,
 				"value": 2.0
@@ -234,7 +234,7 @@ var severe_sepsis = {
 				"name": "Urine Output",
 				"units": "mL/kg/hour",
 				"step": 0.1,
-				"range": "max",
+				"range": "min",
 				"minAbsolute": 0.0,
 				"maxAbsolute": 3.0,
 				"value": 0.5
@@ -250,7 +250,7 @@ var severe_sepsis = {
 				"name": "Bilirubin",
 				"units": "mg/dL",
 				"step": 0.01,
-				"range": "min",
+				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 4,
 				"value": 2
@@ -266,7 +266,7 @@ var severe_sepsis = {
 				"name": "Platelet Count",
 				"units": "",
 				"step": 100,
-				"range": "max",
+				"range": "min",
 				"minAbsolute": 0,
 				"maxAbsolute": 200000,
 				"value": 100000
@@ -282,7 +282,7 @@ var severe_sepsis = {
 				"name": "INR",
 				"units": "",
 				"step": 1000,
-				"range": "min",
+				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 200000,
 				"value": 100000
@@ -292,7 +292,7 @@ var severe_sepsis = {
 				"name": "PTT",
 				"units": "sec",
 				"step": 1,
-				"range": "min",
+				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 120,
 				"value": 60
@@ -308,7 +308,7 @@ var severe_sepsis = {
 				"name": "Lactate Measurement",
 				"units": "mmol/L",
 				"step": 0.01,
-				"range": "min",
+				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 4,
 				"value": 2
@@ -333,7 +333,7 @@ var septic_shock = {
 				"name": "Systolic Blood Pressure",
 				"units": "mmHg",
 				"step": 1,
-				"range": "max",
+				"range": "min",
 				"minAbsolute": 0,
 				"maxAbsolute": 180,
 				"value": 90
@@ -349,7 +349,7 @@ var septic_shock = {
 				"name": "Mean Arterial Pressure",
 				"units": "mmHg",
 				"step": 1,
-				"range": "max",
+				"range": "min",
 				"minAbsolute": 0,
 				"maxAbsolute": 130,
 				"value": 65
@@ -365,7 +365,7 @@ var septic_shock = {
 				"name": "Decrease in Systolic Blood Pressure",
 				"units": "mmHg",
 				"step": 1,
-				"range": "min",
+				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 80,
 				"value": 40
@@ -386,7 +386,7 @@ var septic_shock = {
 				"name": "Initial Lactate Measurement",
 				"units": "mmol/L",
 				"step": 0.01,
-				"range": "min",
+				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 8,
 				"value": 4
