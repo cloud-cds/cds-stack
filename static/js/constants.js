@@ -6,7 +6,8 @@ var INFECTIONS = [
 "Cellulitis",
 "UTI",
 "Pneumonia",
-"No Infection"
+"No Infection",
+"Reset"
 ]
 
 var ALERT_CODES = {
@@ -84,7 +85,8 @@ var severe_sepsis = {
 				"minAbsolute": 20,
 				"maxAbsolute": 50,
 				"values": [36.0, 38.3]
-			}]
+			}],
+			"precision": 3
 		}, {
 			"key": "heart_rate",
 			"criteria_display_name": "Heart Rate (Pulse) > 90/min",
@@ -95,11 +97,12 @@ var severe_sepsis = {
 				"name": "Heart Rate",
 				"units": "/min",
 				"step": 1,
-				"range": "min",
+				"range": "max",
 				"minAbsolute": 20,
 				"maxAbsolute": 240,
 				"value": 90
-			}]
+			}],
+			"precision": 4
 		}, {
 			"key": "respiratory_rate",
 			"criteria_display_name": "Respiratory Rate > 20/min",
@@ -110,11 +113,12 @@ var severe_sepsis = {
 				"name": "Respiratory Rate",
 				"units": "/min",
 				"step": 1,
-				"range": "min",
+				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 80,
 				"value": 20
-			}]
+			}],
+			"precision": 3
 		}, {
 			"key": "wbc",
 			"criteria_display_name": "WBC < 4K/uL or > 12K/uL or >10% bands",
@@ -135,11 +139,12 @@ var severe_sepsis = {
 				"name": "Bands",
 				"units": "%",
 				"step": 0.1,
-				"range": "min",
+				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 15,
 				"value": 10
-			}]
+			}],
+			"precision": 3
 		}]
 	},
 	"organ_dysfunction": {
@@ -155,11 +160,12 @@ var severe_sepsis = {
 				"name": "Systolic Blood Pressure",
 				"units": "mmHg",
 				"step": 1,
-				"range": "max",
+				"range": "min",
 				"minAbsolute": 0,
 				"maxAbsolute": 180,
 				"value": 90
-			}]
+			}],
+			"precision": 4
 		}, {
 			"key": "mean_arterial_pressure",
 			"criteria_display_name": "Mean arterial pressure < 65",
@@ -170,11 +176,12 @@ var severe_sepsis = {
 				"name": "Mean Arterial Pressure",
 				"units": "mmHg",
 				"step": 1,
-				"range": "max",
+				"range": "min",
 				"minAbsolute": 0,
 				"maxAbsolute": 180,
 				"value": 65
-			}]
+			}],
+			"precision": 3
 		}, {
 			"key": "decrease_in_sbp",
 			"criteria_display_name": "Decrease in SBP by > 40 mmHg from the last recorded SBP considered normal for given patient",
@@ -185,11 +192,12 @@ var severe_sepsis = {
 				"name": "Decrease in Systolic Blood Pressure",
 				"units": "mmHg",
 				"step": 1,
-				"range": "min",
+				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 100,
 				"value": 40
-			}]
+			}],
+			"precision": 3
 		}, {
 			"key": "respiratory_failure",
 			"criteria_display_name": "Acute respiratory failure evidenced by invasive or non-invasive ventiliation",
@@ -200,11 +208,12 @@ var severe_sepsis = {
 				"name": "Respiratory Failure",
 				"units": "",
 				"step": 1,
-				"range": 'min',
+				"range": 'max',
 				"minAbsolute": 0,
 				"maxAbsolute": 200,
 				"value": 100
-			}]
+			}],
+			"precision": 4
 		}, {
 			"key": "creatinine",
 			"criteria_display_name": "Creatinine > 2.0 or Urine Output < 0.5 mL/kg/hour for 2 hours",
@@ -215,7 +224,7 @@ var severe_sepsis = {
 				"name": "Creatinine",
 				"units": "mg/dL",
 				"step": 0.1,
-				"range": "min",
+				"range": "max",
 				"minAbsolute": 0.0,
 				"maxAbsolute": 4.0,
 				"value": 2.0
@@ -225,11 +234,12 @@ var severe_sepsis = {
 				"name": "Urine Output",
 				"units": "mL/kg/hour",
 				"step": 0.1,
-				"range": "max",
+				"range": "min",
 				"minAbsolute": 0.0,
 				"maxAbsolute": 3.0,
 				"value": 0.5
-			}]
+			}],
+			"precision": 3
 		}, {
 			"key": "bilirubin",
 			"criteria_display_name": "Bilirubin > 2 mg/dL (34.2 mmol/L)",
@@ -240,11 +250,12 @@ var severe_sepsis = {
 				"name": "Bilirubin",
 				"units": "mg/dL",
 				"step": 0.01,
-				"range": "min",
+				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 4,
 				"value": 2
-			}]
+			}],
+			"precision": 3
 		}, {
 			"key": "platelet",
 			"criteria_display_name": "Platelet count < 100,000",
@@ -255,11 +266,12 @@ var severe_sepsis = {
 				"name": "Platelet Count",
 				"units": "",
 				"step": 100,
-				"range": "max",
+				"range": "min",
 				"minAbsolute": 0,
 				"maxAbsolute": 200000,
 				"value": 100000
-			}]
+			}],
+			"precision": 6
 		}, {
 			"key": "inr",
 			"criteria_display_name": "INR > 1.5 or PTT > 60 sec",
@@ -270,7 +282,7 @@ var severe_sepsis = {
 				"name": "INR",
 				"units": "",
 				"step": 1000,
-				"range": "min",
+				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 200000,
 				"value": 100000
@@ -280,11 +292,12 @@ var severe_sepsis = {
 				"name": "PTT",
 				"units": "sec",
 				"step": 1,
-				"range": "min",
+				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 120,
 				"value": 60
-			}]
+			}],
+			"precision": 5
 		}, {
 			"key": "lactate",
 			"criteria_display_name": "Lactate > 2mmol/L: (18.0 mg/dL)",
@@ -295,11 +308,12 @@ var severe_sepsis = {
 				"name": "Lactate Measurement",
 				"units": "mmol/L",
 				"step": 0.01,
-				"range": "min",
+				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 4,
 				"value": 2
-			}]
+			}],
+			"precision": 3
 		}]
 	}
 }
@@ -319,11 +333,12 @@ var septic_shock = {
 				"name": "Systolic Blood Pressure",
 				"units": "mmHg",
 				"step": 1,
-				"range": "max",
+				"range": "min",
 				"minAbsolute": 0,
 				"maxAbsolute": 180,
 				"value": 90
-			}]
+			}],
+			"precision": 4
 		}, {
 			"key": "hypotension_map",
 			"criteria_display_name": "Mean arterial pressue < 65",
@@ -334,11 +349,12 @@ var septic_shock = {
 				"name": "Mean Arterial Pressure",
 				"units": "mmHg",
 				"step": 1,
-				"range": "max",
+				"range": "min",
 				"minAbsolute": 0,
 				"maxAbsolute": 130,
 				"value": 65
-			}]
+			}],
+			"precision": 3
 		}, {
 			"key": "hypotension_dsbp",
 			"criteria_display_name": "Decrease in SBP by > 40 mmHg from the last recorded SBP considered normal for given patient",
@@ -349,11 +365,12 @@ var septic_shock = {
 				"name": "Decrease in Systolic Blood Pressure",
 				"units": "mmHg",
 				"step": 1,
-				"range": "min",
+				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 80,
 				"value": 40
-			}]
+			}],
+			"precision": 4
 		}]
 	},
 	"fusion": {
@@ -369,11 +386,12 @@ var septic_shock = {
 				"name": "Initial Lactate Measurement",
 				"units": "mmol/L",
 				"step": 0.01,
-				"range": "min",
+				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 8,
 				"value": 4
-			}]
+			}],
+			"precision": 2
 		}]
 	}
 }
