@@ -100,7 +100,10 @@ resource "aws_lambda_function" "etl_lambda" {
 
     function_name    = "${var.deploy_prefix}-etl-lambda"
     handler          = "service.handler"
-    filename         = "${var.aws_trews_etl_package}"
+
+    s3_bucket        = "${var.s3_opsdx_lambda}"
+    s3_key           = "${var.aws_trews_etl_package}"
+
     role             = "${aws_iam_role.etl_lambda_role.arn}"
     runtime          = "python2.7"
     source_code_hash = "${base64sha256(file("${var.aws_trews_etl_package}"))}"

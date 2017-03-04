@@ -90,6 +90,13 @@ variable "domain" {
 }
 
 #######################
+# S3 Buckets
+
+variable "s3_opsdx_lambda" {
+  description = "S3 bucket for OpsDX Lambda Functions"
+}
+
+#######################
 # DB
 
 variable "db_username" {
