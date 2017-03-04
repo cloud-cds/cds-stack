@@ -184,6 +184,9 @@ variable "jhapi_client_secret" {
 variable "aws_trews_etl_package" {
   description = "AWS Lambda deployment package"
 }
+variable "aws_trews_etl_lambda_venv_name" {
+  description = "AWS Lambda virtual environment directory name"
+}
 
 ####################################
 # Command execution

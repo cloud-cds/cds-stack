@@ -4,6 +4,8 @@
 variable "deploy_prefix" {}
 
 variable "aws_trews_etl_package" {}
+variable "aws_trews_etl_lambda_venv_name" {}
+variable "command_rebuild_lambda" {}
 
 variable "k8s_server_host" {}
 variable "k8s_server_port" {}
@@ -37,6 +39,8 @@ variable "TREWS_ETL_DEMO_MODE" {}
 variable "TREWS_ETL_STREAM_HOURS" {}
 variable "TREWS_ETL_STREAM_SLICES" {}
 variable "TREWS_ETL_STREAM_SLEEP_SECS" {}
+
+variable "local_shell" {}
 
 resource "aws_iam_role" "etl_lambda_role" {
     name = "${var.deploy_prefix}-role-etl-lambda"
@@ -90,6 +94,10 @@ POLICY
 # ETL Lambda functions for production and development databases.
 
 resource "aws_lambda_function" "etl_lambda" {
+    provisioner "local-exec" {
+      command = "${var.command_rebuild_lambda}"
+    }
+
     function_name    = "${var.deploy_prefix}-etl-lambda"
     handler          = "service.handler"
     filename         = "${var.aws_trews_etl_package}"

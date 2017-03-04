@@ -164,24 +164,6 @@ variable "k8s_token" {
 }
 
 ####################################
-# JH API
-
-variable "jhapi_client_id" {
-  description = "EPIC JHAPI Login"
-}
-
-variable "jhapi_client_secret" {
-  description = "EPIC JHAPI Secret"
-}
-
-####################################
-# Files
-
-variable "aws_trews_etl_package" {
-  description = "AWS Lambda deployment package"
-}
-
-####################################
 # Command execution
 
 variable "local_shell" {
