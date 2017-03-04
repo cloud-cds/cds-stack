@@ -3,9 +3,8 @@
 
 variable "deploy_prefix" {}
 
+variable "s3_opsdx_lambda" {}
 variable "aws_trews_etl_package" {}
-variable "aws_trews_etl_lambda_venv_name" {}
-variable "command_rebuild_lambda" {}
 
 variable "k8s_server_host" {}
 variable "k8s_server_port" {}
@@ -94,10 +93,6 @@ POLICY
 # ETL Lambda functions for production and development databases.
 
 resource "aws_lambda_function" "etl_lambda" {
-    provisioner "local-exec" {
-      command = "${var.command_rebuild_lambda}"
-    }
-
     function_name    = "${var.deploy_prefix}-etl-lambda"
     handler          = "service.handler"
 
