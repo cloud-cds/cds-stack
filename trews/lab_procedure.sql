@@ -3,8 +3,10 @@ USE Analytics;
 
 SELECT  IDENTITY_ID.IDENTITY_ID pat_id
     ,PAT_ENC_HSP.PAT_ENC_CSN_ID
-    ,procs.display_name
+    ,procs.proc_id
     ,eap.proc_name
+    ,procs.display_name
+    ,eap.proc_cat_id
     ,proccat.proc_cat_name
     ,freq.display_name FrequencyOfOrder
     ,procs.ORDER_TIME
