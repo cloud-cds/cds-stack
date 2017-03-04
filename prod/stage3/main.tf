@@ -34,7 +34,11 @@ module "trews_etl" {
   source = "./services/trews_etl"
   deploy_prefix = "${var.deploy_prefix}"
 
+  local_shell       = "${var.local_shell}"
+
   aws_trews_etl_package = "${var.aws_trews_etl_package}"
+  aws_trews_etl_lambda_venv_name = "${var.aws_trews_etl_lambda_venv_name}"
+  command_rebuild_lambda = "${var.local_shell} services/trews_etl/aws_lambda/start.sh ${var.aws_trews_etl_lambda_venv_name}"
 
   k8s_server_host = "${var.k8s_server_host}"
   k8s_server_port = "${var.k8s_server_port}"
