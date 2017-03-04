@@ -106,7 +106,6 @@ resource "aws_lambda_function" "etl_lambda" {
 
     role             = "${aws_iam_role.etl_lambda_role.arn}"
     runtime          = "python2.7"
-    source_code_hash = "${base64sha256(file("${var.aws_trews_etl_package}"))}"
     timeout          = 300
     environment {
       variables {
