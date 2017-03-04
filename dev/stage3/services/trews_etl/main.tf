@@ -3,9 +3,8 @@
 
 variable "deploy_prefix" {}
 
+variable "s3_opsdx_lambda" {}
 variable "aws_trews_etl_package" {}
-variable "aws_trews_etl_lambda_venv_name" {}
-variable "command_rebuild_lambda" {}
 
 variable "k8s_server_host" {}
 variable "k8s_server_port" {}
@@ -94,13 +93,13 @@ POLICY
 # ETL Lambda functions for production and development databases.
 
 resource "aws_lambda_function" "etl_lambda" {
-    provisioner "local-exec" {
-      command = "${var.command_rebuild_lambda}"
-    }
 
     function_name    = "${var.deploy_prefix}-etl-lambda"
     handler          = "service.handler"
-    filename         = "${var.aws_trews_etl_package}"
+
+    s3_bucket        = "${var.s3_opsdx_lambda}"
+    s3_key           = "${var.aws_trews_etl_package}"
+
     role             = "${aws_iam_role.etl_lambda_role.arn}"
     runtime          = "python2.7"
     source_code_hash = "${base64sha256(file("${var.aws_trews_etl_package}"))}"

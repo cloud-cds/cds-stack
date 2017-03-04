@@ -19,6 +19,15 @@ resource "aws_s3_bucket" "kops-prod" {
     }
 }
 
+resource "aws_s3_bucket" "lambda-repo" {
+    bucket = "opsdx-lambda-repo"
+    acl = "private"
+
+    versioning {
+        enabled = true
+    }
+}
+
 ############################################
 # ECR repositories
 
