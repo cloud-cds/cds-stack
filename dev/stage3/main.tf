@@ -98,6 +98,7 @@ module "trews_etl_replay" {
   deploy_prefix = "${var.deploy_prefix}"
 
   etl_lambda_role_arn = "${module.trews_etl.etl_lambda_role_arn}"
+  s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
   aws_trews_etl_package = "${var.aws_trews_etl_package}"
 
   k8s_server_host = "${var.k8s_server_host}"
