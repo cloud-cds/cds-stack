@@ -96,6 +96,7 @@ var trews = new function() {
 		return list;
 	}
 	this.orderIsDone = function(order_name) {
+		/*
 		var orderWorkflowKeys = {
 			'antibiotics_order'       : 'antibiotics',
 			'blood_culture_order'     : 'blood_culture',
@@ -109,6 +110,7 @@ var trews = new function() {
 		if ( as_dose ) {
 			return Number(this.data[order_name]['status'] ? this.data[order_name]['status'] : 0) > doseLimits[order_key];
 		}
+		*/
 		return this.data[order_name]['status'] == 'Completed'
 						|| this.data[order_name]['status'] == 'Not Indicated';
 	}
@@ -613,16 +615,16 @@ var workflowsComponent = new function() {
 		}
 
 		var sev3LastOrder = Math.max(iJSON['time'], bJSON['time'], aJSON['time'], fJSON['time']);
-		var sev3Complete = iJSON['status'] == 'Completed' &&
-											 bJSON['status'] == 'Completed' &&
-											 ( Number(aJSON['status'] ? aJSON['status'] : '0') > doseLimits['antibiotics'] ) &&
-											 ( Number(fJSON['status'] ? fJSON['status'] : '0') > doseLimits['fluid'] );
+		var sev3Complete = ( iJSON['status'] == 'Completed' || iJSON['status'] == 'Not Indicated' ) &&
+						   ( bJSON['status'] == 'Completed' || bJSON['status'] == 'Not Indicated' ) &&
+						   ( aJSON['status'] == 'Completed' || aJSON['status'] == 'Not Indicated' ) /*( Number(aJSON['status'] ? aJSON['status'] : '0') > doseLimits['antibiotics'] )*/ &&
+						   ( fJSON['status'] == 'Completed' || fJSON['status'] == 'Not Indicated' ) /*( Number(fJSON['status'] ? fJSON['status'] : '0') > doseLimits['fluid'] )*/;
 
 		var sev6LastOrder = Math.max(sev3LastOrder, rJSON['time'])
-		var sev6Complete = sev3Complete && rJSON['status'] == 'Completed';
+		var sev6Complete = sev3Complete && ( rJSON['status'] == 'Completed' || rJSON['status'] == 'Not Indicated' );
 
 		var shk6LastOrder = Math.max(sev6LastOrder, vJSON['time'])
-		var shk6Complete = sev6Complete && Number(vJSON['status'] ? vJSON['status'] : '0') > doseLimits['vasopressors'];
+		var shk6Complete = sev6Complete && ( vJSON['status'] == 'Completed' || vJSON['status'] == 'Not Indicated' ) /*Number(vJSON['status'] ? vJSON['status'] : '0') > doseLimits['vasopressors']*/;
 
 		this.sev3Ctn.find('.card-subtitle').html(this.workflowStatus('sev3', severeOnset, sev3LastOrder, sev3Complete));
 		this.sev6Ctn.find('.card-subtitle').html(this.workflowStatus('sev6', severeOnset, sev6LastOrder, sev6Complete));
@@ -630,12 +632,12 @@ var workflowsComponent = new function() {
 
 		var iTask = new taskComponent(iJSON, $("[data-trews='init_lactate']"), workflows['init_lactate'], null);
 		var bTask = new taskComponent(bJSON, $("[data-trews='blood_culture']"), workflows['blood_culture'], null);
-		var aTask = new taskComponent(aJSON, $("[data-trews='antibiotics']"), workflows['antibiotics'], doseLimits['antibiotics']);
-		var fTask = new taskComponent(fJSON, $("[data-trews='fluid']"), workflows['fluid'], doseLimits['fluid']);
+		var aTask = new taskComponent(aJSON, $("[data-trews='antibiotics']"), workflows['antibiotics'], null /*doseLimits['antibiotics']*/);
+		var fTask = new taskComponent(fJSON, $("[data-trews='fluid']"), workflows['fluid'], null /*doseLimits['fluid']*/);
 
 		var rTask = new taskComponent(rJSON, $("[data-trews='re_lactate']"), workflows['repeat_lactate'], null);
 
-		var vTask = new taskComponent(vJSON, $("[data-trews='vasopressors']"), workflows['vasopressors'], doseLimits['vasopressors']);
+		var vTask = new taskComponent(vJSON, $("[data-trews='vasopressors']"), workflows['vasopressors'], null /*doseLimits['vasopressors']*/);
 
 		this.makeButtons();
 	}
@@ -965,12 +967,20 @@ var taskComponent = function(json, elem, constants, doseLimit) {
 	elem.find('h3').text(constants['display_name']);
 	elem.removeClass('in-progress');
 	elem.removeClass('complete');
+	/*
 	if ( constants['as_dose'] ) {
 		if ( Number(json['status']) > doseLimit ) {
 			elem.addClass('complete');
 		}
 	}
 	else if ( json['status'] == 'Ordered' ) {
+		elem.addClass('in-progress');
+	}
+	else if ( json['status'] == 'Completed' ) {
+		elem.addClass('complete');
+	}
+	*/
+	if ( json['status'] == 'Ordered' ) {
 		elem.addClass('in-progress');
 	}
 	else if ( json['status'] == 'Completed' ) {
