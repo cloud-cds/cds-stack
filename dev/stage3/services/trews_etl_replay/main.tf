@@ -4,6 +4,7 @@
 variable "deploy_prefix" {}
 
 variable "etl_lambda_role_arn" {}
+variable "s3_opsdx_lambda" {}
 variable "aws_trews_etl_package" {}
 
 variable "k8s_server_host" {}
