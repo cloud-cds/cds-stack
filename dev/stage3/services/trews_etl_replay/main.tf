@@ -36,6 +36,7 @@ variable "TREWS_ETL_DEMO_MODE" {}
 variable "TREWS_ETL_STREAM_HOURS" {}
 variable "TREWS_ETL_STREAM_SLICES" {}
 variable "TREWS_ETL_STREAM_SLEEP_SECS" {}
+variable "TREWS_ETL_EPIC_NOTIFICATIONS" {}
 
 resource "aws_lambda_function" "etl_lambda_demo" {
     function_name    = "${var.deploy_prefix}-etl-lambda-demo"
@@ -77,6 +78,7 @@ resource "aws_lambda_function" "etl_lambda_demo" {
         TREWS_ETL_STREAM_HOURS      = "${var.TREWS_ETL_STREAM_HOURS}"
         TREWS_ETL_STREAM_SLICES     = "${var.TREWS_ETL_STREAM_SLICES}"
         TREWS_ETL_STREAM_SLEEP_SECS = "${var.TREWS_ETL_STREAM_SLEEP_SECS}"
+        TREWS_ETL_EPIC_NOTIFICATIONS = "${var.TREWS_ETL_EPIC_NOTIFICATIONS}"
       }
     }
 }
