@@ -976,14 +976,14 @@ var taskComponent = function(json, elem, constants, doseLimit) {
 	else if ( json['status'] == 'Ordered' ) {
 		elem.addClass('in-progress');
 	}
-	else if ( json['status'] == 'Completed' ) {
+	else if ( json['status'] == 'Completed' || json['status'] == 'Not Indicated' ) {
 		elem.addClass('complete');
 	}
 	*/
 	if ( json['status'] == 'Ordered' ) {
 		elem.addClass('in-progress');
 	}
-	else if ( json['status'] == 'Completed' ) {
+	else if ( json['status'] == 'Completed' || json['status'] == 'Not Indicated' ) {
 		elem.addClass('complete');
 	}
 }
