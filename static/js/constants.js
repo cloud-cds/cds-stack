@@ -18,6 +18,7 @@ var ALERT_CODES = {
 	"202": "<b>3hr</b> have passed since <b>Severe Sepsis</b> onset",
 	"203": "<b>6hr</b> have passed since <b>Severe Sepsis</b> onset",
 	"204": "<b>6hr</b> have passed since <b>Septic Shock</b> onset",
+	"205": "<b>6hr</b> have passed since Suspicion of Infection should have been entered, Severe Sepsis criteria have been reset",
 	"300": "2/3 Severe Sepsis Criteria met: Enter Suspicion of Infection",
 	"301": "Severe Sepsis 3hr bundle intervention(s) need to be ordered", 										// Should be prefixed with count of number of severe sepsis 3hr interventions pending.
 	"302": "Severe Sepsis 6hr bundle intervention(s) need to be ordered", 										// Should be prefixed with count of number of severe sepsis 6hr interventions pending.
@@ -205,7 +206,7 @@ var severe_sepsis = {
 			"overrideModal": [{
 				"id": "override_respiratory_rate",
 				"header": "Override Respiratory Rate",
-				"name": "Respiratory Failure",
+				"name": "Respiratory Failure: PaO2/FiO2",
 				"units": "",
 				"step": 1,
 				"range": 'max',
