@@ -187,8 +187,10 @@ var endpoints = new function() {
 		$('body').addClass('waiting');
 		postBody = {
 			q: (getQueryVariable('PATID') === false) ? null : getQueryVariable('PATID'),
-			u: (getQueryVariable('EPICUSERID') === false) ? null : cleanUserId(getQueryVariable('EPICUSERID')),
-			depid: (getQueryVariable('ENCDEPID') === false) ? null : getQueryVariable('ENCDEPID'),
+			u: (getQueryVariable('USERID') === false) ? null : cleanUserId(getQueryVariable('USERID')),
+			depid: (getQueryVariable('DEP') === false) ? null : getQueryVariable('DEP'),
+			csn: (getQueryVariable('CSN') === false) ? null : getQueryVariable('CSN'),
+			loc: (getQueryVariable('LOC') === false) ? null : getQueryVariable('LOC'),
 			actionType: (actionType) ? actionType : null,
 			action: (actionData) ? actionData : null
 		}
@@ -1360,8 +1362,8 @@ var toolbar = new function() {
 		$('#feedback-submit').click(function() { // submit feedback form
 			postBody = {
 				'q': (getQueryVariable('PATID') === false) ? null : getQueryVariable('PATID'),
-				'u': (getQueryVariable('EPICUSERID') === false) ? null : cleanUserId(getQueryVariable('EPICUSERID')),
-				'depid': (getQueryVariable('ENCDEPID') === false) ? null : getQueryVariable('ENCDEPID'),
+				'u': (getQueryVariable('USERID') === false) ? null : cleanUserId(getQueryVariable('USERID')),
+				'depid': (getQueryVariable('DEP') === false) ? null : getQueryVariable('DEP'),
 				'feedback': toolbar.feedback.find('textarea').val()
 			}
 			controller.sendFeedback(postBody);
