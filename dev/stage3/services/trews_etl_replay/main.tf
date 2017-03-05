@@ -41,11 +41,14 @@ variable "TREWS_ETL_EPIC_NOTIFICATIONS" {}
 resource "aws_lambda_function" "etl_lambda_demo" {
     function_name    = "${var.deploy_prefix}-etl-lambda-demo"
     handler          = "service.handler"
-    filename         = "${var.aws_trews_etl_package}"
+
+    s3_bucket        = "${var.s3_opsdx_lambda}"
+    s3_key           = "${var.aws_trews_etl_package}"
+
     role             = "${var.etl_lambda_role_arn}"
     runtime          = "python2.7"
-    source_code_hash = "${base64sha256(file("${var.aws_trews_etl_package}"))}"
     timeout          = 300
+
     environment {
       variables {
         PYKUBE_KUBERNETES_SERVICE_HOST = "${var.k8s_server_host}"
