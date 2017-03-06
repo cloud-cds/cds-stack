@@ -164,6 +164,7 @@ def reset_patient(eid, event_id=None):
     conn = engine.connect()
     conn.execute(reset_sql)
     conn.close()
+    push_notifications_to_epic(eid, engine)
 
 def push_notifications_to_epic(eid, engine):
         notifications_sql = """
