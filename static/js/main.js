@@ -381,6 +381,8 @@ var slotComponent = function(elem, link, constants) {
 			this.elem.find('.num-overridden').addClass('hidden');
 			this.elem.find('.criteria-overridden').addClass('hidden');
 		} else {
+			this.elem.find('.num-overridden').removeClass('hidden');
+			this.elem.find('.criteria-overridden').removeClass('hidden');
 			this.elem.find('.num-overridden').text(this.hasOverridenCriteria().length + " customized criteria");
 		}
 		this.link.unbind();
