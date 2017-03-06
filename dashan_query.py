@@ -152,12 +152,13 @@ def reset_patient(eid, event_id=None):
     update criteria_events set flag = -1
     where pat_id = '%(pid)s' %(where_clause)s;
     delete from notifications where pat_id = '%(pid)s';
-    select override_criteria_snapshot('%(pid)s');
+    select advance_criteria_snapshot('%(pid)s');
     """ % {'pid': eid, 'where_clause': event_where_clause}
     logging.debug("reset_patient:" + reset_sql)
     conn = engine.connect()
     conn.execute(reset_sql)
     conn.close()
+    push_notifications_to_epic(eid, engine)
 
 def push_notifications_to_epic(eid, engine):
         notifications_sql = """
