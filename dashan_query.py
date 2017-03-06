@@ -122,8 +122,14 @@ def toggle_notification_read(eid, notification_id, as_read):
     conn.close()
     push_notifications_to_epic(eid, engine)
 
+def temp_c_to_f(c):
+    return c * 1.8 + 32
+
 def override_criteria(eid, name, value='[{}]', user='user', clear=False):
     engine = create_engine(DB_CONN_STR)
+    if name == 'sirs_temp':
+        value[0]['lower'] = temp_c_to_f(value[0]['lower'])
+        value[0]['upper'] = temp_c_to_f(value[0]['upper'])
     params = {
         'user': ("'" + user + "'") if not clear else 'null',
         'val': ("'" + (json.dumps(value) if isinstance(value, list) else value) + "'") if not clear else 'null',

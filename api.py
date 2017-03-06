@@ -31,6 +31,9 @@ MODE = AES.MODE_CBC
 
 DECRYPTED = False
 
+def temp_f_to_c(f):
+    return (f - 32) * .5556
+
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, np.integer):
@@ -198,6 +201,11 @@ class TREWSAPI(object):
                     "update_user": criterion['override_user']
                 }
 
+            if criterion["name"] == "sirs_temp" and criterion["override_value"]:
+                if criterion["override_value"][0]["lower"]:
+                    criterion["override_value"][0]["lower"] = temp_f_to_c(criterion["override_value"][0]["lower"])
+                if criterion["override_value"][0]["upper"]:
+                    criterion["override_value"][0]["upper"] = temp_f_to_c(criterion["override_value"][0]["upper"])
 
             if criterion["name"] in SIRS:
                 sirs_idx = SIRS.index(criterion["name"])

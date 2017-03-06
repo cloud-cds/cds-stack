@@ -941,6 +941,10 @@ var criteriaComponent = function(c, constants, key, hidden) {
 		}
 		var name = constants.overrideModal[i].name
 		var unit = constants.overrideModal[i].units
+		if ( c['name'] == 'sirs_temp' ) {
+			crit[0] = Number(crit[0]).toPrecision(3);
+			crit[1] = Number(crit[1]).toPrecision(3);
+		}
 		if (constants.overrideModal[i].range == 'true') {
 			criteriaString += name + " < " + crit[0] + unit + " or > " + crit[1] + unit;
 		} else {
