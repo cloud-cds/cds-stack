@@ -120,6 +120,7 @@ def toggle_notification_read(eid, notification_id, as_read):
     conn = engine.connect()
     conn.execute(toggle_notifications_sql)
     conn.close()
+    push_notifications_to_epic(eid, engine)
 
 def override_criteria(eid, name, value='[{}]', user='user', clear=False):
     engine = create_engine(DB_CONN_STR)
