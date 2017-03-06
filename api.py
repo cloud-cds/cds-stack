@@ -185,7 +185,7 @@ class TREWSAPI(object):
                 "override_user": row['override_user'],
                 "override_value": row['override_value'],
             }
-            print row
+
             if criterion["name"] == 'suspicion_of_infection':
                 value = criterion['value']
                 if ('override_value' in criterion) and (criterion['override_value'] is not None) and ('text' in criterion['override_value']):

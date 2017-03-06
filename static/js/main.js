@@ -1376,11 +1376,13 @@ var toolbar = new function() {
 		this.feedback.find('p').append('<b class="error">There was an error, please try again or email trews-jhu@opsdx.io</b>')
 	}
 	this.render = function(json) {
-		if (json['is_met']) {
-			this.resetNav.show()
-		} else {
-			this.resetNav.hide()
-		}
+		// we want to always show reset button
+		this.resetNav.show()
+		// if (json['is_met']) {
+		// 	this.resetNav.show()
+		// } else {
+		// 	this.resetNav.hide()
+		// }
 	}
 }
 

@@ -126,7 +126,7 @@ def override_criteria(eid, name, value='[{}]', user='user', clear=False):
     params = {
         'user': ("'" + user + "'") if not clear else 'null',
         'val': ("'" + (json.dumps(value) if isinstance(value, list) else value) + "'") if not clear else 'null',
-        'fid': name,
+        'fid': name if name != 'sus-edit' else 'suspicion_of_infection',
         'pid': eid
     }
     override_sql = """
