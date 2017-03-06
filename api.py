@@ -257,8 +257,8 @@ class TREWSAPI(object):
             # update orders
             if criterion["name"] in ORDERS:
                 value = criterion['value']
-                if ('override_value' in criterion) and (criterion['override_value'] is not None) and ('text' in criterion['override_value']):
-                    value = criterion['override_value']['text']
+                if ('override_value' in criterion) and (criterion['override_value'] is not None) and ('text' in criterion['override_value'][0]):
+                    value = criterion['override_value'][0]['text']
 
                 valid_override_ts = 'override_time' in criterion and criterion['override_time'] is not None
                 order_ts = criterion['override_time'] if valid_override_ts else criterion['measurement_time']

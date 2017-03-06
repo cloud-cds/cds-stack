@@ -127,9 +127,9 @@ def temp_c_to_f(c):
 
 def override_criteria(eid, name, value='[{}]', user='user', clear=False):
     engine = create_engine(DB_CONN_STR)
-    if name == 'sirs_temp':
-        value[0]['lower'] = temp_c_to_f(value[0]['lower'])
-        value[0]['upper'] = temp_c_to_f(value[0]['upper'])
+    if name == 'sirs_temp' and not clear:
+        value[0]['lower'] = temp_c_to_f(float(value[0]['lower']))
+        value[0]['upper'] = temp_c_to_f(float(value[0]['upper']))
     params = {
         'user': ("'" + user + "'") if not clear else 'null',
         'val': ("'" + (json.dumps(value) if isinstance(value, list) else value) + "'") if not clear else 'null',
