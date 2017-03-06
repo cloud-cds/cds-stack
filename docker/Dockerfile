@@ -8,9 +8,9 @@ RUN apt-get install -y tar git curl nano wget dialog net-tools build-essential
 # Install Python and Basic Python Tools
 RUN apt-get install -y python python-dev python-distribute python-pip
 
-RUN apt-get install -y python-psycopg2 libpq-dev 
+RUN apt-get install -y python-psycopg2 libpq-dev
 # Copy the main code base folder inside the container
-ADD /trews_rest_api /trews_rest_api
+ADD ../../trews_rest_api /trews_rest_api
 
 # Get pip to download and install requirements:
 RUN pip install --upgrade pip
@@ -24,6 +24,6 @@ WORKDIR /trews_rest_api
 
 # Set the default command to execute
 # when creating a new container
-CMD gunicorn -b localhost:80 trews:app
+CMD gunicorn -b localhost:8000 trews:app
 
 
