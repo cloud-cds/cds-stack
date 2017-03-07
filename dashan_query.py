@@ -125,7 +125,7 @@ def toggle_notification_read(eid, notification_id, as_read):
     (   update notifications
         set message = jsonb_set(message::jsonb, '{read}'::text[], '%(val)s'::jsonb, false)
         where pat_id = '%(pid)s' and notification_id = %(nid)s
-        returnning *
+        RETURNING *
     )
     insert into criteria_log (pat_id, tsp, event, update_date)
     select
@@ -152,9 +152,11 @@ def override_criteria(eid, name, value='[{}]', user='user', clear=False):
     params = {
         'user': ("'" + user + "'") if not clear else 'null',
         'val': ("'" + (json.dumps(value) if isinstance(value, list) else value) + "'") if not clear else 'null',
-        'val_log': (json.dumps(value) if isinstance(value, list) else value) if not clear else 'null',
         'name': name if name != 'sus-edit' else 'suspicion_of_infection',
-        'pid': eid
+        'pid': eid,
+        'user_log': user,
+        'val_log': (json.dumps(value) if isinstance(value, list) else value) if not clear else 'null',
+        'clear_log': 'true' if clear else 'false'
     }
     override_sql = \
     '''
@@ -168,7 +170,7 @@ def override_criteria(eid, name, value='[{}]', user='user', clear=False):
     values (
             '%(pid)s',
             now(),
-            '{"event_type": "override", "name":"%(name)s", "uid":"%(user)s", "override_value":%(val_log)s}',
+            '{"event_type": "override", "name":"%(name)s", "uid":"%(user_log)s", "override_value":%(val_log)s, "clear":%(clear_log)s}',
             now()
         );
     select override_criteria_snapshot('%(pid)s');
@@ -179,7 +181,7 @@ def override_criteria(eid, name, value='[{}]', user='user', clear=False):
     conn.close()
     push_notifications_to_epic(eid, engine)
 
-def reset_patient(eid, event_id=None):
+def reset_patient(eid, uid='user', event_id=None):
     engine = create_engine(DB_CONN_STR)
     event_where_clause = 'and event_id = %(evid)s' % {'evid' : event_id } if event_id is not None else ''
     reset_sql = """
@@ -189,12 +191,12 @@ def reset_patient(eid, event_id=None):
     values (
             '%(pid)s',
             now(),
-            '{"event_type": "reset", "name":"%(name)s", "uid":"%(user)s"}'
+            '{"event_type": "reset", "uid":"%(user)s"}'
             now()
         );
     delete from notifications where pat_id = '%(pid)s';
     select advance_criteria_snapshot('%(pid)s');
-    """ % {'pid': eid, 'where_clause': event_where_clause}
+    """ % {'pid': eid, 'where_clause': event_where_clause, 'uid', uid}
     logging.debug("reset_patient:" + reset_sql)
     conn = engine.connect()
     conn.execute(reset_sql)

@@ -121,7 +121,7 @@ class TREWSAPI(object):
 
         elif actionType == u'reset_patient':
             event_id = actionData['value'] if actionData is not None and 'value' in actionData else None
-            query.reset_patient(eid, event_id)
+            query.reset_patient(eid, uid, event_id)
 
         else:
             logging.error('Invalid action type: ' + actionType)
