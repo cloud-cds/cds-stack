@@ -66,6 +66,21 @@ spec:
             secretKeyRef:
               name: rest-api-db-secrets
               key: jhapi-client-secret
+        - name: aws_region
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-region
+        - name: aws_access_key_id
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-access-key-id
+        - name: aws_secret_access_key
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-secret-access-key
       volumes:
         - name: config-volume
           configMap:
