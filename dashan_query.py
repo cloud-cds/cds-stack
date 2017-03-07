@@ -127,7 +127,7 @@ def toggle_notification_read(eid, notification_id, as_read):
         where pat_id = '%(pid)s' and notification_id = %(nid)s
         returnning *
     )
-    insert into criteria_log (pat_id, uid, tsp, event, update_date)
+    insert into criteria_log (pat_id, tsp, event, update_date)
     select
             '%(pid)s',
             now(),
@@ -152,25 +152,27 @@ def override_criteria(eid, name, value='[{}]', user='user', clear=False):
     params = {
         'user': ("'" + user + "'") if not clear else 'null',
         'val': ("'" + (json.dumps(value) if isinstance(value, list) else value) + "'") if not clear else 'null',
+        'val_log': (json.dumps(value) if isinstance(value, list) else value) if not clear else 'null',
         'name': name if name != 'sus-edit' else 'suspicion_of_infection',
         'pid': eid
     }
-    override_sql = """
+    override_sql = \
+    '''
     update criteria set
         override_time = now(),
         update_date = now(),
         override_value = %(val)s,
         override_user = %(user)s
     where pat_id = '%(pid)s' and name = '%(name)s';
-    insert into criteria_log (pat_id, uid, tsp, event, update_date)
+    insert into criteria_log (pat_id, tsp, event, update_date)
     values (
             '%(pid)s',
             now(),
-            '{"event_type": "override", "name":"%(name)s", "uid":"%(user)s", "override_value":%(val)s}'
+            '{"event_type": "override", "name":"%(name)s", "uid":"%(user)s", "override_value":%(val_log)s}',
             now()
         );
     select override_criteria_snapshot('%(pid)s');
-    """ % params
+    ''' % params
     logging.debug("override_criteria sql:" + override_sql)
     conn = engine.connect()
     conn.execute(override_sql)
@@ -183,7 +185,7 @@ def reset_patient(eid, event_id=None):
     reset_sql = """
     update criteria_events set flag = -1
     where pat_id = '%(pid)s' %(where_clause)s;
-    insert into criteria_log (pat_id, uid, tsp, event, update_date)
+    insert into criteria_log (pat_id, tsp, event, update_date)
     values (
             '%(pid)s',
             now(),
