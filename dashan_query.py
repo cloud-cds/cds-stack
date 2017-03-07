@@ -89,6 +89,15 @@ def get_criteria(eid):
     df = pd.read_sql_query(get_criteria_sql,con=engine)
     return df
 
+def get_criteria_log(eid):
+    engine = create_engine(DB_CONN_STR)
+    get_criteria_log_sql = \
+    '''
+    select * from criteria_log
+    where pat_id = '%s' order by tsp desc;
+    ''' % eid
+    df = pd.read_sql_query(get_criteria_log_sql,con=engine)
+    return df
 
 def get_notifications(eid):
     engine = create_engine(DB_CONN_STR)
@@ -112,9 +121,19 @@ def toggle_notification_read(eid, notification_id, as_read):
     engine = create_engine(DB_CONN_STR)
     toggle_notifications_sql = \
     '''
-    update notifications
+    with update_notifications as
+    (   update notifications
         set message = jsonb_set(message::jsonb, '{read}'::text[], '%(val)s'::jsonb, false)
-    where pat_id = '%(pid)s' and notification_id = %(nid)s
+        where pat_id = '%(pid)s' and notification_id = %(nid)s
+        returnning *
+    )
+    insert into criteria_log (pat_id, uid, tsp, event, update_date)
+    select
+            '%(pid)s',
+            now(),
+            '{"event_type": "toggle_notifications", "message": n.message}'
+            now()
+    from update_notifications n;
     ''' % {'pid': eid, 'nid': notification_id, 'val': str(as_read).lower()}
     logging.debug("toggle_notifications_read:" + toggle_notifications_sql)
     conn = engine.connect()
@@ -133,7 +152,7 @@ def override_criteria(eid, name, value='[{}]', user='user', clear=False):
     params = {
         'user': ("'" + user + "'") if not clear else 'null',
         'val': ("'" + (json.dumps(value) if isinstance(value, list) else value) + "'") if not clear else 'null',
-        'fid': name if name != 'sus-edit' else 'suspicion_of_infection',
+        'name': name if name != 'sus-edit' else 'suspicion_of_infection',
         'pid': eid
     }
     override_sql = """
@@ -142,7 +161,14 @@ def override_criteria(eid, name, value='[{}]', user='user', clear=False):
         update_date = now(),
         override_value = %(val)s,
         override_user = %(user)s
-    where pat_id = '%(pid)s' and name = '%(fid)s';
+    where pat_id = '%(pid)s' and name = '%(name)s';
+    insert into criteria_log (pat_id, uid, tsp, event, update_date)
+    values (
+            '%(pid)s',
+            now(),
+            '{"event_type": "override", "name":"%(name)s", "uid":"%(user)s", "override_value":%(val)s}'
+            now()
+        );
     select override_criteria_snapshot('%(pid)s');
     """ % params
     logging.debug("override_criteria sql:" + override_sql)
@@ -157,6 +183,13 @@ def reset_patient(eid, event_id=None):
     reset_sql = """
     update criteria_events set flag = -1
     where pat_id = '%(pid)s' %(where_clause)s;
+    insert into criteria_log (pat_id, uid, tsp, event, update_date)
+    values (
+            '%(pid)s',
+            now(),
+            '{"event_type": "reset", "name":"%(name)s", "uid":"%(user)s"}'
+            now()
+        );
     delete from notifications where pat_id = '%(pid)s';
     select advance_criteria_snapshot('%(pid)s');
     """ % {'pid': eid, 'where_clause': event_where_clause}
@@ -199,15 +232,6 @@ if __name__ == '__main__':
 
     cdm = get_cdm(eid)
 
-    # for each row sort by column
-    # for idx, row in df_trews.iterrows():
-    #     sorted_row = row.sort_values(ascending=False)
-    #     print sorted_row
-    #     print sorted_row.index[0]
-    #     if sorted_row.index[0] in cdm.iloc[idx]:
-    #         print cdm.iloc[idx][sorted_row.index[0]]
-    #     else:
-    #         print 0
     sorted_trews = [row.sort_values(ascending=False) for idx, row in df_trews.iterrows()]
 
     names =  [row.index[0] for row in sorted_trews]
@@ -220,24 +244,5 @@ if __name__ == '__main__':
             vals.append(0)
     for i, n in enumerate(names):
         print n, vals[i]
-        #, sorted_row.index[1], sorted_row[1], sorted_row.index[2], sorted_row[2]
 
-    # df_rank = df_trews.rank(axis=1, method='max', ascending=False)
-    # top1 = df_rank.as_matrix() < 1.5
-    # top1_cols = [df_rank.columns.values[t][0] for t in top1]
-    # top1_weights = df_trews.as_matrix()[top1]
-    # top1_values = [row[top1_cols[i]] for i, row in cdm.iterrows()]
-    # top2 = (df_rank.as_matrix() < 2.5) & (df_rank.as_matrix() > 1.5)
-    # top2_cols = [df_rank.columns.values[t][0] for t in top2]
-    # top2_weights = df_trews.as_matrix()[top2]
-    # top3 = (df_rank.as_matrix() < 3.5) & (df_rank.as_matrix() > 2.5)
-    # top3_cols = [df_rank.columns.values[t][0] for t in top3]
-    # top3_weights = df_trews.as_matrix()[top3]
-    # print top1_cols
-    # print top1_weights
-    # print top1_values
-    # print len(top1_cols)
-    # print top3_cols
-    # print top3_weights
-    # print len(top3_cols)
 
