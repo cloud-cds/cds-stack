@@ -1,0 +1,1 @@
+please cp Dockerfile to `../.. ` and run docker build there
