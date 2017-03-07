@@ -8,14 +8,11 @@ data:
     server {
         listen 80 default_server;
         listen [::]:80 default_server;
-        #listen 443 ssl default_server;
-        #ssl_certificate /etc/nginx/ssl/nginx.crt;
-        #ssl_certificate_key /etc/nginx/ssl/nginx.key;
         root /var/www/html;
         index index.html index.htm index.nginx-debian.html;
         server_name _;
-        location /trews-api/ {
-                proxy_pass http://localhost:8000;
+        location / {
+          proxy_pass http://localhost:8000;
         }
     }
 ---
@@ -24,7 +21,7 @@ kind: Deployment
 metadata:
   name: trews-rest-api
 spec:
-  replicas: 3
+  replicas: 1
   template:
     metadata:
       labels:
@@ -32,33 +29,43 @@ spec:
     spec:
       containers:
       - name: trews-nginx
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-nginx:0.0.4
+        image: nginx:alpine
         ports:
         - containerPort: 80
         volumeMounts:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: trews-rest-api
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.0.4
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.0.6
         ports:
         - containerPort: 8000
         env:
-        - name: psql_host
+        - name: db_host
           value: "db.prod.opsdx.io"
-        - name: psql_port
+        - name: db_port
           value: "5432"
-        - name: psql_db
+        - name: db_name
           value: "opsdx_prod"
-        - name: psql_user
+        - name: db_user
           valueFrom:
             secretKeyRef:
               name: rest-api-db-secrets
               key: db-username
-        - name: psql_password
+        - name: db_password
           valueFrom:
             secretKeyRef:
               name: rest-api-db-secrets
               key: db-password
+        - name: jhapi_client_id
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: jhapi-client-id
+        - name: jhapi_client_secret
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: jhapi-client-secret
       volumes:
         - name: config-volume
           configMap:

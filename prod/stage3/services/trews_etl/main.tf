@@ -38,6 +38,7 @@ variable "TREWS_ETL_DEMO_MODE" {}
 variable "TREWS_ETL_STREAM_HOURS" {}
 variable "TREWS_ETL_STREAM_SLICES" {}
 variable "TREWS_ETL_STREAM_SLEEP_SECS" {}
+variable "TREWS_ETL_EPIC_NOTIFICATIONS" {}
 
 variable "local_shell" {}
 
@@ -93,6 +94,7 @@ POLICY
 # ETL Lambda functions for production and development databases.
 
 resource "aws_lambda_function" "etl_lambda" {
+
     function_name    = "${var.deploy_prefix}-etl-lambda"
     handler          = "service.handler"
 
@@ -126,14 +128,15 @@ resource "aws_lambda_function" "etl_lambda" {
         jhapi_client_id     = "${var.jhapi_client_id}"
         jhapi_client_secret = "${var.jhapi_client_secret}"
 
-        TREWS_ETL_SERVER            = "${var.TREWS_ETL_SERVER}"
-        TREWS_ETL_HOSPITAL          = "${var.TREWS_ETL_HOSPITAL}"
-        TREWS_ETL_HOURS             = "${var.TREWS_ETL_HOURS}"
-        TREWS_ETL_ARCHIVE           = "${var.TREWS_ETL_ARCHIVE}"
-        TREWS_ETL_MODE              = "${var.TREWS_ETL_MODE}"
-        TREWS_ETL_STREAM_HOURS      = "${var.TREWS_ETL_STREAM_HOURS}"
-        TREWS_ETL_STREAM_SLICES     = "${var.TREWS_ETL_STREAM_SLICES}"
-        TREWS_ETL_STREAM_SLEEP_SECS = "${var.TREWS_ETL_STREAM_SLEEP_SECS}"
+        TREWS_ETL_SERVER             = "${var.TREWS_ETL_SERVER}"
+        TREWS_ETL_HOSPITAL           = "${var.TREWS_ETL_HOSPITAL}"
+        TREWS_ETL_HOURS              = "${var.TREWS_ETL_HOURS}"
+        TREWS_ETL_ARCHIVE            = "${var.TREWS_ETL_ARCHIVE}"
+        TREWS_ETL_MODE               = "${var.TREWS_ETL_MODE}"
+        TREWS_ETL_STREAM_HOURS       = "${var.TREWS_ETL_STREAM_HOURS}"
+        TREWS_ETL_STREAM_SLICES      = "${var.TREWS_ETL_STREAM_SLICES}"
+        TREWS_ETL_STREAM_SLEEP_SECS  = "${var.TREWS_ETL_STREAM_SLEEP_SECS}"
+        TREWS_ETL_EPIC_NOTIFICATIONS = "${var.TREWS_ETL_EPIC_NOTIFICATIONS}"
       }
     }
 }

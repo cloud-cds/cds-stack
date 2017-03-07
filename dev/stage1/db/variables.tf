@@ -33,7 +33,7 @@ variable "db_identifier" {
 
 variable "db_storage" {
   description = "Storage size in GB"
-  default = "30"
+  default = "120"
 }
 
 variable "db_engine" {
