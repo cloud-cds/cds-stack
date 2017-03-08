@@ -88,6 +88,10 @@ class TREWSAPI(object):
             notifications = query.get_notifications(eid)
             return {'notifications': notifications}
 
+        elif actionType == u'pollAuditlist':
+            auditlist = query.get_criteria_log(eid)
+            return {'auditlist': auditlist}
+
         elif actionType == u'override':
             action_is_clear = 'clear' in actionData and actionData['clear']
             logging.debug('override_criteria action %(clear)s: %(v)s' % {'v': json.dumps(actionData), 'clear': action_is_clear})
