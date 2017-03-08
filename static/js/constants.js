@@ -67,7 +67,7 @@ var CONSTANTS = {
 var severe_sepsis = {
 	"display_name": "Severe Sepsis Criteria",
 	"suspicion_of_infection": {
-		"display_name": "Suspicion of Infection"
+		"display_name": "Suspected Suspicion of Infection"
 	},
 	"sirs": {
 		"key": "sirs",
