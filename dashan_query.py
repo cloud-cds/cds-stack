@@ -191,7 +191,7 @@ def reset_patient(eid, uid='user', event_id=None):
     values (
             '%(pid)s',
             now(),
-            '{"event_type": "reset", "uid":"%(uid)s"}'
+            '{"event_type": "reset", "uid":"%(uid)s"}',
             now()
         );
     delete from notifications where pat_id = '%(pid)s';
