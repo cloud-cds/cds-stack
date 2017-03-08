@@ -1377,6 +1377,7 @@ var toolbar = new function() {
 	}
 	this.feedbackSuccess = function() {
 		this.feedback.find('p').append('<b class="success">Feedback Submitted!</b>')
+		toolbar.feedback.find('textarea').val('')
 	}
 	this.feedbackError = function() {
 		this.feedback.find('p').append('<b class="error">There was an error, please try again or email trews-jhu@opsdx.io</b>')
