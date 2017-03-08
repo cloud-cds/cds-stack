@@ -128,7 +128,7 @@ class TREWSFeedback(object):
             client.send_email(
                 Source      = 'trews-jhu@opsdx.io',
                 Destination = {
-                    'ToAddresses': [ 'trews-jhu@opsdx.io', 'mpeven@gmail.com', ],
+                    'ToAddresses': [ 'trews-jhu@opsdx.io' ],
                 },
                 Message     = {
                     'Subject': { 'Data': subject, },
