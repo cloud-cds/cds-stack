@@ -477,7 +477,7 @@ class TREWSAPI(object):
                 if actionType is not None:
                     response_body = self.take_action(actionType, actionData, eid, uid)
 
-                if actionType != u'pollNotifications':
+                if actionType != u'pollNotifications' and actionType != u'pollAuditlist':
                     self.update_response_json(data, eid)
                     response_body = {'trewsData': data}
 
