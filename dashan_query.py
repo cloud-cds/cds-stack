@@ -196,7 +196,7 @@ def reset_patient(eid, uid='user', event_id=None):
         );
     delete from notifications where pat_id = '%(pid)s';
     select advance_criteria_snapshot('%(pid)s');
-    """ % {'pid': eid, 'where_clause': event_where_clause, 'uid', uid}
+    """ % {'pid': eid, 'where_clause': event_where_clause, 'uid': uid}
     logging.debug("reset_patient:" + reset_sql)
     conn = engine.connect()
     conn.execute(reset_sql)
