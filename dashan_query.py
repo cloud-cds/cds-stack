@@ -183,7 +183,7 @@ def override_criteria(eid, name, value='[{}]', user='user', clear=False):
 
 def reset_patient(eid, uid='user', event_id=None):
     engine = create_engine(DB_CONN_STR)
-    event_where_clause = 'and event_id = %(evid)s' % {'evid' : event_id } if event_id is not None or event_id != 'None' else ''
+    event_where_clause = '' if event_id is None or event_id == 'None' else 'and event_id = %(evid)s' % {'evid' : event_id }
     reset_sql = """
     update criteria_events set flag = -1
     where pat_id = '%(pid)s' %(where_clause)s;
