@@ -220,7 +220,6 @@ def deactivate(eid, deactivated):
     conn.execute(deactivate_sql)
     conn.close()
     push_notifications_to_epic(eid, engine)
-    return {'deactivated': deactivated}
 
 def push_notifications_to_epic(eid, engine):
     notifications_sql = """
