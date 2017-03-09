@@ -213,12 +213,7 @@ def reset_patient(eid, uid='user', event_id=None):
 def deactivate(eid, deactivated):
     engine = create_engine(DB_CONN_STR)
     deactivate_sql = '''
-    insert into pat_status (pat_id, deactivated, deactivated_tsp)
-    values (
-        %(pid)s, %(deactivated)s, now()
-        )
-    on conflict (pat_id)
-    update set deactivated = Exclued.deactivated, deactivated_tsp = now()
+    select deactivate('%(pid)s', %(deactivated)s);
     ''' % {'pid': eid, "deactivated": deactivated}
     logging.debug("deactivate user:" + deactivate_sql)
     conn = engine.connect()
