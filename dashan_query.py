@@ -93,11 +93,12 @@ def get_criteria_log(eid):
     engine = create_engine(DB_CONN_STR)
     get_criteria_log_sql = \
     '''
-    select * from criteria_log
+    select log_id, pat_id, date_part('epoch', tsp), event from criteria_log
     where pat_id = '%s' order by tsp desc;
     ''' % eid
     df = pd.read_sql_query(get_criteria_log_sql,con=engine)
     auditlist = []
+    print df.head()
     for idx,row in df.iterrows():
         audit = row['event']
         audit['log_id'] = row['log_id']
@@ -114,7 +115,6 @@ def get_notifications(eid):
     where pat_id = '%s'
     ''' % eid
     df = pd.read_sql_query(get_notifications_sql,con=engine)
-    print df.head()
     notifications = []
     for idx, row in df.iterrows():
         notification = row['message']
