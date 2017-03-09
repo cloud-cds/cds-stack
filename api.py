@@ -80,7 +80,7 @@ class TREWSAPI(object):
         pad_text = encoder.decode(cipher)
         return pad_text
 
-    # TODO: match and test the consistent API for overriding
+    # match and test the consistent API for overriding
     def take_action(self, actionType, actionData, eid, uid):
 
         # Match pollNotifications first since this is the most common action.
@@ -88,7 +88,9 @@ class TREWSAPI(object):
             notifications = query.get_notifications(eid)
             return {'notifications': notifications}
 
+        print actionType
         elif actionType == u'pollAuditlist':
+            print "enter pollAuditlist"
             auditlist = query.get_criteria_log(eid)
             return {'auditlist': auditlist}
 
