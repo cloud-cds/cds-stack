@@ -226,13 +226,16 @@ def push_notifications_to_epic(eid, engine):
         select * from get_notifications_for_epic('%s');
         """ % eid
     notifications = pd.read_sql_query(notifications_sql, con=engine)
-    patients = [ {'pat_id': n['pat_id'], 'visit_id': n['visit_id'], 'notifications': n['count'],
-                        'current_time': datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")} for i, n in notifications.iterrows()]
-
-    client_id = os.environ['jhapi_client_id'],
-    client_secret = os.environ['jhapi_client_secret']
-    loader = load.Loader('prod', client_id, client_secret)
-    loader.load_notifications(patients)
+    if not notifications.empty:
+        patients = [ {'pat_id': n['pat_id'], 'visit_id': n['visit_id'], 'notifications': n['count'],
+                            'current_time': datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")} for i, n in notifications.iterrows()]
+        logging.debug("sending notifications to epic")
+        client_id = os.environ['jhapi_client_id'],
+        client_secret = os.environ['jhapi_client_secret']
+        loader = load.Loader('prod', client_id, client_secret)
+        loader.load_notifications(patients)
+    else:
+        logging.debug("no notifications")
 
 def eid_exist(eid):
     engine = create_engine(DB_CONN_STR)
