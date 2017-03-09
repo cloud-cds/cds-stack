@@ -80,13 +80,19 @@ class TREWSAPI(object):
         pad_text = encoder.decode(cipher)
         return pad_text
 
-    # TODO: match and test the consistent API for overriding
+    # match and test the consistent API for overriding
     def take_action(self, actionType, actionData, eid, uid):
 
         # Match pollNotifications first since this is the most common action.
         if actionType == u'pollNotifications':
             notifications = query.get_notifications(eid)
             return {'notifications': notifications}
+
+        print actionType
+        elif actionType == u'pollAuditlist':
+            print "enter pollAuditlist"
+            auditlist = query.get_criteria_log(eid)
+            return {'auditlist': auditlist}
 
         elif actionType == u'override':
             action_is_clear = 'clear' in actionData and actionData['clear']
@@ -473,7 +479,7 @@ class TREWSAPI(object):
                 if actionType is not None:
                     response_body = self.take_action(actionType, actionData, eid, uid)
 
-                if actionType != u'pollNotifications':
+                if actionType != u'pollNotifications' and actionType != u'pollAuditlist':
                     self.update_response_json(data, eid)
                     response_body = {'trewsData': data}
 

@@ -97,7 +97,13 @@ def get_criteria_log(eid):
     where pat_id = '%s' order by tsp desc;
     ''' % eid
     df = pd.read_sql_query(get_criteria_log_sql,con=engine)
-    return df
+    auditlist = []
+    for idx,row in df.iterrows():
+        audit = row['event']
+        audit['log_id'] = row['log_id']
+        audit['pat_id'] = row['pat_id']
+        audit['timestamp'] = audit['tsp']
+        auditlist.append(audit)
 
 def get_notifications(eid):
     engine = create_engine(DB_CONN_STR)
