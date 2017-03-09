@@ -102,7 +102,7 @@ def get_criteria_log(eid):
         audit = row['event']
         audit['log_id'] = row['log_id']
         audit['pat_id'] = row['pat_id']
-        audit['timestamp'] = audit['tsp']
+        audit['timestamp'] = row['tsp']
         auditlist.append(audit)
 
 def get_notifications(eid):
