@@ -210,18 +210,35 @@ def reset_patient(eid, uid='user', event_id=None):
     conn.close()
     push_notifications_to_epic(eid, engine)
 
-def push_notifications_to_epic(eid, engine):
-        notifications_sql = """
-            select * from get_notifications_for_epic('%s');
-            """ % eid
-        notifications = pd.read_sql_query(notifications_sql, con=engine)
-        patients = [ {'pat_id': n['pat_id'], 'visit_id': n['visit_id'], 'notifications': n['count'],
-                            'current_time': datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")} for i, n in notifications.iterrows()]
+def deactivate(eid, deactivated):
+    engine = create_engine(DB_CONN_STR)
+    deactivate_sql = '''
+    insert into pat_status (pat_id, deactivated, deactivated_tsp)
+    values (
+        %(pid)s, %(deactivated)s, now()
+        )
+    on conflict (pat_id)
+    update set deactivated = Exclued.deactivated, deactivated_tsp = now()
+    ''' % {'pid': eid, "deactivated": deactivated}
+    logging.debug("deactivate user:" + deactivate_sql)
+    conn = engine.connect()
+    conn.execute(deactivate_sql)
+    conn.close()
+    push_notifications_to_epic(eid, engine)
+    return {'deactivated': deactivated}
 
-        client_id = os.environ['jhapi_client_id'],
-        client_secret = os.environ['jhapi_client_secret']
-        loader = load.Loader('prod', client_id, client_secret)
-        loader.load_notifications(patients)
+def push_notifications_to_epic(eid, engine):
+    notifications_sql = """
+        select * from get_notifications_for_epic('%s');
+        """ % eid
+    notifications = pd.read_sql_query(notifications_sql, con=engine)
+    patients = [ {'pat_id': n['pat_id'], 'visit_id': n['visit_id'], 'notifications': n['count'],
+                        'current_time': datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")} for i, n in notifications.iterrows()]
+
+    client_id = os.environ['jhapi_client_id'],
+    client_secret = os.environ['jhapi_client_secret']
+    loader = load.Loader('prod', client_id, client_secret)
+    loader.load_notifications(patients)
 
 def eid_exist(eid):
     engine = create_engine(DB_CONN_STR)
