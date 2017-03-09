@@ -104,6 +104,7 @@ def get_criteria_log(eid):
         audit['pat_id'] = row['pat_id']
         audit['timestamp'] = row['tsp']
         auditlist.append(audit)
+    return auditlist
 
 def get_notifications(eid):
     engine = create_engine(DB_CONN_STR)
