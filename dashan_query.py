@@ -98,6 +98,7 @@ def get_criteria_log(eid):
     ''' % eid
     df = pd.read_sql_query(get_criteria_log_sql,con=engine)
     auditlist = []
+    print df.head()
     for idx,row in df.iterrows():
         audit = row['event']
         audit['log_id'] = row['log_id']
@@ -114,7 +115,6 @@ def get_notifications(eid):
     where pat_id = '%s'
     ''' % eid
     df = pd.read_sql_query(get_notifications_sql,con=engine)
-    print df.head()
     notifications = []
     for idx, row in df.iterrows():
         notification = row['message']
