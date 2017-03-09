@@ -93,7 +93,7 @@ def get_criteria_log(eid):
     engine = create_engine(DB_CONN_STR)
     get_criteria_log_sql = \
     '''
-    select log_id, pat_id, date_part('epoch', tsp), event from criteria_log
+    select log_id, pat_id, date_part('epoch', tsp) epoch, event from criteria_log
     where pat_id = '%s' order by tsp desc;
     ''' % eid
     df = pd.read_sql_query(get_criteria_log_sql,con=engine)
@@ -103,7 +103,7 @@ def get_criteria_log(eid):
         audit = row['event']
         audit['log_id'] = row['log_id']
         audit['pat_id'] = row['pat_id']
-        audit['timestamp'] = row['tsp']
+        audit['timestamp'] = row['epoch']
         auditlist.append(audit)
     return auditlist
 
