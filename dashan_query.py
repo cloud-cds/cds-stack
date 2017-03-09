@@ -8,6 +8,7 @@ import logging
 import pandas as pd
 from inpatient_updater import load
 from sqlalchemy import create_engine
+from sqlalchemy import text
 
 logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.DEBUG)
 
