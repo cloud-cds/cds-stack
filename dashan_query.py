@@ -17,6 +17,7 @@ host = os.environ['db_host']
 db = os.environ['db_name']
 port = os.environ['db_port']
 password = os.environ['db_password']
+epic_notifications = os.environ['epic_notifications']
 DB_CONN_STR = DB_CONN_STR.format(user, password, host, port, db)
 
 def get_trews(eid):
@@ -213,7 +214,7 @@ def reset_patient(eid, uid='user', event_id=None):
 def deactivate(eid, deactivated):
     engine = create_engine(DB_CONN_STR)
     deactivate_sql = '''
-    select deactivate('%(pid)s', %(deactivated)s);
+    select * from deactivate('%(pid)s', %(deactivated)s);
     ''' % {'pid': eid, "deactivated": deactivated}
     logging.debug("deactivate user:" + deactivate_sql)
     conn = engine.connect()
@@ -222,20 +223,21 @@ def deactivate(eid, deactivated):
     push_notifications_to_epic(eid, engine)
 
 def push_notifications_to_epic(eid, engine):
-    notifications_sql = """
-        select * from get_notifications_for_epic('%s');
-        """ % eid
-    notifications = pd.read_sql_query(notifications_sql, con=engine)
-    if not notifications.empty:
-        patients = [ {'pat_id': n['pat_id'], 'visit_id': n['visit_id'], 'notifications': n['count'],
-                            'current_time': datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")} for i, n in notifications.iterrows()]
-        logging.debug("sending notifications to epic")
-        client_id = os.environ['jhapi_client_id'],
-        client_secret = os.environ['jhapi_client_secret']
-        loader = load.Loader('prod', client_id, client_secret)
-        loader.load_notifications(patients)
-    else:
-        logging.debug("no notifications")
+    if epic_notifications is not None and int(epic_notifications):
+        notifications_sql = """
+            select * from get_notifications_for_epic('%s');
+            """ % eid
+        notifications = pd.read_sql_query(notifications_sql, con=engine)
+        if not notifications.empty:
+            patients = [ {'pat_id': n['pat_id'], 'visit_id': n['visit_id'], 'notifications': n['count'],
+                                'current_time': datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")} for i, n in notifications.iterrows()]
+            logging.debug("sending notifications to epic")
+            client_id = os.environ['jhapi_client_id'],
+            client_secret = os.environ['jhapi_client_secret']
+            loader = load.Loader('prod', client_id, client_secret)
+            loader.load_notifications(patients)
+        else:
+            logging.debug("no notifications")
 
 def eid_exist(eid):
     engine = create_engine(DB_CONN_STR)
