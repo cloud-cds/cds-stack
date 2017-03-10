@@ -56,19 +56,9 @@ class TREWSAPI(object):
         """
         See example in test_decrpyt.py
         """
-        encrypted_text = urllib.unquote(req.query_string)
         resp.content_type = 'text/html'
         resp.status = falcon.HTTP_200  # This is the default status
-
-        body = "query_string: " + encrypted_text
-
-        decodetext =  base64.b64decode(encrypted_text)
-        aes = AES.new(hashed_key, MODE, IV)
-        cipher = aes.decrypt(decodetext)
-        encoder = PKCS7Encoder()
-        pad_text = encoder.decode(cipher)
-
-        body += "</br></br>plain_text: " + pad_text
+        body += "TREWS API"
         resp.body = (body)
 
     def decrypt(self, encrypted_text):
