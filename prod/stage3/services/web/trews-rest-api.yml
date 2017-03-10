@@ -81,6 +81,8 @@ spec:
             secretKeyRef:
               name: rest-api-db-secrets
               key: aws-secret-access-key
+        - name: epic_notifications
+          value: "1"
       volumes:
         - name: config-volume
           configMap:
