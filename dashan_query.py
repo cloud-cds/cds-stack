@@ -219,7 +219,7 @@ def deactivate(eid, deactivated):
     ''' % {'pid': eid, "deactivated": deactivated}
     logging.debug("deactivate user:" + deactivate_sql)
     conn = engine.connect()
-    conn.execute(text(deactivate_sql).execution_option(autocommit=True))
+    conn.execute(text(deactivate_sql).execution_options(autocommit=True))
     conn.close()
     push_notifications_to_epic(eid, engine)
 
