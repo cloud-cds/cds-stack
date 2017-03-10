@@ -235,7 +235,7 @@ def get_deactivated(eid):
     deactivated = conn.execute("select deactivated from pat_status where pat_id = '%s'" % eid).fetchall()
     if len(deactivated) == 1 or deactivated[0] is True:
         return True
-    else
+    else:
         return False
 
 def push_notifications_to_epic(eid, engine):
