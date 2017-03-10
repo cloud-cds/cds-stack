@@ -232,7 +232,9 @@ def deactivate(eid, deactivated):
 
 def get_deactivated(eid):
     engine = create_engine(DB_CONN_STR)
+    conn = engine.connect()
     deactivated = conn.execute("select deactivated from pat_status where pat_id = '%s'" % eid).fetchall()
+    conn.close()
     if len(deactivated) == 1 or deactivated[0] is True:
         return True
     else:
