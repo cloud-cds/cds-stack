@@ -331,13 +331,12 @@ class TREWSAPI(object):
 
 
     def update_response_json(self, data, eid):
-        """
-        TODO: update other part
-        """
         # update chart data
         data['pat_id'] = eid
         criteria = query.get_criteria(eid)
 
+        deactivated = query.get_deactivated(eid)
+        data['deactivated'] = deactivated
         # update criteria from database query
         self.update_criteria(criteria, data)
         data['chart_data']['trewscore_threshold'] = THRESHOLD

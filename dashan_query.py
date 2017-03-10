@@ -216,12 +216,27 @@ def deactivate(eid, deactivated):
     engine = create_engine(DB_CONN_STR)
     deactivate_sql = '''
     select * from deactivate('%(pid)s', %(deactivated)s);
-    ''' % {'pid': eid, "deactivated": deactivated}
+    insert into criteria_log (pat_id, tsp, event, update_date)
+    values (
+            '%(pid)s',
+            now(),
+            '{"event_type": "deactivate", "uid":"%(uid)s", "deactivated": %(deactivated)s}',
+            now()
+        );
+    ''' % {'pid': eid, "deactivated": 'true' if deactivated else "false"}
     logging.debug("deactivate user:" + deactivate_sql)
     conn = engine.connect()
     conn.execute(text(deactivate_sql).execution_options(autocommit=True))
     conn.close()
     push_notifications_to_epic(eid, engine)
+
+def get_deactivated(eid):
+    engine = create_engine(DB_CONN_STR)
+    deactivated = conn.execute("select deactivated from pat_status where pat_id = '%s'" % eid).fetchall()
+    if len(deactivated) == 1 or deactivated[0] is True:
+        return True
+    else
+        return False
 
 def push_notifications_to_epic(eid, engine):
     if epic_notifications is not None and int(epic_notifications):
