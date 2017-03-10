@@ -8,6 +8,7 @@ import logging
 import pandas as pd
 from inpatient_updater import load
 from sqlalchemy import create_engine
+from sqlalchemy import text
 
 logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.DEBUG)
 
@@ -17,6 +18,7 @@ host = os.environ['db_host']
 db = os.environ['db_name']
 port = os.environ['db_port']
 password = os.environ['db_password']
+epic_notifications = os.environ['epic_notifications']
 DB_CONN_STR = DB_CONN_STR.format(user, password, host, port, db)
 
 def get_trews(eid):
@@ -210,35 +212,51 @@ def reset_patient(eid, uid='user', event_id=None):
     conn.close()
     push_notifications_to_epic(eid, engine)
 
-def deactivate(eid, deactivated):
+def deactivate(eid, uid, deactivated):
     engine = create_engine(DB_CONN_STR)
     deactivate_sql = '''
-    insert into pat_status (pat_id, deactivated, deactivated_tsp)
+    select * from deactivate('%(pid)s', %(deactivated)s);
+    insert into criteria_log (pat_id, tsp, event, update_date)
     values (
-        %(pid)s, %(deactivated)s, now()
-        )
-    on conflict (pat_id)
-    update set deactivated = Exclued.deactivated, deactivated_tsp = now()
-    ''' % {'pid': eid, "deactivated": deactivated}
+            '%(pid)s',
+            now(),
+            '{"event_type": "deactivate", "uid":"%(uid)s", "deactivated": %(deactivated)s}',
+            now()
+        );
+    ''' % {'pid': eid, "deactivated": 'true' if deactivated else "false", "uid":uid}
     logging.debug("deactivate user:" + deactivate_sql)
     conn = engine.connect()
-    conn.execute(deactivate_sql)
+    conn.execute(text(deactivate_sql).execution_options(autocommit=True))
     conn.close()
     push_notifications_to_epic(eid, engine)
-    return {'deactivated': deactivated}
+
+def get_deactivated(eid):
+    engine = create_engine(DB_CONN_STR)
+    conn = engine.connect()
+    deactivated = conn.execute("select deactivated from pat_status where pat_id = '%s'" % eid).fetchall()
+    conn.close()
+    print deactivated
+    if len(deactivated) == 1 and deactivated[0][0] is True:
+        return True
+    else:
+        return False
 
 def push_notifications_to_epic(eid, engine):
-    notifications_sql = """
-        select * from get_notifications_for_epic('%s');
-        """ % eid
-    notifications = pd.read_sql_query(notifications_sql, con=engine)
-    patients = [ {'pat_id': n['pat_id'], 'visit_id': n['visit_id'], 'notifications': n['count'],
-                        'current_time': datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")} for i, n in notifications.iterrows()]
-
-    client_id = os.environ['jhapi_client_id'],
-    client_secret = os.environ['jhapi_client_secret']
-    loader = load.Loader('prod', client_id, client_secret)
-    loader.load_notifications(patients)
+    if epic_notifications is not None and int(epic_notifications):
+        notifications_sql = """
+            select * from get_notifications_for_epic('%s');
+            """ % eid
+        notifications = pd.read_sql_query(notifications_sql, con=engine)
+        if not notifications.empty:
+            patients = [ {'pat_id': n['pat_id'], 'visit_id': n['visit_id'], 'notifications': n['count'],
+                                'current_time': datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")} for i, n in notifications.iterrows()]
+            logging.debug("sending notifications to epic")
+            client_id = os.environ['jhapi_client_id'],
+            client_secret = os.environ['jhapi_client_secret']
+            loader = load.Loader('prod', client_id, client_secret)
+            loader.load_notifications(patients)
+        else:
+            logging.debug("no notifications")
 
 def eid_exist(eid):
     engine = create_engine(DB_CONN_STR)
