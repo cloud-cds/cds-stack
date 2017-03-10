@@ -212,7 +212,7 @@ def reset_patient(eid, uid='user', event_id=None):
     conn.close()
     push_notifications_to_epic(eid, engine)
 
-def deactivate(eid, deactivated):
+def deactivate(eid, uid, deactivated):
     engine = create_engine(DB_CONN_STR)
     deactivate_sql = '''
     select * from deactivate('%(pid)s', %(deactivated)s);
@@ -223,7 +223,7 @@ def deactivate(eid, deactivated):
             '{"event_type": "deactivate", "uid":"%(uid)s", "deactivated": %(deactivated)s}',
             now()
         );
-    ''' % {'pid': eid, "deactivated": 'true' if deactivated else "false"}
+    ''' % {'pid': eid, "deactivated": 'true' if deactivated else "false", "uid":uid}
     logging.debug("deactivate user:" + deactivate_sql)
     conn = engine.connect()
     conn.execute(text(deactivate_sql).execution_options(autocommit=True))

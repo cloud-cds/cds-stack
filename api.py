@@ -127,7 +127,7 @@ class TREWSAPI(object):
             query.reset_patient(eid, uid, event_id)
 
         elif actionType == u'deactivate':
-            query.deactivate(eid, actionData['value'])
+            query.deactivate(eid, uid, actionData['value'])
 
         else:
             logging.error('Invalid action type: ' + actionType)
