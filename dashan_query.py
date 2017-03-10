@@ -235,6 +235,7 @@ def get_deactivated(eid):
     conn = engine.connect()
     deactivated = conn.execute("select deactivated from pat_status where pat_id = '%s'" % eid).fetchall()
     conn.close()
+    print deactivated
     if len(deactivated) == 1 and deactivated[0] is True:
         return True
     else:
