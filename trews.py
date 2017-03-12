@@ -10,6 +10,7 @@ import os
 STATIC_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(STATIC_DIR, 'static')
 import logging
+import datetime
 import json
 import boto3
 import watchtower
