@@ -1375,12 +1375,12 @@ var toolbar = new function() {
 			toolbar.feedback.show();
 		})
 		$('#feedback').click(function() { //hide feedback form
-			toolbar.feedback.hide();
+			toolbar.feedback.fadeOut(500);
 		})
 		$('#feedback-cancel').click(function () { //hide feedback form and clear
 			toolbar.feedback.find('b').remove()
 			toolbar.feedback.find('textarea').val('')
-			toolbar.feedback.hide();
+			toolbar.feedback.fadeOut(500);
 		})
 		$('#feedback .modal-content').click(function(e) { // prevent feedback form from closing when click inside feedback form
 			e.stopPropagation();
@@ -1398,7 +1398,7 @@ var toolbar = new function() {
 	this.feedbackSuccess = function() {
 		this.feedback.find('p').html('<b class="success">Feedback Submitted!</b>')
 		toolbar.feedback.find('textarea').val('')
-		window.setTimeout(function() { toolbar.feedback.hide(); }, toolbar.feedbackSuccessHideDelay);
+		window.setTimeout(function() { toolbar.feedback.fadeOut(500); }, toolbar.feedbackSuccessHideDelay);
 	}
 	this.feedbackError = function() {
 		this.feedback.find('p').html('<b class="error">There was an error, please try again or email trews-jhu@opsdx.io</b>')
