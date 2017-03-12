@@ -1,4 +1,3 @@
-import os
 import falcon
 from Crypto.Cipher import AES
 from pkcs7 import PKCS7Encoder
@@ -20,7 +19,6 @@ import pprint
 import copy
 import re
 import calendar
-import watchtower
 
 THRESHOLD = 0.81
 logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.DEBUG)
@@ -33,9 +31,6 @@ MODE = AES.MODE_CBC
 
 DECRYPTED = False
 
-cwReqLogger = logging.getLogger(__name__)
-cwReqLogger.addHandler(watchtower.CloudWatchLogHandler(log_group=os.environ['cloudwatch_log_group'], create_log_group=False))
-cwReqLogger.setLevel(logging.INFO)
 
 def temp_f_to_c(f):
     return (f - 32) * .5556
@@ -424,21 +419,6 @@ class TREWSAPI(object):
 
     def on_post(self, req, resp):
         srvnow = datetime.datetime.utcnow().isoformat()
-        cwReqLogger.info(
-            {
-                'date'         : srvnow,
-                'reqdate'      : req.date,
-                'remote_addr'  : req.remote_addr,
-                'access_route' : req.access_route,
-                'protocol'     : req.protocol,
-                'method'       : req.method,
-                'host'         : req.host,
-                'subdomain'    : req.subdomain,
-                'app'          : req.app,
-                'headers'      : req.headers
-            }
-        )
-
         try:
             raw_json = req.stream.read()
             logging.debug('%(date)s %(reqdate)s %(remote_addr)s %(access_route)s %(protocol)s %(method)s %(host)s %(headers)s %(body)s'

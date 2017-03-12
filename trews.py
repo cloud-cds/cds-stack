@@ -163,15 +163,37 @@ class TREWSEchoHealthcheck(object):
         except Exception as ex:
             raise falcon.HTTPError(falcon.HTTP_400, 'Error processing echo healthcheck', ex.message)
 
-cwRespLogger = logging.getLogger(__name__)
-cwRespLogger.addHandler(watchtower.CloudWatchLogHandler(log_group=os.environ['cloudwatch_log_group'], create_log_group=False))
-cwRespLogger.setLevel(logging.INFO)
+cwLogger = logging.getLogger(__name__)
+cwLogger.addHandler(watchtower.CloudWatchLogHandler(log_group=os.environ['cloudwatch_log_group'], create_log_group=False))
+cwLogger.setLevel(logging.INFO)
 
-class ResponseLoggerMiddleware(object):
+class TREWSLoggerMiddleware(object):
+    def process_resource(self, req, resp, resource, params):
+        srvnow = datetime.datetime.utcnow().isoformat()
+        cwReqLogger.info(
+            {
+                'date'         : srvnow,
+                'reqdate'      : req.date,
+                'method'       : req.method,
+                'url'          : req.relative_uri,
+                'remote_addr'  : req.remote_addr,
+                'access_route' : req.access_route,
+                'headers'      : req.headers
+            }
+        )
+
     def process_response(self, req, resp, resource, req_succeeded):
-        cwRespLogger.info('{0} {1} {2}'.format(req.method, req.relative_uri, resp.status[:3]))
+        srvnow = datetime.datetime.utcnow().isoformat()
+        cwRespLogger.info({
+            'date'         : srvnow,
+            'reqdate'      : req.date,
+            'method'       : req.method,
+            'url'          : req.relative_uri,
+            'status'       : resp.status[:3],
+            'headers'      : req.headers
+        })
 
-app = falcon.API(middleware=[ResponseLoggerMiddleware()])
+app = falcon.API(middleware=[TREWSLoggerMiddleware()])
 
 # Resources are represented by long-lived class instances
 
