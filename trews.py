@@ -120,11 +120,7 @@ class TREWSFeedback(object):
                 ("Feedback", str(result_json['feedback'])),
             ]
             body = "".join(["<h4>{}</h4><p>{}</p>".format(x, y) for x,y in html_text])
-            client = boto3.client('ses',
-                region_name             = os.environ['aws_region'],
-                aws_access_key_id       = os.environ['aws_access_key_id'],
-                aws_secret_access_key   = os.environ['aws_secret_access_key'],
-            )
+            client = boto3.client('ses')
             client.send_email(
                 Source      = 'trews-jhu@opsdx.io',
                 Destination = {
