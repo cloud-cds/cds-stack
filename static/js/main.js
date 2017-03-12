@@ -1352,7 +1352,7 @@ var toolbar = new function() {
 	this.resetNav = $('#header-reset-patient');
 	this.activateNav = $('#header-activate-button');
 	this.feedback = $('#feedback');
-	this.feedbackSuccessHideDelay = 5000;
+	this.feedbackSuccessHideDelay = 3500;
 
 	this.init = function() {
 		// 'Reset patient' button initialization.
@@ -1371,6 +1371,7 @@ var toolbar = new function() {
 
 		// Feedback dialog initialization.
 		$('#header-feedback').click(function() { // Show feedback form
+			toolbar.feedback.find('p').html('');  // Clear the previous status when opening.
 			toolbar.feedback.show();
 		})
 		$('#feedback').click(function() { //hide feedback form
@@ -1395,12 +1396,12 @@ var toolbar = new function() {
 		})
 	}
 	this.feedbackSuccess = function() {
-		this.feedback.find('p').append('<b class="success">Feedback Submitted!</b>')
+		this.feedback.find('p').html('<b class="success">Feedback Submitted!</b>')
 		toolbar.feedback.find('textarea').val('')
 		window.setTimeout(function() { toolbar.feedback.hide(); }, toolbar.feedbackSuccessHideDelay);
 	}
 	this.feedbackError = function() {
-		this.feedback.find('p').append('<b class="error">There was an error, please try again or email trews-jhu@opsdx.io</b>')
+		this.feedback.find('p').html('<b class="error">There was an error, please try again or email trews-jhu@opsdx.io</b>')
 	}
 	this.render = function(json) {
 		this.resetNav.show()
