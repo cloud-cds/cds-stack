@@ -465,7 +465,7 @@ var severeSepsisComponent = new function() {
 		this.sirSlot.r(json['sirs']);
 		this.orgSlot.r(json['organ_dysfunction']);
 
-		if (trews['deactivated']) {
+		if (trews.data['deactivated']) {
 			this.ctn.addClass('inactive');
 		} else {
 			this.ctn.removeClass('inactive');
@@ -533,7 +533,7 @@ var septicShockComponent = new function() {
 			this.fnoteBtn.hide();
 		}
 
-		if (trews['deactivated'] || !severeSepsis) {
+		if (trews.data['deactivated'] || !severeSepsis) {
 			this.ctn.addClass('inactive');
 		} else {
 			this.ctn.removeClass('inactive');
@@ -606,7 +606,7 @@ var workflowsComponent = new function() {
 		this.sev6Ctn.find('h2').text(workflows['sev6']['display_name']);
 		this.sep6Ctn.find('h2').text(workflows['sep6']['display_name']);
 
-		if (trews['deactivated'] || severeOnset == null) {
+		if (trews.data['deactivated'] || severeOnset == null) {
 			this.sev3Ctn.addClass('inactive');
 			this.sev6Ctn.addClass('inactive');
 		} else {
@@ -614,7 +614,7 @@ var workflowsComponent = new function() {
 			this.sev6Ctn.removeClass('inactive');
 		}
 
-		if (trews['deactivated'] || shockOnset == null) {
+		if (trews.data['deactivated'] || shockOnset == null) {
 			this.sep6Ctn.addClass('inactive');
 		} else {
 			this.sep6Ctn.removeClass('inactive');
@@ -1397,7 +1397,7 @@ var toolbar = new function() {
 	}
 	this.render = function(json) {
 		this.resetNav.show()
-		if ( trews['deactivated'] ) {
+		if ( trews.data['deactivated'] ) {
 			this.activateNav.find('span').text('Activate');
 		} else {
 			this.activateNav.find('span').text('Deactivate');
