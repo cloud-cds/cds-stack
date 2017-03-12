@@ -427,7 +427,7 @@ class TREWSAPI(object):
         self.logger.info(
             {
                 'req': {
-                    'date'         : req.date.isoformat(),
+                    'date'         : req.date,
                     'remote_addr'  : req.remote_addr,
                     'access_route' : req.access_route,
                     'protocol'     : req.protocol,
@@ -441,13 +441,14 @@ class TREWSAPI(object):
 
         try:
             raw_json = req.stream.read()
-            logging.debug('%(date)s %(remote_addr)s %(access_route)s %(protocol)s %(method)s %(host)s %(body)s'
-                % { 'date'         : req.date.isoformat(),
+            logging.debug('%(date)s %(remote_addr)s %(access_route)s %(protocol)s %(method)s %(host)s %(headers)s %(body)s'
+                % { 'date'         : str(req.date),
                     'remote_addr'  : req.remote_addr,
                     'access_route' : req.access_route,
                     'protocol'     : req.protocol,
                     'method'       : req.method,
                     'host'         : req.host,
+                    'headers'      : str(req.headers),
                     'body'         : json.dumps(raw_json, indent=4) })
 
         except Exception as ex:
