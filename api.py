@@ -33,6 +33,9 @@ MODE = AES.MODE_CBC
 
 DECRYPTED = False
 
+cw_logger = logging.getLogger(__name__)
+cw_logger.addHandler(watchtower.CloudWatchLogHandler(log_group=os.environ['cloudwatch_log_group'], create_log_group=False))
+
 def temp_f_to_c(f):
     return (f - 32) * .5556
 
@@ -54,11 +57,6 @@ class NumpyEncoder(json.JSONEncoder):
             return super(NumpyEncoder, self).default(obj)
 
 class TREWSAPI(object):
-    def __init__(self):
-        self.logger = logging.getLogger(__name__)
-        self.cloudwatch_log_group = os.environ['cloudwatch_log_group']
-        self.logger.addHandler(watchtower.CloudWatchLogHandler(log_group=self.cloudwatch_log_group, create_log_group=False))
-
     def on_get(self, req, resp):
         """
         See example in test_decrpyt.py
@@ -424,18 +422,17 @@ class TREWSAPI(object):
         data['notifications'] = query.get_notifications(eid)
 
     def on_post(self, req, resp):
-        self.logger.info(
+        cw_logger.info(
             {
-                'req': {
-                    'date'         : req.date,
-                    'remote_addr'  : req.remote_addr,
-                    'access_route' : req.access_route,
-                    'protocol'     : req.protocol,
-                    'method'       : req.method,
-                    'host'         : req.host,
-                    'subdomain'    : req.subdomain,
-                    'app'          : req.app,
-                }
+                'date'         : req.date,
+                'remote_addr'  : req.remote_addr,
+                'access_route' : req.access_route,
+                'protocol'     : req.protocol,
+                'method'       : req.method,
+                'host'         : req.host,
+                'subdomain'    : req.subdomain,
+                'app'          : req.app,
+                'headers'      : req.headers
             }
         )
 

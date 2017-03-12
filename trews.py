@@ -12,9 +12,6 @@ STATIC_DIR = os.path.join(STATIC_DIR, 'static')
 import logging
 import json
 import boto3
-from gevent import monkey
-
-monkey.patch_all()
 
 URL = '/'
 URL_STATIC = URL
