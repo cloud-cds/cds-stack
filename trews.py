@@ -21,6 +21,7 @@ URL_STATIC = URL
 URL_API = URL + "api"
 URL_LOG = URL + "log"
 URL_FEEDBACK = URL + "feedback"
+URL_HEALTHCHECK = URL + "healtcheck"
 INDEX_FILENAME = 'index.html'
 
 # default keys for JHH
@@ -142,6 +143,25 @@ class TREWSFeedback(object):
             raise falcon.HTTPError(falcon.HTTP_400, 'Error sending email', ex.message)
 
 
+class TREWSEchoHealthcheck(object):
+    def on_post(self, req, resp):
+        try:
+            raw_json = req.stream.read()
+        except Exception as ex:
+            raise falcon.HTTPError(falcon.HTTP_400, 'Error', ex.message)
+
+        try:
+            result_json = json.loads(raw_json, encoding='utf-8')
+        except ValueError:
+            raise falcon.HTTPError(falcon.HTTP_400, 'Malformed JSON',
+                'Could not decode the request body. The JSON was incorrect.')
+
+        try:
+            resp.status = falcon.HTTP_200
+            resp.body = json.dumps(result_json, encoding='utf-8')
+        except Exception as ex:
+            raise falcon.HTTPError(falcon.HTTP_400, 'Error processing echo healthcheck', ex.message)
+
 cwRespLogger = logging.getLogger(__name__)
 cwRespLogger.addHandler(watchtower.CloudWatchLogHandler(log_group=os.environ['cloudwatch_log_group'], create_log_group=False))
 cwRespLogger.setLevel(logging.INFO)
@@ -158,10 +178,12 @@ trews_www = TREWSStaticResource()
 trews_api = api.TREWSAPI()
 trews_log = TREWSLog()
 trews_feedback = TREWSFeedback()
+trews_healthcheck = TREWSEchoHealthcheck()
 handler = TREWSStaticResource().on_get
 app.add_route(URL_API, trews_api)
 app.add_route(URL_LOG, trews_log)
 app.add_route(URL_FEEDBACK, trews_feedback)
+app.add_route(URL_HEALTHCHECK, trews_healthcheck)
 app.add_sink(handler, prefix=URL_STATIC)
 # app.add_route('/trews-api/', trews_www)
 
