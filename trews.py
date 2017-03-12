@@ -142,7 +142,15 @@ class TREWSFeedback(object):
             raise falcon.HTTPError(falcon.HTTP_400, 'Error sending email', ex.message)
 
 
-app = falcon.API()
+cwRespLogger = logging.getLogger(__name__)
+cwRespLogger.addHandler(watchtower.CloudWatchLogHandler(log_group=os.environ['cloudwatch_log_group'], create_log_group=False))
+cwRespLogger.setLevel(logging.INFO)
+
+class ResponseLoggerMiddleware(object):
+    def process_response(self, req, resp):
+        cwRespLogger.info('{0} {1} {2}'.format(req.method, req.relative_uri, resp.status[:3]))
+
+app = falcon.API(middleware=[ResponseLoggerMiddleware()])
 
 # Resources are represented by long-lived class instances
 
