@@ -430,7 +430,7 @@ class TREWSAPI(object):
                     'remote_addr'  : req.remote_addr,
                     'access_route' : req.access_route,
                     'protocol'     : req.protocol,
-                    'method'       : req.method.
+                    'method'       : req.method,
                     'host'         : req.host,
                     'subdomain'    : req.subdomain,
                     'app'          : req.app,
