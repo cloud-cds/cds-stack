@@ -79,7 +79,7 @@ var trews = new function() {
 		var list = [];
 		var criteria = isString(slot) ? this.getCriteria(slot) : slot
 		for (var c in criteria) {
-			if (criteria[c]['is_met'] == true) {
+			if (criteria[c]['is_met'] === true) {
 				list.push(c);
 			}
 		}
@@ -464,6 +464,12 @@ var severeSepsisComponent = new function() {
 		this.suspicion(severe_sepsis['suspicion_of_infection']);
 		this.sirSlot.r(json['sirs']);
 		this.orgSlot.r(json['organ_dysfunction']);
+
+		if (trews['deactivated']) {
+			this.ctn.addClass('inactive');
+		} else {
+			this.ctn.removeClass('inactive');
+		}
 	}
 }
 
@@ -527,16 +533,10 @@ var septicShockComponent = new function() {
 			this.fnoteBtn.hide();
 		}
 
-		if (!severeSepsis) {
+		if (trews['deactivated'] || !severeSepsis) {
 			this.ctn.addClass('inactive');
-			this.fnoteBtn.addClass('inactive');
-			this.tenSlot.elem.find('.edit-btn').addClass('inactive');
-			this.fusSlot.elem.find('.edit-btn').addClass('inactive');
 		} else {
 			this.ctn.removeClass('inactive');
-			this.fnoteBtn.removeClass('inactive');
-			this.tenSlot.elem.find('.edit-btn').removeClass('inactive');
-			this.fusSlot.elem.find('.edit-btn').removeClass('inactive');
 		}
 	}
 }
@@ -547,6 +547,7 @@ var workflowsComponent = new function() {
 	this.sep6Ctn = $("[data-trews='sep6']");
 	this.orderBtns = $('.place-order');
 	this.notInBtns = $('.notIn');
+	this.tasks = [];
 
 	this.clean = function() {
 		$("[data-trews='init_lactate'],\
@@ -605,14 +606,15 @@ var workflowsComponent = new function() {
 		this.sev6Ctn.find('h2').text(workflows['sev6']['display_name']);
 		this.sep6Ctn.find('h2').text(workflows['sep6']['display_name']);
 
-		if (severeOnset == null) {
+		if (trews['deactivated'] || severeOnset == null) {
 			this.sev3Ctn.addClass('inactive');
 			this.sev6Ctn.addClass('inactive');
 		} else {
 			this.sev3Ctn.removeClass('inactive');
 			this.sev6Ctn.removeClass('inactive');
 		}
-		if (shockOnset == null) {
+
+		if (trews['deactivated'] || shockOnset == null) {
 			this.sep6Ctn.addClass('inactive');
 		} else {
 			this.sep6Ctn.removeClass('inactive');
@@ -634,14 +636,14 @@ var workflowsComponent = new function() {
 		this.sev6Ctn.find('.card-subtitle').html(this.workflowStatus('sev6', severeOnset, sev6LastOrder, sev6Complete));
 		this.sep6Ctn.find('.card-subtitle').html(this.workflowStatus('sep6', shockOnset, shk6LastOrder, shk6Complete));
 
-		var iTask = new taskComponent(iJSON, $("[data-trews='init_lactate']"), workflows['init_lactate'], null);
-		var bTask = new taskComponent(bJSON, $("[data-trews='blood_culture']"), workflows['blood_culture'], null);
-		var aTask = new taskComponent(aJSON, $("[data-trews='antibiotics']"), workflows['antibiotics'], null /*doseLimits['antibiotics']*/);
-		var fTask = new taskComponent(fJSON, $("[data-trews='fluid']"), workflows['fluid'], null /*doseLimits['fluid']*/);
-
-		var rTask = new taskComponent(rJSON, $("[data-trews='re_lactate']"), workflows['repeat_lactate'], null);
-
-		var vTask = new taskComponent(vJSON, $("[data-trews='vasopressors']"), workflows['vasopressors'], null /*doseLimits['vasopressors']*/);
+		this.tasks = [
+			new taskComponent(iJSON, $("[data-trews='init_lactate']"), workflows['init_lactate'], null),
+			new taskComponent(bJSON, $("[data-trews='blood_culture']"), workflows['blood_culture'], null),
+			new taskComponent(aJSON, $("[data-trews='antibiotics']"), workflows['antibiotics'], null /*doseLimits['antibiotics']*/),
+			new taskComponent(fJSON, $("[data-trews='fluid']"), workflows['fluid'], null /*doseLimits['fluid']*/),
+			new taskComponent(rJSON, $("[data-trews='re_lactate']"), workflows['repeat_lactate'], null),
+			new taskComponent(vJSON, $("[data-trews='vasopressors']"), workflows['vasopressors'], null /*doseLimits['vasopressors']*/)
+		];
 
 		this.makeButtons();
 	}
@@ -1344,13 +1346,24 @@ var notifications = new function() {
 var toolbar = new function() {
 	this.resetNav = $('#header-reset-patient');
 	this.feedback = $('#feedback');
+	this.activateNav = $('#header-activate-button');
 
 	this.init = function() {
+		// 'Reset patient' button initialization.
 		this.resetNav.unbind();
 		this.resetNav.click(function(e) {
 			var action = trews.data['event_id'] == undefined ? null : { "value": trews.data['event_id'] };
-			endpoints.getPatientData("reset_patient", action);
+			endpoints.getPatientData('reset_patient', action);
 		});
+
+		// 'Deactivate'/'Activate' button initialization.
+		this.deactivateState = true; // Initially set to deactivate.
+		this.activateNav.unbind();
+		this.activateNav.click(function(e) {
+			endpoints.getPatientData('deactivate', !trews.data['deactivated']);
+		});
+
+		// Feedback dialog initialization.
 		$('#header-feedback').click(function() { // Show feedback form
 			toolbar.feedback.show();
 		})
@@ -1383,13 +1396,13 @@ var toolbar = new function() {
 		this.feedback.find('p').append('<b class="error">There was an error, please try again or email trews-jhu@opsdx.io</b>')
 	}
 	this.render = function(json) {
-		// we want to always show reset button
 		this.resetNav.show()
-		// if (json['is_met']) {
-		// 	this.resetNav.show()
-		// } else {
-		// 	this.resetNav.hide()
-		// }
+		if ( trews['deactivated'] ) {
+			this.activateNav.find('span').text('Activate');
+		} else {
+			this.activateNav.find('span').text('Deactivate');
+		}
+		this.activateNav.show()
 	}
 }
 

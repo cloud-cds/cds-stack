@@ -77,6 +77,7 @@ class TREWSAPI(object):
         if actionType == u'pollNotifications':
             notifications = query.get_notifications(eid)
             return {'notifications': notifications}
+
         elif actionType == u'pollAuditlist':
             auditlist = query.get_criteria_log(eid)
             return {'auditlist': auditlist}
