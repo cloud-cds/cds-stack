@@ -1,3 +1,4 @@
+import os
 import falcon
 from Crypto.Cipher import AES
 from pkcs7 import PKCS7Encoder
