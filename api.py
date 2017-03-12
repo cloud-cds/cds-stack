@@ -33,9 +33,6 @@ MODE = AES.MODE_CBC
 
 DECRYPTED = False
 
-cw_logger = logging.getLogger(__name__)
-cw_logger.addHandler(watchtower.CloudWatchLogHandler(log_group=os.environ['cloudwatch_log_group'], create_log_group=False))
-
 def temp_f_to_c(f):
     return (f - 32) * .5556
 
@@ -422,9 +419,13 @@ class TREWSAPI(object):
         data['notifications'] = query.get_notifications(eid)
 
     def on_post(self, req, resp):
-        cw_logger.info(
+        srvnow = datetime.datetime.utcnow().isoformat()
+        cwlogger = logging.getLogger(__name__)
+        cwlogger.addHandler(watchtower.CloudWatchLogHandler(log_group=os.environ['cloudwatch_log_group'], create_log_group=False))
+        cwlogger.info(
             {
-                'date'         : req.date,
+                'date'         : srvnow,
+                'reqdate'      : req.date,
                 'remote_addr'  : req.remote_addr,
                 'access_route' : req.access_route,
                 'protocol'     : req.protocol,
@@ -438,8 +439,9 @@ class TREWSAPI(object):
 
         try:
             raw_json = req.stream.read()
-            logging.debug('%(date)s %(remote_addr)s %(access_route)s %(protocol)s %(method)s %(host)s %(headers)s %(body)s'
-                % { 'date'         : str(req.date),
+            logging.debug('%(date)s %(reqdate)s %(remote_addr)s %(access_route)s %(protocol)s %(method)s %(host)s %(headers)s %(body)s'
+                % { 'date'         : srvnow,
+                    'reqdate'      : str(req.date),
                     'remote_addr'  : req.remote_addr,
                     'access_route' : req.access_route,
                     'protocol'     : req.protocol,
