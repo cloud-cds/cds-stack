@@ -171,7 +171,7 @@ cwLogger.setLevel(logging.INFO)
 class TREWSLoggerMiddleware(object):
     def process_resource(self, req, resp, resource, params):
         srvnow = datetime.datetime.utcnow().isoformat()
-        cwReqLogger.info(
+        cwLogger.info(
             {
                 'date'         : srvnow,
                 'reqdate'      : req.date,
@@ -185,7 +185,7 @@ class TREWSLoggerMiddleware(object):
 
     def process_response(self, req, resp, resource, req_succeeded):
         srvnow = datetime.datetime.utcnow().isoformat()
-        cwRespLogger.info({
+        cwLogger.info({
             'date'         : srvnow,
             'reqdate'      : req.date,
             'method'       : req.method,
