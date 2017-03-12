@@ -33,8 +33,6 @@ MODE = AES.MODE_CBC
 
 DECRYPTED = False
 
-cwlogger = logging.getLogger(__name__)
-cwlogger.addHandler(watchtower.CloudWatchLogHandler(log_group=os.environ['cloudwatch_log_group'], create_log_group=False))
 
 def temp_f_to_c(f):
     return (f - 32) * .5556
@@ -423,6 +421,8 @@ class TREWSAPI(object):
 
     def on_post(self, req, resp):
         srvnow = datetime.datetime.utcnow().isoformat()
+        cwlogger = logging.getLogger(__name__)
+        cwlogger.addHandler(watchtower.CloudWatchLogHandler(log_group=os.environ['cloudwatch_log_group'], create_log_group=False))
         cwlogger.info(
             {
                 'date'         : srvnow,
