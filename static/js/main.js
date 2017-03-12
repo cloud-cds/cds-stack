@@ -183,7 +183,7 @@ var endpoints = new function() {
 		"http://localhost:8000/api" :
 		window.location.protocol + "//" + window.location.hostname + "/api";
 	this.numTries = 1;
-	this.getPatientData = function(actionType, actionData) {
+	this.getPatientData = function(actionType, actionData, toolbarButton) {
 		$('body').addClass('waiting');
 		postBody = {
 			q: (getQueryVariable('PATID') === false) ? null : getQueryVariable('PATID'),
@@ -213,8 +213,8 @@ var endpoints = new function() {
 		}).done(function(result) {
 			$('body').removeClass('waiting');
 			$('#loading').addClass('done');
+			if ( toolbarButton ) { toolbarButton.removeClass('loading'); }
 			if ( result.hasOwnProperty('trewsData') ) {
-				// console.log('Retrieved', result.trewsData['chart_data']['chart_values']['trewscore'].length, 'TS points');
 				trews.setData(result.trewsData);
 				controller.refresh();
 				// $('#fake-console').text(result);
@@ -224,6 +224,7 @@ var endpoints = new function() {
 			}
 		}).fail(function(result) {
 			$('body').removeClass('waiting');
+			if ( toolbarButton ) { toolbarButton.removeClass('loading'); }
 			if (result.status == 400) {
 				$('#loading p').html(result.responseJSON['message'] + ".<br/>  Connection Failed<span id='test-data'>.</span> Please rest<span id='see-blank'>a</span>rt application or contact trews-jhu@opsdx.io");
 				return;
@@ -1358,15 +1359,17 @@ var toolbar = new function() {
 		// 'Reset patient' button initialization.
 		this.resetNav.unbind();
 		this.resetNav.click(function(e) {
+			toolbar.resetNav.addClass('loading'); // Toggle button as loading
 			var action = trews.data['event_id'] == undefined ? null : { "value": trews.data['event_id'] };
-			endpoints.getPatientData('reset_patient', action);
+			endpoints.getPatientData('reset_patient', action, toolbar.resetNav);
 		});
 
 		// 'Deactivate'/'Activate' button initialization.
 		this.deactivateState = true; // Initially set to deactivate.
 		this.activateNav.unbind();
 		this.activateNav.click(function(e) {
-			endpoints.getPatientData('deactivate', {'value': !trews.data['deactivated']});
+			toolbar.activateNav.addClass('loading');
+			endpoints.getPatientData('deactivate', {'value': !trews.data['deactivated']}, toolbar.activateNav);
 		});
 
 		// Feedback dialog initialization.

@@ -117,6 +117,9 @@ body.waiting {
 #header-nav li > span {
     display: inline-block;
 }
+#header-nav li.loading {
+    background-color: #e62222;
+}
 #header-nav b {
     width: 17px;
     height: 17px;
@@ -308,7 +311,7 @@ body.waiting {
 }
 .csstransitions .status {
     -ms-transition: opacity .3s, visibility .3s, max-height .3s, margin-top .3s;
-    transition: opacity .3s, visibility .3s, max-height .3s, margin-top .3s;    
+    transition: opacity .3s, visibility .3s, max-height .3s, margin-top .3s;
 }
 .status.hidden {
     margin-top: 0px;
