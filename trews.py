@@ -12,6 +12,7 @@ STATIC_DIR = os.path.join(STATIC_DIR, 'static')
 import logging
 import json
 import boto3
+import watchtower
 from gevent import monkey
 
 monkey.patch_all()
