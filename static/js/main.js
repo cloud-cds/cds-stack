@@ -862,7 +862,7 @@ function graph(json, severeOnset, shockOnset, xmin, xmax, ymin, ymax) {
 		graphTag(plot, shockOnsetx, shockOnsety, "Onset of<br/>Septic Shock", "septic-shock-graph-tag");
 	}
 	placeholder.append("<div id='threshold' style='left:" + o.left + "px;'>\
-			<h3>High-Risk<br/>Threshold</h3>\
+			<h3>High Risk<br/>Threshold</h3>\
 			</div>");
 }
 
@@ -1280,11 +1280,6 @@ var notifications = new function() {
 			this.nav.find('.text').text('Notifications');
 			return;
 		}
-		if ( trews.data['deactivated'] ) {
-			// For deactivated patients, we hide the counter, but still show a notification list.
-			this.nav.find('b').hide();
-			this.nav.find('.text').text('Notifications');
-		}
 
 		var numUnread = 0;
 		var renderTs = Date.now();
@@ -1329,7 +1324,11 @@ var notifications = new function() {
 			notif.append(subtext);
 			this.n.prepend(notif);
 		}
-		if (numUnread == 0) {
+
+		if ( trews.data['deactivated'] ) {
+			// For deactivated patients, we hide the counter, but still show a notification list.
+			this.nav.find('b').hide();
+		} else if (numUnread == 0) {
 			this.nav.find('b').hide();
 		} else {
 			this.nav.find('b').show();
