@@ -23,7 +23,7 @@ URL_STATIC = URL
 URL_API = URL + "api"
 URL_LOG = URL + "log"
 URL_FEEDBACK = URL + "feedback"
-URL_HEALTHCHECK = URL + "healtcheck"
+URL_HEALTHCHECK = URL + "healthcheck"
 INDEX_FILENAME = 'index.html'
 
 # default keys for JHH
@@ -171,28 +171,26 @@ cwLogger.setLevel(logging.INFO)
 class TREWSLoggerMiddleware(object):
     def process_resource(self, req, resp, resource, params):
         srvnow = datetime.datetime.utcnow().isoformat()
-        cwLogger.info(
-            {
-                'date'         : srvnow,
-                'reqdate'      : req.date,
-                'method'       : req.method,
-                'url'          : req.relative_uri,
-                'remote_addr'  : req.remote_addr,
-                'access_route' : req.access_route,
-                'headers'      : req.headers
-            }
-        )
+        cwLogger.info(json.dumps({
+            'date'         : srvnow,
+            'reqdate'      : req.date,
+            'method'       : req.method,
+            'url'          : req.relative_uri,
+            'remote_addr'  : req.remote_addr,
+            'access_route' : req.access_route,
+            'headers'      : req.headers
+        }))
 
     def process_response(self, req, resp, resource, req_succeeded):
         srvnow = datetime.datetime.utcnow().isoformat()
-        cwLogger.info({
+        cwLogger.info(json.dumps({
             'date'         : srvnow,
             'reqdate'      : req.date,
             'method'       : req.method,
             'url'          : req.relative_uri,
             'status'       : resp.status[:3],
             'headers'      : req.headers
-        })
+        }))
 
 app = falcon.API(middleware=[TREWSLoggerMiddleware()])
 
