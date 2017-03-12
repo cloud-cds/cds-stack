@@ -19,6 +19,7 @@ import pprint
 import copy
 import re
 import calendar
+import watchtower
 
 THRESHOLD = 0.81
 logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.DEBUG)
@@ -52,6 +53,11 @@ class NumpyEncoder(json.JSONEncoder):
             return super(NumpyEncoder, self).default(obj)
 
 class TREWSAPI(object):
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
+        self.cloudwatch_log_group = os.environ['cloudwatch_log_group']
+        self.logger.addHandler(watchtower.CloudWatchLogHandler(log_group=self.cloudwatch_log_group, create_log_group=False))
+
     def on_get(self, req, resp):
         """
         See example in test_decrpyt.py
@@ -417,25 +423,32 @@ class TREWSAPI(object):
         data['notifications'] = query.get_notifications(eid)
 
     def on_post(self, req, resp):
-        # logger = logging.getLogger(__name__)
-        # logger.addHandler(watchtower.CloudWatchLogHandler(log_group="opsdx-web-logs-prod", create_log_group=False))
+        self.logger.info(
+            {
+                'req': {
+                    'date'         : req.date.isoformat(),
+                    'remote_addr'  : req.remote_addr,
+                    'access_route' : req.access_route,
+                    'protocol'     : req.protocol,
+                    'method'       : req.method.
+                    'host'         : req.host,
+                    'subdomain'    : req.subdomain,
+                    'app'          : req.app,
+                }
+            }
+        )
 
-        # logger.info(
-        #     {
-        #         'req': {
-        #             'protocol': req.protocol,
-        #             'method': req.method.
-        #             'host': req.host,
-        #             'subdomain': req.subdomain,
-        #             'app': req.app,
-        #             'access_route': req.access_route,
-        #             'remote_addr': req.remote_addr
-        #         }
-        #     }
-        #     )
         try:
             raw_json = req.stream.read()
-            logging.debug(json.dumps(raw_json, indent=4))
+            logging.debug('%(date)s %(remote_addr)s %(access_route)s %(protocol)s %(method)s %(host)s %(body)s'
+                % { 'date'         : req.date.isoformat(),
+                    'remote_addr'  : req.remote_addr,
+                    'access_route' : req.access_route,
+                    'protocol'     : req.protocol,
+                    'method'       : req.method,
+                    'host'         : req.host,
+                    'body'         : json.dumps(raw_json, indent=4) })
+
         except Exception as ex:
             # logger.info(json.dumps(ex, default=lambda o: o.__dict__))
             raise falcon.HTTPError(falcon.HTTP_400,
