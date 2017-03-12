@@ -1360,7 +1360,7 @@ var toolbar = new function() {
 		this.deactivateState = true; // Initially set to deactivate.
 		this.activateNav.unbind();
 		this.activateNav.click(function(e) {
-			endpoints.getPatientData('deactivate', !trews.data['deactivated']);
+			endpoints.getPatientData('deactivate', {'value': !trews.data['deactivated']});
 		});
 
 		// Feedback dialog initialization.
