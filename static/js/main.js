@@ -1350,8 +1350,9 @@ var notifications = new function() {
 
 var toolbar = new function() {
 	this.resetNav = $('#header-reset-patient');
-	this.feedback = $('#feedback');
 	this.activateNav = $('#header-activate-button');
+	this.feedback = $('#feedback');
+	this.feedbackSuccessHideDelay = 5000;
 
 	this.init = function() {
 		// 'Reset patient' button initialization.
@@ -1396,6 +1397,7 @@ var toolbar = new function() {
 	this.feedbackSuccess = function() {
 		this.feedback.find('p').append('<b class="success">Feedback Submitted!</b>')
 		toolbar.feedback.find('textarea').val('')
+		window.setTimeout(function() { toolbar.feedback.hide(); }, toolbar.feedbackSuccessHideDelay);
 	}
 	this.feedbackError = function() {
 		this.feedback.find('p').append('<b class="error">There was an error, please try again or email trews-jhu@opsdx.io</b>')
