@@ -610,9 +610,38 @@ body.waiting {
 #graph-wrapper {
     padding-bottom: 50px;
 }
-#graph-wrapper .card h2 {
-    text-align: center;
+#graph-wrapper h2 {
+    vertical-align: middle;
+    display: inline-block;
 }
+/* Other sources of deterioration */
+#other-deter {
+    vertical-align: middle;
+    display: inline-block;
+    cursor: pointer;
+    opacity: .7;
+    position: relative;
+}
+#other-deter:hover {
+    opacity: 1;
+}
+#other-deter p {
+    vertical-align: middle;
+    display: inline-block;
+    margin: 0;
+    font-size: 12px;
+}
+#other-deter:hover p {
+    text-decoration: underline;
+}
+#other-deter img {
+    vertical-align: middle;
+    display: inline-block;
+    height: 14px;
+    width: 14px;
+    opacity: .7;
+}
+/* End Other sources of deterioration */
 /* Now */
 .graph-tag {
     position: absolute;
