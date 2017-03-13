@@ -172,25 +172,29 @@ class TREWSLoggerMiddleware(object):
     def process_resource(self, req, resp, resource, params):
         srvnow = datetime.datetime.utcnow().isoformat()
         cwLogger.info(json.dumps({
-            'date'         : srvnow,
-            'reqdate'      : req.date,
-            'method'       : req.method,
-            'url'          : req.relative_uri,
-            'remote_addr'  : req.remote_addr,
-            'access_route' : req.access_route,
-            'headers'      : req.headers,
-            'params'       : params
+            'req': {
+                'date'         : srvnow,
+                'reqdate'      : req.date,
+                'method'       : req.method,
+                'url'          : req.relative_uri,
+                'remote_addr'  : req.remote_addr,
+                'access_route' : req.access_route,
+                'headers'      : req.headers,
+                'params'       : params
+            }
         }))
 
     def process_response(self, req, resp, resource, req_succeeded):
         srvnow = datetime.datetime.utcnow().isoformat()
         cwLogger.info(json.dumps({
-            'date'         : srvnow,
-            'reqdate'      : req.date,
-            'method'       : req.method,
-            'url'          : req.relative_uri,
-            'status'       : resp.status[:3],
-            'headers'      : req.headers
+            'resp': {
+                'date'         : srvnow,
+                'reqdate'      : req.date,
+                'method'       : req.method,
+                'url'          : req.relative_uri,
+                'status'       : resp.status[:3],
+                'headers'      : req.headers
+            }
         }))
 
 mware = [TREWSLoggerMiddleware()] if 'logging' in os.environ and int(os.environ['logging']) else []
