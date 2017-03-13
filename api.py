@@ -463,18 +463,20 @@ class TREWSAPI(object):
 
             if query.eid_exist(eid):
                 print("query for eid:" + eid)
-                actionType = req_body['actionType'] if 'actionType' in req_body else None
-                actionData = req_body['action'] if 'action' in req_body else None
 
                 response_body = {}
-                if actionType is not None:
-                    response_body = self.take_action(actionType, actionData, eid, uid)
+                if 'actionType' in req_body and 'action' in req_body:
+                    actionType = req_body['actionType']
+                    actionData = req_body['action']
+
+                    if actionType is not None:
+                        response_body = self.take_action(actionType, actionData, eid, uid)
 
                     if actionType != u'pollNotifications' and actionType != u'pollAuditlist':
                         self.update_response_json(data, eid)
                         response_body = {'trewsData': data}
                 else:
-                    response_body = {'message': 'No action type specified in REST API request'}
+                    response_body = {'message': 'Invalid TREWS REST API request'}
 
                 resp.body = json.dumps(response_body, cls=NumpyEncoder)
                 resp.status = falcon.HTTP_200

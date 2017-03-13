@@ -82,12 +82,10 @@ class TREWSStaticResource(object):
                 else:
                     logging.error("LOC parsing error:" + loc)
             else:
-                logging.error("No LOC in query string. Use JHH as default hospital")
-            j2_env = Environment(loader=FileSystemLoader(STATIC_DIR),
-                                                 trim_blocks=True)
-            resp.body = j2_env.get_template(INDEX_FILENAME).render(
-                    keys=KEYS
-                )
+                logging.warning("No LOC in query string. Use JHH as default hospital")
+
+            j2_env = Environment(loader=FileSystemLoader(STATIC_DIR), trim_blocks=True)
+            resp.body = j2_env.get_template(INDEX_FILENAME).render(keys=KEYS)
             logging.info("falcon logging example: user request on index.html")
         else:
             with open(filename, 'r') as f:
@@ -164,15 +162,32 @@ class TREWSEchoHealthcheck(object):
         except Exception as ex:
             raise falcon.HTTPError(falcon.HTTP_400, 'Error processing echo healthcheck', ex.message)
 
+# Cloudwatch Logger.
 cwLogger = logging.getLogger(__name__)
+cwLStdout = cwLogger.handlers[0]
 cwLogger.addHandler(watchtower.CloudWatchLogHandler(log_group=os.environ['cloudwatch_log_group'], create_log_group=False))
+cwLogger.removeHandler(cwLStdout)
 cwLogger.setLevel(logging.INFO)
 
 class TREWSLoggerMiddleware(object):
-    def process_resource(self, req, resp, resource, params):
+    def process_request(self, req, resp):
         srvnow = datetime.datetime.utcnow().isoformat()
         cwLogger.info(json.dumps({
             'req': {
+                'date'         : srvnow,
+                'reqdate'      : req.date,
+                'method'       : req.method,
+                'url'          : req.relative_uri,
+                'remote_addr'  : req.remote_addr,
+                'access_route' : req.access_route,
+                'headers'      : req.headers
+            }
+        }))
+
+    def process_resource(self, req, resp, resource, params):
+        srvnow = datetime.datetime.utcnow().isoformat()
+        cwLogger.info(json.dumps({
+            'res': {
                 'date'         : srvnow,
                 'reqdate'      : req.date,
                 'method'       : req.method,
