@@ -863,7 +863,7 @@ function graph(json, severeOnset, shockOnset, xmin, xmax, ymin, ymax) {
 		graphTag(plot, shockOnsetx, shockOnsety, "Onset of<br/>Septic Shock", "septic-shock-graph-tag");
 	}
 	placeholder.append("<div id='threshold' style='left:" + o.left + "px;'>\
-			<h3>High Risk<br/>Threshold</h3>\
+			<h3>High Risk<br/>for Deterioration</h3>\
 			</div>");
 }
 
