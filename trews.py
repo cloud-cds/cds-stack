@@ -164,9 +164,9 @@ class TREWSEchoHealthcheck(object):
 
 # Cloudwatch Logger.
 cwLogger = logging.getLogger(__name__)
-print('CWLogger #handlers before add ' + str(len(cwLogger.handlers))
+print('CWLogger #handlers before add ' + str(len(cwLogger.handlers)))
 cwLogger.addHandler(watchtower.CloudWatchLogHandler(log_group=os.environ['cloudwatch_log_group'], create_log_group=False))
-print('CWLogger #handlers after add ' + str(len(cwLogger.handlers))
+print('CWLogger #handlers after add ' + str(len(cwLogger.handlers)))
 cwLogger.setLevel(logging.INFO)
 
 class TREWSLoggerMiddleware(object):
