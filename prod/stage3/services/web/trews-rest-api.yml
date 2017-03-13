@@ -36,7 +36,7 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: trews-rest-api
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.0.9
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.0.12
         ports:
         - containerPort: 8000
         env:
@@ -66,22 +66,28 @@ spec:
             secretKeyRef:
               name: rest-api-db-secrets
               key: jhapi-client-secret
-        - name: aws_region
+        - name: AWS_DEFAULT_REGION
           valueFrom:
             secretKeyRef:
               name: rest-api-db-secrets
               key: aws-region
-        - name: aws_access_key_id
+        - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
               name: rest-api-db-secrets
               key: aws-access-key-id
-        - name: aws_secret_access_key
+        - name: AWS_SECRET_ACCESS_KEY
           valueFrom:
             secretKeyRef:
               name: rest-api-db-secrets
               key: aws-secret-access-key
         - name: epic_notifications
+          value: "1"
+        - name: api_with_healthcheck
+          value: "1"
+        - name: cloudwatch_log_group
+          value: "opsdx-web-logs-prod"
+        - name: logging
           value: "1"
       volumes:
         - name: config-volume
