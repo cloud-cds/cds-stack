@@ -178,7 +178,8 @@ class TREWSLoggerMiddleware(object):
             'url'          : req.relative_uri,
             'remote_addr'  : req.remote_addr,
             'access_route' : req.access_route,
-            'headers'      : req.headers
+            'headers'      : req.headers,
+            'params'       : params
         }))
 
     def process_response(self, req, resp, resource, req_succeeded):
@@ -192,7 +193,8 @@ class TREWSLoggerMiddleware(object):
             'headers'      : req.headers
         }))
 
-app = falcon.API(middleware=[TREWSLoggerMiddleware()])
+mware = [TREWSLoggerMiddleware()] if 'logging' in os.environ and int(os.environ['logging']) else []
+app = falcon.API(middleware=mware)
 
 # Resources are represented by long-lived class instances
 
@@ -201,11 +203,16 @@ trews_api = api.TREWSAPI()
 trews_log = TREWSLog()
 trews_feedback = TREWSFeedback()
 trews_healthcheck = TREWSEchoHealthcheck()
-handler = TREWSStaticResource().on_get
+
 app.add_route(URL_API, trews_api)
 app.add_route(URL_LOG, trews_log)
 app.add_route(URL_FEEDBACK, trews_feedback)
-app.add_route(URL_HEALTHCHECK, trews_healthcheck)
+
+if 'api_with_healthcheck' in os.environ and int(os.environ['api_with_healthcheck']):
+    app.add_route(URL_HEALTHCHECK, trews_healthcheck)
+
+handler = TREWSStaticResource().on_get
 app.add_sink(handler, prefix=URL_STATIC)
+
 # app.add_route('/trews-api/', trews_www)
 

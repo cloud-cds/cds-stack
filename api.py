@@ -21,7 +21,7 @@ import re
 import calendar
 
 THRESHOLD = 0.81
-logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.DEBUG)
+logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.INFO)
 #hashed_key = 'C8ED911A8907EFE4C1DE24CA67DF5FA2'
 #hashed_key = '\xC8\xED\x91\x1A\x89\x07\xEF\xE4\xC1\xDE\x24\xCA\x67\xDF\x5F\xA2'
 #hashed_key = 'e7cde81226f1d5e03c2681035692964d'
@@ -85,11 +85,11 @@ class TREWSAPI(object):
 
         elif actionType == u'override':
             action_is_clear = 'clear' in actionData and actionData['clear']
-            logging.debug('override_criteria action %(clear)s: %(v)s' % {'v': json.dumps(actionData), 'clear': action_is_clear})
+            logging.info('override_criteria action %(clear)s: %(v)s' % {'v': json.dumps(actionData), 'clear': action_is_clear})
             if action_is_clear:
                 query.override_criteria(eid, actionData['actionName'], clear=True, user=uid)
             else:
-                logging.debug('override_criteria value: %(name)s %(val)s' % {'name': actionData['actionName'], 'val': actionData['value']})
+                logging.info('override_criteria value: %(name)s %(val)s' % {'name': actionData['actionName'], 'val': actionData['value']})
                 query.override_criteria(eid, actionData['actionName'], value=actionData['value'], user=uid)
 
         elif actionType == u'suspicion_of_infection':
@@ -103,7 +103,9 @@ class TREWSAPI(object):
             if 'id' in actionData and 'read' in actionData:
                 query.toggle_notification_read(eid, actionData['id'], actionData['read'])
             else:
-                logging.error('Invalid notification update action data' + json.dumps(actionData))
+                msg = 'Invalid notification update action data' + json.dumps(actionData)
+                logging.error(msg)
+                return {'message': msg}
 
         elif actionType == u'place_order':
             query.override_criteria(eid, actionData['actionName'], value='[{ "text": "Ordered" }]', user=uid)
@@ -122,7 +124,9 @@ class TREWSAPI(object):
             query.deactivate(eid, uid, actionData['value'])
 
         else:
-            logging.error('Invalid action type: ' + actionType)
+            msg = 'Invalid action type: ' + actionType
+            logging.error(msg)
+            return {'message': msg}
 
         return {'result': 'OK'}
 
@@ -316,8 +320,8 @@ class TREWSAPI(object):
                         data['septic_shock']['onset_time'] = sorted([data['septic_shock']['onset_time']] +shock_onsets_hypoperfusion)[0]
                 else:
                     data['septic_shock']['onset_time'] = sorted(shock_onsets_hypoperfusion)[0]
-        #logging.debug(json.dumps(data['severe_sepsis'], indent=4))
-        #logging.debug(json.dumps(data['septic_shock'], indent=4))
+        #logging.info(json.dumps(data['severe_sepsis'], indent=4))
+        #logging.info(json.dumps(data['septic_shock'], indent=4))
 
 
 
@@ -421,7 +425,7 @@ class TREWSAPI(object):
         srvnow = datetime.datetime.utcnow().isoformat()
         try:
             raw_json = req.stream.read()
-            logging.debug('%(date)s %(reqdate)s %(remote_addr)s %(access_route)s %(protocol)s %(method)s %(host)s %(headers)s %(body)s'
+            logging.info('%(date)s %(reqdate)s %(remote_addr)s %(access_route)s %(protocol)s %(method)s %(host)s %(headers)s %(body)s'
                 % { 'date'         : srvnow,
                     'reqdate'      : str(req.date),
                     'remote_addr'  : req.remote_addr,
@@ -456,25 +460,28 @@ class TREWSAPI(object):
             if DECRYPTED:
                 eid = self.decrypt(eid)
                 print("unknown eid: " + eid)
+
             if query.eid_exist(eid):
                 print("query for eid:" + eid)
-                actionType = req_body['actionType']
-                actionData = req_body['action']
+                actionType = req_body['actionType'] if 'actionType' in req_body else None
+                actionData = req_body['action'] if 'action' in req_body else None
 
                 response_body = {}
                 if actionType is not None:
                     response_body = self.take_action(actionType, actionData, eid, uid)
 
-                if actionType != u'pollNotifications' and actionType != u'pollAuditlist':
-                    self.update_response_json(data, eid)
-                    response_body = {'trewsData': data}
+                    if actionType != u'pollNotifications' and actionType != u'pollAuditlist':
+                        self.update_response_json(data, eid)
+                        response_body = {'trewsData': data}
+                else:
+                    response_body = {'message': 'No action type specified in REST API request'}
 
                 resp.body = json.dumps(response_body, cls=NumpyEncoder)
                 resp.status = falcon.HTTP_200
-                # logging.debug(json.dumps(data, indent=4 ))
+
             else:
                 resp.status = falcon.HTTP_400
-                resp.body = json.dumps({'message': 'no patient found'})
+                resp.body = json.dumps({'message': 'No patient found'})
 
 
 

@@ -10,7 +10,7 @@ from inpatient_updater import load
 from sqlalchemy import create_engine
 from sqlalchemy import text
 
-logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.DEBUG)
+logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.INFO)
 
 DB_CONN_STR = 'postgresql://{}:{}@{}:{}/{}'
 user = os.environ['db_user']
@@ -144,7 +144,7 @@ def toggle_notification_read(eid, notification_id, as_read):
             now()
     from update_notifications n;
     ''' % {'pid': eid, 'nid': notification_id, 'val': str(as_read).lower()}
-    logging.debug("toggle_notifications_read:" + toggle_notifications_sql)
+    logging.info("toggle_notifications_read:" + toggle_notifications_sql)
     conn = engine.connect()
     conn.execute(toggle_notifications_sql)
     conn.close()
@@ -184,7 +184,7 @@ def override_criteria(eid, name, value='[{}]', user='user', clear=False):
         );
     select override_criteria_snapshot('%(pid)s');
     ''' % params
-    logging.debug("override_criteria sql:" + override_sql)
+    logging.info("override_criteria sql:" + override_sql)
     conn = engine.connect()
     conn.execute(override_sql)
     conn.close()
@@ -206,7 +206,7 @@ def reset_patient(eid, uid='user', event_id=None):
     delete from notifications where pat_id = '%(pid)s';
     select advance_criteria_snapshot('%(pid)s');
     """ % {'pid': eid, 'where_clause': event_where_clause, 'uid': uid}
-    logging.debug("reset_patient:" + reset_sql)
+    logging.info("reset_patient:" + reset_sql)
     conn = engine.connect()
     conn.execute(reset_sql)
     conn.close()
@@ -224,7 +224,7 @@ def deactivate(eid, uid, deactivated):
             now()
         );
     ''' % {'pid': eid, "deactivated": 'true' if deactivated else "false", "uid":uid}
-    logging.debug("deactivate user:" + deactivate_sql)
+    logging.info("deactivate user:" + deactivate_sql)
     conn = engine.connect()
     conn.execute(text(deactivate_sql).execution_options(autocommit=True))
     conn.close()
@@ -250,13 +250,13 @@ def push_notifications_to_epic(eid, engine):
         if not notifications.empty:
             patients = [ {'pat_id': n['pat_id'], 'visit_id': n['visit_id'], 'notifications': n['count'],
                                 'current_time': datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")} for i, n in notifications.iterrows()]
-            logging.debug("sending notifications to epic")
+            logging.info("sending notifications to epic")
             client_id = os.environ['jhapi_client_id'],
             client_secret = os.environ['jhapi_client_secret']
             loader = load.Loader('prod', client_id, client_secret)
             loader.load_notifications(patients)
         else:
-            logging.debug("no notifications")
+            logging.info("no notifications")
 
 def eid_exist(eid):
     engine = create_engine(DB_CONN_STR)
