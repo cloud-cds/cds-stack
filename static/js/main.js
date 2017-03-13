@@ -227,6 +227,9 @@ var endpoints = new function() {
 			if ( toolbarButton ) { toolbarButton.removeClass('loading'); }
 			if (result.status == 400) {
 				$('#loading p').html(result.responseJSON['message'] + ".<br/>  Connection Failed<span id='test-data'>.</span> Please rest<span id='see-blank'>a</span>rt application or contact trews-jhu@opsdx.io");
+				$('#test-data').click(function() {
+					endpoints.test();
+				});
 				return;
 			}
 			endpoints.numTries += 1;
@@ -255,7 +258,7 @@ var endpoints = new function() {
 			},
 			success: function(result) {
 				$('#loading').addClass('done');
-				trews.setData(result);
+				trews.setData(result.trewsData);
 				controller.refresh();
 			}
 		});
