@@ -340,6 +340,9 @@ class TREWSAPI(object):
         deterioration_feedback = query.get_deterioration_feedback(eid)
         data['deterioration_feedback'] = deterioration_feedback
 
+        auditlist = query.get_criteria_log(eid)
+        data['auditlist'] = auditlist
+
         # update criteria from database query
         self.update_criteria(criteria, data)
         data['chart_data']['trewscore_threshold'] = THRESHOLD
