@@ -123,6 +123,9 @@ class TREWSAPI(object):
         elif actionType == u'deactivate':
             query.deactivate(eid, uid, actionData['value'])
 
+        elif actionType == u'set_deterioration_feedback':
+            query.set_deterioration_feedback(eid, actionData['value'])
+
         else:
             msg = 'Invalid action type: ' + actionType
             logging.error(msg)
@@ -333,6 +336,10 @@ class TREWSAPI(object):
 
         deactivated = query.get_deactivated(eid)
         data['deactivated'] = deactivated
+
+        deterioration_feedback = query.get_deterioration_feedback(eid)
+        data['deterioration_feedback'] = deterioration_feedback
+
         # update criteria from database query
         self.update_criteria(criteria, data)
         data['chart_data']['trewscore_threshold'] = THRESHOLD

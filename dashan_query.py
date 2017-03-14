@@ -235,11 +235,28 @@ def get_deactivated(eid):
     conn = engine.connect()
     deactivated = conn.execute("select deactivated from pat_status where pat_id = '%s'" % eid).fetchall()
     conn.close()
-    print deactivated
     if len(deactivated) == 1 and deactivated[0][0] is True:
         return True
     else:
         return False
+
+def set_deterioration_feedback(eid, deterioration_feedback):
+    engine = create_engine(DB_CONN_STR)
+    deterioration_sql = '''
+    select * from set_deterioration_feedback('%(pid)s', now(), '%(deterioration)s', '%(uid)s');
+    ''' % {'pid': eid, 'deteriaration': deterioration_feedback, 'uid':uid}
+    logging.info("set_deterioration_feedback user:" + deterioration_sql)
+    conn = engine.connect()
+    conn.execute(text(deterioration_sql).execution_options(autocommit=True))
+    conn.close()
+
+def get_deterioration_feedback(eid):
+    engine = create_engine(DB_CONN_STR)
+    conn = engine.connect()
+    df = conn.execute("select pat_id, date_part('epoch', tsp) tsp, deterioration, uid from deterioration_feedback where pat_id = '%s' limit 1" % eid).fetchall()
+    conn.close()
+    if len(df) == 1:
+        return {"tsp": df[0][1], "deterioration": df[0][2], "uid": df[0][3]}
 
 def push_notifications_to_epic(eid, engine):
     if epic_notifications is not None and int(epic_notifications):
