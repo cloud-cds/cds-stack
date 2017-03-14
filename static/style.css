@@ -619,19 +619,19 @@ body.waiting {
     vertical-align: middle;
     display: inline-block;
     cursor: pointer;
-    opacity: .7;
     position: relative;
-}
-#other-deter:hover {
-    opacity: 1;
+    z-index: 1;
 }
 #other-deter p {
     vertical-align: middle;
     display: inline-block;
     margin: 0;
     font-size: 12px;
+    opacity: .7;
+    transition: opacity .3s;
 }
 #other-deter:hover p {
+    opacity: 1;
     text-decoration: underline;
 }
 #other-deter img {
@@ -639,7 +639,46 @@ body.waiting {
     display: inline-block;
     height: 14px;
     width: 14px;
+    opacity: .5;
+    transition: opacity .3s;
+}
+#other-deter:hover img {
     opacity: .7;
+}
+#other-deter-dropdown {
+    position: absolute;
+    top: 20px;
+    display: none;
+    padding: 3px;
+    border: 1px solid #ddd;
+    background-color: #fff;
+    box-shadow: 2px 2px 2px #ddd;
+    max-height: 250px;
+    overflow-y: auto;
+}
+#other-deter-dropdown li {
+    list-style-type: none;
+    font-size: 12px;
+    transition: background-color .3s;
+    padding: 3px;
+}
+#other-deter-dropdown li:hover {
+    background-color: #eee;
+}
+#other-deter-dropdown input {
+    width: 75%;
+}
+#other-deter-dropdown #deter-submit.disabled {
+    display: none;
+}
+#other-deter-dropdown #deter-submit {
+    width: 25%;
+    display: inline-block;
+    font-size: 12px;
+    text-align: center;
+}
+#other-deter-dropdown #deter-submit:hover {
+    background-color: #eee;
 }
 /* End Other sources of deterioration */
 /* Now */
