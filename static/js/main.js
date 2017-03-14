@@ -24,6 +24,7 @@ window.onload = function() {
 	toolbar.init()
 	dataRefresher.init();
 	notificationRefresher.init();
+	deterioration.init();
 	$('#fake-console').text(window.location);
 	$('#fake-console').hide();
 	$('#show-console').click(function() {
@@ -1002,6 +1003,39 @@ var taskComponent = function(json, elem, constants, doseLimit) {
 	}
 }
 
+var deterioration = new function() {
+	this.d = $('#other-deter-dropdown')
+	this.ctn = $('.other-deter-dropdown-list')
+	this.launcher = $('#other-deter-launcher')
+	this.init = function() {
+		for (var i in DETERIORATIONS) {
+			this.ctn.prepend("<li data-trews='" + DETERIORATIONS[i] + "'>" + DETERIORATIONS[i] + "</li>")
+		}
+		$('.other-deter-dropdown-list li, #deter-submit').click(function() {
+			var action = {
+				"value": ($(this).attr('id') == 'deter-submit') ? $('.other-deter-dropdown-list input').val() : $(this).attr('data-trews'),
+				"other": $(this).attr('id') == 'deter-submit'
+			}
+			console.log(action)
+			endpoints.getPatientData("deterioration", action);
+			deterioration.d.fadeOut(300)
+		})
+		$('.other-deter-dropdown-list input').keyup(function() {
+			if ($(this).val().length > 0)
+				$('#deter-submit').removeClass('disabled')
+			else
+				$('#deter-submit').addClass('disabled')
+		})
+		deterioration.launcher.click(function(e) {
+			e.stopPropagation()
+			deterioration.d.toggle()
+		});
+		deterioration.d.click(function(e) {
+			e.stopPropagation()
+		})
+	}
+}
+
 var dropdown = new function() {
 	this.d = $('#dropdown');
 	this.ctn = $("<div id='dropdown-content'></div>");
@@ -1081,6 +1115,7 @@ var dropdown = new function() {
 	$('body').click(function() {
 		$('.edit-btn').removeClass('shown');
 		dropdown.d.fadeOut(300);
+		deterioration.d.fadeOut(300);
 	});
 }
 
