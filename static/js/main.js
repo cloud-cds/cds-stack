@@ -1007,18 +1007,19 @@ var deterioration = new function() {
 	this.d = $('#other-deter-dropdown')
 	this.ctn = $('.other-deter-dropdown-list')
 	this.launcher = $('#other-deter-launcher')
+	this.sources = []
 	this.init = function() {
 		for (var i in DETERIORATIONS) {
-			this.ctn.prepend("<li data-trews='" + DETERIORATIONS[i] + "'>" + DETERIORATIONS[i] + "</li>")
+			this.ctn.prepend("<li data-trews='" + DETERIORATIONS[i] + "'><img src='img/check.png'>" + DETERIORATIONS[i] + "</li>")
 		}
 		$('.other-deter-dropdown-list li, #deter-submit').click(function() {
 			var action = {
+				"check": true,
 				"value": ($(this).attr('id') == 'deter-submit') ? $('.other-deter-dropdown-list input').val() : $(this).attr('data-trews'),
 				"other": $(this).attr('id') == 'deter-submit'
 			}
 			console.log(action)
 			endpoints.getPatientData("deterioration", action);
-			deterioration.d.fadeOut(300)
 		})
 		$('.other-deter-dropdown-list input').keyup(function() {
 			if ($(this).val().length > 0)

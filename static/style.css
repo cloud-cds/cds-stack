@@ -656,14 +656,31 @@ body.waiting {
     max-height: 250px;
     overflow-y: auto;
 }
-#other-deter-dropdown li {
+#other-deter-dropdown li,
+.other-deter-dropdown-list > div {
+    position: relative;
     list-style-type: none;
     font-size: 12px;
     transition: background-color .3s;
-    padding: 3px;
+    padding: 3px 3px 3px 23px;
 }
 #other-deter-dropdown li:hover {
     background-color: #eee;
+}
+#other-deter-dropdown li img {
+    position: absolute;
+    left: 2px;
+    top: 2px;
+    width: 16px;
+    height: 16px;
+    opacity: .5;
+    display: none;
+}
+#other-deter-dropdown li.selectec img {
+    display: block;
+}
+#other-deter:hover li img {
+    opacity: .5;
 }
 #other-deter-dropdown input {
     width: 75%;
@@ -675,6 +692,7 @@ body.waiting {
     width: 25%;
     display: inline-block;
     font-size: 12px;
+    line-height: 20px;
     text-align: center;
 }
 #other-deter-dropdown #deter-submit:hover {
