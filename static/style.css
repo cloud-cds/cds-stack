@@ -667,7 +667,8 @@ body.waiting {
 #other-deter-dropdown li:hover {
     background-color: #eee;
 }
-#other-deter-dropdown li img {
+#other-deter-dropdown li img,
+#other-deter .other-deter-dropdown-list > div img {
     position: absolute;
     left: 2px;
     top: 2px;
@@ -676,7 +677,8 @@ body.waiting {
     opacity: .5;
     display: none;
 }
-#other-deter-dropdown li.selectec img {
+#other-deter-dropdown li.selected img,
+#other-deter .other-deter-dropdown-list > div.selected img {
     display: block;
 }
 #other-deter:hover li img {
@@ -685,7 +687,7 @@ body.waiting {
 #other-deter-dropdown input {
     width: 75%;
 }
-#other-deter-dropdown #deter-submit.disabled {
+/*#other-deter-dropdown #deter-submit.disabled {
     display: none;
 }
 #other-deter-dropdown #deter-submit {
@@ -697,7 +699,7 @@ body.waiting {
 }
 #other-deter-dropdown #deter-submit:hover {
     background-color: #eee;
-}
+}*/
 /* End Other sources of deterioration */
 /* Now */
 .graph-tag {

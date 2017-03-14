@@ -1007,25 +1007,18 @@ var deterioration = new function() {
 	this.d = $('#other-deter-dropdown')
 	this.ctn = $('.other-deter-dropdown-list')
 	this.launcher = $('#other-deter-launcher')
-	this.sources = []
 	this.init = function() {
 		for (var i in DETERIORATIONS) {
 			this.ctn.prepend("<li data-trews='" + DETERIORATIONS[i] + "'><img src='img/check.png'>" + DETERIORATIONS[i] + "</li>")
 		}
-		$('.other-deter-dropdown-list li, #deter-submit').click(function() {
-			var action = {
-				"check": true,
-				"value": ($(this).attr('id') == 'deter-submit') ? $('.other-deter-dropdown-list input').val() : $(this).attr('data-trews'),
-				"other": $(this).attr('id') == 'deter-submit'
-			}
-			console.log(action)
-			endpoints.getPatientData("deterioration", action);
+		$('.other-deter-dropdown-list li').click(function() {
+			$(this).toggleClass('selected')
 		})
 		$('.other-deter-dropdown-list input').keyup(function() {
 			if ($(this).val().length > 0)
-				$('#deter-submit').removeClass('disabled')
+				$('.other-deter-dropdown-list > div').addClass('selected')
 			else
-				$('#deter-submit').addClass('disabled')
+				$('.other-deter-dropdown-list > div').removeClass('selected')
 		})
 		deterioration.launcher.click(function(e) {
 			e.stopPropagation()
@@ -1034,6 +1027,18 @@ var deterioration = new function() {
 		deterioration.d.click(function(e) {
 			e.stopPropagation()
 		})
+	}
+	this.sendOff = function() {
+		var selected = []
+		$('.other-deter-dropdown-list li.selected').each(function(i) {
+			selected.push($(this).text())
+		})
+		var action = {
+			"value": selected,
+			"other": $('.other-deter-dropdown-list input').val()
+		}
+		endpoints.getPatientData("set_deterioration_feedback", action);
+		deterioration.d.fadeOut(300)
 	}
 }
 
@@ -1116,7 +1121,7 @@ var dropdown = new function() {
 	$('body').click(function() {
 		$('.edit-btn').removeClass('shown');
 		dropdown.d.fadeOut(300);
-		deterioration.d.fadeOut(300);
+		deterioration.sendOff();
 	});
 }
 
