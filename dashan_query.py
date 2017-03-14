@@ -244,7 +244,7 @@ def set_deterioration_feedback(eid, deterioration_feedback, uid):
     engine = create_engine(DB_CONN_STR)
     deterioration_sql = '''
     select * from set_deterioration_feedback('%(pid)s', now(), '%(deterioration)s', '%(uid)s');
-    ''' % {'pid': eid, 'deteriaration': deterioration_feedback, 'uid':uid}
+    ''' % {'pid': eid, 'deteriaration': json.dumps(deterioration_feedback), 'uid':uid}
     logging.info("set_deterioration_feedback user:" + deterioration_sql)
     conn = engine.connect()
     conn.execute(text(deterioration_sql).execution_options(autocommit=True))
