@@ -124,7 +124,7 @@ class TREWSAPI(object):
             query.deactivate(eid, uid, actionData['value'])
 
         elif actionType == u'set_deterioration_feedback':
-            query.set_deterioration_feedback(eid, actionData['value'])
+            query.set_deterioration_feedback(eid, actionData['value'], uid)
 
         else:
             msg = 'Invalid action type: ' + actionType

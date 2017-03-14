@@ -240,7 +240,7 @@ def get_deactivated(eid):
     else:
         return False
 
-def set_deterioration_feedback(eid, deterioration_feedback):
+def set_deterioration_feedback(eid, deterioration_feedback, uid):
     engine = create_engine(DB_CONN_STR)
     deterioration_sql = '''
     select * from set_deterioration_feedback('%(pid)s', now(), '%(deterioration)s', '%(uid)s');
