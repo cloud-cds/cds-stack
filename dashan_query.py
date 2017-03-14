@@ -100,7 +100,6 @@ def get_criteria_log(eid):
     ''' % eid
     df = pd.read_sql_query(get_criteria_log_sql,con=engine)
     auditlist = []
-    print df.head()
     for idx,row in df.iterrows():
         audit = row['event']
         audit['log_id'] = row['log_id']
