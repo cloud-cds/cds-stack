@@ -389,6 +389,7 @@ body.waiting {
     max-width: 200px;
     position: absolute;
     display: none;
+    z-index: 1;
     border: 1px solid #ddd;
     background-color: #fff;
     box-shadow: 2px 2px 2px #ddd;
@@ -657,7 +658,7 @@ body.waiting {
     overflow-y: auto;
 }
 #other-deter-dropdown li,
-.other-deter-dropdown-list > div {
+#other-deter .other-deter-dropdown-list > div {
     position: relative;
     list-style-type: none;
     font-size: 12px;
@@ -738,7 +739,7 @@ body.waiting {
 /* Threshold */
 #threshold {
     position: absolute;
-    top: 10%;
+    top: 50%;
     right: 0px;
     color: #e64535;
     text-align: center;
