@@ -12,14 +12,14 @@ SELECT DISTINCT csn.EXTERNAL_ID CSN_ID
 			THEN - 1
 		ELSE 0
 		END AgeDuringVisit
-	,CASE 
+	,CASE
 		WHEN SEX_C = 1
 			THEN 'Female'
 		WHEN sex_c = 2
 			THEN 'Male'
 		ELSE 'Other or Unknown'
 		END Gender
-	,CASE 
+	,CASE
 		WHEN PAT_ENC_HSP_1.ED_EPISODE_ID IS NOT NULL
 			THEN 1
 		ELSE 0
@@ -29,8 +29,8 @@ SELECT DISTINCT csn.EXTERNAL_ID CSN_ID
 --INTO CCDA276_Demographics
 FROM CLARITY.dbo.PAT_ENC_HSP PAT_ENC_HSP_1
 INNER JOIN CLARITY.dbo.PATIENT patient ON PAT_ENC_HSP_1.pat_id = patient.pat_id
-INNER JOIN Analytics.dbo.CCDA264_CSNLookupTable csn ON PAT_ENC_HSP_1.PAT_ENC_CSN_ID = csn.PAT_ENC_CSN_ID
-INNER JOIN Analytics.dbo.CCDA264_PatLookupTable pat ON pat.pat_id = pat_enc_hsp_1.pat_id
+INNER JOIN Analytics.dbo.CCDA643_CSNLookupTable csn ON PAT_ENC_HSP_1.PAT_ENC_CSN_ID = csn.PAT_ENC_CSN_ID
+INNER JOIN Analytics.dbo.CCDA643_PatLookupTable pat ON pat.pat_id = pat_enc_hsp_1.pat_id
 INNER JOIN CLARITY.dbo.CLARITY_DEP depDisch ON PAT_ENC_HSP_1.DEPARTMENT_ID = depDisch.DEPARTMENT_ID
 LEFT JOIN CLARITY.dbo.zc_disch_disp zc_disch_disp ON PAT_ENC_HSP_1.disch_disp_c = zc_disch_disp.disch_disp_c
 ORDER BY csn.EXTERNAL_ID
