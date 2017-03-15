@@ -418,6 +418,35 @@ body.waiting {
 #dropdown h5:hover {
     background-color: #eee;
 }
+/* Other Input field in Sources of Infection Dropdown */
+#infection-other {
+    font-size: 0;
+}
+#infection-other input {
+    margin: 0;
+    border: 1px solid #eee;
+    padding: 5px;
+    outline: none;
+    font-size: 12px;
+    width: 75%;
+    display: inline-block;
+}
+#infection-other span {
+    font-size: 12px;
+    cursor: pointer;
+    text-align: center;
+    display: inline-block;
+    border: 1px solid #eee;
+    border-left: none;
+    background-color: #fff;
+    padding: 5px 0;
+    width: 25%;
+    color: #555;
+    transition: background-color .3s;
+}
+#infection-other span:hover {
+    background-color: #eee;
+}
 #dropdown:before,
 #dropdown:after {
     content: '';

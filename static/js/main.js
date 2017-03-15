@@ -1099,6 +1099,15 @@ var dropdown = new function() {
 			var s = $('<h5 class="dropdown-link"></h5>').text(INFECTIONS[i]);
 			this.ctn.append(s);
 		}
+		this.ctn.append("<div id='infection-other'><input placeholder='Other' value='" + trews. + "'/><span>Submit</span></div>")
+		$('#infection-other').unbind()
+		$('#infection-other').click(function(e) {
+			e.stopPropagation()
+		})
+		$('#infection-other span').unbind()
+		$('#infection-other span').click(function() {
+			console.log($('#infection-other input').text())
+		})
 		$('.dropdown-link').click(function() {
 			var action = dropdown.getAction($(this).text());
 			endpoints.getPatientData("suspicion_of_infection", action);
