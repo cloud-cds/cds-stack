@@ -10,6 +10,23 @@ var INFECTIONS = [
 "Reset"
 ]
 
+var DETERIORATIONS = [
+	"AFib w/ RVR",
+	"Acute MI",
+	"Cardiac arrest",
+	"CHF",
+	"Cardiac Tamponade",
+	"Pulmonary Embolus",
+	"COPD exacerbation",
+	"Pulmonary Edema",
+	"Liver Disease",
+	"Hypovolemia",
+	"Hemorrhage",
+	"Cardiogenic Shock",
+	"Distributive Shock",
+	"Obstructive Shock"
+]
+
 var ALERT_CODES = {
 	"100": "TREWScore has passed the Septic Shock Risk Threshold",
 	"101": "TREWScore has been elevated for ",

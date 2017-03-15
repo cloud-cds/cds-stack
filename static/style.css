@@ -610,9 +610,97 @@ body.waiting {
 #graph-wrapper {
     padding-bottom: 50px;
 }
-#graph-wrapper .card h2 {
+#graph-wrapper h2 {
+    vertical-align: middle;
+    display: inline-block;
+}
+/* Other sources of deterioration */
+#other-deter {
+    vertical-align: middle;
+    display: inline-block;
+    cursor: pointer;
+    position: relative;
+    z-index: 1;
+}
+#other-deter p {
+    vertical-align: middle;
+    display: inline-block;
+    margin: 0;
+    font-size: 12px;
+    opacity: .7;
+    transition: opacity .3s;
+}
+#other-deter:hover p {
+    opacity: 1;
+    text-decoration: underline;
+}
+#other-deter img {
+    vertical-align: middle;
+    display: inline-block;
+    height: 14px;
+    width: 14px;
+    opacity: .5;
+    transition: opacity .3s;
+}
+#other-deter:hover img {
+    opacity: .7;
+}
+#other-deter-dropdown {
+    position: absolute;
+    top: 20px;
+    display: none;
+    padding: 3px;
+    border: 1px solid #ddd;
+    background-color: #fff;
+    box-shadow: 2px 2px 2px #ddd;
+    max-height: 250px;
+    overflow-y: auto;
+}
+#other-deter-dropdown li,
+.other-deter-dropdown-list > div {
+    position: relative;
+    list-style-type: none;
+    font-size: 12px;
+    transition: background-color .3s;
+    padding: 3px 3px 3px 23px;
+}
+#other-deter-dropdown li:hover {
+    background-color: #eee;
+}
+#other-deter-dropdown li img,
+#other-deter .other-deter-dropdown-list > div img {
+    position: absolute;
+    left: 2px;
+    top: 2px;
+    width: 16px;
+    height: 16px;
+    opacity: .5;
+    display: none;
+}
+#other-deter-dropdown li.selected img,
+#other-deter .other-deter-dropdown-list > div.selected img {
+    display: block;
+}
+#other-deter:hover li img {
+    opacity: .5;
+}
+#other-deter-dropdown input {
+    width: 75%;
+}
+/*#other-deter-dropdown #deter-submit.disabled {
+    display: none;
+}
+#other-deter-dropdown #deter-submit {
+    width: 25%;
+    display: inline-block;
+    font-size: 12px;
+    line-height: 20px;
     text-align: center;
 }
+#other-deter-dropdown #deter-submit:hover {
+    background-color: #eee;
+}*/
+/* End Other sources of deterioration */
 /* Now */
 .graph-tag {
     position: absolute;
@@ -650,7 +738,7 @@ body.waiting {
 /* Threshold */
 #threshold {
     position: absolute;
-    top: 50%;
+    top: 10%;
     right: 0px;
     color: #e64535;
     text-align: center;
