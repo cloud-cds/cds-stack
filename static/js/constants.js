@@ -22,8 +22,8 @@ var DETERIORATIONS = [
 	"Liver Disease",
 	"Hypovolemia",
 	"Hemorrhage",
-	"Cardiogenic Shock (HF, EF is deteriorated)",
-	"Distributive Shock (arteries are vasodilated e.g., post cardiac arrest)",
+	"Cardiogenic Shock",
+	"Distributive Shock",
 	"Obstructive Shock"
 ]
 
