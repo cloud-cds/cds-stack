@@ -293,6 +293,7 @@ var controller = new function() {
 		graphComponent.refresh(globalJson["chart_data"]);
 		notifications.render(globalJson['notifications']);
 		toolbar.render(globalJson["severe_sepsis"]);
+		deterioration.render(globalJson['deterioration_feedback']);
 	}
 	this.refreshNotifications = function() {
 		var globalJson = trews.data;
@@ -1007,6 +1008,7 @@ var deterioration = new function() {
 	this.d = $('#other-deter-dropdown')
 	this.ctn = $('.other-deter-dropdown-list')
 	this.launcher = $('#other-deter-launcher')
+	this.remoteInitialized = false;
 	this.init = function() {
 		for (var i in DETERIORATIONS) {
 			this.ctn.prepend("<li data-trews='" + DETERIORATIONS[i] + "'><img src='img/check.png'>" + DETERIORATIONS[i] + "</li>")
@@ -1028,6 +1030,27 @@ var deterioration = new function() {
 			e.stopPropagation()
 		})
 	}
+	this.render = function(data) {
+		if ( !this.remoteInitialized ) {
+			this.remoteInitialized = true;
+			if ( data == null ) { return; }
+
+			$('.other-deter-dropdown-list li.selected').each(function(i) {
+				$(this).removeClass('selected')
+			})
+			for (var i in data.deterioration.value) {
+				$("[data-trews='" + data.deterioration.value[i] + "']").addClass('selected')
+			}
+
+			if ( data.deterioration.other ) {
+				$('.other-deter-dropdown-list input').val(data.deterioration.other)
+				$('.other-deter-dropdown-list > div').addClass('selected')
+			} else {
+				$('.other-deter-dropdown-list input').val('')
+				$('.other-deter-dropdown-list > div').removeClass('selected')
+			}
+		}
+	}
 	this.sendOff = function() {
 		var selected = []
 		$('.other-deter-dropdown-list li.selected').each(function(i) {
@@ -1037,6 +1060,7 @@ var deterioration = new function() {
 			"value": selected,
 			"other": $('.other-deter-dropdown-list input').val()
 		}
+		this.remoteInitialized = true;
 		endpoints.getPatientData("set_deterioration_feedback", action);
 		deterioration.d.fadeOut(300)
 	}
