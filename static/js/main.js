@@ -845,7 +845,7 @@ function graph(json, severeOnset, shockOnset, xmin, xmax, ymin, ymax) {
 
 			$("#tooltip").html(features)
 				.css({top: item.pageY+5, left: item.pageX+5})
-				.fadeIn(300);
+				.show();
 		} else {
 			$("#tooltip").hide();
 		}
