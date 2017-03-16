@@ -19,6 +19,7 @@ import pprint
 import copy
 import re
 import calendar
+from prometheus_client import Summary
 
 THRESHOLD = 0.81
 logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.INFO)
@@ -53,6 +54,9 @@ class NumpyEncoder(json.JSONEncoder):
             return super(NumpyEncoder, self).default(obj)
 
 class TREWSAPI(object):
+    # Create a metric to track time spent and requests made.
+    REQUEST_TIME = Summary('api_latency_secs', 'Time spent processing API request')
+
     def on_get(self, req, resp):
         """
         See example in test_decrpyt.py
@@ -438,6 +442,7 @@ class TREWSAPI(object):
         # update_notifications
         data['notifications'] = query.get_notifications(eid)
 
+    @REQUEST_TIME.time()
     def on_post(self, req, resp):
         srvnow = datetime.datetime.utcnow().isoformat()
         try:
