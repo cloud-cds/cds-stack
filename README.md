@@ -19,4 +19,4 @@ You can try
 - push again
 - or scale the deis workers: `deis scale -a trews-web web=0 && deis scale -a trews-web web=2`
 - or delete the trews-web pod: `kubectl delete pods/trews-web-xxx -n trews-web`
-- or scale the deis builder: `kubectl scale --replicas=0 deploy/deis-builder -n deis` and then ``kubectl scale --replicas=1 deploy/deis-builder -n deis``
+- or scale the deis builder: `kubectl scale --replicas=0 deploy/deis-builder -n deis` and then `kubectl scale --replicas=1 deploy/deis-builder -n deis`
