@@ -1099,7 +1099,7 @@ var dropdown = new function() {
 			var s = $('<h5 class="dropdown-link"></h5>').text(INFECTIONS[i]);
 			this.ctn.append(s);
 		}
-		var otherValue = trews.data.severe_sepsis.suspicion_of_infection.other ? trews.data.severe_sepsis.suspicion_of_infection.other : ""
+		var otherValue = trews.data.severe_sepsis.suspicion_of_infection.other ? trews.data.severe_sepsis.suspicion_of_infection.value : ""
 		this.ctn.append("<div id='infection-other'><input placeholder='Other' value='" + otherValue + "'/><span>Submit</span></div>")
 		$('#infection-other').unbind()
 		$('#infection-other').click(function(e) {
