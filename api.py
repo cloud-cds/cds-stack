@@ -1,5 +1,5 @@
 import falcon
-from Crypto.Cipher import AES
+# from Crypto.Cipher import AES
 from pkcs7 import PKCS7Encoder
 import base64
 import hashlib
@@ -25,9 +25,9 @@ logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.INFO)
 #hashed_key = 'C8ED911A8907EFE4C1DE24CA67DF5FA2'
 #hashed_key = '\xC8\xED\x91\x1A\x89\x07\xEF\xE4\xC1\xDE\x24\xCA\x67\xDF\x5F\xA2'
 #hashed_key = 'e7cde81226f1d5e03c2681035692964d'
-hashed_key = '\xe7\xcd\xe8\x12\x26\xf1\xd5\xe0\x3c\x26\x81\x03\x56\x92\x96\x4d'
-IV = '\x00' * 16
-MODE = AES.MODE_CBC
+# hashed_key = '\xe7\xcd\xe8\x12\x26\xf1\xd5\xe0\x3c\x26\x81\x03\x56\x92\x96\x4d'
+# IV = '\x00' * 16
+# MODE = AES.MODE_CBC
 
 DECRYPTED = False
 
@@ -62,14 +62,14 @@ class TREWSAPI(object):
         body += "TREWS API"
         resp.body = (body)
 
-    def decrypt(self, encrypted_text):
-        encrypted_text = urllib.unquote(encrypted_text)
-        decodetext =  base64.b64decode(encrypted_text)
-        aes = AES.new(hashed_key, MODE, IV)
-        cipher = aes.decrypt(decodetext)
-        encoder = PKCS7Encoder()
-        pad_text = encoder.decode(cipher)
-        return pad_text
+    # def decrypt(self, encrypted_text):
+    #     encrypted_text = urllib.unquote(encrypted_text)
+    #     decodetext =  base64.b64decode(encrypted_text)
+    #     aes = AES.new(hashed_key, MODE, IV)
+    #     cipher = aes.decrypt(decodetext)
+    #     encoder = PKCS7Encoder()
+    #     pad_text = encoder.decode(cipher)
+    #     return pad_text
 
     # match and test the consistent API for overriding
     def take_action(self, actionType, actionData, eid, uid):
@@ -93,11 +93,15 @@ class TREWSAPI(object):
                 query.override_criteria(eid, actionData['actionName'], value=actionData['value'], user=uid)
 
         elif actionType == u'suspicion_of_infection':
-            if actionData['value'] == 'Reset':
+            if 'value' in actionData and actionData['value'] == 'Reset':
                 query.override_criteria(eid, actionData['actionName'], clear=True, user=uid)
             else:
-                value = '[{ "text": "%(val)s" }]' % {'val': actionData['value']}
-                query.override_criteria(eid, actionType, value=value, user=uid)
+                if "other" in actionData:
+                    value = '[{ "text": "%(val)s", "other": true }]' % {'val': actionData['other']}
+                    query.override_criteria(eid, actionType, value=value, user=uid)
+                else:
+                    value = '[{ "text": "%(val)s" }]' % {'val': actionData['value']}
+                    query.override_criteria(eid, actionType, value=value, user=uid)
 
         elif actionType == u'notification':
             if 'id' in actionData and 'read' in actionData:
@@ -196,16 +200,18 @@ class TREWSAPI(object):
             }
 
             if criterion["name"] == 'suspicion_of_infection':
-                value = criterion['value']
-                if ('override_value' in criterion) and (criterion['override_value'] is not None) and ('text' in criterion['override_value']):
-                    value = criterion['override_value']['text']
-
                 data['severe_sepsis']['suspicion_of_infection'] = {
                     "name": "suspicion_of_infection",
-                    "value": criterion['override_value'][0]['text'] if criterion['override_value'] else None,
                     "update_time": criterion['override_time'],
                     "update_user": criterion['override_user']
                 }
+                if criterion['override_value']:
+                    text = criterion['override_value'][0]['text']
+                    data['severe_sepsis']['suspicion_of_infection']["value"] = text
+                    if 'other' in criterion['override_value'][0] and criterion['override_value'][0]['other']:
+                        data['severe_sepsis']['suspicion_of_infection']["other"] = True
+                else:
+                    data['severe_sepsis']['suspicion_of_infection']["value"] = None
 
             if criterion["name"] == "sirs_temp" and criterion["override_value"]:
                 if criterion["override_value"][0]["lower"]:
@@ -468,9 +474,9 @@ class TREWSAPI(object):
         data = copy.deepcopy(data_example.patient_data_example)
 
         if eid:
-            if DECRYPTED:
-                eid = self.decrypt(eid)
-                print("unknown eid: " + eid)
+            # if DECRYPTED:
+            #     eid = self.decrypt(eid)
+            #     print("unknown eid: " + eid)
 
             if query.eid_exist(eid):
                 print("query for eid:" + eid)
