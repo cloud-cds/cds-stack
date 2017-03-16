@@ -139,7 +139,7 @@ def toggle_notification_read(eid, notification_id, as_read):
     select
             '%(pid)s',
             now(),
-            '{"event_type": "toggle_notifications", "message": n.message}'
+            '{"event_type": "toggle_notifications", "message": n.message}',
             now()
     from update_notifications n;
     ''' % {'pid': eid, 'nid': notification_id, 'val': str(as_read).lower()}
