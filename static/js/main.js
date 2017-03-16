@@ -845,7 +845,7 @@ function graph(json, severeOnset, shockOnset, xmin, xmax, ymin, ymax) {
 
 			$("#tooltip").html(features)
 				.css({top: item.pageY+5, left: item.pageX+5})
-				.fadeIn(300);
+				.show();
 		} else {
 			$("#tooltip").hide();
 		}
@@ -1099,6 +1099,18 @@ var dropdown = new function() {
 			var s = $('<h5 class="dropdown-link"></h5>').text(INFECTIONS[i]);
 			this.ctn.append(s);
 		}
+		var otherValue = trews.data.severe_sepsis.suspicion_of_infection.other ? trews.data.severe_sepsis.suspicion_of_infection.value : ""
+		this.ctn.append("<div id='infection-other'><input placeholder='Other' value='" + otherValue + "'/><span>Submit</span></div>")
+		$('#infection-other').unbind()
+		$('#infection-other').click(function(e) {
+			e.stopPropagation()
+		})
+		$('#infection-other span').unbind()
+		$('#infection-other span').click(function() {
+			var action = {"actionName": "sus-edit", "other": $('#infection-other input').val()}
+			endpoints.getPatientData("suspicion_of_infection", action);
+			dropdown.d.fadeOut(300);
+		})
 		$('.dropdown-link').click(function() {
 			var action = dropdown.getAction($(this).text());
 			endpoints.getPatientData("suspicion_of_infection", action);
