@@ -349,6 +349,11 @@ var timer = new function() {
 	this.buffer = []
 	this.init = function() {
 		this.sendBuffer(this);
+		window.addEventListener("beforeunload", function (e) {
+			if (timer.buffer.length > 0) {
+				controller.sendLog(timer.buffer, false)
+			}
+		});
 	}
 	this.log = function(url, start, end, status) {
 		var postBody = {
