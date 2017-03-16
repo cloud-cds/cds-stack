@@ -15,6 +15,7 @@ import json
 import boto3
 import watchtower
 from gevent import monkey
+from prometheus_client import start_http_server
 
 monkey.patch_all()
 
@@ -231,5 +232,6 @@ if 'api_with_healthcheck' in os.environ and int(os.environ['api_with_healthcheck
 handler = TREWSStaticResource().on_get
 app.add_sink(handler, prefix=URL_STATIC)
 
-# app.add_route('/trews-api/', trews_www)
+# for test prometheus client
+start_http_server(8000)
 
