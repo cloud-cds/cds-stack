@@ -3,7 +3,7 @@
 # Let's get this party started!
 import os
 import falcon
-from Crypto.Cipher import AES
+# from Crypto.Cipher import AES
 import api
 from jinja2 import Environment, FileSystemLoader
 import os
@@ -163,9 +163,10 @@ class TREWSEchoHealthcheck(object):
             raise falcon.HTTPError(falcon.HTTP_400, 'Error processing echo healthcheck', ex.message)
 
 # Cloudwatch Logger.
-cwLogger = logging.getLogger(__name__)
-cwLogger.addHandler(watchtower.CloudWatchLogHandler(log_group=os.environ['cloudwatch_log_group'], create_log_group=False))
-cwLogger.setLevel(logging.INFO)
+if 'cloudwatch_log_group' in os.environ:
+    cwLogger = logging.getLogger(__name__)
+    cwLogger.addHandler(watchtower.CloudWatchLogHandler(log_group=os.environ['cloudwatch_log_group'], create_log_group=False))
+    cwLogger.setLevel(logging.INFO)
 
 class TREWSLoggerMiddleware(object):
     def process_request(self, req, resp):
