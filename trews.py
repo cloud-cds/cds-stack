@@ -15,7 +15,10 @@ import json
 import boto3
 import watchtower
 from gevent import monkey
-from prometheus_client import start_http_server
+from prometheus_client import start_http_server, Summary, Gauge, Counter
+
+
+# api_request_counts = Counter('api_request_counts', 'Number of requests per seconds')
 
 monkey.patch_all()
 
@@ -212,7 +215,11 @@ class TREWSLoggerMiddleware(object):
             }
         }))
 
+
+
 mware = [TREWSLoggerMiddleware()] if 'logging' in os.environ and int(os.environ['logging']) else []
+# if 'prometheus' in os.environ and int(os.environ['prometheus']):
+# mware.append(TREWSPrometheusMiddleware())
 app = falcon.API(middleware=mware)
 
 # Resources are represented by long-lived class instances
@@ -234,5 +241,5 @@ handler = TREWSStaticResource().on_get
 app.add_sink(handler, prefix=URL_STATIC)
 
 # for test prometheus client
-start_http_server(8000)
+start_http_server(8888)
 

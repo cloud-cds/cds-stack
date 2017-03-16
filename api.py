@@ -19,7 +19,10 @@ import pprint
 import copy
 import re
 import calendar
-from prometheus_client import Summary
+
+from prometheus_client import Histogram, Counter
+api_request_latency = Histogram('api_request_latency', 'Time spent processing API request', ['actionType'])
+api_request_counts = Counter('api_request_counts', 'Number of requests per seconds', ['actionType'])
 
 THRESHOLD = 0.81
 logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.INFO)
@@ -54,9 +57,6 @@ class NumpyEncoder(json.JSONEncoder):
             return super(NumpyEncoder, self).default(obj)
 
 class TREWSAPI(object):
-    # Create a metric to track time spent and requests made.
-    REQUEST_TIME = Summary('api_latency_secs', 'Time spent processing API request')
-
     def on_get(self, req, resp):
         """
         See example in test_decrpyt.py
@@ -442,70 +442,73 @@ class TREWSAPI(object):
         # update_notifications
         data['notifications'] = query.get_notifications(eid)
 
-    @REQUEST_TIME.time()
     def on_post(self, req, resp):
-        srvnow = datetime.datetime.utcnow().isoformat()
-        try:
-            raw_json = req.stream.read()
-            logging.info('%(date)s %(reqdate)s %(remote_addr)s %(access_route)s %(protocol)s %(method)s %(host)s %(headers)s %(body)s'
-                % { 'date'         : srvnow,
-                    'reqdate'      : str(req.date),
-                    'remote_addr'  : req.remote_addr,
-                    'access_route' : req.access_route,
-                    'protocol'     : req.protocol,
-                    'method'       : req.method,
-                    'host'         : req.host,
-                    'headers'      : str(req.headers),
-                    'body'         : json.dumps(raw_json, indent=4) })
+        with api_request_latency.labels("any").time():
+            api_request_counts.labels("any").inc()
+            srvnow = datetime.datetime.utcnow().isoformat()
+            try:
+                raw_json = req.stream.read()
+                logging.info('%(date)s %(reqdate)s %(remote_addr)s %(access_route)s %(protocol)s %(method)s %(host)s %(headers)s %(body)s'
+                    % { 'date'         : srvnow,
+                        'reqdate'      : str(req.date),
+                        'remote_addr'  : req.remote_addr,
+                        'access_route' : req.access_route,
+                        'protocol'     : req.protocol,
+                        'method'       : req.method,
+                        'host'         : req.host,
+                        'headers'      : str(req.headers),
+                        'body'         : json.dumps(raw_json, indent=4) })
 
-        except Exception as ex:
-            # logger.info(json.dumps(ex, default=lambda o: o.__dict__))
-            raise falcon.HTTPError(falcon.HTTP_400,
-                'Error',
-                ex.message)
+            except Exception as ex:
+                # logger.info(json.dumps(ex, default=lambda o: o.__dict__))
+                raise falcon.HTTPError(falcon.HTTP_400,
+                    'Error',
+                    ex.message)
 
-        try:
-            req_body = json.loads(raw_json)
-        except ValueError as ex:
-            # logger.info(json.dumps(ex, default=lambda o: o.__dict__))
-            raise falcon.HTTPError(falcon.HTTP_400,
-                'Malformed JSON',
-                'Could not decode the request body. The '
-                'JSON was incorrect. request body = %s' % raw_json)
+            try:
+                req_body = json.loads(raw_json)
+            except ValueError as ex:
+                # logger.info(json.dumps(ex, default=lambda o: o.__dict__))
+                raise falcon.HTTPError(falcon.HTTP_400,
+                    'Malformed JSON',
+                    'Could not decode the request body. The '
+                    'JSON was incorrect. request body = %s' % raw_json)
 
-        eid = req_body['q']
-        uid = req_body['u'] if 'u' in req_body and req_body['u'] is not None else 'user'
-        resp.status = falcon.HTTP_202
-        data = copy.deepcopy(data_example.patient_data_example)
+            eid = req_body['q']
+            uid = req_body['u'] if 'u' in req_body and req_body['u'] is not None else 'user'
+            resp.status = falcon.HTTP_202
+            data = copy.deepcopy(data_example.patient_data_example)
 
-        if eid:
-            # if DECRYPTED:
-            #     eid = self.decrypt(eid)
-            #     print("unknown eid: " + eid)
+            if eid:
+                # if DECRYPTED:
+                #     eid = self.decrypt(eid)
+                #     print("unknown eid: " + eid)
 
-            if query.eid_exist(eid):
-                print("query for eid:" + eid)
+                if query.eid_exist(eid):
+                    print("query for eid:" + eid)
 
-                response_body = {}
-                if 'actionType' in req_body and 'action' in req_body:
-                    actionType = req_body['actionType']
-                    actionData = req_body['action']
+                    response_body = {}
+                    if 'actionType' in req_body and 'action' in req_body:
+                        actionType = req_body['actionType']
+                        with api_request_latency.labels(actionType).time():
+                            api_request_counts.labels(actionType).inc()
+                            actionData = req_body['action']
 
-                    if actionType is not None:
-                        response_body = self.take_action(actionType, actionData, eid, uid)
+                            if actionType is not None:
+                                response_body = self.take_action(actionType, actionData, eid, uid)
 
-                    if actionType != u'pollNotifications' and actionType != u'pollAuditlist':
-                        self.update_response_json(data, eid)
-                        response_body = {'trewsData': data}
+                            if actionType != u'pollNotifications' and actionType != u'pollAuditlist':
+                                self.update_response_json(data, eid)
+                                response_body = {'trewsData': data}
+                    else:
+                        response_body = {'message': 'Invalid TREWS REST API request'}
+
+                    resp.body = json.dumps(response_body, cls=NumpyEncoder)
+                    resp.status = falcon.HTTP_200
+
                 else:
-                    response_body = {'message': 'Invalid TREWS REST API request'}
-
-                resp.body = json.dumps(response_body, cls=NumpyEncoder)
-                resp.status = falcon.HTTP_200
-
-            else:
-                resp.status = falcon.HTTP_400
-                resp.body = json.dumps({'message': 'No patient found'})
+                    resp.status = falcon.HTTP_400
+                    resp.body = json.dumps({'message': 'No patient found'})
 
 
 
