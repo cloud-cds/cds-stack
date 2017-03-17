@@ -2,7 +2,7 @@ USE CLARITY;
 SELECT DISTINCT csn.EXTERNAL_ID CSN_ID
 	,info.NOTE_ID
 	,authType.AuthorType
-	,notetypes.NoteType 
+	,notetypes.NoteType
 	,info.CREATE_INSTANT_DTTM
 	,txt.line
 	,TXT.NOTE_TEXT
@@ -10,7 +10,7 @@ SELECT DISTINCT csn.EXTERNAL_ID CSN_ID
 	,noteStat.NAME NoteStatus
 	,noteEncs.SPEC_NOTE_TIME_DTTM
 	,noteEncs.ENTRY_INSTANT_DTTM
-FROM Analytics.dbo.CCDA264_CSNLookupTable csn
+FROM Analytics.dbo.CCDA643_CSNLookupTable csn
 INNER JOIN dbo.HNO_INFO info ON info.PAT_ENC_CSN_ID = csn.PAT_ENC_CSN_ID
 INNER JOIN dbo.note_enc_info noteEncs ON noteEncs.NOTE_ID = info.NOTE_ID
 INNER JOIN dbo.HNO_NOTE_TEXT txt ON txt.NOTE_CSN_ID = noteEncs.CONTACT_SERIAL_NUM
@@ -29,5 +29,5 @@ WHERE csn.PAT_ENC_CSN_ID >= '1071308633' and info.DELETE_USER_ID IS NULL
 	AND (
 		info.AMB_NOTE_YN IS NULL
 		OR info.AMB_NOTE_YN = 'N'
-		) 
+		)
 		and (noteEncs.NOTE_STATUS_C NOT IN (1,4,8) OR noteEncs.NOTE_STATUS_C IS NULL)

@@ -1,5 +1,5 @@
 USE CLARITY;
-SELECT 
+SELECT
 	csn.EXTERNAL_ID CSN_ID,
 	med.display_name, medindex.MEDICATION_ID, medindex.Thera_Class_c, medindex.pharm_class_c
 	,med.ORDER_INST
@@ -13,17 +13,17 @@ SELECT
 	,marsite.NAME AdminSite
 	,mar.INFUSION_RATE
 	,themedunit.NAME MAR_INF_RATE_UNIT
-	,mar.mar_duration, 
-	CASE WHEN mar.mar_duration_unit_c = 1 then 'minutes' when mar.mar_duration_unit_c = 2 then 'HOURS' 
+	,mar.mar_duration,
+	CASE WHEN mar.mar_duration_unit_c = 1 then 'minutes' when mar.mar_duration_unit_c = 2 then 'HOURS'
 	WHEN MAR.MAR_DURATION_UNIT_C = 3 THEN 'days' END MAR_DURATION_UNIT
 	--,mar.comments
 	,MED.MIN_DISCRETE_DOSE
 	,MED.MAX_DISCRETE_DOSE
-FROM dbo.ORDER_MED MED 
-inner join Analytics.dbo.CCDA264_CSNLookupTable csn ON med.PAT_ENC_CSN_ID = csn.pat_enc_csn_id
+FROM dbo.ORDER_MED MED
+inner join Analytics.dbo.CCDA643_CSNLookupTable csn ON med.PAT_ENC_CSN_ID = csn.pat_enc_csn_id
 LEFT JOIN dbo.CLARITY_MEDICATION medIndex on medIndex.MEDICATION_ID = med.MEDICATION_ID
 INNER JOIN dbo.MAR_ADMIN_INFO MAR on MED.ORDER_MED_ID = MAR.ORDER_MED_ID
-LEFT JOIN dbo.ZC_MED_UNIT themedunit on MAR.MAR_INF_RATE_UNIT_C = themedunit.DISP_QTYUNIT_C 
+LEFT JOIN dbo.ZC_MED_UNIT themedunit on MAR.MAR_INF_RATE_UNIT_C = themedunit.DISP_QTYUNIT_C
 LEFT JOIN dbo.ZC_MAR_SITE marsite ON marsite.SITE_C = mar.SITE_C
 LEFT JOIN dbo.ZC_EDIT_MAR_RSLT MARACT ON MAR.MAR_ACTION_C = MARACT.RESULT_C
 INNER JOIN dbo.CLARITY_MEDICATION meds ON med.MEDICATION_ID = meds.MEDICATION_ID

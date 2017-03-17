@@ -27,8 +27,8 @@ FROM (
 	) MedicalHistory
 LEFT OUTER JOIN clarity.dbo.PAT_ENC Encounter ON MedicalHistory.MINCSN = Encounter.PAT_ENC_CSN_ID
 LEFT OUTER JOIN clarity.dbo.PAT_ENC_HSP HospitalEncounter ON MedicalHistory.MINCSN = HospitalEncounter.PAT_ENC_CSN_ID
-LEFT OUTER JOIN analytics.dbo.CCDA264_CSNLookupTable csn ON MedicalHistory.MINCSN = csn.PAT_ENC_CSN_ID
-INNER JOIN analytics.dbo.CCDA264_PatLookupTable pat ON pat.PAT_ID = MedicalHistory.PAT_ID
+LEFT OUTER JOIN analytics.dbo.CCDA643_CSNLookupTable csn ON MedicalHistory.MINCSN = csn.PAT_ENC_CSN_ID
+INNER JOIN analytics.dbo.CCDA643_PatLookupTable pat ON pat.PAT_ID = MedicalHistory.PAT_ID
 INNER JOIN CLARITY.dbo.CLARITY_EDG edg ON MedicalHistory.DX_ID = edg.DX_ID
 INNER JOIN CLARITY.DBO.EDG_CURRENT_ICD9 icd9 ON MedicalHistory.DX_ID = icd9.DX_ID
 INNER JOIN Analytics.dbo.CCDA264_ICD9Codes icdIndex ON ISNUMERIC(icd9.Code) = 1

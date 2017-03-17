@@ -1,5 +1,5 @@
 USE Analytics;
-SELECT DISTINCT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID 
+SELECT DISTINCT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
 	,med.display_name
 	,med.ORDER_INST
 	,medrt.NAME MedRoute
@@ -25,8 +25,8 @@ LEFT JOIN Analytics.dbo.CCDA264_MedicationClasses cohortMedClass ON (
 		)
 LEFT JOIN CLARITY.dbo.ZC_ADMIN_ROUTE medrt ON medrt.MED_ROUTE_C = MED.MED_ROUTE_C
 LEFT JOIN CLARITY.dbo.ZC_MED_UNIT medunit ON medunit.DISP_QTYUNIT_C = MED.HV_DOSE_UNIT_C
-INNER JOIN 
-Analytics.dbo.CCDA264_CSNLookupTable pat_enc_hsp_1 ON pat_enc_hsp_1.pat_enc_csn_id = med.PAT_ENC_CSN_ID
+INNER JOIN
+Analytics.dbo.CCDA643_CSNLookupTable pat_enc_hsp_1 ON pat_enc_hsp_1.pat_enc_csn_id = med.PAT_ENC_CSN_ID
 WHERE (
 		med.IS_PENDING_ORD_YN = 'N'
 		OR med.IS_PENDING_ORD_YN IS NULL
@@ -37,6 +37,5 @@ WHERE (
 		,4
 		,7
 		)
-		AND 
+		AND
 		 cohortMedClass.PharmaceuticalClass IS NOT NULL
-		

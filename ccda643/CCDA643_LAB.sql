@@ -9,7 +9,7 @@ SELECT csn.EXTERNAL_ID CSN_ID
 	,RES.ORD_VALUE ResultValue
 	,RES.COMPONENT_COMMENT
 	,PROCIDS.EXTERNAL_ID OrderProcId
-FROM Analytics.dbo.CCDA264_CSNLookupTable csn
+FROM Analytics.dbo.CCDA643_CSNLookupTable csn
 INNER JOIN dbo.ORDER_RESULTS res ON res.PAT_ENC_CSN_ID = csn.pat_enc_csn_id
 INNER JOIN dbo.CLARITY_COMPONENT COMP ON res.COMPONENT_ID = COMP.COMPONENT_ID
 INNER JOIN Analytics.dbo.CCDA264_ComponentBaseNames basenames ON comp.BASE_NAME = basenames.BASE_NAME
