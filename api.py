@@ -21,8 +21,8 @@ import re
 import calendar
 
 from prometheus_client import Histogram, Counter
-api_request_latency = Histogram('api_request_latency', 'Time spent processing API request', ['actionType'])
-api_request_counts = Counter('api_request_counts', 'Number of requests per seconds', ['actionType'])
+trews_api_request_latency = Histogram('trews_api_request_latency', 'Time spent processing API request', ['actionType'])
+trews_api_request_counts = Counter('trews_api_request_counts', 'Number of requests per seconds', ['actionType'])
 
 THRESHOLD = 0.81
 logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.INFO)
@@ -443,8 +443,8 @@ class TREWSAPI(object):
         data['notifications'] = query.get_notifications(eid)
 
     def on_post(self, req, resp):
-        with api_request_latency.labels("any").time():
-            api_request_counts.labels("any").inc()
+        with trews_api_request_latency.labels("any").time():
+            trews_api_request_counts.labels("any").inc()
             srvnow = datetime.datetime.utcnow().isoformat()
             try:
                 raw_json = req.stream.read()
@@ -490,8 +490,8 @@ class TREWSAPI(object):
                     response_body = {}
                     if 'actionType' in req_body and 'action' in req_body:
                         actionType = req_body['actionType']
-                        with api_request_latency.labels(actionType).time():
-                            api_request_counts.labels(actionType).inc()
+                        with trews_api_request_latency.labels(actionType).time():
+                            trews_api_request_counts.labels(actionType).inc()
                             actionData = req_body['action']
 
                             if actionType is not None:
