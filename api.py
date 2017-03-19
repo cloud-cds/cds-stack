@@ -21,8 +21,11 @@ import re
 import calendar
 
 from prometheus_client import Histogram, Counter
-trews_api_request_latency = Histogram('trews_api_request_latency', 'Time spent processing API request', ['actionType'])
-trews_api_request_counts = Counter('trews_api_request_counts', 'Number of requests per seconds', ['actionType'])
+from prometheus_client import CollectorRegistry, push_to_gateway
+
+registry = CollectorRegistry()
+trews_api_request_latency = Histogram('trews_api_request_latency', 'Time spent processing API request', ['actionType'], registry=registry)
+trews_api_request_counts = Counter('trews_api_request_counts', 'Number of requests per seconds', ['actionType'], registry=registry)
 
 THRESHOLD = 0.81
 logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.INFO)
@@ -509,7 +512,7 @@ class TREWSAPI(object):
                 else:
                     resp.status = falcon.HTTP_400
                     resp.body = json.dumps({'message': 'No patient found'})
-
+        push_to_gateway('100.66.46.97:9091', job='trews-api', registry=registry)
 
 
     def hash_password(key):

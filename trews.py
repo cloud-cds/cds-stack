@@ -15,7 +15,7 @@ import json
 import boto3
 import watchtower
 from gevent import monkey
-from prometheus_client import start_http_server, Summary, Gauge, Counter
+# from prometheus_client import start_http_server, Summary, Gauge, Counter
 
 
 # api_request_counts = Counter('api_request_counts', 'Number of requests per seconds')
@@ -241,5 +241,5 @@ handler = TREWSStaticResource().on_get
 app.add_sink(handler, prefix=URL_STATIC)
 
 # for test prometheus client
-start_http_server(8888)
+# start_http_server(8888)
 
