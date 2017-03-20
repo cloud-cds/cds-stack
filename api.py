@@ -512,7 +512,7 @@ class TREWSAPI(object):
                 else:
                     resp.status = falcon.HTTP_400
                     resp.body = json.dumps({'message': 'No patient found'})
-        push_to_gateway('100.65.248.208:9091', job='trews-api', registry=registry)
+        push_to_gateway('a99cd27870d1011e78bbf0a73a2cd36e-1301450500.us-east-1.elb.amazonaws.com:9091', job='trews-api', registry=registry)
 
 
     def hash_password(key):
