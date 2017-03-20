@@ -1,0 +1,4 @@
+# AWS provider
+export AWS_ACCESS_KEY="AKIAJIBGXDZT37334SRQ"
+export AWS_SECRET_ACCESS_KEY="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"
+export AWS_DEFAULT_REGION="us-east=1"
