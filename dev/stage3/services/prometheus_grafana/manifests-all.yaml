@@ -2090,6 +2090,13 @@ data:
           - source_labels: [__meta_kubernetes_pod_name]
             action: replace
             target_label: kubernetes_pod_name
+      # https://github.com/migmartri/prometheus-kubernetes/blob/master/prom-server/prometheus.yml
+      # added by Andong
+      - job_name: 'push-gateway'
+        scrape_interval: 5s
+        static_configs:
+          - targets: ['prom-gateway:9091']
+
 kind: ConfigMap
 metadata:
   creationTimestamp: null
