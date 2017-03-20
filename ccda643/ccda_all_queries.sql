@@ -57,7 +57,7 @@ FROM
 		--no patients that are still present in hospital
 		HOSP_DISCH_TIME IS NOT NULL
 		--admitted between the dates in your cohort
-		AND HOSP_ADMSN_TIME BETWEEN '2013-06-01' AND  '2017-01-01'
+		AND HOSP_ADMSN_TIME BETWEEN '2017-02-20' AND  '2017-03-20'
 ) A (csn, pat_id, pat_mrn_id);
 
 -- DO NOT RUN THIS CODE UNTIL YOU'VE ALTERED THE DATES IN THE COHORT, OTHERWISE IT WILL CREATE DUPLICATE RECORDS!!!
@@ -119,11 +119,11 @@ FROM
 		--no patients that are still present in hospital
 		HOSP_DISCH_TIME IS NOT NULL
 		--admitted between the dates in your cohort
-		AND HOSP_ADMSN_TIME BETWEEN '2013-06-01' AND  '2017-01-01'
+		AND HOSP_ADMSN_TIME BETWEEN '2017-02-20' AND  '2017-03-20'
 ) A (pat_id, pat_mrn_id);
 GO
 
-:OUT \\Client\H$\Desktop\adt.rpt
+:OUT \\Client\H$\Downloads\clarity\adt.rpt
 SET NOCOUNT ON
 SELECT CSN.EXTERNAL_ID CSN_ID
   ,CASE
@@ -154,7 +154,7 @@ WHERE CLARITY_ADT.EVENT_TYPE_C < 5
     );
 GO
 
-:OUT \\Client\H$\Desktop\demo.rpt
+:OUT \\Client\H$\Downloads\clarity\demo.rpt
 SET NOCOUNT ON
 SELECT DISTINCT csn.EXTERNAL_ID CSN_ID
   ,pat.EXTERNAL_ID pat_id
@@ -194,7 +194,7 @@ LEFT JOIN CLARITY.dbo.zc_disch_disp zc_disch_disp ON PAT_ENC_HSP_1.disch_disp_c 
 ORDER BY csn.EXTERNAL_ID;
 GO
 
-:OUT \\Client\H$\Desktop\diag.rpt
+:OUT \\Client\H$\Downloads\clarity\diag.rpt
 SET NOCOUNT ON
 SELECT DISTINCT CSN.EXTERNAL_ID CSN_ID
   ,edg.DX_ID
@@ -216,7 +216,7 @@ INNER JOIN Analytics.dbo.CCDA264_ICD9Codes icdIndex ON ISNUMERIC(icd9.Code) = 1
   AND icd9.Code < icdIndex."High Cutoff";
 GO
 
-:OUT \\Client\H$\Desktop\flt_lda.rpt
+:OUT \\Client\H$\Downloads\clarity\flt_lda.rpt
 SET NOCOUNT ON
 SELECT DISTINCT csn.EXTERNAL_ID CSN_ID
   ,IP_FLO_GP_DATA.FLO_MEAS_NAME
@@ -267,7 +267,7 @@ WHERE
     );
 GO
 
-:OUT \\Client\H$\Desktop\flt_new.rpt
+:OUT \\Client\H$\Downloads\clarity\flt_new.rpt
 SET NOCOUNT ON
 SELECT DISTINCT  csn.EXTERNAL_ID CSN_ID
   ,IP_FLO_GP_DATA.FLO_MEAS_NAME
@@ -333,7 +333,7 @@ WHERE
 );
 GO
 
-:OUT \\Client\H$\Desktop\flt.rpt
+:OUT \\Client\H$\Downloads\clarity\flt.rpt
 SET NOCOUNT ON
 SELECT DISTINCT  csn.EXTERNAL_ID CSN_ID
   ,IP_FLO_GP_DATA.FLO_MEAS_NAME
@@ -383,7 +383,7 @@ GO
 
 USE CLARITY;
 
-:OUT \\Client\H$\Desktop\labs.rpt
+:OUT \\Client\H$\Downloads\clarity\labs.rpt
 SET NOCOUNT ON
 SELECT csn.EXTERNAL_ID CSN_ID
   ,COMP.BASE_NAME
@@ -408,7 +408,7 @@ GO
 
 USE CLARITY;
 
-:OUT \\Client\H$\Desktop\labs_new.rpt
+:OUT \\Client\H$\Downloads\clarity\labs_new.rpt
 SET NOCOUNT ON
 SELECT csn.EXTERNAL_ID CSN_ID
   ,COMP.BASE_NAME
@@ -529,7 +529,7 @@ comp.BASE_NAME in
 GO
 
 /****** Script for SelectTopNRows command from SSMS  ******/
-:OUT \\Client\H$\Desktop\lda.rpt
+:OUT \\Client\H$\Downloads\clarity\lda.rpt
 SET NOCOUNT ON
 SELECT pat.EXTERNAL_ID PAT_ID
       ,[PLACEMENT_INSTANT]
@@ -545,7 +545,7 @@ SELECT pat.EXTERNAL_ID PAT_ID
 GO
 
 USE CLARITY;
-:OUT \\Client\H$\Desktop\mar.rpt
+:OUT \\Client\H$\Downloads\clarity\mar.rpt
 SET NOCOUNT ON
 SELECT
   csn.EXTERNAL_ID CSN_ID,
@@ -592,7 +592,7 @@ WHERE (
 ORDER BY mar.TAKEN_TIME;
 GO
 
-:OUT \\Client\H$\Desktop\hist.rpt
+:OUT \\Client\H$\Downloads\clarity\hist.rpt
 SET NOCOUNT ON
 SELECT DISTINCT csn.EXTERNAL_ID CSN_ID
   ,pat.EXTERNAL_ID PATIENTID
@@ -633,7 +633,7 @@ INNER JOIN Analytics.dbo.CCDA264_ICD9Codes icdIndex ON ISNUMERIC(icd9.Code) = 1
 GO
 
 USE CLARITY;
-:OUT \\Client\H$\Desktop\note.rpt
+:OUT \\Client\H$\Downloads\clarity\note.rpt
 SET NOCOUNT ON
 SELECT DISTINCT csn.EXTERNAL_ID CSN_ID
   ,info.NOTE_ID
@@ -670,7 +670,7 @@ WHERE csn.PAT_ENC_CSN_ID >= '1071308633' and info.DELETE_USER_ID IS NULL
 GO
 
 USE Analytics;
-:OUT \\Client\H$\Desktop\ordermed.rpt
+:OUT \\Client\H$\Downloads\clarity\ordermed.rpt
 SET NOCOUNT ON
 SELECT DISTINCT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
   ,med.display_name
@@ -718,7 +718,7 @@ WHERE (
 GO
 
 USE Analytics;
-:OUT \\Client\H$\Desktop\ordermed_home.rpt
+:OUT \\Client\H$\Downloads\clarity\ordermed_home.rpt
 SET NOCOUNT ON
 SELECT DISTINCT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
   ,med.display_name
@@ -764,7 +764,7 @@ GO
 
 
 USE Analytics;
-:OUT \\Client\H$\Desktop\orderproc.rpt
+:OUT \\Client\H$\Downloads\clarity\orderproc.rpt
 SET NOCOUNT ON
 SELECT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
   ,procids.EXTERNAL_ID OrderProcId
@@ -795,7 +795,7 @@ GO
 
 
 USE Analytics;
-:OUT \\Client\H$\Desktop\orderproc_img.rpt
+:OUT \\Client\H$\Downloads\clarity\orderproc_img.rpt
 SET NOCOUNT ON
 SELECT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
   ,procs.ORDER_PROC_ID
@@ -821,7 +821,7 @@ where img.proc_name like '%MRI%' or img.proc_name like '%CT%';
 GO
 
 USE Analytics;
-:OUT \\Client\H$\Desktop\orderproc_new.rpt
+:OUT \\Client\H$\Downloads\clarity\orderproc_new.rpt
 SET NOCOUNT ON
 SELECT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
   ,procids.EXTERNAL_ID OrderProcId
@@ -878,7 +878,7 @@ where procs.proc_id in
 );
 GO
 
-:OUT \\Client\H$\Desktop\prob.rpt
+:OUT \\Client\H$\Downloads\clarity\prob.rpt
 SET NOCOUNT ON
 SELECT DISTINCT pat.EXTERNAL_ID PAT_ID
   ,CSN.EXTERNAL_ID CSN_ID
