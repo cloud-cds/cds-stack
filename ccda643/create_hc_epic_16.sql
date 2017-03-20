@@ -13,7 +13,7 @@ create table "Demographics"
  "DischargeDepartment"   text,
  "DischargeDisposition"  text
  );
-\copy "Demographics" from '/udata/zad/hc_epic_16/demo.csv' with csv header delimiter as ',' NULL 'NULL';
+\copy "Demographics" from '/udata/zad/hc_epic_16/demo.rpt' with csv header delimiter as E'\t' NULL 'NULL';
 
 drop table if exists "ADT_Feed";
 create table "ADT_Feed"
@@ -25,7 +25,7 @@ create table "ADT_Feed"
 "DEPARTMENT_NAME"   text,
 "ROOM_NAME"    text
 );
-\copy "ADT_Feed" from '/udata/zad/hc_epic_16/adt.csv' with csv header delimiter as ',' NULL 'NULL';
+\copy "ADT_Feed" from '/udata/zad/hc_epic_16/adt.rpt' with csv header delimiter as E'\t' NULL 'NULL';
 
 drop table if exists "Diagnoses";
 create table "Diagnoses"
@@ -42,7 +42,7 @@ create table "Diagnoses"
  ,"DX_CHRONIC_YN" text
  ,"ICD-9          Code    category" text
 );
-\copy "Diagnoses" from '/udata/zad/hc_epic_16/diag.csv' with csv header delimiter as ',' NULL 'NULL';
+\copy "Diagnoses" from '/udata/zad/hc_epic_16/diag.rpt' with csv header delimiter as E'\t' NULL 'NULL';
 
 drop table if exists "FlowsheetValue-LDA";
 create table "FlowsheetValue-LDA"
@@ -68,7 +68,7 @@ create table "FlowsheetValue-LDA"
  "LDAFLOMEASNAME"       text      ,
  "LDAGRPDISPNAME"       text
 );
-\copy "FlowsheetValue-LDA" from '/udata/zad/hc_epic_16/flt_lda.csv' with csv header delimiter as ',' NULL 'NULL';
+\copy "FlowsheetValue-LDA" from '/udata/zad/hc_epic_16/flt_lda.rpt' with csv header delimiter as E'\t' NULL 'NULL';
 
 drop table if exists "FlowsheetValue";
 create table "FlowsheetValue"
@@ -89,7 +89,7 @@ create table "FlowsheetValue"
  "TEMPLATE_NAME"        text      ,
  "TEMPLATE_DISP_NAME"   text
 );
-\copy "FlowsheetValue" from '/udata/zad/hc_epic_16/flt.csv' with csv header delimiter as ',' NULL 'NULL';
+\copy "FlowsheetValue" from '/udata/zad/hc_epic_16/flt.rpt' with csv header delimiter as E'\t' NULL 'NULL';
 
 drop table if exists "FlowsheetValue_643";
 create table "FlowsheetValue_643"
@@ -110,7 +110,7 @@ create table "FlowsheetValue_643"
  "TEMPLATE_NAME"        text      ,
  "TEMPLATE_DISP_NAME"   text
 );
-\copy "FlowsheetValue_643" from '/udata/zad/hc_epic_16/flt_new.csv' with csv header delimiter as ',' NULL 'NULL';
+\copy "FlowsheetValue_643" from '/udata/zad/hc_epic_16/flt_new.rpt' with csv header delimiter as E'\t' NULL 'NULL';
 
 -- start to use rpt format (i.e., delimiter is tab) because there are double quote in the data which makes the csv format hard to import to postgresql
 -- remember to remove the last two lines in rpt files before importing to the database
