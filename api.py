@@ -22,7 +22,8 @@ import calendar
 
 from prometheus_client import Histogram, Counter
 from prometheus_client import CollectorRegistry, push_to_gateway
-
+prom_job = os.environ['db_name'].replace("_", "-")
+prom_gateway_url = ''a99cd27870d1011e78bbf0a73a2cd36e-1301450500.us-east-1.elb.amazonaws.com:9091''
 registry = CollectorRegistry()
 trews_api_request_latency = Histogram('trews_api_request_latency', 'Time spent processing API request', ['actionType'], registry=registry)
 trews_api_request_counts = Counter('trews_api_request_counts', 'Number of requests per seconds', ['actionType'], registry=registry)
@@ -512,7 +513,7 @@ class TREWSAPI(object):
                 else:
                     resp.status = falcon.HTTP_400
                     resp.body = json.dumps({'message': 'No patient found'})
-        push_to_gateway('a99cd27870d1011e78bbf0a73a2cd36e-1301450500.us-east-1.elb.amazonaws.com:9091', job='trews-api', registry=registry)
+        push_to_gateway(prom_gateway_url, job=prom_job, registry=registry)
 
 
     def hash_password(key):
