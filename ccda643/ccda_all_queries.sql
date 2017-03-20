@@ -1,4 +1,5 @@
 -- DO NOT RUN THIS CODE UNTIL YOU'VE ALTERED THE DATES IN THE COHORT, OTHERWISE IT WILL CREATE DUPLICATE RECORDS!!!
+drop table analytics.dbo.CCDA643_CSNLookupTable;
 select pat_id "PAT_ID", pat_mrn_id "PAT_MRN_ID", csn "PAT_ENC_CSN_ID", NEWID() "EXTERNAL_ID"
 INTO
 analytics.dbo.CCDA643_CSNLookupTable
@@ -61,6 +62,7 @@ FROM
 ) A (csn, pat_id, pat_mrn_id);
 
 -- DO NOT RUN THIS CODE UNTIL YOU'VE ALTERED THE DATES IN THE COHORT, OTHERWISE IT WILL CREATE DUPLICATE RECORDS!!!
+drop table analytics.dbo.CCDA643_PatLookupTable;
 select pat_id "PAT_ID", pat_mrn_id "PAT_MRN_ID", NEWID() "EXTERNAL_ID"
 INTO
 analytics.dbo.CCDA643_PatLookupTable
