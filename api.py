@@ -1,6 +1,7 @@
 import falcon
 # from Crypto.Cipher import AES
 from pkcs7 import PKCS7Encoder
+import os
 import base64
 import hashlib
 import binascii
