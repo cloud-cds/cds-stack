@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
-import os, pykube, yaml
-
+import os, pykube, yaml, json, copy
+from datetime import datetime, timedelta
+import dateutil.parser
 
 def handler(event, context):
   kube_config = {
@@ -40,7 +41,7 @@ users:
 
   config = pykube.KubeConfig.from_file("/tmp/kube_config")
   api = pykube.HTTPClient(config)
-  job = {
+  jobSpec = {
     "apiVersion": "batch/v1",
     "kind": "Job",
     "metadata": {
@@ -79,12 +80,16 @@ users:
       }
     }
   }
-  job = pykube.Job(api, job)
+  job = pykube.Job(api, jobSpec)
   if job.exists():
-    reloadJob = False
-    print("Current ETL job status: " + job.obj['status'] + " for DB: " + os.environ["db_name"] + "@" + os.environ["db_host"])
+    # Refresh the job execution metadata.
+    checkJob = copy.deepcopy(job)
+    checkJob.reload()
 
-    if 'active' in job.obj['status']:
+    reloadJob = False
+    print("Current ETL job status for DB: " + os.environ["db_name"] + "@" + os.environ["db_host"] + " : " + json.dumps(checkJob.obj['status']))
+
+    if 'active' in checkJob.obj['status']:
       # jobStart = dateutil.parser.parse(j.obj['status']['startTime']).replace(tzinfo=None)
       # jobExpiry = datetime.utcnow() - timedelta(minutes=expiryMinutes)
       # reloadJob = jobStart <= jobExpiry:

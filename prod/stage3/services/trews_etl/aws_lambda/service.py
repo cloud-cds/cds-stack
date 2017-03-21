@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
-import os, pykube, yaml
-
+import os, pykube, yaml, json, copy
+from datetime import datetime, timedelta
+import dateutil.parser
 
 def handler(event, context):
   kube_config = {
@@ -79,16 +80,28 @@ users:
       }
     }
   }
-  job = pykube.Job(api, job)
+  job = pykube.Job(api, jobSpec)
   if job.exists():
-    print("Reloading job for DB: " + os.environ["db_name"] + "@" + os.environ["db_host"])
-    pods = pykube.Pod.objects(api).filter(namespace="default", selector={"job-name": "trews-etl"})
-    for pod in pods:
-      print("Deleting " + pod.name + " for " + os.environ["db_name"] + "@" + os.environ["db_host"])
-      pod.delete()
-    job.delete()
-    job.create()
-  else:
-    print("Creating job for DB: " + os.environ["db_name"] + "@" + os.environ["db_host"])
-    job.create()
+    # Refresh the job execution metadata.
+    checkJob = copy.deepcopy(job)
+    checkJob.reload()
 
+    reloadJob = False
+    print("Current ETL job status for DB: " + os.environ["db_name"] + "@" + os.environ["db_host"] + " : " + json.dumps(checkJob.obj['status']))
+
+    if 'active' in checkJob.obj['status']:
+      # jobStart = dateutil.parser.parse(j.obj['status']['startTime']).replace(tzinfo=None)
+      # jobExpiry = datetime.utcnow() - timedelta(minutes=expiryMinutes)
+      # reloadJob = jobStart <= jobExpiry:
+      reloadJob = False
+    else:
+      reloadJob = True
+
+    if reloadJob:
+      print("Reloading ETL job for DB: " + os.environ["db_name"] + "@" + os.environ["db_host"])
+      job.delete()
+      job.create()
+
+  else:
+    print("Creating ETL job for DB: " + os.environ["db_name"] + "@" + os.environ["db_host"])
+    job.create()
