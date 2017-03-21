@@ -99,6 +99,16 @@ users:
 
     if reloadJob:
       print("Reloading ETL job for DB: " + os.environ["db_name"] + "@" + os.environ["db_host"])
+
+      # Clean up pods, leaving at most 10 stale containers on k8s.
+      pods = pykube.Pod.objects(api).filter(namespace="default", selector={"job-name": "trews-etl"})
+      if len(pods) > 10:
+        sortedPods = sorted(list(pods), key=lambda pod: pod.obj['status']['startTime'])
+        while len(sortedPods) > 10:
+          pod = sortedPods.pop(0)
+          print("Deleting " + pod.name + " for " + os.environ["db_name"] + "@" + os.environ["db_host"])
+          pod.delete()
+
       job.delete()
       job.create()
 
