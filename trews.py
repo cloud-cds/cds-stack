@@ -98,9 +98,7 @@ class TREWSLog(object):
             logging.error(json.dumps(log_json, indent=4))
         except Exception as ex:
             # logger.info(json.dumps(ex, default=lambda o: o.__dict__))
-            raise falcon.HTTPError(falcon.HTTP_400,
-                'Error',
-                ex.message)
+            raise falcon.HTTPError(falcon.HTTP_400, 'Error', ex.message)
 
 class TREWSFeedback(object):
     def on_post(self, req, resp):
@@ -171,8 +169,11 @@ if 'cloudwatch_log_group' in os.environ:
 class TREWSLoggerMiddleware(object):
     def process_request(self, req, resp):
         srvnow = datetime.datetime.utcnow().isoformat()
+        body = json.load(req.bounded_stream)
+        actionType = body['actionType'] if 'actionType' in body else None
         cwLogger.info(json.dumps({
             'req': {
+                'actionType'   : actionType,
                 'date'         : srvnow,
                 'reqdate'      : req.date,
                 'method'       : req.method,
@@ -185,8 +186,11 @@ class TREWSLoggerMiddleware(object):
 
     def process_resource(self, req, resp, resource, params):
         srvnow = datetime.datetime.utcnow().isoformat()
+        body = json.load(req.bounded_stream)
+        actionType = body['actionType'] if 'actionType' in body else None
         cwLogger.info(json.dumps({
             'res': {
+                'actionType'   : actionType,
                 'date'         : srvnow,
                 'reqdate'      : req.date,
                 'method'       : req.method,
@@ -200,8 +204,11 @@ class TREWSLoggerMiddleware(object):
 
     def process_response(self, req, resp, resource, req_succeeded):
         srvnow = datetime.datetime.utcnow().isoformat()
+        body = json.load(req.bounded_stream)
+        actionType = body['actionType'] if 'actionType' in body else None
         cwLogger.info(json.dumps({
             'resp': {
+                'actionType'   : actionType,
                 'date'         : srvnow,
                 'reqdate'      : req.date,
                 'method'       : req.method,
