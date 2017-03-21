@@ -81,14 +81,22 @@ users:
   }
   job = pykube.Job(api, job)
   if job.exists():
-    print("Reloading job for DB: " + os.environ["db_name"] + "@" + os.environ["db_host"])
-    pods = pykube.Pod.objects(api).filter(namespace="default", selector={"job-name": "trews-etl"})
-    for pod in pods:
-      print("Deleting " + pod.name + " for " + os.environ["db_name"] + "@" + os.environ["db_host"])
-      pod.delete()
-    job.delete()
-    job.create()
-  else:
-    print("Creating job for DB: " + os.environ["db_name"] + "@" + os.environ["db_host"])
-    job.create()
+    reloadJob = False
+    print("Current ETL job status: " + job.obj['status'] + " for DB: " + os.environ["db_name"] + "@" + os.environ["db_host"])
 
+    if 'active' in job.obj['status']:
+      # jobStart = dateutil.parser.parse(j.obj['status']['startTime']).replace(tzinfo=None)
+      # jobExpiry = datetime.utcnow() - timedelta(minutes=expiryMinutes)
+      # reloadJob = jobStart <= jobExpiry:
+      reloadJob = False
+    else:
+      reloadJob = True
+
+    if reloadJob:
+      print("Reloading ETL job for DB: " + os.environ["db_name"] + "@" + os.environ["db_host"])
+      job.delete()
+      job.create()
+
+  else:
+    print("Creating ETL job for DB: " + os.environ["db_name"] + "@" + os.environ["db_host"])
+    job.create()
