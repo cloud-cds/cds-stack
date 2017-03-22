@@ -45,7 +45,7 @@ def get_twf(eid):
     return df
 
 
-def get_trews_threshold(eid):
+def get_trews_threshold():
     engine = create_engine(DB_CONN_STR)
 
     get_trews_threshold_sql = \
