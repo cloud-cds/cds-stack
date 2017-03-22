@@ -515,7 +515,11 @@ class TREWSAPI(object):
                 else:
                     resp.status = falcon.HTTP_400
                     resp.body = json.dumps({'message': 'No patient found'})
-        push_to_gateway(prom_gateway_url, job=prom_job, registry=registry)
+        try:
+            push_to_gateway(prom_gateway_url, job=prom_job, registry=registry)
+        except Exceptionas ex:
+            logger.info(json.dumps(ex, default=lambda o: o.__dict__))
+
 
 
     def hash_password(key):
