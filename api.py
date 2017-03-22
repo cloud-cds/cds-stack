@@ -30,7 +30,7 @@ registry = CollectorRegistry()
 trews_api_request_latency = Histogram('trews_api_request_latency', 'Time spent processing API request', ['actionType'], registry=registry)
 trews_api_request_counts = Counter('trews_api_request_counts', 'Number of requests per seconds', ['actionType'], registry=registry)
 
-THRESHOLD = 0.81
+THRESHOLD = 0.85
 logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.INFO)
 #hashed_key = 'C8ED911A8907EFE4C1DE24CA67DF5FA2'
 #hashed_key = '\xC8\xED\x91\x1A\x89\x07\xEF\xE4\xC1\xDE\x24\xCA\x67\xDF\x5F\xA2'
