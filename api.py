@@ -517,7 +517,7 @@ class TREWSAPI(object):
                     resp.body = json.dumps({'message': 'No patient found'})
         try:
             push_to_gateway(prom_gateway_url, job=prom_job, registry=registry)
-        except Exceptionas ex:
+        except Exception as ex:
             logger.info(json.dumps(ex, default=lambda o: o.__dict__))
 
 
