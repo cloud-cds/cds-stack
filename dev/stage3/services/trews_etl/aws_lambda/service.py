@@ -57,6 +57,9 @@ users:
             "name": "trews-etl",
             "image": os.environ["kube_image"],
             "env": [
+              {"name": "AWS_ACCESS_KEY_ID",            "value": os.environ["AWS_ACCESS_KEY_ID"]},
+              {"name": "AWS_SECRET_ACCESS_KEY",        "value": os.environ["AWS_SECRET_ACCESS_KEY"]},
+              {"name": "AWS_DEFAULT_REGION",           "value": os.environ["AWS_DEFAULT_REGION"]},
               {"name": "db_host",                      "value": os.environ["db_host"]},
               {"name": "db_port",                      "value": os.environ["db_port"]},
               {"name": "db_name",                      "value": os.environ["db_name"]},

@@ -52,9 +52,9 @@ module "web" {
 
 module "trews_etl" {
   source = "./services/trews_etl"
-  deploy_prefix = "${var.deploy_prefix}"
 
-  local_shell = "${var.local_shell}"
+  deploy_prefix = "${var.deploy_prefix}"
+  local_shell   = "${var.local_shell}"
 
   s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
   aws_trews_etl_package = "${var.aws_trews_etl_package}"
