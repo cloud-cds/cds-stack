@@ -92,9 +92,25 @@ function processEvent(event, callback) {
     const newState = message.NewStateValue;
     const reason = message.NewStateReason;
 
+    var now = Math.round((new Date).getTime()/1000);
+    var colors = {
+        'OK': "#36a64f",
+        'ALARM': "#d63232",
+        'INSUFFICIENT_DATA': "#888888"
+    };
+
     const slackMessage = {
         channel: slackChannel,
-        text: `${slackWatchers} ${alarmName} state is now ${newState}: ${reason}`,
+        attachments: [{
+            fallback:    `[${newState}] ${alarmName}: ${slackWatchers} ${reason}`,
+            color:       colors[newState],
+            title:       `[${newState}] ${alarmName}`,
+            text:        `${slackWatchers} ${reason}`,
+            footer:      `CloudWatch Alarms`,
+            footer_icon: "https://platform.slack-edge.com/img/default_application_icon.png",
+            ts:          now
+        }],
+        parse: "full"
     };
 
     postMessage(slackMessage, (response) => {
