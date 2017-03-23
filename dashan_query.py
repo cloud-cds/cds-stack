@@ -45,6 +45,22 @@ def get_twf(eid):
     return df
 
 
+def get_trews_threshold():
+    engine = create_engine(DB_CONN_STR)
+
+    get_trews_threshold_sql = \
+    '''
+    select value from trews_parameters
+    where name = 'trews_threshold'
+    '''
+    conn = engine.connect()
+    result = conn.execute(get_trews_threshold_sql)
+    conn.close()
+    row = result.fetchone()
+    return "{:.2f}".format(float(row['value']))
+
+
+
 def get_admittime(eid):
     engine = create_engine(DB_CONN_STR)
 

@@ -30,7 +30,7 @@ registry = CollectorRegistry()
 trews_api_request_latency = Histogram('trews_api_request_latency', 'Time spent processing API request', ['actionType'], registry=registry)
 trews_api_request_counts = Counter('trews_api_request_counts', 'Number of requests per seconds', ['actionType'], registry=registry)
 
-THRESHOLD = 0.85
+#THRESHOLD = 0.85
 logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.INFO)
 #hashed_key = 'C8ED911A8907EFE4C1DE24CA67DF5FA2'
 #hashed_key = '\xC8\xED\x91\x1A\x89\x07\xEF\xE4\xC1\xDE\x24\xCA\x67\xDF\x5F\xA2'
@@ -362,7 +362,7 @@ class TREWSAPI(object):
 
         # update criteria from database query
         self.update_criteria(criteria, data)
-        data['chart_data']['trewscore_threshold'] = THRESHOLD
+        data['chart_data']['trewscore_threshold'] = query.get_trews_threshold()
         admittime = query.get_admittime(eid)
         data['chart_data']['patient_arrival']['timestamp'] =  admittime
         df = query.get_trews(eid)
