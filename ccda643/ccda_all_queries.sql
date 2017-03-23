@@ -769,7 +769,7 @@ USE Analytics;
 :OUT \\Client\H$\Downloads\clarity\orderproc.rpt
 SET NOCOUNT ON
 SELECT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
-  ,procids.EXTERNAL_ID OrderProcId
+  ,procs.PROC_ID OrderProcId
   ,procs.display_name
   ,eap.proc_name
   ,proccat.proc_cat_name
@@ -783,7 +783,6 @@ SELECT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
   ,PARENTS.PROC_ENDING_TIME ParentEndingTime
   ,ordstat.NAME OrderStatus
 FROM CLARITY..ORDER_PROC procs
-INNER JOIN ccda264_OrderProcIds procids on procs.ORDER_PROC_ID = procids.ORDER_PROC_ID
 INNER JOIN CLARITY..CLARITY_EAP eap ON procs.proc_id = eap.PROC_ID
 LEFT JOIN CLARITY..IP_FREQUENCY freq on freq.FREQ_ID = eap.DFLT_INTER_ID
 INNER JOIN clarity..EDP_PROC_CAT_INFO proccat ON eap.proc_cat_id = proccat.PROC_CAT_ID

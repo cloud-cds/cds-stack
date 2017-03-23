@@ -249,7 +249,7 @@ drop table if exists "OrderProcs";
 create table "OrderProcs"
 (
  "CSN_ID"          uuid                        ,
- "OrderProcId"     uuid                        ,
+ "OrderProcId"     text                        ,
  "display_name"    text      ,
  "proc_name"       text      ,
  "proc_cat_name"   text      ,
