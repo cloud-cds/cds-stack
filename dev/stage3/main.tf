@@ -132,3 +132,16 @@ module "trews_etl_replay" {
   TREWS_ETL_STREAM_SLEEP_SECS  = "${var.TREWS_ETL_STREAM_SLEEP_SECS}"
   TREWS_ETL_EPIC_NOTIFICATIONS = "${var.TREWS_ETL_EPIC_NOTIFICATIONS}"
 }
+
+module "monitor" {
+  source = "./services/monitor"
+  deploy_prefix = "${var.deploy_prefix}"
+
+  s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
+  aws_alarm2slack_package = "${var.aws_alarm2slack_package}"
+  alarm2slack_kms_key_arn = "${var.alarm2slack_kms_key_arn}"
+
+  slack_hook     = "${var.slack_hook}"
+  slack_channel  = "${var.slack_channel}"
+  slack_watchers = "${var.slack_watchers}"
+}

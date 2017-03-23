@@ -52,7 +52,7 @@ module "trews_etl" {
   k8s_key       = "${var.k8s_key}"
   k8s_token     = "${var.k8s_token}"
 
-  etl_lambda_firing_rate_mins = "15"
+  etl_lambda_firing_rate_mins = "20"
 
   db_host             = "db.${var.domain}"
   db_name             = "${replace(var.deploy_prefix, "-", "_")}"
@@ -71,4 +71,17 @@ module "trews_etl" {
   TREWS_ETL_STREAM_SLICES      = "${var.TREWS_ETL_STREAM_SLICES}"
   TREWS_ETL_STREAM_SLEEP_SECS  = "${var.TREWS_ETL_STREAM_SLEEP_SECS}"
   TREWS_ETL_EPIC_NOTIFICATIONS = "${var.TREWS_ETL_EPIC_NOTIFICATIONS}"
+}
+
+module "monitor" {
+  source = "./services/monitor"
+  deploy_prefix = "${var.deploy_prefix}"
+
+  s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
+  aws_alarm2slack_package = "${var.aws_alarm2slack_package}"
+  alarm2slack_kms_key_arn = "${var.alarm2slack_kms_key_arn}"
+
+  slack_hook     = "${var.slack_hook}"
+  slack_channel  = "${var.slack_channel}"
+  slack_watchers = "${var.slack_watchers}"
 }

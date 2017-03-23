@@ -1,0 +1,27 @@
+{
+  "version": "1.0",
+  "session": {
+    "new": false,
+    "sessionId": "amzn1.echo-api.session.0000000-0000-0000-0000-00000000000",
+    "application": {
+      "applicationId": "amzn1.echo-sdk-ams.app.000000-d0ed-0000-ad00-000000d00ebe"
+    },
+    "attributes": {},
+    "user": {
+      "userId": "amzn1.account.AM3B00000000000000000000000"
+    }
+  },
+  "request": {
+    "type": "IntentRequest",
+    "requestId": " amzn1.echo-api.request.0000000-0000-0000-0000-00000000000",
+    "timestamp": "2016-04-16T12:00:00Z",
+    "intent": {
+      "name": "DLIntervalDataIntent",
+      "slots": {
+        "Event": {"name": "Event", "value": "breakfast"},
+        "Start": {"name": "Start", "value": "08:00"},
+        "End":   {"name": "End",   "value": "08:30"}
+      }
+    }
+  }
+}

@@ -192,6 +192,10 @@ variable "aws_trews_etl_package" {
   description = "AWS Lambda deployment package"
 }
 
+variable "aws_alarm2slack_package" {
+  description = "AWS Lambda Alarm2Slack package"
+}
+
 ####################################
 # Command execution
 
@@ -212,3 +216,11 @@ variable "TREWS_ETL_STREAM_HOURS" {}
 variable "TREWS_ETL_STREAM_SLICES" {}
 variable "TREWS_ETL_STREAM_SLEEP_SECS" {}
 variable "TREWS_ETL_EPIC_NOTIFICATIONS" {}
+
+######################################
+# Alarm2Slack
+
+variable "alarm2slack_kms_key_arn" {}
+variable "slack_hook" {}
+variable "slack_channel" {}
+variable "slack_watchers" {}

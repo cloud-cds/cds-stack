@@ -3,5 +3,6 @@
 keys/
 secrets.tfvars
 secrets.yaml
+node_modules
 *.zip
 .DS_Store
