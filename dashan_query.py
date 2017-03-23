@@ -57,7 +57,8 @@ def get_trews_threshold():
     result = conn.execute(get_trews_threshold_sql)
     conn.close()
     row = result.fetchone()
-    return row['value']
+    return "{:.2f}".format(float(row['value']))
+
 
 
 def get_admittime(eid):
