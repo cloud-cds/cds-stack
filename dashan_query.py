@@ -54,7 +54,7 @@ def get_trews_threshold():
     where name = 'trews_threshold'
     '''
     conn = engine.connect()
-    result = conn.execute(s)
+    result = conn.execute(get_trews_threshold_sql)
     conn.close()
     row = result.fetchone()
     return row['value']
