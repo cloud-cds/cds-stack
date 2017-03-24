@@ -6,7 +6,7 @@ GO
 
 :OUT \\Client\H$\Downloads\clarity\lab_dict.rpt
 SET NOCOUNT ON
-select DISTINCT component_id, name, external_name FROM dbo.CLARITY_COMPONENT
+select DISTINCT component_id, name, base_name, external_name FROM dbo.CLARITY_COMPONENT
 GO
 
 :OUT \\Client\H$\Downloads\clarity\lab_proc.rpt

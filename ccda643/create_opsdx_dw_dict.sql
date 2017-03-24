@@ -11,6 +11,7 @@ create table lab_dict
 (
  component_id text,
  name text,
+ base_name text,
  external_name text
  );
 \copy lab_dict from '~/clarity-dw/lab_dict.rpt' with csv header delimiter as E'\t' NULL 'NULL' QUOTE E'\b';
