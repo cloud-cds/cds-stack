@@ -20,40 +20,37 @@ port = os.environ['db_port']
 password = os.environ['db_password']
 epic_notifications = os.environ['epic_notifications']
 DB_CONN_STR = DB_CONN_STR.format(user, password, host, port, db)
+db_engine = create_engine(DB_CONN_STR)
 
 def get_trews(eid):
-    engine = create_engine(DB_CONN_STR)
     get_trews_sql = \
     '''
     select trews.* from trews inner join pat_enc on trews.enc_id = pat_enc.enc_id
     where pat_enc.pat_id = '%s' order by tsp
     ''' % eid
     try:
-        df = pd.read_sql_query(get_trews_sql,con=engine)
+        df = pd.read_sql_query(get_trews_sql,con=db_engine)
     except Exception:
         df = pd.DataFrame()
     return df
 
 def get_twf(eid):
-    engine = create_engine(DB_CONN_STR)
     get_twf_sql = \
     '''
     select cdm_twf.* from cdm_twf inner join pat_enc on cdm_twf.enc_id = pat_enc.enc_id
     where pat_enc.pat_id = '%s' order by tsp
     ''' % eid
-    df = pd.read_sql_query(get_twf_sql,con=engine)
+    df = pd.read_sql_query(get_twf_sql,con=db_engine)
     return df
 
 
 def get_trews_threshold():
-    engine = create_engine(DB_CONN_STR)
-
     get_trews_threshold_sql = \
     '''
     select value from trews_parameters
     where name = 'trews_threshold'
     '''
-    conn = engine.connect()
+    conn = db_engine.connect()
     result = conn.execute(get_trews_threshold_sql)
     conn.close()
     row = result.fetchone()
@@ -62,14 +59,12 @@ def get_trews_threshold():
 
 
 def get_admittime(eid):
-    engine = create_engine(DB_CONN_STR)
-
     get_admittime_sql = \
     '''
     select value::timestamptz from cdm_s inner join pat_enc on pat_enc.enc_id = cdm_s.enc_id
     where pat_id = '%s' and fid = 'admittime'
     ''' % eid
-    df_admittime = pd.read_sql_query(get_admittime_sql,con=engine)
+    df_admittime = pd.read_sql_query(get_admittime_sql,con=db_engine)
     if df_admittime is None or df_admittime.empty:
         return None
     else:
@@ -77,20 +72,18 @@ def get_admittime(eid):
 
 
 def get_cdm(eid):
-    engine = create_engine(DB_CONN_STR)
-
     get_twf_sql = \
     '''
     select cdm_twf.* from cdm_twf inner join pat_enc on cdm_twf.enc_id = pat_enc.enc_id
     where pat_enc.pat_id = '%s' order by tsp
     ''' % eid
-    df_twf = pd.read_sql_query(get_twf_sql,con=engine)
+    df_twf = pd.read_sql_query(get_twf_sql,con=db_engine)
     get_s_sql = \
     '''
     select cdm_s.* from cdm_s inner join pat_enc on cdm_s.enc_id = pat_enc.enc_id
     where pat_enc.pat_id = '%s'
     ''' % eid
-    df_s = pd.read_sql_query(get_s_sql,con=engine)
+    df_s = pd.read_sql_query(get_s_sql,con=db_engine)
     for idx, row in df_s.iterrows():
         fid = row['fid']
         value = row['value']
@@ -99,22 +92,20 @@ def get_cdm(eid):
 
 
 def get_criteria(eid):
-    engine = create_engine(DB_CONN_STR)
     get_criteria_sql = \
     '''
     select * from get_criteria('%s')
     ''' % eid
-    df = pd.read_sql_query(get_criteria_sql,con=engine)
+    df = pd.read_sql_query(get_criteria_sql,con=db_engine)
     return df
 
 def get_criteria_log(eid):
-    engine = create_engine(DB_CONN_STR)
     get_criteria_log_sql = \
     '''
     select log_id, pat_id, date_part('epoch', tsp) epoch, event from criteria_log
     where pat_id = '%s' order by tsp desc;
     ''' % eid
-    df = pd.read_sql_query(get_criteria_log_sql,con=engine)
+    df = pd.read_sql_query(get_criteria_log_sql,con=db_engine)
     auditlist = []
     for idx,row in df.iterrows():
         audit = row['event']
@@ -125,13 +116,12 @@ def get_criteria_log(eid):
     return auditlist
 
 def get_notifications(eid):
-    engine = create_engine(DB_CONN_STR)
     get_notifications_sql = \
     '''
     select * from notifications
     where pat_id = '%s'
     ''' % eid
-    df = pd.read_sql_query(get_notifications_sql,con=engine)
+    df = pd.read_sql_query(get_notifications_sql,con=db_engine)
     notifications = []
     for idx, row in df.iterrows():
         notification = row['message']
@@ -142,7 +132,6 @@ def get_notifications(eid):
     return notifications
 
 def toggle_notification_read(eid, notification_id, as_read):
-    engine = create_engine(DB_CONN_STR)
     toggle_notifications_sql = \
     '''
     with update_notifications as
@@ -160,16 +149,15 @@ def toggle_notification_read(eid, notification_id, as_read):
     from update_notifications n;
     ''' % {'pid': eid, 'nid': notification_id, 'val': str(as_read).lower()}
     logging.info("toggle_notifications_read:" + toggle_notifications_sql)
-    conn = engine.connect()
+    conn = db_engine.connect()
     conn.execute(toggle_notifications_sql)
     conn.close()
-    push_notifications_to_epic(eid, engine)
+    push_notifications_to_epic(eid)
 
 def temp_c_to_f(c):
     return c * 1.8 + 32
 
 def override_criteria(eid, name, value='[{}]', user='user', clear=False):
-    engine = create_engine(DB_CONN_STR)
     if name == 'sirs_temp' and not clear:
         value[0]['lower'] = temp_c_to_f(float(value[0]['lower']))
         value[0]['upper'] = temp_c_to_f(float(value[0]['upper']))
@@ -200,13 +188,12 @@ def override_criteria(eid, name, value='[{}]', user='user', clear=False):
     select override_criteria_snapshot('%(pid)s');
     ''' % params
     logging.info("override_criteria sql:" + override_sql)
-    conn = engine.connect()
+    conn = db_engine.connect()
     conn.execute(override_sql)
     conn.close()
-    push_notifications_to_epic(eid, engine)
+    push_notifications_to_epic(eid)
 
 def reset_patient(eid, uid='user', event_id=None):
-    engine = create_engine(DB_CONN_STR)
     event_where_clause = '' if event_id is None or event_id == 'None' else 'and event_id = %(evid)s' % {'evid' : event_id }
     reset_sql = """
     update criteria_events set flag = -1
@@ -222,13 +209,12 @@ def reset_patient(eid, uid='user', event_id=None):
     select advance_criteria_snapshot('%(pid)s');
     """ % {'pid': eid, 'where_clause': event_where_clause, 'uid': uid}
     logging.info("reset_patient:" + reset_sql)
-    conn = engine.connect()
+    conn = db_engine.connect()
     conn.execute(reset_sql)
     conn.close()
-    push_notifications_to_epic(eid, engine)
+    push_notifications_to_epic(eid)
 
 def deactivate(eid, uid, deactivated):
-    engine = create_engine(DB_CONN_STR)
     deactivate_sql = '''
     select * from deactivate('%(pid)s', %(deactivated)s);
     insert into criteria_log (pat_id, tsp, event, update_date)
@@ -240,14 +226,13 @@ def deactivate(eid, uid, deactivated):
         );
     ''' % {'pid': eid, "deactivated": 'true' if deactivated else "false", "uid":uid}
     logging.info("deactivate user:" + deactivate_sql)
-    conn = engine.connect()
+    conn = db_engine.connect()
     conn.execute(text(deactivate_sql).execution_options(autocommit=True))
     conn.close()
-    push_notifications_to_epic(eid, engine)
+    push_notifications_to_epic(eid)
 
 def get_deactivated(eid):
-    engine = create_engine(DB_CONN_STR)
-    conn = engine.connect()
+    conn = db_engine.connect()
     deactivated = conn.execute("select deactivated from pat_status where pat_id = '%s'" % eid).fetchall()
     conn.close()
     if len(deactivated) == 1 and deactivated[0][0] is True:
@@ -256,29 +241,27 @@ def get_deactivated(eid):
         return False
 
 def set_deterioration_feedback(eid, deterioration_feedback, uid):
-    engine = create_engine(DB_CONN_STR)
     deterioration_sql = '''
     select * from set_deterioration_feedback('%(pid)s', now(), '%(deterioration)s', '%(uid)s');
     ''' % {'pid': eid, 'deterioration': json.dumps(deterioration_feedback), 'uid':uid}
     logging.info("set_deterioration_feedback user:" + deterioration_sql)
-    conn = engine.connect()
+    conn = db_engine.connect()
     conn.execute(text(deterioration_sql).execution_options(autocommit=True))
     conn.close()
 
 def get_deterioration_feedback(eid):
-    engine = create_engine(DB_CONN_STR)
-    conn = engine.connect()
+    conn = db_engine.connect()
     df = conn.execute("select pat_id, date_part('epoch', tsp) tsp, deterioration, uid from deterioration_feedback where pat_id = '%s' limit 1" % eid).fetchall()
     conn.close()
     if len(df) == 1:
         return {"tsp": df[0][1], "deterioration": df[0][2], "uid": df[0][3]}
 
-def push_notifications_to_epic(eid, engine):
+def push_notifications_to_epic(eid):
     if epic_notifications is not None and int(epic_notifications):
         notifications_sql = """
             select * from get_notifications_for_epic('%s');
             """ % eid
-        notifications = pd.read_sql_query(notifications_sql, con=engine)
+        notifications = pd.read_sql_query(notifications_sql, con=db_engine)
         if not notifications.empty:
             patients = [ {'pat_id': n['pat_id'], 'visit_id': n['visit_id'], 'notifications': n['count'],
                                 'current_time': datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")} for i, n in notifications.iterrows()]
@@ -291,8 +274,7 @@ def push_notifications_to_epic(eid, engine):
             logging.info("no notifications")
 
 def eid_exist(eid):
-    engine = create_engine(DB_CONN_STR)
-    connection = engine.connect()
+    connection = db_engine.connect()
     result = connection.execute("select * from pat_enc where pat_id = '%s'" % eid)
     connection.close()
     for row in result:
