@@ -119,6 +119,7 @@ drop table if exists "Labs";
 create table "Labs"
 (
  "CSN_ID"            uuid      ,
+ "COMPONENT_ID" text,
  "BASE_NAME"         text,
  "NAME"              text,
  "EXTERNAL_NAME"     text,
@@ -134,6 +135,7 @@ drop table if exists "Labs_643";
 create table "Labs_643"
 (
  "CSN_ID"            uuid      ,
+ "COMPONENT_ID" text,
  "BASE_NAME"         text,
  "NAME"              text,
  "EXTERNAL_NAME"     text,
@@ -143,7 +145,7 @@ create table "Labs_643"
  "COMPONENT_COMMENT" text,
  "ORDER_PROC_ID"     uuid
 );
-\copy "Labs" from '/udata/zad/hc_epic_16/labs_new.rpt' with NULL 'NULL' csv header delimiter as E'\t';
+\copy "Labs_643" from '/udata/zad/hc_epic_16/labs_new.rpt' with NULL 'NULL' csv header delimiter as E'\t';
 
 drop table if exists "LDAs";
 create table "LDAs"
