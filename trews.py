@@ -4,7 +4,7 @@
 import os
 import falcon
 # from Crypto.Cipher import AES
-import api
+import api, dashan_query
 from jinja2 import Environment, FileSystemLoader
 import os
 STATIC_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -120,6 +120,12 @@ class TREWSFeedback(object):
                 'Could not decode the request body. The JSON was incorrect.')
 
         try:
+            dashan_query.save_feedback(
+                doc_id = str(result_json['u']),
+                pat_id = str(result_json['q']),
+                dep_id = str(result_json['depid']),
+                feedback = str(result_json['feedback'])
+            )
             subject = 'Feedback - {}'.format(str(result_json['u']))
             html_text = [
                 ("Physician", str(result_json['u'])),
@@ -242,4 +248,3 @@ app.add_sink(handler, prefix=URL_STATIC)
 
 # for test prometheus client
 # start_http_server(8888)
-
