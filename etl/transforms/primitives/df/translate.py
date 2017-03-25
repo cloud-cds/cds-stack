@@ -1,6 +1,6 @@
-from inpatient_updater import pandas_utils
-from inpatient_updater.config import app_config
-from inpatient_updater.config import medication_regex as med_config
+import etl.transforms.primitives.df.pandas_utils as pandas_utils
+from etl.core.exceptions import TransformError
+from etl.mappings.med_regex import med_regex
 import re
 import logging
 
@@ -12,7 +12,7 @@ def translate_epic_id_to_fid(df, col, new_col, config_map, drop_original=False,
                 return fid
         if remove_if_not_found:
             return 'INVALID FID'
-        raise app_config.TransformError(
+        raise TransformError(
             'translate.translate_epic_id_to_fid',
             'Could not find an fid for this ID.',
             col + " = " + epic_id
@@ -30,17 +30,17 @@ def translate_epic_id_to_fid(df, col, new_col, config_map, drop_original=False,
 
 
 def translate_med_name_to_fid(med_data):
-    good_meds = str("|").join(med['pos'] for med in med_config.med_regex)
+    good_meds = str("|").join(med['pos'] for med in med_regex)
 
     def find_fid_with_regex(med_name):
         if not re.search(good_meds, med_name, flags=re.I):
             return 'Unknown Medication'
-        for med in med_config.med_regex:
+        for med in med_regex:
             if re.search(med['pos'], med_name, flags=re.I):
                 if re.search(med['neg'], med_name, flags=re.I):
                     return 'Invalid Medication'
                 return med['fid']
-        raise app_config.TransformError(
+        raise TransformError(
             'translate.translate_med_name_to_fid',
             'Error in medication regex. Medication neither good nor bad.',
             med_name

@@ -1,4 +1,4 @@
-import inpatient_updater.restructure as restructure
+from etl.transforms.primitives.df import restructure
 import pandas as pd
 
 from inpatient_updater.config import lab_procedures as lp_config
@@ -12,6 +12,7 @@ op = restructure.select_columns(op, {'CSN_ID': 'csn_id',
                                     'proc_name':'fid',
                                     'ORDER_TIME': 'tsp',
                                     'OrderStatus':'order_status',
+                                    'LabStatus':'proc_status',
                                     'PROC_START_TIME':'proc_start_tsp',
                                     'PROC_ENDING_TIME':'proc_end_tsp'})
 

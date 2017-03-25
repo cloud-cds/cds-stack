@@ -1,6 +1,6 @@
-from inpatient_updater.config import unit_format
-from inpatient_updater.config import cdm_definitions as cdm
-from inpatient_updater.config import app_config
+import etl.mappings.unit_format as unit_format
+from etl.mappings.cdm_definitions import cdm_defs
+import etl.core.config as app_config
 import datetime as dt
 import pandas as pd
 import numpy as np
@@ -10,6 +10,11 @@ import itertools
 
 def format_numeric(df, column):
     df[column] = pd.to_numeric(df[column])
+    return df
+
+def format_gender_to_int(df, column):
+    gender_map = {'Female': 0, 'Male': 1}
+    df[column] = df[column].map(lambda g: gender_map.get(g) if g in gender_map else None)
     return df
 
 def format_tsp(df, column):
@@ -33,7 +38,7 @@ def filter_empty_values(df, column):
 """ Removes units if they aren't the final type cdm_definitions """
 def filter_to_final_units(df, unit_col):
     def filter_unit(row):
-        if row[unit_col] != cdm.cdm_defs[row.fid]['unit']:
+        if row[unit_col] != cdm_defs[row.fid]['unit']:
             logging.warning(
                 'Incorrect unit. Not in cdm_definitions:\n' + row.to_string()
             )
@@ -55,8 +60,8 @@ def clean_units(df, fid_col, unit_col):
                 logging.info('No empty translation found:\n' + row.to_string())
                 return 'Invalid Unit'
         attempts = [
-            unit.lower().encode('utf-8'),
-            unit.replace(' ', '').lower().encode('utf-8')
+            unit.lower(),
+            unit.replace(' ', '').lower()
         ]
         for correct_name, accepted_names in unit_format.translation_map:
             for attempt in attempts:
@@ -78,7 +83,7 @@ def clean_values(df, fid_col, value_col):
         if val in bad_values:
             logging.info('Known bad value:\n' + row.to_string())
             return 'Invalid Value'
-        if cdm.cdm_defs[fid]['value'] == float:
+        if cdm_defs[fid]['value'] == float:
             val = str(val).replace('<','').replace('>','')
             if val.replace('.','',1).isdigit():
                 return float(val)
@@ -88,9 +93,9 @@ def clean_values(df, fid_col, value_col):
             else:
                 logging.warning('Invalid float value:\n' + row.to_string())
                 return 'Invalid Value'
-        elif cdm.cdm_defs[fid]['value'] == str:
+        elif cdm_defs[fid]['value'] == str:
             return str(val)
-        elif cdm.cdm_defs[fid]['value'] == None:
+        elif cdm_defs[fid]['value'] == None:
             return ''
         else:
             logging.warning('Invalid value:\n' + row.to_string())
@@ -104,7 +109,7 @@ def clean_values(df, fid_col, value_col):
 def threshold_values(df, value_col):
     def apply_threshold(row):
         fid = row['fid']
-        low, high = cdm.cdm_defs[fid]['thresh']
+        low, high = cdm_defs[fid]['thresh']
         if low and row[value_col] < low:
             logging.info('Lower than threshold:\n' + row.to_string())
             return 'Out of bounds'

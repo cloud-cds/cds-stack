@@ -1085,7 +1085,7 @@ def _calculate_volume_in_ml(volumes, entry_cur, entry_nxt, remain_vol_pre, \
                         volumes.append([tsp, dose*duration*60, \
                             confidence.UNIT_TRANSFORMED])
                     else:
-                        print "Invalid Duration Unit", duration_unit
+                        log.warn("Invalid Duration Unit: %s" % duration_unit)
                 else:
                     volumes.append([tsp, dose*FLUID_DUR/3600, \
                         confidence.UNIT_TRANSFORMED])
