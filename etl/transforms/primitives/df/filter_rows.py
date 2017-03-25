@@ -36,15 +36,7 @@ def filter_medications(med_data):
     return med_data
 
 def filter_location_history_events(lh):
-
-    # print 'Previously unseen event types:'
-    # print set(lh.EventType[[et not in ['Admission', 'Census', 'Patient Update', 'Transfer In', 'Transfer Out','Discharge'] for et in
-    #                         lh.EventType]])
-
     mask = [et in ['Admission', 'Transfer In','Discharge'] for et in lh.EventType]
-
     lh = lh[mask]
-
     lh = lh[~lh.duplicated(subset=['visit_id','EffectiveDateTime'])]
-
     return lh
