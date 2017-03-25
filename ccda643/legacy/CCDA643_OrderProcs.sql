@@ -14,6 +14,7 @@ SELECT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
 	,PARENTS.proc_start_time ParentStarttime
 	,PARENTS.PROC_ENDING_TIME ParentEndingTime
 	,ordstat.NAME OrderStatus
+	,labstats.NAME LabStatus
 FROM CLARITY..ORDER_PROC procs
 INNER JOIN ccda264_OrderProcIds procids on procs.ORDER_PROC_ID = procids.ORDER_PROC_ID
 INNER JOIN CLARITY..CLARITY_EAP eap ON procs.proc_id = eap.PROC_ID
@@ -23,5 +24,6 @@ INNER JOIN CCDA643_CSNLookupTable pat_enc_hsp_1 ON pat_enc_hsp_1.pat_enc_csn_id 
 LEFT JOIN CCDA264_OrderProcCategories AllowedCats ON proccat.PROC_CAT_NAME = AllowedCats.CategoryName
 LEFT JOIN CCDA264_OrderProcCodes codes ON codes.ProcCode = eap.PROC_CODE
 LEFT JOIN CLARITY..zc_order_status ordstat on ordstat.ORDER_STATUS_C = procs.order_status_c
+LEFT JOIN CLARITY..zc_lab_status labstats on labstats.LAB_STATUS_C = procs.lab_status_c
 INNER JOIN CLARITY..ORDER_INSTANTIATED inst ON inst.INSTNTD_ORDER_ID = PROCS.ORDER_PROC_ID
 INNER JOIN CLARITY..ORDER_PROC parents on inst.ORDER_ID = parents.ORDER_PROC_ID

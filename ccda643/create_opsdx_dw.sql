@@ -263,9 +263,10 @@ create table "OrderProcs"
  "PROC_ENDING_TIME" timestamp without time zone ,
  "ParentStartTime"  timestamp without time zone ,
  "ParentEndingTime" timestamp without time zone ,
- "OrderStatus"     text
+ "OrderStatus"     text,
+ "LabStatus"     text
 );
-\copy "OrderProcs" from '~/clarity-dw/processed/orderproc.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy "OrderProcs" from '~/clarity-dw/orderproc.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 
 drop table if exists "OrderProcsImage";
 create table "OrderProcsImage"
@@ -280,16 +281,17 @@ create table "OrderProcsImage"
  "PROC_START_TIME"   timestamp without time zone,
  "PROC_ENDING_TIME"  timestamp without time zone,
  "OrderStatus"       text     ,
+ "LabStatus"     text,
  "LINE"              integer                    ,
  "NOTE_TEXT"         text
 );
-\copy "OrderProcsImage" from '~/clarity-dw/processed/orderproc_img.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy "OrderProcsImage" from '~/clarity-dw/orderproc_img.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 
 drop table if exists "OrderProcs_643";
 create table "OrderProcs_643"
 (
  "CSN_ID"          uuid                        ,
- "OrderProcId"     uuid                        ,
+ "OrderProcId"     text                        ,
  "display_name"    text      ,
  "proc_name"       text      ,
  "proc_cat_name"   text      ,
@@ -302,6 +304,7 @@ create table "OrderProcs_643"
  "ParentStartTime"  timestamp without time zone ,
  "ParentEndingTime" timestamp without time zone ,
  "OrderStatus"     text,
+ "LabStatus"     text,
  order_id     text,
  line       text,
  ord_quest_id       text,
@@ -310,7 +313,7 @@ create table "OrderProcs_643"
  quest_name         text,
  question       text
 );
-\copy "OrderProcs_643" from '~/clarity-dw/processed/orderproc_new.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy "OrderProcs_643" from '~/clarity-dw/orderproc_new.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 
 drop table if exists "ProblemList";
 create table "ProblemList"

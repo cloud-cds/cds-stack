@@ -791,6 +791,7 @@ SELECT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
   ,PARENTS.proc_start_time ParentStarttime
   ,PARENTS.PROC_ENDING_TIME ParentEndingTime
   ,ordstat.NAME OrderStatus
+  ,labstats.NAME LabStatus
 FROM CLARITY..ORDER_PROC procs
 INNER JOIN CLARITY..CLARITY_EAP eap ON procs.proc_id = eap.PROC_ID
 LEFT JOIN CLARITY..IP_FREQUENCY freq on freq.FREQ_ID = eap.DFLT_INTER_ID
@@ -799,6 +800,7 @@ INNER JOIN CCDA643_CSNLookupTable pat_enc_hsp_1 ON pat_enc_hsp_1.pat_enc_csn_id 
 LEFT JOIN CCDA264_OrderProcCategories AllowedCats ON proccat.PROC_CAT_NAME = AllowedCats.CategoryName
 LEFT JOIN CCDA264_OrderProcCodes codes ON codes.ProcCode = eap.PROC_CODE
 LEFT JOIN CLARITY..zc_order_status ordstat on ordstat.ORDER_STATUS_C = procs.order_status_c
+LEFT JOIN CLARITY..zc_lab_status labstats on labstats.LAB_STATUS_C = procs.lab_status_c
 INNER JOIN CLARITY..ORDER_INSTANTIATED inst ON inst.INSTNTD_ORDER_ID = PROCS.ORDER_PROC_ID
 INNER JOIN CLARITY..ORDER_PROC parents on inst.ORDER_ID = parents.ORDER_PROC_ID;
 GO
@@ -817,6 +819,7 @@ SELECT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
   ,PROCS.PROC_START_TIME
   ,PROCS.PROC_ENDING_TIME
   ,ordstat.NAME OrderStatus
+  ,labstats.NAME LabStatus
   ,hnt.LINE
   ,hnt.NOTE_TEXT
 FROM CLARITY..ORDER_PROC procs
@@ -825,6 +828,7 @@ LEFT JOIN CLARITY..IP_FREQUENCY freq on freq.FREQ_ID = eap.DFLT_INTER_ID
 LEFT JOIN clarity..EDP_PROC_CAT_INFO proccat ON eap.proc_cat_id = proccat.PROC_CAT_ID
 INNER JOIN CCDA643_CSNLookupTable pat_enc_hsp_1 ON pat_enc_hsp_1.pat_enc_csn_id = procs.PAT_ENC_CSN_ID
 LEFT JOIN CLARITY..zc_order_status ordstat on ordstat.ORDER_STATUS_C = procs.order_status_c
+LEFT JOIN CLARITY..zc_lab_status labstats on labstats.LAB_STATUS_C = procs.lab_status_c
 inner join clarity..V_IMG_STUDY img on img.order_id = procs.ORDER_PROC_ID
 inner join clarity..HNO_NOTE_TEXT hnt on hnt.NOTE_CSN_ID = img.RESULT_NOTE_CSN
 where img.proc_name like '%MRI%' or img.proc_name like '%CT%';
@@ -834,7 +838,7 @@ USE Analytics;
 :OUT \\Client\H$\Downloads\clarity\orderproc_new.rpt
 SET NOCOUNT ON
 SELECT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
-  ,procids.EXTERNAL_ID OrderProcId
+  ,procs.proc_id OrderProcId
   ,procs.display_name
   ,eap.proc_name
   ,proccat.proc_cat_name
@@ -847,22 +851,21 @@ SELECT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
   ,PARENTS.proc_start_time ParentStarttime
   ,PARENTS.PROC_ENDING_TIME ParentEndingTime
   ,ordstat.NAME OrderStatus
+  ,labstats.NAME LabStatus
   ,osq.order_id
-, osq.line
-, osq.ord_quest_id
-, osq.IS_ANSWR_BYPROC_YN 
-, osq.ord_quest_resp
-, cq.quest_name
-, tm.question
+  , osq.line
+  , osq.ord_quest_id
+  , osq.IS_ANSWR_BYPROC_YN 
+  , osq.ord_quest_resp
+  , cq.quest_name
+  , tm.question
 FROM CLARITY..ORDER_PROC procs
-INNER JOIN ccda264_OrderProcIds procids on procs.ORDER_PROC_ID = procids.ORDER_PROC_ID
 INNER JOIN CLARITY..CLARITY_EAP eap ON procs.proc_id = eap.PROC_ID
 LEFT JOIN CLARITY..IP_FREQUENCY freq on freq.FREQ_ID = eap.DFLT_INTER_ID
 INNER JOIN clarity..EDP_PROC_CAT_INFO proccat ON eap.proc_cat_id = proccat.PROC_CAT_ID
 INNER JOIN CCDA643_CSNLookupTable pat_enc_hsp_1 ON pat_enc_hsp_1.pat_enc_csn_id = procs.PAT_ENC_CSN_ID
-LEFT JOIN CCDA264_OrderProcCategories AllowedCats ON proccat.PROC_CAT_NAME = AllowedCats.CategoryName
-LEFT JOIN CCDA264_OrderProcCodes codes ON codes.ProcCode = eap.PROC_CODE
 LEFT JOIN CLARITY..zc_order_status ordstat on ordstat.ORDER_STATUS_C = procs.order_status_c
+LEFT JOIN CLARITY..zc_lab_status labstats on labstats.LAB_STATUS_C = procs.lab_status_c
 INNER JOIN CLARITY..ORDER_INSTANTIATED inst ON inst.INSTNTD_ORDER_ID = PROCS.ORDER_PROC_ID
 INNER JOIN CLARITY..ORDER_PROC parents on inst.ORDER_ID = parents.ORDER_PROC_ID
 left join clarity.dbo.ORD_SPEC_QUEST osq on osq.ORDER_ID = procs.ORDER_PROC_ID
