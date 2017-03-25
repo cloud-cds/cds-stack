@@ -31,5 +31,5 @@ class Engine:
         logging.debug('Scheduled [{}]{}'.format(t.task_id, t.task_name))
         self.schedule(t)
 
-  def schedule(self, task);
+  def schedule(self, task):
     self.run_queue.append(task)

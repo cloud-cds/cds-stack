@@ -119,7 +119,7 @@ def bands_t(engine_source, engine_destination):
     labs = derive.combine(labs, 'lactate',
                           ['LACTATE, WHOLE BLOOD', 'LACTATE, PLASMA'])
 
-    print "Write Complete"
+    print("Write Complete")
 
 def crystalloid_fluid_order_t(engine_source, engine_destination):
     pass
