@@ -6,6 +6,7 @@ import json
 import datetime
 import logging
 import pandas as pd
+import pytz
 from inpatient_updater import load
 from sqlalchemy import create_engine
 from sqlalchemy import text
@@ -340,7 +341,7 @@ def get_patient_profile(pat_id):
 
     if len(result) == 1:
         profile['trews_threshold'] = result[0][0]
-        profile['admit_time']      = result[0][1]
+        profile['admit_time']      = (result[0][1] - datetime.datetime.utcfromtimestamp(0).replace(tzinfo=pytz.UTC)).total_seconds()
         profile['deactivated']     = result[0][2]
         profile['detf_tsp']        = result[0][3]
         profile['deterioration']   = result[0][4]
