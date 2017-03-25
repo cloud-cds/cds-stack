@@ -1,54 +1,54 @@
 drop table if exists clarity_flowsheet;
 create table clarity_flowsheet (
-pat_id                    text,
-PAT_ENC_CSN_ID                    text,
-FLO_MEAS_NAME                   text,
-DISP_NAME                   text,
-FLO_MEAS_ID                   text,
-ROW_TYPE                    text,
-INTAKE_TYPE                   text,
-OUTPUT_TYPE                   text,
-TimeTaken                   text,
-ConvertedWeightValue                    text,
-Value                   text,
-UNITS                   text,
-TEMPLATE_ID                   text,
-TEMPLATE_NAME                   text,
-TEMPLATE_DISP_NAME                    text
+  pat_id                    text,
+  PAT_ENC_CSN_ID            text,
+  FLO_MEAS_NAME             text,
+  DISP_NAME                 text,
+  FLO_MEAS_ID               text,
+  ROW_TYPE                  text,
+  INTAKE_TYPE               text,
+  OUTPUT_TYPE               text,
+  TimeTaken                 text,
+  ConvertedWeightValue      text,
+  Value                     text,
+  UNITS                     text,
+  TEMPLATE_ID               text,
+  TEMPLATE_NAME             text,
+  TEMPLATE_DISP_NAME        text
 );
 
 drop table if exists clarity_lab_procedures;
 create table clarity_lab_procedures (
-  pat_id          text,
-  PAT_ENC_CSN_ID          text,
-  proc_id         text,
-  proc_name         text,
-  display_name          text,
-  proc_cat_id         text,
-  proc_cat_name         text,
+  pat_id                    text,
+  PAT_ENC_CSN_ID            text,
+  proc_id                   text,
+  proc_name                 text,
+  display_name              text,
+  proc_cat_id               text,
+  proc_cat_name             text,
   FrequencyOfOrder          text,
-  ORDER_TIME          text,
-  RESULT_TIME         text,
-  ParentOrderTime         text,
-  PROC_START_TIME         text,
+  ORDER_TIME                text,
+  RESULT_TIME               text,
+  ParentOrderTime           text,
+  PROC_START_TIME           text,
   PROC_ENDING_TIME          text,
-  ParentStarttime         text,
+  ParentStarttime           text,
   ParentEndingTime          text,
-  OrderStatus         text
+  OrderStatus               text
 );
 
 drop table if exists clarity_lab_results;
 create table clarity_lab_results (
-pat_id                      text,
-PAT_ENC_CSN_ID                      text,
-COMPONENT_ID                      text,
-BASE_NAME                     text,
-NAME                      text,
-EXTERNAL_NAME                     text,
-RESULT_TIME                     text,
-REFERENCE_UNIT                      text,
-ResultValue                     text,
-COMPONENT_COMMENT                     text
+  pat_id                    text,
+  PAT_ENC_CSN_ID            text,
+  COMPONENT_ID              text,
+  BASE_NAME                 text,
+  NAME                      text,
+  EXTERNAL_NAME             text,
+  RESULT_TIME               text,
+  REFERENCE_UNIT            text,
+  ResultValue               text,
+  COMPONENT_COMMENT         text
 );
 
 drop table if exists clarity_mar;
