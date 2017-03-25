@@ -436,7 +436,7 @@ CREATE TABLE cdm_twf (
     FOREIGN KEY     (dataset_id, enc_id) REFERENCES pat_enc(dataset_id, enc_id)
 );
 
-DROP TABLE IF EXISTS cdm_twf;
+DROP TABLE IF EXISTS cdm_twf_c;
 CREATE TABLE cdm_twf_c (
     dataset_id                             integer,
     enc_id                                 integer,
