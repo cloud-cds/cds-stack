@@ -281,6 +281,19 @@ def eid_exist(eid):
         return True
     return False
 
+def save_feedback(doc_id, pat_id, dep_id, feedback):
+    engine = create_engine(DB_CONN_STR)
+    conn = engine.connect()
+    feedback_sql = '''
+        INSERT INTO feedback_log (doc_id, tsp, pat_id, dep_id, feedback)
+        VALUES ('%(doc)s', now(), '%(pat)s', '%(dep)s', '%(fb)s');
+        ''' % {'doc': doc_id, 'pat': pat_id, 'dep': dep_id, 'fb': feedback}
+    try:
+        conn.execute(feedback_sql)
+    except Exception as e:
+        print e
+    conn.close()
+
 if __name__ == '__main__':
     # eid = 'E1000109xx'
     # print eid_exist(eid)
@@ -304,5 +317,3 @@ if __name__ == '__main__':
             vals.append(0)
     for i, n in enumerate(names):
         print n, vals[i]
-
-
