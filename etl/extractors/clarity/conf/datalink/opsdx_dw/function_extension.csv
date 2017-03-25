@@ -1,0 +1,23 @@
+FUNC_ID,FUNC_TYPE,DESCRIPTION
+convert_care_unit_hc_epic,transform,generate care_unit for HC_EPIC
+glucocorticoid_update,derive,"1 if any glucocorticoid given at tsp, 0 otherwise. See Arch for specific medications."
+anticoagulant_update,derive,"1 if any anticoagulant given at tsp, 0 otherwise. See Arch for specific medications."
+beta_blocker_update,derive,"1 if any beta-blocker given at tsp, 0 otherwise. See Arch for specific medications."
+heart_attack_update,derive,1 at estimated time of heart attack diagnosis
+stroke_update,derive,1 at estimated time of stroke diagnosis
+acute_kidney_failure_update,derive,1 at estimated time of kidney failure diagnosis
+bronchitis_update,derive,1 at estimated time of bronchitis diagnosis
+hepatic_failure_update,derive,1 at estimated time of hepatic failure diagnosis
+ards_update,derive,1 at estimated time of ARDS diagnosis
+severe_pancreatitis_update,derive,1 at estimated time of severe pancreatitis diagnosis
+pulmonary_emboli_update,derive,1 at estimated time of pulmonary emboli diagnosis
+convert_catheter_to_binary,transform,"1 when catheter present, 0 prior to insertion and after removal"
+convert_dialysis_to_binary,transform,indicator 1 when dialysis performed
+convert_inhosp_to_json,transform,"{""diagname"":string, ""ischronic"":1/0, ""present on admission"":string}"
+convert_proc_to_json,transform,"{""name"":string, ""status"":string}"
+convert_dose_to_binary,transform,indicate where the medication was taken
+convert_to_ngdl,transform,convert ng/mL to ng/dl by dividing 100
+convert_lab_value_to_real,transform,convert value to float and transform <float or >float to float
+convert_to_mcg_min,transform,convert value to mcg/min
+load_discharge_json,transform,load discharge into json format including department and disposition
+inpatient-updater.bands_t,transform,inpatient-updater
