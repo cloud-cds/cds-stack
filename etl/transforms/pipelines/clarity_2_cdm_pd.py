@@ -1,7 +1,9 @@
-import inpatient_updater.derive as derive
-import inpatient_updater.format_data as format_data
-import inpatient_updater.restructure as restructure
-import inpatient_updater.translate as translate
+from etl.transforms.primitives.df import derive
+from etl.transforms.primitives.df import extract
+from etl.transforms.primitives.df import format_data
+from etl.transforms.primitives.df import restructure
+from etl.transforms.primitives.df import translate
+
 import pandas as pd
 from sqlalchemy import text
 
