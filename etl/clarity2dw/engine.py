@@ -8,11 +8,12 @@ from extractor import Extractor
 class Engine(object):
   """docstring for Engine"""
   def __init__(self):
-    self.config = Config()
+    self.config = Config(debug=True)
+
 
   async def _init_(self):
-    self.dbpool = await asyncpg.create_pool(database=self.config.db_name, user=self.config.db_user, password=self.config.db_pass, host=self.config.db_host, port=self.config.db_port)
-    self.extractor = Extractor()
+    self.pool = await asyncpg.create_pool(database=self.config.db_name, user=self.config.db_user, password=self.config.db_pass, host=self.config.db_host, port=self.config.db_port)
+    self.extractor = Extractor(self.pool, self.config)
 
   def run_loop(self):
     loop = asyncio.get_event_loop()
@@ -21,15 +22,7 @@ class Engine(object):
   async def run(self):
     # extractors to run ETL
     await self._init_()
-    print("start to run clarity ETL")
-    async with self.dbpool.acquire() as conn:
-      # result = await conn.fetch("select * from notifications")
-      # for r in result:
-      #   print(json.loads(r['message'])['alert_code'])
-      #   print(str(type(r['message'])))
-
-
-
+    await self.extractor.run()
 
 if __name__ == '__main__':
   engine = Engine()
