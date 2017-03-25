@@ -105,9 +105,13 @@ def get_criteria_log(eid):
     select log_id, pat_id, date_part('epoch', tsp) epoch, event from criteria_log
     where pat_id = '%s' order by tsp desc limit 25;
     ''' % eid
-    df = pd.read_sql_query(get_criteria_log_sql,con=db_engine)
     auditlist = []
-    for idx,row in df.iterrows():
+    # df = pd.read_sql_query(get_criteria_log_sql,con=db_engine)
+    conn = db_engine.connect()
+    result = conn.execute(get_criteria_log_sql)
+    conn.close()
+    # for idx,row in df.iterrows():
+    for row in result:
         audit = row['event']
         audit['log_id'] = row['log_id']
         audit['pat_id'] = row['pat_id']
@@ -121,14 +125,17 @@ def get_notifications(eid):
     select * from notifications
     where pat_id = '%s'
     ''' % eid
-    df = pd.read_sql_query(get_notifications_sql,con=db_engine)
     notifications = []
-    for idx, row in df.iterrows():
+    # df = pd.read_sql_query(get_notifications_sql,con=db_engine)
+    conn = db_engine.connect()
+    result = conn.execute(get_notifications_sql)
+    conn.close()
+    # for idx, row in df.iterrows():
+    for row in result:
         notification = row['message']
         notification['timestamp'] = long(notification['timestamp'])
         notification['id'] = row['notification_id']
         notifications.append(notification)
-
     return notifications
 
 def toggle_notification_read(eid, notification_id, as_read):
@@ -275,15 +282,14 @@ def push_notifications_to_epic(eid):
 
 def eid_exist(eid):
     connection = db_engine.connect()
-    result = connection.execute("select * from pat_enc where pat_id = '%s'" % eid)
+    result = connection.execute("select * from pat_enc where pat_id = '%s' limit 1" % eid)
     connection.close()
     for row in result:
         return True
     return False
 
 def save_feedback(doc_id, pat_id, dep_id, feedback):
-    engine = create_engine(DB_CONN_STR)
-    conn = engine.connect()
+    conn = db_engine.connect()
     feedback_sql = '''
         INSERT INTO feedback_log (doc_id, tsp, pat_id, dep_id, feedback)
         VALUES ('%(doc)s', now(), '%(pat)s', '%(dep)s', '%(fb)s');
@@ -293,6 +299,55 @@ def save_feedback(doc_id, pat_id, dep_id, feedback):
     except Exception as e:
         print e
     conn.close()
+
+def get_patient_profile(pat_id):
+    get_patient_profile_sql = \
+    '''
+    select * from
+    (
+        select value as trews_threshold
+        from trews_parameters where name = 'trews_threshold' limit 1
+    ) TT
+    full outer join
+    (
+        select value::timestamptz as admit_time
+        from cdm_s inner join pat_enc on pat_enc.enc_id = cdm_s.enc_id
+        where pat_id = '%(pid)s' and fid = 'admittime'
+        order by value::timestamptz desc limit 1
+    ) ADT on true
+    full outer join
+    (
+        select deactivated from pat_status where pat_id = '%(pid)s' limit 1
+    ) DEACT on true
+    full outer join
+    (
+        select date_part('epoch', tsp) detf_tsp, deterioration, uid as detf_uid
+        from deterioration_feedback where pat_id = '%(pid)s' limit 1
+    ) DETF on true
+    ''' % { 'pid': pat_id }
+    conn = db_engine.connect()
+    result = conn.execute(get_patient_profile_sql)
+    conn.close()
+
+    profile = {
+        'trews_threshold' : None,
+        'admit_time'      : None,
+        'deactivated'     : None,
+        'detf_tsp'        : None,
+        'deterioration'   : None,
+        'detf_uid'        : None
+    }
+
+    if len(result) == 1:
+        profile['trews_threshold'] = result[0][0]
+        profile['admit_time']      = result[0][1]
+        profile['deactivated']     = result[0][2]
+        profile['detf_tsp']        = result[0][3]
+        profile['deterioration']   = result[0][4]
+        profile['detf_uid']        = result[0][5]
+
+    return profile
+
 
 if __name__ == '__main__':
     # eid = 'E1000109xx'

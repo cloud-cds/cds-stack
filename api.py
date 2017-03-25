@@ -360,10 +360,17 @@ class TREWSAPI(object):
         auditlist              = query.get_criteria_log(eid)
 
         # scalar queries
-        admittime              = query.get_admittime(eid)
-        trewscore_threshold    = query.get_trews_threshold()
-        deactivated            = query.get_deactivated(eid)
-        deterioration_feedback = query.get_deterioration_feedback(eid)
+        #admittime              = query.get_admittime(eid)
+        #trewscore_threshold    = query.get_trews_threshold()
+        #deactivated            = query.get_deactivated(eid)
+        #deterioration_feedback = query.get_deterioration_feedback(eid)
+        patient_scalars        = query.get_patient_profile(eid)
+        admittime              = patient_scalars['admit_time']
+        trewscore_threshold    = patient_scalars['trewscore_threshold']
+        deactivated            = patient_scalars['deactivated']
+        deterioration_feedback = {  "tsp"           : patient_scalars['detf_tsp'],
+                                    "deterioration" : patient_scalars['deterioration'],
+                                    "uid"           : patient_scalars['detf_uid'] }
 
         # update chart data
         data['chart_data']['patient_arrival']['timestamp'] =  admittime
@@ -489,8 +496,7 @@ class TREWSAPI(object):
             eid = req_body['q']
             uid = req_body['u'] if 'u' in req_body and req_body['u'] is not None else 'user'
             resp.status = falcon.HTTP_202
-            data = {}
-            #data = copy.deepcopy(data_example.empty_patient_data_example)
+            data = copy.deepcopy(data_example.empty_patient_data_example)
 
             if eid:
                 # if DECRYPTED:
