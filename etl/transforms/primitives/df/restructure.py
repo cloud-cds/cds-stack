@@ -1,5 +1,4 @@
-from inpatient_updater import pandas_utils
-from inpatient_updater.config import app_config
+import etl.transforms.primitives.df.pandas_utils as pandas_utils
 import pandas as pd
 import numpy as np
 

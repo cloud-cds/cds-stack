@@ -53,8 +53,7 @@ class Extractor:
         loop = asyncio.get_event_loop()
         future = asyncio.ensure_future(run(request_settings, loop))
         loop.run_until_complete(future)
-        df = pd.concat(pd.DataFrame(r) for r in future.result())
-        return df
+        return [pd.DataFrame(r) for r in future.result()]
 
 
     def generate_request_settings(self, http_method, url, payloads=None):
@@ -74,7 +73,18 @@ class Extractor:
 
     def extract_bedded_patients(self):
         resource = '/facilities/hospital/' + self.hospital + '/beddedpatients'
-        return self.make_requests(resource, [None], 'GET')
+        responses = self.make_requests(resource, [None], 'GET')
+        return responses[0]
+
+
+    def combine(self, response_list, to_merge):
+        if type(response_list) != list:
+            raise TypeError("First argument must be a list of responses")
+        dfs = pd.DataFrame()
+        for idx, df in enumerate(response_list):
+            dfs = pd.concat([dfs, df.assign(index_col=idx)])
+        return pd.merge(dfs, to_merge, how='outer', left_on='index_col',
+                        right_index=True, sort=False).drop('index_col', axis=1)
 
 
     def extract_flowsheets(self, bedded_patients):
@@ -92,7 +102,8 @@ class Extractor:
             'PatientID':        pat['pat_id'],
             'PatientIDType':    'EMRN'
         } for idx, pat in bedded_patients.iterrows()]
-        return self.make_requests(resource, payloads, 'POST')
+        responses = self.make_requests(resource, payloads, 'POST')
+        return self.combine(responses, bedded_patients[['pat_id', 'visit_id']])
 
 
     def extract_lab_results(self, bedded_patients):

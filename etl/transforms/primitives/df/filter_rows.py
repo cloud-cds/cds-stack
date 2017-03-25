@@ -1,18 +1,15 @@
-from inpatient_updater.config import app_config
-from inpatient_updater.config import bedded_patients as bp_config
-from inpatient_updater.config import medication_regex as med_config
-from inpatient_updater.config import unit_format
+import etl.mappings.icd9_codes as icd9_codes
 import pandas as pd
 import re
 
 def filter_on_icd9(patient_data):
-    filter_function = build_filter_icd9_function(bp_config.DX_ICD9_MAPPING)
+    filter_function = build_filter_icd9_function(icd9_codes.DX_ICD9_MAPPING)
     patient_data['diagnosis'] = patient_data['diagnosis'].apply(filter_function)
 
-    filter_function = build_filter_icd9_function(bp_config.HX_ICD9_MAPPING)
+    filter_function = build_filter_icd9_function(icd9_codes.HX_ICD9_MAPPING)
     patient_data['history'] = patient_data['history'].apply(filter_function)
 
-    filter_function = build_filter_icd9_function(bp_config.PL_ICD9_MAPPING)
+    filter_function = build_filter_icd9_function(icd9_codes.PL_ICD9_MAPPING)
     patient_data['problem'] = patient_data['problem'].apply(filter_function)
 
     return patient_data
