@@ -103,7 +103,7 @@ def get_criteria_log(eid):
     get_criteria_log_sql = \
     '''
     select log_id, pat_id, date_part('epoch', tsp) epoch, event from criteria_log
-    where pat_id = '%s' order by tsp desc;
+    where pat_id = '%s' order by tsp desc limit 25;
     ''' % eid
     df = pd.read_sql_query(get_criteria_log_sql,con=db_engine)
     auditlist = []

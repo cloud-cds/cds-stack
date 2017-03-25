@@ -347,31 +347,32 @@ class TREWSAPI(object):
 
 
     def update_response_json(self, data, eid):
-        # update chart data
         data['pat_id'] = eid
-        criteria = query.get_criteria(eid)
-
-        deactivated = query.get_deactivated(eid)
-        data['deactivated'] = deactivated
-
-        deterioration_feedback = query.get_deterioration_feedback(eid)
-        data['deterioration_feedback'] = deterioration_feedback
-
-        auditlist = query.get_criteria_log(eid)
-        data['auditlist'] = auditlist
 
         # update criteria from database query
+        criteria = query.get_criteria(eid)
         self.update_criteria(criteria, data)
-        data['chart_data']['trewscore_threshold'] = query.get_trews_threshold()
-        admittime = query.get_admittime(eid)
+
+        # set-oriented queries
+        df                     = query.get_trews(eid)
+        cdm                    = query.get_cdm(eid)
+        notifications          = query.get_notifications(eid)
+        auditlist              = query.get_criteria_log(eid)
+
+        # scalar queries
+        admittime              = query.get_admittime(eid)
+        trewscore_threshold    = query.get_trews_threshold()
+        deactivated            = query.get_deactivated(eid)
+        deterioration_feedback = query.get_deterioration_feedback(eid)
+
+        # update chart data
         data['chart_data']['patient_arrival']['timestamp'] =  admittime
-        df = query.get_trews(eid)
-        cdm = query.get_cdm(eid)
+        data['chart_data']['trewscore_threshold'] = trewscore_threshold
+
         epoch = pd.DatetimeIndex(df.tsp).astype(np.int64) // 10**9
         data['chart_data']['chart_values']['timestamp'] = epoch.values
         data['chart_data']['chart_values']['trewscore'] = [s.item() for s in df.trewscore.values]
         df_trews = df.drop(['enc_id','trewscore','tsp'],1)
-
 
         # for each row sort by column
         sorted_trews = [row.sort_values(ascending=False) for idx, row in df_trews.iterrows()]
@@ -446,7 +447,12 @@ class TREWSAPI(object):
         #         data['chart_data']['chart_values']['tf_3_value'].append(0)
 
         # update_notifications
-        data['notifications'] = query.get_notifications(eid)
+        data['notifications'] = notifications
+
+        # update remaining frontend components
+        data['deactivated'] = deactivated
+        data['deterioration_feedback'] = deterioration_feedback
+        data['auditlist'] = auditlist
 
     def on_post(self, req, resp):
         with trews_api_request_latency.labels("any").time():
@@ -483,7 +489,7 @@ class TREWSAPI(object):
             eid = req_body['q']
             uid = req_body['u'] if 'u' in req_body and req_body['u'] is not None else 'user'
             resp.status = falcon.HTTP_202
-            data = copy.deepcopy(data_example.patient_data_example)
+            data = copy.deepcopy(data_example.empty_patient_data_example)
 
             if eid:
                 # if DECRYPTED:

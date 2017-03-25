@@ -274,3 +274,38 @@ patient_data_example = {
     },
     "notifications": []
 }
+
+empty_patient_data_example = {
+    'pat_id': 'patient_example',
+    severe_sepsis['name']: severe_sepsis,
+    septic_shock['name']: septic_shock,
+    initial_lactate_order['name']: initial_lactate_order,
+    blood_culture_order['name']: blood_culture_order,
+    antibiotics_order['name']: antibiotics_order,
+    crystalloid_fluid_order['name']: crystalloid_fluid_order,
+    repeat_lactate_order['name']: repeat_lactate_order,
+    vasopressors_order['name']: vasopressors_order,
+    'chart_data': {
+        'chart_values': {
+            'timestamp':  [],
+            'trewscore':  [],
+            'tf_1_name':  [],
+            'tf_1_value': [],
+            'tf_2_name':  [],
+            'tf_2_value': [],
+            'tf_3_name':  [],
+            'tf_3_value': []
+        },
+        'trewscore_threshold': 0.81,
+        'patient_arrival': {
+            'timestamp': None
+        },
+        'septic_shock_onset':{
+            'timestamp': None
+        },
+        'severe_sepsis_onset':{
+            'timestamp': None
+        }
+    },
+    "notifications": []
+}
