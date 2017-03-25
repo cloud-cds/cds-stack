@@ -49,7 +49,7 @@ class Extractor:
 
         async def run(request_settings, loop):
             tasks = []
-            sem = asyncio.Semaphore(50)
+            sem = asyncio.Semaphore(1000)
             async with ClientSession(headers=self.headers, loop=loop) as session:
                 for setting in request_settings:
                     task = asyncio.ensure_future(fetch(session, sem, setting))
@@ -80,7 +80,7 @@ class Extractor:
     def extract_bedded_patients(self):
         resource = '/facilities/hospital/' + self.hospital + '/beddedpatients'
         responses = self.make_requests(resource, [None], 'GET')
-        return [pd.DataFrame(responses[0])]
+        return pd.DataFrame(responses[0])
 
 
     def combine(self, response_list, to_merge):
@@ -180,14 +180,14 @@ class Extractor:
         return self.combine(dfs, bedded_patients[['pat_id', 'visit_id']])
 
 
-    # def extract_med_orders(self, med_orders):
-    #     resource = '/patients/medicationadministrationhistory'
-    #     payloads = [{
-    #         'ContactID':        ord['visit_id'],
-    #         'ContactIDType':    'CSN',
-    #         'OrderIDs':         list(itertools.chain.from_iterable(ord['ids'])),
-    #         'PatientID':        ord['pat_id']
-    #     } for idx, ord in med_orders.iterrows()]
-    #     responses = self.make_requests(resource, payloads, 'GET')
-    #     dfs = [pd.DataFrame(r) for r in responses]
-    #     return self.combine(dfs, med_orders[['pat_id', 'visit_id']])
+    def extract_med_admin(self, med_orders):
+        resource = '/patients/medicationadministrationhistory'
+        payloads = [{
+            'ContactID':        order['visit_id'],
+            'ContactIDType':    'CSN',
+            'OrderIDs':         list(itertools.chain.from_iterable(order['ids'])),
+            'PatientID':        order['pat_id']
+        } for _, order in med_orders.iterrows()]
+        responses = self.make_requests(resource, payloads, 'POST')
+        dfs = [pd.DataFrame(r) for r in responses]
+        return self.combine(dfs, med_orders[['pat_id', 'visit_id']])
