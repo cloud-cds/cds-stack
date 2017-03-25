@@ -366,7 +366,7 @@ class TREWSAPI(object):
         #deterioration_feedback = query.get_deterioration_feedback(eid)
         patient_scalars        = query.get_patient_profile(eid)
         admittime              = patient_scalars['admit_time']
-        trewscore_threshold    = patient_scalars['trewscore_threshold']
+        trewscore_threshold    = patient_scalars['trews_threshold']
         deactivated            = patient_scalars['deactivated']
         deterioration_feedback = {  "tsp"           : patient_scalars['detf_tsp'],
                                     "deterioration" : patient_scalars['deterioration'],
