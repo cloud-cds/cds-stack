@@ -4,6 +4,8 @@ import etl.transforms.primitives.df.format_data as format_data
 import etl.transforms.primitives.df.restructure as restructure
 import etl.transforms.primitives.df.translate as translate
 from etl.mappings.flowsheet_ids import flowsheet_ids
+from etl.mappings.procedure_ids import procedure_ids
+from etl.mappings.component_ids import component_ids
 
 bedded_patients_transforms = [
     lambda bp: restructure.select_columns(bp, {
@@ -71,7 +73,7 @@ lab_orders_transforms = [
     }),
     lambda lo: translate.translate_epic_id_to_fid(lo,
         col = 'procedure_code', new_col = 'fid',
-        config_map = lp_config.procedure_ids, drop_original = True,
+        config_map = procedure_ids, drop_original = True,
         add_string = '_order', remove_if_not_found = True
     ),
     lambda lo: derive.derive_lab_status(lo),
@@ -95,7 +97,7 @@ lab_procedures_transforms = [
     lambda lp: restructure.concat_str(lp, 'tsp', 'date', 'time'),
     lambda lp: translate.translate_epic_id_to_fid(lp,
         col = 'component_id', new_col = 'fid',
-        config_map = lr_config.component_ids, drop_original = True,
+        config_map = component_ids, drop_original = True,
         add_string = '_order'
     ),
     lambda lp: format_data.format_tsp(lp, 'tsp'),
@@ -115,7 +117,7 @@ lab_results_transforms = [
     lambda lr: restructure.concat_str(lr, 'tsp', 'date', 'time'),
     lambda lr: translate.translate_epic_id_to_fid(lr,
         col = 'component_id', new_col = 'fid',
-        config_map = lr_config.component_ids,
+        config_map = component_ids,
         drop_original = True,
     ),
     lambda lr: format_data.filter_empty_values(lr, 'tsp'),
@@ -221,7 +223,7 @@ med_admin_transforms = [
     lambda ma: format_data.threshold_values(ma, 'dose_value'),
 ]
 
-location_history_transforms = [
+loc_history_transforms = [
     lambda x: filter_rows.filter_location_history_events(x),
     lambda x: restructure.select_columns(x, {
         'pat_id':            'pat_id',

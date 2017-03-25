@@ -1,4 +1,5 @@
 from etl.core.exceptions import TransformError
+from etl.core.config import est_tsp_fmt
 from etl.online.extractor import Extractor
 from etl.transforms.pipelines import jhapi
 import os, sys, traceback
@@ -40,43 +41,60 @@ class Engine():
     def main(self):
         driver_start = dt.datetime.now()
 
-        # Request for all bedded patients
+        print("\n\nBEDDED PATIENTS")
         pats = self.extractor.extract_bedded_patients()
         pats_t = self.transform(pats, jhapi.bedded_patients_transforms, "bedded_patients")
         pats_t = pats_t.assign(hospital = self.extractor.hospital)
         print(pats_t)
 
-        # Transform the data
-        flowsheets = self.extractor.extract_flowsheets(pats_t)
-        flowsheets = flowsheets.dropna(subset=['FlowsheetColumns'])
-        print(flowsheets)
-        flowsheets_t = self.transform(flowsheets, jhapi.flowsheet_transforms, "flowsheets")
-        print(flowsheets_t)
-        # lab_orders_t = self.transform(lab_orders, self.lab_orders_transforms, "lab_orders")
-        # lab_procedures_t = self.transform(lab_procedures, self.lab_procedures_transforms, "lab_procedures")
-        # # Combine lab orders and lab procedures
+        # print("\n\nFLOWSHEETS")
+        # flowsheets = self.extractor.extract_flowsheets(pats_t)
+        # flowsheets_t = self.transform(flowsheets, jhapi.flowsheet_transforms, "flowsheets")
+        # print(flowsheets_t)
+        #
+        # print("\n\nLAB ORDERS")
+        # lab_orders = self.extractor.extract_lab_orders(pats_t)
+        # lab_orders_t = self.transform(lab_orders, jhapi.lab_orders_transforms, "lab_orders")
+        # print(lab_orders_t)
+        #
+        # print("\n\nLAB PROCEDURES")
+        # lab_procedures = self.extractor.extract_lab_procedures(pats_t)
+        # lab_procedures_t = self.transform(lab_procedures, jhapi.lab_procedures_transforms, "lab_procedures")
+        # print(lab_procedures_t)
+        #
         # lab_orders_t = lab_orders_t.append(lab_procedures_t) if lab_orders_t is not None else lab_procedures_t
-        # lab_results_t = self.transform(lab_results, self.lab_results_transforms, "lab_results")
-        # med_orders_t = self.transform(med_orders, self.med_orders_transforms, "med_orders")
-        # med_orders_t['fid'] += '_order' # shouldn't this be in transform?
-        # location_history_t = self.transform(location_history, self.location_history_transforms, "location_history")
+        #
+        # print("\n\nLAB RESULTS")
+        # lab_results = self.extractor.extract_lab_results(pats_t)
+        # lab_results_t = self.transform(lab_results, jhapi.lab_results_transforms, "lab_results")
+        # print(lab_results_t)
+        #
+        # print("\n\nLOCATION HISTORY")
+        # loc_history = self.extractor.extract_loc_history(pats_t)
+        # loc_history_t = self.transform(loc_history, jhapi.loc_history_transforms, "loc_history")
+        # print(loc_history_t)
 
-        # Get med admin data
+        print("\n\nMED ORDERS")
+        med_orders = self.extractor.extract_med_orders(pats_t)
+        med_orders_t = self.transform(med_orders, jhapi.med_orders_transforms, "med_orders")
+        med_orders_t['fid'] += '_order'
+        print(med_orders_t)
+
+        # print("\n\nMED ADMIN")
         # request_data = med_orders_t[['pat_id', 'visit_id', 'ids']]\
         #     .groupby(['pat_id', 'visit_id'])['ids']\
         #     .apply(list)\
         #     .reset_index()
         # ma_start = dt.datetime.now()
-        # med_admin = self.api_request_task(request_data, "medication_administrations")
+        # med_admin = self.extractor.extract_med_admin(request_data)
         # ma_total = dt.datetime.now() - ma_start
-        # med_admin_t = self.transform(med_admin, self.med_admin_transforms, "med_admin")
-        #
-        # # Timezone hack
-        # est_tsp_fmt = '%Y-%m-%dT%H:%M:%S-05:00'
-        # def tz_hack(tsp):
-        #     return (dateparser.parse(tsp) - dt.timedelta(hours=5)).strftime(est_tsp_fmt)
-        # flowsheets_t['tsp'] = flowsheets_t['tsp'].apply(tz_hack)
-        # med_admin_t['tsp'] = med_admin_t['tsp'].apply(tz_hack)
+        # med_admin_t = self.transform(med_admin, jhapi.med_admin_transforms, "med_admin")
+
+        # Timezone hack
+        def tz_hack(tsp):
+            return (dateparser.parse(tsp) - dt.timedelta(hours=5)).strftime(est_tsp_fmt)
+        flowsheets_t['tsp'] = flowsheets_t['tsp'].apply(tz_hack)
+        med_admin_t['tsp'] = med_admin_t['tsp'].apply(tz_hack)
 
         # Main finished
         print("total time: ", str(dt.datetime.now() - driver_start))
@@ -110,7 +128,7 @@ if __name__ == '__main__':
     pd.set_option('display.width', 200)
     pd.set_option('display.max_rows', 30)
     pd.set_option('display.max_columns', 1000)
-    pd.set_option('display.max_colwidth', 50)
+    pd.set_option('display.max_colwidth', 40)
     pd.options.mode.chained_assignment = None
     logging.getLogger().setLevel(0)
     ex = Extractor(

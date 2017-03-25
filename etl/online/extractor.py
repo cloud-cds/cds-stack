@@ -23,7 +23,8 @@ class Extractor:
         self.server = servers[jhapi_server]
         self.hospital = hospital
         self.lookback_hours = int(lookback_hours)
-        self.lookback_days = int(lookback_days) if lookback_days else int(lookback_hours)/24 + 1
+        self.lookback_days = int(lookback_days) if lookback_days else int(lookback_hours/24) + 1
+        self.from_date = (dt.datetime.now() + dt.timedelta(days=1)).strftime('%Y-%m-%d')
         self.headers = {
             'client_id': jhapi_id,
             'client_secret': jhapi_secret
@@ -39,11 +40,16 @@ class Extractor:
         async def fetch(session, sem, setting):
             async with sem:
                 async with session.request(**setting) as response:
+                    if response.status != 200:
+                        logging.error(" Status={}\tMessage={}".format(
+                            response.status, response.reason
+                        ))
+                        return None
                     return await response.json()
 
         async def run(request_settings, loop):
             tasks = []
-            sem = asyncio.Semaphore(1000)
+            sem = asyncio.Semaphore(50)
             async with ClientSession(headers=self.headers, loop=loop) as session:
                 for setting in request_settings:
                     task = asyncio.ensure_future(fetch(session, sem, setting))
@@ -53,7 +59,7 @@ class Extractor:
         loop = asyncio.get_event_loop()
         future = asyncio.ensure_future(run(request_settings, loop))
         loop.run_until_complete(future)
-        return [pd.DataFrame(r) for r in future.result()]
+        return future.result()
 
 
     def generate_request_settings(self, http_method, url, payloads=None):
@@ -74,7 +80,7 @@ class Extractor:
     def extract_bedded_patients(self):
         resource = '/facilities/hospital/' + self.hospital + '/beddedpatients'
         responses = self.make_requests(resource, [None], 'GET')
-        return responses[0]
+        return [pd.DataFrame(responses[0])]
 
 
     def combine(self, response_list, to_merge):
@@ -82,8 +88,11 @@ class Extractor:
             raise TypeError("First argument must be a list of responses")
         dfs = pd.DataFrame()
         for idx, df in enumerate(response_list):
-            dfs = pd.concat([dfs, df.assign(index_col=idx)])
-        return pd.merge(dfs, to_merge, how='outer', left_on='index_col',
+            if not df.empty:
+                dfs = pd.concat([dfs, df.assign(index_col=idx)])
+        if dfs.empty:
+            return dfs
+        return pd.merge(dfs, to_merge, how='inner', left_on='index_col',
                         right_index=True, sort=False).drop('index_col', axis=1)
 
 
@@ -101,23 +110,84 @@ class Extractor:
             'LookbackHours':    self.lookback_hours,
             'PatientID':        pat['pat_id'],
             'PatientIDType':    'EMRN'
-        } for idx, pat in bedded_patients.iterrows()]
+        } for _, pat in bedded_patients.iterrows()]
         responses = self.make_requests(resource, payloads, 'POST')
-        return self.combine(responses, bedded_patients[['pat_id', 'visit_id']])
+        dfs = [pd.DataFrame(r) for r in responses]
+        return self.combine(dfs, bedded_patients[['pat_id', 'visit_id']])
+
+
+    def extract_lab_orders(self, bedded_patients):
+        resource = '/facilities/hospital/' + self.hospital + '/orders/activeprocedures'
+        payloads = [{'csn': pat['visit_id']} for _, pat in bedded_patients.iterrows()]
+        responses = self.make_requests(resource, payloads, 'GET')
+        dfs = [pd.DataFrame(r) for r in responses]
+        return self.combine(dfs, bedded_patients[['pat_id', 'visit_id']])
+
+
+    def extract_lab_procedures(self, bedded_patients):
+        resource = '/patients/labs/procedure'
+        procedure_types = []
+        for _, ids in procedure_ids:
+            procedure_types += ({'Type': 'INTERNAL', 'ID': str(x)} for x in ids)
+        payloads = [{
+          'Id':                   pat['pat_id'],
+          'IdType':               'patient',
+          'FromDate':             self.from_date,
+          'MaxNumberOfResults':   200,
+          'NumberDaysToLookBack': self.lookback_days,
+          'ProcedureTypes':       procedure_types
+        } for _, pat in bedded_patients.iterrows()]
+        responses = self.make_requests(resource, payloads, 'POST')
+        dfs = [pd.DataFrame(r['ProcedureResults']) for r in responses]
+        return self.combine(dfs, bedded_patients[['pat_id', 'visit_id']])
 
 
     def extract_lab_results(self, bedded_patients):
         resource = '/patients/labs/component'
         component_types = []
-        for fid, component_id_list in component_ids:
-            for cid in component_id_list:
-                component_types.append({'Type': 'INTERNAL', 'Value': str(cid)})
+        for _, cidl in component_ids:
+            component_types += ({'Type': 'INTERNAL', 'Value': str(x)} for x in cidl)
         payloads = [{
             'Id':                   pat['pat_id'],
             'IdType':               'patient',
-            'FromDate':      (dt.datetime.now() + dt.timedelta(days=1)).strftime('%Y-%m-%d'),
+            'FromDate':             self.from_date,
             'MaxNumberOfResults':   200,
             'NumberDaysToLookBack': self.lookback_days,
             'ComponentTypes':       component_types
-        } for idx, pat in bedded_patients.iterrows()]
-        return self.make_requests(resource, payloads, 'POST')
+        } for _, pat in bedded_patients.iterrows()]
+        responses = self.make_requests(resource, payloads, 'POST')
+        dfs = [pd.DataFrame(r['ResultComponents']) for r in responses]
+        return self.combine(dfs, bedded_patients[['pat_id', 'visit_id']])
+
+
+    def extract_loc_history(self, bedded_patients):
+        resource = '/patients/adtlocationhistory'
+        payloads = [{'id': pat['visit_id'], 'type': 'CSN'} for _, pat in bedded_patients.iterrows()]
+        responses = self.make_requests(resource, payloads, 'GET')
+        dfs = [pd.DataFrame(r) for r in responses]
+        return self.combine(dfs, bedded_patients[['pat_id', 'visit_id']])
+
+
+    def extract_med_orders(self, bedded_patients):
+        resource = '/patients/medications'
+        payloads = [{
+            'id':           pat['pat_id'],
+            'searchtype':   'IP',
+            'dayslookback': str(self.lookback_days)
+        } for _, pat in bedded_patients.iterrows()]
+        responses = self.make_requests(resource, payloads, 'GET')
+        dfs = [pd.DataFrame(r) for r in responses]
+        return self.combine(dfs, bedded_patients[['pat_id', 'visit_id']])
+
+
+    # def extract_med_orders(self, med_orders):
+    #     resource = '/patients/medicationadministrationhistory'
+    #     payloads = [{
+    #         'ContactID':        ord['visit_id'],
+    #         'ContactIDType':    'CSN',
+    #         'OrderIDs':         list(itertools.chain.from_iterable(ord['ids'])),
+    #         'PatientID':        ord['pat_id']
+    #     } for idx, ord in med_orders.iterrows()]
+    #     responses = self.make_requests(resource, payloads, 'GET')
+    #     dfs = [pd.DataFrame(r) for r in responses]
+    #     return self.combine(dfs, med_orders[['pat_id', 'visit_id']])
