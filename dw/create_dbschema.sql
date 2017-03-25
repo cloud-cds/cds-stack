@@ -431,6 +431,7 @@ CREATE TABLE cdm_twf (
     septic_shock                           integer,
     lactate                                real,
     minutes_since_any_organ_fail           integer,
+    meta_data                              json,
     PRIMARY KEY     (dataset_id, enc_id, tsp),
     FOREIGN KEY     (dataset_id, enc_id) REFERENCES pat_enc(dataset_id, enc_id)
 );
@@ -526,7 +527,6 @@ CREATE TABLE cdm_twf_c (
     septic_shock_c                         integer,
     lactate_c                              integer,
     minutes_since_any_organ_fail_c         integer,
-    meta_data                              json,
     PRIMARY KEY     (dataset_id, enc_id, tsp),
     FOREIGN KEY     (dataset_id, enc_id) REFERENCES pat_enc(dataset_id, enc_id)
 );
