@@ -489,7 +489,8 @@ class TREWSAPI(object):
             eid = req_body['q']
             uid = req_body['u'] if 'u' in req_body and req_body['u'] is not None else 'user'
             resp.status = falcon.HTTP_202
-            data = copy.deepcopy(data_example.empty_patient_data_example)
+            data = {}
+            #data = copy.deepcopy(data_example.empty_patient_data_example)
 
             if eid:
                 # if DECRYPTED:
