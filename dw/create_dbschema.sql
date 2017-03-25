@@ -6,16 +6,14 @@
 
 -------------------------------------------------
 -- DW Version Information
--- db_id: defines the data source (e.g., clarity, operational, etc.)
--- etl_id: captures the *version* of the ETL process (i.e., the code version)
--- used to load the DW. Note this is not any kind of ETL job or task id.
+-- dataset_id: this captures the schema version and etl (transform/fillin/derive)
+-- version used to populate the DW.
+-- Versions allow us to maintain multiple datasets for comparison purposes.
 ------------------------------------------------
 CREATE TABLE dw_version (
-    db_id           smallint,
-    etl_id          smallint,
+    dataset_id      serial primary key,
     created         timestamptz,
     description     text
-    PRIMARY KEY     (db_id, etl_id)
 );
 
 CREATE TABLE model_version (
@@ -30,7 +28,7 @@ CREATE TABLE model_version (
 
 DROP TABLE IF EXISTS datalink CASCADE;
 CREATE TABLE datalink (
-    db_id                       smallint REFERENCES dw_version(db_id),
+    dataset_id                  integer REFERENCES dw_version(dataset_id),
     datalink_id                 varchar(50),
     datalink_type               varchar(20) NOT NULL,
     schedule                    text,
@@ -38,58 +36,61 @@ CREATE TABLE datalink (
     connection_type             varchar(20) NOT NULL,
     connection_setting_json     json NOT NULL,
     import_patients_sql         text NOT NULL,
-    PRIMARY KEY                 (db_id, datalink_id),
+    PRIMARY KEY                 (dataset_id, datalink_id),
     CHECK (datalink_type SIMILAR TO 'DBLink|WSLink'),
     CHECK (data_load_type SIMILAR TO 'incremental|full')
 );
 
-DROP TABLE IF EXISTS datalink_feature_mapping;
-CREATE TABLE datalink_feature_mapping (
-    db_id               smallint REFERENCES dw_version(db_id),
-    fid                 varchar(50) REFERENCES cdm_feature(fid),
-    is_no_add           boolean,
-    is_med_action       boolean,
-    datalink_id         varchar(20) REFERENCES datalink(datalink_id) NOT NULL,
-    dbtable             text,
-    select_cols         text,
-    where_conditions    text,
-    transform_func_id   varchar(50) REFERENCES cdm_function(func_id),
-    api                 varchar(50),
-    api_method          varchar(50),
-    api_method_args     varchar(200)
-);
-
-
 DROP TABLE IF EXISTS cdm_function CASCADE;
 CREATE TABLE cdm_function (
-    db_id           smallint REFERENCES dw_version(db_id),
-    etl_id          smallint REFERENCES dw_version(etl_id),
+    dataset_id      integer REFERENCES dw_version(dataset_id),
     func_id         varchar(50) NOT NULL,
     func_type       varchar(20) NOT NULL,
     description     text        NOT NULL,
-    PRIMARY KEY     (db_id, etl_id)
+    PRIMARY KEY     (dataset_id, func_id),
     CHECK (func_type SIMILAR TO 'transform|fillin|derive')
 );
 
 DROP TABLE IF EXISTS cdm_feature CASCADE;
 CREATE TABLE cdm_feature (
-    db_id                   smallint REFERENCES dw_version(db_id),
-    etl_id                  smallint REFERENCES dw_version(etl_id),
-    fid                     varchar(50) PRIMARY KEY,
+    dataset_id              integer,
+    fid                     varchar(50) NOT NULL,
     category                varchar(50) NOT NULL,
     data_type               varchar(20) NOT NULL,
     is_measured             boolean NOT NULL,
     is_deprecated           boolean NOT NULL,
-    fillin_func_id          varchar(50) REFERENCES cdm_function(func_id),
+    fillin_func_id          varchar(50),
     window_size_in_hours    varchar(100),
-    derive_func_id          varchar(50) REFERENCES cdm_function(func_id),
+    derive_func_id          varchar(50),
     derive_func_input       text,
     description             text,
     version                 varchar(50),
     unit                    varchar(50),
-    PRIMARY KEY             (db_id, etl_id)
+    PRIMARY KEY             (dataset_id, fid),
+    FOREIGN KEY             (dataset_id, fillin_func_id) REFERENCES cdm_function(dataset_id, func_id),
+    FOREIGN KEY             (dataset_id, derive_func_id) REFERENCES cdm_function(dataset_id, func_id),
     CHECK (category SIMILAR TO 'S|M|T|TWF|G')
 );
+
+DROP TABLE IF EXISTS datalink_feature_mapping;
+CREATE TABLE datalink_feature_mapping (
+    dataset_id          integer,
+    fid                 varchar(50),
+    is_no_add           boolean,
+    is_med_action       boolean,
+    datalink_id         varchar(20),
+    dbtable             text,
+    select_cols         text,
+    where_conditions    text,
+    transform_func_id   varchar(50),
+    api                 varchar(50),
+    api_method          varchar(50),
+    api_method_args     varchar(200),
+    FOREIGN KEY         (dataset_id, datalink_id)       REFERENCES datalink(dataset_id, datalink_id),
+    FOREIGN KEY         (dataset_id, fid)               REFERENCES cdm_feature(dataset_id, fid),
+    FOREIGN KEY         (dataset_id, transform_func_id) REFERENCES cdm_function(dataset_id, func_id)
+);
+
 
 -------------------------------------------------
 -- CDM Data Tables
@@ -97,19 +98,17 @@ CREATE TABLE cdm_feature (
 
 DROP TABLE IF EXISTS pat_enc CASCADE;
 CREATE TABLE pat_enc (
-    db_id           smallint REFERENCES dw_version(db_id),
-    etl_id          smallint REFERENCES dw_version(etl_id),
+    dataset_id      integer REFERENCES dw_version(dataset_id),
     enc_id          serial,
     visit_id        varchar(50) NOT NULL,
     pat_id          varchar(50) NOT NULL,
-    dept_id         varchar(50)
-    PRIMARY KEY     (db_id, etl_id, enc_id),
+    dept_id         varchar(50),
+    PRIMARY KEY     (dataset_id, enc_id)
 );
 
 DROP TABLE IF EXISTS cdm_g;
 CREATE TABLE cdm_g (
-    db_id           smallint REFERENCES dw_version(db_id),
-    etl_id          smallint REFERENCES dw_version(etl_id),
+    dataset_id      integer REFERENCES dw_version(dataset_id),
     model_id        smallint REFERENCES model_version(model_id),
     fid             varchar(50), -- REFERENCES cdm_feature(fid),
     value           text,
@@ -120,37 +119,40 @@ CREATE UNIQUE INDEX cdm_g_idx ON cdm_g (fid);
 
 DROP TABLE IF EXISTS cdm_s;
 CREATE TABLE cdm_s (
-    db_id           smallint REFERENCES dw_version(db_id),
-    etl_id          smallint REFERENCES dw_version(etl_id),
-    enc_id          integer REFERENCES pat_enc(enc_id),
-    fid             varchar(50) REFERENCES cdm_feature(fid),
+    dataset_id      integer,
+    enc_id          integer,
+    fid             varchar(50),
     value           text,
     confidence      integer,
-    PRIMARY KEY (db_id, etl_id, enc_id, fid)
+    PRIMARY KEY     (dataset_id, enc_id, fid),
+    FOREIGN KEY     (dataset_id, enc_id) REFERENCES pat_enc(dataset_id, enc_id),
+    FOREIGN KEY     (dataset_id, fid)    REFERENCES cdm_feature(dataset_id, fid)
 );
 
 DROP TABLE IF EXISTS cdm_m;
 CREATE TABLE cdm_m (
-    db_id           smallint REFERENCES dw_version(db_id),
-    etl_id          smallint REFERENCES dw_version(etl_id),
-    enc_id          integer REFERENCES pat_enc(enc_id),
-    fid             varchar(50) REFERENCES cdm_feature(fid),
+    dataset_id      integer,
+    enc_id          integer,
+    fid             varchar(50),
     line            smallint,
     value           text,
     confidence      integer,
-    PRIMARY KEY (db_id, etl_id, enc_id, fid, line)
+    PRIMARY KEY     (dataset_id, enc_id, fid, line),
+    FOREIGN KEY     (dataset_id, enc_id) REFERENCES pat_enc(dataset_id, enc_id),
+    FOREIGN KEY     (dataset_id, fid)    REFERENCES cdm_feature(dataset_id, fid)
 );
 
 DROP TABLE IF EXISTS cdm_t;
 CREATE TABLE cdm_t (
-    db_id           smallint REFERENCES dw_version(db_id),
-    etl_id          smallint REFERENCES dw_version(etl_id),
-    enc_id          integer REFERENCES pat_enc(enc_id),
+    dataset_id      integer,
+    enc_id          integer,
     tsp             timestamptz,
-    fid             varchar(50) REFERENCES cdm_feature(fid),
+    fid             varchar(50),
     value           text,
     confidence      integer,
-    PRIMARY KEY (db_id, etl_id, enc_id, tsp, fid)
+    PRIMARY KEY     (dataset_id, enc_id, tsp, fid),
+    FOREIGN KEY     (dataset_id, enc_id) REFERENCES pat_enc(dataset_id, enc_id),
+    FOREIGN KEY     (dataset_id, fid)    REFERENCES cdm_feature(dataset_id, fid)
 );
 
 
@@ -160,14 +162,13 @@ DROP TABLE IF EXISTS trews;
 DROP TABLE IF EXISTS criteria_meas;
 CREATE TABLE criteria_meas
 (
-    db_id           smallint REFERENCES dw_version(db_id),
-    etl_id          smallint REFERENCES dw_version(etl_id),
+    dataset_id      integer REFERENCES dw_version(dataset_id),
     pat_id          varchar(50),
     tsp             timestamptz,
     fid             varchar(50),
     value           text,
     update_date     timestamptz,
-    primary key     (db_id, etl_id, pat_id, tsp, fid)
+    primary key     (dataset_id, pat_id, tsp, fid)
 );
 
 DO $$
@@ -182,8 +183,7 @@ END$$;
 DROP TABLE IF EXISTS criteria;
 CREATE TABLE criteria
 (
-    db_id               smallint REFERENCES dw_version(db_id),
-    etl_id              smallint REFERENCES dw_version(etl_id),
+    dataset_id          integer REFERENCES dw_version(dataset_id),
     pat_id              varchar(50),
     name                varchar(50),
     is_met              boolean,
@@ -193,15 +193,14 @@ CREATE TABLE criteria
     override_value      json,
     value               text,
     update_date         timestamptz,
-    primary key (db_id, etl_id, pat_id, name)
+    primary key         (dataset_id, pat_id, name)
 );
 
 DROP TABLE IF EXISTS criteria_events;
 CREATE SEQUENCE IF NOT EXISTS criteria_event_ids;
 CREATE TABLE criteria_events
 (
-    db_id               smallint REFERENCES dw_version(db_id),
-    etl_id              smallint REFERENCES dw_version(etl_id),
+    dataset_id          integer REFERENCES dw_version(dataset_id),
     event_id            int,
     pat_id              varchar(50),
     name                varchar(50),
@@ -213,7 +212,7 @@ CREATE TABLE criteria_events
     value               text,
     update_date         timestamptz,
     flag                int,
-    primary key (db_id, etl_id, event_id, pat_id, name)
+    primary key (dataset_id, event_id, pat_id, name)
 );
 
 DO $$
@@ -229,14 +228,13 @@ END$$;
 DROP TABLE IF EXISTS criteria_log;
 CREATE TABLE criteria_log
 (
-    db_id           smallint REFERENCES dw_version(db_id),
-    etl_id          smallint REFERENCES dw_version(etl_id),
+    dataset_id      integer REFERENCES dw_version(dataset_id),
     log_id          serial,
     pat_id          varchar(50),
     tsp             timestamptz,
     event           json,
     update_date     timestamptz,
-    PRIMARY KEY     (db_id, etl_id, log_id)
+    PRIMARY KEY     (dataset_id, log_id)
 );
 
 DO $$
@@ -250,8 +248,7 @@ END$$;
 DROP TABLE IF EXISTS criteria_meas_archive;
 CREATE TABLE criteria_meas_archive
 (
-    db_id           smallint        REFERENCES dw_version(db_id),
-    etl_id          smallint        REFERENCES dw_version(etl_id),
+    dataset_id      integer REFERENCES dw_version(dataset_id),
     pat_id          varchar(50)     not null,
     tsp             timestamptz     not null,
     fid             varchar(50)     not null,
@@ -262,8 +259,7 @@ CREATE TABLE criteria_meas_archive
 DROP TABLE IF EXISTS criteria_archive;
 CREATE TABLE criteria_archive
 (
-    db_id               smallint REFERENCES dw_version(db_id),
-    etl_id              smallint REFERENCES dw_version(etl_id),
+    dataset_id          integer REFERENCES dw_version(dataset_id),
     pat_id              varchar(50)     not null,
     name                varchar(50)     not null,
     is_met              boolean,
@@ -277,34 +273,31 @@ CREATE TABLE criteria_archive
 DROP TABLE IF EXISTS criteria_default;
 CREATE TABLE criteria_default
 (
-    db_id               smallint REFERENCES dw_version(db_id),
-    etl_id              smallint REFERENCES dw_version(etl_id),
+    dataset_id          integer REFERENCES dw_version(dataset_id),
     name                varchar(50),
     fid                 varchar(50),
     override_value      json,
     category            varchar(50),
-    primary key(db_id, etl_id, name, fid, category)
+    primary key         (dataset_id, name, fid, category)
 );
 
 DROP TABLE IF EXISTS notifications;
 CREATE  TABLE notifications
 (
-    db_id               smallint REFERENCES dw_version(db_id),
-    etl_id              smallint REFERENCES dw_version(etl_id),
+    dataset_id          integer REFERENCES dw_version(dataset_id),
     notification_id     serial,
     pat_id              varchar(50) not null,
     message             json,
-    primary key (db_id, etl_id, notification_id)
+    primary key         (dataset_id, notification_id)
 );
 
 DROP TABLE IF EXISTS parameters;
 CREATE  TABLE parameters
 (
-    db_id       smallint REFERENCES dw_version(db_id),
-    etl_id      smallint REFERENCES dw_version(etl_id),
+    dataset_id  integer REFERENCES dw_version(dataset_id),
     name        text,
     value       text not null,
-    primary key (db_id, etl_id, name)
+    primary key (dataset_id, name)
 );
 
 -----------------------------------
@@ -337,7 +330,7 @@ CREATE TABLE trews_parameters
     model_id    integer REFERENCES model_version(model_id),
     name        text,
     value       real,
-    PRIMARY KEY (model_id, fid)
+    PRIMARY KEY (model_id, name)
 );
 
 -- TODO: load these constants/parameters via prod2dw ETL.
@@ -349,9 +342,8 @@ CREATE TABLE trews_parameters
 
 DROP TABLE IF EXISTS cdm_twf;
 CREATE TABLE cdm_twf (
-    db_id                                  smallint REFERENCES dw_version(db_id),
-    etl_id                                 smallint REFERENCES dw_version(etl_id),
-    enc_id                                 integer REFERENCES pat_enc(enc_id),
+    dataset_id                             integer,
+    enc_id                                 integer,
     tsp                                    timestamptz,
     pao2                                   real,
     hepatic_sofa                           integer,
@@ -439,14 +431,14 @@ CREATE TABLE cdm_twf (
     septic_shock                           integer,
     lactate                                real,
     minutes_since_any_organ_fail           integer,
-    PRIMARY KEY (db_id, etl_id, enc_id, tsp)
+    PRIMARY KEY     (dataset_id, enc_id, tsp),
+    FOREIGN KEY     (dataset_id, enc_id) REFERENCES pat_enc(dataset_id, enc_id)
 );
 
 DROP TABLE IF EXISTS cdm_twf;
 CREATE TABLE cdm_twf_c (
-    db_id                                  smallint REFERENCES dw_version(db_id),
-    etl_id                                 smallint REFERENCES dw_version(etl_id),
-    enc_id                                 integer REFERENCES pat_enc(enc_id),
+    dataset_id                             integer,
+    enc_id                                 integer,
     tsp                                    timestamptz,
     pao2_c                                 integer,
     hepatic_sofa_c                         integer,
@@ -535,14 +527,14 @@ CREATE TABLE cdm_twf_c (
     lactate_c                              integer,
     minutes_since_any_organ_fail_c         integer,
     meta_data                              json,
-    PRIMARY KEY (db_id, etl_id, enc_id, tsp)
+    PRIMARY KEY     (dataset_id, enc_id, tsp),
+    FOREIGN KEY     (dataset_id, enc_id) REFERENCES pat_enc(dataset_id, enc_id)
 );
 
 DROP TABLE IF EXISTS trews;
 CREATE TABLE trews (
-    db_id                                  smallint REFERENCES dw_version(db_id),
-    etl_id                                 smallint REFERENCES dw_version(etl_id),
-    enc_id                                 integer REFERENCES pat_enc(enc_id),
+    dataset_id                             integer,
+    enc_id                                 integer,
     tsp                                    timestamptz,
     trewscore                              real,
     pao2                                   real,
@@ -631,36 +623,34 @@ CREATE TABLE trews (
     septic_shock                           integer,
     lactate                                real,
     minutes_since_any_organ_fail           integer,
-    PRIMARY KEY (db_id, etl_id, enc_id, tsp)
+    PRIMARY KEY     (dataset_id, enc_id, tsp),
+    FOREIGN KEY     (dataset_id, enc_id) REFERENCES pat_enc(dataset_id, enc_id)
 );
 
 CREATE SCHEMA IF NOT EXISTS workspace;
 
 DROP TABLE IF EXISTS pat_status;
 CREATE TABLE pat_status (
-    db_id               smallint REFERENCES dw_version(db_id),
-    etl_id              smallint REFERENCES dw_version(etl_id),
+    dataset_id          integer REFERENCES dw_version(dataset_id),
     pat_id              varchar(50),
     deactivated         boolean,
     deactivated_tsp     timestamptz,
-    primary key         (db_id, etl_id, pat_id)
+    primary key         (dataset_id, pat_id)
 );
 
 DROP TABLE IF EXISTS deterioration_feedback;
 CREATE TABLE deterioration_feedback (
-    db_id               smallint REFERENCES dw_version(db_id),
-    etl_id              smallint REFERENCES dw_version(etl_id),
-    pat_id              varchar(50) primary key,
+    dataset_id          integer REFERENCES dw_version(dataset_id),
+    pat_id              varchar(50),
     tsp                 timestamptz,
     deterioration       json,
     uid                 varchar(50),
-    primary key         (db_id, etl_id, pat_id)
+    primary key         (dataset_id, pat_id)
 );
 
 DROP TABLE IF EXISTS feedback_log;
 CREATE TABLE feedback_log (
-    db_id               smallint REFERENCES dw_version(db_id),
-    etl_id              smallint REFERENCES dw_version(etl_id),
+    dataset_id          integer REFERENCES dw_version(dataset_id),
     doc_id              varchar(50),
     tsp                 timestamptz,
     pat_id              varchar(50),
