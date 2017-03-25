@@ -1,5 +1,4 @@
 from etl.transforms.primitives.df import derive
-from etl.transforms.primitives.df import extract
 from etl.transforms.primitives.df import format_data
 from etl.transforms.primitives.df import restructure
 from etl.transforms.primitives.df import translate

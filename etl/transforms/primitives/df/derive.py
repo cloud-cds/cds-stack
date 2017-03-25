@@ -23,3 +23,20 @@ def derive_lab_status(df):
     df['status'] = df.apply(get_status, axis=1)
     df.drop(['order_status', 'proc_status'], axis=1, inplace=True)
     return df
+
+def derive_lab_status_clarity(df):
+
+    def get_status(row):
+        order = row['order_status']
+        proc = row['proc_status']
+        if row['order_status'] == '' and row['proc_status'] == '':
+            return 'Signed'
+        elif row['order_status'] == 'Sent' and row['proc_status'] == '':
+            return 'Sent'
+        else:
+            return row['proc_status']
+
+    df['status'] = df.apply(get_status, axis=1)
+    df.drop(['order_status', 'proc_status'], axis=1, inplace=True)
+
+    return df

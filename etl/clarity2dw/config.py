@@ -14,7 +14,8 @@ class Config:
   LOG_CONF = os.path.join(CONF, 'logging.conf')
   CDM_FEATURE_CSV = os.path.join(CONF, 'CDM_Feature.csv')
   CDM_FUNCTION_CSV = os.path.join(CONF, 'CDM_Function.csv')
-  DB_NAME = "opsdx_dev"
+  FEATURE_MAPPING_CSV = os.path.join(CONF, 'feature_mapping.csv')
+  DB_NAME = "opsdx_dw_test"
   LOG_FMT = '%(asctime)s|%(name)s|%(levelname)s|%(message)s'
 
   def set_log(self, log):
