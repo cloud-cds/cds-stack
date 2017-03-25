@@ -326,7 +326,7 @@ def get_patient_profile(pat_id):
     ) DETF on true
     ''' % { 'pid': pat_id }
     conn = db_engine.connect()
-    result = conn.execute(get_patient_profile_sql)
+    result = conn.execute(get_patient_profile_sql).fetchall()
     conn.close()
 
     profile = {
