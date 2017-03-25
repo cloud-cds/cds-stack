@@ -17,30 +17,25 @@
 
     git clone https://github.com/dashan-emr/dashan-etl.git
     cd dashan-etl
-    pip install -r requirements.txt
-    pip install -e .
+    pip3 install virtualenvwrapper
+    mkvirtualenv dashan-etl --python=python3.6
+    pip3 install -r requirements.txt
+    pip3 install -e .
 
 
 # Project layout
 
 ```
 etl/
-├── archive/
-│   ├── engine.py
-│   ├── extractor.py
-│   └── utils/
+├── clarity2dw/
 ├── core/
+│   ├── config.py
 │   ├── engine.py
+│   ├── exceptions.py
 │   └── task.py
-├── offline/
-│   ├── engine.py
-│   ├── extractor.py
-│   ├── ...
-│   └── utils/
-├── online/
-│   ├── engine.py
-│   ├── extractor.py
-│   └── utils/
+├── epic2op/
+├── mappings/
+├── op2dw/
 └── transforms/
     ├── primitives/
     │   ├── df/
@@ -58,8 +53,12 @@ _Scheduler implementation for an ETL pipeline_
 
 - Engine Class
     - Maintains a queue of work and executes that queue
-- Task
+- Task Class
     - The representation of work
+- Config
+    - Shared constants and variables across entire project
+- Exceptions
+    - Custom exceptions
 
 ## Transforms
 _All functionality related to transforming data from its raw format to final output_
@@ -67,19 +66,19 @@ _All functionality related to transforming data from its raw format to final out
 - Primitive, stateless transform functions (defined by data object type)
 - Pipelines - configuration files defining transformation pipelines
 
-## Online
+## epic2op
 
 - JHAPI
 &nbsp;&nbsp;&nbsp;:arrow_right:&nbsp;&nbsp;&nbsp;&nbsp;
-{prod,dev} database
+{prod,dev} operations database
 
-## Offline
+## clarity2dw
 
 - Clarity
 &nbsp;&nbsp;&nbsp;:arrow_right:&nbsp;&nbsp;&nbsp;&nbsp;
 data-warehouse database
 
-## Archive
+## op2dw
 
 - Prod
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:arrow_right:&nbsp;&nbsp;&nbsp;&nbsp;
