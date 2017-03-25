@@ -1,6 +1,7 @@
 import etl.transforms.primitives.df.pandas_utils as pandas_utils
 from etl.core.exceptions import TransformError
 from etl.mappings.med_regex import med_regex
+import pandas as pd
 import re
 import logging
 
@@ -51,24 +52,29 @@ def translate_med_name_to_fid(med_data):
 
 
 def extract_sys_dias_from_nbp(df, fid_col, value_col):
-    def split_sys_dias(row):
-        bp = str(row[value_col]).split("/")
-        if (len(bp) != 2) or (not bp[0].isdigit()) or (not bp[1].isdigit()):
-            logging.error('Error in blood pressure value. Cannot extract' +
-                          ' systolic and diastolic.\n' + row.to_string())
-            return row
-        sys_row = row.copy()
-        dias_row = row.copy()
-        sys_row[fid_col] = 'nbp_sys'
-        dias_row[fid_col] = 'nbp_dias'
-        sys_row[value_col] = float(bp[0])
-        dias_row[value_col] = float(bp[1])
-        return (sys_row, dias_row)
+    def get_sys(row):
+        if (len(row) != 2) or (not row[0].isdigit()):
+            logging.error('Error in systolic.\n' + row.to_string())
+            return 0
+        return float(row[0])
 
-    new_dfs = df[df[fid_col] == 'nbp'].apply(split_sys_dias, axis=1)
-    for sys, dias in new_dfs:
-        df = df.append([sys, dias])
-    return df[df[fid_col] != 'nbp']
+    def get_dias(row):
+        if (len(row) != 2) or (not row[1].isdigit()):
+            logging.error('Error in diastolic.\n' + row.to_string())
+            return 0
+        return float(row[1])
+
+    nbp_rows = (df[fid_col] == 'nbp')
+    nbp_df = df[nbp_rows]
+    nbp_sys = nbp_df[value_col].str.split("/").apply(get_sys, 1)
+    nbp_dias = nbp_df[value_col].str.split("/").apply(get_dias, 1)
+    nbp_df = nbp_df.drop([value_col, fid_col], axis=1)
+    nbp_sys.name = value_col
+    nbp_dias.name = value_col
+    nbp_sys = nbp_df.copy().join(nbp_sys).assign(fid="nbp_sys")
+    nbp_dias = nbp_df.copy().join(nbp_dias).assign(fid="nbp_dias")
+    df = df[~nbp_rows].append([nbp_sys, nbp_dias])
+    return df
 
 def convert_units(df, fid_col, fids, unit_col, from_unit, to_unit, value_col, convert_func):
     def convert_val_in_row(row):
