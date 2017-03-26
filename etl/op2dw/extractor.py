@@ -155,7 +155,10 @@ class Extractor:
     if not self.primary_key:
       await self.get_primary_key(pool, self.dest_table)
 
-    if self.source_table == 'cdm_twf':
+    # TODO: change when migrated to split cdm_twf and cdm_twf_c tables.
+    with_split_cdm_twf = False
+
+    if with_split_cdm_twf and self.source_table == 'cdm_twf':
       src_fields, dst_fields = self.split_fields()
 
       common_fields = ['enc_id', 'tsp']
