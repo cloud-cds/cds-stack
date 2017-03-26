@@ -38,6 +38,8 @@ class Extractor:
 
   async def run_fillin(self, conn):
     self.log.info("start fillin pipeline")
+    # TODO make cdm_feature_dict as a self.xxx
+    # NOTE: we could optimize fillin in one run, e.g., update set all columns
     cdm_feature_dict = await self.get_cdm_feature_dict(conn)
     for fid in cdm_feature_dict:
       feature = cdm_feature_dict[fid]
@@ -131,6 +133,7 @@ class Extractor:
 
   async def populate_feature_to_cdm(self, mapping, conn, visit_id_dict,
                      pat_id_dict, cdm_feature_attributes, plan=False):
+    # TODO: split the code for better read
     data_type = cdm_feature_attributes['data_type']
     fid = mapping['fid']
     self.log.info('importing feature value fid %s' % fid)
