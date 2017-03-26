@@ -62,8 +62,8 @@ class Engine(object):
     logging.info("Running op2dw ETL")
     dataset_id = 1
     model_id = 1
-    for tbl, as_model in tables_to_load.items():
-      e = Extractor(remote_server, dataset_id, model_id, tbl, as_model_extension=as_model)
+    for tbl, version_type in tables_to_load.items():
+      e = Extractor(remote_server, dataset_id, model_id, tbl, version_extesion=version_type)
       await e.run(self.dbpool)
 
 if __name__ == '__main__':
