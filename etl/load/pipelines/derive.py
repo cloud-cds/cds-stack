@@ -73,8 +73,50 @@ async def derive_feature(log, feature, conn, twf_table='cdm_twf'):
   derive_func_input = feature['derive_func_input']
   log.info("derive feature %s, function %s, inputs (%s)" \
     % (fid, derive_func_id, derive_func_input))
-  derive_func.derive(fid, derive_func_id, derive_func_input, conn, log, twf_table)
+  self.derive_func_driver(fid, derive_func_id, derive_func_input, conn, log, twf_table)
   log.info("derive feature %s end." % fid)
+
+def cdm_twf_clean(self, fid, value='null', confidence='null', twf_table='cdm_twf'):
+    """ set a twf feature's value and confidence to the input arguments """
+    update_sql = """
+    UPDATE %(twf_table)s SET %(fid)s = %(value)s, %(fid)s_c = %(confidence)s;
+    """ % {'fid':fid, 'value':value, 'confidence':confidence,
+         'twf_table': twf_table}
+    return update_sql
+
+async def derive_func_driver(fid, derive_func_id, derive_func_input, conn, log, twf_table):
+  if fid in derive_config:
+    config_entry = derive_config[fid]
+    fid_input_items = [item.strip() for item in fid_input.split(',')]
+
+    if fid_input_items == config_entry['fid_input_items']:
+      cdm_clean_sql = self.cdm_twf_clean(twf_table=twf_table)
+      update_clause = ''
+      if config_entry['derive_type'] == 'simple':
+        update_clause = """
+        UPDATE %(twf_table)s SET %(fid)s = %(update_expr)s,
+          %(fid)s_c = %(c_update_expr)s
+        """ % {
+          'fid':fid,
+          'update_expr': config_entry['fid_update_expr'],
+          'c_update_expr': config_entry['fid_c_update_expr'],
+          'twf_table': twf_table
+        }
+
+      elif config_entry['derive_type'] == 'subquery':
+        pass
+
+      sql = cdm_clean_sql + update_clause
+      log.debug(sql)
+      await conn.execute(sql)
+
+    else:
+      log.warn("fid_input dismatch")
+  else:
+    log.warn("Derive function is not implemented in driver, so we use legacy derive function")
+    derive_func.derive(fid, derive_func_id, derive_func_input, conn, log, twf_table)
+
+
 
 derive_config = {
   'bun_to_cr': {
@@ -453,44 +495,4 @@ derive_config = {
     'fid_c_update_expr': '',
   },
 }
-
-def cdm_twf_clean(self, fid, value='null', confidence='null', twf_table='cdm_twf'):
-    """ set a twf feature's value and confidence to the input arguments """
-    update_sql = """
-    UPDATE %(twf_table)s SET %(fid)s = %(value)s, %(fid)s_c = %(confidence)s;
-    """ % {'fid':fid, 'value':value, 'confidence':confidence,
-         'twf_table': twf_table}
-    return update_sql
-
-async def derive_func_driver(fid, derive_func_id, derive_func_input, conn, log, twf_table):
-  if fid in derive_config:
-    config_entry = derive_config[fid]
-    fid_input_items = [item.strip() for item in fid_input.split(',')]
-
-    if fid_input_items == config_entry['fid_input_items']:
-      cdm_clean_sql = self.cdm_twf_clean(twf_table=twf_table)
-      update_clause = ''
-      if config_entry['derive_type'] == 'simple':
-        update_clause = """
-        UPDATE %(twf_table)s SET %(fid)s = %(update_expr)s,
-          %(fid)s_c = %(c_update_expr)s
-        """ % {
-          'fid':fid,
-          'update_expr': config_entry['fid_update_expr'],
-          'c_update_expr': config_entry['fid_c_update_expr'],
-          'twf_table': twf_table
-        }
-
-      elif config_entry['derive_type'] == 'subquery':
-        pass
-
-      sql = cdm_clean_sql + update_clause
-      log.debug(sql)
-      await conn.execute(sql)
-
-    else:
-      log.warn("fid_input dismatch")
-  else:
-    log.warn("Derive function is not implemented in driver, so we use legacy derive function")
-    derive_func.derive(fid, derive_func_id, derive_func_input, conn, log, twf_table)
 
