@@ -1,5 +1,5 @@
 import json
-import etl.transforms.confidence as confidence
+import etl.confidence as confidence
 
 def load_discharge_json(entry, log):
     tsp = entry['HOSP_DISCH_TIME']

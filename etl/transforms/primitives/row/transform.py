@@ -7,7 +7,7 @@ list all transform functions
 ######################################################
 
 import json, sys, traceback
-import etl.transforms.confidence as confidence
+import etl.confidence as confidence
 from datetime import datetime, timedelta
 from etl.transforms.primitives.row.load_discharge_json import *
 from etl.transforms.primitives.row.convert_salmeterol_dose import *
