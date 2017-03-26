@@ -63,7 +63,7 @@ class Engine(object):
     dataset_id = 1
     model_id = 1
     for tbl, version_type in tables_to_load.items():
-      e = Extractor(remote_server, dataset_id, model_id, tbl, version_extesion=version_type)
+      e = Extractor(remote_server, dataset_id, model_id, tbl, version_extension=version_type)
       await e.run(self.dbpool)
 
 if __name__ == '__main__':
