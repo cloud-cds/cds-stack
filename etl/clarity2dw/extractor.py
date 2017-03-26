@@ -11,8 +11,8 @@ PLAN = False
 recalculate_popmean = False # if False, then remember to import cdm_g before extraction
 pipeline = [
   # "transform",
-  "fillin",
-  # "derive",
+  # "fillin",
+  "derive",
 ]
 
 class Extractor:
@@ -24,6 +24,7 @@ class Extractor:
   async def run(self):
     self.log.info("start to run clarity ETL")
     async with self.pool.acquire() as conn:
+      self.cdm_feature_dict = await self.get_cdm_feature_dict(conn)
       if "transform" in pipeline:
         await self.transform(conn)
       if "fillin" in pipeline:
@@ -38,19 +39,16 @@ class Extractor:
 
   async def run_fillin(self, conn):
     self.log.info("start fillin pipeline")
-    # TODO make cdm_feature_dict as a self.xxx
     # NOTE: we could optimize fillin in one run, e.g., update set all columns
-    cdm_feature_dict = await self.get_cdm_feature_dict(conn)
-    for fid in cdm_feature_dict:
-      feature = cdm_feature_dict[fid]
+    for fid in self.cdm_feature_dict:
+      feature = self.cdm_feature_dict[fid]
       if feature['category'] == 'TWF' and feature['is_measured']:
         await fillin_pipeline(self.log, conn, feature, recalculate_popmean)
     self.log.info("fillin completed")
 
   async def derive(self, conn):
     self.log.info("start derive pipeline")
-    cdm_feature_dict = await self.get_cdm_feature_dict(conn)
-    await derive_main(self.log, conn, cdm_feature_dict)
+    await derive_main(self.log, conn, self.cdm_feature_dict)
     self.log.info("derive completed")
 
 
@@ -83,7 +81,6 @@ class Extractor:
 
   async def populate_measured_features(self, conn):
     feature_mapping = pd.read_csv(self.config.FEATURE_MAPPING_CSV)
-    cdm_feature_dict = await self.get_cdm_feature_dict(conn)
     pat_mappings = await self.get_pat_mapping(conn)
     visit_id_to_enc_id = pat_mappings['visit_id_to_enc_id']
     pat_id_to_enc_ids = pat_mappings['pat_id_to_enc_ids']
@@ -93,7 +90,7 @@ class Extractor:
       self.log.debug(mapping)
       fid = mapping['fid']
       transform_func_id = str(mapping['transform_func_id'])
-      if fid in cdm_feature_dict:
+      if fid in self.cdm_feature_dict:
         if "." in transform_func_id:
           i = len(transform_func_id) - transform_func_id[::-1].index('.')
           package = transform_func_id[:(i-1)]
@@ -104,7 +101,7 @@ class Extractor:
           await func(conn)
         else:
           await self.populate_feature_to_cdm(mapping, conn,\
-                  visit_id_to_enc_id, pat_id_to_enc_ids, cdm_feature_dict[fid], plan=PLAN)
+                  visit_id_to_enc_id, pat_id_to_enc_ids, self.cdm_feature_dict[fid], plan=PLAN)
       else:
         self.log.warn("feature %s is not in cdm_feature" % fid)
 

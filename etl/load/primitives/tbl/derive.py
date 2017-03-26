@@ -6,7 +6,7 @@ import sys
 import etl.confidence as confidence
 import datetime
 from etl.transforms.primitives.row.transform import STOPPED_ACTIONS
-from etl.load.primitives.tbl.acute_organ_failure_update import *
+from etl.load.primitives.tbl.acute_liver_failure_update import *
 from etl.load.primitives.tbl.acute_pancreatitis_update import *
 from etl.load.primitives.tbl.admit_weight_update import *
 from etl.load.primitives.tbl.change_since_last_measured import *
@@ -15,7 +15,6 @@ from etl.load.primitives.tbl.hemorrhagic_shock_update import *
 from etl.load.primitives.tbl.metabolic_acidosis_update import *
 from etl.load.primitives.tbl.mi_update import *
 from etl.load.primitives.tbl.septic_shock_iii_update import *
-from etl.load.primitives.tbl.septic_shock_iii_update_queries import *
 from etl.load.primitives.tbl.time_since_last_measured import *
 
 def derive(fid, func_id, fid_input, conn, log, twf_table='cdm_twf'):
