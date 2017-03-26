@@ -50,6 +50,7 @@ def lookup_population_mean(fid, fid_input, cdm, twf_table='cdm_twf'):
     else:
       cdm.log.error("lookup_population_mean %s" % fid)
 
+# Simple
 def bun_to_cr_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   assert fid == 'bun_to_cr', 'fid %s is not bun_to_cr' % fid
   fid_input_items = [item.strip() for item in fid_input.split(',')]
@@ -59,10 +60,11 @@ def bun_to_cr_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   update_clause = """
   UPDATE %(twf_table)s SET %(fid)s = %(bun)s/%(creatinine)s,
     %(fid)s_c = %(creatinine)s_c | %(bun)s_c
-  """ % {'fid':fid, 'bun':fid_input_items[0], 
+  """ % {'fid':fid, 'bun':fid_input_items[0],
        'creatinine':fid_input_items[1], 'twf_table':twf_table}
   cdm.update_twf_sql(update_clause)
 
+# Simple
 def pao2_to_fio2_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid_input should be pao2 and fio2 (both are TWF)
@@ -76,10 +78,11 @@ def pao2_to_fio2_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   update_clause = """
   UPDATE %(twf_table)s SET %(fid)s = %(pao2)s/%(fio2)s*100,
     %(fid)s_c = %(fio2)s_c | %(pao2)s_c
-  """ % {'fid':fid, 'pao2':fid_input_items[0], 'fio2':fid_input_items[1], 
+  """ % {'fid':fid, 'pao2':fid_input_items[0], 'fio2':fid_input_items[1],
        'twf_table':twf_table}
   cdm.update_twf_sql(update_clause)
 
+# Simple
 def hepatic_sofa_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid_input should be bilirubin (TWF), unit is mg/dl
@@ -100,6 +103,7 @@ def hepatic_sofa_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   cdm.log.info("hepatic_sofa_update:%s" % update_clause)
   cdm.update_twf_sql(update_clause)
 
+# Simple: sum qsofa with where-clause as 0-1 variable
 def qsofa_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid_input should be resp_rate, sbpm, gcs (TWF)
@@ -131,6 +135,7 @@ def qsofa_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   cdm.log.info("qsofa_update:%s" % update_clause)
   cdm.update_twf_sql(update_clause)
 
+# Simple
 def neurologic_sofa_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid_input should be gcs (TWF)
@@ -151,6 +156,7 @@ def neurologic_sofa_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   cdm.log.info("neurologic_sofa_update:%s" % update_clause)
   cdm.update_twf_sql(update_clause)
 
+# Simple
 def hematologic_sofa_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid_input should be platelets (TWF)
@@ -172,7 +178,7 @@ def hematologic_sofa_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   cdm.update_twf_sql(update_clause)
 
 
-
+# Subquery
 def minutes_since_organ_fail_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be minutes_since_any_organ_fail (TWF)
@@ -218,6 +224,7 @@ def minutes_since_organ_fail_update(fid, fid_input, cdm, twf_table='cdm_twf'):
     {'fid':fid, 'twf_table': twf_table}
   cdm.update_twf_sql(update_default)
 
+# Subquery
 def minutes_since_any_organ_fail_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be minutes_since_any_organ_fail (TWF)
@@ -263,7 +270,7 @@ def minutes_since_any_organ_fail_update(fid, fid_input, cdm, twf_table='cdm_twf'
     % {'fid':fid, 'twf_table': twf_table}
   cdm.update_twf_sql(update_default)
 
-
+# Subquery
 def treatment_within_6_hours_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be treatment_within_6_hours_update (TWF)
@@ -362,7 +369,7 @@ def treatment_within_6_hours_update(fid, fid_input, cdm, twf_table='cdm_twf'):
 #         confidence = record['jh_organ_failure_c']
 #         block_end_tsp = None
 
-
+# Subquery
 def minutes_since_any_antibiotics_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be minutes_since_any_antibiotics (TWF)
@@ -467,7 +474,7 @@ def minutes_since_any_antibiotics_update(fid, fid_input, cdm, twf_table='cdm_twf
 #         confidence = record['confidence']
 #         block_end_tsp = None
 
-
+# Subquery
 def minutes_to_shock_onset_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be minutes_to_shock_onset (TWF)
@@ -586,7 +593,7 @@ def minutes_to_shock_onset_update(fid, fid_input, cdm, twf_table='cdm_twf'):
 
 
 
-
+# Simple
 def nbp_mean_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be nbp_mean
@@ -607,7 +614,7 @@ def nbp_mean_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   cdm.log.info("nbp_mean_update:%s" % update_clause)
   cdm.update_twf_sql(update_clause)
 
-
+# Same as intake_output_duration (subquery)
 def urine_output_24hr(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be urine_output_24hr (TWF)
@@ -619,6 +626,7 @@ def urine_output_24hr(fid, fid_input, cdm, twf_table='cdm_twf'):
   win_h = 24
   intake_output_duration(fid, fid_input, win_h, cdm, twf_table=twf_table)
 
+# Same as intake_output_duration (subquery)
 def urine_output_6hr(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be urine_output_6hr (TWF)
@@ -630,6 +638,7 @@ def urine_output_6hr(fid, fid_input, cdm, twf_table='cdm_twf'):
   win_h = 6
   intake_output_duration(fid, fid_input, win_h, cdm, twf_table=twf_table)
 
+# Same as intake_output_duration (subquery)
 def fluids_intake_24hr(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be fluids_intake_24hr (TWF)
@@ -641,6 +650,7 @@ def fluids_intake_24hr(fid, fid_input, cdm, twf_table='cdm_twf'):
   win_h = 24
   intake_output_duration(fid, fid_input, win_h, cdm, twf_table=twf_table)
 
+# Same as intake_output_duration (subquery)
 def fluids_intake_1hr(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be fluids_intake_1hr (TWF)
@@ -652,7 +662,7 @@ def fluids_intake_1hr(fid, fid_input, cdm, twf_table='cdm_twf'):
   win_h = 1
   intake_output_duration(fid, fid_input, win_h, cdm, twf_table=twf_table)
 
-
+# Same as intake_output_duration (subquery)
 def fluids_intake_3hr(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be fluids_intake_3hr (TWF)
@@ -664,6 +674,7 @@ def fluids_intake_3hr(fid, fid_input, cdm, twf_table='cdm_twf'):
   win_h = 3
   intake_output_duration(fid, fid_input, win_h, cdm, twf_table=twf_table)
 
+# Subquery
 def intake_output_duration(fid, fid_input, win_h, cdm, twf_table='cdm_twf'):
   cdm.clean_twf(fid, value=0, confidence=0,twf_table=twf_table)
   update_sql = """
@@ -683,6 +694,7 @@ def intake_output_duration(fid, fid_input, win_h, cdm, twf_table='cdm_twf'):
   cdm.log.info(update_sql)
   cdm.update_twf_sql(update_sql)
 
+# Same as any_continuous_dose_update (special case)
 def any_antibiotics_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be any_antibiotics (T, boolean)
@@ -695,6 +707,7 @@ def any_antibiotics_update(fid, fid_input, cdm, twf_table='cdm_twf'):
       'wrong fid_input %s' % fid_input
   any_dose_update(fid, fid_input, cdm, twf_table=twf_table)
 
+# Same as any_continuous_dose_update (special case)
 def any_antibiotics_order_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be any_antibiotics_order (T, boolean)
@@ -707,6 +720,7 @@ def any_antibiotics_order_update(fid, fid_input, cdm, twf_table='cdm_twf'):
       'wrong fid_input %s' % fid_input
   any_med_order_update(fid, fid_input, cdm, twf_table=twf_table)
 
+# Same as any_continuous_dose_update (special case)
 def any_pressor_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be any_pressor (T, boolean)
@@ -720,6 +734,7 @@ def any_pressor_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   for dose in fid_input_items:
     any_continuous_dose_update(fid, dose, cdm, twf_table=twf_table)
 
+# Same as any_continuous_dose_update (special case)
 def any_inotrope_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be any_inotrope (T, boolean)
@@ -734,6 +749,7 @@ def any_inotrope_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   for dose in fid_input_items:
     any_continuous_dose_update(fid, dose, cdm, twf_table=twf_table)
 
+# Special case
 def any_continuous_dose_update(fid, dose, cdm, twf_table='cdm_twf'):
   global STOPPED_ACTIONS
   select_sql = """
@@ -769,6 +785,7 @@ def any_continuous_dose_update(fid, dose, cdm, twf_table='cdm_twf'):
       block = {'enc_id':enc_id, 'start_tsp':tsp, 'end_tsp':None,
            'start_c': 0, 'end_c': 0}
 
+# Special case
 def update_continuous_dose_block(fid, block, cdm, twf_table='cdm_twf'):
   select_sql = """
     select value from cdm_t where enc_id = %s and fid = '%s'
@@ -803,7 +820,7 @@ def update_continuous_dose_block(fid, block, cdm, twf_table='cdm_twf'):
       cdm.insert_t([block['enc_id'], block['end_tsp'], fid,
               False, block['end_c']])
 
-
+# Same as any_dose_update (special case)
 def glucocorticoid_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be glucocorticoid (T, boolean)
@@ -816,6 +833,7 @@ def glucocorticoid_update(fid, fid_input, cdm, twf_table='cdm_twf'):
       'wrong fid_input %s' % fid_input
   any_dose_update(fid, fid_input, cdm)
 
+# Same as any_dose_update (special case)
 def beta_blocker_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be any_beta_blocker (T, boolean)
@@ -828,6 +846,7 @@ def beta_blocker_update(fid, fid_input, cdm, twf_table='cdm_twf'):
       'wrong fid_input %s' % fid_input
   any_dose_update(fid, fid_input, cdm)
 
+# Same as any_dose_update (special case)
 def anticoagulant_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be anticoagulant (T, boolean)
@@ -840,6 +859,7 @@ def anticoagulant_update(fid, fid_input, cdm, twf_table='cdm_twf'):
       'wrong fid_input %s' % fid_input
   any_dose_update(fid, fid_input, cdm)
 
+# Special case
 def any_dose_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   # Updated on 3/19/2016
   cdm.clean_t(fid)
@@ -858,7 +878,7 @@ def any_dose_update(fid, fid_input, cdm, twf_table='cdm_twf'):
           row['confidence']]
     cdm.upsert_t(values)
 
-
+# Special case
 def any_med_order_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   # Updated on 3/19/2016
   cdm.clean_t(fid)
@@ -882,7 +902,7 @@ def any_med_order_update(fid, fid_input, cdm, twf_table='cdm_twf'):
 
 
 
-
+# Simple
 def sirs_wbc_oor_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be sirs_wbc_oor (TWF)
@@ -899,7 +919,7 @@ def sirs_wbc_oor_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """ % {'fid':fid, 'wbc':fid_input, 'twf_table': twf_table}
   cdm.update_twf_sql(update_clause)
 
-
+# Simple
 def obstructive_pe_shock_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be obstructive_pe_shock (TWF)
@@ -924,6 +944,7 @@ def obstructive_pe_shock_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """ % {'twf_table': twf_table}
   cdm.update_twf_sql(update_clause)
 
+# Special case
 def suspicion_of_infection_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   # 03/20/2016
   assert fid == 'suspicion_of_infection', 'wrong fid %s' % fid
@@ -963,7 +984,7 @@ def suspicion_of_infection_update(fid, fid_input, cdm, twf_table='cdm_twf'):
           row['confidence']]
     cdm.upsert_t(values)
 
-
+# Simple
 def sirs_hr_oor_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be sirs_hr_oor (TWF)
@@ -977,6 +998,7 @@ def sirs_hr_oor_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """ % {'fid':fid, 'hr':fid_input, 'twf_table': twf_table}
   cdm.update_twf_sql(update_clause)
 
+# Simple
 def sirs_resp_oor_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be sirs_resp_oor (TWF)
@@ -1001,6 +1023,7 @@ def sirs_resp_oor_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """ % {'twf_table': twf_table}
   cdm.update_twf_sql(update_clause)
 
+# Simple
 def sirs_temperature_oor_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be sirs_temprature_oor (TWF)
@@ -1015,6 +1038,7 @@ def sirs_temperature_oor_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """ % {'fid':fid, 'temp':fid_input, 'twf_table': twf_table}
   cdm.update_twf_sql(update_clause)
 
+# Simple
 def shock_idx_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be shock_idx (TWF)
@@ -1051,6 +1075,7 @@ def shock_idx_update(fid, fid_input, cdm, twf_table='cdm_twf'):
 #     """ % {'fid':fid, 'sbpm':fid_input_items[0], 'mapm':fid_input_items[1]}
 #     cdm.update_twf_sql(update_clause)
 
+# Simple
 def hypotension_raw_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   UPDATE 2/22/2016
@@ -1072,6 +1097,7 @@ def hypotension_raw_update(fid, fid_input, cdm, twf_table='cdm_twf'):
        'twf_table': twf_table}
   cdm.update_twf_sql(update_clause)
 
+# Special subquery (subquery with if-then-else cases)
 def hypotension_intp_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   assert fid == 'hypotension_intp', 'wrong fid %s' % fid
   assert fid_input == 'hypotension_raw', 'wrong fid_input %s' % fid
@@ -1149,6 +1175,7 @@ def hypotension_intp_update(fid, fid_input, cdm, twf_table='cdm_twf'):
       # both current and previous hypotension_raw are 1
       block_c = block_c | rec['hypotension_raw_c']
 
+# Special subquery (multiple subqueries)
 def sirs_intp_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   SIRS_INTP 30m version
@@ -1427,6 +1454,7 @@ def sirs_intp_update(fid, fid_input, cdm, twf_table='cdm_twf'):
 #             interval_end = None
 #             interval_c = 0
 
+# Simple (w/ complex expressions)
 def sepsis_related_organ_failure_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be sepsis_related_organ_failure
@@ -1480,6 +1508,7 @@ def sepsis_related_organ_failure_update(fid, fid_input, cdm, twf_table='cdm_twf'
   """ % {'fid':fid, 'twf_table': twf_table}
   cdm.update_twf_sql(update_clause)
 
+# Simple (w/ complex expressions)
 def acute_organ_failure_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be acute_organ_failure
@@ -1540,6 +1569,7 @@ def acute_organ_failure_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """ % {'fid':fid, 'twf_table': twf_table}
   cdm.update_twf_sql(update_clause)
 
+# Simple (w/ complex expressions)
 def severe_sepsis_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   update 4/17/2016
@@ -1568,6 +1598,7 @@ def severe_sepsis_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """ % {'twf_table': twf_table}
   cdm.update_twf_sql(update_clause)
 
+# Simple (w/ complex expressions)
 def renal_sofa_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be renal_sofa (TWF)
@@ -1608,6 +1639,7 @@ def renal_sofa_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   cdm.update_twf_sql(update_clause)
 
 
+# Simple (w/ complex expressions)
 def cmi_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   update on 3/21/2017
@@ -1727,6 +1759,7 @@ def cmi_update(fid, fid_input, cdm, twf_table='cdm_twf'):
 #         """ % {'fid':fid, 'enc_id': rec['enc_id']}
 #         cdm.update_twf_sql(update_clause)
 
+# Subquery chain
 def septic_shock_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   # UPDATE 8/19/2016
   assert fid == 'septic_shock', 'wrong fid %s' % fid
@@ -1898,6 +1931,7 @@ def septic_shock_update(fid, fid_input, cdm, twf_table='cdm_twf'):
 #     if enc_id_cur is not None:
 #         cdm.update_twf_sql(update_sql_wo_stop % (enc_id, start_tsp))
 
+# Simple
 def worst_sofa_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be worst_sofa_update
@@ -1924,6 +1958,7 @@ def worst_sofa_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   cdm.log.debug('sql:' + update_clause)
   cdm.update_twf_sql(update_clause)
 
+# Simple
 def any_organ_failure_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid_input should be worst_sofa (TWF)
@@ -1942,7 +1977,7 @@ def any_organ_failure_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   cdm.update_twf_sql(update_clause)
 
 
-
+# Simple
 def sirs_raw_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be sirs_raw (TWF)
@@ -1983,6 +2018,7 @@ def sirs_raw_update(fid, fid_input, cdm, twf_table='cdm_twf'):
 #     """
 #     cdm.update_twf_sql(update_clause)
 
+# Simple
 def mapm_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   # UPDATE 2/22/2016
   fid_input_items = [item.strip() for item in fid_input.split(',')]
@@ -2030,7 +2066,7 @@ def mapm_update(fid, fid_input, cdm, twf_table='cdm_twf'):
 #     , dbpm_c = coalesce(abp_dias_c, 0) | coalesce(nbp_dias_c, 0);"""
 #     cdm.update_twf_sql(update_clause)
 
-
+# Simple
 def dbpm_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   # UPDATE 2/22/2016
   fid_input_items = [item.strip() for item in fid_input.split(',')]
@@ -2069,6 +2105,7 @@ def dbpm_update(fid, fid_input, cdm, twf_table='cdm_twf'):
 #     , sbpm_c = coalesce(abp_sys_c, 0) | coalesce(nbp_sys_c, 0);"""
 #     cdm.update_twf_sql(update_clause)
 
+# Simple
 def sbpm_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   # UPDATE 2/22/2016
   fid_input_items = [item.strip() for item in fid_input.split(',')]
@@ -2096,7 +2133,7 @@ def sbpm_update(fid, fid_input, cdm, twf_table='cdm_twf'):
 
 
 
-
+# Special case (mini-pipeline)
 def resp_sofa_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be resp_sofa
@@ -2176,6 +2213,7 @@ def resp_sofa_update(fid, fid_input, cdm, twf_table='cdm_twf'):
          'tsp_start':block_start, 'twf_table': twf_table}
     cdm.update_twf_sql(block_update_sql)
 
+# Special case (mini-pipeline)
 def cardio_sofa_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be cardio_sofa
@@ -2383,7 +2421,7 @@ def cardio_sofa_update(fid, fid_input, cdm, twf_table='cdm_twf'):
              'enc_id': rec['enc_id'], 'tsp':rec['tsp'],
              'twf_table': twf_table})
 
-
+# Simple
 def fluid_resuscitation_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   8/19/2016
@@ -2411,6 +2449,7 @@ def fluid_resuscitation_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """ % {'twf_table': twf_table}
   cdm.update_twf_sql(update_clause)
 
+# Special case (mini-pipeline)
 def vasopressor_resuscitation_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid should be vasopressor_resuscitation (TWF, boolean)
@@ -2450,7 +2489,7 @@ def vasopressor_resuscitation_update(fid, fid_input, cdm, twf_table='cdm_twf'):
     action = rec['action']
     if enc_id_cur is not None and enc_id_cur != enc_id:
       # update current enc_id
-      cdm.update_twf_sql(update_sql_wo_stop % {'enc_id':enc_id_cur, 
+      cdm.update_twf_sql(update_sql_wo_stop % {'enc_id':enc_id_cur,
                            'begin':start_tsp,
                            'twf_table': twf_table})
       enc_id_cur = None
@@ -2462,7 +2501,7 @@ def vasopressor_resuscitation_update(fid, fid_input, cdm, twf_table='cdm_twf'):
         # cdm.log.info(update_sql_with_stop % (enc_id_cur,\
         #     start_tsp, stop_tsp))
         cdm.update_twf_sql(update_sql_with_stop % {'enc_id':enc_id_cur,
-                               'begin':start_tsp, 
+                               'begin':start_tsp,
                                'end':stop_tsp,
                                'twf_table': twf_table})
       enc_id_cur = None
@@ -2473,7 +2512,7 @@ def vasopressor_resuscitation_update(fid, fid_input, cdm, twf_table='cdm_twf'):
         enc_id_cur = enc_id
         start_tsp = tsp
   if enc_id_cur is not None:
-    cdm.update_twf_sql(update_sql_wo_stop % {'enc_id':enc_id_cur, 
+    cdm.update_twf_sql(update_sql_wo_stop % {'enc_id':enc_id_cur,
                          'begin':start_tsp,
                          'twf_table': twf_table})
 
@@ -2490,7 +2529,7 @@ def vasopressor_resuscitation_update(fid, fid_input, cdm, twf_table='cdm_twf'):
     action = rec['action']
     if enc_id_cur is not None and enc_id_cur != enc_id:
       # update current enc_id
-      cdm.update_twf_sql(update_sql_wo_stop % {'enc_id':enc_id_cur, 
+      cdm.update_twf_sql(update_sql_wo_stop % {'enc_id':enc_id_cur,
                            'begin':start_tsp,
                            'twf_table': twf_table})
       enc_id_cur = None
@@ -2500,7 +2539,7 @@ def vasopressor_resuscitation_update(fid, fid_input, cdm, twf_table='cdm_twf'):
       stop_tsp = tsp
       if enc_id_cur is not None:
         cdm.update_twf_sql(update_sql_with_stop % {'enc_id':enc_id_cur,
-                               'begin':start_tsp, 
+                               'begin':start_tsp,
                                'end':stop_tsp,
                                'twf_table': twf_table})
       enc_id_cur = None
@@ -2511,7 +2550,7 @@ def vasopressor_resuscitation_update(fid, fid_input, cdm, twf_table='cdm_twf'):
         enc_id_cur = enc_id
         start_tsp = tsp
   if enc_id_cur is not None:
-    cdm.update_twf_sql(update_sql_wo_stop % {'enc_id':enc_id_cur, 
+    cdm.update_twf_sql(update_sql_wo_stop % {'enc_id':enc_id_cur,
                          'begin':start_tsp,
                          'twf_table': twf_table})
 
@@ -2654,7 +2693,7 @@ def vasopressor_resuscitation_update(fid, fid_input, cdm, twf_table='cdm_twf'):
 
 
 
-
+# Special case (mini-pipeline)
 def heart_attack_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   NEED TO MODIFY
@@ -2709,7 +2748,7 @@ def heart_attack_update(fid, fid_input, cdm, twf_table='cdm_twf'):
     # By default set datetime of diagnosis to time given in ProblemList table
     # This datetime only specifies date though
     server_cursor = cdm.select_with_sql(select_troponin % {'enc_id':enc_id,
-                                 'tsp':tsp, 
+                                 'tsp':tsp,
                                  'twf_table': twf_table})
     evidence = server_cursor.fetchall()
     server_cursor.close()
@@ -2732,8 +2771,7 @@ def heart_attack_update(fid, fid_input, cdm, twf_table='cdm_twf'):
 
     cdm.upsert_t([enc_id, tsp_first, fid, 'True', conf])
 
-
-
+# Special case (mini-pipeline)
 def stroke_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid_input should be stroke_inhosp, ct_proc, mri_proc
@@ -2793,7 +2831,7 @@ def stroke_update(fid, fid_input, cdm, twf_table='cdm_twf'):
 
     cdm.upsert_t([enc_id, tsp_first, fid, 'True', conf])
 
-
+# Special case (mini-pipeline)
 def gi_bleed_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid_input should be gi_bleed_inhosp, ct_proc, mri_proc
@@ -2911,7 +2949,7 @@ def gi_bleed_update(fid, fid_input, cdm, twf_table='cdm_twf'):
 
 #         cdm.upsert_t([enc_id, tsp_first, fid, 'True', conf])
 
-
+# Special case (mini-pipeline)
 def severe_pancreatitis_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid_input should be severe_pancreatitis_inhosp, ct_proc, mri_proc
@@ -2969,7 +3007,7 @@ def severe_pancreatitis_update(fid, fid_input, cdm, twf_table='cdm_twf'):
 
     cdm.upsert_t([enc_id, tsp_first, fid, 'True', conf])
 
-
+# Special case (mini-pipeline)
 def pulmonary_emboli_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid_input should be pulmonary_emboli_inhosp, ct_proc, ekg_proc
@@ -3027,7 +3065,7 @@ def pulmonary_emboli_update(fid, fid_input, cdm, twf_table='cdm_twf'):
 
     cdm.upsert_t([enc_id, tsp_first, fid, 'True', conf])
 
-
+# Special case (mini-pipeline)
 def bronchitis_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid_input should be bronchitis_inhosp, chest_xray, bacterial_culture
@@ -3085,7 +3123,7 @@ def bronchitis_update(fid, fid_input, cdm, twf_table='cdm_twf'):
 
     cdm.upsert_t([enc_id, tsp_first, fid, 'True', conf])
 
-
+# Special case (mini-pipeline)
 def acute_kidney_failure_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid_input should be
@@ -3186,7 +3224,7 @@ def acute_kidney_failure_update(fid, fid_input, cdm, twf_table='cdm_twf'):
 
 
 
-
+# Special case (mini-pipeline)
 def ards_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid_input should be ards_inhosp, pao2_to_fio2, vent
@@ -3259,7 +3297,7 @@ def ards_update(fid, fid_input, cdm, twf_table='cdm_twf'):
 
     cdm.upsert_t([enc_id, tsp_first, fid, 'True', conf])
 
-
+# Special case (mini-pipeline)
 def hepatic_failure_update(fid, fid_input, cdm, twf_table='cdm_twf'):
   """
   fid_input should be hepatic_failure_inhosp, bilirubin

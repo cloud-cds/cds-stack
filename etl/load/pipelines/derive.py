@@ -76,3 +76,42 @@ async def derive_feature(log, feature, conn, twf_table='cdm_twf'):
   derive_func.derive(fid, derive_func_id, derive_func_input, conn, log, twf_table)
   log.info("derive feature %s end." % fid)
 
+derive_config = {
+  'bun_to_cr': {
+    'fid_input_items'   : ['bun', 'creatinine'],
+    'derive_type'       : 'simple',
+    'fid_update_expr'   : 'bun/creatinine'
+    'fid_c_update_expr' : 'creatinine_c | bun_c'
+  },
+}
+
+async def derive_func_driver(log, fid, conn, twf_table='cdm_twf'):
+  if fid in derive_config:
+    config_entry = derive_config[fid]
+    fid_input_items = [item.strip() for item in fid_input.split(',')]
+
+    if fid_input_items == config_entry['fid_input_items']:
+
+      cdm.clean_twf(fid, twf_table=twf_table)
+      update_clause = ''
+
+      if config_entry['derive_type'] == 'simple':
+        update_clause = """
+        UPDATE %(twf_table)s SET %(fid)s = %(update_expr)s,
+          %(fid)s_c = %(c_update_expr)s
+        """ % {
+          'fid':fid,
+          'update_expr': config_entry['fid_update_expr'],
+          'c_update_expr': config_entry['fid_c_update_expr']
+        }
+
+      elif config_entry['derive_type'] == 'subquery':
+
+
+      await conn.execute(update_clause)
+
+    else:
+      raise Exception(...)
+  else:
+    raise Exception(...)
+
