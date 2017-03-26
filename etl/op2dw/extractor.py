@@ -155,23 +155,27 @@ class Extractor:
     if not self.primary_key:
       await self.get_primary_key(pool, self.dest_table)
 
-    # TODO: change when migrated to split cdm_twf and cdm_twf_c tables.
-    with_split_cdm_twf = False
+    if self.field_map:
+      # TODO: change when migrated to split cdm_twf and cdm_twf_c tables.
+      with_split_cdm_twf = False
 
-    if with_split_cdm_twf and self.source_table == 'cdm_twf':
-      src_fields, dst_fields = self.split_fields()
+      if with_split_cdm_twf and self.source_table == 'cdm_twf':
+        src_fields, dst_fields = self.split_fields()
 
-      common_fields = ['enc_id', 'tsp']
-      src_vfields = list(filter(lambda nt: nt[0] in common_fields or not(nt[0].endswith('_c')), src_fields))
-      dst_vfields = list(filter(lambda nt: nt[0] in common_fields or not(nt[0].endswith('_c')), dst_fields))
+        common_fields = ['enc_id', 'tsp']
+        src_vfields = list(filter(lambda nt: nt[0] in common_fields or not(nt[0].endswith('_c')), src_fields))
+        dst_vfields = list(filter(lambda nt: nt[0] in common_fields or not(nt[0].endswith('_c')), dst_fields))
 
-      await self.load_query(pool, self.source_table, src_vfields, self.dest_table, dst_vfields, self.primary_key)
+        await self.load_query(pool, self.source_table, src_vfields, self.dest_table, dst_vfields, self.primary_key)
 
-      src_cfields = list(filter(lambda nt: nt[0] in common_fields or nt[0].endswith('_c'), src_fields))
-      dst_cfields = list(filter(lambda nt: nt[0] in common_fields or nt[0].endswith('_c'), dst_fields))
+        src_cfields = list(filter(lambda nt: nt[0] in common_fields or nt[0].endswith('_c'), src_fields))
+        dst_cfields = list(filter(lambda nt: nt[0] in common_fields or nt[0].endswith('_c'), dst_fields))
 
-      await self.load_query(pool, self.source_table, src_cfields, 'cdm_twf_c', dst_cfields, self.primary_key)
+        await self.load_query(pool, self.source_table, src_cfields, 'cdm_twf_c', dst_cfields, self.primary_key)
+
+      else:
+        src_fields, dst_fields = self.split_fields()
+        await self.load_query(pool, self.source_table, src_fields, self.dest_table, dst_fields, self.primary_key)
 
     else:
-      src_fields, dst_fields = self.split_fields()
-      await self.load_query(pool, self.source_table, src_fields, self.dest_table, dst_fields, self.primary_key)
+      logging.warning('Skipping ETL for {}, no remote schema found'.format(self.source_table))
