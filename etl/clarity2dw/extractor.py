@@ -2,8 +2,16 @@ import pandas as pd
 import numpy as np
 from etl.transforms.primitives.row import transform
 from etl.load.primitives.row import load_row
+from etl.load.primitives.tbl import fillin
 import timeit
+
 PLAN = False
+recalculate_popmean = False # if False, then remember to import cdm_g before extraction
+pipeline = [
+  # "transform",
+  "fillin",
+  "derive",
+]
 
 class Extractor:
   def __init__(self, pool, config):
@@ -14,10 +22,35 @@ class Extractor:
   async def run(self):
     self.log.info("start to run clarity ETL")
     async with self.pool.acquire() as conn:
-      await self.init(conn)
-      await self.populate_patients(conn)
-      await self.populate_measured_features(conn)
+      if "transform" in pipeline:
+        await self.transform(conn)
+      if "fillin" in pipeline:
+        await self.run_fillin(conn)
+      if "derive" in pipeline:
+        await self.derive(conn)
 
+  async def transform(self, conn):
+    await self.init(conn)
+    await self.populate_patients(conn)
+    await self.populate_measured_features(conn)
+
+  async def run_fillin(self, conn):
+    self.log.info("start fillin pipeline")
+    cdm_feature_dict = await self.get_cdm_feature_dict(conn)
+    for fid in cdm_feature_dict:
+      feature = cdm_feature_dict[fid]
+      if feature['category'] == 'TWF' and feature['is_measured']:
+        await self.fillin_pipeline(conn, feature, recalculate_popmean)
+    self.log.info("fillin completed")
+
+  async def derive(self, conn):
+    self.log.info("start derive pipeline")
+    pass
+
+
+##################
+# transform pipeline
+##################
 
   async def init(self, conn):
     self.log.warn("TODO: delete data from the same etl_id only (currently delete all).")
@@ -356,3 +389,41 @@ class Extractor:
           await load_row.upsert_twf(conn, [enc_id, tsp, fid, value, confidence])
         else:
           await load_row.add_twf(conn, [enc_id, tsp, fid, value, confidence])
+
+##############
+# fillin pipeline
+##############
+  async def fillin_pipeline(self, conn, feature, recalculate_popmean=True, table='cdm_twf'):
+    fid = feature['fid']
+    if feature['category'] == 'TWF' and feature['is_measured']:
+      select_sql = """
+      SELECT count(%(fid)s) from %(table)s
+      WHERE %(fid)s_c < 8
+      """ % {'fid':fid, 'table':table}
+      cnt_meas = await conn.fetch(select_sql)
+      cnt_meas = cnt_meas[0][0]
+      self.log.debug('number of measurements:' + str(cnt_meas))
+      if cnt_meas > 0:
+        fillin_func_id = feature['fillin_func_id']
+        fillin_func_args = [table,
+                  feature['window_size_in_hours'],
+                  recalculate_popmean]
+        self.log.info('start fillin fid %s: %s (%s)' \
+          % (fid, fillin_func_id, fillin_func_args))
+        fillin_sql = fillin.fillin(fid, fillin_func_id, fillin_func_args)
+        self.log.debug("fillin_sql: " + fillin_sql)
+        await conn.execute(fillin_sql)
+        self.log.info('end fillin fid %s' % fid)
+      else:
+        self.log.warn('no data to fillin fid %s' % fid)
+        if not recalculate_popmean:
+          self.log.warn('fill in with popmean')
+          update_sql = """
+          update %(table)s set %(fid)s = popmean, %(fid)s_c = 24
+          from (
+            SELECT value::numeric as popmean from cdm_g where fid = '%(fid)s_popmean'
+            ) t
+          """ % {'table':table, 'fid':fid}
+          await conn.execute(update_sql)
+    else:
+      self.log.error('This feature is not a TWF feature!')
