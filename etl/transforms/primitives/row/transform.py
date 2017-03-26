@@ -7,8 +7,11 @@ list all transform functions
 ######################################################
 
 import json, sys, traceback
-import confidence
+import etl.transforms.confidence as confidence
 from datetime import datetime, timedelta
+from etl.transforms.primitives.row.load_discharge_json import *
+from etl.transforms.primitives.row.convert_salmeterol_dose import *
+from etl.transforms.primitives.row.convert_gender_to_int import *
 
 MED_ROUTE_CONTINUOUS = ['Intravenous']
 # GIVEN_ACTIONS = ['Given', 'New Bag', 'Restarted', 'Bolus from Bag',
@@ -1107,7 +1110,7 @@ def threshold(entry, lower, upper, log):
             if value >= lower and value <= upper:
                 return [value, confidence.NO_TRANSFORM]
     except:
-        log.warn("ValueError for threshold function: %s" % entry)
+        log.warn("ValueError for threshold function: %s, lower: %s, upper: %s" % (entry, lower, upper))
 
 # def threshold_fio2(entry, log):
 #     return threshold(entry, 0.1, 1, log)
@@ -1309,9 +1312,12 @@ def convert_catheter_to_binary(entry, log):
         return results
 
 def convert_dialysis_to_binary(entry, log):
-    value = float(entry['Value'])
-    if value > 0:
-        return [True, confidence.NO_TRANSFORM]
+    try:
+        value = float(entry['Value'])
+        if value > 0:
+            return [True, confidence.NO_TRANSFORM]
+    except TypeError as te:
+        log.warn('convert_dialysis_to_binary typeError: ' + str(type(entry['Value'])))
 
 def convert_inhosp_to_json(entry, log):
     inhosp_str = json.dumps({"diagname":entry['diagname'],
