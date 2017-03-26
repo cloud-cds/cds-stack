@@ -112,10 +112,9 @@ CREATE TABLE cdm_g (
     model_id        smallint REFERENCES model_version(model_id),
     fid             varchar(50), -- REFERENCES cdm_feature(fid),
     value           text,
-    confidence      integer
+    confidence      integer,
+    PRIMARY KEY     (dataset_id, model_id, fid)
 );
-
-CREATE UNIQUE INDEX cdm_g_idx ON cdm_g (fid);
 
 DROP TABLE IF EXISTS cdm_s;
 CREATE TABLE cdm_s (
