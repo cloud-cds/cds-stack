@@ -15,32 +15,32 @@ pw            = os.environ['db_password']
 remote_server = os.environ['etl_remote_server']
 
 tables_to_load = {
-  'datalink'                 : False,
-  'cdm_function'             : False,
-  'cdm_feature'              : False,
-  'datalink_feature_mapping' : False,
-  'pat_enc'                  : False,
-  'cdm_g'                    : False,
-  'cdm_s'                    : False,
-  'cdm_m'                    : False,
-  'cdm_t'                    : False,
-  'criteria_meas'            : False,
-  'criteria'                 : False,
-  'criteria_events'          : False,
-  'criteria_log'             : False,
-  'criteria_meas_archive'    : False,
-  'criteria_archive'         : False,
-  'criteria_default'         : False,
-  'notifications'            : False,
-  'parameters'               : False,
-  'trews_scaler'             : True,
-  'trews_feature_weights'    : True,
-  'trews_parameters'         : True,
-  'cdm_twf'                  : False,
-  'trews'                    : False,
-  'pat_status'               : False,
-  'deterioration_feedback'   : False,
-  'feedback_log'             : False,
+  'datalink'                 : 'dataset',
+  'cdm_function'             : 'dataset',
+  'cdm_feature'              : 'dataset',
+  'datalink_feature_mapping' : 'dataset',
+  'pat_enc'                  : 'dataset',
+  'cdm_g'                    : 'both',
+  'cdm_s'                    : 'dataset',
+  'cdm_m'                    : 'dataset',
+  'cdm_t'                    : 'dataset',
+  'criteria_meas'            : 'dataset',
+  'criteria'                 : 'dataset',
+  'criteria_events'          : 'dataset',
+  'criteria_log'             : 'dataset',
+  'criteria_meas_archive'    : 'dataset',
+  'criteria_archive'         : 'dataset',
+  'criteria_default'         : 'dataset',
+  'notifications'            : 'dataset',
+  'parameters'               : 'dataset',
+  'trews_scaler'             : 'model',
+  'trews_feature_weights'    : 'model',
+  'trews_parameters'         : 'model',
+  'cdm_twf'                  : 'dataset',
+  'trews'                    : 'dataset',
+  'pat_status'               : 'dataset',
+  'deterioration_feedback'   : 'dataset',
+  'feedback_log'             : 'dataset',
 }
 
 # engine for clarity ETL
@@ -62,8 +62,8 @@ class Engine(object):
     logging.info("Running op2dw ETL")
     dataset_id = 1
     model_id = 1
-    for tbl, as_model in tables_to_load.items():
-      e = Extractor(remote_server, dataset_id, model_id, tbl, as_model_extension=as_model)
+    for tbl, version_type in tables_to_load.items():
+      e = Extractor(remote_server, dataset_id, model_id, tbl, version_extension=version_type)
       await e.run(self.dbpool)
 
 if __name__ == '__main__':
