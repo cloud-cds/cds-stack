@@ -192,6 +192,14 @@ variable "aws_trews_etl_package" {
   description = "AWS Lambda deployment package"
 }
 
+variable "aws_klaunch_lambda_package" {
+  description = "AWS Lambda k8s job launcher package"
+}
+
+variable "aws_klaunch_lambda_role_arn" {
+  description = "AWS Lambda k8s job launcher role"
+}
+
 variable "aws_alarm2slack_package" {
   description = "AWS Lambda Alarm2Slack package"
 }

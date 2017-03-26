@@ -188,8 +188,12 @@ variable "jhapi_client_secret" {
 ####################################
 # Lambda packages
 
-variable "aws_trews_etl_package" {
-  description = "AWS Lambda ETL Launcher package"
+variable "aws_klaunch_lambda_package" {
+  description = "AWS Lambda k8s job launcher package"
+}
+
+variable "aws_klaunch_lambda_role_arn" {
+  description = "AWS Lambda k8s job launcher role"
 }
 
 variable "aws_alarm2slack_package" {

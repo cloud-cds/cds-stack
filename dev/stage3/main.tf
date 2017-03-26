@@ -57,7 +57,8 @@ module "trews_etl" {
   local_shell   = "${var.local_shell}"
 
   s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
-  aws_trews_etl_package = "${var.aws_trews_etl_package}"
+  aws_klaunch_lambda_package = "${var.aws_klaunch_lambda_package}"
+  aws_klaunch_lambda_role_arn = "${var.aws_klaunch_lambda_role_arn}"
 
   k8s_server_host = "${var.k8s_server_host}"
   k8s_server_port = "${var.k8s_server_port}"
@@ -97,9 +98,9 @@ module "trews_etl_replay" {
   source = "./services/trews_etl_replay"
   deploy_prefix = "${var.deploy_prefix}"
 
-  etl_lambda_role_arn = "${module.trews_etl.etl_lambda_role_arn}"
   s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
-  aws_trews_etl_package = "${var.aws_trews_etl_package}"
+  aws_klaunch_lambda_package = "${var.aws_klaunch_lambda_package}"
+  aws_klaunch_lambda_role_arn = "${var.aws_klaunch_lambda_role_arn}"
 
   k8s_server_host = "${var.k8s_server_host}"
   k8s_server_port = "${var.k8s_server_port}"

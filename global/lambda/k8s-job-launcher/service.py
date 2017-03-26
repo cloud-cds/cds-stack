@@ -63,7 +63,7 @@ users:
   ]
 
   env_forward_prefix = 'k8s_job_'
-  forward_env = [ {'name': k[len(env_forward_prefix)], 'value' : v} \
+  forward_env = [ {'name': k[len(env_forward_prefix):], 'value' : v} \
                 for k,v in os.environ.items() \
                   if k.startswith(env_forward_prefix) and len(k) > len(env_forward_prefix) ]
 
