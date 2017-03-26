@@ -4,13 +4,14 @@ from etl.transforms.primitives.row import transform
 from etl.load.primitives.row import load_row
 from etl.load.primitives.tbl import fillin
 import timeit
+import importlib
 
 PLAN = False
 recalculate_popmean = False # if False, then remember to import cdm_g before extraction
 pipeline = [
-  # "transform",
-  "fillin",
-  "derive",
+  "transform",
+  # "fillin",
+  # "derive",
 ]
 
 class Extractor:
@@ -82,12 +83,23 @@ class Extractor:
     visit_id_to_enc_id = pat_mappings['visit_id_to_enc_id']
     pat_id_to_enc_ids = pat_mappings['pat_id_to_enc_ids']
     self.log.info("load feature mapping")
-    self.log.debug(feature_mapping.head())
+
     for i, mapping in feature_mapping.iterrows():
+      self.log.debug(mapping)
       fid = mapping['fid']
+      transform_func_id = str(mapping['transform_func_id'])
       if fid in cdm_feature_dict:
-        await self.populate_feature_to_cdm(mapping, conn,\
-                visit_id_to_enc_id, pat_id_to_enc_ids, cdm_feature_dict[fid], plan=PLAN)
+        if "." in transform_func_id:
+          i = len(transform_func_id) - transform_func_id[::-1].index('.')
+          package = transform_func_id[:(i-1)]
+          transform_func_id = transform_func_id[i:]
+          self.log.info("fid: %s using package: %s and transform_func_id: %s" % (fid, package, transform_func_id))
+          module = importlib.import_module(package)
+          func = getattr(module, transform_func_id)
+          await func(conn)
+        else:
+          await self.populate_feature_to_cdm(mapping, conn,\
+                  visit_id_to_enc_id, pat_id_to_enc_ids, cdm_feature_dict[fid], plan=PLAN)
       else:
         self.log.warn("feature %s is not in cdm_feature" % fid)
 
