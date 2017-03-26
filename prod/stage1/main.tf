@@ -58,10 +58,17 @@ module "db" {
   deploy_prefix = "${var.deploy_prefix}"
 
   vpc_id                = "${module.core.vpc_id}"
+
   db_identifier         = "${var.deploy_prefix}"
   db_name               = "${replace(var.deploy_prefix, "-", "_")}"
   db_username           = "${var.db_username}"
   db_password           = "${var.db_password}"
+
+  dw_identifier         = "${var.deploy_prefix}-dw"
+  dw_name               = "${replace(var.deploy_prefix, "-", "_")}_dw"
+  dw_username           = "${var.dw_username}"
+  dw_password           = "${var.dw_password}"
+
   db_subnet1_cidr       = "${var.db_subnet1_cidr}"
   db_availability_zone1 = "${var.db_availability_zone1}"
   db_subnet2_cidr       = "${var.db_subnet2_cidr}"
@@ -69,6 +76,7 @@ module "db" {
 
   domain_zone_id  = "${module.dns.zone_id}"
   db_dns_name     = "db.${var.domain}"
+  dw_dns_name     = "dw.${var.domain}"
 }
 
 ######################

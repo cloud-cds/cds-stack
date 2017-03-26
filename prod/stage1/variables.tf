@@ -90,7 +90,7 @@ variable "domain" {
 }
 
 #######################
-# DB
+# DB & DW
 
 variable "db_username" {
   description = "DB admin account"
@@ -98,6 +98,14 @@ variable "db_username" {
 
 variable "db_password" {
   description = "DB Password"
+}
+
+variable "dw_username" {
+  description = "DW admin account"
+}
+
+variable "dw_password" {
+  description = "DW Password"
 }
 
 variable "db_subnet1_cidr" {

@@ -64,7 +64,8 @@ resource "aws_security_group" "db_sg" {
 ###########################################
 # RDS database
 
-# API DB
+###################
+# Operational DB
 resource "aws_db_instance" "db" {
   depends_on              = ["aws_security_group.db_sg"]
   identifier              = "${var.db_identifier}"
@@ -94,6 +95,40 @@ resource "aws_route53_record" "db" {
    type    = "CNAME"
    ttl     = "300"
    records = ["${aws_db_instance.db.address}"]
+}
+
+###################
+# Data Warehouse
+# For now, this uses the same engine type as the Op DB
+resource "aws_db_instance" "dw" {
+  depends_on              = ["aws_security_group.db_sg"]
+  identifier              = "${var.dw_identifier}"
+  allocated_storage       = "${var.db_storage}"
+  engine                  = "${var.db_engine}"
+  engine_version          = "${lookup(var.db_engine_version, var.db_engine)}"
+  instance_class          = "${var.db_instance_class}"
+  name                    = "${var.dw_name}"
+  username                = "${var.dw_username}"
+  password                = "${var.dw_password}"
+  vpc_security_group_ids  = ["${aws_security_group.db_sg.id}"]
+  db_subnet_group_name    = "${aws_db_subnet_group.db_subnet_group.id}"
+  backup_retention_period = 2
+  multi_az                = true
+  publicly_accessible     = false
+  storage_encrypted       = true
+  tags {
+    Name = "${var.deploy_name}"
+    Stack = "${var.deploy_stack}"
+    Component = "DW RDS"
+  }
+}
+
+resource "aws_route53_record" "dw" {
+   zone_id = "${var.domain_zone_id}"
+   name    = "${var.dw_dns_name}"
+   type    = "CNAME"
+   ttl     = "300"
+   records = ["${aws_db_instance.dw.address}"]
 }
 
 ###########

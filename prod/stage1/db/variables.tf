@@ -23,6 +23,7 @@ data "aws_vpc" "main" {
 
 variable "domain_zone_id" {}
 variable "db_dns_name" {}
+variable "dw_dns_name" {}
 
 ######################################
 # RDS DB
@@ -58,11 +59,30 @@ variable "db_name" {
 }
 
 variable "db_username" {
-  description = "User name"
+  description = "DB Username"
 }
 
 variable "db_password" {
   description = "DB Password"
+}
+
+######################################
+# RDS DW
+
+variable "dw_identifier" {
+  description = "RDS DW Resource Identifier"
+}
+
+variable "dw_name" {
+  description = "DW name"
+}
+
+variable "dw_username" {
+  description = "DW Username"
+}
+
+variable "dw_password" {
+  description = "DW Password"
 }
 
 #######################
