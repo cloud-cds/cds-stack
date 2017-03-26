@@ -1,0 +1,24 @@
+---
+- hosts: '{{ hosts }}'
+  sudo: yes
+
+  vars_files:
+   - "config.yml"
+
+  tasks:
+   - name: Check docker image
+     docker: image="hakobera/locust" state=present
+     register: image 
+
+   - name: Start docker container
+     when: image|success
+     docker:
+       name: '{{ cname }}'
+       image: hakobera/locust
+       state: started
+       net: host
+       volumes:
+        - /damsl/projects/opsdx:/local
+     register: container
+
+   - debug: var=container.stdout_lines
