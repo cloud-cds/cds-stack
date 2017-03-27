@@ -13,6 +13,7 @@ resource "aws_autoscaling_group" "master-us-east-1d-masters-cluster-dev-opsdx-io
   max_size             = 1
   min_size             = 1
   vpc_zone_identifier  = ["${aws_subnet.us-east-1d-cluster-dev-opsdx-io.id}"]
+  enabled_metrics      = ["GroupStandbyInstances", "GroupTotalInstances", "GroupPendingInstances", "GroupTerminatingInstances", "GroupDesiredCapacity", "GroupInServiceInstances", "GroupMinSize", "GroupMaxSize"]
 
   tag = {
     key                 = "Component"
@@ -52,6 +53,7 @@ resource "aws_autoscaling_group" "nodes-cluster-dev-opsdx-io" {
   desired_capacity     = 5
   max_size             = 10
   vpc_zone_identifier  = ["${aws_subnet.us-east-1d-cluster-dev-opsdx-io.id}"]
+  enabled_metrics      = ["GroupStandbyInstances", "GroupTotalInstances", "GroupPendingInstances", "GroupTerminatingInstances", "GroupDesiredCapacity", "GroupInServiceInstances", "GroupMinSize", "GroupMaxSize"]
 
   tag = {
     key                 = "Component"
