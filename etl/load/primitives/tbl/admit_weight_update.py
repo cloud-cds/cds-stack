@@ -1,3 +1,4 @@
+import asyncio
 async def admit_weight_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
     assert fid == 'admit_weight' and fid_input == "weight", \
         'wrong fid %s and fid_input %s' % (fid, fid_input)

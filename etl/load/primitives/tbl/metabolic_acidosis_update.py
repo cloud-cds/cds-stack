@@ -1,4 +1,5 @@
-def metabolic_acidosis_update(fid, fid_input, conn, log,  twf_table='cdm_twf'):
+import asyncio
+async def metabolic_acidosis_update(fid, fid_input, conn, log,  twf_table='cdm_twf'):
     """
     fid should be metabolic_acidosis
     fid_input should be arterial_ph and bicarbonate

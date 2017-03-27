@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 
 ########################################
@@ -6,7 +7,7 @@ from datetime import datetime
 ########################################
 ########################################
 
-def time_since_last_measured(fid, fid_input, conn, log, twf_table='cdm_twf'):
+async def time_since_last_measured(fid, fid_input, conn, log, twf_table='cdm_twf'):
     # this function is not ready
     """
     fid_input should be name of the feature for which change is to be computed

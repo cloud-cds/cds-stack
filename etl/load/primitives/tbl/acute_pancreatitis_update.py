@@ -1,3 +1,4 @@
+import asyncio
 async def acute_pancreatitis_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
     """
     fid should be acute_pancreatitis

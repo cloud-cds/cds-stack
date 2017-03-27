@@ -1,4 +1,5 @@
-def septic_shock_iii_update(fid, fid_input, conn, log,  twf_table='cdm_twf'):
+import asyncio
+async def septic_shock_iii_update(fid, fid_input, conn, log,  twf_table='cdm_twf'):
     # UPDATE 8/19/2016
     assert fid == 'septic_shock_iii', 'wrong fid %s' % fid
 
