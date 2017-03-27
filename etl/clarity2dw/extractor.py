@@ -54,7 +54,7 @@ class Extractor:
 
   async def derive(self, conn):
     self.log.info("start derive pipeline")
-    await derive_main(self.log, conn, self.cdm_feature_dict)
+    await derive_main(self.log, conn, self.cdm_feature_dict, dataset_id = self.config.dataset_id)
     self.log.info("derive completed")
 
 

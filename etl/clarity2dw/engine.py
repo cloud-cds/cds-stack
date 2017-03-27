@@ -6,17 +6,17 @@ from extractor import Extractor
 import os
 
 job = {
-  'transform': {
-    'init': True,
-    'populate_patients': True,
-    'populate_measured_features': {
-      'plan': False,
-      #'fid': 'heart_rate',
-    }
-  },
-  # 'fillin': {
-  #   'recalculate_popmean': False,
+  # 'transform': {
+  #   'init': True,
+  #   'populate_patients': True,
+  #   'populate_measured_features': {
+  #     'plan': False,
+  #     #'fid': 'heart_rate',
+  #   }
   # },
+  'fillin': {
+    'recalculate_popmean': False,
+  },
   # 'derive': {},
 }
 

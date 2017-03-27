@@ -1,7 +1,7 @@
 # derive pipeline for cdm_twf
 import etl.load.primitives.tbl.derive as derive_func
 
-async def derive_main(log, conn, cdm_feature_dict, mode=None, fid=None, table="cdm_twf"):
+async def derive_main(log, conn, cdm_feature_dict, mode=None, fid=None, table="cdm_twf", dataset_id=None):
   '''
   mode: "append", run derive functions beginning with @fid sequentially
   mode: "dependent", run derive functions for @fid and other features depends on @fid
@@ -16,21 +16,21 @@ async def derive_main(log, conn, cdm_feature_dict, mode=None, fid=None, table="c
     idx = derive_feature_order.index(append)
     for i in range(idx, len(derive_feature_order)):
       fid = derive_feature_order[i]
-      await derive_feature(log, cdm_feature_dict[fid], conn, twf_table=table)
+      await derive_feature(log, cdm_feature_dict[fid], conn, twf_table=table, dataset_id=dataset_id)
   elif mode == 'dependent':
     dependent = fid
     if cdm_feature_dict[fid]['is_measured'] == 'no':
       log.info("update feature %s and its dependents" % dependent)
-      await derive_feature(log, cdm_feature_dict[fid], conn, twf_table=table)
+      await derive_feature(log, cdm_feature_dict[fid], conn, twf_table=table, dataset_id=dataset_id)
     else:
       log.info("update feature %s's dependents" % dependent)
     derive_feature_order = get_dependent_features([dependent], features)
     for fid in derive_feature_order:
-      await derive_feature(log, cdm_feature_dict[fid], conn, twf_table=table)
+      await derive_feature(log, cdm_feature_dict[fid], conn, twf_table=table, dataset_id=dataset_id)
   elif mode is None and fid is None:
     log.info("derive features one by one")
     for fid in derive_feature_order:
-      await derive_feature(log, cdm_feature_dict[fid], conn, twf_table=table)
+      await derive_feature(log, cdm_feature_dict[fid], conn, twf_table=table, dataset_id=dataset_id)
   else:
     log.error("Unknown mode!")
 
@@ -94,19 +94,19 @@ def get_dependent_features(feature_list, features):
         for feature in features if feature['fid'] in dependent_features)
     return get_derive_seq(input_map=dic)
 
-async def derive_feature(log, feature, conn, twf_table='cdm_twf'):
+async def derive_feature(log, feature, conn, twf_table='cdm_twf', dataset_id=None):
   fid = feature['fid']
   derive_func_id = feature['derive_func_id']
   derive_func_input = feature['derive_func_input']
   fid_category = feature['category']
   log.info("derive feature %s, function %s, inputs (%s)" \
   % (fid, derive_func_id, derive_func_input))
-  await derive_func_driver(fid, fid_category, derive_func_id, derive_func_input, conn, log, twf_table)
+  await derive_func_driver(fid, fid_category, derive_func_id, derive_func_input, conn, log, twf_table, dataset_id)
   log.info("derive feature %s end." % fid)
 
 
 
-async def derive_func_driver(fid, fid_category, derive_func_id, derive_func_input, conn, log, twf_table):
+async def derive_func_driver(fid, fid_category, derive_func_id, derive_func_input, conn, log, twf_table, dataset_id):
   if fid in derive_config:
     config_entry = derive_config[fid]
     fid_input_items = [item.strip() for item in derive_func_input.split(',')]
@@ -129,19 +129,33 @@ async def derive_func_driver(fid, fid_category, derive_func_id, derive_func_inpu
           'c_update_expr': c_update_expr,
           'twf_table': twf_table
         }
-        if config_entry['derive_type'] == 'subquery':
+        if config_entry['derive_type'] == 'simple':
+          update_clause +=  '' if dataset_id is None else ' WHERE dataset_id = %s' % dataset_id
+        elif config_entry['derive_type'] == 'subquery':
           update_from = (" FROM " + config_entry['fid_update_from']) % {'twf_table': twf_table}
           update_where = " WHERE " + config_entry['fid_update_where'] % {'twf_table': twf_table}
+          update_where += ('' if dataset_id is None else ' and dataset_id = %s' % dataset_id)
           update_clause += update_from + update_where
         sql = update_clause
       elif fid_category == 'T':
-        insert_clause = """
-        DELETE FROM cdm_t where fid = '%(fid)s';
-        INSERT INTO cdm_t (enc_id,tsp,fid,value,confidence) (%(select_expr)s);
-        """ % {
-          'fid':fid,
-          'select_expr': config_entry['fid_select_expr'],
-        }
+        if dataset_id is None:
+          insert_clause = """
+          DELETE FROM cdm_t where fid = '%(fid)s';
+          INSERT INTO cdm_t (enc_id,tsp,fid,value,confidence) (%(select_expr)s);
+          """ % {
+            'fid':fid,
+            'select_expr': config_entry['fid_select_expr'],
+            'dataset_id': dataset_id
+          }
+        else:
+          insert_clause = """
+          DELETE FROM cdm_t where fid = '%(fid)s' and dataset_id = %(dataset_id)s;
+          INSERT INTO cdm_t (dataset_id,enc_id,tsp,fid,value,confidence) (%(dataset_id)s,%(select_expr)s);
+          """ % {
+            'fid':fid,
+            'select_expr': config_entry['fid_select_expr'],
+            'dataset_id': dataset_id
+          }
         sql = insert_clause
       log.debug(sql)
       await conn.execute(sql)
@@ -150,7 +164,7 @@ async def derive_func_driver(fid, fid_category, derive_func_id, derive_func_inpu
       log.warn("fid_input dismatch")
   else:
     log.warn("Derive function is not implemented in driver, so we use legacy derive function")
-    # derive_func.derive(fid, derive_func_id, derive_func_input, conn, log, twf_table)
+    derive_func.derive(fid, derive_func_id, derive_func_input, conn, log, twf_table, dataset_id)
 
 
 
