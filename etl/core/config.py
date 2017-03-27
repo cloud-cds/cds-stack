@@ -15,16 +15,22 @@ class Config:
     CONF = os.path.dirname(os.path.abspath(__file__))
     CONF = os.path.join(CONF, 'conf')
     LOG_CONF = os.path.join(CONF, 'logging.conf')
-    CDM_FEATURE_CSV = os.path.join(CONF, 'CDM_Feature.csv')
-    CDM_FUNCTION_CSV = os.path.join(CONF, 'CDM_Function.csv')
+    # may not useful so comment out by zad
+    # CDM_FEATURE_CSV = os.path.join(CONF, 'CDM_Feature.csv')
+    # CDM_FUNCTION_CSV = os.path.join(CONF, 'CDM_Function.csv')
     FEATURE_MAPPING_CSV = os.path.join(CONF, 'feature_mapping.csv')
-    # DB_NAME = "opsdx_dw_test"
     LOG_FMT = '%(asctime)s|%(name)s|%(levelname)s|%(message)s'
 
     def set_log(self, log):
         self.log = log
 
-    def __init__(self, log='Dashan', debug=False, logfile=None):
+    def __init__(self, log='Dashan', debug=False, logfile=None, conf=None, db_name=None, dataset_id=None):
+        if conf:
+            self.CONF = conf
+            self.LOG_CONF = os.path.join(self.CONF, 'logging.conf')
+            self.FEATURE_MAPPING_CSV = os.path.join(self.CONF, 'feature_mapping.csv')
+        if dataset_id is not None:
+            self.dataset_id = dataset_id
         if logfile:
             self.log = logging.getLogger(log)
             fh = logging.FileHandler(logfile)
@@ -45,7 +51,10 @@ class Config:
         self.db_host = os.environ['db_host']
         self.db_port = os.environ['db_port']
         self.db_pass = os.environ['db_password']
-        self.db_name = os.environ['db_name']
+        if db_name:
+            self.db_name = db_name
+        else:
+            self.db_name = os.environ['db_name']
         self.log.info("current database: {} at {}".format(self.db_name, self.db_host))
 
     def get_db_conn_string(self):

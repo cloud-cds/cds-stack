@@ -7,13 +7,8 @@ from etl.load.pipelines.derive import derive_main
 import timeit
 import importlib
 
-PLAN = False
 recalculate_popmean = False # if False, then remember to import cdm_g before extraction
-pipeline = [
-  # "transform",
-  # "fillin",
-  "derive",
-]
+
 
 class Extractor:
   def __init__(self, pool, config):
@@ -21,21 +16,27 @@ class Extractor:
     self.pool = pool
     self.log = self.config.log
 
-  async def run(self):
+  async def run(self, job):
     self.log.info("start to run clarity ETL")
     async with self.pool.acquire() as conn:
       self.cdm_feature_dict = await self.get_cdm_feature_dict(conn)
-      if "transform" in pipeline:
-        await self.transform(conn)
-      if "fillin" in pipeline:
-        await self.run_fillin(conn)
-      if "derive" in pipeline:
-        await self.derive(conn)
+      if "transform" in job:
+        await self.transform(conn, job['transform'])
+      if "fillin" in job:
+        await self.run_fillin(conn, job['fillin'])
+      if "derive" in job:
+        await self.derive(conn, job['derive'])
 
-  async def transform(self, conn):
-    await self.init(conn)
-    await self.populate_patients(conn)
-    await self.populate_measured_features(conn)
+  async def transform(self, conn, job):
+    if 'init' in job:
+      await self.init(conn)
+    if 'populate_patients' in job:
+      await self.populate_patients(conn)
+    if 'populate_measured_features' in job:
+      self.plan = False
+      if 'plan' in job['populate_measured_features']:
+        self.plan = job['populate_measured_features']['plan']
+      await self.populate_measured_features(conn)
 
   async def run_fillin(self, conn):
     self.log.info("start fillin pipeline")
@@ -59,21 +60,21 @@ class Extractor:
   async def init(self, conn):
     self.log.warn("TODO: delete data from the same etl_id only (currently delete all).")
     init_sql = '''
-    delete from cdm_s;
-    delete from cdm_t;
-    delete from cdm_twf;
-    delete from pat_enc;
-    '''
+    delete from cdm_s where dataset_id = %(dataset_id)s;
+    delete from cdm_t where dataset_id = %(dataset_id)s;
+    delete from cdm_twf where dataset_id = %(dataset_id)s;
+    delete from pat_enc where dataset_id = %(dataset_id)s;
+    ''' % {'dataset_id': self.config.dataset_id}
     self.log.debug("ETL init sql: " + init_sql)
     result = await conn.execute(init_sql)
     self.log.info("ETL Init: " + result)
 
   async def populate_patients(self, conn):
     sql = '''
-    insert into pat_enc (visit_id, pat_id)
-    SELECT "CSN_ID" visit_id, "pat_id"
+    insert into pat_enc (dataset_id, visit_id, pat_id)
+    SELECT %(dataset_id)s, "CSN_ID" visit_id, "pat_id"
     FROM "Demographics"
-    '''
+    ''' % {'dataset_id': self.config.dataset_id}
     self.log.debug("ETL populate_patients sql: " + sql)
     result = await conn.execute(sql)
     self.log.info("ETL populate_patients: " + result)
@@ -82,8 +83,8 @@ class Extractor:
   async def populate_measured_features(self, conn):
     feature_mapping = pd.read_csv(self.config.FEATURE_MAPPING_CSV)
     pat_mappings = await self.get_pat_mapping(conn)
-    visit_id_to_enc_id = pat_mappings['visit_id_to_enc_id']
-    pat_id_to_enc_ids = pat_mappings['pat_id_to_enc_ids']
+    self.visit_id_to_enc_id = pat_mappings['visit_id_to_enc_id']
+    self.pat_id_to_enc_ids = pat_mappings['pat_id_to_enc_ids']
     self.log.info("load feature mapping")
 
     for i, mapping in feature_mapping.iterrows():
@@ -100,13 +101,12 @@ class Extractor:
           func = getattr(module, transform_func_id)
           await func(conn)
         else:
-          await self.populate_feature_to_cdm(mapping, conn,\
-                  visit_id_to_enc_id, pat_id_to_enc_ids, self.cdm_feature_dict[fid], plan=PLAN)
+          await self.populate_feature_to_cdm(mapping, conn, self.cdm_feature_dict[fid])
       else:
         self.log.warn("feature %s is not in cdm_feature" % fid)
 
   async def get_pat_mapping(self, conn):
-    sql = "select * from pat_enc"
+    sql = "select * from pat_enc where dataset_id = %s" % self.config.dataset_id
     pats = await conn.fetch(sql)
     visit_id_to_enc_id = {}
     pat_id_to_enc_ids = {}
@@ -122,15 +122,13 @@ class Extractor:
     }
 
   async def get_cdm_feature_dict(self, conn):
-    sql = "select * from cdm_feature"
+    sql = "select * from cdm_feature where dataset_id = %s" % self.config.dataset_id
     cdm_feature = await conn.fetch(sql)
     cdm_feature_dict = {f['fid']:f for f in cdm_feature}
     return cdm_feature_dict
 
 
-  async def populate_feature_to_cdm(self, mapping, conn, visit_id_dict,
-                     pat_id_dict, cdm_feature_attributes, plan=False):
-    # TODO: split the code for better read
+  async def populate_feature_to_cdm(self, mapping, conn, cdm_feature_attributes):
     data_type = cdm_feature_attributes['data_type']
     fid = mapping['fid']
     self.log.info('importing feature value fid %s' % fid)
@@ -147,123 +145,14 @@ class Extractor:
     fid_info = {'fid':fid, 'category':category, 'is_no_add':is_no_add,
           'data_type':data_type}
     start = timeit.default_timer()
-    line = 0
+    start = timeit.default_timer()
     if is_med_action and fid != 'vent':
-      # process medication action input for HC_EPIC
-      # order by csn_id, medication id, and timeActionTaken
-      orderby = '"CSN_ID", "MEDICATION_ID", "TimeActionTaken"'
-      sql = self.get_feature_sql_query(mapping, orderby=orderby, plan=plan)
-      if plan:
-        async with conn.transaction():
-          async for row in conn.cursor(sql):
-            self.log.debug(row)
-      else:
-        cur_enc_id = None
-        cur_med_id = None
-        cur_med_events = []
-        async with conn.transaction():
-          async for row in conn.cursor(sql):
-            if str(row['visit_id']) in visit_id_dict:
-              enc_id = visit_id_dict[str(row['visit_id'])]
-              med_id = row['MEDICATION_ID']
-              # print "cur", row
-              if cur_enc_id is None \
-                or cur_enc_id != enc_id or med_id != cur_med_id:
-                # new enc_id, med_id pair
-                if cur_enc_id is not None and cur_med_id is not None:
-                  # process cur_med_events
-                  len_of_events = len(cur_med_events)
-                  if len_of_events > 0:
-                    line += len_of_events
-                    self.process_med_events(cur_enc_id, \
-                      cur_med_id, cur_med_events, fid_info, \
-                      mapping, conn)
-
-                cur_enc_id = enc_id
-                cur_med_id = med_id
-                cur_med_events = []
-              # print "cur events temp:", cur_med_events
-              cur_med_events.append(row)
-              # print "cur events:", cur_med_events
-          if cur_enc_id is not None and cur_med_id is not None:
-            # process cur_med_events
-            len_of_events = len(cur_med_events)
-            if len_of_events > 0:
-              line += len_of_events
-              self.process_med_events(cur_enc_id, cur_med_id,
-                          cur_med_events, fid_info, mapping,
-                          conn)
+      line = await self.populate_medaction_features(conn, mapping, fid, transform_func_id, data_type, fid_info)
     elif is_med_action and fid == 'vent':
-      orderby = " icustay_id, realtime"
-      sql = self.get_feature_sql_query(mapping, orderby=orderby, plan=plan)
-      if plan:
-        async with conn.transaction():
-          async for row in conn.cursor(sql):
-            self.log.debug(row)
-      else:
-        cur_enc_id = None
-        cur_vent_events = []
-        async with conn.transaction():
-          async for row in conn.cursor(sql):
-            if str(row['visit_id']) in visit_id_dict:
-              enc_id = visit_id_dict[str(row['visit_id'])]
-              if enc_id:
-                if cur_enc_id is None or cur_enc_id != enc_id:
-                  # new enc_id, med_id pair
-                  if cur_enc_id:
-                    # process cur_med_events
-                    len_of_events = len(cur_vent_events)
-                    if len_of_events > 0:
-                      line += len_of_events
-                      self.process_vent_events(cur_enc_id, \
-                        cur_vent_events, fid_info, mapping, conn)
-                  cur_enc_id = enc_id
-                  cur_vent_events = []
-                # print "cur events temp:", cur_med_events
-                cur_vent_events.append(row)
-                # print "cur events:", cur_med_events
-          if cur_enc_id and len_of_events > 0:
-            line += len_of_events
-          self.process_vent_events(cur_enc_id, cur_vent_events, \
-            fid_info, mapping, cdm)
+      line = await self.populate_vent(conn, mapping, fid, transform_func_id, data_type, fid_info)
     else:
-      # process features unrelated to med actions
-      sql = self.get_feature_sql_query(mapping, plan=plan)
-      if plan:
-        async with conn.transaction():
-          async for row in conn.cursor(sql):
-            self.log.debug(row)
-      else:
-        line = 0
-        start = timeit.default_timer()
-        pat_id_based = 'pat_id' in mapping['select_cols']
-        async with conn.transaction():
-          async for row in conn.cursor(sql):
-            if pat_id_based:
-              if str(row['pat_id']) in pat_id_dict:
-                enc_ids = pat_id_dict[str(row['pat_id'])]
-                for enc_id in enc_ids:
-                  result = transform.transform(fid, \
-                    transform_func_id, row, data_type, self.log)
-                  if result is not None:
-                    line += 1
-                    await self.save_result_to_cdm(fid, category, enc_id, \
-                      row, result, conn, is_no_add)
-            elif str(row['visit_id']) in visit_id_dict:
-              enc_id = visit_id_dict[str(row['visit_id'])]
-              if enc_id:
-                # transform return a result containing both value and
-                # confidence flag
-                result = transform.transform(fid, transform_func_id, \
-                  row, data_type, self.log)
-                # print row, result
-                if result is not None:
-                  line += 1
-                  await self.save_result_to_cdm(fid, category, enc_id, \
-                    row, result, conn, is_no_add)
-            if line > 0 and line % 10000 == 0:
-              self.log.info('import rows %s', line)
-    if not plan:
+      line = await self.populate_non_medaction_features(conn, mapping, fid, transform_func_id, data_type, category, is_no_add)
+    if not self.plan:
       duration = timeit.default_timer() - start
       if line == 0:
         self.log.warn(\
@@ -274,7 +163,130 @@ class Extractor:
           'stats: %s valid lines found in dblink for fid %s %s s' \
             % (line, fid, duration))
 
-  def get_feature_sql_query(self, mapping, orderby=None, plan=False):
+  async def populate_medaction_features(self, conn, mapping, fid, transform_func_id, data_type, fid_info):
+    # process medication action input for HC_EPIC
+    # order by csn_id, medication id, and timeActionTaken
+    line = 0
+    orderby = '"CSN_ID", "MEDICATION_ID", "TimeActionTaken"'
+    sql = self.get_feature_sql_query(mapping, orderby=orderby)
+    if self.plan:
+      async with conn.transaction():
+        async for row in conn.cursor(sql):
+          self.log.debug(row)
+    else:
+      cur_enc_id = None
+      cur_med_id = None
+      cur_med_events = []
+      async with conn.transaction():
+        async for row in conn.cursor(sql):
+          if str(row['visit_id']) in self.visit_id_to_enc_id:
+            enc_id = self.visit_id_to_enc_id[str(row['visit_id'])]
+            med_id = row['MEDICATION_ID']
+            # print "cur", row
+            if cur_enc_id is None \
+              or cur_enc_id != enc_id or med_id != cur_med_id:
+              # new enc_id, med_id pair
+              if cur_enc_id is not None and cur_med_id is not None:
+                # process cur_med_events
+                len_of_events = len(cur_med_events)
+                if len_of_events > 0:
+                  line += len_of_events
+                  self.process_med_events(cur_enc_id, \
+                    cur_med_id, cur_med_events, fid_info, \
+                    mapping, conn)
+
+              cur_enc_id = enc_id
+              cur_med_id = med_id
+              cur_med_events = []
+            # print "cur events temp:", cur_med_events
+            cur_med_events.append(row)
+            # print "cur events:", cur_med_events
+        if cur_enc_id is not None and cur_med_id is not None:
+          # process cur_med_events
+          len_of_events = len(cur_med_events)
+          if len_of_events > 0:
+            line += len_of_events
+            self.process_med_events(cur_enc_id, cur_med_id,
+                        cur_med_events, fid_info, mapping,
+                        conn)
+    return line
+
+  async def populate_vent(self, conn, mapping, fid, transform_func_id, data_type, fid_info):
+    line = 0
+    orderby = " icustay_id, realtime"
+    sql = self.get_feature_sql_query(mapping, orderby=orderby)
+    if self.plan:
+      async with conn.transaction():
+        async for row in conn.cursor(sql):
+          self.log.debug(row)
+    else:
+      cur_enc_id = None
+      cur_vent_events = []
+      async with conn.transaction():
+        async for row in conn.cursor(sql):
+          if str(row['visit_id']) in self.visit_id_to_enc_id:
+            enc_id = self.visit_id_to_enc_id[str(row['visit_id'])]
+            if enc_id:
+              if cur_enc_id is None or cur_enc_id != enc_id:
+                # new enc_id, med_id pair
+                if cur_enc_id:
+                  # process cur_med_events
+                  len_of_events = len(cur_vent_events)
+                  if len_of_events > 0:
+                    line += len_of_events
+                    self.process_vent_events(cur_enc_id, \
+                      cur_vent_events, fid_info, mapping, conn)
+                cur_enc_id = enc_id
+                cur_vent_events = []
+              # print "cur events temp:", cur_med_events
+              cur_vent_events.append(row)
+              # print "cur events:", cur_med_events
+        if cur_enc_id and len_of_events > 0:
+          line += len_of_events
+        self.process_vent_events(cur_enc_id, cur_vent_events, \
+          fid_info, mapping, cdm)
+    return line
+
+  async def populate_non_medaction_features(self, conn, mapping, fid, transform_func_id, data_type, category, is_no_add):
+    line = 0
+    # process features unrelated to med actions
+    sql = self.get_feature_sql_query(mapping)
+    if self.plan:
+      async with conn.transaction():
+        async for row in conn.cursor(sql):
+          self.log.debug(row)
+    else:
+      line = 0
+      pat_id_based = 'pat_id' in mapping['select_cols']
+      async with conn.transaction():
+        async for row in conn.cursor(sql):
+          if pat_id_based:
+            if str(row['pat_id']) in self.pat_id_to_enc_ids:
+              enc_ids = self.pat_id_to_enc_ids[str(row['pat_id'])]
+              for enc_id in enc_ids:
+                result = transform.transform(fid, \
+                  transform_func_id, row, data_type, self.log)
+                if result is not None:
+                  line += 1
+                  await self.save_result_to_cdm(fid, category, enc_id, \
+                    row, result, conn, is_no_add)
+          elif str(row['visit_id']) in self.visit_id_to_enc_id:
+            enc_id = self.visit_id_to_enc_id[str(row['visit_id'])]
+            if enc_id:
+              # transform return a result containing both value and
+              # confidence flag
+              result = transform.transform(fid, transform_func_id, \
+                row, data_type, self.log)
+              # print row, result
+              if result is not None:
+                line += 1
+                await self.save_result_to_cdm(fid, category, enc_id, \
+                  row, result, conn, is_no_add)
+          if line > 0 and line % 10000 == 0:
+            self.log.info('import rows %s', line)
+    return line
+
+  def get_feature_sql_query(self, mapping, orderby=None):
     if 'subject_id' in mapping['select_cols'] \
       and 'pat_id' not in mapping['select_cols']:
       # hist features in mimic
@@ -292,7 +304,7 @@ class Extractor:
     sql = "SELECT %s FROM %s %s" % (select_clause, dbtable, where_clause)
     if orderby:
       sql += " order by " + orderby
-    if plan:
+    if self.plan:
       sql += " limit 100"
     self.log.info("sql: %s" % sql)
     return sql
@@ -306,9 +318,9 @@ class Extractor:
       volume = str(dose_entry[1])
       confidence = dose_entry[2]
       if fid_info['is_no_add']:
-        await load_row.upsert_t(conn, [enc_id, tsp, fid, volume, confidence])
+        await load_row.upsert_t(conn, [enc_id, tsp, fid, volume, confidence], dataset_id = self.config.dataset_id)
       else:
-        await load_row.add_t(conn, [enc_id, tsp, fid, volume, confidence])
+        await load_row.add_t(conn, [enc_id, tsp, fid, volume, confidence], dataset_id = self.config.dataset_id)
 
 
 
@@ -337,9 +349,9 @@ class Extractor:
           confidence = intake[2]
 
           if fid_info['is_no_add']:
-            await load_row.upsert_t(conn, [enc_id, tsp, str(fid), str(volume), confidence])
+            await load_row.upsert_t(conn, [enc_id, tsp, str(fid), str(volume), confidence], dataset_id = self.config.dataset_id)
           else:
-            await load_row.add_t(conn, [enc_id, tsp, str(fid), str(volume), confidence])
+            await load_row.add_t(conn, [enc_id, tsp, str(fid), str(volume), confidence], dataset_id = self.config.dataset_id)
 
   async def process_vent_events(self, enc_id, vent_events, fid_info, mapping, conn):
     self.log.debug("\nentries from enc_id %s:" % enc_id)
@@ -362,9 +374,9 @@ class Extractor:
           confidence = result[2]
 
           if fid_info['is_no_add']:
-            await load_row.upsert_t(conn, [enc_id, tsp, fid, on_off, confidence])
+            await load_row.upsert_t(conn, [enc_id, tsp, fid, on_off, confidence], dataset_id = self.config.dataset_id)
           else:
-            await load_row.add_t(conn, [enc_id, tsp, fid, on_off, confidence])
+            await load_row.add_t(conn, [enc_id, tsp, fid, on_off, confidence], dataset_id = self.config.dataset_id)
 
   async def save_result_to_cdm(self, fid, category, enc_id, row, results, conn, \
     is_no_add):
@@ -380,9 +392,9 @@ class Extractor:
       confidence = result[1]
       if category == 'S':
         if is_no_add:
-          await load_row.upsert_s(conn, [enc_id, fid, str(value), confidence])
+          await load_row.upsert_s(conn, [enc_id, fid, str(value), confidence], dataset_id = self.config.dataset_id)
         else:
-          await load_row.add_s(conn, [enc_id, fid, str(value), confidence])
+          await load_row.add_s(conn, [enc_id, fid, str(value), confidence], dataset_id = self.config.dataset_id)
       elif category == 'T':
         if tsp is None:
           if len(row) >= 4:
@@ -391,9 +403,9 @@ class Extractor:
             tsp = row[1]
         if tsp is not None:
           if is_no_add:
-            await load_row.upsert_t(conn, [enc_id, tsp, str(fid), str(value), confidence])
+            await load_row.upsert_t(conn, [enc_id, tsp, str(fid), str(value), confidence], dataset_id = self.config.dataset_id)
           else:
-            await load_row.add_t(conn, [enc_id, tsp, str(fid), str(value), confidence])
+            await load_row.add_t(conn, [enc_id, tsp, str(fid), str(value), confidence], dataset_id = self.config.dataset_id)
       elif category == 'TWF':
         if tsp is None:
           if len(row) >= 4:
@@ -401,7 +413,7 @@ class Extractor:
           else:
             tsp = row[1]
         if is_no_add:
-          await load_row.upsert_twf(conn, [enc_id, tsp, fid, value, confidence])
+          await load_row.upsert_twf(conn, [enc_id, tsp, fid, value, confidence], dataset_id = self.config.dataset_id)
         else:
-          await load_row.add_twf(conn, [enc_id, tsp, fid, value, confidence])
+          await load_row.add_twf(conn, [enc_id, tsp, fid, value, confidence], dataset_id = self.config.dataset_id)
 

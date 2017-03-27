@@ -496,7 +496,7 @@ async def renal_sofa_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
 
 # Subquery chain
 async def septic_shock_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
-async   # UPDATE 8/19/2016
+  # UPDATE 8/19/2016
   assert fid == 'septic_shock', 'wrong fid %s' % fid
 
   clean_tbl.cdm_twf_clean(conn, fid, value=0, confidence=0,twf_table=twf_table)
@@ -1009,7 +1009,7 @@ async def heart_attack_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
 
     load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf])
 
-async # Special case (mini-pipeline)
+# Special case (mini-pipeline)
 async def stroke_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
   """
   fid_input should be stroke_inhosp, ct_proc, mri_proc
@@ -1065,7 +1065,7 @@ async def stroke_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
 
     load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf])
 
-async # Special case (mini-pipeline)
+# Special case (mini-pipeline)
 async def gi_bleed_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
   """
   fid_input should be gi_bleed_inhosp, ct_proc, mri_proc
@@ -1230,7 +1230,7 @@ async def pulmonary_emboli_update(fid, fid_input, conn, log, twf_table='cdm_twf'
 
     load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf])
 
-async # Special case (mini-pipeline)
+# Special case (mini-pipeline)
 async def bronchitis_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
   """
   fid_input should be bronchitis_inhosp, chest_xray, bacterial_culture
