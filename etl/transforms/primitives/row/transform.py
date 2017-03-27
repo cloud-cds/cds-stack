@@ -5,7 +5,6 @@ list all transform functions
 ######################################################
 ## TODO: lift tbl->tbl functions into tbl/ directory
 ######################################################
-
 import json, sys, traceback
 import etl.confidence as confidence
 from datetime import datetime, timedelta
@@ -1102,7 +1101,7 @@ def _calculate_volume_in_ml(volumes, entry_cur, entry_nxt, remain_vol_pre, \
 def threshold(entry, lower, upper, log):
     try:
         if entry is not None:
-            if isinstance(entry, list):
+            if str(type(entry)) == "<class 'Record'>" or isinstance(entry, list):
                 # entry is a list
                 value = float(entry[-1]) # last item is the value
             else:

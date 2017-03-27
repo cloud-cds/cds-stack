@@ -11,10 +11,12 @@ job = {
     'populate_patients': True,
     'populate_measured_features': {
       'plan': False,
-      'fid': 'heart_rate',
+      #'fid': 'heart_rate',
     }
   },
-  # 'fillin': {},
+  # 'fillin': {
+  #   'recalculate_popmean': False,
+  # },
   # 'derive': {},
 }
 

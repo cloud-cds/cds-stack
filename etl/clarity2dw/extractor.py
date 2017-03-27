@@ -41,13 +41,15 @@ class Extractor:
         fid = job['populate_measured_features']['fid']
       await self.populate_measured_features(conn, fid)
 
-  async def run_fillin(self, conn):
+  async def run_fillin(self, conn, job):
     self.log.info("start fillin pipeline")
     # NOTE: we could optimize fillin in one run, e.g., update set all columns
     for fid in self.cdm_feature_dict:
       feature = self.cdm_feature_dict[fid]
+      if 'recalculate_popmean' in job:
+        recalculate_popmean = job['recalculate_popmean']
       if feature['category'] == 'TWF' and feature['is_measured']:
-        await fillin_pipeline(self.log, conn, feature, recalculate_popmean)
+        await fillin_pipeline(self.log, conn, feature, self.config.dataset_id, recalculate_popmean)
     self.log.info("fillin completed")
 
   async def derive(self, conn):
@@ -83,7 +85,7 @@ class Extractor:
     self.log.info("ETL populate_patients: " + result)
 
 
-  async def populate_measured_features(self, conn, fid=None):
+  async def populate_measured_features(self, conn, this_fid=None):
     feature_mapping = pd.read_csv(self.config.FEATURE_MAPPING_CSV)
     pat_mappings = await self.get_pat_mapping(conn)
     self.visit_id_to_enc_id = pat_mappings['visit_id_to_enc_id']
@@ -91,7 +93,7 @@ class Extractor:
     self.log.info("load feature mapping")
 
     for i, mapping in feature_mapping.iterrows():
-      if fid is None or fid == mapping['fid']:
+      if this_fid is None or fid == mapping['fid']:
         self.log.debug(mapping)
         fid = mapping['fid']
         transform_func_id = str(mapping['transform_func_id'])
