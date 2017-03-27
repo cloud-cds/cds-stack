@@ -1,6 +1,15 @@
 # sql query to load a row into CDM
 import datetime
 
+async def upsert_g(conn, row):
+  sql = '''
+  insert into cdm_g (fid, value, confidence)
+  values (%s, %s, %s)
+  on conflict (fid) do update
+  set value = Excluded.value::numeric, confidence = Excluded.confidence
+  ''' % (row[0], row[1], row[2])
+  await conn.execute(sql)
+
 async def add_t(conn, row):
   sql = '''
   insert into cdm_t (enc_id, tsp, fid, value, confidence)

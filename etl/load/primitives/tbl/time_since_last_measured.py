@@ -6,22 +6,20 @@ from datetime import datetime
 ########################################
 ########################################
 
-def time_since_last_measured(fid, fid_input, cdm, twf_table='cdm_twf'):
+def time_since_last_measured(fid, fid_input, conn, log, twf_table='cdm_twf'):
+    # this function is not ready
     """
     fid_input should be name of the feature for which change is to be computed
     fid should be <fid of old feather>_minutes_since_measurement
     """
     # Make sure the fid is correct (fid_input can be anything)
     assert fid == '%s_minutes_since_measurement' % fid_input, 'wrong fid %s' % fid_input
-    cdm.clean_twf(fid, twf_table=twf_table)
+    clean_tbl.cdm_twf_clean(conn, fid, twf_table=twf_table)
 
     # Get all of the fid_input items ordered by enc_id then tsp
-    server_cursor = cdm.select_with_sql(\
+    records = await conn.fetch(\
         "SELECT enc_id, tsp, %(fid_input)s_c FROM %(twf_table)s ORDER BY enc_id, tsp;" \
             % {'fid_input': fid_input, 'twf_table': twf_table})
-    records = server_cursor.fetchall()
-    server_cursor.close()
-
     # Initialize variables before loop
     prev_enc_id = -1
 
