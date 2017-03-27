@@ -1,16 +1,27 @@
 from etl.core.exceptions import TransformError
-from etl.core.config import est_tsp_fmt
+from etl.core.config import est_tsp_fmt, Config
 from etl.epic2op.extractor import Extractor
 from etl.transforms.pipelines import jhapi
+from etl.load.pipelines.epic2op import Epic2OpLoader
 import os, sys, traceback
 import pandas as pd
 import datetime as dt
 import dateparser
 import logging
+import asyncpg
+import ujson as json
 
 class Engine():
-    def __init__(self, extractor):
-        self.extractor = extractor
+    def __init__(self, hospital=None, lookback_hours=None):
+        self.config = Config(debug=True)
+        self.loader = Epic2OpLoader(self.config)
+        self.extractor = Extractor(
+            hospital =       hospital or os.environ['TREWS_ETL_HOSPITAL'],
+            lookback_hours = lookback_hours or os.environ['TREWS_ETL_HOURS'],
+            jhapi_server =   'prod' or os.environ['TREWS_ETL_SERVER'],
+            jhapi_id =       os.environ['jhapi_client_id'],
+            jhapi_secret =   os.environ['jhapi_client_secret'],
+        )
         self.extract_time = dt.timedelta(0)
         self.transform_time = dt.timedelta(0)
 
@@ -55,7 +66,7 @@ class Engine():
         driver_start = dt.datetime.now()
 
         pats = self.extract(self.extractor.extract_bedded_patients, "bedded_patients")
-        pats_t = self.transform(pats, jhapi.bedded_patients_transforms, "bedded_patients")
+        pats_t = self.transform(pats.head(20), jhapi.bedded_patients_transforms, "bedded_patients")
         pats_t = pats_t.assign(hospital = self.extractor.hospital)
 
         flowsheets = self.extract(self.extractor.extract_flowsheets, "flowsheets", [pats_t])
@@ -100,7 +111,7 @@ class Engine():
         logging.info("total time: {}".format(dt.datetime.now() - driver_start))
 
         # Create stats object
-        stats = {
+        cloudwatch_stats = {
             'total_time':    (dt.datetime.now() - driver_start).total_seconds(),
             'request_time':  self.extract_time.total_seconds(),
             'bedded_pats':   len(pats_t.index),
@@ -112,16 +123,28 @@ class Engine():
             'loc_history':   len(loc_history_t.index),
         }
 
-        return {
-            'pats': pats, 'pats_t': pats_t,
-            'flowsheets': flowsheets, 'flowsheets_t': flowsheets_t,
-            'lab_orders': lab_orders, 'lab_orders_t': lab_orders_t,
-            'lab_results': lab_results, 'lab_results_t': lab_results_t,
-            'med_orders': med_orders, 'med_orders_t': med_orders_t,
-            'med_admin': med_admin, 'med_admin_t': med_admin_t,
-            'loc_history': loc_history, 'loc_history_t': loc_history_t,
-            'stats': stats
+        # Prepare for database
+        pats_t.diagnosis = pats_t.diagnosis.apply(json.dumps)
+        pats_t.history = pats_t.history.apply(json.dumps)
+        pats_t.problem = pats_t.problem.apply(json.dumps)
+        med_orders_t.ids = med_orders_t.ids.apply(json.dumps)
+        db_data = {
+            'bedded_patients_transformed': pats_t,
+            'flowsheets_transformed': flowsheets_t,
+            'lab_orders_transformed': lab_orders_t,
+            'lab_results_transformed': lab_results_t,
+            'med_orders_transformed': med_orders_t,
+            'med_admin_transformed': med_admin_t,
+            'location_history_transformed': loc_history_t,
         }
+
+        # TODO: send stats to cloudwatch
+
+        self.loader.run_loop(db_data)
+
+        # TODO: fillin
+        # TODO: derive
+
 
 
 if __name__ == '__main__':
@@ -131,12 +154,5 @@ if __name__ == '__main__':
     pd.set_option('display.max_colwidth', 40)
     pd.options.mode.chained_assignment = None
     logging.getLogger().setLevel(0)
-    ex = Extractor(
-        hospital =       'HCGH',
-        lookback_hours = 25,
-        jhapi_server =   'prod',
-        jhapi_id =       os.environ['jhapi_client_id'],
-        jhapi_secret =   os.environ['jhapi_client_secret'],
-    )
-    engine = Engine(ex)
+    engine = Engine('HCGH', 15)
     results = engine.main()

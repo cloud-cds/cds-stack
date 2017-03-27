@@ -1,6 +1,6 @@
 import asyncio
 import asyncpg
-from config import Config
+from etl.core.config import Config
 import json
 from extractor import Extractor
 
