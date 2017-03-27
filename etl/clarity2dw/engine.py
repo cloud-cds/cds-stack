@@ -10,7 +10,8 @@ job = {
     'init': True,
     'populate_patients': True,
     'populate_measured_features': {
-      'plan': False
+      'plan': False,
+      'fid': 'heart_rate',
     }
   },
   # 'fillin': {},

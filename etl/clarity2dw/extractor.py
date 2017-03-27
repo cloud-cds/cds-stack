@@ -36,7 +36,10 @@ class Extractor:
       self.plan = False
       if 'plan' in job['populate_measured_features']:
         self.plan = job['populate_measured_features']['plan']
-      await self.populate_measured_features(conn)
+      fid = None
+      if 'fid' in job['populate_measured_features']:
+        fid = job['populate_measured_features']['fid']
+      await self.populate_measured_features(conn, fid)
 
   async def run_fillin(self, conn):
     self.log.info("start fillin pipeline")
@@ -80,7 +83,7 @@ class Extractor:
     self.log.info("ETL populate_patients: " + result)
 
 
-  async def populate_measured_features(self, conn):
+  async def populate_measured_features(self, conn, fid=None):
     feature_mapping = pd.read_csv(self.config.FEATURE_MAPPING_CSV)
     pat_mappings = await self.get_pat_mapping(conn)
     self.visit_id_to_enc_id = pat_mappings['visit_id_to_enc_id']
@@ -88,22 +91,23 @@ class Extractor:
     self.log.info("load feature mapping")
 
     for i, mapping in feature_mapping.iterrows():
-      self.log.debug(mapping)
-      fid = mapping['fid']
-      transform_func_id = str(mapping['transform_func_id'])
-      if fid in self.cdm_feature_dict:
-        if "." in transform_func_id:
-          i = len(transform_func_id) - transform_func_id[::-1].index('.')
-          package = transform_func_id[:(i-1)]
-          transform_func_id = transform_func_id[i:]
-          self.log.info("fid: %s using package: %s and transform_func_id: %s" % (fid, package, transform_func_id))
-          module = importlib.import_module(package)
-          func = getattr(module, transform_func_id)
-          await func(conn)
+      if fid is None or fid == mapping['fid']:
+        self.log.debug(mapping)
+        fid = mapping['fid']
+        transform_func_id = str(mapping['transform_func_id'])
+        if fid in self.cdm_feature_dict:
+          if "." in transform_func_id:
+            i = len(transform_func_id) - transform_func_id[::-1].index('.')
+            package = transform_func_id[:(i-1)]
+            transform_func_id = transform_func_id[i:]
+            self.log.info("fid: %s using package: %s and transform_func_id: %s" % (fid, package, transform_func_id))
+            module = importlib.import_module(package)
+            func = getattr(module, transform_func_id)
+            await func(conn)
+          else:
+            await self.populate_feature_to_cdm(mapping, conn, self.cdm_feature_dict[fid])
         else:
-          await self.populate_feature_to_cdm(mapping, conn, self.cdm_feature_dict[fid])
-      else:
-        self.log.warn("feature %s is not in cdm_feature" % fid)
+          self.log.warn("feature %s is not in cdm_feature" % fid)
 
   async def get_pat_mapping(self, conn):
     sql = "select * from pat_enc where dataset_id = %s" % self.config.dataset_id
