@@ -104,13 +104,7 @@ async def derive_feature(log, feature, conn, twf_table='cdm_twf'):
   await derive_func_driver(fid, fid_category, derive_func_id, derive_func_input, conn, log, twf_table)
   log.info("derive feature %s end." % fid)
 
-def cdm_twf_clean(fid, value='null', confidence='null', twf_table='cdm_twf'):
-  """ set a twf feature's value and confidence to the input arguments """
-  update_sql = """
-  UPDATE %(twf_table)s SET %(fid)s = %(value)s, %(fid)s_c = %(confidence)s;
-  """ % {'fid':fid, 'value':value, 'confidence':confidence,
-     'twf_table': twf_table}
-  return update_sql
+
 
 async def derive_func_driver(fid, fid_category, derive_func_id, derive_func_input, conn, log, twf_table):
   if fid in derive_config:
