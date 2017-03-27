@@ -89,8 +89,9 @@ resource "aws_autoscaling_group" "nodes-cluster-dev-opsdx-io" {
 resource "aws_autoscaling_group" "tensorflow-cluster-dev-opsdx-io" {
   name                 = "tensorflow.cluster.dev.opsdx.io"
   launch_configuration = "${aws_launch_configuration.tensorflow-cluster-dev-opsdx-io.id}"
-  max_size             = 2
   min_size             = 0
+  max_size             = 3
+  desired_capacity     = 3
   vpc_zone_identifier  = ["${aws_subnet.us-east-1d-cluster-dev-opsdx-io.id}"]
   enabled_metrics      = ["GroupStandbyInstances", "GroupTotalInstances", "GroupPendingInstances", "GroupTerminatingInstances", "GroupDesiredCapacity", "GroupInServiceInstances", "GroupMinSize", "GroupMaxSize"]
 
