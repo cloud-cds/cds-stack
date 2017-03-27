@@ -1,10 +1,7 @@
 #!/bin/bash
 
-if [ $# -ne 1 ]; then
-  echo "Usage: $0 <tfstate subdir, i.e., dev|prod>"
-  exit 1
+if [ ! -f k8s/kubernetes_key_name ]; then
+  jq '.modules[].resources|to_entries|.[]|select(.key|startswith("aws_key_pair"))|.value.primary.id|select(startswith("kub"))' .terraform/terraform.tfstate | sed 's/\"//g' > k8s/kubernetes_key_name
+else
+  echo "Found k8s key... skipping extraction"
 fi
-
-DIR=$1
-jq '.modules[].resources|to_entries|.[]|select(.key|startswith("aws_key_pair"))|.value.primary.id|select(startswith("kub"))' tfstate/$DIR/terraform.tfstate | sed 's/\"//g' > k8s/kubernetes_key_name
-

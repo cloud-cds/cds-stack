@@ -86,6 +86,45 @@ resource "aws_autoscaling_group" "nodes-cluster-dev-opsdx-io" {
   }
 }
 
+resource "aws_autoscaling_group" "tensorflow-cluster-dev-opsdx-io" {
+  name                 = "tensorflow.cluster.dev.opsdx.io"
+  launch_configuration = "${aws_launch_configuration.tensorflow-cluster-dev-opsdx-io.id}"
+  max_size             = 2
+  min_size             = 0
+  vpc_zone_identifier  = ["${aws_subnet.us-east-1d-cluster-dev-opsdx-io.id}"]
+  enabled_metrics      = ["GroupStandbyInstances", "GroupTotalInstances", "GroupPendingInstances", "GroupTerminatingInstances", "GroupDesiredCapacity", "GroupInServiceInstances", "GroupMinSize", "GroupMaxSize"]
+
+  tag = {
+    key                 = "Component"
+    value               = "Node"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "KubernetesCluster"
+    value               = "cluster.dev.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Name"
+    value               = "tensorflow.cluster.dev.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Stack"
+    value               = "Development"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "k8s.io/role/node"
+    value               = "1"
+    propagate_at_launch = true
+  }
+}
+
 resource "aws_ebs_volume" "d-etcd-events-cluster-dev-opsdx-io" {
   availability_zone = "us-east-1d"
   size              = 20
@@ -212,6 +251,27 @@ resource "aws_launch_configuration" "nodes-cluster-dev-opsdx-io" {
   security_groups             = ["${aws_security_group.nodes-cluster-dev-opsdx-io.id}"]
   associate_public_ip_address = false
   user_data                   = "${file("${path.module}/data/aws_launch_configuration_nodes.cluster.dev.opsdx.io_user_data")}"
+
+  root_block_device = {
+    volume_type           = "gp2"
+    volume_size           = 20
+    delete_on_termination = true
+  }
+
+  lifecycle = {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_launch_configuration" "tensorflow-cluster-dev-opsdx-io" {
+  name_prefix                 = "tensorflow.cluster.dev.opsdx.io-"
+  image_id                    = "ami-5f1afc49"
+  instance_type               = "t2.large"
+  key_name                    = "${aws_key_pair.kubernetes-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
+  iam_instance_profile        = "${aws_iam_instance_profile.nodes-cluster-dev-opsdx-io.id}"
+  security_groups             = ["${aws_security_group.nodes-cluster-dev-opsdx-io.id}"]
+  associate_public_ip_address = false
+  user_data                   = "${file("${path.module}/data/aws_launch_configuration_tensorflow.cluster.dev.opsdx.io_user_data")}"
 
   root_block_device = {
     volume_type           = "gp2"
