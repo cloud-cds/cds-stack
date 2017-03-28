@@ -1324,7 +1324,7 @@ var notifications = new function() {
 			e.stopPropagation();
 			notifications.n.toggle();
 		});
-		$('body').click(function() {
+		$('body, #header-activity').click(function() {
 			notifications.n.fadeOut(30);
 		});
 		this.n.unbind();
@@ -1439,7 +1439,7 @@ var activity = new function() {
 			e.stopPropagation();
 			activity.a.toggle();
 		});
-		$('body').click(function() {
+		$('body, #header-notifications').click(function() {
 			activity.a.fadeOut(30);
 		});
 		this.a.unbind();
