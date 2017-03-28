@@ -182,8 +182,8 @@ class TableComparator:
     logging.info('Query to execute:\n{}'.format(compare_to_remote_query))
     async with pool.acquire() as conn:
       if self.as_count_result:
-        diffs = await conn.fetchrow(compare_to_remote_query)
-        logging.info('# DIFFS: %s' % diffs)
+        r = await conn.fetchrow(compare_to_remote_query)
+        logging.info('# DIFFS: %s' % r['diffs'])
       else:
         results = await conn.fetch(compare_to_remote_query)
         for r in results:
@@ -211,6 +211,7 @@ async def run():
   parser.add_argument("--dstdid", type=int, default=None, help="Dest dataset id")
   parser.add_argument("--srcmid", type=int, default=None, help="Source model id")
   parser.add_argument("--dstmid", type=int, default=None, help="Dest model id")
+  parser.add_argument("--counts", default=False, help="Show count of differing rows instead of values", action="store_true")
   args = parser.parse_args()
 
   src_dataset_id = args.srcdid
@@ -223,7 +224,7 @@ async def run():
     c = TableComparator(src_server,
                         src_dataset_id, src_model_id,
                         dst_dataset_id, dst_model_id,
-                        tbl, version_extension=version_type)
+                        tbl, version_extension=version_type, as_count_result=args.counts)
     await c.run(dbpool)
 
 if __name__ == '__main__':
