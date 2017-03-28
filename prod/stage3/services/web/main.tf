@@ -191,3 +191,11 @@ resource "aws_iam_role_policy" "web_logs_cwf_push" {
 }
 POLICY
 }
+
+output "web_logs_name" {
+  value = "${aws_cloudwatch_log_group.web_logs.name}"
+}
+
+output "web_logs_arn" {
+  value = "${aws_cloudwatch_log_group.web_logs.arn}"
+}

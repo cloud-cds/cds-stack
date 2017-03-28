@@ -137,6 +137,7 @@ module "trews_etl_replay" {
 
 module "behavior_monitors" {
   source = "./services/behavior-monitors"
+  aws_region = "${var.aws_region}"
   deploy_prefix = "${var.deploy_prefix}"
 
   s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
@@ -151,6 +152,9 @@ module "behavior_monitors" {
   db_name     = "${replace(var.deploy_prefix, "-", "_")}"
   db_username = "${var.db_username}"
   db_password = "${var.db_password}"
+
+  behamon_log_group_name = ""
+  behamon_log_group_arn  = ""
 }
 
 module "monitor" {

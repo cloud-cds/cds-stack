@@ -1,8 +1,13 @@
+variable "aws_region" {}
+
 variable "deploy_prefix" {}
 
 variable "s3_opsdx_lambda" {}
 variable "aws_behamon_lambda_package" {}
 variable "aws_behamon_lambda_role_arn" {}
+
+variable "behamon_log_group_name" {}
+variable "behamon_log_group_arn" {}
 
 variable "db_host" {}
 variable "db_port" { default = 5432 }
@@ -50,4 +55,19 @@ resource "aws_lambda_function" "behamon_lambda" {
         db_password = "${var.db_password}"
       }
     }
+}
+
+resource "aws_cloudwatch_log_subscription_filter" "behamon_lambda_logfilter" {
+  name            = "${var.deploy_prefix}-behamon-lambda-logfilter"
+  log_group_name  = "${var.behamon_log_group_name}"
+  filter_pattern  = "{ $.req.url = \"*CSN*\" }"
+  destination_arn = "${aws_lambda_function.behamon_lambda.arn}"
+}
+
+resource "aws_lambda_permission" "behamon_cloudwatch_permissions" {
+    statement_id  = "LogBasedExecution"
+    action        = "lambda:InvokeFunction"
+    function_name = "${aws_lambda_function.behamon_lambda.function_name}"
+    principal     = "logs.${var.aws_region}.amazonaws.com"
+    source_arn    = "${var.behamon_log_group_arn}"
 }
