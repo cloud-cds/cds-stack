@@ -19,27 +19,32 @@ from etl.load.primitives.tbl.time_since_last_measured import *
 from etl.load.primitives.row import load_row
 from etl.load.primitives.tbl import clean_tbl
 
-def derive(fid, func_id, fid_input, conn, log, twf_table='cdm_twf'):
+def derive(fid, func_id, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
   this_mod = sys.modules[__name__]
   func = getattr(this_mod, func_id)
-  return func(fid, fid_input, conn, log, twf_table=twf_table)
+  return func(fid, fid_input, conn, log, dataset_id=dataset_id, twf_table=twf_table)
 
-async def lookup_population_mean(fid, fid_input, conn, log, twf_table='cdm_twf'):
+def with_ds(dataset_id, table_name=None, conjunctive=True):
+  if dataset_id is not None:
+    '%s %sdataset_id = %s' % (' and' if conjunctive else 'where', '' if table_name is None else table_name+'.', dataset_id)
+  return ''
+
+async def lookup_population_mean(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
   """
   check if fid_popmean exists or not;
   if not, calculate it
   NOTE: if the fid does not exist for fid_popmean, then fid_popmean is null in
   cdm_g
   """
-  select_sql = "SELECT value FROM cdm_g WHERE fid = '%s'" % fid
+  select_sql = "SELECT value FROM cdm_g WHERE fid = '%(fid)s'%(with_ds)s" % {'fid': fid, 'with_ds': with_ds(dataset_id) }
   popmean = await conn.fetchrow(select_sql)
   if popmean is not None:
     log.info("lookup_population_mean %s %s" % (fid, popmean['value']))
   else:
-    log.warn("cannont find %s in cdm_g" % fid)
+    log.warn("cannot find %s in cdm_g" % fid)
     calculate_popmean_sql = \
-      "SELECT avg(%(fid)s) FROM %(twf_table)s where %(fid)s is not null" \
-        % {'fid':fid_input, 'twf_table':twf_table}
+      "SELECT avg(%(fid)s) FROM %(twf_table)s where %(fid)s is not null%(with_ds)s" \
+        % {'fid':fid_input, 'twf_table':twf_table, 'with_ds': with_ds(dataset_id)}
     popmean = await conn.fetchrow(calculate_popmean_sql)
     if popmean is not None:
       load_row.insert_g([fid, popmean[0], confidence.POPMEAN])
@@ -49,7 +54,7 @@ async def lookup_population_mean(fid, fid_input, conn, log, twf_table='cdm_twf')
       log.error("lookup_population_mean %s" % fid)
 
 # Same as any_continuous_dose_update (special case)
-async def any_antibiotics_order_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
+async def any_antibiotics_order_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
   """
   fid should be any_antibiotics_order (T, boolean)
   fid_input should be a list of dose
@@ -59,10 +64,10 @@ async def any_antibiotics_order_update(fid, fid_input, conn, log, twf_table='cdm
   for i in range(len(fid_input_items)):
     assert fid_input_items[i].endswith('dose'), \
       'wrong fid_input %s' % fid_input
-  any_med_order_update(fid, fid_input, conn, log, twf_table=twf_table)
+  any_med_order_update(fid, fid_input, conn, log, dataset_id=dataset_id, twf_table=twf_table)
 
 # Same as any_continuous_dose_update (special case)
-async def any_pressor_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
+async def any_pressor_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
   """
   fid should be any_pressor (T, boolean)
   fid_input should be a list of dose
@@ -73,10 +78,10 @@ async def any_pressor_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
     assert fid_input_items[i].endswith('dose'), \
       'wrong fid_input %s' % fid_input
   for dose in fid_input_items:
-    any_continuous_dose_update(fid, dose, conn, log, twf_table=twf_table)
+    any_continuous_dose_update(fid, dose, conn, log, dataset_id=dataset_id, twf_table=twf_table)
 
 # Same as any_continuous_dose_update (special case)
-async def any_inotrope_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
+async def any_inotrope_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
   """
   fid should be any_inotrope (T, boolean)
   fid_input should be a list of dose
@@ -88,15 +93,15 @@ async def any_inotrope_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
       'wrong fid_input %s' % fid_input
   clean_tbl.cdm_t_clean(conn, fid)
   for dose in fid_input_items:
-    any_continuous_dose_update(fid, dose, conn, log, twf_table=twf_table)
+    any_continuous_dose_update(fid, dose, conn, log, dataset_id=dataset_id, twf_table=twf_table)
 
 # Special case
-async def any_continuous_dose_update(fid, dose, cdm, twf_table='cdm_twf'):
+async def any_continuous_dose_update(fid, dose, cdm, dataset_id=None, twf_table='cdm_twf'):
   global STOPPED_ACTIONS
   select_sql = """
     select enc_id, tsp, value::json->>'action' as action, confidence
-    from cdm_t where fid = '%s' order by enc_id, tsp
-  """ % dose
+    from cdm_t where fid = '%(dose)s'%(with_ds)s order by enc_id, tsp
+  """ % {'dose': dose, 'with_ds': with_ds(dataset_id) }
   records = await conn.fetch(select_sql)
   block = {'enc_id':None, 'start_tsp':None, 'end_tsp':None,
        'start_c': 0, 'end_c': 0}
@@ -114,42 +119,42 @@ async def any_continuous_dose_update(fid, dose, cdm, twf_table='cdm_twf'):
         block['end_tsp'] = tsp
         block['end_c'] = c
         # block is reaty to update
-        update_continuous_dose_block(fid, block, conn, log)
+        update_continuous_dose_block(fid, block, conn, log, dataset_id=dataset_id)
         block = {'enc_id':None, 'start_tsp':None, 'end_tsp':None,
              'start_c': 0, 'end_c': 0}
     elif block['enc_id'] != enc_id and not action in STOPPED_ACTIONS:
       # update current block
-      update_continuous_dose_block(fid, block, conn, log)
+      update_continuous_dose_block(fid, block, conn, log, dataset_id=dataset_id)
       # create new block
       block = {'enc_id':enc_id, 'start_tsp':tsp, 'end_tsp':None,
            'start_c': 0, 'end_c': 0}
 
 # Special case
-async def update_continuous_dose_block(fid, block, conn, log, twf_table='cdm_twf'):
+async def update_continuous_dose_block(fid, block, conn, log, dataset_id=None, twf_table='cdm_twf'):
   select_sql = """
-    select value from cdm_t where enc_id = %s and fid = '%s'
+    select value from cdm_t where enc_id = %s and fid = '%s'%s
     and tsp <= timestamptz '%s' order by tsp DESC
-  """ % (block['enc_id'], fid, block['start_tsp'])
+  """ % (block['enc_id'], fid, with_ds(dataset_id), block['start_tsp'])
   prev = await conn.fetchrow(select_sql)
   if prev is None or prev['value'] == 'False':
     load_row.upsert_t(conn, [block['enc_id'], block['start_tsp'], fid,
             True, block['start_c']])
   if block['end_tsp'] is None:
     delete_sql = """
-      delete from cdm_t where enc_id = %s and fid = '%s'
+      delete from cdm_t where enc_id = %s and fid = '%s'%s
       and tsp > timestamptz '%s'
-    """ % (block['enc_id'], fid, block['start_tsp'])
+    """ % (block['enc_id'], fid, with_ds(dataset_id), block['start_tsp'])
     await conn.execute(delete_sql)
   else:
     delete_sql = """
-      delete from cdm_t where enc_id = %s and fid = '%s'
+      delete from cdm_t where enc_id = %s and fid = '%s'%s
       and tsp > timestamptz '%s' and tsp <= timestamptz '%s'
-    """ % (block['enc_id'], fid, block['start_tsp'], block['end_tsp'])
+    """ % (block['enc_id'], fid, with_ds(dataset_id), block['start_tsp'], block['end_tsp'])
     await conn.execute(delete_sql)
     select_sql = """
-      select value from cdm_t where enc_id = %s and fid = '%s'
+      select value from cdm_t where enc_id = %s and fid = '%s'%s
       and tsp >= timestamptz '%s' order by tsp
-    """ % (block['enc_id'], fid, block['end_tsp'])
+    """ % (block['enc_id'], fid, with_ds(dataset_id), block['end_tsp'])
     post = await conn.fetchrow(select_sql)
     if post is None or post['value'] == 'True':
       load_row.upsert_t(conn, [block['enc_id'], block['end_tsp'], fid,
@@ -158,7 +163,7 @@ async def update_continuous_dose_block(fid, block, conn, log, twf_table='cdm_twf
 
 
 # Special case
-async def any_med_order_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
+async def any_med_order_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
   # Updated on 3/19/2016
   clean_tbl.cdm_t_clean(conn, fid)
   fid_input_items = [item.strip() for item in fid_input.split(',')]
@@ -167,9 +172,9 @@ async def any_med_order_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
     SELECT distinct enc_id,
       value::json->>'order_tsp' order_tsp,
       max(confidence) confidence FROM cdm_t
-    WHERE fid ~ '%s' AND cast(value::json->>'dose' as numeric) > 0
+    WHERE fid ~ '%s'%s AND cast(value::json->>'dose' as numeric) > 0
     group by enc_id, order_tsp
-  """ % doses
+  """ % (doses, with_ds(dataset_id))
   rows = await conn.fetch(select_sql)
   for row in rows:
     if row['order_tsp']:
@@ -184,7 +189,7 @@ async def any_med_order_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
 
 
 # Special case
-async def suspicion_of_infection_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
+async def suspicion_of_infection_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
   # 03/20/2016
   assert fid == 'suspicion_of_infection', 'wrong fid %s' % fid
   fid_input_items = [item.strip() for item in fid_input.split(',')]
@@ -198,8 +203,8 @@ async def suspicion_of_infection_update(fid, fid_input, conn, log, twf_table='cd
     inner join cdm_t t2 on t1.enc_id = t2.enc_id
       and t2.fid = 'any_antibiotics_order'
       and t2.tsp >= t1.tsp and t2.tsp <= t1.tsp + interval '72 hours'
-    where t1.fid = 'culture_order'
-  """
+    where t1.fid = 'culture_order'%s%s
+  """ % (with_ds(dataset_id, table_name='t1'), with_ds(dataset_id, table_name='t2'))
   rows = await conn.fetch(select_sql)
   for row in rows:
     values = [row['enc_id'], row['tsp'], fid, "True",
@@ -211,8 +216,8 @@ async def suspicion_of_infection_update(fid, fid_input, conn, log, twf_table='cd
     inner join cdm_t t2 on t1.enc_id = t2.enc_id
       and t2.fid = 'culture_order'
       and t2.tsp >= t1.tsp and t2.tsp <= t1.tsp + interval '24 hours'
-    where t1.fid = 'any_antibiotics_order'
-  """
+    where t1.fid = 'any_antibiotics_order'%s%s
+  """ % (with_ds(dataset_id, table_name='t1'), with_ds(dataset_id, table_name='t2'))
   rows = await conn.fetch(select_sql)
   for row in rows:
     values = [row['enc_id'], row['tsp'], fid, "True",
@@ -230,7 +235,7 @@ async def suspicion_of_infection_update(fid, fid_input, conn, log, twf_table='cd
 
 
 # Special subquery (subquery with if-then-else cases)
-async def hypotension_intp_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
+async def hypotension_intp_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
   assert fid == 'hypotension_intp', 'wrong fid %s' % fid
   assert fid_input == 'hypotension_raw', 'wrong fid_input %s' % fid
   clean_tbl.cdm_twf_clean(conn, fid, value=False)
@@ -241,12 +246,12 @@ async def hypotension_intp_update(fid, fid_input, conn, log, twf_table='cdm_twf'
         lag(enc_id) over w as enc_id_prev,
         lag(tsp) over w as tsp_prev,
         lag(hypotension_raw) over w as hypotension_raw_prev
-     FROM %(twf_table)s
+     FROM %(twf_table)s%(with_ds)s
      WINDOW w as (order by enc_id,tsp)
      ORDER by enc_id, tsp) as query
   WHERE (query.hypotension_raw OR query.hypotension_raw_prev) OR
       query.enc_id IS DISTINCT FROM query.enc_id_prev
-  """ % {'twf_table': twf_table}
+  """ % {'twf_table': twf_table, 'with_ds': with_ds(dataset_id, table_name=twf_table, conjunctive=False)}
   records = await conn.fetch(select_sql)
   block_start = None
   block_end = None
@@ -264,12 +269,12 @@ async def hypotension_intp_update(fid, fid_input, conn, log, twf_table='cdm_twf'
           update_sql = """
           UPDATE %(twf_table)s SET hypotension_intp = 'True',
           hypotension_intp_c = %(confidence)s
-          WHERE enc_id = %(enc_id)s
+          WHERE enc_id = %(enc_id)s%(with_ds)s
           AND tsp >= timestamptz '%(tsp_start)s'
           AND tsp <= timestamptz '%(tsp_end)s'
           """ % {'confidence': block_c, 'enc_id': block_enc_id,
                'tsp_start': block_start, 'tsp_end': block_end,
-               'twf_table': twf_table}
+               'twf_table': twf_table, 'with_ds': with_ds(dataset_id)}
           await conn.execute(update_sql)
       # clear the block
       block_start = None
@@ -291,12 +296,12 @@ async def hypotension_intp_update(fid, fid_input, conn, log, twf_table='cdm_twf'
           update_sql = """
           UPDATE %(twf_table)s SET hypotension_intp = 'True',
           hypotension_intp_c = %(confidence)s
-          WHERE enc_id = %(enc_id)s
+          WHERE enc_id = %(enc_id)s%(with_ds)s
           AND tsp >= timestamptz '%(tsp_start)s'
           AND tsp <= timestamptz '%(tsp_end)s'
           """ % {'confidence': block_c, 'enc_id': block_enc_id,
                'tsp_start': block_start, 'tsp_end': block_end,
-               'twf_table': twf_table}
+               'twf_table': twf_table, 'with_ds': with_ds(dataset_id)}
           await conn.execute(update_sql)
       block_start = None
       block_end = None
@@ -306,7 +311,7 @@ async def hypotension_intp_update(fid, fid_input, conn, log, twf_table='cdm_twf'
       block_c = block_c | rec['hypotension_raw_c']
 
 # Special subquery (multiple subqueries)
-async def sirs_intp_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
+async def sirs_intp_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
   """
   SIRS_INTP 30m version
   """
@@ -323,12 +328,12 @@ async def sirs_intp_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
         lag(enc_id) over w as enc_id_prev,
         lag(tsp) over w as tsp_prev,
         lag(sirs_raw) over w as sirs_raw_prev
-     FROM %(twf_table)s
+     FROM %(twf_table)s%(with_ds)s
      WINDOW w as (order by enc_id,tsp)
      ORDER by enc_id, tsp) as query
   WHERE (query.sirs_raw OR query.sirs_raw_prev) OR
       query.enc_id IS DISTINCT FROM query.enc_id_prev
-  """ % {'twf_table': twf_table}
+  """ % {'twf_table': twf_table, 'with_ds': with_ds(dataset_id, table_name=twf_table, conjunctive=False)}
   records = await conn.fetch(select_sql)
   block_start = None
   block_end = None
@@ -346,12 +351,12 @@ async def sirs_intp_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
           update_sql = """
           UPDATE %(twf_table)s SET sirs_intp = 'True',
           sirs_intp_c = %(confidence)s
-          WHERE enc_id = %(enc_id)s
+          WHERE enc_id = %(enc_id)s%(with_ds)s
           AND tsp >= timestamptz '%(tsp_start)s'
           AND tsp <= timestamptz '%(tsp_end)s'
           """ % {'confidence': block_c, 'enc_id': block_enc_id,
                'tsp_start': block_start, 'tsp_end': block_end,
-               'twf_table': twf_table}
+               'twf_table': twf_table, 'with_ds': with_ds(dataset_id)}
           await conn.execute(update_sql)
       # clear the block
       block_start = None
@@ -374,12 +379,12 @@ async def sirs_intp_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
           update_sql = """
           UPDATE %(twf_table)s SET sirs_intp = 'True',
           sirs_intp_c = %(confidence)s
-          WHERE enc_id = %(enc_id)s
+          WHERE enc_id = %(enc_id)s%(with_ds)s
           AND tsp >= timestamptz '%(tsp_start)s'
           AND tsp <= timestamptz '%(tsp_end)s'
           """ % {'confidence': block_c, 'enc_id': block_enc_id,
                'tsp_start': block_start, 'tsp_end': block_end,
-               'twf_table': twf_table}
+               'twf_table': twf_table, 'with_ds': with_ds(dataset_id)}
           await conn.execute(update_sql)
       block_start = None
       block_end = None
@@ -398,12 +403,12 @@ async def sirs_intp_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
         lag(tsp) over w as tsp_prev,
         lag(sirs_intp) over w as sirs_intp_prev,
         lag(sirs_intp_c) over w as sirs_intp_c_prev
-     FROM %(twf_table)s
+     FROM %(twf_table)s%(with_ds)s
      WINDOW w as (order by enc_id,tsp)
      ORDER by enc_id, tsp) as query
   WHERE (query.sirs_intp or query.sirs_intp_prev) OR
       (query.enc_id IS DISTINCT FROM query.enc_id_prev)
-  """ % {'twf_table': twf_table}
+  """ % {'twf_table': twf_table, 'with_ds': with_ds(dataset_id, table_name=twf_table, conjunctive=False)}
   records = await conn.fetch(select_sql)
   interval_start = None
   interval_end = None
@@ -433,12 +438,12 @@ async def sirs_intp_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
         update_sql = """
           UPDATE %(twf_table)s SET sirs_intp = 'True',
           sirs_intp_c = %(confidence)s
-          WHERE enc_id = %(enc_id)s
+          WHERE enc_id = %(enc_id)s%(with_ds)s
           AND tsp > timestamptz '%(tsp_start)s'
           AND tsp < timestamptz '%(tsp_end)s'
           """ % {'confidence': interval_c, 'enc_id': interval_enc_id,
                'tsp_start': interval_start, 'tsp_end': interval_end,
-               'twf_table': twf_table}
+               'twf_table': twf_table, 'with_ds': with_ds(dataset_id)}
         await conn.execute(update_sql)
       interval_start = None
       interval_end = None
@@ -451,7 +456,7 @@ async def sirs_intp_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
 
 
 # Simple (w/ complex expressions)
-async def renal_sofa_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
+async def renal_sofa_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
   """
   fid should be renal_sofa (TWF)
   fid input should be creatinine, urine_output_24hr (both TWF)
@@ -470,8 +475,9 @@ async def renal_sofa_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
     WHEN %(creat)s >= 1.2 THEN 1
     ELSE 0
   END)
-  , %(fid)s_c = coalesce(%(creat)s_c, 0);
-  """ % {'fid':fid, 'creat':fid_input_items[0], 'twf_table': twf_table}
+  , %(fid)s_c = coalesce(%(creat)s_c, 0)
+  %(with_ds)s;
+  """ % {'fid':fid, 'creat':fid_input_items[0], 'twf_table': twf_table, 'with_ds': with_ds(dataset_id)}
   await conn.execute(update_clause)
 
   update_clause = """
@@ -486,8 +492,9 @@ async def renal_sofa_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
       tsp - (SELECT min(cdm_twf_2.tsp) FROM %(twf_table)s cdm_twf_2
            WHERE cdm_twf_2.enc_id = %(twf_table)s.enc_id)
       >= interval '24 hours'
+      %(with_ds)s
     ;
-  """ % {'fid':fid, 'urine_output':fid_input_items[1], 'twf_table': twf_table}
+  """ % {'fid':fid, 'urine_output':fid_input_items[1], 'twf_table': twf_table, 'with_ds': with_ds(dataset_id)}
   await conn.execute(update_clause)
 
 
@@ -495,7 +502,7 @@ async def renal_sofa_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
 
 
 # Subquery chain
-async def septic_shock_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
+async def septic_shock_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
   # UPDATE 8/19/2016
   assert fid == 'septic_shock', 'wrong fid %s' % fid
 
@@ -503,7 +510,7 @@ async def septic_shock_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
 
   select_sql = """
   select enc_id, tsp from %(twf_table)s
-  where %(condition)s
+  where %(condition)s %(with_ds)s
   """
 
   update_clause = """
@@ -513,50 +520,55 @@ async def septic_shock_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
     enc_id = %(enc_id)s
     and tsp >= timestamptz '%(tsp)s'
     and tsp < timestamptz '%(tsp)s' + interval '6 hours'
+    %(with_ds)s
     ;
   """
 
   records = \
     await conn.execute(select_sql % {'condition':'severe_sepsis is true',
-                      'twf_table': twf_table})
+                      'twf_table': twf_table, 'with_ds': with_ds(dataset_id)})
   for rec in records:
     await conn.execute(update_clause % {'id':'severe_sepsis',
                       'flag':1,
                       'enc_id': rec['enc_id'],
                       'tsp': rec['tsp'],
-                      'twf_table': twf_table})
+                      'twf_table': twf_table,
+                      'with_ds': with_ds(dataset_id)})
 
   records = \
     await conn.execute(select_sql % {'condition':'hypotension_intp is true or lactate > 4',
-                      'twf_table':twf_table})
+                      'twf_table':twf_table, 'with_ds': with_ds(dataset_id)})
   for rec in records:
     await conn.execute(update_clause % {'id':'severe_sepsis',
                       'flag':2,
                       'enc_id': rec['enc_id'],
                       'tsp': rec['tsp'],
-                      'twf_table': twf_table})
+                      'twf_table': twf_table,
+                      'with_ds': with_ds(dataset_id)})
 
   records = \
     await conn.execute(select_sql % \
       {'condition':'fluid_resuscitation is true or vasopressor_resuscitation is true',
-       'twf_table': twf_table})
+       'twf_table': twf_table, 'with_ds': with_ds(dataset_id)})
   for rec in records:
     await conn.execute(update_clause % {'id':'severe_sepsis',
                       'flag':4,
                       'enc_id': rec['enc_id'],
                       'tsp': rec['tsp'],
-                      'twf_table': twf_table})
+                      'twf_table': twf_table,
+                      'with_ds': with_ds(dataset_id)})
 
   update_clause = """
   UPDATE %(twf_table)s SET septic_shock = ( case when septic_shock = 7 then 1
     else 0 end)
-  """ % {'twf_table': twf_table}
+  %(with_ds)s
+  """ % {'twf_table': twf_table, 'with_ds': with_ds(dataset_id)}
   await conn.execute(update_clause)
 
 
 
 # Special case (mini-pipeline)
-async def resp_sofa_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
+async def resp_sofa_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
   """
   fid should be resp_sofa
   fid_input should be (vent (T), pao2_to_fio2 (TWF))
@@ -573,13 +585,14 @@ async def resp_sofa_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
     ELSE 0
   END),
   %(fid)s_c = pao2_to_fio2_c
+  %(with_ds)s
   ;
-  """ % {'fid':fid, 'twf_table': twf_table}
+  """ % {'fid':fid, 'twf_table': twf_table, 'with_ds': with_ds(dataset_id)}
   await conn.execute(update_clause)
 
   select_sql = """
-  SELECT * FROM cdm_t WHERE fid = 'vent' ORDER BY enc_id, tsp
-  """
+  SELECT * FROM cdm_t WHERE fid = 'vent'%s ORDER BY enc_id, tsp
+  """ % with_ds(dataset_id)
   server_cursor = await conn.execute(select_sql)
   block_enc_id = -1
   block_start = None
@@ -592,7 +605,7 @@ async def resp_sofa_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
     ELSE resp_sofa
     END),
     resp_sofa_c = resp_sofa_c | %(block_c)s
-  WHERE enc_id = %(enc_id)s
+  WHERE enc_id = %(enc_id)s%(with_ds)s
   AND tsp >= timestamptz '%(tsp_start)s'
   """
   records = server_cursor.fetchall()
@@ -603,7 +616,7 @@ async def resp_sofa_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
       if block_start is not None:
         block_update_sql = update_sql \
           % {'enc_id':block_enc_id, 'block_c':block_c,
-             'tsp_start':block_start, 'twf_table': twf_table}
+             'tsp_start':block_start, 'twf_table': twf_table, 'with_ds': with_ds(dataset_id)}
         await conn.execute(block_update_sql)
       # start new block
       block_start = None
@@ -624,7 +637,7 @@ async def resp_sofa_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
           "AND tsp < timestamptz '%(tsp_end)s'") \
           % {'enc_id':block_enc_id, 'block_c':block_c,
              'tsp_start':block_start, 'tsp_end':block_end,
-             'twf_table': twf_table}
+             'twf_table': twf_table, 'with_ds': with_ds(dataset_id)}
         await conn.execute(block_update_sql)
       block_start = None
       block_end = None
@@ -632,11 +645,11 @@ async def resp_sofa_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
   if block_start is not None:
     block_update_sql = update_sql \
       % {'enc_id':block_enc_id, 'block_c':block_c,
-         'tsp_start':block_start, 'twf_table': twf_table}
+         'tsp_start':block_start, 'twf_table': twf_table, 'with_ds': with_ds(dataset_id)}
     await conn.execute(block_update_sql)
 
 # Special case (mini-pipeline)
-async def cardio_sofa_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
+async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
   """
   fid should be cardio_sofa
   03/20/2016
@@ -655,8 +668,8 @@ async def cardio_sofa_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
 
   # update cardio_sofa based on mapm
   update_clause = """
-  UPDATE %(twf_table)s SET %(fid)s = 1, %(fid)s_c = mapm_c WHERE mapm < 70
-  """ % {'fid':fid, 'twf_table': twf_table}
+  UPDATE %(twf_table)s SET %(fid)s = 1, %(fid)s_c = mapm_c WHERE mapm < 70%(with_ds)s
+  """ % {'fid':fid, 'twf_table': twf_table, 'with_ds': with_ds(dataset_id)}
   await conn.execute(update_clause)
 
   select_sql = """
@@ -664,13 +677,13 @@ async def cardio_sofa_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
     value::json->>'action' as action, value::json->>'dose' as dose,
     confidence
     FROM cdm_t
-  WHERE fid = '%s' ORDER BY enc_id, tsp
+  WHERE fid = '%s'%s ORDER BY enc_id, tsp
   """
 
   update_clause = """
   UPDATE %(twf_table)s SET cardio_sofa = %(threshold)s
   , cardio_sofa_c = %(confidence)s
-  WHERE enc_id = %(enc_id)s
+  WHERE enc_id = %(enc_id)s%(with_ds)s
   AND cardio_sofa >= 1 AND cardio_sofa < %(threshold)s
   AND tsp >= timestamptz '%(tsp)s'
   ;
@@ -679,7 +692,7 @@ async def cardio_sofa_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
   update_clause_with_max_tsp = """
   UPDATE %(twf_table)s SET cardio_sofa = %(threshold)s
   , cardio_sofa_c = %(confidence)s
-  WHERE enc_id = %(enc_id)s
+  WHERE enc_id = %(enc_id)s%(with_ds)s
   AND cardio_sofa >= 1 AND cardio_sofa < %(threshold)s
   AND tsp >= timestamptz '%(tsp)s'
   AND tsp <= timestamptz '%(max_tsp)s'
@@ -687,7 +700,7 @@ async def cardio_sofa_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
   """
 
   # update cardio_sofa based on dopamine_dose
-  server_cursor = await conn.execute(select_sql % 'dopamine_dose')
+  server_cursor = await conn.execute(select_sql % ('dopamine_dose', with_ds(dataset_id)))
   for i, rec in enumerate(records):
     action = rec['action']
     if not action in STOPPED_ACTIONS and rec['dose'] is not None:
@@ -707,19 +720,19 @@ async def cardio_sofa_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
             % {'threshold':threshold, 'confidence':dopamine_c,
                'enc_id': rec['enc_id'], 'tsp':rec['tsp'],
                'max_tsp': records[i+1]['tsp'],
-               'twf_table': twf_table})
+               'twf_table': twf_table, 'with_ds': with_ds(dataset_id)})
         else:
           await conn.execute(update_clause \
             % {'threshold':threshold, 'confidence':dopamine_c,
                'enc_id': rec['enc_id'], 'tsp':rec['tsp'],
-               'twf_table': twf_table})
+               'twf_table': twf_table, 'with_ds': with_ds(dataset_id)})
 
   # update cardio_sofa based on epinephrine_dose
   # need to check the unit first
-  get_unit_sql = "SELECT unit FROM cdm_feature WHERE fid = '%s'" % 'epinephrine_dose'
+  get_unit_sql = "SELECT unit FROM cdm_feature WHERE fid = '%s'%s" % ('epinephrine_dose', with_ds(dataset_id))
   unit = await conn.fetchrow(get_unit_sql)
   if unit == 'mcg/kg/min':
-    records = await conn.fetch(select_sql % 'epinephrine_dose')
+    records = await conn.fetch(select_sql % ('epinephrine_dose', with_ds(dataset_id)))
   elif unit == 'mcg/min':
     select_sql_with_weight = """
       select sub.enc_id, sub.tsp,
@@ -733,14 +746,13 @@ async def cardio_sofa_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
         inner join cdm_twf twf
           on t.fid = '%s' and twf.enc_id = t.enc_id
           and t.tsp >= twf.tsp
+        %s
         ORDER BY t.enc_id, t.tsp, twf.tsp
       ) as sub
       group by sub.enc_id, sub.tsp, sub.value, sub.confidence
     """
-    log.info("select_sql_with_weight:%s" \
-      % (select_sql_with_weight % 'epinephrine_dose'))
-    records = await conn.fetch(select_sql_with_weight \
-      % 'epinephrine_dose')
+    log.info("select_sql_with_weight:%s" % (select_sql_with_weight % ('epinephrine_dose', with_ds(dataset_id, table_name='t', conjunctive=False))))
+    records = await conn.fetch(select_sql_with_weight % ('epinephrine_dose', with_ds(dataset_id, table_name='t', conjunctive=False)))
   for i, rec in enumerate(records):
     action = rec['action']
     if not action in STOPPED_ACTIONS and rec['dose'] is not None:
@@ -758,12 +770,12 @@ async def cardio_sofa_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
             % {'threshold':threshold, 'confidence':dose_c,
                'enc_id': rec['enc_id'], 'tsp':rec['tsp'],
                'max_tsp': records[i+1]['tsp'],
-               'twf_table': twf_table})
+               'twf_table': twf_table, 'with_ds': with_ds(dataset_id)})
         else:
           await conn.execute(update_clause \
             % {'threshold':threshold, 'confidence':dose_c,
                'enc_id': rec['enc_id'], 'tsp':rec['tsp'],
-               'twf_table': twf_table})
+               'twf_table': twf_table, 'with_ds': with_ds(dataset_id)})
   # update cardio_sofa based on dobutamine_dose
   server_cursor = await conn.execute(select_sql % 'dobutamine_dose')
   for i, rec in enumerate(records):
@@ -777,19 +789,19 @@ async def cardio_sofa_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
             % {'threshold':2, 'confidence':dose_c,
                'enc_id': rec['enc_id'], 'tsp':rec['tsp'],
                'max_tsp': records[i+1]['tsp'],
-               'twf_table': twf_table})
+               'twf_table': twf_table, 'with_ds': with_ds(dataset_id)})
         else:
           await conn.execute(update_clause \
             % {'threshold':2, 'confidence':dose_c,
                'enc_id': rec['enc_id'], 'tsp':rec['tsp'],
-               'twf_table': twf_table})
+               'twf_table': twf_table, 'with_ds': with_ds(dataset_id)})
   # update cardio_sofa based on levophed_infusion_dose
   # need to check the unit of levophed_infusion_dose
-  get_unit_sql = "SELECT unit FROM cdm_feature WHERE fid = '%s'" % 'epinephrine_dose'
+  get_unit_sql = "SELECT unit FROM cdm_feature WHERE fid = '%s'%s" % ('epinephrine_dose', with_ds(dataset_id))
   unit = await conn.fetchrow(get_unit_sql)
 
   if unit == 'mcg/kg/min':
-    records = await conn.fetch(select_sql % 'levophed_infusion_dose')
+    records = await conn.fetch(select_sql % ('levophed_infusion_dose', with_ds(dataset_id)))
   elif unit == 'mcg/min':
     select_sql_with_weight = """
       select sub.enc_id, sub.tsp,
@@ -803,14 +815,14 @@ async def cardio_sofa_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
         inner join cdm_twf twf
           on t.fid = '%s' and twf.enc_id = t.enc_id
           and t.tsp >= twf.tsp
+        %s
         ORDER BY t.enc_id, t.tsp, twf.tsp
       ) as sub
       group by sub.enc_id, sub.tsp, sub.value, sub.confidence
     """
-    log.info("select_sql_with_weight:%s" \
-      % (select_sql_with_weight % 'levophed_infusion_dose'))
-    records = \
-      await conn.fetch(select_sql_with_weight % 'levophed_infusion_dose')
+    log.info("select_sql_with_weight:%s" % (select_sql_with_weight % ('levophed_infusion_dose', with_ds(dataset_id, table_name='t', conjunctive=False))))
+    records = await conn.fetch(select_sql_with_weight % ('levophed_infusion_dose', with_ds(dataset_id, table_name='t', conjunctive=False)))
+
   for i, rec in enumerate(records):
     action = rec['action']
     if not action in STOPPED_ACTIONS and rec['dose'] is not None:
@@ -826,16 +838,16 @@ async def cardio_sofa_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
           % {'threshold':threshold, 'confidence':dose_c,
              'enc_id': rec['enc_id'], 'tsp':rec['tsp'],
              'max_tsp': records[i+1]['tsp'],
-             'twf_table': twf_table})
+             'twf_table': twf_table, 'with_ds': with_ds(dataset_id)})
       else:
         await conn.execute(update_clause \
           % {'threshold':threshold, 'confidence':dose_c,
              'enc_id': rec['enc_id'], 'tsp':rec['tsp'],
-             'twf_table': twf_table})
+             'twf_table': twf_table, 'with_ds': with_ds(dataset_id)})
 
 
 # Special case (mini-pipeline)
-async def vasopressor_resuscitation_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
+async def vasopressor_resuscitation_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
   """
   fid should be vasopressor_resuscitation (TWF, boolean)
   fid_input should be levophed_infusion_dose and dopamine_dose
@@ -848,21 +860,20 @@ async def vasopressor_resuscitation_update(fid, fid_input, conn, log, twf_table=
   clean_tbl.cdm_twf_clean(conn, fid, value=False, confidence=0, twf_table=twf_table)
   select_sql = """
   select enc_id, tsp, value::json->>'action' as action from cdm_t
-  where fid = '%s' order by enc_id, tsp;
+  where fid = '%s'%s order by enc_id, tsp;
   """
 
   update_sql_with_stop = """
   update %(twf_table)s set vasopressor_resuscitation = True
-  where enc_id = %(enc_id)s and tsp >= timestamptz '%(begin)s' and tsp < timestamptz '%(end)s'
+  where enc_id = %(enc_id)s%(with_ds)s and tsp >= timestamptz '%(begin)s' and tsp < timestamptz '%(end)s'
   """
 
   update_sql_wo_stop = """
   update %(twf_table)s set vasopressor_resuscitation = True
-  where enc_id = %(enc_id)s and tsp >= timestamptz '%(begin)s'
+  where enc_id = %(enc_id)s%(with_ds)s and tsp >= timestamptz '%(begin)s'
   """
 
-  records = \
-    await conn.execute(select_sql % 'levophed_infusion_dose')
+  records = await conn.execute(select_sql % ('levophed_infusion_dose', with_ds(dataset_id)))
   enc_id_cur = None
   start_tsp = None
   stop_tsp = None
@@ -874,7 +885,7 @@ async def vasopressor_resuscitation_update(fid, fid_input, conn, log, twf_table=
       # update current enc_id
       await conn.execute(update_sql_wo_stop % {'enc_id':enc_id_cur,
                            'begin':start_tsp,
-                           'twf_table': twf_table})
+                           'twf_table': twf_table, 'with_ds': with_ds(dataset_id)})
       enc_id_cur = None
       start_tsp = None
       stop_tsp = None
@@ -886,7 +897,7 @@ async def vasopressor_resuscitation_update(fid, fid_input, conn, log, twf_table=
         await conn.execute(update_sql_with_stop % {'enc_id':enc_id_cur,
                                'begin':start_tsp,
                                'end':stop_tsp,
-                               'twf_table': twf_table})
+                               'twf_table': twf_table, 'with_ds': with_ds(dataset_id)})
       enc_id_cur = None
       start_tsp = None
       stop_tsp = None
@@ -897,10 +908,9 @@ async def vasopressor_resuscitation_update(fid, fid_input, conn, log, twf_table=
   if enc_id_cur is not None:
     await conn.execute(update_sql_wo_stop % {'enc_id':enc_id_cur,
                          'begin':start_tsp,
-                         'twf_table': twf_table})
+                         'twf_table': twf_table, 'with_ds': with_ds(dataset_id)})
 
-  records = \
-    await conn.execute(select_sql % 'dopamine_dose')
+  records = await conn.execute(select_sql % ('dopamine_dose', with_ds(dataset_id)))
   enc_id_cur = None
   start_tsp = None
   stop_tsp = None
@@ -912,7 +922,7 @@ async def vasopressor_resuscitation_update(fid, fid_input, conn, log, twf_table=
       # update current enc_id
       await conn.execute(update_sql_wo_stop % {'enc_id':enc_id_cur,
                            'begin':start_tsp,
-                           'twf_table': twf_table})
+                           'twf_table': twf_table, 'with_ds': with_ds(dataset_id)})
       enc_id_cur = None
       start_tsp = None
       stop_tsp = None
@@ -922,7 +932,7 @@ async def vasopressor_resuscitation_update(fid, fid_input, conn, log, twf_table=
         await conn.execute(update_sql_with_stop % {'enc_id':enc_id_cur,
                                'begin':start_tsp,
                                'end':stop_tsp,
-                               'twf_table': twf_table})
+                               'twf_table': twf_table, 'with_ds': with_ds(dataset_id)})
       enc_id_cur = None
       start_tsp = None
       stop_tsp = None
@@ -933,12 +943,12 @@ async def vasopressor_resuscitation_update(fid, fid_input, conn, log, twf_table=
   if enc_id_cur is not None:
     await conn.execute(update_sql_wo_stop % {'enc_id':enc_id_cur,
                          'begin':start_tsp,
-                         'twf_table': twf_table})
+                         'twf_table': twf_table, 'with_ds': with_ds(dataset_id)})
 
 
 
 # Special case (mini-pipeline)
-async def heart_attack_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
+async def heart_attack_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
   """
   NEED TO MODIFY
   fid_input should be heart_attack_inhosp, ekg_proc, troponin
@@ -957,10 +967,10 @@ async def heart_attack_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
   # Retrieve all records of heart_attack_inhosp
   select_sql = """
   SELECT * FROM cdm_t
-  WHERE  fid = 'heart_attack_inhosp'
-  ORDER BY enc_id,  tsp;
+  WHERE  fid = 'heart_attack_inhosp'%s
+  ORDER BY enc_id, tsp;
   """
-  records = await conn.fetch(select_sql)
+  records = await conn.fetch(select_sql % with_ds(dataset_id))
 
   # Retrieve troponin above threshold
   # and EKG procedure order times to corroborate time of diagnosis
@@ -968,7 +978,7 @@ async def heart_attack_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
   SELECT * FROM cdm_t
   WHERE
     cdm_t.fid ~ 'ekg_proc'
-    and cdm_t.enc_id = %(enc_id)s
+    and cdm_t.enc_id = %(enc_id)s%(with_ds)s
     and tsp >= timestamptz '%(tsp)s'
     and timestamptz '%(tsp)s' <= tsp + interval '24 hours'
   ORDER BY tsp
@@ -976,7 +986,7 @@ async def heart_attack_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
   select_troponin = """
   SELECT tsp FROM %(twf_table)s
   WHERE troponin > 0
-    and enc_id = %(enc_id)s
+    and enc_id = %(enc_id)s%(with_ds)s
     and tsp >= timestamptz '%(tsp)s'
     and timestamptz '%(tsp)s' <= tsp + interval '24 hours'
   ORDER BY tsp
@@ -990,14 +1000,12 @@ async def heart_attack_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
     # By default set datetime of diagnosis to time given in ProblemList table
     # This datetime only specifies date though
     evidence = await conn.fetch(select_troponin % {'enc_id':enc_id,
-                                 'tsp':tsp,
-                                 'twf_table': twf_table})
+                                 'tsp':tsp, 'twf_table': twf_table, 'with_ds': with_ds(dataset_id)})
     t1 = tsp
     if len(evidence) > 0:
       t1 = evidence[0]['tsp']
 
-    evidence = await conn.fetch(select_ekg % {'enc_id':enc_id,
-                              'tsp':tsp})
+    evidence = await conn.fetch(select_ekg % {'enc_id':enc_id, 'tsp':tsp, 'with_ds': with_ds(dataset_id)})
     t2 = tsp
     if len(evidence) > 0:
       t2 = evidence[0]['tsp']
@@ -1010,7 +1018,7 @@ async def heart_attack_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
     load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf])
 
 # Special case (mini-pipeline)
-async def stroke_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
+async def stroke_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
   """
   fid_input should be stroke_inhosp, ct_proc, mri_proc
   fid should be heart_attack (T)
@@ -1028,17 +1036,17 @@ async def stroke_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
   # Retrieve all records of stroke_inhosp
   select_sql = """
   SELECT distinct enc_id, tsp FROM cdm_t
-  WHERE  fid = 'stroke_inhosp'
+  WHERE  fid = 'stroke_inhosp'%s
   ORDER BY enc_id,  tsp;
   """
-  records = await conn.fetch(select_sql)
+  records = await conn.fetch(select_sql % with_ds(dataset_id))
 
   # Retrieve CT and MRI order times to corroborate time of diagnosis
   select_sql = """
   SELECT * FROM cdm_t
   WHERE
     cdm_t.fid ~ 'ct_proc|mri_proc'
-    and cdm_t.enc_id = %(enc_id)s
+    and cdm_t.enc_id = %(enc_id)s%(with_ds)s
     and tsp >= timestamptz '%(tsp)s'
     and timestamptz '%(tsp)s' <= tsp + interval '24 hours'
   ORDER BY tsp
@@ -1051,8 +1059,7 @@ async def stroke_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
     enc_id = record['enc_id']
     tsp = record['tsp']
 
-    evidence = await conn.fetch(select_sql % {'enc_id':enc_id,
-                              'tsp':tsp})
+    evidence = await conn.fetch(select_sql % {'enc_id':enc_id, 'tsp':tsp, 'with_ds': with_ds(dataset_id)})
 
 
     # By default set datetime of diagnosis to time given in ProblemList table
@@ -1066,7 +1073,7 @@ async def stroke_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
     load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf])
 
 # Special case (mini-pipeline)
-async def gi_bleed_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
+async def gi_bleed_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
   """
   fid_input should be gi_bleed_inhosp, ct_proc, mri_proc
   fid should be gi_bleed (T)
@@ -1083,17 +1090,17 @@ async def gi_bleed_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
   # Retrieve all records of gi_bleed_inhosp
   select_sql = """
   SELECT distinct enc_id, tsp FROM cdm_t
-  WHERE  fid = 'gi_bleed_inhosp'
+  WHERE  fid = 'gi_bleed_inhosp'%s
   ORDER BY enc_id,  tsp;
   """
-  records = await conn.fetch(select_sql)
+  records = await conn.fetch(select_sql % with_ds(dataset_id))
 
   # Retrieve CT and MRI order times to corroborate time of diagnosis
   select_sql = """
   SELECT * FROM cdm_t
   WHERE
     cdm_t.fid ~ 'ct_proc|mri_proc'
-    and cdm_t.enc_id = %(enc_id)s
+    and cdm_t.enc_id = %(enc_id)s%s
     and tsp >= timestamptz '%(tsp)s'
     and timestamptz '%(tsp)s' <= tsp + interval '24 hours'
   ORDER BY tsp;
@@ -1108,8 +1115,7 @@ async def gi_bleed_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
     # By default set datetime of diagnosis to time given in ProblemList table
     # This datetime only specifies date though
 
-    evidence = await conn.fetch(select_sql % {'enc_id':enc_id,
-                              'tsp':tsp})
+    evidence = await conn.fetch(select_sql % {'enc_id':enc_id, 'tsp':tsp, 'with_ds': with_ds(dataset_id)})
 
     # By default set datetime of diagnosis to time given in ProblemList table
     # This datetime only specifies date though
@@ -1125,7 +1131,7 @@ async def gi_bleed_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
 
 
 # Special case (mini-pipeline)
-async def severe_pancreatitis_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
+async def severe_pancreatitis_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
   """
   fid_input should be severe_pancreatitis_inhosp, ct_proc, mri_proc
   fid should be heart_attack (T)
@@ -1141,17 +1147,17 @@ async def severe_pancreatitis_update(fid, fid_input, conn, log, twf_table='cdm_t
   # Retrieve all records of severe_pancreatitis_inhosp
   select_sql = """
   SELECT distinct enc_id, tsp FROM cdm_t
-  WHERE  fid = 'severe_pancreatitis_inhosp'
+  WHERE  fid = 'severe_pancreatitis_inhosp'%s
   ORDER BY enc_id,  tsp;
   """
-  records = await conn.fetch(select_sql)
+  records = await conn.fetch(select_sql % with_ds(dataset_id))
 
   # Retrieve CT and MRI order times to corroborate time of diagnosis
   select_sql = """
   SELECT * FROM cdm_t
   WHERE
     cdm_t.fid ~ 'ct_proc|mri_proc'
-    and cdm_t.enc_id = %(enc_id)s
+    and cdm_t.enc_id = %(enc_id)s%(with_ds)s
     and tsp >= timestamptz '%(tsp)s'
     and timestamptz '%(tsp)s' <= tsp + interval '24 hours'
   ORDER BY tsp
@@ -1164,8 +1170,7 @@ async def severe_pancreatitis_update(fid, fid_input, conn, log, twf_table='cdm_t
     enc_id = record['enc_id']
     tsp = record['tsp']
 
-    evidence = await conn.fetch(select_sql % {'enc_id':enc_id,
-                              'tsp':tsp})
+    evidence = await conn.fetch(select_sql % {'enc_id':enc_id, 'tsp':tsp, 'with_ds': with_ds(dataset_id)})
 
     # By default set datetime of diagnosis to time given in ProblemList table
     # This datetime only specifies date though
@@ -1178,7 +1183,7 @@ async def severe_pancreatitis_update(fid, fid_input, conn, log, twf_table='cdm_t
     load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf])
 
 # Special case (mini-pipeline)
-async def pulmonary_emboli_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
+async def pulmonary_emboli_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
   """
   fid_input should be pulmonary_emboli_inhosp, ct_proc, ekg_proc
   fid should be heart_attack (T)
@@ -1194,17 +1199,17 @@ async def pulmonary_emboli_update(fid, fid_input, conn, log, twf_table='cdm_twf'
   # Retrieve all records of pulmonary_emboli_inhosp
   select_sql = """
   SELECT distinct enc_id, tsp FROM cdm_t
-  WHERE  fid = 'pulmonary_emboli_inhosp'
+  WHERE  fid = 'pulmonary_emboli_inhosp'%s
   ORDER BY enc_id,  tsp;
   """
-  records = await conn.fetch(select_sql)
+  records = await conn.fetch(select_sql % with_ds(dataset_id))
 
   # Retrieve CT and MRI order times to corroborate time of diagnosis
   select_sql = """
   SELECT * FROM cdm_t
   WHERE
     cdm_t.fid ~ 'ct_proc|mri_proc'
-    and cdm_t.enc_id = %(enc_id)s
+    and cdm_t.enc_id = %(enc_id)s%(with_ds)s
     and tsp >= timestamptz '%(tsp)s'
     and timestamptz '%(tsp)s' <= tsp + interval '24 hours'
   ORDER BY tsp
@@ -1217,8 +1222,7 @@ async def pulmonary_emboli_update(fid, fid_input, conn, log, twf_table='cdm_twf'
     enc_id = record['enc_id']
     tsp = record['tsp']
 
-    evidence = await conn.fetch(select_sql % {'enc_id':enc_id,
-                              'tsp':tsp})
+    evidence = await conn.fetch(select_sql % {'enc_id':enc_id, 'with_ds': with_ds(dataset_id), 'tsp':tsp})
 
     # By default set datetime of diagnosis to time given in ProblemList table
     # This datetime only specifies date though
@@ -1231,7 +1235,7 @@ async def pulmonary_emboli_update(fid, fid_input, conn, log, twf_table='cdm_twf'
     load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf])
 
 # Special case (mini-pipeline)
-async def bronchitis_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
+async def bronchitis_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
   """
   fid_input should be bronchitis_inhosp, chest_xray, bacterial_culture
   fid should be heart_attack (T)
@@ -1247,17 +1251,17 @@ async def bronchitis_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
   # Retrieve all records of bronchitis_inhosp
   select_sql = """
   SELECT distinct enc_id, tsp FROM cdm_t
-  WHERE  fid = 'bronchitis_inhosp'
+  WHERE  fid = 'bronchitis_inhosp'%s
   ORDER BY enc_id,  tsp;
   """
-  records = await conn.fetch(select_sql)
+  records = await conn.fetch(select_sql % with_ds(dataset_id))
 
   # Retrieve chest x-ray and bacterial culture order times to corroborate time of diagnosis
   select_sql = """
   SELECT * FROM cdm_t
   WHERE
     cdm_t.fid ~ 'chest_xray|bacterial_culture'
-    and cdm_t.enc_id = %(enc_id)s
+    and cdm_t.enc_id = %(enc_id)s%(with_ds)s
     and tsp >= timestamptz '%(tsp)s'
     and timestamptz '%(tsp)s' <= tsp + interval '24 hours'
   ORDER BY tsp
@@ -1270,8 +1274,7 @@ async def bronchitis_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
     enc_id = record['enc_id']
     tsp = record['tsp']
 
-    evidence = await conn.fetch(select_sql % {'enc_id':enc_id,
-                              'tsp':tsp})
+    evidence = await conn.fetch(select_sql % {'enc_id':enc_id, 'with_ds': with_ds(dataset_id), 'tsp':tsp})
 
     # By default set datetime of diagnosis to time given in ProblemList table
     # This datetime only specifies date though
@@ -1284,7 +1287,7 @@ async def bronchitis_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
     load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf])
 
 # Special case (mini-pipeline)
-async def acute_kidney_failure_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
+async def acute_kidney_failure_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
   """
   fid_input should be
   acute_kidney_failure_inhosp, creatinine, urine_output_24hr, dialysis
@@ -1304,16 +1307,16 @@ async def acute_kidney_failure_update(fid, fid_input, conn, log, twf_table='cdm_
   # Retrieve all records of acute_kidney_failure_inhosp
   select_sql = """
   SELECT distinct enc_id, tsp FROM cdm_t
-  WHERE  fid = 'acute_kidney_failure_inhosp'
+  WHERE  fid = 'acute_kidney_failure_inhosp'%s
   ORDER BY enc_id,  tsp;
   """
-  records = await conn.fetch(select_sql)
+  records = await conn.fetch(select_sql % with_ds(dataset_id))
 
 
   select_cr = """
   SELECT tsp FROM %(twf_table)s
   WHERE creatinine > 5
-    and enc_id = %(enc_id)s
+    and enc_id = %(enc_id)s%(with_ds)s
     and tsp >= timestamptz '%(tsp)s'
     and timestamptz '%(tsp)s' <= tsp + interval '24 hours'
   ORDER BY tsp
@@ -1322,7 +1325,7 @@ async def acute_kidney_failure_update(fid, fid_input, conn, log, twf_table='cdm_
   select_uo = """
   SELECT tsp FROM %(twf_table)s
   WHERE urine_output_24hr < 500
-    and enc_id = %(enc_id)s
+    and enc_id = %(enc_id)s%(with_ds)s
     and tsp >= timestamptz '%(tsp)s'
     and timestamptz '%(tsp)s' <= tsp + interval '24 hours'
     AND
@@ -1335,7 +1338,7 @@ async def acute_kidney_failure_update(fid, fid_input, conn, log, twf_table='cdm_
   select_di = """
   SELECT tsp, value FROM cdm_t
   WHERE fid = 'dialysis'
-    and enc_id = %(enc_id)s
+    and enc_id = %(enc_id)s%(with_ds)s
     and tsp >= timestamptz '%(tsp)s'
     and timestamptz '%(tsp)s' <= tsp + interval '24 hours'
   ORDER BY tsp
@@ -1348,20 +1351,19 @@ async def acute_kidney_failure_update(fid, fid_input, conn, log, twf_table='cdm_
     enc_id = record['enc_id']
     tsp = record['tsp']
 
-    evidence = await conn.fetch(select_cr % {'enc_id':enc_id,
-                             'tsp':tsp,'twf_table': twf_table})
+    evidence = await conn.fetch(select_cr % {'enc_id':enc_id, 'tsp':tsp,
+                  'twf_table': twf_table, 'with_ds': with_ds(dataset_id)})
     t1 = tsp
     if len(evidence) > 0:
       t1 = evidence[0]['tsp']
 
-    evidence = await conn.fetch(select_uo % {'enc_id':enc_id,
-                             'tsp':tsp,'twf_table': twf_table})
+    evidence = await conn.fetch(select_uo % {'enc_id':enc_id, 'tsp':tsp,
+                  'twf_table': twf_table, 'with_ds': with_ds(dataset_id)})
     t2 = tsp
     if len(evidence) > 0:
       t2 = evidence[0]['tsp']
 
-    evidence = await conn.fetch(select_di % {'enc_id':enc_id,
-                             'tsp':tsp})
+    evidence = await conn.fetch(select_di % {'enc_id':enc_id, 'tsp':tsp, 'with_ds': with_ds(dataset_id)})
     t3 = tsp
     if len(evidence) > 0:
       if evidence[0]['value'] == 'True':
@@ -1377,7 +1379,7 @@ async def acute_kidney_failure_update(fid, fid_input, conn, log, twf_table='cdm_
 
 
 # Special case (mini-pipeline)
-async def ards_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
+async def ards_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
   """
   fid_input should be ards_inhosp, pao2_to_fio2, vent
   fid should be ards (T)
@@ -1394,15 +1396,15 @@ async def ards_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
   # Retrieve all records of ards_inhosp
   select_sql = """
   SELECT distinct enc_id, tsp FROM cdm_t
-  WHERE  fid = 'ards_inhosp'
+  WHERE  fid = 'ards_inhosp'%s
   ORDER BY enc_id,  tsp;
   """
-  records = await conn.fetch(select_sql)
+  records = await conn.fetch(select_sql % with_ds(dataset_id))
 
   select_ptf = """
   SELECT tsp FROM %(twf_table)s
   WHERE pao2_to_fio2 < 100
-    and enc_id = %(enc_id)s
+    and enc_id = %(enc_id)s%(with_ds)s
     and tsp >= timestamptz '%(tsp)s'
     and timestamptz '%(tsp)s' <= tsp + interval '24 hours'
   ORDER BY tsp
@@ -1411,7 +1413,7 @@ async def ards_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
   select_vent = """
   SELECT tsp, value FROM cdm_t
   WHERE fid = 'vent'
-    and enc_id = %(enc_id)s
+    and enc_id = %(enc_id)s%(with_ds)s
     and tsp >= timestamptz '%(tsp)s'
     and timestamptz '%(tsp)s' <= tsp + interval '24 hours'
   ORDER BY tsp
@@ -1424,14 +1426,13 @@ async def ards_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
     enc_id = record['enc_id']
     tsp = record['tsp']
 
-    evidence = await conn.fetch(select_ptf % {'enc_id':enc_id,
-                             'tsp':tsp,'twf_table': twf_table})
+    evidence = await conn.fetch(select_ptf % {'enc_id':enc_id, 'tsp':tsp,
+                  'twf_table': twf_table, 'with_ds': with_ds(dataset_id)})
     t1 = tsp
     if len(evidence) > 0:
       t1 = evidence[0]['tsp']
 
-    evidence = await conn.fetch(select_vent % {'enc_id':enc_id,
-                             'tsp':tsp})
+    evidence = await conn.fetch(select_vent % {'enc_id':enc_id, 'tsp':tsp, 'with_ds': with_ds(dataset_id)})
     t2 = tsp
     if len(evidence) > 0:
       if evidence[0]['value'] == 'True':
@@ -1444,7 +1445,7 @@ async def ards_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
     load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf])
 
 # Special case (mini-pipeline)
-async def hepatic_failure_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
+async def hepatic_failure_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
   """
   fid_input should be hepatic_failure_inhosp, bilirubin
   fid should be hepatic_failure (T)
@@ -1461,10 +1462,10 @@ async def hepatic_failure_update(fid, fid_input, conn, log, twf_table='cdm_twf')
   # Retrieve all records of hepatic_inhosp
   select_sql = """
   SELECT distinct enc_id, tsp FROM cdm_t
-  WHERE  fid = 'hepatic_failure_inhosp'
+  WHERE  fid = 'hepatic_failure_inhosp'%s
   ORDER BY enc_id,  tsp;
   """
-  records = await conn.fetch(select_sql)
+  records = await conn.fetch(select_sql % with_ds(dataset_id))
 
 
   # Retrieve bilirubin order times to corroborate time of diagnosis
@@ -1472,7 +1473,7 @@ async def hepatic_failure_update(fid, fid_input, conn, log, twf_table='cdm_twf')
   SELECT tsp FROM %(twf_table)s
   WHERE
     bilirubin > 12
-    and enc_id = %(enc_id)s
+    and enc_id = %(enc_id)s%(with_ds)s
     and tsp >= timestamptz '%(tsp)s'
     and timestamptz '%(tsp)s' <= tsp + interval '24 hours'
   ORDER BY tsp
@@ -1485,8 +1486,8 @@ async def hepatic_failure_update(fid, fid_input, conn, log, twf_table='cdm_twf')
     enc_id = record['enc_id']
     tsp = record['tsp']
 
-    evidence = await conn.fetch(select_sql % {'enc_id':enc_id,
-                              'tsp':tsp,'twf_table': twf_table})
+    evidence = await conn.fetch(select_sql % {'enc_id':enc_id, 'tsp':tsp,
+                  'twf_table': twf_table, 'with_ds': with_ds(dataset_id)})
 
 
     # By default set datetime of diagnosis to time given in ProblemList table
