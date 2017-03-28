@@ -3,7 +3,7 @@ import numpy as np
 from etl.transforms.primitives.row import transform
 from etl.load.primitives.row import load_row
 from etl.load.pipelines.fillin import fillin_pipeline
-from etl.load.pipelines.derive import derive_main
+from etl.load.pipelines.derive_main import derive_main
 import timeit
 import importlib
 

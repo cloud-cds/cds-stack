@@ -1,4 +1,6 @@
 import asyncio
+import etl.load.primitives.tbl.clean_tbl as clean_tbl
+
 '''
   Created: 09/01/2016
   Author: Katie Henry
@@ -6,14 +8,14 @@ import asyncio
   Comments: Currently implements definition of traumatic hemorrhagic shock
   See arch file for details
 '''
-async def hemorrhagic_shock_update(fid, fid_input, cdm,  twf_table='cdm_twf', dataset_id=None):
+async def hemorrhagic_shock_update(fid, fid_input, conn, log, dataset_id=None,  twf_table='cdm_twf'):
     assert fid == 'hemorrhagic_shock', 'wrong fid %s' % fid
     fid_input_items = [item.strip() for item in fid_input.split(',')]
     assert fid_input_items[0] == 'transfuse_rbc' \
         and fid_input_items[1] == 'lactate' \
         and fid_input_items[2] == 'sbpm', \
         'wrong fid_input %s' % fid_input
-    clean_tbl.cdm_twf_clean(conn, fid,  twf_table=twf_table)
+    await clean_tbl.cdm_twf_clean(conn, fid,  twf_table=twf_table, dataset_id=dataset_id)
     update_clause = """
       update %(twf_table)s SET hemorrhagic_shock = (num_transfusions >=4)::int, hemorrhagic_shock_c=confidence
       from

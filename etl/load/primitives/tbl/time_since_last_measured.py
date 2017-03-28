@@ -1,5 +1,6 @@
 import asyncio
 from datetime import datetime
+import etl.load.primitives.tbl.clean_tbl as clean_tbl
 
 ########################################
 ########################################

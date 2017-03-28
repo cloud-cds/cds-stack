@@ -1,5 +1,7 @@
 import asyncio
-async def mi_update(fid, fid_input, conn, log, twf_table='cdm_twf', dataset_id=None):
+import etl.load.primitives.tbl.clean_tbl as clean_tbl
+
+async def mi_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
     """
     fid should be mi
     fid_input should be troponin
@@ -10,7 +12,7 @@ async def mi_update(fid, fid_input, conn, log, twf_table='cdm_twf', dataset_id=N
     assert fid == 'mi', 'wrong fid %s' % fid
     assert fid_input == 'troponin', \
             'wrong fid_input %s' % fid_input
-    clean_tbl.cdm_twf_clean(conn, fid, value = 0,  twf_table=twf_table, dataset_id)
+    await clean_tbl.cdm_twf_clean(conn, fid, value = 0,  twf_table=twf_table, dataset_id=dataset_id)
     update_clause = """
     UPDATE %(twf_table)s SET mi = 1,
         mi_c = troponin_c

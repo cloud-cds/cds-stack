@@ -1,14 +1,14 @@
 import asyncio
-import clean_tbl
+import etl.load.primitives.tbl.clean_tbl as clean_tbl
 
-async def change_since_last_measured(fid, fid_input, conn, log, twf_table='cdm_twf', dataset_id = None):
+async def change_since_last_measured(fid, fid_input, conn, log, dataset_id = None, twf_table='cdm_twf'):
     """
     fid_input should be name of the feature for which change is to be computed
     fid should be <fid of old feather>_change
     """
     # Make sure the fid is correct (fid_input can be anything)
     assert fid == '%s_change' % fid_input, 'wrong fid %s' % fid_input
-    clean_tbl.cdm_twf_clean(conn, fid,  twf_table=twf_table, dataset_id)
+    await clean_tbl.cdm_twf_clean(conn, fid,  twf_table=twf_table, dataset_id=dataset_id)
 
     sql = """
     create temp table change as select enc_id, tsp, %(fid)s, %(fid)s_c,

@@ -1,7 +1,7 @@
 # derive pipeline for cdm_twf
 import etl.load.primitives.tbl.derive as derive_func
 
-async def derive_main(log, conn, cdm_feature_dict, mode=None, fid=None, table="cdm_twf", dataset_id=None):
+async def derive_main(log, conn, cdm_feature_dict, mode=None, fid=None, dataset_id=None, table="cdm_twf"):
   '''
   mode: "append", run derive functions beginning with @fid sequentially
   mode: "dependent", run derive functions for @fid and other features depends on @fid
@@ -99,14 +99,14 @@ async def derive_feature(log, feature, conn, dataset_id=None, twf_table='cdm_twf
   derive_func_id = feature['derive_func_id']
   derive_func_input = feature['derive_func_input']
   fid_category = feature['category']
-  log.info("derive feature %s, function %s, inputs (%s)" \
-  % (fid, derive_func_id, derive_func_input))
-  await derive_func_driver(fid, fid_category, derive_func_id, derive_func_input, conn, log, twf_table, dataset_id)
+  log.info("derive feature %s, function %s, inputs (%s) %s" \
+  % (fid, derive_func_id, derive_func_input, 'dataset_id %s' % dataset_id if dataset_id is not None else ''))
+  await derive_func_driver(fid, fid_category, derive_func_id, derive_func_input, conn, log, dataset_id, twf_table)
   log.info("derive feature %s end." % fid)
 
 
 
-async def derive_func_driver(fid, fid_category, derive_func_id, derive_func_input, conn, log, twf_table, dataset_id):
+async def derive_func_driver(fid, fid_category, derive_func_id, derive_func_input, conn, log, dataset_id, twf_table):
   if fid in derive_config:
     config_entry = derive_config[fid]
     fid_input_items = [item.strip() for item in derive_func_input.split(',')]
@@ -159,7 +159,7 @@ async def derive_func_driver(fid, fid_category, derive_func_id, derive_func_inpu
       log.warn("fid_input dismatch")
   else:
     log.warn("Derive function is not implemented in driver, so we use legacy derive function")
-    #derive_func.derive(fid, derive_func_id, derive_func_input, conn, log, twf_table, dataset_id)
+    await derive_func.derive(fid, derive_func_id, derive_func_input, conn, log, dataset_id, twf_table)
 
 
 
