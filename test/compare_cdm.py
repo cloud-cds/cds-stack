@@ -1,3 +1,4 @@
+import os
 import asyncio
 import asyncpg
 import json
@@ -11,7 +12,7 @@ port          = os.environ['db_port']
 db            = os.environ['db_name']
 user          = os.environ['db_user']
 pw            = os.environ['db_password']
-remote_server = os.environ['cmp_remote_server']
+src_server    = os.environ['cmp_remote_server']
 
 tables_to_compare = {
   'datalink'                 : 'dataset',
@@ -43,13 +44,13 @@ tables_to_compare = {
 }
 
 class TableComparator:
-  def __init__(self, dst_server,
+  def __init__(self, src_server,
                      src_dataset_id, src_model_id,
                      dst_dataset_id, dst_model_id,
                      src_tbl, dst_tbl=None,
                      field_map=None, version_extension='dataset', as_count_result=True):
 
-    self.dst_server     = dst_server
+    self.src_server     = src_server
     self.src_dataset_id = src_dataset_id
     self.src_model_id   = src_model_id
     self.dst_dataset_id = dst_dataset_id
@@ -60,7 +61,7 @@ class TableComparator:
 
     self.field_map = field_map
     self.version_extension = version_extension
-    self.as_count_result = self.as_count_result
+    self.as_count_result = as_count_result
 
   def version_extension_ids(self):
     if self.version_extension == 'dataset':
@@ -95,7 +96,7 @@ class TableComparator:
         select column_name, data_type from information_schema.columns
         where table_name = '%(remote_table)s' and table_schema = 'public'
       $OPDB$) AS remote_fields (column_name text, data_type text)
-      ''' % { 'remote_server': self.remote_server, 'remote_table': self.source_table }
+      ''' % { 'remote_server': self.src_server, 'remote_table': self.source_table }
 
       logging.info('Loading remote schema for {}'.format(self.source_table))
       remote_fields = await conn.fetch(remote_fields_query)
@@ -165,7 +166,7 @@ class TableComparator:
     )
     %(finalizer)s
     ''' % {
-      'srv'                    : self.remote_server,
+      'srv'                    : self.src_server,
       'query'                  : remote_query,
       'local_table'            : dst_tbl,
       'local_fields'           : ', '.join(map(lambda nt: nt[0], dst_fields)),
@@ -194,6 +195,7 @@ class TableComparator:
 
 async def run():
   logging.info("Running CDM DB Comparison")
+  dbpool = await asyncpg.create_pool(database=db, user=user, password=pw, host=host, port=port)
 
   src_dataset_id = 1
   src_model_id   = 1
@@ -201,15 +203,14 @@ async def run():
   dst_dataset_id = 2
   dst_model_id   = 2
 
-  for tbl, version_type in tables_to_load.items():
-    c = TableComparator(remote_server,
+  for tbl, version_type in tables_to_compare.items():
+    c = TableComparator(src_server,
                         src_dataset_id, src_model_id,
                         dst_dataset_id, dst_model_id,
                         tbl, version_extension=version_type)
-    await c.run(self.dbpool)
+    await c.run(dbpool)
 
 if __name__ == '__main__':
-  dbpool = await asyncpg.create_pool(database=db, user=user, password=pw, host=host, port=port)
   loop = asyncio.get_event_loop()
   loop.run_until_complete(run())
 
