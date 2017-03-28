@@ -52,7 +52,7 @@ class Extractor:
         await fillin_pipeline(self.log, conn, feature, self.config.dataset_id, recalculate_popmean)
     self.log.info("fillin completed")
 
-  async def derive(self, conn):
+  async def derive(self, conn, job):
     self.log.info("start derive pipeline")
     await derive_main(self.log, conn, self.cdm_feature_dict, dataset_id = self.config.dataset_id)
     self.log.info("derive completed")

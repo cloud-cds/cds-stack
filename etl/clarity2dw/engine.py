@@ -14,10 +14,10 @@ job = {
   #     #'fid': 'heart_rate',
   #   }
   # },
-  'fillin': {
-    'recalculate_popmean': False,
-  },
-  # 'derive': {},
+  # 'fillin': {
+  #   'recalculate_popmean': False,
+  # },
+  'derive': {},
 }
 
 config_args = {
