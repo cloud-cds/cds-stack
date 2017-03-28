@@ -45,6 +45,14 @@ var ALERT_CODES = {
 	"306": "Septic Shock 6hr bundle intervention(s) need to be completed in the next hour"    // Should be prefixed with the number of septic shock interventions to be completed before the 6hr window expires.
 }
 
+var LOG_STRINGS = {
+	"set_deterioration_feedback": "",
+	"reset": " reset the patient",
+	"override": "",
+	"deactivate": " deactivated the patient",
+	"toggle_notifications": " toggled notifications"
+}
+
 var EDIT = {
 	"sirs": [
 		"temperature",

@@ -21,6 +21,7 @@ window.onload = function() {
 	dropdown.init();
 	overrideModal.init();
 	notifications.init();
+	activity.init();
 	toolbar.init()
 	dataRefresher.init();
 	notificationRefresher.init();
@@ -292,6 +293,7 @@ var controller = new function() {
 			globalJson['septic_shock']['onset_time']);
 		graphComponent.refresh(globalJson["chart_data"]);
 		notifications.render(globalJson['notifications']);
+		activity.render(globalJson['auditlist']);
 		toolbar.render(globalJson["severe_sepsis"]);
 		deterioration.render(globalJson['deterioration_feedback']);
 	}
@@ -1420,6 +1422,68 @@ var notifications = new function() {
 			this.nav.find('.text').text('Notifications');
 		} else {
 			this.nav.find('.text').text('Notification');
+		}
+	}
+}
+
+/**
+ * Activity Log or AuditList.
+ * This component maintains the activity log badge that appears in the toolbar.
+ */
+var activity = new function() {
+	this.a = $('#activity');
+	this.nav = $('#header-activity');
+	this.init = function() {
+		this.nav.unbind();
+		this.nav.click(function(e) {
+			e.stopPropagation();
+			activity.a.toggle();
+		});
+		$('body').click(function() {
+			activity.a.fadeOut(30);
+		});
+		this.a.unbind();
+		this.a.click(function(e) {
+			e.stopPropagation();
+		});
+	}
+	this.getLogMsg = function(data) {
+		var msg = ""
+		if (data['event_type'] == 'set_deterioration_feedback') {
+
+		} else if (data['event_type'] = 'override') {
+
+		} else {
+			msg += data['uid'] + LOG_STRINGS[data['event_type']]
+		}
+		return msg;
+	}
+	this.render = function(data) {
+		this.a.html('');
+		if (data == undefined) {
+			this.n.append('<p class="none">Can\'t retrieve actviity log at this time.  <br />Activity Log may be under construction.</p>')
+			return;
+		}
+		if (data.length == 0) {
+			this.n.append('<p class="none">No Activity</p>')
+			return;
+		}
+
+		for (var i = 0; i < data.length; i++) {
+
+			var time = new Date(data[i]['timestamp'] * 1000);
+
+			// Skip messages if there is no content (used to short-circuit empty interventions).
+			var msg = this.getLogMsg(data[i]);
+			if ( msg == undefined ) { continue; }
+
+			// Display the notification.
+			var log = $('<div class="log-item"></div>');
+			log.append('<h3>' + msg + '</h3>')
+			var subtext = $('<div class="subtext cf"></div>');
+			subtext.append('<p>' + timeLapsed(new Date(data[i]['timestamp']*1000)) + '</p>');
+			log.append(subtext);
+			this.a.append(log);
 		}
 	}
 }
