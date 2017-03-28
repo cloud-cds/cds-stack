@@ -16,21 +16,21 @@ async def derive_main(log, conn, cdm_feature_dict, mode=None, fid=None, table="c
     idx = derive_feature_order.index(append)
     for i in range(idx, len(derive_feature_order)):
       fid = derive_feature_order[i]
-      await derive_feature(log, cdm_feature_dict[fid], conn, twf_table=table, dataset_id=dataset_id)
+      await derive_feature(log, cdm_feature_dict[fid], conn, dataset_id=dataset_id, twf_table=table)
   elif mode == 'dependent':
     dependent = fid
     if cdm_feature_dict[fid]['is_measured'] == 'no':
       log.info("update feature %s and its dependents" % dependent)
-      await derive_feature(log, cdm_feature_dict[fid], conn, twf_table=table, dataset_id=dataset_id)
+      await derive_feature(log, cdm_feature_dict[fid], conn, dataset_id=dataset_id, twf_table=table)
     else:
       log.info("update feature %s's dependents" % dependent)
     derive_feature_order = get_dependent_features([dependent], features)
     for fid in derive_feature_order:
-      await derive_feature(log, cdm_feature_dict[fid], conn, twf_table=table, dataset_id=dataset_id)
+      await derive_feature(log, cdm_feature_dict[fid], conn, dataset_id=dataset_id, twf_table=table)
   elif mode is None and fid is None:
     log.info("derive features one by one")
     for fid in derive_feature_order:
-      await derive_feature(log, cdm_feature_dict[fid], conn, twf_table=table, dataset_id=dataset_id)
+      await derive_feature(log, cdm_feature_dict[fid], conn, dataset_id=dataset_id, twf_table=table)
   else:
     log.error("Unknown mode!")
 
@@ -94,7 +94,7 @@ def get_dependent_features(feature_list, features):
         for feature in features if feature['fid'] in dependent_features)
     return get_derive_seq(input_map=dic)
 
-async def derive_feature(log, feature, conn, twf_table='cdm_twf', dataset_id=None):
+async def derive_feature(log, feature, conn, dataset_id=None, twf_table='cdm_twf'):
   fid = feature['fid']
   derive_func_id = feature['derive_func_id']
   derive_func_input = feature['derive_func_input']
@@ -138,24 +138,19 @@ async def derive_func_driver(fid, fid_category, derive_func_id, derive_func_inpu
           update_clause += update_from + update_where
         sql = update_clause
       elif fid_category == 'T':
-        if dataset_id is None:
-          insert_clause = """
-          DELETE FROM cdm_t where fid = '%(fid)s';
-          INSERT INTO cdm_t (enc_id,tsp,fid,value,confidence) (%(select_expr)s);
-          """ % {
-            'fid':fid,
-            'select_expr': config_entry['fid_select_expr'],
-            'dataset_id': dataset_id
-          }
-        else:
-          insert_clause = """
-          DELETE FROM cdm_t where fid = '%(fid)s' and dataset_id = %(dataset_id)s;
-          INSERT INTO cdm_t (dataset_id,enc_id,tsp,fid,value,confidence) (%(dataset_id)s,%(select_expr)s);
-          """ % {
-            'fid':fid,
-            'select_expr': config_entry['fid_select_expr'],
-            'dataset_id': dataset_id
-          }
+        fid_select_expr = config_entry['fid_select_expr'] % {
+          'dataset_col_block': 'dataset_id,' if dataset_id is not None else '',
+          'dataset_where_block': (' and dataset_id = %s' % dataset_id) if dataset_id is not None else ''
+        }
+        insert_clause = """
+        DELETE FROM cdm_t where fid = '%(fid)s' %(dataset_where_block)s;
+        INSERT INTO cdm_t (%(dataset_col_block)s enc_id,tsp,fid,value,confidence) (%(select_expr)s);
+        """ % {
+          'fid':fid,
+          'select_expr': fid_select_expr,
+          'dataset_col_block': 'dataset_id,' if dataset_id is not None else '',
+          'dataset_where_block': (' and dataset_id = %s' % dataset_id) if dataset_id is not None else ''
+        }
         sql = insert_clause
       log.debug(sql)
       await conn.execute(sql)
@@ -164,7 +159,7 @@ async def derive_func_driver(fid, fid_category, derive_func_id, derive_func_inpu
       log.warn("fid_input dismatch")
   else:
     log.warn("Derive function is not implemented in driver, so we use legacy derive function")
-    derive_func.derive(fid, derive_func_id, derive_func_input, conn, log, twf_table, dataset_id)
+    #derive_func.derive(fid, derive_func_id, derive_func_input, conn, log, twf_table, dataset_id)
 
 
 
@@ -725,33 +720,33 @@ derive_config = {
     'fid_input_items': ['apixaban_dose', 'dabigatran_dose', 'rivaroxaban_dose', 'warfarin_dose', 'heparin_dose'],
     'derive_type': 'simple',
     'fid_select_expr': '''
-                                SELECT distinct enc_id, tsp, 'any_anticoagulant', 'True', max(confidence) confidence FROM cdm_t
-                                WHERE fid ~ 'apixaban_dose|dabigatran_dose|rivaroxaban_dose|warfarin_dose|heparin_dose' AND cast(value::json->>'dose' as numeric) > 0
-                                group by enc_id, tsp''',
+                                SELECT distinct %(dataset_col_block)s enc_id, tsp, 'any_anticoagulant', 'True', max(confidence) confidence FROM cdm_t
+                                WHERE fid ~ 'apixaban_dose|dabigatran_dose|rivaroxaban_dose|warfarin_dose|heparin_dose' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s
+                                group by %(dataset_col_block)s enc_id, tsp''',
   },
   'any_beta_blocker': {
     'fid_input_items': ['acebutolol_dose', 'atenolol_dose', 'bisoprolol_dose', 'metoprolol_dose', 'nadolol_dose', 'propanolol_dose'],
     'derive_type': 'simple',
     'fid_select_expr': '''
-                                SELECT distinct enc_id, tsp, 'any_beta_blocker', 'True', max(confidence) confidence FROM cdm_t
-                                WHERE fid ~ 'acebutolol_dose|atenolol_dose|bisoprolol_dose|metoprolol_dose|nadolol_dose|propanolol_dose' AND cast(value::json->>'dose' as numeric) > 0
-                                group by enc_id, tsp''',
+                                SELECT distinct %(dataset_col_block)s enc_id, tsp, 'any_beta_blocker', 'True', max(confidence) confidence FROM cdm_t
+                                WHERE fid ~ 'acebutolol_dose|atenolol_dose|bisoprolol_dose|metoprolol_dose|nadolol_dose|propanolol_dose' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s
+                                group by %(dataset_col_block)s enc_id, tsp''',
   },
   'any_glucocorticoid': {
     'fid_input_items': ['hydrocortisone_dose', 'prednisone_dose', 'prednisolone_dose', 'methylprednisolone_dose', 'dexamethasone_dose', 'betamethasone_dose', 'fludrocortisone_dose'],
     'derive_type': 'simple',
     'fid_select_expr': '''
-                                SELECT distinct enc_id, tsp, 'any_glucocorticoid', 'True', max(confidence) confidence FROM cdm_t
-                                WHERE fid ~ 'hydrocortisone_dose|prednisone_dose|prednisolone_dose|methylprednisolone_dose|dexamethasone_dose|betamethasone_dose|fludrocortisone_dose' AND cast(value::json->>'dose' as numeric) > 0
-                                group by enc_id, tsp''',
+                                SELECT distinct %(dataset_col_block)s enc_id, tsp, 'any_glucocorticoid', 'True', max(confidence) confidence FROM cdm_t
+                                WHERE fid ~ 'hydrocortisone_dose|prednisone_dose|prednisolone_dose|methylprednisolone_dose|dexamethasone_dose|betamethasone_dose|fludrocortisone_dose' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s
+                                group by %(dataset_col_block)s enc_id, tsp''',
   },
   'any_antibiotics': {
     'fid_input_items': ['ampicillin_dose', 'clindamycin_dose', 'erythromycin_dose' , 'gentamicin_dose' , 'oxacillin_dose' , 'tobramycin_dose' , 'vancomycin_dose' , 'ceftazidime_dose' , 'cefazolin_dose' , 'penicillin_g_dose' , 'meropenem_dose' , 'penicillin_dose' , 'amoxicillin_dose' , 'piperacillin_tazbac_dose', 'rifampin_dose', 'meropenem_dose', 'rapamycin_dose'],
     'derive_type': 'simple',
     'fid_select_expr': '''
-                                SELECT distinct enc_id, tsp, 'any_antibiotics', 'True', max(confidence) confidence FROM cdm_t
-                                WHERE fid ~ 'ampicillin_dose|clindamycin_dose|erythromycin_dose|gentamicin_dose|oxacillin_dose|tobramycin_dose|vancomycin_dose|ceftazidime_dose|cefazolin_dose|penicillin_g_dose|meropenem_dose|penicillin_dose|amoxicillin_dose|piperacillin_tazbac_dose|rifampin_dose|meropenem_dose|rapamycin_dose' AND cast(value::json->>'dose' as numeric) > 0
-                                group by enc_id, tsp''',
+                                SELECT distinct %(dataset_col_block)s enc_id, tsp, 'any_antibiotics', 'True', max(confidence) confidence FROM cdm_t
+                                WHERE fid ~ 'ampicillin_dose|clindamycin_dose|erythromycin_dose|gentamicin_dose|oxacillin_dose|tobramycin_dose|vancomycin_dose|ceftazidime_dose|cefazolin_dose|penicillin_g_dose|meropenem_dose|penicillin_dose|amoxicillin_dose|piperacillin_tazbac_dose|rifampin_dose|meropenem_dose|rapamycin_dose' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s
+                                group by %(dataset_col_block)s enc_id, tsp''',
   },
 }
 

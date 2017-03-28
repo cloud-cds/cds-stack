@@ -66,7 +66,7 @@ class Engine():
         driver_start = dt.datetime.now()
 
         pats = self.extract(self.extractor.extract_bedded_patients, "bedded_patients")
-        pats_t = self.transform(pats.head(20), jhapi.bedded_patients_transforms, "bedded_patients")
+        pats_t = self.transform(pats, jhapi.bedded_patients_transforms, "bedded_patients")
         pats_t = pats_t.assign(hospital = self.extractor.hospital)
 
         flowsheets = self.extract(self.extractor.extract_flowsheets, "flowsheets", [pats_t])
@@ -154,5 +154,5 @@ if __name__ == '__main__':
     pd.set_option('display.max_colwidth', 40)
     pd.options.mode.chained_assignment = None
     logging.getLogger().setLevel(0)
-    engine = Engine('HCGH', 15)
+    engine = Engine()
     results = engine.main()
