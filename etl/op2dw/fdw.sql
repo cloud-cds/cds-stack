@@ -11,5 +11,5 @@ CREATE SERVER opsdx_opdb
 
 DROP USER MAPPING IF EXISTS FOR @@LDBUSER@@ SERVER opsdx_opdb;
 CREATE USER MAPPING FOR @@LDBUSER@@
-  SERVER foreign_server
+  SERVER opsdx_opdb
   OPTIONS (user '@@RDBUSER@@', password '@@RDBPW@@');
