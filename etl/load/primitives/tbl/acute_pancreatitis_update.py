@@ -1,5 +1,5 @@
 import asyncio
-async def acute_pancreatitis_update(fid, fid_input, conn, log, twf_table='cdm_twf'):
+async def acute_pancreatitis_update(fid, fid_input, conn, log, twf_table='cdm_twf', dataset_id=None):
     """
     fid should be acute_pancreatitis
     fid_input should be lipase and amylase
@@ -13,8 +13,8 @@ async def acute_pancreatitis_update(fid, fid_input, conn, log, twf_table='cdm_tw
     update_clause = """
     UPDATE %(twf_table)s SET acute_pancreatitis = 1,
         acute_pancreatitis_c = lipase_c | amylase_c
-    where lipase > 400 and amylase > 450
+    where lipase > 400 and amylase > 450 %(dataset_block)s
     ;
-    """ % { 'twf_table':'cdm_twf'}
+    """ % { 'twf_table':'cdm_twf', 'dataset_block': ' and dataset_id = %s' % dataset_id if dataset_id is not None else ''}
     log.info("acute_pancreatitis_update:%s" % update_clause)
     await conn.execute(update_clause)

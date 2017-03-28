@@ -1,29 +1,28 @@
-import psycopg2
-import psycopg2.extras
-from psycopg2.extras import DictRow
+import asyncio
+import clean_tbl
 
-def change_since_last_measured(fid, fid_input, cdm, twf_table='cdm_twf'):
+async def change_since_last_measured(fid, fid_input, conn, log, twf_table='cdm_twf', dataset_id = None):
     """
     fid_input should be name of the feature for which change is to be computed
     fid should be <fid of old feather>_change
     """
     # Make sure the fid is correct (fid_input can be anything)
     assert fid == '%s_change' % fid_input, 'wrong fid %s' % fid_input
-    cdm.clean_twf(fid,  twf_table=twf_table)
+    clean_tbl.cdm_twf_clean(conn, fid,  twf_table=twf_table, dataset_id)
 
     sql = """
     create temp table change as select enc_id, tsp, %(fid)s, %(fid)s_c,
-        lag(enc_id, 1) over (order by enc_id, tsp) enc_id_last, 
-        lag(tsp, 1) over (order by enc_id, tsp) tsp_last, 
+        lag(enc_id, 1) over (order by enc_id, tsp) enc_id_last,
+        lag(tsp, 1) over (order by enc_id, tsp) tsp_last,
         lag(%(fid)s, 1) over (order by enc_id, tsp) %(fid)s_last,
         lag(%(fid)s_c, 1) over (order by enc_id, tsp) %(fid)s_c_last,
         %(fid)s - lag(%(fid)s, 1) over (order by enc_id, tsp) diff,
-        lag(enc_id, -1) over (order by enc_id, tsp) enc_id_next,  
-        lag(tsp, -1) over (order by enc_id, tsp) tsp_next, 
+        lag(enc_id, -1) over (order by enc_id, tsp) enc_id_next,
+        lag(tsp, -1) over (order by enc_id, tsp) tsp_next,
         lag(%(fid)s, -1) over (order by enc_id, tsp) %(fid)s_next,
         lag(%(fid)s_c, -1) over (order by enc_id, tsp) %(fid)s_c_next
     from %(twf_table)s
-    where %(fid)s_c < 8 
+    where %(fid)s_c < 8 %(dataset_block)s
     order by enc_id, tsp;
 
     delete from change where enc_id <> enc_id_last;
@@ -36,7 +35,8 @@ def change_since_last_measured(fid, fid_input, cdm, twf_table='cdm_twf'):
     ) as subquery
     where %(twf_table)s.enc_id = subquery.enc_id
         and %(twf_table)s.tsp >= subquery.tsp
-        and %(twf_table)s.tsp <  subquery.tsp_next ;
+        and %(twf_table)s.tsp <  subquery.tsp_next
+        %(dataset_block)s;
 
 
     update %(twf_table)s set %(fid_input)s = subquery.diff,
@@ -45,11 +45,11 @@ def change_since_last_measured(fid, fid_input, cdm, twf_table='cdm_twf'):
         select * from change where enc_id <> enc_id_next and enc_id_last is not null
     ) as subquery
     where %(twf_table)s.enc_id = subquery.enc_id
-        and %(twf_table)s.tsp >= subquery.tsp ;
-    """ % {'fid': fid, 'fid_input': fid_input,  'twf_table':'cdm_twf'}
+        and %(twf_table)s.tsp >= subquery.tsp %(dataset_block)s;
+    """ % {'fid': fid, 'fid_input': fid_input,  'twf_table':'cdm_twf', 'dataset_block': ' and dataset_id = %s' % dataset_id if dataset_id is not None else ''}
 
-    cdm.log.info("change_since_last_measured:%s" % sql)
-    cdm.query_with_sql(sql)
+    log.info("change_since_last_measured:%s" % sql)
+    await conn.execute(sql)
 
 # def change_since_last_measured(fid, fid_input, cdm):
 #     """

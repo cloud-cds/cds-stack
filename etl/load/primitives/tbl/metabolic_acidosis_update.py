@@ -1,5 +1,5 @@
 import asyncio
-async def metabolic_acidosis_update(fid, fid_input, conn, log,  twf_table='cdm_twf'):
+async def metabolic_acidosis_update(fid, fid_input, conn, log,  twf_table='cdm_twf', dataset_id=None):
     """
     fid should be metabolic_acidosis
     fid_input should be arterial_ph and bicarbonate
@@ -13,9 +13,9 @@ async def metabolic_acidosis_update(fid, fid_input, conn, log,  twf_table='cdm_t
     update_clause = """
     UPDATE %(twf_table)s SET metabolic_acidosis = 1,
         metabolic_acidosis_c = arterial_ph_c | bicarbonate_c
-    where arterial_ph < 7.35 and bicarbonate < 22
+    where arterial_ph < 7.35 and bicarbonate < 22 %(dataset_block)s
     ;
-    """ % {'twf_table': twf_table}
+    """ % {'twf_table': twf_table, 'dataset_block': ' and dataset_id = %s' % dataset_id if dataset_id is not None else ''}
     log.info("metabolic_acidosis_update:%s" % update_clause)
     await conn.execute(update_clause)
 

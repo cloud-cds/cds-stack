@@ -19,17 +19,17 @@ from etl.load.primitives.tbl.time_since_last_measured import *
 from etl.load.primitives.row import load_row
 from etl.load.primitives.tbl import clean_tbl
 
-def derive(fid, func_id, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
+def derive(fid, func_id, fid_input, conn, log, twf_table='cdm_twf', dataset_id=None, dataset_id=None):
   this_mod = sys.modules[__name__]
   func = getattr(this_mod, func_id)
-  return func(fid, fid_input, conn, log, dataset_id=dataset_id, twf_table=twf_table)
+  return func(fid, fid_input, conn, log, twf_table=twf_table, dataset_id=dataset_id)
 
 def with_ds(dataset_id, table_name=None, conjunctive=True):
   if dataset_id is not None:
     '%s %sdataset_id = %s' % (' and' if conjunctive else 'where', '' if table_name is None else table_name+'.', dataset_id)
   return ''
 
-async def lookup_population_mean(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
+async def lookup_population_mean(fid, fid_input, conn, log, twf_table='cdm_twf', dataset_id=None):
   """
   check if fid_popmean exists or not;
   if not, calculate it
@@ -54,7 +54,7 @@ async def lookup_population_mean(fid, fid_input, conn, log, dataset_id=None, twf
       log.error("lookup_population_mean %s" % fid)
 
 # Same as any_continuous_dose_update (special case)
-async def any_antibiotics_order_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
+async def any_antibiotics_order_update(fid, fid_input, conn, log, twf_table='cdm_twf', dataset_id=None):
   """
   fid should be any_antibiotics_order (T, boolean)
   fid_input should be a list of dose
@@ -67,7 +67,7 @@ async def any_antibiotics_order_update(fid, fid_input, conn, log, dataset_id=Non
   any_med_order_update(fid, fid_input, conn, log, dataset_id=dataset_id, twf_table=twf_table)
 
 # Same as any_continuous_dose_update (special case)
-async def any_pressor_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
+async def any_pressor_update(fid, fid_input, conn, log, twf_table='cdm_twf', dataset_id=None):
   """
   fid should be any_pressor (T, boolean)
   fid_input should be a list of dose
@@ -81,7 +81,7 @@ async def any_pressor_update(fid, fid_input, conn, log, dataset_id=None, twf_tab
     any_continuous_dose_update(fid, dose, conn, log, dataset_id=dataset_id, twf_table=twf_table)
 
 # Same as any_continuous_dose_update (special case)
-async def any_inotrope_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
+async def any_inotrope_update(fid, fid_input, conn, log, twf_table='cdm_twf', dataset_id=None):
   """
   fid should be any_inotrope (T, boolean)
   fid_input should be a list of dose
@@ -91,12 +91,12 @@ async def any_inotrope_update(fid, fid_input, conn, log, dataset_id=None, twf_ta
   for i in range(len(fid_input_items)):
     assert fid_input_items[i].endswith('dose'), \
       'wrong fid_input %s' % fid_input
-  clean_tbl.cdm_t_clean(conn, fid)
+  clean_tbl.cdm_t_clean(conn, fid, dataset_id=dataset_id)
   for dose in fid_input_items:
     any_continuous_dose_update(fid, dose, conn, log, dataset_id=dataset_id, twf_table=twf_table)
 
 # Special case
-async def any_continuous_dose_update(fid, dose, cdm, dataset_id=None, twf_table='cdm_twf'):
+async def any_continuous_dose_update(fid, dose, cdm, twf_table='cdm_twf', dataset_id=None):
   global STOPPED_ACTIONS
   select_sql = """
     select enc_id, tsp, value::json->>'action' as action, confidence
@@ -130,7 +130,7 @@ async def any_continuous_dose_update(fid, dose, cdm, dataset_id=None, twf_table=
            'start_c': 0, 'end_c': 0}
 
 # Special case
-async def update_continuous_dose_block(fid, block, conn, log, dataset_id=None, twf_table='cdm_twf'):
+async def update_continuous_dose_block(fid, block, conn, log, twf_table='cdm_twf', dataset_id=None):
   select_sql = """
     select value from cdm_t where enc_id = %s and fid = '%s'%s
     and tsp <= timestamptz '%s' order by tsp DESC
@@ -163,9 +163,9 @@ async def update_continuous_dose_block(fid, block, conn, log, dataset_id=None, t
 
 
 # Special case
-async def any_med_order_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
+async def any_med_order_update(fid, fid_input, conn, log, twf_table='cdm_twf', dataset_id=None):
   # Updated on 3/19/2016
-  clean_tbl.cdm_t_clean(conn, fid)
+  clean_tbl.cdm_t_clean(conn, fid, dataset_id=dataset_id)
   fid_input_items = [item.strip() for item in fid_input.split(',')]
   doses = '|'.join(fid_input_items)
   select_sql = """
@@ -189,14 +189,14 @@ async def any_med_order_update(fid, fid_input, conn, log, dataset_id=None, twf_t
 
 
 # Special case
-async def suspicion_of_infection_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
+async def suspicion_of_infection_update(fid, fid_input, conn, log, twf_table='cdm_twf', dataset_id=None):
   # 03/20/2016
   assert fid == 'suspicion_of_infection', 'wrong fid %s' % fid
   fid_input_items = [item.strip() for item in fid_input.split(',')]
   assert fid_input_items[0] == 'culture_order' \
     and fid_input_items[1] == 'any_antibiotics_order', \
     'wrong fid_input %s' % fid_input
-  clean_tbl.cdm_t_clean(conn, fid)
+  clean_tbl.cdm_t_clean(conn, fid, dataset_id=dataset_id)
   select_sql = """
     select t1.enc_id, t1.tsp, t1.confidence|t2.confidence confidence
       from cdm_t t1
@@ -235,10 +235,10 @@ async def suspicion_of_infection_update(fid, fid_input, conn, log, dataset_id=No
 
 
 # Special subquery (subquery with if-then-else cases)
-async def hypotension_intp_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
+async def hypotension_intp_update(fid, fid_input, conn, log, twf_table='cdm_twf', dataset_id=None):
   assert fid == 'hypotension_intp', 'wrong fid %s' % fid
   assert fid_input == 'hypotension_raw', 'wrong fid_input %s' % fid
-  clean_tbl.cdm_twf_clean(conn, fid, value=False)
+  clean_tbl.cdm_twf_clean(conn, fid, value=False, dataset_id=dataset_id)
   select_sql = """
   SELECT *
   FROM
@@ -311,14 +311,14 @@ async def hypotension_intp_update(fid, fid_input, conn, log, dataset_id=None, tw
       block_c = block_c | rec['hypotension_raw_c']
 
 # Special subquery (multiple subqueries)
-async def sirs_intp_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
+async def sirs_intp_update(fid, fid_input, conn, log, twf_table='cdm_twf', dataset_id=None):
   """
   SIRS_INTP 30m version
   """
   # update 4/17/2016
   assert fid == 'sirs_intp', 'wrong fid %s' % fid
   assert fid_input == 'sirs_raw', 'wrong fid_input %s' % fid
-  clean_tbl.cdm_twf_clean(conn, fid, value=False, confidence=0, twf_table=twf_table)
+  clean_tbl.cdm_twf_clean(conn, fid, value=False, confidence=0, twf_table=twf_table, dataset_id=dataset_id)
   # 1. Identify all periods of time where sirs_raw=1 for
   # at least 1 consecutive hours and set sirs_intp=1
   select_sql = """
@@ -456,7 +456,7 @@ async def sirs_intp_update(fid, fid_input, conn, log, dataset_id=None, twf_table
 
 
 # Simple (w/ complex expressions)
-async def renal_sofa_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
+async def renal_sofa_update(fid, fid_input, conn, log, twf_table='cdm_twf', dataset_id=None):
   """
   fid should be renal_sofa (TWF)
   fid input should be creatinine, urine_output_24hr (both TWF)
@@ -466,7 +466,7 @@ async def renal_sofa_update(fid, fid_input, conn, log, dataset_id=None, twf_tabl
   assert fid_input_items[0] == 'creatinine' \
     and fid_input_items[1] == 'urine_output_24hr', \
       'wrong fid_input %s' % fid_input
-  clean_tbl.cdm_twf_clean(conn, fid, value=0, twf_table=twf_table)
+  clean_tbl.cdm_twf_clean(conn, fid, value=0, twf_table=twf_table, dataset_id=dataset_id)
   update_clause = """
   UPDATE %(twf_table)s SET %(fid)s = (CASE
     WHEN %(creat)s > 5 THEN 4
@@ -502,11 +502,11 @@ async def renal_sofa_update(fid, fid_input, conn, log, dataset_id=None, twf_tabl
 
 
 # Subquery chain
-async def septic_shock_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
+async def septic_shock_update(fid, fid_input, conn, log, twf_table='cdm_twf', dataset_id=None):
   # UPDATE 8/19/2016
   assert fid == 'septic_shock', 'wrong fid %s' % fid
 
-  clean_tbl.cdm_twf_clean(conn, fid, value=0, confidence=0,twf_table=twf_table)
+  clean_tbl.cdm_twf_clean(conn, fid, value=0, confidence=0,twf_table=twf_table, dataset_id=dataset_id)
 
   select_sql = """
   select enc_id, tsp from %(twf_table)s
@@ -568,7 +568,7 @@ async def septic_shock_update(fid, fid_input, conn, log, dataset_id=None, twf_ta
 
 
 # Special case (mini-pipeline)
-async def resp_sofa_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
+async def resp_sofa_update(fid, fid_input, conn, log, twf_table='cdm_twf', dataset_id=None):
   """
   fid should be resp_sofa
   fid_input should be (vent (T), pao2_to_fio2 (TWF))
@@ -577,7 +577,7 @@ async def resp_sofa_update(fid, fid_input, conn, log, dataset_id=None, twf_table
   assert fid == 'resp_sofa', 'wrong fid %s' % fid
   assert fid_input_items[0] == 'vent' \
     and fid_input_items[1] == 'pao2_to_fio2', 'wrong fid_input %s' % fid_input
-  clean_tbl.cdm_twf_clean(conn, fid, value=0, twf_table=twf_table)
+  clean_tbl.cdm_twf_clean(conn, fid, value=0, twf_table=twf_table, dataset_id=dataset_id)
   update_clause = """
   UPDATE %(twf_table)s SET %(fid)s = (CASE
     WHEN pao2_to_fio2 < 300 THEN 2
@@ -649,7 +649,7 @@ async def resp_sofa_update(fid, fid_input, conn, log, dataset_id=None, twf_table
     await conn.execute(block_update_sql)
 
 # Special case (mini-pipeline)
-async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
+async def cardio_sofa_update(fid, fid_input, conn, log, twf_table='cdm_twf', dataset_id=None):
   """
   fid should be cardio_sofa
   03/20/2016
@@ -664,7 +664,7 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id=None, twf_tab
     and fid_input_items[4] == 'levophed_infusion_dose' \
     and fid_input_items[5] == 'weight', 'wrong fid_input %s' \
     % fid_input
-  clean_tbl.cdm_twf_clean(conn, fid, value=0, twf_table=twf_table)
+  clean_tbl.cdm_twf_clean(conn, fid, value=0, twf_table=twf_table, dataset_id=dataset_id)
 
   # update cardio_sofa based on mapm
   update_clause = """
@@ -847,7 +847,7 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id=None, twf_tab
 
 
 # Special case (mini-pipeline)
-async def vasopressor_resuscitation_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
+async def vasopressor_resuscitation_update(fid, fid_input, conn, log, twf_table='cdm_twf', dataset_id=None):
   """
   fid should be vasopressor_resuscitation (TWF, boolean)
   fid_input should be levophed_infusion_dose and dopamine_dose
@@ -857,7 +857,7 @@ async def vasopressor_resuscitation_update(fid, fid_input, conn, log, dataset_id
   assert fid_input_items[0] == 'levophed_infusion_dose'\
     and fid_input_items[1] == 'dopamine_dose', \
     'wrong fid_input %s' % fid_input
-  clean_tbl.cdm_twf_clean(conn, fid, value=False, confidence=0, twf_table=twf_table)
+  clean_tbl.cdm_twf_clean(conn, fid, value=False, confidence=0, twf_table=twf_table, dataset_id=dataset_id)
   select_sql = """
   select enc_id, tsp, value::json->>'action' as action from cdm_t
   where fid = '%s'%s order by enc_id, tsp;
@@ -948,7 +948,7 @@ async def vasopressor_resuscitation_update(fid, fid_input, conn, log, dataset_id
 
 
 # Special case (mini-pipeline)
-async def heart_attack_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
+async def heart_attack_update(fid, fid_input, conn, log, twf_table='cdm_twf', dataset_id=None):
   """
   NEED TO MODIFY
   fid_input should be heart_attack_inhosp, ekg_proc, troponin
@@ -963,7 +963,7 @@ async def heart_attack_update(fid, fid_input, conn, log, dataset_id=None, twf_ta
     and 'troponin' == fid_input_items[2], \
     "fid_input error: %s" % fid_input_items
   # clean previous values
-  await clean_tbl.cdm_t_clean(conn, fid)
+  await clean_tbl.cdm_t_clean(conn, fid, dataset_id=dataset_id)
   # Retrieve all records of heart_attack_inhosp
   select_sql = """
   SELECT * FROM cdm_t
@@ -1018,7 +1018,7 @@ async def heart_attack_update(fid, fid_input, conn, log, dataset_id=None, twf_ta
     load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf])
 
 # Special case (mini-pipeline)
-async def stroke_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
+async def stroke_update(fid, fid_input, conn, log, twf_table='cdm_twf', dataset_id=None):
   """
   fid_input should be stroke_inhosp, ct_proc, mri_proc
   fid should be heart_attack (T)
@@ -1031,7 +1031,7 @@ async def stroke_update(fid, fid_input, conn, log, dataset_id=None, twf_table='c
       and 'mri_proc' == fid_input_items[2], "fid_input error: %s" % fid_input_items
 
   # clean previous values
-  await clean_tbl.cdm_t_clean(conn, fid)
+  await clean_tbl.cdm_t_clean(conn, fid, dataset_id=dataset_id)
 
   # Retrieve all records of stroke_inhosp
   select_sql = """
@@ -1073,7 +1073,7 @@ async def stroke_update(fid, fid_input, conn, log, dataset_id=None, twf_table='c
     load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf])
 
 # Special case (mini-pipeline)
-async def gi_bleed_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
+async def gi_bleed_update(fid, fid_input, conn, log, twf_table='cdm_twf', dataset_id=None):
   """
   fid_input should be gi_bleed_inhosp, ct_proc, mri_proc
   fid should be gi_bleed (T)
@@ -1086,7 +1086,7 @@ async def gi_bleed_update(fid, fid_input, conn, log, dataset_id=None, twf_table=
       and 'mri_proc' == fid_input_items[2], "fid_input error: %s" % fid_input_items
 
   # clean previous values
-  clean_tbl.cdm_t_clean(conn, fid)
+  clean_tbl.cdm_t_clean(conn, fid, dataset_id=dataset_id)
   # Retrieve all records of gi_bleed_inhosp
   select_sql = """
   SELECT distinct enc_id, tsp FROM cdm_t
@@ -1131,7 +1131,7 @@ async def gi_bleed_update(fid, fid_input, conn, log, dataset_id=None, twf_table=
 
 
 # Special case (mini-pipeline)
-async def severe_pancreatitis_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
+async def severe_pancreatitis_update(fid, fid_input, conn, log, twf_table='cdm_twf', dataset_id=None):
   """
   fid_input should be severe_pancreatitis_inhosp, ct_proc, mri_proc
   fid should be heart_attack (T)
@@ -1143,7 +1143,7 @@ async def severe_pancreatitis_update(fid, fid_input, conn, log, dataset_id=None,
   assert 'severe_pancreatitis_inhosp' == fid_input_items[0] and 'ct_proc' == fid_input_items[1] \
       and 'mri_proc' == fid_input_items[2], "fid_input error: %s" % fid_input_items
   # clean previous values
-  clean_tbl.cdm_t_clean(conn, fid)
+  clean_tbl.cdm_t_clean(conn, fid, dataset_id=dataset_id)
   # Retrieve all records of severe_pancreatitis_inhosp
   select_sql = """
   SELECT distinct enc_id, tsp FROM cdm_t
@@ -1183,7 +1183,7 @@ async def severe_pancreatitis_update(fid, fid_input, conn, log, dataset_id=None,
     load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf])
 
 # Special case (mini-pipeline)
-async def pulmonary_emboli_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
+async def pulmonary_emboli_update(fid, fid_input, conn, log, twf_table='cdm_twf', dataset_id=None):
   """
   fid_input should be pulmonary_emboli_inhosp, ct_proc, ekg_proc
   fid should be heart_attack (T)
@@ -1195,7 +1195,7 @@ async def pulmonary_emboli_update(fid, fid_input, conn, log, dataset_id=None, tw
   assert 'pulmonary_emboli_inhosp' == fid_input_items[0] and 'ct_proc' == fid_input_items[1] \
       and 'ekg_proc' == fid_input_items[2], "fid_input error: %s" % fid_input_items
   # clean previous values
-  clean_tbl.cdm_t_clean(conn, fid)
+  clean_tbl.cdm_t_clean(conn, fid, dataset_id=dataset_id)
   # Retrieve all records of pulmonary_emboli_inhosp
   select_sql = """
   SELECT distinct enc_id, tsp FROM cdm_t
@@ -1235,7 +1235,7 @@ async def pulmonary_emboli_update(fid, fid_input, conn, log, dataset_id=None, tw
     load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf])
 
 # Special case (mini-pipeline)
-async def bronchitis_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
+async def bronchitis_update(fid, fid_input, conn, log, twf_table='cdm_twf', dataset_id=None):
   """
   fid_input should be bronchitis_inhosp, chest_xray, bacterial_culture
   fid should be heart_attack (T)
@@ -1247,7 +1247,7 @@ async def bronchitis_update(fid, fid_input, conn, log, dataset_id=None, twf_tabl
   assert 'bronchitis_inhosp' == fid_input_items[0] and 'chest_xray' == fid_input_items[1] \
       and 'bacterial_culture' == fid_input_items[2], "fid_input error: %s" % fid_input_items
   # clean previous values
-  clean_tbl.cdm_t_clean(conn, fid)
+  clean_tbl.cdm_t_clean(conn, fid, dataset_id=dataset_id)
   # Retrieve all records of bronchitis_inhosp
   select_sql = """
   SELECT distinct enc_id, tsp FROM cdm_t
@@ -1287,7 +1287,7 @@ async def bronchitis_update(fid, fid_input, conn, log, dataset_id=None, twf_tabl
     load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf])
 
 # Special case (mini-pipeline)
-async def acute_kidney_failure_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
+async def acute_kidney_failure_update(fid, fid_input, conn, log, twf_table='cdm_twf', dataset_id=None):
   """
   fid_input should be
   acute_kidney_failure_inhosp, creatinine, urine_output_24hr, dialysis
@@ -1303,7 +1303,7 @@ async def acute_kidney_failure_update(fid, fid_input, conn, log, dataset_id=None
     and 'dialysis' == fid_input_items[3], \
     "fid_input error: %s" % fid_input_items
   # clean previous values
-  clean_tbl.cdm_t_clean(conn, fid)
+  clean_tbl.cdm_t_clean(conn, fid, dataset_id=dataset_id)
   # Retrieve all records of acute_kidney_failure_inhosp
   select_sql = """
   SELECT distinct enc_id, tsp FROM cdm_t
@@ -1379,7 +1379,7 @@ async def acute_kidney_failure_update(fid, fid_input, conn, log, dataset_id=None
 
 
 # Special case (mini-pipeline)
-async def ards_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
+async def ards_update(fid, fid_input, conn, log, twf_table='cdm_twf', dataset_id=None):
   """
   fid_input should be ards_inhosp, pao2_to_fio2, vent
   fid should be ards (T)
@@ -1392,7 +1392,7 @@ async def ards_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm
     and 'pao2_to_fio2' == fid_input_items[1] \
     and 'vent' == fid_input_items[2], \
     "fid_input error: %s" % fid_input_items
-  clean_tbl.cdm_t_clean(conn, fid)
+  clean_tbl.cdm_t_clean(conn, fid, dataset_id=dataset_id)
   # Retrieve all records of ards_inhosp
   select_sql = """
   SELECT distinct enc_id, tsp FROM cdm_t
@@ -1445,7 +1445,7 @@ async def ards_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm
     load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf])
 
 # Special case (mini-pipeline)
-async def hepatic_failure_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
+async def hepatic_failure_update(fid, fid_input, conn, log, twf_table='cdm_twf', dataset_id=None):
   """
   fid_input should be hepatic_failure_inhosp, bilirubin
   fid should be hepatic_failure (T)
@@ -1458,7 +1458,7 @@ async def hepatic_failure_update(fid, fid_input, conn, log, dataset_id=None, twf
     and 'bilirubin' == fid_input_items[1] \
     , "fid_input error: %s" % fid_input_items
   # clean previous values
-  clean_tbl.cdm_t_clean(conn, fid)
+  clean_tbl.cdm_t_clean(conn, fid, dataset_id=dataset_id)
   # Retrieve all records of hepatic_inhosp
   select_sql = """
   SELECT distinct enc_id, tsp FROM cdm_t

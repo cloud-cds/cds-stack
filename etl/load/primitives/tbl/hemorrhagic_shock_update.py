@@ -6,7 +6,7 @@ import asyncio
   Comments: Currently implements definition of traumatic hemorrhagic shock
   See arch file for details
 '''
-async def hemorrhagic_shock_update(fid, fid_input, cdm,  twf_table='cdm_twf'):
+async def hemorrhagic_shock_update(fid, fid_input, cdm,  twf_table='cdm_twf', dataset_id=None):
     assert fid == 'hemorrhagic_shock', 'wrong fid %s' % fid
     fid_input_items = [item.strip() for item in fid_input.split(',')]
     assert fid_input_items[0] == 'transfuse_rbc' \
@@ -19,12 +19,12 @@ async def hemorrhagic_shock_update(fid, fid_input, cdm,  twf_table='cdm_twf'):
       from
          (select c1.enc_id, c1.tsp, lactate, sbpm, lactate_c|sbpm_c confidence, count (*) num_transfusions from
         (select enc_id, tsp, lactate, lactate_c, sbpm, sbpm_c from %(twf_table)s
-        where sbpm <= 90 and lactate > 2
+        where sbpm <= 90 and lactate > 2 %(dataset_block)s
         ) c1 join
-        (select * from cdm_t where fid='transfuse_rbc') c2
+        (select * from cdm_t where fid='transfuse_rbc' %(dataset_block)s ) c2
         on c1.enc_id=c2.enc_id and c2.tsp >= c1.tsp and c2.tsp <= c1.tsp + interval '6 hours'
         group by c1.enc_id, c1.tsp, lactate_c, sbpm_c, lactate, sbpm ) c4
-      where %(twf_table)s.enc_id=c4.enc_id and %(twf_table)s.tsp=c4.tsp;
-    """ % {'twf_table': twf_table}
+      where %(twf_table)s.enc_id=c4.enc_id and %(twf_table)s.tsp=c4.tsp %(dataset_block)s;
+    """ % {'twf_table': twf_table, 'dataset_block': ' and dataset_id = %s' % dataset_id if dataset_id is not None else ''}
     log.info("hemorrhagic_shock_update:%s" % update_clause)
     await conn.execute(update_clause)
