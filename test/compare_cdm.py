@@ -96,9 +96,9 @@ class TableComparator:
         select column_name, data_type from information_schema.columns
         where table_name = '%(remote_table)s' and table_schema = 'public'
       $OPDB$) AS remote_fields (column_name text, data_type text)
-      ''' % { 'remote_server': self.src_server, 'remote_table': self.source_table }
+      ''' % { 'remote_server': self.src_server, 'remote_table': self.src_table }
 
-      logging.info('Loading remote schema for {}'.format(self.source_table))
+      logging.info('Loading remote schema for {}'.format(self.src_table))
       remote_fields = await conn.fetch(remote_fields_query)
 
       if len(remote_fields) > 0:
@@ -106,10 +106,10 @@ class TableComparator:
         self.field_map = [[f['column_name'], f['data_type']] for f in remote_fields if f['column_name'] not in extension_ids]
 
         schema_desc = '\n'.join(map(lambda x: ': '.join(x), self.field_map))
-        logging.info('Found remote schema for {}:\n{}'.format(self.source_table, schema_desc))
+        logging.info('Found remote schema for {}:\n{}'.format(self.src_table, schema_desc))
 
       else:
-        logging.info('No remote schema found for {}'.format(self.source_table))
+        logging.info('No remote schema found for {}'.format(self.src_table))
         self.field_map = []
 
 
@@ -137,7 +137,7 @@ class TableComparator:
     query_finalizer = ''
     if self.as_count_result:
       query_finalizer = '''
-      SELECT count(*) FROM A_DIFF_B UNION B_DIFF_A
+      SELECT (SELECT count(*) FROM A_DIFF_B) + (SELECT count(*) FROM B_DIFF_A)
       '''
 
     else:
@@ -150,7 +150,7 @@ class TableComparator:
     compare_to_remote_query = \
     '''
     WITH A_DIFF_B AS (
-      SELECT %(local_field)s FROM %(local_table)s %(with_dst_extension)s
+      SELECT %(local_fields)s FROM %(local_table)s %(with_dst_extension)s
       EXCEPT
       SELECT %(local_fields)s
       FROM dblink('%(srv)s', $OPDB$
@@ -162,7 +162,7 @@ class TableComparator:
         %(query)s
       $OPDB$) AS %(local_table)s_compare (%(local_fields_and_types)s)
       EXCEPT
-      SELECT %(local_field)s FROM %(local_table)s %(with_dst_extension)s
+      SELECT %(local_fields)s FROM %(local_table)s %(with_dst_extension)s
     )
     %(finalizer)s
     ''' % {
@@ -175,9 +175,9 @@ class TableComparator:
       'finalizer'              : query_finalizer
     }
 
-    logging.info('Query to execute:\n{}'.format(remote_load_sql))
+    logging.info('Query to execute:\n{}'.format(compare_to_remote_query))
     async with pool.acquire() as conn:
-      status = await conn.execute(remote_load_sql)
+      status = await conn.execute(compare_to_remote_query)
       logging.info('Remote load status: {}'.format(status))
 
 
