@@ -7,7 +7,7 @@ def handler(event, context):
   db            = os.environ['db_name']
   user          = os.environ['db_user']
   pw            = os.environ['db_password']
-  conn_str      = 'postgresql://{}:{}@{}:{}/{}'.format(user, password, host, port, db)
+  conn_str      = 'postgresql://{}:{}@{}:{}/{}'.format(user, pw, host, port, db)
   db_engine     = create_engine(conn_str)
 
   get_trews_threshold_sql = \

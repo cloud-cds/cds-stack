@@ -143,6 +143,10 @@ module "behavior_monitors" {
   aws_behamon_lambda_package  = "${var.aws_behamon_lambda_package}"
   aws_behamon_lambda_role_arn = "${var.aws_behamon_lambda_role_arn}"
 
+  db_subnet1_id = ""
+  db_subnet2_id = ""
+  db_sg_id      = ""
+
   db_host     = "db.${var.domain}"
   db_name     = "${replace(var.deploy_prefix, "-", "_")}"
   db_username = "${var.db_username}"

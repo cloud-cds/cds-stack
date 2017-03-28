@@ -10,6 +10,22 @@ variable "db_name" {}
 variable "db_username" {}
 variable "db_password" {}
 
+variable "db_subnet1_id" {}
+variable "db_subnet2_id" {}
+variable "db_sg_id" {}
+
+data "aws_subnet" "db_subnet1" {
+  id = "${var.db_subnet1_id}"
+}
+
+data "aws_subnet" "db_subnet2" {
+  id = "${var.db_subnet2_id}"
+}
+
+data "aws_security_group" "db_sg" {
+  id = "${var.db_sg_id}"
+}
+
 resource "aws_lambda_function" "behamon_lambda" {
 
     function_name    = "${var.deploy_prefix}-behamon-lambda"
@@ -19,6 +35,11 @@ resource "aws_lambda_function" "behamon_lambda" {
     role             = "${var.aws_behamon_lambda_role_arn}"
     runtime          = "python2.7"
     timeout          = 300
+
+    vpc_config {
+      subnet_ids         = ["${data.aws_subnet.db_subnet1.id}", "${data.aws_subnet.db_subnet2.id}"]
+      security_group_ids = ["${data.aws_security_group.db_sg.id}"]
+    }
 
     environment {
       variables {

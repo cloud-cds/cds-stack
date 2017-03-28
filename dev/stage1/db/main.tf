@@ -99,8 +99,20 @@ resource "aws_route53_record" "db" {
 ###########
 # Outputs
 
+output "db_subnet1_id" {
+  value = "${aws_subnet.db_subnet1.id}"
+}
+
+output "db_subnet2_id" {
+  value = "${aws_subnet.db_subnet2.id}"
+}
+
 output "db_subnet_group_id" {
   value = "${aws_db_subnet_group.db_subnet_group.id}"
+}
+
+output "db_sg_id" {
+  value = "${aws_security_group.db_sg.id}"
 }
 
 output "db_ip" {
