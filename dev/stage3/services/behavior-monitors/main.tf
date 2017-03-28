@@ -4,6 +4,12 @@ variable "s3_opsdx_lambda" {}
 variable "aws_behamon_lambda_package" {}
 variable "aws_behamon_lambda_role_arn" {}
 
+variable "db_host" {}
+variable "db_port" { default = 5432 }
+variable "db_name" {}
+variable "db_username" {}
+variable "db_password" {}
+
 resource "aws_lambda_function" "behamon_lambda" {
 
     function_name    = "${var.deploy_prefix}-behamon-lambda"
