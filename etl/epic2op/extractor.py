@@ -23,7 +23,7 @@ class Extractor:
         self.server = servers[jhapi_server]
         self.hospital = hospital
         self.lookback_hours = int(lookback_hours)
-        self.lookback_days = int(lookback_days) if lookback_days else int(lookback_hours/24) + 1
+        self.lookback_days = int(lookback_days) if lookback_days else int(lookback_hours)/24.0 + 1
         self.from_date = (dt.datetime.now() + dt.timedelta(days=1)).strftime('%Y-%m-%d')
         self.headers = {
             'client_id': jhapi_id,
