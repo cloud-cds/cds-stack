@@ -23,7 +23,7 @@ class Extractor:
         self.server = servers[jhapi_server]
         self.hospital = hospital
         self.lookback_hours = int(lookback_hours)
-        self.lookback_days = int(lookback_days) if lookback_days else int(lookback_hours)/24.0 + 1
+        self.lookback_days = int(lookback_days) if lookback_days else int(int(lookback_hours)/24.0 + 1)
         self.from_date = (dt.datetime.now() + dt.timedelta(days=1)).strftime('%Y-%m-%d')
         self.headers = {
             'client_id': jhapi_id,
@@ -41,15 +41,15 @@ class Extractor:
             async with sem:
                 async with session.request(**setting) as response:
                     if response.status != 200:
-                        logging.error(" Status={}\tMessage={}".format(
-                            response.status, response.reason
+                        logging.error("  Status={}\tMessage={}".format(
+                            response.status, await response.json()
                         ))
                         return None
                     return await response.json()
 
         async def run(request_settings, loop):
             tasks = []
-            sem = asyncio.Semaphore(1000)
+            sem = asyncio.Semaphore(200)
             async with ClientSession(headers=self.headers, loop=loop) as session:
                 for setting in request_settings:
                     task = asyncio.ensure_future(fetch(session, sem, setting))
@@ -129,6 +129,7 @@ class Extractor:
         procedure_types = []
         for _, ids in procedure_ids:
             procedure_types += ({'Type': 'INTERNAL', 'ID': str(x)} for x in ids)
+        print(procedure_types)
         payloads = [{
           'Id':                   pat['pat_id'],
           'IdType':               'patient',
@@ -138,7 +139,7 @@ class Extractor:
           'ProcedureTypes':       procedure_types
         } for _, pat in bedded_patients.iterrows()]
         responses = self.make_requests(resource, payloads, 'POST')
-        dfs = [pd.DataFrame(r['ProcedureResults']) for r in responses]
+        dfs = [pd.DataFrame(r['ProcedureResults'] if r else None) for r in responses]
         return self.combine(dfs, bedded_patients[['pat_id', 'visit_id']])
 
 
@@ -156,7 +157,7 @@ class Extractor:
             'ComponentTypes':       component_types
         } for _, pat in bedded_patients.iterrows()]
         responses = self.make_requests(resource, payloads, 'POST')
-        dfs = [pd.DataFrame(r['ResultComponents']) for r in responses]
+        dfs = [pd.DataFrame(r['ResultComponents'] if r else None) for r in responses]
         return self.combine(dfs, bedded_patients[['pat_id', 'visit_id']])
 
 
