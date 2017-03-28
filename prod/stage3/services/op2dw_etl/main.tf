@@ -57,6 +57,10 @@ resource "aws_lambda_function" "op2dw_etl_lambda" {
         #kube_key       = "${var.k8s_key}"
         #kube_token     = "${var.k8s_token}"
 
+        kube_cmd_0 = "sh"
+        kube_cmd_1 = "-c"
+        kube_cmd_2 = "/usr/local/bin/python3 /dashan-etl/etl/op2dw/engine.py"
+
         k8s_job_db_host           = "${var.db_host}"
         k8s_job_db_port           = "${var.db_port}"
         k8s_job_db_name           = "${var.db_name}"

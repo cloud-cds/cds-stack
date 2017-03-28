@@ -13,6 +13,9 @@ import dateutil.parser
 # kube_pass
 # kube_image
 #
+# OPTIONAL:
+# kube_cmd_*
+#
 # REQUIRED k8s secrets:
 # aws-secrets
 #
@@ -56,6 +59,10 @@ users:
   config = pykube.KubeConfig.from_file("/tmp/kube_config")
   api = pykube.HTTPClient(config)
 
+  cmd_prefix = 'kube_cmd_'
+  cmd_array = [ v for k, v in sorted(os.environ.items()) \
+                if k.startswith(cmd_prefix) and len(k) > len(cmd_prefix)]
+
   default_env = [
     {"name": "AWS_ACCESS_KEY_ID",     "valueFrom": { "secretKeyRef": { "name": "aws-secrets", "key": "access_key_id"     } } },
     {"name": "AWS_SECRET_ACCESS_KEY", "valueFrom": { "secretKeyRef": { "name": "aws-secrets", "key": "secret_access_key" } } },
@@ -70,6 +77,15 @@ users:
   job_env = default_env + forward_env
 
   job_name = os.environ["kube_job_name"]
+  job_container = {
+    "name"  : job_name,
+    "image" : os.environ["kube_image"],
+    "env"   : job_env
+  }
+
+  if len(cmd_array) > 0:
+    job_container['command'] = cmd_array
+
   job_spec = {
     "apiVersion": "batch/v1",
     "kind": "Job",
@@ -82,16 +98,13 @@ users:
           "name": job_name
         },
         "spec": {
-          "containers": [{
-            "name"  : job_name,
-            "image" : os.environ["kube_image"],
-            "env"   : job_env
-          }],
+          "containers": [job_container],
           "restartPolicy": "Never"
         }
       }
     }
   }
+
   job = pykube.Job(api, job_spec)
   if job.exists():
     # Refresh the job execution metadata.

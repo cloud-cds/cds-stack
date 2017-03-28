@@ -46,7 +46,7 @@ module "trews_etl" {
   k8s_server    = "${var.k8s_server}"
   k8s_user      = "${var.k8s_user}"
   k8s_pass      = "${var.k8s_pass}"
-  k8s_image     = "${var.k8s_image}"
+  k8s_image     = "${var.k8s_epic2op_image}"
   k8s_cert_auth = "${var.k8s_cert_auth}"
   k8s_cert      = "${var.k8s_cert}"
   k8s_key       = "${var.k8s_key}"
@@ -89,7 +89,7 @@ module "op2dw_etl" {
   k8s_server    = "${var.k8s_server}"
   k8s_user      = "${var.k8s_user}"
   k8s_pass      = "${var.k8s_pass}"
-  k8s_image     = "${var.k8s_image}"
+  k8s_image     = "${var.k8s_op2dw_image}"
   k8s_cert_auth = "${var.k8s_cert_auth}"
   k8s_cert      = "${var.k8s_cert}"
   k8s_key       = "${var.k8s_key}"
@@ -98,8 +98,8 @@ module "op2dw_etl" {
   op2dw_etl_lambda_firing_rate_mins = "20"
   op2dw_etl_remote_server = "opsdx_opdb"
 
-  db_host      = "db.${var.domain}"
-  db_name      = "${replace(var.deploy_prefix, "-", "_")}"
+  db_host      = "dw.${var.domain}"
+  db_name      = "${replace(var.deploy_prefix, "-", "_")}_dw"
   db_username  = "${var.db_username}"
   db_password  = "${var.db_password}"
 }
