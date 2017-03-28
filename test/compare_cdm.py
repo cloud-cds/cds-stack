@@ -43,6 +43,8 @@ tables_to_compare = {
   'feedback_log'             : 'dataset',
 }
 
+unsupported_types = ['json', 'jsonb']
+
 class TableComparator:
   def __init__(self, src_server,
                      src_dataset_id, src_model_id,
@@ -103,7 +105,8 @@ class TableComparator:
 
       if len(remote_fields) > 0:
         extension_ids = self.version_extension_ids()
-        self.field_map = [[f['column_name'], f['data_type']] for f in remote_fields if f['column_name'] not in extension_ids]
+        self.field_map = [[f['column_name'], f['data_type']] for f in remote_fields \
+                             if f['column_name'] not in extension_ids and f['data_type'] not in unsupported_types]
 
         schema_desc = '\n'.join(map(lambda x: ': '.join(x), self.field_map))
         logging.info('Found remote schema for {}:\n{}'.format(self.src_table, schema_desc))
