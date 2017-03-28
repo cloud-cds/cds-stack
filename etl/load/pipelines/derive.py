@@ -16,21 +16,21 @@ async def derive_main(log, conn, cdm_feature_dict, mode=None, fid=None, table="c
     idx = derive_feature_order.index(append)
     for i in range(idx, len(derive_feature_order)):
       fid = derive_feature_order[i]
-      await derive_feature(log, cdm_feature_dict[fid], conn, twf_table=table, dataset_id=dataset_id)
+      await derive_feature(log, cdm_feature_dict[fid], conn, dataset_id=dataset_id, twf_table=table)
   elif mode == 'dependent':
     dependent = fid
     if cdm_feature_dict[fid]['is_measured'] == 'no':
       log.info("update feature %s and its dependents" % dependent)
-      await derive_feature(log, cdm_feature_dict[fid], conn, twf_table=table, dataset_id=dataset_id)
+      await derive_feature(log, cdm_feature_dict[fid], conn, dataset_id=dataset_id, twf_table=table)
     else:
       log.info("update feature %s's dependents" % dependent)
     derive_feature_order = get_dependent_features([dependent], features)
     for fid in derive_feature_order:
-      await derive_feature(log, cdm_feature_dict[fid], conn, twf_table=table, dataset_id=dataset_id)
+      await derive_feature(log, cdm_feature_dict[fid], conn, dataset_id=dataset_id, twf_table=table)
   elif mode is None and fid is None:
     log.info("derive features one by one")
     for fid in derive_feature_order:
-      await derive_feature(log, cdm_feature_dict[fid], conn, twf_table=table, dataset_id=dataset_id)
+      await derive_feature(log, cdm_feature_dict[fid], conn, dataset_id=dataset_id, twf_table=table)
   else:
     log.error("Unknown mode!")
 
@@ -94,7 +94,7 @@ def get_dependent_features(feature_list, features):
         for feature in features if feature['fid'] in dependent_features)
     return get_derive_seq(input_map=dic)
 
-async def derive_feature(log, feature, conn, twf_table='cdm_twf', dataset_id=None):
+async def derive_feature(log, feature, conn, dataset_id=None, twf_table='cdm_twf'):
   fid = feature['fid']
   derive_func_id = feature['derive_func_id']
   derive_func_input = feature['derive_func_input']
