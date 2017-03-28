@@ -4,6 +4,7 @@ import asyncpg
 import json
 import copy
 import logging
+import argparse
 
 logging.basicConfig(level=logging.INFO)
 
@@ -180,13 +181,13 @@ class TableComparator:
 
     logging.info('Query to execute:\n{}'.format(compare_to_remote_query))
     async with pool.acquire() as conn:
-      results = await conn.fetch(compare_to_remote_query)
       if self.as_count_result:
-        for r in results:
-          logging.info('# DIFFS: %s' % r['diffs'])
+        diffs = await conn.fetchrow(compare_to_remote_query)
+        logging.info('# DIFFS: %s' % diffs)
       else:
+        results = await conn.fetch(compare_to_remote_query)
         for r in results:
-          logging.info(r)
+          logging.info(dict(r))
 
 
   async def run(self, pool):
@@ -205,11 +206,18 @@ async def run():
   logging.info("Running CDM DB Comparison")
   dbpool = await asyncpg.create_pool(database=db, user=user, password=pw, host=host, port=port)
 
-  src_dataset_id = None
-  src_model_id   = None
+  parser = argparse.ArgumentParser()
+  parser.add_argument("--srcdid", type=int, default=None, help="Source dataset id")
+  parser.add_argument("--dstdid", type=int, default=None, help="Dest dataset id")
+  parser.add_argument("--srcmid", type=int, default=None, help="Source model id")
+  parser.add_argument("--dstmid", type=int, default=None, help="Dest model id")
+  args = parser.parse_args()
 
-  dst_dataset_id = None
-  dst_model_id   = None
+  src_dataset_id = args.srcdid
+  src_model_id   = args.srcmid
+
+  dst_dataset_id = args.dstdid
+  dst_model_id   = args.dstmid
 
   for tbl, version_type in tables_to_compare.items():
     c = TableComparator(src_server,
