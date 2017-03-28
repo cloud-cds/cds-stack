@@ -25,6 +25,7 @@ variable "db_port" { default = 5432 }
 variable "db_name" {}
 variable "db_username" {}
 variable "db_password" {}
+
 variable "jhapi_client_id" {}
 variable "jhapi_client_secret" {}
 
@@ -113,3 +114,5 @@ resource "aws_lambda_permission" "etl_cloudwatch_permissions" {
     principal     = "events.amazonaws.com"
     source_arn    = "${aws_cloudwatch_event_rule.etl_schedule_rule.arn}"
 }
+
+

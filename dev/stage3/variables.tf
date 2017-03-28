@@ -196,6 +196,14 @@ variable "aws_klaunch_lambda_role_arn" {
   description = "AWS Lambda k8s job launcher role"
 }
 
+variable "aws_behamon_lambda_package" {
+  description = "AWS Lambda behavior monitoring package"
+}
+
+variable "aws_behamon_lambda_role_arn" {
+  description = "AWS Lambda behavior monitoring role"
+}
+
 variable "aws_alarm2slack_package" {
   description = "AWS Lambda Alarm2Slack package"
 }

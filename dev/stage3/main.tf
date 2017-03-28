@@ -79,6 +79,7 @@ module "trews_etl" {
   db_name             = "${replace(var.deploy_prefix, "-", "_")}"
   db_username         = "${var.db_username}"
   db_password         = "${var.db_password}"
+
   jhapi_client_id     = "${var.jhapi_client_id}"
   jhapi_client_secret = "${var.jhapi_client_secret}"
 
@@ -132,6 +133,20 @@ module "trews_etl_replay" {
   TREWS_ETL_STREAM_SLICES      = "${var.TREWS_ETL_STREAM_SLICES}"
   TREWS_ETL_STREAM_SLEEP_SECS  = "${var.TREWS_ETL_STREAM_SLEEP_SECS}"
   TREWS_ETL_EPIC_NOTIFICATIONS = "${var.TREWS_ETL_EPIC_NOTIFICATIONS}"
+}
+
+module "behavior_monitors" {
+  source = "./services/behavior-monitors"
+  deploy_prefix = "${var.deploy_prefix}"
+
+  s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
+  aws_behamon_lambda_package  = "${var.aws_behamon_lambda_package}"
+  aws_behamon_lambda_role_arn = "${var.aws_behamon_lambda_role_arn}"
+
+  db_host     = "db.${var.domain}"
+  db_name     = "${replace(var.deploy_prefix, "-", "_")}"
+  db_username = "${var.db_username}"
+  db_password = "${var.db_password}"
 }
 
 module "monitor" {
