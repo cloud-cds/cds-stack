@@ -119,8 +119,8 @@ class TableComparator:
     dst_version_map = { 'model_id': self.dst_model_id, 'dataset_id': self.dst_dataset_id }
 
     extension_ids = self.version_extension_ids()
-    src_extension_vals = map(lambda x: src_version_map[x], extension_ids)
-    dst_extension_vals = map(lambda x: dst_version_map[x], extension_ids)
+    src_extension_vals = filter(lambda x: x is not None, map(lambda x: src_version_map[x], extension_ids))
+    dst_extension_vals = filter(lambda x: x is not None, map(lambda x: dst_version_map[x], extension_ids))
 
     with_src_extension = ' and '.join(map(lambda v: '{} = {}'.format(v[0], v[1]), zip(extension_ids, src_extension_vals)))
     with_dst_extension = ' and '.join(map(lambda v: '{} = {}'.format(v[0], v[1]), zip(extension_ids, dst_extension_vals)))
@@ -137,7 +137,7 @@ class TableComparator:
     query_finalizer = ''
     if self.as_count_result:
       query_finalizer = '''
-      SELECT (SELECT count(*) FROM A_DIFF_B) + (SELECT count(*) FROM B_DIFF_A)
+      SELECT (SELECT count(*) FROM A_DIFF_B) + (SELECT count(*) FROM B_DIFF_A) as diffs
       '''
 
     else:
@@ -177,8 +177,13 @@ class TableComparator:
 
     logging.info('Query to execute:\n{}'.format(compare_to_remote_query))
     async with pool.acquire() as conn:
-      status = await conn.execute(compare_to_remote_query)
-      logging.info('Remote load status: {}'.format(status))
+      results = await conn.fetch(compare_to_remote_query)
+      if self.as_count_result:
+        for r in results:
+          logging.info(r['diffs'])
+      else:
+        for r in results:
+          logging.info(r)
 
 
   async def run(self, pool):
@@ -197,11 +202,11 @@ async def run():
   logging.info("Running CDM DB Comparison")
   dbpool = await asyncpg.create_pool(database=db, user=user, password=pw, host=host, port=port)
 
-  src_dataset_id = 1
-  src_model_id   = 1
+  src_dataset_id = None
+  src_model_id   = None
 
-  dst_dataset_id = 2
-  dst_model_id   = 2
+  dst_dataset_id = None
+  dst_model_id   = None
 
   for tbl, version_type in tables_to_compare.items():
     c = TableComparator(src_server,
