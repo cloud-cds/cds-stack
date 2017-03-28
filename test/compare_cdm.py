@@ -183,7 +183,7 @@ class TableComparator:
       results = await conn.fetch(compare_to_remote_query)
       if self.as_count_result:
         for r in results:
-          logging.info(r['diffs'])
+          logging.info('# DIFFS: %s' % r['diffs'])
       else:
         for r in results:
           logging.info(r)
