@@ -24,7 +24,7 @@ cdm_t_fields1 = [
   ["(value::json)#>>'{order_tsp}' as order_tsp"      , 'order_tsp',  'text'        ],
   ['confidence'                         , 'confidence', 'integer'     ],
 ]
-cdm_t_query1 = (cdm_t_fields1, 'fid like \'%_dose\'')
+cdm_t_query1 = (cdm_t_fields1, 'fid like \'%_dose\'', 'fid, enc_id, tsp')
 
 cdm_t_fields2 = [
   ['enc_id'          , 'integer',     ],
@@ -34,7 +34,7 @@ cdm_t_fields2 = [
   ['confidence'      , 'integer',     ],
 ]
 
-cdm_t_query2 = (cdm_t_fields2, 'fid not like \'%_dose\'')
+cdm_t_query2 = (cdm_t_fields2, 'fid not like \'%_dose\'', 'fid, enc_id, tsp')
 
 tables_to_compare = {
   # 'datalink'                 : ('dataset', []),
@@ -73,7 +73,8 @@ class TableComparator:
                      dst_dataset_id, dst_model_id,
                      src_tbl, dst_tbl=None,
                      src_pred=None, dst_pred=None,
-                     field_map=None, version_extension='dataset', as_count_result=True):
+                     field_map=None, version_extension='dataset',
+                     as_count_result=True, sort_field=None):
 
     self.src_server     = src_server
     self.src_dataset_id = src_dataset_id
@@ -90,6 +91,7 @@ class TableComparator:
     self.field_map = field_map
     self.version_extension = version_extension
     self.as_count_result = as_count_result
+    self.sort_field = sort_field
 
   def version_extension_ids(self):
     if self.version_extension == 'dataset':
@@ -172,10 +174,13 @@ class TableComparator:
 
     else:
       query_finalizer = '''
-      SELECT true as missing_remotely, * FROM A_DIFF_B
-      UNION
-      SELECT false as missing_remotely, * FROM B_DIFF_A
-      '''
+      SELECT * FROM (
+        SELECT true as missing_remotely, * FROM A_DIFF_B
+        UNION
+        SELECT false as missing_remotely, * FROM B_DIFF_A
+      ) R
+      %s
+      ''' % ('' if self.sort_field is None else ('ORDER BY %s' % self.sort_field))
 
     compare_to_remote_query = \
     '''
@@ -253,11 +258,13 @@ async def run():
     version_type = version_type_and_queries[0]
     queries = version_type_and_queries[1]
     if queries:
-      for field_map, predicate in queries:
+      for field_map, predicate, sort_field in queries:
         c = TableComparator(src_server,
                             src_dataset_id, src_model_id,
                             dst_dataset_id, dst_model_id,
-                            tbl, src_pred=predicate, field_map=field_map, version_extension=version_type, as_count_result=args.counts)
+                            tbl, src_pred=predicate,
+                            field_map=field_map, version_extension=version_type,
+                            as_count_result=args.counts, sort_field=sort_field)
         await c.run(dbpool)
     else:
       c = TableComparator(src_server,
