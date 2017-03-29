@@ -60,7 +60,7 @@ resource "aws_lambda_function" "behamon_lambda" {
 resource "aws_cloudwatch_log_subscription_filter" "behamon_lambda_logfilter" {
   name            = "${var.deploy_prefix}-behamon-lambda-logfilter"
   log_group_name  = "${var.behamon_log_group_name}"
-  filter_pattern  = "{ $.req.url = \"*CSN*\" }"
+  filter_pattern  = "{ $.req.url = \"*USERID*\" }"
   destination_arn = "${aws_lambda_function.behamon_lambda.arn}"
 }
 
