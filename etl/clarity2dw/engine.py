@@ -1,4 +1,7 @@
 import asyncio
+import uvloop
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+
 import asyncpg
 from etl.core.config import Config
 import json
@@ -6,17 +9,20 @@ from extractor import Extractor
 import os
 
 job = {
-  # 'transform': {
-  #   'init': True,
-  #   'populate_patients': True,
-  #   'populate_measured_features': {
-  #     'plan': False,
+  'reset_dataset': {
+    'remove_data': True
+    'start_enc_id': 1
+  },
+  'transform': {
+    'populate_patients': True,
+    'populate_measured_features': {
+      'plan': False,
   #     #'fid': 'heart_rate',
-  #   }
-  # },
-  # 'fillin': {
-  #   'recalculate_popmean': False,
-  # },
+    }
+  },
+  'fillin': {
+    'recalculate_popmean': False,
+  },
   'derive': {},
 }
 

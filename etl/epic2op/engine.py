@@ -22,6 +22,7 @@ class Engine():
             jhapi_id =       os.environ['jhapi_client_id'],
             jhapi_secret =   os.environ['jhapi_client_secret'],
         )
+        self.criteria = Criteria(self.config)
         self.extract_time = dt.timedelta(0)
         self.transform_time = dt.timedelta(0)
 
@@ -142,8 +143,14 @@ class Engine():
 
         self.loader.run_loop(db_data)
 
-        # TODO: fillin
-        # TODO: derive
+        # TODO: calculate criteria
+        self.criteria.run_loop()
+        # TODO: push notification
+        notify_epic  = int(os.environ['TREWS_ETL_EPIC_NOTIFICATIONS'])
+        if notify_epic:
+          server = os.environ['TREWS_ETL_SERVER']
+          self.push_notifications_to_epic(server)
+        # TODO: push cloudwatch metrics
 
 
 

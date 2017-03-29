@@ -20,6 +20,8 @@ class Extractor:
     self.log.info("start to run clarity ETL")
     async with self.pool.acquire() as conn:
       self.cdm_feature_dict = await self.get_cdm_feature_dict(conn)
+      if "reset_dataset" in job:
+        await self.reset_dataset(conn, job['reset_dataset'])
       if "transform" in job:
         await self.transform(conn, job['transform'])
       if "fillin" in job:
@@ -28,8 +30,6 @@ class Extractor:
         await self.derive(conn, job['derive'])
 
   async def transform(self, conn, job):
-    if 'init' in job:
-      await self.init(conn)
     if 'populate_patients' in job:
       await self.populate_patients(conn)
     if 'populate_measured_features' in job:
@@ -58,22 +58,27 @@ class Extractor:
     self.log.info("derive completed")
 
 
+
+
+  async def reset_dataset(self, conn, job):
+    self.log.warn("reset_dataset")
+    reset_sql = ''
+    if 'remove_data' in job and job['remove_data']:
+      reset_sql = '''
+      delete from cdm_s where dataset_id = %(dataset_id)s;
+      delete from cdm_t where dataset_id = %(dataset_id)s;
+      delete from cdm_twf where dataset_id = %(dataset_id)s;
+      delete from pat_enc where dataset_id = %(dataset_id)s;
+      ''' % {'dataset_id': self.config.dataset_id}
+    if 'start_enc_id' in job:
+      reset_sql += 'alter sequence pat_enc_enc_id_seq restart %s' % job['start_enc_id']
+    self.log.debug("ETL init sql: " + reset_sql)
+    result = await conn.execute(reset_sql)
+    self.log.info("ETL Init: " + result)
+
 ##################
 # transform pipeline
 ##################
-
-  async def init(self, conn):
-    self.log.warn("TODO: delete data from the same etl_id only (currently delete all).")
-    init_sql = '''
-    delete from cdm_s where dataset_id = %(dataset_id)s;
-    delete from cdm_t where dataset_id = %(dataset_id)s;
-    delete from cdm_twf where dataset_id = %(dataset_id)s;
-    delete from pat_enc where dataset_id = %(dataset_id)s;
-    ''' % {'dataset_id': self.config.dataset_id}
-    self.log.debug("ETL init sql: " + init_sql)
-    result = await conn.execute(init_sql)
-    self.log.info("ETL Init: " + result)
-
   async def populate_patients(self, conn):
     sql = '''
     insert into pat_enc (dataset_id, visit_id, pat_id)
