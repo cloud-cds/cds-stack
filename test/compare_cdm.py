@@ -51,6 +51,7 @@ class TableComparator:
                      src_dataset_id, src_model_id,
                      dst_dataset_id, dst_model_id,
                      src_tbl, dst_tbl=None,
+                     src_pred, dst_pred=None,
                      field_map=None, version_extension='dataset', as_count_result=True):
 
     self.src_server     = src_server
@@ -61,6 +62,9 @@ class TableComparator:
 
     self.src_table = src_tbl
     self.dst_table = dst_tbl if dst_tbl is not None else src_tbl
+
+    self.src_pred = src_pred
+    self.dst_pred = dst_pred if dst_pred is not None else src_pred
 
     self.field_map = field_map
     self.version_extension = version_extension
@@ -126,8 +130,8 @@ class TableComparator:
     src_extension_vals = filter(lambda x: x is not None, map(lambda x: src_version_map[x], extension_ids))
     dst_extension_vals = filter(lambda x: x is not None, map(lambda x: dst_version_map[x], extension_ids))
 
-    with_src_extension = ' and '.join(map(lambda v: '{} = {}'.format(v[0], v[1]), zip(extension_ids, src_extension_vals)))
-    with_dst_extension = ' and '.join(map(lambda v: '{} = {}'.format(v[0], v[1]), zip(extension_ids, dst_extension_vals)))
+    with_src_extension = ' and '.join([self.src_pred] + list(map(lambda v: '{} = {}'.format(v[0], v[1]), zip(extension_ids, src_extension_vals))))
+    with_dst_extension = ' and '.join([self.dst_pred] + list(map(lambda v: '{} = {}'.format(v[0], v[1]), zip(extension_ids, dst_extension_vals))))
 
     with_src_extension = 'where ' + with_src_extension if with_src_extension else ''
     with_dst_extension = 'where ' + with_dst_extension if with_dst_extension else ''
