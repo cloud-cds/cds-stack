@@ -52,14 +52,26 @@ spec:
         env:
         - name : LMCHOME
           value: /lmc/LMC-Based-On-GPflow/
-        - name: DATAFILE
-          value: /lmc/sampledata.csv
-        - name : OUT_DIR
-          value: /lmc/results
-        - name : PS_HOST
-          value: "tensorflow-0:2222"
-        - name : WORKER_HOSTS
-          value: "tensorflow-1:2222,tensorflow-2:2222"
+        - name : NUM_WORKERS
+          value: '2'
+        - name : BATCHSIZE
+          value: '2'
+        - name : NUM_SVI_ITER
+          value: '10'
+        - name : FEAT_SIZE
+          value: '0'
+        - name : MC_SAMPLES
+          value: '1000'
+        - name : TOTAL_PATIENTS
+          value: '20'
+        - name : MAX_LBFGS_ITER
+          value: '20'
+        - name : MIN_NUM_SAMPLES
+          value: '4'
+        - name : NUM_WINDOWS
+          value: '2'
+        - name : NUM_TEST_WINDOWS
+          value: '1'
         command:
         - sh
         - -c
