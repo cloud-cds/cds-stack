@@ -192,3 +192,18 @@ class Extractor:
         responses = self.make_requests(resource, payloads, 'POST')
         dfs = [pd.DataFrame(r) for r in responses]
         return self.combine(dfs, med_orders[['pat_id', 'visit_id']])
+
+
+    def post_notifications(self, notifications):
+        resource = '/patients/addflowsheetvalue'
+        payloads = [{
+            'PatientID':            n['pat_id'],
+            'ContactID':            n['visit_id'],
+            'UserID':               'WSEPSIS',
+            'FlowsheetID':          '9490',
+            'Value':                n['count'],
+            'InstantValueTaken':    str(dt.datetime.utcnow()),
+            'FlowsheetTemplateID':  '304700006',
+        } for n in notifications]
+        self.make_requests(resource, payloads, 'POST')
+        self.log.info("pushed notifications to epic")

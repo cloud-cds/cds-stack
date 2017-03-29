@@ -227,19 +227,12 @@ class Epic2OpLoader:
     await conn.execute("select drop_tables_pattern('workspace', '%%_%s');" % day)
     self.log.info("cleaned data in workspace for day:%s" % day)
 
-  def push_notifications_to_epic(self, conn server_name='stage'):
-    self.log.info("pushing notifications to epic %s" % server_name)
-    notifications = await conn.fetch("""
+  def get_notifications_for_epic(self):
+    async with self.pool.acquire() as conn:
+      self.log.info("getting notifications to push to epic")
+      return await conn.fetch("""
         select * from get_notifications_for_epic(null)
         """)
-    patients = [ {'pat_id': n['pat_id'], 'visit_id': n['visit_id'], 'notifications': n['count'],
-                        'current_time': datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")} for n in notifications]
-    client_id = os.environ['jhapi_client_id'],
-    client_secret = os.environ['jhapi_client_secret']
-    # TODO need loader to push notifications to epic
-    # loader = load.Loader(server_name, client_id, client_secret)
-    # loader.load_notifications(patients)
-    self.log.info("pushed notifications to epic %s" % server_name)
 
   async def workspace_to_criteria_meas(conn):
     # insert all results to the measurement table
