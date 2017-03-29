@@ -19,9 +19,9 @@ cdm_t_fields1 = [
   ['enc_id'                             , 'enc_id',     'integer'     ],
   ['tsp'                                , 'tsp',        'timestamptz' ],
   ['fid'                                , 'fid',        'varchar(50)' ],
-  ["(value::json)#>>'{dose}'"           , 'dose',       'text'        ],
-  ["(value::json)#>>'{action}'"         , 'action',     'text'        ],
-  ["(value::json)#>>'{order_tsp}'"      , 'order_tsp',  'text'        ],
+  ["(value::json)#>>'{dose}' as dose"           , 'dose',       'text'        ],
+  ["(value::json)#>>'{action}' as action"         , 'action',     'text'        ],
+  ["(value::json)#>>'{order_tsp}' as order_tsp"      , 'order_tsp',  'text'        ],
   ['confidence'                         , 'confidence', 'integer'     ],
 ]
 cdm_t_query1 = (cdm_t_fields1, 'fid like \'%_dose\'')
@@ -257,7 +257,7 @@ async def run():
         c = TableComparator(src_server,
                             src_dataset_id, src_model_id,
                             dst_dataset_id, dst_model_id,
-                            tbl, field_map=field_map, version_extension=version_type, as_count_result=args.counts)
+                            tbl, src_pred=predicate, field_map=field_map, version_extension=version_type, as_count_result=args.counts)
         await c.run(dbpool)
     else:
       c = TableComparator(src_server,
