@@ -184,6 +184,8 @@ class TableComparator:
       if self.as_count_result:
         r = await conn.fetchrow(compare_to_remote_query)
         logging.info('# DIFFS: %s' % r['diffs'])
+        if r['diffs'] > 0:
+          logging.warning('Table %s differs from %s.%s (%s rows)' % (self.dst_table, self.src_server, self.src_table, r['diffs']))
       else:
         results = await conn.fetch(compare_to_remote_query)
         for r in results:
