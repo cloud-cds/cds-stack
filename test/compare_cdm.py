@@ -16,51 +16,53 @@ pw            = os.environ['db_password']
 src_server    = os.environ['cmp_remote_server']
 
 cdm_t_fields1 = [
-  ['enc_id'          , 'integer',     ]
-  ['tsp'             , 'timestamptz', ]
-  ['fid'             , 'varchar(50)', ]
-  ['value'           , 'text',        ]
-  ['confidence'      , 'integer',     ]
+  ['enc_id'          , 'integer'],
+  ['tsp'             , 'timestamptz', ],
+  ['fid'             , 'varchar(50)', ],
+  ["(value::json)#>>'{dose}'"           , 'text',        ],
+  ["(value::json)#>>'{action}'"           , 'text',        ],
+  ["(value::json)#>>'{order_tsp}'"           , 'text',        ],
+  ['confidence'      , 'integer',     ],
 ]
 cdm_t_query1 = (cdm_t_fields1, 'fid like \'%_dose\'')
 
 cdm_t_fields2 = [
-  ['enc_id'          , 'integer',     ]
-  ['tsp'             , 'timestamptz', ]
-  ['fid'             , 'varchar(50)', ]
-  ['value'           , 'text',        ]
-  ['confidence'      , 'integer',     ]
+  ['enc_id'          , 'integer',     ],
+  ['tsp'             , 'timestamptz', ],
+  ['fid'             , 'varchar(50)', ],
+  ['value'           , 'text',        ],
+  ['confidence'      , 'integer',     ],
 ]
 
 cdm_t_query2 = (cdm_t_fields2, 'fid not like \'%_dose\'')
 
 tables_to_compare = {
-  'datalink'                 : ('dataset', []),
+  # 'datalink'                 : ('dataset', []),
   'cdm_function'             : ('dataset', []),
   'cdm_feature'              : ('dataset', []),
-  'datalink_feature_mapping' : ('dataset', []),
+  # 'datalink_feature_mapping' : ('dataset', []),
   'pat_enc'                  : ('dataset', []),
   'cdm_g'                    : ('both'   , []),
   'cdm_s'                    : ('dataset', []),
-  'cdm_m'                    : ('dataset', []),
+  # 'cdm_m'                    : ('dataset', []),
   'cdm_t'                    : ('dataset', [cdm_t_query1, cdm_t_query2]),
-  'criteria_meas'            : ('dataset', []),
-  'criteria'                 : ('dataset', []),
-  'criteria_events'          : ('dataset', []),
-  'criteria_log'             : ('dataset', []),
-  'criteria_meas_archive'    : ('dataset', []),
-  'criteria_archive'         : ('dataset', []),
-  'criteria_default'         : ('dataset', []),
-  'notifications'            : ('dataset', []),
-  'parameters'               : ('dataset', []),
-  'trews_scaler'             : ('model'  , []),
-  'trews_feature_weights'    : ('model'  , []),
-  'trews_parameters'         : ('model'  , []),
-  'cdm_twf'                  : ('dataset', []),
-  'trews'                    : ('dataset', []),
-  'pat_status'               : ('dataset', []),
-  'deterioration_feedback'   : ('dataset', []),
-  'feedback_log'             : ('dataset', []),
+  # 'criteria_meas'            : ('dataset', []),
+  # 'criteria'                 : ('dataset', []),
+  # 'criteria_events'          : ('dataset', []),
+  # 'criteria_log'             : ('dataset', []),
+  # 'criteria_meas_archive'    : ('dataset', []),
+  # 'criteria_archive'         : ('dataset', []),
+  # 'criteria_default'         : ('dataset', []),
+  # 'notifications'            : ('dataset', []),
+  # 'parameters'               : ('dataset', []),
+  # 'trews_scaler'             : ('model'  , []),
+  # 'trews_feature_weights'    : ('model'  , []),
+  # 'trews_parameters'         : ('model'  , []),
+  # 'cdm_twf'                  : ('dataset', []),
+  # 'trews'                    : ('dataset', []),
+  # 'pat_status'               : ('dataset', []),
+  # 'deterioration_feedback'   : ('dataset', []),
+  # 'feedback_log'             : ('dataset', []),
 }
 
 unsupported_types = ['json', 'jsonb']
@@ -70,7 +72,7 @@ class TableComparator:
                      src_dataset_id, src_model_id,
                      dst_dataset_id, dst_model_id,
                      src_tbl, dst_tbl=None,
-                     src_pred, dst_pred=None,
+                     src_pred=None, dst_pred=None,
                      field_map=None, version_extension='dataset', as_count_result=True):
 
     self.src_server     = src_server
@@ -148,9 +150,10 @@ class TableComparator:
     extension_ids = self.version_extension_ids()
     src_extension_vals = filter(lambda x: x is not None, map(lambda x: src_version_map[x], extension_ids))
     dst_extension_vals = filter(lambda x: x is not None, map(lambda x: dst_version_map[x], extension_ids))
-
-    with_src_extension = ' and '.join([self.src_pred] + list(map(lambda v: '{} = {}'.format(v[0], v[1]), zip(extension_ids, src_extension_vals))))
-    with_dst_extension = ' and '.join([self.dst_pred] + list(map(lambda v: '{} = {}'.format(v[0], v[1]), zip(extension_ids, dst_extension_vals))))
+    src_pred_list = [] if self.src_pred is None else [self.src_pred]
+    dst_pred_list = [] if self.dst_pred is None else [self.dst_pred]
+    with_src_extension = ' and '.join(src_pred_list + list(map(lambda v: '{} = {}'.format(v[0], v[1]), zip(extension_ids, src_extension_vals))))
+    with_dst_extension = ' and '.join(dst_pred_list + list(map(lambda v: '{} = {}'.format(v[0], v[1]), zip(extension_ids, dst_extension_vals))))
 
     with_src_extension = 'where ' + with_src_extension if with_src_extension else ''
     with_dst_extension = 'where ' + with_dst_extension if with_dst_extension else ''
@@ -247,14 +250,14 @@ async def run():
 
   for tbl, version_type_and_queries in tables_to_compare.items():
     version_type = version_type_and_queries[0]
-    queries = version_type_and_queries[1][0]
+    queries = version_type_and_queries[1]
     if queries:
       for field_map, predicate in queries:
-      c = TableComparator(src_server,
-                          src_dataset_id, src_model_id,
-                          dst_dataset_id, dst_model_id,
-                          tbl, field_map=field_map, version_extension=version_type, as_count_result=args.counts)
-      await c.run(dbpool)
+        c = TableComparator(src_server,
+                            src_dataset_id, src_model_id,
+                            dst_dataset_id, dst_model_id,
+                            tbl, field_map=field_map, version_extension=version_type, as_count_result=args.counts)
+        await c.run(dbpool)
     else:
       c = TableComparator(src_server,
                           src_dataset_id, src_model_id,
