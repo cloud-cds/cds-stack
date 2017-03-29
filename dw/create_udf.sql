@@ -4,260 +4,6 @@
 -- best practice: run this file every time when we deploy new version
 ----------------------------------------------------------------------------------------------
 
-/*
- * UDF used in CDM
- * predefined functions
- */
-CREATE OR REPLACE FUNCTION merge_cdm_g(key2 TEXT, new_value TEXT, confidence_flag INT) RETURNS VOID AS
-$$
-BEGIN
-    LOOP
-        -- first try to update the key
-        UPDATE cdm_g SET value = new_value, confidence = confidence_flag WHERE fid = key2;
-        IF found THEN
-            RETURN;
-        END IF;
-        -- not there, so try to insert the key
-        -- if someone else inserts the same key concurrently,
-        -- we could get a unique-key failure
-        BEGIN
-            INSERT INTO cdm_g(fid,value,confidence) VALUES (key2,new_value, confidence_flag);
-            RETURN;
-        EXCEPTION WHEN unique_violation THEN
-            -- do nothing, and loop to try the UPDATE again
-        END;
-    END LOOP;
-END;
-$$
-LANGUAGE plpgsql;
-
-CREATE OR REPLACE FUNCTION merge_cdm_s(key1 INT, key2 TEXT, new_value TEXT, confidence_flag Int) RETURNS VOID AS
-$$
-BEGIN
-    LOOP
-        -- first try to update the key
-        UPDATE cdm_s SET value = new_value, confidence = confidence_flag WHERE enc_id = key1 AND fid = key2;
-        IF found THEN
-            RETURN;
-        END IF;
-        -- not there, so try to insert the key
-        -- if someone else inserts the same key concurrently,
-        -- we could get a unique-key failure
-        BEGIN
-            INSERT INTO cdm_s(enc_id,fid,value,confidence) VALUES (key1,key2,new_value,confidence_flag);
-            RETURN;
-        EXCEPTION WHEN unique_violation THEN
-            -- do nothing, and loop to try the UPDATE again
-        END;
-    END LOOP;
-END;
-$$
-LANGUAGE plpgsql;
-
-CREATE OR REPLACE FUNCTION merge_cdm_m(key1 INT, key2 TEXT, key3 INT, new_value TEXT, confidence_flag int) RETURNS VOID AS
-$$
-BEGIN
-    LOOP
-        -- first try to update the key
-        UPDATE cdm_m SET value = new_value, confidence = confidence_flag WHERE enc_id = key1 AND fid = key2 AND line = key3;
-        IF found THEN
-            RETURN;
-        END IF;
-        -- not there, so try to insert the key
-        -- if someone else inserts the same key concurrently,
-        -- we could get a unique-key failure
-        BEGIN
-            INSERT INTO cdm_m(enc_id,fid,line,value,confidence) VALUES (key1,key2,key3,new_value,confidence_flag);
-            RETURN;
-        EXCEPTION WHEN unique_violation THEN
-            -- do nothing, and loop to try the UPDATE again
-        END;
-    END LOOP;
-END;
-$$
-LANGUAGE plpgsql;
-
-CREATE OR REPLACE FUNCTION merge_cdm_t(key1 INT, key2 timestamptz, key3 TEXT, new_value TEXT, confidence_flag int) RETURNS VOID AS
-$$
-BEGIN
-    LOOP
-        -- first try to update the key
-        UPDATE cdm_t SET value = new_value, confidence=confidence_flag WHERE enc_id = key1 AND tsp = key2 AND fid = key3;
-        IF found THEN
-            RETURN;
-        END IF;
-        -- not there, so try to insert the key
-        -- if someone else inserts the same key concurrently,
-        -- we could get a unique-key failure
-        BEGIN
-            INSERT INTO cdm_t(enc_id,tsp,fid,value,confidence) VALUES (key1,key2,key3,new_value,confidence_flag);
-            RETURN;
-        EXCEPTION WHEN unique_violation THEN
-            -- do nothing, and loop to try the UPDATE again
-        END;
-    END LOOP;
-END;
-$$
-LANGUAGE plpgsql;
-
-CREATE OR REPLACE FUNCTION merge_cdm_twf(update_set_cols TEXT, update_set_values TEXT, update_where TEXT, insert_cols TEXT, insert_values TEXT) RETURNS VOID AS
-$$
-DECLARE
-    tmpint  INTEGER := 0;
-BEGIN
-    LOOP
-        -- first try to update the key
-        EXECUTE 'UPDATE cdm_twf SET (' || update_set_cols || ') = ('
-            || update_set_values || ') WHERE ' || update_where ;
-        GET DIAGNOSTICS tmpint = ROW_COUNT;
-        IF tmpint THEN
-            RETURN;
-        END IF;
-        -- not there, so try to insert the key
-        -- if someone else inserts the same key concurrently,
-        -- we could get a unique-key failure
-        BEGIN
-            EXECUTE 'INSERT INTO cdm_twf(' || insert_cols
-                || ') VALUES (' || insert_values || ')';
-            RETURN;
-        EXCEPTION WHEN unique_violation THEN
-            -- do nothing, and loop to try the UPDATE again
-        END;
-    END LOOP;
-END;
-$$
-LANGUAGE plpgsql;
-
-CREATE OR REPLACE FUNCTION merge_cdm_twf_workspace(update_set_cols TEXT, update_set_values TEXT, update_where TEXT, insert_cols TEXT, insert_values TEXT) RETURNS VOID AS
-$$
-DECLARE
-    tmpint  INTEGER := 0;
-BEGIN
-    LOOP
-        -- first try to update the key
-        EXECUTE 'UPDATE cdm_twf_workspace SET (' || update_set_cols || ') = ('
-            || update_set_values || ') WHERE ' || update_where ;
-        GET DIAGNOSTICS tmpint = ROW_COUNT;
-        IF tmpint THEN
-            RETURN;
-        END IF;
-        -- not there, so try to insert the key
-        -- if someone else inserts the same key concurrently,
-        -- we could get a unique-key failure
-        BEGIN
-            EXECUTE 'INSERT INTO cdm_twf_workspace(' || insert_cols
-                || ') VALUES (' || insert_values || ')';
-            RETURN;
-        EXCEPTION WHEN unique_violation THEN
-            -- do nothing, and loop to try the UPDATE again
-        END;
-    END LOOP;
-END;
-$$
-LANGUAGE plpgsql;
-
-CREATE OR REPLACE FUNCTION add_cdm_g(key2 TEXT, new_value TEXT, confidence_flag INT) RETURNS VOID AS
-$$
-BEGIN
-    LOOP
-        -- first try to update the key
-        UPDATE cdm_g SET value = cast(value as numeric) + cast(new_value as numeric), confidence = confidence | confidence_flag WHERE fid = key2;
-        IF found THEN
-            RETURN;
-        END IF;
-        -- not there, so try to insert the key
-        -- if someone else inserts the same key concurrently,
-        -- we could get a unique-key failure
-        BEGIN
-            INSERT INTO cdm_g(fid,value,confidence) VALUES (key2,new_value, confidence_flag);
-            RETURN;
-        EXCEPTION WHEN unique_violation THEN
-            -- do nothing, and loop to try the UPDATE again
-        END;
-    END LOOP;
-END;
-$$
-LANGUAGE plpgsql;
-
-CREATE OR REPLACE FUNCTION add_cdm_s(key1 INT, key2 TEXT, new_value TEXT, confidence_flag Int) RETURNS VOID AS
-$$
-BEGIN
-    LOOP
-        -- first try to update the key
-        UPDATE cdm_s SET value = cast(value as numeric) + cast(new_value as numeric), confidence = confidence | confidence_flag WHERE enc_id = key1 AND fid = key2;
-        IF found THEN
-            RETURN;
-        END IF;
-        -- not there, so try to insert the key
-        -- if someone else inserts the same key concurrently,
-        -- we could get a unique-key failure
-        BEGIN
-            INSERT INTO cdm_s(enc_id,fid,value,confidence) VALUES (key1,key2,new_value,confidence_flag);
-            RETURN;
-        EXCEPTION WHEN unique_violation THEN
-            -- do nothing, and loop to try the UPDATE again
-        END;
-    END LOOP;
-END;
-$$
-LANGUAGE plpgsql;
-
-CREATE OR REPLACE FUNCTION add_cdm_m(key1 INT, key2 TEXT, key3 INT, new_value TEXT, confidence_flag int) RETURNS VOID AS
-$$
-BEGIN
-    LOOP
-        -- first try to update the key
-        UPDATE cdm_m SET value = cast(value as numeric) + cast(new_value as numeric), confidence = confidence | confidence_flag WHERE enc_id = key1 AND fid = key2 AND line = key3;
-        IF found THEN
-            RETURN;
-        END IF;
-        -- not there, so try to insert the key
-        -- if someone else inserts the same key concurrently,
-        -- we could get a unique-key failure
-        BEGIN
-            INSERT INTO cdm_m(enc_id,fid,line,value,confidence) VALUES (key1,key2,key3,new_value,confidence_flag);
-            RETURN;
-        EXCEPTION WHEN unique_violation THEN
-            -- do nothing, and loop to try the UPDATE again
-        END;
-    END LOOP;
-END;
-$$
-LANGUAGE plpgsql;
-
--- add_cdm_t for medication summation
-CREATE OR REPLACE FUNCTION add_cdm_t(key1 INT, key2 timestamptz, key3 TEXT, new_value TEXT, confidence_flag int) RETURNS VOID AS
-$$
-BEGIN
-    LOOP
-        -- first try to update the key
-        IF new_value ~ '^[0-9\.]+$' THEN
-            UPDATE cdm_t SET value = cast(value as numeric) + cast(new_value as numeric), confidence = confidence | confidence_flag WHERE enc_id = key1 AND tsp = key2 AND fid = key3;
-        ELSE
-
-            UPDATE cdm_t SET value = json_object_set_key(value::json, 'dose',
-                (value::json->>'dose')::numeric
-                    + (new_value::json->>'dose')::numeric)::text
-                , confidence = confidence | confidence_flag
-                WHERE enc_id = key1 AND tsp = key2 AND fid = key3;
-        END IF;
-        IF found THEN
-            RETURN;
-        END IF;
-        -- not there, so try to insert the key
-        -- if someone else inserts the same key concurrently,
-        -- we could get a unique-key failure
-        BEGIN
-            INSERT INTO cdm_t(enc_id,tsp,fid,value,confidence) VALUES (key1,key2,key3,new_value,confidence_flag);
-            RETURN;
-        EXCEPTION WHEN unique_violation THEN
-            -- do nothing, and loop to try the UPDATE again
-        END;
-    END LOOP;
-END;
-$$
-LANGUAGE plpgsql;
-
 CREATE OR REPLACE FUNCTION based_on_popmean(confidence INT) RETURNS integer AS $$
     BEGIN
         IF confidence is null THEN RETURN 0;
@@ -331,7 +77,7 @@ CREATE AGGREGATE public.LAST (
         stype    = anyelement
 );
 
-CREATE OR REPLACE FUNCTION calculate_popmean(target TEXT, fid TEXT)
+CREATE OR REPLACE FUNCTION calculate_popmean(target TEXT, fid TEXT, dataset_id int)
 RETURNS real
 AS $BODY$
 DECLARE
@@ -343,15 +89,15 @@ BEGIN
     fid_popmean = fid || '_popmean';
     EXECUTE 'SELECT cast(avg('|| quote_ident(fid) ||
         ') AS text) FROM ' || target || '  WHERE '|| quote_ident(fid_c)
-        ||' < 8 ' INTO popmean;
+        ||' < 8 and dataset_id = ' || dataset_id INTO popmean;
     RAISE NOTICE '% = %', fid_popmean, popmean;
-    EXECUTE 'SELECT merge_cdm_g('||quote_literal(fid_popmean)||', '||quote_literal(popmean)||', 24)';
+    EXECUTE 'SELECT INSERT INTO cdm_g (dataset_id,model_id,value,confidence) values (' || dataset_id || ',' || model_id || ',' ||quote_literal(fid_popmean)||', '||quote_literal(popmean)||', 24)';
     return popmean;
 END
 $BODY$
 LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION last_value_in_window(fid TEXT, target TEXT, win_h real, recalculate_popmean boolean)
+CREATE OR REPLACE FUNCTION last_value_in_window(fid TEXT, target TEXT, win_h real, recalculate_popmean boolean, dataset_id int, model_id int)
 RETURNS VOID
 AS $BODY$
 DECLARE
@@ -380,15 +126,15 @@ BEGIN
         ') = (null, null) WHERE '|| quote_ident(fid_c) ||' >= 8';
     IF recalculate_popmean THEN
         -- calculate population mean
-        SELECT INTO popmean calculate_popmean(target, fid);
+        SELECT INTO popmean calculate_popmean(target, fid, dataset_id, model_id);
     ELSE
         fid_popmean = fid || '_popmean';
-        EXECUTE 'SELECT value from cdm_g where fid = ' || quote_literal(fid_popmean) INTO popmean;
+        EXECUTE 'SELECT value from cdm_g where fid = ' || quote_literal(fid_popmean) || ' and dataset_id = ' || dataset_id || ' and model_id = ' || model_id INTO popmean;
     END IF;
     RAISE NOTICE 'popmean:%', popmean;
     FOR row IN EXECUTE 'SELECT enc_id, tsp, '
         || quote_ident(fid) ||' fv, '|| quote_ident(fid_c)
-        ||' fc FROM ' || target || '  ORDER BY enc_id, tsp'
+        ||' fc FROM ' || target || ' where dataset_id = ' || dataset_id || '  ORDER BY enc_id, tsp'
     LOOP
         -- RAISE NOTICE '%', row;
         IF block_enc_id <> row.enc_id THEN
@@ -399,7 +145,7 @@ BEGIN
                     || quote_ident(fid) ||', '|| quote_ident(fid_c) ||') = ('
                     || block_value || ', (8 |'||block_c||')) WHERE enc_id='
                     || block_enc_id || ' and tsp >= ' || quote_literal(block_start)
-                    || ' AND '|| quote_ident(fid_c) ||' is null';
+                    || ' AND '|| quote_ident(fid_c) ||' is null AND dataset_id = ' || dataset_id;
                 -- raise notice 'execute update %', block_rows;
             END IF;
 
@@ -421,7 +167,7 @@ BEGIN
                     || block_value || ',(8 | '||block_c||')) WHERE enc_id='
                     || block_enc_id || ' and tsp >= ' || quote_literal(block_start)
                     || ' and tsp <= ' || quote_literal(block_end)
-                    || ' AND '|| quote_ident(fid_c) ||' is null';
+                    || ' AND '|| quote_ident(fid_c) ||' is null AND dataset_id = ' || dataset_id;
                 -- raise notice 'execute update %', block_rows;
             END IF;
             -- create new block
@@ -440,7 +186,7 @@ BEGIN
                     || block_value || ', (8 | '||block_c||')) WHERE enc_id='
                     || block_enc_id || ' and tsp >= ' || quote_literal(block_start)
                     || ' and tsp < ' || quote_literal(block_end)
-                    || ' AND '|| quote_ident(fid_c) ||' is null';
+                    || ' AND '|| quote_ident(fid_c) ||' is null AND dataset_id = ' || dataset_id;
                 -- raise notice 'execute update %', block_rows;
             END IF;
             -- create new block
@@ -460,7 +206,7 @@ BEGIN
             || quote_ident(fid) ||', '|| quote_ident(fid_c) ||') = ('
             || block_value || ', (8 | '||block_c||')) WHERE enc_id='
             || block_enc_id || ' and tsp >= ' || quote_literal(block_start)
-            || ' AND '|| quote_ident(fid_c) ||' is null';
+            || ' AND '|| quote_ident(fid_c) ||' is null AND dataset_id = ' || dataset_id;
         -- raise notice 'execute update %', block_rows;
     END IF;
 END
