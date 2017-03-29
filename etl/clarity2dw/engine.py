@@ -10,20 +10,23 @@ import os
 
 job = {
   'reset_dataset': {
-    'remove_data': True
-    'start_enc_id': 1
+    # 'remove_pat_enc': False,
+    'remove_data': True,
+    # 'start_enc_id': 1
   },
   'transform': {
-    'populate_patients': True,
+    # 'populate_patients': True,
     'populate_measured_features': {
-      'plan': False,
-  #     #'fid': 'heart_rate',
-    }
+      # 'plan': False,
+      # 'fid': 'vancomycin_dose',
+    },
   },
-  'fillin': {
-    'recalculate_popmean': False,
-  },
-  'derive': {},
+  # 'fillin': {
+  #   'recalculate_popmean': False,
+  # },
+  # 'derive': {
+  #   # 'fid': 'admit_weight'
+  # },
 }
 
 config_args = {

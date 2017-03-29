@@ -21,17 +21,11 @@ async def upsert_g(conn, row, dataset_id = None, model_id=0):
 async def add_t(conn, row, dataset_id=None):
   if dataset_id is None:
     sql = '''
-    insert into cdm_t (enc_id, tsp, fid, value, confidence)
-    values (%s, '%s', '%s', '%s', %s)
-    on conflict (enc_id, tsp, fid) do update
-    set value = cdm_t.value::numeric + Excluded.value::numeric, confidence = cdm_t.confidence | Excluded.confidence
+    select add_cdm_t(%s, '%s', '%s', '%s', %s)
     ''' % (row[0], row[1], row[2], row[3], row[4])
   else:
     sql = '''
-    insert into cdm_t (dataset_id, enc_id, tsp, fid, value, confidence)
-    values (%s, %s, '%s', '%s', '%s', %s)
-    on conflict (dataset_id, enc_id, tsp, fid) do update
-    set value = cdm_t.value::numeric + Excluded.value::numeric, confidence = cdm_t.confidence | Excluded.confidence
+    select add_cdm_t(%s, %s, '%s', '%s', '%s', %s)
     ''' % (dataset_id, row[0], row[1], row[2], row[3], row[4])
   await conn.execute(sql)
 
@@ -43,14 +37,14 @@ async def upsert_t(conn, row, dataset_id=None):
     values (%s, '%s', '%s', '%s', %s)
     on conflict (enc_id, tsp, fid) do update
     set value = Excluded.value, confidence = Excluded.confidence
-    ''' % (row[0], row[1], row[2], row[3].replace("'","''"), row[4])
+    ''' % (row[0], row[1], row[2], str(row[3]).replace("'","''"), row[4])
   else:
     sql = '''
     insert into cdm_t (dataset_id, enc_id, tsp, fid, value, confidence)
     values (%s, %s, '%s', '%s', '%s', %s)
     on conflict (dataset_id, enc_id, tsp, fid) do update
     set value = Excluded.value, confidence = Excluded.confidence
-    ''' % (dataset_id, row[0], row[1], row[2], row[3].replace("'","''"), row[4])
+    ''' % (dataset_id, row[0], row[1], row[2], str(row[3]).replace("'","''"), row[4])
   await conn.execute(sql)
 
 async def upsert_s(conn, row, dataset_id=None):
@@ -60,14 +54,14 @@ async def upsert_s(conn, row, dataset_id=None):
     values (%s, '%s', '%s', %s)
     on conflict (enc_id, fid) do update
     set value = Excluded.value, confidence = Excluded.confidence
-    ''' % (row[0], row[1], row[2].replace("'","''"), row[3])
+    ''' % (row[0], row[1], str(row[2]).replace("'","''"), row[3])
   else:
     sql = '''
     insert into cdm_s (dataset_id, enc_id, fid, value, confidence)
     values (%s, %s, '%s', '%s', %s)
     on conflict (dataset_id, enc_id, fid) do update
     set value = Excluded.value, confidence = Excluded.confidence
-    ''' % (dataset_id, row[0], row[1], row[2].replace("'","''"), row[3])
+    ''' % (dataset_id, row[0], row[1], str(row[2]).replace("'","''"), row[3])
   await conn.execute(sql)
 
 async def add_s(conn, row, dataset_id=None):

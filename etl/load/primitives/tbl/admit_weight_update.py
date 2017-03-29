@@ -18,12 +18,13 @@ async def admit_weight_update(fid, fid_input, conn, log, dataset_id=None, twf_ta
     inner join %(twf_table)s on
     key.enc_id = %(twf_table)s.enc_id and key.tsp = %(twf_table)s.tsp %(dataset_join_block)s;
     """ % {'twf_table': twf_table, 'dataset_block': ' and dataset_id = %s' % dataset_id if dataset_id is not None else '', 'dataset_join_block': ' and %(twf_table)s.dataset_id = %(dataset_id)s' % {'twf_table': twf_table, 'dataset_id': dataset_id} if dataset_id is not None else ''}
+    log.debug(select_sql)
     records = await conn.fetch(select_sql)
     for record in records:
         enc_id = record['enc_id']
         weight = record['weight']
         weight_c = record['weight_c']
-        load_row.upsert_s(conn, [enc_id, fid, weight, weight_c], dataset_id)
+        await load_row.upsert_s(conn, [enc_id, fid, weight, weight_c], dataset_id)
 
     select_enc_id_without_admit_weight = """
     select pat_enc.enc_id from pat_enc
@@ -31,6 +32,7 @@ async def admit_weight_update(fid, fid_input, conn, log, dataset_id=None, twf_ta
         and cdm_s.fid = 'admit_weight'
     where value is null %(dataset_block)s
     """ % {'dataset_block': ' and pat_enc.dataset_id = %s and cdm_s.dataset_id = %s' % (dataset_id,dataset_id) if dataset_id is not None else ''}
+    log.debug(select_enc_id_without_admit_weight)
     records = await conn.fetch(select_enc_id_without_admit_weight)
     calculate_popmean_sql = """
     select avg(cast(value as real)) from cdm_s
@@ -44,4 +46,4 @@ async def admit_weight_update(fid, fid_input, conn, log, dataset_id=None, twf_ta
         else:
             weight = None
         weight_c = confidence.POPMEAN + confidence.FILLEDIN
-        load_row.upsert_s(conn, [enc_id, fid, weight, weight_c], dataset_id)
+        await load_row.upsert_s(conn, [enc_id, fid, weight, weight_c], dataset_id)

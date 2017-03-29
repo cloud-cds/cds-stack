@@ -48,7 +48,7 @@ async def lookup_population_mean(fid, fid_input, conn, log, dataset_id=None, twf
         % {'fid':fid_input, 'twf_table':twf_table, 'with_ds': with_ds(dataset_id)}
     popmean = await conn.fetchrow(calculate_popmean_sql)
     if popmean is not None:
-      load_row.insert_g([fid, popmean[0], confidence.POPMEAN])
+      await load_row.insert_g([fid, popmean[0], confidence.POPMEAN])
       log.info("lookup_population_mean %s %s" \
         % (fid, popmean[0]))
     else:
@@ -139,7 +139,7 @@ async def update_continuous_dose_block(fid, block, conn, log, dataset_id=None, t
   """ % (block['enc_id'], fid, with_ds(dataset_id), block['start_tsp'])
   prev = await conn.fetchrow(select_sql)
   if prev is None or prev['value'] == 'False':
-    load_row.upsert_t(conn, [block['enc_id'], block['start_tsp'], fid,
+    await load_row.upsert_t(conn, [block['enc_id'], block['start_tsp'], fid,
             True, block['start_c']])
   if block['end_tsp'] is None:
     delete_sql = """
@@ -159,7 +159,7 @@ async def update_continuous_dose_block(fid, block, conn, log, dataset_id=None, t
     """ % (block['enc_id'], fid, with_ds(dataset_id), block['end_tsp'])
     post = await conn.fetchrow(select_sql)
     if post is None or post['value'] == 'True':
-      load_row.upsert_t(conn, [block['enc_id'], block['end_tsp'], fid,
+      await load_row.upsert_t(conn, [block['enc_id'], block['end_tsp'], fid,
               False, block['end_c']])
 
 
@@ -182,7 +182,7 @@ async def any_med_order_update(fid, fid_input, conn, log, dataset_id=None, twf_t
     if row['order_tsp']:
       values = [row['enc_id'], row['order_tsp'], fid, "True",
             row['confidence']]
-      load_row.upsert_t(conn, values)
+      await load_row.upsert_t(conn, values)
 
 
 
@@ -211,7 +211,7 @@ async def suspicion_of_infection_update(fid, fid_input, conn, log, dataset_id=No
   for row in rows:
     values = [row['enc_id'], row['tsp'], fid, "True",
           row['confidence']]
-    load_row.upsert_t(conn, values)
+    await load_row.upsert_t(conn, values)
   select_sql = """
     select t1.enc_id, t1.tsp, t1.confidence|t2.confidence confidence
       from cdm_t t1
@@ -224,7 +224,7 @@ async def suspicion_of_infection_update(fid, fid_input, conn, log, dataset_id=No
   for row in rows:
     values = [row['enc_id'], row['tsp'], fid, "True",
           row['confidence']]
-    load_row.upsert_t(conn, values)
+    await load_row.upsert_t(conn, values)
 
 
 
@@ -1016,7 +1016,7 @@ async def heart_attack_update(fid, fid_input, conn, log, dataset_id=None, twf_ta
     tsp_first = min(t1, t2)
     conf=confidence.NO_TRANSFORM
 
-    load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf])
+    await load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf], dataset_id = dataset_id)
 
 # Special case (mini-pipeline)
 async def stroke_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
@@ -1071,7 +1071,7 @@ async def stroke_update(fid, fid_input, conn, log, dataset_id=None, twf_table='c
     if len(evidence) > 0:
       tsp_first = evidence[0]['tsp']
 
-    load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf])
+    await load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf], dataset_id=dataset_id)
 
 # Special case (mini-pipeline)
 async def gi_bleed_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
@@ -1126,7 +1126,7 @@ async def gi_bleed_update(fid, fid_input, conn, log, dataset_id=None, twf_table=
     if len(evidence) > 0:
       tsp_first = evidence[0]['tsp']
 
-    load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf])
+    await load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf], dataset_id=dataset_id)
 
 
 
@@ -1181,7 +1181,7 @@ async def severe_pancreatitis_update(fid, fid_input, conn, log, dataset_id=None,
     if len(evidence) > 0:
       tsp_first = evidence[0]['tsp']
 
-    load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf])
+    await load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf], dataset_id=dataset_id)
 
 # Special case (mini-pipeline)
 async def pulmonary_emboli_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
@@ -1233,7 +1233,7 @@ async def pulmonary_emboli_update(fid, fid_input, conn, log, dataset_id=None, tw
     if len(evidence) > 0:
       tsp_first = evidence[0]['tsp']
 
-    load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf])
+    await load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf], dataset_id=dataset_id)
 
 # Special case (mini-pipeline)
 async def bronchitis_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
@@ -1285,7 +1285,7 @@ async def bronchitis_update(fid, fid_input, conn, log, dataset_id=None, twf_tabl
     if len(evidence) > 0:
       tsp_first = evidence[0]['tsp']
 
-    load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf])
+    await load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf], dataset_id=dataset_id)
 
 # Special case (mini-pipeline)
 async def acute_kidney_failure_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
@@ -1374,7 +1374,7 @@ async def acute_kidney_failure_update(fid, fid_input, conn, log, dataset_id=None
     tsp_first = min(t1, t2, t3)
     conf=confidence.NO_TRANSFORM
 
-    load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf])
+    await load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf], dataset_id=dataset_id)
 
 
 
@@ -1443,7 +1443,7 @@ async def ards_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm
     tsp_first = min(t1, t2)
     conf=confidence.NO_TRANSFORM
 
-    load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf])
+    await load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf], dataset_id=dataset_id)
 
 # Special case (mini-pipeline)
 async def hepatic_failure_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
@@ -1499,4 +1499,4 @@ async def hepatic_failure_update(fid, fid_input, conn, log, dataset_id=None, twf
     if len(evidence) > 0:
       tsp_first = evidence[0]['tsp']
 
-    load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf])
+    await load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf], dataset_id=dataset_id)

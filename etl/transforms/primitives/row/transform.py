@@ -9,8 +9,8 @@ import json, sys, traceback
 import etl.confidence as confidence
 from datetime import datetime, timedelta
 from etl.transforms.primitives.row.load_discharge_json import *
-from etl.transforms.primitives.row.convert_salmeterol_dose import *
 from etl.transforms.primitives.row.convert_gender_to_int import *
+from collections import OrderedDict
 
 MED_ROUTE_CONTINUOUS = ['Intravenous']
 # GIVEN_ACTIONS = ['Given', 'New Bag', 'Restarted', 'Bolus from Bag',
@@ -383,6 +383,8 @@ def _process_paused_med_action(start_event, pause_event, log):
     elif start_event["MAR_DURATION_UNIT"] == "hours":
         duration_secs = float(start_event['mar_duration']) * 3600
     if real_duration_secs < duration_secs:
+        # Record is read only
+        start_event = OrderedDict(start_event)
         start_event['Dose'] = real_duration_secs / duration_secs \
             * float(start_event['Dose'])
     return start_event
@@ -500,6 +502,15 @@ def piperacillin_tazbac_dose_to_mg(entries, log):
     #             else:
     #                 results.append(_convert_to_mg(entry, log))
     # return results
+
+def convert_salmeterol_dose(entries, log):
+    results = default_convert_dose(entries, log)
+    for result in results:
+        dose_json = json.loads(result[1])
+        if float(dose_json['dose']) > 4.0:
+            dose_json['dose'] = "4.0"
+            result[1] = json.dumps(dose_json)
+    return results
 
 def default_convert_dose(entries, log):
     global GIVEN_ACTIONS, IV_START_ACTIONS

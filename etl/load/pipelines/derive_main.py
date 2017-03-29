@@ -24,13 +24,16 @@ async def derive_main(log, conn, cdm_feature_dict, mode=None, fid=None, dataset_
       await derive_feature(log, cdm_feature_dict[fid], conn, dataset_id=dataset_id, twf_table=table)
     else:
       log.info("update feature %s's dependents" % dependent)
-    derive_feature_order = get_dependent_features([dependent], features)
+    derive_feature_order = get_dependent_features([dependent], cdm_feature_dict)
     for fid in derive_feature_order:
       await derive_feature(log, cdm_feature_dict[fid], conn, dataset_id=dataset_id, twf_table=table)
   elif mode is None and fid is None:
     log.info("derive features one by one")
     for fid in derive_feature_order:
       await derive_feature(log, cdm_feature_dict[fid], conn, dataset_id=dataset_id, twf_table=table)
+  elif mode is None and fid is not None:
+    log.info("derive feature: %s" % fid)
+    await derive_feature(log, cdm_feature_dict[fid], conn, dataset_id=dataset_id, twf_table=table)
   else:
     log.error("Unknown mode!")
 
@@ -67,9 +70,9 @@ def get_derive_seq(features=None, input_map=None):
 
 def get_dependent_features(feature_list, features):
   # create the dependency map
-  d_map = dict((feature['fid'], feature['derive_func_input']) \
-      for feature in features if ((feature['is_measured'] == 'no') \
-      and (feature['is_deprecated'] == 'no')))
+  d_map = dict((fid, features[fid]['derive_func_input']) \
+      for fid in features if ((not features[fid]['is_measured']) \
+      and (not features[fid]['is_deprecated'])))
   derived_features = d_map.keys()
   get_dependents = feature_list
   dependency_list = []
@@ -156,9 +159,9 @@ async def derive_func_driver(fid, fid_category, derive_func_id, derive_func_inpu
       await conn.execute(sql)
 
     else:
-      log.warn("fid_input dismatch")
+      log.error("fid_input dismatch")
   else:
-    log.warn("Derive function is not implemented in driver, so we use legacy derive function")
+    log.info("Derive function is not implemented in driver, so we use legacy derive function")
     await derive_func.derive(fid, derive_func_id, derive_func_input, conn, log, dataset_id, twf_table)
 
 
@@ -221,7 +224,7 @@ derive_config = {
     'fid_c_update_expr': 'platelets_c',
   },
   'nbp_mean': {
-    'fid_input_items': ['nbp_sys', 'nbp_dias'],
+    'fid_input_items': ['nbp_dias', 'nbp_sys'],
     'derive_type': 'simple',
     'fid_update_expr': 'nbp_sys/3 + nbp_dias/3*2',
     'fid_c_update_expr': 'nbp_sys_c | nbp_dias_c',
@@ -318,7 +321,7 @@ derive_config = {
                      ''',
   },
   'acute_organ_failure': {
-    'fid_input_items': ['inr', 'platelets', 'creatinine'],
+    'fid_input_items': ['inr', 'platelets', 'creatinine', 'chronic_kidney_hist', 'bilirubin', 'liver_disease_hist', 'urine_output_24hr', 'lactate', 'pao2_to_fio2', 'chronic_pulmonary_hist', 'hypotension_intp'],
     'derive_type': 'simple',
     'fid_update_expr': '''
                     (inr > 1.5 and based_on_popmean(inr_c) != 1)
@@ -363,7 +366,7 @@ derive_config = {
                       ''',
   },
   'severe_sepsis': {
-    'fid_input_items': ['sirs_raw', 'acute_organ_failure', 'infections_angus_hist', 'infections_angus_diag', 'sepsis_note'],
+    'fid_input_items': ['sirs_intp', 'acute_organ_failure', 'sepsis_note','infections_angus_diag', 'infections_angus_hist'],
     'derive_type': 'simple',
     'fid_update_expr': '''
                     sirs_raw is true

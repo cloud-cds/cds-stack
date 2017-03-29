@@ -54,7 +54,11 @@ class Extractor:
 
   async def derive(self, conn, job):
     self.log.info("start derive pipeline")
-    await derive_main(self.log, conn, self.cdm_feature_dict, dataset_id = self.config.dataset_id)
+    fid = None
+    mode = None
+    if 'fid' in job:
+      fid = job['fid']
+    await derive_main(self.log, conn, self.cdm_feature_dict, dataset_id = self.config.dataset_id, fid = fid, mode=mode)
     self.log.info("derive completed")
 
 
@@ -64,10 +68,13 @@ class Extractor:
     self.log.warn("reset_dataset")
     reset_sql = ''
     if 'remove_data' in job and job['remove_data']:
-      reset_sql = '''
+      reset_sql += '''
       delete from cdm_s where dataset_id = %(dataset_id)s;
       delete from cdm_t where dataset_id = %(dataset_id)s;
       delete from cdm_twf where dataset_id = %(dataset_id)s;
+      ''' % {'dataset_id': self.config.dataset_id}
+    if 'remove_pat_enc' in job and job['remove_pat_enc']:
+      reset_sql += '''
       delete from pat_enc where dataset_id = %(dataset_id)s;
       ''' % {'dataset_id': self.config.dataset_id}
     if 'start_enc_id' in job:
@@ -98,7 +105,7 @@ class Extractor:
     self.log.info("load feature mapping")
 
     for i, mapping in feature_mapping.iterrows():
-      if this_fid is None or fid == mapping['fid']:
+      if this_fid is None or this_fid == mapping['fid']:
         self.log.debug(mapping)
         fid = mapping['fid']
         transform_func_id = str(mapping['transform_func_id'])
@@ -156,7 +163,6 @@ class Extractor:
     fid_info = {'fid':fid, 'category':category, 'is_no_add':is_no_add,
           'data_type':data_type}
     start = timeit.default_timer()
-    start = timeit.default_timer()
     if is_med_action and fid != 'vent':
       line = await self.populate_medaction_features(conn, mapping, fid, transform_func_id, data_type, fid_info)
     elif is_med_action and fid == 'vent':
@@ -202,7 +208,7 @@ class Extractor:
                 len_of_events = len(cur_med_events)
                 if len_of_events > 0:
                   line += len_of_events
-                  self.process_med_events(cur_enc_id, \
+                  await self.process_med_events(cur_enc_id, \
                     cur_med_id, cur_med_events, fid_info, \
                     mapping, conn)
 
@@ -217,7 +223,7 @@ class Extractor:
           len_of_events = len(cur_med_events)
           if len_of_events > 0:
             line += len_of_events
-            self.process_med_events(cur_enc_id, cur_med_id,
+            await self.process_med_events(cur_enc_id, cur_med_id,
                         cur_med_events, fid_info, mapping,
                         conn)
     return line
