@@ -16,13 +16,13 @@ pw            = os.environ['db_password']
 src_server    = os.environ['cmp_remote_server']
 
 cdm_t_fields1 = [
-  ['enc_id'          , 'integer'],
-  ['tsp'             , 'timestamptz', ],
-  ['fid'             , 'varchar(50)', ],
-  ["(value::json)#>>'{dose}'"           , 'text',        ],
-  ["(value::json)#>>'{action}'"           , 'text',        ],
-  ["(value::json)#>>'{order_tsp}'"           , 'text',        ],
-  ['confidence'      , 'integer',     ],
+  ['enc_id'                             , 'enc_id',     'integer'     ],
+  ['tsp'                                , 'tsp',        'timestamptz' ],
+  ['fid'                                , 'fid',        'varchar(50)' ],
+  ["(value::json)#>>'{dose}'"           , 'dose',       'text'        ],
+  ["(value::json)#>>'{action}'"         , 'action',     'text'        ],
+  ["(value::json)#>>'{order_tsp}'"      , 'order_tsp',  'text'        ],
+  ['confidence'                         , 'confidence', 'integer'     ],
 ]
 cdm_t_query1 = (cdm_t_fields1, 'fid like \'%_dose\'')
 
@@ -180,7 +180,7 @@ class TableComparator:
     compare_to_remote_query = \
     '''
     WITH A_DIFF_B AS (
-      SELECT %(local_fields)s FROM %(local_table)s %(with_dst_extension)s
+      SELECT %(local_exprs)s FROM %(local_table)s %(with_dst_extension)s
       EXCEPT
       SELECT %(local_fields)s
       FROM dblink('%(srv)s', $OPDB$
@@ -192,15 +192,16 @@ class TableComparator:
         %(query)s
       $OPDB$) AS %(local_table)s_compare (%(local_fields_and_types)s)
       EXCEPT
-      SELECT %(local_fields)s FROM %(local_table)s %(with_dst_extension)s
+      SELECT %(local_exprs)s FROM %(local_table)s %(with_dst_extension)s
     )
     %(finalizer)s
     ''' % {
       'srv'                    : self.src_server,
       'query'                  : remote_query,
       'local_table'            : dst_tbl,
-      'local_fields'           : ', '.join(map(lambda nt: nt[0], dst_fields)),
-      'local_fields_and_types' : ', '.join(map(lambda nt: ' '.join(nt), dst_fields)),
+      'local_exprs'            : ', '.join(map(lambda nt: nt[0], dst_fields)),
+      'local_fields'           : ', '.join(map(lambda nt: nt[0] if len(nt) == 2 else nt[1], dst_fields)),
+      'local_fields_and_types' : ', '.join(map(lambda nt: ' '.join(nt if len(nt) == 2 else nt[1:3]), dst_fields)),
       'with_dst_extension'     : with_dst_extension,
       'finalizer'              : query_finalizer
     }
