@@ -360,10 +360,6 @@ class TREWSAPI(object):
         auditlist              = query.get_criteria_log(eid)
 
         # scalar queries
-        #admittime              = query.get_admittime(eid)
-        #trewscore_threshold    = query.get_trews_threshold()
-        #deactivated            = query.get_deactivated(eid)
-        #deterioration_feedback = query.get_deterioration_feedback(eid)
         patient_scalars        = query.get_patient_profile(eid)
         admittime              = patient_scalars['admit_time']
         trewscore_threshold    = patient_scalars['trews_threshold']
