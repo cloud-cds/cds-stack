@@ -24,11 +24,11 @@ parameters_dbtable = "trews_parameters"
 
 # load parameters
 feature_weights = pd.read_csv(feature_weights_file)
-print feature_weights.head()
+print(feature_weights.head())
 scaler = pd.read_csv(scaler_file)
-print scaler.head()
+print(scaler.head())
 parameters = pd.read_csv(parameters_file)
-print parameters.head()
+print(parameters.head())
 
 # write to opsdx database
 engine = create_engine(DB_CONN_STR)
@@ -37,16 +37,16 @@ conn = engine.connect()
 conn.execute(text("delete from %s;" % feature_weights_dbtable).execution_options(autocommit=True))
 conn.close()
 feature_weights.to_sql(feature_weights_dbtable, engine, if_exists='append', index=False)
-print "feature weights updated"
+print("feature weights updated")
 
 conn = engine.connect()
 conn.execute(text("delete from %s;" % scaler_dbtable).execution_options(autocommit=True))
 conn.close()
 scaler.to_sql(scaler_dbtable, engine, if_exists='append', index=False)
-print "scaler updated"
+print("scaler updated")
 
 conn = engine.connect()
 conn.execute(text("delete from %s;" % parameters_dbtable).execution_options(autocommit=True))
 conn.close()
 parameters.to_sql(parameters_dbtable, engine, if_exists='append', index=False)
-print "parameters updated"
+print("parameters updated")
