@@ -46,10 +46,16 @@ var ALERT_CODES = {
 }
 
 var LOG_STRINGS = {
-	"set_deterioration_feedback": "",
-	"reset": " reset the patient",
-	"override": "",
-	"deactivate": " deactivated the patient",
+	"set_deterioration_feedback": " set <b>other conditions driving deterioration</b> to the following values: ",
+	"reset": " <b>reset</b> the patient",
+	"override": {
+		"clear": " cleared <b>customizations</b> for ",
+		"customized": [
+			" customized ",
+			" values to "
+		]
+	},
+	"deactivate": " <b>deactivated</b> the patient",
 	"toggle_notifications": " toggled notifications"
 }
 
@@ -87,6 +93,22 @@ var CONSTANTS = {
 	"org": "severe_sepsis",
 	"tension": "septic_shock",
 	"fusion": "septic_shock"
+}
+
+var criteriaKeyToName = {
+	"sirs_temp": "Body Temperature",
+	"heart_rate": "Heart Rate",
+	"respiratory_rate": "Respiratory Rate",
+	"wbc": ["White Blood Count", "Bands"],
+	"blood_pressure": "Systolic Blood Pressure",
+	"mean_arterial_pressure": "Mean Arterial Pressure",
+	"decrease_in_sbp": "Decrease in Systolic Blood Pressure",
+	"respiratory_failure": "Respiratory Failure: PaO2/FiO2",
+	"creatinine": ["Creatinine", "Urine Output"],
+	"bilirubin": "Bilirubin",
+	"platelet": "Platelet Count",
+	"inr": ["INR", "PTT"],
+	"lactate": "Lactate Measurement"
 }
 
 var severe_sepsis = {

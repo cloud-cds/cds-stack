@@ -1457,9 +1457,27 @@ var activity = new function() {
 	this.getLogMsg = function(data) {
 		var msg = ""
 		if (data['event_type'] == 'set_deterioration_feedback') {
+			if (data.value.other == "" && data.value.value.length == 0) {
+				return data['uid'] + " has cleared <b>other conditions driving deterioration</b>"
+			}
+			msg += data['uid'] + LOG_STRINGS[data['event_type']]
+			if (data.value.value.length > 0) {
+				for (var i = 0; i < data.value.value.length; i ++) {
+					msg += data.value.value[i] + ", "
+				}
+				if (data.value.other == "") {
+					return msg.substring(0, msg.length - 2)
+				}
+			}
+			if (data.value.other != "") {
+				msg += data.value.other
+			}
+		} else if (data['event_type'] == 'override') {
+			if (data.clear) {
 
-		} else if (data['event_type'] = 'override') {
-
+			} else {
+				console.log(data.name)
+			}
 		} else {
 			msg += data['uid'] + LOG_STRINGS[data['event_type']]
 		}
