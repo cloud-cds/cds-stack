@@ -1473,10 +1473,23 @@ var activity = new function() {
 				msg += data.value.other
 			}
 		} else if (data['event_type'] == 'override') {
-			if (data.clear) {
-
+			if (data['clear']) {
+				msg += data['uid'] + LOG_STRINGS[data['event_type']]['clear']
+				for (var i = 0; i < criteriaKeyToName[data.name].length - 1; i ++) {
+					msg += criteriaKeyToName[data.name][i] + ", "
+				}
+				if (criteriaKeyToName[data.name].length > 2) {
+					msg += "and " + criteriaKeyToName[data.name][criteriaKeyToName[data.name].length - 1]
+				}
+				else {
+					msg = msg.substring(0, msg.length - 2)
+					msg += " and " + criteriaKeyToName[data.name][criteriaKeyToName[data.name].length - 1]
+				}
 			} else {
-				console.log(data.name)
+				msg += data['uid']
+					+ LOG_STRINGS[data['event_type']]['customized'][0]
+					+ criteriaKeyToName[data.name][0]
+					+ LOG_STRINGS[data['event_type']]['customized'][1]
 			}
 		} else {
 			msg += data['uid'] + LOG_STRINGS[data['event_type']]

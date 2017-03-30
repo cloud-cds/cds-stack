@@ -51,7 +51,7 @@ var LOG_STRINGS = {
 	"override": {
 		"clear": " cleared <b>customizations</b> for ",
 		"customized": [
-			" customized ",
+			" <b>customized</b> ",
 			" values to "
 		]
 	},
@@ -96,19 +96,19 @@ var CONSTANTS = {
 }
 
 var criteriaKeyToName = {
-	"sirs_temp": "Body Temperature",
-	"heart_rate": "Heart Rate",
-	"respiratory_rate": "Respiratory Rate",
+	"sirs_temp": ["Body Temperature"],
+	"heart_rate": ["Heart Rate"],
+	"respiratory_rate": ["Respiratory Rate"],
 	"wbc": ["White Blood Count", "Bands"],
-	"blood_pressure": "Systolic Blood Pressure",
-	"mean_arterial_pressure": "Mean Arterial Pressure",
-	"decrease_in_sbp": "Decrease in Systolic Blood Pressure",
-	"respiratory_failure": "Respiratory Failure: PaO2/FiO2",
+	"blood_pressure": ["Systolic Blood Pressure"],
+	"mean_arterial_pressure": ["Mean Arterial Pressure"],
+	"decrease_in_sbp": ["Decrease in Systolic Blood Pressure"],
+	"respiratory_failure": ["Respiratory Failure: PaO2/FiO2"],
 	"creatinine": ["Creatinine", "Urine Output"],
-	"bilirubin": "Bilirubin",
-	"platelet": "Platelet Count",
+	"bilirubin": ["Bilirubin"],
+	"platelet": ["Platelet Count"],
 	"inr": ["INR", "PTT"],
-	"lactate": "Lactate Measurement"
+	"lactate": ["Lactate Measurement"]
 }
 
 var severe_sepsis = {
