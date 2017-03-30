@@ -5,6 +5,7 @@ import json
 import copy
 import logging
 import argparse
+from functools import partial
 
 logging.basicConfig(level=logging.INFO)
 
@@ -15,6 +16,14 @@ user          = os.environ['db_user']
 pw            = os.environ['db_password']
 src_server    = os.environ['cmp_remote_server']
 
+cdm_dependent_expr_map = {
+  'admit_weight': '(round(value::numeric, 2))'
+}
+
+cdm_dependent_fields = {
+  'value': ('fid', cdm_dependent_expr_map)
+}
+
 cdm_t_fields1 = [
   ['enc_id'                             , 'enc_id',     'integer'     ],
   ['tsp'                                , 'tsp',        'timestamptz' ],
@@ -24,7 +33,7 @@ cdm_t_fields1 = [
   ["(value::json)#>>'{order_tsp}' as order_tsp"      , 'order_tsp',  'text'        ],
   ['confidence'                         , 'confidence', 'integer'     ],
 ]
-cdm_t_query1 = (cdm_t_fields1, 'fid like \'%_dose\'', 'fid, enc_id, tsp')
+cdm_t_query1 = (cdm_t_fields1, 'fid like \'%_dose\'', 'fid, enc_id, tsp', cdm_dependent_fields)
 
 cdm_t_fields2 = [
   ['enc_id'          , 'integer',     ],
@@ -34,7 +43,7 @@ cdm_t_fields2 = [
   ['confidence'      , 'integer',     ],
 ]
 
-cdm_t_query2 = (cdm_t_fields2, 'fid not like \'%_dose\'', 'fid, enc_id, tsp')
+cdm_t_query2 = (cdm_t_fields2, 'fid not like \'%_dose\'', 'fid, enc_id, tsp', cdm_dependent_fields)
 
 tables_to_compare = {
   # 'datalink'                 : ('dataset', []),
@@ -73,8 +82,8 @@ class TableComparator:
                      dst_dataset_id, dst_model_id,
                      src_tbl, dst_tbl=None,
                      src_pred=None, dst_pred=None,
-                     field_map=None, version_extension='dataset',
-                     as_count_result=True, sort_field=None):
+                     field_map=None, dependent_fields=None
+                     version_extension='dataset', as_count_result=True, sort_field=None):
 
     self.src_server     = src_server
     self.src_dataset_id = src_dataset_id
@@ -89,6 +98,8 @@ class TableComparator:
     self.dst_pred = dst_pred if dst_pred is not None else src_pred
 
     self.field_map = field_map
+    self.dependent_fields = dependent_fields
+
     self.version_extension = version_extension
     self.as_count_result = as_count_result
     self.sort_field = sort_field
@@ -160,10 +171,35 @@ class TableComparator:
     with_src_extension = 'where ' + with_src_extension if with_src_extension else ''
     with_dst_extension = 'where ' + with_dst_extension if with_dst_extension else ''
 
+    def project_expr(field_map_entry, mode='expr'):
+      expr = None
+      name = None
+      typ  = None
+
+      if len(field_map_entry) == 2:
+        name = field_map_entry[0]
+        expr = name
+      else:
+        expr, name, typ = field_map_entry
+
+      if name in self.dependent_fields:
+        dep_field, dep_type_map = self.dependent_fields[name]
+        when_exprs = [ 'when %(dep_field)s = %(dep_val)s then (%(dep_expr)s)::%(ty)s' \
+                          % {'dep_field': dep_field, 'dep_val': dep_val, 'dep_expr': dep_expr, 'ty': typ } \
+                        for dep_val, dep_expr in dep_type_map ]
+        expr = 'case %(whens)s else (%(expr)s)::%(ty)s end' % { 'whens': when_exprs, 'expr': expr, 'ty': typ }
+
+      if mode == 'expr':
+        return expr
+      elif mode == 'name':
+        return name
+      else:
+        return '%s %s' % (name, typ)
+
     remote_query = \
       'select %(remote_fields)s from %(remote_table)s %(with_src_extension)s' \
         % { 'remote_table'       : src_tbl,
-            'remote_fields'      : ', '.join(map(lambda nt: nt[0], src_fields)),
+            'remote_fields'      : ', '.join(map(partial(project_expr), src_fields)),
             'with_src_extension' : with_src_extension }
 
     query_finalizer = ''
@@ -204,9 +240,9 @@ class TableComparator:
       'srv'                    : self.src_server,
       'query'                  : remote_query,
       'local_table'            : dst_tbl,
-      'local_exprs'            : ', '.join(map(lambda nt: nt[0], dst_fields)),
-      'local_fields'           : ', '.join(map(lambda nt: nt[0] if len(nt) == 2 else nt[1], dst_fields)),
-      'local_fields_and_types' : ', '.join(map(lambda nt: ' '.join(nt if len(nt) == 2 else nt[1:3]), dst_fields)),
+      'local_exprs'            : ', '.join(map(partial(project_expr), dst_fields)),
+      'local_fields'           : ', '.join(map(partial(project_expr, mode='name'), dst_fields)),
+      'local_fields_and_types' : ', '.join(map(partial(project_expr, mode='nametype'), dst_fields)),
       'with_dst_extension'     : with_dst_extension,
       'finalizer'              : query_finalizer
     }
@@ -258,12 +294,13 @@ async def run():
     version_type = version_type_and_queries[0]
     queries = version_type_and_queries[1]
     if queries:
-      for field_map, predicate, sort_field in queries:
+      for field_map, predicate, sort_field, dependent_fields in queries:
         c = TableComparator(src_server,
                             src_dataset_id, src_model_id,
                             dst_dataset_id, dst_model_id,
                             tbl, src_pred=predicate,
-                            field_map=field_map, version_extension=version_type,
+                            field_map=field_map, dependent_fields=dependent_fields
+                            version_extension=version_type,
                             as_count_result=args.counts, sort_field=sort_field)
         await c.run(dbpool)
     else:
