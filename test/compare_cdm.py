@@ -6,6 +6,7 @@ import copy
 import logging
 import argparse
 from functools import partial
+from cdm_feature import cdm_twf_field
 
 logging.basicConfig(level=logging.INFO)
 
@@ -17,22 +18,51 @@ pw            = os.environ['db_password']
 src_server    = os.environ['cmp_remote_server']
 
 cdm_dependent_expr_map = {
+  }
+
+cdm_s_dependent_expr_map = {
   'admit_weight': ['(round(value::numeric, 1))', '='],
   }
 
 cdm_t_dependent_expr_map = {
-  # 'fluids_intake': ['(round(value::numeric, 2))', '='],
+  'any_pressor': ['value::boolean::text', '='],
+  'any_inotrope': ['value::boolean::text', '='],
+  'catheter': ['value::boolean::text', '='],
+  'suspicion_of_infection': ['value::boolean::text', '='],
+  'fluids_intake': ['(round(value::numeric, 2))', '='],
+  }
+
+cdm_t_dose_dependent_expr_map = {
   '_dose': ['(round(((value::json)#>>\'{dose}\')::numeric, 2))', '~'],
   }
 
+cdm_t_dose_dependent_fields = {
+  'dose': ('fid', cdm_t_dose_dependent_expr_map)
+}
+
 cdm_t_dependent_fields = {
-  'dose': ('fid', cdm_t_dependent_expr_map)
+  'value': ('fid', cdm_t_dependent_expr_map)
+}
+
+cdm_s_dependent_fields = {
+  'value': ('fid', cdm_s_dependent_expr_map)
+}
+
+cdm_twf_dependent_expr_map = {
+  'shock_idx': ['(round(value::numeric, 4))', '='],
+  'weight': ['(round(value::numeric, 4))', '='],
+  'nbp_mean': ['(round(value::numeric, 4))', '='],
+  'mapm': ['(round(value::numeric, 4))', '='],
+  'pao2_to_fio2': ['(round(value, 4))', '='],
 }
 
 cdm_dependent_fields = {
   'value': ('fid', cdm_dependent_expr_map)
 }
 
+cdm_twf_dependent_fields = {
+  # 'value': ('fid', cdm_twf_dependent_expr_map)
+}
 
 cdm_s_fields1 = [
   ['enc_id'                             , 'enc_id',     'integer'     ],
@@ -40,7 +70,7 @@ cdm_s_fields1 = [
   ['value'           , 'text',        ],
   ['confidence'                         , 'confidence', 'integer'     ],
 ]
-cdm_s_query1 = (cdm_s_fields1, None, 'fid, enc_id', cdm_dependent_fields)
+cdm_s_query1 = (cdm_s_fields1, None, 'fid, enc_id', cdm_s_dependent_fields)
 
 cdm_t_fields1 = [
   ['enc_id'                             , 'enc_id',     'integer'     ],
@@ -51,7 +81,7 @@ cdm_t_fields1 = [
   ["(value::json)#>>'{order_tsp}'"      , 'order_tsp',  'text'        ],
   ['confidence'                         , 'confidence', 'integer'     ],
 ]
-cdm_t_query1 = (cdm_t_fields1, 'fid like \'%_dose\'', 'fid, enc_id, tsp', cdm_t_dependent_fields)
+cdm_t_query1 = (cdm_t_fields1, 'fid like \'%_dose\'', 'fid, enc_id, tsp', cdm_t_dose_dependent_fields)
 
 cdm_t_fields2 = [
   ['enc_id'          , 'integer',     ],
@@ -61,28 +91,40 @@ cdm_t_fields2 = [
   ['confidence'      , 'integer',     ],
 ]
 
-cdm_t_query2 = (cdm_t_fields2, 'fid !~ \'dose|inhosp|bacterial_culture|_proc|culture_order|pneumonia_sepsis|uro_sepsis\'', 'fid, enc_id, tsp', cdm_dependent_fields)
+cdm_t_query2 = (cdm_t_fields2, 'fid !~ \'dose|inhosp|bacterial_culture|_proc|culture_order|pneumonia_sepsis|uro_sepsis|biliary_sepsis|intra_abdominal_sepsis\'', 'fid, enc_id, tsp', cdm_t_dependent_fields)
 
 cdm_t_fields3 = [
   ['enc_id'                             , 'enc_id',     'integer'     ],
   ['tsp'                                , 'tsp',        'timestamptz' ],
   ['fid'                                , 'fid',        'varchar(50)' ],
-  ["(value::json)#>>'{diagname}' as diagname"           , 'diagname',       'text'        ],
-  ["(value::json)#>>'{ischronic}' as ischronic"         , 'ischronic',     'int'        ],
-  ["(value::json)#>>'{present on admission}' as 'present on admission'"      , 'present on admission',  'text'        ],
+  ["(value::json)#>>'{diagname}'"           , 'diagname',       'text'        ],
+  ["(value::json)#>>'{ischronic}'"         , 'ischronic',     'text'        ],
+  ["""(value::json)#>>'{"present on admission"}'"""      , 'present_on_admission',  'text'        ],
   ['confidence'                         , 'confidence', 'integer'     ],
 ]
-cdm_t_query3 = (cdm_t_fields1, 'fid like \'%_inhosp|pneumonia_sepsis|uro_sepsis\'', 'fid, enc_id, tsp', cdm_dependent_fields)
+cdm_t_query3 = (cdm_t_fields3, 'fid like \'%_inhosp|pneumonia_sepsis|uro_sepsis|biliary_sepsis|intra_abdominal_sepsis\'', 'fid, enc_id, tsp', cdm_dependent_fields)
 
 cdm_t_fields4 = [
   ['enc_id'                             , 'enc_id',     'integer'     ],
   ['tsp'                                , 'tsp',        'timestamptz' ],
   ['fid'                                , 'fid',        'varchar(50)' ],
-  ["(value::json)#>>'{status}' as status"           , 'status',       'text'        ],
-  ["(value::json)#>>'{name}' as name"         , 'name',     'text'        ],
+  ["(value::json)#>>'{status}'"           , 'status',       'text'        ],
+  ["(value::json)#>>'{name}'"         , 'name',     'text'        ],
   ['confidence'                         , 'confidence', 'integer'     ],
 ]
-cdm_t_query4 = (cdm_t_fields1, 'fid like \'bacterial_culture|_proc|culture_order\'', 'fid, enc_id, tsp', cdm_dependent_fields)
+cdm_t_query4 = (cdm_t_fields4, 'fid like \'bacterial_culture|_proc|culture_order\'', 'fid, enc_id, tsp', cdm_dependent_fields)
+
+cdm_twf_field_index = [
+  ['enc_id'                             , 'enc_id',     'integer'     ],
+  ['tsp'                                , 'tsp',        'timestamptz' ],
+]
+
+enc_id_range = 'enc_id < 10'
+
+
+
+cdm_twf_queries = [(cdm_twf_field_index + cdm_twf_field[2*i:2*(i+1)], enc_id_range, 'enc_id, tsp', cdm_twf_dependent_fields) for i in range(len(cdm_twf_field)//2)]
+
 
 tables_to_compare = {
   # 'datalink'                 : ('dataset', []),
@@ -91,9 +133,9 @@ tables_to_compare = {
   # 'datalink_feature_mapping' : ('dataset', []),
   'pat_enc'                  : ('dataset', []),
   'cdm_g'                    : ('both'   , []),
-  'cdm_s'                    : ('dataset', [cdm_s_query1]),
+  # 'cdm_s'                    : ('dataset', [cdm_s_query1]),
   # 'cdm_m'                    : ('dataset', []),
-  'cdm_t'                    : ('dataset', [cdm_t_query1, cdm_t_query2, cdm_t_query3, cdm_t_query4]),
+  # 'cdm_t'                    : ('dataset', [cdm_t_query1, cdm_t_query2, cdm_t_query3, cdm_t_query4]),
   # 'criteria_meas'            : ('dataset', []),
   # 'criteria'                 : ('dataset', []),
   # 'criteria_events'          : ('dataset', []),
@@ -106,7 +148,7 @@ tables_to_compare = {
   # 'trews_scaler'             : ('model'  , []),
   # 'trews_feature_weights'    : ('model'  , []),
   # 'trews_parameters'         : ('model'  , []),
-  # 'cdm_twf'                  : ('dataset', []),
+  'cdm_twf'                  : ('dataset', cdm_twf_queries),
   # 'trews'                    : ('dataset', []),
   # 'pat_status'               : ('dataset', []),
   # 'deterioration_feedback'   : ('dataset', []),
