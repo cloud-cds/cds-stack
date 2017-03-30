@@ -283,10 +283,6 @@ class Extractor:
               for enc_id in enc_ids:
                 result = transform.transform(fid, \
                   transform_func_id, row, data_type, self.log)
-                if str(row['pat_id']) == 'a0515980-e69c-4741-88fb-8d3ecee25d83':
-                  print(row)
-                  print(result)
-                  print(enc_ids)
                 if result is not None:
                   line += 1
                   await self.save_result_to_cdm(fid, category, enc_id, \
