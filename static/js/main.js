@@ -1482,14 +1482,33 @@ var activity = new function() {
 					msg += "and " + criteriaKeyToName[data.name][criteriaKeyToName[data.name].length - 1]
 				}
 				else {
-					msg = msg.substring(0, msg.length - 2)
-					msg += " and " + criteriaKeyToName[data.name][criteriaKeyToName[data.name].length - 1]
+					if (criteriaKeyToName[data.name].length > 1) {
+						msg = msg.substring(0, msg.length - 2) + " and "
+					}
+					msg += criteriaKeyToName[data.name][criteriaKeyToName[data.name].length - 1]
 				}
 			} else {
 				msg += data['uid']
 					+ LOG_STRINGS[data['event_type']]['customized'][0]
-					+ criteriaKeyToName[data.name][0]
-					+ LOG_STRINGS[data['event_type']]['customized'][1]
+				for (var i = 0; i < criteriaKeyToName[data.name].length - 1; i ++) {
+					msg += criteriaKeyToName[data.name][i] 
+						+ LOG_STRINGS[data['event_type']]['customized'][1]
+						+ UpperLowerToLogicalOperators(data.override_value[i])
+						+ ", "
+				}
+				if (criteriaKeyToName[data.name].length > 2) {
+					msg += "and " + criteriaKeyToName[data.name][criteriaKeyToName[data.name].length - 1]
+						+ LOG_STRINGS[data['event_type']]['customized'][1]
+						+ UpperLowerToLogicalOperators(data.override_value[i])
+				}
+				else {
+					if (criteriaKeyToName[data.name].length > 1) {
+						msg = msg.substring(0, msg.length - 2) + " and "
+					}
+					msg += criteriaKeyToName[data.name][criteriaKeyToName[data.name].length - 1]
+						+ LOG_STRINGS[data['event_type']]['customized'][1]
+						+ UpperLowerToLogicalOperators(data.override_value[i])
+				}
 			}
 		} else {
 			msg += data['uid'] + LOG_STRINGS[data['event_type']]
@@ -1677,6 +1696,25 @@ function getQueryVariable(variable) {
 		}
 	}
 	return(false);
+}
+/**
+ * Converts a javascript object 
+ * {
+ *	upper:x,
+ * 	lower:y, 
+ * 	range: true/min/max
+ * }
+ * into a logical operator statements like
+ * > x and < y
+*/
+function UpperLowerToLogicalOperators(data) {
+	if (data.range == "true") {
+		return "> " + data.lower + " and < " + data.upper
+	} else if (data.range == "min") {
+		return "> " + data.lower
+	} else if (data.range == "max") {
+		return "< " + data.upper
+	}
 }
 /**
  * EPICUSERID is padded with plus signs, this removes them
