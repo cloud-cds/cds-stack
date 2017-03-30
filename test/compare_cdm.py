@@ -5,6 +5,7 @@ import json
 import copy
 import logging
 import argparse
+from functools import partial
 
 logging.basicConfig(level=logging.INFO)
 
@@ -15,33 +16,101 @@ user          = os.environ['db_user']
 pw            = os.environ['db_password']
 src_server    = os.environ['cmp_remote_server']
 
+cdm_dependent_expr_map = {
+  'admit_weight': ['(round(value::numeric, 1))', '='],
+  }
+
+cdm_t_dependent_expr_map = {
+  # 'fluids_intake': ['(round(value::numeric, 2))', '='],
+  '_dose': ['(round(((value::json)#>>\'{dose}\')::numeric, 2))', '~'],
+  }
+
+cdm_t_dependent_fields = {
+  'dose': ('fid', cdm_t_dependent_expr_map)
+}
+
+cdm_dependent_fields = {
+  'value': ('fid', cdm_dependent_expr_map)
+}
+
+
+cdm_s_fields1 = [
+  ['enc_id'                             , 'enc_id',     'integer'     ],
+  ['fid'                                , 'fid',        'varchar(50)' ],
+  ['value'           , 'text',        ],
+  ['confidence'                         , 'confidence', 'integer'     ],
+]
+cdm_s_query1 = (cdm_s_fields1, None, 'fid, enc_id', cdm_dependent_fields)
+
+cdm_t_fields1 = [
+  ['enc_id'                             , 'enc_id',     'integer'     ],
+  ['tsp'                                , 'tsp',        'timestamptz' ],
+  ['fid'                                , 'fid',        'varchar(50)' ],
+  ["(value::json)#>>'{dose}'"           , 'dose',       'text'        ],
+  ["(value::json)#>>'{action}'"         , 'action',     'text'        ],
+  ["(value::json)#>>'{order_tsp}'"      , 'order_tsp',  'text'        ],
+  ['confidence'                         , 'confidence', 'integer'     ],
+]
+cdm_t_query1 = (cdm_t_fields1, 'fid like \'%_dose\'', 'fid, enc_id, tsp', cdm_t_dependent_fields)
+
+cdm_t_fields2 = [
+  ['enc_id'          , 'integer',     ],
+  ['tsp'             , 'timestamptz', ],
+  ['fid'             , 'varchar(50)', ],
+  ['value'           , 'text',        ],
+  ['confidence'      , 'integer',     ],
+]
+
+cdm_t_query2 = (cdm_t_fields2, 'fid !~ \'dose|inhosp|bacterial_culture|_proc|culture_order|pneumonia_sepsis|uro_sepsis\'', 'fid, enc_id, tsp', cdm_dependent_fields)
+
+cdm_t_fields3 = [
+  ['enc_id'                             , 'enc_id',     'integer'     ],
+  ['tsp'                                , 'tsp',        'timestamptz' ],
+  ['fid'                                , 'fid',        'varchar(50)' ],
+  ["(value::json)#>>'{diagname}' as diagname"           , 'diagname',       'text'        ],
+  ["(value::json)#>>'{ischronic}' as ischronic"         , 'ischronic',     'int'        ],
+  ["(value::json)#>>'{present on admission}' as 'present on admission'"      , 'present on admission',  'text'        ],
+  ['confidence'                         , 'confidence', 'integer'     ],
+]
+cdm_t_query3 = (cdm_t_fields1, 'fid like \'%_inhosp|pneumonia_sepsis|uro_sepsis\'', 'fid, enc_id, tsp', cdm_dependent_fields)
+
+cdm_t_fields4 = [
+  ['enc_id'                             , 'enc_id',     'integer'     ],
+  ['tsp'                                , 'tsp',        'timestamptz' ],
+  ['fid'                                , 'fid',        'varchar(50)' ],
+  ["(value::json)#>>'{status}' as status"           , 'status',       'text'        ],
+  ["(value::json)#>>'{name}' as name"         , 'name',     'text'        ],
+  ['confidence'                         , 'confidence', 'integer'     ],
+]
+cdm_t_query4 = (cdm_t_fields1, 'fid like \'bacterial_culture|_proc|culture_order\'', 'fid, enc_id, tsp', cdm_dependent_fields)
+
 tables_to_compare = {
-  'datalink'                 : 'dataset',
-  'cdm_function'             : 'dataset',
-  'cdm_feature'              : 'dataset',
-  'datalink_feature_mapping' : 'dataset',
-  'pat_enc'                  : 'dataset',
-  'cdm_g'                    : 'both',
-  'cdm_s'                    : 'dataset',
-  'cdm_m'                    : 'dataset',
-  'cdm_t'                    : 'dataset',
-  'criteria_meas'            : 'dataset',
-  'criteria'                 : 'dataset',
-  'criteria_events'          : 'dataset',
-  'criteria_log'             : 'dataset',
-  'criteria_meas_archive'    : 'dataset',
-  'criteria_archive'         : 'dataset',
-  'criteria_default'         : 'dataset',
-  'notifications'            : 'dataset',
-  'parameters'               : 'dataset',
-  'trews_scaler'             : 'model',
-  'trews_feature_weights'    : 'model',
-  'trews_parameters'         : 'model',
-  'cdm_twf'                  : 'dataset',
-  'trews'                    : 'dataset',
-  'pat_status'               : 'dataset',
-  'deterioration_feedback'   : 'dataset',
-  'feedback_log'             : 'dataset',
+  # 'datalink'                 : ('dataset', []),
+  'cdm_function'             : ('dataset', []),
+  'cdm_feature'              : ('dataset', []),
+  # 'datalink_feature_mapping' : ('dataset', []),
+  'pat_enc'                  : ('dataset', []),
+  'cdm_g'                    : ('both'   , []),
+  'cdm_s'                    : ('dataset', [cdm_s_query1]),
+  # 'cdm_m'                    : ('dataset', []),
+  'cdm_t'                    : ('dataset', [cdm_t_query1, cdm_t_query2, cdm_t_query3, cdm_t_query4]),
+  # 'criteria_meas'            : ('dataset', []),
+  # 'criteria'                 : ('dataset', []),
+  # 'criteria_events'          : ('dataset', []),
+  # 'criteria_log'             : ('dataset', []),
+  # 'criteria_meas_archive'    : ('dataset', []),
+  # 'criteria_archive'         : ('dataset', []),
+  # 'criteria_default'         : ('dataset', []),
+  # 'notifications'            : ('dataset', []),
+  # 'parameters'               : ('dataset', []),
+  # 'trews_scaler'             : ('model'  , []),
+  # 'trews_feature_weights'    : ('model'  , []),
+  # 'trews_parameters'         : ('model'  , []),
+  # 'cdm_twf'                  : ('dataset', []),
+  # 'trews'                    : ('dataset', []),
+  # 'pat_status'               : ('dataset', []),
+  # 'deterioration_feedback'   : ('dataset', []),
+  # 'feedback_log'             : ('dataset', []),
 }
 
 unsupported_types = ['json', 'jsonb']
@@ -51,7 +120,9 @@ class TableComparator:
                      src_dataset_id, src_model_id,
                      dst_dataset_id, dst_model_id,
                      src_tbl, dst_tbl=None,
-                     field_map=None, version_extension='dataset', as_count_result=True):
+                     src_pred=None, dst_pred=None,
+                     field_map=None, dependent_fields=None,
+                     version_extension='dataset', as_count_result=True, sort_field=None):
 
     self.src_server     = src_server
     self.src_dataset_id = src_dataset_id
@@ -62,9 +133,15 @@ class TableComparator:
     self.src_table = src_tbl
     self.dst_table = dst_tbl if dst_tbl is not None else src_tbl
 
+    self.src_pred = src_pred
+    self.dst_pred = dst_pred if dst_pred is not None else src_pred
+
     self.field_map = field_map
+    self.dependent_fields = dependent_fields
+
     self.version_extension = version_extension
     self.as_count_result = as_count_result
+    self.sort_field = sort_field
 
   def version_extension_ids(self):
     if self.version_extension == 'dataset':
@@ -125,17 +202,44 @@ class TableComparator:
     extension_ids = self.version_extension_ids()
     src_extension_vals = filter(lambda x: x is not None, map(lambda x: src_version_map[x], extension_ids))
     dst_extension_vals = filter(lambda x: x is not None, map(lambda x: dst_version_map[x], extension_ids))
-
-    with_src_extension = ' and '.join(map(lambda v: '{} = {}'.format(v[0], v[1]), zip(extension_ids, src_extension_vals)))
-    with_dst_extension = ' and '.join(map(lambda v: '{} = {}'.format(v[0], v[1]), zip(extension_ids, dst_extension_vals)))
+    src_pred_list = [] if self.src_pred is None else [self.src_pred]
+    dst_pred_list = [] if self.dst_pred is None else [self.dst_pred]
+    with_src_extension = ' and '.join(src_pred_list + list(map(lambda v: '{} = {}'.format(v[0], v[1]), zip(extension_ids, src_extension_vals))))
+    with_dst_extension = ' and '.join(dst_pred_list + list(map(lambda v: '{} = {}'.format(v[0], v[1]), zip(extension_ids, dst_extension_vals))))
 
     with_src_extension = 'where ' + with_src_extension if with_src_extension else ''
     with_dst_extension = 'where ' + with_dst_extension if with_dst_extension else ''
 
+    def project_expr(field_map_entry, mode='expr'):
+      expr = None
+      name = None
+      typ  = None
+
+      if len(field_map_entry) == 2:
+        name = field_map_entry[0]
+        expr = name
+        typ = field_map_entry[1]
+      else:
+        expr, name, typ = field_map_entry
+
+      if self.dependent_fields is not None and name in self.dependent_fields:
+        dep_field, dep_expr_map = self.dependent_fields[name]
+        when_exprs = [ 'when %(dep_field)s %(op)s \'%(dep_val)s\' then (%(dep_expr)s)::%(ty)s' \
+                          % {'dep_field': dep_field, 'dep_val': dep_val, 'dep_expr': dep_expr[0], 'ty': typ, 'op': dep_expr[1] } \
+                        for dep_val, dep_expr in dep_expr_map.items() ]
+        expr = '(case %(whens)s else (%(expr)s)::%(ty)s end) as %(name)s' % { 'whens': '\n'.join(when_exprs), 'expr': expr, 'ty': typ, 'name': name }
+
+      if mode == 'expr':
+        return expr
+      elif mode == 'name':
+        return name
+      else:
+        return '%s %s' % (name, typ)
+
     remote_query = \
       'select %(remote_fields)s from %(remote_table)s %(with_src_extension)s' \
         % { 'remote_table'       : src_tbl,
-            'remote_fields'      : ', '.join(map(lambda nt: nt[0], src_fields)),
+            'remote_fields'      : ', '.join(map(partial(project_expr), src_fields)),
             'with_src_extension' : with_src_extension }
 
     query_finalizer = ''
@@ -146,15 +250,18 @@ class TableComparator:
 
     else:
       query_finalizer = '''
-      SELECT true as missing_remotely, * FROM A_DIFF_B
-      UNION
-      SELECT false as missing_remotely, * FROM B_DIFF_A
-      '''
+      SELECT * FROM (
+        SELECT true as missing_remotely, * FROM A_DIFF_B
+        UNION
+        SELECT false as missing_remotely, * FROM B_DIFF_A
+      ) R
+      %s
+      ''' % ('' if self.sort_field is None else ('ORDER BY %s' % self.sort_field))
 
     compare_to_remote_query = \
     '''
     WITH A_DIFF_B AS (
-      SELECT %(local_fields)s FROM %(local_table)s %(with_dst_extension)s
+      SELECT %(local_exprs)s FROM %(local_table)s %(with_dst_extension)s
       EXCEPT
       SELECT %(local_fields)s
       FROM dblink('%(srv)s', $OPDB$
@@ -166,15 +273,16 @@ class TableComparator:
         %(query)s
       $OPDB$) AS %(local_table)s_compare (%(local_fields_and_types)s)
       EXCEPT
-      SELECT %(local_fields)s FROM %(local_table)s %(with_dst_extension)s
+      SELECT %(local_exprs)s FROM %(local_table)s %(with_dst_extension)s
     )
     %(finalizer)s
     ''' % {
       'srv'                    : self.src_server,
       'query'                  : remote_query,
       'local_table'            : dst_tbl,
-      'local_fields'           : ', '.join(map(lambda nt: nt[0], dst_fields)),
-      'local_fields_and_types' : ', '.join(map(lambda nt: ' '.join(nt), dst_fields)),
+      'local_exprs'            : ', '.join(map(partial(project_expr), dst_fields)),
+      'local_fields'           : ', '.join(map(partial(project_expr, mode='name'), dst_fields)),
+      'local_fields_and_types' : ', '.join(map(partial(project_expr, mode='nametype'), dst_fields)),
       'with_dst_extension'     : with_dst_extension,
       'finalizer'              : query_finalizer
     }
@@ -222,12 +330,25 @@ async def run():
   dst_dataset_id = args.dstdid
   dst_model_id   = args.dstmid
 
-  for tbl, version_type in tables_to_compare.items():
-    c = TableComparator(src_server,
-                        src_dataset_id, src_model_id,
-                        dst_dataset_id, dst_model_id,
-                        tbl, version_extension=version_type, as_count_result=args.counts)
-    await c.run(dbpool)
+  for tbl, version_type_and_queries in tables_to_compare.items():
+    version_type = version_type_and_queries[0]
+    queries = version_type_and_queries[1]
+    if queries:
+      for field_map, predicate, sort_field, dependent_fields in queries:
+        c = TableComparator(src_server,
+                            src_dataset_id, src_model_id,
+                            dst_dataset_id, dst_model_id,
+                            tbl, src_pred=predicate,
+                            field_map=field_map, dependent_fields=dependent_fields,
+                            version_extension=version_type,
+                            as_count_result=args.counts, sort_field=sort_field)
+        await c.run(dbpool)
+    else:
+      c = TableComparator(src_server,
+                          src_dataset_id, src_model_id,
+                          dst_dataset_id, dst_model_id,
+                          tbl, version_extension=version_type, as_count_result=args.counts)
+      await c.run(dbpool)
 
 if __name__ == '__main__':
   loop = asyncio.get_event_loop()
