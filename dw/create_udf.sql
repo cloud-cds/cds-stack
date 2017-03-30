@@ -1747,3 +1747,129 @@ VALUES ( pid,
          now() ); END; $$;
 
 
+----------------------------------------------------
+-- Feature Views Functions
+----------------------------------------------------
+create or replace function update_implemented_trainable_fids()
+RETURNS void as
+$BODY$
+DECLARE
+_fid TEXT;
+_nRows integer;
+_impFeatures TEXT[];
+BEGIN
+-- =========================
+-- TWF Processing
+-- =========================
+	FOR _fid in -- Get the Columns which are actually features
+		SELECT information_schema.columns.column_name
+		FROM information_schema.columns
+		WHERE table_schema = 'public'
+			AND table_name   = 'cdm_twf'
+			AND column_name not like '%\_c'
+			AND column_name not in ('enc_id','tsp','meta_data')
+
+	LOOP -- loop over the columns which are features in cdm_twf
+
+    EXECUTE format('select count(%s) from cdm_twf where %s_c <> 16 and %s_c <> 24',_fid,_fid,_fid) into _nRows ;
+
+    IF _nRows > 0 THEN
+      _impFeatures = array_append(_impFeatures, _fid);
+    ELSE
+       raise notice 'TWF feature % not implemented', _fid;
+    END IF;
+
+	END LOOP;
+-- =========================
+-- S Processing
+-- =========================
+	FOR _fid in select distinct fid from cdm_s
+  LOOP
+    _impFeatures = array_append(_impFeatures, _fid);
+  END LOOP;
+-- =========================
+--  Create Table and Wrap Up
+-- =========================
+  raise notice 'The following features are implemented %', _impFeatures;
+
+  DROP TABLE IF EXISTS implemented_trainable_fids ;
+  create table implemented_trainable_fids (fid text);
+
+  FOREACH _fid IN ARRAY _impFeatures
+  LOOP
+    INSERT INTO implemented_trainable_fids VALUES (_fid);
+  END LOOP;
+
+--   \COPY implemented_trainable_fids to '/home/ubuntu/uData/impfeatsTrain.csv' DELIMITER ',' CSV HEADER;
+RETURN;
+END
+$BODY$ Language plpgsql;
+
+-- select * from update_implemented_trainable_fids();
+----------------------------------------------------
+-- Feature Views Functions
+----------------------------------------------------
+
+create or replace function update_implemented_meas_fids()
+RETURNS void as
+$BODY$
+DECLARE
+_fid TEXT;
+_nRows integer;
+_impFeatures TEXT[];
+BEGIN
+-- =========================
+-- TWF Processing
+-- =========================
+	FOR _fid in -- Get the Columns which are actually features
+		SELECT information_schema.columns.column_name
+		FROM information_schema.columns
+		WHERE table_schema = 'public'
+			AND table_name   = 'cdm_twf'
+			AND column_name not like '%\_c'
+			AND column_name not in ('enc_id','tsp','meta_data')
+
+	LOOP -- loop over the columns which are features in cdm_twf
+
+    EXECUTE format('select count(%s) from cdm_twf where %s_c <8',_fid,_fid) into _nRows ;
+
+    IF _nRows > 0 THEN
+      _impFeatures = array_append(_impFeatures, _fid);
+    ELSE
+       raise notice 'TWF feature % not implemented', _fid;
+    END IF;
+
+	END LOOP;
+-- =========================
+-- T Processing
+-- =========================
+	FOR _fid in select distinct fid from cdm_t
+  LOOP
+    _impFeatures = array_append(_impFeatures, _fid);
+  END LOOP;
+-- =========================
+-- S Processing
+-- =========================
+	FOR _fid in select distinct fid from cdm_s
+  LOOP
+    _impFeatures = array_append(_impFeatures, _fid);
+  END LOOP;
+-- =========================
+--  Create Table and Wrap Up
+-- =========================
+  raise notice 'The following features are implemented %', _impFeatures;
+
+  DROP TABLE IF EXISTS implemented_meas_fids;
+  create table implemented_meas_fids (fid text);
+
+  FOREACH _fid IN ARRAY _impFeatures
+  LOOP
+    INSERT INTO implemented_meas_fids VALUES (_fid);
+  END LOOP;
+
+--   \COPY implemented_fids to '/home/ubuntu/uData/impfeats.csv' DELIMITER ',' CSV HEADER;
+RETURN;
+END
+$BODY$ Language plpgsql;
+
+-- select * from update_implemented_meas_fids();
