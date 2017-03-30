@@ -17,23 +17,41 @@ pw            = os.environ['db_password']
 src_server    = os.environ['cmp_remote_server']
 
 cdm_dependent_expr_map = {
-  'admit_weight': '(round(value::numeric, 2))'
+  'admit_weight': ['(round(value::numeric, 1))', '='],
+  }
+
+cdm_t_dependent_expr_map = {
+  # 'fluids_intake': ['(round(value::numeric, 2))', '='],
+  '_dose': ['(round(((value::json)#>>\'{dose}\')::numeric, 2))', '~'],
+  }
+
+cdm_t_dependent_fields = {
+  'dose': ('fid', cdm_t_dependent_expr_map)
 }
 
 cdm_dependent_fields = {
   'value': ('fid', cdm_dependent_expr_map)
 }
 
+
+cdm_s_fields1 = [
+  ['enc_id'                             , 'enc_id',     'integer'     ],
+  ['fid'                                , 'fid',        'varchar(50)' ],
+  ['value'           , 'text',        ],
+  ['confidence'                         , 'confidence', 'integer'     ],
+]
+cdm_s_query1 = (cdm_s_fields1, None, 'fid, enc_id', cdm_dependent_fields)
+
 cdm_t_fields1 = [
   ['enc_id'                             , 'enc_id',     'integer'     ],
   ['tsp'                                , 'tsp',        'timestamptz' ],
   ['fid'                                , 'fid',        'varchar(50)' ],
-  ["(value::json)#>>'{dose}' as dose"           , 'dose',       'text'        ],
-  ["(value::json)#>>'{action}' as action"         , 'action',     'text'        ],
-  ["(value::json)#>>'{order_tsp}' as order_tsp"      , 'order_tsp',  'text'        ],
+  ["(value::json)#>>'{dose}'"           , 'dose',       'text'        ],
+  ["(value::json)#>>'{action}'"         , 'action',     'text'        ],
+  ["(value::json)#>>'{order_tsp}'"      , 'order_tsp',  'text'        ],
   ['confidence'                         , 'confidence', 'integer'     ],
 ]
-cdm_t_query1 = (cdm_t_fields1, 'fid like \'%_dose\'', 'fid, enc_id, tsp', cdm_dependent_fields)
+cdm_t_query1 = (cdm_t_fields1, 'fid like \'%_dose\'', 'fid, enc_id, tsp', cdm_t_dependent_fields)
 
 cdm_t_fields2 = [
   ['enc_id'          , 'integer',     ],
@@ -43,7 +61,28 @@ cdm_t_fields2 = [
   ['confidence'      , 'integer',     ],
 ]
 
-cdm_t_query2 = (cdm_t_fields2, 'fid not like \'%_dose\'', 'fid, enc_id, tsp', cdm_dependent_fields)
+cdm_t_query2 = (cdm_t_fields2, 'fid !~ \'dose|inhosp|bacterial_culture|_proc|culture_order|pneumonia_sepsis|uro_sepsis\'', 'fid, enc_id, tsp', cdm_dependent_fields)
+
+cdm_t_fields3 = [
+  ['enc_id'                             , 'enc_id',     'integer'     ],
+  ['tsp'                                , 'tsp',        'timestamptz' ],
+  ['fid'                                , 'fid',        'varchar(50)' ],
+  ["(value::json)#>>'{diagname}' as diagname"           , 'diagname',       'text'        ],
+  ["(value::json)#>>'{ischronic}' as ischronic"         , 'ischronic',     'int'        ],
+  ["(value::json)#>>'{present on admission}' as 'present on admission'"      , 'present on admission',  'text'        ],
+  ['confidence'                         , 'confidence', 'integer'     ],
+]
+cdm_t_query3 = (cdm_t_fields1, 'fid like \'%_inhosp|pneumonia_sepsis|uro_sepsis\'', 'fid, enc_id, tsp', cdm_dependent_fields)
+
+cdm_t_fields4 = [
+  ['enc_id'                             , 'enc_id',     'integer'     ],
+  ['tsp'                                , 'tsp',        'timestamptz' ],
+  ['fid'                                , 'fid',        'varchar(50)' ],
+  ["(value::json)#>>'{status}' as status"           , 'status',       'text'        ],
+  ["(value::json)#>>'{name}' as name"         , 'name',     'text'        ],
+  ['confidence'                         , 'confidence', 'integer'     ],
+]
+cdm_t_query4 = (cdm_t_fields1, 'fid like \'bacterial_culture|_proc|culture_order\'', 'fid, enc_id, tsp', cdm_dependent_fields)
 
 tables_to_compare = {
   # 'datalink'                 : ('dataset', []),
@@ -52,9 +91,9 @@ tables_to_compare = {
   # 'datalink_feature_mapping' : ('dataset', []),
   'pat_enc'                  : ('dataset', []),
   'cdm_g'                    : ('both'   , []),
-  'cdm_s'                    : ('dataset', []),
+  'cdm_s'                    : ('dataset', [cdm_s_query1]),
   # 'cdm_m'                    : ('dataset', []),
-  'cdm_t'                    : ('dataset', [cdm_t_query1, cdm_t_query2]),
+  'cdm_t'                    : ('dataset', [cdm_t_query1, cdm_t_query2, cdm_t_query3, cdm_t_query4]),
   # 'criteria_meas'            : ('dataset', []),
   # 'criteria'                 : ('dataset', []),
   # 'criteria_events'          : ('dataset', []),
@@ -82,7 +121,7 @@ class TableComparator:
                      dst_dataset_id, dst_model_id,
                      src_tbl, dst_tbl=None,
                      src_pred=None, dst_pred=None,
-                     field_map=None, dependent_fields=None
+                     field_map=None, dependent_fields=None,
                      version_extension='dataset', as_count_result=True, sort_field=None):
 
     self.src_server     = src_server
@@ -179,15 +218,16 @@ class TableComparator:
       if len(field_map_entry) == 2:
         name = field_map_entry[0]
         expr = name
+        typ = field_map_entry[1]
       else:
         expr, name, typ = field_map_entry
 
-      if name in self.dependent_fields:
-        dep_field, dep_type_map = self.dependent_fields[name]
-        when_exprs = [ 'when %(dep_field)s = %(dep_val)s then (%(dep_expr)s)::%(ty)s' \
-                          % {'dep_field': dep_field, 'dep_val': dep_val, 'dep_expr': dep_expr, 'ty': typ } \
-                        for dep_val, dep_expr in dep_type_map ]
-        expr = 'case %(whens)s else (%(expr)s)::%(ty)s end' % { 'whens': when_exprs, 'expr': expr, 'ty': typ }
+      if self.dependent_fields is not None and name in self.dependent_fields:
+        dep_field, dep_expr_map = self.dependent_fields[name]
+        when_exprs = [ 'when %(dep_field)s %(op)s \'%(dep_val)s\' then (%(dep_expr)s)::%(ty)s' \
+                          % {'dep_field': dep_field, 'dep_val': dep_val, 'dep_expr': dep_expr[0], 'ty': typ, 'op': dep_expr[1] } \
+                        for dep_val, dep_expr in dep_expr_map.items() ]
+        expr = '(case %(whens)s else (%(expr)s)::%(ty)s end) as %(name)s' % { 'whens': '\n'.join(when_exprs), 'expr': expr, 'ty': typ, 'name': name }
 
       if mode == 'expr':
         return expr
@@ -299,7 +339,7 @@ async def run():
                             src_dataset_id, src_model_id,
                             dst_dataset_id, dst_model_id,
                             tbl, src_pred=predicate,
-                            field_map=field_map, dependent_fields=dependent_fields
+                            field_map=field_map, dependent_fields=dependent_fields,
                             version_extension=version_type,
                             as_count_result=args.counts, sort_field=sort_field)
         await c.run(dbpool)
