@@ -130,8 +130,8 @@ class Extractor:
     pat_id_to_enc_ids = {}
     for pat in pats:
       visit_id_to_enc_id[pat['visit_id']] = pat['enc_id']
-      if pat['enc_id'] in pat_id_to_enc_ids:
-        pat_id_to_enc_ids.append(pat['enc_id'])
+      if pat['pat_id'] in pat_id_to_enc_ids:
+        pat_id_to_enc_ids[pat['pat_id']].append(pat['enc_id'])
       else:
         pat_id_to_enc_ids[pat['pat_id']] = [pat['enc_id']]
     return {
@@ -400,6 +400,8 @@ class Extractor:
     if not isinstance(results[0], list):
       results = [results]
     for result in results:
+      if enc_id == 2:
+        print(result)
       tsp = None
       if len(result) == 3:
         # contain tsp, value, and confidence

@@ -9,24 +9,24 @@ from extractor import Extractor
 import os
 
 job = {
-  'reset_dataset': {
-    # 'remove_pat_enc': False,
-    'remove_data': True,
-    # 'start_enc_id': 1
-  },
-  'transform': {
-    # 'populate_patients': True,
-    'populate_measured_features': {
-      # 'plan': False,
-      # 'fid': 'vancomycin_dose',
-    },
-  },
+  # 'reset_dataset': {
+  #   # 'remove_pat_enc': False,
+  #   'remove_data': True,
+  #   # 'start_enc_id': 1
+  # },
+  # 'transform': {
+  #   # 'populate_patients': True,
+  #   'populate_measured_features': {
+  #     # 'plan': False,
+  #     # 'fid': 'catheter',
+  #   },
+  # },
   # 'fillin': {
   #   'recalculate_popmean': False,
   # },
-  # 'derive': {
-  #   # 'fid': 'admit_weight'
-  # },
+  'derive': {
+    # 'fid': 'cardio_sofa'
+  },
 }
 
 config_args = {

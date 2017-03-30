@@ -65,7 +65,7 @@ async def any_antibiotics_order_update(fid, fid_input, conn, log, dataset_id=Non
   for i in range(len(fid_input_items)):
     assert fid_input_items[i].endswith('dose'), \
       'wrong fid_input %s' % fid_input
-  any_med_order_update(fid, fid_input, conn, log, dataset_id=dataset_id, twf_table=twf_table)
+  await any_med_order_update(fid, fid_input, conn, log, dataset_id=dataset_id, twf_table=twf_table)
 
 # Same as any_continuous_dose_update (special case)
 async def any_pressor_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
@@ -95,7 +95,7 @@ async def any_inotrope_update(fid, fid_input, conn, log, dataset_id=None, twf_ta
       'wrong fid_input %s' % fid_input
   await clean_tbl.cdm_t_clean(conn, fid, dataset_id=dataset_id)
   for dose in fid_input_items:
-    any_continuous_dose_update(fid, dose, conn, log, dataset_id=dataset_id, twf_table=twf_table)
+    await any_continuous_dose_update(fid, dose, conn, log, dataset_id=dataset_id, twf_table=twf_table)
 
 # Special case
 async def any_continuous_dose_update(fid, dose, conn, log, dataset_id=None, twf_table='cdm_twf'):
@@ -121,12 +121,12 @@ async def any_continuous_dose_update(fid, dose, conn, log, dataset_id=None, twf_
         block['end_tsp'] = tsp
         block['end_c'] = c
         # block is reaty to update
-        update_continuous_dose_block(fid, block, conn, log, dataset_id=dataset_id)
+        await update_continuous_dose_block(fid, block, conn, log, dataset_id=dataset_id)
         block = {'enc_id':None, 'start_tsp':None, 'end_tsp':None,
              'start_c': 0, 'end_c': 0}
     elif block['enc_id'] != enc_id and not action in STOPPED_ACTIONS:
       # update current block
-      update_continuous_dose_block(fid, block, conn, log, dataset_id=dataset_id)
+      await update_continuous_dose_block(fid, block, conn, log, dataset_id=dataset_id)
       # create new block
       block = {'enc_id':enc_id, 'start_tsp':tsp, 'end_tsp':None,
            'start_c': 0, 'end_c': 0}
@@ -140,7 +140,7 @@ async def update_continuous_dose_block(fid, block, conn, log, dataset_id=None, t
   prev = await conn.fetchrow(select_sql)
   if prev is None or prev['value'] == 'False':
     await load_row.upsert_t(conn, [block['enc_id'], block['start_tsp'], fid,
-            True, block['start_c']])
+            True, block['start_c']], dataset_id=dataset_id)
   if block['end_tsp'] is None:
     delete_sql = """
       delete from cdm_t where enc_id = %s and fid = '%s'%s
@@ -160,7 +160,7 @@ async def update_continuous_dose_block(fid, block, conn, log, dataset_id=None, t
     post = await conn.fetchrow(select_sql)
     if post is None or post['value'] == 'True':
       await load_row.upsert_t(conn, [block['enc_id'], block['end_tsp'], fid,
-              False, block['end_c']])
+              False, block['end_c']], dataset_id = dataset_id)
 
 
 
@@ -182,7 +182,7 @@ async def any_med_order_update(fid, fid_input, conn, log, dataset_id=None, twf_t
     if row['order_tsp']:
       values = [row['enc_id'], row['order_tsp'], fid, "True",
             row['confidence']]
-      await load_row.upsert_t(conn, values)
+      await load_row.upsert_t(conn, values, dataset_id=dataset_id)
 
 
 
@@ -211,7 +211,7 @@ async def suspicion_of_infection_update(fid, fid_input, conn, log, dataset_id=No
   for row in rows:
     values = [row['enc_id'], row['tsp'], fid, "True",
           row['confidence']]
-    await load_row.upsert_t(conn, values)
+    await load_row.upsert_t(conn, values, dataset_id)
   select_sql = """
     select t1.enc_id, t1.tsp, t1.confidence|t2.confidence confidence
       from cdm_t t1
@@ -224,7 +224,7 @@ async def suspicion_of_infection_update(fid, fid_input, conn, log, dataset_id=No
   for row in rows:
     values = [row['enc_id'], row['tsp'], fid, "True",
           row['confidence']]
-    await load_row.upsert_t(conn, values)
+    await load_row.upsert_t(conn, values, dataset_id)
 
 
 
@@ -732,6 +732,7 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id=None, twf_tab
   # need to check the unit first
   get_unit_sql = "SELECT unit FROM cdm_feature WHERE fid = '%s'%s" % ('epinephrine_dose', with_ds(dataset_id))
   unit = await conn.fetchrow(get_unit_sql)
+  unit = unit['unit']
   if unit == 'mcg/kg/min':
     records = await conn.fetch(select_sql % ('epinephrine_dose', with_ds(dataset_id)))
   elif unit == 'mcg/min':
@@ -798,9 +799,9 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id=None, twf_tab
                'twf_table': twf_table, 'with_ds': with_ds(dataset_id)})
   # update cardio_sofa based on levophed_infusion_dose
   # need to check the unit of levophed_infusion_dose
-  get_unit_sql = "SELECT unit FROM cdm_feature WHERE fid = '%s'%s" % ('epinephrine_dose', with_ds(dataset_id))
+  get_unit_sql = "SELECT unit FROM cdm_feature WHERE fid = '%s'%s" % ('levophed_infusion_dose', with_ds(dataset_id))
   unit = await conn.fetchrow(get_unit_sql)
-
+  unit = unit['unit']
   if unit == 'mcg/kg/min':
     records = await conn.fetch(select_sql % ('levophed_infusion_dose', with_ds(dataset_id)))
   elif unit == 'mcg/min':

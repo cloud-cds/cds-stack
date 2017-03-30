@@ -1,5 +1,6 @@
 # derive pipeline for cdm_twf
 import etl.load.primitives.tbl.derive as derive_func
+import etl.load.primitives.tbl.clean_tbl as clean_tbl
 
 async def derive_main(log, conn, cdm_feature_dict, mode=None, fid=None, dataset_id=None, table="cdm_twf"):
   '''
@@ -56,7 +57,6 @@ def get_derive_seq(features=None, input_map=None):
     # create the dependency map
     d_map = {f:features[f]['derive_func_input'] for f in features if not features[f]['is_measured'] and not features[f]['is_deprecated']}
   derived_features = d_map.keys()
-  print(derived_features)
   # clear out dependencies on measured features, they should be in CDM already
   d_map = dict((k,rm_measured_dependencies(v, derived_features)) \
     for (k,v) in d_map.items())
@@ -115,6 +115,14 @@ async def derive_func_driver(fid, fid_category, derive_func_id, derive_func_inpu
     fid_input_items = [item.strip() for item in derive_func_input.split(',')]
 
     if fid_input_items == config_entry['fid_input_items']:
+      if 'clean' in config_entry and fid_category == 'TWF':
+        clean_args = config_entry['clean']
+        await clean_tbl.cdm_twf_clean(conn, fid, twf_table = twf_table, dataset_id = dataset_id, **clean_args)
+      else:
+        if fid_category == 'TWF':
+          await clean_tbl.cdm_twf_clean(conn, fid, twf_table = twf_table, dataset_id = dataset_id)
+        elif fid_category == 'T':
+          await clean_tbl.cdm_t_clean(conn, fid, dataset_id = dataset_id)
       update_clause = ''
       if fid_category == 'TWF':
         update_expr = config_entry['fid_update_expr']
@@ -176,7 +184,7 @@ derive_config = {
   'pao2_to_fio2': {
     'fid_input_items':  ['pao2', 'fio2'],
     'derive_type': 'simple',
-    'fid_update_expr': 'pao2/fio2',
+    'fid_update_expr': 'pao2/fio2*100',
     'fid_c_update_expr': 'pao2_c | fio2_c'
   },
   'hepatic_sofa': {
@@ -411,11 +419,11 @@ derive_config = {
     'fid_input_items': ['resp_sofa', 'hepatic_sofa', 'hematologic_sofa', 'cardio_sofa', 'neurologic_sofa', 'renal_sofa'],
     'derive_type': 'simple',
     'fid_update_expr': '''GREATEST(resp_sofa * (1-based_on_popmean(resp_sofa_c)),
-                              hepatic_sofa* (1-based_on_popmean(hepatic_sofa_c)),
-                              hematologic_sofa* (1-based_on_popmean(hematologic_sofa_c)),
-                              cardio_sofa* (1-based_on_popmean(cardio_sofa_c)),
-                              neurologic_sofa* (1-based_on_popmean(neurologic_sofa_c)),
-                              renal_sofa* (1-based_on_popmean(renal_sofa_c)))''',
+                              hepatic_sofa * (1-based_on_popmean(hepatic_sofa_c)),
+                              hematologic_sofa * (1-based_on_popmean(hematologic_sofa_c)),
+                              cardio_sofa * (1-based_on_popmean(cardio_sofa_c)),
+                              neurologic_sofa * (1-based_on_popmean(neurologic_sofa_c)),
+                              renal_sofa * (1-based_on_popmean(renal_sofa_c)))''',
     'fid_c_update_expr': '''
                       coalesce(resp_sofa_c, 0) |
                       coalesce(hepatic_sofa_c, 0) |
@@ -544,7 +552,8 @@ derive_config = {
                                  end)
                                  ''',
     'fid_c_update_expr': 'subquery.c',
-    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id'
+    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id',
+    'clean': {'value': 0, 'confidence': 0},
   },
   'minutes_to_shock_onset': {
     'fid_input_items': ['septic_shock'],
@@ -588,7 +597,8 @@ derive_config = {
                                  end)
                                  ''',
     'fid_c_update_expr': 'subquery.c',
-    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id'
+    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id',
+    'clean': {'value': 0, 'confidence': 0},
   },
   'treatment_within_6_hours': {
     'fid_input_items': ['any_antibiotics',
@@ -639,9 +649,10 @@ derive_config = {
                             group by twf.enc_id, twf.tsp
                         ) as subquery
                       ''',
-    'fid_update_expr': 'subquery.sum_v',
-    'fid_c_update_expr': 'subquery.max_c',
-    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id and %(twf_table)s.tsp = subquery.tsp'
+    'fid_update_expr': 'coalesce(subquery.sum_v, 0)',
+    'fid_c_update_expr': 'coalesce(subquery.max_c,0)',
+    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id and %(twf_table)s.tsp = subquery.tsp',
+    'clean': {'value': 0, 'confidence': 0},
   },
   'fluids_intake_1hr': {
     'fid_input_items': ['fluids_intake'],
@@ -658,9 +669,10 @@ derive_config = {
                             group by twf.enc_id, twf.tsp
                         ) as subquery
                       ''',
-    'fid_update_expr': 'subquery.sum_v',
-    'fid_c_update_expr': 'subquery.max_c',
-    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id and %(twf_table)s.tsp = subquery.tsp'
+    'fid_update_expr': 'coalesce(subquery.sum_v, 0)',
+    'fid_c_update_expr': 'coalesce(subquery.max_c,0)',
+    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id and %(twf_table)s.tsp = subquery.tsp',
+    'clean': {'value': 0, 'confidence': 0},
   },
   'fluids_intake_24hr': {
     'fid_input_items': ['fluids_intake'],
@@ -677,9 +689,10 @@ derive_config = {
                             group by twf.enc_id, twf.tsp
                         ) as subquery
                       ''',
-    'fid_update_expr': 'subquery.sum_v',
-    'fid_c_update_expr': 'subquery.max_c',
-    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id and %(twf_table)s.tsp = subquery.tsp'
+    'fid_update_expr': 'coalesce(subquery.sum_v, 0)',
+    'fid_c_update_expr': 'coalesce(subquery.max_c,0)',
+    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id and %(twf_table)s.tsp = subquery.tsp',
+    'clean': {'value': 0, 'confidence': 0},
   },
   'urine_output_6hr': {
     'fid_input_items': ['urine_output'],
@@ -696,9 +709,10 @@ derive_config = {
                             group by twf.enc_id, twf.tsp
                         ) as subquery
                       ''',
-    'fid_update_expr': 'subquery.sum_v',
-    'fid_c_update_expr': 'subquery.max_c',
-    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id and %(twf_table)s.tsp = subquery.tsp'
+    'fid_update_expr': 'coalesce(subquery.sum_v, 0)',
+    'fid_c_update_expr': 'coalesce(subquery.max_c,0)',
+    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id and %(twf_table)s.tsp = subquery.tsp',
+    'clean': {'value': 0, 'confidence': 0},
   },
   'urine_output_24hr': {
     'fid_input_items': ['urine_output'],
@@ -715,9 +729,10 @@ derive_config = {
                             group by twf.enc_id, twf.tsp
                         ) as subquery
                       ''',
-    'fid_update_expr': 'subquery.sum_v',
-    'fid_c_update_expr': 'subquery.max_c',
-    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id and %(twf_table)s.tsp = subquery.tsp'
+    'fid_update_expr': 'coalesce(subquery.sum_v, 0)',
+    'fid_c_update_expr': 'coalesce(subquery.max_c,0)',
+    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id and %(twf_table)s.tsp = subquery.tsp',
+    'clean': {'value': 0, 'confidence': 0},
   },
   'any_anticoagulant': {
     'fid_input_items': ['apixaban_dose', 'dabigatran_dose', 'rivaroxaban_dose', 'warfarin_dose', 'heparin_dose'],
