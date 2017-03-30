@@ -1,3 +1,4 @@
+rm -rf /tmp/aws-lambda*
 chmod 777 service.py
 rm -rf dist
 lambda build

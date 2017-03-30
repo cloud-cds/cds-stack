@@ -1,63 +1,25 @@
+import os
+import sys
+try:
+  root = os.environ["LAMBDA_TASK_ROOT"]
+  sys.path.insert(0, root)
+  print("Lambda Root inserted into front of Path")
+except:
+  print("Lambda Root Not inserted Into Path")
+import boto3
+
 import base64
 import json
 import zlib
-import boto3
 import sqlalchemy
-import os
-import sys
 from pytz import timezone
 import pytz
+import re
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
 import time
 
-#==================================================
-## Utils to be moved out this function eventually
-#==================================================
-
-
-# class TREWSFeedback(object):
-#   def on_post(self, req, resp):
-#     try:
-#       raw_json = req.stream.read()
-#     except Exception as ex:
-#       raise falcon.HTTPError(falcon.HTTP_400, 'Error', ex.message)
-#
-#     try:
-#       result_json = json.loads(raw_json, encoding='utf-8')
-#     except ValueError:
-#       raise falcon.HTTPError(falcon.HTTP_400, 'Malformed JSON',
-#                              'Could not decode the request body. The JSON was incorrect.')
-#
-#     try:
-#       subject = 'Feedback - {}'.format(str(result_json['u']))
-#       html_text = [
-#         ("Physician", str(result_json['u'])),
-#         ("Current patient in view", str(result_json['q'])),
-#         ("Department", str(result_json['depid'])),
-#         ("Feedback", str(result_json['feedback'])),
-#       ]
-#       body = "".join(["<h4>{}</h4><p>{}</p>".format(x, y) for x, y in html_text])
-#       client = boto3.client('ses')
-#       client.send_email(
-#         Source='trews-jhu@opsdx.io',
-#         Destination={
-#           'ToAddresses': ['trews-jhu@opsdx.io'],
-#         },
-#         Message={
-#           'Subject': {'Data': subject, },
-#           'Body': {
-#             'Html': {'Data': body, },
-#           },
-#         }
-#       )
-#       resp.status = falcon.HTTP_200
-#       resp.body = json.dumps(result_json, encoding='utf-8')
-#     except Exception as ex:
-#       raise falcon.HTTPError(falcon.HTTP_400, 'Error sending email', ex.message)
-
-#@peter email
 #==================================================
 ## Parameters
 #==================================================
@@ -78,7 +40,14 @@ col_2_dtype_dict = {'doc_id': sqlalchemy.types.String(length=50),
                     'dep': sqlalchemy.types.String(length=50),
                     'raw_url': sqlalchemy.types.String()}
 
-unique_usrs_window = timedelta(hours=1)
+
+rule_2_exeuction_period = {'opsdx-dev-behamon_lambda_time_series_rule':timedelta(minutes=2),
+                           'opsdx-dev-behamon_lambda_reports_rule':timedelta(minutes=2)}
+
+unique_usrs_window = timedelta(minutes=60)
+
+reports_window = timedelta(hours=24)
+
 
 #==================================================
 ## Support Functions
@@ -164,18 +133,48 @@ def get_db_engine():
   return engine
 
 def data_2_db(sql_table_name, data_in,dtype_dict=None):
+  # =============================
+  # Clean Data
+  # =============================
+  results = pd.DataFrame(data_in)
 
+  results = datetime_2_utc_str(results)
+
+  pat = re.compile('test_.*')
+  results = results.loc[results['doc_id'].apply(lambda x: re.match(pat, x) is None)]
+
+  results['doc_id'] = results['doc_id'].apply(lambda x: x[1::])
+
+  # =============================
+  # Upsert to Database
+  # =============================
   engine = get_db_engine()
 
-  # right not data_in is a dataframe
-  nrows = data_in.shape[0]
-  print("saving data frame to {}: nrows = {}".format(sql_table_name, nrows))
-  if dtype_dict is None:
-    data_in.to_sql(sql_table_name, engine, if_exists='append', index=False, schema='public')
-  else:
-    data_in.to_sql(sql_table_name, engine, if_exists='append', index=False, schema='public', dtype=dtype_dict)
+  nrows = results.shape[0]
 
+  temp_table_name = 'temp' + sql_table_name
+
+  print("saving data frame to {}: nrows = {}".format(temp_table_name, nrows))
+
+  if dtype_dict is None:
+    results.to_sql(temp_table_name, engine, if_exists='append', index=False, schema='public')
+  else:
+    results.to_sql(temp_table_name, engine, if_exists='append', index=False, schema='public', dtype=dtype_dict)
+
+  make_final_sql = """
+      insert into {} (doc_id, tsp, pat_id, visit_id, loc, dep, raw_url)
+      select          doc_id, tsp, pat_id, visit_id, loc, dep, raw_url from {}
+      on conflict (doc_id, tsp, pat_id)
+      DO UPDATE SET visit_id = EXCLUDED.visit_id, loc = EXCLUDED.loc, dep = EXCLUDED.dep, raw_url = EXCLUDED.raw_url;
+      """.format(sql_table_name, temp_table_name)
+
+  connection = engine.connect()
+  connection.execute(make_final_sql)
+  connection.execute("""DROP TABLE {}""".format(temp_table_name))
+
+  connection.close()
   engine.dispose()
+  return results
 
 def getfiltLogEvent(firstTime, lasTime, client,
                     logGroup, logStreamNames, filterPattern,
@@ -242,17 +241,32 @@ def getLogs(logStart, logEnd, client,
   return stackList
 
 def periodic_rule_2_td(rule_name):
+  #--------------------------------------------------------------
+  # I can only get this algorithum to work locally, not on aws.
+  #--------------------------------------------------------------
+  print("client")
   client = boto3.client('events')
+  print("rule")
   rule_details = client.describe_rule(Name=rule_name)
 
+  print(rule_details)
   # looks like this rate(2 minutes)
+  print("execution")
   execution_period_str = str(rule_details['ScheduleExpression'][5:-1])
+  print(execution_period_str)
+  print("time stuff")
   timenum, timeunit = execution_period_str.split(' ')
+  print(timenum)
+  print(timeunit)
+  print("execution period")
   execution_period_td = timedelta(**{timeunit: float(timenum)})
+
+  execution_period_td = rule_2_exeuction_period[rule_name]
+
   return execution_period_td
 
 def apply_func_over_sliding_window(firstTime,lastTime,func):
-  unique_usrs_window_sec = unique_usrs_window.total_seconds()
+  unique_usrs_window_sec = unique_usrs_window.total_seconds()* (10 ** 3)
 
   intervalStart = firstTime
   intervalEnd = np.min([firstTime + unique_usrs_window_sec,lastTime])
@@ -261,14 +275,18 @@ def apply_func_over_sliding_window(firstTime,lastTime,func):
   time_list = []
   metric_list = []
 
+  window_cnt = 0
   while intervalEnd <= lastTime:
+    window_cnt += 1
+
     value = func(intervalStart, intervalEnd)
 
     metric_list.append(value)
     time_list.append(intervalEnd)
 
-    intervalStart = np.min([intervalStart+unique_usrs_window_sec,lastTime])
-    intervalEnd   = np.min([intervalEnd+unique_usrs_window_sec,lastTime])
+    intervalStart = intervalStart+unique_usrs_window_sec
+    intervalEnd   = intervalEnd+unique_usrs_window_sec
+
 
   return time_list, metric_list
 
@@ -285,17 +303,18 @@ def get_usr_from_event(event):
   # ====================================
   ## write_to_db
   # ====================================
-  results = pd.DataFrame(allDicts)
-  results = datetime_2_utc_str(results)
-  data_2_db("usr_web_log", results, dtype_dict=col_2_dtype_dict)
 
-def get_behamon_ts_metrics(firstTime,lastTime):
+  data_2_db("usr_web_log", allDicts, dtype_dict=col_2_dtype_dict)
+
+def calc_behamon_ts_metrics(firstTime, lastTime):
+  print("We are in TS metrics")
   # firstTime, lastTime assumed to be in local time
 
   # ===========================
   # Get Data
   # ===========================
   engine = get_db_engine()
+
   out_tsp_fmt, tz = get_tz_format(tz_in_str='US/Eastern')
 
   query = sqlalchemy.text("""select * from usr_web_log where tsp between \'{}\'::timestamptz and \'{}\'::timestamptz""".
@@ -320,7 +339,7 @@ def get_behamon_ts_metrics(firstTime,lastTime):
     else:
       num = 0
     return num
-  metrics_dict['num_unique_active_users'] = lambda x, y: num_unique_active_users(all_usr_dat,x,y)
+  metrics_dict['num_unique_active_users_v2'] = lambda x, y: num_unique_active_users(all_usr_dat,x,y)
 
   def total_num_unique_users(all_usr_dat,t_min,t_max):
     this_frame = all_usr_dat[(all_usr_dat['tsp'] < t_max)]
@@ -329,7 +348,7 @@ def get_behamon_ts_metrics(firstTime,lastTime):
     else:
       num = 0
     return num
-  metrics_dict['total_num_unique_users'] = lambda x, y: total_num_unique_users(all_usr_dat,x,y)
+  metrics_dict['total_num_unique_users_v2'] = lambda x, y: total_num_unique_users(all_usr_dat,x,y)
 
   # ===========================
   # Execute and push metrics to cloudwatch
@@ -350,16 +369,53 @@ def get_behamon_ts_metrics(firstTime,lastTime):
                                           MetricData=[{
                                             'MetricName': metric,
                                             'Dimensions': dimList,
-                                            'Timestamp': time,
+                                            'Timestamp': epoch2time(time),
                                             'Value': val,
                                             'Unit': 'Count'}])
 
   pass
 
+def calc_behamon_report_metrics(firstTime, lastTime):
+  print("We are in reports!")
+  # ===============================
+  # Get data from DB
+  # ===============================
+  engine = get_db_engine()
+
+  out_tsp_fmt, tz = get_tz_format(tz_in_str='US/Eastern')
+
+  numPats_seen = """
+      select doc_id, count(distinct pat_id) as num_pats_seen, min(tsp) as first_access, max(tsp) as last_access
+      from usr_web_log 
+      where tsp between \'{}\'::timestamptz and \'{}\'::timestamptz group by doc_id;""".format(
+        to_tz_str(firstTime, out_tsp_fmt, tz), to_tz_str(lastTime, out_tsp_fmt, tz))
+
+  num_pats_seen_df = pd.read_sql(numPats_seen,engine)
+
+  engine.dispose()
+
+  num_pats_seen_str = str(num_pats_seen_df)
+
+  client = boto3.client('ses')
+  client.send_email(
+    Source='trews-jhu@opsdx.io',
+    Destination={
+      'ToAddresses': ['trews-jhu@opsdx.io'],
+    },
+    Message={
+      'Subject': {'Data': 'Behavior Monitor Report'},
+      'Body': {
+        'Html': {'Data': num_pats_seen_df.to_html()},
+      },
+    }
+  )
+
+
+
 #==================================================
 ## Boto mains
 #==================================================
-def getUsersInInterval(firstTime, lastTime):
+def get_users_in_interval(firstTime, lastTime):
   lastTime = time2epoch(lastTime)
   firstTime = time2epoch(firstTime)
 
@@ -373,15 +429,13 @@ def getUsersInInterval(firstTime, lastTime):
     logs = res['events']
     allDicts = logs2dicts(logs,allDicts)
 
-  results = pd.DataFrame(allDicts)
-  results = datetime_2_utc_str(results)
-  data_2_db("usr_web_log", results, dtype_dict=col_2_dtype_dict)
-
+  results = data_2_db("usr_web_log", allDicts, dtype_dict=col_2_dtype_dict)
   return results
 
 def batch_proc_main(firstTime, lastTime):
-    # getUsersInInterval(firstTime, lastTime)
-    get_behamon_ts_metrics(firstTime, lastTime)
+    get_users_in_interval(firstTime, lastTime)
+    calc_behamon_ts_metrics(firstTime, lastTime)
+    calc_behamon_report_metrics(firstTime, lastTime)
 
 
 #==================================================
@@ -402,11 +456,24 @@ def handler(event, context):
     # assumed to be periodically driven
 
     _, rule = event['resources'][0].split(':rule/')
+    print("rule")
+    print(rule)
+
     execution_period_td = periodic_rule_2_td(rule)
+
+    print("presumed rule execution Period")
+    print(execution_period_td)
+
+    last_execution = datetime.now() - execution_period_td
+
+    this_execution = datetime.now()
 
     if rule == 'opsdx-dev-behamon_lambda_time_series_rule':
       # run on all data since the last execution
-      get_behamon_ts_metrics(datetime.now()-execution_period_td,datetime.now())
+      calc_behamon_ts_metrics(last_execution, this_execution)
+    if rule == 'opsdx-dev-behamon_lambda_reports_rule':
+      print("Report Type")
+      calc_behamon_report_metrics(last_execution, this_execution)
     else:
       print("unrecognized event type:")
       print(event)

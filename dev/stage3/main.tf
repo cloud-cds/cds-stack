@@ -155,7 +155,13 @@ module "behavior_monitors" {
 
   behamon_log_group_name = ""
   behamon_log_group_arn  = ""
+
+  # Must be manually kept in sync with the beahmon service,.py file
+  behavior_monitors_timeseries_firing_rate_min = "60"
+  behavior_monitors_reports_firing_rate_hours = "24" #86400 = 60*60*24 #looks like it can't be speced in minutes
+
 }
+
 
 module "monitor" {
   source = "./services/monitor"
