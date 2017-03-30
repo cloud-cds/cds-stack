@@ -130,8 +130,8 @@ class Extractor:
     pat_id_to_enc_ids = {}
     for pat in pats:
       visit_id_to_enc_id[pat['visit_id']] = pat['enc_id']
-      if pat['enc_id'] in pat_id_to_enc_ids:
-        pat_id_to_enc_ids.append(pat['enc_id'])
+      if pat['pat_id'] in pat_id_to_enc_ids:
+        pat_id_to_enc_ids[pat['pat_id']].append(pat['enc_id'])
       else:
         pat_id_to_enc_ids[pat['pat_id']] = [pat['enc_id']]
     return {
@@ -283,6 +283,10 @@ class Extractor:
               for enc_id in enc_ids:
                 result = transform.transform(fid, \
                   transform_func_id, row, data_type, self.log)
+                if str(row['pat_id']) == 'a0515980-e69c-4741-88fb-8d3ecee25d83':
+                  print(row)
+                  print(result)
+                  print(enc_ids)
                 if result is not None:
                   line += 1
                   await self.save_result_to_cdm(fid, category, enc_id, \
@@ -400,6 +404,8 @@ class Extractor:
     if not isinstance(results[0], list):
       results = [results]
     for result in results:
+      if enc_id == 2:
+        print(result)
       tsp = None
       if len(result) == 3:
         # contain tsp, value, and confidence

@@ -18,14 +18,14 @@ job = {
   #   # 'populate_patients': True,
   #   'populate_measured_features': {
   #     # 'plan': False,
-  #     # 'fid': 'vancomycin_dose',
+  #     # 'fid': 'catheter',
   #   },
   # },
   # 'fillin': {
   #   'recalculate_popmean': False,
   # },
   'derive': {
-    'fid': 'admit_weight'
+    # 'fid': 'cardio_sofa'
   },
 }
 
