@@ -4,7 +4,9 @@ import zlib
 import boto3
 import sqlalchemy
 import os
+import sys
 from pytz import timezone
+import pytz
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
@@ -55,19 +57,10 @@ import time
 #     except Exception as ex:
 #       raise falcon.HTTPError(falcon.HTTP_400, 'Error sending email', ex.message)
 
-#==================================================
-## Main
-#==================================================
 #@peter email
-
-
 #==================================================
-## Support Functions
+## Parameters
 #==================================================
-#==================================================
-## Support Funcs which ideally should be in a different file
-#==================================================
-
 col2key_dict = {'doc_id': 'USERID',
                 'tsp': 'tsp',
                 'pat_id': 'PATID',
@@ -85,9 +78,14 @@ col_2_dtype_dict = {'doc_id': sqlalchemy.types.String(length=50),
                     'dep': sqlalchemy.types.String(length=50),
                     'raw_url': sqlalchemy.types.String()}
 
+unique_usrs_window = timedelta(hours=1)
 
+#==================================================
+## Support Functions
+#==================================================
 def time2epoch(tsp):
-  return int(((tsp - datetime(1970, 1, 1)).total_seconds()) * (10 ** 3))
+  e = int(((tsp - datetime(1970, 1, 1, tzinfo=tsp.tzinfo)).total_seconds()) * (10 ** 3))
+  return e
 
 def epoch2time(epoch):
   return datetime.utcfromtimestamp(epoch / 1000)
@@ -124,33 +122,37 @@ def logs2dicts(logs,allDicts=[]):
 
   return allDicts
 
+def get_tz_format(tz_in_str='US/Eastern'):
+  out_tsp_fmt_tmp = '%Y-%m-%dT%H:%M:%S{}:00'
+  tz = timezone(tz_in_str)
+  out_tsp_fmt = out_tsp_fmt_tmp.format( int(round(tz._utcoffset.total_seconds() / (60 * 60))) )
+  return out_tsp_fmt, tz
+
+def to_tz_str(time_in,out_tsp_fmt,tz):
+  try:
+    str_out = (time_in + tz._utcoffset).strftime(out_tsp_fmt)
+    # str_out = (time_in).strftime(out_tsp_fmt)
+  except:
+    str_out = None  # handles nones and nans
+  return str_out
+
 def datetime_2_utc_str(df, tz_in_str='US/Eastern', column_list=None):
   """A slightly more general version of the TZ hack to write to DB"""
-  out_tsp_fmt_tmp = '%Y-%m-%dT%H:%M:%S{}:00'
 
-  tz = timezone(tz_in_str)
-
-  out_tsp_fmt = out_tsp_fmt_tmp.format( int(round(tz._utcoffset.total_seconds() / (60 * 60))) )
+  out_tsp_fmt, tz = get_tz_format(tz_in_str)
 
   if column_list is None:
     types = df.dtypes
     column_list = [col for col in df.columns if np.issubdtype(types.loc[col], np.datetime64)]
 
-  def to_tz_str(time_in):
-    try:
-      str_out = (time_in + tz._utcoffset).strftime(out_tsp_fmt)
-      # str_out = (time_in).strftime(out_tsp_fmt)
-    except:
-      str_out = None  # handles nones and nans
-    return str_out
+  tz_func = lambda x: to_tz_str(x,out_tsp_fmt,tz)
 
   for col in column_list:
-    df[col] = df[col].apply(to_tz_str)
+    df[col] = df[col].apply(tz_func)
 
   return df
 
-
-def data_2_db(sql_table_name, data_in,dtype_dict=None):
+def get_db_engine():
   host          = os.environ['db_host']
   port          = os.environ['db_port']
   db            = os.environ['db_name']
@@ -159,10 +161,15 @@ def data_2_db(sql_table_name, data_in,dtype_dict=None):
   conn_str      = 'postgresql://{}:{}@{}:{}/{}'.format(user, pw, host, port, db)
 
   engine = sqlalchemy.create_engine(conn_str)
+  return engine
+
+def data_2_db(sql_table_name, data_in,dtype_dict=None):
+
+  engine = get_db_engine()
 
   # right not data_in is a dataframe
   nrows = data_in.shape[0]
-  print("saving data frame to %s: nrows = %s".format(sql_table_name, nrows))
+  print("saving data frame to {}: nrows = {}".format(sql_table_name, nrows))
   if dtype_dict is None:
     data_in.to_sql(sql_table_name, engine, if_exists='append', index=False, schema='public')
   else:
@@ -234,18 +241,41 @@ def getLogs(logStart, logEnd, client,
 
   return stackList
 
-#==================================================
-## lambda main
-#==================================================
-def handler(event, context):
-  # ====================================
-  ## Extract from event
-  # ====================================
+def periodic_rule_2_td(rule_name):
+  client = boto3.client('events')
+  rule_details = client.describe_rule(Name=rule_name)
 
-  if not "awslogs" in event:
-    print("Not the right event")
-    return
+  # looks like this rate(2 minutes)
+  execution_period_str = str(rule_details['ScheduleExpression'][5:-1])
+  timenum, timeunit = execution_period_str.split(' ')
+  execution_period_td = timedelta(**{timeunit: float(timenum)})
+  return execution_period_td
 
+def apply_func_over_sliding_window(firstTime,lastTime,func):
+  unique_usrs_window_sec = unique_usrs_window.total_seconds()
+
+  intervalStart = firstTime
+  intervalEnd = np.min([firstTime + unique_usrs_window_sec,lastTime])
+
+
+  time_list = []
+  metric_list = []
+
+  while intervalEnd <= lastTime:
+    value = func(intervalStart, intervalEnd)
+
+    metric_list.append(value)
+    time_list.append(intervalEnd)
+
+    intervalStart = np.min([intervalStart+unique_usrs_window_sec,lastTime])
+    intervalEnd   = np.min([intervalEnd+unique_usrs_window_sec,lastTime])
+
+  return time_list, metric_list
+
+#==================================================
+## lambda_main
+#==================================================
+def get_usr_from_event(event):
   x = base64.b64decode(event['awslogs']['data'])
   y = zlib.decompress(x, 16+zlib.MAX_WBITS)
   logs = json.loads(y)['logEvents']
@@ -259,8 +289,75 @@ def handler(event, context):
   results = datetime_2_utc_str(results)
   data_2_db("usr_web_log", results, dtype_dict=col_2_dtype_dict)
 
+def get_behamon_ts_metrics(firstTime,lastTime):
+  # firstTime, lastTime assumed to be in local time
+
+  # ===========================
+  # Get Data
+  # ===========================
+  engine = get_db_engine()
+  out_tsp_fmt, tz = get_tz_format(tz_in_str='US/Eastern')
+
+  query = sqlalchemy.text("""select * from usr_web_log where tsp between \'{}\'::timestamptz and \'{}\'::timestamptz""".
+                          format(to_tz_str(firstTime, out_tsp_fmt, tz), to_tz_str(lastTime, out_tsp_fmt, tz)))
+
+  engine.dispose()
+
+  all_usr_dat = pd.read_sql(query,engine)
+  # all_usr_dat.to_pickle('test.pkl')
+  # all_usr_dat = pd.read_pickle('global/lambda/behavior-monitor/test.pkl')
+  all_usr_dat['tsp']=all_usr_dat['tsp'].apply(time2epoch)
+
+  # ===========================
+  # Metric Definitions
+  # ===========================
+  metrics_dict = {}
+  def num_unique_active_users(all_usr_dat,t_min,t_max):
+    this_frame = all_usr_dat[(all_usr_dat['tsp'] >= t_min)&
+                             (all_usr_dat['tsp'] < t_max)]
+    if 'doc_id' in this_frame:
+      num = len(set(this_frame['doc_id']))
+    else:
+      num = 0
+    return num
+  metrics_dict['num_unique_active_users'] = lambda x, y: num_unique_active_users(all_usr_dat,x,y)
+
+  def total_num_unique_users(all_usr_dat,t_min,t_max):
+    this_frame = all_usr_dat[(all_usr_dat['tsp'] < t_max)]
+    if 'doc_id' in this_frame:
+      num = len(set(this_frame['doc_id']))
+    else:
+      num = 0
+    return num
+  metrics_dict['total_num_unique_users'] = lambda x, y: total_num_unique_users(all_usr_dat,x,y)
+
+  # ===========================
+  # Execute and push metrics to cloudwatch
+  # ===========================
+
+  dimList = [{'Name': 'Source', 'Value': 'database'},
+             {'Name': 'Stack', 'Value': 'prod'}]
+
+  client = boto3.client('cloudwatch')
+
+  firstTime_e = time2epoch(firstTime)
+  lastTime_e  = time2epoch(lastTime)
+  for metric,func in metrics_dict.iteritems():
+    time_list, value_list = apply_func_over_sliding_window(firstTime_e,lastTime_e,func)
+
+    for time,val in zip(time_list, value_list):
+      put_status = client.put_metric_data(Namespace='OpsDX',
+                                          MetricData=[{
+                                            'MetricName': metric,
+                                            'Dimensions': dimList,
+                                            'Timestamp': time,
+                                            'Value': val,
+                                            'Unit': 'Count'}])
+
+  pass
+
 #==================================================
-## Boto main
+## Boto mains
 #==================================================
 def getUsersInInterval(firstTime, lastTime):
   lastTime = time2epoch(lastTime)
@@ -282,5 +379,42 @@ def getUsersInInterval(firstTime, lastTime):
 
   return results
 
+def batch_proc_main(firstTime, lastTime):
+    # getUsersInInterval(firstTime, lastTime)
+    get_behamon_ts_metrics(firstTime, lastTime)
+
+
+#==================================================
+## handler
+#==================================================
+def handler(event, context):
+  # ====================================
+  ## Extract from event
+  # ====================================
+
+  print("event")
+  print(event)
+
+
+  if "awslogs" in event:
+    get_usr_from_event(event)
+  else:
+    # assumed to be periodically driven
+
+    _, rule = event['resources'][0].split(':rule/')
+    execution_period_td = periodic_rule_2_td(rule)
+
+    if rule == 'opsdx-dev-behamon_lambda_time_series_rule':
+      # run on all data since the last execution
+      get_behamon_ts_metrics(datetime.now()-execution_period_td,datetime.now())
+    else:
+      print("unrecognized event type:")
+      print(event)
+
+  return
+
+
+
 if __name__ == '__main__':
-  getUsersInInterval(datetime.now()-timedelta(days=13.9),datetime.now())
+  batch_proc_main(datetime.now()-timedelta(days=13.9),datetime.now())
+
