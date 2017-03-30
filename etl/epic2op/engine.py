@@ -3,6 +3,7 @@ from etl.core.config import est_tsp_fmt, Config
 from etl.epic2op.extractor import Extractor
 from etl.transforms.pipelines import jhapi
 from etl.load.pipelines.epic2op import Epic2OpLoader
+from etl.load.pipelines.criteria import Criteria
 import os, sys, traceback
 import pandas as pd
 import datetime as dt
@@ -13,7 +14,7 @@ import ujson as json
 
 class Engine():
     def __init__(self, hospital=None, lookback_hours=None):
-        self.config = Config(debug=True)
+        self.config = Config(debug=True, db_name='opsdx_dev_ol')
         self.loader = Epic2OpLoader(self.config)
         self.extractor = Extractor(
             hospital =       hospital or os.environ['TREWS_ETL_HOSPITAL'],

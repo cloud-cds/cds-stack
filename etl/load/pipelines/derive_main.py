@@ -56,7 +56,6 @@ def get_derive_seq(features=None, input_map=None):
     # create the dependency map
     d_map = {f:features[f]['derive_func_input'] for f in features if not features[f]['is_measured'] and not features[f]['is_deprecated']}
   derived_features = d_map.keys()
-  print(derived_features)
   # clear out dependencies on measured features, they should be in CDM already
   d_map = dict((k,rm_measured_dependencies(v, derived_features)) \
     for (k,v) in d_map.items())

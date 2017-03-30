@@ -46,7 +46,7 @@ class Epic2OpLoader:
 
 
   async def get_cdm_feature_dict(self, conn):
-    sql = "select * from cdm_feature where dataset_id = %s" % self.config.dataset_id
+    sql = "select * from cdm_feature"
     cdm_feature = await conn.fetch(sql)
     cdm_feature_dict = {f['fid']:f for f in cdm_feature}
     return cdm_feature_dict
@@ -64,6 +64,21 @@ class Epic2OpLoader:
               output.add(fid)
               feature_set.remove(fid)
       return output
+
+  def _get_feature_description_report(self, features, dictionary):
+    num = len(features)
+    features_description = {}
+    for fid in features:
+      description = dictionary[fid]['description'].lower()
+      if description in features_description:
+        features_description[description].append(fid)
+      else:
+        features_description[description] = [fid]
+
+    report = "All features: %s \n Total number of features:%s\n" % (features, num)
+    for desc in features_description:
+      report += desc + ":\n" + " ".join(features_description[desc]) + "\n"
+    return report
 
   async def load_online_prediction_parameters(self, conn):
     self.log.info("load online_prediction_features")
@@ -86,7 +101,7 @@ class Epic2OpLoader:
     measured_features = [fid for fid in features_with_intermediates if\
         self.cdm_feature_dict[fid]["is_measured"] ]
     self.log.info("The measured features in online prediction: %s" \
-        % self._get_feature_description_report(measured_features, cdm_feature_dict))
+        % self._get_feature_description_report(measured_features, self.cdm_feature_dict))
 
     self.fillin_features = [fid for fid in features_with_intermediates if\
         self.cdm_feature_dict[fid]["is_measured"] and \
@@ -98,7 +113,7 @@ class Epic2OpLoader:
         not self.cdm_feature_dict[fid]["is_measured"]]
     self.log.info("The derive features in online prediction: %s" % self.derive_features)
 
-  def workspace_fillin(self, conn):
+  async def workspace_fillin(self, conn):
     self.log.info("start fillin pipeline")
     fillin_table = 'workspace.%s_cdm_twf' % self.job_id
     for fid in self.fillin_features:
@@ -107,7 +122,7 @@ class Epic2OpLoader:
         await fillin_pipeline(self.log, conn, feature, recalculate_popmean=False, table=fillin_table)
     self.log.info("fillin completed")
 
-  def workspace_derive(self, conn):
+  async def workspace_derive(self, conn):
     self.log.info("derive start")
     # get derive order based on the input derive_features
     derive_feature_list = [self.cdm_feature_dict[fid] for fid in self.derive_features]
@@ -119,7 +134,7 @@ class Epic2OpLoader:
         await derive_feature(cdm_feature_dict[fid], self, twf_table=twf_table)
     self.log.info("derive completed")
 
-  def workspace_predict(self, conn):
+  async def workspace_predict(self, conn):
     self.log.info("predict start")
     num_feature = len(self.feature_weights)
     twf_features = [fid for fid in self.feature_weights \
@@ -171,7 +186,7 @@ class Epic2OpLoader:
     self.log.info("predict completed")
 
 
-  def workspace_submit(self, conn):
+  async def workspace_submit(self, conn):
     # submit to cdm_twf
     # submit to trews
     self.log.info("submit start")
@@ -221,13 +236,13 @@ class Epic2OpLoader:
     self.log.info("%s: results submitted" % job_id)
     self.log.info("submit completed")
 
-  def drop_tables(self, conn, days_offset=2):
+  async def drop_tables(self, conn, days_offset=2):
     day = (datetime.datetime.now() - datetime.timedelta(days=days_offset)).strftime('%m%d')
     self.log.info("cleaning data in workspace for day:%s" % day)
     await conn.execute("select drop_tables_pattern('workspace', '%%_%s');" % day)
     self.log.info("cleaned data in workspace for day:%s" % day)
 
-  def get_notifications_for_epic(self):
+  async def get_notifications_for_epic(self):
     async with self.pool.acquire() as conn:
       self.log.info("getting notifications to push to epic")
       return await conn.fetch("""
