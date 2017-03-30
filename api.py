@@ -15,7 +15,6 @@ import time
 import datetime
 import pandas as pd
 import numpy as np
-import logging
 import pprint
 import copy
 import re
@@ -518,7 +517,7 @@ class TREWSAPI(object):
         try:
             push_to_gateway(prom_gateway_url, job=prom_job, registry=registry)
         except Exception as ex:
-            logger.info(json.dumps(ex, default=lambda o: o.__dict__))
+            logging.info(json.dumps(ex, default=lambda o: o.__dict__))
 
 
 

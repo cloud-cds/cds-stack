@@ -220,6 +220,7 @@ var endpoints = new function() {
 				trews.setData(result.trewsData);
 				controller.refresh();
 				// $('#fake-console').text(result);
+				deterioration.dirty = false
 			} else if ( result.hasOwnProperty('notifications') ) {
 				trews.setNotifications(result.notifications);
 				controller.refreshNotifications();
@@ -1011,14 +1012,17 @@ var deterioration = new function() {
 	this.ctn = $('.other-deter-dropdown-list')
 	this.launcher = $('#other-deter-launcher')
 	this.remoteInitialized = false;
+	this.dirty = false;
 	this.init = function() {
 		for (var i in DETERIORATIONS) {
 			this.ctn.prepend("<li data-trews='" + DETERIORATIONS[i] + "'><img src='img/check.png'>" + DETERIORATIONS[i] + "</li>")
 		}
 		$('.other-deter-dropdown-list li').click(function() {
 			$(this).toggleClass('selected')
+			deterioration.dirty = true
 		})
 		$('.other-deter-dropdown-list input').keyup(function() {
+			deterioration.dirty = true;
 			if ($(this).val().length > 0)
 				$('.other-deter-dropdown-list > div').addClass('selected')
 			else
@@ -1054,17 +1058,20 @@ var deterioration = new function() {
 		}
 	}
 	this.sendOff = function() {
-		var selected = []
-		$('.other-deter-dropdown-list li.selected').each(function(i) {
-			selected.push($(this).text())
-		})
-		var action = {
-			"value": selected,
-			"other": $('.other-deter-dropdown-list input').val()
+		if (this.dirty && this.dirty != "pending") {
+			var selected = []
+			$('.other-deter-dropdown-list li.selected').each(function(i) {
+				selected.push($(this).text())
+			})
+			var action = {
+				"value": selected,
+				"other": $('.other-deter-dropdown-list input').val()
+			}
+			this.remoteInitialized = true;
+			endpoints.getPatientData("set_deterioration_feedback", action);
+			deterioration.d.fadeOut(300)
+			this.dirty = "pending"
 		}
-		this.remoteInitialized = true;
-		endpoints.getPatientData("set_deterioration_feedback", action);
-		deterioration.d.fadeOut(300)
 	}
 }
 
@@ -1461,11 +1468,11 @@ var activity = new function() {
 	this.render = function(data) {
 		this.a.html('');
 		if (data == undefined) {
-			this.n.append('<p class="none">Can\'t retrieve actviity log at this time.  <br />Activity Log may be under construction.</p>')
+			this.a.append('<p class="none">Can\'t retrieve actviity log at this time.  <br />Activity Log may be under construction.</p>')
 			return;
 		}
 		if (data.length == 0) {
-			this.n.append('<p class="none">No Activity</p>')
+			this.a.append('<p class="none">No Activity</p>')
 			return;
 		}
 
