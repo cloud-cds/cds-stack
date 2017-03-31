@@ -200,6 +200,14 @@ output "vpc_id" {
   value = "${aws_vpc.main.id}"
 }
 
+output "vpc_cidr" {
+  value = "${aws_vpc.main.cidr}"
+}
+
 output "utility_subnet_id" {
   value = "${aws_subnet.utility.id}"
+}
+
+output "public_utility_subnet_id" {
+  value = "${aws_subnet.public_utility.id}"
 }
