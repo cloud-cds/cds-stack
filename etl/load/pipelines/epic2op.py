@@ -30,21 +30,19 @@ class Epic2OpLoader:
     loop.run_until_complete(self.run(db_data))
 
   async def run(self, db_data):
-    self.epic_2_workspace(db_data)
-    await self.workspace_to_cdm()
-    await self.calculate_trewscore()
-    await self.drop_tables()
-
-
-
-  async def calculate_trewscore(self):
+    if self.pool is None:
+      await self.async_init()
     async with self.pool.acquire() as conn:
+      self.epic_2_workspace(db_data)
+      await self.workspace_to_cdm(conn)
+      await self.calculate_trewscore(conn)
       await self.load_online_prediction_parameters(conn)
       await self.workspace_fillin(conn)
       await self.workspace_derive(conn)
       await self.workspace_predict(conn)
       await self.workspace_submit(conn)
       await self.workspace_to_criteria_meas(conn)
+      await self.drop_tables(conn)
 
 
   async def get_cdm_feature_dict(self, conn):
@@ -251,7 +249,7 @@ class Epic2OpLoader:
         select * from get_notifications_for_epic(null)
         """)
 
-  async def workspace_to_criteria_meas(conn):
+  async def workspace_to_criteria_meas(self, conn):
     # insert all results to the measurement table
     upsert_meas_sql = \
     """INSERT INTO criteria_meas (pat_id, tsp, fid, value, update_date)
@@ -298,17 +296,14 @@ class Epic2OpLoader:
     for df_name, df in db_data.items():
       primitives.data_2_workspace(engine, self.job_id, df_name, df)
 
-  async def workspace_to_cdm(self):
-    if self.pool is None:
-      await self.async_init()
-    async with self.pool.acquire() as conn:
-      await primitives.insert_new_patients(conn, self.job_id)
-      await primitives.create_job_cdm_twf_table(conn, self.job_id)
-      await primitives.workspace_bedded_patients_2_cdm_s(conn, self.job_id)
-      await primitives.workspace_flowsheets_2_cdm_t(conn, self.job_id)
-      await primitives.workspace_lab_results_2_cdm_t(conn, self.job_id)
-      await primitives.workspace_location_history_2_cdm_t(conn, self.job_id)
-      await primitives.workspace_medication_administration_2_cdm_t(conn, self.job_id)
-      await primitives.workspace_flowsheets_2_cdm_twf(conn, self.job_id)
-      await primitives.workspace_lab_results_2_cdm_twf(conn, self.job_id)
-      await primitives.workspace_lab_results_2_cdm_twf(conn, self.job_id)
+  async def workspace_to_cdm(self, conn):
+    await primitives.insert_new_patients(conn, self.job_id)
+    await primitives.create_job_cdm_twf_table(conn, self.job_id)
+    await primitives.workspace_bedded_patients_2_cdm_s(conn, self.job_id)
+    await primitives.workspace_flowsheets_2_cdm_t(conn, self.job_id)
+    await primitives.workspace_lab_results_2_cdm_t(conn, self.job_id)
+    await primitives.workspace_location_history_2_cdm_t(conn, self.job_id)
+    await primitives.workspace_medication_administration_2_cdm_t(conn, self.job_id)
+    await primitives.workspace_flowsheets_2_cdm_twf(conn, self.job_id)
+    await primitives.workspace_lab_results_2_cdm_twf(conn, self.job_id)
+    await primitives.workspace_lab_results_2_cdm_twf(conn, self.job_id)
