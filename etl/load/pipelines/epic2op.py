@@ -4,6 +4,8 @@ import asyncpg
 import asyncio
 from sqlalchemy import create_engine
 from etl.load.pipelines.derive_main import derive_feature, get_derive_seq
+from etl.load.pipelines.fillin import fillin_pipeline
+
 import os
 
 class Epic2OpLoader:
@@ -28,7 +30,8 @@ class Epic2OpLoader:
     loop.run_until_complete(self.run(db_data))
 
   async def run(self, db_data):
-    self.epic_2_workspace(db_data)
+    print(db_data)
+    await self.epic_2_workspace(db_data)
     await self.workspace_to_cdm()
     await self.calculate_trewscore()
     await self.drop_tables()
@@ -106,7 +109,7 @@ class Epic2OpLoader:
     self.fillin_features = [fid for fid in features_with_intermediates if\
         self.cdm_feature_dict[fid]["is_measured"] and \
         self.cdm_feature_dict[fid]["category"] == "TWF"]
-    self.log.info("The fillin features in online prediction: %s" % fillin_features)
+    self.log.info("The fillin features in online prediction: %s" % self.fillin_features)
 
     # list the derive features for online prediction
     self.derive_features = [fid for fid in features_with_intermediates if\
@@ -125,13 +128,13 @@ class Epic2OpLoader:
   async def workspace_derive(self, conn):
     self.log.info("derive start")
     # get derive order based on the input derive_features
-    derive_feature_list = [self.cdm_feature_dict[fid] for fid in self.derive_features]
-    derive_feature_order = get_derive_seq(derive_feature_list)
+    derive_feature_dict = {fid: self.cdm_feature_dict[fid] for fid in self.derive_features}
+    derive_feature_order = get_derive_seq(derive_feature_dict)
     # derive the features sequentially
     twf_table = 'workspace.%s_cdm_twf' % self.job_id
     for fid in derive_feature_order:
         self.log.info("deriving fid %s" % fid)
-        await derive_feature(cdm_feature_dict[fid], self, twf_table=twf_table)
+        await derive_feature(self.log, cdm_feature_dict[fid], conn, twf_table=twf_table)
     self.log.info("derive completed")
 
   async def workspace_predict(self, conn):

@@ -14,6 +14,11 @@ def last_value_in_window(fid, args):
   recalculate_popmean = args[2]
   dataset_id = args[3]
   model_id = args[4]
-  return '''
-            select last_value_in_window('%s', '%s', %s, %s, %s, %s);
-            ''' % (fid, table, win_h, recalculate_popmean, dataset_id, model_id)
+  if dataset_id is not None:
+    return '''
+              select last_value_in_window('%s', '%s', %s, %s, %s, %s);
+              ''' % (fid, table, win_h, recalculate_popmean, dataset_id, model_id)
+  else:
+    return '''
+              select last_value_in_window('%s', '%s', %s, %s);
+              ''' % (fid, table, win_h, recalculate_popmean)

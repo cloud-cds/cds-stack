@@ -10,23 +10,23 @@ import os
 
 job = {
   # 'reset_dataset': {
-  #   # 'remove_pat_enc': False,
+  #   'remove_pat_enc': True,
   #   'remove_data': True,
-  #   # 'start_enc_id': 1
+  #   'start_enc_id': 1
   # },
-  # 'transform': {
-  #   # 'populate_patients': True,
-  #   'populate_measured_features': {
-  #     # 'plan': False,
-  #     # 'fid': 'catheter',
-  #   },
-  # },
+  'transform': {
+    # 'populate_patients': True,
+    'populate_measured_features': {
+      # 'plan': False,
+      'fid': 'propofol_dose',
+    },
+  },
   # 'fillin': {
   #   'recalculate_popmean': False,
   # },
-  'derive': {
-    # 'fid': 'cardio_sofa'
-  },
+  # 'derive': {
+  #   # 'fid': 'cardio_sofa'
+  # },
 }
 
 config_args = {
