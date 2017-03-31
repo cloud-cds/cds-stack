@@ -734,7 +734,10 @@ def convert_propofol_to_mg(entries, log):
                     _convert_propofol_to_mg(entry, results, start_tsp, \
                         start_rate, start_action, False, log)
                 start_tsp = tsp
-                start_rate = float(entry['INFUSION_RATE']) # the unit is mL/hr
+                if entry['INFUSION_RATE'] is not None:
+                    start_rate = float(entry['INFUSION_RATE']) # the unit is mL/hr
+                else:
+                    start_rate = float(dose)
                 start_action = action
             elif action in STOPPED_ACTIONS:
                 if start_tsp:
