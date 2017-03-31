@@ -27,7 +27,8 @@ class Extractor:
         self.from_date = (dt.datetime.now() + dt.timedelta(days=1)).strftime('%Y-%m-%d')
         self.headers = {
             'client_id': jhapi_id,
-            'client_secret': jhapi_secret
+            'client_secret': jhapi_secret,
+            'User-Agent': ''
         }
 
     def make_requests(self, endpoint, payloads, http_method='GET'):
