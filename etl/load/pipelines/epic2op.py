@@ -133,7 +133,7 @@ class Epic2OpLoader:
     twf_table = 'workspace.%s_cdm_twf' % self.job_id
     for fid in derive_feature_order:
         self.log.info("deriving fid %s" % fid)
-        await derive_feature(self.log, cdm_feature_dict[fid], conn, twf_table=twf_table)
+        await derive_feature(self.log, self.cdm_feature_dict[fid], conn, twf_table=twf_table)
     self.log.info("derive completed")
 
   async def workspace_predict(self, conn):
@@ -224,18 +224,18 @@ class Epic2OpLoader:
     twf_set_columns = ",".join([
         "%(col)s = excluded.%(col)s" % {'col': colname} for colname in colnames
     ])
-    self.log.info(submit_twf % {'job': job_id, 'set_columns': twf_set_columns} )
-    await conn.execute(submit_twf % {'job': job_id, 'set_columns': twf_set_columns} )
-    records = await conn.fetch(select_all_colnames % {'table': '%s_trews' % job_id})
+    self.log.info(submit_twf % {'job': self.job_id, 'set_columns': twf_set_columns} )
+    await conn.execute(submit_twf % {'job': self.job_id, 'set_columns': twf_set_columns} )
+    records = await conn.fetch(select_all_colnames % {'table': '%s_trews' % self.job_id})
     colnames = [row[0] for row in records if row[0] != 'enc_id' and row[0] != 'tsp']
     trews_set_columns = ",".join([
         "%(col)s = excluded.%(col)s" % {'col': colname} for colname in colnames
     ])
     trews_columns = ",".join(colnames)
 
-    self.log.info(submit_trews % {'job': job_id, 'set_columns': trews_set_columns, 'columns': trews_columns} )
-    await conn.execute(submit_trews % {'job': job_id, 'set_columns': trews_set_columns, 'columns': trews_columns} )
-    self.log.info("%s: results submitted" % job_id)
+    self.log.info(submit_trews % {'job': self.job_id, 'set_columns': trews_set_columns, 'columns': trews_columns} )
+    await conn.execute(submit_trews % {'job': self.job_id, 'set_columns': trews_set_columns, 'columns': trews_columns} )
+    self.log.info("%s: results submitted" % self.job_id)
     self.log.info("submit completed")
 
   async def drop_tables(self, conn, days_offset=2):
