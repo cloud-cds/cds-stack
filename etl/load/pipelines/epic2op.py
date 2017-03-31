@@ -30,8 +30,7 @@ class Epic2OpLoader:
     loop.run_until_complete(self.run(db_data))
 
   async def run(self, db_data):
-    print(db_data)
-    await self.epic_2_workspace(db_data)
+    self.epic_2_workspace(db_data)
     await self.workspace_to_cdm()
     await self.calculate_trewscore()
     await self.drop_tables()

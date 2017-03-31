@@ -130,7 +130,6 @@ class Extractor:
         procedure_types = []
         for _, ids in procedure_ids:
             procedure_types += ({'Type': 'INTERNAL', 'ID': str(x)} for x in ids)
-        print(procedure_types)
         payloads = [{
           'Id':                   pat['pat_id'],
           'IdType':               'patient',
