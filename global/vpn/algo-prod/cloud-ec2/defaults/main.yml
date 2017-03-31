@@ -1,0 +1,44 @@
+---
+ec2_vpc_net:
+  cidr_block: 10.0.0.0/16
+  vpn_subnet_cidr: 10.0.204.0/24
+  name: "OpsDX V1"
+  stack: "Production"
+  k8s_cluster: "cluster.prod.opsdx.io"
+  k8s_utility1_subnet:
+    cidr_block: 10.0.0.0/22
+    name: "utility-us-east-1a.cluster.prod.opsdx.io"
+  k8s_utility2_subnet:
+    cidr_block: 10.0.4.0/22
+    name: "utility-us-east-1c.cluster.prod.opsdx.io"
+  k8s_utility3_subnet:
+    cidr_block: 10.0.8.0/22
+    name: "utility-us-east-1d.cluster.prod.opsdx.io"
+  k8s_az1_subnet:
+    cidr_block: 10.0.32.0/19
+    name: "us-east-1a.cluster.prod.opsdx.io"
+  k8s_az2_subnet:
+    cidr_block: 10.0.64.0/19
+    name: "us-east-1c.cluster.prod.opsdx.io"
+  k8s_az3_subnet:
+    cidr_block: 10.0.96.0/19
+    name: "us-east-1d.cluster.prod.opsdx.io"
+  db_subnet1:
+    cidr_block: 10.0.128.0/24
+    component: "DB SN1"
+  db_subnet2:
+    cidr_block: 10.0.129.0/24
+    component: "DB SN2"
+  private_utility_subnet:
+    cidr_block: 10.0.200.0/24
+    component: "Private Utility Subnet"
+  public_utility_subnet:
+    cidr_block: 10.0.201.0/24
+    component: "Public Utility Subnet"
+  #TODO:
+  #lambda_subnet1:
+  #  cidr_block: 10.0.202.0/24
+  #  component: "Lambda Subnet 1"
+  #lambda_subnet2:
+  #  cidr_block: 10.0.203.0/24
+  #  component: "Lambda Subnet 2"
