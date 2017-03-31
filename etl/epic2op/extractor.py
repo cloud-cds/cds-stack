@@ -43,7 +43,7 @@ class Extractor:
                 async with session.request(**setting) as response:
                     if response.status != 200:
                         logging.error("  Status={}\tMessage={}".format(
-                            response.status, await response.json()
+                            response.status, response.text
                         ))
                         return None
                     return await response.json()
