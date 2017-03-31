@@ -1,3 +1,6 @@
+import asyncio
+import asyncpg
+
 class Criteria:
   def __init__(self, config):
     self.config = config
@@ -18,17 +21,18 @@ class Criteria:
     loop.run_until_complete(self.calculate())
 
   async def calculate(self):
+    if self.pool is None:
+      await self.async_init()
     async with self.pool.acquire() as conn:
-      self.log.info("start garbage_collection")
-      self.garbage_collection(conn)
-      self.log.info("completed garbage_collection")
-      self.log.info("advancing criteria snapshot")
-      self.advance_criteria_snapshot(conn)
-      self.log.info("advanced criteria snapshot")
+      await self.garbage_collection(conn)
+      await self.advance_criteria_snapshot(conn)
 
   async def garbage_collection(self, conn):
+      self.log.info("advancing criteria snapshot")
       await conn.execute("select garbage_collection();")
-
+      self.log.info("advanced criteria snapshot")
 
   async def advance_criteria_snapshot(self, conn):
+      self.log.info("start garbage_collection")
       await conn.execute("select advance_criteria_snapshot();")
+      self.log.info("completed garbage_collection")

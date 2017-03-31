@@ -35,7 +35,6 @@ class Epic2OpLoader:
     async with self.pool.acquire() as conn:
       self.epic_2_workspace(db_data)
       await self.workspace_to_cdm(conn)
-      await self.calculate_trewscore(conn)
       await self.load_online_prediction_parameters(conn)
       await self.workspace_fillin(conn)
       await self.workspace_derive(conn)
@@ -237,7 +236,7 @@ class Epic2OpLoader:
     self.log.info("submit completed")
 
   async def drop_tables(self, conn, days_offset=2):
-    day = (datetime.datetime.now() - datetime.timedelta(days=days_offset)).strftime('%m%d')
+    day = (dt.datetime.now() - dt.timedelta(days=days_offset)).strftime('%m%d')
     self.log.info("cleaning data in workspace for day:%s" % day)
     await conn.execute("select drop_tables_pattern('workspace', '%%_%s');" % day)
     self.log.info("cleaned data in workspace for day:%s" % day)
