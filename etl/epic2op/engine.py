@@ -10,6 +10,7 @@ import dateparser
 import logging
 import asyncpg
 import ujson as json
+import boto3
 
 class Engine():
     def __init__(self, hospital=None, lookback_hours=None):
