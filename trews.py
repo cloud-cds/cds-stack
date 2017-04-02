@@ -15,10 +15,6 @@ import json
 import boto3
 import watchtower
 from gevent import monkey
-# from prometheus_client import start_http_server, Summary, Gauge, Counter
-
-
-# api_request_counts = Counter('api_request_counts', 'Number of requests per seconds')
 
 monkey.patch_all()
 
