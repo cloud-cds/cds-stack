@@ -89,8 +89,9 @@ class Extractor:
   async def populate_patients(self, conn):
     sql = '''
     insert into pat_enc (dataset_id, visit_id, pat_id)
-    SELECT %(dataset_id)s, "CSN_ID" visit_id, "pat_id"
-    FROM "Demographics"
+    SELECT %(dataset_id)s, demo."CSN_ID" visit_id, demo."pat_id"
+    FROM "Demographics" demo left join pat_enc pe on demo."CSN_ID" = pe.visit_id
+    where pe.visit_id is null
     ''' % {'dataset_id': self.config.dataset_id}
     self.log.debug("ETL populate_patients sql: " + sql)
     result = await conn.execute(sql)
