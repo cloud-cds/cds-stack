@@ -126,7 +126,7 @@ Assets:
 - 19d49f7b2b99cd2493d5ae0ace896c64e289ccbb@https://storage.googleapis.com/kubernetes-release/network-plugins/cni-07a8a28637e97b22eb8dfe710eeae1344f69d16e.tar.gz
 ClusterName: cluster.dev.opsdx.io
 ConfigBase: s3://opsdx-kops-dev/cluster.dev.opsdx.io
-InstanceGroupName: tensorflow
+InstanceGroupName: master-us-east-1c
 Tags:
 - _automatic_upgrades
 - _aws
@@ -134,6 +134,7 @@ Tags:
 - _cni_host_local
 - _cni_loopback
 - _cni_ptp
+- _kubernetes_master
 - _kubernetes_pool
 - _networking_cni
 - _protokube
