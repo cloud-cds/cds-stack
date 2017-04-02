@@ -304,7 +304,7 @@ resource "aws_eip" "us-east-1d-cluster-dev-opsdx-io" {
 }
 
 resource "aws_elb" "api-cluster-dev-opsdx-io" {
-  name = "api-cluster"
+  name = "api-dev-cluster"
 
   listener = {
     instance_port     = 443
