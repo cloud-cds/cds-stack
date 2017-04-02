@@ -21,6 +21,13 @@ import re
 import calendar
 import os
 
+prometheus = False
+prometheus_timeout = None
+if 'prometheus' in os.environ and int(os.environ['prometheus']) = 1:
+    prometheus = True
+    if 'prometheus_timeout' in os.environ:
+        prometheus_timeout = int(os.environ['prometheus_timeout'])
+
 from prometheus_client import Histogram, Counter
 from prometheus_client import CollectorRegistry, push_to_gateway
 prom_job = os.environ['db_name'].replace("_", "-")
@@ -514,10 +521,11 @@ class TREWSAPI(object):
                 else:
                     resp.status = falcon.HTTP_400
                     resp.body = json.dumps({'message': 'No patient found'})
-        try:
-            push_to_gateway(prom_gateway_url, job=prom_job, registry=registry)
-        except Exception as ex:
-            logging.info(json.dumps(ex, default=lambda o: o.__dict__))
+        if prometheus:
+            try:
+                push_to_gateway(prom_gateway_url, job=prom_job, registry=registry, timeout=prometheus_timeout)
+            except Exception as ex:
+                logger.info(json.dumps(ex, default=lambda o: o.__dict__))
 
 
 
