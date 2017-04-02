@@ -23,7 +23,7 @@ import os
 
 prometheus = False
 prometheus_timeout = None
-if 'prometheus' in os.environ and int(os.environ['prometheus']) = 1:
+if 'prometheus' in os.environ and int(os.environ['prometheus']) == 1:
     prometheus = True
     if 'prometheus_timeout' in os.environ:
         prometheus_timeout = int(os.environ['prometheus_timeout'])
