@@ -4,6 +4,8 @@ import asyncpg
 import asyncio
 from sqlalchemy import create_engine
 from etl.load.pipelines.derive_main import derive_feature, get_derive_seq
+from etl.load.pipelines.fillin import fillin_pipeline
+
 import os
 
 class Epic2OpLoader:
@@ -28,25 +30,22 @@ class Epic2OpLoader:
     loop.run_until_complete(self.run(db_data))
 
   async def run(self, db_data):
-    self.epic_2_workspace(db_data)
-    await self.workspace_to_cdm()
-    await self.calculate_trewscore()
-    await self.drop_tables()
-
-
-
-  async def calculate_trewscore(self):
+    if self.pool is None:
+      await self.async_init()
     async with self.pool.acquire() as conn:
+      self.epic_2_workspace(db_data)
+      await self.workspace_to_cdm(conn)
       await self.load_online_prediction_parameters(conn)
       await self.workspace_fillin(conn)
       await self.workspace_derive(conn)
       await self.workspace_predict(conn)
       await self.workspace_submit(conn)
       await self.workspace_to_criteria_meas(conn)
+      await self.drop_tables(conn)
 
 
   async def get_cdm_feature_dict(self, conn):
-    sql = "select * from cdm_feature where dataset_id = %s" % self.config.dataset_id
+    sql = "select * from cdm_feature"
     cdm_feature = await conn.fetch(sql)
     cdm_feature_dict = {f['fid']:f for f in cdm_feature}
     return cdm_feature_dict
@@ -64,6 +63,21 @@ class Epic2OpLoader:
               output.add(fid)
               feature_set.remove(fid)
       return output
+
+  def _get_feature_description_report(self, features, dictionary):
+    num = len(features)
+    features_description = {}
+    for fid in features:
+      description = dictionary[fid]['description'].lower()
+      if description in features_description:
+        features_description[description].append(fid)
+      else:
+        features_description[description] = [fid]
+
+    report = "All features: %s \n Total number of features:%s\n" % (features, num)
+    for desc in features_description:
+      report += desc + ":\n" + " ".join(features_description[desc]) + "\n"
+    return report
 
   async def load_online_prediction_parameters(self, conn):
     self.log.info("load online_prediction_features")
@@ -86,19 +100,19 @@ class Epic2OpLoader:
     measured_features = [fid for fid in features_with_intermediates if\
         self.cdm_feature_dict[fid]["is_measured"] ]
     self.log.info("The measured features in online prediction: %s" \
-        % self._get_feature_description_report(measured_features, cdm_feature_dict))
+        % self._get_feature_description_report(measured_features, self.cdm_feature_dict))
 
     self.fillin_features = [fid for fid in features_with_intermediates if\
         self.cdm_feature_dict[fid]["is_measured"] and \
         self.cdm_feature_dict[fid]["category"] == "TWF"]
-    self.log.info("The fillin features in online prediction: %s" % fillin_features)
+    self.log.info("The fillin features in online prediction: %s" % self.fillin_features)
 
     # list the derive features for online prediction
     self.derive_features = [fid for fid in features_with_intermediates if\
         not self.cdm_feature_dict[fid]["is_measured"]]
     self.log.info("The derive features in online prediction: %s" % self.derive_features)
 
-  def workspace_fillin(self, conn):
+  async def workspace_fillin(self, conn):
     self.log.info("start fillin pipeline")
     fillin_table = 'workspace.%s_cdm_twf' % self.job_id
     for fid in self.fillin_features:
@@ -107,19 +121,19 @@ class Epic2OpLoader:
         await fillin_pipeline(self.log, conn, feature, recalculate_popmean=False, table=fillin_table)
     self.log.info("fillin completed")
 
-  def workspace_derive(self, conn):
+  async def workspace_derive(self, conn):
     self.log.info("derive start")
     # get derive order based on the input derive_features
-    derive_feature_list = [self.cdm_feature_dict[fid] for fid in self.derive_features]
-    derive_feature_order = get_derive_seq(derive_feature_list)
+    derive_feature_dict = {fid: self.cdm_feature_dict[fid] for fid in self.derive_features}
+    derive_feature_order = get_derive_seq(derive_feature_dict)
     # derive the features sequentially
     twf_table = 'workspace.%s_cdm_twf' % self.job_id
     for fid in derive_feature_order:
         self.log.info("deriving fid %s" % fid)
-        await derive_feature(cdm_feature_dict[fid], self, twf_table=twf_table)
+        await derive_feature(self.log, self.cdm_feature_dict[fid], conn, twf_table=twf_table)
     self.log.info("derive completed")
 
-  def workspace_predict(self, conn):
+  async def workspace_predict(self, conn):
     self.log.info("predict start")
     num_feature = len(self.feature_weights)
     twf_features = [fid for fid in self.feature_weights \
@@ -171,7 +185,7 @@ class Epic2OpLoader:
     self.log.info("predict completed")
 
 
-  def workspace_submit(self, conn):
+  async def workspace_submit(self, conn):
     # submit to cdm_twf
     # submit to trews
     self.log.info("submit start")
@@ -207,34 +221,34 @@ class Epic2OpLoader:
     twf_set_columns = ",".join([
         "%(col)s = excluded.%(col)s" % {'col': colname} for colname in colnames
     ])
-    self.log.info(submit_twf % {'job': job_id, 'set_columns': twf_set_columns} )
-    await conn.execute(submit_twf % {'job': job_id, 'set_columns': twf_set_columns} )
-    records = await conn.fetch(select_all_colnames % {'table': '%s_trews' % job_id})
+    self.log.info(submit_twf % {'job': self.job_id, 'set_columns': twf_set_columns} )
+    await conn.execute(submit_twf % {'job': self.job_id, 'set_columns': twf_set_columns} )
+    records = await conn.fetch(select_all_colnames % {'table': '%s_trews' % self.job_id})
     colnames = [row[0] for row in records if row[0] != 'enc_id' and row[0] != 'tsp']
     trews_set_columns = ",".join([
         "%(col)s = excluded.%(col)s" % {'col': colname} for colname in colnames
     ])
     trews_columns = ",".join(colnames)
 
-    self.log.info(submit_trews % {'job': job_id, 'set_columns': trews_set_columns, 'columns': trews_columns} )
-    await conn.execute(submit_trews % {'job': job_id, 'set_columns': trews_set_columns, 'columns': trews_columns} )
-    self.log.info("%s: results submitted" % job_id)
+    self.log.info(submit_trews % {'job': self.job_id, 'set_columns': trews_set_columns, 'columns': trews_columns} )
+    await conn.execute(submit_trews % {'job': self.job_id, 'set_columns': trews_set_columns, 'columns': trews_columns} )
+    self.log.info("%s: results submitted" % self.job_id)
     self.log.info("submit completed")
 
-  def drop_tables(self, conn, days_offset=2):
-    day = (datetime.datetime.now() - datetime.timedelta(days=days_offset)).strftime('%m%d')
+  async def drop_tables(self, conn, days_offset=2):
+    day = (dt.datetime.now() - dt.timedelta(days=days_offset)).strftime('%m%d')
     self.log.info("cleaning data in workspace for day:%s" % day)
     await conn.execute("select drop_tables_pattern('workspace', '%%_%s');" % day)
     self.log.info("cleaned data in workspace for day:%s" % day)
 
-  def get_notifications_for_epic(self):
+  async def get_notifications_for_epic(self):
     async with self.pool.acquire() as conn:
       self.log.info("getting notifications to push to epic")
       return await conn.fetch("""
         select * from get_notifications_for_epic(null)
         """)
 
-  async def workspace_to_criteria_meas(conn):
+  async def workspace_to_criteria_meas(self, conn):
     # insert all results to the measurement table
     upsert_meas_sql = \
     """INSERT INTO criteria_meas (pat_id, tsp, fid, value, update_date)
@@ -281,17 +295,14 @@ class Epic2OpLoader:
     for df_name, df in db_data.items():
       primitives.data_2_workspace(engine, self.job_id, df_name, df)
 
-  async def workspace_to_cdm(self):
-    if self.pool is None:
-      await self.async_init()
-    async with self.pool.acquire() as conn:
-      await primitives.insert_new_patients(conn, self.job_id)
-      await primitives.create_job_cdm_twf_table(conn, self.job_id)
-      await primitives.workspace_bedded_patients_2_cdm_s(conn, self.job_id)
-      await primitives.workspace_flowsheets_2_cdm_t(conn, self.job_id)
-      await primitives.workspace_lab_results_2_cdm_t(conn, self.job_id)
-      await primitives.workspace_location_history_2_cdm_t(conn, self.job_id)
-      await primitives.workspace_medication_administration_2_cdm_t(conn, self.job_id)
-      await primitives.workspace_flowsheets_2_cdm_twf(conn, self.job_id)
-      await primitives.workspace_lab_results_2_cdm_twf(conn, self.job_id)
-      await primitives.workspace_lab_results_2_cdm_twf(conn, self.job_id)
+  async def workspace_to_cdm(self, conn):
+    await primitives.insert_new_patients(conn, self.job_id)
+    await primitives.create_job_cdm_twf_table(conn, self.job_id)
+    await primitives.workspace_bedded_patients_2_cdm_s(conn, self.job_id)
+    await primitives.workspace_flowsheets_2_cdm_t(conn, self.job_id)
+    await primitives.workspace_lab_results_2_cdm_t(conn, self.job_id)
+    await primitives.workspace_location_history_2_cdm_t(conn, self.job_id)
+    await primitives.workspace_medication_administration_2_cdm_t(conn, self.job_id)
+    await primitives.workspace_flowsheets_2_cdm_twf(conn, self.job_id)
+    await primitives.workspace_lab_results_2_cdm_twf(conn, self.job_id)
+    await primitives.workspace_lab_results_2_cdm_twf(conn, self.job_id)

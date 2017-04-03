@@ -10,26 +10,30 @@ import os
 
 job = {
   'reset_dataset': {
-    'remove_data': True
+    'remove_pat_enc': True,
+    'remove_data': True,
     'start_enc_id': 1
   },
   'transform': {
     'populate_patients': True,
     'populate_measured_features': {
-      'plan': False,
-  #     #'fid': 'heart_rate',
-    }
+      # 'plan': False,
+      # 'fid': 'propofol_dose',
+    },
   },
   'fillin': {
     'recalculate_popmean': False,
   },
-  'derive': {},
+  'derive': {
+    # 'fid': 'cardio_sofa'
+  },
 }
 
 config_args = {
   'dataset_id': 1,
   'debug': True,
-  'db_name': 'opsdx_dw_test',
+  'db_name': 'opsdx_prod_dw',
+  'db_host': 'dw.prod.opsdx.io',
   'conf': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'conf'),
 }
 

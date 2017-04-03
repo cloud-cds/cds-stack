@@ -27,7 +27,8 @@ class Extractor:
         self.from_date = (dt.datetime.now() + dt.timedelta(days=1)).strftime('%Y-%m-%d')
         self.headers = {
             'client_id': jhapi_id,
-            'client_secret': jhapi_secret
+            'client_secret': jhapi_secret,
+            'User-Agent': ''
         }
 
     def make_requests(self, endpoint, payloads, http_method='GET'):
@@ -42,7 +43,7 @@ class Extractor:
                 async with session.request(**setting) as response:
                     if response.status != 200:
                         logging.error("  Status={}\tMessage={}".format(
-                            response.status, await response.json()
+                            response.status, response.text
                         ))
                         return None
                     return await response.json()
@@ -129,7 +130,6 @@ class Extractor:
         procedure_types = []
         for _, ids in procedure_ids:
             procedure_types += ({'Type': 'INTERNAL', 'ID': str(x)} for x in ids)
-        print(procedure_types)
         payloads = [{
           'Id':                   pat['pat_id'],
           'IdType':               'patient',

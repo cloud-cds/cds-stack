@@ -24,7 +24,7 @@ class Config:
     def set_log(self, log):
         self.log = log
 
-    def __init__(self, log='Dashan', debug=False, logfile=None, conf=None, db_name=None, dataset_id=None):
+    def __init__(self, log='Dashan', debug=False, logfile=None, conf=None, db_name=None, db_host=None, dataset_id=None):
         if conf:
             self.CONF = conf
             self.LOG_CONF = os.path.join(self.CONF, 'logging.conf')
@@ -55,6 +55,10 @@ class Config:
             self.db_name = db_name
         else:
             self.db_name = os.environ['db_name']
+        if db_host:
+            self.db_host = db_host
+        else:
+            self.db_host = os.environ['db_host']
         self.log.info("current database: {} at {}".format(self.db_name, self.db_host))
 
     def get_db_conn_string(self):
