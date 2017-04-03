@@ -1,12 +1,12 @@
 ---
 resources:
-- name: dashan-etl-repo
+- name: dashan-etl
   type: git
   source:
-    branch: master
+    branch: mpeven/ci
     uri: https://github.com/dashan-emr/dashan-etl.git
     private_key: {{github-private-key}}
-- name: dashan-db-repo
+- name: dashan-db
   type: git
   source:
     branch: master
@@ -15,30 +15,44 @@ resources:
 - name: dashan-docker-image
   type: docker-image
   source:
-    repository: {{}}
+    repository: {{aws-repository-uri}}
     aws_access_key_id: {{aws-access-key-id}}
     aws_secret_access_key: {{aws-secret-access-key}}
 
 jobs:
-- name: job-build-docker-image
-  public: true
+- name: job-test
   serial: true
-  plan:
-  - get: dashan-etl-repo
-  - get: dashan-db-repo
-  - put: dashan-docker-image
-    params:
-      build: dashan-etl/ci/docker
-- name: job-pull-docker-image
   public: true
-  serial: true
   plan:
-  - get: dashan-docker-image
-- name: job-run-tests
-  public: true
-  serial: true
-  plan:
-  - get: dashan-etl
+  - get: every-1m
     trigger: true
-  - task: task-run-tests
+  - task: run-tests
     file: dashan-etl/ci/task_run_tests.yml
+    params:
+      AWS_REPO: {{aws-repository-uri}}
+      AWS_ID: {{aws-access-key-id}}
+      AWS_KEY: {{aws-secret-access-key}}
+
+
+# - name: job-build-docker-image
+#   public: true
+#   serial: true
+#   plan:
+#   - get: dashan-etl-repo
+#   - get: dashan-db-repo
+#   - put: dashan-docker-image
+#     params:
+#       build: dashan-etl/ci/docker
+# - name: job-pull-docker-image
+#   public: true
+#   serial: true
+#   plan:
+#   - get: dashan-docker-image
+# - name: job-run-tests
+#   public: true
+#   serial: true
+#   plan:
+#   - get: dashan-etl
+#     trigger: true
+#   - task: task-run-tests
+#     file: dashan-etl/ci/task_run_tests.yml

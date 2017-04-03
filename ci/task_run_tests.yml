@@ -3,14 +3,14 @@ platform: linux
 
 image_resource:
   type: docker-image
-    type: docker-image
-    source:
-      repository: {{}}
-      aws_access_key_id: {{aws-access-key-id}}
-      aws_secret_access_key: {{aws-secret-access-key}}
+  source:
+    AWS_REPO:
+    AWS_ID:
+    AWS_KEY:
+    tag: "latest"
 
 inputs:
 - name: dashan-etl
 
 run:
-  path: ./dashan-etl/task_run_tests.sh
+  path: dashan-etl/ci/dummy-task.sh
