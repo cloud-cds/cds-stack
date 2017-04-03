@@ -1,14 +1,6 @@
 ---
 platform: linux
 
-image_resource:
-  type: docker-image
-  source:
-    AWS_REPO:
-    AWS_ID:
-    AWS_KEY:
-    IMAGE_TAG:
-
 inputs:
 - name: dashan-etl-pr
 

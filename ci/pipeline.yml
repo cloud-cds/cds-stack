@@ -13,39 +13,47 @@ resources:
     uri: git@github.com:dashan-emr/dashan-etl.git
     access_token: {{github-access-token}}
     private_key: {{github-private-key}}
+- name: dashan-etl-repo
+  type: git
+  source:
+    branch: master
+    uri: https://github.com/dashan-emr/dashan-etl.git
+    access_token: {{github-access-token}}
+    private_key: {{github-private-key}}
+- name: dashan-db-repo
+  type: git
+  source:
+    branch: master
+    uri: https://github.com/dashan-emr/dashan-db.git
+    access_token: {{github-access-token}}
+    private_key: {{github-private-key}}
+- name: dashan-docker-image
+  type: docker-image
+  source:
+    repository: {{aws-repository-uri}}
+    aws_access_key_id: {{aws-access-key-id}}
+    aws_secret_access_key: {{aws-secret-access-key}}
+    tag: "latest"
 # - name: 1m
 #   type: time
 #   source: {interval: 1m}
-# - name: dashan-db
-#   type: git
-#   source:
-#     branch: master
-#     uri: https://github.com/dashan-emr/dashan-db.git
-#     private_key: {{github-private-key}}
-# - name: dashan-docker-image
-#   type: docker-image
-#   source:
-#     repository: {{aws-repository-uri}}
-#     aws_access_key_id: {{aws-access-key-id}}
-#     aws_secret_access_key: {{aws-secret-access-key}}
-
 
 jobs:
-- name: job-test-pr
+# Test commits to a pull request
+- name: test-pull-request
   public: true
+  serial: true
   plan:
   - get: dashan-etl-pr
+    trigger: true
+  - get: dashan-docker-image
   - put: dashan-etl-pr
     params:
       path: dashan-etl-pr
       status: pending
   - task: run-tests
+    image: dashan-docker-image
     file: dashan-etl-pr/ci/tests.yml
-    params:
-      AWS_REPO: {{aws-repository-uri}}
-      AWS_ID: {{aws-access-key-id}}
-      AWS_KEY: {{aws-secret-access-key}}
-      IMAGE_TAG: "0.2.3"
     on_success:
       put: dashan-etl-pr
       params:
@@ -56,49 +64,15 @@ jobs:
       params:
         path: dashan-etl-pr
         status: failure
-
-# jobs:
-# - name: job-test
-#   public: true
-#   plan:
-#   # - aggregate:
-#   #   - get: 1m
-#   #     trigger: true
-#   - get: dashan-etl
-#     trigger: false
-#   - task: run-tests
-#     config:
-#       platform: linux
-#       image_resource:
-#         type: docker-image
-#         source: {repository: busybox}
-#           # repository: {{aws-repository-uri}}
-#           # aws_access_key_id: {{aws-access-key-id}}
-#           # aws_secret_access_key: {{aws-secret-access-key}}
-#           # tag: "latest"
-#         run:
-#           # path: dashan-etl/ci/dummy-task.sh
-
-
-# - name: job-build-docker-image
-#   public: true
-#   serial: true
-#   plan:
-#   - get: dashan-etl-repo
-#   - get: dashan-db-repo
-#   - put: dashan-docker-image
-#     params:
-#       build: dashan-etl/ci/docker
-# - name: job-pull-docker-image
-#   public: true
-#   serial: true
-#   plan:
-#   - get: dashan-docker-image
-# - name: job-run-tests
-#   public: true
-#   serial: true
-#   plan:
-#   - get: dashan-etl
-#     trigger: true
-#   - task: task-run-tests
-#     file: dashan-etl/ci/task_run_tests.yml
+# Build a new docker image on changes to master
+- name: build-new-docker-image
+  public: true
+  serial: true
+  plan:
+  - get: dashan-etl-repo
+    trigger: true
+  - get: dashan-db-repo
+    trigger: true
+  - put: dashan-docker-image
+    params:
+      build: dashan-etl-repo/
