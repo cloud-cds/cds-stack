@@ -36,9 +36,13 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: trews-rest-api
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.0.20
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.0.22
         ports:
         - containerPort: 8000
+        command:
+        - sh
+        - -c
+        - gunicorn -b localhost:8000 -t 90 trews:app
         env:
         - name: db_host
           value: "db.prod.opsdx.io"
@@ -88,7 +92,11 @@ spec:
         - name: cloudwatch_log_group
           value: "opsdx-web-logs-prod"
         - name: logging
-          value: "1"
+          value: "0"
+        - name: prometheus
+          value: "0"
+        - name: prometheus_timeout
+          value: "10"
       volumes:
         - name: config-volume
           configMap:

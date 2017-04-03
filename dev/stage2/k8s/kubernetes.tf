@@ -1,3 +1,27 @@
+output "cluster_name" {
+  value = "cluster.dev.opsdx.io"
+}
+
+output "master_security_group_ids" {
+  value = ["${aws_security_group.masters-cluster-dev-opsdx-io.id}"]
+}
+
+output "node_security_group_ids" {
+  value = ["${aws_security_group.nodes-cluster-dev-opsdx-io.id}"]
+}
+
+output "node_subnet_ids" {
+  value = ["${aws_subnet.us-east-1a-cluster-dev-opsdx-io.id}", "${aws_subnet.us-east-1c-cluster-dev-opsdx-io.id}", "${aws_subnet.us-east-1d-cluster-dev-opsdx-io.id}"]
+}
+
+output "region" {
+  value = "us-east-1"
+}
+
+output "vpc_id" {
+  value = "vpc-6fd4b409"
+}
+
 provider "aws" {
   region = "us-east-1"
 }
@@ -207,6 +231,120 @@ resource "aws_autoscaling_group" "tensorflow-nodes-cluster-dev-opsdx-io" {
   }
 }
 
+resource "aws_autoscaling_group" "tensorflow-nodes2-cluster-dev-opsdx-io" {
+  name                 = "tensorflow-nodes2.cluster.dev.opsdx.io"
+  launch_configuration = "${aws_launch_configuration.tensorflow-nodes2-cluster-dev-opsdx-io.id}"
+  max_size             = 33
+  min_size             = 0
+  vpc_zone_identifier  = ["${aws_subnet.us-east-1a-cluster-dev-opsdx-io.id}", "${aws_subnet.us-east-1c-cluster-dev-opsdx-io.id}", "${aws_subnet.us-east-1d-cluster-dev-opsdx-io.id}"]
+
+  tag = {
+    key                 = "Component"
+    value               = "Tensorflow Node"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "KubernetesCluster"
+    value               = "cluster.dev.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Name"
+    value               = "tensorflow-nodes2.cluster.dev.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Stack"
+    value               = "Development"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "k8s.io/role/node"
+    value               = "1"
+    propagate_at_launch = true
+  }
+}
+
+resource "aws_autoscaling_group" "tensorflow-nodes3-cluster-dev-opsdx-io" {
+  name                 = "tensorflow-nodes3.cluster.dev.opsdx.io"
+  launch_configuration = "${aws_launch_configuration.tensorflow-nodes3-cluster-dev-opsdx-io.id}"
+  max_size             = 33
+  min_size             = 0
+  vpc_zone_identifier  = ["${aws_subnet.us-east-1a-cluster-dev-opsdx-io.id}", "${aws_subnet.us-east-1c-cluster-dev-opsdx-io.id}", "${aws_subnet.us-east-1d-cluster-dev-opsdx-io.id}"]
+
+  tag = {
+    key                 = "Component"
+    value               = "Tensorflow Node"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "KubernetesCluster"
+    value               = "cluster.dev.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Name"
+    value               = "tensorflow-nodes3.cluster.dev.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Stack"
+    value               = "Development"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "k8s.io/role/node"
+    value               = "1"
+    propagate_at_launch = true
+  }
+}
+
+resource "aws_autoscaling_group" "tensorflow-nodes4-cluster-dev-opsdx-io" {
+  name                 = "tensorflow-nodes4.cluster.dev.opsdx.io"
+  launch_configuration = "${aws_launch_configuration.tensorflow-nodes4-cluster-dev-opsdx-io.id}"
+  max_size             = 33
+  min_size             = 0
+  vpc_zone_identifier  = ["${aws_subnet.us-east-1a-cluster-dev-opsdx-io.id}", "${aws_subnet.us-east-1c-cluster-dev-opsdx-io.id}", "${aws_subnet.us-east-1d-cluster-dev-opsdx-io.id}"]
+
+  tag = {
+    key                 = "Component"
+    value               = "Tensorflow Node"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "KubernetesCluster"
+    value               = "cluster.dev.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Name"
+    value               = "tensorflow-nodes4.cluster.dev.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Stack"
+    value               = "Development"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "k8s.io/role/node"
+    value               = "1"
+    propagate_at_launch = true
+  }
+}
+
 resource "aws_ebs_volume" "a-etcd-events-cluster-dev-opsdx-io" {
   availability_zone = "us-east-1a"
   size              = 20
@@ -304,7 +442,7 @@ resource "aws_eip" "us-east-1d-cluster-dev-opsdx-io" {
 }
 
 resource "aws_elb" "api-cluster-dev-opsdx-io" {
-  name = "api-dev-cluster"
+  name = "api-cluster-dev-opsdx-io-8np59q"
 
   listener = {
     instance_port     = 443
@@ -314,7 +452,7 @@ resource "aws_elb" "api-cluster-dev-opsdx-io" {
   }
 
   security_groups = ["${aws_security_group.api-elb-cluster-dev-opsdx-io.id}"]
-  subnets         = ["${aws_subnet.utility-us-east-1a-cluster-dev-opsdx-io.id}", "${aws_subnet.utility-us-east-1c-cluster-dev-opsdx-io.id}", "${aws_subnet.utility-us-east-1d-cluster-dev-opsdx-io.id}"]
+  subnets         = ["${aws_subnet.utility-us-east-1c-cluster-dev-opsdx-io.id}", "${aws_subnet.utility-us-east-1d-cluster-dev-opsdx-io.id}", "${aws_subnet.utility-us-east-1a-cluster-dev-opsdx-io.id}"]
 
   health_check = {
     target              = "TCP:443"
@@ -323,6 +461,8 @@ resource "aws_elb" "api-cluster-dev-opsdx-io" {
     interval            = 10
     timeout             = 5
   }
+
+  idle_timeout = 300
 
   tags = {
     KubernetesCluster = "cluster.dev.opsdx.io"
@@ -460,6 +600,69 @@ resource "aws_launch_configuration" "tensorflow-nodes-cluster-dev-opsdx-io" {
   security_groups             = ["${aws_security_group.nodes-cluster-dev-opsdx-io.id}"]
   associate_public_ip_address = false
   user_data                   = "${file("${path.module}/data/aws_launch_configuration_tensorflow-nodes.cluster.dev.opsdx.io_user_data")}"
+
+  root_block_device = {
+    volume_type           = "gp2"
+    volume_size           = 20
+    delete_on_termination = true
+  }
+
+  lifecycle = {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_launch_configuration" "tensorflow-nodes2-cluster-dev-opsdx-io" {
+  name_prefix                 = "tensorflow-nodes2.cluster.dev.opsdx.io-"
+  image_id                    = "ami-5f1afc49"
+  instance_type               = "t2.large"
+  key_name                    = "${aws_key_pair.kubernetes-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
+  iam_instance_profile        = "${aws_iam_instance_profile.nodes-cluster-dev-opsdx-io.id}"
+  security_groups             = ["${aws_security_group.nodes-cluster-dev-opsdx-io.id}"]
+  associate_public_ip_address = false
+  user_data                   = "${file("${path.module}/data/aws_launch_configuration_tensorflow-nodes2.cluster.dev.opsdx.io_user_data")}"
+
+  root_block_device = {
+    volume_type           = "gp2"
+    volume_size           = 20
+    delete_on_termination = true
+  }
+
+  lifecycle = {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_launch_configuration" "tensorflow-nodes3-cluster-dev-opsdx-io" {
+  name_prefix                 = "tensorflow-nodes3.cluster.dev.opsdx.io-"
+  image_id                    = "ami-5f1afc49"
+  instance_type               = "t2.medium"
+  key_name                    = "${aws_key_pair.kubernetes-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
+  iam_instance_profile        = "${aws_iam_instance_profile.nodes-cluster-dev-opsdx-io.id}"
+  security_groups             = ["${aws_security_group.nodes-cluster-dev-opsdx-io.id}"]
+  associate_public_ip_address = false
+  user_data                   = "${file("${path.module}/data/aws_launch_configuration_tensorflow-nodes3.cluster.dev.opsdx.io_user_data")}"
+
+  root_block_device = {
+    volume_type           = "gp2"
+    volume_size           = 20
+    delete_on_termination = true
+  }
+
+  lifecycle = {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_launch_configuration" "tensorflow-nodes4-cluster-dev-opsdx-io" {
+  name_prefix                 = "tensorflow-nodes4.cluster.dev.opsdx.io-"
+  image_id                    = "ami-5f1afc49"
+  instance_type               = "t2.medium"
+  key_name                    = "${aws_key_pair.kubernetes-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
+  iam_instance_profile        = "${aws_iam_instance_profile.nodes-cluster-dev-opsdx-io.id}"
+  security_groups             = ["${aws_security_group.nodes-cluster-dev-opsdx-io.id}"]
+  associate_public_ip_address = false
+  user_data                   = "${file("${path.module}/data/aws_launch_configuration_tensorflow-nodes4.cluster.dev.opsdx.io_user_data")}"
 
   root_block_device = {
     volume_type           = "gp2"
@@ -695,48 +898,30 @@ resource "aws_security_group_rule" "node-egress" {
   cidr_blocks       = ["0.0.0.0/0"]
 }
 
-resource "aws_security_group_rule" "node-to-master-tcp-4194" {
+resource "aws_security_group_rule" "node-to-master-tcp-1-4000" {
   type                     = "ingress"
   security_group_id        = "${aws_security_group.masters-cluster-dev-opsdx-io.id}"
   source_security_group_id = "${aws_security_group.nodes-cluster-dev-opsdx-io.id}"
-  from_port                = 4194
-  to_port                  = 4194
+  from_port                = 1
+  to_port                  = 4000
   protocol                 = "tcp"
 }
 
-resource "aws_security_group_rule" "node-to-master-tcp-443" {
+resource "aws_security_group_rule" "node-to-master-tcp-4003-65535" {
   type                     = "ingress"
   security_group_id        = "${aws_security_group.masters-cluster-dev-opsdx-io.id}"
   source_security_group_id = "${aws_security_group.nodes-cluster-dev-opsdx-io.id}"
-  from_port                = 443
-  to_port                  = 443
+  from_port                = 4003
+  to_port                  = 65535
   protocol                 = "tcp"
 }
 
-resource "aws_security_group_rule" "node-to-master-tcp-6783" {
+resource "aws_security_group_rule" "node-to-master-udp-1-65535" {
   type                     = "ingress"
   security_group_id        = "${aws_security_group.masters-cluster-dev-opsdx-io.id}"
   source_security_group_id = "${aws_security_group.nodes-cluster-dev-opsdx-io.id}"
-  from_port                = 6783
-  to_port                  = 6783
-  protocol                 = "tcp"
-}
-
-resource "aws_security_group_rule" "node-to-master-udp-6783" {
-  type                     = "ingress"
-  security_group_id        = "${aws_security_group.masters-cluster-dev-opsdx-io.id}"
-  source_security_group_id = "${aws_security_group.nodes-cluster-dev-opsdx-io.id}"
-  from_port                = 6783
-  to_port                  = 6783
-  protocol                 = "udp"
-}
-
-resource "aws_security_group_rule" "node-to-master-udp-6784" {
-  type                     = "ingress"
-  security_group_id        = "${aws_security_group.masters-cluster-dev-opsdx-io.id}"
-  source_security_group_id = "${aws_security_group.nodes-cluster-dev-opsdx-io.id}"
-  from_port                = 6784
-  to_port                  = 6784
+  from_port                = 1
+  to_port                  = 65535
   protocol                 = "udp"
 }
 

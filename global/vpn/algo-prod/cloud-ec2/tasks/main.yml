@@ -111,9 +111,9 @@
     tags:
       Name: "OpsDX V1"
       Component: "VPC"
-      Stack: "Development"
+      Stack: "Production"
     subnets:
-      - "{{ ec2_vpc_nets.subnet_cidr }}"
+      - "{{ ec2_vpc_net.vpn_subnet_cidr }}"
     routes:
       - dest: 0.0.0.0/0
         gateway_id: "{{ vpc.igw_id }}"
@@ -160,7 +160,7 @@
     instance_tags:
       Name: "{{ aws_server_name }}"
       Component: "VPC"
-      Stack: "Development"
+      Stack: "Production"
       Server: "Algo"
     exact_count: 1
     count_tag:
