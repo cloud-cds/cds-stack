@@ -7,10 +7,10 @@ image_resource:
     AWS_REPO:
     AWS_ID:
     AWS_KEY:
-    tag: "latest"
+    IMAGE_TAG:
 
 inputs:
-- name: dashan-etl
+- name: dashan-etl-pull-request
 
 run:
-  path: dashan-etl/ci/dummy-task.sh
+  path: dashan-etl-pull-request/ci/dummy-task.sh
