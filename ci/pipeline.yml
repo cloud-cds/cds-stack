@@ -10,6 +10,8 @@ resources:
   type: pull-request
   source:
     repo: dashan-emr/dashan-etl
+    uri: git@github.com:dashan-emr/dashan-etl.git
+    access_token: {{github-access-token}}
     private_key: {{github-private-key}}
 # - name: 1m
 #   type: time

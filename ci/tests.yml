@@ -10,7 +10,7 @@ image_resource:
     IMAGE_TAG:
 
 inputs:
-- name: dashan-etl-pull-request
+- name: dashan-etl-pr
 
 run:
-  path: dashan-etl-pull-request/ci/dummy-task.sh
+  path: dashan-etl-pr/ci/dummy-task.sh
