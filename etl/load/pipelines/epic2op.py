@@ -25,14 +25,16 @@ class Epic2OpLoader:
       port     = self.config.db_port
     )
 
-  def run_loop(self, db_data):
+  def run_loop(self, db_data, db_raw_data):
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(self.run(db_data))
+    loop.run_until_complete(self.run(db_data, db_raw_data))
 
-  async def run(self, db_data):
+  async def run(self, db_data, db_raw_data):
     if self.pool is None:
       await self.async_init()
     async with self.pool.acquire() as conn:
+      if self.archive == 1:
+        self.epic_2_workspace(db_raw_data, dtypes='unicode')
       self.epic_2_workspace(db_data)
       await self.workspace_to_cdm(conn)
       await self.load_online_prediction_parameters(conn)
@@ -290,10 +292,10 @@ class Epic2OpLoader:
     """ % {'job': self.job_id}
     await conn.execute(upsert_meas_sql)
 
-  def epic_2_workspace(self, db_data):
+  def epic_2_workspace(self, db_data, dtypes=None):
     engine = create_engine(self.config.get_db_conn_string_sqlalchemy())
     for df_name, df in db_data.items():
-      primitives.data_2_workspace(engine, self.job_id, df_name, df)
+      primitives.data_2_workspace(engine, self.job_id, df_name, df, dtypes=dtypes)
 
   async def workspace_to_cdm(self, conn):
     await primitives.insert_new_patients(conn, self.job_id)

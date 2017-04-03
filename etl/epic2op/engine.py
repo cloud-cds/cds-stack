@@ -15,9 +15,11 @@ import boto3
 import botocore
 
 class Engine():
-    def __init__(self, hospital=None, lookback_hours=None):
-        self.config = Config(debug=True, db_name='opsdx_dev_ol')
+    def __init__(self, hospital=None, lookback_hours=None, db_name=None):
+        self.config = Config(debug=True, db_name=db_name)
         self.loader = Epic2OpLoader(self.config)
+        if 'TREWS_ETL_ARCHIVE' in os.environ:
+            self.loader.archive = int(os.environ['TREWS_ETL_ARCHIVE'])
         self.extractor = Extractor(
             hospital =       hospital or os.environ['TREWS_ETL_HOSPITAL'],
             lookback_hours = lookback_hours or os.environ['TREWS_ETL_HOURS'],
@@ -69,6 +71,7 @@ class Engine():
 
 
     def push_cloudwatch_metrics(self, stats):
+        etl_time = (dt.datetime.now() - etl_start_time)
         metric_data = [{
             'MetricName': 'ExTrLoTime',
             'Value':  etl_time.total_seconds(), 'Unit': 'Seconds'
@@ -177,7 +180,17 @@ class Engine():
             'location_history_transformed': loc_history_t,
         }
 
-        self.loader.run_loop(db_data)
+        db_raw_data = {
+            'bedded_patients': pats,
+            'flowsheets': flowsheets,
+            'lab_orders': lab_orders,
+            'lab_results': lab_results,
+            'med_orders': med_orders,
+            'med_admin': med_admin,
+            'location_history': loc_history,
+        }
+
+        self.loader.run_loop(db_data, db_raw_data)
         self.criteria.run_loop()
 
         if self.notify_epic:

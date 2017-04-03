@@ -5,7 +5,7 @@ asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 import asyncpg
 from etl.core.config import Config
 import json
-from extractor import Extractor
+from etl.clarity2dw.extractor import Extractor
 import os
 
 job_test_c2dw = {
@@ -67,7 +67,7 @@ job = {
 
 
 # engine for clarity ETL
-class Engine(object, job):
+class Engine(object):
   """docstring for Engine"""
   def __init__(self, job):
     self.job = job
