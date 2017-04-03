@@ -29,11 +29,15 @@ class Engine():
     )
     self.notify_epic = int(os.environ['TREWS_ETL_EPIC_NOTIFICATIONS'])
     self.prod_or_dev = os.environ['db_name']
+    # Create boto client
+    aws_region = os.environ['AWS_DEFAULT_REGION']
+    boto_client = boto3.client('cloudwatch', region_name=aws_region)
+
     self.criteria = Criteria(self.config)
     self.extract_time = dt.timedelta(0)
     self.transform_time = dt.timedelta(0)
 
-  async def _init_(self):
+  async def init(self):
     self.pool = await asyncpg.create_pool(database=self.config.db_name, user=self.config.db_user, password=self.config.db_pass, host=self.config.db_host, port=self.config.db_port)
 
   def skip_none(self, df, transform_function):

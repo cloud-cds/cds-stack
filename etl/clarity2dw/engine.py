@@ -74,19 +74,19 @@ class Engine(object):
     self.config = Config(**self.job['config'])
 
 
-  async def _init_(self):
+  async def init(self):
     self.pool = await asyncpg.create_pool(database=self.config.db_name, user=self.config.db_user, password=self.config.db_pass, host=self.config.db_host, port=self.config.db_port)
     self.extractor = Extractor(self.pool, self.config)
 
-  def run_loop(self):
+  def main(self):
     loop = asyncio.get_event_loop()
     loop.run_until_complete(self.run())
 
   async def run(self):
     # extractors to run ETL
-    await self._init_()
+    await self.init()
     await self.extractor.run(self.job)
 
 if __name__ == '__main__':
   engine = Engine(job_test_c2dw)
-  engine.run_loop()
+  engine.main()
