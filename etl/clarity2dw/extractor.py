@@ -78,7 +78,7 @@ class Extractor:
       delete from pat_enc where dataset_id = %(dataset_id)s;
       ''' % {'dataset_id': self.config.dataset_id}
     if 'start_enc_id' in job:
-      reset_sql += 'alter sequence pat_enc_enc_id_seq restart %s' % job['start_enc_id']
+      reset_sql += "select setval('pat_enc_enc_id_seq', %s);" % job['start_enc_id']
     self.log.debug("ETL init sql: " + reset_sql)
     result = await conn.execute(reset_sql)
     self.log.info("ETL Init: " + result)
@@ -401,8 +401,6 @@ class Extractor:
     if not isinstance(results[0], list):
       results = [results]
     for result in results:
-      if enc_id == 2:
-        print(result)
       tsp = None
       if len(result) == 3:
         # contain tsp, value, and confidence
