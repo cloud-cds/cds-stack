@@ -31,7 +31,7 @@ class Engine():
     self.prod_or_dev = os.environ['db_name']
     # Create boto client
     aws_region = os.environ['AWS_DEFAULT_REGION']
-    boto_client = boto3.client('cloudwatch', region_name=aws_region)
+    self.boto_client = boto3.client('cloudwatch', region_name=aws_region)
 
     self.criteria = Criteria(self.config)
     self.extract_time = dt.timedelta(0)
@@ -102,11 +102,11 @@ class Engine():
       'Value': stats['med_orders'], 'Unit': 'Count'
     }]
     for md in metric_data:
-      md['Dimensions'] = {'Name': 'ETL', 'Value': self.prod_or_dev}
+      md['Dimensions'] = [{'Name': 'ETL', 'Value': self.prod_or_dev}]
       md['Timestamp'] = dt.datetime.utcnow()
 
     try:
-      boto_client.put_metric_data(Namespace='OpsDX', MetricData=metric_data)
+      self.boto_client.put_metric_data(Namespace='OpsDX', MetricData=metric_data)
     except botocore.exceptions.EndpointConnectionError as e:
       logging.error(e)
 
