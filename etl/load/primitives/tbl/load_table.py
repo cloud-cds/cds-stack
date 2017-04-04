@@ -278,7 +278,7 @@ async def workspace_lab_results_2_cdm_twf(conn, job_id):
 
 
 
-async def workspace_lab_results_2_cdm_twf(conn, job_id):
+async def workspace_medication_administration_2_cdm_twf(conn, job_id):
     # NOTE{zad}: usually no twf features in MAR but for safty we cover them in MAR
     select_twf_features = """
     select distinct c.fid, c.data_type from cdm_feature c
