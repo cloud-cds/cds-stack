@@ -1,5 +1,5 @@
 from etl.core.exceptions import TransformError
-from etl.core.config import est_tsp_fmt, Config
+from etl.core.config import Config
 from etl.epic2op.extractor import Extractor
 from etl.transforms.pipelines import jhapi
 from etl.load.pipelines.epic2op import Epic2OpLoader
@@ -150,6 +150,7 @@ class Engine():
 
     # Timezone hack
     def tz_hack(tsp):
+      est_tsp_fmt = '%Y-%m-%dT%H:%M:%S-05:00'
       return (dateparser.parse(tsp) - dt.timedelta(hours=5)).strftime(est_tsp_fmt)
     flowsheets_t['tsp'] = flowsheets_t['tsp'].apply(tz_hack)
     med_admin_t['tsp'] = med_admin_t['tsp'].apply(tz_hack)
