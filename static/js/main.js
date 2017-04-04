@@ -1491,23 +1491,23 @@ var activity = new function() {
 				msg += data['uid']
 					+ LOG_STRINGS[data['event_type']]['customized'][0]
 				for (var i = 0; i < criteriaKeyToName[data.name].length - 1; i ++) {
-					msg += criteriaKeyToName[data.name][i] 
+					msg += criteriaKeyToName[data.name][i].name 
 						+ LOG_STRINGS[data['event_type']]['customized'][1]
-						+ UpperLowerToLogicalOperators(data.override_value[i])
+						+ UpperLowerToLogicalOperators(data.override_value[i], criteriaKeyToName[data.name][i].units)
 						+ ", "
 				}
 				if (criteriaKeyToName[data.name].length > 2) {
-					msg += "and " + criteriaKeyToName[data.name][criteriaKeyToName[data.name].length - 1]
+					msg += "and " + criteriaKeyToName[data.name][criteriaKeyToName[data.name].length - 1].name
 						+ LOG_STRINGS[data['event_type']]['customized'][1]
-						+ UpperLowerToLogicalOperators(data.override_value[i])
+						+ UpperLowerToLogicalOperators(data.override_value[i], criteriaKeyToName[data.name][i].units)
 				}
 				else {
 					if (criteriaKeyToName[data.name].length > 1) {
 						msg = msg.substring(0, msg.length - 2) + " and "
 					}
-					msg += criteriaKeyToName[data.name][criteriaKeyToName[data.name].length - 1]
+					msg += criteriaKeyToName[data.name][criteriaKeyToName[data.name].length - 1].name
 						+ LOG_STRINGS[data['event_type']]['customized'][1]
-						+ UpperLowerToLogicalOperators(data.override_value[i])
+						+ UpperLowerToLogicalOperators(data.override_value[i], criteriaKeyToName[data.name][i].units)
 				}
 			}
 		} else {
@@ -1707,13 +1707,13 @@ function getQueryVariable(variable) {
  * into a logical operator statements like
  * > x and < y
 */
-function UpperLowerToLogicalOperators(data) {
+function UpperLowerToLogicalOperators(data, units) {
 	if (data.range == "true") {
-		return "> " + data.lower + " and < " + data.upper
+		return "> " + data.lower + units + " and < " + data.upper + units
 	} else if (data.range == "min") {
-		return "> " + data.lower
+		return "> " + data.lower + units
 	} else if (data.range == "max") {
-		return "< " + data.upper
+		return "< " + data.upper + units
 	}
 }
 /**
