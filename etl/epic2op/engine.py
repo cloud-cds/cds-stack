@@ -165,7 +165,7 @@ class Engine():
         # Prepare for database
         pats_t.diagnosis = pats_t.diagnosis.apply(json.dumps)
         pats_t.history = pats_t.history.apply(json.dumps)
-        pats_t.problem = pats_t.problem.apply(json.dumps)
+        pats_t.hosp_problem_list = pats_t.hosp_problem_list.apply(json.dumps)
         med_orders_t.ids = med_orders_t.ids.apply(json.dumps)
         db_data = {
             'bedded_patients_transformed': pats_t,
