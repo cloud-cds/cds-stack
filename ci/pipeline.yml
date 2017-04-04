@@ -89,5 +89,5 @@ jobs:
       dockerfile: dashan-etl/Dockerfile
       tag_as_latest: true
       tag: dashan-etl/version
-  - put: version
+  - put: dashan-version
     params: {file: dashan-version/version}
