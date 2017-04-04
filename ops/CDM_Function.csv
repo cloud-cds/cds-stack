@@ -7,7 +7,7 @@ nbp_mean_update,derive,ref Arch folder
 threshold_platelets,transform,"threshold(0.1, 1200)"
 severe_sepsis_update,derive,ref Arch folder
 septic_shock_iii_update,derive,ref Arch folder
-fillin2,fillin,combines a TWF feature with a T feature to generate a TWF feature 
+fillin2,fillin,combines a TWF feature with a T feature to generate a TWF feature
 sirs_hr_oor_update,derive,ref Arch folder
 convert_penicillin_g_dose,transform,convert to million unit
 convert_dose_to_binary,transform,indicate where the medication was taken
@@ -52,7 +52,7 @@ jh_pressor_update,derive,ref Arch folder
 beta_blocker_update,derive,"1 if any beta-blocker given at tsp, 0 otherwise. See Arch for specific medications."
 glucocorticoid_update,derive,"1 if any glucocorticoid given at tsp, 0 otherwise. See Arch for specific medications."
 convert_salmeterol_dose,transform,use default_convert_dose function and convert all does > 4.0 to 4.0
-convert_to_mmol,transform,if reference_unit == 'mEq/L' return value 
+convert_to_mmol,transform,if reference_unit == 'mEq/L' return value
 threshold_hemoglobin,transform,"threshold(4 , 20)"
 any_antibiotics_order_update,derive,any antibiotics order has been placed
 mapm_update,derive,ref Arch folder
