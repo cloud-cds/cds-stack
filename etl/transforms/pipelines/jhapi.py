@@ -16,7 +16,8 @@ bedded_patients_transforms = [
         'Gender':           'gender',
         'AdmitDx':          'diagnosis',
         'MedicalHistory':   'history',
-        'ProblemList':      'problem',
+        'ProblemList':      'problem_all',
+        'HospProblemList':  'problem',
     }),
     lambda bp: restructure.extract_id_from_list(bp, 'pat_id', 'EMRN'),
     lambda bp: filter_rows.filter_on_icd9(bp),
@@ -59,6 +60,9 @@ flowsheet_transforms = [
     ),
     lambda fs: format_data.filter_to_final_units(fs, 'unit'),
     lambda fs: format_data.threshold_values(fs, 'value'),
+    lambda fs: derive.sum_values_at_same_tsp(fs,
+        ['urine_output', 'fluids_intake']
+    ),
 ]
 
 lab_orders_transforms = [
