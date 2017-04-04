@@ -32,6 +32,16 @@ resources:
     aws_access_key_id: {{aws-access-key-id}}
     aws_secret_access_key: {{aws-secret-access-key}}
     tag: "latest"
+- name: dashan-version
+  type: semver
+  source:
+    driver: git
+    initial_version: 0.0.1
+    uri: git@github.com:dashan-emr/dashan-etl.git
+    branch: master
+    file: version
+    private_key: {{github-private-key}}
+    git_user: Concourse <ci@ci.ci>
 # - name: 1m
 #   type: time
 #   source: {interval: 1m}
@@ -71,8 +81,13 @@ jobs:
     trigger: true
   - get: dashan-db
     trigger: true
+  - get: dashan-version
+    params: {bump: patch}
   - put: dashan-docker-image
     params:
       build: .
       dockerfile: dashan-etl/Dockerfile
       tag_as_latest: true
+      tag: dashan-etl/version
+  - put: version
+    params: {file: dashan-version/version}
