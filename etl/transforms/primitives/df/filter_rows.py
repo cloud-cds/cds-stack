@@ -11,6 +11,7 @@ def filter_on_icd9(patient_data):
 
     filter_function = build_filter_icd9_function(icd9_codes.PL_ICD9_MAPPING)
     patient_data['problem'] = patient_data['problem'].apply(filter_function)
+    patient_data['problem_all'] = patient_data['problem_all'].apply(filter_function)
 
     return patient_data
 

@@ -9,6 +9,18 @@ def combine(df, new_fid, list_of_fids, keep_originals=True):
         df[to_change]['fid'] = new_fid
     return df
 
+def sum_values_at_same_tsp(df, list_of_fids):
+    group_cols = list(df.columns)
+    group_cols.remove('value')
+    for fid in list_of_fids:
+        fid_values = df['fid'].isin([fid])
+        combined = df[fid_values].groupby(group_cols,
+                                          as_index=False,
+                                          group_keys=False)['value'].sum()
+        df = df[~fid_values].append(combined)
+    return df
+
+
 def derive_lab_status(df):
     def get_status(row):
         order = row['order_status']
