@@ -13,19 +13,17 @@ resources:
     uri: git@github.com:dashan-emr/dashan-etl.git
     access_token: {{github-access-token}}
     private_key: {{github-private-key}}
-- name: dashan-etl-repo
+- name: dashan-etl
   type: git
   source:
     branch: master
-    uri: https://github.com/dashan-emr/dashan-etl.git
-    access_token: {{github-access-token}}
+    uri: git@github.com:dashan-emr/dashan-etl.git
     private_key: {{github-private-key}}
-- name: dashan-db-repo
+- name: dashan-db
   type: git
   source:
     branch: master
-    uri: https://github.com/dashan-emr/dashan-db.git
-    access_token: {{github-access-token}}
+    uri: git@github.com:dashan-emr/dashan-db.git
     private_key: {{github-private-key}}
 - name: dashan-docker-image
   type: docker-image
@@ -69,10 +67,12 @@ jobs:
   public: true
   serial: true
   plan:
-  - get: dashan-etl-repo
+  - get: dashan-etl
     trigger: true
-  - get: dashan-db-repo
+  - get: dashan-db
     trigger: true
   - put: dashan-docker-image
     params:
-      build: dashan-etl-repo/
+      build: .
+      dockerfile: dashan-etl/Dockerfile
+      tag_as_latest: true

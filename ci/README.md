@@ -10,6 +10,10 @@ Create a `credentials.yml` in this folder file with your github private key.
 
 _Example `credentials.yml`:_
 ```
+aws-repository-uri: someurl.amazonaws.com/trews-etl
+aws-access-key-id: ABC123ACCESSKEYID
+aws-secret-access-key: asdffdsakljfd432lfdsFDSAjh324lk234lkj
+github-access-token: 795fc3lkjafdslkj234fdas32d217e48432fdsac44
 github-private-key: |
   -----BEGIN RSA PRIVATE KEY-----
   MIIEpQIBAAKCAQEAuvUl9YUlDHWBMVcuu0FH9u2gSi83PkL4o9TS+F185qDTlfUY
@@ -25,6 +29,9 @@ _don't forget the pipe -->_  |
 
 ## How to use:
 
-It should be all set to run for any commit. However if changes need to be made to the pipeline you will need to set them with [fly-cli](https://concourse.ci/fly-cli.html).
+It should be all set to run for any commit to a pull-request. However if changes need to be made to the pipeline you will need to set them with [fly-cli](https://concourse.ci/fly-cli.html).
 
-`fly set-pipeline --target dashanetl --config pipeline.yml --pipeline publishing-outputs --non-interactive --load-vars-from credentials.yml`
+`fly -t opsdx_dev login -c http://concourse.dev.opsdx.io:8080`
+`fly -t opsdx_dev destroy-pipeline -p main-pipeline`
+`fly -t opsdx_dev set-pipeline -p main-pipeline -c pipeline.yml -l credentials.yml`
+`fly -t opsdx_dev unpause-pipeline -p main-pipeline`
