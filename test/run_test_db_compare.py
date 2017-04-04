@@ -12,19 +12,19 @@ db_pair = [
   {
     'name': 'test_epic2op',
     'engine': EngineEpic2op(db_name='test_epic2op'),
-    'pipeline': [
-      # 'clean_db',
-      # 'populate_db',
-    ],
+    'pipeline': {
+      'clean_db': ['rm_data'],
+      'populate_db': {},
+    },
   },
   {
     'name': 'test_c2dw',
     'engine': EngineC2dw(job_test_c2dw),
-    'pipeline': [
-      # 'clean_db',
-      # 'copy_pat_enc',
-      # 'populate_db',
-    ],
+    'pipeline': {
+      # 'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
+      # 'copy_pat_enc': {},
+      # 'populate_db': {},
+    },
     'db_compare': {
       'srcdid': None,
       'srcmid': None,
@@ -84,14 +84,18 @@ class DBCompareTest():
     delete from cdm_s;
     delete from cdm_t;
     delete from cdm_twf;
+    delete from criteria_meas;
     select drop_tables_pattern('workspace', 'job_etl_');
     """
     rm_pats = "delete from pat_enc;"
     reset_seq = "select setval('pat_enc_enc_id_seq', 1);"
     async with engine.pool.acquire() as conn:
-      await conn.execute(rm_data)
-      await conn.execute(rm_pats)
-      await conn.execute(reset_seq)
+      if 'rm_data' in db_config['pipeline']['clean_db']:
+        await conn.execute(rm_data)
+      if 'rm_pats' in db_config['pipeline']['clean_db']:
+        await conn.execute(rm_pats)
+      if 'reset_seq' in db_config['pipeline']['clean_db']:
+        await conn.execute(reset_seq)
 
   def populate_db(self, db_config):
     print("populate_db: %s" % db_config['name'])
@@ -139,10 +143,13 @@ class DBCompareTest():
     tsp_range = " tsp > '%(date)s 10:00:00 utc'::timestamptz and tsp < '%(date)s 20:00:00 utc'::timestamptz" % {'date': date}
 
     select_enc_ids_to_compare = '''
-    select pat_enc.enc_id from pat_enc inner join cdm_s on cdm_s.enc_id = pat_enc.enc_id where cdm_s.fid = 'age'
+    select pat_enc.enc_id from pat_enc inner join cdm_s on cdm_s.enc_id = pat_enc.enc_id
+          inner join dblink('%s', $OPDB$ select enc_id from cdm_s where cdm_s.fid = 'age' $OPDB$) as remote (enc_id int) on remote.enc_id = pat_enc.enc_id
+          where cdm_s.fid = 'age'
           order by pat_enc.enc_id
           limit 50
-    '''
+    ''' % src_server
+    print(select_enc_ids_to_compare)
     async with dbpool.acquire() as conn:
       enc_ids = await conn.fetch(select_enc_ids_to_compare)
     enc_id_range = 'enc_id in (%s)' % ','.join([str(e['enc_id']) for e in enc_ids])
@@ -236,7 +243,7 @@ class DBCompareTest():
       ["(value::json)#>>'{dose}'"           , 'dose',       'text'        ],
       ["(value::json)#>>'{action}'"         , 'action',     'text'        ],
       ["(value::json)#>>'{order_tsp}'"      , 'order_tsp',  'text'        ],
-      ['confidence'                         , 'confidence', 'integer'     ],
+      # ['confidence'                         , 'confidence', 'integer'     ],
     ]
     cdm_t_query1 = (cdm_t_fields1, 'fid like \'%_dose\' and ' + cdm_t_range + ' and ' + enc_id_range, 'fid, enc_id, tsp', cdm_t_dose_dependent_fields)
 
@@ -245,7 +252,7 @@ class DBCompareTest():
       ['tsp'             ,'tsp'             , 'timestamptz', ],
       ['fid'             ,'fid'             , 'varchar(50)', ],
       ['value'           ,'value'           , 'text',        ],
-      ['confidence'      ,'confidence'      , 'integer',     ],
+      # ['confidence'      ,'confidence'      , 'integer',     ],
     ]
 
     cdm_t_query2 = (cdm_t_fields2, 'fid !~ \'dose|inhosp|bacterial_culture|_proc|culture_order|pneumonia_sepsis|uro_sepsis|biliary_sepsis|intra_abdominal_sepsis\' and ' + cdm_t_range + ' and '+ enc_id_range, 'fid, enc_id, tsp', cdm_t_dependent_fields)
@@ -257,7 +264,7 @@ class DBCompareTest():
       ["(value::json)#>>'{diagname}'"           , 'diagname',       'text'        ],
       ["(value::json)#>>'{ischronic}'"         , 'ischronic',     'text'        ],
       ["""(value::json)#>>'{"present on admission"}'"""      , 'present_on_admission',  'text'        ],
-      ['confidence'                         , 'confidence', 'integer'     ],
+      # ['confidence'                         , 'confidence', 'integer'     ],
     ]
     cdm_t_query3 = (cdm_t_fields3, 'fid like \'%_inhosp|pneumonia_sepsis|uro_sepsis|biliary_sepsis|intra_abdominal_sepsis\' and ' + cdm_t_range + ' and ' + enc_id_range, 'fid, enc_id, tsp', cdm_dependent_fields)
 
@@ -267,7 +274,7 @@ class DBCompareTest():
       ['fid'                                , 'fid',        'varchar(50)' ],
       ["(value::json)#>>'{status}'"           , 'status',       'text'        ],
       ["(value::json)#>>'{name}'"         , 'name',     'text'        ],
-      ['confidence'                         , 'confidence', 'integer'     ],
+      # ['confidence'                         , 'confidence', 'integer'     ],
     ]
     cdm_t_query4 = (cdm_t_fields4, 'fid like \'bacterial_culture|_proc|culture_order\' and ' + cdm_t_range + ' and ' + enc_id_range, 'fid, enc_id, tsp', cdm_dependent_fields)
 
