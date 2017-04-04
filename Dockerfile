@@ -1,8 +1,8 @@
 FROM python:3.6
 
 # Copy the main code base folder inside the container
-COPY . /dashan-etl
-COPY ../dashan-db /dashan-db
+COPY ./dashan-etl /dashan-etl
+COPY ./dashan-db /dashan-db
 
 # Get pip to download and install requirements:
 RUN pip install -r /dashan-etl/requirements.txt && \

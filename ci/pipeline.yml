@@ -1,0 +1,78 @@
+---
+resource_types:
+- name: pull-request
+  type: docker-image
+  source:
+    repository: jtarchie/pr
+
+resources:
+- name: dashan-etl-pr
+  type: pull-request
+  source:
+    repo: dashan-emr/dashan-etl
+    uri: git@github.com:dashan-emr/dashan-etl.git
+    access_token: {{github-access-token}}
+    private_key: {{github-private-key}}
+- name: dashan-etl
+  type: git
+  source:
+    branch: master
+    uri: git@github.com:dashan-emr/dashan-etl.git
+    private_key: {{github-private-key}}
+- name: dashan-db
+  type: git
+  source:
+    branch: master
+    uri: git@github.com:dashan-emr/dashan-db.git
+    private_key: {{github-private-key}}
+- name: dashan-docker-image
+  type: docker-image
+  source:
+    repository: {{aws-repository-uri}}
+    aws_access_key_id: {{aws-access-key-id}}
+    aws_secret_access_key: {{aws-secret-access-key}}
+    tag: "latest"
+# - name: 1m
+#   type: time
+#   source: {interval: 1m}
+
+jobs:
+# Test commits to a pull request
+- name: test-pull-request
+  public: true
+  serial: true
+  plan:
+  - get: dashan-etl-pr
+    trigger: true
+  - get: dashan-docker-image
+  - put: dashan-etl-pr
+    params:
+      path: dashan-etl-pr
+      status: pending
+  - task: run-tests
+    image: dashan-docker-image
+    file: dashan-etl-pr/ci/tests.yml
+    on_success:
+      put: dashan-etl-pr
+      params:
+        path: dashan-etl-pr
+        status: success
+    on_failure:
+      put: dashan-etl-pr
+      params:
+        path: dashan-etl-pr
+        status: failure
+# Build a new docker image on changes to master
+- name: build-new-docker-image
+  public: true
+  serial: true
+  plan:
+  - get: dashan-etl
+    trigger: true
+  - get: dashan-db
+    trigger: true
+  - put: dashan-docker-image
+    params:
+      build: .
+      dockerfile: dashan-etl/Dockerfile
+      tag_as_latest: true
