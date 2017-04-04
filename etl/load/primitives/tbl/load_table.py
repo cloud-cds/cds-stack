@@ -1,7 +1,6 @@
 import etl.core.config
 import logging
 
-
 # TODO: make async / use COPY
 def data_2_workspace(engine, job_id, df_name, df, dtypes=None):
     nrows = df.shape[0]

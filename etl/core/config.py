@@ -6,7 +6,8 @@ import logging
 import logging.config
 
 # Timestamp format to use everywhere
-est_tsp_fmt = '%Y-%m-%dT%H:%M:%S-05:00'
+#est_tsp_fmt = '%Y-%m-%dT%H:%M:%S-05:00'
+TIMEZONE = 'US/Eastern'
 
 class Config:
     """
