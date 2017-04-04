@@ -96,19 +96,64 @@ var CONSTANTS = {
 }
 
 var criteriaKeyToName = {
-	"sirs_temp": ["Body Temperature"],
-	"heart_rate": ["Heart Rate"],
-	"respiratory_rate": ["Respiratory Rate"],
-	"wbc": ["White Blood Count", "Bands"],
-	"blood_pressure": ["Systolic Blood Pressure"],
-	"mean_arterial_pressure": ["Mean Arterial Pressure"],
-	"decrease_in_sbp": ["Decrease in Systolic Blood Pressure"],
-	"respiratory_failure": ["Respiratory Failure: PaO2/FiO2"],
-	"creatinine": ["Creatinine", "Urine Output"],
-	"bilirubin": ["Bilirubin"],
-	"platelet": ["Platelet Count"],
-	"inr": ["INR", "PTT"],
-	"lactate": ["Lactate Measurement"]
+	"sirs_temp": [
+		{"name": "Body Temperature",
+		"units": "&#176;C"}
+	],
+	"heart_rate": [
+		{"name": "Heart Rate",
+		"units": "/min"}
+	],
+	"respiratory_rate": [
+		{"name": "Respiratory Rate",
+		"units": "/min"}
+	],
+	"wbc": [
+		{"name": "White Blood Count",
+		"units": "K/uL"},
+		{"name": "Bands",
+		"units": "%"}
+	],
+	"blood_pressure": [
+		{"name": "Systolic Blood Pressure",
+		"units": "mmHg"}
+	],
+	"mean_arterial_pressure": [
+		{"name": "Mean Arterial Pressure",
+		"units": "mmHg"}
+	],
+	"decrease_in_sbp": [
+		{"name": "Decrease in Systolic Blood Pressure",
+		"units": "mmHg"}
+	],
+	"respiratory_failure": [
+		{"name": "Respiratory Failure: PaO2/FiO2",
+		"units": ""}
+	],
+	"creatinine": [
+		{"name": "Creatinine",
+		"units": "mg/dL"},
+		{"name": "Urine Output",
+		"units": "mL/kg/hour"}
+	],
+	"bilirubin": [
+		{"name": "Bilirubin",
+		"units": "mg/dL"}
+	],
+	"platelet": [
+		{"name": "Platelet Count",
+		"units": ""}
+	],
+	"inr": [
+		{"name": "INR",
+		"units": ""},
+		{"name": "PTT",
+		"units": "sec"}
+	],
+	"lactate": [
+		{"name": "Lactate Measurement",
+		"units": "mmol/L"}
+	]
 }
 
 var severe_sepsis = {
