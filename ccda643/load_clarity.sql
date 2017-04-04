@@ -13,7 +13,7 @@ create table "Demographics"
  "DischargeDepartment"   text,
  "DischargeDisposition"  text
  );
-\copy "Demographics" from '~/clarity-db-staging/2017-04-01/demo.rpt' with csv header delimiter as E'\t' NULL 'NULL';
+\copy "Demographics" from '~/clarity-db-staging/2017-04-02/demo.rpt' with csv header delimiter as E'\t' NULL 'NULL';
 
 drop table if exists "ADT_Feed";
 create table "ADT_Feed"
@@ -25,7 +25,7 @@ create table "ADT_Feed"
 "DEPARTMENT_NAME"   text,
 "ROOM_NAME"    text
 );
-\copy "ADT_Feed" from '~/clarity-db-staging/2017-04-01/adt.rpt' with csv header delimiter as E'\t' NULL 'NULL';
+\copy "ADT_Feed" from '~/clarity-db-staging/2017-04-02/adt.rpt' with csv header delimiter as E'\t' NULL 'NULL';
 
 drop table if exists "Diagnoses";
 create table "Diagnoses"
@@ -42,7 +42,7 @@ create table "Diagnoses"
  ,"DX_CHRONIC_YN" text
  ,"ICD-9          Code    category" text
 );
-\copy "Diagnoses" from '~/clarity-db-staging/2017-04-01/diag.rpt' with csv header delimiter as E'\t' NULL 'NULL';
+\copy "Diagnoses" from '~/clarity-db-staging/2017-04-02/diag.rpt' with csv header delimiter as E'\t' NULL 'NULL';
 
 drop table if exists "FlowsheetValue-LDA";
 create table "FlowsheetValue-LDA"
@@ -68,7 +68,7 @@ create table "FlowsheetValue-LDA"
  "LDAFLOMEASNAME"       text      ,
  "LDAGRPDISPNAME"       text
 );
-\copy "FlowsheetValue-LDA" from '~/clarity-db-staging/2017-04-01/flt_lda.rpt' with csv header delimiter as E'\t' NULL 'NULL';
+\copy "FlowsheetValue-LDA" from '~/clarity-db-staging/2017-04-02/flt_lda.rpt' with csv header delimiter as E'\t' NULL 'NULL';
 
 drop table if exists "FlowsheetValue";
 create table "FlowsheetValue"
@@ -89,7 +89,7 @@ create table "FlowsheetValue"
  "TEMPLATE_NAME"        text      ,
  "TEMPLATE_DISP_NAME"   text
 );
-\copy "FlowsheetValue" from '~/clarity-db-staging/2017-04-01/flt.rpt' with csv header delimiter as E'\t' NULL 'NULL';
+\copy "FlowsheetValue" from '~/clarity-db-staging/2017-04-02/flt.rpt' with csv header delimiter as E'\t' NULL 'NULL';
 
 drop table if exists "FlowsheetValue_643";
 create table "FlowsheetValue_643"
@@ -110,7 +110,7 @@ create table "FlowsheetValue_643"
  "TEMPLATE_NAME"        text      ,
  "TEMPLATE_DISP_NAME"   text
 );
-\copy "FlowsheetValue_643" from '~/clarity-db-staging/2017-04-01/flt_new.rpt' with csv header delimiter as E'\t' NULL 'NULL';
+\copy "FlowsheetValue_643" from '~/clarity-db-staging/2017-04-02/flt_new.rpt' with csv header delimiter as E'\t' NULL 'NULL';
 
 -- start to use rpt format (i.e., delimiter is tab) because there are double quote in the data which makes the csv format hard to import to postgresql
 -- remember to remove the last two lines in rpt files before importing to the database
@@ -129,7 +129,7 @@ create table "Labs"
  "COMPONENT_COMMENT" text,
  "ORDER_PROC_ID"     text
 );
-\copy "Labs" from '~/clarity-db-staging/2017-04-01/labs.rpt' with NULL 'NULL' csv header delimiter as E'\t';
+\copy "Labs" from '~/clarity-db-staging/2017-04-02/labs.rpt' with NULL 'NULL' csv header delimiter as E'\t';
 
 drop table if exists "Labs_643";
 create table "Labs_643"
@@ -145,7 +145,7 @@ create table "Labs_643"
  "COMPONENT_COMMENT" text,
  "ORDER_PROC_ID"     text
 );
-\copy "Labs_643" from '~/clarity-db-staging/2017-04-01/labs_new.rpt' with NULL 'NULL' csv header delimiter as E'\t';
+\copy "Labs_643" from '~/clarity-db-staging/2017-04-02/labs_new.rpt' with NULL 'NULL' csv header delimiter as E'\t';
 
 drop table if exists "LDAs";
 create table "LDAs"
@@ -158,7 +158,7 @@ create table "LDAs"
  "SITE"                text,
  "REMOVAL_DTTM"        timestamp with    time zone
 );
-\copy "LDAs" from '~/clarity-db-staging/2017-04-01/lda.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy "LDAs" from '~/clarity-db-staging/2017-04-02/lda.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 
 drop table if exists "MedicationAdministration";
 create table "MedicationAdministration"
@@ -184,7 +184,7 @@ create table "MedicationAdministration"
  "MIN_DISCRETE_DOSE"  real,
  "MAX_DISCRETE_DOSE"  real
 );
-\copy "MedicationAdministration" from '~/clarity-db-staging/2017-04-01/mar.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy "MedicationAdministration" from '~/clarity-db-staging/2017-04-02/mar.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 
 drop table if exists "MedicalHistory";
 create table "MedicalHistory"
@@ -200,7 +200,7 @@ create table "MedicalHistory"
  "Medical_Hx_Date"      text,
  "ENC_Date"             timestamp with time zone
 );
-\copy "MedicalHistory" from '~/clarity-db-staging/2017-04-01/hist.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy "MedicalHistory" from '~/clarity-db-staging/2017-04-02/hist.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 
 drop table if exists "Notes";
 create table "Notes"
@@ -217,7 +217,7 @@ create table "Notes"
  "SPEC_NOTE_TIME_DTTM"  timestamp without time zone ,
  "ENTRY_ISTANT_DTTM"    timestamp without time zone
 );
-\copy "Notes" from '~/clarity-db-staging/2017-04-01/note.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy "Notes" from '~/clarity-db-staging/2017-04-02/note.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 
 drop table if exists "OrderMed";
 create table "OrderMed"
@@ -231,7 +231,7 @@ create table "OrderMed"
  "MIN_DISCRETE_DOSE" real                       ,
  "MAX_DISCRETE_DOSE" real
 );
-\copy "OrderMed" from '~/clarity-db-staging/2017-04-01/ordermed.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy "OrderMed" from '~/clarity-db-staging/2017-04-02/ordermed.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 
 drop table if exists "OrderMedHome";
 create table "OrderMedHome"
@@ -245,7 +245,7 @@ create table "OrderMedHome"
  "MIN_DISCRETE_DOSE" real                       ,
  "MAX_DISCRETE_DOSE" real
 );
-\copy "OrderMedHome" from '~/clarity-db-staging/2017-04-01/ordermed_home.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy "OrderMedHome" from '~/clarity-db-staging/2017-04-02/ordermed_home.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 
 drop table if exists "OrderProcs";
 create table "OrderProcs"
@@ -266,7 +266,7 @@ create table "OrderProcs"
  "OrderStatus"     text,
  "LabStatus"     text
 );
-\copy "OrderProcs" from '~/clarity-db-staging/2017-04-01/orderproc.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy "OrderProcs" from '~/clarity-db-staging/2017-04-02/orderproc.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 
 drop table if exists "OrderProcsImage";
 create table "OrderProcsImage"
@@ -285,7 +285,7 @@ create table "OrderProcsImage"
  "LINE"              integer                    ,
  "NOTE_TEXT"         text
 );
-\copy "OrderProcsImage" from '~/clarity-db-staging/2017-04-01/orderproc_img.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy "OrderProcsImage" from '~/clarity-db-staging/2017-04-02/orderproc_img.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 
 drop table if exists "OrderProcs_643";
 create table "OrderProcs_643"
@@ -313,7 +313,7 @@ create table "OrderProcs_643"
  quest_name         text,
  question       text
 );
-\copy "OrderProcs_643" from '~/clarity-db-staging/2017-04-01/orderproc_new.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy "OrderProcs_643" from '~/clarity-db-staging/2017-04-02/orderproc_new.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 
 drop table if exists "ProblemList";
 create table "ProblemList"
@@ -331,4 +331,4 @@ create table "ProblemList"
  code                   text     ,
  codecategory           text
 );
-\copy "ProblemList" from '~/clarity-db-staging/2017-04-01/prob.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy "ProblemList" from '~/clarity-db-staging/2017-04-02/prob.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
