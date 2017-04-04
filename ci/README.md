@@ -32,6 +32,9 @@ _don't forget the pipe -->_  |
 It should be all set to run for any commit to a pull-request. However if changes need to be made to the pipeline you will need to set them with [fly-cli](https://concourse.ci/fly-cli.html).
 
 `fly -t opsdx_dev login -c http://concourse.dev.opsdx.io:8080`
+
 `fly -t opsdx_dev destroy-pipeline -p main-pipeline`
+
 `fly -t opsdx_dev set-pipeline -p main-pipeline -c pipeline.yml -l credentials.yml`
+
 `fly -t opsdx_dev unpause-pipeline -p main-pipeline`
