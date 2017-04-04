@@ -38,7 +38,7 @@ resources:
     driver: git
     initial_version: 0.0.1
     uri: git@github.com:dashan-emr/dashan-etl.git
-    branch: master
+    branch: version
     file: version
     private_key: {{github-private-key}}
     git_user: Concourse <ci@ci.ci>
@@ -47,6 +47,17 @@ resources:
 #   source: {interval: 1m}
 
 jobs:
+# Tests the master branch
+- name: test-master
+  public: true
+  serial: true
+  plan:
+  - get: dashan-etl
+    trigger: true
+  - get: dashan-docker-image
+  - task: run-tests
+    image: dashan-docker-image
+    file: dashan-etl/ci/tests_full.yml
 # Test commits to a pull request
 - name: test-pull-request
   public: true
@@ -61,7 +72,7 @@ jobs:
       status: pending
   - task: run-tests
     image: dashan-docker-image
-    file: dashan-etl-pr/ci/tests.yml
+    file: dashan-etl-pr/ci/tests_pr.yml
     on_success:
       put: dashan-etl-pr
       params:
@@ -80,7 +91,7 @@ jobs:
   - get: dashan-etl
     trigger: true
   - get: dashan-db
-    trigger: true
+    trigger: false
   - get: dashan-version
     params: {bump: patch}
   - put: dashan-docker-image
@@ -88,6 +99,6 @@ jobs:
       build: .
       dockerfile: dashan-etl/Dockerfile
       tag_as_latest: true
-      tag: dashan-etl/version
-  - put: version
+      tag: dashan-version/number
+  - put: dashan-version
     params: {file: dashan-version/version}
