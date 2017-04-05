@@ -418,6 +418,35 @@ body.waiting {
 #dropdown h5:hover {
     background-color: #eee;
 }
+/* Other Input field in Sources of Infection Dropdown */
+#infection-other {
+    font-size: 0;
+}
+#infection-other input {
+    margin: 0;
+    border: 1px solid #eee;
+    padding: 5px;
+    outline: none;
+    font-size: 12px;
+    width: 75%;
+    display: inline-block;
+}
+#infection-other span {
+    font-size: 12px;
+    cursor: pointer;
+    text-align: center;
+    display: inline-block;
+    border: 1px solid #eee;
+    border-left: none;
+    background-color: #fff;
+    padding: 5px 0;
+    width: 25%;
+    color: #555;
+    transition: background-color .3s;
+}
+#infection-other span:hover {
+    background-color: #eee;
+}
 #dropdown:before,
 #dropdown:after {
     content: '';
@@ -545,7 +574,8 @@ body.waiting {
 }
 /* End Override Modal also called om */
 /* Notifications */
-#notifications {
+#notifications,
+#activity {
     display: none;
     position: fixed;
     top: 30px;
@@ -563,18 +593,25 @@ body.waiting {
     text-align: center;
     font-size: 12px;
 }
-.notification {
+.notification,
+.log-item {
     padding: 10px;
     border-bottom: 1px solid #ddd;
 }
-.notification:last-child {
+.notification:last-child,
+.log-item:last-child {
     border-bottom: none;
 }
-.notification h3 {
+.notification h3,
+.log-item h3 {
     font-size: 12px;
     margin: 0;
 }
-.notification .subtext p {
+.log-item h3 {
+    font-weight: 400;
+}
+.notification .subtext p,
+.log-item .subtext p {
     float: left;
     margin: 3px 0 0 0;
     font-size: 12px;

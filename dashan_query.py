@@ -45,6 +45,22 @@ def get_twf(eid):
     return df
 
 
+def get_trews_threshold():
+    engine = create_engine(DB_CONN_STR)
+
+    get_trews_threshold_sql = \
+    '''
+    select value from trews_parameters
+    where name = 'trews_threshold'
+    '''
+    conn = engine.connect()
+    result = conn.execute(get_trews_threshold_sql)
+    conn.close()
+    row = result.fetchone()
+    return float("{:.2f}".format(float(row['value'])))
+
+
+
 def get_admittime(eid):
     engine = create_engine(DB_CONN_STR)
 
@@ -139,7 +155,7 @@ def toggle_notification_read(eid, notification_id, as_read):
     select
             '%(pid)s',
             now(),
-            '{"event_type": "toggle_notifications", "message": n.message}'
+            json_build_object('event_type', 'toggle_notifications', 'message', n.message),
             now()
     from update_notifications n;
     ''' % {'pid': eid, 'nid': notification_id, 'val': str(as_read).lower()}
@@ -283,6 +299,19 @@ def eid_exist(eid):
         return True
     return False
 
+def save_feedback(doc_id, pat_id, dep_id, feedback):
+    engine = create_engine(DB_CONN_STR)
+    conn = engine.connect()
+    feedback_sql = '''
+        INSERT INTO feedback_log (doc_id, tsp, pat_id, dep_id, feedback)
+        VALUES ('%(doc)s', now(), '%(pat)s', '%(dep)s', '%(fb)s');
+        ''' % {'doc': doc_id, 'pat': pat_id, 'dep': dep_id, 'fb': feedback}
+    try:
+        conn.execute(feedback_sql)
+    except Exception as e:
+        print e
+    conn.close()
+
 if __name__ == '__main__':
     # eid = 'E1000109xx'
     # print eid_exist(eid)
@@ -306,5 +335,3 @@ if __name__ == '__main__':
             vals.append(0)
     for i, n in enumerate(names):
         print n, vals[i]
-
-

@@ -4,7 +4,7 @@
 import os
 import falcon
 # from Crypto.Cipher import AES
-import api
+import api, dashan_query
 from jinja2 import Environment, FileSystemLoader
 import os
 STATIC_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -116,6 +116,12 @@ class TREWSFeedback(object):
                 'Could not decode the request body. The JSON was incorrect.')
 
         try:
+            dashan_query.save_feedback(
+                doc_id = str(result_json['u']),
+                pat_id = str(result_json['q']),
+                dep_id = str(result_json['depid']),
+                feedback = str(result_json['feedback'])
+            )
             subject = 'Feedback - {}'.format(str(result_json['u']))
             html_text = [
                 ("Physician", str(result_json['u'])),
@@ -211,7 +217,11 @@ class TREWSLoggerMiddleware(object):
             }
         }))
 
+
+
 mware = [TREWSLoggerMiddleware()] if 'logging' in os.environ and int(os.environ['logging']) else []
+# if 'prometheus' in os.environ and int(os.environ['prometheus']):
+# mware.append(TREWSPrometheusMiddleware())
 app = falcon.API(middleware=mware)
 
 # Resources are represented by long-lived class instances
@@ -232,5 +242,5 @@ if 'api_with_healthcheck' in os.environ and int(os.environ['api_with_healthcheck
 handler = TREWSStaticResource().on_get
 app.add_sink(handler, prefix=URL_STATIC)
 
-# app.add_route('/trews-api/', trews_www)
-
+# for test prometheus client
+# start_http_server(8888)

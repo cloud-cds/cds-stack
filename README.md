@@ -17,6 +17,7 @@ The REST API to serve TREWS front-end
 ### deis push failed
 You can try
 - push again
-- or scale the deis workers: `deis scale -a trews-web web=0 && deis scale -a trews-web web=2`
+- rollback and make a empty commit: `deis rollback` and `git commit --allow-empty`
+- or scale the deis workers: `deis scale -a trews-dev web=0 && deis scale -a trews-dev web=2`
 - or delete the trews-web pod: `kubectl delete pods/trews-web-xxx -n trews-web`
-- or scale the deis builder: `kubectl scale --replicas=0 deploy/deis-builder -n deis` and then ``kubectl scale --replicas=1 deploy/deis-builder -n deis``
+- or scale the deis builder: `kubectl scale --replicas=0 deploy/deis-builder -n deis` and then `kubectl scale --replicas=1 deploy/deis-builder -n deis`
