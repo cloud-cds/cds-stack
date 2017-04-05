@@ -17,6 +17,7 @@ function isString(obj) {
 }
 
 window.onload = function() {
+	timer.init();
 	endpoints.getPatientData();
 	dropdown.init();
 	overrideModal.init();
@@ -35,7 +36,7 @@ window.onload = function() {
 };
 
 window.onerror = function(error, url, line) {
-    controller.sendLog({acc:'error', data:'ERR:'+error+' URL:'+url+' L:'+line});
+    controller.sendLog({acc:'error', data:'ERR:'+error+' URL:'+url+' L:'+line}, true);
 };
 
 
@@ -211,7 +212,8 @@ var endpoints = new function() {
 			type: "POST",
 			url: this.url,
 			data: JSON.stringify(postBody),
-			dataType: "json"
+			dataType: "json",
+			start_time: new Date().getTime()
 		}).done(function(result) {
 			$('body').removeClass('waiting');
 			$('#loading').addClass('done');
@@ -225,6 +227,7 @@ var endpoints = new function() {
 				trews.setNotifications(result.notifications);
 				controller.refreshNotifications();
 			}
+			timer.log(this.url, this.start_time, new Date().getTime(), 'success')
 		}).fail(function(result) {
 			$('body').removeClass('waiting');
 			if ( toolbarButton ) { toolbarButton.removeClass('loading'); }
@@ -248,6 +251,7 @@ var endpoints = new function() {
 				$('#loading p').text("Connection Failed. Retrying...(" + endpoints.numTries + ")");
 				endpoints.getPatientData();
 			}
+			timer.log(this.url, this.start_time, new Date().getTime(), 'error: ' + endpoints.numTries + ' tries')
 		});
 	};
 	this.test = function() {
@@ -314,16 +318,18 @@ var controller = new function() {
 			$('#loading').addClass('done');
 		});
 	}
-	this.sendLog = function(json) {
+	this.sendLog = function(json, isError) {
 		$.ajax({
 			type: "POST",
 			url: "log",
 			data: JSON.stringify(json),
 			dataType: "json"
 		}).done(function(result) {
-			controller.displayJSError();
+			if (isError)
+				controller.displayJSError();
 		}).fail(function(result) {
-			controller.displayJSError();
+			if (isError)
+				controller.displayJSError();
 		});
 	}
 	this.sendFeedback = function(json) {
@@ -340,6 +346,43 @@ var controller = new function() {
 	}
 }
 
+var timer = new function() {
+	this.refreshPeriod = 60000;
+	this.refreshTimer = null;
+	this.buffer = []
+	this.init = function() {
+		this.sendBuffer(this);
+		window.addEventListener("beforeunload", function (e) {
+			if (timer.buffer.length > 0) {
+				controller.sendLog(timer.buffer, false)
+			}
+		});
+	}
+	this.log = function(url, start, end, status) {
+		var postBody = {
+			"currentUrl": window.location.href,
+			"destinationURL": url, 
+			"start_time": start, 
+			"end_time": end, 
+			"status": status
+		}
+		this.buffer.push(postBody)
+	}
+	this.sendBuffer = function(obj) {
+		// checks every minute if buffer has times to send back
+		if (timer.buffer.length > 0) {
+			controller.sendLog(timer.buffer, false)
+			timer.buffer = []
+		}
+		obj.refreshTimer = window.setTimeout(function() { obj.sendBuffer(obj); }, obj.refreshPeriod);
+	}
+	this.terminate = function() {
+		if (this.refreshTimer) {
+			window.clearTimeout(this.refreshTimer)
+			this.refreshTimer = null
+		}
+	}
+}
 
 /**
  * Slot Component
