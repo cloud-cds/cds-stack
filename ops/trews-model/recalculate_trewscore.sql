@@ -1,3 +1,4 @@
+drop table if exists trews_backup;
 create table trews_backup as
   select * from trews;
 

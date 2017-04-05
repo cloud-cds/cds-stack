@@ -651,3 +651,20 @@ CREATE TABLE feedback_log (
     dep_id              varchar(50),
     feedback            text
 );
+
+DROP TABLE IF EXISTS index_patients;
+CREATE TABLE index_patients (
+    pat_id              varchar(50),
+    model_id            varchar(50),
+    group_id            integer,
+    update_tsp          timestamptz,
+    primary key (pat_id, model_id, group_id)
+);
+
+DROP TABLE IF EXISTS index_group_descriptions;
+CREATE TABLE index_group_descriptions (
+    group_id            integer,
+    group_description   text,
+    update_tsp          timestamptz,
+    primary key         (group_id)
+);
