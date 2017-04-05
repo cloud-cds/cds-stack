@@ -8,6 +8,8 @@ import argparse
 from functools import partial
 from cdm_feature import cdm_twf_field
 
+
+
 logging.basicConfig(level=logging.INFO)
 
 host          = os.environ['db_host']
@@ -16,6 +18,25 @@ db            = os.environ['db_name']
 user          = os.environ['db_user']
 pw            = os.environ['db_password']
 src_server    = os.environ['cmp_remote_server']
+
+enc_id_range = 'enc_id < 31'
+tsp_range = " tsp > '2017-04-01 08:00:00 EDT'::timestamptz and tsp < '2017-04-01 16:00:00 EDT'::timestamptz"
+
+cdm_s_online_features = ['age','gender',
+'heart_failure_hist', 'chronic_pulmonary_hist', 'emphysema_hist',
+'heart_arrhythmias_prob',
+'esrd_prob' 'esrd_diag', 'chronic_bronchitis_diag', 'heart_arrhythmias_diag', 'heart_failure_diag']
+cdm_t_online_features = ['urine_output', 'dobutamine_dose',
+'epinephrine_dose',
+'levophed_infusion_dose',
+'dopamine_dose','vent','fluids_intake',]
+cdm_twf_online_features = ['rass', 'resp_rate',  'nbp_sys', 'gcs', 'temperature', 'amylase',    'weight', 'pao2', 'nbp_dias', 'hemoglobin',  'wbc', 'bilirubin', 'lipase', 'sodium', 'creatinine',  'spo2',  'heart_rate', 'paco2', 'bun', 'platelets', 'fio2']
+
+
+cdm_s_range = 'fid ~ \'%s\'' % '|'.join(cdm_s_online_features)
+cdm_t_range = 'fid ~ \'%s\'' % '|'.join(cdm_t_online_features)
+cdm_t_range += ' and ' + tsp_range
+cdm_twf_online_fields = [row for row in cdm_twf_field if (row[0][:-2] if row[0].endswith('_c') else row[0]) in cdm_twf_online_features]
 
 cdm_dependent_expr_map = {
   }
@@ -54,6 +75,7 @@ cdm_twf_dependent_expr_map = {
   'nbp_mean': ['(round(value::numeric, 4))', '='],
   'mapm': ['(round(value::numeric, 4))', '='],
   'pao2_to_fio2': ['(round(value, 4))', '='],
+  'temperature': ['(round(value, 2))', '='],
 }
 
 cdm_dependent_fields = {
@@ -61,16 +83,16 @@ cdm_dependent_fields = {
 }
 
 cdm_twf_dependent_fields = {
-  # 'value': ('fid', cdm_twf_dependent_expr_map)
+  'value': ('fid', cdm_twf_dependent_expr_map)
 }
 
 cdm_s_fields1 = [
   ['enc_id'                             , 'enc_id',     'integer'     ],
   ['fid'                                , 'fid',        'varchar(50)' ],
   ['value'           , 'text',        ],
-  ['confidence'                         , 'confidence', 'integer'     ],
+  # ['confidence'                         , 'confidence', 'integer'     ],
 ]
-cdm_s_query1 = (cdm_s_fields1, None, 'fid, enc_id', cdm_s_dependent_fields)
+cdm_s_query1 = (cdm_s_fields1, cdm_s_range + ' and ' + enc_id_range, 'fid, enc_id', cdm_s_dependent_fields)
 
 cdm_t_fields1 = [
   ['enc_id'                             , 'enc_id',     'integer'     ],
@@ -81,7 +103,7 @@ cdm_t_fields1 = [
   ["(value::json)#>>'{order_tsp}'"      , 'order_tsp',  'text'        ],
   ['confidence'                         , 'confidence', 'integer'     ],
 ]
-cdm_t_query1 = (cdm_t_fields1, 'fid like \'%_dose\'', 'fid, enc_id, tsp', cdm_t_dose_dependent_fields)
+cdm_t_query1 = (cdm_t_fields1, 'fid like \'%_dose\' and ' + cdm_t_range + ' and ' + enc_id_range, 'fid, enc_id, tsp', cdm_t_dose_dependent_fields)
 
 cdm_t_fields2 = [
   ['enc_id'          , 'integer',     ],
@@ -91,7 +113,7 @@ cdm_t_fields2 = [
   ['confidence'      , 'integer',     ],
 ]
 
-cdm_t_query2 = (cdm_t_fields2, 'fid !~ \'dose|inhosp|bacterial_culture|_proc|culture_order|pneumonia_sepsis|uro_sepsis|biliary_sepsis|intra_abdominal_sepsis\'', 'fid, enc_id, tsp', cdm_t_dependent_fields)
+cdm_t_query2 = (cdm_t_fields2, 'fid !~ \'dose|inhosp|bacterial_culture|_proc|culture_order|pneumonia_sepsis|uro_sepsis|biliary_sepsis|intra_abdominal_sepsis\' and ' + cdm_t_range + ' and '+ enc_id_range, 'fid, enc_id, tsp', cdm_t_dependent_fields)
 
 cdm_t_fields3 = [
   ['enc_id'                             , 'enc_id',     'integer'     ],
@@ -102,7 +124,7 @@ cdm_t_fields3 = [
   ["""(value::json)#>>'{"present on admission"}'"""      , 'present_on_admission',  'text'        ],
   ['confidence'                         , 'confidence', 'integer'     ],
 ]
-cdm_t_query3 = (cdm_t_fields3, 'fid like \'%_inhosp|pneumonia_sepsis|uro_sepsis|biliary_sepsis|intra_abdominal_sepsis\'', 'fid, enc_id, tsp', cdm_dependent_fields)
+cdm_t_query3 = (cdm_t_fields3, 'fid like \'%_inhosp|pneumonia_sepsis|uro_sepsis|biliary_sepsis|intra_abdominal_sepsis\' and ' + cdm_t_range + ' and ' + enc_id_range, 'fid, enc_id, tsp', cdm_dependent_fields)
 
 cdm_t_fields4 = [
   ['enc_id'                             , 'enc_id',     'integer'     ],
@@ -112,30 +134,28 @@ cdm_t_fields4 = [
   ["(value::json)#>>'{name}'"         , 'name',     'text'        ],
   ['confidence'                         , 'confidence', 'integer'     ],
 ]
-cdm_t_query4 = (cdm_t_fields4, 'fid like \'bacterial_culture|_proc|culture_order\'', 'fid, enc_id, tsp', cdm_dependent_fields)
+cdm_t_query4 = (cdm_t_fields4, 'fid like \'bacterial_culture|_proc|culture_order\' and ' + cdm_t_range + ' and ' + enc_id_range, 'fid, enc_id, tsp', cdm_dependent_fields)
 
 cdm_twf_field_index = [
   ['enc_id'                             , 'enc_id',     'integer'     ],
   ['tsp'                                , 'tsp',        'timestamptz' ],
 ]
 
-enc_id_range = 'enc_id < 10'
+confidence_range = '%s < 8'
 
-
-
-cdm_twf_queries = [(cdm_twf_field_index + cdm_twf_field[2*i:2*(i+1)], enc_id_range, 'enc_id, tsp', cdm_twf_dependent_fields) for i in range(len(cdm_twf_field)//2)]
+cdm_twf_queries = [(cdm_twf_field_index + [cdm_twf_online_fields[2*i]], enc_id_range + ' and ' + tsp_range + ' and ' + (confidence_range % cdm_twf_online_fields[2*i+1][0]), 'enc_id, tsp', cdm_twf_dependent_fields) for i in range(len(cdm_twf_online_fields)//2)]
 
 
 tables_to_compare = {
   # 'datalink'                 : ('dataset', []),
-  'cdm_function'             : ('dataset', []),
-  'cdm_feature'              : ('dataset', []),
+  # 'cdm_function'             : ('dataset', []),
+  # 'cdm_feature'              : ('dataset', []),
   # 'datalink_feature_mapping' : ('dataset', []),
-  'pat_enc'                  : ('dataset', []),
-  'cdm_g'                    : ('both'   , []),
-  # 'cdm_s'                    : ('dataset', [cdm_s_query1]),
+  # 'pat_enc'                  : ('dataset', []),
+  # 'cdm_g'                    : ('both'   , []),
+  'cdm_s'                    : ('dataset', [cdm_s_query1]),
   # 'cdm_m'                    : ('dataset', []),
-  # 'cdm_t'                    : ('dataset', [cdm_t_query1, cdm_t_query2, cdm_t_query3, cdm_t_query4]),
+  'cdm_t'                    : ('dataset', [cdm_t_query1, cdm_t_query2, cdm_t_query3, cdm_t_query4]),
   # 'criteria_meas'            : ('dataset', []),
   # 'criteria'                 : ('dataset', []),
   # 'criteria_events'          : ('dataset', []),
@@ -236,7 +256,7 @@ class TableComparator:
         self.field_map = []
 
 
-  async def compare_query(self, pool, src_tbl, src_fields, dst_tbl, dst_fields):
+  async def compare_query(self, pool, src_tbl, src_fields, dst_tbl, dst_fields, dst_tsp_shift='4 hours'):
 
     src_version_map = { 'model_id': self.src_model_id, 'dataset_id': self.src_dataset_id }
     dst_version_map = { 'model_id': self.dst_model_id, 'dataset_id': self.dst_dataset_id }
@@ -299,7 +319,6 @@ class TableComparator:
       ) R
       %s
       ''' % ('' if self.sort_field is None else ('ORDER BY %s' % self.sort_field))
-
     compare_to_remote_query = \
     '''
     WITH A_DIFF_B AS (
@@ -322,10 +341,10 @@ class TableComparator:
       'srv'                    : self.src_server,
       'query'                  : remote_query,
       'local_table'            : dst_tbl,
-      'local_exprs'            : ', '.join(map(partial(project_expr), dst_fields)),
+      'local_exprs'            : ', '.join(map(partial(project_expr), dst_fields if dst_tsp_shift is None else [(f if f[0] != 'tsp' or len(f) < 3 else ["(tsp + '%s'::interval) tsp" % dst_tsp_shift, f[1], f[2]])  for f in dst_fields])),
       'local_fields'           : ', '.join(map(partial(project_expr, mode='name'), dst_fields)),
       'local_fields_and_types' : ', '.join(map(partial(project_expr, mode='nametype'), dst_fields)),
-      'with_dst_extension'     : with_dst_extension,
+      'with_dst_extension': with_dst_extension.replace("tsp", "tsp + '%s'::interval" % dst_tsp_shift) if 'tsp' in with_dst_extension and dst_tsp_shift is not None else with_dst_extension ,
       'finalizer'              : query_finalizer
     }
 
@@ -340,6 +359,7 @@ class TableComparator:
         results = await conn.fetch(compare_to_remote_query)
         for r in results:
           logging.info(dict(r))
+        return results
 
 
   async def run(self, pool):

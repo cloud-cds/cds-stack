@@ -1,7 +1,7 @@
 # deploy model parameters to opsdx
 # please make sure the file names are correct before deployment
 # please run this script on either dev or prod controller
-import os
+import os, sys
 from sqlalchemy import create_engine, types, text
 import pandas as pd
 
@@ -9,6 +9,11 @@ DB_CONN_STR = 'postgresql://{}:{}@{}:{}/{}'
 user = os.environ['db_user']
 host = os.environ['db_host']
 db = os.environ['db_name']
+
+if len(sys.argv) == 2:
+  db = sys.argv[1]
+print("db_name: " + db)
+
 port = os.environ['db_port']
 password = os.environ['db_password']
 DB_CONN_STR = DB_CONN_STR.format(user, password, host, port, db)

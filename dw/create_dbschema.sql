@@ -10,12 +10,14 @@
 -- version used to populate the DW.
 -- Versions allow us to maintain multiple datasets for comparison purposes.
 ------------------------------------------------
+DROP TABLE IF EXISTS dw_version;
 CREATE TABLE dw_version (
     dataset_id      serial primary key,
     created         timestamptz,
     description     text
 );
 
+DROP TABLE IF EXISTS model_version;
 CREATE TABLE model_version (
     model_id        serial PRIMARY KEY,
     created         timestamptz,
