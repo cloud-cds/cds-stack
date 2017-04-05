@@ -8,12 +8,14 @@ from compare_cdm import TableComparator
 from cdm_feature import cdm_twf_field
 import datetime as dt
 
+
+
 db_pair = [
   {
     'name': 'test_epic2op',
     'engine': EngineEpic2op(db_name='test_epic2op'),
     'pipeline': {
-      'clean_db': ['rm_data'],
+      'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
       'populate_db': {},
     },
   },
@@ -21,9 +23,9 @@ db_pair = [
     'name': 'test_c2dw',
     'engine': EngineC2dw(job_test_c2dw),
     'pipeline': {
-      # 'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
-      # 'copy_pat_enc': {},
-      # 'populate_db': {},
+      'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
+      'copy_pat_enc': {},
+      'populate_db': {},
     },
     'db_compare': {
       'srcdid': None,
@@ -32,6 +34,7 @@ db_pair = [
       'dstmid': 1,
       'cmp_remote_server': 'test_epic2op',
       'counts': False,
+      'date': '2017-04-03',
     }
   }
 ]
@@ -116,7 +119,7 @@ class DBCompareTest():
             select 1, enc_id, pat_id, visit_id from pat_enc
           $OPDB$) as pe (dataset_id int, enc_id int, pat_id text, visit_id text)
     );
-    ''' % self.pair[0]['name']
+    ''' % self.db_pair[0]['name']
     async with pool.acquire() as conn:
       await conn.execute(sql)
 

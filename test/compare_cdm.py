@@ -17,7 +17,8 @@ port          = os.environ['db_port']
 db            = os.environ['db_name']
 user          = os.environ['db_user']
 pw            = os.environ['db_password']
-src_server    = os.environ['cmp_remote_server']
+if 'cmp_remote_server' in os.environ:
+  src_server    = os.environ['cmp_remote_server']
 
 enc_id_range = 'enc_id < 31'
 tsp_range = " tsp > '2017-04-01 08:00:00 EDT'::timestamptz and tsp < '2017-04-01 16:00:00 EDT'::timestamptz"
