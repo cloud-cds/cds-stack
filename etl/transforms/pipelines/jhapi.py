@@ -225,6 +225,7 @@ med_admin_transforms = [
          'metronidazole_dose', 'aztronam_dose', 'ciprofloxacin_dose',
          'gentamicin_dose', 'azithromycin_dose',]),
     lambda ma: format_data.threshold_values(ma, 'dose_value'),
+    # lambda ma: derive.derive_fluids_intake(ma)
 ]
 
 loc_history_transforms = [

@@ -152,6 +152,7 @@ async def workspace_flowsheets_2_cdm_t(conn, job_id):
                 inner join pat_enc on pat_enc.visit_id = fs.visit_id
                 inner join cdm_feature on fs.fid = cdm_feature.fid and cdm_feature.category = 'T'
             where fs.tsp <> 'NaT' and fs.tsp::timestamptz < now()
+                and fs.fid <> 'fluids_intake'
             group by pat_enc.enc_id, tsp, fs.fid
         ON CONFLICT (enc_id, tsp, fid)
             DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
@@ -205,14 +206,14 @@ async def workspace_medication_administration_2_cdm_t(conn, job_id):
         group by pat_enc.enc_id, tsp, mar.fid
     ON CONFLICT (enc_id, tsp, fid)
         DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
-    -- fluids and others
+    -- others excluded fluids
     INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
         select pat_enc.enc_id, mar.tsp::timestamptz, mar.fid,
             max(mar.dose_value::numeric), 0
         from workspace.%(job)s_med_admin_transformed mar
             inner join pat_enc on pat_enc.visit_id = mar.visit_id
             inner join cdm_feature on cdm_feature.fid = mar.fid
-        where isnumeric(mar.dose_value) and mar.tsp <> 'NaT' and mar.tsp::timestamptz < now() and mar.fid not ilike 'dose'
+        where isnumeric(mar.dose_value) and mar.tsp <> 'NaT' and mar.tsp::timestamptz < now() and mar.fid not ilike 'dose' and mar.fid <> 'fluids_intake'
         group by pat_enc.enc_id, tsp, mar.fid
     ON CONFLICT (enc_id, tsp, fid)
         DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
@@ -220,7 +221,33 @@ async def workspace_medication_administration_2_cdm_t(conn, job_id):
     logging.info("%s: import_raw_features: %s" % (job_id, import_raw_features))
     await conn.execute(import_raw_features)
 
-
+async def workspace_fluids_intake_2_cdm_t(conn, job_id):
+    import_raw_features = \
+    """
+    with u as (
+        select pat_enc.enc_id, mar.tsp::timestamptz, mar.fid, mar.dose_value as value
+            from workspace.%(job)s_med_admin_transformed mar
+                inner join pat_enc on pat_enc.visit_id = mar.visit_id
+                inner join cdm_feature on cdm_feature.fid = mar.fid
+            where isnumeric(mar.dose_value) and mar.tsp <> 'NaT' and mar.tsp::timestamptz < now() and mar.fid = 'fluids_intake'
+            UNION
+            select pat_enc.enc_id, fs.tsp::timestamptz, fs.fid, fs.value
+            from workspace.%(job)s_flowsheets_transformed fs
+                inner join pat_enc on pat_enc.visit_id = fs.visit_id
+                inner join cdm_feature on fs.fid = cdm_feature.fid and cdm_feature.category = 'T'
+                where fs.tsp <> 'NaT' and fs.tsp::timestamptz < now()
+                and fs.fid = 'fluids_intake'
+    )
+    INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+        select u.enc_id, u.tsp, u.fid,
+                sum(u.value::numeric), 0
+        from u
+        group by u.enc_id, u.tsp, u.fid
+    ON CONFLICT (enc_id, tsp, fid)
+        DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+    """ % {'job': job_id}
+    logging.info("%s: import_raw_features: %s" % (job_id, import_raw_features))
+    await conn.execute(import_raw_features)
 
 async def workspace_flowsheets_2_cdm_twf(conn, job_id):
     select_twf_features = """

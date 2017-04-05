@@ -15,18 +15,18 @@ job_test_c2dw = {
     'start_enc_id': '(select max(enc_id) from pat_enc)'
   },
   'transform': {
-    'populate_patients': True,
+    # 'populate_patients': True,
     'populate_measured_features': {
       # 'plan': False,
-      # 'fid': 'propofol_dose',
+      # 'fid': 'fluids_intake',
     },
   },
-  'fillin': {
-    'recalculate_popmean': False,
-  },
-  'derive': {
-    # 'fid': 'cardio_sofa'
-  },
+  # 'fillin': {
+  #   'recalculate_popmean': False,
+  # },
+  # 'derive': {
+  #   # 'fid': 'cardio_sofa'
+  # },
   'config': {
     'dataset_id': 1,
     'debug': True,
@@ -35,6 +35,7 @@ job_test_c2dw = {
     'conf': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'conf'),
   },
 }
+
 
 job = {
   'reset_dataset': {
@@ -88,5 +89,5 @@ class Engine(object):
     await self.extractor.run(self.job)
 
 if __name__ == '__main__':
-  engine = Engine(job_test_c2dw)
+  engine = Engine(job)
   engine.main()
