@@ -230,6 +230,7 @@ async def workspace_fluids_intake_2_cdm_t(conn, job_id):
                 inner join pat_enc on pat_enc.visit_id = mar.visit_id
                 inner join cdm_feature on cdm_feature.fid = mar.fid
             where isnumeric(mar.dose_value) and mar.tsp <> 'NaT' and mar.tsp::timestamptz < now() and mar.fid = 'fluids_intake'
+                        and mar.dose_value::numeric > 0
             UNION
             select pat_enc.enc_id, fs.tsp::timestamptz, fs.fid, fs.value
             from workspace.%(job)s_flowsheets_transformed fs
@@ -237,6 +238,7 @@ async def workspace_fluids_intake_2_cdm_t(conn, job_id):
                 inner join cdm_feature on fs.fid = cdm_feature.fid and cdm_feature.category = 'T'
                 where fs.tsp <> 'NaT' and fs.tsp::timestamptz < now()
                 and fs.fid = 'fluids_intake'
+                and fs.value::numeric > 0
     )
     INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
         select u.enc_id, u.tsp, u.fid,

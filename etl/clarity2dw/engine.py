@@ -15,7 +15,7 @@ job_test_c2dw = {
     'start_enc_id': '(select max(enc_id) from pat_enc)'
   },
   'transform': {
-    # 'populate_patients': True,
+    'populate_patients': True,
     'populate_measured_features': {
       # 'plan': False,
       # 'fid': 'fluids_intake',

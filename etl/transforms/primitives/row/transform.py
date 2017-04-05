@@ -968,10 +968,10 @@ def extract_fluids_intake(entries, log):
     for entry in entries:
         if entry['ActionTaken'] in on_actions:
             tsp = entry['TimeActionTaken']
-            if entry['Dose'] is not None and entry['Dose'] > 0:
+            if entry['Dose'] is not None:
                 dose = entry['Dose']
                 volumes.append([tsp, dose, confidence.VALUE_TRANSFORMED])
-            elif entry['INFUSION_RATE'] is not None and entry['INFUSION_RATE']>0:
+            elif entry['INFUSION_RATE'] is not None:
                 dose = entry['INFUSION_RATE']
                 volumes.append([tsp, dose, confidence.VALUE_TRANSFORMED])
     return volumes
