@@ -26,6 +26,7 @@ class Engine():
             jhapi_secret =   os.environ['jhapi_client_secret'],
         )
         self.notify_epic = int(os.environ['TREWS_ETL_EPIC_NOTIFICATIONS'])
+        self.boto_client = boto3.client('cloudwatch', region_name=os.environ['AWS_DEFAULT_REGION'])
         self.prod_or_dev = os.environ['db_name']
         self.criteria = Criteria(self.config)
         self.extract_time = dt.timedelta(0)
@@ -71,11 +72,11 @@ class Engine():
     def push_cloudwatch_metrics(self, stats):
         metric_data = [{
             'MetricName': 'ExTrLoTime',
-            'Value':  etl_time.total_seconds(), 'Unit': 'Seconds'
+            'Value': stats['etl_time'], 'Unit': 'Seconds'
         },{ 'MetricName': 'ExTrTime',
-            'Value': stats['total_time'], 'Unit': 'Seconds'
+            'Value': stats['et_time'], 'Unit': 'Seconds'
         },{ 'MetricName': 'ExTime',
-            'Value': stats['request_time'], 'Unit': 'Seconds'
+            'Value': stats['e_time'], 'Unit': 'Seconds'
         },{ 'MetricName': 'NumBeddedPatients',
             'Value': stats['bedded_pats'], 'Unit': 'Count'
         },{ 'MetricName': 'NumFlowsheets',
@@ -85,18 +86,17 @@ class Engine():
         },{ 'MetricName': 'NumLabResults',
             'Value': stats['lab_results'], 'Unit': 'Count'
         },{ 'MetricName': 'NumLocationHistory',
-            'Value': stats['location_history'], 'Unit': 'Count'
+            'Value': stats['loc_history'], 'Unit': 'Count'
         },{ 'MetricName': 'NumMedAdmin',
             'Value': stats['med_admin'], 'Unit': 'Count'
         },{ 'MetricName': 'NumMedOrders',
             'Value': stats['med_orders'], 'Unit': 'Count'
         }]
         for md in metric_data:
-            md['Dimensions'] = {'Name': 'ETL', 'Value': self.prod_or_dev}
+            md['Dimensions'] = [{'Name': 'ETL', 'Value': self.prod_or_dev}]
             md['Timestamp'] = dt.datetime.utcnow()
-
         try:
-            boto_client.put_metric_data(Namespace='OpsDX', MetricData=metric_data)
+            self.boto_client.put_metric_data(Namespace='OpsDX', MetricData=metric_data)
         except botocore.exceptions.EndpointConnectionError as e:
             logging.error(e)
 
@@ -151,8 +151,9 @@ class Engine():
 
         # Create stats object
         cloudwatch_stats = {
-            'total_time':    (dt.datetime.now() - driver_start).total_seconds(),
-            'request_time':  self.extract_time.total_seconds(),
+            'etl_time':      (dt.datetime.now() - driver_start).total_seconds(),
+            'et_time':       (self.extract_time + self.transform_time).total_seconds(),
+            'e_time':        self.extract_time.total_seconds(),
             'bedded_pats':   len(pats_t.index),
             'flowsheets':    len(flowsheets_t.index),
             'lab_orders':    len(lab_orders_t.index),
