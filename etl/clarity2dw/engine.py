@@ -10,7 +10,7 @@ import os
 
 job_test_c2dw = {
   'reset_dataset': {
-    # 'remove_pat_enc': True,
+    'remove_pat_enc': True,
     'remove_data': True,
     'start_enc_id': '(select max(enc_id) from pat_enc)'
   },
@@ -18,19 +18,19 @@ job_test_c2dw = {
     'populate_patients': True,
     'populate_measured_features': {
       # 'plan': False,
-      # 'fid': 'fluids_intake',
+      # 'fid': 'age',
     },
   },
-  # 'fillin': {
-  #   'recalculate_popmean': False,
-  # },
-  # 'derive': {
-  #   # 'fid': 'cardio_sofa'
-  # },
+  'fillin': {
+    'recalculate_popmean': False,
+  },
+  'derive': {
+    # 'fid': 'cardio_sofa'
+  },
   'config': {
     'dataset_id': 1,
     'debug': True,
-    'db_name': 'test_c2dw',
+    # 'db_name': 'test_c2dw',
     # 'db_host': 'dev.opsdx.io',
     'conf': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'conf'),
   },

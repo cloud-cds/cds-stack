@@ -135,11 +135,12 @@ def convert_ounces_to_kg(entry, log):
 
 def convert_age_to_int(entry, log):
     value = entry[-1]
-    if value.endswith("+"):
-        # for example, if value is 90+, return 90
-        return [int(value[:-1]), confidence.VALUE_TRANSFORMED]
-    else:
-        return [int(value), confidence.NO_TRANSFORM]
+    if value is not None:
+        if value.endswith("+"):
+            # for example, if value is 90+, return 90
+            return [int(value[:-1]), confidence.VALUE_TRANSFORMED]
+        else:
+            return [int(value), confidence.NO_TRANSFORM]
 
 
 def cast_string_to_real(entry, log):
