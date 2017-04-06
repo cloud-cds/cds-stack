@@ -3,7 +3,7 @@ med_regex = [
         'fid': 'albumin_dose',
         'pos': '^albumin human \(PLASBUMIN\)',
         'neg': 'injection|flush syringe|nebulizer',
-        'part_of': ['fluids_intake'],
+        # 'part_of': ['fluids_intake'],
     }, {
         'fid': 'amoxicillin_dose',
         'pos': '^amoxicillin',
@@ -77,12 +77,13 @@ med_regex = [
         'fid': 'hetastarch',
         'pos': '^hetastarch',
         'neg': 'injection|flush syringe|nebulizer',
-        'part_of': ['fluids_intake'],
+        # 'part_of': ['fluids_intake'],
     }, {
         'fid': 'lactated_ringers',
         'pos': '^lactated ringers|^dextrose 5% lactated ringers bolus',
         'neg': 'syringe|nasal spray|injection|gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
-        'part_of': ['fluids_intake', 'crystalloid_fluid'],
+        # 'part_of': ['fluids_intake', 'crystalloid_fluid'],
+        'part_of': ['crystalloid_fluid']
     }, {
         'fid': 'levofloxacin_dose',
         'pos': '^levofloxacin',
@@ -137,7 +138,8 @@ med_regex = [
         'fid': 'sodium_chloride',
         'pos': '^sodium chloride 0.9( %|%)',
         'neg': 'syringe|nasal spray|injection|gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
-        'part_of': ['fluids_intake', 'crystalloid_fluid'],
+        # 'part_of': ['fluids_intake', 'crystalloid_fluid'],
+        'part_of': ['crystalloid_fluid'],
     }, {
         'fid': 'vancomycin_dose',
         'pos': '^vancomycin',
@@ -148,5 +150,10 @@ med_regex = [
         'pos': '^vasopressin',
         'neg': '',
         'part_of': ['vasopressors_dose'],
+    },
+    {
+        'fid': 'fluids_intake',
+        'pos': '^albumin human \(PLASBUMIN\)|^dextrose 5% lactated ringers bolus|^hetastarch|^lactated ringers|^sodium chloride 0.9( %|%) (?!injection|flush syringe|nebulizer)',
+        'neg': '',
     },
 ]

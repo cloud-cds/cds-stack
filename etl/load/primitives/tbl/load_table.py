@@ -1,12 +1,13 @@
 import etl.core.config
 import logging
 
-
 # TODO: make async / use COPY
-def data_2_workspace(engine, job_id, df_name, df):
+def data_2_workspace(engine, job_id, df_name, df, dtypes=None):
     nrows = df.shape[0]
     table_name = "{}_{}".format(job_id, df_name)
     logging.info("saving data frame to %s: nrows = %s" % (table_name, nrows))
+    if dtypes is not None:
+        df = df.astype(dtypes)
     df.to_sql(table_name, engine, if_exists='replace', index=False, schema='workspace')
     '''
     buf = StringIO()
@@ -151,6 +152,7 @@ async def workspace_flowsheets_2_cdm_t(conn, job_id):
                 inner join pat_enc on pat_enc.visit_id = fs.visit_id
                 inner join cdm_feature on fs.fid = cdm_feature.fid and cdm_feature.category = 'T'
             where fs.tsp <> 'NaT' and fs.tsp::timestamptz < now()
+                and fs.fid <> 'fluids_intake'
             group by pat_enc.enc_id, tsp, fs.fid
         ON CONFLICT (enc_id, tsp, fid)
             DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
@@ -204,14 +206,14 @@ async def workspace_medication_administration_2_cdm_t(conn, job_id):
         group by pat_enc.enc_id, tsp, mar.fid
     ON CONFLICT (enc_id, tsp, fid)
         DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
-    -- fluids and others
+    -- others excluded fluids
     INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
         select pat_enc.enc_id, mar.tsp::timestamptz, mar.fid,
             max(mar.dose_value::numeric), 0
         from workspace.%(job)s_med_admin_transformed mar
             inner join pat_enc on pat_enc.visit_id = mar.visit_id
             inner join cdm_feature on cdm_feature.fid = mar.fid
-        where isnumeric(mar.dose_value) and mar.tsp <> 'NaT' and mar.tsp::timestamptz < now() and mar.fid not ilike 'dose'
+        where isnumeric(mar.dose_value) and mar.tsp <> 'NaT' and mar.tsp::timestamptz < now() and mar.fid not ilike 'dose' and mar.fid <> 'fluids_intake'
         group by pat_enc.enc_id, tsp, mar.fid
     ON CONFLICT (enc_id, tsp, fid)
         DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
@@ -219,7 +221,35 @@ async def workspace_medication_administration_2_cdm_t(conn, job_id):
     logging.info("%s: import_raw_features: %s" % (job_id, import_raw_features))
     await conn.execute(import_raw_features)
 
-
+async def workspace_fluids_intake_2_cdm_t(conn, job_id):
+    import_raw_features = \
+    """
+    with u as (
+        select pat_enc.enc_id, mar.tsp::timestamptz, mar.fid, mar.dose_value as value
+            from workspace.%(job)s_med_admin_transformed mar
+                inner join pat_enc on pat_enc.visit_id = mar.visit_id
+                inner join cdm_feature on cdm_feature.fid = mar.fid
+            where isnumeric(mar.dose_value) and mar.tsp <> 'NaT' and mar.tsp::timestamptz < now() and mar.fid = 'fluids_intake'
+                        and mar.dose_value::numeric > 0
+            UNION
+            select pat_enc.enc_id, fs.tsp::timestamptz, fs.fid, fs.value
+            from workspace.%(job)s_flowsheets_transformed fs
+                inner join pat_enc on pat_enc.visit_id = fs.visit_id
+                inner join cdm_feature on fs.fid = cdm_feature.fid and cdm_feature.category = 'T'
+                where fs.tsp <> 'NaT' and fs.tsp::timestamptz < now()
+                and fs.fid = 'fluids_intake'
+                and fs.value::numeric > 0
+    )
+    INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+        select u.enc_id, u.tsp, u.fid,
+                sum(u.value::numeric), 0
+        from u
+        group by u.enc_id, u.tsp, u.fid
+    ON CONFLICT (enc_id, tsp, fid)
+        DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+    """ % {'job': job_id}
+    logging.info("%s: import_raw_features: %s" % (job_id, import_raw_features))
+    await conn.execute(import_raw_features)
 
 async def workspace_flowsheets_2_cdm_twf(conn, job_id):
     select_twf_features = """
@@ -276,7 +306,7 @@ async def workspace_lab_results_2_cdm_twf(conn, job_id):
 
 
 
-async def workspace_lab_results_2_cdm_twf(conn, job_id):
+async def workspace_medication_administration_2_cdm_twf(conn, job_id):
     # NOTE{zad}: usually no twf features in MAR but for safty we cover them in MAR
     select_twf_features = """
     select distinct c.fid, c.data_type from cdm_feature c
