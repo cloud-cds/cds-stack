@@ -21,7 +21,6 @@ def sum_values_at_same_tsp(df, list_of_fids):
         df = df[~fid_values].append(combined)
     return df
 
-
 def derive_lab_status(df):
     def get_status(row):
         order = row['order_status']

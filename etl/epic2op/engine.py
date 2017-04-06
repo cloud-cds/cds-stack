@@ -208,8 +208,6 @@ class Engine():
 
     self.push_cloudwatch_metrics(cloudwatch_stats)
 
-
-
 if __name__ == '__main__':
   pd.set_option('display.width', 200)
   pd.set_option('display.max_rows', 30)
