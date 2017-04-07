@@ -728,7 +728,7 @@ BEGIN
 END; $func$;
 
 
-CREATE OR REPLACE FUNCTION calculate_criteria(this_pat_id text, ts_start timestamptz, ts_end timestamptz)
+CREATE OR REPLACE FUNCTION calculate_criteria(this_pat_id text, ts_start timestamptz, ts_end timestamptz, is_historical BOOLEAN DEFAULT FALSE)
  RETURNS table(pat_id                           varchar(50),
                name                             varchar(50),
                measurement_time                 timestamptz,
@@ -744,6 +744,18 @@ CREATE OR REPLACE FUNCTION calculate_criteria(this_pat_id text, ts_start timesta
                )
  LANGUAGE plpgsql
 AS $function$ BEGIN
+
+
+IF is_historical THEN
+  raise notice 'Adjusting criteria table to current time';
+  delete from criteria where criteria.pat_id = this_pat_id;
+  insert into criteria ( dataset_id, pat_id, name, is_met, measurement_time,override_time,override_user, override_value, value, update_date)
+  select s.dataset_id, s.pat_id, s.name, last(s.is_met), last(s.measurement_time),s.override_time,last(s.override_user), last(s.override_value), last(s.value), last(s.update_date)
+  from suspicion_of_infection_hist s
+  where override_time between ts_start and ts_end and pat_id = this_pat_id
+  group by dataset_id, pat_id, override_time, name;
+END IF;
+
 
 return query
     with pat_ids as (
@@ -1250,6 +1262,8 @@ return query
 
 return;
 END; $function$;
+
+
 
 -- Calculates criteria over windows, with each window based on the timestamps
 -- at which a measurement is available. This could be replaced by regularly-spaced
@@ -1907,7 +1921,7 @@ BEGIN
     -- ================================================
     -- Upsert Suspicion of infection proxy
     -- ================================================
-    insert into criteria (dataset_id, pat_id, name,                  is_met, measurement_time,override_time,override_user, override_value, value, update_date)
+    insert into suspicion_of_infection_hist (dataset_id, pat_id, name,                  is_met, measurement_time,override_time,override_user, override_value, value, update_date)
     select cdm_t.dataset_id, pat_enc.pat_id, 'suspicion_of_infection', true, cdm_t.tsp, cdm_t.tsp,          'cdm_t'::text, '[{"text": "infection"}]'::json,'infection'::text,now()
     from
     cdm_t
@@ -1972,7 +1986,9 @@ BEGIN
 --                 and meas.tsp between ts_start and ts_end
         ) window_ends
         inner join lateral calculate_criteria(
-            coalesce(this_pat_id, window_ends.pat_id), window_ends.tsp - window_size, window_ends.tsp
+            coalesce(this_pat_id, window_ends.pat_id),
+            window_ends.tsp - window_size, window_ends.tsp,
+            TRUE
         ) new_criteria
         on window_ends.pat_id = new_criteria.pat_id;
 
@@ -1982,7 +1998,6 @@ BEGIN
     drop table new_criteria_windows;
     return;
 END; $function$;
-
 ----------------------------------------------------------------------
 -- calculate_trews_contributors
 -- Returns a time-series of top 'rank_limit' features and values that
