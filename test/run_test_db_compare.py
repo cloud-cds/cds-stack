@@ -69,12 +69,12 @@ epic2op_vs_c2dw = [
     'name': 'test_c2dw',
     'engine': EngineC2dw,
     'job': job_c2dw_1,
-    # 'pipeline': {
-    #   # 'load_clarity': {'folder': '~/clarity-db-staging/2017-04-06/'},
-    #   'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
-    #   'copy_pat_enc': True,
-    #   'populate_db': True,
-    # },
+    'pipeline': {
+      # # 'load_clarity': {'folder': '~/clarity-db-staging/2017-04-06/'},
+      # 'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
+      # 'copy_pat_enc': True,
+      # 'populate_db': True,
+    },
     'db_compare': {
       'srcdid': None,
       'srcmid': None,
@@ -312,11 +312,14 @@ class DBCompareTest():
       ['pat_id'                                ,       'varchar(50)' ],
       ['visit_id'           , 'text',        ],
     ]
+
+    after_admission_constraint = " tsp >= coalesce((select min(ct.tsp) from cdm_t ct where ct.enc_id = {cdm}.enc_id and ct.fid = 'care_unit'), tsp) "
+
     pat_enc_query = (pat_enc_fields, enc_id_range, 'enc_id', None)
     if online:
       cdm_s_range = 'fid ~ \'%s\'' % '|'.join(cdm_s_online_features)
       cdm_t_range = 'fid ~ \'%s\'' % '|'.join(cdm_t_online_features)
-      cdm_t_range += ' and ' + tsp_range
+      cdm_t_range += ' and ' + tsp_range + ' and ' + after_admission_constraint.format(cdm='cdm_t')
       cdm_twf_fields = [row for row in cdm_twf if (row[0][:-2] if row[0].endswith('_c') else row[0]) in cdm_twf_online_features]
     else:
       cdm_s_range = None
@@ -359,7 +362,7 @@ class DBCompareTest():
       # 'nbp_mean': ['(round(value::numeric, 4))', '='],
       # 'mapm': ['(round(value::numeric, 4))', '='],
       # 'pao2_to_fio2': ['(round(value, 4))', '='],
-      'temperature': ['(round(temperature::numeric, 0))', '='],
+      'temperature': ['(round(temperature::numeric, 0)) as temperature', '='],
     }
     for field in cdm_twf_fields:
       if field[0] in cdm_twf_dependent_expr_map:
@@ -430,7 +433,7 @@ class DBCompareTest():
 
     confidence_range = '%s < 8'
 
-    cdm_twf_queries = [(cdm_twf_field_index + [cdm_twf_fields[2*i]], enc_id_range + ' and ' + tsp_range + ' and ' + (confidence_range % cdm_twf_fields[2*i+1][0]), 'enc_id, tsp', cdm_twf_dependent_fields) for i in range(len(cdm_twf_fields)//2)]
+    cdm_twf_queries = [(cdm_twf_field_index + [cdm_twf_fields[2*i]], enc_id_range + ' and ' + tsp_range + ' and ' + (confidence_range % cdm_twf_fields[2*i+1][0]) + ' and ' + after_admission_constraint.format(cdm='cdm_twf'), 'enc_id, tsp', cdm_twf_dependent_fields) for i in range(len(cdm_twf_fields)//2)]
 
     tables_to_compare = {
       # 'datalink'                 : ('dataset', []),
