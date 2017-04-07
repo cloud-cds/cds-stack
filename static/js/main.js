@@ -720,18 +720,18 @@ var graphComponent = new function() {
 		if (json == undefined) {
 			return;
 		}
+
 		if (this.is30) {
 			var dataLength = json['chart_values']['timestamp'].length;
 			for (var i = 0; i < dataLength; i += 1) {
 				json['chart_values']['timestamp'][i] *= 1000;
-				json['chart_values']['timestamp'][i] = Math.min(1.0, Math.max(0.0, json['chart_values']['timestamp'][i])); // Clamp chart values to 0-1 range.
 			}
 			this.is30 = false;
-		} else {
-			var dataLength = json['chart_values']['timestamp'].length;
-			for (var i = 0; i < dataLength; i += 1) {
-				json['chart_values']['timestamp'][i] = Math.min(1.0, Math.max(0.0, json['chart_values']['timestamp'][i])); // Clamp chart values to 0-1 range.
-			}
+		}
+
+		var trewsDataLength = json['chart_values']['trewscore'].length;
+		for (var i = 0; i < trewsDataLength; i += 1) {
+			json['chart_values']['trewscore'][i] = Math.min(1.0, Math.max(0.0, json['chart_values']['trewscore'][i])); // Clamp chart values to 0-1 range.
 		}
 
 		if (json.chart_values.timestamp.length != 0) {

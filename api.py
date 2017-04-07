@@ -455,6 +455,7 @@ class TREWSAPI(object):
                     srvnow = datetime.datetime.utcnow().isoformat()
                     raw_json = req.stream.read()
                     req_body = json.loads(raw_json)
+                    req.context['body'] = req_body
 
                     logging.info('%(date)s %(reqdate)s %(remote_addr)s %(access_route)s %(protocol)s %(method)s %(host)s %(headers)s %(body)s'
                         % { 'date'         : srvnow,

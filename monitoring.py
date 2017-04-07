@@ -59,11 +59,8 @@ class CloudwatchLoggerMiddleware(object):
     def process_request(self, req, resp):
       if self.enabled:
         srvnow = datetime.datetime.utcnow().isoformat()
-        body = json.load(req.bounded_stream)
-        actionType = body['actionType'] if 'actionType' in body else None
         self.cwLogger.info(json.dumps({
           'req': {
-            'actionType'   : actionType,
             'date'         : srvnow,
             'reqdate'      : req.date,
             'method'       : req.method,
@@ -77,11 +74,8 @@ class CloudwatchLoggerMiddleware(object):
     def process_resource(self, req, resp, resource, params):
       if self.enabled:
         srvnow = datetime.datetime.utcnow().isoformat()
-        body = json.load(req.bounded_stream)
-        actionType = body['actionType'] if 'actionType' in body else None
         self.cwLogger.info(json.dumps({
           'res': {
-            'actionType'   : actionType,
             'date'         : srvnow,
             'reqdate'      : req.date,
             'method'       : req.method,
@@ -96,8 +90,9 @@ class CloudwatchLoggerMiddleware(object):
     def process_response(self, req, resp, resource, req_succeeded):
       if self.enabled:
         srvnow = datetime.datetime.utcnow().isoformat()
-        body = json.load(req.bounded_stream)
-        actionType = body['actionType'] if 'actionType' in body else None
+        actionType = None
+        if 'body' in req.context and 'actionType' in req.context['body']:
+          actionType = req.context['body']['actionType']
         self.cwLogger.info(json.dumps({
           'resp': {
             'actionType'   : actionType,
