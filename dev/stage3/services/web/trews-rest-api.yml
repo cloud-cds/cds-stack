@@ -8,14 +8,11 @@ data:
     server {
         listen 80 default_server;
         listen [::]:80 default_server;
-        #listen 443 ssl default_server;
-        #ssl_certificate /etc/nginx/ssl/nginx.crt;
-        #ssl_certificate_key /etc/nginx/ssl/nginx.key;
         root /var/www/html;
         index index.html index.htm index.nginx-debian.html;
         server_name _;
-        location /trews-api/ {
-                proxy_pass http://localhost:8000;
+        location / {
+          proxy_pass http://127.0.0.1:8000;
         }
     }
 ---
@@ -24,7 +21,7 @@ kind: Deployment
 metadata:
   name: trews-rest-api
 spec:
-  replicas: 3
+  replicas: 1
   template:
     metadata:
       labels:
@@ -32,33 +29,78 @@ spec:
     spec:
       containers:
       - name: trews-nginx
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-nginx:0.0.4
+        image: nginx:alpine
         ports:
         - containerPort: 80
         volumeMounts:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: trews-rest-api
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.0.4
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.0.23
+        command:
+          - "sh"
+          - "start.sh"
+        securityContext:
+          capabilities:
+            add:
+            - "SYS_PTRACE"
         ports:
         - containerPort: 8000
         env:
-        - name: psql_host
+        env:
+        - name: db_host
           value: "db.dev.opsdx.io"
-        - name: psql_port
+        - name: db_port
           value: "5432"
-        - name: psql_db
+        - name: db_name
           value: "opsdx_dev"
-        - name: psql_user
+        - name: db_user
           valueFrom:
             secretKeyRef:
               name: rest-api-db-secrets
               key: db-username
-        - name: psql_password
+        - name: db_password
           valueFrom:
             secretKeyRef:
               name: rest-api-db-secrets
               key: db-password
+        - name: jhapi_client_id
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: jhapi-client-id
+        - name: jhapi_client_secret
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: jhapi-client-secret
+        - name: AWS_DEFAULT_REGION
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-region
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-secret-access-key
+        - name: epic_notifications
+          value: "0"
+        - name: api_with_healthcheck
+          value: "1"
+        - name: cloudwatch_log_group
+          value: "opsdx-web-logs-dev"
+        - name: logging
+          value: "0"
+        - name: prometheus
+          value: "0"
+        - name: prometheus_timeout
+          value: "10"
       volumes:
         - name: config-volume
           configMap:
