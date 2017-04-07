@@ -720,6 +720,7 @@ var graphComponent = new function() {
 		if (json == undefined) {
 			return;
 		}
+
 		if (this.is30) {
 			var dataLength = json['chart_values']['timestamp'].length;
 			for (var i = 0; i < dataLength; i += 1) {
@@ -727,6 +728,12 @@ var graphComponent = new function() {
 			}
 			this.is30 = false;
 		}
+
+		var trewsDataLength = json['chart_values']['trewscore'].length;
+		for (var i = 0; i < trewsDataLength; i += 1) {
+			json['chart_values']['trewscore'][i] = Math.min(1.0, Math.max(0.0, json['chart_values']['trewscore'][i])); // Clamp chart values to 0-1 range.
+		}
+
 		if (json.chart_values.timestamp.length != 0) {
 			this.xmin = json['chart_values']['timestamp'][0];
 			var max = json['chart_values']['timestamp'][json['chart_values']['timestamp'].length - 1];
@@ -741,13 +748,17 @@ var graphComponent = new function() {
 			}
 		}
 		// this.ymin = 0;//json['chart_values']['trewscore'][0];
-		max = json['chart_values']['trewscore'][json['chart_values']['trewscore'].length - 1];
+		// max = json['chart_values']['trewscore'][json['chart_values']['trewscore'].length - 1];
 		// this.ymax = 1; //((max - this.ymin) / 6) + max;
-		this.ymin = Math.min.apply(null, json['chart_values']['trewscore']);
-		this.ymin = this.ymin - (this.ymin * .03);
-		this.ymin = (this.ymin > json.trewscore_threshold) ? json.trewscore_threshold - 0.1 : this.ymin;
-		this.ymax = Math.max.apply(null, json['chart_values']['trewscore']) * 1.03;
-		this.ymax = (this.ymax < json.trewscore_threshold) ? json.trewscore_threshold + 0.1 : this.ymax;
+
+		// Note: Yanif commenting out in favor of clamping to 0-1 range.
+		// this.ymin = Math.min.apply(null, json['chart_values']['trewscore']);
+		// this.ymin = this.ymin - (this.ymin * .03);
+		// this.ymin = (this.ymin > json.trewscore_threshold) ? json.trewscore_threshold - 0.1 : this.ymin;
+		// this.ymax = Math.max.apply(null, json['chart_values']['trewscore']) * 1.03;
+		// this.ymax = (this.ymax < json.trewscore_threshold) ? json.trewscore_threshold + 0.1 : this.ymax;
+		this.ymin = 0;
+		this.ymax = 1;
 		graph(json, severeOnset, shockOnset, this.xmin, this.xmax, this.ymin, this.ymax);
 	}
 	window.onresize = function() {

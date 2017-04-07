@@ -26,6 +26,7 @@ def get_trews(eid):
     get_trews_sql = \
     '''
     select trews.* from trews inner join pat_enc on trews.enc_id = pat_enc.enc_id
+    inner join cdm_twf on trews.enc_id = cdm_twf.enc_id and cdm_twf.tsp = trews.tsp
     where pat_enc.pat_id = '%s' order by tsp
     ''' % eid
     try:
@@ -39,6 +40,7 @@ def get_twf(eid):
     get_twf_sql = \
     '''
     select cdm_twf.* from cdm_twf inner join pat_enc on cdm_twf.enc_id = pat_enc.enc_id
+    inner join cdm_twf on trews.enc_id = cdm_twf.enc_id and cdm_twf.tsp = trews.tsp
     where pat_enc.pat_id = '%s' order by tsp
     ''' % eid
     df = pd.read_sql_query(get_twf_sql,con=engine)

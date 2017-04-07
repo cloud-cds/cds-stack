@@ -19,22 +19,11 @@ import pprint
 import copy
 import re
 import calendar
-import os
+import os, sys, traceback
+from monitoring import PrometheusMonitor, CloudwatchLoggerMiddleware
+from prometheus_client import push_to_gateway
 
-prometheus = False
-prometheus_timeout = None
-if 'prometheus' in os.environ and int(os.environ['prometheus']) == 1:
-    prometheus = True
-    if 'prometheus_timeout' in os.environ:
-        prometheus_timeout = int(os.environ['prometheus_timeout'])
-
-from prometheus_client import Histogram, Counter
-from prometheus_client import CollectorRegistry, push_to_gateway
-prom_job = os.environ['db_name'].replace("_", "-")
-prom_gateway_url = 'a99cd27870d1011e78bbf0a73a2cd36e-1301450500.us-east-1.elb.amazonaws.com:9091'
-registry = CollectorRegistry()
-trews_api_request_latency = Histogram('trews_api_request_latency', 'Time spent processing API request', ['actionType'], registry=registry)
-trews_api_request_counts = Counter('trews_api_request_counts', 'Number of requests per seconds', ['actionType'], registry=registry)
+prometheus = PrometheusMonitor()
 
 #THRESHOLD = 0.85
 logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.INFO)
@@ -73,10 +62,13 @@ class TREWSAPI(object):
         """
         See example in test_decrpyt.py
         """
-        resp.content_type = 'text/html'
-        resp.status = falcon.HTTP_200  # This is the default status
-        body += "TREWS API"
-        resp.body = (body)
+        try:
+            resp.content_type = 'text/html'
+            resp.status = falcon.HTTP_200  # This is the default status
+            body += "TREWS API"
+            resp.body = (body)
+        except Exception as ex:
+            raise falcon.HTTPError(falcon.HTTP_400, 'Error', ex.message)
 
     # def decrypt(self, encrypted_text):
     #     encrypted_text = urllib.unquote(encrypted_text)
@@ -455,79 +447,85 @@ class TREWSAPI(object):
         data['notifications'] = query.get_notifications(eid)
 
     def on_post(self, req, resp):
-        with trews_api_request_latency.labels("any").time():
-            trews_api_request_counts.labels("any").inc()
-            srvnow = datetime.datetime.utcnow().isoformat()
-            try:
-                raw_json = req.stream.read()
-                logging.info('%(date)s %(reqdate)s %(remote_addr)s %(access_route)s %(protocol)s %(method)s %(host)s %(headers)s %(body)s'
-                    % { 'date'         : srvnow,
-                        'reqdate'      : str(req.date),
-                        'remote_addr'  : req.remote_addr,
-                        'access_route' : req.access_route,
-                        'protocol'     : req.protocol,
-                        'method'       : req.method,
-                        'host'         : req.host,
-                        'headers'      : str(req.headers),
-                        'body'         : json.dumps(raw_json, indent=4) })
+        try:
+            with prometheus.trews_api_request_latency.labels("any").time():
+                prometheus.trews_api_request_counts.labels("any").inc()
 
-            except Exception as ex:
-                # logger.info(json.dumps(ex, default=lambda o: o.__dict__))
-                raise falcon.HTTPError(falcon.HTTP_400,
-                    'Error',
-                    ex.message)
+                try:
+                    srvnow = datetime.datetime.utcnow().isoformat()
+                    raw_json = req.stream.read()
+                    req_body = json.loads(raw_json)
+                    req.context['body'] = req_body
 
-            try:
-                req_body = json.loads(raw_json)
-            except ValueError as ex:
-                # logger.info(json.dumps(ex, default=lambda o: o.__dict__))
-                raise falcon.HTTPError(falcon.HTTP_400,
-                    'Malformed JSON',
-                    'Could not decode the request body. The '
-                    'JSON was incorrect. request body = %s' % raw_json)
+                    logging.info('%(date)s %(reqdate)s %(remote_addr)s %(access_route)s %(protocol)s %(method)s %(host)s %(headers)s %(body)s'
+                        % { 'date'         : srvnow,
+                            'reqdate'      : str(req.date),
+                            'remote_addr'  : req.remote_addr,
+                            'access_route' : req.access_route,
+                            'protocol'     : req.protocol,
+                            'method'       : req.method,
+                            'host'         : req.host,
+                            'headers'      : str(req.headers),
+                            'body'         : json.dumps(raw_json, indent=4) })
 
-            eid = req_body['q']
-            uid = req_body['u'] if 'u' in req_body and req_body['u'] is not None else 'user'
-            resp.status = falcon.HTTP_202
-            data = copy.deepcopy(data_example.patient_data_example)
+                except ValueError as ex:
+                    # logging.info(json.dumps(ex, default=lambda o: o.__dict__))
+                    raise falcon.HTTPError(falcon.HTTP_400,
+                        'Malformed JSON',
+                        'Could not decode the request body. The '
+                        'JSON was incorrect. request body = %s' % raw_json)
 
-            if eid:
-                # if DECRYPTED:
-                #     eid = self.decrypt(eid)
-                #     print("unknown eid: " + eid)
+                except Exception as ex:
+                    # logging.info(json.dumps(ex, default=lambda o: o.__dict__))
+                    raise falcon.HTTPError(falcon.HTTP_400, 'Error', ex.message)
 
-                if query.eid_exist(eid):
-                    print("query for eid:" + eid)
+                eid = req_body['q']
+                uid = req_body['u'] if 'u' in req_body and req_body['u'] is not None else 'user'
+                resp.status = falcon.HTTP_202
+                data = copy.deepcopy(data_example.patient_data_example)
 
-                    response_body = {}
-                    if 'actionType' in req_body and 'action' in req_body:
-                        actionType = req_body['actionType']
-                        with trews_api_request_latency.labels(actionType).time():
-                            trews_api_request_counts.labels(actionType).inc()
-                            actionData = req_body['action']
+                if eid:
+                    # if DECRYPTED:
+                    #     eid = self.decrypt(eid)
+                    #     print("unknown eid: " + eid)
 
-                            if actionType is not None:
-                                response_body = self.take_action(actionType, actionData, eid, uid)
+                    if query.eid_exist(eid):
+                        logging.info("query for eid: " + eid)
 
-                            if actionType != u'pollNotifications' and actionType != u'pollAuditlist':
-                                self.update_response_json(data, eid)
-                                response_body = {'trewsData': data}
+                        response_body = {}
+                        if 'actionType' in req_body and 'action' in req_body:
+                            actionType = req_body['actionType']
+                            with prometheus.trews_api_request_latency.labels(actionType).time():
+                                prometheus.trews_api_request_counts.labels(actionType).inc()
+                                actionData = req_body['action']
+
+                                if actionType is not None:
+                                    response_body = self.take_action(actionType, actionData, eid, uid)
+
+                                if actionType != u'pollNotifications' and actionType != u'pollAuditlist':
+                                    self.update_response_json(data, eid)
+                                    response_body = {'trewsData': data}
+                        else:
+                            response_body = {'message': 'Invalid TREWS REST API request'}
+
+                        resp.body = json.dumps(response_body, cls=NumpyEncoder)
+                        resp.status = falcon.HTTP_200
+
                     else:
-                        response_body = {'message': 'Invalid TREWS REST API request'}
+                        resp.status = falcon.HTTP_400
+                        resp.body = json.dumps({'message': 'No patient found'})
 
-                    resp.body = json.dumps(response_body, cls=NumpyEncoder)
-                    resp.status = falcon.HTTP_200
+            if prometheus.enabled:
+                try:
+                    push_to_gateway(prometheus.prom_gateway_url, job=prometheus.prom_job, registry=prometheus.registry, timeout=prometheus.prometheus_timeout)
+                except Exception as ex:
+                    logging.warning(ex.message)
+                    traceback.print_exc()
 
-                else:
-                    resp.status = falcon.HTTP_400
-                    resp.body = json.dumps({'message': 'No patient found'})
-        if prometheus:
-            try:
-                push_to_gateway(prom_gateway_url, job=prom_job, registry=registry, timeout=prometheus_timeout)
-            except Exception as ex:
-                logging.info(json.dumps(ex, default=lambda o: o.__dict__))
-
-
+        except Exception as ex:
+            logging.warning(ex.message)
+            traceback.print_exc()
+            raise falcon.HTTPError(falcon.HTTP_400, 'Error', ex.message)
 
     def hash_password(key):
         """
