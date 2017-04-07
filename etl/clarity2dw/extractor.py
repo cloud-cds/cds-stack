@@ -31,8 +31,7 @@ class Extractor:
         await self.derive(conn, job['derive'])
       if job.get("offline_criteria_processing", False):
         await self.offline_criteria_processing(conn, job['offline_criteria_processing'])
-        await load_table.load_cdm_to_criteria_meas(conn,job['config']['dataset_id'])
-        # await load_table.calculate_historical_criteria(conn)
+
 
   async def transform(self, conn, transform_job):
     if transform_job.get('populate_patients', False):
