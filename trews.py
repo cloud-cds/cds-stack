@@ -5,18 +5,19 @@ import os
 import falcon
 # from Crypto.Cipher import AES
 import api, dashan_query
-from monitoring import CloudwatchLoggerMiddleware
+from monitoring import CloudwatchLoggerMiddleware, TREWSPrometheusMetrics, prometheus
 from jinja2 import Environment, FileSystemLoader
 import os
-STATIC_DIR = os.path.dirname(os.path.abspath(__file__))
-STATIC_DIR = os.path.join(STATIC_DIR, 'static')
 import logging
 import datetime
 import json
 import boto3
-from gevent import monkey
 
+from gevent import monkey
 monkey.patch_all()
+
+STATIC_DIR = os.path.dirname(os.path.abspath(__file__))
+STATIC_DIR = os.path.join(STATIC_DIR, 'static')
 
 URL = '/'
 URL_STATIC = URL
@@ -24,6 +25,7 @@ URL_API = URL + "api"
 URL_LOG = URL + "log"
 URL_FEEDBACK = URL + "feedback"
 URL_HEALTHCHECK = URL + "healthcheck"
+URL_PROMETHEUS_METRICS = URL + "metrics"
 INDEX_FILENAME = 'index.html'
 
 # default keys for JHH
@@ -88,8 +90,11 @@ class TREWSStaticResource(object):
             resp.body = j2_env.get_template(INDEX_FILENAME).render(keys=KEYS)
             logging.info("Static file request on index.html")
         else:
-            with open(filename, 'r') as f:
-                resp.body = f.read()
+            if os.path.exists(filename):
+                with open(filename, 'r') as f:
+                    resp.body = f.read()
+            else:
+                raise falcon.HTTPError(falcon.HTTP_400, 'Invalid file', filename)
 
 class TREWSLog(object):
     def on_post(self, req, resp):
@@ -97,7 +102,7 @@ class TREWSLog(object):
             log_json = req.stream.read()
             logging.error(json.dumps(log_json, indent=4))
         except Exception as ex:
-            # logger.info(json.dumps(ex, default=lambda o: o.__dict__))
+            # logging.info(json.dumps(ex, default=lambda o: o.__dict__))
             raise falcon.HTTPError(falcon.HTTP_400, 'Error', ex.message)
 
 class TREWSFeedback(object):
@@ -172,9 +177,6 @@ cw_log_mware = CloudwatchLoggerMiddleware()
 if cw_log_mware.enabled:
     mware = [cw_log_mware]
 
-# if 'prometheus' in os.environ and int(os.environ['prometheus']):
-# mware.append(TREWSPrometheusMiddleware())
-
 app = falcon.API(middleware=mware)
 
 # Resources are represented by long-lived class instances
@@ -190,6 +192,10 @@ app.add_route(URL_FEEDBACK, trews_feedback)
 
 if 'api_with_healthcheck' in os.environ and int(os.environ['api_with_healthcheck']):
     app.add_route(URL_HEALTHCHECK, trews_healthcheck)
+
+if prometheus.enabled:
+    trews_prometheus_metrics = TREWSPrometheusMetrics()
+    app.add_route(URL_PROMETHEUS_METRICS, trews_prometheus_metrics)
 
 handler = TREWSStaticResource().on_get
 app.add_sink(handler, prefix=URL_STATIC)

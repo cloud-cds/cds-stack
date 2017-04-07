@@ -20,10 +20,7 @@ import copy
 import re
 import calendar
 import os, sys, traceback
-from monitoring import PrometheusMonitor, CloudwatchLoggerMiddleware
-from prometheus_client import push_to_gateway
-
-prometheus = PrometheusMonitor()
+from monitoring import prometheus
 
 #THRESHOLD = 0.85
 logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.INFO)
@@ -448,8 +445,8 @@ class TREWSAPI(object):
 
     def on_post(self, req, resp):
         try:
-            with prometheus.trews_api_request_latency.labels("any").time():
-                prometheus.trews_api_request_counts.labels("any").inc()
+            with prometheus.trews_api_request_latency.labels(prometheus.prom_job, 'any').time():
+                prometheus.trews_api_request_counts.labels(prometheus.prom_job, 'any').inc()
 
                 try:
                     srvnow = datetime.datetime.utcnow().isoformat()
@@ -495,8 +492,8 @@ class TREWSAPI(object):
                         response_body = {}
                         if 'actionType' in req_body and 'action' in req_body:
                             actionType = req_body['actionType']
-                            with prometheus.trews_api_request_latency.labels(actionType).time():
-                                prometheus.trews_api_request_counts.labels(actionType).inc()
+                            with prometheus.trews_api_request_latency.labels(prometheus.prom_job, actionType).time():
+                                prometheus.trews_api_request_counts.labels(prometheus.prom_job, actionType).inc()
                                 actionData = req_body['action']
 
                                 if actionType is not None:
@@ -514,13 +511,6 @@ class TREWSAPI(object):
                     else:
                         resp.status = falcon.HTTP_400
                         resp.body = json.dumps({'message': 'No patient found'})
-
-            if prometheus.enabled:
-                try:
-                    push_to_gateway(prometheus.prom_gateway_url, job=prometheus.prom_job, registry=prometheus.registry, timeout=prometheus.prometheus_timeout)
-                except Exception as ex:
-                    logging.warning(ex.message)
-                    traceback.print_exc()
 
         except Exception as ex:
             logging.warning(ex.message)
