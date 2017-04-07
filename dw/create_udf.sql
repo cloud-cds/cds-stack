@@ -747,13 +747,12 @@ AS $function$ BEGIN
 
 
 IF is_historical THEN
-  raise notice 'Adjusting criteria table to current time';
   delete from criteria where criteria.pat_id = this_pat_id;
   insert into criteria ( dataset_id, pat_id, name, is_met, measurement_time,override_time,override_user, override_value, value, update_date)
   select s.dataset_id, s.pat_id, s.name, last(s.is_met), last(s.measurement_time),s.override_time,last(s.override_user), last(s.override_value), last(s.value), last(s.update_date)
   from suspicion_of_infection_hist s
-  where override_time between ts_start and ts_end and pat_id = this_pat_id
-  group by dataset_id, pat_id, override_time, name;
+  where s.override_time between ts_start and ts_end and s.pat_id = this_pat_id
+  group by s.dataset_id, s.pat_id, s.override_time, s.name;
 END IF;
 
 
@@ -1970,11 +1969,13 @@ END; $function$;
 -- calculate historical_criteria
 -- ===========================================================================
 CREATE OR REPLACE FUNCTION calculate_historical_criteria(this_pat_id text)
- RETURNS table(window_ts                        timestamptz,
-               pat_id                           varchar(50),
-               pat_state                        INTEGER
-               )
- LANGUAGE plpgsql
+--   passing in a null value will calculate historical criteria over all patientis
+--  RETURNS table(window_ts                        timestamptz,
+--                pat_id                           varchar(50),
+--                pat_state                        INTEGER
+--                )
+  returns void
+  LANGUAGE plpgsql
 AS $function$
 DECLARE
     window_size interval := get_parameter('lookbackhours')::interval;
@@ -1992,9 +1993,10 @@ BEGIN
         ) new_criteria
         on window_ends.pat_id = new_criteria.pat_id;
 
-    return query
-            select sw.*
-            from get_window_states('new_criteria_windows', this_pat_id) sw;
+    insert into historical_criteria
+    select pat_id, pat_state, window_ts
+    from get_window_states('new_criteria_windows', this_pat_id) sw;
+
     drop table new_criteria_windows;
     return;
 END; $function$;

@@ -690,3 +690,10 @@ CREATE TABLE index_group_descriptions (
     primary key         (group_id)
 );
 
+DROP TABLE IF EXISTS historical_criteria;
+CREATE TABLE historical_criteria (
+    pat_id              text,
+    pat_state           integer,
+    window_ts           timestamptz,
+    primary key         (pat_id,window_ts)
+);
