@@ -9,24 +9,24 @@ from extractor import Extractor
 import os
 
 job = {
-  'reset_dataset': {
-    'remove_pat_enc': True,
-    'remove_data': True,
-    'start_enc_id': 1
-  },
+  # 'reset_dataset': {
+  #   'remove_pat_enc': True,
+  #   'remove_data': True,
+  #   'start_enc_id': 1
+  # },
   'transform': {
-    'populate_patients': True,
+    # 'populate_patients': True,
     'populate_measured_features': {
-      # 'plan': False,
-      # 'fid': 'propofol_dose',
+      'plan': False,
+      'fid': ['lactate_order, blood_culture_order'],
     },
   },
-  'fillin': {
-    'recalculate_popmean': False,
-  },
-  'derive': {
+  # 'fillin': {
+  #   'recalculate_popmean': False,
+  # },
+  # 'derive': {
     # 'fid': 'cardio_sofa'
-  },
+  # },
 }
 
 config_args = {

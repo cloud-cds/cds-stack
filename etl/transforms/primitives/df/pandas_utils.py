@@ -99,3 +99,15 @@ def upsert_db(df, sql_tbl_name, connection, on_conflict_cols):
   # =========================================
   print("removing temp table:")
   connection.execute("""DROP TABLE {}""".format(temp_table_name))
+
+async def async_read_df(sql,con):
+  record_list = await con.fetch(sql)
+  df = pd.DataFrame.from_records(record_list)
+
+  col_names = list()
+  for key in record_list[0].keys():
+    col_names.append(key)
+
+  df.columns = col_names
+
+  return df

@@ -97,31 +97,63 @@ class Extractor:
     self.log.info("ETL populate_patients: " + result)
 
 
-  async def populate_measured_features(self, conn, this_fid=None):
-    feature_mapping = pd.read_csv(self.config.FEATURE_MAPPING_CSV)
+  async def populate_measured_features(self, conn, fids_2_proc=None):
+    feature_mapping = pd.read_csv(self.config.FEATURE_MAPPING_CSV,index_col='fid(s)')
+
     pat_mappings = await self.get_pat_mapping(conn)
     self.visit_id_to_enc_id = pat_mappings['visit_id_to_enc_id']
     self.pat_id_to_enc_ids = pat_mappings['pat_id_to_enc_ids']
     self.log.info("load feature mapping")
 
-    for i, mapping in feature_mapping.iterrows():
-      if this_fid is None or this_fid == mapping['fid']:
-        self.log.debug(mapping)
-        fid = mapping['fid']
-        transform_func_id = str(mapping['transform_func_id'])
-        if fid in self.cdm_feature_dict:
-          if "." in transform_func_id:
-            i = len(transform_func_id) - transform_func_id[::-1].index('.')
-            package = transform_func_id[:(i-1)]
-            transform_func_id = transform_func_id[i:]
-            self.log.info("fid: %s using package: %s and transform_func_id: %s" % (fid, package, transform_func_id))
-            module = importlib.import_module(package)
-            func = getattr(module, transform_func_id)
-            await func(conn)
-          else:
-            await self.populate_feature_to_cdm(mapping, conn, self.cdm_feature_dict[fid])
-        else:
-          self.log.warn("feature %s is not in cdm_feature" % fid)
+    if fids_2_proc is None:
+      #If none, then default to all
+      fids_2_proc = feature_mapping['fid(s)'].index.tolist()
+
+    for these_fids in fids_2_proc:
+
+      if these_fids not in feature_mapping.index.tolist():
+        self.log.warn("Features {} not found in feature to function mapping, skipped" % these_fids)
+        continue
+
+      # get function meta-data
+      mapping = feature_mapping.loc[these_fids]
+
+
+      #break fid(s) string to list
+      these_fids_list = these_fids.split(sep=',')
+      these_fids_list = [fid.strip() for fid in these_fids_list]
+
+      # get presance in cdm_feature
+      all_in_cdm_feature = np.array([fid in self.cdm_feature_dict for fid in these_fids_list]).all()
+
+      # get transform function
+      transform_func_id = str(mapping['transform_func_id'])
+
+      if all_in_cdm_feature:
+
+        if "." in transform_func_id: # if custom function
+
+          i = len(transform_func_id) - transform_func_id[::-1].index('.')
+          package = transform_func_id[:(i-1)]
+          transform_func_id = transform_func_id[i:]
+          self.log.info("fid: %s using package: %s and transform_func_id: %s" % (these_fids, package, transform_func_id))
+          module = importlib.import_module(package)
+          func = getattr(module, transform_func_id)
+          await func(conn,self.config.dataset_id,self.log,self.plan)
+
+        else: #if standard function
+          # For now, use the fact that only custom functions are many to one.
+          fid = these_fids_list[0]
+          mapping['fid'] = fid
+          await self.populate_feature_to_cdm(mapping, conn, self.cdm_feature_dict[fid])
+
+      else: #not all in cdm_feature
+        self.log.warn("Transform function not applied {}".format(transform_func_id))
+        for fid in these_fids_list:
+          if fid not in self.cdm_feature_dict:
+            self.log.warn("feature %s is not in cdm_feature" % fid)
+
+
 
   async def get_pat_mapping(self, conn):
     sql = "select * from pat_enc where dataset_id = %s" % self.config.dataset_id
