@@ -1937,3 +1937,163 @@ VALUES ( pid,
          now() ); END; $$;
 
 
+----------------------------------------------------------------------
+-- calculate_trews_contributors
+-- Returns a time-series of top 'rank_limit' features and values that
+-- contribute to a patient's trewscore.
+-- This query is used to generate the frontend chart.
+--
+-- TODO: use 'information_schema.columns' to dynamically
+-- pull out columns in the 'trews' table for array unnesting.
+-----------------------------------------------------------------------
+
+create or replace function calculate_trews_contributors(this_pat_id text, rank_limit int)
+returns table(enc_id int, tsp timestamptz, trewscore numeric, fid text, trews_value double precision, cdm_twf_value text, rnk bigint)
+as $func$
+declare
+    twf_fids text[];
+    twf_fid_strs text[];
+    twf_query text;
+begin
+    create temporary table twf_rank as
+    select *
+    from
+    (
+        select KV.*,
+                rank() over ( partition by KV.enc_id, KV.tsp order by KV.trews_value desc nulls last ) as rnk
+        from (
+            select R.enc_id, R.tsp, R.trewscore, S.* from (
+                select trews.enc_id, trews.tsp, trews.trewscore,
+                ARRAY[
+                 'shock_idx',
+                 'hemoglobin',
+                 'spo2',
+                 'platelets',
+                 'sodium',
+                 'fluids_intake_24hr',
+                 'rass',
+                 'urine_output_6hr',
+                 'neurologic_sofa',
+                 'bun_to_cr',
+                 'heart_rate',
+                 'lactate',
+                 'minutes_since_any_organ_fail',
+                 'sirs_raw',
+                 'sirs_temperature_oor',
+                 'sirs_resp_oor',
+                 'hypotension_raw',
+                 'hypotension_intp',
+                 'age',
+                 'chronic_pulmonary_hist',
+                 'chronic_bronchitis_diag',
+                 'esrd_diag',
+                 'heart_arrhythmias_diag',
+                 'heart_failure_diag',
+                 'bun',
+                 'cardio_sofa',
+                 'creatinine',
+                 'emphysema_hist',
+                 'esrd_prob',
+                 'gcs',
+                 'gender',
+                 'heart_arrhythmias_prob',
+                 'heart_failure_hist',
+                 'hematologic_sofa',
+                 'lipase',
+                 'mapm',
+                 'paco2',
+                 'resp_rate',
+                 'resp_sofa',
+                 'sirs_hr_oor',
+                 'sirs_wbc_oor',
+                 'temperature',
+                 'wbc',
+                 'amylase',
+                 'nbp_dias',
+                 'renal_sofa',
+                 'urine_output_24hr',
+                 'worst_sofa',
+                 'pao2'
+                ]::text[] as names,
+                ARRAY[
+                    trews.shock_idx,
+                    trews.hemoglobin,
+                    trews.spo2,
+                    trews.platelets,
+                    trews.sodium,
+                    trews.fluids_intake_24hr,
+                    trews.rass,
+                    trews.urine_output_6hr,
+                    trews.neurologic_sofa,
+                    trews.bun_to_cr,
+                    trews.heart_rate,
+                    trews.lactate,
+                    trews.minutes_since_any_organ_fail,
+                    trews.sirs_raw,
+                    trews.sirs_temperature_oor,
+                    trews.sirs_resp_oor,
+                    trews.hypotension_raw,
+                    trews.hypotension_intp,
+                    trews.age,
+                    trews.chronic_pulmonary_hist,
+                    trews.chronic_bronchitis_diag,
+                    trews.esrd_diag,
+                    trews.heart_arrhythmias_diag,
+                    trews.heart_failure_diag,
+                    trews.bun,
+                    trews.cardio_sofa,
+                    trews.creatinine,
+                    trews.emphysema_hist,
+                    trews.esrd_prob,
+                    trews.gcs,
+                    trews.gender,
+                    trews.heart_arrhythmias_prob,
+                    trews.heart_failure_hist,
+                    trews.hematologic_sofa,
+                    trews.lipase,
+                    trews.mapm,
+                    trews.paco2,
+                    trews.resp_rate,
+                    trews.resp_sofa,
+                    trews.sirs_hr_oor,
+                    trews.sirs_wbc_oor,
+                    trews.temperature,
+                    trews.wbc,
+                    trews.amylase,
+                    trews.nbp_dias,
+                    trews.renal_sofa,
+                    trews.urine_output_24hr,
+                    trews.worst_sofa,
+                    trews.pao2
+                ]::double precision[] as trews_values
+                from pat_enc
+                inner join trews on pat_enc.enc_id = trews.enc_id
+                where pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id)
+            ) R, lateral unnest(R.names, R.trews_values) S(fid, trews_value)
+        ) KV
+    ) RKV
+    where RKV.rnk <= rank_limit;
+
+    select array_agg(distinct twf_rank.fid), array_agg(distinct quote_literal(twf_rank.fid))
+            into twf_fids, twf_fid_strs
+    from twf_rank;
+
+    RAISE NOTICE 'twf_fids (%)', array_to_string(twf_fids, ',');
+    RAISE NOTICE 'twf_fid_strs (%)', array_to_string(twf_fid_strs, ',');
+
+    twf_query := format(
+        'select R.enc_id, R.tsp, R.trewscore, R.fid, R.trews_value, S.cdm_twf_value, R.rnk'
+        || ' from (select T.enc_id, T.tsp, T.trewscore, T.fid, T.trews_value, T.rnk,'
+        || ' ARRAY[%s]::text[] as names, ARRAY[%s]::text[] as cdm_twf_values'
+        || ' from twf_rank T inner join cdm_twf C on T.enc_id = C.enc_id and T.tsp = C.tsp) R'
+        || ' inner join lateral unnest(R.names, R.cdm_twf_values) as S(fid, cdm_twf_value)'
+        || ' on R.fid = S.fid'
+        , array_to_string(twf_fid_strs, ','), array_to_string(twf_fids, ','));
+
+    RAISE NOTICE 'twf_query (%)', twf_query;
+
+    return query execute twf_query;
+
+    drop table twf_rank;
+    return;
+end $func$ LANGUAGE plpgsql;
