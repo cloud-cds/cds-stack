@@ -49,7 +49,7 @@ resources:
 jobs:
 # Tests the master branch
 - name: test-master
-  public: true
+  public: false
   serial: true
   plan:
   - get: dashan-etl
@@ -60,7 +60,7 @@ jobs:
     file: dashan-etl/ci/tests_full.yml
 # Test commits to a pull request
 - name: test-pull-request
-  public: true
+  public: false
   serial: true
   plan:
   - get: dashan-etl-pr
@@ -85,7 +85,7 @@ jobs:
         status: failure
 # Build a new docker image on changes to master
 - name: build-new-docker-image
-  public: true
+  public: false
   serial: true
   plan:
   - get: dashan-etl
