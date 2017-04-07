@@ -574,7 +574,8 @@ body.waiting {
 }
 /* End Override Modal also called om */
 /* Notifications */
-#notifications {
+#notifications,
+#activity {
     display: none;
     position: fixed;
     top: 30px;
@@ -592,18 +593,25 @@ body.waiting {
     text-align: center;
     font-size: 12px;
 }
-.notification {
+.notification,
+.log-item {
     padding: 10px;
     border-bottom: 1px solid #ddd;
 }
-.notification:last-child {
+.notification:last-child,
+.log-item:last-child {
     border-bottom: none;
 }
-.notification h3 {
+.notification h3,
+.log-item h3 {
     font-size: 12px;
     margin: 0;
 }
-.notification .subtext p {
+.log-item h3 {
+    font-weight: 400;
+}
+.notification .subtext p,
+.log-item .subtext p {
     float: left;
     margin: 3px 0 0 0;
     font-size: 12px;

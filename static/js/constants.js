@@ -45,6 +45,20 @@ var ALERT_CODES = {
 	"306": "Septic Shock 6hr bundle intervention(s) need to be completed in the next hour"    // Should be prefixed with the number of septic shock interventions to be completed before the 6hr window expires.
 }
 
+var LOG_STRINGS = {
+	"set_deterioration_feedback": " set <b>other conditions driving deterioration</b> to the following values: ",
+	"reset": " <b>reset</b> the patient",
+	"override": {
+		"clear": " cleared <b>customizations</b> for ",
+		"customized": [
+			" <b>customized</b> ",
+			" values to "
+		]
+	},
+	"deactivate": " <b>deactivated</b> the patient",
+	"toggle_notifications": " toggled notifications"
+}
+
 var EDIT = {
 	"sirs": [
 		"temperature",
@@ -79,6 +93,67 @@ var CONSTANTS = {
 	"org": "severe_sepsis",
 	"tension": "septic_shock",
 	"fusion": "septic_shock"
+}
+
+var criteriaKeyToName = {
+	"sirs_temp": [
+		{"name": "Body Temperature",
+		"units": "&#176;C"}
+	],
+	"heart_rate": [
+		{"name": "Heart Rate",
+		"units": "/min"}
+	],
+	"respiratory_rate": [
+		{"name": "Respiratory Rate",
+		"units": "/min"}
+	],
+	"wbc": [
+		{"name": "White Blood Count",
+		"units": "K/uL"},
+		{"name": "Bands",
+		"units": "%"}
+	],
+	"blood_pressure": [
+		{"name": "Systolic Blood Pressure",
+		"units": "mmHg"}
+	],
+	"mean_arterial_pressure": [
+		{"name": "Mean Arterial Pressure",
+		"units": "mmHg"}
+	],
+	"decrease_in_sbp": [
+		{"name": "Decrease in Systolic Blood Pressure",
+		"units": "mmHg"}
+	],
+	"respiratory_failure": [
+		{"name": "Respiratory Failure: PaO2/FiO2",
+		"units": ""}
+	],
+	"creatinine": [
+		{"name": "Creatinine",
+		"units": "mg/dL"},
+		{"name": "Urine Output",
+		"units": "mL/kg/hour"}
+	],
+	"bilirubin": [
+		{"name": "Bilirubin",
+		"units": "mg/dL"}
+	],
+	"platelet": [
+		{"name": "Platelet Count",
+		"units": ""}
+	],
+	"inr": [
+		{"name": "INR",
+		"units": ""},
+		{"name": "PTT",
+		"units": "sec"}
+	],
+	"lactate": [
+		{"name": "Lactate Measurement",
+		"units": "mmol/L"}
+	]
 }
 
 var severe_sepsis = {

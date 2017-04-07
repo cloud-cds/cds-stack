@@ -17,10 +17,12 @@ function isString(obj) {
 }
 
 window.onload = function() {
+	timer.init();
 	endpoints.getPatientData();
 	dropdown.init();
 	overrideModal.init();
 	notifications.init();
+	activity.init();
 	toolbar.init()
 	dataRefresher.init();
 	notificationRefresher.init();
@@ -34,7 +36,7 @@ window.onload = function() {
 };
 
 window.onerror = function(error, url, line) {
-    controller.sendLog({acc:'error', data:'ERR:'+error+' URL:'+url+' L:'+line});
+    controller.sendLog({acc:'error', data:'ERR:'+error+' URL:'+url+' L:'+line}, true);
 };
 
 
@@ -210,7 +212,8 @@ var endpoints = new function() {
 			type: "POST",
 			url: this.url,
 			data: JSON.stringify(postBody),
-			dataType: "json"
+			dataType: "json",
+			start_time: new Date().getTime()
 		}).done(function(result) {
 			$('body').removeClass('waiting');
 			$('#loading').addClass('done');
@@ -219,10 +222,12 @@ var endpoints = new function() {
 				trews.setData(result.trewsData);
 				controller.refresh();
 				// $('#fake-console').text(result);
+				deterioration.dirty = false
 			} else if ( result.hasOwnProperty('notifications') ) {
 				trews.setNotifications(result.notifications);
 				controller.refreshNotifications();
 			}
+			timer.log(this.url, this.start_time, new Date().getTime(), 'success')
 		}).fail(function(result) {
 			$('body').removeClass('waiting');
 			if ( toolbarButton ) { toolbarButton.removeClass('loading'); }
@@ -246,6 +251,7 @@ var endpoints = new function() {
 				$('#loading p').text("Connection Failed. Retrying...(" + endpoints.numTries + ")");
 				endpoints.getPatientData();
 			}
+			timer.log(this.url, this.start_time, new Date().getTime(), 'error: ' + endpoints.numTries + ' tries')
 		});
 	};
 	this.test = function() {
@@ -292,6 +298,7 @@ var controller = new function() {
 			globalJson['septic_shock']['onset_time']);
 		graphComponent.refresh(globalJson["chart_data"]);
 		notifications.render(globalJson['notifications']);
+		activity.render(globalJson['auditlist']);
 		toolbar.render(globalJson["severe_sepsis"]);
 		deterioration.render(globalJson['deterioration_feedback']);
 	}
@@ -311,16 +318,18 @@ var controller = new function() {
 			$('#loading').addClass('done');
 		});
 	}
-	this.sendLog = function(json) {
+	this.sendLog = function(json, isError) {
 		$.ajax({
 			type: "POST",
 			url: "log",
 			data: JSON.stringify(json),
 			dataType: "json"
 		}).done(function(result) {
-			controller.displayJSError();
+			if (isError)
+				controller.displayJSError();
 		}).fail(function(result) {
-			controller.displayJSError();
+			if (isError)
+				controller.displayJSError();
 		});
 	}
 	this.sendFeedback = function(json) {
@@ -337,6 +346,43 @@ var controller = new function() {
 	}
 }
 
+var timer = new function() {
+	this.refreshPeriod = 60000;
+	this.refreshTimer = null;
+	this.buffer = []
+	this.init = function() {
+		this.sendBuffer(this);
+		window.addEventListener("beforeunload", function (e) {
+			if (timer.buffer.length > 0) {
+				controller.sendLog(timer.buffer, false)
+			}
+		});
+	}
+	this.log = function(url, start, end, status) {
+		var postBody = {
+			"currentUrl": window.location.href,
+			"destinationURL": url, 
+			"start_time": start, 
+			"end_time": end, 
+			"status": status
+		}
+		this.buffer.push(postBody)
+	}
+	this.sendBuffer = function(obj) {
+		// checks every minute if buffer has times to send back
+		if (timer.buffer.length > 0) {
+			controller.sendLog(timer.buffer, false)
+			timer.buffer = []
+		}
+		obj.refreshTimer = window.setTimeout(function() { obj.sendBuffer(obj); }, obj.refreshPeriod);
+	}
+	this.terminate = function() {
+		if (this.refreshTimer) {
+			window.clearTimeout(this.refreshTimer)
+			this.refreshTimer = null
+		}
+	}
+}
 
 /**
  * Slot Component
@@ -1020,14 +1066,17 @@ var deterioration = new function() {
 	this.ctn = $('.other-deter-dropdown-list')
 	this.launcher = $('#other-deter-launcher')
 	this.remoteInitialized = false;
+	this.dirty = false;
 	this.init = function() {
 		for (var i in DETERIORATIONS) {
 			this.ctn.prepend("<li data-trews='" + DETERIORATIONS[i] + "'><img src='img/check.png'>" + DETERIORATIONS[i] + "</li>")
 		}
 		$('.other-deter-dropdown-list li').click(function() {
 			$(this).toggleClass('selected')
+			deterioration.dirty = true
 		})
 		$('.other-deter-dropdown-list input').keyup(function() {
+			deterioration.dirty = true;
 			if ($(this).val().length > 0)
 				$('.other-deter-dropdown-list > div').addClass('selected')
 			else
@@ -1063,17 +1112,20 @@ var deterioration = new function() {
 		}
 	}
 	this.sendOff = function() {
-		var selected = []
-		$('.other-deter-dropdown-list li.selected').each(function(i) {
-			selected.push($(this).text())
-		})
-		var action = {
-			"value": selected,
-			"other": $('.other-deter-dropdown-list input').val()
+		if (this.dirty && this.dirty != "pending") {
+			var selected = []
+			$('.other-deter-dropdown-list li.selected').each(function(i) {
+				selected.push($(this).text())
+			})
+			var action = {
+				"value": selected,
+				"other": $('.other-deter-dropdown-list input').val()
+			}
+			this.remoteInitialized = true;
+			endpoints.getPatientData("set_deterioration_feedback", action);
+			deterioration.d.fadeOut(300)
+			this.dirty = "pending"
 		}
-		this.remoteInitialized = true;
-		endpoints.getPatientData("set_deterioration_feedback", action);
-		deterioration.d.fadeOut(300)
 	}
 }
 
@@ -1333,7 +1385,7 @@ var notifications = new function() {
 			e.stopPropagation();
 			notifications.n.toggle();
 		});
-		$('body').click(function() {
+		$('body, #header-activity').click(function() {
 			notifications.n.fadeOut(30);
 		});
 		this.n.unbind();
@@ -1431,6 +1483,118 @@ var notifications = new function() {
 			this.nav.find('.text').text('Notifications');
 		} else {
 			this.nav.find('.text').text('Notification');
+		}
+	}
+}
+
+/**
+ * Activity Log or AuditList.
+ * This component maintains the activity log badge that appears in the toolbar.
+ */
+var activity = new function() {
+	this.a = $('#activity');
+	this.nav = $('#header-activity');
+	this.init = function() {
+		this.nav.unbind();
+		this.nav.click(function(e) {
+			e.stopPropagation();
+			activity.a.toggle();
+		});
+		$('body, #header-notifications').click(function() {
+			activity.a.fadeOut(30);
+		});
+		this.a.unbind();
+		this.a.click(function(e) {
+			e.stopPropagation();
+		});
+	}
+	this.getLogMsg = function(data) {
+		var msg = ""
+		if (data['event_type'] == 'set_deterioration_feedback') {
+			if (data.value.other == "" && data.value.value.length == 0) {
+				return data['uid'] + " has cleared <b>other conditions driving deterioration</b>"
+			}
+			msg += data['uid'] + LOG_STRINGS[data['event_type']]
+			if (data.value.value.length > 0) {
+				for (var i = 0; i < data.value.value.length; i ++) {
+					msg += data.value.value[i] + ", "
+				}
+				if (data.value.other == "") {
+					return msg.substring(0, msg.length - 2)
+				}
+			}
+			if (data.value.other != "") {
+				msg += data.value.other
+			}
+		} else if (data['event_type'] == 'override') {
+			if (data['clear']) {
+				msg += data['uid'] + LOG_STRINGS[data['event_type']]['clear']
+				for (var i = 0; i < criteriaKeyToName[data.name].length - 1; i ++) {
+					msg += criteriaKeyToName[data.name][i] + ", "
+				}
+				if (criteriaKeyToName[data.name].length > 2) {
+					msg += "and " + criteriaKeyToName[data.name][criteriaKeyToName[data.name].length - 1]
+				}
+				else {
+					if (criteriaKeyToName[data.name].length > 1) {
+						msg = msg.substring(0, msg.length - 2) + " and "
+					}
+					msg += criteriaKeyToName[data.name][criteriaKeyToName[data.name].length - 1]
+				}
+			} else {
+				msg += data['uid']
+					+ LOG_STRINGS[data['event_type']]['customized'][0]
+				for (var i = 0; i < criteriaKeyToName[data.name].length - 1; i ++) {
+					msg += criteriaKeyToName[data.name][i].name 
+						+ LOG_STRINGS[data['event_type']]['customized'][1]
+						+ UpperLowerToLogicalOperators(data.override_value[i], criteriaKeyToName[data.name][i].units)
+						+ ", "
+				}
+				if (criteriaKeyToName[data.name].length > 2) {
+					msg += "and " + criteriaKeyToName[data.name][criteriaKeyToName[data.name].length - 1].name
+						+ LOG_STRINGS[data['event_type']]['customized'][1]
+						+ UpperLowerToLogicalOperators(data.override_value[i], criteriaKeyToName[data.name][i].units)
+				}
+				else {
+					if (criteriaKeyToName[data.name].length > 1) {
+						msg = msg.substring(0, msg.length - 2) + " and "
+					}
+					msg += criteriaKeyToName[data.name][criteriaKeyToName[data.name].length - 1].name
+						+ LOG_STRINGS[data['event_type']]['customized'][1]
+						+ UpperLowerToLogicalOperators(data.override_value[i], criteriaKeyToName[data.name][i].units)
+				}
+			}
+		} else {
+			msg += data['uid'] + LOG_STRINGS[data['event_type']]
+		}
+		return msg;
+	}
+	this.render = function(data) {
+		this.a.html('');
+		if (data == undefined) {
+			this.a.append('<p class="none">Can\'t retrieve actviity log at this time.  <br />Activity Log may be under construction.</p>')
+			return;
+		}
+		if (data.length == 0) {
+			this.a.append('<p class="none">No Activity</p>')
+			return;
+		}
+
+		for (var i = 0; i < data.length; i++) {
+
+			var time = new Date(data[i]['timestamp'] * 1000);
+
+			// Skip messages if there is no content (used to short-circuit empty interventions).
+			var msg = this.getLogMsg(data[i]);
+			if ( msg == undefined ) { continue; }
+
+			// Display the notification.
+			var log = $('<div class="log-item"></div>');
+			log.append('<h3>' + msg + '</h3>')
+			var subtext = $('<div class="subtext cf"></div>');
+			subtext.append('<p>' + timeLapsed(new Date(data[i]['timestamp']*1000)) + '</p>');
+			log.append(subtext);
+			this.a.append(log);
 		}
 	}
 }
@@ -1586,6 +1750,25 @@ function getQueryVariable(variable) {
 		}
 	}
 	return(false);
+}
+/**
+ * Converts a javascript object 
+ * {
+ *	upper:x,
+ * 	lower:y, 
+ * 	range: true/min/max
+ * }
+ * into a logical operator statements like
+ * > x and < y
+*/
+function UpperLowerToLogicalOperators(data, units) {
+	if (data.range == "true") {
+		return "> " + data.lower + units + " and < " + data.upper + units
+	} else if (data.range == "min") {
+		return "> " + data.lower + units
+	} else if (data.range == "max") {
+		return "< " + data.upper + units
+	}
 }
 /**
  * EPICUSERID is padded with plus signs, this removes them

@@ -4,7 +4,8 @@
 import os
 import falcon
 # from Crypto.Cipher import AES
-import api
+import api, dashan_query
+from monitoring import CloudwatchLoggerMiddleware
 from jinja2 import Environment, FileSystemLoader
 import os
 STATIC_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -13,7 +14,6 @@ import logging
 import datetime
 import json
 import boto3
-import watchtower
 from gevent import monkey
 
 monkey.patch_all()
@@ -86,7 +86,7 @@ class TREWSStaticResource(object):
 
             j2_env = Environment(loader=FileSystemLoader(STATIC_DIR), trim_blocks=True)
             resp.body = j2_env.get_template(INDEX_FILENAME).render(keys=KEYS)
-            logging.info("falcon logging example: user request on index.html")
+            logging.info("Static file request on index.html")
         else:
             with open(filename, 'r') as f:
                 resp.body = f.read()
@@ -114,6 +114,12 @@ class TREWSFeedback(object):
                 'Could not decode the request body. The JSON was incorrect.')
 
         try:
+            dashan_query.save_feedback(
+                doc_id = str(result_json['u']),
+                pat_id = str(result_json['q']),
+                dep_id = str(result_json['depid']),
+                feedback = str(result_json['feedback'])
+            )
             subject = 'Feedback - {}'.format(str(result_json['u']))
             html_text = [
                 ("Physician", str(result_json['u'])),
@@ -160,69 +166,18 @@ class TREWSEchoHealthcheck(object):
         except Exception as ex:
             raise falcon.HTTPError(falcon.HTTP_400, 'Error processing echo healthcheck', ex.message)
 
-# Cloudwatch Logger.
-if 'cloudwatch_log_group' in os.environ:
-    cwLogger = logging.getLogger(__name__)
-    cwLogger.addHandler(watchtower.CloudWatchLogHandler(log_group=os.environ['cloudwatch_log_group'], create_log_group=False))
-    cwLogger.setLevel(logging.INFO)
+# Configure Falcon middleware.
+mware = []
+cw_log_mware = CloudwatchLoggerMiddleware()
+if cw_log_mware.enabled:
+    mware = [cw_log_mware]
 
-class TREWSLoggerMiddleware(object):
-    def process_request(self, req, resp):
-        srvnow = datetime.datetime.utcnow().isoformat()
-        body = json.load(req.bounded_stream)
-        actionType = body['actionType'] if 'actionType' in body else None
-        cwLogger.info(json.dumps({
-            'req': {
-                'actionType'   : actionType,
-                'date'         : srvnow,
-                'reqdate'      : req.date,
-                'method'       : req.method,
-                'url'          : req.relative_uri,
-                'remote_addr'  : req.remote_addr,
-                'access_route' : req.access_route,
-                'headers'      : req.headers
-            }
-        }))
+# if 'prometheus' in os.environ and int(os.environ['prometheus']):
+# mware.append(TREWSPrometheusMiddleware())
 
-    def process_resource(self, req, resp, resource, params):
-        srvnow = datetime.datetime.utcnow().isoformat()
-        body = json.load(req.bounded_stream)
-        actionType = body['actionType'] if 'actionType' in body else None
-        cwLogger.info(json.dumps({
-            'res': {
-                'actionType'   : actionType,
-                'date'         : srvnow,
-                'reqdate'      : req.date,
-                'method'       : req.method,
-                'url'          : req.relative_uri,
-                'remote_addr'  : req.remote_addr,
-                'access_route' : req.access_route,
-                'headers'      : req.headers,
-                'params'       : params
-            }
-        }))
-
-    def process_response(self, req, resp, resource, req_succeeded):
-        srvnow = datetime.datetime.utcnow().isoformat()
-        body = json.load(req.bounded_stream)
-        actionType = body['actionType'] if 'actionType' in body else None
-        cwLogger.info(json.dumps({
-            'resp': {
-                'actionType'   : actionType,
-                'date'         : srvnow,
-                'reqdate'      : req.date,
-                'method'       : req.method,
-                'url'          : req.relative_uri,
-                'status'       : resp.status[:3],
-                'headers'      : req.headers
-            }
-        }))
-
-mware = [TREWSLoggerMiddleware()] if 'logging' in os.environ and int(os.environ['logging']) else []
 app = falcon.API(middleware=mware)
 
 # Resources are represented by long-lived class instances
-
 trews_www = TREWSStaticResource()
 trews_api = api.TREWSAPI()
 trews_log = TREWSLog()
@@ -239,5 +194,5 @@ if 'api_with_healthcheck' in os.environ and int(os.environ['api_with_healthcheck
 handler = TREWSStaticResource().on_get
 app.add_sink(handler, prefix=URL_STATIC)
 
-# app.add_route('/trews-api/', trews_www)
-
+# for test prometheus client
+# start_http_server(8888)
