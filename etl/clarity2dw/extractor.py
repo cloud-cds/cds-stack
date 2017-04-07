@@ -4,6 +4,7 @@ from etl.transforms.primitives.row import transform
 from etl.load.primitives.row import load_row
 from etl.load.pipelines.fillin import fillin_pipeline
 from etl.load.pipelines.derive_main import derive_main
+import etl.load.primitives.tbl.load_table as load_table
 import timeit
 import importlib
 
@@ -20,24 +21,27 @@ class Extractor:
     self.log.info("start to run clarity ETL")
     async with self.pool.acquire() as conn:
       self.cdm_feature_dict = await self.get_cdm_feature_dict(conn)
-      if "reset_dataset" in job:
+      if job.get("reset_dataset", False):
         await self.reset_dataset(conn, job['reset_dataset'])
-      if "transform" in job:
+      if job.get("transform", False):
         await self.transform(conn, job['transform'])
-      if "fillin" in job:
+      if job.get("fillin", False):
         await self.run_fillin(conn, job['fillin'])
-      if "derive" in job:
+      if job.get("derive", False):
         await self.derive(conn, job['derive'])
+      if job.get("load_criteria_meas", False):
+        await load_table.load_cdm_to_criteria_meas(conn)
 
-  async def transform(self, conn, job):
-    if 'populate_patients' in job:
+  async def transform(self, conn, transform_job):
+    if transform_job.get('populate_patients', False):
       await self.populate_patients(conn)
-    if 'populate_measured_features' in job:
+    if transform_job.get('populate_measured_features', False):
       self.plan = False
-      if 'plan' in job['populate_measured_features']:
+      populate_measured_features_job = transform_job.get('populate_measured_features')
+      if populate_measured_features_job.get('plan', False):
         self.plan = job['populate_measured_features']['plan']
       fid = None
-      if 'fid' in job['populate_measured_features']:
+      if populate_measured_features_job.get('fid', False):
         fid = job['populate_measured_features']['fid']
       await self.populate_measured_features(conn, fid)
 
@@ -67,18 +71,18 @@ class Extractor:
   async def reset_dataset(self, conn, job):
     self.log.warn("reset_dataset")
     reset_sql = ''
-    if 'remove_data' in job and job['remove_data']:
+    if job.get('remove_data', False):
       reset_sql += '''
       delete from cdm_s where dataset_id = %(dataset_id)s;
       delete from cdm_t where dataset_id = %(dataset_id)s;
       delete from cdm_twf where dataset_id = %(dataset_id)s;
       ''' % {'dataset_id': self.config.dataset_id}
-    if 'remove_pat_enc' in job and job['remove_pat_enc']:
+    if job.get('remove_pat_enc', False):
       reset_sql += '''
       delete from pat_enc where dataset_id = %(dataset_id)s;
       ''' % {'dataset_id': self.config.dataset_id}
     if 'start_enc_id' in job:
-      reset_sql += 'alter sequence pat_enc_enc_id_seq restart %s' % job['start_enc_id']
+      reset_sql += "select setval('pat_enc_enc_id_seq', %s);" % job['start_enc_id']
     self.log.debug("ETL init sql: " + reset_sql)
     result = await conn.execute(reset_sql)
     self.log.info("ETL Init: " + result)
@@ -89,8 +93,9 @@ class Extractor:
   async def populate_patients(self, conn):
     sql = '''
     insert into pat_enc (dataset_id, visit_id, pat_id)
-    SELECT %(dataset_id)s, "CSN_ID" visit_id, "pat_id"
-    FROM "Demographics"
+    SELECT %(dataset_id)s, demo."CSN_ID" visit_id, demo."pat_id"
+    FROM "Demographics" demo left join pat_enc pe on demo."CSN_ID" = pe.visit_id
+    where pe.visit_id is null
     ''' % {'dataset_id': self.config.dataset_id}
     self.log.debug("ETL populate_patients sql: " + sql)
     result = await conn.execute(sql)
@@ -432,8 +437,6 @@ class Extractor:
     if not isinstance(results[0], list):
       results = [results]
     for result in results:
-      if enc_id == 2:
-        print(result)
       tsp = None
       if len(result) == 3:
         # contain tsp, value, and confidence

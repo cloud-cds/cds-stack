@@ -19,7 +19,7 @@ def format_gender_to_int(df, column):
 
 def format_tsp(df, column):
     df[column] = pd.to_datetime(df[column])
-    df[column] = df[column].dt.strftime(app_config.est_tsp_fmt)
+    df[column] = df[column].dt.tz_localize(app_config.TIMEZONE).dt.strftime(app_config.tsp_fmt)
     return df
 
 def filter_empty_values(df, column):
