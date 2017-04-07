@@ -45,20 +45,23 @@ job = {
   #   'remove_data': True,
   #   'start_enc_id': 1
   # },
-  'transform': {
-    # 'populate_patients': True,
-    'populate_measured_features': {
-      'plan': False,
-      # 'fid': 'propofol_dose',
-    },
+  # 'transform': {
+  #   # 'populate_patients': True,
+  #   'populate_measured_features': {
+  #     'plan': False,
+  #     # 'fid': 'propofol_dose',
+  #   },
+  # },
+  # 'fillin': {
+  #   'recalculate_popmean': False,
+  # },
+  # 'derive': {
+  #   'fid': None,
+  # },
+  'offline_criteria_processing': {
+    'load_cdm_to_criteria_meas':True,
+    # 'calculate_historical_criteria':False
   },
-  'fillin': {
-    'recalculate_popmean': False,
-  },
-  'derive': {
-    'fid': None,
-  },
-  'load_criteria_meas': True,
   'config': {
     'dataset_id': 1,
     'debug': True,

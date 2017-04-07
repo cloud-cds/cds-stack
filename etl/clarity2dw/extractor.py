@@ -29,8 +29,10 @@ class Extractor:
         await self.run_fillin(conn, job['fillin'])
       if job.get("derive", False):
         await self.derive(conn, job['derive'])
-      if job.get("load_criteria_meas", False):
-        await load_table.load_cdm_to_criteria_meas(conn)
+      if job.get("offline_criteria_processing", False):
+        await self.offline_criteria_processing(conn, job['offline_criteria_processing'])
+        await load_table.load_cdm_to_criteria_meas(conn,job['config']['dataset_id'])
+        # await load_table.calculate_historical_criteria(conn)
 
   async def transform(self, conn, transform_job):
     if transform_job.get('populate_patients', False):
@@ -65,7 +67,11 @@ class Extractor:
     await derive_main(self.log, conn, self.cdm_feature_dict, dataset_id = self.config.dataset_id, fid = fid, mode=mode)
     self.log.info("derive completed")
 
-
+  async def offline_criteria_processing(self, conn, job):
+    if job.get('load_cdm_to_criteria_meas', False):
+      await load_table.load_cdm_to_criteria_meas(conn, self.config.dataset_id)
+    if job.get('calculate_historical_criteria', False):
+      await load_table.calculate_historical_criteria(conn)
 
 
   async def reset_dataset(self, conn, job):
@@ -470,4 +476,5 @@ class Extractor:
           await load_row.upsert_twf(conn, [enc_id, tsp, fid, value, confidence], dataset_id = self.config.dataset_id)
         else:
           await load_row.add_twf(conn, [enc_id, tsp, fid, value, confidence], dataset_id = self.config.dataset_id)
+
 
