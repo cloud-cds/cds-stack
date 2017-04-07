@@ -525,7 +525,7 @@ class TREWSAPI(object):
             try:
                 push_to_gateway(prom_gateway_url, job=prom_job, registry=registry, timeout=prometheus_timeout)
             except Exception as ex:
-                logger.info(json.dumps(ex, default=lambda o: o.__dict__))
+                logging.info(json.dumps(ex, default=lambda o: o.__dict__))
 
 
 
