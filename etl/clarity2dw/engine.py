@@ -56,8 +56,9 @@ job = {
     'recalculate_popmean': False,
   },
   'derive': {
-    'fid': None
+    'fid': None,
   },
+  'load_criteria_meas': True,
   'config': {
     'dataset_id': 1,
     'debug': True,

@@ -4,6 +4,7 @@ from etl.transforms.primitives.row import transform
 from etl.load.primitives.row import load_row
 from etl.load.pipelines.fillin import fillin_pipeline
 from etl.load.pipelines.derive_main import derive_main
+import etl.load.primitives.tbl.load_table as load_table
 import timeit
 import importlib
 
@@ -28,6 +29,8 @@ class Extractor:
         await self.run_fillin(conn, job['fillin'])
       if job.get("derive", False):
         await self.derive(conn, job['derive'])
+      if job.get("load_criteria_meas", False):
+        await load_table.load_cdm_to_criteria_meas(conn)
 
   async def transform(self, conn, transform_job):
     if transform_job.get('populate_patients', False):

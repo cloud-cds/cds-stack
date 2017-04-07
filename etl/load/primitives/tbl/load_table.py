@@ -332,3 +332,40 @@ async def workspace_medication_administration_2_cdm_twf(conn, job_id):
         logging.info("%s: update_twf_feature: %s" % (job_id, update_twf_feature))
         await conn.execute(update_twf_feature)
     logging.info("load raw data to cdm completed")
+
+
+# async def cdm_t_to_criteria_meas(conn):
+#     sql = """
+#     INSERT INTO criteria_meas (pat_id, tsp, fid, value, update_date)
+#                     select pe.pat_id, t.tsp, t.fid, value, NOW()
+#                     from cdm_t t inner join cdm_feature f on t.fid = f.fid
+#                     inner join pat_enc pe on pe.enc_id = t.enc_id
+#                     where f.is_measured
+#         ON CONFLICT (pat_id, tsp, fid)
+#             DO UPDATE SET value = EXCLUDED.value, update_date = NOW();
+#     """
+#     logging.debug("cdm_t_to_criteria_meas: {sql}".format(sql=sql))
+#     await conn.execute(sql)
+
+# async def cdm_twf_to_criteira_meas(conn):
+#     select_twf_features = """
+#     select distinct c.fid from cdm_feature c
+#     where c.category = 'TWF' and c.is_measured
+#     """
+#     twf_features_meas = await conn.fetch(select_twf_features)
+#     sql = """
+#     INSERT INTO criteria_meas (pat_id, tsp, fid, value, update_date)
+#                     select pe.pat_id, twf.tsp, '{fid}', twf.{fid}, NOW()
+#                     from cdm_twf twf inner join pat_enc pe on twf.enc_id = pe.enc_id
+#                     where twf.{fid}_c < 8
+#         ON CONFLICT (pat_id, tsp, fid)
+#             DO UPDATE SET value = EXCLUDED.value, update_date = NOW();
+#     """
+#     for feature in twf_features_meas:
+#         await conn.execute(sql.format(fid=feature['fid']))
+
+async def load_cdm_to_criteria_meas(conn, dataset_id):
+    sql = 'select load_cdm_to_criteria_meas({dataset_id});'.format(dataset_id=dataset_id)
+    await conn.execute(sql)
+    # await cdm_t_to_criteria_meas(conn)
+    # await cdm_twf_to_criteira_meas(conn)
