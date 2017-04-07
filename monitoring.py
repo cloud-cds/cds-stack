@@ -1,5 +1,6 @@
-import os
+import os, sys, traceback
 import datetime
+import falcon
 import json
 import logging
 import watchtower
@@ -19,8 +20,6 @@ class PrometheusMonitor:
         self.enabled = True
 
     self.prom_job = os.environ['db_name'].replace("_", "-") if 'db_name' in os.environ else 'trews;'
-
-    self.registry = CollectorRegistry()
     self.trews_api_request_latency = Histogram('trews_api_request_latency', 'Time spent processing API request', ['deployment', 'actionType'])
     self.trews_api_request_counts = Counter('trews_api_request_counts', 'Number of requests per seconds', ['deployment', 'actionType'])
 
@@ -38,8 +37,9 @@ class TREWSPrometheusMetrics(object):
       resp.content_type = CONTENT_TYPE_LATEST
 
     except Exception as ex:
-        # logging.info(json.dumps(ex, default=lambda o: o.__dict__))
-        raise falcon.HTTPError(falcon.HTTP_400, 'Error on metrics', ex.message)
+      logging.warning(ex.message)
+      traceback.print_exc()
+      raise falcon.HTTPError(falcon.HTTP_400, 'Error on metrics', ex.message)
 
 
 # Cloudwatch Logger.

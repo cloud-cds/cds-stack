@@ -90,8 +90,11 @@ class TREWSStaticResource(object):
             resp.body = j2_env.get_template(INDEX_FILENAME).render(keys=KEYS)
             logging.info("Static file request on index.html")
         else:
-            with open(filename, 'r') as f:
-                resp.body = f.read()
+            if os.path.exists(filename):
+                with open(filename, 'r') as f:
+                    resp.body = f.read()
+            else:
+                raise falcon.HTTPError(falcon.HTTP_400, 'Invalid file', filename)
 
 class TREWSLog(object):
     def on_post(self, req, resp):
