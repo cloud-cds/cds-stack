@@ -193,9 +193,9 @@ resource "aws_autoscaling_group" "nodes-cluster-dev-opsdx-io" {
   }
 }
 
-resource "aws_autoscaling_group" "tensorflow-nodes-cluster-dev-opsdx-io" {
-  name                 = "tensorflow-nodes.cluster.dev.opsdx.io"
-  launch_configuration = "${aws_launch_configuration.tensorflow-nodes-cluster-dev-opsdx-io.id}"
+resource "aws_autoscaling_group" "tensorflow-nodes1-cluster-dev-opsdx-io" {
+  name                 = "tensorflow-nodes1.cluster.dev.opsdx.io"
+  launch_configuration = "${aws_launch_configuration.tensorflow-nodes1-cluster-dev-opsdx-io.id}"
   max_size             = 33
   min_size             = 0
   vpc_zone_identifier  = ["${aws_subnet.us-east-1a-cluster-dev-opsdx-io.id}", "${aws_subnet.us-east-1c-cluster-dev-opsdx-io.id}", "${aws_subnet.us-east-1d-cluster-dev-opsdx-io.id}"]
@@ -214,7 +214,7 @@ resource "aws_autoscaling_group" "tensorflow-nodes-cluster-dev-opsdx-io" {
 
   tag = {
     key                 = "Name"
-    value               = "tensorflow-nodes.cluster.dev.opsdx.io"
+    value               = "tensorflow-nodes1.cluster.dev.opsdx.io"
     propagate_at_launch = true
   }
 
@@ -452,7 +452,7 @@ resource "aws_elb" "api-cluster-dev-opsdx-io" {
   }
 
   security_groups = ["${aws_security_group.api-elb-cluster-dev-opsdx-io.id}"]
-  subnets         = ["${aws_subnet.utility-us-east-1c-cluster-dev-opsdx-io.id}", "${aws_subnet.utility-us-east-1d-cluster-dev-opsdx-io.id}", "${aws_subnet.utility-us-east-1a-cluster-dev-opsdx-io.id}"]
+  subnets         = ["${aws_subnet.utility-us-east-1a-cluster-dev-opsdx-io.id}", "${aws_subnet.utility-us-east-1c-cluster-dev-opsdx-io.id}", "${aws_subnet.utility-us-east-1d-cluster-dev-opsdx-io.id}"]
 
   health_check = {
     target              = "TCP:443"
@@ -510,7 +510,7 @@ resource "aws_key_pair" "kubernetes-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21
 resource "aws_launch_configuration" "master-us-east-1a-masters-cluster-dev-opsdx-io" {
   name_prefix                 = "master-us-east-1a.masters.cluster.dev.opsdx.io-"
   image_id                    = "ami-5f1afc49"
-  instance_type               = "t2.medium"
+  instance_type               = "t2.large"
   key_name                    = "${aws_key_pair.kubernetes-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
   iam_instance_profile        = "${aws_iam_instance_profile.masters-cluster-dev-opsdx-io.id}"
   security_groups             = ["${aws_security_group.masters-cluster-dev-opsdx-io.id}"]
@@ -531,7 +531,7 @@ resource "aws_launch_configuration" "master-us-east-1a-masters-cluster-dev-opsdx
 resource "aws_launch_configuration" "master-us-east-1c-masters-cluster-dev-opsdx-io" {
   name_prefix                 = "master-us-east-1c.masters.cluster.dev.opsdx.io-"
   image_id                    = "ami-5f1afc49"
-  instance_type               = "t2.medium"
+  instance_type               = "t2.large"
   key_name                    = "${aws_key_pair.kubernetes-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
   iam_instance_profile        = "${aws_iam_instance_profile.masters-cluster-dev-opsdx-io.id}"
   security_groups             = ["${aws_security_group.masters-cluster-dev-opsdx-io.id}"]
@@ -552,7 +552,7 @@ resource "aws_launch_configuration" "master-us-east-1c-masters-cluster-dev-opsdx
 resource "aws_launch_configuration" "master-us-east-1d-masters-cluster-dev-opsdx-io" {
   name_prefix                 = "master-us-east-1d.masters.cluster.dev.opsdx.io-"
   image_id                    = "ami-5f1afc49"
-  instance_type               = "t2.medium"
+  instance_type               = "t2.large"
   key_name                    = "${aws_key_pair.kubernetes-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
   iam_instance_profile        = "${aws_iam_instance_profile.masters-cluster-dev-opsdx-io.id}"
   security_groups             = ["${aws_security_group.masters-cluster-dev-opsdx-io.id}"]
@@ -591,15 +591,15 @@ resource "aws_launch_configuration" "nodes-cluster-dev-opsdx-io" {
   }
 }
 
-resource "aws_launch_configuration" "tensorflow-nodes-cluster-dev-opsdx-io" {
-  name_prefix                 = "tensorflow-nodes.cluster.dev.opsdx.io-"
+resource "aws_launch_configuration" "tensorflow-nodes1-cluster-dev-opsdx-io" {
+  name_prefix                 = "tensorflow-nodes1.cluster.dev.opsdx.io-"
   image_id                    = "ami-5f1afc49"
   instance_type               = "t2.large"
   key_name                    = "${aws_key_pair.kubernetes-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
   iam_instance_profile        = "${aws_iam_instance_profile.nodes-cluster-dev-opsdx-io.id}"
   security_groups             = ["${aws_security_group.nodes-cluster-dev-opsdx-io.id}"]
   associate_public_ip_address = false
-  user_data                   = "${file("${path.module}/data/aws_launch_configuration_tensorflow-nodes.cluster.dev.opsdx.io_user_data")}"
+  user_data                   = "${file("${path.module}/data/aws_launch_configuration_tensorflow-nodes1.cluster.dev.opsdx.io_user_data")}"
 
   root_block_device = {
     volume_type           = "gp2"
