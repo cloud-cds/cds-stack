@@ -9,14 +9,19 @@ if len(sys.argv) == 3:
   db = sys.argv[1]
   model_id = int(sys.argv[2])
 else:
-  exit(0)
+  db = 'opsdx_prod_dw'
+  model_id = 1
 
 DB_CONN_STR = 'postgresql://{}:{}@{}:{}/{}'
 user = os.environ['db_user']
-host = os.environ['db_host']
+host = 'dw.prod.opsdx.io'
 port = os.environ['db_port']
 password = os.environ['db_password']
 DB_CONN_STR = DB_CONN_STR.format(user, password, host, port, db)
+
+engine = create_engine(DB_CONN_STR)
+
+conn = engine.connect()
 
 feature_weights_file = "lactateConstrFeatureWeights.csv"
 feature_weights_dbtable = "trews_feature_weights"
@@ -39,9 +44,7 @@ parameters['model_id'] = model_id
 print(parameters.head())
 
 # write to opsdx database
-engine = create_engine(DB_CONN_STR)
 
-conn = engine.connect()
 conn.execute(text("delete from %s;" % feature_weights_dbtable).execution_options(autocommit=True))
 conn.close()
 feature_weights.to_sql(feature_weights_dbtable, engine, if_exists='append', index=False)

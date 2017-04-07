@@ -194,7 +194,7 @@ CREATE TABLE criteria
     override_value      json,
     value               text,
     update_date         timestamptz,
-    primary key         (dataset_id, pat_id, name)
+    primary key         (dataset_id, pat_id, name, override_time)
 );
 
 DROP TABLE IF EXISTS criteria_events;
@@ -274,13 +274,15 @@ CREATE TABLE criteria_archive
 DROP TABLE IF EXISTS criteria_default;
 CREATE TABLE criteria_default
 (
-    dataset_id          integer REFERENCES dw_version(dataset_id),
     name                varchar(50),
     fid                 varchar(50),
     override_value      json,
     category            varchar(50),
-    primary key         (dataset_id, name, fid, category)
+    primary key         (name, fid, category)
 );
+
+\copy criteria_default from '/home/ubuntu/dashan-db/ops/criteria_default.csv' with csv header delimiter as ',';
+
 
 DROP TABLE IF EXISTS notifications;
 CREATE  TABLE notifications
@@ -670,3 +672,4 @@ CREATE TABLE index_group_descriptions (
     update_tsp          timestamptz,
     primary key         (group_id)
 );
+
