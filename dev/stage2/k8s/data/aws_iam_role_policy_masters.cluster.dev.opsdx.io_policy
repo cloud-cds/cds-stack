@@ -28,15 +28,6 @@
     {
       "Effect": "Allow",
       "Action": [
-        "route53:*"
-      ],
-      "Resource": [
-        "*"
-      ]
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
         "elasticloadbalancing:*"
       ],
       "Resource": [
@@ -50,6 +41,35 @@
         "autoscaling:DescribeAutoScalingInstances",
         "autoscaling:SetDesiredCapacity",
         "autoscaling:TerminateInstanceInAutoScalingGroup"
+      ],
+      "Resource": [
+        "*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "route53:ChangeResourceRecordSets",
+        "route53:ListResourceRecordSets",
+        "route53:GetHostedZone"
+      ],
+      "Resource": [
+        "arn:aws:route53:::hostedzone/Z2GCTM75P01WXX"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "route53:GetChange"
+      ],
+      "Resource": [
+        "arn:aws:route53:::change/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "route53:ListHostedZones"
       ],
       "Resource": [
         "*"

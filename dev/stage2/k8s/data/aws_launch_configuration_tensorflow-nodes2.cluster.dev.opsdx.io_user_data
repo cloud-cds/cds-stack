@@ -122,7 +122,7 @@ Assets:
 - 661289336f118e82194000adc63f2b72f449636e@https://kubeupv2.s3.amazonaws.com/kops/1.5.3/linux/amd64/utils.tar.gz
 ClusterName: cluster.dev.opsdx.io
 ConfigBase: s3://opsdx-kops-dev/cluster.dev.opsdx.io
-InstanceGroupName: tensorflow-nodes
+InstanceGroupName: tensorflow-nodes2
 Tags:
 - _automatic_upgrades
 - _aws

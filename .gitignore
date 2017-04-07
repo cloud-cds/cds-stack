@@ -4,5 +4,8 @@ keys/
 secrets.tfvars
 secrets.yaml
 node_modules
+concourse-keys
 *.zip
 .DS_Store
+.idea/
+*.pyc
