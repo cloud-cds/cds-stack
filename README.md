@@ -1,14 +1,13 @@
 <p align="center">
-  <img src="https://cloud.githubusercontent.com/assets/7926463/24318897/34c9fefc-10e4-11e7-96c2-1433d7cbf168.png" width=72 height=72>
-
+  <img src="https://cloud.githubusercontent.com/assets/7926463/24318897/34c9fefc-10e4-11e7-96c2-1433d7cbf168.png" width=50 height=50>
   <h3 align="center">Dashan ETL</h3>
-
-  <p align="center">
-    Extract Transform Load engine from all sources to all sinks.
-  </p>
 </p>
-
-<br>
+<p align="center">
+  <a href="http://concourse.dev.opsdx.io">
+      <img src="http://concourse.dev.opsdx.io/api/v1/teams/main/pipelines/main-pipeline/jobs/test-master/badge"
+           alt="CI Status">
+  </a>
+</p>
 
 ---
 
