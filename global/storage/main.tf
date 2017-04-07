@@ -30,7 +30,7 @@ resource "aws_s3_bucket" "lambda-repo" {
 
 resource "aws_s3_bucket" "flamegraph-dev" {
     bucket = "opsdx-flamegraph-dev"
-    acl = "private"
+    acl = "public-read"
 
     versioning {
         enabled = true
