@@ -166,7 +166,6 @@ class TREWSEchoHealthcheck(object):
         except Exception as ex:
             raise falcon.HTTPError(falcon.HTTP_400, 'Error processing echo healthcheck', ex.message)
 
-
 # Configure Falcon middleware.
 mware = []
 cw_log_mware = CloudwatchLoggerMiddleware()

@@ -57,47 +57,51 @@ class CloudwatchLoggerMiddleware(object):
         self.enabled = False
 
     def process_request(self, req, resp):
-        if self.enabled:
-          srvnow = datetime.datetime.utcnow().isoformat()
-          self.cwLogger.info(json.dumps({
-              'req': {
-                  'date'         : srvnow,
-                  'reqdate'      : req.date,
-                  'method'       : req.method,
-                  'url'          : req.relative_uri,
-                  'remote_addr'  : req.remote_addr,
-                  'access_route' : req.access_route,
-                  'headers'      : req.headers
-              }
-          }))
+      if self.enabled:
+        srvnow = datetime.datetime.utcnow().isoformat()
+        self.cwLogger.info(json.dumps({
+          'req': {
+            'date'         : srvnow,
+            'reqdate'      : req.date,
+            'method'       : req.method,
+            'url'          : req.relative_uri,
+            'remote_addr'  : req.remote_addr,
+            'access_route' : req.access_route,
+            'headers'      : req.headers
+          }
+        }))
 
     def process_resource(self, req, resp, resource, params):
-        if self.enabled:
-          srvnow = datetime.datetime.utcnow().isoformat()
-          self.cwLogger.info(json.dumps({
-              'res': {
-                  'date'         : srvnow,
-                  'reqdate'      : req.date,
-                  'method'       : req.method,
-                  'url'          : req.relative_uri,
-                  'remote_addr'  : req.remote_addr,
-                  'access_route' : req.access_route,
-                  'headers'      : req.headers,
-                  'params'       : params
-              }
-          }))
+      if self.enabled:
+        srvnow = datetime.datetime.utcnow().isoformat()
+        self.cwLogger.info(json.dumps({
+          'res': {
+            'date'         : srvnow,
+            'reqdate'      : req.date,
+            'method'       : req.method,
+            'url'          : req.relative_uri,
+            'remote_addr'  : req.remote_addr,
+            'access_route' : req.access_route,
+            'headers'      : req.headers,
+            'params'       : params
+          }
+        }))
 
     def process_response(self, req, resp, resource, req_succeeded):
       if self.enabled:
         srvnow = datetime.datetime.utcnow().isoformat()
+        actionType = None
+        if 'body' in req.context and 'actionType' in req.context['body']:
+          actionType = req.context['body']['actionType']
         self.cwLogger.info(json.dumps({
-            'resp': {
-                'date'         : srvnow,
-                'reqdate'      : req.date,
-                'method'       : req.method,
-                'url'          : req.relative_uri,
-                'status'       : resp.status[:3],
-                'headers'      : req.headers
-            }
+          'resp': {
+            'actionType'   : actionType,
+            'date'         : srvnow,
+            'reqdate'      : req.date,
+            'method'       : req.method,
+            'url'          : req.relative_uri,
+            'status'       : resp.status[:3],
+            'headers'      : req.headers
+          }
         }))
 
