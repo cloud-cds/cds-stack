@@ -1,0 +1,8 @@
+---
+platform: linux
+
+inputs:
+- name: dashan-etl-pr
+
+run:
+  path: dashan-etl-pr/ci/dummy-task.sh
