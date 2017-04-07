@@ -8,7 +8,7 @@ wbc,bands,"{""upper"":10}",simple
 blood_pressure,nbp_sys,"{""lower"":90}",simple
 mean_arterial_pressure,mapm,"{""lower"":65}",simple
 bilirubin,bilirubin,"{""upper"":2}",simple
-platelet,platelet,"{""lower"":100}",simple
+platelet,platelets,"{""lower"":100}",simple
 inr,inr,"{""upper"":1.5}",simple
 inr,ptt,"{""upper"":60}",simple
 lactate,lactate,"{""upper"":2}",simple

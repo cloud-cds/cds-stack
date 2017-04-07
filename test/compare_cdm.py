@@ -17,7 +17,8 @@ port          = os.environ['db_port']
 db            = os.environ['db_name']
 user          = os.environ['db_user']
 pw            = os.environ['db_password']
-src_server    = os.environ['cmp_remote_server']
+if 'cmp_remote_server' in os.environ:
+  src_server    = os.environ['cmp_remote_server']
 
 enc_id_range = 'enc_id < 31'
 tsp_range = " tsp > '2017-04-01 08:00:00 EDT'::timestamptz and tsp < '2017-04-01 16:00:00 EDT'::timestamptz"
@@ -184,7 +185,7 @@ class TableComparator:
                      src_tbl, dst_tbl=None,
                      src_pred=None, dst_pred=None,
                      field_map=None, dependent_fields=None,
-                     version_extension='dataset', as_count_result=True, sort_field=None):
+                     version_extension='dataset', as_count_result=True, sort_field=None, dst_tsp_shift=None):
 
     self.src_server     = src_server
     self.src_dataset_id = src_dataset_id
@@ -204,6 +205,7 @@ class TableComparator:
     self.version_extension = version_extension
     self.as_count_result = as_count_result
     self.sort_field = sort_field
+    self.dst_tsp_shift = dst_tsp_shift
 
   def version_extension_ids(self):
     if self.version_extension == 'dataset':
@@ -256,7 +258,7 @@ class TableComparator:
         self.field_map = []
 
 
-  async def compare_query(self, pool, src_tbl, src_fields, dst_tbl, dst_fields, dst_tsp_shift='4 hours'):
+  async def compare_query(self, pool, src_tbl, src_fields, dst_tbl, dst_fields, dst_tsp_shift=None):
 
     src_version_map = { 'model_id': self.src_model_id, 'dataset_id': self.src_dataset_id }
     dst_version_map = { 'model_id': self.dst_model_id, 'dataset_id': self.dst_dataset_id }
@@ -356,10 +358,11 @@ class TableComparator:
         if r['diffs'] > 0:
           logging.warning('Table %s differs from %s.%s (%s rows)' % (self.dst_table, self.src_server, self.src_table, r['diffs']))
       else:
+        print(compare_to_remote_query)
         results = await conn.fetch(compare_to_remote_query)
         for r in results:
           logging.info(dict(r))
-        return results
+        return {'src_tbl': src_tbl, 'src_fields': src_fields, 'dst_tbl': dst_tbl, 'dst_fields': dst_fields, 'dst_tsp_shift': dst_tsp_shift ,'rows': results}
 
 
   async def run(self, pool):
@@ -368,7 +371,7 @@ class TableComparator:
 
     if self.field_map:
         src_fields, dst_fields = self.split_fields()
-        await self.compare_query(pool, self.src_table, src_fields, self.dst_table, dst_fields)
+        return await self.compare_query(pool, self.src_table, src_fields, self.dst_table, dst_fields, dst_tsp_shift=self.dst_tsp_shift)
 
     else:
       logging.warning('Skipping table comparison for {}, no remote schema found'.format(self.src_table))
@@ -391,7 +394,7 @@ async def run():
 
   dst_dataset_id = args.dstdid
   dst_model_id   = args.dstmid
-
+  query_results = []
   for tbl, version_type_and_queries in tables_to_compare.items():
     version_type = version_type_and_queries[0]
     queries = version_type_and_queries[1]
@@ -404,13 +407,16 @@ async def run():
                             field_map=field_map, dependent_fields=dependent_fields,
                             version_extension=version_type,
                             as_count_result=args.counts, sort_field=sort_field)
-        await c.run(dbpool)
+        result = await c.run(dbpool)
+        query_results.append(result)
     else:
       c = TableComparator(src_server,
                           src_dataset_id, src_model_id,
                           dst_dataset_id, dst_model_id,
                           tbl, version_extension=version_type, as_count_result=args.counts)
-      await c.run(dbpool)
+      result = await c.run(dbpool)
+      query_results.append(result)
+  return query_results
 
 if __name__ == '__main__':
   loop = asyncio.get_event_loop()
