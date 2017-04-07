@@ -28,6 +28,15 @@ resource "aws_s3_bucket" "lambda-repo" {
     }
 }
 
+resource "aws_s3_bucket" "flamegraph-dev" {
+    bucket = "opsdx-flamegraph-dev"
+    acl = "private"
+
+    versioning {
+        enabled = true
+    }
+}
+
 ############################################
 # ECR repositories
 
