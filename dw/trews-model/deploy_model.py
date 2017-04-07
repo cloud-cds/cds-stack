@@ -5,16 +5,15 @@ import os,sys
 from sqlalchemy import create_engine, types, text
 import pandas as pd
 
-if len(sys.argv) == 3:
+if len(sys.argv) == 4:
   db = sys.argv[1]
-  model_id = int(sys.argv[2])
+  host = sys.argv[2]
+  model_id = int(sys.argv[3])
 else:
-  db = 'opsdx_prod_dw'
-  model_id = 1
+  raise(ValueError('Not enough input arguements'))
 
 DB_CONN_STR = 'postgresql://{}:{}@{}:{}/{}'
 user = os.environ['db_user']
-host = 'dw.prod.opsdx.io'
 port = os.environ['db_port']
 password = os.environ['db_password']
 DB_CONN_STR = DB_CONN_STR.format(user, password, host, port, db)

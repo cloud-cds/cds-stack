@@ -274,6 +274,7 @@ CREATE TABLE criteria_archive
 DROP TABLE IF EXISTS criteria_default;
 CREATE TABLE criteria_default
 (
+    dataset_id          integer
     name                varchar(50),
     fid                 varchar(50),
     override_value      json,
@@ -281,7 +282,7 @@ CREATE TABLE criteria_default
     primary key         (name, fid, category)
 );
 
-\copy criteria_default from '/home/ubuntu/dashan-db/ops/criteria_default.csv' with csv header delimiter as ',';
+\copy criteria_default from '/home/ubuntu/dashan-db/dw/criteria_default.csv' with csv header delimiter as ',';
 
 
 DROP TABLE IF EXISTS notifications;
@@ -656,7 +657,7 @@ CREATE TABLE feedback_log (
     feedback            text
 );
 
-DROP TABLE IF EXISTS index_patients;
+DROP TABLE IF EXISTS pat_group;
 CREATE TABLE index_patients (
     pat_id              varchar(50),
     model_id            varchar(50),
@@ -665,7 +666,7 @@ CREATE TABLE index_patients (
     primary key (pat_id, model_id, group_id)
 );
 
-DROP TABLE IF EXISTS index_group_descriptions;
+DROP TABLE IF EXISTS group_description;
 CREATE TABLE index_group_descriptions (
     group_id            integer,
     group_description   text,

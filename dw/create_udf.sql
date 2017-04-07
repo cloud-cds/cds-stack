@@ -1873,3 +1873,113 @@ END
 $BODY$ Language plpgsql;
 
 -- select * from update_implemented_meas_fids();
+
+-- ===========================================================================
+-- load_cdm_twf_to_criteria_meas
+-- ===========================================================================
+CREATE OR REPLACE FUNCTION load_cdm_twf_to_criteria_meas(_fid text, _dataset_id integer)
+  returns VOID
+   LANGUAGE plpgsql
+AS $function$
+DECLARE
+BEGIN
+  EXECUTE format(
+  'insert into criteria_meas (dataset_id,         pat_id,         tsp,         fid,           value,      update_date)
+    select            cdm_twf.dataset_id, pat_enc.pat_id, cdm_twf.tsp,         ''%s''::text,  cdm_twf.%s,      now()
+    FROM
+    cdm_twf
+    inner join
+    pat_enc
+    on cdm_twf.enc_id = pat_enc.enc_id
+    where cdm_twf.%s_c <8 and cdm_twf.dataset_id = %s
+    ON CONFLICT (dataset_id, pat_id, tsp, fid) DO UPDATE SET value = excluded.value, update_date=excluded.update_date;
+  ',_fid,_fid,_fid,_dataset_id);
+END; $function$;
+-- ===========================================================================
+-- load_cdm_to_criteria_meas
+-- ===========================================================================
+CREATE OR REPLACE FUNCTION load_cdm_to_criteria_meas(_dataset_id integer)
+ RETURNS VOID
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+  _fid TEXT;
+BEGIN
+    -- ================================================
+    -- Upsert Suspicion of infection proxy
+    -- ================================================
+    insert into criteria (dataset_id, pat_id, name,                  is_met, measurement_time,override_time,override_user, override_value, value, update_date)
+    select cdm_t.dataset_id, pat_enc.pat_id, 'suspicion_of_infection', true, cdm_t.tsp, cdm_t.tsp,          'cdm_t'::text, '[{"text": "infection"}]'::json,'infection'::text,now()
+    from
+    cdm_t
+    left join
+    pat_enc
+    on cdm_t.enc_id = pat_enc.enc_id
+    where cdm_t.fid='suspicion_of_infection' and cdm_t.dataset_id = _dataset_id
+    group by cdm_t.dataset_id, pat_enc.pat_id, cdm_t.tsp
+    ON CONFLICT (dataset_id, pat_id, name, override_time) DO UPDATE SET
+      is_met=EXCLUDED.is_met,              measurement_time=EXCLUDED.measurement_time,
+      override_user=EXCLUDED.override_user,override_value=EXCLUDED.override_value,    value=EXCLUDED.value,  update_date=EXCLUDED.update_date;
+    -- ================================================
+    -- Upsert cdm_t features
+    -- ================================================
+    insert into criteria_meas (dataset_id,         pat_id,         tsp,               fid,               value,    update_date)
+    select               cdm_t.dataset_id, pat_enc.pat_id,   cdm_t.tsp,         cdm_t.fid,  first(cdm_t.value),    now()
+    FROM
+    cdm_t
+    inner join
+    pat_enc
+    on cdm_t.enc_id = pat_enc.enc_id
+    inner JOIN
+    criteria_default
+    on cdm_t.fid = criteria_default.fid
+    where cdm_t.dataset_id = _dataset_id and not(cdm_t.fid = 'suspicion_of_infection')
+    group by cdm_t.dataset_id, pat_enc.pat_id, cdm_t.tsp, cdm_t.fid
+    ON CONFLICT (dataset_id,   pat_id,               tsp, fid) DO UPDATE SET value = excluded.value, update_date=excluded.update_date;
+    -- ================================================
+    -- Upsert cdm_twf
+    -- ================================================
+    FOR _fid in
+      select cd.fid
+      from
+      criteria_default cd
+      left join
+      cdm_feature f
+      on cd.fid = f.fid
+      where f.category = 'TWF'
+      group by cd.fid
+    LOOP
+      PERFORM load_cdm_twf_to_criteria_meas(_fid,_dataset_id);
+    END LOOP;
+
+END; $function$;
+-- ===========================================================================
+-- calculate historical_criteria
+-- ===========================================================================
+CREATE OR REPLACE FUNCTION calculate_historical_criteria(this_pat_id text)
+ RETURNS table(window_ts                        timestamptz,
+               pat_id                           varchar(50),
+               pat_state                        INTEGER
+               )
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    window_size interval := get_parameter('lookbackhours')::interval;
+BEGIN
+    create temporary table new_criteria_windows as
+        select window_ends.tsp as ts, new_criteria.*
+        from (  select distinct meas.pat_id, meas.tsp from criteria_meas meas
+                where meas.pat_id = coalesce(this_pat_id, meas.pat_id)
+--                 and meas.tsp between ts_start and ts_end
+        ) window_ends
+        inner join lateral calculate_criteria(
+            coalesce(this_pat_id, window_ends.pat_id), window_ends.tsp - window_size, window_ends.tsp
+        ) new_criteria
+        on window_ends.pat_id = new_criteria.pat_id;
+
+    return query
+            select sw.*
+            from get_window_states('new_criteria_windows', this_pat_id) sw;
+    drop table new_criteria_windows;
+    return;
+END; $function$;
