@@ -1,32 +1,80 @@
 from etl.clarity2dw.engine import Engine as EngineC2dw
 from etl.epic2op.engine import Engine as EngineEpic2op
 import os
-from etl.clarity2dw.engine import job_test_c2dw
+from etl.clarity2dw.engine import job_test_c2dw, CONF
 import asyncio
 import asyncpg
 from compare_cdm import TableComparator
-from cdm_feature import cdm_twf_field
+from cdm_feature import cdm_twf_field as cdm_twf
 import datetime as dt
+import copy
+import subprocess
+from collections import OrderedDict
 
+class Restore():
+  def __init__(self, db_name, file):
+    self.db_name = db_name
+    self.file = file
 
+  def main(self):
+    print("restore test database")
+    db_host = os.environ["db_host"]
+    db_user = os.environ["db_user"]
+    cmd = ["pg_restore", "--clean", "-h", db_host, "-U", db_user, "-d", self.db_name, "-p", "5432", "-v", self.file]
+    os.system(" ".join(cmd))
+    # print(subprocess.check_output(cmd, stderr=subprocess.STDOUT))
 
-db_pair = [
+#########################################################
+# compare online ETL (epic2op) with offline ETL (c2dw)
+#########################################################
+job_c2dw_1 = {
+  'reset_dataset': {
+    'remove_pat_enc': False,
+    'remove_data': True,
+    'start_enc_id': '(select max(enc_id) from pat_enc)'
+  },
+  'transform': {
+    'populate_patients': True,
+    'populate_measured_features': {
+      'plan': False,
+      # 'fid': 'age',
+    },
+  },
+  'fillin': {
+    'recalculate_popmean': False,
+  },
+  'derive':
+  {
+    'fid': None
+  },
+  'config': {
+    'dataset_id': 1,
+    'debug': True,
+    'db_name': 'test_c2dw',
+    # 'db_host': 'dev.opsdx.io',
+    'conf': CONF,
+  },
+}
+
+epic2op_vs_c2dw = [
   {
     'name': 'test_epic2op',
     'engine': EngineEpic2op(db_name='test_epic2op'),
     'pipeline': {
-      'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
-      'populate_db': {},
+      # 'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
+      # 'populate_db': True,
     },
   },
   {
     'name': 'test_c2dw',
-    'engine': EngineC2dw(job_test_c2dw),
-    'pipeline': {
-      'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
-      'copy_pat_enc': {},
-      'populate_db': {},
-    },
+    'engine': EngineC2dw,
+    'job': job_c2dw_1,
+    # 'pipeline': {
+    #   # 'load_clarity': {'folder': '~/clarity-db-staging/2017-04-06/'},
+    #   'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
+    #   'copy_pat_enc': True,
+    #   'populate_db': True,
+    # },
     'db_compare': {
       'srcdid': None,
       'srcmid': None,
@@ -34,18 +82,72 @@ db_pair = [
       'dstmid': 1,
       'cmp_remote_server': 'test_epic2op',
       'counts': False,
-      'date': '2017-04-03',
+      'date': '2017-04-04',
+      'dst_tsp_shift': '4 hours',
+      'feature_set': 'online',
     }
   }
 ]
 
 
+##########################################################
+# regression test for offline ETL (c2dw)
+# compare c2dw with c2dw_a (archived version)
+##########################################################
+
+job_c2dw_a = copy.deepcopy(job_test_c2dw)
+job_c2dw_a['config']['db_name'] = 'test_c2dw_a'
+job_c2dw_2 = copy.deepcopy(job_test_c2dw)
+job_c2dw_2['config']['db_name'] = 'test_c2dw'
+job_c2dw_2['reset_dataset']['remove_pat_enc'] = False
+c2dw_a_vs_c2dw = [
+  {
+    'name': 'test_c2dw_a',
+    'engine': Restore(db_name='test_c2dw_a', file='~/clarity-db-staging/c2dw_a/2017-04-05.sql'),
+    'pipeline': {
+      # 'populate_db': True,
+    }
+  },
+  # {
+  #   'name': 'test_c2dw_a',
+  #   'engine': EngineC2dw,
+  #   'job': job_c2dw_a,
+  #   'pipeline': {
+  #     # 'load_clarity': {'folder': '~/clarity-db-staging/2017-04-05/'},
+  #     # 'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
+  #     # 'populate_db': True,
+  #   },
+  # },
+  {
+    'name': 'test_c2dw',
+    'engine': EngineC2dw,
+    'job': job_c2dw_2,
+    'pipeline': {
+      'load_clarity': {'folder': '~/clarity-db-staging/2017-04-05/'},
+      'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
+      'copy_pat_enc': True,
+      'populate_db': True,
+    },
+    'db_compare': {
+      'srcdid': None,
+      'srcmid': None,
+      'dstdid': 1,
+      'dstmid': 1,
+      'cmp_remote_server': 'test_c2dw_a',
+      'counts': False,
+      'date': '2017-04-03',
+      'feature_set': 'online'
+    }
+  }
+]
+##########################################################
 
 
 
 class DBCompareTest():
   def __init__(self, db_pair):
     self.db_pair = db_pair
+    self.passed = False
 
   def _init_(self):
     loop = asyncio.get_event_loop()
@@ -65,15 +167,31 @@ class DBCompareTest():
     self.db_setup(self.db_pair[1])
 
   def db_setup(self, db_config):
-    pipeline = db_config['pipeline']
-    if 'clean_db' in pipeline:
-      self.clean_db(db_config)
-    if 'copy_pat_enc' in pipeline:
-      self.copy_pat_enc(db_config)
-    if 'populate_db' in pipeline:
-      self.populate_db(db_config)
-    if 'db_compare' in db_config:
+    if db_config.get('pipeline', False):
+      pipeline = db_config['pipeline']
+      if pipeline.get('load_clarity', False):
+        self.load_clarity(pipeline['load_clarity'], db_config['name'])
+      if pipeline.get('clean_db', False):
+        self.clean_db(db_config)
+      print(pipeline.get('copy_pat_enc', False))
+      if pipeline.get('copy_pat_enc', False):
+        print(pipeline.get('copy_pat_enc', False))
+        self.copy_pat_enc(db_config)
+      if pipeline.get('populate_db', False):
+        self.populate_db(db_config)
+    if db_config.get('db_compare', False):
       self.db_compare(db_config)
+
+  def load_clarity(self, settings, db_name):
+    with open('load_clarity_template.sql', 'r') as f:
+      sql = f.read()
+    sql_str = sql.format(folder=settings['folder'])
+    with open('load_clarity.sql', 'w') as f:
+      f.write(sql_str)
+    from subprocess import call
+    db_host = os.environ['db_host']
+    db_user = os.environ['db_user']
+    call(["psql", "-h", db_host, "-U", db_user, "-d", db_name, "-p", "5432", "-f", 'load_clarity.sql'])
 
   def clean_db(self, db_config):
     print("clean_db: %s" % db_config['name'])
@@ -81,28 +199,41 @@ class DBCompareTest():
     loop.run_until_complete(self.run_clean_db(db_config))
 
   async def run_clean_db(self, db_config):
-    engine = db_config['engine']
+    if 'job' in db_config:
+      job = db_config['job']
+      # job['db_name'] = 'test_c2dw_a'
+      engine = db_config['engine'](job)
+    else:
+      engine = db_config['engine']
     await engine.init()
-    rm_data = """
-    delete from cdm_s;
-    delete from cdm_t;
-    delete from cdm_twf;
-    delete from criteria_meas;
-    select drop_tables_pattern('workspace', 'job_etl_');
-    """
+    rm_data = [
+      "delete from cdm_s;",
+      "delete from cdm_t;",
+      "delete from cdm_twf;",
+      "delete from criteria_meas;",
+      "select drop_tables_pattern('workspace', 'job_etl_');",
+    ]
     rm_pats = "delete from pat_enc;"
     reset_seq = "select setval('pat_enc_enc_id_seq', 1);"
     async with engine.pool.acquire() as conn:
       if 'rm_data' in db_config['pipeline']['clean_db']:
-        await conn.execute(rm_data)
+        for query in rm_data:
+          pglog = await conn.execute(query)
+          print(pglog)
       if 'rm_pats' in db_config['pipeline']['clean_db']:
-        await conn.execute(rm_pats)
+        pglog = await conn.execute(rm_pats)
+        print(pglog)
       if 'reset_seq' in db_config['pipeline']['clean_db']:
-        await conn.execute(reset_seq)
+        pglog = await conn.execute(reset_seq)
+        print(pglog)
 
   def populate_db(self, db_config):
     print("populate_db: %s" % db_config['name'])
-    engine = db_config['engine']
+    if 'job' in db_config:
+      job = db_config['job']
+      engine = db_config['engine'](job)
+    else:
+      engine = db_config['engine']
     engine.main()
 
   def copy_pat_enc(self, db_config):
@@ -111,7 +242,10 @@ class DBCompareTest():
     loop.run_until_complete(self.run_copy_pat_enc(db_config))
 
   async def run_copy_pat_enc(self, db_config):
-    pool = db_config['engine'].pool
+    job = db_config['job']
+    engine = db_config['engine'](job)
+    await engine.init()
+    pool = engine.pool
     sql = '''
     insert into pat_enc (dataset_id, enc_id, pat_id, visit_id)
     (
@@ -120,8 +254,10 @@ class DBCompareTest():
           $OPDB$) as pe (dataset_id int, enc_id int, pat_id text, visit_id text)
     );
     ''' % self.db_pair[0]['name']
+    print(sql)
     async with pool.acquire() as conn:
-      await conn.execute(sql)
+      result = await conn.execute(sql)
+      print(result)
 
   def db_compare(self, db_config):
     loop = asyncio.get_event_loop()
@@ -129,7 +265,8 @@ class DBCompareTest():
 
   async def run_db_compare(self, db_config):
     print("db_compare %s vs %s" % (self.db_pair[0]['name'], self.db_pair[1]['name']))
-    engine = db_config['engine']
+    job = db_config['job']
+    engine = db_config['engine'](job)
     await engine.init()
     dbpool = engine.pool
     args = db_config['db_compare']
@@ -139,6 +276,8 @@ class DBCompareTest():
     dst_model_id   = args['dstmid']
     src_server = args['cmp_remote_server']
     counts = args['counts']
+    dst_tsp_shift = args['dst_tsp_shift'] if 'dst_tsp_shift' in args else None
+    online = True if 'feature_set' in args else False
     if 'date' in args:
       date = args['date']
     else:
@@ -174,12 +313,15 @@ class DBCompareTest():
       ['visit_id'           , 'text',        ],
     ]
     pat_enc_query = (pat_enc_fields, enc_id_range, 'enc_id', None)
-
-    cdm_s_range = 'fid ~ \'%s\'' % '|'.join(cdm_s_online_features)
-    cdm_t_range = 'fid ~ \'%s\'' % '|'.join(cdm_t_online_features)
-    cdm_t_range += ' and ' + tsp_range
-    cdm_twf_online_fields = [row for row in cdm_twf_field if (row[0][:-2] if row[0].endswith('_c') else row[0]) in cdm_twf_online_features]
-
+    if online:
+      cdm_s_range = 'fid ~ \'%s\'' % '|'.join(cdm_s_online_features)
+      cdm_t_range = 'fid ~ \'%s\'' % '|'.join(cdm_t_online_features)
+      cdm_t_range += ' and ' + tsp_range
+      cdm_twf_fields = [row for row in cdm_twf if (row[0][:-2] if row[0].endswith('_c') else row[0]) in cdm_twf_online_features]
+    else:
+      cdm_s_range = None
+      cdm_t_range = None
+      cdm_twf_fields = cdm_twf
     cdm_dependent_expr_map = {
       }
 
@@ -219,7 +361,7 @@ class DBCompareTest():
       # 'pao2_to_fio2': ['(round(value, 4))', '='],
       'temperature': ['(round(temperature::numeric, 0))', '='],
     }
-    for field in cdm_twf_online_fields:
+    for field in cdm_twf_fields:
       if field[0] in cdm_twf_dependent_expr_map:
         field[0] = cdm_twf_dependent_expr_map[field[0]][0]
 
@@ -237,7 +379,7 @@ class DBCompareTest():
       ['value'           , 'text',        ],
       # ['confidence'                         , 'confidence', 'integer'     ],
     ]
-    cdm_s_query1 = (cdm_s_fields1, cdm_s_range + ' and ' + enc_id_range, 'fid, enc_id', cdm_s_dependent_fields)
+    cdm_s_query1 = (cdm_s_fields1, (cdm_s_range + ' and ' if cdm_s_range is not None else '') + enc_id_range, 'fid, enc_id', cdm_s_dependent_fields)
 
     cdm_t_fields1 = [
       ['enc_id'                             , 'enc_id',     'integer'     ],
@@ -248,7 +390,7 @@ class DBCompareTest():
       ["(value::json)#>>'{order_tsp}'"      , 'order_tsp',  'text'        ],
       # ['confidence'                         , 'confidence', 'integer'     ],
     ]
-    cdm_t_query1 = (cdm_t_fields1, 'fid like \'%_dose\' and ' + cdm_t_range + ' and ' + enc_id_range, 'fid, enc_id, tsp', cdm_t_dose_dependent_fields)
+    cdm_t_query1 = (cdm_t_fields1, 'fid like \'%_dose\' and ' + (cdm_t_range + ' and ' if cdm_t_range is not None else '') + enc_id_range, 'fid, enc_id, tsp', cdm_t_dose_dependent_fields)
 
     cdm_t_fields2 = [
       ['enc_id'          ,'enc_id'          , 'integer',     ],
@@ -258,7 +400,7 @@ class DBCompareTest():
       # ['confidence'      ,'confidence'      , 'integer',     ],
     ]
 
-    cdm_t_query2 = (cdm_t_fields2, 'fid !~ \'dose|inhosp|bacterial_culture|_proc|culture_order|pneumonia_sepsis|uro_sepsis|biliary_sepsis|intra_abdominal_sepsis\' and ' + cdm_t_range + ' and '+ enc_id_range, 'fid, enc_id, tsp', cdm_t_dependent_fields)
+    cdm_t_query2 = (cdm_t_fields2, 'fid !~ \'dose|inhosp|bacterial_culture|_proc|culture_order|pneumonia_sepsis|uro_sepsis|biliary_sepsis|intra_abdominal_sepsis\' and ' + (cdm_t_range + ' and ' if cdm_t_range is not None else '')+ enc_id_range, 'fid, enc_id, tsp', cdm_t_dependent_fields)
 
     cdm_t_fields3 = [
       ['enc_id'                             , 'enc_id',     'integer'     ],
@@ -269,7 +411,7 @@ class DBCompareTest():
       ["""(value::json)#>>'{"present on admission"}'"""      , 'present_on_admission',  'text'        ],
       # ['confidence'                         , 'confidence', 'integer'     ],
     ]
-    cdm_t_query3 = (cdm_t_fields3, 'fid like \'%_inhosp|pneumonia_sepsis|uro_sepsis|biliary_sepsis|intra_abdominal_sepsis\' and ' + cdm_t_range + ' and ' + enc_id_range, 'fid, enc_id, tsp', cdm_dependent_fields)
+    cdm_t_query3 = (cdm_t_fields3, 'fid like \'%_inhosp|pneumonia_sepsis|uro_sepsis|biliary_sepsis|intra_abdominal_sepsis\' and ' + (cdm_t_range + ' and ' if cdm_t_range is not None else '') + enc_id_range, 'fid, enc_id, tsp', cdm_dependent_fields)
 
     cdm_t_fields4 = [
       ['enc_id'                             , 'enc_id',     'integer'     ],
@@ -279,7 +421,7 @@ class DBCompareTest():
       ["(value::json)#>>'{name}'"         , 'name',     'text'        ],
       # ['confidence'                         , 'confidence', 'integer'     ],
     ]
-    cdm_t_query4 = (cdm_t_fields4, 'fid like \'bacterial_culture|_proc|culture_order\' and ' + cdm_t_range + ' and ' + enc_id_range, 'fid, enc_id, tsp', cdm_dependent_fields)
+    cdm_t_query4 = (cdm_t_fields4, 'fid like \'bacterial_culture|_proc|culture_order\' and ' + (cdm_t_range + ' and ' if cdm_t_range is not None else '') + enc_id_range, 'fid, enc_id, tsp', cdm_dependent_fields)
 
     cdm_twf_field_index = [
       ['enc_id'                             , 'enc_id',     'integer'     ],
@@ -288,7 +430,7 @@ class DBCompareTest():
 
     confidence_range = '%s < 8'
 
-    cdm_twf_queries = [(cdm_twf_field_index + [cdm_twf_online_fields[2*i]], enc_id_range + ' and ' + tsp_range + ' and ' + (confidence_range % cdm_twf_online_fields[2*i+1][0]), 'enc_id, tsp', cdm_twf_dependent_fields) for i in range(len(cdm_twf_online_fields)//2)]
+    cdm_twf_queries = [(cdm_twf_field_index + [cdm_twf_fields[2*i]], enc_id_range + ' and ' + tsp_range + ' and ' + (confidence_range % cdm_twf_fields[2*i+1][0]), 'enc_id, tsp', cdm_twf_dependent_fields) for i in range(len(cdm_twf_fields)//2)]
 
     tables_to_compare = {
       # 'datalink'                 : ('dataset', []),
@@ -321,7 +463,7 @@ class DBCompareTest():
 
 
 
-    # results = []
+    results = []
     for tbl, version_type_and_queries in tables_to_compare.items():
       version_type = version_type_and_queries[0]
       queries = version_type_and_queries[1]
@@ -333,20 +475,40 @@ class DBCompareTest():
                               tbl, src_pred=predicate,
                               field_map=field_map, dependent_fields=dependent_fields,
                               version_extension=version_type,
-                              as_count_result=counts, sort_field=sort_field)
+                              as_count_result=counts, sort_field=sort_field, dst_tsp_shift=dst_tsp_shift)
           records = await c.run(dbpool)
-          # results += records
+          results.append(records)
       else:
         c = TableComparator(src_server,
                             src_dataset_id, src_model_id,
                             dst_dataset_id, dst_model_id,
-                            tbl, version_extension=version_type, as_count_result=counts)
+                            tbl, version_extension=version_type, as_count_result=counts, dst_tsp_shift=dst_tsp_shift)
         records = await c.run(dbpool)
-        # results += records
-
+        results.append(records)
+    print("======== result ========")
+    self.passed = True
+    groups = {}
+    for result in results:
+      if 'rows' in result and len(result['rows']) > 0:
+        for row in result['rows']:
+          groups.setdefault(row['fid'] if 'fid' in row else list(OrderedDict(row).keys())[-1], []).append(dict(row))
+          # print(OrderedDict(row))
+    for fid in groups:
+      print('------------- {fid} ---------------'.format(fid=fid))
+      for row in groups[fid]:
+        print(row)
+      print("")
+    self.passed = False
+    return self.passed
 
 
 
 if __name__ == '__main__':
+  # db_pair = c2dw_a_vs_c2dw
+  db_pair = epic2op_vs_c2dw
   test = DBCompareTest(db_pair)
   test.run()
+  if test.passed:
+    print("test succeed")
+  else:
+    print("test failed")
