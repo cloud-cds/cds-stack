@@ -8,6 +8,8 @@ import json
 from etl.clarity2dw.extractor import Extractor
 import os
 
+CONF = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'conf')
+
 job_test_c2dw = {
   'reset_dataset': {
     'remove_pat_enc': True,
@@ -17,7 +19,7 @@ job_test_c2dw = {
   'transform': {
     'populate_patients': True,
     'populate_measured_features': {
-      # 'plan': False,
+      'plan': False,
       # 'fid': 'age',
     },
   },
@@ -32,7 +34,7 @@ job_test_c2dw = {
     'debug': True,
     # 'db_name': 'test_c2dw',
     # 'db_host': 'dev.opsdx.io',
-    'conf': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'conf'),
+    'conf': CONF,
   },
 }
 
@@ -46,7 +48,7 @@ job = {
   'transform': {
     'populate_patients': True,
     'populate_measured_features': {
-      # 'plan': False,
+      'plan': False,
       # 'fid': 'propofol_dose',
     },
   },
@@ -54,14 +56,15 @@ job = {
     'recalculate_popmean': False,
   },
   'derive': {
-    # 'fid': 'cardio_sofa'
+    'fid': None,
   },
+  'load_criteria_meas': True,
   'config': {
     'dataset_id': 1,
     'debug': True,
     # 'db_name': 'test_c2dw',
     # 'db_host': 'dev.opsdx.io',
-    'conf': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'conf'),
+    'conf': CONF,
   },
 }
 
