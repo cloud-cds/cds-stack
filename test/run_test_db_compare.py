@@ -498,7 +498,7 @@ class DBCompareTest():
       for row in groups[fid]:
         print(row)
       print("")
-    self.passed = False
+      self.passed = False
     return self.passed
 
 
