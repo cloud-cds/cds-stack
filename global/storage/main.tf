@@ -32,6 +32,15 @@ resource "aws_s3_bucket" "flamegraph-dev" {
     bucket = "opsdx-flamegraph-dev"
     acl = "public-read"
 
+    lifecycle_rule {
+      prefix  = "flamegraphs/"
+      enabled = true
+
+      expiration {
+        days = 2
+      }
+    }
+
     versioning {
         enabled = true
     }

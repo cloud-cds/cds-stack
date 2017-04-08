@@ -25,6 +25,8 @@ spec:
       labels:
         app: redash
     spec:
+      nodeSelector:
+        opsdx_nodegroup: nodes
       containers:
       - name: redash-redis
         image: redis:2.8

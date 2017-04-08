@@ -27,6 +27,8 @@ spec:
       labels:
         app: trews-rest-api
     spec:
+      nodeSelector:
+        opsdx_nodegroup: nodes
       containers:
       - name: trews-nginx
         image: nginx:alpine
