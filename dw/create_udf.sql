@@ -2015,9 +2015,6 @@ begin
             into twf_fids, twf_fid_strs
     from twf_rank;
 
-    RAISE NOTICE 'twf_fids (%)', array_to_string(twf_fids, ',');
-    RAISE NOTICE 'twf_fid_strs (%)', array_to_string(twf_fid_strs, ',');
-
     twf_query := format(
         'select R.enc_id, R.tsp, R.trewscore, R.fid, R.trews_value, S.cdm_twf_value, R.rnk'
         || ' from (select T.enc_id, T.tsp, T.trewscore, T.fid, T.trews_value, T.rnk,'
@@ -2026,8 +2023,6 @@ begin
         || ' inner join lateral unnest(R.names, R.cdm_twf_values) as S(fid, cdm_twf_value)'
         || ' on R.fid = S.fid'
         , array_to_string(twf_fid_strs, ','), array_to_string(twf_fids, ','));
-
-    RAISE NOTICE 'twf_query (%)', twf_query;
 
     return query execute twf_query;
 
