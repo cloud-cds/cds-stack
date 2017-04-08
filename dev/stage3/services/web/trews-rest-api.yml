@@ -38,7 +38,7 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: trews-rest-api
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.0.23
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.0.26
         command:
           - "sh"
           - "start.sh"
@@ -101,8 +101,8 @@ spec:
           value: "0"
         - name: prometheus
           value: "0"
-        - name: prometheus_timeout
-          value: "10"
+        - name: prometheus_multiproc_dir
+          value: "/tmp"
       volumes:
         - name: config-volume
           configMap:
