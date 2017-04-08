@@ -1948,12 +1948,12 @@ VALUES ( pid,
 -----------------------------------------------------------------------
 
 create or replace function calculate_trews_contributors(this_pat_id text, rank_limit int)
-returns table(enc_id int, tsp timestamptz, trewscore numeric, fid text, trews_value double precision, cdm_twf_value text, rnk bigint)
+returns table(enc_id int, tsp timestamptz, trewscore numeric, fid text, trews_value double precision, cdm_value text, rnk bigint)
 as $func$
 declare
-    twf_fids text[];
-    twf_fid_strs text[];
-    twf_query text;
+    twf_fid_names text[];
+    twf_fid_exprs text[];
+    fid_query text;
 begin
     create temporary table twf_rank as
     select *
@@ -2074,20 +2074,34 @@ begin
     ) RKV
     where RKV.rnk <= rank_limit;
 
-    select array_agg(distinct twf_rank.fid), array_agg(distinct quote_literal(twf_rank.fid))
-            into twf_fids, twf_fid_strs
-    from twf_rank;
+    select array_agg(distinct 'TWF.' || twf_rank.fid), array_agg(distinct quote_literal(twf_rank.fid))
+            into twf_fid_exprs, twf_fid_names
+    from twf_rank
+    where twf_rank.fid not in (
+        'age', 'chronic_bronchitis_diag', 'chronic_pulmonary_hist', 'emphysema_hist',
+        'esrd_diag', 'esrd_prob', 'gender', 'heart_arrhythmias_diag', 'heart_arrhythmias_prob', 'heart_failure_diag', 'heart_failure_hist'
+    );
 
-    twf_query := format(
-        'select R.enc_id, R.tsp, R.trewscore, R.fid, R.trews_value, S.cdm_twf_value, R.rnk'
-        || ' from (select T.enc_id, T.tsp, T.trewscore, T.fid, T.trews_value, T.rnk,'
-        || ' ARRAY[%s]::text[] as names, ARRAY[%s]::text[] as cdm_twf_values'
-        || ' from twf_rank T inner join cdm_twf C on T.enc_id = C.enc_id and T.tsp = C.tsp) R'
-        || ' inner join lateral unnest(R.names, R.cdm_twf_values) as S(fid, cdm_twf_value)'
+    fid_query := format(
+        'select R.enc_id, R.tsp, R.trewscore, R.fid, R.trews_value, S.cdm_value, R.rnk'
+        || ' from ('
+        || ' select T.enc_id, T.tsp, T.trewscore, T.fid, T.trews_value, T.rnk,'
+        || ' array_cat(T.cdm_s_names, ARRAY[%s]::text[]) as cdm_names,'
+        || ' array_cat(T.cdm_s_values, ARRAY[%s]::text[]) as cdm_values'
+        || ' from ('
+        ||   ' select T1.enc_id, T1.tsp, T1.trewscore, T1.fid, T1.trews_value, T1.rnk,'
+        ||          ' array_agg(S.fid)::text[] as cdm_s_names,'
+        ||          ' array_agg(S.value)::text[] as cdm_s_values'
+        ||   ' from twf_rank T1 inner join cdm_s S on T1.enc_id = S.enc_id'
+        ||   ' group by T1.enc_id, T1.tsp, T1.trewscore, T1.fid, T1.trews_value, T1.rnk'
+        || ') T'
+        || ' inner join cdm_twf TWF on T.enc_id = TWF.enc_id and T.tsp = TWF.tsp'
+        || ') R'
+        || ' inner join lateral unnest(R.cdm_names, R.cdm_values) as S(fid, cdm_value)'
         || ' on R.fid = S.fid'
-        , array_to_string(twf_fid_strs, ','), array_to_string(twf_fids, ','));
+        , array_to_string(twf_fid_names, ','), array_to_string(twf_fid_exprs, ',') );
 
-    return query execute twf_query;
+    return query execute fid_query;
 
     drop table twf_rank;
     return;
