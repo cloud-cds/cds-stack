@@ -15,7 +15,7 @@ IV = '\x00' * 16
 
 encoder = PKCS7Encoder()
 padded_text = encoder.encode(secret_text)
-print padded_text
+print(padded_text)
 e = AES.new(hashed_key, mode, IV)
 
 cipher_text = e.encrypt(padded_text)
@@ -23,7 +23,7 @@ cipher_text = e.encrypt(padded_text)
 encrypted_text = base64.b64encode(cipher_text)
 
 #encrypted_text = 'FarfiPlFL4zdTLjDu6sgOw=='
-print encrypted_text
+print(encrypted_text)
 
 
 
@@ -31,7 +31,7 @@ decodetext =  base64.b64decode(encrypted_text)
 aes = AES.new(hashed_key, mode, IV)
 cipher = aes.decrypt(decodetext)
 pad_text = encoder.decode(cipher)
-print pad_text
+print(pad_text)
 # clear_text = PKCS7Encoder().decode(e.decrypt(base64.b64decode(cipher_text)))
 
 # print clear_text
@@ -44,4 +44,4 @@ decodetext =  base64.b64decode(urllib.unquote(encrypted_text))
 aes = AES.new(hashed_key, mode, IV)
 cipher = aes.decrypt(decodetext)
 pad_text = encoder.decode(cipher)
-print pad_text
+print(pad_text)

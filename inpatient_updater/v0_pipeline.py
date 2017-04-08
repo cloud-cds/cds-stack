@@ -240,7 +240,7 @@ def main():
 
     flowsheets_df = pd.concat(flowsheets)
     flowsheets_t = transform_flowsheet(flowsheets_df)
-    print flowsheets_t[flowsheets_t['pat_id'] == 'E100426066']
+    print(flowsheets_t[flowsheets_t['pat_id'] == 'E100426066'])
     pickle.dump(flowsheets_t, open('fs.trans', 'w'))
     sys.exit()
 

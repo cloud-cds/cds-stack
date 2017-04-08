@@ -66,7 +66,7 @@ def request_nonblocking(data_type, pats_info, lookback_days, lookback_hours, ser
     elif data_type == 'medication_administrations':
         return extract_medication_administration_nonblocking(pats_info, server)
     else:
-        print "ERROR: now such resource to request!"
+        print("ERROR: now such resource to request!")
 
 def extract_lab_results_nonblocking(pats_info, lookback_days, server):
     resource = '/patients/labs/component'

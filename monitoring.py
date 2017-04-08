@@ -1,8 +1,11 @@
 import os, sys, traceback
 import datetime
-import falcon
 import json
 import logging
+
+from aiohttp import web
+from aiohttp.web import Response
+
 from cw_log import CloudWatchLogHandler
 from prometheus_client import Histogram, Counter, CollectorRegistry, CONTENT_TYPE_LATEST
 from prometheus_client import multiprocess, generate_latest
@@ -27,19 +30,20 @@ class PrometheusMonitor:
 prometheus = PrometheusMonitor()
 
 # Prometheus Metrics HTTP endpoint.
-class TREWSPrometheusMetrics(object):
-  def on_get(self, req, resp):
+class TREWSPrometheusMetrics(web.View):
+  async def get(self):
     try:
       registry = CollectorRegistry()
       multiprocess.MultiProcessCollector(registry)
-      resp.status = falcon.HTTP_200
-      resp.body = generate_latest(registry)
-      resp.content_type = CONTENT_TYPE_LATEST
+      response = Response()
+      response.body = generate_latest(registry)
+      response.content_type = CONTENT_TYPE_LATEST
+      return response
 
     except Exception as ex:
       logging.warning(ex.message)
       traceback.print_exc()
-      raise falcon.HTTPError(falcon.HTTP_400, 'Error on metrics', ex.message)
+      raise web.HTTPBadRequest('Error on metrics', ex.message)
 
 
 # Cloudwatch Logger.
@@ -48,63 +52,46 @@ class TREWSPrometheusMetrics(object):
 #   logging
 #   cloudwatch_log_group
 #
-class CloudwatchLoggerMiddleware(object):
-  def __init__(self):
-    if 'logging' in os.environ and int(os.environ['logging']) == 1 and 'cloudwatch_log_group' in os.environ:
-      self.enabled = True
-      self.cwLogger = logging.getLogger(__name__)
-      #self.cwLogger.addHandler(watchtower.CloudWatchLogHandler(log_group=os.environ['cloudwatch_log_group'], create_log_group=False))
-      self.cwLogger.addHandler(CloudWatchLogHandler(log_group=os.environ['cloudwatch_log_group']))
-      self.cwLogger.setLevel(logging.INFO)
-    else:
-      self.enabled = False
 
-  def process_request(self, req, resp):
-    if self.enabled:
-      srvnow = datetime.datetime.utcnow().isoformat()
-      self.cwLogger.info(json.dumps({
-        'req': {
-          'date'         : srvnow,
-          'reqdate'      : req.date,
-          'method'       : req.method,
-          'url'          : req.relative_uri,
-          'remote_addr'  : req.remote_addr,
-          'access_route' : req.access_route,
-          'headers'      : req.headers
-        }
-      }))
+cwlog_enabled = False
+if 'logging' in os.environ and int(os.environ['logging']) == 1 and 'cloudwatch_log_group' in os.environ:
+  cwlog_enabled = True
+  cwlog = logging.getLogger(__name__)
+  cwlog.addHandler(CloudWatchLogHandler(log_group=os.environ['cloudwatch_log_group']))
+  cwlog.setLevel(logging.INFO)
 
-  def process_resource(self, req, resp, resource, params):
-    if self.enabled:
-      srvnow = datetime.datetime.utcnow().isoformat()
-      self.cwLogger.info(json.dumps({
-        'res': {
-          'date'         : srvnow,
-          'reqdate'      : req.date,
-          'method'       : req.method,
-          'url'          : req.relative_uri,
-          'remote_addr'  : req.remote_addr,
-          'access_route' : req.access_route,
-          'headers'      : req.headers,
-          'params'       : params
-        }
-      }))
+def log_object(request):
+  srvnow = datetime.datetime.utcnow().isoformat()
+  return {
+    'date'         : srvnow,
+    'method'       : request.method,
+    'url'          : request.path_qs,
+    'headers'      : dict(request.headers.items())
+  }
 
-  def process_response(self, req, resp, resource, req_succeeded):
-    if self.enabled:
+async def cloudwatch_logger_middleware(app, handler):
+  async def middleware_handler(request):
+
+    # Pre-logging
+    if cwlog_enabled:
+      log_entry = log_object(request)
+      cwlog.info(json.dumps({ 'req': log_entry }))
+
+    response = await handler(request)
+
+    # Post-logging
+    if cwlog_enabled:
       srvnow = datetime.datetime.utcnow().isoformat()
+
       actionType = None
-      if 'body' in req.context and 'actionType' in req.context['body']:
-        actionType = req.context['body']['actionType']
-      self.cwLogger.info(json.dumps({
-        'resp': {
-          'actionType'   : actionType,
-          'date'         : srvnow,
-          'reqdate'      : req.date,
-          'method'       : req.method,
-          'url'          : req.relative_uri,
-          'status'       : resp.status[:3],
-          'headers'      : req.headers
-        }
-      }))
+      if 'body' in request.app and 'actionType' in request.app['body']:
+        actionType = request.app['body']['actionType']
 
+      log_entry = log_object(request)
+      log_entry['actionType'] = actionType
+      log_entry['status'] = response.status
+      cwlog.info(json.dumps({ 'resp': log_entry }))
+
+    return response
+
+  return middleware_handler

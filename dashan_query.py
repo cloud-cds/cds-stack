@@ -1,7 +1,7 @@
 """
 dashan_query.py
 """
-import os
+import os, sys, traceback
 import json
 import datetime
 import logging
@@ -390,7 +390,9 @@ def save_feedback(doc_id, pat_id, dep_id, feedback):
     try:
         conn.execute(feedback_sql)
     except Exception as e:
-        print e
+        logging.warning(e.message)
+        traceback.print_exc()
+
     conn.close()
 
 
@@ -398,9 +400,9 @@ if __name__ == '__main__':
     # eid = 'E1000109xx'
     # print eid_exist(eid)
     eid = 'E100194473'
-    print eid_exist(eid)
+    print(eid_exist(eid))
     df = get_trews(eid)
-    print df.head()
+    print(df.head())
     df_trews = df.drop(['enc_id','trewscore','tsp'],1)
 
     cdm = get_cdm(eid)
@@ -416,4 +418,4 @@ if __name__ == '__main__':
         else:
             vals.append(0)
     for i, n in enumerate(names):
-        print n, vals[i]
+        print(n, vals[i])
