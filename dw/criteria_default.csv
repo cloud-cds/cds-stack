@@ -8,7 +8,7 @@ dataset_id,name,fid,override_value,category
 1,blood_pressure,nbp_sys,{"lower":90},simple
 1,mean_arterial_pressure,mapm,{"lower":65},simple
 1,bilirubin,bilirubin,{"upper":2},simple
-1,platelet,platelet,{"lower":100},simple
+1,platelet,platelets,{"lower":100},simple
 1,inr,inr,{"upper":1.5},simple
 1,inr,ptt,{"upper":60},simple
 1,lactate,lactate,{"upper":2},simple
