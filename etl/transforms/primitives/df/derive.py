@@ -7,7 +7,7 @@ def combine(df, new_fid, list_of_fids, keep_originals=True):
         new_features = df[to_change].assign(fid = new_fid)
         df = df.append(new_features)
     else:
-        df[to_change]['fid'] = new_fid
+        df.loc[to_change,'fid'] = new_fid
     return df
 
 def sum_values_at_same_tsp(df, list_of_fids):

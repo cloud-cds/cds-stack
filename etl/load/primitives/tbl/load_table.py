@@ -365,7 +365,12 @@ async def workspace_medication_administration_2_cdm_twf(conn, job_id):
 #         await conn.execute(sql.format(fid=feature['fid']))
 
 async def load_cdm_to_criteria_meas(conn, dataset_id):
-    sql = 'select load_cdm_to_criteria_meas({dataset_id});'.format(dataset_id=dataset_id)
+    sql = 'select * from load_cdm_to_criteria_meas({dataset_id});'.format(dataset_id=dataset_id)
     await conn.execute(sql)
     # await cdm_t_to_criteria_meas(conn)
     # await cdm_twf_to_criteira_meas(conn)
+
+
+async def calculate_historical_criteria(conn):
+    sql = 'select * from calculate_historical_criteria(NULL);'
+    await conn.execute(sql)
