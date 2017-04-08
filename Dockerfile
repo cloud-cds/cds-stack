@@ -1,6 +1,8 @@
 FROM python:2.7
 
 ENV WORKDIR  /pyflame/
+ENV prometheus_multiproc_dir /tmp
+
 WORKDIR $WORKDIR
 RUN apt-get update && \
     apt-get install autoconf automake autotools-dev g++ libtool pkg-config sudo strace -y && \
