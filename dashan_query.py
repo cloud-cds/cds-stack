@@ -37,9 +37,9 @@ def get_trews_contributors(pat_id):
     rank_limit = 3
     get_contributors_sql = \
     '''
-    select tsp, trewscore, fid, cdm_twf_value, rnk
+    select tsp, trewscore, fid, cdm_value, rnk
     from calculate_trews_contributors('%(pid)s', %(rank_limit)s)
-            as R(enc_id, tsp, trewscore, fid, trews_value, cdm_twf_value, rnk)
+            as R(enc_id, tsp, trewscore, fid, trews_value, cdm_value, rnk)
     order by tsp
     ''' % {'pid': pat_id, 'rank_limit': rank_limit}
 
@@ -57,10 +57,15 @@ def get_trews_contributors(pat_id):
     for row in result:
         rnk = int(row['rnk'])
         if rnk <= rank_limit:
+            try:
+                v = float(row['cdm_value'])
+            except ValueError:
+                v = str(row['cdm_value'])
+
             timestamps.append((row['tsp'] - epoch).total_seconds())
             trewscores.append(float(row['trewscore']))
             tf_names[rnk-1].append(str(row['fid']))
-            tf_values[rnk-1].append(float(row['cdm_twf_value']))
+            tf_values[rnk-1].append(v)
         else:
             logging.warning("Invalid trews contributor rank: {}" % rnk)
 
