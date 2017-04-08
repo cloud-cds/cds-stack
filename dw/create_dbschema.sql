@@ -674,7 +674,7 @@ CREATE TABLE feedback_log (
 );
 
 DROP TABLE IF EXISTS pat_group;
-CREATE TABLE index_patients (
+CREATE TABLE pat_group (
     pat_id              varchar(50),
     model_id            varchar(50),
     group_id            integer,
@@ -682,8 +682,8 @@ CREATE TABLE index_patients (
     primary key (pat_id, model_id, group_id)
 );
 
-DROP TABLE IF EXISTS group_description;
-CREATE TABLE index_group_descriptions (
+DROP TABLE IF EXISTS group_table;
+CREATE TABLE group_table (
     group_id            integer,
     group_description   text,
     update_tsp          timestamptz,
