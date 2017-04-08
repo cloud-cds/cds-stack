@@ -409,41 +409,6 @@ class TREWSAPI(object):
                 vals.append(None)
         data['chart_data']['chart_values']['tf_3_value'] = vals
 
-
-        # df_rank = df_trews.rank(axis=1, method='max', ascending=False)
-        # top1 = df_rank.as_matrix() < 1.5
-        # top1_cols = [df_rank.columns.values[t][0] for t in top1]
-        # data['chart_data']['chart_values']['tf_1_name'] \
-        #     = [df_rank.columns.values[t][0] for t in top1]
-        # data['chart_data']['chart_values']['tf_1_value'] = []
-        # for i, row in cdm.iterrows():
-        #     if top1_cols[i] in row:
-        #         data['chart_data']['chart_values']['tf_1_value'].append(row[top1_cols[i]])
-        #     else:
-        #         data['chart_data']['chart_values']['tf_1_value'].append(0)
-        # top2 = (df_rank.as_matrix() < 2.5) & (df_rank.as_matrix() > 1.5)
-        # top2_cols = [df_rank.columns.values[t][0] for t in top2]
-        # data['chart_data']['chart_values']['tf_2_name'] \
-        #     = [df_rank.columns.values[t][0] for t in top2]
-        # # data['chart_data']['chart_values']['tf_2_value'] \
-        # #      = [row[top2_cols[i]] for i, row in cdm.iterrows()]
-        # for i, row in cdm.iterrows():
-        #     if top2_cols[i] in row:
-        #         data['chart_data']['chart_values']['tf_2_value'].append(row[top2_cols[i]])
-        #     else:
-        #         data['chart_data']['chart_values']['tf_2_value'].append(0)
-        # top3 = (df_rank.as_matrix() < 3.5) & (df_rank.as_matrix() > 2.5)
-        # top3_cols = [df_rank.columns.values[t][0] for t in top3]
-        # data['chart_data']['chart_values']['tf_3_name'] \
-        #     = [df_rank.columns.values[t][0] for t in top3]
-        # # data['chart_data']['chart_values']['tf_3_value'] \
-        # #      = [row[top3_cols[i]] for i, row in cdm.iterrows()]
-        # for i, row in cdm.iterrows():
-        #     if top3_cols[i] in row:
-        #         data['chart_data']['chart_values']['tf_3_value'].append(row[top3_cols[i]])
-        #     else:
-        #         data['chart_data']['chart_values']['tf_3_value'].append(0)
-
         # update_notifications
         data['notifications'] = notifications
 
