@@ -1,5 +1,7 @@
-## Steps to compare dashan datasets
-### Database Setup
+Steps to compare dashan datasets
+===========================
+Database Setup
+----------------------
 #### Create database in opsdx
 Run commands in psql:
 ```sql
@@ -87,7 +89,8 @@ CREATE USER MAPPING FOR opsdx_root
   OPTIONS (user 'opsdx_root', password '@@RDBPW@@');
 ```
 
-### Populate Data to Databases
+Populate Data to Databases
+--------------------------------------
 #### Populate test_epic2op
 Run command under `dashan-etl/etl/epic2op` (PLEASE double check the `db_name` is `test_epic2op` in `engine.py`)
 ```bash
@@ -162,4 +165,19 @@ Compare database:
 ```bash
 python compare_cdm.py --dstdid 1 --dstmid 1
 python compare_cdm.py --dstdid 1 --dstmid 1 --counts
+```
+
+Backup and restore database
+---------------------------------------
+#### Setup
+We need to use `pg_dump` and `pg_restore` to backup and restore database. First of all, we need to install `postgresql-9.5` on our dev controller. [link](https://www.tqhosting.com/kb/617/How-to-install-PostgreSQL-95-on-Ubuntu-1404-LTS-Trusty-Tahr.html)
+
+#### Backup
+```bash
+pg_dump -h db.dev.opsdx.io -U opsdx_root -d test_c2dw -p 5432 -F c -b -v -f ~/clarity-db-staging/c2dw_a/2017-04-05.sql
+```
+
+#### Restore
+```bash
+pg_restore --clean -h db.dev.opsdx.io -U opsdx_root -d test_c2dw_a -p 5432 -v  ~/clarity-db-staging/c2dw_a/2017-04-05.sql
 ```
