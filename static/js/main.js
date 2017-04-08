@@ -1098,16 +1098,20 @@ var deterioration = new function() {
 			$('.other-deter-dropdown-list li.selected').each(function(i) {
 				$(this).removeClass('selected')
 			})
-			for (var i in data.deterioration.value) {
-				$("[data-trews='" + data.deterioration.value[i] + "']").addClass('selected')
-			}
+			if (data.deterioration) {
+				if (data.deterioration.value) {
+					for (var i in data.deterioration.value) {
+						$("[data-trews='" + data.deterioration.value[i] + "']").addClass('selected')
+					}
+				}
 
-			if ( data.deterioration.other ) {
-				$('.other-deter-dropdown-list input').val(data.deterioration.other)
-				$('.other-deter-dropdown-list > div').addClass('selected')
-			} else {
-				$('.other-deter-dropdown-list input').val('')
-				$('.other-deter-dropdown-list > div').removeClass('selected')
+				if ( data.deterioration.other ) {
+					$('.other-deter-dropdown-list input').val(data.deterioration.other)
+					$('.other-deter-dropdown-list > div').addClass('selected')
+				} else {
+					$('.other-deter-dropdown-list input').val('')
+					$('.other-deter-dropdown-list > div').removeClass('selected')
+				}
 			}
 		}
 	}
