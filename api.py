@@ -143,8 +143,8 @@ class TREWSAPI(object):
 
         return {'result': 'OK'}
 
-    def update_criteria(self, criteria, data):
 
+    def update_criteria(self, criteria, data):
 
         SIRS = ['sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc']
         ORGAN_DYSFUNCTION = ["blood_pressure",
@@ -345,77 +345,31 @@ class TREWSAPI(object):
         data['pat_id'] = eid
 
         # update criteria from database query
-        criteria = query.get_criteria(eid)
+        criteria               = query.get_criteria(eid)
+        chart_values           = query.get_trews_contributors(eid)
+        notifications, history = query.get_patient_events(eid)
+        patient_scalars        = query.get_patient_profile(eid)
+
         self.update_criteria(criteria, data)
 
-        # set-oriented queries
-        df                     = query.get_trews(eid)
-        cdm                    = query.get_cdm(eid)
-        notifications          = query.get_notifications(eid)
-        auditlist              = query.get_criteria_log(eid)
-
-        # scalar queries
-        patient_scalars        = query.get_patient_profile(eid)
-        admittime              = patient_scalars['admit_time']
-        trewscore_threshold    = patient_scalars['trews_threshold']
-        deactivated            = patient_scalars['deactivated']
-        deterioration_feedback = {  "tsp"           : patient_scalars['detf_tsp'],
-                                    "deterioration" : patient_scalars['deterioration'],
-                                    "uid"           : patient_scalars['detf_uid'] }
-
         # update chart data
-        data['chart_data']['patient_arrival']['timestamp'] =  admittime
-        data['chart_data']['trewscore_threshold'] = trewscore_threshold
+        data['chart_data']['patient_arrival']['timestamp'] = patient_scalars['admit_time']
+        data['chart_data']['trewscore_threshold']          = patient_scalars['trews_threshold']
+        data['chart_data']['chart_values']                 = chart_values
 
-        epoch = pd.DatetimeIndex(df.tsp).astype(np.int64) // 10**9
-        data['chart_data']['chart_values']['timestamp'] = epoch.values
-        data['chart_data']['chart_values']['trewscore'] = [s.item() for s in df.trewscore.values]
-        df_trews = df.drop(['enc_id','trewscore','tsp'],1)
-
-        # for each row sort by column
-        sorted_trews = [row.sort_values(ascending=False) for idx, row in df_trews.iterrows()]
-        # for idx, row in df_trews.iterrows():
-        #     sorted_row = row.sort_values(ascending=False)
-        #     print sorted_row.index[0], sorted_row[0]
-        data['chart_data']['chart_values']['tf_1_name'] = [row.index[0] for row in sorted_trews]
-        vals = []
-        for i, row in enumerate(sorted_trews):
-            fid = row.index[0]
-            if fid in cdm.iloc[i]:
-                vals.append(cdm.iloc[i][fid])
-            else:
-                vals.append(None)
-        data['chart_data']['chart_values']['tf_1_value'] = vals
-
-        data['chart_data']['chart_values']['tf_2_name'] = [row.index[1] for row in sorted_trews]
-
-        vals = []
-        for i, row in enumerate(sorted_trews):
-            fid = row.index[1]
-            if fid in cdm.iloc[i]:
-                vals.append(cdm.iloc[i][fid])
-            else:
-                vals.append(None)
-        data['chart_data']['chart_values']['tf_2_value'] = vals
-
-        data['chart_data']['chart_values']['tf_3_name'] = [row.index[2] for row in sorted_trews]
-
-        vals = []
-        for i, row in enumerate(sorted_trews):
-            fid = row.index[2]
-            if fid in cdm.iloc[i]:
-                vals.append(cdm.iloc[i][fid])
-            else:
-                vals.append(None)
-        data['chart_data']['chart_values']['tf_3_value'] = vals
-
-        # update_notifications
+        # update_notifications and history
         data['notifications'] = notifications
+        data['auditlist']     = history
 
-        # update remaining frontend components
-        data['deactivated'] = deactivated
-        data['deterioration_feedback'] = deterioration_feedback
-        data['auditlist'] = auditlist
+        # update profile components
+        data['deactivated'] = patient_scalars['deactivated']
+
+        data['deterioration_feedback'] = {
+            "tsp"           : patient_scalars['detf_tsp'],
+            "deterioration" : patient_scalars['deterioration'],
+            "uid"           : patient_scalars['detf_uid']
+        }
+
 
     def on_post(self, req, resp):
         try:
