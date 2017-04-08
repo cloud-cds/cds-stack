@@ -143,8 +143,8 @@ class TREWSAPI(object):
 
         return {'result': 'OK'}
 
-    def update_criteria(self, criteria, data):
 
+    def update_criteria(self, criteria, data):
 
         SIRS = ['sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc']
         ORGAN_DYSFUNCTION = ["blood_pressure",
@@ -342,106 +342,34 @@ class TREWSAPI(object):
 
 
     def update_response_json(self, data, eid):
-        # update chart data
         data['pat_id'] = eid
-        criteria = query.get_criteria(eid)
-
-        deactivated = query.get_deactivated(eid)
-        data['deactivated'] = deactivated
-
-        deterioration_feedback = query.get_deterioration_feedback(eid)
-        data['deterioration_feedback'] = deterioration_feedback
-
-        auditlist = query.get_criteria_log(eid)
-        data['auditlist'] = auditlist
 
         # update criteria from database query
+        criteria               = query.get_criteria(eid)
+        chart_values           = query.get_trews_contributors(eid)
+        notifications, history = query.get_patient_events(eid)
+        patient_scalars        = query.get_patient_profile(eid)
+
         self.update_criteria(criteria, data)
-        data['chart_data']['trewscore_threshold'] = query.get_trews_threshold()
-        admittime = query.get_admittime(eid)
-        data['chart_data']['patient_arrival']['timestamp'] =  admittime
-        df = query.get_trews(eid)
-        cdm = query.get_cdm(eid)
-        epoch = pd.DatetimeIndex(df.tsp).astype(np.int64) // 10**9
-        data['chart_data']['chart_values']['timestamp'] = epoch.values
-        data['chart_data']['chart_values']['trewscore'] = [s.item() for s in df.trewscore.values]
-        df_trews = df.drop(['enc_id','trewscore','tsp'],1)
 
+        # update chart data
+        data['chart_data']['patient_arrival']['timestamp'] = patient_scalars['admit_time']
+        data['chart_data']['trewscore_threshold']          = patient_scalars['trews_threshold']
+        data['chart_data']['chart_values']                 = chart_values
 
-        # for each row sort by column
-        sorted_trews = [row.sort_values(ascending=False) for idx, row in df_trews.iterrows()]
-        # for idx, row in df_trews.iterrows():
-        #     sorted_row = row.sort_values(ascending=False)
-        #     print sorted_row.index[0], sorted_row[0]
-        data['chart_data']['chart_values']['tf_1_name'] = [row.index[0] for row in sorted_trews]
-        vals = []
-        for i, row in enumerate(sorted_trews):
-            fid = row.index[0]
-            if fid in cdm.iloc[i]:
-                vals.append(cdm.iloc[i][fid])
-            else:
-                vals.append(None)
-        data['chart_data']['chart_values']['tf_1_value'] = vals
+        # update_notifications and history
+        data['notifications'] = notifications
+        data['auditlist']     = history
 
-        data['chart_data']['chart_values']['tf_2_name'] = [row.index[1] for row in sorted_trews]
+        # update profile components
+        data['deactivated'] = patient_scalars['deactivated']
 
-        vals = []
-        for i, row in enumerate(sorted_trews):
-            fid = row.index[1]
-            if fid in cdm.iloc[i]:
-                vals.append(cdm.iloc[i][fid])
-            else:
-                vals.append(None)
-        data['chart_data']['chart_values']['tf_2_value'] = vals
+        data['deterioration_feedback'] = {
+            "tsp"           : patient_scalars['detf_tsp'],
+            "deterioration" : patient_scalars['deterioration'],
+            "uid"           : patient_scalars['detf_uid']
+        }
 
-        data['chart_data']['chart_values']['tf_3_name'] = [row.index[2] for row in sorted_trews]
-
-        vals = []
-        for i, row in enumerate(sorted_trews):
-            fid = row.index[2]
-            if fid in cdm.iloc[i]:
-                vals.append(cdm.iloc[i][fid])
-            else:
-                vals.append(None)
-        data['chart_data']['chart_values']['tf_3_value'] = vals
-
-
-        # df_rank = df_trews.rank(axis=1, method='max', ascending=False)
-        # top1 = df_rank.as_matrix() < 1.5
-        # top1_cols = [df_rank.columns.values[t][0] for t in top1]
-        # data['chart_data']['chart_values']['tf_1_name'] \
-        #     = [df_rank.columns.values[t][0] for t in top1]
-        # data['chart_data']['chart_values']['tf_1_value'] = []
-        # for i, row in cdm.iterrows():
-        #     if top1_cols[i] in row:
-        #         data['chart_data']['chart_values']['tf_1_value'].append(row[top1_cols[i]])
-        #     else:
-        #         data['chart_data']['chart_values']['tf_1_value'].append(0)
-        # top2 = (df_rank.as_matrix() < 2.5) & (df_rank.as_matrix() > 1.5)
-        # top2_cols = [df_rank.columns.values[t][0] for t in top2]
-        # data['chart_data']['chart_values']['tf_2_name'] \
-        #     = [df_rank.columns.values[t][0] for t in top2]
-        # # data['chart_data']['chart_values']['tf_2_value'] \
-        # #      = [row[top2_cols[i]] for i, row in cdm.iterrows()]
-        # for i, row in cdm.iterrows():
-        #     if top2_cols[i] in row:
-        #         data['chart_data']['chart_values']['tf_2_value'].append(row[top2_cols[i]])
-        #     else:
-        #         data['chart_data']['chart_values']['tf_2_value'].append(0)
-        # top3 = (df_rank.as_matrix() < 3.5) & (df_rank.as_matrix() > 2.5)
-        # top3_cols = [df_rank.columns.values[t][0] for t in top3]
-        # data['chart_data']['chart_values']['tf_3_name'] \
-        #     = [df_rank.columns.values[t][0] for t in top3]
-        # # data['chart_data']['chart_values']['tf_3_value'] \
-        # #      = [row[top3_cols[i]] for i, row in cdm.iterrows()]
-        # for i, row in cdm.iterrows():
-        #     if top3_cols[i] in row:
-        #         data['chart_data']['chart_values']['tf_3_value'].append(row[top3_cols[i]])
-        #     else:
-        #         data['chart_data']['chart_values']['tf_3_value'].append(0)
-
-        # update_notifications
-        data['notifications'] = query.get_notifications(eid)
 
     def on_post(self, req, resp):
         try:

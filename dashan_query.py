@@ -6,6 +6,7 @@ import json
 import datetime
 import logging
 import pandas as pd
+import pytz
 from inpatient_updater import load
 from sqlalchemy import create_engine
 from sqlalchemy import text
@@ -20,105 +21,181 @@ port = os.environ['db_port']
 password = os.environ['db_password']
 epic_notifications = os.environ['epic_notifications']
 DB_CONN_STR = DB_CONN_STR.format(user, password, host, port, db)
+db_engine = create_engine(DB_CONN_STR)
 
-def get_trews(eid):
-    engine = create_engine(DB_CONN_STR)
-    get_trews_sql = \
+
+##########################################
+# Compact query implementations.
+# These pull out multiple component TREWS data and metadata
+# components in fewer queries, reducing the # DB roundtrips.
+#
+
+# For a patient, returns time series of:
+# - trews scores
+# - top 3 features that contributed to the each time point
+def get_trews_contributors(pat_id):
+    rank_limit = 3
+    get_contributors_sql = \
     '''
-    select trews.* from trews inner join pat_enc on trews.enc_id = pat_enc.enc_id
-    inner join cdm_twf on trews.enc_id = cdm_twf.enc_id and cdm_twf.tsp = trews.tsp
-    where pat_enc.pat_id = '%s' order by tsp
-    ''' % eid
-    try:
-        df = pd.read_sql_query(get_trews_sql,con=engine)
-    except Exception:
-        df = pd.DataFrame()
-    return df
+    select tsp, trewscore, fid, cdm_value, rnk
+    from calculate_trews_contributors('%(pid)s', %(rank_limit)s)
+            as R(enc_id, tsp, trewscore, fid, trews_value, cdm_value, rnk)
+    order by tsp
+    ''' % {'pid': pat_id, 'rank_limit': rank_limit}
 
-def get_twf(eid):
-    engine = create_engine(DB_CONN_STR)
-    get_twf_sql = \
-    '''
-    select cdm_twf.* from cdm_twf inner join pat_enc on cdm_twf.enc_id = pat_enc.enc_id
-    inner join cdm_twf on trews.enc_id = cdm_twf.enc_id and cdm_twf.tsp = trews.tsp
-    where pat_enc.pat_id = '%s' order by tsp
-    ''' % eid
-    df = pd.read_sql_query(get_twf_sql,con=engine)
-    return df
-
-
-def get_trews_threshold():
-    engine = create_engine(DB_CONN_STR)
-
-    get_trews_threshold_sql = \
-    '''
-    select value from trews_parameters
-    where name = 'trews_threshold'
-    '''
-    conn = engine.connect()
-    result = conn.execute(get_trews_threshold_sql)
+    conn = db_engine.connect()
+    result = conn.execute(get_contributors_sql).fetchall()
     conn.close()
-    row = result.fetchone()
-    return float("{:.2f}".format(float(row['value'])))
+
+    timestamps = []
+    trewscores = []
+    tf_names   = [[] for i in range(rank_limit)]
+    tf_values  = [[] for i in range(rank_limit)]
+
+    epoch = datetime.datetime.utcfromtimestamp(0).replace(tzinfo=pytz.UTC)
+
+    for row in result:
+        rnk = int(row['rnk'])
+        if rnk <= rank_limit:
+            try:
+                v = float(row['cdm_value'])
+            except ValueError:
+                v = str(row['cdm_value'])
+
+            timestamps.append((row['tsp'] - epoch).total_seconds())
+            trewscores.append(float(row['trewscore']))
+            tf_names[rnk-1].append(str(row['fid']))
+            tf_values[rnk-1].append(v)
+        else:
+            logging.warning("Invalid trews contributor rank: {}" % rnk)
+
+    return {
+        'timestamp'  : timestamps,
+        'trewscore'  : trewscores,
+        'tf_1_name'  : tf_names[0],
+        'tf_1_value' : tf_values[0],
+        'tf_2_name'  : tf_names[1],
+        'tf_2_value' : tf_values[1],
+        'tf_3_name'  : tf_names[2],
+        'tf_3_value' : tf_values[2]
+    }
 
 
-
-def get_admittime(eid):
-    engine = create_engine(DB_CONN_STR)
-
-    get_admittime_sql = \
+# Single roundtrip retrieval of both notifications and history events.
+def get_patient_events(pat_id):
+    get_events_sql = \
     '''
-    select value::timestamptz from cdm_s inner join pat_enc on pat_enc.enc_id = cdm_s.enc_id
-    where pat_id = '%s' and fid = 'admittime'
-    ''' % eid
-    df_admittime = pd.read_sql_query(get_admittime_sql,con=engine)
-    if df_admittime is None or df_admittime.empty:
-        return None
-    else:
-        return df_admittime.value.values[0].astype(datetime.datetime)/1000000000
+    select 0 as event_type,
+           notification_id as evt_id,
+           null as tsp,
+           message as payload
+    from notifications where pat_id = '%(pat_id)s'
+    union all
+    select 1 as event_type,
+           log_id as evt_id,
+           date_part('epoch', tsp) as tsp,
+           event as payload
+    from criteria_log where pat_id = '%(pat_id)s'
+    ''' % { 'pat_id': pat_id }
+
+    conn = db_engine.connect()
+    result = conn.execute(get_events_sql).fetchall()
+    conn.close()
+
+    notifications = []
+    history = []
+
+    for row in result:
+        if row['event_type'] == 0:
+            notification = row['payload']
+            notification['timestamp'] = long(notification['timestamp'])
+            notification['id'] = row['evt_id']
+            notifications.append(notification)
+        else:
+            audit = row['payload']
+            audit['log_id'] = row['evt_id']
+            audit['pat_id'] = pat_id
+            audit['timestamp'] = row['tsp']
+            history.append(audit)
+
+    return (notifications, history)
 
 
-def get_cdm(eid):
-    engine = create_engine(DB_CONN_STR)
-
-    get_twf_sql = \
+# For a patient, returns the:
+# - trews threshold
+# - admit time
+# - activated/deactivated status
+# - deterioration feedback timestamp, statuses and uid
+#
+def get_patient_profile(pat_id):
+    get_patient_profile_sql = \
     '''
-    select cdm_twf.* from cdm_twf inner join pat_enc on cdm_twf.enc_id = pat_enc.enc_id
-    where pat_enc.pat_id = '%s' order by tsp
-    ''' % eid
-    df_twf = pd.read_sql_query(get_twf_sql,con=engine)
-    get_s_sql = \
-    '''
-    select cdm_s.* from cdm_s inner join pat_enc on cdm_s.enc_id = pat_enc.enc_id
-    where pat_enc.pat_id = '%s'
-    ''' % eid
-    df_s = pd.read_sql_query(get_s_sql,con=engine)
-    for idx, row in df_s.iterrows():
-        fid = row['fid']
-        value = row['value']
-        df_twf[fid] = value
-    return df_twf
+    select * from
+    (
+        select value as trews_threshold
+        from trews_parameters where name = 'trews_threshold' limit 1
+    ) TT
+    full outer join
+    (
+        select value::timestamptz as admit_time
+        from cdm_s inner join pat_enc on pat_enc.enc_id = cdm_s.enc_id
+        where pat_id = '%(pid)s' and fid = 'admittime'
+        order by value::timestamptz desc limit 1
+    ) ADT on true
+    full outer join
+    (
+        select deactivated from pat_status where pat_id = '%(pid)s' limit 1
+    ) DEACT on true
+    full outer join
+    (
+        select date_part('epoch', tsp) detf_tsp, deterioration, uid as detf_uid
+        from deterioration_feedback where pat_id = '%(pid)s' limit 1
+    ) DETF on true
+    ''' % { 'pid': pat_id }
+    conn = db_engine.connect()
+    result = conn.execute(get_patient_profile_sql).fetchall()
+    conn.close()
+
+    profile = {
+        'trews_threshold' : None,
+        'admit_time'      : None,
+        'deactivated'     : None,
+        'detf_tsp'        : None,
+        'deterioration'   : None,
+        'detf_uid'        : None
+    }
+
+    if len(result) == 1:
+        profile['trews_threshold'] = float("{:.2f}".format(float(result[0][0])))
+        profile['admit_time']      = (result[0][1] - datetime.datetime.utcfromtimestamp(0).replace(tzinfo=pytz.UTC)).total_seconds()
+        profile['deactivated']     = result[0][2]
+        profile['detf_tsp']        = result[0][3]
+        profile['deterioration']   = result[0][4]
+        profile['detf_uid']        = result[0][5]
+
+    return profile
 
 
 def get_criteria(eid):
-    engine = create_engine(DB_CONN_STR)
     get_criteria_sql = \
     '''
     select * from get_criteria('%s')
     ''' % eid
-    df = pd.read_sql_query(get_criteria_sql,con=engine)
+    df = pd.read_sql_query(get_criteria_sql,con=db_engine)
     return df
 
+
 def get_criteria_log(eid):
-    engine = create_engine(DB_CONN_STR)
     get_criteria_log_sql = \
     '''
     select log_id, pat_id, date_part('epoch', tsp) epoch, event from criteria_log
-    where pat_id = '%s' order by tsp desc;
+    where pat_id = '%s' order by tsp desc limit 25;
     ''' % eid
-    df = pd.read_sql_query(get_criteria_log_sql,con=engine)
     auditlist = []
-    for idx,row in df.iterrows():
+    conn = db_engine.connect()
+    result = conn.execute(get_criteria_log_sql)
+    conn.close()
+    for row in result:
         audit = row['event']
         audit['log_id'] = row['log_id']
         audit['pat_id'] = row['pat_id']
@@ -126,25 +203,26 @@ def get_criteria_log(eid):
         auditlist.append(audit)
     return auditlist
 
+
 def get_notifications(eid):
-    engine = create_engine(DB_CONN_STR)
     get_notifications_sql = \
     '''
     select * from notifications
     where pat_id = '%s'
     ''' % eid
-    df = pd.read_sql_query(get_notifications_sql,con=engine)
     notifications = []
-    for idx, row in df.iterrows():
+    conn = db_engine.connect()
+    result = conn.execute(get_notifications_sql)
+    conn.close()
+    for row in result:
         notification = row['message']
         notification['timestamp'] = long(notification['timestamp'])
         notification['id'] = row['notification_id']
         notifications.append(notification)
-
     return notifications
 
+
 def toggle_notification_read(eid, notification_id, as_read):
-    engine = create_engine(DB_CONN_STR)
     toggle_notifications_sql = \
     '''
     with update_notifications as
@@ -162,16 +240,16 @@ def toggle_notification_read(eid, notification_id, as_read):
     from update_notifications n;
     ''' % {'pid': eid, 'nid': notification_id, 'val': str(as_read).lower()}
     logging.info("toggle_notifications_read:" + toggle_notifications_sql)
-    conn = engine.connect()
+    conn = db_engine.connect()
     conn.execute(toggle_notifications_sql)
     conn.close()
-    push_notifications_to_epic(eid, engine)
+    push_notifications_to_epic(eid)
+
 
 def temp_c_to_f(c):
     return c * 1.8 + 32
 
 def override_criteria(eid, name, value='[{}]', user='user', clear=False):
-    engine = create_engine(DB_CONN_STR)
     if name == 'sirs_temp' and not clear:
         value[0]['lower'] = temp_c_to_f(float(value[0]['lower']))
         value[0]['upper'] = temp_c_to_f(float(value[0]['upper']))
@@ -202,13 +280,13 @@ def override_criteria(eid, name, value='[{}]', user='user', clear=False):
     select override_criteria_snapshot('%(pid)s');
     ''' % params
     logging.info("override_criteria sql:" + override_sql)
-    conn = engine.connect()
+    conn = db_engine.connect()
     conn.execute(override_sql)
     conn.close()
-    push_notifications_to_epic(eid, engine)
+    push_notifications_to_epic(eid)
+
 
 def reset_patient(eid, uid='user', event_id=None):
-    engine = create_engine(DB_CONN_STR)
     event_where_clause = '' if event_id is None or event_id == 'None' else 'and event_id = %(evid)s' % {'evid' : event_id }
     reset_sql = """
     update criteria_events set flag = -1
@@ -224,13 +302,13 @@ def reset_patient(eid, uid='user', event_id=None):
     select advance_criteria_snapshot('%(pid)s');
     """ % {'pid': eid, 'where_clause': event_where_clause, 'uid': uid}
     logging.info("reset_patient:" + reset_sql)
-    conn = engine.connect()
+    conn = db_engine.connect()
     conn.execute(reset_sql)
     conn.close()
-    push_notifications_to_epic(eid, engine)
+    push_notifications_to_epic(eid)
+
 
 def deactivate(eid, uid, deactivated):
-    engine = create_engine(DB_CONN_STR)
     deactivate_sql = '''
     select * from deactivate('%(pid)s', %(deactivated)s);
     insert into criteria_log (pat_id, tsp, event, update_date)
@@ -242,14 +320,14 @@ def deactivate(eid, uid, deactivated):
         );
     ''' % {'pid': eid, "deactivated": 'true' if deactivated else "false", "uid":uid}
     logging.info("deactivate user:" + deactivate_sql)
-    conn = engine.connect()
+    conn = db_engine.connect()
     conn.execute(text(deactivate_sql).execution_options(autocommit=True))
     conn.close()
-    push_notifications_to_epic(eid, engine)
+    push_notifications_to_epic(eid)
+
 
 def get_deactivated(eid):
-    engine = create_engine(DB_CONN_STR)
-    conn = engine.connect()
+    conn = db_engine.connect()
     deactivated = conn.execute("select deactivated from pat_status where pat_id = '%s'" % eid).fetchall()
     conn.close()
     if len(deactivated) == 1 and deactivated[0][0] is True:
@@ -257,30 +335,31 @@ def get_deactivated(eid):
     else:
         return False
 
+
 def set_deterioration_feedback(eid, deterioration_feedback, uid):
-    engine = create_engine(DB_CONN_STR)
     deterioration_sql = '''
     select * from set_deterioration_feedback('%(pid)s', now(), '%(deterioration)s', '%(uid)s');
     ''' % {'pid': eid, 'deterioration': json.dumps(deterioration_feedback), 'uid':uid}
     logging.info("set_deterioration_feedback user:" + deterioration_sql)
-    conn = engine.connect()
+    conn = db_engine.connect()
     conn.execute(text(deterioration_sql).execution_options(autocommit=True))
     conn.close()
 
+
 def get_deterioration_feedback(eid):
-    engine = create_engine(DB_CONN_STR)
-    conn = engine.connect()
+    conn = db_engine.connect()
     df = conn.execute("select pat_id, date_part('epoch', tsp) tsp, deterioration, uid from deterioration_feedback where pat_id = '%s' limit 1" % eid).fetchall()
     conn.close()
     if len(df) == 1:
         return {"tsp": df[0][1], "deterioration": df[0][2], "uid": df[0][3]}
 
-def push_notifications_to_epic(eid, engine):
+
+def push_notifications_to_epic(eid):
     if epic_notifications is not None and int(epic_notifications):
         notifications_sql = """
             select * from get_notifications_for_epic('%s');
             """ % eid
-        notifications = pd.read_sql_query(notifications_sql, con=engine)
+        notifications = pd.read_sql_query(notifications_sql, con=db_engine)
         if not notifications.empty:
             patients = [ {'pat_id': n['pat_id'], 'visit_id': n['visit_id'], 'notifications': n['count'],
                                 'current_time': datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")} for i, n in notifications.iterrows()]
@@ -292,18 +371,18 @@ def push_notifications_to_epic(eid, engine):
         else:
             logging.info("no notifications")
 
+
 def eid_exist(eid):
-    engine = create_engine(DB_CONN_STR)
-    connection = engine.connect()
-    result = connection.execute("select * from pat_enc where pat_id = '%s'" % eid)
+    connection = db_engine.connect()
+    result = connection.execute("select * from pat_enc where pat_id = '%s' limit 1" % eid)
     connection.close()
     for row in result:
         return True
     return False
 
+
 def save_feedback(doc_id, pat_id, dep_id, feedback):
-    engine = create_engine(DB_CONN_STR)
-    conn = engine.connect()
+    conn = db_engine.connect()
     feedback_sql = '''
         INSERT INTO feedback_log (doc_id, tsp, pat_id, dep_id, feedback)
         VALUES ('%(doc)s', now(), '%(pat)s', '%(dep)s', '%(fb)s');
@@ -313,6 +392,7 @@ def save_feedback(doc_id, pat_id, dep_id, feedback):
     except Exception as e:
         print e
     conn.close()
+
 
 if __name__ == '__main__':
     # eid = 'E1000109xx'
