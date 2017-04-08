@@ -3,7 +3,7 @@ import datetime
 import falcon
 import json
 import logging
-import watchtower
+from cw_log import CloudWatchLogHandler
 from prometheus_client import Histogram, Counter, CollectorRegistry, CONTENT_TYPE_LATEST
 from prometheus_client import multiprocess, generate_latest
 
@@ -53,7 +53,8 @@ class CloudwatchLoggerMiddleware(object):
     if 'logging' in os.environ and int(os.environ['logging']) == 1 and 'cloudwatch_log_group' in os.environ:
       self.enabled = True
       self.cwLogger = logging.getLogger(__name__)
-      self.cwLogger.addHandler(watchtower.CloudWatchLogHandler(log_group=os.environ['cloudwatch_log_group'], create_log_group=False))
+      #self.cwLogger.addHandler(watchtower.CloudWatchLogHandler(log_group=os.environ['cloudwatch_log_group'], create_log_group=False))
+      self.cwLogger.addHandler(CloudWatchLogHandler(log_group=os.environ['cloudwatch_log_group']))
       self.cwLogger.setLevel(logging.INFO)
     else:
       self.enabled = False
