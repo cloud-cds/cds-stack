@@ -5,18 +5,22 @@ import os,sys
 from sqlalchemy import create_engine, types, text
 import pandas as pd
 
-if len(sys.argv) == 3:
+if len(sys.argv) == 4:
   db = sys.argv[1]
-  model_id = int(sys.argv[2])
+  host = sys.argv[2]
+  model_id = int(sys.argv[3])
 else:
-  exit(0)
+  raise(ValueError('Not enough input arguements'))
 
 DB_CONN_STR = 'postgresql://{}:{}@{}:{}/{}'
 user = os.environ['db_user']
-host = os.environ['db_host']
 port = os.environ['db_port']
 password = os.environ['db_password']
 DB_CONN_STR = DB_CONN_STR.format(user, password, host, port, db)
+
+engine = create_engine(DB_CONN_STR)
+
+conn = engine.connect()
 
 feature_weights_file = "lactateConstrFeatureWeights.csv"
 feature_weights_dbtable = "trews_feature_weights"
@@ -39,9 +43,7 @@ parameters['model_id'] = model_id
 print(parameters.head())
 
 # write to opsdx database
-engine = create_engine(DB_CONN_STR)
 
-conn = engine.connect()
 conn.execute(text("delete from %s;" % feature_weights_dbtable).execution_options(autocommit=True))
 conn.close()
 feature_weights.to_sql(feature_weights_dbtable, engine, if_exists='append', index=False)

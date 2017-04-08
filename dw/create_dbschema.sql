@@ -197,6 +197,22 @@ CREATE TABLE criteria
     primary key         (dataset_id, pat_id, name)
 );
 
+DROP TABLE IF EXISTS suspicion_of_infection_hist;
+CREATE TABLE suspicion_of_infection_hist
+(
+    dataset_id          integer REFERENCES dw_version(dataset_id),
+    pat_id              varchar(50),
+    name                varchar(50),
+    is_met              boolean,
+    measurement_time    timestamptz,
+    override_time       timestamptz,
+    override_user       text,
+    override_value      json,
+    value               text,
+    update_date         timestamptz,
+    primary key         (dataset_id, pat_id, name, override_time)
+);
+
 DROP TABLE IF EXISTS criteria_events;
 CREATE SEQUENCE IF NOT EXISTS criteria_event_ids;
 CREATE TABLE criteria_events
@@ -274,13 +290,16 @@ CREATE TABLE criteria_archive
 DROP TABLE IF EXISTS criteria_default;
 CREATE TABLE criteria_default
 (
-    dataset_id          integer REFERENCES dw_version(dataset_id),
+    dataset_id          integer
     name                varchar(50),
     fid                 varchar(50),
     override_value      json,
     category            varchar(50),
-    primary key         (dataset_id, name, fid, category)
+    primary key         (name, fid, category)
 );
+
+\copy criteria_default from '/home/ubuntu/dashan-db/dw/criteria_default.csv' with csv header delimiter as ',';
+
 
 DROP TABLE IF EXISTS notifications;
 CREATE  TABLE notifications
@@ -652,4 +671,29 @@ CREATE TABLE feedback_log (
     pat_id              varchar(50),
     dep_id              varchar(50),
     feedback            text
+);
+
+DROP TABLE IF EXISTS pat_group;
+CREATE TABLE index_patients (
+    pat_id              varchar(50),
+    model_id            varchar(50),
+    group_id            integer,
+    update_tsp          timestamptz,
+    primary key (pat_id, model_id, group_id)
+);
+
+DROP TABLE IF EXISTS group_description;
+CREATE TABLE index_group_descriptions (
+    group_id            integer,
+    group_description   text,
+    update_tsp          timestamptz,
+    primary key         (group_id)
+);
+
+DROP TABLE IF EXISTS historical_criteria;
+CREATE TABLE historical_criteria (
+    pat_id              text,
+    pat_state           integer,
+    window_ts           timestamptz,
+    primary key         (pat_id,window_ts)
 );

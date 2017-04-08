@@ -9,5 +9,5 @@
  - run `psql -h $dw_host -U opsdx_root -d $dw_name -p 5432 -f create_udf.sql`
 
 #### create dataset record and load default parameters
- - define the dataset_id and model_id in create_clarity2dw.sql and all CDM csv files
+ - define the dataset_id and model_id in create_c2dw.sql and all CDM csv files. make sure the paths are as you intend
  - run `psql -h $dw_host -U opsdx_root -d $dw_name -p 5432 -f create_clarity2dw.sql` (make sure your copy paths are correct in the file)
