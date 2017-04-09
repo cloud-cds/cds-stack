@@ -325,7 +325,7 @@ class TREWSAPI(web.View):
 
     sz = await pat_cache.raw('__len__')
 
-    print('*** Cache stats: s: %s h: %s t: %s' %
+    logging.info('*** Cache stats: s: %s h: %s t: %s' %
       ( sz, pat_cache.hit_miss_ratio["hits"], pat_cache.hit_miss_ratio["total"] ))
 
     criteria_result_set    = pat_values[0]
