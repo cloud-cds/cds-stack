@@ -10,7 +10,7 @@ import pytz
 import asyncio
 import asyncpg
 
-from inpatient_updater import load
+from jhapi_io import Loader
 
 logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.INFO)
 
@@ -21,6 +21,8 @@ host = os.environ['db_host']
 db   = os.environ['db_name']
 port = os.environ['db_port']
 pw   = os.environ['db_password']
+client_id = os.environ['jhapi_client_id'],
+client_secret = os.environ['jhapi_client_secret']
 
 # Init and cleanup.
 async def init_db_pool(app):
@@ -252,7 +254,7 @@ async def toggle_notification_read(db_pool, eid, notification_id, as_read):
 
   async with db_pool.acquire() as conn:
     await conn.execute(toggle_notifications_sql)
-    push_notifications_to_epic(db_pool, eid)
+    await push_notifications_to_epic(db_pool, eid)
 
 
 def temp_c_to_f(c):
@@ -294,7 +296,7 @@ async def override_criteria(db_pool, eid, name, value='[{}]', user='user', clear
 
   async with db_pool.acquire() as conn:
     await conn.execute(override_sql)
-    push_notifications_to_epic(db_pool, eid)
+    await push_notifications_to_epic(db_pool, eid)
 
 
 async def reset_patient(db_pool, eid, uid='user', event_id=None):
@@ -316,7 +318,7 @@ async def reset_patient(db_pool, eid, uid='user', event_id=None):
 
   async with db_pool.acquire() as conn:
     await conn.execute(reset_sql)
-    push_notifications_to_epic(db_pool, eid)
+    await push_notifications_to_epic(db_pool, eid)
 
 
 async def deactivate(db_pool, eid, uid, deactivated):
@@ -334,7 +336,7 @@ async def deactivate(db_pool, eid, uid, deactivated):
 
   async with db_pool.acquire() as conn:
     await conn.execute(deactivate_sql)
-    push_notifications_to_epic(db_pool, eid)
+    await push_notifications_to_epic(db_pool, eid)
 
 
 async def get_deactivated(db_pool, eid):
@@ -376,20 +378,17 @@ async def push_notifications_to_epic(db_pool, eid):
     ''' % eid
     async with db_pool.acquire() as conn:
       notifications = await conn.fetch(notifications_sql)
-
       if notifications:
-        patients = [{'pat_id': n['pat_id'], 'visit_id': n['visit_id'], 'notifications': n['count'],
-                        'current_time': datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
-                    } for n in notifications]
-
+        patients = [{
+            'pat_id': n['pat_id'],
+            'visit_id': n['visit_id'],
+            'notifications': n['count']
+        } for n in notifications]
         logging.info("sending notifications to epic")
-        client_id = os.environ['jhapi_client_id'],
-        client_secret = os.environ['jhapi_client_secret']
-        loader = load.Loader('prod', client_id, client_secret)
+        loader = Loader('stage', client_id, client_secret)
         loader.load_notifications(patients)
       else:
         logging.info("no notifications")
-
 
 async def eid_exist(db_pool, eid):
   async with db_pool.acquire() as conn:
