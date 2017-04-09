@@ -7,6 +7,7 @@ from aiohttp import web
 from aiohttp.web import Response
 
 from cw_log import CloudWatchLogHandler
+#import watchtower
 from prometheus_client import Histogram, Counter, CollectorRegistry, CONTENT_TYPE_LATEST
 from prometheus_client import multiprocess, generate_latest
 
@@ -58,7 +59,9 @@ if 'logging' in os.environ and int(os.environ['logging']) == 1 and 'cloudwatch_l
   cwlog_enabled = True
   cwlog = logging.getLogger(__name__)
   cwlog.propagate = False
-  cwlog.addHandler(CloudWatchLogHandler(log_group=os.environ['cloudwatch_log_group']))
+  cwlog_handler = CloudWatchLogHandler(log_group=os.environ['cloudwatch_log_group'])
+  # cwlog_handler = watchtower.CloudWatchLogHandler(log_group=os.environ['cloudwatch_log_group'], create_log_group=False)
+  cwlog.addHandler(cwlog_handler)
   cwlog.setLevel(logging.INFO)
 
 def log_object(request):
@@ -70,8 +73,16 @@ def log_object(request):
     'headers'      : dict(request.headers.items())
   }
 
+
+last_log_flush = datetime.datetime.utcnow()
+try:
+  log_period = int(os.environ['logging_period']) if 'logging_period' in os.environ else 30
+except ValueError:
+  log_period = 30
+
 async def cloudwatch_logger_middleware(app, handler):
   async def middleware_handler(request):
+    global last_log_flush, log_period
 
     # Pre-logging
     if cwlog_enabled:
@@ -82,8 +93,6 @@ async def cloudwatch_logger_middleware(app, handler):
 
     # Post-logging
     if cwlog_enabled:
-      srvnow = datetime.datetime.utcnow().isoformat()
-
       actionType = None
       if 'body' in request.app and 'actionType' in request.app['body']:
         actionType = request.app['body']['actionType']
@@ -92,6 +101,13 @@ async def cloudwatch_logger_middleware(app, handler):
       log_entry['actionType'] = actionType
       log_entry['status'] = response.status
       cwlog.info(json.dumps({ 'resp': log_entry }))
+
+      # Time-based manual flush
+      srvnow = datetime.datetime.utcnow()
+      do_flush = (srvnow - last_log_flush).total_seconds() > log_period
+      if do_flush:
+        cwlog_handler.flush()
+        last_log_flush = srvnow
 
     return response
 
