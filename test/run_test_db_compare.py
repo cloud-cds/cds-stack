@@ -47,6 +47,10 @@ job_c2dw_1 = {
   {
     'fid': None
   },
+  'offline_criteria_processing': {
+    'load_cdm_to_criteria_meas': True,
+    # 'calculate_historical_criteria':False
+  },
   'config': {
     'dataset_id': 1,
     'debug': True,
@@ -55,14 +59,15 @@ job_c2dw_1 = {
     'conf': CONF,
   },
 }
-
+# ome/ubuntu/clarity-db-staging/epic2op
 epic2op_vs_c2dw = [
   {
     'name': 'test_epic2op',
-    'engine': EngineEpic2op(db_name='test_epic2op'),
+    # 'engine': EngineEpic2op(db_name='test_epic2op'),
+    'engine': Restore(db_name='test_epic2op',file='/home/ubuntu/clarity-db-staging/epic2op/2017-04-06.sql'),
     'pipeline': {
       # 'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
-      # 'populate_db': True,
+      'populate_db': True,
     },
   },
   {
@@ -70,10 +75,11 @@ epic2op_vs_c2dw = [
     'engine': EngineC2dw,
     'job': job_c2dw_1,
     'pipeline': {
-      # # 'load_clarity': {'folder': '~/clarity-db-staging/2017-04-06/'},
-      # 'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
-      # 'copy_pat_enc': True,
-      # 'populate_db': True,
+    #   # 'load_clarity': {'folder': 'clarity-db-staging/2017-04-06/'},
+      'load_clarity': {'folder': '~/clarity-db-staging/2017-04-06/'},
+      'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
+      'copy_pat_enc': True,
+      'populate_db': True,
     },
     'db_compare': {
       'srcdid': None,
@@ -100,46 +106,46 @@ job_c2dw_a['config']['db_name'] = 'test_c2dw_a'
 job_c2dw_2 = copy.deepcopy(job_test_c2dw)
 job_c2dw_2['config']['db_name'] = 'test_c2dw'
 job_c2dw_2['reset_dataset']['remove_pat_enc'] = False
-c2dw_a_vs_c2dw = [
-  {
-    'name': 'test_c2dw_a',
-    'engine': Restore(db_name='test_c2dw_a', file='~/clarity-db-staging/c2dw_a/2017-04-05.sql'),
-    'pipeline': {
-      # 'populate_db': True,
-    }
-  },
-  # {
-  #   'name': 'test_c2dw_a',
-  #   'engine': EngineC2dw,
-  #   'job': job_c2dw_a,
-  #   'pipeline': {
-  #     # 'load_clarity': {'folder': '~/clarity-db-staging/2017-04-05/'},
-  #     # 'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
-  #     # 'populate_db': True,
-  #   },
-  # },
-  {
-    'name': 'test_c2dw',
-    'engine': EngineC2dw,
-    'job': job_c2dw_2,
-    'pipeline': {
-      'load_clarity': {'folder': '~/clarity-db-staging/2017-04-05/'},
-      'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
-      'copy_pat_enc': True,
-      'populate_db': True,
-    },
-    'db_compare': {
-      'srcdid': None,
-      'srcmid': None,
-      'dstdid': 1,
-      'dstmid': 1,
-      'cmp_remote_server': 'test_c2dw_a',
-      'counts': False,
-      'date': '2017-04-03',
-      'feature_set': 'online'
-    }
-  }
-]
+# c2dw_a_vs_c2dw = [
+#   {
+#     'name': 'test_c2dw_a',
+#     'engine': Restore(db_name='test_c2dw_a', file='~/clarity-db-staging/c2dw_a/2017-04-05.sql'),
+#     'pipeline': {
+#       # 'populate_db': True,
+#     }
+#   },
+#   # {
+#   #   'name': 'test_c2dw_a',
+#   #   'engine': EngineC2dw,
+#   #   'job': job_c2dw_a,
+#   #   'pipeline': {
+#   #     # 'load_clarity': {'folder': '~/clarity-db-staging/2017-04-05/'},
+#   #     # 'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
+#   #     # 'populate_db': True,
+#   #   },
+#   # },
+#   {
+#     'name': 'test_c2dw',
+#     'engine': EngineC2dw,
+#     'job': job_c2dw_2,
+#     'pipeline': {
+#       'load_clarity': {'folder': '~/clarity-db-staging/2017-04-05/'},
+#       'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
+#       'copy_pat_enc': True,
+#       'populate_db': True,
+#     },
+#     'db_compare': {
+#       'srcdid': None,
+#       'srcmid': None,
+#       'dstdid': 1,
+#       'dstmid': 1,
+#       'cmp_remote_server': 'test_c2dw_a',
+#       'counts': False,
+#       'date': '2017-04-03',
+#       'feature_set': 'online'
+#     }
+#   }
+# ]
 ##########################################################
 
 
@@ -442,10 +448,10 @@ class DBCompareTest():
       # 'datalink_feature_mapping' : ('dataset', []),
       'pat_enc'                  : ('dataset', [pat_enc_query]),
       'cdm_g'                    : ('both'   , []),
-      'cdm_s'                    : ('dataset', [cdm_s_query1]),
+      # 'cdm_s'                    : ('dataset', [cdm_s_query1]),
       # 'cdm_m'                    : ('dataset', []),
-      'cdm_t'                    : ('dataset', [cdm_t_query1, cdm_t_query2, cdm_t_query3, cdm_t_query4]),
-      # 'criteria_meas'            : ('dataset', []),
+      # 'cdm_t'                    : ('dataset', [cdm_t_query1, cdm_t_query2, cdm_t_query3, cdm_t_query4]),
+      'criteria_meas'            : ('dataset', []),
       # 'criteria'                 : ('dataset', []),
       # 'criteria_events'          : ('dataset', []),
       # 'criteria_log'             : ('dataset', []),
@@ -457,7 +463,7 @@ class DBCompareTest():
       # 'trews_scaler'             : ('model'  , []),
       # 'trews_feature_weights'    : ('model'  , []),
       # 'trews_parameters'         : ('model'  , []),
-      'cdm_twf'                  : ('dataset', cdm_twf_queries),
+      # 'cdm_twf'                  : ('dataset', cdm_twf_queries),
       # 'trews'                    : ('dataset', []),
       # 'pat_status'               : ('dataset', []),
       # 'deterioration_feedback'   : ('dataset', []),
@@ -470,6 +476,8 @@ class DBCompareTest():
     for tbl, version_type_and_queries in tables_to_compare.items():
       version_type = version_type_and_queries[0]
       queries = version_type_and_queries[1]
+      print(tbl)
+      print(version_type_and_queries)
       if queries:
         for field_map, predicate, sort_field, dependent_fields in queries:
           c = TableComparator(src_server,

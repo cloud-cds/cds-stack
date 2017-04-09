@@ -25,7 +25,7 @@ CREATE TABLE cdm_function_temp(
     PRIMARY KEY     (dataset_id, func_id),
     CHECK (func_type SIMILAR TO 'transform|fillin|derive')
 );
-\COPY cdm_function_temp FROM '/Users/pmarian3/code/dashan_realtime/dashan-db/dw/clarity2dw/CDM_Function.csv' WITH csv header DELIMITER AS ',';
+\COPY cdm_function_temp FROM '/home/ubuntu/peterm/dashan/dashan-db/dw/clarity2dw/CDM_Function.csv' WITH csv header DELIMITER AS ',';
 
 insert into cdm_function (dataset_id, func_id, func_type, description)
 select dataset_id, func_id,func_type, description from cdm_function_temp
@@ -57,7 +57,7 @@ CREATE TABLE cdm_feature_temp (
     CHECK (category SIMILAR TO 'S|M|T|TWF|G')
 );
 
-\COPY cdm_feature_temp FROM '/Users/pmarian3/code/dashan_realtime/dashan-db/dw/clarity2dw/CDM_Feature.csv' WITH csv header DELIMITER AS ',';
+\COPY cdm_feature_temp FROM '/home/ubuntu/peterm/dashan/dashan-db/dw/clarity2dw/CDM_Feature.csv' WITH csv header DELIMITER AS ',';
 
 insert into cdm_feature (dataset_id, fid, category, data_type, is_measured, is_deprecated,
                          fillin_func_id, window_size_in_hours, derive_func_id,
@@ -83,4 +83,4 @@ WHERE dataset_id = 1 and model_id = 1;
 
 
 
- \COPY cdm_g FROM '/Users/pmarian3/code/dashan_realtime/dashan-db/dw/clarity2dw/CDM_G.csv' WITH csv header DELIMITER AS ',';
+ \COPY cdm_g FROM '/home/ubuntu/peterm/dashan/dashan-db/dw/clarity2dw/CDM_G.csv' WITH csv header DELIMITER AS ',';
