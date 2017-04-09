@@ -12,14 +12,22 @@ import dashan_query as query
 
 from aiohttp import web
 from aiohttp.web import Response, json_response
+from aiocache import LRUMemoryCache
+from aiocache.plugins import HitMissRatioPlugin
+
 from monitoring import prometheus
 
+
 logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.INFO)
+
+pat_cache = LRUMemoryCache(plugins=[HitMissRatioPlugin()], max_size=5000)
+
 
 def temp_f_to_c(f):
     return (f - 32) * .5556
 
 class TREWSAPI(web.View):
+
   async def get(self):
     try:
       reponse = Response()
@@ -159,7 +167,7 @@ class TREWSAPI(web.View):
           "measurement_time" : (row['measurement_time'] - epoch).total_seconds() if row['measurement_time'] is not None else None,
           "override_time"    : (row['override_time'] - epoch).total_seconds() if row['override_time'] is not None else None,
           "override_user"    : row['override_user'],
-          "override_value"   : json.loads(row['override_value']),
+          "override_value"   : json.loads(row['override_value']) if row['override_value'] is not None else None,
       }
 
       if criterion["name"] == 'suspicion_of_infection':
@@ -296,20 +304,34 @@ class TREWSAPI(web.View):
 
 
   async def update_response_json(self, db_pool, data, eid):
+    global pat_cache
+
     data['pat_id'] = eid
 
-    # parallel query execution
-    results = await asyncio.gather(
-                query.get_criteria(db_pool, eid),
-                query.get_trews_contributors(db_pool, eid),
-                query.get_patient_events(db_pool, eid),
-                query.get_patient_profile(db_pool, eid)
-              )
+    # cache lookup
+    pat_values = await pat_cache.get(eid)
 
-    criteria_result_set    = results[0]
-    chart_values           = results[1]
-    notifications, history = results[2]
-    patient_scalars        = results[3]
+    if pat_values is None:
+      # parallel query execution
+      pat_values = await asyncio.gather(
+                      query.get_criteria(db_pool, eid),
+                      query.get_trews_contributors(db_pool, eid),
+                      query.get_patient_events(db_pool, eid),
+                      query.get_patient_profile(db_pool, eid)
+                    )
+
+      # TODO: implement bounded cache size.
+      await pat_cache.set(eid, pat_values, ttl=300)
+
+    sz = await pat_cache.raw('__len__')
+
+    print('*** Cache stats: s: %s h: %s t: %s' %
+      ( sz, pat_cache.hit_miss_ratio["hits"], pat_cache.hit_miss_ratio["total"] ))
+
+    criteria_result_set    = pat_values[0]
+    chart_values           = pat_values[1]
+    notifications, history = pat_values[2]
+    patient_scalars        = pat_values[3]
 
     self.update_criteria(criteria_result_set, data)
 
