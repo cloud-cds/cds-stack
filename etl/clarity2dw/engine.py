@@ -45,13 +45,13 @@ job = {
   #   'remove_data': True,
   #   'start_enc_id': 1
   # },
-  # 'transform': {
-  #   # 'populate_patients': True,
-  #   'populate_measured_features': {
-  #     'plan': False,
-  #     # 'fid': 'propofol_dose',
-  #   },
-  # },
+  'transform': {
+    # 'populate_patients': True,
+    'populate_measured_features': {
+      'plan': False,
+  # 'fid': ['fluids_intake'],
+    },
+  },
   # 'fillin': {
   #   'recalculate_popmean': False,
   # },

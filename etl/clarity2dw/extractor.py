@@ -34,16 +34,18 @@ class Extractor:
 
 
   async def transform(self, conn, transform_job):
+    self.log.info("Transform Job:")
+    self.log.info(transform_job)
     if transform_job.get('populate_patients', False):
       await self.populate_patients(conn)
     if transform_job.get('populate_measured_features', False):
       self.plan = False
       populate_measured_features_job = transform_job.get('populate_measured_features')
       if populate_measured_features_job.get('plan', False):
-        self.plan = job['populate_measured_features']['plan']
+        self.plan = transform_job['populate_measured_features']['plan']
       fid = None
       if populate_measured_features_job.get('fid', False):
-        fid = job['populate_measured_features']['fid']
+        fid = transform_job['populate_measured_features']['fid']
       await self.populate_measured_features(conn, fid)
 
   async def run_fillin(self, conn, job):
@@ -108,6 +110,8 @@ class Extractor:
 
 
   async def populate_measured_features(self, conn, fids_2_proc=None):
+    self.log.info("Using Feature Mapping:")
+    self.log.info("{}".format(self.config.FEATURE_MAPPING_CSV))
     feature_mapping = pd.read_csv(self.config.FEATURE_MAPPING_CSV,index_col='fid(s)')
 
     pat_mappings = await self.get_pat_mapping(conn)
@@ -117,7 +121,7 @@ class Extractor:
 
     if fids_2_proc is None:
       #If none, then default to all
-      fids_2_proc = feature_mapping['fid(s)'].index.tolist()
+      fids_2_proc = feature_mapping.index.tolist()
 
     for these_fids in fids_2_proc:
 
@@ -155,7 +159,11 @@ class Extractor:
           # For now, use the fact that only custom functions are many to one.
           fid = these_fids_list[0]
           mapping['fid'] = fid
-          await self.populate_feature_to_cdm(mapping, conn, self.cdm_feature_dict[fid])
+          if type(mapping) == pd.DataFrame:
+            for idx, map_row in mapping.iterrows():
+              await self.populate_feature_to_cdm(map_row, conn, self.cdm_feature_dict[fid])
+          else:
+            await self.populate_feature_to_cdm(mapping, conn, self.cdm_feature_dict[fid])
 
       else: #not all in cdm_feature
         self.log.warn("Transform function not applied {}".format(transform_func_id))
@@ -190,8 +198,10 @@ class Extractor:
 
   async def populate_feature_to_cdm(self, mapping, conn, cdm_feature_attributes):
     data_type = cdm_feature_attributes['data_type']
+    print(mapping)
     fid = mapping['fid']
     self.log.info('importing feature value fid %s' % fid)
+    print(mapping['transform_func_id'])
     if str(mapping['transform_func_id']) == "nan":
       mapping['transform_func_id'] = None
     transform_func_id = mapping['transform_func_id']
