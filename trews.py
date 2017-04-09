@@ -129,7 +129,8 @@ class TREWSFeedback(web.View):
     try:
       result_json = await self.request.json()
 
-      dashan_query.save_feedback(
+      await dashan_query.save_feedback(
+          db_pool = self.request.app['db_pool'],
           doc_id = str(result_json['u']),
           pat_id = str(result_json['q']),
           dep_id = str(result_json['depid']),
@@ -187,6 +188,9 @@ if cwlog_enabled:
   mware = [cloudwatch_logger_middleware]
 
 app = web.Application(middlewares=mware)
+
+app.on_startup.append(dashan_query.init_db_pool)
+app.on_cleanup.append(dashan_query.cleanup_db_pool)
 
 app.router.add_route('POST', URL_API, api.TREWSAPI)
 app.router.add_route('POST', URL_LOG, TREWSLog)

@@ -1,5 +1,6 @@
 import os, sys, traceback
 import time, datetime, calendar
+import asyncio
 import copy
 import functools
 import logging
@@ -33,64 +34,64 @@ class TREWSAPI(web.View):
 
 
   # match and test the consistent API for overriding
-  def take_action(self, actionType, actionData, eid, uid):
+  async def take_action(self, db_pool, actionType, actionData, eid, uid):
 
     # Match pollNotifications first since this is the most common action.
     if actionType == u'pollNotifications':
-      notifications = query.get_notifications(eid)
+      notifications = await query.get_notifications(db_pool, eid)
       return {'notifications': notifications}
 
     elif actionType == u'pollAuditlist':
-      auditlist = query.get_criteria_log(eid)
+      auditlist = await query.get_criteria_log(db_pool, eid)
       return {'auditlist': auditlist}
 
     elif actionType == u'override':
       action_is_clear = 'clear' in actionData and actionData['clear']
       logging.info('override_criteria action %(clear)s: %(v)s' % {'v': json.dumps(actionData), 'clear': action_is_clear})
       if action_is_clear:
-        query.override_criteria(eid, actionData['actionName'], clear=True, user=uid)
+        await query.override_criteria(db_pool, eid, actionData['actionName'], clear=True, user=uid)
       else:
         logging.info('override_criteria value: %(name)s %(val)s' % {'name': actionData['actionName'], 'val': actionData['value']})
-        query.override_criteria(eid, actionData['actionName'], value=actionData['value'], user=uid)
+        await query.override_criteria(db_pool, eid, actionData['actionName'], value=actionData['value'], user=uid)
 
     elif actionType == u'suspicion_of_infection':
       if 'value' in actionData and actionData['value'] == 'Reset':
-        query.override_criteria(eid, actionData['actionName'], clear=True, user=uid)
+        await query.override_criteria(db_pool, eid, actionData['actionName'], clear=True, user=uid)
       else:
         if "other" in actionData:
           value = '[{ "text": "%(val)s", "other": true }]' % {'val': actionData['other']}
-          query.override_criteria(eid, actionType, value=value, user=uid)
+          await query.override_criteria(db_pool, eid, actionType, value=value, user=uid)
         else:
           value = '[{ "text": "%(val)s" }]' % {'val': actionData['value']}
-          query.override_criteria(eid, actionType, value=value, user=uid)
+          await query.override_criteria(db_pool, eid, actionType, value=value, user=uid)
 
     elif actionType == u'notification':
       if 'id' in actionData and 'read' in actionData:
-        query.toggle_notification_read(eid, actionData['id'], actionData['read'])
+        await query.toggle_notification_read(db_pool, eid, actionData['id'], actionData['read'])
       else:
         msg = 'Invalid notification update action data' + json.dumps(actionData)
         logging.error(msg)
         return {'message': msg}
 
     elif actionType == u'place_order':
-      query.override_criteria(eid, actionData['actionName'], value='[{ "text": "Ordered" }]', user=uid)
+      await query.override_criteria(db_pool, eid, actionData['actionName'], value='[{ "text": "Ordered" }]', user=uid)
 
     elif actionType == u'complete_order':
-      query.override_criteria(eid, actionData['actionName'], value='[{ "text": "Completed" }]', user=uid)
+      await query.override_criteria(db_pool, eid, actionData['actionName'], value='[{ "text": "Completed" }]', user=uid)
 
     elif actionType == u'order_not_indicated':
-      query.override_criteria(eid, actionData['actionName'], value='[{ "text": "Not Indicated" }]', user=uid)
+      await query.override_criteria(db_pool, eid, actionData['actionName'], value='[{ "text": "Not Indicated" }]', user=uid)
 
     elif actionType == u'reset_patient':
       event_id = actionData['value'] if actionData is not None and 'value' in actionData else None
-      query.reset_patient(eid, uid, event_id)
+      await query.reset_patient(db_pool, eid, uid, event_id)
 
     elif actionType == u'deactivate':
-      query.deactivate(eid, uid, actionData['value'])
+      await query.deactivate(db_pool, eid, uid, actionData['value'])
 
     elif actionType == u'set_deterioration_feedback':
       deterioration = {"value": actionData['value'], "other": actionData["other"]}
-      query.set_deterioration_feedback(eid, deterioration, uid)
+      await query.set_deterioration_feedback(db_pool, eid, deterioration, uid)
 
     else:
       msg = 'Invalid action type: ' + actionType
@@ -158,7 +159,7 @@ class TREWSAPI(web.View):
           "measurement_time" : (row['measurement_time'] - epoch).total_seconds() if row['measurement_time'] is not None else None,
           "override_time"    : (row['override_time'] - epoch).total_seconds() if row['override_time'] is not None else None,
           "override_user"    : row['override_user'],
-          "override_value"   : row['override_value'],
+          "override_value"   : json.loads(row['override_value']),
       }
 
       if criterion["name"] == 'suspicion_of_infection':
@@ -294,14 +295,21 @@ class TREWSAPI(web.View):
           data['septic_shock']['onset_time'] = sorted(shock_onsets_hypoperfusion)[0]
 
 
-  def update_response_json(self, data, eid):
+  async def update_response_json(self, db_pool, data, eid):
     data['pat_id'] = eid
 
-    # update criteria from database query
-    criteria_result_set    = query.get_criteria(eid)
-    chart_values           = query.get_trews_contributors(eid)
-    notifications, history = query.get_patient_events(eid)
-    patient_scalars        = query.get_patient_profile(eid)
+    # parallel query execution
+    results = await asyncio.gather(
+                query.get_criteria(db_pool, eid),
+                query.get_trews_contributors(db_pool, eid),
+                query.get_patient_events(db_pool, eid),
+                query.get_patient_profile(db_pool, eid)
+              )
+
+    criteria_result_set    = results[0]
+    chart_values           = results[1]
+    notifications, history = results[2]
+    patient_scalars        = results[3]
 
     self.update_criteria(criteria_result_set, data)
 
@@ -353,12 +361,15 @@ class TREWSAPI(web.View):
           traceback.print_exc()
           raise web.HTTPBadRequest(body=json.dumps({'message': str(ex)}))
 
+        db_pool = self.request.app['db_pool']
+
         eid = req_body['q']
         uid = req_body['u'] if 'u' in req_body and req_body['u'] is not None else 'user'
         data = copy.deepcopy(data_example.patient_data_example)
 
         if eid:
-          if query.eid_exist(eid):
+          eid_exists = await query.eid_exist(db_pool, eid)
+          if eid_exists:
             logging.info("query for eid: " + eid)
 
             response_body = {}
@@ -369,10 +380,10 @@ class TREWSAPI(web.View):
                 actionData = req_body['action']
 
                 if actionType is not None:
-                  response_body = self.take_action(actionType, actionData, eid, uid)
+                  response_body = await self.take_action(db_pool, actionType, actionData, eid, uid)
 
                 if actionType != u'pollNotifications' and actionType != u'pollAuditlist':
-                  self.update_response_json(data, eid)
+                  await self.update_response_json(db_pool, data, eid)
                   response_body = {'trewsData': data}
             else:
               response_body = {'message': 'Invalid TREWS REST API request'}
