@@ -5,7 +5,7 @@ import asyncio
 from sqlalchemy import create_engine
 from etl.load.pipelines.derive_main import derive_feature, get_derive_seq
 from etl.load.pipelines.fillin import fillin_pipeline
-
+import pandas as pd
 import os
 
 class Epic2OpLoader:
@@ -25,17 +25,20 @@ class Epic2OpLoader:
       port     = self.config.db_port
     )
 
-  def run_loop(self, db_data, db_raw_data):
+  def run_loop(self, db_data, db_raw_data, mode):
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(self.run(db_data, db_raw_data))
+    loop.run_until_complete(self.run(db_data, db_raw_data, mode))
 
-  async def run(self, db_data, db_raw_data):
+  async def run(self, db_data, db_raw_data, mode):
     if self.pool is None:
       await self.async_init()
     async with self.pool.acquire() as conn:
-      if self.archive == 1:
+      if self.archive == 1 and db_raw_data is not None:
         self.epic_2_workspace(db_raw_data, dtypes='unicode')
-      self.epic_2_workspace(db_data)
+      if db_data is not None:
+        self.epic_2_workspace(db_data)
+      if 'test' in mode:
+        self.test_data_2_workspace(mode)
       await self.workspace_to_cdm(conn)
       await self.load_online_prediction_parameters(conn)
       await self.workspace_fillin(conn)
@@ -296,6 +299,24 @@ class Epic2OpLoader:
     engine = create_engine(self.config.get_db_conn_string_sqlalchemy())
     for df_name, df in db_data.items():
       primitives.data_2_workspace(engine, self.job_id, df_name, df, dtypes=dtypes)
+
+  def test_data_2_workspace(self, mode):
+    engine = create_engine(self.config.get_db_conn_string_sqlalchemy())
+    for table in ('bedded_patients', 'flowsheet', 'lab_orders',
+                       'lab_results', 'med_orders', 'med_admin',
+                       'location_history'):
+
+      df = pd.read_sql_table("test_{}".format(table), engine).drop('index', axis=1)
+
+      # Convert timestamps to correct format for ETL
+      if not df.empty and 'tsp' in df.columns:
+          df['tsp'] = df['tsp'].apply(lambda x: dt.datetime.utcfromtimestamp(float(x)).isoformat())
+      df_name = "{}_transformed".format(table + 's' if table == 'flowsheet' else table)
+      if 'real' in mode:
+        if_exists = 'append'
+      else:
+        if_exists = 'replace'
+      primitives.data_2_workspace(engine, self.job_id, df_name, df, dtypes=None, if_exists = if_exists)
 
   async def workspace_to_cdm(self, conn):
     await primitives.insert_new_patients(conn, self.job_id)
