@@ -1,11 +1,10 @@
 import os, sys, traceback
+import time, datetime, calendar
+import copy
 import functools
 import logging
 import json
-import time, datetime, calendar
-import pandas as pd
-import numpy as np
-import copy
+import pytz
 
 import data_example
 import dashan_query as query
@@ -19,22 +18,6 @@ logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.INFO)
 def temp_f_to_c(f):
     return (f - 32) * .5556
 
-class NumpyEncoder(json.JSONEncoder):
-  def default(self, obj):
-    if isinstance(obj, np.integer):
-      return int(obj)
-    elif isinstance(obj, np.floating):
-      return float(obj)
-    elif isinstance(obj, np.ndarray):
-      return obj.tolist()
-    elif isinstance(obj, np.bool_):
-      return bool(obj)
-    elif isinstance(obj, np.int64):
-      return int(obj)
-    else:
-      print("encoder: %s %s" % (obj, type(obj)))
-      return super(NumpyEncoder, self).default(obj)
-
 class TREWSAPI(web.View):
   async def get(self):
     try:
@@ -44,9 +27,9 @@ class TREWSAPI(web.View):
       return response
 
     except Exception as ex:
-      logging.warning(ex.message)
+      logging.warning(str(ex))
       traceback.print_exc()
-      raise web.HTTPBadRequest(ex.message)
+      raise web.HTTPBadRequest(body=json.dumps({'message': str(ex)}))
 
 
   # match and test the consistent API for overriding
@@ -117,7 +100,7 @@ class TREWSAPI(web.View):
     return {'result': 'OK'}
 
 
-  def update_criteria(self, criteria, data):
+  def update_criteria(self, criteria_result_set, data):
 
     SIRS = ['sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc']
     ORGAN_DYSFUNCTION = ["blood_pressure",
@@ -148,35 +131,34 @@ class TREWSAPI(web.View):
                "focus_exam_order"
              ]
 
-    sirs_cnt = 0
-    od_cnt = 0
+    sirs_cnt    = 0
+    od_cnt      = 0
     sirs_onsets = []
-    od_onsets = []
-    hp_cnt = 0
-    shock_onsets_hypotension = []
+    od_onsets   = []
+    hp_cnt      = 0
+    hpf_cnt     = 0
+    shock_onsets_hypotension   = []
     shock_onsets_hypoperfusion = []
-    hpf_cnt = 0
+
     data['event_id'] = None
 
-    # Update the event id.
-    if criteria['event_id'] is not None and len(criteria['event_id'].values) > 0:
-      event_id = str(criteria['event_id'].values[0])
-      data['event_id'] = None if event_id == "nan" else event_id
+    epoch = datetime.datetime.utcfromtimestamp(0).replace(tzinfo=pytz.UTC)
 
-    # TODO: set up the onset time
-    criteria['override_epoch'] = pd.DatetimeIndex(criteria.override_time).astype(np.int64) // 10**9
-    criteria['measurement_epoch'] = pd.DatetimeIndex(criteria.measurement_time).astype(np.int64) // 10**9
+    for row in criteria_result_set:
+      # Update the event id.
+      if data['event_id'] is None and row['event_id'] is not None:
+        event_id = str(row['event_id'])
+        data['event_id'] = None if event_id == "nan" else event_id
 
-    for idx, row in criteria.iterrows():
       # update every criteria
       criterion = {
-          "name": row['name'],
-          "is_met": row['is_met'],
-          "value": row['value'],
-          "measurement_time": row['measurement_epoch'] if row['measurement_epoch'] > 0 else None,
-          "override_time": row['override_epoch'] if row['override_epoch'] > 0 else None,
-          "override_user": row['override_user'],
-          "override_value": row['override_value'],
+          "name"             : row['name'],
+          "is_met"           : row['is_met'],
+          "value"            : row['value'],
+          "measurement_time" : (row['measurement_time'] - epoch).total_seconds() if row['measurement_time'] is not None else None,
+          "override_time"    : (row['override_time'] - epoch).total_seconds() if row['override_time'] is not None else None,
+          "override_user"    : row['override_user'],
+          "override_value"   : row['override_value'],
       }
 
       if criterion["name"] == 'suspicion_of_infection':
@@ -193,75 +175,75 @@ class TREWSAPI(web.View):
         else:
           data['severe_sepsis']['suspicion_of_infection']["value"] = None
 
-        if criterion["name"] == "sirs_temp" and criterion["override_value"]:
-          if criterion["override_value"][0]["lower"]:
-            criterion["override_value"][0]["lower"] = temp_f_to_c(criterion["override_value"][0]["lower"])
-          if criterion["override_value"][0]["upper"]:
-            criterion["override_value"][0]["upper"] = temp_f_to_c(criterion["override_value"][0]["upper"])
+      if criterion["name"] == "sirs_temp" and criterion["override_value"]:
+        if criterion["override_value"][0]["lower"]:
+          criterion["override_value"][0]["lower"] = temp_f_to_c(criterion["override_value"][0]["lower"])
+        if criterion["override_value"][0]["upper"]:
+          criterion["override_value"][0]["upper"] = temp_f_to_c(criterion["override_value"][0]["upper"])
 
-        if criterion["name"] in SIRS:
-          sirs_idx = SIRS.index(criterion["name"])
-          data['severe_sepsis']['sirs']['criteria'][sirs_idx] = criterion
-          if criterion["is_met"]:
-            sirs_cnt += 1
-            if criterion['override_user']:
-              sirs_onsets.append(criterion['override_time'])
-            else:
-              sirs_onsets.append(criterion['measurement_time'])
+      if criterion["name"] in SIRS:
+        sirs_idx = SIRS.index(criterion["name"])
+        data['severe_sepsis']['sirs']['criteria'][sirs_idx] = criterion
+        if criterion["is_met"]:
+          sirs_cnt += 1
+          if criterion['override_user']:
+            sirs_onsets.append(criterion['override_time'])
+          else:
+            sirs_onsets.append(criterion['measurement_time'])
 
-        if criterion["name"] in ORGAN_DYSFUNCTION:
-          od_idx = ORGAN_DYSFUNCTION.index(criterion["name"])
-          data['severe_sepsis']['organ_dysfunction']['criteria'][od_idx] = criterion
-          if criterion["is_met"]:
-            od_cnt += 1
-            if criterion['override_user']:
-              od_onsets.append(criterion['override_time'])
-            else:
-              od_onsets.append(criterion['measurement_time'])
-
-
-        # septic shock
-
-        if criterion["name"] in HYPOTENSION:
-          hp_idx = HYPOTENSION.index(criterion["name"])
-          data['septic_shock']['hypotension']['criteria'][hp_idx] = criterion
-          if criterion["is_met"]:
-            hp_cnt += 1
-            if criterion['override_user']:
-              shock_onsets_hypotension.append(criterion['override_time'])
-            else:
-              shock_onsets_hypotension.append(criterion['measurement_time'])
+      if criterion["name"] in ORGAN_DYSFUNCTION:
+        od_idx = ORGAN_DYSFUNCTION.index(criterion["name"])
+        data['severe_sepsis']['organ_dysfunction']['criteria'][od_idx] = criterion
+        if criterion["is_met"]:
+          od_cnt += 1
+          if criterion['override_user']:
+            od_onsets.append(criterion['override_time'])
+          else:
+            od_onsets.append(criterion['measurement_time'])
 
 
-        if criterion["name"] in HYPOPERFUSION:
-          hpf_idx = HYPOPERFUSION.index(criterion["name"])
-          data['septic_shock']['hypoperfusion']['criteria'][hpf_idx] = criterion
-          if criterion["is_met"]:
-            hpf_cnt += 1
-            if criterion['override_user']:
-              shock_onsets_hypoperfusion.append(criterion['override_time'])
-            else:
-              shock_onsets_hypoperfusion.append(criterion['measurement_time'])
+      # septic shock
 
-        if criterion["name"] == 'crystalloid_fluid':
-          data['septic_shock']['crystalloid_fluid'] = criterion
+      if criterion["name"] in HYPOTENSION:
+        hp_idx = HYPOTENSION.index(criterion["name"])
+        data['septic_shock']['hypotension']['criteria'][hp_idx] = criterion
+        if criterion["is_met"]:
+          hp_cnt += 1
+          if criterion['override_user']:
+            shock_onsets_hypotension.append(criterion['override_time'])
+          else:
+            shock_onsets_hypotension.append(criterion['measurement_time'])
 
-        # update orders
-        if criterion["name"] in ORDERS:
-          value = criterion['value']
-          if ('override_value' in criterion) and (criterion['override_value'] is not None) and ('text' in criterion['override_value'][0]):
-              value = criterion['override_value'][0]['text']
 
-          valid_override_ts = 'override_time' in criterion and criterion['override_time'] is not None
-          order_ts = criterion['override_time'] if valid_override_ts else criterion['measurement_time']
+      if criterion["name"] in HYPOPERFUSION:
+        hpf_idx = HYPOPERFUSION.index(criterion["name"])
+        data['septic_shock']['hypoperfusion']['criteria'][hpf_idx] = criterion
+        if criterion["is_met"]:
+          hpf_cnt += 1
+          if criterion['override_user']:
+            shock_onsets_hypoperfusion.append(criterion['override_time'])
+          else:
+            shock_onsets_hypoperfusion.append(criterion['measurement_time'])
 
-          data[criterion["name"]] = {
-            "name": criterion["name"],
-            "status": value,
-            "time": order_ts,
-            "user": criterion['override_user'],
-            "note": "note"
-          }
+      if criterion["name"] == 'crystalloid_fluid':
+        data['septic_shock']['crystalloid_fluid'] = criterion
+
+      # update orders
+      if criterion["name"] in ORDERS:
+        value = criterion['value']
+        if ('override_value' in criterion) and (criterion['override_value'] is not None) and ('text' in criterion['override_value'][0]):
+            value = criterion['override_value'][0]['text']
+
+        valid_override_ts = 'override_time' in criterion and criterion['override_time'] is not None
+        order_ts = criterion['override_time'] if valid_override_ts else criterion['measurement_time']
+
+        data[criterion["name"]] = {
+          "name": criterion["name"],
+          "status": value,
+          "time": order_ts,
+          "user": criterion['override_user'],
+          "note": "note"
+        }
 
     # update sirs
     data['severe_sepsis']['sirs']['is_met'] = sirs_cnt > 1
@@ -310,22 +292,18 @@ class TREWSAPI(web.View):
             data['septic_shock']['onset_time'] = sorted([data['septic_shock']['onset_time']] +shock_onsets_hypoperfusion)[0]
         else:
           data['septic_shock']['onset_time'] = sorted(shock_onsets_hypoperfusion)[0]
-    #logging.info(json.dumps(data['severe_sepsis'], indent=4))
-    #logging.info(json.dumps(data['septic_shock'], indent=4))
-
-
 
 
   def update_response_json(self, data, eid):
     data['pat_id'] = eid
 
     # update criteria from database query
-    criteria               = query.get_criteria(eid)
+    criteria_result_set    = query.get_criteria(eid)
     chart_values           = query.get_trews_contributors(eid)
     notifications, history = query.get_patient_events(eid)
     patient_scalars        = query.get_patient_profile(eid)
 
-    self.update_criteria(criteria, data)
+    self.update_criteria(criteria_result_set, data)
 
     # update chart data
     data['chart_data']['patient_arrival']['timestamp'] = patient_scalars['admit_time']
@@ -366,14 +344,14 @@ class TREWSAPI(web.View):
                   'body'         : json.dumps(req_body, indent=4) })
 
         except ValueError as ex:
-          logging.warning(ex.message)
+          logging.warning(str(ex))
           traceback.print_exc()
-          raise web.HTTPBadRequest('Invalid JSON body', ex.message)
+          raise web.HTTPBadRequest(body=json.dumps({'message': 'Invalid JSON body: %s' % str(ex)}))
 
         except Exception as ex:
           logging.warning(ex.message)
           traceback.print_exc()
-          raise web.HTTPBadRequest('Error', ex.message)
+          raise web.HTTPBadRequest(body=json.dumps({'message': str(ex)}))
 
         eid = req_body['q']
         uid = req_body['u'] if 'u' in req_body and req_body['u'] is not None else 'user'
@@ -399,15 +377,18 @@ class TREWSAPI(web.View):
             else:
               response_body = {'message': 'Invalid TREWS REST API request'}
 
-            return json_response(response_body, dumps=functools.partial(json.dumps, cls=NumpyEncoder))
+            return json_response(response_body)
 
           else:
             raise web.HTTPBadRequest(body=json.dumps({'message': 'No patient found'}))
 
         else:
-          raise web.HTTPBadRequest('No patient identifier supplied in request')
+          raise web.HTTPBadRequest(body=json.dumps({'message': 'No patient identifier supplied in request'}))
+
+    except web.HTTPException:
+      raise
 
     except Exception as ex:
       logging.warning(str(ex))
       traceback.print_exc()
-      raise web.HTTPBadRequest('Error', ex.message)
+      raise web.HTTPBadRequest(body=json.dumps({'message': str(ex)}))

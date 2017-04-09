@@ -41,9 +41,9 @@ class TREWSPrometheusMetrics(web.View):
       return response
 
     except Exception as ex:
-      logging.warning(ex.message)
+      logging.warning(str(ex))
       traceback.print_exc()
-      raise web.HTTPBadRequest('Error on metrics', ex.message)
+      raise web.HTTPBadRequest(body=json.dumps({'message': str(ex)}))
 
 
 # Cloudwatch Logger.
@@ -57,6 +57,7 @@ cwlog_enabled = False
 if 'logging' in os.environ and int(os.environ['logging']) == 1 and 'cloudwatch_log_group' in os.environ:
   cwlog_enabled = True
   cwlog = logging.getLogger(__name__)
+  cwlog.propagate = False
   cwlog.addHandler(CloudWatchLogHandler(log_group=os.environ['cloudwatch_log_group']))
   cwlog.setLevel(logging.INFO)
 

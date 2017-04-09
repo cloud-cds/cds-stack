@@ -13,6 +13,7 @@ from monitoring import TREWSPrometheusMetrics, cloudwatch_logger_middleware, cwl
 
 import api, dashan_query
 
+
 #################################
 # Constants
 
@@ -30,11 +31,11 @@ INDEX_FILENAME = 'index.html'
 
 # default keys for JHH
 KEYS = {
-    'lactate': '2',
-    'blood_culture': '4',
-    'antibiotics': '5',
-    'fluid': '1',
-    "vasopressors": '7'
+  'lactate': '2',
+  'blood_culture': '4',
+  'antibiotics': '5',
+  'fluid': '1',
+  "vasopressors": '7'
 }
 
 ###################################
@@ -54,6 +55,7 @@ class TREWSStaticResource(web.View):
       abspath = abspath[1:]
 
     filename = os.path.join(STATIC_DIR, abspath)
+    f_binary = False
 
     if filename.endswith('.css'):
       r_content_type = 'text/css'
@@ -64,6 +66,7 @@ class TREWSStaticResource(web.View):
     elif filename.endswith('.html'):
       r_content_type = 'text/html'
     else:
+      f_binary = True
       r_content_type = 'application/octet-stream'
 
     if filename.endswith(INDEX_FILENAME):
@@ -99,11 +102,10 @@ class TREWSStaticResource(web.View):
 
     else:
       if os.path.exists(filename):
-        mode = 'rb' if r_content_type == 'application/octet-stream' else 'r'
-        with open(filename, mode) as f:
+        with open(filename, 'rb' if f_binary else 'r') as f:
             r_body = f.read()
       else:
-        raise web.HTTPNotFound('Invalid file', filename)
+        raise web.HTTPNotFound(body=json.dumps({'message': 'Invalid file: %s' % filename}))
 
     return Response(content_type=r_content_type, body=r_body)
 
@@ -114,11 +116,12 @@ class TREWSLog(web.View):
       # TODO: handle frontend statistics vs error entries
       log_entry = await self.request.json()
       logging.warning(json.dumps(log_entry, indent=4))
+      return Response()
 
     except Exception as ex:
-      logging.warning(ex.message)
+      logging.warning(str(ex))
       traceback.print_exc()
-      raise web.HTTPBadRequest(ex.message)
+      raise web.HTTPBadRequest(body=json.dumps({'message': str(ex)}))
 
 
 class TREWSFeedback(web.View):
@@ -158,7 +161,9 @@ class TREWSFeedback(web.View):
       return json_response(result_json, dumps=functools.partial(json.dumps, encoding='utf-8'))
 
     except Exception as ex:
-      raise web.HTTPBadRequest('Error sending email', ex.message)
+      logging.warning(str(ex))
+      traceback.print_exc()
+      raise web.HTTPBadRequest(body=json.dumps({'message': 'Error sending email: %s' % str(ex)}))
 
 
 class TREWSEchoHealthcheck(web.View):
@@ -168,7 +173,9 @@ class TREWSEchoHealthcheck(web.View):
       return json_response(result_json, dumps=functools.partial(json.dumps, encoding='utf-8'))
 
     except Exception as ex:
-      raise web.HTTPBadRequest('Error processing echo healthcheck', ex.message)
+      logging.warning(str(ex))
+      traceback.print_exc()
+      raise web.HTTPBadRequest(body=json.dumps({'message': 'Error echoing healthcheck: %s' % str(ex)}))
 
 
 ###################

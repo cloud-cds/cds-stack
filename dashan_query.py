@@ -5,7 +5,6 @@ import os, sys, traceback
 import json
 import datetime
 import logging
-import pandas as pd
 import pytz
 from inpatient_updater import load
 from sqlalchemy import create_engine
@@ -108,7 +107,7 @@ def get_patient_events(pat_id):
     for row in result:
         if row['event_type'] == 0:
             notification = row['payload']
-            notification['timestamp'] = long(notification['timestamp'])
+            notification['timestamp'] = int(notification['timestamp'])
             notification['id'] = row['evt_id']
             notifications.append(notification)
         else:
@@ -181,8 +180,10 @@ def get_criteria(eid):
     '''
     select * from get_criteria('%s')
     ''' % eid
-    df = pd.read_sql_query(get_criteria_sql,con=db_engine)
-    return df
+    conn = db_engine.connect()
+    result = conn.execute(get_criteria_sql).fetchall()
+    conn.close()
+    return result
 
 
 def get_criteria_log(eid):
@@ -216,7 +217,7 @@ def get_notifications(eid):
     conn.close()
     for row in result:
         notification = row['message']
-        notification['timestamp'] = long(notification['timestamp'])
+        notification['timestamp'] = int(notification['timestamp'])
         notification['id'] = row['notification_id']
         notifications.append(notification)
     return notifications
@@ -356,13 +357,19 @@ def get_deterioration_feedback(eid):
 
 def push_notifications_to_epic(eid):
     if epic_notifications is not None and int(epic_notifications):
-        notifications_sql = """
-            select * from get_notifications_for_epic('%s');
-            """ % eid
-        notifications = pd.read_sql_query(notifications_sql, con=db_engine)
-        if not notifications.empty:
-            patients = [ {'pat_id': n['pat_id'], 'visit_id': n['visit_id'], 'notifications': n['count'],
-                                'current_time': datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")} for i, n in notifications.iterrows()]
+        notifications_sql = \
+        '''
+        select * from get_notifications_for_epic('%s');
+        ''' % eid
+        conn = db_engine.connect()
+        notifications = conn.execute(notifications_sql).fetchall()
+        conn.close()
+
+        if notifications:
+            patients = [{'pat_id': n['pat_id'], 'visit_id': n['visit_id'], 'notifications': n['count'],
+                            'current_time': datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+                        } for n in notifications]
+
             logging.info("sending notifications to epic")
             client_id = os.environ['jhapi_client_id'],
             client_secret = os.environ['jhapi_client_secret']
