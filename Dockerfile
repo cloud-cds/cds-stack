@@ -1,4 +1,4 @@
-FROM python:2.7
+FROM python:3.6.1
 
 ENV WORKDIR  /pyflame/
 ENV prometheus_multiproc_dir /tmp
