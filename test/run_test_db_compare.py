@@ -10,6 +10,7 @@ import datetime as dt
 import copy
 import subprocess
 from collections import OrderedDict
+import pandas as pd
 
 class Restore():
   def __init__(self, db_name, file):
@@ -28,25 +29,25 @@ class Restore():
 # compare online ETL (epic2op) with offline ETL (c2dw)
 #########################################################
 job_c2dw_1 = {
-  'reset_dataset': {
-    'remove_pat_enc': False,
-    'remove_data': True,
-    'start_enc_id': '(select max(enc_id) from pat_enc)'
-  },
-  'transform': {
-    'populate_patients': True,
-    'populate_measured_features': {
-      'plan': False,
-      # 'fid': 'age',
-    },
-  },
-  'fillin': {
-    'recalculate_popmean': False,
-  },
-  'derive':
-  {
-    'fid': None
-  },
+  # 'reset_dataset': {
+  #   'remove_pat_enc': False,
+  #   'remove_data': True,
+  #   'start_enc_id': '(select max(enc_id) from pat_enc)'
+  # },
+  # 'transform': {
+  #   'populate_patients': True,
+  #   'populate_measured_features': {
+  #     'plan': False,
+  #     # 'fid': 'age',
+  #   },
+  # },
+  # 'fillin': {
+  #   'recalculate_popmean': False,
+  # },
+  # 'derive':
+  # {
+  #   'fid': None
+  # },
   'offline_criteria_processing': {
     'load_cdm_to_criteria_meas': True,
     # 'calculate_historical_criteria':False
@@ -67,20 +68,20 @@ epic2op_vs_c2dw = [
     'engine': Restore(db_name='test_epic2op',file='/home/ubuntu/clarity-db-staging/epic2op/2017-04-06.sql'),
     'pipeline': {
       # 'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
-      'populate_db': True,
+      # 'populate_db': True,
     },
   },
   {
     'name': 'test_c2dw',
     'engine': EngineC2dw,
     'job': job_c2dw_1,
-    'pipeline': {
-    #   # 'load_clarity': {'folder': 'clarity-db-staging/2017-04-06/'},
-      'load_clarity': {'folder': '~/clarity-db-staging/2017-04-06/'},
-      'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
-      'copy_pat_enc': True,
-      'populate_db': True,
-    },
+    # 'pipeline': {
+    # # #   # 'load_clarity': {'folder': 'clarity-db-staging/2017-04-06/'},
+    # #   'load_clarity': {'folder': '~/clarity-db-staging/2017-04-06/'},
+    # #   'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
+    # #   'copy_pat_enc': True,
+    #   'populate_db': True,
+    # },
     'db_compare': {
       'srcdid': None,
       'srcmid': None,
@@ -303,6 +304,20 @@ class DBCompareTest():
     enc_id_range = 'enc_id in (%s)' % ','.join([str(e['enc_id']) for e in enc_ids])
     # enc_id_range = 'enc_id < 31'
 
+    select_pat_ids_to_compare = '''
+    select pat_enc.pat_id from pat_enc inner join cdm_s on cdm_s.enc_id = pat_enc.enc_id
+          inner join dblink('%s', $OPDB$ select enc_id from cdm_s where cdm_s.fid = 'age' $OPDB$) as remote (enc_id int) on remote.enc_id = pat_enc.enc_id
+          where cdm_s.fid = 'age'
+          order by pat_enc.pat_id
+          limit 50
+    ''' % src_server
+    print(select_pat_ids_to_compare)
+    async with dbpool.acquire() as conn:
+      pat_ids = await conn.fetch(select_pat_ids_to_compare)
+    pat_id_range = 'pat_id in (%s)' % ','.join([ '\'' + str(e['pat_id'])+ '\'' for e in pat_ids])
+    print(pat_id_range)
+    # enc_id_range = 'enc_id < 31'
+
     cdm_s_online_features = ['age','gender',
     'heart_failure_hist', 'chronic_pulmonary_hist', 'emphysema_hist',
     'heart_arrhythmias_prob',
@@ -319,7 +334,7 @@ class DBCompareTest():
       ['visit_id'           , 'text',        ],
     ]
 
-    after_admission_constraint = " tsp >= coalesce((select min(ct.tsp) from cdm_t ct where ct.enc_id = {cdm}.enc_id and ct.fid = 'care_unit'), tsp) "
+    after_admission_constraint = " tsp >= coalesce((select min(ct.tsp) from cdm_t ct where ct.enc_id = cdm_t.enc_id and ct.fid = 'care_unit'), tsp) "
 
     pat_enc_query = (pat_enc_fields, enc_id_range, 'enc_id', None)
     if online:
@@ -388,6 +403,7 @@ class DBCompareTest():
       ['value'           , 'text',        ],
       # ['confidence'                         , 'confidence', 'integer'     ],
     ]
+    #
     cdm_s_query1 = (cdm_s_fields1, (cdm_s_range + ' and ' if cdm_s_range is not None else '') + enc_id_range, 'fid, enc_id', cdm_s_dependent_fields)
 
     cdm_t_fields1 = [
@@ -439,19 +455,59 @@ class DBCompareTest():
 
     confidence_range = '%s < 8'
 
+    criteria_meas_fields = [
+      ['pat_id'          ,'pat_id'          , 'varchar(50)',     ],
+      ['tsp'             ,'tsp'             , 'timestamptz', ],
+      ['fid'             ,'fid'             , 'varchar(50)', ],
+      ['value'           ,'value'           , 'text',        ]
+    ]
+
+    crit_meas_dep_values = {
+      'shock_idx': ['(round(value::numeric, 4))', '='],
+      'weight': ['(round(value::numeric, 4))', '='],
+      'nbp_mean': ['(round(value::numeric, 4))', '='],
+      'bands' : ['(round(value::numeric, 0))', '='],
+      'cms_antibiotics' : ['round(value::numeric,3)','='],
+      'crystalloid_fluid': ['round(value::numeric,1)', '='],
+      'crystalloid_fluid_order': ['round(value::numeric,1)', '='],
+      'creatinine':['round(value::numeric,1)', '='],
+      'fluids_intake': ['(round(value::numeric, 2))', '='],
+      'heart_rate': ['(round(value::numeric, 1))', '='],
+      'inr': ['(round(value::numeric, 2))', '='],
+      'lactate': ['(round(value::numeric, 1))', '='],
+       'mapm': ['(round(value::numeric, 4))', '='],
+      'nbp_sys': ['(round(value::numeric, 1))', '='],
+      'pao2_to_fio2': ['(round(value::numeric, 4))', '='],
+      'platelets':['(round(value::numeric, 1))', '='],
+      'ptt': ['(round(value::numeric, 1))', '='],
+      'resp_rate': ['(round(value::numeric, 1))', '='],
+      'temperature': ['(round(value::numeric, 0))', '='],
+      'vasopressors_dose': ['(round(value::numeric, 1))', '='],
+      'vasopressors_dose_order': ['(round(value::numeric, 1))', '='],
+      'wbc': ['(round(value::numeric, 2))', '='],
+    }
+
+    crit_meas_dep_fields = {
+      'value': ('fid', crit_meas_dep_values)
+    }
+
+    after_admission_crit_meas_constraint = " tsp >= coalesce((select min(ct.tsp) from cdm_t ct inner join pat_enc pe on ct.enc_id = pe.enc_id where ct.fid = 'care_unit' and pe.pat_id = criteria_meas.pat_id), tsp) "
+
+    criteria_meas_query = (criteria_meas_fields, after_admission_crit_meas_constraint + ' and ' + tsp_range + ' and ' + pat_id_range + ' and (fid = \'nbp_sys\' or fid = \'mapm\' or fid = \'lactate\' or fid = \'suspicion_of_infection\' or fid = \'crystalloid_fluid_order\' or fid = \'bands\' or fid = \'cms_antibiotics\' or fid = \'heart_rate\' or fid = \'creatinine\' or fid = \'resp_rate\' or fid = \'inr\' or fid = \'fluids_intake\' or fid = \'blood_culture_order\' or fid = \'platelets\' or fid = \'wbc\' or fid = \'vasopressors_dose\' or fid = \'pao2_to_fio2\' or fid = \'crystalloid_fluid\' or fid = \'cms_antibiotics_order\' or fid = \'lactate_order\' or fid = \'bilirubin\' or fid = \'ptt\' or fid = \'vasopressors_dose_order\' or fid = \'temperature\')', 'fid, pat_id, tsp', crit_meas_dep_fields)
+
     cdm_twf_queries = [(cdm_twf_field_index + [cdm_twf_fields[2*i]], enc_id_range + ' and ' + tsp_range + ' and ' + (confidence_range % cdm_twf_fields[2*i+1][0]) + ' and ' + after_admission_constraint.format(cdm='cdm_twf'), 'enc_id, tsp', cdm_twf_dependent_fields) for i in range(len(cdm_twf_fields)//2)]
 
-    tables_to_compare = {
+    tables_to_compare = {  # touple 1, extra field, dataset_id, model_id, both, touple 2 customize comparison s
       # 'datalink'                 : ('dataset', []),
-      'cdm_function'             : ('dataset', []),
-      'cdm_feature'              : ('dataset', []),
+      # 'cdm_function'             : ('dataset',   []),
+      # 'cdm_feature'              : ('dataset',   []),
       # 'datalink_feature_mapping' : ('dataset', []),
-      'pat_enc'                  : ('dataset', [pat_enc_query]),
-      'cdm_g'                    : ('both'   , []),
+      'pat_enc'                  : ('dataset',   [pat_enc_query]),
+      # 'cdm_g'                    : ('both'   ,   []),
       # 'cdm_s'                    : ('dataset', [cdm_s_query1]),
       # 'cdm_m'                    : ('dataset', []),
       # 'cdm_t'                    : ('dataset', [cdm_t_query1, cdm_t_query2, cdm_t_query3, cdm_t_query4]),
-      'criteria_meas'            : ('dataset', []),
+      'criteria_meas'            : ('dataset',   [criteria_meas_query]),
       # 'criteria'                 : ('dataset', []),
       # 'criteria_events'          : ('dataset', []),
       # 'criteria_log'             : ('dataset', []),
@@ -463,7 +519,7 @@ class DBCompareTest():
       # 'trews_scaler'             : ('model'  , []),
       # 'trews_feature_weights'    : ('model'  , []),
       # 'trews_parameters'         : ('model'  , []),
-      # 'cdm_twf'                  : ('dataset', cdm_twf_queries),
+      'cdm_twf'                  : ('dataset', cdm_twf_queries),
       # 'trews'                    : ('dataset', []),
       # 'pat_status'               : ('dataset', []),
       # 'deterioration_feedback'   : ('dataset', []),
@@ -489,7 +545,7 @@ class DBCompareTest():
                               as_count_result=counts, sort_field=sort_field, dst_tsp_shift=dst_tsp_shift)
           records = await c.run(dbpool)
           results.append(records)
-      else:
+      else: #which is the remote defined here, can all be none
         c = TableComparator(src_server,
                             src_dataset_id, src_model_id,
                             dst_dataset_id, dst_model_id,
@@ -504,12 +560,38 @@ class DBCompareTest():
         for row in result['rows']:
           groups.setdefault(row['fid'] if 'fid' in row else list(OrderedDict(row).keys())[-1], []).append(dict(row))
           # print(OrderedDict(row))
+
     for fid in groups:
       print('------------- {fid} ---------------'.format(fid=fid))
       for row in groups[fid]:
         print(row)
       print("")
       self.passed = False
+
+
+    #==================================
+    # Summarize Differences
+    #==================================
+
+    print("FID's with differences")
+
+    for fid in groups:
+      print(fid)
+    print("\n")
+
+
+    print("Difference Summary")
+    sum_dict_list = [];
+    for fid in groups:
+      this_group = groups[fid]
+      mr = [row['missing_remotely'] for row in this_group]
+      this_dict = {'fid':fid,'NumDiff':len(this_group),'NumMissRemote':sum(mr)}
+      sum_dict_list.append(this_dict)
+
+    sum_df = pd.DataFrame(sum_dict_list)
+    print(sum_df)
+    print("\n")
+
     return self.passed
 
 
