@@ -125,7 +125,7 @@ class APIMonitor:
         for k,v in self._counters.items():
           logging.info('Requests %s %s' % (k, str(v)))
           self.cw_metrics.with_dimension('Route', k)
-          self.cw_metrics.count(MetricName='Requests', Value=str(v))
+          self.cw_metrics.count(MetricName='Requests', Count=v)
 
         for k,v in self._latencies.items():
           self.cw_metrics.with_dimension('Route', k)
@@ -133,9 +133,9 @@ class APIMonitor:
           l_sum = float(functools.reduce(lambda acc, x: acc+x, v))
           l_avg = l_sum/l_cnt if l_cnt > 0 else 0.0
           logging.info('Latency %s %s %s %s' % (k, l_cnt, l_sum, l_avg))
-          self.cw_metrics.count(MetricName='LatencyCount', Value=str(l_cnt)) \
-                         .log(MetricName='LatencySum', Value=str(l_sum), Unit='Milliseconds') \
-                         .log(MetricName='LatencyAvg', Value=str(l_avg), Unit='Milliseconds')
+          self.cw_metrics.count(MetricName='LatencyCount', Count=l_cnt) \
+                         .log(MetricName='LatencySum', Value=l_sum, Unit='Milliseconds') \
+                         .log(MetricName='LatencyAvg', Value=l_avg, Unit='Milliseconds')
 
         self.cw_metrics.without_dimension('Route')
 
@@ -148,6 +148,8 @@ class APIMonitor:
       except Exception as e:
         logging.error(str(e))
         traceback.print_exc()
+
+        # TODO: exponential backoff on flush failures.
 
 
 # Context Managers
@@ -226,6 +228,7 @@ async def cloudwatch_logger_middleware(app, handler):
       cwlog.info(json.dumps({ 'resp': log_entry }))
 
       # Time-based manual flush
+      # TODO: exponential backoff on flush failures.
       srvnow = datetime.datetime.utcnow()
       do_flush = (srvnow - last_log_flush).total_seconds() > log_period
       if do_flush:
