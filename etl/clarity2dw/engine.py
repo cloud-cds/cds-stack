@@ -38,7 +38,7 @@ job_test_c2dw = {
   },
 }
 
-
+# a complete job definition
 job = {
   'reset_dataset': {
     'remove_pat_enc': True,
@@ -49,7 +49,7 @@ job = {
     'populate_patients': True,
     'populate_measured_features': {
       'plan': False,
-      # 'fid': 'propofol_dose',
+  # 'fid': ['fluids_intake'],
     },
   },
   'fillin': {
@@ -58,7 +58,10 @@ job = {
   'derive': {
     'fid': None,
   },
-  'load_criteria_meas': True,
+  'offline_criteria_processing': {
+    'load_cdm_to_criteria_meas':True,
+    'calculate_historical_criteria':False
+  },
   'config': {
     'dataset_id': 1,
     'debug': True,

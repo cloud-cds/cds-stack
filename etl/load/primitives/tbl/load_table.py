@@ -2,13 +2,13 @@ import etl.core.config
 import logging
 
 # TODO: make async / use COPY
-def data_2_workspace(engine, job_id, df_name, df, dtypes=None):
+def data_2_workspace(engine, job_id, df_name, df, dtypes=None, if_exists='replace'):
     nrows = df.shape[0]
     table_name = "{}_{}".format(job_id, df_name)
     logging.info("saving data frame to %s: nrows = %s" % (table_name, nrows))
     if dtypes is not None:
         df = df.astype(dtypes)
-    df.to_sql(table_name, engine, if_exists='replace', index=False, schema='workspace')
+    df.to_sql(table_name, engine, if_exists=if_exists, index=False, schema='workspace')
     '''
     buf = StringIO()
     # saving a data frame to a buffer (same as with a regular file):
@@ -232,7 +232,7 @@ async def workspace_fluids_intake_2_cdm_t(conn, job_id):
             where isnumeric(mar.dose_value) and mar.tsp <> 'NaT' and mar.tsp::timestamptz < now() and mar.fid = 'fluids_intake'
                         and mar.dose_value::numeric > 0
             UNION
-            select pat_enc.enc_id, fs.tsp::timestamptz, fs.fid, fs.value
+            select pat_enc.enc_id, fs.tsp::timestamptz, fs.fid, fs.value::text
             from workspace.%(job)s_flowsheets_transformed fs
                 inner join pat_enc on pat_enc.visit_id = fs.visit_id
                 inner join cdm_feature on fs.fid = cdm_feature.fid and cdm_feature.category = 'T'
@@ -365,7 +365,12 @@ async def workspace_medication_administration_2_cdm_twf(conn, job_id):
 #         await conn.execute(sql.format(fid=feature['fid']))
 
 async def load_cdm_to_criteria_meas(conn, dataset_id):
-    sql = 'select load_cdm_to_criteria_meas({dataset_id});'.format(dataset_id=dataset_id)
+    sql = 'select * from load_cdm_to_criteria_meas({dataset_id});'.format(dataset_id=dataset_id)
     await conn.execute(sql)
     # await cdm_t_to_criteria_meas(conn)
     # await cdm_twf_to_criteira_meas(conn)
+
+
+async def calculate_historical_criteria(conn):
+    sql = 'select * from calculate_historical_criteria(NULL);'
+    await conn.execute(sql)

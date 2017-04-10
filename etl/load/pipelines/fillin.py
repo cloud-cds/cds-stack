@@ -18,6 +18,7 @@ async def fillin_pipeline(log, conn, feature, dataset_id=None, recalculate_popme
       log.info('start fillin fid %s: %s (%s)' \
         % (fid, fillin_func_id, fillin_func_args))
       fillin_sql = fillin.fillin(fid, fillin_func_id, fillin_func_args)
+      log.info(fillin_sql)
       log.debug("fillin_sql: " + fillin_sql)
       await conn.execute(fillin_sql)
       log.info('end fillin fid %s' % fid)
