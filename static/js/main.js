@@ -361,9 +361,9 @@ var timer = new function() {
 	this.log = function(url, start, end, status) {
 		var postBody = {
 			"currentUrl": window.location.href,
-			"destinationURL": url, 
-			"start_time": start, 
-			"end_time": end, 
+			"destinationURL": url,
+			"start_time": start,
+			"end_time": end,
 			"status": status
 		}
 		this.buffer.push(postBody)
@@ -1549,23 +1549,42 @@ var activity = new function() {
 				msg += data['uid']
 					+ LOG_STRINGS[data['event_type']]['customized'][0]
 				for (var i = 0; i < criteriaKeyToName[data.name].length - 1; i ++) {
-					msg += criteriaKeyToName[data.name][i].name 
-						+ LOG_STRINGS[data['event_type']]['customized'][1]
-						+ UpperLowerToLogicalOperators(data.override_value[i], criteriaKeyToName[data.name][i].units)
-						+ ", "
+					if (data.name == "suspicion_of_infection") {
+						msg += criteriaKeyToName[data.name][i].name
+							+ LOG_STRINGS[data['event_type']]['customized'][1]
+							+ data.override_value[i].text
+							+ ", "
+					} else {
+						msg += criteriaKeyToName[data.name][i].name
+							+ LOG_STRINGS[data['event_type']]['customized'][1]
+							+ UpperLowerToLogicalOperators(data.override_value[i], criteriaKeyToName[data.name][i].units)
+							+ ", "
+					}
 				}
 				if (criteriaKeyToName[data.name].length > 2) {
-					msg += "and " + criteriaKeyToName[data.name][criteriaKeyToName[data.name].length - 1].name
-						+ LOG_STRINGS[data['event_type']]['customized'][1]
-						+ UpperLowerToLogicalOperators(data.override_value[i], criteriaKeyToName[data.name][i].units)
+					if (data.name == "suspicion_of_infection") {
+						msg += "and " + criteriaKeyToName[data.name][criteriaKeyToName[data.name].length - 1].name
+							+ LOG_STRINGS[data['event_type']]['customized'][1]
+							+ data.override_value[i].text
+					} else {
+						msg += "and " + criteriaKeyToName[data.name][criteriaKeyToName[data.name].length - 1].name
+							+ LOG_STRINGS[data['event_type']]['customized'][1]
+							+ UpperLowerToLogicalOperators(data.override_value[i], criteriaKeyToName[data.name][i].units)
+					}
 				}
 				else {
 					if (criteriaKeyToName[data.name].length > 1) {
 						msg = msg.substring(0, msg.length - 2) + " and "
 					}
-					msg += criteriaKeyToName[data.name][criteriaKeyToName[data.name].length - 1].name
-						+ LOG_STRINGS[data['event_type']]['customized'][1]
-						+ UpperLowerToLogicalOperators(data.override_value[i], criteriaKeyToName[data.name][i].units)
+					if (data.name == "suspicion_of_infection") {
+						msg += criteriaKeyToName[data.name][criteriaKeyToName[data.name].length - 1].name
+							+ LOG_STRINGS[data['event_type']]['customized'][1]
+							+ data.override_value[i].text
+					} else {
+						msg += criteriaKeyToName[data.name][criteriaKeyToName[data.name].length - 1].name
+							+ LOG_STRINGS[data['event_type']]['customized'][1]
+							+ UpperLowerToLogicalOperators(data.override_value[i], criteriaKeyToName[data.name][i].units)
+					}
 				}
 			}
 		} else {
@@ -1756,10 +1775,10 @@ function getQueryVariable(variable) {
 	return(false);
 }
 /**
- * Converts a javascript object 
+ * Converts a javascript object
  * {
  *	upper:x,
- * 	lower:y, 
+ * 	lower:y,
  * 	range: true/min/max
  * }
  * into a logical operator statements like

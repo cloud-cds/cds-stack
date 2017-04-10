@@ -153,6 +153,9 @@ var criteriaKeyToName = {
 	"lactate": [
 		{"name": "Lactate Measurement",
 		"units": "mmol/L"}
+	],
+	"suspicion_of_infection": [
+		{"name": "Suspicion of Infection"}
 	]
 }
 
