@@ -38,7 +38,7 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: trews-rest-api
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.0.26
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.0.30
         command:
           - "sh"
           - "start.sh"
@@ -93,14 +93,18 @@ spec:
               key: aws-secret-access-key
         - name: epic_notifications
           value: "0"
-        - name: api_with_healthcheck
+        - name: logging
           value: "1"
         - name: cloudwatch_log_group
           value: "opsdx-web-logs-dev"
-        - name: logging
+        - name: api_with_healthcheck
+          value: "1"
+        - name: api_monitor
+          value: "1"
+        - name: api_monitor_prometheus
           value: "0"
-        - name: prometheus
-          value: "0"
+        - name: api_monitor_cw_push_period
+          value: "30"
         - name: prometheus_multiproc_dir
           value: "/tmp"
       volumes:
