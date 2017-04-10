@@ -25,6 +25,14 @@ logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.INFO)
 pat_cache = LRUMemoryCache(plugins=[HitMissRatioPlugin()], max_size=5000)
 api_monitor = APIMonitor()
 
+# Register API metrics
+if api_monitor.enabled:
+  api_monitor.register_metric('CacheSize', 'None', [('API', api_monitor.monitor_target)])
+  api_monitor.register_metric('CacheHits', 'Count', [('API', api_monitor.monitor_target)])
+  api_monitor.register_metric('CacheMisses', 'Count', [('API', api_monitor.monitor_target)])
+  api_monitor.register_metric('CacheRequests', 'Count', [('API', api_monitor.monitor_target)])
+
+
 def temp_f_to_c(f):
     return (f - 32) * .5556
 
@@ -314,6 +322,8 @@ class TREWSAPI(web.View):
     pat_values = await pat_cache.get(eid)
 
     if pat_values is None:
+      api_monitor.add_metric('CacheMisses')
+
       # parallel query execution
       pat_values = await asyncio.gather(
                       query.get_criteria(db_pool, eid),
@@ -322,10 +332,14 @@ class TREWSAPI(web.View):
                       query.get_patient_profile(db_pool, eid)
                     )
 
-      # TODO: implement bounded cache size.
       await pat_cache.set(eid, pat_values, ttl=300)
 
+    else:
+      api_monitor.add_metric('CacheHits')
+
     sz = await pat_cache.raw('__len__')
+    api_monitor.add_metric('CacheSize', value=sz)
+    api_monitor.add_metric('CacheRequests')
 
     logging.info('*** Cache stats: s: %s h: %s t: %s' %
       ( sz, pat_cache.hit_miss_ratio["hits"], pat_cache.hit_miss_ratio["total"] ))

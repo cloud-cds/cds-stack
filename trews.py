@@ -117,9 +117,23 @@ class TREWSStaticResource(web.View):
 class TREWSLog(web.View):
   async def post(self):
     try:
-      # TODO: handle frontend statistics vs error entries
       log_entry = await self.request.json()
-      logging.warning(json.dumps(log_entry, indent=4))
+      if 'buffer' in log_entry:
+        # Handle frontend stats
+        # TODO: separate latency by endpoint and userid (as dimensions per point).
+        for req in log_entry['buffer']:
+          duration_ms = req['end_time'] - req['start_time']
+          api_monitor.append_metric('UserLatency', value=duration_ms)
+
+      elif 'acc' in log_entry:
+        # Handle frontend error logs.
+        api_monitor.add_metric('UserErrors')
+        logging.error(json.dumps(log_entry, indent=4))
+
+      else:
+        # Generic printing
+        logging.warning(json.dumps(log_entry, indent=4))
+
       return Response()
 
     except Exception as ex:
@@ -212,3 +226,8 @@ if api_monitor.use_prometheus:
   app.router.add_route('GET', URL_PROMETHEUS_METRICS, TREWSPrometheusMetrics)
 
 app.router.add_route('GET', '/{tail:.*}', TREWSStaticResource)
+
+# Register additional TREWS metrics.
+if api_monitor.enabled:
+  api_monitor.register_metric('UserLatency', 'Milliseconds', [('Browser' , api_monitor.monitor_target)])
+  api_monitor.register_metric('UserErrors', 'Count', [('Browser' , api_monitor.monitor_target)])

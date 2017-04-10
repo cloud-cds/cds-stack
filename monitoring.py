@@ -3,6 +3,7 @@ import datetime, time
 import json
 import logging
 import functools
+from numbers import Number
 
 import asyncio
 from aiohttp import web
@@ -66,10 +67,16 @@ class APIMonitor:
         self._push_period_secs = int(os.environ['api_monitor_cw_push_period']) \
                                     if 'api_monitor_cw_push_period' in os.environ else 60
 
+        self.cw_metrics = FluentMetric().with_namespace('OpsDX')
+
+        # Latencies and request counters.
         self._counters = {}
         self._latencies = {}
-        self.cw_metrics = FluentMetric().with_namespace('OpsDX') \
-                                        .with_dimension('API', self.monitor_target)
+
+        # General-purpose metrics.
+        self._metrics = {}
+        self._metric_specs = {}
+
 
   # Asynchronous stats uploads.
   async def start_monitor(self, app):
@@ -93,7 +100,7 @@ class APIMonitor:
     else:
       return _NullContextManager()
 
-  # Registers a request served/processed. Internally increments a counter.
+  # Track a request served/processed. Internally increments a counter.
   def request(self, name, value=1):
     if self.enabled:
       if self.use_prometheus:
@@ -101,6 +108,7 @@ class APIMonitor:
       else:
         self._request(name, value)
 
+  # Helpers.
   def _latency(self, name):
     if self.enabled:
       timer = self.cw_metrics.get_timer(name)
@@ -117,10 +125,36 @@ class APIMonitor:
       else:
         self._counters[name] = value
 
+  # Metrics.
+  # TODO: Prometheus implementation
+  def register_metric(self, metric_name, unit, dimensions):
+    if self.enabled and not self.use_prometheus:
+      self._metric_specs[metric_name] = {
+        'unit': unit,
+        'dimensions': dimensions
+      }
+
+  def add_metric(self, name, value=1):
+    if self.enabled and not self.use_prometheus:
+      if name in self._metrics:
+        self._metrics[name] += value
+      else:
+        self._metrics[name] = value
+
+  def append_metric(self, name, value=1):
+    if self.enabled and not self.use_prometheus:
+      if name in self._metrics:
+        self._metrics[name].append(value)
+      else:
+        self._metrics[name] = [value]
+
+  # Metrics upload.
   def _cw_flush(self, loop):
     if self.enabled:
       try:
         logging.info('Flushing CW metrics... %s %s' % (len(self._latencies), len(self._counters)))
+
+        self.cw_metrics.with_dimension('API', self.monitor_target)
 
         for k,v in self._counters.items():
           logging.info('Requests %s %s' % (k, str(v)))
@@ -132,13 +166,40 @@ class APIMonitor:
           l_cnt = float(len(v))
           l_sum = float(functools.reduce(lambda acc, x: acc+x, v))
           l_avg = l_sum/l_cnt if l_cnt > 0 else 0.0
+
           logging.info('Latency %s %s %s %s' % (k, l_cnt, l_sum, l_avg))
           self.cw_metrics.count(MetricName='LatencyCount', Count=l_cnt) \
                          .log(MetricName='LatencySum', Value=l_sum, Unit='Milliseconds') \
                          .log(MetricName='LatencyAvg', Value=l_avg, Unit='Milliseconds')
 
         self.cw_metrics.without_dimension('Route')
+        self.cw_metrics.without_dimension('API')
 
+        for k,v in self._metrics.items():
+          unit = self._metric_specs.get(k, {}).get('unit', 'None')
+          dimensions = self._metric_specs.get(k, {}).get('dimensions', [])
+
+          self.cw_metrics.push_dimensions()
+          for dn, dv in dimensions:
+            self.cw_metrics.with_dimension(dn, dv)
+
+          if isinstance(v, Number):
+            logging.info('NMetric %s %s' % (k, v))
+            self.cw_metrics.log(MetricName=k, Value=v, Unit=unit)
+
+          elif isinstance(v, list):
+            v_cnt = float(len(v))
+            v_sum = float(functools.reduce(lambda acc, x: acc+x, v))
+            v_avg = v_sum/v_cnt if v_cnt > 0 else 0.0
+
+            logging.info('LMetric %s %s %s %s' % (k, v_cnt, v_sum, v_avg))
+            self.cw_metrics.count(MetricName='%sCount' % k, Count=v_cnt) \
+                           .log(MetricName='%sSum' % k, Value=v_sum, Unit=unit) \
+                           .log(MetricName='%sAvg' % k, Value=v_avg, Unit=unit)
+
+          self.cw_metrics.pop_dimensions()
+
+        self._metrics = {}
         self._counters = {}
         self._latencies = {}
 

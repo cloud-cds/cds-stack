@@ -354,7 +354,7 @@ var timer = new function() {
 		this.sendBuffer(this);
 		window.addEventListener("beforeunload", function (e) {
 			if (timer.buffer.length > 0) {
-				controller.sendLog(timer.buffer, false)
+				controller.sendLog({buffer: timer.buffer}, false)
 			}
 		});
 	}
@@ -371,7 +371,7 @@ var timer = new function() {
 	this.sendBuffer = function(obj) {
 		// checks every minute if buffer has times to send back
 		if (timer.buffer.length > 0) {
-			controller.sendLog(timer.buffer, false)
+			controller.sendLog({buffer: timer.buffer}, false)
 			timer.buffer = []
 		}
 		obj.refreshTimer = window.setTimeout(function() { obj.sendBuffer(obj); }, obj.refreshPeriod);
