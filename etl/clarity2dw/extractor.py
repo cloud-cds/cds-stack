@@ -198,10 +198,10 @@ class Extractor:
 
   async def populate_feature_to_cdm(self, mapping, conn, cdm_feature_attributes):
     data_type = cdm_feature_attributes['data_type']
-    print(mapping)
+    self.log.debug(mapping)
     fid = mapping['fid']
     self.log.info('importing feature value fid %s' % fid)
-    print(mapping['transform_func_id'])
+    self.log.debug(mapping['transform_func_id'])
     if str(mapping['transform_func_id']) == "nan":
       mapping['transform_func_id'] = None
     transform_func_id = mapping['transform_func_id']
