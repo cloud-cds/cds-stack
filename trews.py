@@ -12,9 +12,10 @@ from aiohttp import web
 from aiohttp.web import Response, json_response
 
 from jinja2 import Environment, FileSystemLoader
-from monitoring import TREWSPrometheusMetrics, cloudwatch_logger_middleware, cwlog_enabled, prometheus
+from monitoring import TREWSPrometheusMetrics, cloudwatch_logger_middleware, cwlog_enabled
 
 import api, dashan_query
+from api import api_monitor
 
 
 #################################
@@ -195,6 +196,11 @@ app = web.Application(middlewares=mware)
 app.on_startup.append(dashan_query.init_db_pool)
 app.on_cleanup.append(dashan_query.cleanup_db_pool)
 
+# Background tasks.
+if api_monitor.enabled:
+  app.on_startup.append(api_monitor.start_monitor)
+  app.on_cleanup.append(api_monitor.stop_monitor)
+
 app.router.add_route('POST', URL_API, api.TREWSAPI)
 app.router.add_route('POST', URL_LOG, TREWSLog)
 app.router.add_route('POST', URL_FEEDBACK, TREWSFeedback)
@@ -202,7 +208,7 @@ app.router.add_route('POST', URL_FEEDBACK, TREWSFeedback)
 if 'api_with_healthcheck' in os.environ and int(os.environ['api_with_healthcheck']):
   app.router.add_route('POST', URL_HEALTHCHECK, TREWSEchoHealthcheck)
 
-if prometheus.enabled:
+if api_monitor.use_prometheus:
   app.router.add_route('GET', URL_PROMETHEUS_METRICS, TREWSPrometheusMetrics)
 
 app.router.add_route('GET', '/{tail:.*}', TREWSStaticResource)

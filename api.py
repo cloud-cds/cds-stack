@@ -15,13 +15,15 @@ from aiohttp.web import Response, json_response
 from aiocache import LRUMemoryCache
 from aiocache.plugins import HitMissRatioPlugin
 
-from monitoring import prometheus
+from monitoring import APIMonitor
 
 
 logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.INFO)
 
+##############################
+# Globals: cache and monitor.
 pat_cache = LRUMemoryCache(plugins=[HitMissRatioPlugin()], max_size=5000)
-
+api_monitor = APIMonitor()
 
 def temp_f_to_c(f):
     return (f - 32) * .5556
@@ -356,8 +358,8 @@ class TREWSAPI(web.View):
 
   async def post(self):
     try:
-      with prometheus.trews_api_request_latency.labels(prometheus.prom_job, 'any').time():
-        prometheus.trews_api_request_counts.labels(prometheus.prom_job, 'any').inc()
+      with api_monitor.time(self.request.path):
+        api_monitor.request(self.request.path)
 
         try:
           srvnow = datetime.datetime.utcnow().isoformat()
@@ -397,8 +399,10 @@ class TREWSAPI(web.View):
             response_body = {}
             if 'actionType' in req_body and 'action' in req_body:
               actionType = req_body['actionType']
-              with prometheus.trews_api_request_latency.labels(prometheus.prom_job, actionType).time():
-                prometheus.trews_api_request_counts.labels(prometheus.prom_job, actionType).inc()
+              stats_name = '%s[%s]' % (self.request.path, actionType)
+
+              with api_monitor.time(stats_name):
+                api_monitor.request(stats_name)
                 actionData = req_body['action']
 
                 if actionType is not None:
