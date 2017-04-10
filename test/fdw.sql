@@ -4,7 +4,7 @@
 CREATE EXTENSION IF NOT EXISTS postgres_fdw;
 CREATE EXTENSION IF NOT EXISTS dblink;
 
-DROP SERVER IF EXISTS @@db_to_test@@;
+DROP SERVER IF EXISTS @@db_to_test@@ cascade;
 CREATE SERVER @@db_to_test@@
   FOREIGN DATA WRAPPER postgres_fdw
   OPTIONS (host '@@RDBHOST@@', port '@@RDBPORT@@', dbname '@@RDBNAME@@', sslmode 'require');

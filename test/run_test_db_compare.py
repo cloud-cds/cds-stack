@@ -155,7 +155,66 @@ daily_compare = [
   }
 ]
 
+job_c2dw_daily_light = {
+  'reset_dataset': {
+    'remove_pat_enc': False,
+    'remove_data': True,
+    'start_enc_id': '(select max(enc_id) from pat_enc)'
+  },
+  'transform': {
+    'populate_patients': {
+      'max_num_pats': 20,
+    },
+    'populate_measured_features': {
+      'plan': False,
+    },
+  },
+  'fillin': {
+    'recalculate_popmean': False,
+  },
+  'derive':
+  {
+    'fid': None
+  },
+  'config': {
+    'dataset_id': 1,
+    'debug': True,
+    'db_name': 'daily_c2dw_light',
+    'conf': CONF,
+  },
+}
 
+daily_compare_light = [
+  {
+    'name': 'daily_epic2op_light',
+    'engine': EngineEpic2op(db_name='daily_epic2op_light', max_num_pats=20),
+    'pipeline': {
+      'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
+      'populate_db': True,
+    },
+  },
+  {
+    'name': 'daily_c2dw_light',
+    'engine': EngineC2dw,
+    'job': job_c2dw_daily_light,
+    'pipeline': {
+      'load_clarity': {'folder': '~/clarity-db-staging/2017-04-06/'},
+      'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
+      'copy_pat_enc': True,
+      'populate_db': True,
+    },
+    'db_compare': {
+      'srcdid': None,
+      'srcmid': None,
+      'dstdid': 1,
+      'dstmid': 1,
+      'cmp_remote_server': 'daily_epic2op_light',
+      'counts': False,
+      'dst_tsp_shift': '4 hours',
+      'feature_set': 'online',
+    }
+  }
+]
 
 ############################################################
 ## archive compare: load archived data sources and run ETL to compare
@@ -644,6 +703,8 @@ if __name__ == '__main__':
     db_pair_name = sys.argv[1]
     if db_pair_name == 'daily_compare':
       db_pair = daily_compare
+    elif db_pair_name == 'daily_compare_light':
+      db_pair = daily_compare_light
     elif db_pair_name == 'archive_compare':
       db_pair = archive_compare
     elif db_pair_name == 'epic2op_vs_c2dw':
