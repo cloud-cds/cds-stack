@@ -37,7 +37,10 @@ class Extractor:
     self.log.info("Transform Job:")
     self.log.info(transform_job)
     if transform_job.get('populate_patients', False):
-      await self.populate_patients(conn)
+      max_num_pats = None
+      if isinstance(transform_job.get('populate_patients'), dict):
+        max_num_pats = transform_job.get('populate_patients').get('max_num_pats', None)
+      await self.populate_patients(conn, limit=max_num_pats)
     if transform_job.get('populate_measured_features', False):
       self.plan = False
       populate_measured_features_job = transform_job.get('populate_measured_features')
@@ -97,13 +100,13 @@ class Extractor:
 ##################
 # transform pipeline
 ##################
-  async def populate_patients(self, conn):
+  async def populate_patients(self, conn, limit=None):
     sql = '''
     insert into pat_enc (dataset_id, visit_id, pat_id)
     SELECT %(dataset_id)s, demo."CSN_ID" visit_id, demo."pat_id"
     FROM "Demographics" demo left join pat_enc pe on demo."CSN_ID" = pe.visit_id
-    where pe.visit_id is null
-    ''' % {'dataset_id': self.config.dataset_id}
+    where pe.visit_id is null %(limit)s
+    ''' % {'dataset_id': self.config.dataset_id, 'limit': 'limit {}'.format(limit) if limit else ''}
     self.log.debug("ETL populate_patients sql: " + sql)
     result = await conn.execute(sql)
     self.log.info("ETL populate_patients: " + result)

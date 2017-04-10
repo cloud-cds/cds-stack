@@ -21,7 +21,7 @@ MODE = {
 }
 
 class Engine():
-  def __init__(self, hospital=None, lookback_hours=None, db_name=None):
+  def __init__(self, hospital=None, lookback_hours=None, db_name=None, max_num_pats=None):
     self.config = Config(debug=True, db_name=db_name)
     mode_env = int(os.environ.get('TREWS_ETL_MODE', 0))
     self.mode = MODE[mode_env]
@@ -44,6 +44,9 @@ class Engine():
     self.criteria = Criteria(self.config)
     self.extract_time = dt.timedelta(0)
     self.transform_time = dt.timedelta(0)
+    self.max_num_pats = int(max_num_pats) if max_num_pats else max_num_pats
+    if self.max_num_pats:
+      logging.info("max_num_pats = {}".format(max_num_pats))
 
   async def init(self):
     self.pool = await asyncpg.create_pool(database=self.config.db_name, user=self.config.db_user, password=self.config.db_pass, host=self.config.db_host, port=self.config.db_port)
@@ -137,7 +140,7 @@ class Engine():
       self.push_cloudwatch_metrics(self.cloudwatch_stats)
 
   def extract_pat_data(self):
-    pats = self.extract(self.extractor.extract_bedded_patients, "bedded_patients")
+    pats = self.extract(self.extractor.extract_bedded_patients, "bedded_patients", [self.max_num_pats])
     pats_t = self.transform(pats, jhapi.bedded_patients_transforms, "bedded_patients")
     pats_t = pats_t.assign(hospital = self.extractor.hospital)
 
