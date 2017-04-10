@@ -90,6 +90,11 @@ epic2op_vs_c2dw = [
   }
 ]
 
+############################################################
+## daily compare: request latest data sources and run ETLs to compare
+## TODO: enable clarity ETL automatically
+############################################################
+
 job_c2dw_daily = {
   'reset_dataset': {
     'remove_pat_enc': False,
@@ -144,6 +149,74 @@ daily_compare = [
       'dstmid': 1,
       'cmp_remote_server': 'daily_test_epic2op',
       'counts': False,
+      'dst_tsp_shift': '4 hours',
+      'feature_set': 'online',
+    }
+  }
+]
+
+
+
+############################################################
+## archive compare: load archived data sources and run ETL to compare
+############################################################
+job_c2dw_archive = {
+  'reset_dataset': {
+    'remove_pat_enc': False,
+    'remove_data': True,
+    'start_enc_id': '(select max(enc_id) from pat_enc)'
+  },
+  'transform': {
+    'populate_patients': True,
+    'populate_measured_features': {
+      'plan': False,
+    },
+  },
+  'fillin': {
+    'recalculate_popmean': False,
+  },
+  'derive':
+  {
+    'fid': None
+  },
+  'offline_criteria_processing': {
+    'load_cdm_to_criteria_meas': True,
+    'calculate_historical_criteria': False
+  },
+  'config': {
+    'dataset_id': 1,
+    'debug': True,
+    'db_name': 'archive_c2dw',
+    'conf': CONF,
+  },
+}
+
+archive_compare = [
+  {
+    'name': 'archive_epic2op',
+    'engine': Restore(db_name='archive_epic2op', file='~/clarity-db-staging/epic2op/2017-04-06.sql'),
+    'pipeline': {
+      'populate_db': True
+    }
+  },
+  {
+    'name': 'archive_c2dw',
+    'engine': EngineC2dw,
+    'job': job_c2dw_archive,
+    'pipeline': {
+      'load_clarity': {'folder': '~/clarity-db-staging/2017-04-06/'},
+      'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
+      'copy_pat_enc': True,
+      'populate_db': True,
+    },
+    'db_compare': {
+      'srcdid': None,
+      'srcmid': None,
+      'dstdid': 1,
+      'dstmid': 1,
+      'cmp_remote_server': 'archive_epic2op',
+      'counts': False,
+      'date': '2017-04-04',
       'dst_tsp_shift': '4 hours',
       'feature_set': 'online',
     }
@@ -571,6 +644,8 @@ if __name__ == '__main__':
     db_pair_name = sys.argv[1]
     if db_pair_name == 'daily_compare':
       db_pair = daily_compare
+    elif db_pair_name == 'archive_compare':
+      db_pair = archive_compare
     elif db_pair_name == 'epic2op_vs_c2dw':
       db_pair = epic2op_vs_c2dw
     elif db_pair_name == 'c2dw_a_vs_c2dw':
