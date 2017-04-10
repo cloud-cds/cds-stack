@@ -13,6 +13,7 @@ create database test_c2dw_a;
 #### Initialize database schema and configuration
 Run commands under `dashan-db/ops`
 ```bash
+cd ~/dashan-db/ops
 PGPASSWORD=$db_password
 psql -h db.dev.opsdx.io -U opsdx_root -d test_epic2op -p 5432 -f create_dbschema.sql
 psql -h db.dev.opsdx.io -U opsdx_root -d test_epic2op -p 5432 -f create_udf.sql
@@ -20,12 +21,13 @@ psql -h db.dev.opsdx.io -U opsdx_root -d test_epic2op -p 5432 -f create_udf.sql
 
 Run commands under `dashan-db/ops/trews-model`
 ```bash
-python deploy_model.py test_c2dw
-python deploy_model.py test_c2dw_a
+cd ~/dashan-db/ops/trews-model
+python deploy_model.py test_epic2op
 ```
 
 Run commands under `dashan-db/dw`
 ```bash
+cd ~/dashan-db/dw
 PGPASSWORD=$db_password
 psql -h db.dev.opsdx.io -U opsdx_root -d test_c2dw -p 5432 -f create_dbschema.sql
 psql -h db.dev.opsdx.io -U opsdx_root -d test_c2dw -p 5432 -f create_udf.sql
@@ -35,15 +37,17 @@ psql -h db.dev.opsdx.io -U opsdx_root -d test_c2dw_a -p 5432 -f create_udf.sql
 
 Run commands under `dashan-db/dw/clarity2dw`
 ```bash
+cd ~/dashan-db/dw/clarity2dw
 PGPASSWORD=$db_password
-psql -h db.dev.opsdx.io -U opsdx_root -d test_c2dw -p 5432 -f create_clarity2dw.sql
-psql -h db.dev.opsdx.io -U opsdx_root -d test_c2dw_a -p 5432 -f create_clarity2dw.sql
+psql -h db.dev.opsdx.io -U opsdx_root -d test_c2dw -p 5432 -f create_c2dw.sql
+psql -h db.dev.opsdx.io -U opsdx_root -d test_c2dw_a -p 5432 -f create_c2dw.sql
 ```
 
 Run commands under `dashan-db/dw/trews-model`
 ```bash
-python deploy_model.py test_c2dw 1
-python deploy_model.py test_c2dw_a 1
+cd ~/dashan-db/dw/trews-model
+python deploy_model.py test_c2dw db.dev.opsdx.io 1
+python deploy_model.py test_c2dw_a db.dev.opsdx.io 1
 ```
 
 Run commands in `test_c2dw` to connect other two databases using `dblink` (PLEASE replace @@RDBPW@@ with real password)

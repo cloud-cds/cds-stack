@@ -290,7 +290,7 @@ CREATE TABLE criteria_archive
 DROP TABLE IF EXISTS criteria_default;
 CREATE TABLE criteria_default
 (
-    dataset_id          integer
+    dataset_id          integer,
     name                varchar(50),
     fid                 varchar(50),
     override_value      json,

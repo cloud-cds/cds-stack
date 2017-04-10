@@ -287,11 +287,11 @@ CREATE  TABLE trews_parameters
     value      real
 );
 
-\copy cdm_function     from '/home/ubuntu/dashan-db/ops/CDM_Function.csv' with csv header delimiter as ',';
-\copy cdm_feature      from '/home/ubuntu/dashan-db/ops/CDM_Feature.csv' with csv header delimiter as ',';
-\copy parameters       from '/home/ubuntu/dashan-db/ops/parameters.csv' with csv header delimiter as ',';
-\copy criteria_default from '/home/ubuntu/dashan-db/ops/criteria_default.csv' with csv header delimiter as ',';
-\copy cdm_g from '/home/ubuntu/dashan-db/ops/CDM_G.csv' with csv header delimiter as ',';
+\copy cdm_function     from 'CDM_Function.csv' with csv header delimiter as ',';
+\copy cdm_feature      from 'CDM_Feature.csv' with csv header delimiter as ',';
+\copy parameters       from 'parameters.csv' with csv header delimiter as ',';
+\copy criteria_default from 'criteria_default.csv' with csv header delimiter as ',';
+\copy cdm_g from 'CDM_G.csv' with csv header delimiter as ',';
 
 DROP TABLE IF EXISTS cdm_twf;
 CREATE TABLE cdm_twf (
