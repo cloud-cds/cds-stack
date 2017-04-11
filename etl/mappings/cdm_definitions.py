@@ -1,4 +1,22 @@
 cdm_defs = {
+    'abp': {
+        'unit':     'mmHg',
+        'value':    str,
+        'thresh':   (None, None),
+        'human_readable':   'Arterial Blood Pressure',
+    },
+    'abp_dias': {
+        'unit':     'mmHg',
+        'value':    float,
+        'thresh':   (8, 150),
+        'human_readable':   'Diastolic Arterial BP',
+    },
+    'abp_sys': {
+        'unit':     'mmHg',
+        'value':    float,
+        'thresh':   (30, 250),
+        'human_readable':   'Systolic Arterial BP',
+    },
     'albumin_dose': {
         'unit':     '',
         'value':    float,
@@ -70,6 +88,18 @@ cdm_defs = {
         'value':    None,
         'thresh':   (None, None),
         'human_readable':   'Blood Cultures',
+    },
+    'bp_dias': {
+        'unit':     'mmHg',
+        'value':    float,
+        'thresh':   (8, 150),
+        'human_readable':   'Diastolic BP',
+    },
+    'bp_sys': {
+        'unit':     'mmHg',
+        'value':    float,
+        'thresh':   (30, 250),
+        'human_readable':   'Systolic BP',
     },
     'bun': {
         'unit':     'mg/dL',
@@ -304,24 +334,6 @@ cdm_defs = {
         'value':    float,
         'thresh':   (30, 250),
         'human_readable':   'Non-invasive Systolic BP',
-    },
-    'abp': {
-        'unit':     'mmHg',
-        'value':    str,
-        'thresh':   (None, None),
-        'human_readable':   'Arterial Blood Pressure',
-    },
-    'abp_dias': {
-        'unit':     'mmHg',
-        'value':    float,
-        'thresh':   (8, 150),
-        'human_readable':   'Diastolic Arterial BP',
-    },
-    'abp_sys': {
-        'unit':     'mmHg',
-        'value':    float,
-        'thresh':   (30, 250),
-        'human_readable':   'Systolic Arterial BP',
     },
     'neosynephrine_dose': {
         'unit':     '',
