@@ -75,8 +75,8 @@ def extract_sys_dias_from_bp(df, fid_col, value_col, bp):
     bp_dias = bp_df.copy().join(bp_dias).assign(fid="{}_dias".format(bp))
     df = df[~bp_rows].append([bp_sys, bp_dias])
     # also assign to a new feature called bp -- combine nbp and abp
-    bp_sys = bp_df.copy().join(bp_sys).assign(fid="bp_sys")
-    bp_dias = bp_df.copy().join(bp_dias).assign(fid="bp_dias")
+    bp_sys = bp_sys.copy().assign(fid="bp_sys")
+    bp_dias = bp_dias.copy().assign(fid="bp_dias")
     df = df.append([bp_sys, bp_dias])
     return df
 
