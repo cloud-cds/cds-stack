@@ -143,3 +143,4 @@ dataset_id,FUNC_ID,FUNC_TYPE,DESCRIPTION
 1,bronchitis_update,derive,1 at estimated time of bronchitis diagnosis
 1,threshold_bun,transform,"threshold(0.1, 180)"
 1,minutes_since_organ_fail_update,derive,ref Arch folder
+1,convert_proc_to_boolean,transform,load start and end time

@@ -288,3 +288,5 @@ dataset_id,fid,category,data_type,is_measured,is_deprecated,fillin_func_id,windo
 1,bands,T,Real,yes,no,,,,,bands as used in the online sepsis bundle criteria calculation,1,%
 1,lactate_order,T,Real,yes,no,,,,,lactate order as uses for the online sepsis bundle critieria calculation,1,order state
 1,blood_culture_order,T,Real,yes,no,,,,,blood culture order as used for the online sepsis bundle criteria calculation,1,order state
+1,bipap,T,Boolean,yes,no,,,,,Order Procedure,1,
+1,cpap,T,Boolean,yes,no,,,,,Order Procedure,1,
