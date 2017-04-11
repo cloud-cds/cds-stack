@@ -525,8 +525,7 @@ class DBCompareTest():
       ['pat_id'                                ,       'varchar(50)' ],
       ['visit_id'           , 'text',        ],
     ]
-
-    after_admission_constraint = " tsp >= coalesce((select min(ct.tsp) from cdm_t ct where ct.enc_id = cdm_t.enc_id and ct.fid = 'care_unit'), tsp) "
+    after_admission_constraint = " tsp >= coalesce((select min(ct.tsp) from cdm_t ct where ct.enc_id = {cdm}.enc_id and ct.fid = 'care_unit'), tsp) "
 
     pat_enc_query = (pat_enc_fields, enc_id_range, 'enc_id', None)
     if online:
