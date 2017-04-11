@@ -78,10 +78,10 @@ class Extractor:
         return request_settings
 
 
-    def extract_bedded_patients(self):
+    def extract_bedded_patients(self, limit):
         resource = '/facilities/hospital/' + self.hospital + '/beddedpatients'
         responses = self.make_requests(resource, [None], 'GET')
-        return pd.DataFrame(responses[0])
+        return pd.DataFrame(responses[0]).head(limit) if limit else pd.DataFrame(responses[0])
 
 
     def combine(self, response_list, to_merge):

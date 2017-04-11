@@ -2,7 +2,9 @@
 platform: linux
 
 inputs:
-- name: dashan-etl
+- name: dashan-db
 
 run:
-  path: dashan-etl/ci/dummy-task.sh
+  path: dashan-db/test/run_test_db_compare.py
+  args:
+  - archive_compare
