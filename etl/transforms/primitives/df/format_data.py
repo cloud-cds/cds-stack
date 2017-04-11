@@ -74,9 +74,9 @@ def clean_units(df, fid_col, unit_col):
     df[unit_col] = df.apply(clean_unit, axis=1)
     return df[df[unit_col] != 'Invalid Unit']
 
-bad_values = ['see below', '', 'N/A', None, 'Unable to calculate', '---.--',
-    'SEE COMMENT', 'TNP @COMM', '@COMM']
-def clean_values(df, fid_col, value_col):
+
+def clean_values(df, fid_col, value_col, bad_values = ['see below', '', 'N/A', None, 'Unable to calculate', '---.--',
+    'SEE COMMENT', 'TNP @COMM', '@COMM']):
     def clean_value(row):
         val = row[value_col]
         fid = row[fid_col]
