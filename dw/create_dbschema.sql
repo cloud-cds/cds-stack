@@ -512,6 +512,8 @@ CREATE TABLE cdm_twf (
     alt_liver_enzymes_c                    integer,
     mapm                                   real,
     mapm_c                                 integer,
+    map                                    real,
+    map_c                                  integer,
     gcs                                    real,
     gcs_c                                  integer,
     sirs_intp                              boolean,
