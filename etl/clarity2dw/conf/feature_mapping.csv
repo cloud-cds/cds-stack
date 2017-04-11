@@ -223,3 +223,5 @@ chloride,yes,no,"""Labs""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue"", ""R
 "cms_antibiotics_order, crystalloid_fluid_order, vasopressors_dose_order",,,,,,etl.transforms.pipelines.clarity_2_cdm_pd.pull_med_orders
 bands,,,,,,etl.transforms.pipelines.clarity_2_cdm_pd.bands
 "lactate_order, blood_culture_order",,,,,,etl.transforms.pipelines.clarity_2_cdm_pd.pull_order_procs
+map,yes,no,"""FlowsheetValue""","""FLO_MEAS_NAME"", ""TimeTaken"", ""Value""","WHERE ""FLO_MEAS_ID"" in ('306270', '301360', '301250', '1120100022', '111301360', '212301360', '450070')",
+map,yes,no,"""FlowsheetValue-LDA""","""FLO_MEAS_NAME"", ""TimeTaken"", ""Value""","WHERE ""FLO_MEAS_NAME"" in ('306270', '301360', '301250', '1120100022', '111301360', '212301360', '450070')",
