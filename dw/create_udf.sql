@@ -782,11 +782,11 @@ return query
         ) as ordered
         group by ordered.pat_id
     ),
-    pat_nbp_sys as (
+    pat_bp_sys as (
         select pat_ids.pat_id, avg(sbp_meas.value::numeric) as value
         from pat_ids
         inner join criteria_meas sbp_meas on pat_ids.pat_id = sbp_meas.pat_id
-        where isnumeric(sbp_meas.value) and sbp_meas.fid = 'nbp_sys'
+        where isnumeric(sbp_meas.value) and sbp_meas.fid = 'bp_sys'
         group by pat_ids.pat_id
     ),
     pat_cvalues as (
@@ -914,7 +914,7 @@ return query
                     (case
                         when pat_cvalues.category = 'decrease_in_sbp' then
                             decrease_in_sbp_met(
-                                (select max(pat_nbp_sys.value) from pat_nbp_sys where pat_nbp_sys.pat_id = pat_cvalues.pat_id),
+                                (select max(pat_bp_sys.value) from pat_bp_sys where pat_bp_sys.pat_id = pat_cvalues.pat_id),
                                 pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
 
                         when pat_cvalues.category = 'urine_output' then
@@ -1038,11 +1038,11 @@ return query
                                         from crystalloid_fluid where crystalloid_fluid.pat_id = pat_cvalues.pat_id)
                                 ) as hm)
                                 and decrease_in_sbp_met(
-                                        (select max(pat_nbp_sys.value) from pat_nbp_sys where pat_nbp_sys.pat_id = pat_cvalues.pat_id),
+                                        (select max(pat_bp_sys.value) from pat_bp_sys where pat_bp_sys.pat_id = pat_cvalues.pat_id),
                                         pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
                                 -- and next consecutive value also met
                                 and decrease_in_sbp_met(
-                                        (select max(pat_nbp_sys.value) from pat_nbp_sys where pat_nbp_sys.pat_id = pat_cvalues.pat_id),
+                                        (select max(pat_bp_sys.value) from pat_bp_sys where pat_bp_sys.pat_id = pat_cvalues.pat_id),
                                         (select next.value from get_next_meas(pat_cvalues.pat_id, pat_cvalues.fid, pat_cvalues.tsp) as next), pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
                         else false
                         end
