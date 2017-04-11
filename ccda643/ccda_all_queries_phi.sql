@@ -61,7 +61,7 @@ FROM
     -- for patients that are still present in hospital
     AND (HOSP_DISCH_TIME IS NULL
     --discharged between the dates in your cohort
-    or day(getdate()) - day(HOSP_DISCH_TIME) < 5)
+    or HOSP_DISCH_TIME between '' and '')
 ) A (csn, pat_id, pat_mrn_id);
 
 -- DO NOT RUN THIS CODE UNTIL YOU'VE ALTERED THE DATES IN THE COHORT, OTHERWISE IT WILL CREATE DUPLICATE RECORDS!!!
@@ -128,7 +128,7 @@ FROM
   --   --no patients that are still present in hospital
     AND (HOSP_DISCH_TIME IS NULL
     --discharged between the dates in your cohort
-    or day(getdate()) - day(HOSP_DISCH_TIME) < 5)
+    or HOSP_DISCH_TIME between '' and '')
 ) A (pat_id, pat_mrn_id, identity_id);
 GO
 
@@ -338,7 +338,8 @@ WHERE
 '301260',
 '301280',
 '10980',
-'6365'
+'6365',
+'306270', '301360', '301250', '1120100022', '111301360','212301360', '450070' -- map
 );
 GO
 
@@ -883,10 +884,9 @@ where procs.proc_id in
 '293',
 '160318',
 '2015293',
-'38825',
+'67479', '38825', '38817', '38819', '38821', '38823', '55910', '100294', '100296', '100298', '100300', '304267',
 '67413',
 '67415',
-'67479',
 '127058',
 '70027',
 '71988',
