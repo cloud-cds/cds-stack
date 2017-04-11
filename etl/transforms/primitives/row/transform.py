@@ -10,6 +10,7 @@ import etl.confidence as confidence
 from datetime import datetime, timedelta
 from etl.transforms.primitives.row.load_discharge_json import *
 from etl.transforms.primitives.row.convert_gender_to_int import *
+from etl.transforms.primitives.row.convert_proc_to_boolean import *
 from collections import OrderedDict
 import pandas as pd
 
