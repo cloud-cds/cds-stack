@@ -1,4 +1,4 @@
--e git+https://github.com/yanif/aiocache.git@3f32f3ae6f0f53b99c3bb703f84c75cd7e2f032b#egg=aiocache_lru
+-e git+https://github.com/yanif/aiocache.git#egg=aiocache_lru
 aiohttp==2.0.6
 aiomcache==0.5.1
 aioredis==0.3.0
