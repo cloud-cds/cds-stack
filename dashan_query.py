@@ -46,11 +46,41 @@ async def get_trews_contributors(db_pool, pat_id):
   rank_limit = 3
   get_contributors_sql = \
   '''
-  select tsp, trewscore, fid, cdm_value, rnk
-  from calculate_trews_contributors('%(pid)s', %(rank_limit)s)
-          as R(enc_id, tsp, trewscore, fid, trews_value, cdm_value, rnk)
+  with trews_contributors as (
+      select enc_id, tsp, trewscore, fid, cdm_value, rnk
+      from calculate_trews_contributors('%(pid)s', %(rank_limit)s)
+            as R(enc_id, tsp, trewscore, fid, trews_value, cdm_value, rnk)
+  ),
+  latest_2_enc_ids as (
+      select enc_id, max(tsp) - min(tsp) as duration
+      from trews_contributors
+      group by enc_id
+      order by enc_id desc limit 2
+  ),
+  desired_enc_ids as (
+      select enc_id from latest_2_enc_ids
+      order by enc_id desc
+      limit (
+          select ( case when (
+                      select max(duration) from latest_2_enc_ids
+                      group by enc_id
+                      order by enc_id desc limit 1
+                  ) > interval '24 hours'
+          then 1 else 2 end )
+      )
+  )
+  select tsp, trewscore, fid, cdm_value, rnk from trews_contributors
+  where enc_id in (select enc_id from desired_enc_ids)
   order by tsp
   ''' % {'pid': pat_id, 'rank_limit': rank_limit}
+
+  # get_contributors_sql = \
+  # '''
+  # select tsp, trewscore, fid, cdm_value, rnk
+  # from calculate_trews_contributors('%(pid)s', %(rank_limit)s)
+  #         as R(enc_id, tsp, trewscore, fid, trews_value, cdm_value, rnk)
+  # order by tsp
+  # ''' % {'pid': pat_id, 'rank_limit': rank_limit}
 
   async with db_pool.acquire() as conn:
     result = await conn.fetch(get_contributors_sql)
