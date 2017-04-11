@@ -201,18 +201,10 @@ transfuse_plasma,yes,no,"""OrderProcs""","""CSN_ID"" visit_id,""display_name"", 
 transfuse_platelets,yes,no,"""OrderProcs""","""CSN_ID"" visit_id,""display_name"", ""ORDER_TIME"", ""OrderStatus""","where ""display_name"" ~* 'transfuse platelets'",
 transfuse_cryoprecipitate,yes,no,"""OrderProcs""","""CSN_ID"" visit_id,""display_name"", ""ORDER_TIME"", ""OrderStatus""","where ""display_name"" ~* 'transfuse cryoprecipitate'",
 intubation,yes,no,"""OrderProcs""","""CSN_ID"" visit_id,""display_name"", ""ORDER_TIME"", ""OrderStatus""","where ""proc_name"" ~* 'intubation'",
-uti_approx,yes,no,"""Notes""","distinct ""CSN_ID"" visit_id, ""SPEC_NOTE_TIME_DTTM"" tsp, True","where lower(""NOTE_TEXT"") like any ('{""% uti %""}')
-
-and not lower(""NOTE_TEXT"") like any ('{""%history of uti%"",""% ho uti%"",""% ro uti%"",""% r/o uti%"",""%suggestive of uti%"",""%hx of uti%"",""%uti resolved%""}')
-
-",
+uti_approx,yes,no,"""Notes""","distinct ""CSN_ID"" visit_id, ""SPEC_NOTE_TIME_DTTM"" tsp, True","where lower(""NOTE_TEXT"") like any ('{""% uti %""}') and not lower(""NOTE_TEXT"") like any ('{""%history of uti%"",""% ho uti%"",""% ro uti%"",""% r/o uti%"",""%suggestive of uti%"",""%hx of uti%"",""%uti resolved%""}')",
 pneumonia_approx,yes,no,"""Notes""","distinct ""CSN_ID"" visit_id, ""SPEC_NOTE_TIME_DTTM"", True","where lower(""NOTE_TEXT"") like any ('{""%pneumonia%"",""% pna %"", ""% cap %"",""%sputum culture for afb%""}') and not lower(""NOTE_TEXT"") like any ('{""%history of[a-z ,]*pneumonia%"",""%evaluate for pneumonia%"",""%hx of pneumonia%"",""%h/o pneumonia%"",""%r/o [a-z ,]*pneumonia%""}')",
-urosepsis_approx,yes,no,"""Notes""","distinct ""CSN_ID"" visit_id, ""SPEC_NOTE_TIME_DTTM"", True","WHERE lower(""NOTE_TEXT"") LIKE ANY
-
-('{""% uti %"",""% urinary source%"",""% urinary tract infection%"", ""%urosepsis%"",""%pyelonephritis%"",""%pyelo %""}') ",
-biliary_sepsis_approx,yes,no,"""Notes""","distinct ""CSN_ID"" visit_id, ""SPEC_NOTE_TIME_DTTM"", True","WHERE lower(""NOTE_TEXT"") LIKE ANY
-
-('{""%biliary sepsis%"",""%cholecystitis%"",""%ascending cholangitis%"",""%cholelithiasis%"",""%gall stones%"",""%hepatic abscess%""}')",
+urosepsis_approx,yes,no,"""Notes""","distinct ""CSN_ID"" visit_id, ""SPEC_NOTE_TIME_DTTM"", True","WHERE lower(""NOTE_TEXT"") LIKE ANY ('{""% uti %"",""% urinary source%"",""% urinary tract infection%"", ""%urosepsis%"",""%pyelonephritis%"",""%pyelo %""}') ",
+biliary_sepsis_approx,yes,no,"""Notes""","distinct ""CSN_ID"" visit_id, ""SPEC_NOTE_TIME_DTTM"", True","WHERE lower(""NOTE_TEXT"") LIKE ANY ('{""%biliary sepsis%"",""%cholecystitis%"",""%ascending cholangitis%"",""%cholelithiasis%"",""%gall stones%"",""%hepatic abscess%""}')",
 peritonitis_approx,yes,no,"""Notes""","distinct ""CSN_ID"" visit_id, ""SPEC_NOTE_TIME_DTTM"", True","WHERE lower(""NOTE_TEXT"") LIKE ANY ('{""%intra abdominal sepsis%"",""%abdominal catastrophe%"",""%perforated viscous%"",""%free air%"",""%pneumoperitoneum%"",""%pneumotosis%"",""%peritonitis%"",""%spontaneous bacterial peritonitis%"",""%gut translocation%"",""%c.diff%"",""%colitis%"",""%peritoneal abscess%""}')",
 pneumonia_sepsis_approx,yes,no,"""Notes""","distinct ""CSN_ID"" visit_id, ""SPEC_NOTE_TIME_DTTM"", True","WHERE lower(""NOTE_TEXT"") LIKE ANY ('{""%pneumonia%"",""% ards %"",""%acute lung injury%"",""% ali %"",""%aspiration%"",""%empyema%""}')",
 line_sepsis_approx,yes,no,"""Notes""","distinct ""CSN_ID"" visit_id, ""SPEC_NOTE_TIME_DTTM"", True","WHERE lower(""NOTE_TEXT"") LIKE ANY ('{""%blood stream infection%"",""%line sepsis%"",""%endocarditis%""}')",
@@ -223,3 +215,5 @@ chloride,yes,no,"""Labs""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue"", ""R
 "cms_antibiotics_order, crystalloid_fluid_order, vasopressors_dose_order",,,,,,etl.transforms.pipelines.clarity_2_cdm_pd.pull_med_orders
 bands,,,,,,etl.transforms.pipelines.clarity_2_cdm_pd.bands
 "lactate_order, blood_culture_order",,,,,,etl.transforms.pipelines.clarity_2_cdm_pd.pull_order_procs
+bipap,yes,no,"""OrderProcs_643""","""CSN_ID"" visit_id,""PROC_START_TIME"", ""PROC_ENDING_TIME""","WHERE ""OrderProcId"" in ('67479', '38825')",convert_proc_to_boolean
+cpap,yes,no,"""OrderProcs_643""","""CSN_ID"" visit_id,""PROC_START_TIME"", ""PROC_ENDING_TIME""","WHERE ""OrderProcId"" in ('67479', '38817', '38819', '38821', '38823', '55910', '100294', '100296', '100298', '100300', '304267')",convert_proc_to_boolean

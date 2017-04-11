@@ -278,6 +278,13 @@ class Epic2OpLoader:
         ON CONFLICT (pat_id, tsp, fid)
             DO UPDATE SET value = EXCLUDED.value, update_date = NOW();
         INSERT INTO criteria_meas (pat_id, tsp, fid, value, update_date)
+                    select pat_id, tsp::timestamptz, fid, last(lo.status), last(NOW() )
+                    from workspace.%(job)s_active_procedures_transformed lo
+                    where tsp <> 'NaT' and tsp::timestamptz < now()
+                    group by pat_id, tsp, fid
+        ON CONFLICT (pat_id, tsp, fid)
+            DO UPDATE SET value = EXCLUDED.value, update_date = NOW();
+        INSERT INTO criteria_meas (pat_id, tsp, fid, value, update_date)
                     select pat_id, tsp::timestamptz, fid, last(mar.dose_value), last(NOW() )
                     from workspace.%(job)s_med_admin_transformed mar
                     where tsp <> 'NaT' and tsp::timestamptz < now()
@@ -330,3 +337,4 @@ class Epic2OpLoader:
     await primitives.workspace_flowsheets_2_cdm_twf(conn, self.job_id)
     await primitives.workspace_lab_results_2_cdm_twf(conn, self.job_id)
     await primitives.workspace_medication_administration_2_cdm_twf(conn, self.job_id)
+    # TODO load lab orders and active procedures to cdm

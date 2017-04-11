@@ -66,7 +66,7 @@ flowsheet_transforms = [
     ),
 ]
 
-lab_orders_transforms = [
+active_procedures_transforms = [
     lambda lo: restructure.select_columns(lo, {
         'pat_id':                   'pat_id',
         'visit_id':                 'visit_id',
@@ -81,10 +81,10 @@ lab_orders_transforms = [
         config_map = procedure_ids, drop_original = True,
         add_string = '_order', remove_if_not_found = True
     ),
-    lambda lo: derive.derive_lab_status(lo),
+    lambda lo: derive.derive_procedure_status(lo),
 ]
 
-lab_procedures_transforms = [
+lab_orders_transforms = [
     lambda lp: restructure.select_columns(lp, {
         'pat_id':           'pat_id',
         'visit_id':         'visit_id',

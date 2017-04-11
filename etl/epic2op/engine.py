@@ -147,13 +147,11 @@ class Engine():
     flowsheets = self.extract(self.extractor.extract_flowsheets, "flowsheets", [pats_t])
     flowsheets_t = self.transform(flowsheets, jhapi.flowsheet_transforms, "flowsheets")
 
+    active_procedures = self.extract(self.extractor.extract_active_procedures, "active_procedures", [pats_t])
+    active_procedures_t = self.transform(active_procedures, jhapi.active_procedures_transforms, "active_procedures")
+
     lab_orders = self.extract(self.extractor.extract_lab_orders, "lab_orders", [pats_t])
     lab_orders_t = self.transform(lab_orders, jhapi.lab_orders_transforms, "lab_orders")
-
-    lab_procedures = self.extract(self.extractor.extract_lab_procedures, "lab_procedures", [pats_t])
-    lab_procedures_t = self.transform(lab_procedures, jhapi.lab_procedures_transforms, "lab_procedures")
-
-    lab_orders_t = lab_orders_t.append(lab_procedures_t) if lab_orders_t is not None else lab_procedures_t
 
     lab_results = self.extract(self.extractor.extract_lab_results, "lab_results", [pats_t])
     lab_results_t = self.transform(lab_results, jhapi.lab_results_transforms, "lab_results")
@@ -193,6 +191,7 @@ class Engine():
       'bedded_pats':   len(pats_t.index),
       'flowsheets':    len(flowsheets_t.index),
       'lab_orders':    len(lab_orders_t.index),
+      'active_procedures':    len(active_procedures_t.index),
       'lab_results':   len(lab_results_t.index),
       'med_orders':    len(med_orders_t.index),
       'med_admin':     len(med_admin_t.index),
@@ -208,6 +207,7 @@ class Engine():
     self.db_data = {
       'bedded_patients_transformed': pats_t,
       'flowsheets_transformed': flowsheets_t,
+      'active_procedures_transforms': active_procedures_t,
       'lab_orders_transformed': lab_orders_t,
       'lab_results_transformed': lab_results_t,
       'med_orders_transformed': med_orders_t,
@@ -218,6 +218,7 @@ class Engine():
     self.db_raw_data = {
       'bedded_patients': pats,
       'flowsheets': flowsheets,
+      'active_procedures': active_procedures,
       'lab_orders': lab_orders,
       'lab_results': lab_results,
       'med_orders': med_orders,
