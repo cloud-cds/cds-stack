@@ -1,9 +1,9 @@
 -- DO NOT RUN THIS CODE UNTIL YOU'VE ALTERED THE DATES IN THE COHORT, OTHERWISE IT WILL CREATE DUPLICATE RECORDS!!!
-IF OBJECT_ID('analytics.dbo.CCDA643_CSNLookupTable', 'U') IS NOT NULL
-drop table analytics.dbo.CCDA643_CSNLookupTable;
+IF OBJECT_ID('analytics.dbo.CCDA643_light_CSNLookupTable', 'U') IS NOT NULL
+drop table analytics.dbo.CCDA643_light_CSNLookupTable;
 select pat_id "PAT_ID", pat_mrn_id "PAT_MRN_ID", csn "PAT_ENC_CSN_ID", csn "EXTERNAL_ID"
 INTO
-analytics.dbo.CCDA643_CSNLookupTable
+analytics.dbo.CCDA643_light_CSNLookupTable
 FROM
 (SELECT DISTINCT pat_enc_hsp_1.PAT_ENC_CSN_ID, patient.PAT_ID, patient.PAT_MRN_ID
   FROM CLARITY.dbo.PAT_ENC_HSP PAT_ENC_HSP_1
@@ -61,15 +61,15 @@ FROM
     -- for patients that are still present in hospital
     AND (HOSP_DISCH_TIME IS NULL
     --discharged between the dates in your cohort
-    or HOSP_DISCH_TIME between '' and '')
+    or HOSP_DISCH_TIME between '2017-04-06' and '2017-04-11')
 ) A (csn, pat_id, pat_mrn_id);
 
 -- DO NOT RUN THIS CODE UNTIL YOU'VE ALTERED THE DATES IN THE COHORT, OTHERWISE IT WILL CREATE DUPLICATE RECORDS!!!
-IF OBJECT_ID('analytics.dbo.CCDA643_PatLookupTable', 'U') IS NOT NULL
-drop table analytics.dbo.CCDA643_PatLookupTable;
+IF OBJECT_ID('analytics.dbo.CCDA643_light_PatLookupTable', 'U') IS NOT NULL
+drop table analytics.dbo.CCDA643_light_PatLookupTable;
 select pat_id "PAT_ID", pat_mrn_id "PAT_MRN_ID", IDENTITY_ID "EXTERNAL_ID"
 INTO
-analytics.dbo.CCDA643_PatLookupTable
+analytics.dbo.CCDA643_light_PatLookupTable
 FROM
 (SELECT DISTINCT patient.PAT_ID, patient.PAT_MRN_ID, IDENTITY_ID.IDENTITY_ID
   FROM CLARITY.dbo.PAT_ENC_HSP PAT_ENC_HSP_1
@@ -128,7 +128,7 @@ FROM
   --   --no patients that are still present in hospital
     AND (HOSP_DISCH_TIME IS NULL
     --discharged between the dates in your cohort
-    or HOSP_DISCH_TIME between '' and '')
+    or HOSP_DISCH_TIME between '2017-04-06' and '2017-04-11')
 ) A (pat_id, pat_mrn_id, identity_id);
 GO
 
@@ -152,7 +152,7 @@ SELECT CSN.EXTERNAL_ID CSN_ID
   ,room.ROOM_NAME
 
 FROM CLARITY.dbo.CLARITY_ADT
-INNER JOIN Analytics.dbo.CCDA643_CSNLookupTable csn ON CLARITY_ADT.PAT_ENC_CSN_ID = csn.PAT_ENC_CSN_ID
+INNER JOIN Analytics.dbo.CCDA643_light_CSNLookupTable csn ON CLARITY_ADT.PAT_ENC_CSN_ID = csn.PAT_ENC_CSN_ID
 LEFT JOIN CLARITY.DBO.ZC_PAT_CLASS ptClass ON ptClass.ADT_PAT_CLASS_C = clarity_adt.PAT_CLASS_C
 LEFT JOIN CLARITY.dbo.CLARITY_DEP DEP ON DEP.DEPARTMENT_ID = clarity_adt.DEPARTMENT_ID
 LEFT JOIN CLARITY.dbo.CLARITY_ROM room ON room.ROOM_CSN_ID = CLARITY_ADT.ROOM_CSN_ID
@@ -196,8 +196,8 @@ SELECT DISTINCT csn.EXTERNAL_ID CSN_ID
 --INTO CCDA276_Demographics
 FROM CLARITY.dbo.PAT_ENC_HSP PAT_ENC_HSP_1
 INNER JOIN CLARITY.dbo.PATIENT patient ON PAT_ENC_HSP_1.pat_id = patient.pat_id
-INNER JOIN Analytics.dbo.CCDA643_CSNLookupTable csn ON PAT_ENC_HSP_1.PAT_ENC_CSN_ID = csn.PAT_ENC_CSN_ID
-INNER JOIN Analytics.dbo.CCDA643_PatLookupTable pat ON pat.pat_id = pat_enc_hsp_1.pat_id
+INNER JOIN Analytics.dbo.CCDA643_light_CSNLookupTable csn ON PAT_ENC_HSP_1.PAT_ENC_CSN_ID = csn.PAT_ENC_CSN_ID
+INNER JOIN Analytics.dbo.CCDA643_light_PatLookupTable pat ON pat.pat_id = pat_enc_hsp_1.pat_id
 INNER JOIN CLARITY.dbo.CLARITY_DEP depDisch ON PAT_ENC_HSP_1.DEPARTMENT_ID = depDisch.DEPARTMENT_ID
 LEFT JOIN CLARITY.dbo.zc_disch_disp zc_disch_disp ON PAT_ENC_HSP_1.disch_disp_c = zc_disch_disp.disch_disp_c
 ORDER BY csn.EXTERNAL_ID;
@@ -216,7 +216,7 @@ SELECT DISTINCT CSN.EXTERNAL_ID CSN_ID
   ,dx.COMMENTS
   ,DX_CHRONIC_YN
   ,icdIndex."ICD-9 Code category"
-FROM Analytics.dbo.CCDA643_CSNLookupTable csn
+FROM Analytics.dbo.CCDA643_light_CSNLookupTable csn
 INNER JOIN CLARITY.dbo.PAT_ENC_DX dx ON dx.PAT_ENC_CSN_ID = CSN.PAT_ENC_CSN_ID
 INNER JOIN CLARITY.dbo.CLARITY_EDG edg ON dx.DX_ID = edg.DX_ID
 INNER JOIN CLARITY.DBO.EDG_CURRENT_ICD9 icd9 ON dx.DX_ID = icd9.DX_ID
@@ -259,7 +259,7 @@ INNER JOIN CLARITY.DBO.IP_FLOWSHEET_ROWS RWS ON RWS.LINE = IP_FLWSHT_MEAS.OCCURA
 INNER JOIN CLARITY.DBO.IP_LDA_NOADDSINGLE lda ON LDA.IP_LDA_ID = RWS.IP_LDA_ID
 INNER JOIN CLARITY.DBO.IP_FLO_GP_DATA ldaGrp ON ldaGrp.FLO_MEAS_ID = LDA.FLO_MEAS_ID
 INNER JOIN CLARITY.dbo.PAT_ENC_HSP ON IP_FLWSHT_REC.INPATIENT_DATA_ID = PAT_ENC_HSP.INPATIENT_DATA_ID
-INNER JOIN Analytics.dbo.CCDA643_CSNLookupTable csn ON pat_enc_hsp.PAT_ENC_CSN_ID = csn.PAT_ENC_CSN_ID
+INNER JOIN Analytics.dbo.CCDA643_light_CSNLookupTable csn ON pat_enc_hsp.PAT_ENC_CSN_ID = csn.PAT_ENC_CSN_ID
 LEFT JOIN Analytics.dbo.CCDA264_FlowsheetValues fsvals ON fsvals.FLO_MEAS_ID = IP_flo_GP_DATA.FLO_MEAS_ID
 LEFT JOIN Analytics.dbo.CCDA264_FlowsheetValueIndex indices ON indices.ID = fsvals.FSValueType
 LEFT JOIN Analytics.dbo.CCDA264_IntakeRowsTemplatesOnly intake ON intake.[ROW MEAS ID] = IP_flo_GP_DATA.FLO_MEAS_ID
@@ -310,7 +310,7 @@ LEFT JOIN CLARITY.DBO.IP_FLOWSHEET_ROWS RWS ON RWS.LINE = IP_FLWSHT_MEAS.OCCURAN
 --LEFT JOIN CLARITY.DBO.IP_LDA_NOADDSINGLE lda ON LDA.IP_LDA_ID = RWS.IP_LDA_ID
 --LEFT JOIN CLARITY.DBO.IP_FLO_GP_DATA ldaGrp ON ldaGrp.FLO_MEAS_ID = LDA.FLO_MEAS_ID
 INNER JOIN CLARITY.dbo.PAT_ENC_HSP ON IP_FLWSHT_REC.INPATIENT_DATA_ID = PAT_ENC_HSP.INPATIENT_DATA_ID
-INNER JOIN Analytics.dbo.CCDA643_CSNLookupTable csn ON pat_enc_hsp.PAT_ENC_CSN_ID = csn.PAT_ENC_CSN_ID
+INNER JOIN Analytics.dbo.CCDA643_light_CSNLookupTable csn ON pat_enc_hsp.PAT_ENC_CSN_ID = csn.PAT_ENC_CSN_ID
 LEFT JOIN Analytics.dbo.CCDA264_FlowsheetValues fsvals ON fsvals.FLO_MEAS_ID = IP_flo_GP_DATA.FLO_MEAS_ID
 LEFT JOIN Analytics.dbo.CCDA264_FlowsheetValueIndex indices ON indices.ID = fsvals.FSValueType
 LEFT JOIN Analytics.dbo.CCDA264_IntakeRowsTemplatesOnly intake ON intake.[ROW MEAS ID] = IP_flo_GP_DATA.FLO_MEAS_ID
@@ -377,7 +377,7 @@ LEFT JOIN CLARITY.DBO.IP_FLOWSHEET_ROWS RWS ON RWS.LINE = IP_FLWSHT_MEAS.OCCURAN
 --LEFT JOIN CLARITY.DBO.IP_LDA_NOADDSINGLE lda ON LDA.IP_LDA_ID = RWS.IP_LDA_ID
 --LEFT JOIN CLARITY.DBO.IP_FLO_GP_DATA ldaGrp ON ldaGrp.FLO_MEAS_ID = LDA.FLO_MEAS_ID
 INNER JOIN CLARITY.dbo.PAT_ENC_HSP ON IP_FLWSHT_REC.INPATIENT_DATA_ID = PAT_ENC_HSP.INPATIENT_DATA_ID
-INNER JOIN Analytics.dbo.CCDA643_CSNLookupTable csn ON pat_enc_hsp.PAT_ENC_CSN_ID = csn.PAT_ENC_CSN_ID
+INNER JOIN Analytics.dbo.CCDA643_light_CSNLookupTable csn ON pat_enc_hsp.PAT_ENC_CSN_ID = csn.PAT_ENC_CSN_ID
 LEFT JOIN Analytics.dbo.CCDA264_FlowsheetValues fsvals ON fsvals.FLO_MEAS_ID = IP_flo_GP_DATA.FLO_MEAS_ID
 LEFT JOIN Analytics.dbo.CCDA264_FlowsheetValueIndex indices ON indices.ID = fsvals.FSValueType
 LEFT JOIN Analytics.dbo.CCDA264_IntakeRowsTemplatesOnly intake ON intake.[ROW MEAS ID] = IP_flo_GP_DATA.FLO_MEAS_ID
@@ -405,7 +405,7 @@ SELECT csn.EXTERNAL_ID CSN_ID
   ,RES.ORD_VALUE ResultValue
   ,RES.COMPONENT_COMMENT
   ,PROCIDS.EXTERNAL_ID OrderProcId
-FROM Analytics.dbo.CCDA643_CSNLookupTable csn
+FROM Analytics.dbo.CCDA643_light_CSNLookupTable csn
 INNER JOIN dbo.ORDER_RESULTS res ON res.PAT_ENC_CSN_ID = csn.pat_enc_csn_id
 INNER JOIN dbo.CLARITY_COMPONENT COMP ON res.COMPONENT_ID = COMP.COMPONENT_ID
 INNER JOIN Analytics.dbo.CCDA264_ComponentBaseNames basenames ON comp.BASE_NAME = basenames.BASE_NAME
@@ -431,7 +431,7 @@ SELECT csn.EXTERNAL_ID CSN_ID
   ,RES.ORD_VALUE ResultValue
   ,RES.COMPONENT_COMMENT
   ,PROCIDS.EXTERNAL_ID OrderProcId
-FROM Analytics.dbo.CCDA643_CSNLookupTable csn
+FROM Analytics.dbo.CCDA643_light_CSNLookupTable csn
 INNER JOIN dbo.ORDER_RESULTS res ON res.PAT_ENC_CSN_ID = csn.pat_enc_csn_id
 INNER JOIN dbo.CLARITY_COMPONENT COMP ON res.COMPONENT_ID = COMP.COMPONENT_ID
 INNER JOIN Analytics.dbo.CCDA264_ComponentBaseNames basenames ON comp.BASE_NAME = basenames.BASE_NAME
@@ -560,7 +560,7 @@ SELECT pat.EXTERNAL_ID PAT_ID
   FROM [CLARITY].[dbo].[IP_LDA_NOADDSINGLE] LDA
   LEFT JOIN [CLARITY].[dbo].[IP_FLO_GP_DATA] gp on gp.FLO_MEAS_ID = LDA.FLO_MEAS_ID
   INNER JOIN
-  Analytics.dbo.CCDA643_PatLookupTable pat ON pat.PAT_ID = LDA.PAT_ID;
+  Analytics.dbo.CCDA643_light_PatLookupTable pat ON pat.PAT_ID = LDA.PAT_ID;
 GO
 
 USE CLARITY;
@@ -587,7 +587,7 @@ SELECT
   ,MED.MIN_DISCRETE_DOSE
   ,MED.MAX_DISCRETE_DOSE
 FROM dbo.ORDER_MED MED
-inner join Analytics.dbo.CCDA643_CSNLookupTable csn ON med.PAT_ENC_CSN_ID = csn.pat_enc_csn_id
+inner join Analytics.dbo.CCDA643_light_CSNLookupTable csn ON med.PAT_ENC_CSN_ID = csn.pat_enc_csn_id
 LEFT JOIN dbo.CLARITY_MEDICATION medIndex on medIndex.MEDICATION_ID = med.MEDICATION_ID
 INNER JOIN dbo.MAR_ADMIN_INFO MAR on MED.ORDER_MED_ID = MAR.ORDER_MED_ID
 LEFT JOIN dbo.ZC_MED_UNIT themedunit on MAR.MAR_INF_RATE_UNIT_C = themedunit.DISP_QTYUNIT_C
@@ -642,8 +642,8 @@ FROM (
   ) MedicalHistory
 LEFT OUTER JOIN clarity.dbo.PAT_ENC Encounter ON MedicalHistory.MINCSN = Encounter.PAT_ENC_CSN_ID
 LEFT OUTER JOIN clarity.dbo.PAT_ENC_HSP HospitalEncounter ON MedicalHistory.MINCSN = HospitalEncounter.PAT_ENC_CSN_ID
-LEFT OUTER JOIN analytics.dbo.CCDA643_CSNLookupTable csn ON MedicalHistory.MINCSN = csn.PAT_ENC_CSN_ID
-INNER JOIN analytics.dbo.CCDA643_PatLookupTable pat ON pat.PAT_ID = MedicalHistory.PAT_ID
+LEFT OUTER JOIN analytics.dbo.CCDA643_light_CSNLookupTable csn ON MedicalHistory.MINCSN = csn.PAT_ENC_CSN_ID
+INNER JOIN analytics.dbo.CCDA643_light_PatLookupTable pat ON pat.PAT_ID = MedicalHistory.PAT_ID
 INNER JOIN CLARITY.dbo.CLARITY_EDG edg ON MedicalHistory.DX_ID = edg.DX_ID
 INNER JOIN CLARITY.DBO.EDG_CURRENT_ICD9 icd9 ON MedicalHistory.DX_ID = icd9.DX_ID
 INNER JOIN Analytics.dbo.CCDA264_ICD9Codes icdIndex ON ISNUMERIC(icd9.Code) = 1
@@ -665,7 +665,7 @@ SELECT DISTINCT csn.EXTERNAL_ID CSN_ID
   ,noteStat.NAME NoteStatus
   ,noteEncs.SPEC_NOTE_TIME_DTTM
   ,noteEncs.ENTRY_INSTANT_DTTM
-FROM Analytics.dbo.CCDA643_CSNLookupTable csn
+FROM Analytics.dbo.CCDA643_light_CSNLookupTable csn
 INNER JOIN dbo.HNO_INFO info ON info.PAT_ENC_CSN_ID = csn.PAT_ENC_CSN_ID
 INNER JOIN dbo.note_enc_info noteEncs ON noteEncs.NOTE_ID = info.NOTE_ID
 INNER JOIN dbo.HNO_NOTE_TEXT txt ON txt.NOTE_CSN_ID = noteEncs.CONTACT_SERIAL_NUM
@@ -719,7 +719,7 @@ LEFT JOIN Analytics.dbo.CCDA264_MedicationIDs indivMeds ON indivMeds.MedId = med
 LEFT JOIN CLARITY.dbo.ZC_ADMIN_ROUTE medrt ON medrt.MED_ROUTE_C = MED.MED_ROUTE_C
 LEFT JOIN CLARITY.dbo.ZC_MED_UNIT medunit ON medunit.DISP_QTYUNIT_C = MED.HV_DOSE_UNIT_C
 INNER JOIN
-Analytics.dbo.CCDA643_CSNLookupTable pat_enc_hsp_1 ON pat_enc_hsp_1.pat_enc_csn_id = med.PAT_ENC_CSN_ID
+Analytics.dbo.CCDA643_light_CSNLookupTable pat_enc_hsp_1 ON pat_enc_hsp_1.pat_enc_csn_id = med.PAT_ENC_CSN_ID
 WHERE (
     med.IS_PENDING_ORD_YN = 'N'
     OR med.IS_PENDING_ORD_YN IS NULL
@@ -766,7 +766,7 @@ LEFT JOIN Analytics.dbo.CCDA264_MedicationClasses cohortMedClass ON (
 LEFT JOIN CLARITY.dbo.ZC_ADMIN_ROUTE medrt ON medrt.MED_ROUTE_C = MED.MED_ROUTE_C
 LEFT JOIN CLARITY.dbo.ZC_MED_UNIT medunit ON medunit.DISP_QTYUNIT_C = MED.HV_DOSE_UNIT_C
 INNER JOIN
-Analytics.dbo.CCDA643_CSNLookupTable pat_enc_hsp_1 ON pat_enc_hsp_1.pat_enc_csn_id = med.PAT_ENC_CSN_ID
+Analytics.dbo.CCDA643_light_CSNLookupTable pat_enc_hsp_1 ON pat_enc_hsp_1.pat_enc_csn_id = med.PAT_ENC_CSN_ID
 WHERE (
     med.IS_PENDING_ORD_YN = 'N'
     OR med.IS_PENDING_ORD_YN IS NULL
@@ -804,7 +804,7 @@ FROM CLARITY..ORDER_PROC procs
 INNER JOIN CLARITY..CLARITY_EAP eap ON procs.proc_id = eap.PROC_ID
 LEFT JOIN CLARITY..IP_FREQUENCY freq on freq.FREQ_ID = eap.DFLT_INTER_ID
 INNER JOIN clarity..EDP_PROC_CAT_INFO proccat ON eap.proc_cat_id = proccat.PROC_CAT_ID
-INNER JOIN CCDA643_CSNLookupTable pat_enc_hsp_1 ON pat_enc_hsp_1.pat_enc_csn_id = procs.PAT_ENC_CSN_ID
+INNER JOIN CCDA643_light_CSNLookupTable pat_enc_hsp_1 ON pat_enc_hsp_1.pat_enc_csn_id = procs.PAT_ENC_CSN_ID
 LEFT JOIN CCDA264_OrderProcCategories AllowedCats ON proccat.PROC_CAT_NAME = AllowedCats.CategoryName
 LEFT JOIN CCDA264_OrderProcCodes codes ON codes.ProcCode = eap.PROC_CODE
 LEFT JOIN CLARITY..zc_order_status ordstat on ordstat.ORDER_STATUS_C = procs.order_status_c
@@ -834,7 +834,7 @@ FROM CLARITY..ORDER_PROC procs
 INNER JOIN CLARITY..CLARITY_EAP eap ON procs.proc_id = eap.PROC_ID
 LEFT JOIN CLARITY..IP_FREQUENCY freq on freq.FREQ_ID = eap.DFLT_INTER_ID
 LEFT JOIN clarity..EDP_PROC_CAT_INFO proccat ON eap.proc_cat_id = proccat.PROC_CAT_ID
-INNER JOIN CCDA643_CSNLookupTable pat_enc_hsp_1 ON pat_enc_hsp_1.pat_enc_csn_id = procs.PAT_ENC_CSN_ID
+INNER JOIN CCDA643_light_CSNLookupTable pat_enc_hsp_1 ON pat_enc_hsp_1.pat_enc_csn_id = procs.PAT_ENC_CSN_ID
 LEFT JOIN CLARITY..zc_order_status ordstat on ordstat.ORDER_STATUS_C = procs.order_status_c
 LEFT JOIN CLARITY..zc_lab_status labstats on labstats.LAB_STATUS_C = procs.lab_status_c
 inner join clarity..V_IMG_STUDY img on img.order_id = procs.ORDER_PROC_ID
@@ -871,7 +871,7 @@ FROM CLARITY..ORDER_PROC procs
 INNER JOIN CLARITY..CLARITY_EAP eap ON procs.proc_id = eap.PROC_ID
 LEFT JOIN CLARITY..IP_FREQUENCY freq on freq.FREQ_ID = eap.DFLT_INTER_ID
 INNER JOIN clarity..EDP_PROC_CAT_INFO proccat ON eap.proc_cat_id = proccat.PROC_CAT_ID
-INNER JOIN CCDA643_CSNLookupTable pat_enc_hsp_1 ON pat_enc_hsp_1.pat_enc_csn_id = procs.PAT_ENC_CSN_ID
+INNER JOIN CCDA643_light_CSNLookupTable pat_enc_hsp_1 ON pat_enc_hsp_1.pat_enc_csn_id = procs.PAT_ENC_CSN_ID
 LEFT JOIN CLARITY..zc_order_status ordstat on ordstat.ORDER_STATUS_C = procs.order_status_c
 LEFT JOIN CLARITY..zc_lab_status labstats on labstats.LAB_STATUS_C = procs.lab_status_c
 INNER JOIN CLARITY..ORDER_INSTANTIATED inst ON inst.INSTNTD_ORDER_ID = PROCS.ORDER_PROC_ID
@@ -946,8 +946,8 @@ LEFT OUTER JOIN CLARITY.DBO.PAT_ENC Encounter ON FirstHistory.HX_PROBLEM_EPT_CSN
 LEFT OUTER JOIN CLARITY.DBO.PAT_ENC_HSP HospitalEncounter ON FirstHistory.HX_PROBLEM_EPT_CSN = HospitalEncounter.PAT_ENC_CSN_ID
 LEFT OUTER JOIN CLARITY.DBO.ZC_PROBLEM_STATUS StatusCategory ON ProblemList.PROBLEM_STATUS_C = StatusCategory.PROBLEM_STATUS_C
 LEFT OUTER JOIN CLARITY.DBO.ZC_DX_POA PoaCategory ON ProblemList.IS_PRESENT_ON_ADM_C = PoaCategory.DX_POA_C
-LEFT OUTER JOIN Analytics.dbo.CCDA643_CSNLookupTable csn ON FirstHistory.HX_PROBLEM_EPT_CSN = csn.PAT_ENC_CSN_ID
-INNER JOIN Analytics.dbo.CCDA643_PatLookupTable pat ON pat.PAT_ID = ProblemList.PAT_ID
+LEFT OUTER JOIN Analytics.dbo.CCDA643_light_CSNLookupTable csn ON FirstHistory.HX_PROBLEM_EPT_CSN = csn.PAT_ENC_CSN_ID
+INNER JOIN Analytics.dbo.CCDA643_light_PatLookupTable pat ON pat.PAT_ID = ProblemList.PAT_ID
 INNER JOIN CLARITY.dbo.CLARITY_EDG edg ON ProblemList.DX_ID = edg.DX_ID
 INNER JOIN CLARITY.DBO.EDG_CURRENT_ICD9 icd9 ON ProblemList.DX_ID = icd9.DX_ID
 INNER JOIN Analytics.dbo.CCDA264_ICD9Codes icdIndex ON ISNUMERIC(icd9.Code) = 1
