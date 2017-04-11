@@ -14,9 +14,17 @@ import ujson as json
 import boto3
 import botocore
 
+MODE = {
+  1: 'real',
+  2: 'test',
+  3: 'real&test'
+}
+
 class Engine():
-  def __init__(self, hospital=None, lookback_hours=None, db_name=None):
+  def __init__(self, hospital=None, lookback_hours=None, db_name=None, max_num_pats=None):
     self.config = Config(debug=True, db_name=db_name)
+    mode_env = int(os.environ.get('TREWS_ETL_MODE', 0))
+    self.mode = MODE[mode_env]
     self.loader = Epic2OpLoader(self.config)
     if 'TREWS_ETL_ARCHIVE' in os.environ:
       self.loader.archive = int(os.environ['TREWS_ETL_ARCHIVE'])
@@ -36,6 +44,9 @@ class Engine():
     self.criteria = Criteria(self.config)
     self.extract_time = dt.timedelta(0)
     self.transform_time = dt.timedelta(0)
+    self.max_num_pats = int(max_num_pats) if max_num_pats else max_num_pats
+    if self.max_num_pats:
+      logging.info("max_num_pats = {}".format(max_num_pats))
 
   async def init(self):
     self.pool = await asyncpg.create_pool(database=self.config.db_name, user=self.config.db_user, password=self.config.db_pass, host=self.config.db_host, port=self.config.db_port)
@@ -112,9 +123,24 @@ class Engine():
 
 
   def main(self):
+    self.db_data = None
+    self.db_raw_data = None
     self.driver_start = dt.datetime.now()
+    if 'real' in self.mode:
+      self.extract_pat_data()
 
-    pats = self.extract(self.extractor.extract_bedded_patients, "bedded_patients")
+    self.loader.run_loop(self.db_data, self.db_raw_data, self.mode)
+    self.criteria.run_loop()
+
+    if 'real' in self.mode:
+      if self.notify_epic:
+        notifications = self.loader.get_notifications_for_epic()
+        self.extractor.push_notifications(notifications)
+
+      self.push_cloudwatch_metrics(self.cloudwatch_stats)
+
+  def extract_pat_data(self):
+    pats = self.extract(self.extractor.extract_bedded_patients, "bedded_patients", [self.max_num_pats])
     pats_t = self.transform(pats, jhapi.bedded_patients_transforms, "bedded_patients")
     pats_t = pats_t.assign(hospital = self.extractor.hospital)
 
@@ -161,7 +187,7 @@ class Engine():
     logging.info("total time: {}".format(dt.datetime.now() - self.driver_start))
 
     # Create stats object
-    cloudwatch_stats = {
+    self.cloudwatch_stats = {
       'total_time':    (dt.datetime.now() - self.driver_start).total_seconds(),
       'request_time':  self.extract_time.total_seconds(),
       'bedded_pats':   len(pats_t.index),
@@ -179,7 +205,7 @@ class Engine():
     pats_t.problem = pats_t.problem.apply(json.dumps)
     pats_t.problem_all = pats_t.problem_all.apply(json.dumps)
     med_orders_t.ids = med_orders_t.ids.apply(json.dumps)
-    db_data = {
+    self.db_data = {
       'bedded_patients_transformed': pats_t,
       'flowsheets_transformed': flowsheets_t,
       'lab_orders_transformed': lab_orders_t,
@@ -189,7 +215,7 @@ class Engine():
       'location_history_transformed': loc_history_t,
     }
 
-    db_raw_data = {
+    self.db_raw_data = {
       'bedded_patients': pats,
       'flowsheets': flowsheets,
       'lab_orders': lab_orders,
@@ -198,15 +224,6 @@ class Engine():
       'med_admin': med_admin,
       'location_history': loc_history,
     }
-
-    self.loader.run_loop(db_data, db_raw_data)
-    self.criteria.run_loop()
-
-    if self.notify_epic:
-      notifications = self.loader.get_notifications_for_epic()
-      self.extractor.push_notifications(notifications)
-
-    self.push_cloudwatch_metrics(cloudwatch_stats)
 
 if __name__ == '__main__':
   pd.set_option('display.width', 200)
