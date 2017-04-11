@@ -205,7 +205,7 @@ class Engine():
     self.db_data = {
       'bedded_patients_transformed': pats_t,
       'flowsheets_transformed': flowsheets_t,
-      'active_procedures_transforms': active_procedures_t,
+      'active_procedures_transformed': active_procedures_t,
       'lab_orders_transformed': lab_orders_t,
       'lab_results_transformed': lab_results_t,
       'med_orders_transformed': med_orders_t,
