@@ -278,3 +278,5 @@ immuno_comp_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
 phenytoin_dose,T,JSON,yes,no,,,,,Medication,1,mg
 hospital,S,String,yes,no,,,,,Demographic,1,hospital name
 admittime,S,String,yes,no,,,,,Demographic,1,timestamp time of admit time
+bipap,T,Boolean,yes,no,,,,,Order Procedure,1,
+cpap,T,Boolean,yes,no,,,,,Order Procedure,1,
