@@ -81,6 +81,8 @@ class Extractor:
     def extract_bedded_patients(self, limit):
         resource = '/facilities/hospital/' + self.hospital + '/beddedpatients'
         responses = self.make_requests(resource, [None], 'GET')
+        if limit:
+            logging.info("max_num_pats = {}".format(limit))
         return pd.DataFrame(responses[0]).head(limit) if limit else pd.DataFrame(responses[0])
 
 
