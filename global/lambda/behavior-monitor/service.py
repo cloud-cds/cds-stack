@@ -156,6 +156,9 @@ def data_2_db(sql_table_name, data_in,dtype_dict=None):
 
   print("saving data frame to {}: nrows = {}".format(temp_table_name, nrows))
 
+  connection = engine.connect()
+  connection.execute("""DROP TABLE IF EXISTS {}""".format(temp_table_name))
+
   if dtype_dict is None:
     results.to_sql(temp_table_name, engine, if_exists='append', index=False, schema='public')
   else:
@@ -168,9 +171,7 @@ def data_2_db(sql_table_name, data_in,dtype_dict=None):
       DO UPDATE SET visit_id = EXCLUDED.visit_id, loc = EXCLUDED.loc, dep = EXCLUDED.dep, raw_url = EXCLUDED.raw_url;
       """.format(sql_table_name, temp_table_name)
 
-  connection = engine.connect()
   connection.execute(make_final_sql)
-  connection.execute("""DROP TABLE {}""".format(temp_table_name))
 
   connection.close()
   engine.dispose()
@@ -422,7 +423,7 @@ def get_users_in_interval(firstTime, lastTime):
   client = boto3.client('logs')
 
   resList = getfiltLogEvent(firstTime, lastTime, client,
-                               'opsdx-web-logs-prod', ['trews'], '{$.req.url=*USERID*}')
+                               'opsdx-web-logs-dev', ['trews'], '{$.req.url=*USERID*}') # can we base this on the rule somehow? @peter
 
   allDicts = []
   for res in resList:
@@ -483,5 +484,5 @@ def handler(event, context):
 
 
 if __name__ == '__main__':
-  batch_proc_main(datetime.now()-timedelta(days=13.9),datetime.now())
+  batch_proc_main(datetime.now()-timedelta(days=1),datetime.now())
 
