@@ -287,6 +287,24 @@ cdm_defs = {
         'thresh':   (30, 250),
         'human_readable':   'Non-invasive Systolic BP',
     },
+    'abp': {
+        'unit':     'mmHg',
+        'value':    str,
+        'thresh':   (None, None),
+        'human_readable':   'Arterial Blood Pressure',
+    },
+    'abp_dias': {
+        'unit':     'mmHg',
+        'value':    float,
+        'thresh':   (8, 150),
+        'human_readable':   'Diastolic Arterial BP',
+    },
+    'abp_sys': {
+        'unit':     'mmHg',
+        'value':    float,
+        'thresh':   (30, 250),
+        'human_readable':   'Systolic Arterial BP',
+    },
     'neosynephrine_dose': {
         'unit':     '',
         'value':    float,
