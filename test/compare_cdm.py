@@ -95,6 +95,7 @@ cdm_s_fields1 = [
 ]
 cdm_s_query1 = (cdm_s_fields1, cdm_s_range + ' and ' + enc_id_range, 'fid, enc_id', cdm_s_dependent_fields)
 
+#extractor, name, type
 cdm_t_fields1 = [
   ['enc_id'                             , 'enc_id',     'integer'     ],
   ['tsp'                                , 'tsp',        'timestamptz' ],
@@ -196,15 +197,15 @@ class TableComparator:
     self.src_table = src_tbl
     self.dst_table = dst_tbl if dst_tbl is not None else src_tbl
 
-    self.src_pred = src_pred
-    self.dst_pred = dst_pred if dst_pred is not None else src_pred
+    self.src_pred = src_pred #Where clause
+    self.dst_pred = dst_pred if dst_pred is not None else src_pred  #
 
-    self.field_map = field_map
+    self.field_map = field_map #
     self.dependent_fields = dependent_fields
 
-    self.version_extension = version_extension
-    self.as_count_result = as_count_result
-    self.sort_field = sort_field
+    self.version_extension = version_extension # extra fields in table.
+    self.as_count_result = as_count_result # what should the script output, count or rows?
+    self.sort_field = sort_field # order field, ease to look at the difference, not computational.
     self.dst_tsp_shift = dst_tsp_shift
 
   def version_extension_ids(self):

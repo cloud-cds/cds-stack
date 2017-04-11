@@ -231,6 +231,7 @@ dataset_id,fid,category,data_type,is_measured,is_deprecated,fillin_func_id,windo
 1,dialysis,T,Real,yes,no,,,,,Volume of fluid removed,1,
 1,bilirubin,TWF,Real,yes,no,last_value_in_window,28,,,Lab,1,mg/dl
 1,alt_liver_enzymes,TWF,Real,yes,no,last_value_in_window,28,,,Physiologic,1,
+1,map,TWF,Real,yes,no,last_value_in_window,4,,,Phyiologic,1,mmHg
 1,mapm,TWF,Real,no,no,,,mapm_update,"abp_mean, nbp_mean","BP-based, Mean arterial pressure (MAP), it should not be sparse",1,mmHg
 1,chronic_bronchitis_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
 1,gcs,TWF,Real,yes,no,last_value_in_window,28,,,"Glasgow Coma Score, measure of consciousness on a discrete scale from 3-15 where higher is better",1,no unit

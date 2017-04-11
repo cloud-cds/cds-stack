@@ -20,3 +20,5 @@ psql -h $db_host -U $db_user -d $db_name -p $db_port -f create_c2dw.sql
 echo "load model parameters"
 cd ${dashan_db_dw_path}/trews-model
 python deploy_model.py $db_name $db_host $model_id
+
+cd ..
