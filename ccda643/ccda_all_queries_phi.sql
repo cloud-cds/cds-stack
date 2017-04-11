@@ -59,9 +59,7 @@ FROM
     --     )
     --   ) AND
     -- for patients that are still present in hospital
-    AND (HOSP_DISCH_TIME IS NULL
-    --discharged between the dates in your cohort
-    or HOSP_DISCH_TIME between '2017-04-06' and '2017-04-11')
+    AND HOSP_DISCH_TIME IS NULL
 ) A (csn, pat_id, pat_mrn_id);
 
 -- DO NOT RUN THIS CODE UNTIL YOU'VE ALTERED THE DATES IN THE COHORT, OTHERWISE IT WILL CREATE DUPLICATE RECORDS!!!
@@ -126,9 +124,7 @@ FROM
   --       )
   --     ) AND
   --   --no patients that are still present in hospital
-    AND (HOSP_DISCH_TIME IS NULL
-    --discharged between the dates in your cohort
-    or HOSP_DISCH_TIME between '2017-04-06' and '2017-04-11')
+    AND HOSP_DISCH_TIME IS NULL
 ) A (pat_id, pat_mrn_id, identity_id);
 GO
 
