@@ -227,7 +227,7 @@ async def get_criteria_log(db_pool, eid):
   get_criteria_log_sql = \
   '''
   select log_id, pat_id, date_part('epoch', tsp) epoch, event from criteria_log
-  where pat_id = '%s' order by tsp desc limit 25;
+  where pat_id = '%s' order by tsp desc limit 25
   ''' % eid
 
   async with db_pool.acquire() as conn:
@@ -278,7 +278,7 @@ async def toggle_notification_read(db_pool, eid, notification_id, as_read):
           now(),
           json_build_object('event_type', 'toggle_notifications', 'message', n.message),
           now()
-  from update_notifications n;
+  from update_notifications n
   ''' % {'pid': eid, 'nid': notification_id, 'val': str(as_read).lower()}
   logging.info("toggle_notifications_read:" + toggle_notifications_sql)
 

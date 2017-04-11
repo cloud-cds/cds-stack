@@ -116,6 +116,13 @@ class TREWSAPI(web.View):
       logging.error(msg)
       return {'message': msg}
 
+    # All actions other than pollNotifications or pollAuditlist
+    # reach this point, and thus we invalidate the cached patient data here.
+    # These non-polling actions may change the patient or frontend state,
+    # thus we must ensure we query the database again.
+    logging.info("Invalidating cache for %s" % eid)
+    await pat_cache.delete(eid)
+
     return {'result': 'OK'}
 
 
