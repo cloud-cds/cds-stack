@@ -1,7 +1,8 @@
 fid,value,confidence
-abp_mean_popmean,,16
-abp_sys_popmean,,16
-abp_dias_popmean,,16
+map,88.4876738068803,16
+abp_mean_popmean,88.4876738068803,16
+abp_sys_popmean,88.4876738068803,16
+abp_dias_popmean,88.4876738068803,16
 nbp_mean_popmean,88.4876738068803,16
 lipase_popmean,179.420793999741,24
 magnesium_popmean,1.94607369117863,24
