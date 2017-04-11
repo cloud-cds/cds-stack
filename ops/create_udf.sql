@@ -768,7 +768,9 @@ SELECT
     coalesce(e.override_value, c.override_value) override_value,
     coalesce(e.value, c.value) as value,
     coalesce(e.update_date, c.update_date) update_date
-FROM criteria c
+FROM (
+    select * from criteria c2 where c2.pat_id = coalesce(this_pat_id, c2.pat_id)
+) c
 full JOIN
 (
     select  ce.pat_id,
@@ -789,7 +791,6 @@ full JOIN
     )
 ) as e
 on c.pat_id = e.pat_id and c.name = e.name
-where (c.pat_id = coalesce(this_pat_id, c.pat_id) or e.pat_id = coalesce(this_pat_id, e.pat_id) )
 ;
 END $func$ LANGUAGE plpgsql;
 
