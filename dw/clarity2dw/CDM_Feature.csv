@@ -44,7 +44,7 @@ dataset_id,fid,category,data_type,is_measured,is_deprecated,fillin_func_id,windo
 1,renal_sofa,TWF,Integer,no,no,,,renal_sofa_update,"creatinine, urine_output_24hr",it should not be sparse,1,no unit
 1,clindamycin_dose,T,JSON,yes,no,,3,,,Medication,1,mg
 1,levophed_dose,T,JSON,yes,no,,3,,,Medication,1,mcg/min
-1,nbp_sys,TWF,Real,yes,no,,,,,Physiologic,1,mmHg
+1,nbp_sys,TWF,Real,yes,no,last_value_in_window,4,,,Physiologic,1,mmHg
 1,etomidate_dose,T,JSON,yes,no,,,,,Medication,1,mg
 1,tobramycin_dose,T,JSON,yes,no,,3,,,Medication,1,mg
 1,sirs_hr_oor,TWF,Boolean,no,no,,,sirs_hr_oor_update,heart_rate,"vital sign based,  it should not be sparse",1,no unit
