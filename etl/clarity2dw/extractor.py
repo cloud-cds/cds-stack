@@ -124,6 +124,13 @@ class Extractor:
 
     for row_idx, mapping_row in feature_mapping.iterrows():
       fids = mapping_row['fid(s)']
+      if fids_2_proc:
+        if isinstance(fids_2_proc, list):
+          if fids not in fids_2_proc:
+            continue
+        else:
+          if fids != fids_2_proc:
+            continue
       fids = [fid.strip() for fid in fids.split(',')] if ',' in fids else [fids]
       for fid in fids:
         if self.cdm_feature_dict.get(fid, False):
