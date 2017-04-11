@@ -51,7 +51,7 @@ def translate_med_name_to_fid(med_data):
     return med_data
 
 
-def extract_sys_dias_from_nbp(df, fid_col, value_col):
+def extract_sys_dias_from_bp(df, fid_col, value_col, bp):
     def get_sys(row):
         if (len(row) != 2) or (not row[0].isdigit()):
             logging.error('Error in systolic.\n' + row.to_string())
@@ -64,16 +64,20 @@ def extract_sys_dias_from_nbp(df, fid_col, value_col):
             return 0
         return float(row[1])
 
-    nbp_rows = (df[fid_col] == 'nbp')
-    nbp_df = df[nbp_rows]
-    nbp_sys = nbp_df[value_col].str.split("/").apply(get_sys, 1)
-    nbp_dias = nbp_df[value_col].str.split("/").apply(get_dias, 1)
-    nbp_df = nbp_df.drop([value_col, fid_col], axis=1)
-    nbp_sys.name = value_col
-    nbp_dias.name = value_col
-    nbp_sys = nbp_df.copy().join(nbp_sys).assign(fid="nbp_sys")
-    nbp_dias = nbp_df.copy().join(nbp_dias).assign(fid="nbp_dias")
-    df = df[~nbp_rows].append([nbp_sys, nbp_dias])
+    bp_rows = (df[fid_col] == bp)
+    bp_df = df[bp_rows]
+    bp_sys = bp_df[value_col].str.split("/").apply(get_sys, 1)
+    bp_dias = bp_df[value_col].str.split("/").apply(get_dias, 1)
+    bp_df = bp_df.drop([value_col, fid_col], axis=1)
+    bp_sys.name = value_col
+    bp_dias.name = value_col
+    bp_sys = bp_df.copy().join(bp_sys).assign(fid="{}_sys".format(bp))
+    bp_dias = bp_df.copy().join(bp_dias).assign(fid="{}_dias".format(bp))
+    df = df[~bp_rows].append([bp_sys, bp_dias])
+    # also assign to a new feature called bp -- combine nbp and abp
+    bp_sys = bp_df.copy().join(bp_sys).assign(fid="bp_sys")
+    bp_dias = bp_df.copy().join(bp_dias).assign(fid="bp_dias")
+    df = df.append([bp_sys, bp_dias])
     return df
 
 def convert_units(df, fid_col, fids, unit_col, from_unit, to_unit, value_col, convert_func):
