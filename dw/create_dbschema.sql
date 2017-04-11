@@ -10,14 +10,14 @@
 -- version used to populate the DW.
 -- Versions allow us to maintain multiple datasets for comparison purposes.
 ------------------------------------------------
-DROP TABLE IF EXISTS dw_version;
+DROP TABLE IF EXISTS dw_version CASCADE;
 CREATE TABLE dw_version (
     dataset_id      serial primary key,
     created         timestamptz,
     description     text
 );
 
-DROP TABLE IF EXISTS model_version;
+DROP TABLE IF EXISTS model_version CASCADE;
 CREATE TABLE model_version (
     model_id        serial PRIMARY KEY,
     created         timestamptz,
@@ -298,7 +298,7 @@ CREATE TABLE criteria_default
     primary key         (name, fid, category)
 );
 
-\copy criteria_default from '/home/ubuntu/peterm/dashan/dashan-db/dw/criteria_default.csv' with csv header delimiter as ',';
+\copy criteria_default from 'criteria_default.csv' with csv header delimiter as ',';
 
 
 DROP TABLE IF EXISTS notifications;
