@@ -21,7 +21,7 @@ def sum_values_at_same_tsp(df, list_of_fids):
         df = df[~fid_values].append(combined)
     return df
 
-def derive_lab_status(df):
+def derive_procedure_status(df):
     def get_status(row):
         order = row['order_status']
         proc = row['proc_status']
@@ -52,24 +52,3 @@ def derive_lab_status_clarity(df):
     df.drop(['order_status', 'proc_status'], axis=1, inplace=True)
 
     return df
-
-
-# def derive_fluids_intake(df, list_of_fids):
-#     fi_values = df['fid'].isin(['fluids_intake'])
-#     df_rest = df[~fi_values]
-#     df_fi = df[fi_values]
-#     group_cols = ['visit_id', 'full_name']
-#     groups = df_fi.groupby(group_cols, sort=False)
-#     for key, group in groups:
-#         logging.debug('derive_fluids_intake %s' % key)
-#         derived = transform.extract_fluids_intake_df(group.sort_values(by='tsp'), logging)
-#         df_rest = df_rest.append(derived)
-#     return df_rest
-
-#     for fid in list_of_fids:
-#         fid_values = df['fid'].isin([fid])
-#         combined = df[fid_values].groupby(group_cols,
-#                                           as_index=False,
-#                                           group_keys=False)['value'].sum()
-#         df = df[~fid_values].append(combined)
-#     return df

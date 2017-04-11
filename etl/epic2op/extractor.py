@@ -1,7 +1,6 @@
 from etl.mappings.api_servers import servers
 from etl.mappings.flowsheet_ids import flowsheet_ids
 from etl.mappings.component_ids import component_ids
-from etl.mappings.procedure_ids import procedure_ids
 
 import asyncio
 import uvloop
@@ -117,7 +116,7 @@ class Extractor:
         return self.combine(dfs, bedded_patients[['pat_id', 'visit_id']])
 
 
-    def extract_lab_orders(self, bedded_patients):
+    def extract_active_procedures(self, bedded_patients):
         resource = '/facilities/hospital/' + self.hospital + '/orders/activeprocedures'
         payloads = [{'csn': pat['visit_id']} for _, pat in bedded_patients.iterrows()]
         responses = self.make_requests(resource, payloads, 'GET')
@@ -125,10 +124,10 @@ class Extractor:
         return self.combine(dfs, bedded_patients[['pat_id', 'visit_id']])
 
 
-    def extract_lab_procedures(self, bedded_patients):
+    def extract_lab_orders(self, bedded_patients):
         resource = '/patients/labs/procedure'
         procedure_types = []
-        for _, ids in procedure_ids:
+        for _, ids in `:
             procedure_types += ({'Type': 'INTERNAL', 'ID': str(x)} for x in ids)
         payloads = [{
           'Id':                   pat['pat_id'],
