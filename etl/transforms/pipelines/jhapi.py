@@ -79,7 +79,7 @@ active_procedures_transforms = [
     lambda lo: translate.translate_epic_id_to_fid(lo,
         col = 'procedure_code', new_col = 'fid',
         config_map = procedure_ids, drop_original = True,
-        add_string = '_order', remove_if_not_found = True
+        add_string = '_order', add_string_fid=['blood_culture', 'lactate'], remove_if_not_found = True
     ),
     lambda lo: derive.derive_procedure_status(lo),
 ]
@@ -103,7 +103,7 @@ lab_orders_transforms = [
     lambda lp: translate.translate_epic_id_to_fid(lp,
         col = 'component_id', new_col = 'fid',
         config_map = component_ids, drop_original = True,
-        add_string = '_order'
+        add_string = '_order', add_string_fid=['blood_culture', 'lactate']
     ),
     lambda lp: format_data.format_tsp(lp, 'tsp'),
 ]

@@ -6,7 +6,7 @@ import re
 import logging
 
 def translate_epic_id_to_fid(df, col, new_col, config_map, drop_original=False,
-        add_string='', remove_if_not_found=False):
+        add_string='', add_string_fid=None, remove_if_not_found=False):
     def convert_id(epic_id):
         for fid, epic_id_list in config_map:
             if epic_id in epic_id_list:
@@ -25,8 +25,10 @@ def translate_epic_id_to_fid(df, col, new_col, config_map, drop_original=False,
         df.drop(col, axis=1, inplace=True)
     if remove_if_not_found:
         df = df[df[new_col] != 'INVALID FID']
-    if add_string != '':
-        df[new_col] += add_string
+    if add_string != '' and add_string_fid is not None:
+        for fid in add_string_fid:
+            fid_rows = (df[new_col] == fid)
+            df[new_col][fid_rows] += add_string
     return df
 
 
