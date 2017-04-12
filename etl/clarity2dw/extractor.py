@@ -123,6 +123,7 @@ class Extractor:
     self.log.info("load feature mapping")
 
     for row_idx, mapping_row in feature_mapping.iterrows():
+      self.log.debug(mapping_row)
       fids = mapping_row['fid(s)']
       if fids_2_proc:
         if isinstance(fids_2_proc, list):
