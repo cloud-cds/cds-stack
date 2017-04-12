@@ -1,3 +1,4 @@
+import os
 import asyncio
 import asyncpg
 
@@ -26,6 +27,7 @@ class Criteria:
     async with self.pool.acquire() as conn:
       await self.garbage_collection(conn)
       await self.advance_criteria_snapshot(conn)
+      await self.notify_etl_listeners(conn)
 
   async def garbage_collection(self, conn):
       self.log.info("advancing criteria snapshot")
@@ -36,3 +38,10 @@ class Criteria:
       self.log.info("start garbage_collection")
       await conn.execute("select advance_criteria_snapshot();")
       self.log.info("completed garbage_collection")
+
+  async def notify_etl_listeners(self, conn):
+      if 'etl_channel' in os.environ:
+          await conn.execute("notify %s;" % os.environ['etl_channel'])
+          self.log.info("completed etl notifications")
+      else:
+          self.log.info("no etl channel found in the environment, skipping etl notifications")
