@@ -143,7 +143,7 @@ class Extractor:
         i = len(transform_func_id) - transform_func_id[::-1].index('.')
         package = transform_func_id[:(i-1)]
         transform_func_id = transform_func_id[i:]
-        self.log.info("fid: %s using package: %s and transform_func_id: %s" % (these_fids, package, transform_func_id))
+        self.log.info("fid: %s using package: %s and transform_func_id: %s" % (",".join(fids), package, transform_func_id))
         module = importlib.import_module(package)
         func = getattr(module, transform_func_id)
         await func(conn,self.config.dataset_id,self.log,self.plan)
