@@ -30,25 +30,25 @@ class Restore():
 # compare online ETL (epic2op) with offline ETL (c2dw)
 #########################################################
 job_c2dw_1 = {
-  # 'reset_dataset': {
-  #   'remove_pat_enc': False,
-  #   'remove_data': True,
-  #   'start_enc_id': '(select max(enc_id) from pat_enc)'
-  # },
-  # 'transform': {
-  #   'populate_patients': True,
-  #   'populate_measured_features': {
-  #     'plan': False,
-  #     # 'fid': 'age',
-  #   },
-  # },
-  # 'fillin': {
-  #   'recalculate_popmean': False,
-  # },
-  # 'derive':
-  # {
-  #   'fid': None
-  # },
+  'reset_dataset': {
+    'remove_pat_enc': False,
+    'remove_data': True,
+    'start_enc_id': '(select max(enc_id) from pat_enc)'
+  },
+  'transform': {
+    'populate_patients': True,
+    'populate_measured_features': {
+      'plan': False,
+      # 'fid': 'age',
+    },
+  },
+  'fillin': {
+    'recalculate_popmean': False,
+  },
+  'derive':
+  {
+    'fid': None
+  },
   'offline_criteria_processing': {
     'load_cdm_to_criteria_meas': True,
     # 'calculate_historical_criteria':False
@@ -65,8 +65,8 @@ job_c2dw_1 = {
 epic2op_vs_c2dw = [
   {
     'name': 'test_epic2op',
-    # 'engine': EngineEpic2op(db_name='test_epic2op'),
-    'engine': Restore(db_name='test_epic2op',file='/home/ubuntu/clarity-db-staging/epic2op/2017-04-06.sql'),
+    'engine': EngineEpic2op(db_name='test_epic2op'),
+    # 'engine': Restore(db_name='test_epic2op',file='/home/ubuntu/clarity-db-staging/epic2op/2017-04-06.sql'),
     'pipeline': {
       # 'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
       # 'populate_db': True,
@@ -76,13 +76,12 @@ epic2op_vs_c2dw = [
     'name': 'test_c2dw',
     'engine': EngineC2dw,
     'job': job_c2dw_1,
-    # 'pipeline': {
-    # # #   # 'load_clarity': {'folder': 'clarity-db-staging/2017-04-06/'},
-    # #   'load_clarity': {'folder': '~/clarity-db-staging/2017-04-06/'},
-    # #   'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
-    # #   'copy_pat_enc': True,
-    #   'populate_db': True,
-    # },
+    'pipeline': {
+      # 'load_clarity': {'folder': '~/clarity-db-staging/2017-04-11/'},
+      # 'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
+      # 'copy_pat_enc': True,
+      # 'populate_db': True,
+    },
     'db_compare': {
       'srcdid': None,
       'srcmid': None,
@@ -90,7 +89,7 @@ epic2op_vs_c2dw = [
       'dstmid': 1,
       'cmp_remote_server': 'test_epic2op',
       'counts': False,
-      'date': '2017-04-04',
+      'date': '2017-04-10',
       'dst_tsp_shift': '4 hours',
       'feature_set': 'online',
     }
@@ -518,7 +517,7 @@ class DBCompareTest():
     'epinephrine_dose',
     'levophed_infusion_dose',
     'dopamine_dose','vent','fluids_intake',]
-    cdm_twf_online_features = ['rass', 'resp_rate',  'nbp_sys', 'gcs', 'temperature', 'amylase',    'weight', 'pao2', 'nbp_dias', 'hemoglobin',  'wbc', 'bilirubin', 'lipase', 'sodium', 'creatinine',  'spo2',  'heart_rate', 'paco2', 'bun', 'platelets', 'fio2']
+    cdm_twf_online_features = ['rass', 'resp_rate', 'abp_sys', 'nbp_sys', 'gcs', 'temperature', 'amylase',    'weight', 'pao2', 'abp_dias', 'nbp_dias', 'hemoglobin',  'wbc', 'bilirubin', 'lipase', 'sodium', 'creatinine',  'spo2',  'heart_rate', 'paco2', 'bun', 'platelets', 'fio2']
 
     pat_enc_fields = [
       ['enc_id'                             ,     'integer'     ],
@@ -684,7 +683,7 @@ class DBCompareTest():
 
     after_admission_crit_meas_constraint = " tsp >= coalesce((select min(ct.tsp) from cdm_t ct inner join pat_enc pe on ct.enc_id = pe.enc_id where ct.fid = 'care_unit' and pe.pat_id = criteria_meas.pat_id), tsp) "
 
-    criteria_meas_query = (criteria_meas_fields, after_admission_crit_meas_constraint + ' and ' + tsp_range + ' and ' + pat_id_range + ' and (fid = \'nbp_sys\' or fid = \'mapm\' or fid = \'lactate\' or fid = \'suspicion_of_infection\' or fid = \'crystalloid_fluid_order\' or fid = \'bands\' or fid = \'cms_antibiotics\' or fid = \'heart_rate\' or fid = \'creatinine\' or fid = \'resp_rate\' or fid = \'inr\' or fid = \'fluids_intake\' or fid = \'blood_culture_order\' or fid = \'platelets\' or fid = \'wbc\' or fid = \'vasopressors_dose\' or fid = \'pao2_to_fio2\' or fid = \'crystalloid_fluid\' or fid = \'cms_antibiotics_order\' or fid = \'lactate_order\' or fid = \'bilirubin\' or fid = \'ptt\' or fid = \'vasopressors_dose_order\' or fid = \'temperature\')', 'fid, pat_id, tsp', crit_meas_dep_fields)
+    criteria_meas_query = (criteria_meas_fields, after_admission_crit_meas_constraint + ' and ' + tsp_range + ' and ' + pat_id_range + ' and (fid = \'bp_sys\' or fid = \'map\' or fid = \'lactate\' or fid = \'suspicion_of_infection\' or fid = \'crystalloid_fluid_order\' or fid = \'bands\' or fid = \'cms_antibiotics\' or fid = \'heart_rate\' or fid = \'creatinine\' or fid = \'resp_rate\' or fid = \'inr\' or fid = \'fluids_intake\' or fid = \'blood_culture_order\' or fid = \'platelets\' or fid = \'wbc\' or fid = \'vasopressors_dose\' or fid = \'pao2_to_fio2\' or fid = \'crystalloid_fluid\' or fid = \'cms_antibiotics_order\' or fid = \'lactate_order\' or fid = \'bilirubin\' or fid = \'ptt\' or fid = \'vasopressors_dose_order\' or fid = \'temperature\')', 'fid, pat_id, tsp', crit_meas_dep_fields)
 
     cdm_twf_queries = [(cdm_twf_field_index + [cdm_twf_fields[2*i]], enc_id_range + ' and ' + tsp_range + ' and ' + (confidence_range % cdm_twf_fields[2*i+1][0]) + ' and ' + after_admission_constraint.format(cdm='cdm_twf'), 'enc_id, tsp', cdm_twf_dependent_fields) for i in range(len(cdm_twf_fields)//2)]
 
