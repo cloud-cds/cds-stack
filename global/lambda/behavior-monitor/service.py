@@ -372,7 +372,7 @@ def calc_behamon_report_metrics(firstTime, lastTime):
 
   num_pats_seen_df = pd.read_sql(numPats_seen,engine)
 
-  print("We got data from the database, shape {} !".format(df.shape))
+  print("We got data from the database, shape {} !".format(num_pats_seen_df.shape))
 
   engine.dispose()
 
