@@ -8,6 +8,9 @@ import functools
 import json
 import boto3
 
+import asyncio
+import asyncpg
+
 from aiohttp import web
 from aiohttp.web import Response, json_response
 
@@ -15,7 +18,7 @@ from jinja2 import Environment, FileSystemLoader
 from monitoring import TREWSPrometheusMetrics, cloudwatch_logger_middleware, cwlog_enabled
 
 import api, dashan_query
-from api import api_monitor
+from api import pat_cache, api_monitor
 
 
 #################################
@@ -41,6 +44,16 @@ KEYS = {
   'fluid': '1',
   "vasopressors": '7'
 }
+
+user = os.environ['db_user']
+host = os.environ['db_host']
+db   = os.environ['db_name']
+port = os.environ['db_port']
+pw   = os.environ['db_password']
+client_id = os.environ['jhapi_client_id'],
+client_secret = os.environ['jhapi_client_secret']
+etl_channel = os.environ['etl_channel'] if 'etl_channel' in os.environ else None
+
 
 ###################################
 # Handlers
@@ -197,6 +210,36 @@ class TREWSEchoHealthcheck(web.View):
       raise web.HTTPBadRequest(body=json.dumps({'message': 'Error echoing healthcheck: %s' % str(ex)}))
 
 
+############################
+# DB Pool init and cleanup.
+
+listener_conn = None
+
+def invalidate_cache(conn, pid, channel, payload):
+  global pat_cache
+  logging.info('Invalidating patient cache... (via channel %s)' % channel)
+  asyncio.ensure_future(pat_cache.clear())
+
+async def init_db_pool(app):
+  global listener_conn
+  app['db_pool'] = await asyncpg.create_pool(database=db, user=user, password=pw, host=host, port=port)
+  # Set up the ETL listener to invalidate the patient cache.
+  if etl_channel is not None:
+    listener_conn = await app['db_pool'].acquire()
+    logging.info('Added listener on %s' % etl_channel)
+    await listener_conn.add_listener(etl_channel, invalidate_cache)
+
+async def cleanup_db_pool(app):
+  global listener_conn
+  if 'pool' in app:
+    # Remove the ETL listener.
+    if etl_channel is not None and listener_conn is not None:
+      logging.info('Removing listener on %s' % etl_channel)
+      await listener_conn.remove_listener(etl_channel, invalidate_cache)
+
+    await app['db_pool'].close()
+
+
 ###################
 # Routes.
 
@@ -207,8 +250,8 @@ if cwlog_enabled:
 
 app = web.Application(middlewares=mware)
 
-app.on_startup.append(dashan_query.init_db_pool)
-app.on_cleanup.append(dashan_query.cleanup_db_pool)
+app.on_startup.append(init_db_pool)
+app.on_cleanup.append(cleanup_db_pool)
 
 # Background tasks.
 if api_monitor.enabled:

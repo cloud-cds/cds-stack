@@ -7,30 +7,11 @@ import datetime
 import logging
 import pytz
 
-import asyncio
-import asyncpg
-
 from jhapi_io import Loader
 
 logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.INFO)
 
 epic_notifications = os.environ['epic_notifications']
-
-user = os.environ['db_user']
-host = os.environ['db_host']
-db   = os.environ['db_name']
-port = os.environ['db_port']
-pw   = os.environ['db_password']
-client_id = os.environ['jhapi_client_id'],
-client_secret = os.environ['jhapi_client_secret']
-
-# Init and cleanup.
-async def init_db_pool(app):
-  app['db_pool'] = await asyncpg.create_pool(database=db, user=user, password=pw, host=host, port=port)
-
-async def cleanup_db_pool(app):
-  if 'pool' in app:
-    await app['db_pool'].close()
 
 
 ##########################################
