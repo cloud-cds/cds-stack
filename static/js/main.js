@@ -99,21 +99,6 @@ var trews = new function() {
 		return list;
 	}
 	this.orderIsDone = function(order_name) {
-		/*
-		var orderWorkflowKeys = {
-			'antibiotics_order'       : 'antibiotics',
-			'blood_culture_order'     : 'blood_culture',
-			'initial_lactate_order'   : 'init_lactate',
-			'crystalloid_fluid_order' : 'fluid',
-			'repeat_lactate_order'    : 'repeat_lactate',
-			'vasopressors_order'      : 'vasopressors'
-		};
-		var order_key = orderWorkflowKeys[order_name];
-		var as_dose = workflows[order_key]['as_dose'];
-		if ( as_dose ) {
-			return Number(this.data[order_name]['status'] ? this.data[order_name]['status'] : 0) > doseLimits[order_key];
-		}
-		*/
 		return this.data[order_name]['status'] == 'Completed'
 						|| this.data[order_name]['status'] == 'Not Indicated';
 	}
@@ -965,6 +950,10 @@ var criteriaComponent = function(c, constants, key, hidden) {
 		displayValue = ((Number(displayValue) - 32) / 1.8).toPrecision(3);
 	}
 
+	if ( c['name'] == 'respiratory_failure') {
+		displayValue = c[is_met] ? 'On' : 'Off';
+	}
+
 	if (c['is_met'] && c['measurement_time']) {
 		this.classComplete = " met";
 		var lapsed = timeLapsed(new Date(c['measurement_time']*1000));
@@ -1587,6 +1576,9 @@ var activity = new function() {
 					}
 				}
 			}
+		} else if (data['event_type'] == 'deactivate') {
+			event_type = data['deactivated'] ? 'deactivate' : 'activate';
+			msg += data['uid'] + LOG_STRINGS[event_type]
 		} else {
 			msg += data['uid'] + LOG_STRINGS[data['event_type']]
 		}

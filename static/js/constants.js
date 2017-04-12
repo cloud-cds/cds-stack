@@ -56,6 +56,7 @@ var LOG_STRINGS = {
 		]
 	},
 	"deactivate": " <b>deactivated</b> the patient",
+	"activate": " <b>activated</b> the patient",
 	"toggle_notifications": " toggled notifications"
 }
 
@@ -297,17 +298,17 @@ var severe_sepsis = {
 		}, {
 			"key": "respiratory_failure",
 			"criteria_display_name": "Acute respiratory failure evidenced by invasive or non-invasive ventiliation",
-			"dropdown": "Respiratory rate is normal",
+			"dropdown": "Respiratory failure is normal",
 			"overrideModal": [{
-				"id": "override_respiratory_rate",
-				"header": "Override Respiratory Rate",
-				"name": "Respiratory Failure: PaO2/FiO2",
+				"id": "override_respiratory_failure",
+				"header": "Override Respiratory Failure",
+				"name": "Respiratory Failure: Mechanical Support",
 				"units": "",
 				"step": 1,
 				"range": 'max',
 				"minAbsolute": 0,
-				"maxAbsolute": 200,
-				"value": 100
+				"maxAbsolute": 1,
+				"value": 0
 			}],
 			"precision": 4
 		}, {
