@@ -148,7 +148,7 @@ class Extractor:
       else: #if standard function
         # For now, use the fact that only custom functions are many to one.
         for fid in fids:
-          await self.populate_feature_to_cdm(mapping_row.copy().assign(fid=fid), conn, self.cdm_feature_dict[fid])
+          await self.populate_feature_to_cdm(mapping_row.copy().set_value('fid', fid), conn, self.cdm_feature_dict[fid])
 
   async def get_pat_mapping(self, conn):
     sql = "select * from pat_enc where dataset_id = %s" % self.config.dataset_id

@@ -153,7 +153,7 @@ med_orders_transforms = [
     lambda mo: translate.translate_med_name_to_fid(mo),
     lambda mo: filter_rows.filter_medications(mo),
     # lambda mo: format_data.clean_units(mo, 'fid', 'dose_unit'),
-    lambda mo: format_data.clean_values(mo, 'fid', 'dose', bad_values=[]),
+    lambda mo: format_data.to_numeric(mo, 'fid', 'dose', default_value=99),
     # lambda mo: translate.convert_units(mo,
     #     fid_col = 'fid',
     #     fids = ['piperacillin_tazbac_dose', 'vancomycin_dose',
