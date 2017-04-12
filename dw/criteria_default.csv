@@ -16,7 +16,9 @@ dataset_id,name,fid,override_value,category
 1,hypotension_map,map,"{""lower"":65}",hypotension
 1,decrease_in_sbp,bp_sys,"{""lower"":65}",decrease_in_sbp
 1,hypotension_dsbp,bp_sys,"{""lower"":65}",hypotension_dsbp
-1,respiratory_failure,pao2_to_fio2,"{""lower"":100}",cdm_twf
+1,respiratory_failure,vent,,respiratory_failure
+1,respiratory_failure,bipap,,respiratory_failure
+1,respiratory_failure,cpap,,respiratory_failure
 1,creatinine,creatinine,"{""upper"":2.0}",simple
 1,creatinine,creatinine,"{""lower"":0.5}",urine_output
 1,crystalloid_fluid,crystalloid_fluid,"{""upper"":30}",simple

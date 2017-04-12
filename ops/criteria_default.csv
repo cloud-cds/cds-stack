@@ -16,7 +16,9 @@ systolic_bp,bp_sys,"{""lower"":90}",hypotension
 hypotension_map,map,"{""lower"":65}",hypotension
 decrease_in_sbp,bp_sys,"{""lower"":65}",decrease_in_sbp
 hypotension_dsbp,bp_sys,"{""lower"":65}",hypotension_dsbp
-respiratory_failure,pao2_to_fio2,"{""lower"":100}",cdm_twf
+respiratory_failure,vent,,respiratory_failure
+respiratory_failure,bipap,,respiratory_failure
+respiratory_failure,cpap,,respiratory_failure
 creatinine,creatinine,"{""upper"":2.0}",simple
 creatinine,creatinine,"{""lower"":0.5}",urine_output
 crystalloid_fluid,crystalloid_fluid,"{""upper"":30}",simple

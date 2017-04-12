@@ -1054,20 +1054,16 @@ return query
             select
                 pat_cvalues.pat_id,
                 pat_cvalues.name,
-                cdm_twf.tsp,
-                cdm_twf.pao2_to_fio2 as value,
+                pat_cvalues.tsp,
+                pat_cvalues.fid ||': '|| pat_cvalues.value as value,
                 pat_cvalues.c_otime,
                 pat_cvalues.c_ouser,
                 pat_cvalues.c_ovalue,
-                (   cdm_twf.tsp between ts_start and ts_end
-                    and cdm_twf.pao2_to_fio2 < coalesce((c_ovalue#>>'{0,lower}')::numeric, (d_ovalue#>>'{lower}')::numeric)
-                    and cdm_twf.pao2_to_fio2_c < 8
-                ) as is_met
+                true as is_met
             from pat_cvalues
             inner join pat_enc on pat_cvalues.pat_id = pat_enc.pat_id
-            left join cdm_twf on pat_enc.enc_id = cdm_twf.enc_id
-            where pat_cvalues.category = 'cdm_twf'
-            order by cdm_twf.tsp
+            where pat_cvalues.category = 'respiratory_failure'
+            order by pat_cvalues.tsp
         ) as ordered
         group by ordered.pat_id, ordered.name
     ),

@@ -153,6 +153,8 @@ cdm_twf_field = [
   ['alt_liver_enzymes_c','alt_liver_enzymes_c' , 'Int'],
   ['mapm','mapm'  , 'Real'],
   ['mapm_c','mapm_c'  , 'Int'],
+  ['map','map'  , 'Real'],
+  ['map_c','map_c'  , 'Int'],
   ['gcs','gcs' , 'Real'],
   ['gcs_c','gcs_c' , 'Int'],
   ['sirs_intp','sirs_intp' , 'Boolean'],
