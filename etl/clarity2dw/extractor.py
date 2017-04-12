@@ -134,7 +134,7 @@ class Extractor:
             continue
       fids = [fid.strip() for fid in fids.split(',')] if ',' in fids else [fids]
       for fid in fids:
-        if self.cdm_feature_dict.get(fid, False):
+        if not self.cdm_feature_dict.get(fid, False):
           self.log.error("feature %s is not in cdm_feature" % fid)
           raise(ValueError("feature %s is not in cdm_feature" % fid))
       # get transform function
