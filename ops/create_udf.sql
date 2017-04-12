@@ -1055,11 +1055,11 @@ return query
                 pat_cvalues.pat_id,
                 pat_cvalues.name,
                 pat_cvalues.tsp,
-                pat_cvalues.fid ||': '|| pat_cvalues.value as value,
+                (coalesce(pat_cvalues.c_ovalue#>>'{0,text}', (pat_cvalues.fid ||': '|| pat_cvalues.value))) as value,
                 pat_cvalues.c_otime,
                 pat_cvalues.c_ouser,
                 pat_cvalues.c_ovalue,
-                true as is_met
+                (coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value) is not null) as is_met
             from pat_cvalues
             inner join pat_enc on pat_cvalues.pat_id = pat_enc.pat_id
             where pat_cvalues.category = 'respiratory_failure'
