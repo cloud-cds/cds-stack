@@ -1964,6 +1964,31 @@ BEGIN
     LOOP
       PERFORM load_cdm_twf_to_criteria_meas(_fid,_dataset_id);
     END LOOP;
+    -- ================================================
+    -- Handle bp_sys as a special case
+    -- ================================================
+    raise notice 'handling bp_sys as a special case';
+
+    insert into criteria_meas (dataset_id,         pat_id,         tsp,               fid,               value,    update_date)
+    select            cdm_twf.dataset_id, pat_enc.pat_id, cdm_twf.tsp,         'bp_sys'::text,  cdm_twf.nbp_sys,      now()
+    FROM
+    cdm_twf
+    inner join
+    pat_enc
+    on cdm_twf.enc_id = pat_enc.enc_id
+    where cdm_twf.nbp_sys_c <8 and cdm_twf.dataset_id = _dataset_id
+    ON CONFLICT (dataset_id,   pat_id,               tsp, fid) DO UPDATE SET value = excluded.value, update_date=excluded.update_date;
+
+    insert into criteria_meas (dataset_id,         pat_id,         tsp,               fid,               value,    update_date)
+    select            cdm_twf.dataset_id, pat_enc.pat_id, cdm_twf.tsp,         'bp_sys'::text,  cdm_twf.abp_sys,      now()
+    FROM
+    cdm_twf
+    inner join
+    pat_enc
+    on cdm_twf.enc_id = pat_enc.enc_id
+    where cdm_twf.abp_sys_c <8 and cdm_twf.dataset_id = _dataset_id
+    ON CONFLICT (dataset_id,   pat_id,               tsp, fid) DO UPDATE SET value = excluded.value, update_date=excluded.update_date;
+
 
 END; $function$;
 -- ===========================================================================
