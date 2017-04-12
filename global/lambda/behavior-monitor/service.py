@@ -57,14 +57,14 @@ def try_to_read_from_environ(var_str, default_val):
     return default_val
 
 BEAHMON_WEB_LOG_LISTEN = try_to_read_from_environ('BEAHMON_WEB_LOG_LISTEN','opsdx-web-logs-dev')
-BEAHMON_WEB_FILT_STR = try_to_read_from_environ('BEAHMON_WEB_FILT_STR','{$.req.url=*USERID*}')
-BEAHMON_WEB_LOG_SREAM_STR = try_to_read_from_environ('BEAHMON_WEB_FILT_STR','monitoring')
+BEAHMON_WEB_FILT_STR = try_to_read_from_environ('BEAHMON_WEB_FILT_STR','*USERID*')
+BEAHMON_WEB_LOG_SREAM_STR = try_to_read_from_environ('BEAHMON_WEB_LOG_SREAM_STR','monitoring')
 BEAHMON_TS_RULE_PERIOD_MINUTES = float(try_to_read_from_environ('BEAHMON_TS_RULE_PERIOD_MINUTES','10'))
-BEAHMON_REPORT_RULE_PERIOD_HOURS = float(try_to_read_from_environ('BEAHMON_REPORT_RULE_PERIOD_HOURS','24'))
+BEAHMON_REPORT_RULE_PERIOD_MINUTES = float(try_to_read_from_environ('BEAHMON_REPORT_RULE_PERIOD_MINUTES','1440'))
 
 
 rule_2_exeuction_period = {'opsdx-dev-behamon_lambda_time_series_rule':timedelta(minutes=BEAHMON_TS_RULE_PERIOD_MINUTES),
-                           'opsdx-dev-behamon_lambda_reports_rule':timedelta(hours=BEAHMON_REPORT_RULE_PERIOD_HOURS)}
+                           'opsdx-dev-behamon_lambda_reports_rule':timedelta(minutes=BEAHMON_REPORT_RULE_PERIOD_MINUTES)}
 
 #==================================================
 ## Support Functions
@@ -397,9 +397,10 @@ def get_users_in_interval(firstTime, lastTime):
   firstTime = time2epoch(firstTime)
 
   client = boto3.client('logs')
+  # # BEAHMON_WEB_FILT_STR = try_to_read_from_environ('BEAHMON_WEB_FILT_STR','{$.req.url=*USERID*}')
 
   resList = getfiltLogEvent(firstTime, lastTime, client,
-                            BEAHMON_WEB_LOG_LISTEN, [BEAHMON_WEB_LOG_SREAM_STR], BEAHMON_WEB_FILT_STR) # can we base this on the rule somehow? @peter
+                            BEAHMON_WEB_LOG_LISTEN, [BEAHMON_WEB_LOG_SREAM_STR], "{{$.req.url={}}}".format(BEAHMON_WEB_FILT_STR)) # can we base this on the rule somehow? @peter
 
   allDicts = []
   for res in resList:
