@@ -41,13 +41,30 @@ col_2_dtype_dict = {'doc_id': sqlalchemy.types.String(length=50),
                     'raw_url': sqlalchemy.types.String()}
 
 
-rule_2_exeuction_period = {'opsdx-dev-behamon_lambda_time_series_rule':timedelta(minutes=2),
-                           'opsdx-dev-behamon_lambda_reports_rule':timedelta(minutes=2)}
-
 unique_usrs_window = timedelta(minutes=60)
 
 reports_window = timedelta(hours=24)
 
+#==================================================
+## Evnvironment Variables
+#==================================================
+def try_to_read_from_environ(var_str, default_val):
+  if var_str in os.environ:
+    print("Selecting {} from Environment".format(var_str))
+    return os.environ[var_str]
+  else:
+    print("Selecting default value for {}".format(var_str))
+    return default_val
+
+BEAHMON_WEB_LOG_LISTEN = try_to_read_from_environ('BEAHMON_WEB_LOG_LISTEN','opsdx-web-logs-dev')
+BEAHMON_WEB_FILT_STR = try_to_read_from_environ('BEAHMON_WEB_FILT_STR','{$.req.url=*USERID*}')
+BEAHMON_WEB_LOG_SREAM_STR = try_to_read_from_environ('BEAHMON_WEB_FILT_STR','monitoring')
+BEAHMON_TS_RULE_PERIOD_MINUTES = float(try_to_read_from_environ('BEAHMON_TS_RULE_PERIOD_MINUTES','10'))
+BEAHMON_REPORT_RULE_PERIOD_HOURS = float(try_to_read_from_environ('BEAHMON_REPORT_RULE_PERIOD_HOURS','24'))
+
+
+rule_2_exeuction_period = {'opsdx-dev-behamon_lambda_time_series_rule':timedelta(minutes=BEAHMON_TS_RULE_PERIOD_MINUTES),
+                           'opsdx-dev-behamon_lambda_reports_rule':timedelta(hours=BEAHMON_REPORT_RULE_PERIOD_HOURS)}
 
 #==================================================
 ## Support Functions
@@ -145,6 +162,9 @@ def data_2_db(sql_table_name, data_in,dtype_dict=None):
 
   results['doc_id'] = results['doc_id'].apply(lambda x: x[1::])
 
+  results = results[results['pat_id'].notnull()&results['tsp'].notnull()&results['doc_id'].notnull()]
+
+
   # =============================
   # Upsert to Database
   # =============================
@@ -216,51 +236,7 @@ def getfiltLogEvent(firstTime, lasTime, client,
 
   return resList
 
-def getLogs(logStart, logEnd, client,
-            logGroup, logStreamNames):
-  stack = client.get_log_events(logGroupName=logGroup, logStreamName=logStreamNames,
-                                startTime=logStart, endTime=logEnd, startFromHead=True)
-  stackList = [stack]
-
-  loops = 0
-  if 'nextToken' in stack:
-    nt = stack['nextToken']
-  else:
-    nt = False
-
-  while nt:
-    loops += 1
-    stack = client.get_log_events(logGroupName='opsdx-dev-k8s-logs', logStreamName='kubernetes/default/trews/etl',
-                                  startTime=logStart, endTime=logEnd, nextToken=nt, startFromHead=True)
-    stackList += [stack]
-
-    if 'nextToken' in stack:
-      nt = stack['nextToken']
-    else:
-      nt = False
-
-  return stackList
-
 def periodic_rule_2_td(rule_name):
-  #--------------------------------------------------------------
-  # I can only get this algorithum to work locally, not on aws.
-  #--------------------------------------------------------------
-  print("client")
-  client = boto3.client('events')
-  print("rule")
-  rule_details = client.describe_rule(Name=rule_name)
-
-  print(rule_details)
-  # looks like this rate(2 minutes)
-  print("execution")
-  execution_period_str = str(rule_details['ScheduleExpression'][5:-1])
-  print(execution_period_str)
-  print("time stuff")
-  timenum, timeunit = execution_period_str.split(' ')
-  print(timenum)
-  print(timeunit)
-  print("execution period")
-  execution_period_td = timedelta(**{timeunit: float(timenum)})
 
   execution_period_td = rule_2_exeuction_period[rule_name]
 
@@ -423,7 +399,7 @@ def get_users_in_interval(firstTime, lastTime):
   client = boto3.client('logs')
 
   resList = getfiltLogEvent(firstTime, lastTime, client,
-                               'opsdx-web-logs-dev', ['trews'], '{$.req.url=*USERID*}') # can we base this on the rule somehow? @peter
+                            BEAHMON_WEB_LOG_LISTEN, [BEAHMON_WEB_LOG_SREAM_STR], BEAHMON_WEB_FILT_STR) # can we base this on the rule somehow? @peter
 
   allDicts = []
   for res in resList:
