@@ -136,9 +136,10 @@ class Extractor:
       for fid in fids:
         if self.cdm_feature_dict.get(fid, False):
           self.log.error("feature %s is not in cdm_feature" % fid)
+          raise(ValueError("feature %s is not in cdm_feature" % fid))
       # get transform function
       transform_func_id = mapping_row['transform_func_id']
-      if "." in transform_func_id: # if custom function
+      if "." in str(transform_func_id): # if custom function
         i = len(transform_func_id) - transform_func_id[::-1].index('.')
         package = transform_func_id[:(i-1)]
         transform_func_id = transform_func_id[i:]
@@ -180,8 +181,6 @@ class Extractor:
     fid = mapping['fid']
     self.log.info('importing feature value fid %s' % fid)
     self.log.debug(mapping['transform_func_id'])
-    if str(mapping['transform_func_id']) == "nan":
-      mapping['transform_func_id'] = None
     transform_func_id = mapping['transform_func_id']
     if transform_func_id:
       self.log.info("transform func: %s" % transform_func_id)
