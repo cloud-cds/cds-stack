@@ -182,6 +182,8 @@ class Extractor:
     self.log.info('importing feature value fid %s' % fid)
     self.log.debug(mapping['transform_func_id'])
     transform_func_id = mapping['transform_func_id']
+    if str(transform_func_id) == 'nan':
+      transform_func_id = None
     if transform_func_id:
       self.log.info("transform func: %s" % transform_func_id)
     category = cdm_feature_attributes['category']
