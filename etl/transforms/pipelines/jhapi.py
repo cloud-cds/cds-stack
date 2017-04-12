@@ -152,16 +152,16 @@ med_orders_transforms = [
     lambda mo: restructure.extract(mo, 'frequency', {'Name': 'frequency'}),
     lambda mo: translate.translate_med_name_to_fid(mo),
     lambda mo: filter_rows.filter_medications(mo),
-    lambda mo: format_data.clean_units(mo, 'fid', 'dose_unit'),
-    lambda mo: format_data.clean_values(mo, 'fid', 'dose'),
-    lambda mo: translate.convert_units(mo,
-        fid_col = 'fid',
-        fids = ['piperacillin_tazbac_dose', 'vancomycin_dose',
-                'cefazolin_dose', 'cefepime_dose', 'ceftriaxone_dose',
-                'ampicillin_dose'],
-        unit_col = 'dose_unit', from_unit = 'g', to_unit = 'mg',
-        value_col = 'dose', convert_func = translate.g_to_mg
-    ),
+    # lambda mo: format_data.clean_units(mo, 'fid', 'dose_unit'),
+    lambda mo: format_data.to_numeric(mo, 'fid', 'dose', default_value=99),
+    # lambda mo: translate.convert_units(mo,
+    #     fid_col = 'fid',
+    #     fids = ['piperacillin_tazbac_dose', 'vancomycin_dose',
+    #             'cefazolin_dose', 'cefepime_dose', 'ceftriaxone_dose',
+    #             'ampicillin_dose'],
+    #     unit_col = 'dose_unit', from_unit = 'g', to_unit = 'mg',
+    #     value_col = 'dose', convert_func = translate.g_to_mg
+    # ),
     lambda mo: derive.combine(mo, 'fluids_intake',
         ['albumin_dose', 'hetastarch', 'sodium_chloride',
         'lactated_ringers']),
@@ -176,7 +176,7 @@ med_orders_transforms = [
          'levofloxacin_dose', 'moxifloxacin_dose', 'vancomycin_dose',
          'metronidazole_dose', 'aztronam_dose', 'ciprofloxacin_dose',
          'gentamicin_dose', 'azithromycin_dose',]),
-    lambda mo: format_data.threshold_values(mo, 'dose'),
+    # lambda mo: format_data.threshold_values(mo, 'dose'),
 ]
 
 med_admin_transforms = [

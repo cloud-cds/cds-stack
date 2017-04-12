@@ -59,7 +59,7 @@ class Config:
             self.db_host = db_host
         else:
             self.db_host = os.environ['db_host']
-        self.log.info("current database: {} at {}".format(self.db_name, self.db_host))
+        # self.log.info("current database: {} at {}".format(self.db_name, self.db_host))
 
     def get_db_conn_string(self):
         return "user={}, dbname={}, host={}, port={}, password={}".format(

@@ -74,9 +74,9 @@ def clean_units(df, fid_col, unit_col):
     df[unit_col] = df.apply(clean_unit, axis=1)
     return df[df[unit_col] != 'Invalid Unit']
 
-bad_values = ['see below', '', 'N/A', None, 'Unable to calculate', '---.--',
-    'SEE COMMENT', 'TNP @COMM', '@COMM']
-def clean_values(df, fid_col, value_col):
+
+def clean_values(df, fid_col, value_col, bad_values = ['see below', '', 'N/A', None, 'Unable to calculate', '---.--',
+    'SEE COMMENT', 'TNP @COMM', '@COMM']):
     def clean_value(row):
         val = row[value_col]
         fid = row[fid_col]
@@ -105,6 +105,27 @@ def clean_values(df, fid_col, value_col):
     df[value_col] = df.apply(clean_value, axis=1)
     return df[~df[value_col].isin(['Invalid Value',])]
 
+def to_numeric(df, fid_col, value_col, default_value):
+    def to_numeric_row(row):
+        val = row[value_col]
+        fid = row[fid_col]
+        if val is None or val == '':
+            val = default_value
+        else:
+            val = str(val).replace('<','').replace('>','')
+            if val.replace('.','',1).isdigit():
+                return float(val)
+            elif re.search('.*-([\d]+)', val):
+                sub_val = re.search('.*-([\d]+)', val)
+                return float(sub_val.group(1))
+            else:
+                logging.warning('Invalid float value:\n' + row.to_string())
+                return default_value
+
+
+    df[value_col] = pd.Series(df[value_col], dtype='object')
+    df[value_col] = df.apply(to_numeric_row, axis=1)
+    return df
 
 def threshold_values(df, value_col):
     def apply_threshold(row):

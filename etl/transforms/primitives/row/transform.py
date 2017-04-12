@@ -10,6 +10,7 @@ import etl.confidence as confidence
 from datetime import datetime, timedelta
 from etl.transforms.primitives.row.load_discharge_json import *
 from etl.transforms.primitives.row.convert_gender_to_int import *
+from etl.transforms.primitives.row.convert_proc_to_boolean import *
 from collections import OrderedDict
 import pandas as pd
 
@@ -888,12 +889,13 @@ def convert_to_mmol(entry, log):
     tsp = entry[2]
     dose = entry[3]
     unit = entry[4]
+    unit = unit.lower()
     if dose is None or dose == 'Test not performed':
         return None
-    log_assert(log, unit == 'mEq/L' or unit == 'mmol/L', "Unknown unit %s" % unit   )
-    if unit == 'mmol/L':
+    log_assert(log, unit == 'meq/l' or unit == 'mmol/l', "Unknown unit %s" % unit   )
+    if unit == 'mmol/l':
         return [float(dose), confidence.NO_TRANSFORM]
-    elif unit == 'mEq/L':
+    elif unit == 'meq/l':
         return [float(dose), confidence.UNIT_TRANSFORMED]
 
 def convert_vent_to_binary(entry, log):
