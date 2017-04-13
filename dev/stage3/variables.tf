@@ -170,8 +170,12 @@ variable "k8s_token" {
   description = "Kubernetes service account token"
 }
 
-variable "k8s_image" {
-  description = "Docker image"
+variable "k8s_epic2op_image" {
+  description = "Epic2Op Docker image"
+}
+
+variable "k8s_op2dw_image" {
+  description = "Op2DW Docker image"
 }
 
 ####################################

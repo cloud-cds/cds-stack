@@ -5,17 +5,22 @@ variable "deploy_prefix" {}
 variable "s3_opsdx_lambda" {}
 variable "aws_behamon_lambda_package" {}
 variable "aws_behamon_lambda_role_arn" {}
+
 variable "behavior_monitors_timeseries_firing_rate_min" {}
+variable "behavior_monitors_reports_firing_rate_min" {}
 variable "behavior_monitors_reports_firing_rate_hours" {}
 
-variable "behamon_log_group_name" {}
-variable "behamon_log_group_arn" {}
+variable "behamon_log_group_name"    {}
+variable "behamon_log_group_arn"     {}
+variable "behamon_web_filt_str"      {}
+variable "behamon_web_log_sream_str" {}
 
 variable "db_host" {}
 variable "db_port" { default = 5432 }
 variable "db_name" {}
 variable "db_username" {}
 variable "db_password" {}
+
 
 variable "db_subnet1_id" {}
 variable "db_subnet2_id" {}
@@ -57,15 +62,14 @@ resource "aws_lambda_function" "behamon_lambda_watcher" {
         db_name     = "${var.db_name}"
         db_user     = "${var.db_username}"
         db_password = "${var.db_password}"
+
+        BEAHMON_WEB_LOG_LISTEN             = "${var.behamon_log_group_name}"
+        BEAHMON_WEB_FILT_STR               = "${var.behamon_web_filt_str}"
+        BEAHMON_WEB_LOG_SREAM_STR          = "${var.behamon_web_log_sream_str}"
+        BEAHMON_TS_RULE_PERIOD_MINUTES     = "${var.behavior_monitors_timeseries_firing_rate_min}"
+        BEAHMON_REPORT_RULE_PERIOD_MINUTES = "${var.behavior_monitors_reports_firing_rate_min}"
       }
     }
-}
-
-resource "aws_cloudwatch_log_subscription_filter" "behamon_lambda_watcher_logfilter" {
-  name            = "${var.deploy_prefix}-behamon_lambda_watcher_logfilter"
-  log_group_name  = "${var.behamon_log_group_name}"
-  filter_pattern  = "{ $.req.url = \"*USERID*\" }"
-  destination_arn = "${aws_lambda_function.behamon_lambda_watcher.arn}"
 }
 
 resource "aws_lambda_permission" "behamon_lambda_watcher_permissions" {
@@ -74,6 +78,14 @@ resource "aws_lambda_permission" "behamon_lambda_watcher_permissions" {
     function_name = "${aws_lambda_function.behamon_lambda_watcher.function_name}"
     principal     = "logs.${var.aws_region}.amazonaws.com"
     source_arn    = "${var.behamon_log_group_arn}"
+}
+
+resource "aws_cloudwatch_log_subscription_filter" "behamon_lambda_watcher_logfilter" {
+  depends_on      = ["aws_lambda_permission.behamon_lambda_watcher_permissions"]
+  name            = "${var.deploy_prefix}-behamon_lambda_watcher_logfilter"
+  log_group_name  = "${var.behamon_log_group_name}"
+  filter_pattern  = "{ $.req.url = \"*USERID*\" }"
+  destination_arn = "${aws_lambda_function.behamon_lambda_watcher.arn}"
 }
 
 ## Behavior Monitoring Time Series
@@ -100,6 +112,12 @@ resource "aws_lambda_function" "behamon_lambda_time_series" {
         db_name     = "${var.db_name}"
         db_user     = "${var.db_username}"
         db_password = "${var.db_password}"
+
+        BEAHMON_WEB_LOG_LISTEN             = "${var.behamon_log_group_name}"
+        BEAHMON_WEB_FILT_STR               = "${var.behamon_web_filt_str}"
+        BEAHMON_WEB_LOG_SREAM_STR          = "${var.behamon_web_log_sream_str}"
+        BEAHMON_TS_RULE_PERIOD_MINUTES     = "${var.behavior_monitors_timeseries_firing_rate_min}"
+        BEAHMON_REPORT_RULE_PERIOD_MINUTES = "${var.behavior_monitors_reports_firing_rate_min}"
       }
     }
 }
@@ -148,14 +166,22 @@ resource "aws_lambda_function" "behamon_lambda_reports" {
         db_name     = "${var.db_name}"
         db_user     = "${var.db_username}"
         db_password = "${var.db_password}"
+
+        BEAHMON_WEB_LOG_LISTEN             = "${var.behamon_log_group_name}"
+        BEAHMON_WEB_FILT_STR               = "${var.behamon_web_filt_str}"
+        BEAHMON_WEB_LOG_SREAM_STR          = "${var.behamon_web_log_sream_str}"
+        BEAHMON_TS_RULE_PERIOD_MINUTES     = "${var.behavior_monitors_timeseries_firing_rate_min}"
+        BEAHMON_REPORT_RULE_PERIOD_MINUTES = "${var.behavior_monitors_reports_firing_rate_min}"
       }
     }
 }
 
 resource "aws_cloudwatch_event_rule" "behamon_lambda_reports_rule" {
     name = "${var.deploy_prefix}-behamon_lambda_reports_rule"
-    description = "Fires every ${var.behavior_monitors_reports_firing_rate_hours} hours"
-    schedule_expression = "rate(${var.behavior_monitors_reports_firing_rate_hours} hours)"
+    # description = "Fires every ${var.behavior_monitors_reports_firing_rate_hours} hours"
+    # schedule_expression = "rate(${var.behavior_monitors_reports_firing_rate_hours} hours)"
+    description = "Fires every ${var.behavior_monitors_reports_firing_rate_min} minutes"
+    schedule_expression = "rate(${var.behavior_monitors_reports_firing_rate_min} minutes)"
 }
 
 resource "aws_cloudwatch_event_target" "behamon_lambda_reports_target" {

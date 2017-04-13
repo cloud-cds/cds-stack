@@ -38,7 +38,7 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: trews-rest-api
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.0.30
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.0.36
         command:
           - "sh"
           - "start.sh"
@@ -104,9 +104,11 @@ spec:
         - name: api_monitor_prometheus
           value: "0"
         - name: api_monitor_cw_push_period
-          value: "30"
+          value: "10"
         - name: prometheus_multiproc_dir
           value: "/tmp"
+        - name: etl_channel
+          value: "on_opsdx_dev_etl"
       volumes:
         - name: config-volume
           configMap:

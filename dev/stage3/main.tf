@@ -67,11 +67,11 @@ module "trews_etl" {
   k8s_server    = "${var.k8s_server}"
   k8s_user      = "${var.k8s_user}"
   k8s_pass      = "${var.k8s_pass}"
+  k8s_image     = "${var.k8s_epic2op_image}"
   k8s_cert_auth = "${var.k8s_cert_auth}"
   k8s_cert      = "${var.k8s_cert}"
   k8s_key       = "${var.k8s_key}"
   k8s_token     = "${var.k8s_token}"
-  k8s_image     = "${var.k8s_image}"
 
   etl_lambda_firing_rate_mins = "15"
 
@@ -82,6 +82,7 @@ module "trews_etl" {
 
   jhapi_client_id     = "${var.jhapi_client_id}"
   jhapi_client_secret = "${var.jhapi_client_secret}"
+  etl_channel         = "on_opsdx_dev_etl"
 
   TREWS_ETL_SERVER             = "${var.TREWS_ETL_SERVER}"
   TREWS_ETL_HOSPITAL           = "${var.TREWS_ETL_HOSPITAL}"
@@ -110,11 +111,11 @@ module "trews_etl_replay" {
   k8s_server    = "${var.k8s_server}"
   k8s_user      = "${var.k8s_user}"
   k8s_pass      = "${var.k8s_pass}"
+  k8s_image     = "${var.k8s_epic2op_image}"
   k8s_cert_auth = "${var.k8s_cert_auth}"
   k8s_cert      = "${var.k8s_cert}"
   k8s_key       = "${var.k8s_key}"
   k8s_token     = "${var.k8s_token}"
-  k8s_image     = "${var.k8s_image}"
 
   db_host             = "db.${var.domain}"
   db_name             = "${replace(var.deploy_prefix, "-", "_")}"
@@ -144,20 +145,25 @@ module "behavior_monitors" {
   aws_behamon_lambda_package  = "${var.aws_behamon_lambda_package}"
   aws_behamon_lambda_role_arn = "${var.aws_behamon_lambda_role_arn}"
 
-  db_subnet1_id = ""
-  db_subnet2_id = ""
-  db_sg_id      = ""
-
   db_host     = "db.${var.domain}"
   db_name     = "${replace(var.deploy_prefix, "-", "_")}"
   db_username = "${var.db_username}"
   db_password = "${var.db_password}"
 
+  db_subnet1_id = ""
+  db_subnet2_id = ""
+  db_sg_id      = ""
+
   behamon_log_group_name = ""
   behamon_log_group_arn  = ""
 
+  behamon_web_filt_str      = "*USERID*"
+  behamon_web_log_sream_str = "monitoring"
+
   # Must be manually kept in sync with the beahmon service,.py file
-  behavior_monitors_timeseries_firing_rate_min = "60"
+  behavior_monitors_timeseries_firing_rate_min = "5"
+  # TODO: keep the min/hours values consistent for real deployments (i.e. min = hour*60)
+  behavior_monitors_reports_firing_rate_min = "5"
   behavior_monitors_reports_firing_rate_hours = "24" #86400 = 60*60*24 #looks like it can't be speced in minutes
 }
 
@@ -173,4 +179,37 @@ module "monitor" {
   slack_hook     = "${var.slack_hook}"
   slack_channel  = "${var.slack_channel}"
   slack_watchers = "${var.slack_watchers}"
+}
+
+module "op2dw_etl" {
+  source = "./services/op2dw_etl"
+
+  deploy_prefix = "${var.deploy_prefix}"
+
+  s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
+  aws_klaunch_lambda_package = "${var.aws_klaunch_lambda_package}"
+  aws_klaunch_lambda_role_arn = "${var.aws_klaunch_lambda_role_arn}"
+
+  k8s_server_host = "${var.k8s_server_host}"
+  k8s_server_port = "${var.k8s_server_port}"
+
+  k8s_name      = "${var.k8s_name}"
+  k8s_server    = "${var.k8s_server}"
+  k8s_user      = "${var.k8s_user}"
+  k8s_pass      = "${var.k8s_pass}"
+  k8s_image     = "${var.k8s_op2dw_image}"
+  k8s_cert_auth = "${var.k8s_cert_auth}"
+  k8s_cert      = "${var.k8s_cert}"
+  k8s_key       = "${var.k8s_key}"
+  k8s_token     = "${var.k8s_token}"
+
+  op2dw_etl_lambda_firing_rate_mins = "20"
+  op2dw_etl_remote_server = "opsdx_dev_srv"
+  op2dw_dataset_id = "2"
+  op2dw_model_id = "1"
+
+  db_host      = "db.${var.domain}"
+  db_name      = "${replace(var.deploy_prefix, "-", "_")}_dw"
+  db_username  = "${var.db_username}"
+  db_password  = "${var.db_password}"
 }

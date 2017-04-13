@@ -38,7 +38,8 @@ resource "aws_iam_role_policy" "behamon_lambda_policy" {
                   "ec2:DeleteNetworkInterface",
                   "kms:Decrypt",
                   "kms:DescribeKey",
-                  "kms:GetKeyPolicy"
+                  "kms:GetKeyPolicy",
+                  "ses:*"
                   ],
       "Resource": [
         "*"

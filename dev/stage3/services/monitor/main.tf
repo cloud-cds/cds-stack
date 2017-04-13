@@ -123,18 +123,18 @@ resource "aws_cloudwatch_metric_alarm" "nodes_inservice" {
 resource "aws_cloudwatch_metric_alarm" "etl_up" {
   alarm_name                = "${var.deploy_prefix}-etl-up"
   comparison_operator       = "LessThanThreshold"
-  evaluation_periods        = "1"
+  evaluation_periods        = "2"
   metric_name               = "ExTrLoTime"
   namespace                 = "OpsDX"
   period                    = "3600"
   statistic                 = "SampleCount"
-  threshold                 = "4"
-  alarm_description         = "Prod ETL invocations in the past hour"
+  threshold                 = "3"
+  alarm_description         = "Dev ETL invocations in the past hour"
   alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
 
   dimensions {
-    ETL = "opsdx-dev"
+    ETL = "opsdx_dev"
   }
 }
 
@@ -155,5 +155,45 @@ resource "aws_cloudwatch_metric_alarm" "ping_up" {
   dimensions {
     Source = "damsl.cs.jhu.edu",
     Stack  = "Dev"
+  }
+}
+
+# High webservice latency
+resource "aws_cloudwatch_metric_alarm" "high_webservice_latency" {
+  alarm_name                = "${var.deploy_prefix}-high-webservice-latency"
+  comparison_operator       = "GreaterThanThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "LatencyAvg"
+  namespace                 = "OpsDX"
+  period                    = "60"
+  statistic                 = "Average"
+  threshold                 = "300"
+  alarm_description         = "Average webservice latency in the past minute"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    Route = "/api"
+    API   = "opsdx-dev"
+    MetricStreamId = "0d249909-8586-45d2-9920-85338b93aa10"
+  }
+}
+
+# High browser latency
+resource "aws_cloudwatch_metric_alarm" "high_browser_latency" {
+  alarm_name                = "${var.deploy_prefix}-high-browser-latency"
+  comparison_operator       = "GreaterThanThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "UserLatencyAvg"
+  namespace                 = "OpsDX"
+  period                    = "60"
+  statistic                 = "Average"
+  threshold                 = "500"
+  alarm_description         = "Average browser-side latency in the past minute"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    Browser = "opsdx-dev"
   }
 }
