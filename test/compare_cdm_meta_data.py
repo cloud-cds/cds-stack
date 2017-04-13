@@ -47,7 +47,7 @@ tables_to_compare = {  # touple 1, extra field, dataset_id, model_id, both, toup
       # 'criteria_log'             : ('dataset', []),
       # 'criteria_meas_archive'    : ('dataset', []),
       # 'criteria_archive'         : ('dataset', []),
-      # 'criteria_default'         : ('dataset', []),
+      'criteria_default'         : ('dataset', []),
       # 'notifications'            : ('dataset', []),
       'parameters'               : ('dataset', []),
       'trews_scaler'             : ('model'  , [trews_scaler_query]),
