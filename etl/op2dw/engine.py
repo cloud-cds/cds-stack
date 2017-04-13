@@ -15,10 +15,8 @@ pw            = os.environ['db_password']
 remote_server = os.environ['etl_remote_server'] # set to opsdx_dev_srv
 
 tables_to_load = {
-  'datalink'                 : 'dataset',
   'cdm_function'             : 'dataset',
   'cdm_feature'              : 'dataset',
-  'datalink_feature_mapping' : 'dataset',
   'pat_enc'                  : 'dataset',
   'cdm_g'                    : 'both',
   'cdm_s'                    : 'dataset',
