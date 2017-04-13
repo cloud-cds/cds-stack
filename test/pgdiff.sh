@@ -71,7 +71,7 @@ rundiff SEQUENCE
 rundiff TABLE
 rundiff COLUMN
 rundiff VIEW
-rundiff OWNER
+#rundiff OWNER
 rundiff INDEX
 rundiff FOREIGN_KEY
 rundiff GRANT_RELATIONSHIP

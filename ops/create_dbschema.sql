@@ -103,14 +103,6 @@ CREATE TABLE cdm_t (
     PRIMARY KEY (enc_id, tsp, fid)
 );
 
-
-
-
-DROP TABLE IF EXISTS trews;
-
-
-
-
 DROP TABLE IF EXISTS metrics_events;
 CREATE TABLE metrics_events
 (
@@ -304,7 +296,7 @@ CREATE TABLE cdm_twf (
 
 DROP TABLE IF EXISTS trews;
 CREATE TABLE trews (
-    enc_id                                 integer,
+    enc_id  integer REFERENCES pat_enc(enc_id),
     tsp                                    timestamptz,
     trewscore                              numeric,
     age                                    double precision,
@@ -405,8 +397,7 @@ CREATE TABLE trews (
     septic_shock                           double precision,
     lactate                                double precision,
     minutes_since_any_organ_fail           double precision,
-    PRIMARY KEY     (enc_id, tsp),
-    FOREIGN KEY     (enc_id) REFERENCES pat_enc(enc_id)
+    PRIMARY KEY     (enc_id, tsp)
 );
 
 

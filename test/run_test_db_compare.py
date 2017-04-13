@@ -284,7 +284,7 @@ op2dw_compare = [
       'srcmid': None,
       'dstdid': 1,
       'dstmid': 1,
-      'cmp_remote_server': 'opsdx_dev',
+      'cmp_remote_server': 'opsdx_dev_srv',
       'counts': False,
       # 'dst_tsp_shift': '4 hours',
       'feature_set': 'online',
