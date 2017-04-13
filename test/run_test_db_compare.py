@@ -161,6 +161,10 @@ daily_compare = [
   }
 ]
 
+# ---------------------------------------------------------------------------------------------------
+# daily_compare_light:
+# daily_test_epic2op and daily_test_c2dw databases have to be created first
+# the CI will run this when a new docker image is created
 job_c2dw_daily_light = {
   'reset_dataset': {
     'remove_pat_enc': False,
@@ -204,7 +208,7 @@ daily_compare_light = [
     'engine': EngineC2dw,
     'job': job_c2dw_daily_light,
     'pipeline': {
-      'load_clarity': {'folder': '~/clarity-db-staging/2017-04-06/'},
+      # 'load_clarity': {'folder': '~/clarity-db-staging/2017-04-06/'},
       'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
       'copy_pat_enc': True,
       'populate_db': True,
@@ -221,6 +225,7 @@ daily_compare_light = [
     }
   }
 ]
+# ---------------------------------------------------------------------------------------------------
 
 ############################################################
 ## archive compare: load archived data sources and run ETL to compare
