@@ -367,11 +367,14 @@ def calc_behamon_report_metrics(firstTime, lastTime):
       where tsp between \'{}\'::timestamptz and \'{}\'::timestamptz group by doc_id;""".format(
         to_tz_str(firstTime, out_tsp_fmt, tz), to_tz_str(lastTime, out_tsp_fmt, tz))
 
+  print("Q")
+  print(numPats_seen)
+
   num_pats_seen_df = pd.read_sql(numPats_seen,engine)
 
-  engine.dispose()
+  print("We got data from the database, shape {} !".format(num_pats_seen_df.shape))
 
-  num_pats_seen_str = str(num_pats_seen_df)
+  engine.dispose()
 
   client = boto3.client('ses')
   client.send_email(
@@ -386,6 +389,9 @@ def calc_behamon_report_metrics(firstTime, lastTime):
       },
     }
   )
+
+  print("Email Sent")
+
 
 
 
