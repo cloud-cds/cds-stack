@@ -68,8 +68,8 @@ resource "aws_lambda_function" "op2dw_etl_lambda" {
         k8s_job_db_user           = "${var.db_username}"
         k8s_job_db_password       = "${var.db_password}"
         k8s_job_etl_remote_server = "${var.op2dw_etl_remote_server}"
-        k8s_job_OPS2DW_DATASET_ID = "${var.op2dw_dataset_id}"
-        k8s_job_OPS2DW_MODEL_ID   = "${var.op2dw_model_id}"
+        k8s_job_OP2DW_DATASET_ID  = "${var.op2dw_dataset_id}"
+        k8s_job_OP2DW_MODEL_ID    = "${var.op2dw_model_id}"
       }
     }
 }
