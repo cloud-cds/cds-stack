@@ -295,7 +295,7 @@ CREATE TABLE criteria_default
     fid                 varchar(50),
     override_value      json,
     category            varchar(50),
-    primary key         (name, fid, category)
+    primary key         (dataset_id, name, fid, category)
 );
 
 \copy criteria_default from 'criteria_default.csv' with csv header delimiter as ',';
@@ -631,6 +631,7 @@ CREATE TABLE trews (
     bilirubin                              double precision,
     alt_liver_enzymes                      double precision,
     mapm                                   double precision,
+    map                                   double precision,
     gcs                                    double precision,
     sirs_intp                              double precision,
     minutes_since_any_antibiotics          double precision,
@@ -699,4 +700,3 @@ CREATE TABLE historical_criteria (
     window_ts           timestamptz,
     primary key         (pat_id,window_ts)
 );
-

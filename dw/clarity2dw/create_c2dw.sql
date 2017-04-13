@@ -74,6 +74,17 @@ do update set category = EXCLUDED.category, data_type = EXCLUDED.data_type, is_m
   derive_func_input=EXCLUDED.derive_func_input, description=EXCLUDED.description, version=EXCLUDED.version, unit=EXCLUDED.unit;
 DROP TABLE IF EXISTS cdm_feature_temp;
 
+
+
+-- ======================================
+-- Upsert parameters
+-- ======================================
+DELETE
+FROM parameters
+WHERE dataset_id = 1;
+
+ \COPY parameters FROM 'parameters.csv' WITH csv header DELIMITER AS ',';
+
 -- ======================================
 -- Upsert CDM_g
 -- ======================================

@@ -227,6 +227,73 @@ daily_compare_light = [
 ]
 # ---------------------------------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------------------------------
+# op2dw_compare:
+# compare data between opsdx_dev vs opsdx_dw after op2dw ETL
+# the CI will run this when a new docker image is created
+job_opsdx_dw = {
+  # 'reset_dataset': {
+  #   'remove_pat_enc': False,
+  #   'remove_data': True,
+  #   'start_enc_id': '(select max(enc_id) from pat_enc)'
+  # },
+  # 'transform': {
+  #   'populate_patients': {
+  #     'max_num_pats': 20,
+  #   },
+  #   'populate_measured_features': {
+  #     'plan': False,
+  #   },
+  # },
+  # 'fillin': {
+  #   'recalculate_popmean': False,
+  # },
+  # 'derive':
+  # {
+  #   'fid': None
+  # },
+  'config': {
+    'dataset_id': 1,
+    'debug': True,
+    'db_name': 'opsdx_dw',
+    'conf': CONF,
+  },
+}
+
+op2dw_compare = [
+  {
+    'name': 'opsdx_dev',
+    'engine': EngineEpic2op(db_name='opsdx_dev'),
+    # 'pipeline': {
+    #   'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
+    #   'populate_db': True,
+    # },
+  },
+  {
+    'name': 'opsdx_dw',
+    'engine': EngineC2dw,
+    'job': job_opsdx_dw,
+    # 'pipeline': {
+    #   # 'load_clarity': {'folder': '~/clarity-db-staging/2017-04-06/'},
+    #   'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
+    #   'copy_pat_enc': True,
+    #   'populate_db': True,
+    # },
+    'db_compare': {
+      'srcdid': None,
+      'srcmid': None,
+      'dstdid': 1,
+      'dstmid': 1,
+      'cmp_remote_server': 'opsdx_dev',
+      'counts': False,
+      # 'dst_tsp_shift': '4 hours',
+      'feature_set': 'online',
+    }
+  }
+]
+# ---------------------------------------------------------------------------------------------------
+
+
 ############################################################
 ## archive compare: load archived data sources and run ETL to compare
 ############################################################
@@ -804,6 +871,8 @@ if __name__ == '__main__':
       db_pair = epic2op_vs_c2dw
     elif db_pair_name == 'c2dw_a_vs_c2dw':
       db_pair = c2dw_a_vs_c2dw
+    elif db_pair_name == 'op2dw_compare':
+      db_pair = op2dw_compare
     else:
       print('unkown db_pair: {}'.format(db_pair_name))
       exit(0)

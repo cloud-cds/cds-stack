@@ -64,17 +64,18 @@ table_key = {
   'cdm_function': ['dataset_id', 'func_id'],
   'cdm_feature': ['dataset_id', 'fid'],
   # 'cdm_g': ['fid'],
-  'criteria_default': ['dataset_id', 'name', 'fid']
+  'criteria_default': ['dataset_id', 'name', 'fid'],
+  'parameters': ['dataset_id', 'name']
 }
 
 upsert_sql = '''
 insert into {tbl} ({cols}) values ({values})
 on conflict({key}) do update
-set {setting}
+set {setting};
 '''
 
 delete_sql = '''
-delete from {tbl} where {condition}
+delete from {tbl} where {condition};
 '''
 
 def value_format(val):
@@ -159,22 +160,22 @@ async def run_cdm_meta_compare(db_host, db_name_1, db_name_2, dataset_id, model_
                           tbl, version_extension=version_type, as_count_result=counts, dst_tsp_shift=dst_tsp_shift)
       records = await c.run(dbpool)
       results.append(records)
-    print("======== result ========")
-    groups = {}
-    for result in results:
-      if 'rows' in result and len(result['rows']) > 0:
-        for row in result['rows']:
-          groups.setdefault(result['src_tbl'], []).append(dict(row))
+  print("======== result ========")
+  groups = {}
+  for result in results:
+    if 'rows' in result and len(result['rows']) > 0:
+      for row in result['rows']:
+        groups.setdefault(result['src_tbl'], []).append(dict(row))
 
-    for tbl in groups:
-      print('------------- {} ---------------'.format(tbl))
-      for row in groups[tbl]:
-        print(row)
-      print("")
+  for tbl in groups:
+    print('------------- {} ---------------'.format(tbl))
+    for row in groups[tbl]:
+      print(row)
+    print("")
 
-    print("========= SQL ========")
-    for tbl in groups:
-      generate_sql(tbl, groups[tbl], dataset_id, model_id)
+  print("========= SQL ========")
+  for tbl in groups:
+    generate_sql(tbl, groups[tbl], dataset_id, model_id)
 
 if __name__ == '__main__':
   db_host = sys.argv[1]
