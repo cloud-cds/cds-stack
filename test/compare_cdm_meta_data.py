@@ -60,15 +60,74 @@ tables_to_compare = {  # touple 1, extra field, dataset_id, model_id, both, toup
       # 'feedback_log'             : ('dataset', []),
     }
 
-def generate_sql(table, diff_rows):
-  # TODO
-  pass
+table_key = {
+  'cdm_function': ['dataset_id', 'func_id'],
+  'cdm_feature': ['dataset_id', 'fid'],
+  # 'cdm_g': ['fid'],
+  'criteria_default': ['dataset_id', 'name', 'fid']
+}
 
-async def run_cdm_meta_compare(db_host, db_name_1, db_name_2):
-  src_dataset_id = None
-  src_model_id   = None
-  dst_dataset_id = None
-  dst_model_id   = None
+upsert_sql = '''
+insert into {tbl} ({cols}) values ({values})
+on conflict({key}) do update
+set {setting}
+'''
+
+delete_sql = '''
+delete from {tbl} where {condition}
+'''
+
+def value_format(val):
+  if isinstance(val, str):
+    return "'{}'".format(val.replace("'","''"))
+  elif val is None:
+    return 'null'
+  else:
+    return str(val)
+
+def generate_sql(table, diff_rows, dataset_id, model_id):
+  print("queries for table {}".format(table))
+  groups ={}
+  key = table_key.get(table, None)
+  if key:
+    if dataset_id is None:
+      key.remove['dataset_id']
+    if model_id is None:
+      key.remove['model_id']
+    if dataset_id and 'dataset_id' in key:
+      for record in diff_rows:
+        record['dataset_id'] = dataset_id
+    if model_id and 'model_id' in key:
+      for record in diff_rows:
+        record['model_id'] = model_id
+    for row in diff_rows:
+      row_key = ",".join([str(row[k]) for k in key])
+      groups.setdefault(row_key, []).append(row)
+    for row_key in groups:
+      records = groups[row_key]
+      if len(records) == 2:
+        cols = [col for col in records[0] if col != 'missing_remotely']
+        ri = 0 if records[0]['missing_remotely'] else 1
+        values = ','.join([value_format(records[ri][c]) for c in cols])
+        update_cols = [c for c in cols if c not in key]
+        setting = ','.join(['{v} = Excluded.{v}'.format(v=c) for c in update_cols if c not in key])
+        print(upsert_sql.format(tbl=table, cols=','.join(cols), values=values, key=",".join(key), setting=setting))
+      elif len(records) == 1 and records[0]['missing_remotely']:
+        cols = [col for col in records[0] if col != 'missing_remotely']
+        ri = 0
+        values = ','.join([value_format(records[ri][c]) for c in cols])
+        update_cols = [c for c in cols if c not in key]
+        setting = ','.join(['{v} = Excluded.{v}'.format(v=c) for c in update_cols])
+        print(upsert_sql.format(tbl=table, cols=','.join(cols), values=values, key=",".join(key), setting=setting))
+      elif len(records) == 1 and not records[0]['missing_remotely']:
+        condition = ','.join(['{key} = {value}'.format(key=k, value=value_format(records[0][k])) for k in key])
+        print(delete_sql.format(tbl=table, condition=condition))
+
+async def run_cdm_meta_compare(db_host, db_name_1, db_name_2, dataset_id, model_id):
+  src_dataset_id = dataset_id if dataset_id > 0 else None
+  src_model_id   = model_id if model_id > 0 else None
+  dst_dataset_id = dataset_id if dataset_id > 0 else None
+  dst_model_id   = model_id if model_id > 0 else None
   src_server = db_name_1
   counts = False
   dst_tsp_shift = None
@@ -115,13 +174,14 @@ async def run_cdm_meta_compare(db_host, db_name_1, db_name_2):
 
     print("========= SQL ========")
     for tbl in groups:
-      # TODO: use key to decide what operation to do: upsert/delete/insert
-      generate_sql(tbl, groups[tbl])
+      generate_sql(tbl, groups[tbl], dataset_id, model_id)
 
 if __name__ == '__main__':
   db_host = sys.argv[1]
   db_name_1 = sys.argv[2]
   db_name_2 = sys.argv[3]
+  dataset_id = int(sys.argv[4])
+  model_id = int(sys.argv[5])
   print("compare cdm meta data between {db1} and {db2} in {host}".format(db1=db_name_1, db2=db_name_2, host=db_host))
   create_dblink = '''
   sed -e "s/@@RDBHOST@@/{db_host}/" -e "s/@@RDBPORT@@/$db_port/" -e "s/@@RDBNAME@@/{db1}/" -e "s/@@RDBUSER@@/$db_user/" -e "s/@@RDBPW@@/$db_password/" -e "s/@@LDBUSER@@/$db_user/" -e "s/@@db_to_test@@/{db1}/" fdw.sql > fdw.{db2}.sql
@@ -130,4 +190,4 @@ if __name__ == '__main__':
   '''.format(db_host=db_host,db1=db_name_1,db2=db_name_2)
   os.system(create_dblink)
   loop = asyncio.get_event_loop()
-  loop.run_until_complete(run_cdm_meta_compare(db_host, db_name_1, db_name_2))
+  loop.run_until_complete(run_cdm_meta_compare(db_host, db_name_1, db_name_2, dataset_id, model_id))
