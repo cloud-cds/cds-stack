@@ -231,7 +231,7 @@ daily_compare_light = [
 # op2dw_compare:
 # compare data between opsdx_dev vs opsdx_dw after op2dw ETL
 # the CI will run this when a new docker image is created
-job_opsdx_dw = {
+job_opsdx_dev_dw = {
   # 'reset_dataset': {
   #   'remove_pat_enc': False,
   #   'remove_data': True,
@@ -255,7 +255,7 @@ job_opsdx_dw = {
   'config': {
     'dataset_id': 1,
     'debug': True,
-    'db_name': 'opsdx_dw',
+    'db_name': 'opsdx_dev_dw',
     'conf': CONF,
   },
 }
@@ -270,9 +270,9 @@ op2dw_compare = [
     # },
   },
   {
-    'name': 'opsdx_dw',
+    'name': 'opsdx_dev_dw',
     'engine': EngineC2dw,
-    'job': job_opsdx_dw,
+    'job': job_opsdx_dev_dw,
     # 'pipeline': {
     #   # 'load_clarity': {'folder': '~/clarity-db-staging/2017-04-06/'},
     #   'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],

@@ -58,6 +58,8 @@ tables_to_compare = {  # touple 1, extra field, dataset_id, model_id, both, toup
       # 'pat_status'               : ('dataset', []),
       # 'deterioration_feedback'   : ('dataset', []),
       # 'feedback_log'             : ('dataset', []),
+      'dw_version': ('dataset', []),
+      'model_version': ('model', [])
     }
 
 table_key = {
@@ -65,7 +67,9 @@ table_key = {
   'cdm_feature': ['dataset_id', 'fid'],
   # 'cdm_g': ['fid'],
   'criteria_default': ['dataset_id', 'name', 'fid'],
-  'parameters': ['dataset_id', 'name']
+  'parameters': ['dataset_id', 'name'],
+  'dw_version': ['dataset_id'],
+  'model_version': ['model_id']
 }
 
 upsert_sql = '''
