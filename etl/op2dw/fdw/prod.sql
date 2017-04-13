@@ -9,7 +9,7 @@ CREATE SERVER opsdx_prod_srv
   FOREIGN DATA WRAPPER postgres_fdw
   OPTIONS (host '@@RDBHOST@@', port '5432', dbname 'opsdx_prod', sslmode 'require');
 
-DROP USER MAPPING IF EXISTS FOR opsdx_prod_srv_user SERVER opsdx_prod_srv;
-CREATE USER MAPPING FOR opsdx_prod_srv_user
+DROP USER MAPPING IF EXISTS FOR @@LDBUSER@@ SERVER opsdx_prod_srv;
+CREATE USER MAPPING FOR @@LDBUSER@@
   SERVER opsdx_prod_srv
   OPTIONS (user '@@RDBUSER@@', password '@@RDBPW@@');
