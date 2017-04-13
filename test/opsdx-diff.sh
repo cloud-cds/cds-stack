@@ -1,15 +1,23 @@
+#!/bin/bash
+PGPASSWORD=$db_password
 host1=$1
 db1=$2
 
 host2=$3
 db2=$4
 
-pg_dump -h $host1 -U $db_user -d $db1 -p $db_port --schema-only > $db1.dump
-pg_dump -h $host2 -U $db_user -d $db2 -p $db_port --schema-only > $db2.dump
+function setup() {
+  local db_host=$1
+  local db_name=$2
+  echo "Setup database $db_host $db_name"
+  pg_dump -h $db_host -U $db_user -d $db_name -p $db_port --schema='public' --schema-only > $db_name.sql
+  dropdb -h $db_host -U $db_user -p $db_port schema_$db_name
+  createdb -h $db_host -U $db_user -p $db_port -T template0 schema_$db_name
+  psql -h $db_host -U $db_user -d schema_$db_name -p $db_port -f $db_name.sql
+}
 
-createdb -h $host1 -U $db_user -p $db_port -T template0 schema_$db1
-createdb -h $host2 -U $db_user -p $db_port -T template0 schema_$db1
+setup $host1 $db1
+setup $host2 $db2
 
-pg_restore -h $host1 -U $db_user -d schema_$db1 -p $db_port $db1.dump
-pg_restore -h $host2 -U $db_user -d schema_$db2 -p $db_port $db1.dump
 
+./pgdiff.sh $host1 schema_$db1 $host2 schema_$db2
