@@ -615,7 +615,7 @@ resource "aws_launch_configuration" "tensorflow-nodes1-cluster-dev-opsdx-io" {
 resource "aws_launch_configuration" "tensorflow-nodes2-cluster-dev-opsdx-io" {
   name_prefix                 = "tensorflow-nodes2.cluster.dev.opsdx.io-"
   image_id                    = "ami-5f1afc49"
-  instance_type               = "t2.large"
+  instance_type               = "t2.xlarge"
   key_name                    = "${aws_key_pair.kubernetes-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
   iam_instance_profile        = "${aws_iam_instance_profile.nodes-cluster-dev-opsdx-io.id}"
   security_groups             = ["${aws_security_group.nodes-cluster-dev-opsdx-io.id}"]
@@ -636,7 +636,7 @@ resource "aws_launch_configuration" "tensorflow-nodes2-cluster-dev-opsdx-io" {
 resource "aws_launch_configuration" "tensorflow-nodes3-cluster-dev-opsdx-io" {
   name_prefix                 = "tensorflow-nodes3.cluster.dev.opsdx.io-"
   image_id                    = "ami-5f1afc49"
-  instance_type               = "t2.large"
+  instance_type               = "c4.2xlarge"
   key_name                    = "${aws_key_pair.kubernetes-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
   iam_instance_profile        = "${aws_iam_instance_profile.nodes-cluster-dev-opsdx-io.id}"
   security_groups             = ["${aws_security_group.nodes-cluster-dev-opsdx-io.id}"]
@@ -657,7 +657,7 @@ resource "aws_launch_configuration" "tensorflow-nodes3-cluster-dev-opsdx-io" {
 resource "aws_launch_configuration" "tensorflow-nodes4-cluster-dev-opsdx-io" {
   name_prefix                 = "tensorflow-nodes4.cluster.dev.opsdx.io-"
   image_id                    = "ami-5f1afc49"
-  instance_type               = "t2.large"
+  instance_type               = "c4.4xlarge"
   key_name                    = "${aws_key_pair.kubernetes-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
   iam_instance_profile        = "${aws_iam_instance_profile.nodes-cluster-dev-opsdx-io.id}"
   security_groups             = ["${aws_security_group.nodes-cluster-dev-opsdx-io.id}"]
