@@ -45,8 +45,6 @@ class Engine():
     self.extract_time = dt.timedelta(0)
     self.transform_time = dt.timedelta(0)
     self.max_num_pats = int(max_num_pats) if max_num_pats else max_num_pats
-    if self.max_num_pats:
-      logging.info("max_num_pats = {}".format(max_num_pats))
 
   async def init(self):
     self.pool = await asyncpg.create_pool(database=self.config.db_name, user=self.config.db_user, password=self.config.db_pass, host=self.config.db_host, port=self.config.db_port)
@@ -207,7 +205,7 @@ class Engine():
     self.db_data = {
       'bedded_patients_transformed': pats_t,
       'flowsheets_transformed': flowsheets_t,
-      'active_procedures_transforms': active_procedures_t,
+      'active_procedures_transformed': active_procedures_t,
       'lab_orders_transformed': lab_orders_t,
       'lab_results_transformed': lab_results_t,
       'med_orders_transformed': med_orders_t,

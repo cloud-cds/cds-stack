@@ -1,4 +1,22 @@
 cdm_defs = {
+    'abp': {
+        'unit':     'mmHg',
+        'value':    str,
+        'thresh':   (None, None),
+        'human_readable':   'Arterial Blood Pressure',
+    },
+    'abp_dias': {
+        'unit':     'mmHg',
+        'value':    float,
+        'thresh':   (8, 150),
+        'human_readable':   'Diastolic Arterial BP',
+    },
+    'abp_sys': {
+        'unit':     'mmHg',
+        'value':    float,
+        'thresh':   (30, 250),
+        'human_readable':   'Systolic Arterial BP',
+    },
     'albumin_dose': {
         'unit':     '',
         'value':    float,
@@ -59,11 +77,29 @@ cdm_defs = {
         'thresh':   (0, 50),
         'human_readable':   'Bilirubin',
     },
+    'bipap': {
+        'unit':     '',
+        'value':    None,
+        'thresh':   (None, None),
+        'human_readable':   'Bipap',
+    },
     'blood_culture': {
         'unit':     '',
         'value':    None,
         'thresh':   (None, None),
         'human_readable':   'Blood Cultures',
+    },
+    'bp_dias': {
+        'unit':     'mmHg',
+        'value':    float,
+        'thresh':   (8, 150),
+        'human_readable':   'Diastolic BP',
+    },
+    'bp_sys': {
+        'unit':     'mmHg',
+        'value':    float,
+        'thresh':   (30, 250),
+        'human_readable':   'Systolic BP',
     },
     'bun': {
         'unit':     'mg/dL',
@@ -124,6 +160,12 @@ cdm_defs = {
         'value':    float,
         'thresh':   (0.1, 55),
         'human_readable':   'CO2',
+    },
+    'cpap': {
+        'unit':     '',
+        'value':    None,
+        'thresh':   (None, None),
+        'human_readable':   'Cpap',
     },
     'creatinine': {
         'unit':     'mg/dL',
@@ -239,11 +281,17 @@ cdm_defs = {
         'thresh':   (None, None),
         'human_readable':   'Lipase',
     },
-    'mapm': {
+    'map': {
         'unit':     'mmHg',
         'value':    float,
         'thresh':   (None, None),
         'human_readable':   'MAP',
+    },
+    'mapm': {
+        'unit':     'mmHg',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'MAPM',
     },
     'meropenem_dose': {
         'unit':     'mg',
@@ -286,24 +334,6 @@ cdm_defs = {
         'value':    float,
         'thresh':   (30, 250),
         'human_readable':   'Non-invasive Systolic BP',
-    },
-    'abp': {
-        'unit':     'mmHg',
-        'value':    str,
-        'thresh':   (None, None),
-        'human_readable':   'Arterial Blood Pressure',
-    },
-    'abp_dias': {
-        'unit':     'mmHg',
-        'value':    float,
-        'thresh':   (8, 150),
-        'human_readable':   'Diastolic Arterial BP',
-    },
-    'abp_sys': {
-        'unit':     'mmHg',
-        'value':    float,
-        'thresh':   (30, 250),
-        'human_readable':   'Systolic Arterial BP',
     },
     'neosynephrine_dose': {
         'unit':     '',

@@ -1,6 +1,7 @@
 from etl.mappings.api_servers import servers
 from etl.mappings.flowsheet_ids import flowsheet_ids
 from etl.mappings.component_ids import component_ids
+from etl.mappings.lab_procedures import procedure_ids
 
 import asyncio
 import uvloop
@@ -80,6 +81,8 @@ class Extractor:
     def extract_bedded_patients(self, limit):
         resource = '/facilities/hospital/' + self.hospital + '/beddedpatients'
         responses = self.make_requests(resource, [None], 'GET')
+        if limit:
+            logging.info("max_num_pats = {}".format(limit))
         return pd.DataFrame(responses[0]).head(limit) if limit else pd.DataFrame(responses[0])
 
 
@@ -127,7 +130,7 @@ class Extractor:
     def extract_lab_orders(self, bedded_patients):
         resource = '/patients/labs/procedure'
         procedure_types = []
-        for _, ids in `:
+        for _, ids in procedure_ids:
             procedure_types += ({'Type': 'INTERNAL', 'ID': str(x)} for x in ids)
         payloads = [{
           'Id':                   pat['pat_id'],
