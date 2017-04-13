@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
 import time
+import logging
 
 #==================================================
 ## Parameters
@@ -40,6 +41,7 @@ col_2_dtype_dict = {'doc_id': sqlalchemy.types.String(length=50),
                     'dep': sqlalchemy.types.String(length=50),
                     'raw_url': sqlalchemy.types.String()}
 
+logging.basicConfig(level=logging.DEBUG)
 
 unique_usrs_window = timedelta(minutes=60)
 
@@ -372,12 +374,14 @@ def calc_behamon_report_metrics(firstTime, lastTime):
 
   num_pats_seen_df = pd.read_sql(numPats_seen,engine)
 
+  engine.dispose()
   print("We got data from the database, shape {} !".format(num_pats_seen_df.shape))
 
-  engine.dispose()
 
   client = boto3.client('ses')
-  client.send_email(
+  print("bobo client created")
+
+  response = client.send_email(
     Source='trews-jhu@opsdx.io',
     Destination={
       'ToAddresses': ['trews-jhu@opsdx.io'],
@@ -390,7 +394,8 @@ def calc_behamon_report_metrics(firstTime, lastTime):
     }
   )
 
-  print("Email Sent")
+  print("Email Sent, Response:")
+  print(response)
 
 
 
@@ -467,5 +472,5 @@ def handler(event, context):
 
 
 if __name__ == '__main__':
-  batch_proc_main(datetime.now()-timedelta(days=1),datetime.now())
+  batch_proc_main(datetime.utcnow()-timedelta(days=1),datetime.utcnow())
 
