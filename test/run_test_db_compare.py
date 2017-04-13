@@ -288,6 +288,7 @@ op2dw_compare = [
       'counts': False,
       # 'dst_tsp_shift': '4 hours',
       'feature_set': 'online',
+      'max_num_pats': 500,
     }
   }
 ]
@@ -546,6 +547,7 @@ class DBCompareTest():
     dst_model_id   = args['dstmid']
     src_server = args['cmp_remote_server']
     counts = args['counts']
+    pat_limit = 'limit {}'.format(args['max_num_pats']) if 'max_num_pats' in args else ''
     dst_tsp_shift = args['dst_tsp_shift'] if 'dst_tsp_shift' in args else None
     online = True if 'feature_set' in args else False
     if 'date' in args:
@@ -555,12 +557,12 @@ class DBCompareTest():
     tsp_range = " tsp > '%(date)s 10:00:00 utc'::timestamptz and tsp < '%(date)s 20:00:00 utc'::timestamptz" % {'date': date}
 
     select_enc_ids_to_compare = '''
-    select pat_enc.enc_id from pat_enc inner join cdm_s on cdm_s.enc_id = pat_enc.enc_id
-          inner join dblink('%s', $OPDB$ select enc_id from cdm_s where cdm_s.fid = 'age' $OPDB$) as remote (enc_id int) on remote.enc_id = pat_enc.enc_id
+    SELECT distinct pat_enc.enc_id from pat_enc inner join cdm_s on cdm_s.enc_id = pat_enc.enc_id
+          inner join dblink('%s', $OPDB$ select distinct enc_id from cdm_s where cdm_s.fid = 'age' $OPDB$) as remote (enc_id int) on remote.enc_id = pat_enc.enc_id
           where cdm_s.fid = 'age'
           order by pat_enc.enc_id
-          limit 50
-    ''' % src_server
+          %s
+    ''' % (src_server, pat_limit)
     print(select_enc_ids_to_compare)
     async with dbpool.acquire() as conn:
       enc_ids = await conn.fetch(select_enc_ids_to_compare)

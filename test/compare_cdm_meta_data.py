@@ -73,13 +73,13 @@ table_key = {
 }
 
 upsert_sql = '''
-insert into {tbl} ({cols}) values ({values})
-on conflict({key}) do update
-set {setting};
+INSERT INTO {tbl} ({cols}) VALUES ({values})
+ON CONFLICT ({key}) DO UPDATE
+SET {setting};
 '''
 
 delete_sql = '''
-delete from {tbl} where {condition};
+DELETE FROM {tbl} WHERE  {condition};
 '''
 
 def value_format(val):
@@ -88,7 +88,11 @@ def value_format(val):
   elif val is None:
     return 'null'
   else:
-    return str(val)
+    val = str(val)
+    if val.isdigit():
+      return val
+    else:
+      return "'{}'".format(val.replace("'","''"))
 
 def generate_sql(table, diff_rows, dataset_id, model_id):
   print("queries for table {}".format(table))
