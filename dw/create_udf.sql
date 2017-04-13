@@ -2004,6 +2004,7 @@ DECLARE
 BEGIN
     create temporary table new_criteria_windows as
         select window_ends.tsp as ts, new_criteria.*
+
         from (  select distinct meas.pat_id, meas.tsp from criteria_meas meas
                 where meas.pat_id = coalesce(this_pat_id, meas.pat_id)
 --                 and meas.tsp between ts_start and ts_end
@@ -2015,13 +2016,19 @@ BEGIN
         ) new_criteria
         on window_ends.pat_id = new_criteria.pat_id;
 
-    insert into historical_criteria
-    select pat_id, pat_state, window_ts
-    from get_window_states('new_criteria_windows', this_pat_id) sw;
+--     RETURNS table( ts timestamptz, pat_id varchar(50), state int) AS $func$ BEGIN RETURN QUERY EXECUTE
+
+    insert into historical_criteria (pat_id, pat_state, window_ts)
+    select sw.pat_id, sw.state, sw.ts
+    from get_window_states('new_criteria_windows', this_pat_id) sw
+    ON CONFLICT (pat_id,               window_ts) DO UPDATE SET pat_state = excluded.pat_state;
 
     drop table new_criteria_windows;
     return;
 END; $function$;
+
+
+
 ----------------------------------------------------------------------
 -- calculate_trews_contributors
 -- Returns a time-series of top 'rank_limit' features and values that

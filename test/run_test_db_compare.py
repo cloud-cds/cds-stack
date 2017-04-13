@@ -68,8 +68,8 @@ epic2op_vs_c2dw = [
     'engine': EngineEpic2op(db_name='test_epic2op'),
     # 'engine': Restore(db_name='test_epic2op',file='/home/ubuntu/clarity-db-staging/epic2op/2017-04-06.sql'),
     'pipeline': {
-      # 'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
-      # 'populate_db': True,
+      'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
+      'populate_db': True,
     },
   },
   {
@@ -77,9 +77,9 @@ epic2op_vs_c2dw = [
     'engine': EngineC2dw,
     'job': job_c2dw_1,
     'pipeline': {
-      # 'load_clarity': {'folder': '~/clarity-db-staging/2017-04-11/'},
-      # 'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
-      # 'copy_pat_enc': True,
+      # 'load_clarity': {'folder': '~/clarity-db-staging/2017-04-12/'},
+      'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
+      'copy_pat_enc': True,
       # 'populate_db': True,
     },
     'db_compare': {
@@ -133,8 +133,8 @@ daily_compare = [
     'name': 'daily_test_epic2op',
     'engine': EngineEpic2op(db_name='daily_test_epic2op'),
     'pipeline': {
-      'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
-      'populate_db': True,
+      # 'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
+      # 'populate_db': True,
     },
   },
   {
@@ -517,7 +517,7 @@ class DBCompareTest():
     'epinephrine_dose',
     'levophed_infusion_dose',
     'dopamine_dose','vent','fluids_intake',]
-    cdm_twf_online_features = ['rass', 'resp_rate', 'abp_sys', 'nbp_sys', 'gcs', 'temperature', 'amylase',    'weight', 'pao2', 'abp_dias', 'nbp_dias', 'hemoglobin',  'wbc', 'bilirubin', 'lipase', 'sodium', 'creatinine',  'spo2',  'heart_rate', 'paco2', 'bun', 'platelets', 'fio2']
+    cdm_twf_online_features = ['rass', 'resp_rate', 'abp_sys', 'nbp_sys', 'gcs', 'temperature', 'amylase', 'map',   'weight', 'pao2', 'abp_dias', 'nbp_dias', 'hemoglobin',  'wbc', 'bilirubin', 'lipase', 'sodium', 'creatinine',  'spo2',  'heart_rate', 'paco2', 'bun', 'platelets', 'fio2']
 
     pat_enc_fields = [
       ['enc_id'                             ,     'integer'     ],
@@ -569,7 +569,7 @@ class DBCompareTest():
 
     cdm_twf_dependent_expr_map = {
       # 'shock_idx': ['(round(value::numeric, 4))', '='],
-      # 'weight': ['(round(value::numeric, 4))', '='],
+      # 'weight': ['(round(weight::numeric, 4))', '='],
       # 'nbp_mean': ['(round(value::numeric, 4))', '='],
       # 'mapm': ['(round(value::numeric, 4))', '='],
       # 'pao2_to_fio2': ['(round(value, 4))', '='],
@@ -666,7 +666,7 @@ class DBCompareTest():
       'inr': ['(round(value::numeric, 2))', '='],
       'lactate': ['(round(value::numeric, 1))', '='],
        'mapm': ['(round(value::numeric, 4))', '='],
-      'nbp_sys': ['(round(value::numeric, 1))', '='],
+      'bp_sys': ['(round(value::numeric, 1))', '='],
       'pao2_to_fio2': ['(round(value::numeric, 4))', '='],
       'platelets':['(round(value::numeric, 1))', '='],
       'ptt': ['(round(value::numeric, 1))', '='],
