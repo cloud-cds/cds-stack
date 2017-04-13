@@ -4,7 +4,7 @@ db2=$3
 model_id=$4
 
 dashan_db_path=$(dirname `pwd`)
-PGPASSWORD=$db_password
+export PGPASSWORD=$db_password
 
 echo "create database" $db1
 cd $dashan_db_path/ops
