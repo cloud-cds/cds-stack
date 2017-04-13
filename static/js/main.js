@@ -951,7 +951,7 @@ var criteriaComponent = function(c, constants, key, hidden) {
 	}
 
 	if ( c['name'] == 'respiratory_failure') {
-		displayValue = c[is_met] ? 'On' : 'Off';
+		displayValue = c['is_met'] ? 'On' : 'Off';
 	}
 
 	if (c['is_met'] && c['measurement_time']) {
