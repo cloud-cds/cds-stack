@@ -9,16 +9,14 @@ logging.basicConfig(level=logging.INFO)
 
 host          = os.environ['db_host']
 port          = os.environ['db_port']
-db            = os.environ['db_name']
+db            = os.environ['db_name'] # set to opsdx_dw
 user          = os.environ['db_user']
 pw            = os.environ['db_password']
-remote_server = os.environ['etl_remote_server']
+remote_server = os.environ['etl_remote_server'] # set to opsdx_dev_srv
 
 tables_to_load = {
-  'datalink'                 : 'dataset',
   'cdm_function'             : 'dataset',
   'cdm_feature'              : 'dataset',
-  'datalink_feature_mapping' : 'dataset',
   'pat_enc'                  : 'dataset',
   'cdm_g'                    : 'both',
   'cdm_s'                    : 'dataset',
@@ -60,8 +58,13 @@ class Engine(object):
     await self._init_()
     # extractors to run ETL
     logging.info("Running op2dw ETL")
-    dataset_id = 1
-    model_id = 1
+    if 'OP2DW_DATASET_ID' in os.environ and 'OP2DW_MODEL_ID' in os.environ:
+      dataset_id = os.environ['OP2DW_DATASET_ID']
+      model_id = os.environ['OP2DW_MODEL_ID']
+    else:
+      print("OP2DW_MODEL_ID or OP2DW_DATASET_ID is missing")
+      exit(0)
+
     for tbl, version_type in tables_to_load.items():
       e = Extractor(remote_server, dataset_id, model_id, tbl, version_extension=version_type)
       await e.run(self.dbpool)

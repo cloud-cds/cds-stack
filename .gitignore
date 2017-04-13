@@ -96,3 +96,6 @@ ENV/
 
 # SFTP
 sftp-config.json
+
+# FDW Secrets
+etl/op2dw/fdw/deploy*.sql
