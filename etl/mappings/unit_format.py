@@ -46,7 +46,7 @@ translation_map = [
 empty_translation_map = {
     'heart_rate':       'beats per min',
     'resp_rate':        'breath per min',
-    'mapm':             'mmHg',
+    'map':              'mmHg',
     'temperature':      'Celcius',          # Nurses sometimes forget this
     'rass':             '',
     'vent':             '',
