@@ -128,7 +128,7 @@ var criteriaKeyToName = {
 		"units": "mmHg"}
 	],
 	"respiratory_failure": [
-		{"name": "Respiratory Failure: PaO2/FiO2",
+		{"name": "Respiratory Failure: Mechanical Support",
 		"units": ""}
 	],
 	"creatinine": [
@@ -302,7 +302,7 @@ var severe_sepsis = {
 			"overrideModal": [{
 				"id": "override_respiratory_failure",
 				"header": "Override Respiratory Failure",
-				"name": "Respiratory Failure: Mechanical Support",
+				"name": "Respiratory Failure",
 				"units": "",
 				"step": 1,
 				"range": 'max',

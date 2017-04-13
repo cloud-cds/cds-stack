@@ -950,15 +950,15 @@ var criteriaComponent = function(c, constants, key, hidden) {
 		displayValue = ((Number(displayValue) - 32) / 1.8).toPrecision(3);
 	}
 
-	if ( c['name'] == 'respiratory_failure') {
-		displayValue = c['is_met'] ? 'On' : 'Off';
-	}
-
 	if (c['is_met'] && c['measurement_time']) {
 		this.classComplete = " met";
 		var lapsed = timeLapsed(new Date(c['measurement_time']*1000));
 		var strTime = strToTime(new Date(c['measurement_time']*1000));
-		this.status += "Criteria met <span title='" + strTime + "'>" + lapsed + "</span> with a value of <span class='value'>" + displayValue + "</span>";
+		if (c['name'] == 'respiratory_failure') {
+			this.status += "Criteria met <span title='" + strTime + "'>" + lapsed + "</span> with <span class='value'>Mechanical Support: On</span>";
+		} else {
+			this.status += "Criteria met <span title='" + strTime + "'>" + lapsed + "</span> with a value of <span class='value'>" + displayValue + "</span>";
+		}
 	} else {
 		if (c['override_user'] != null) {
 			this.classComplete = " unmet";
@@ -966,7 +966,11 @@ var criteriaComponent = function(c, constants, key, hidden) {
 			if (c['measurement_time']) {
 				var cLapsed = timeLapsed(new Date(c['measurement_time']*1000));
 				var cStrTime = strToTime(new Date(c['measurement_time']*1000));
-				this.status += "Criteria met <span title='" + cStrTime + "'>" + cLapsed + "</span> with a value of <span class='value'>" + displayValue + "</span>";
+				if (c['name'] == 'respiratory_failure') {
+					this.status += "Criteria met <span title='" + cStrTime + "'>" + cLapsed + "</span> with <span class='value'>Mechanical Support: On</span>";
+				} else {
+					this.status += "Criteria met <span title='" + cStrTime + "'>" + cLapsed + "</span> with a value of <span class='value'>" + displayValue + "</span>";
+				}
 				this.status += (c['override_time']) ? "<br />" : "";
 			}
 			if (c['override_time']) {
@@ -986,14 +990,15 @@ var criteriaComponent = function(c, constants, key, hidden) {
 		if (c['override_user'] != null) {
 			if (trews.getSpecificCriteria(key, constants.key).override_value[i] != undefined) {
 				if (trews.getSpecificCriteria(key, constants.key).override_value[i].range == 'min' ||
-					trews.getSpecificCriteria(key, constants.key).override_value[i].range == 'max') {
+						trews.getSpecificCriteria(key, constants.key).override_value[i].range == 'max')
+				{
 					crit = trews.getSpecificCriteria(key, constants.key).override_value[i].lower ? trews.getSpecificCriteria(key, constants.key).override_value[i].lower : trews.getSpecificCriteria(key, constants.key).override_value[i].upper;
 				} else {
 					crit = [trews.getSpecificCriteria(key, constants.key).override_value[i].lower, trews.getSpecificCriteria(key, constants.key).override_value[i].upper]
 				}
 			}
 		} else {
-			crit = (constants.overrideModal[i].value) ? constants.overrideModal[i].value : constants.overrideModal[i].values
+			crit = (constants.overrideModal[i].value != null) ? constants.overrideModal[i].value : constants.overrideModal[i].values
 		}
 		var name = constants.overrideModal[i].name
 		var unit = constants.overrideModal[i].units
@@ -1001,9 +1006,19 @@ var criteriaComponent = function(c, constants, key, hidden) {
 			crit[0] = Number(crit[0]).toPrecision(3);
 			crit[1] = Number(crit[1]).toPrecision(3);
 		}
-		if (constants.overrideModal[i].range == 'true') {
+
+		if (constants.key == 'respiratory_failure') {
+			if (c['is_met']) {
+				criteriaString += name;
+			} else {
+				var with_support = crit == 0 ? 'Off' : 'On';
+				criteriaString += name + ": Mechanical Support: " + with_support;
+			}
+		}
+		else if (constants.overrideModal[i].range == 'true') {
 			criteriaString += name + " < " + crit[0] + unit + " or > " + crit[1] + unit;
-		} else {
+		}
+		else {
 			var comp = (constants.overrideModal[i].range == 'min') ? "<" : ">";
 			criteriaString += name + " " + comp + " " + crit + unit;
 		}
