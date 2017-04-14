@@ -28,7 +28,6 @@ class Epic2OpLoader:
   def run_loop(self, db_data, db_raw_data, mode):
     loop = asyncio.get_event_loop()
     loop.run_until_complete(self.run(db_data, db_raw_data, mode))
-    loop.close()
 
   async def run(self, db_data, db_raw_data, mode):
     if self.pool is None:
@@ -53,7 +52,6 @@ class Epic2OpLoader:
     loop = asyncio.get_event_loop()
     future = asyncio.Future()
     notifications = loop.run_until_complete(self.run_get_notifications_for_epic(future))
-    loop.close()
     return notifications
 
   async def run_get_notifications_for_epic(self, future):
