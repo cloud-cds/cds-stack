@@ -146,6 +146,10 @@ async def run_cdm_meta_compare(db_host, db_name_1, db_name_2, dataset_id, model_
   pw = os.environ['db_password']
   port = os.environ['db_port']
   dbpool = await asyncpg.create_pool(database=db_name_2, user=user, password=pw, host=db_host, port=port)
+  if not dataset_id:
+    tables_to_compare.pop('dw_version', None)
+  if not model_id:
+    tables_to_compare.pop('model_version', None)
   for tbl, version_type_and_queries in tables_to_compare.items():
     version_type = version_type_and_queries[0]
     queries = version_type_and_queries[1]
