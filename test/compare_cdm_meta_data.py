@@ -66,7 +66,7 @@ table_key = {
   'cdm_function': ['dataset_id', 'func_id'],
   'cdm_feature': ['dataset_id', 'fid'],
   # 'cdm_g': ['fid'],
-  'criteria_default': ['dataset_id', 'name', 'fid'],
+  'criteria_default': ['dataset_id', 'name', 'fid', 'category'],
   'parameters': ['dataset_id', 'name'],
   'dw_version': ['dataset_id'],
   'model_version': ['model_id']
