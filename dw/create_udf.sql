@@ -750,10 +750,10 @@ AS $function$ BEGIN
 IF is_historical THEN
   delete from criteria where criteria.pat_id = this_pat_id;
   insert into criteria ( dataset_id, pat_id, name, is_met, measurement_time,override_time,override_user, override_value, value, update_date)
-  select s.dataset_id, s.pat_id, s.name, last(s.is_met), last(s.measurement_time),s.override_time,last(s.override_user), last(s.override_value), last(s.value), last(s.update_date)
+  select s.dataset_id, s.pat_id, s.name, last(s.is_met), last(s.measurement_time),last(s.override_time),last(s.override_user), last(s.override_value), last(s.value), last(s.update_date)
   from suspicion_of_infection_hist s
   where s.override_time between ts_start and ts_end and s.pat_id = this_pat_id
-  group by s.dataset_id, s.pat_id, s.override_time, s.name;
+  group by s.dataset_id, s.pat_id, s.name;
 END IF;
 
 
