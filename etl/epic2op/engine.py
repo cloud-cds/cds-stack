@@ -132,7 +132,7 @@ class Engine():
 
     if 'real' in self.mode:
       if self.notify_epic:
-        await notifications = self.loader.get_notifications_for_epic()
+        notifications = self.loader.get_notifications_for_epic()
         self.extractor.push_notifications(notifications)
 
       self.push_cloudwatch_metrics(self.cloudwatch_stats)

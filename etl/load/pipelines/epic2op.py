@@ -246,10 +246,17 @@ class Epic2OpLoader:
     await conn.execute("select drop_tables_pattern('workspace', '%%_%s');" % day)
     self.log.info("cleaned data in workspace for day:%s" % day)
 
-  async def get_notifications_for_epic(self):
+  def get_notifications_for_epic(self):
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(self.run_get_notifications_for_epic)
+    return self.notifications
+
+  async def run_get_notifications_for_epic(self):
+    if self.pool is None:
+      await self.async_init()
     async with self.pool.acquire() as conn:
       self.log.info("getting notifications to push to epic")
-      return await conn.fetch("""
+      self.notifications = await conn.fetch("""
         select * from get_notifications_for_epic(null)
         """)
 
