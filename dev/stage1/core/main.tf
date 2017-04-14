@@ -101,6 +101,25 @@ resource "aws_route_table_association" "lambda_subnet2" {
   route_table_id = "${aws_route_table.lambda.id}"
 }
 
+# A lambda security group with only (unrestricted) outbound access.
+resource "aws_security_group" "lambda_sg" {
+  name        = "${var.deploy_prefix}-lambda-sg"
+  description = "OpsDX Lambda SG"
+  vpc_id      = "${aws_vpc.main.id}"
+
+  # Unrestricted outbound internet access
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  tags {
+    Name = "${var.deploy_name}"
+    Stack = "${var.deploy_stack}"
+    Component = "Lambda Security Group"
+  }
+}
 
 ##############################
 # Controller instance
@@ -202,6 +221,18 @@ output "vpc_id" {
 
 output "vpc_cidr" {
   value = "${aws_vpc.main.cidr}"
+}
+
+output "lambda_subnet1_id" {
+  value = "${aws_subnet.lambda_subnet1.id}"
+}
+
+output "lambda_subnet2_id" {
+  value = "${aws_subnet.lambda_subnet2.id}"
+}
+
+output "lambda_sg_id" {
+  value = "${aws_security_group.lambda_sg.id}"
 }
 
 output "utility_subnet_id" {

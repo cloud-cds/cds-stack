@@ -97,3 +97,15 @@ output "db_subnet_group_id" {
 output "db_sg" {
   value = "${module.db.db_sg_id}"
 }
+
+output "lambda_subnet1_id" {
+  value = "${module.core.lambda_subnet1_id}"
+}
+
+output "lambda_subnet2_id" {
+  value = "${module.core.lambda_subnet2_id}"
+}
+
+output "lambda_sg" {
+  value = "${module.core.lambda_sg_id}"
+}
