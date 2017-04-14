@@ -25,7 +25,4 @@ echo "load model parameters"
 cd ${dashan_db_dw_path}/trews-model
 python deploy_model.py $db_name $db_host $model_id
 
-echo "load criteria parameters"
-cd ${dashan_db_dw_path}
-psql -h $db_host -U $db_user -d $db_name -p $db_port -f load_criteria_parameters.sql
-
+cd ..
