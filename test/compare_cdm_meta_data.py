@@ -130,7 +130,7 @@ def generate_sql(table, diff_rows, dataset_id, model_id):
         setting = 'ON CONFLICT ({key}) DO UPDATE set {setting}'.format(key=",".join(key), setting=setting) if setting and len(setting) > 0 else ''
         print(upsert_sql.format(tbl=table, cols=','.join(cols), values=values, setting=setting))
       elif len(records) == 1 and records[0]['missing_remotely']:
-        condition = ' and '.join(['{key} = {value}'.format(key=k, value=value_format(records[0][k])) for k in key])
+        condition = ' and '.join([' {key} = {value} '.format(key=k, value=value_format(records[0][k])) for k in key])
         print(delete_sql.format(tbl=table, condition=condition))
 
 async def run_cdm_meta_compare(db_host, db_name_1, db_name_2, dataset_id, model_id):
