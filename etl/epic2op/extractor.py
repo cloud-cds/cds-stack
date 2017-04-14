@@ -208,4 +208,4 @@ class Extractor:
             'FlowsheetTemplateID':  '304700006',
         } for n in notifications]
         self.make_requests(resource, payloads, 'POST')
-        self.log.info("pushed notifications to epic")
+        logging.info("pushed notifications to epic")
