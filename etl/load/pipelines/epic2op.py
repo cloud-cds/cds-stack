@@ -51,8 +51,7 @@ class Epic2OpLoader:
   def get_notifications_for_epic(self):
     loop = asyncio.get_event_loop()
     future = asyncio.Future()
-    loop.run_until_complete(self.run_get_notifications_for_epic(future))
-    notifications = await future
+    notifications = loop.run_until_complete(self.run_get_notifications_for_epic(future))
     return notifications
 
   async def run_get_notifications_for_epic(self, future):
