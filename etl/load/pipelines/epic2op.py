@@ -53,8 +53,10 @@ class Epic2OpLoader:
       async with self.pool.acquire() as conn:
         self.log.info("getting notifications to push to epic")
         return await conn.fetch("""
-          select * from get_notifications_for_epic(null)
-          """)
+          SELECT n.* from get_notifications_for_epic(null) n
+          inner join workspace.{}_bedded_patients_transformed bp
+          on n.pat_id = bp.pat_id
+          """.format(self.job_id))
 
     loop = asyncio.get_event_loop()
     future = asyncio.ensure_future(run(loop))
