@@ -20,7 +20,6 @@ class Criteria:
   def run_loop(self):
     loop = asyncio.get_event_loop()
     loop.run_until_complete(self.calculate())
-    loop.close()
 
   async def calculate(self):
     if self.pool is None:
