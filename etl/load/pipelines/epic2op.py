@@ -49,22 +49,17 @@ class Epic2OpLoader:
       await self.drop_tables(conn)
 
   def get_notifications_for_epic(self):
-    loop = asyncio.get_event_loop()
-    future = asyncio.Future()
-    loop.call_soon(self.run_get_notifications_for_epic, future)
-    print('entering event loop')
-    notifications = loop.run_until_complete(future)
-    return notifications
-
-  async def run_get_notifications_for_epic(self, future):
-    if self.pool is None:
-      await self.async_init()
-    async with self.pool.acquire() as conn:
+    async def run(loop):
+      async with self.pool.acquire() as conn:
       self.log.info("getting notifications to push to epic")
-      notifications = await conn.fetch("""
+      return await conn.fetch("""
         select * from get_notifications_for_epic(null)
         """)
-      future.set_result(notifications)
+
+    loop = asyncio.get_event_loop()
+    future = asyncio.ensure_future(run(loop))
+    loop.run_until_complete(future)
+    return future.result()
 
   async def get_cdm_feature_dict(self, conn):
     sql = "select * from cdm_feature"
