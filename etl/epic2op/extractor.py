@@ -196,7 +196,7 @@ class Extractor:
         return self.combine(dfs, med_orders[['pat_id', 'visit_id']])
 
 
-    def post_notifications(self, notifications):
+    def push_notifications(self, notifications):
         resource = '/patients/addflowsheetvalue'
         payloads = [{
             'PatientID':            n['pat_id'],
