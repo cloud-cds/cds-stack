@@ -2,7 +2,6 @@ db_host_1=$1
 db1=$2
 db_host_2=$3
 db2=$4
-model_id=$5
 
 export PGPASSWORD=$db_password
 
