@@ -75,7 +75,7 @@ table_key = {
 upsert_sql = '''
 INSERT INTO {tbl} ({cols}) VALUES ({values})
 ON CONFLICT ({key}) DO UPDATE
-SET {setting};
+{setting};
 '''
 
 delete_sql = '''
@@ -120,6 +120,7 @@ def generate_sql(table, diff_rows, dataset_id, model_id):
         values = ','.join([value_format(records[ri][c]) for c in cols])
         update_cols = [c for c in cols if c not in key]
         setting = ','.join(['{v} = Excluded.{v}'.format(v=c) for c in update_cols if c not in key])
+        setting = ' set {}'.format(setting) if setting and len(setting) > 0 else ''
         print(upsert_sql.format(tbl=table, cols=','.join(cols), values=values, key=",".join(key), setting=setting))
       elif len(records) == 1 and not records[0]['missing_remotely']:
         cols = [col for col in records[0] if col != 'missing_remotely']
@@ -127,6 +128,7 @@ def generate_sql(table, diff_rows, dataset_id, model_id):
         values = ','.join([value_format(records[ri][c]) for c in cols])
         update_cols = [c for c in cols if c not in key]
         setting = ','.join(['{v} = Excluded.{v}'.format(v=c) for c in update_cols])
+        setting = ' set {}'.format(setting) if setting and len(setting) > 0 else ''
         print(upsert_sql.format(tbl=table, cols=','.join(cols), values=values, key=",".join(key), setting=setting))
       elif len(records) == 1 and records[0]['missing_remotely']:
         condition = ','.join(['{key} = {value}'.format(key=k, value=value_format(records[0][k])) for k in key])
