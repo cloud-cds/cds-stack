@@ -28,6 +28,7 @@ class Epic2OpLoader:
   def run_loop(self, db_data, db_raw_data, mode):
     loop = asyncio.get_event_loop()
     loop.run_until_complete(self.run(db_data, db_raw_data, mode))
+    loop.close()
 
   async def run(self, db_data, db_raw_data, mode):
     if self.pool is None:
@@ -48,6 +49,28 @@ class Epic2OpLoader:
       await self.workspace_to_criteria_meas(conn)
       await self.drop_tables(conn)
 
+  def get_notifications_for_epic(self):
+    loop = asyncio.get_event_loop()
+    future = asyncio.Future()
+    loop.run_until_complete(self.run_get_notifications_for_epic(future))
+    notifications = await future.result()
+    loop.close()
+    return notifications
+
+async def slow_operation(future):
+    await asyncio.sleep(1)
+    future.set_result('Future is done!')
+
+
+  async def run_get_notifications_for_epic(self, future):
+    if self.pool is None:
+      await self.async_init()
+    async with self.pool.acquire() as conn:
+      self.log.info("getting notifications to push to epic")
+      notifications = await conn.fetch("""
+        select * from get_notifications_for_epic(null)
+        """)
+      future.set_result(notifications)
 
   async def get_cdm_feature_dict(self, conn):
     sql = "select * from cdm_feature"
@@ -245,20 +268,6 @@ class Epic2OpLoader:
     self.log.info("cleaning data in workspace for day:%s" % day)
     await conn.execute("select drop_tables_pattern('workspace', '%%_%s');" % day)
     self.log.info("cleaned data in workspace for day:%s" % day)
-
-  def get_notifications_for_epic(self):
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(self.run_get_notifications_for_epic)
-    return self.notifications
-
-  async def run_get_notifications_for_epic(self):
-    if self.pool is None:
-      await self.async_init()
-    async with self.pool.acquire() as conn:
-      self.log.info("getting notifications to push to epic")
-      self.notifications = await conn.fetch("""
-        select * from get_notifications_for_epic(null)
-        """)
 
   async def workspace_to_criteria_meas(self, conn):
     # insert all results to the measurement table
