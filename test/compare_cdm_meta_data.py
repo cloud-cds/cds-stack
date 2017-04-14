@@ -115,7 +115,7 @@ def generate_sql(table, diff_rows, dataset_id, model_id):
       records = groups[row_key]
       if len(records) == 2:
         cols = [col for col in records[0] if col != 'missing_remotely']
-        ri = 0 if records[0]['missing_remotely'] else 1
+        ri = 1 if records[0]['missing_remotely'] else 0
         values = ','.join([value_format(records[ri][c]) for c in cols])
         update_cols = [c for c in cols if c not in key]
         setting = ','.join(['{v} = Excluded.{v}'.format(v=c) for c in update_cols if c not in key])
