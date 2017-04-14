@@ -196,7 +196,7 @@ class Extractor:
         return self.combine(dfs, med_orders[['pat_id', 'visit_id']])
 
 
-    def post_notifications(self, notifications):
+    def push_notifications(self, notifications):
         resource = '/patients/addflowsheetvalue'
         payloads = [{
             'PatientID':            n['pat_id'],
@@ -208,4 +208,4 @@ class Extractor:
             'FlowsheetTemplateID':  '304700006',
         } for n in notifications]
         self.make_requests(resource, payloads, 'POST')
-        self.log.info("pushed notifications to epic")
+        logging.info("pushed notifications to epic")

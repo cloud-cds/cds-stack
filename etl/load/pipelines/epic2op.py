@@ -48,6 +48,18 @@ class Epic2OpLoader:
       await self.workspace_to_criteria_meas(conn)
       await self.drop_tables(conn)
 
+  def get_notifications_for_epic(self):
+    async def run(loop):
+      async with self.pool.acquire() as conn:
+        self.log.info("getting notifications to push to epic")
+        return await conn.fetch("""
+          select * from get_notifications_for_epic(null)
+          """)
+
+    loop = asyncio.get_event_loop()
+    future = asyncio.ensure_future(run(loop))
+    loop.run_until_complete(future)
+    return future.result()
 
   async def get_cdm_feature_dict(self, conn):
     sql = "select * from cdm_feature"
@@ -245,13 +257,6 @@ class Epic2OpLoader:
     self.log.info("cleaning data in workspace for day:%s" % day)
     await conn.execute("select drop_tables_pattern('workspace', '%%_%s');" % day)
     self.log.info("cleaned data in workspace for day:%s" % day)
-
-  async def get_notifications_for_epic(self):
-    async with self.pool.acquire() as conn:
-      self.log.info("getting notifications to push to epic")
-      return await conn.fetch("""
-        select * from get_notifications_for_epic(null)
-        """)
 
   async def workspace_to_criteria_meas(self, conn):
     # insert all results to the measurement table
