@@ -51,10 +51,10 @@ class Epic2OpLoader:
   def get_notifications_for_epic(self):
     async def run(loop):
       async with self.pool.acquire() as conn:
-      self.log.info("getting notifications to push to epic")
-      return await conn.fetch("""
-        select * from get_notifications_for_epic(null)
-        """)
+        self.log.info("getting notifications to push to epic")
+        return await conn.fetch("""
+          select * from get_notifications_for_epic(null)
+          """)
 
     loop = asyncio.get_event_loop()
     future = asyncio.ensure_future(run(loop))
