@@ -39,7 +39,9 @@ resource "aws_iam_role_policy" "behamon_lambda_policy" {
                   "kms:Decrypt",
                   "kms:DescribeKey",
                   "kms:GetKeyPolicy",
-                  "ses:*"
+                  "cloudwatch:PutMetricData",
+                  "ses:SendEmail",
+                  "ses:SendRawEmail"
                   ],
       "Resource": [
         "*"

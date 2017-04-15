@@ -36,13 +36,16 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: trews-rest-api
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.0.22
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.0.37
         ports:
         - containerPort: 8000
         command:
-        - sh
-        - -c
-        - gunicorn -b localhost:8000 -t 90 trews:app
+          - "sh"
+          - "start-prod.sh"
+        securityContext:
+          capabilities:
+            add:
+            - "SYS_PTRACE"
         env:
         - name: db_host
           value: "db.prod.opsdx.io"
@@ -87,16 +90,22 @@ spec:
               key: aws-secret-access-key
         - name: epic_notifications
           value: "1"
-        - name: api_with_healthcheck
+        - name: logging
           value: "1"
         - name: cloudwatch_log_group
           value: "opsdx-web-logs-prod"
-        - name: logging
+        - name: api_with_healthcheck
+          value: "1"
+        - name: api_monitor
+          value: "1"
+        - name: api_monitor_prometheus
           value: "0"
-        - name: prometheus
-          value: "0"
-        - name: prometheus_timeout
+        - name: api_monitor_cw_push_period
           value: "10"
+        - name: prometheus_multiproc_dir
+          value: "/tmp"
+        - name: etl_channel
+          value: "on_opsdx_prod_etl"
       volumes:
         - name: config-volume
           configMap:

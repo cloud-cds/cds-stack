@@ -24,6 +24,8 @@ import logging
 #==================================================
 ## Parameters
 #==================================================
+modes = ['watcher', 'metrics', 'reports']
+
 col2key_dict = {'doc_id': 'USERID',
                 'tsp': 'tsp',
                 'pat_id': 'PATID',
@@ -58,15 +60,18 @@ def try_to_read_from_environ(var_str, default_val):
     print("Selecting default value for {}".format(var_str))
     return default_val
 
-BEAHMON_WEB_LOG_LISTEN = try_to_read_from_environ('BEAHMON_WEB_LOG_LISTEN','opsdx-web-logs-dev')
-BEAHMON_WEB_FILT_STR = try_to_read_from_environ('BEAHMON_WEB_FILT_STR','*USERID*')
-BEAHMON_WEB_LOG_SREAM_STR = try_to_read_from_environ('BEAHMON_WEB_LOG_SREAM_STR','monitoring')
-BEAHMON_TS_RULE_PERIOD_MINUTES = float(try_to_read_from_environ('BEAHMON_TS_RULE_PERIOD_MINUTES','10'))
-BEAHMON_REPORT_RULE_PERIOD_MINUTES = float(try_to_read_from_environ('BEAHMON_REPORT_RULE_PERIOD_MINUTES','1440'))
+BEHAMON_MODE = try_to_read_from_environ('BEHAMON_WEB_LOG_LISTEN','watcher')
+BEHAMON_WEB_LOG_LISTEN = try_to_read_from_environ('BEHAMON_WEB_LOG_LISTEN','opsdx-web-logs-dev')
+BEHAMON_WEB_FILT_STR = try_to_read_from_environ('BEHAMON_WEB_FILT_STR','*USERID*')
+BEHAMON_WEB_LOG_STREAM_STR = try_to_read_from_environ('BEHAMON_WEB_LOG_STREAM_STR','monitoring')
+BEHAMON_TS_RULE_PERIOD_MINUTES = float(try_to_read_from_environ('BEHAMON_TS_RULE_PERIOD_MINUTES','10'))
+BEHAMON_REPORT_RULE_PERIOD_MINUTES = float(try_to_read_from_environ('BEHAMON_REPORT_RULE_PERIOD_MINUTES','1440'))
 
 
-rule_2_exeuction_period = {'opsdx-dev-behamon_lambda_time_series_rule':timedelta(minutes=BEAHMON_TS_RULE_PERIOD_MINUTES),
-                           'opsdx-dev-behamon_lambda_reports_rule':timedelta(minutes=BEAHMON_REPORT_RULE_PERIOD_MINUTES)}
+mode_2_period = {
+  'metrics': timedelta(minutes=BEHAMON_TS_RULE_PERIOD_MINUTES),
+  'reports': timedelta(minutes=BEHAMON_REPORT_RULE_PERIOD_MINUTES)
+}
 
 #==================================================
 ## Support Functions
@@ -238,11 +243,6 @@ def getfiltLogEvent(firstTime, lasTime, client,
 
   return resList
 
-def periodic_rule_2_td(rule_name):
-
-  execution_period_td = rule_2_exeuction_period[rule_name]
-
-  return execution_period_td
 
 def apply_func_over_sliding_window(firstTime,lastTime,func):
   unique_usrs_window_sec = unique_usrs_window.total_seconds()* (10 ** 3)
@@ -365,7 +365,7 @@ def calc_behamon_report_metrics(firstTime, lastTime):
 
   numPats_seen = """
       select doc_id, count(distinct pat_id) as num_pats_seen, min(tsp) as first_access, max(tsp) as last_access
-      from usr_web_log 
+      from usr_web_log
       where tsp between \'{}\'::timestamptz and \'{}\'::timestamptz group by doc_id;""".format(
         to_tz_str(firstTime, out_tsp_fmt, tz), to_tz_str(lastTime, out_tsp_fmt, tz))
 
@@ -408,10 +408,12 @@ def get_users_in_interval(firstTime, lastTime):
   firstTime = time2epoch(firstTime)
 
   client = boto3.client('logs')
-  # # BEAHMON_WEB_FILT_STR = try_to_read_from_environ('BEAHMON_WEB_FILT_STR','{$.req.url=*USERID*}')
+  # # BEHAMON_WEB_FILT_STR = try_to_read_from_environ('BEHAMON_WEB_FILT_STR','{$.req.url=*USERID*}')
+
+  filterExpr = "{{$.req.url={}}}".format(BEHAMON_WEB_FILT_STR)
 
   resList = getfiltLogEvent(firstTime, lastTime, client,
-                            BEAHMON_WEB_LOG_LISTEN, [BEAHMON_WEB_LOG_SREAM_STR], "{{$.req.url={}}}".format(BEAHMON_WEB_FILT_STR)) # can we base this on the rule somehow? @peter
+                            BEHAMON_WEB_LOG_LISTEN, [BEHAMON_WEB_LOG_STREAM_STR], filterExpr) # can we base this on the rule somehow? @peter
 
   allDicts = []
   for res in resList:
@@ -435,40 +437,41 @@ def handler(event, context):
   ## Extract from event
   # ====================================
 
-  print("event")
+  print("Mode: %s" % BEHAMON_MODE)
+  print("Input event")
   print(event)
 
+  if BEHAMON_MODE in modes:
 
-  if "awslogs" in event:
-    get_usr_from_event(event)
-  else:
-    # assumed to be periodically driven
+    if BEHAMON_MODE == 'watcher':
+      if 'awslogs' in event:
+        get_usr_from_event(event)
+      else:
+        print('No awslogs found while processing log entry')
 
-    _, rule = event['resources'][0].split(':rule/')
-    print("rule")
-    print(rule)
-
-    execution_period_td = periodic_rule_2_td(rule)
-
-    print("presumed rule execution Period")
-    print(execution_period_td)
-
-    last_execution = datetime.now() - execution_period_td
-
-    this_execution = datetime.now()
-
-    if rule == 'opsdx-dev-behamon_lambda_time_series_rule':
-      # run on all data since the last execution
-      calc_behamon_ts_metrics(last_execution, this_execution)
-    if rule == 'opsdx-dev-behamon_lambda_reports_rule':
-      print("Report Type")
-      calc_behamon_report_metrics(last_execution, this_execution)
     else:
-      print("unrecognized event type:")
-      print(event)
+      # assumed to be periodically driven
+      execution_period_td = mode_2_period[BEHAMON_MODE]
+
+      print("Mode execution period: %s" % execution_period_td)
+
+      last_execution = datetime.now() - execution_period_td
+      this_execution = datetime.now()
+
+      if BEHAMON_MODE == 'metrics':
+        # run on all data since the last execution
+        calc_behamon_ts_metrics(last_execution, this_execution)
+
+      elif BEHAMON_MODE == 'reports':
+        calc_behamon_report_metrics(last_execution, this_execution)
+
+      else:
+        print("Invalid mode: %s" % BEHAMON_MODE)
+
+  else:
+    print("Invalid mode: %s" % BEHAMON_MODE)
 
   return
-
 
 
 if __name__ == '__main__':

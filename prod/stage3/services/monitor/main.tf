@@ -124,7 +124,7 @@ resource "aws_cloudwatch_metric_alarm" "nodes_inservice" {
 resource "aws_cloudwatch_metric_alarm" "etl_up" {
   alarm_name                = "${var.deploy_prefix}-etl-up"
   comparison_operator       = "LessThanThreshold"
-  evaluation_periods        = "1"
+  evaluation_periods        = "2"
   metric_name               = "ExTrLoTime"
   namespace                 = "OpsDX"
   period                    = "3600"
@@ -135,7 +135,7 @@ resource "aws_cloudwatch_metric_alarm" "etl_up" {
   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
 
   dimensions {
-    ETL = "opsdx-prod"
+    ETL = "opsdx_prod"
   }
 }
 
@@ -148,7 +148,7 @@ resource "aws_cloudwatch_metric_alarm" "ping_up" {
   namespace                 = "OpsDX"
   period                    = "300"
   statistic                 = "SampleCount"
-  threshold                 = "90"
+  threshold                 = "45"
   alarm_description         = "Ping throughput in the past 5 minutes"
   alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
@@ -156,5 +156,45 @@ resource "aws_cloudwatch_metric_alarm" "ping_up" {
   dimensions {
     Source = "damsl.cs.jhu.edu",
     Stack  = "Prod"
+  }
+}
+
+# High webservice latency
+resource "aws_cloudwatch_metric_alarm" "high_webservice_latency" {
+  alarm_name                = "${var.deploy_prefix}-high-webservice-latency"
+  comparison_operator       = "GreaterThanThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "LatencyAvg"
+  namespace                 = "OpsDX"
+  period                    = "60"
+  statistic                 = "Average"
+  threshold                 = "300"
+  alarm_description         = "Average webservice latency in the past minute"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    Route = "/api"
+    API   = "opsdx-prod"
+    MetricStreamId = "0d249909-8586-45d2-9920-85338b93aa10"
+  }
+}
+
+# High browser latency
+resource "aws_cloudwatch_metric_alarm" "high_browser_latency" {
+  alarm_name                = "${var.deploy_prefix}-high-browser-latency"
+  comparison_operator       = "GreaterThanThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "UserLatencyAvg"
+  namespace                 = "OpsDX"
+  period                    = "60"
+  statistic                 = "Average"
+  threshold                 = "500"
+  alarm_description         = "Average browser-side latency in the past minute"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    Browser = "opsdx-prod"
   }
 }

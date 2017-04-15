@@ -26,8 +26,9 @@ variable "db_name" {}
 variable "db_username" {}
 variable "db_password" {}
 variable "op2dw_etl_remote_server" {}
+variable "op2dw_dataset_id" {}
+variable "op2dw_model_id" {}
 variable "op2dw_etl_lambda_firing_rate_mins" {}
-
 
 # ETL Lambda functions for production and development databases.
 
@@ -67,6 +68,8 @@ resource "aws_lambda_function" "op2dw_etl_lambda" {
         k8s_job_db_user           = "${var.db_username}"
         k8s_job_db_password       = "${var.db_password}"
         k8s_job_etl_remote_server = "${var.op2dw_etl_remote_server}"
+        k8s_job_OP2DW_DATASET_ID  = "${var.op2dw_dataset_id}"
+        k8s_job_OP2DW_MODEL_ID    = "${var.op2dw_model_id}"
       }
     }
 }

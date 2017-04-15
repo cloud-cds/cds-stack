@@ -38,17 +38,16 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: trews-rest-api
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.0.36
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.0.37
         command:
           - "sh"
-          - "start.sh"
+          - "start-dev.sh"
         securityContext:
           capabilities:
             add:
             - "SYS_PTRACE"
         ports:
         - containerPort: 8000
-        env:
         env:
         - name: db_host
           value: "db.dev.opsdx.io"

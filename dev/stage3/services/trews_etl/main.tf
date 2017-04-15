@@ -116,5 +116,3 @@ resource "aws_lambda_permission" "etl_cloudwatch_permissions" {
     principal     = "events.amazonaws.com"
     source_arn    = "${aws_cloudwatch_event_rule.etl_schedule_rule.arn}"
 }
-
-

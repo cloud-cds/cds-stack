@@ -115,11 +115,11 @@ resource "aws_lambda_function" "behamon_lambda_time_series" {
         db_password = "${var.db_password}"
 
         BEHAMON_MODE                       = "metrics"
-        BEAHMON_WEB_LOG_LISTEN             = "${var.behamon_log_group_name}"
-        BEAHMON_WEB_FILT_STR               = "${var.behamon_web_filt_str}"
-        BEAHMON_WEB_LOG_STREAM_STR         = "${var.behamon_web_log_stream_str}"
-        BEAHMON_TS_RULE_PERIOD_MINUTES     = "${var.behavior_monitors_timeseries_firing_rate_min}"
-        BEAHMON_REPORT_RULE_PERIOD_MINUTES = "${var.behavior_monitors_reports_firing_rate_min}"
+        BEHAMON_WEB_LOG_LISTEN             = "${var.behamon_log_group_name}"
+        BEHAMON_WEB_FILT_STR               = "${var.behamon_web_filt_str}"
+        BEHAMON_WEB_LOG_STREAM_STR         = "${var.behamon_web_log_stream_str}"
+        BEHAMON_TS_RULE_PERIOD_MINUTES     = "${var.behavior_monitors_timeseries_firing_rate_min}"
+        BEHAMON_REPORT_RULE_PERIOD_MINUTES = "${var.behavior_monitors_reports_firing_rate_min}"
       }
     }
 }

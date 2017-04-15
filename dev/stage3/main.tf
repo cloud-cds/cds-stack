@@ -150,35 +150,20 @@ module "behavior_monitors" {
   db_username = "${var.db_username}"
   db_password = "${var.db_password}"
 
-  db_subnet1_id = ""
-  db_subnet2_id = ""
-  db_sg_id      = ""
+  lambda_subnet1_id = "${var.lambda_subnet1_id}"
+  lambda_subnet2_id = "${var.lambda_subnet2_id}"
+  lambda_sg_id      = "${var.lambda_sg_id}"
 
-  behamon_log_group_name = ""
-  behamon_log_group_arn  = ""
+  behamon_log_group_name = "${var.behamon_log_group_name}"
+  behamon_log_group_arn  = "${var.behamon_log_group_arn}"
 
-  behamon_web_filt_str      = "*USERID*"
-  behamon_web_log_sream_str = "monitoring"
+  behamon_web_filt_str       = "*USERID*"
+  behamon_web_log_stream_str = "monitoring"
 
   # Must be manually kept in sync with the beahmon service,.py file
-  behavior_monitors_timeseries_firing_rate_min = "5"
-  # TODO: keep the min/hours values consistent for real deployments (i.e. min = hour*60)
-  behavior_monitors_reports_firing_rate_min = "5"
-  behavior_monitors_reports_firing_rate_hours = "24" #86400 = 60*60*24 #looks like it can't be speced in minutes
-}
-
-
-module "monitor" {
-  source = "./services/monitor"
-  deploy_prefix = "${var.deploy_prefix}"
-
-  s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
-  aws_alarm2slack_package = "${var.aws_alarm2slack_package}"
-  alarm2slack_kms_key_arn = "${var.alarm2slack_kms_key_arn}"
-
-  slack_hook     = "${var.slack_hook}"
-  slack_channel  = "${var.slack_channel}"
-  slack_watchers = "${var.slack_watchers}"
+  behavior_monitors_timeseries_firing_rate_min = "10"
+  behavior_monitors_reports_firing_rate_min = "10"
+  behavior_monitors_reports_firing_rate_expr = "10 minutes"
 }
 
 module "op2dw_etl" {
@@ -203,7 +188,7 @@ module "op2dw_etl" {
   k8s_key       = "${var.k8s_key}"
   k8s_token     = "${var.k8s_token}"
 
-  op2dw_etl_lambda_firing_rate_mins = "10"
+  op2dw_etl_lambda_firing_rate_mins = "60"
   op2dw_etl_remote_server = "opsdx_dev_srv"
   op2dw_dataset_id = "2"
   op2dw_model_id = "1"
@@ -212,4 +197,17 @@ module "op2dw_etl" {
   db_name      = "${replace(var.deploy_prefix, "-", "_")}_dw"
   db_username  = "${var.db_username}"
   db_password  = "${var.db_password}"
+}
+
+module "monitor" {
+  source = "./services/monitor"
+  deploy_prefix = "${var.deploy_prefix}"
+
+  s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
+  aws_alarm2slack_package = "${var.aws_alarm2slack_package}"
+  alarm2slack_kms_key_arn = "${var.alarm2slack_kms_key_arn}"
+
+  slack_hook     = "${var.slack_hook}"
+  slack_channel  = "${var.slack_channel}"
+  slack_watchers = "${var.slack_watchers}"
 }

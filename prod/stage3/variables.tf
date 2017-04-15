@@ -190,23 +190,23 @@ variable "jhapi_client_secret" {
 }
 
 ####################################
-# Files
+# Lambda packages
 
-variable "aws_trews_etl_package" {
-  description = "AWS Lambda deployment package"
-}
+variable "lambda_subnet1_id" {}
+variable "lambda_subnet2_id" {}
+variable "lambda_sg_id" {}
 
-variable "aws_klaunch_lambda_package" {
-  description = "AWS Lambda k8s job launcher package"
-}
+variable "aws_klaunch_lambda_package" {}
+variable "aws_klaunch_lambda_role_arn" {}
 
-variable "aws_klaunch_lambda_role_arn" {
-  description = "AWS Lambda k8s job launcher role"
-}
+variable "aws_alarm2slack_package" {}
 
-variable "aws_alarm2slack_package" {
-  description = "AWS Lambda Alarm2Slack package"
-}
+variable "aws_behamon_lambda_package" {}
+variable "aws_behamon_lambda_role_arn" {}
+
+variable "behamon_log_group_name" {}
+variable "behamon_log_group_arn" {}
+
 
 ####################################
 # Command execution

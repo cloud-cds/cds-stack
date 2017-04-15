@@ -37,12 +37,21 @@ resource "aws_s3_bucket" "lambda-repo" {
     }
 }
 
-resource "aws_s3_bucket" "flamegraph-dev" {
-    bucket = "opsdx-flamegraph-dev"
+resource "aws_s3_bucket" "webservice-flamegraphs" {
+    bucket = "opsdx-webservice-flamegraphs"
     acl = "public-read"
 
     lifecycle_rule {
-      prefix  = "flamegraphs/"
+      prefix  = "flamegraphs-dev/"
+      enabled = true
+
+      expiration {
+        days = 2
+      }
+    }
+
+    lifecycle_rule {
+      prefix  = "flamegraphs-prod/"
       enabled = true
 
       expiration {
@@ -54,6 +63,7 @@ resource "aws_s3_bucket" "flamegraph-dev" {
         enabled = true
     }
 }
+
 
 ############################################
 # ECR repositories
