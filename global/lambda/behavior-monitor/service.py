@@ -44,7 +44,7 @@ col_2_dtype_dict = {'doc_id': sqlalchemy.types.String(length=50),
                     'raw_url': sqlalchemy.types.String()}
 
 logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 unique_usrs_window = timedelta(minutes=60)
 
@@ -193,15 +193,15 @@ def data_2_db(sql_table_name, data_in,dtype_dict=None):
   else:
     results.to_sql(temp_table_name, engine, if_exists='append', index=False, schema='public', dtype=dtype_dict)
 
-  make_final_sql = """
+  insert_visit_sql = """
       insert into {} (doc_id, tsp, pat_id, visit_id, loc, dep, raw_url)
       select          doc_id, tsp, pat_id, visit_id, loc, dep, raw_url from {}
       on conflict (doc_id, tsp, pat_id)
       DO UPDATE SET visit_id = EXCLUDED.visit_id, loc = EXCLUDED.loc, dep = EXCLUDED.dep, raw_url = EXCLUDED.raw_url;
       """.format(sql_table_name, temp_table_name)
 
-  connection.execute(make_final_sql)
-
+  status = connection.execute(insert_visit_sql)
+  logger.info('Insert visit query status: ' % str(status))
   connection.close()
   engine.dispose()
   return results
@@ -449,8 +449,8 @@ def handler(event, context):
   ## Extract from event
   # ====================================
 
-  logger.debug("Mode: %s" % BEHAMON_MODE)
-  logger.debug("Input event: %s" % json.dumps(event))
+  logger.info("Mode: %s" % BEHAMON_MODE)
+  logger.info("Input event: %s" % json.dumps(event))
 
   if BEHAMON_MODE in modes:
 
@@ -464,7 +464,7 @@ def handler(event, context):
       # assumed to be periodically driven
       execution_period_td = mode_2_period[BEHAMON_MODE]
 
-      logger.debug("Mode execution period: %s" % str(execution_period_td))
+      logger.info("Mode execution period: %s" % str(execution_period_td))
 
       last_execution = datetime.now() - execution_period_td
       this_execution = datetime.now()
