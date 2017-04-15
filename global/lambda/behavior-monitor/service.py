@@ -43,7 +43,8 @@ col_2_dtype_dict = {'doc_id': sqlalchemy.types.String(length=50),
                     'dep': sqlalchemy.types.String(length=50),
                     'raw_url': sqlalchemy.types.String()}
 
-logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
 
 unique_usrs_window = timedelta(minutes=60)
 
@@ -54,10 +55,10 @@ reports_window = timedelta(hours=24)
 #==================================================
 def try_to_read_from_environ(var_str, default_val):
   if var_str in os.environ:
-    logging.info("Selecting {} from Environment".format(var_str))
+    logger.info("Selecting {} from Environment".format(var_str))
     return os.environ[var_str]
   else:
-    logging.info("Selecting default value for {}".format(var_str))
+    logger.info("Selecting default value for {}".format(var_str))
     return default_val
 
 BEHAMON_MODE = try_to_read_from_environ('BEHAMON_MODE','watcher')
@@ -91,8 +92,8 @@ def logs2dicts(logs,allDicts=[]):
     try:
       _, url_str = url_str_raw.split('?')  # cleans website stuff
     except:
-      logging.debug('URL did not match pattern')
-      logging.debug(url_str_raw)
+      logger.debug('URL did not match pattern')
+      logger.debug(url_str_raw)
       continue
 
     key_val_list = url_str.split('&')
@@ -182,7 +183,7 @@ def data_2_db(sql_table_name, data_in,dtype_dict=None):
 
   temp_table_name = 'temp' + sql_table_name
 
-  logging.debug("saving data frame to {}: nrows = {}".format(temp_table_name, nrows))
+  logger.debug("saving data frame to {}: nrows = {}".format(temp_table_name, nrows))
 
   connection = engine.connect()
   connection.execute("""DROP TABLE IF EXISTS {}""".format(temp_table_name))
@@ -209,7 +210,7 @@ def getfiltLogEvent(firstTime, lasTime, client,
                     logGroup, logStreamNames, filterPattern,
                     callLimit=None):
 
-  logging.debug(time.strftime("%H:%M:%S") + " Started Filtered Search")
+  logger.debug(time.strftime("%H:%M:%S") + " Started Filtered Search")
 
   res = client.filter_log_events(logGroupName=logGroup, logStreamNames=logStreamNames,
                                  startTime=firstTime, endTime=lasTime, filterPattern=filterPattern)
@@ -228,7 +229,7 @@ def getfiltLogEvent(firstTime, lasTime, client,
       if loops > callLimit:
         break
 
-    logging.debug("We are on call {} of filter log events".format(loops))
+    logger.debug("We are on call {} of filter log events".format(loops))
 
     res = client.filter_log_events(logGroupName=logGroup, logStreamNames=logStreamNames,
                                    startTime=firstTime, endTime=lasTime, filterPattern=filterPattern,
@@ -241,7 +242,7 @@ def getfiltLogEvent(firstTime, lasTime, client,
     else:
       nt = False
 
-  logging.debug(time.strftime("%H:%M:%S") + " Filtered Search Complete ")
+  logger.debug(time.strftime("%H:%M:%S") + " Filtered Search Complete ")
 
   return resList
 
@@ -289,7 +290,7 @@ def get_usr_from_event(event):
 
 def calc_behamon_ts_metrics(firstTime, lastTime):
   # firstTime, lastTime assumed to be in local time
-  logging.info('Processing metrics for %s %s' % (firstTime.isoformat(), lastTime.isoformat()))
+  logger.info('Processing metrics for %s %s' % (firstTime.isoformat(), lastTime.isoformat()))
 
   # ===========================
   # Get Data
@@ -363,13 +364,13 @@ def calc_behamon_ts_metrics(firstTime, lastTime):
       else:
         successes += 1
 
-  logging.info('TS put metrics: Successes %s / Errors %s ' % (successes, len(error_codes)))
+  logger.info('TS put metrics: Successes %s / Errors %s ' % (successes, len(error_codes)))
   if len(error_codes) > 0:
-    logging.info('Error codes: %s' % str(error_codes))
+    logger.info('Error codes: %s' % str(error_codes))
 
 
 def calc_behamon_report_metrics(firstTime, lastTime):
-  logging.info('Processing report for %s %s' % (firstTime.isoformat(), lastTime.isoformat()))
+  logger.info('Processing report for %s %s' % (firstTime.isoformat(), lastTime.isoformat()))
 
   # ===============================
   # Get data from DB
@@ -384,12 +385,12 @@ def calc_behamon_report_metrics(firstTime, lastTime):
       where tsp between \'{}\'::timestamptz and \'{}\'::timestamptz group by doc_id;""".format(
         to_tz_str(firstTime, out_tsp_fmt, tz), to_tz_str(lastTime, out_tsp_fmt, tz))
 
-  logging.debug("Metrics query: %s" % num_pats_seen)
+  logger.debug("Metrics query: %s" % num_pats_seen)
 
   num_pats_seen_df = pd.read_sql(num_pats_seen, engine)
 
   engine.dispose()
-  logging.debug("Report query shape: %s" % num_pats_seen_df.shape)
+  logger.debug("Report query shape: %s" % str(num_pats_seen_df.shape))
 
   client = boto3.client('ses')
 
@@ -406,7 +407,7 @@ def calc_behamon_report_metrics(firstTime, lastTime):
     }
   )
 
-  logging.info('Send email status: ' % str(response))
+  logger.info('Send email status: %s' % str(response))
 
 
 
@@ -448,8 +449,8 @@ def handler(event, context):
   ## Extract from event
   # ====================================
 
-  logging.debug("Mode: %s" % BEHAMON_MODE)
-  logging.debug("Input event: %s" % json.dumps(event))
+  logger.debug("Mode: %s" % BEHAMON_MODE)
+  logger.debug("Input event: %s" % json.dumps(event))
 
   if BEHAMON_MODE in modes:
 
@@ -457,13 +458,13 @@ def handler(event, context):
       if 'awslogs' in event:
         get_usr_from_event(event)
       else:
-        logging.error('No awslogs found while processing log entry')
+        logger.error('No awslogs found while processing log entry')
 
     else:
       # assumed to be periodically driven
       execution_period_td = mode_2_period[BEHAMON_MODE]
 
-      logging.debug("Mode execution period: %s" % execution_period_td)
+      logger.debug("Mode execution period: %s" % str(execution_period_td))
 
       last_execution = datetime.now() - execution_period_td
       this_execution = datetime.now()
@@ -476,10 +477,10 @@ def handler(event, context):
         calc_behamon_report_metrics(last_execution, this_execution)
 
       else:
-        logging.error("Invalid mode: %s" % BEHAMON_MODE)
+        logger.error("Invalid mode: %s" % BEHAMON_MODE)
 
   else:
-    logging.error("Invalid mode: %s" % BEHAMON_MODE)
+    logger.error("Invalid mode: %s" % BEHAMON_MODE)
 
   return
 
