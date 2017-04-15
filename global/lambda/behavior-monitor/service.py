@@ -195,13 +195,12 @@ def data_2_db(sql_table_name, data_in,dtype_dict=None):
 
   insert_visit_sql = """
       insert into {} (doc_id, tsp, pat_id, visit_id, loc, dep, raw_url)
-      select          doc_id, tsp, pat_id, visit_id, loc, dep, raw_url from {}
+      select distinct doc_id, tsp, pat_id, visit_id, loc, dep, raw_url from {}
       on conflict (doc_id, tsp, pat_id)
       DO UPDATE SET visit_id = EXCLUDED.visit_id, loc = EXCLUDED.loc, dep = EXCLUDED.dep, raw_url = EXCLUDED.raw_url;
       """.format(sql_table_name, temp_table_name)
 
-  status = connection.execute(insert_visit_sql)
-  logger.info('Insert visit query status: ' % str(status))
+  connection.execute(insert_visit_sql)
   connection.close()
   engine.dispose()
   return results
