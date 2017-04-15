@@ -54,10 +54,10 @@ reports_window = timedelta(hours=24)
 #==================================================
 def try_to_read_from_environ(var_str, default_val):
   if var_str in os.environ:
-    print("Selecting {} from Environment".format(var_str))
+    logging.info("Selecting {} from Environment".format(var_str))
     return os.environ[var_str]
   else:
-    print("Selecting default value for {}".format(var_str))
+    logging.info("Selecting default value for {}".format(var_str))
     return default_val
 
 BEHAMON_MODE = try_to_read_from_environ('BEHAMON_MODE','watcher')
@@ -91,8 +91,8 @@ def logs2dicts(logs,allDicts=[]):
     try:
       _, url_str = url_str_raw.split('?')  # cleans website stuff
     except:
-      print('URL did not match pattern')
-      print(url_str_raw)
+      logging.debug('URL did not match pattern')
+      logging.debug(url_str_raw)
       continue
 
     key_val_list = url_str.split('&')
@@ -182,7 +182,7 @@ def data_2_db(sql_table_name, data_in,dtype_dict=None):
 
   temp_table_name = 'temp' + sql_table_name
 
-  print("saving data frame to {}: nrows = {}".format(temp_table_name, nrows))
+  logging.debug("saving data frame to {}: nrows = {}".format(temp_table_name, nrows))
 
   connection = engine.connect()
   connection.execute("""DROP TABLE IF EXISTS {}""".format(temp_table_name))
@@ -208,7 +208,8 @@ def data_2_db(sql_table_name, data_in,dtype_dict=None):
 def getfiltLogEvent(firstTime, lasTime, client,
                     logGroup, logStreamNames, filterPattern,
                     callLimit=None):
-  print(time.strftime("%H:%M:%S") + " Started Filtered Search")
+
+  logging.debug(time.strftime("%H:%M:%S") + " Started Filtered Search")
 
   res = client.filter_log_events(logGroupName=logGroup, logStreamNames=logStreamNames,
                                  startTime=firstTime, endTime=lasTime, filterPattern=filterPattern)
@@ -227,7 +228,7 @@ def getfiltLogEvent(firstTime, lasTime, client,
       if loops > callLimit:
         break
 
-    print("We are on call {} of filter log events".format(loops))
+    logging.debug("We are on call {} of filter log events".format(loops))
 
     res = client.filter_log_events(logGroupName=logGroup, logStreamNames=logStreamNames,
                                    startTime=firstTime, endTime=lasTime, filterPattern=filterPattern,
@@ -240,7 +241,7 @@ def getfiltLogEvent(firstTime, lasTime, client,
     else:
       nt = False
 
-  print(time.strftime("%H:%M:%S") + " Filtered Search Complete ")
+  logging.debug(time.strftime("%H:%M:%S") + " Filtered Search Complete ")
 
   return resList
 
@@ -287,8 +288,8 @@ def get_usr_from_event(event):
   data_2_db("usr_web_log", allDicts, dtype_dict=col_2_dtype_dict)
 
 def calc_behamon_ts_metrics(firstTime, lastTime):
-  print("We are in TS metrics")
   # firstTime, lastTime assumed to be in local time
+  logging.info('Processing metrics for %s %s' % (firstTime.isoformat(), lastTime.isoformat()))
 
   # ===========================
   # Get Data
@@ -334,13 +335,17 @@ def calc_behamon_ts_metrics(firstTime, lastTime):
   # Execute and push metrics to cloudwatch
   # ===========================
 
-  dimList = [{'Name': 'Source', 'Value': 'database'},
-             {'Name': 'Stack', 'Value': 'prod'}]
+  dimList = [{'Name': 'Source', 'Value': 'behavior-monitor'},
+             {'Name': 'Stack', 'Value': BEHAMON_STACK}]
 
   client = boto3.client('cloudwatch')
 
   firstTime_e = time2epoch(firstTime)
   lastTime_e  = time2epoch(lastTime)
+
+  successes = 0
+  error_codes = []
+
   for metric,func in metrics_dict.iteritems():
     time_list, value_list = apply_func_over_sliding_window(firstTime_e,lastTime_e,func)
 
@@ -353,10 +358,19 @@ def calc_behamon_ts_metrics(firstTime, lastTime):
                                             'Value': val,
                                             'Unit': 'Count'}])
 
-  pass
+      if put_status['ResponseMetadata']['HTTPStatusCode'] != 200:
+        error_codes.append(put_status['ResponseMetadata']['HTTPStatusCode'])
+      else:
+        successes += 1
+
+  logging.info('TS put metrics: Successes %s / Errors %s ' % (successes, len(error_codes)))
+  if len(error_codes) > 0:
+    logging.info('Error codes: %s' % str(error_codes))
+
 
 def calc_behamon_report_metrics(firstTime, lastTime):
-  print("We are in reports!")
+  logging.info('Processing report for %s %s' % (firstTime.isoformat(), lastTime.isoformat()))
+
   # ===============================
   # Get data from DB
   # ===============================
@@ -364,23 +378,20 @@ def calc_behamon_report_metrics(firstTime, lastTime):
 
   out_tsp_fmt, tz = get_tz_format(tz_in_str='US/Eastern')
 
-  numPats_seen = """
+  num_pats_seen = """
       select doc_id, count(distinct pat_id) as num_pats_seen, min(tsp) as first_access, max(tsp) as last_access
       from usr_web_log
       where tsp between \'{}\'::timestamptz and \'{}\'::timestamptz group by doc_id;""".format(
         to_tz_str(firstTime, out_tsp_fmt, tz), to_tz_str(lastTime, out_tsp_fmt, tz))
 
-  print("Q")
-  print(numPats_seen)
+  logging.debug("Metrics query: %s" % num_pats_seen)
 
-  num_pats_seen_df = pd.read_sql(numPats_seen,engine)
+  num_pats_seen_df = pd.read_sql(num_pats_seen, engine)
 
   engine.dispose()
-  print("We got data from the database, shape {} !".format(num_pats_seen_df.shape))
-
+  logging.debug("Report query shape: %s" % num_pats_seen_df.shape)
 
   client = boto3.client('ses')
-  print("bobo client created")
 
   response = client.send_email(
     Source='trews-jhu@opsdx.io',
@@ -395,8 +406,7 @@ def calc_behamon_report_metrics(firstTime, lastTime):
     }
   )
 
-  print("Email Sent, Response:")
-  print(response)
+  logging.info('Send email status: ' % str(response))
 
 
 
@@ -438,9 +448,8 @@ def handler(event, context):
   ## Extract from event
   # ====================================
 
-  print("Mode: %s" % BEHAMON_MODE)
-  print("Input event")
-  print(event)
+  logging.debug("Mode: %s" % BEHAMON_MODE)
+  logging.debug("Input event: %s" % json.dumps(event))
 
   if BEHAMON_MODE in modes:
 
@@ -448,13 +457,13 @@ def handler(event, context):
       if 'awslogs' in event:
         get_usr_from_event(event)
       else:
-        print('No awslogs found while processing log entry')
+        logging.error('No awslogs found while processing log entry')
 
     else:
       # assumed to be periodically driven
       execution_period_td = mode_2_period[BEHAMON_MODE]
 
-      print("Mode execution period: %s" % execution_period_td)
+      logging.debug("Mode execution period: %s" % execution_period_td)
 
       last_execution = datetime.now() - execution_period_td
       this_execution = datetime.now()
@@ -467,10 +476,10 @@ def handler(event, context):
         calc_behamon_report_metrics(last_execution, this_execution)
 
       else:
-        print("Invalid mode: %s" % BEHAMON_MODE)
+        logging.error("Invalid mode: %s" % BEHAMON_MODE)
 
   else:
-    print("Invalid mode: %s" % BEHAMON_MODE)
+    logging.error("Invalid mode: %s" % BEHAMON_MODE)
 
   return
 
