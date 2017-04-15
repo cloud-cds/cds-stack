@@ -161,7 +161,6 @@ module "behavior_monitors" {
   behamon_web_filt_str       = "*USERID*"
   behamon_web_log_stream_str = "monitoring"
 
-  # Must be manually kept in sync with the beahmon service,.py file
   behavior_monitors_timeseries_firing_rate_min = "10"
   behavior_monitors_reports_firing_rate_min = "360"
   behavior_monitors_reports_firing_rate_expr = "6 hours"
