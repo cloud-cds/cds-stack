@@ -97,6 +97,7 @@ module "behavior_monitors" {
   behamon_log_group_name = "${var.behamon_log_group_name}"
   behamon_log_group_arn  = "${var.behamon_log_group_arn}"
 
+  behamon_stack              = "Prod"
   behamon_web_filt_str       = "*USERID*"
   behamon_web_log_stream_str = "monitoring"
 

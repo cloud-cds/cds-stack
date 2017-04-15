@@ -10,6 +10,7 @@ variable "behavior_monitors_timeseries_firing_rate_min" {}
 variable "behavior_monitors_reports_firing_rate_min" {}
 variable "behavior_monitors_reports_firing_rate_expr" {}
 
+variable "behamon_stack"              {}
 variable "behamon_log_group_name"     {}
 variable "behamon_log_group_arn"      {}
 variable "behamon_web_filt_str"       {}
@@ -64,6 +65,7 @@ resource "aws_lambda_function" "behamon_lambda_watcher" {
         db_password = "${var.db_password}"
 
         BEHAMON_MODE                       = "watcher"
+        BEHAMON_STACK                      = "${var.behamon_stack}"
         BEHAMON_WEB_LOG_LISTEN             = "${var.behamon_log_group_name}"
         BEHAMON_WEB_FILT_STR               = "${var.behamon_web_filt_str}"
         BEHAMON_WEB_LOG_STREAM_STR         = "${var.behamon_web_log_stream_str}"
@@ -115,6 +117,7 @@ resource "aws_lambda_function" "behamon_lambda_time_series" {
         db_password = "${var.db_password}"
 
         BEHAMON_MODE                       = "metrics"
+        BEHAMON_STACK                      = "${var.behamon_stack}"
         BEAHMON_WEB_LOG_LISTEN             = "${var.behamon_log_group_name}"
         BEAHMON_WEB_FILT_STR               = "${var.behamon_web_filt_str}"
         BEAHMON_WEB_LOG_STREAM_STR         = "${var.behamon_web_log_stream_str}"
@@ -170,6 +173,7 @@ resource "aws_lambda_function" "behamon_lambda_reports" {
         db_password = "${var.db_password}"
 
         BEHAMON_MODE                       = "reports"
+        BEHAMON_STACK                      = "${var.behamon_stack}"
         BEHAMON_WEB_LOG_LISTEN             = "${var.behamon_log_group_name}"
         BEHAMON_WEB_FILT_STR               = "${var.behamon_web_filt_str}"
         BEHAMON_WEB_LOG_STREAM_STR         = "${var.behamon_web_log_stream_str}"

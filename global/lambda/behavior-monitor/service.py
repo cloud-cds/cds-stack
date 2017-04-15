@@ -60,7 +60,8 @@ def try_to_read_from_environ(var_str, default_val):
     print("Selecting default value for {}".format(var_str))
     return default_val
 
-BEHAMON_MODE = try_to_read_from_environ('BEHAMON_WEB_LOG_LISTEN','watcher')
+BEHAMON_MODE = try_to_read_from_environ('BEHAMON_MODE','watcher')
+BEHAMON_STACK = try_to_read_from_environ('BEHAMON_STACK','Dev')
 BEHAMON_WEB_LOG_LISTEN = try_to_read_from_environ('BEHAMON_WEB_LOG_LISTEN','opsdx-web-logs-dev')
 BEHAMON_WEB_FILT_STR = try_to_read_from_environ('BEHAMON_WEB_FILT_STR','*USERID*')
 BEHAMON_WEB_LOG_STREAM_STR = try_to_read_from_environ('BEHAMON_WEB_LOG_STREAM_STR','monitoring')
@@ -387,7 +388,7 @@ def calc_behamon_report_metrics(firstTime, lastTime):
       'ToAddresses': ['trews-jhu@opsdx.io'],
     },
     Message={
-      'Subject': {'Data': 'Behavior Monitor Report'},
+      'Subject': {'Data': 'Behavior Monitor Report (%s)' % BEHAMON_STACK},
       'Body': {
         'Html': {'Data': num_pats_seen_df.to_html()},
       },
