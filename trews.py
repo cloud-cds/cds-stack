@@ -190,7 +190,7 @@ class TREWSFeedback(web.View):
           }
       )
 
-      return json_response(result_json, dumps=functools.partial(json.dumps, encoding='utf-8'))
+      return json_response(result_json)
 
     except Exception as ex:
       logging.warning(str(ex))
@@ -202,7 +202,7 @@ class TREWSEchoHealthcheck(web.View):
   async def post(self):
     try:
       hc_json = await self.request.json()
-      return json_response(result_json, dumps=functools.partial(json.dumps, encoding='utf-8'))
+      return json_response(result_json)
 
     except Exception as ex:
       logging.warning(str(ex))
