@@ -15,4 +15,4 @@ ADD . /trews_rest_api
 RUN pip install -r /trews_rest_api/requirements.txt
 
 WORKDIR /trews_rest_api
-CMD [ "sh", "start.sh" ]
+CMD [ "sh", "start-dev.sh" ]
