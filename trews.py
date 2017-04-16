@@ -50,8 +50,6 @@ host = os.environ['db_host']
 db   = os.environ['db_name']
 port = os.environ['db_port']
 pw   = os.environ['db_password']
-client_id = os.environ['jhapi_client_id'],
-client_secret = os.environ['jhapi_client_secret']
 etl_channel = os.environ['etl_channel'] if 'etl_channel' in os.environ else None
 
 

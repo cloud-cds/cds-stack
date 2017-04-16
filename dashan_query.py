@@ -12,6 +12,8 @@ from jhapi_io import Loader
 logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.INFO)
 
 epic_notifications = os.environ['epic_notifications']
+client_id = os.environ['jhapi_client_id'],
+client_secret = os.environ['jhapi_client_secret']
 
 
 ##########################################
