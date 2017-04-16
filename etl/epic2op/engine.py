@@ -177,6 +177,12 @@ class Engine():
     flowsheets_t['tsp'] = flowsheets_t['tsp'].apply(tz_hack)
     med_admin_t['tsp'] = med_admin_t['tsp'].apply(tz_hack)
 
+    notes = self.extract(self.extractor.extract_notes, "notes", [pats_t])
+    notes_t = self.transform(notes, jhapi.notes_transforms, "notes")
+
+    note_texts = self.extract(self.extractor.extract_note_texts, "note_texts", [notes])
+    note_texts_t = self.transform(note_texts, jhapi.note_texts_transforms, "note_texts")
+
     # Main finished
     logging.info("extract time: {}".format(self.extract_time))
     logging.info("transform time: {}".format(self.transform_time))
@@ -194,6 +200,8 @@ class Engine():
       'med_orders':    len(med_orders_t.index),
       'med_admin':     len(med_admin_t.index),
       'loc_history':   len(loc_history_t.index),
+      'notes':         len(notes_t.index),
+      'note_texts':    len(note_texts_t.index),
     }
 
     # Prepare for database
@@ -211,6 +219,8 @@ class Engine():
       'med_orders_transformed': med_orders_t,
       'med_admin_transformed': med_admin_t,
       'location_history_transformed': loc_history_t,
+      'notes_transformed': notes_t,
+      'note_texts_transformed': note_texts_t,
     }
 
     self.db_raw_data = {
@@ -222,6 +232,8 @@ class Engine():
       'med_orders': med_orders,
       'med_admin': med_admin,
       'location_history': loc_history,
+      'notes': notes,
+      'note_texts': note_texts,
     }
 
 if __name__ == '__main__':

@@ -3,6 +3,7 @@ from etl.mappings.flowsheet_ids import flowsheet_ids
 from etl.mappings.component_ids import component_ids
 from etl.mappings.lab_procedures import procedure_ids
 
+import sys
 import asyncio
 import uvloop
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
@@ -194,6 +195,29 @@ class Extractor:
         responses = self.make_requests(resource, payloads, 'POST')
         dfs = [pd.DataFrame(r) for r in responses]
         return self.combine(dfs, med_orders[['pat_id', 'visit_id']])
+
+
+    def extract_notes(self, bedded_patients):
+        resource = '/patients/documents/list'
+        tomorrow = dt.datetime.now() + dt.timedelta(days=1)
+        dateFrom = (tomorrow - dt.timedelta(days=self.lookback_days)).strftime('%Y-%m-%d')
+        dateTo = tomorrow.strftime('%Y-%m-%d')
+        payloads = [{
+            'id'       : pat['pat_id'],
+            'dateFrom' : dateFrom,
+            'dateTo'   : dateTo
+        } for _, pat in bedded_patients.iterrows()]
+        responses = self.make_requests(resource, payloads, 'GET')
+        dfs = [pd.DataFrame(r['DocumentListData'] if r else None) for r in responses]
+        return self.combine(dfs, bedded_patients[['pat_id']])
+
+
+    def extract_note_texts(self, notes):
+        resource = '/patients/documents/text'
+        payloads = [{ 'key' : note['Key'] } for _, note in notes.iterrows()]
+        responses = self.make_requests(resource, payloads, 'GET')
+        dfs = [pd.DataFrame([{'DocumentText': r['DocumentText']}]) for r in responses]
+        return self.combine(dfs, notes[['Key']])
 
 
     def push_notifications(self, notifications):

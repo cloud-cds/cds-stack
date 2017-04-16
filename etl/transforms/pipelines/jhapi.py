@@ -238,3 +238,24 @@ loc_history_transforms = [
         'UnitName':          'value',}),
     lambda x: x.assign(fid = 'care_unit'),
 ]
+
+notes_transforms = [
+    lambda n: restructure.select_columns(n, {
+        'pat_id'    : 'pat_id',
+        'Key'       : 'note_id',
+        'NoteType'  : 'note_type',
+        'Status'    : 'note_status',
+        'Dates'     : 'dates',
+        'Providers' : 'providers',
+    }),
+    lambda n: format_data.json_encode(n, 'dates'),
+    lambda n: format_data.json_encode(n, 'providers'),
+]
+
+note_texts_transforms = [
+    lambda nt: restructure.select_columns(nt, {
+        'Key'          : 'note_id',
+        'DocumentText' : 'note_body',
+    }),
+    lambda nt: format_data.base64_safe_decode(nt, 'note_body'),
+]
