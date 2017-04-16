@@ -156,6 +156,19 @@ CREATE TABLE cdm_t (
     FOREIGN KEY     (dataset_id, fid)    REFERENCES cdm_feature(dataset_id, fid)
 );
 
+DROP TABLE IF EXISTS cdm_notes;
+CREATE TABLE cdm_notes (
+    dataset_id      integer REFERENCES dw_version(dataset_id),
+    pat_id          varchar(50),
+    note_id         varchar(50),
+    note_type       varchar(50),
+    note_status     varchar(50),
+    note_body       text,
+    dates           json,
+    providers       json,
+    PRIMARY KEY (dataset_id, pat_id, note_id, note_type, note_status)
+);
+
 
 DROP TABLE IF EXISTS trews;
 
