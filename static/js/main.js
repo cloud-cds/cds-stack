@@ -1598,7 +1598,7 @@ var activity = new function() {
 			var subtext = $('<div class="subtext cf"></div>');
 			subtext.append('<p>' + timeLapsed(new Date(data[i]['timestamp']*1000)) + '</p>');
 			log.append(subtext);
-			this.a.append(log);
+			this.a.prepend(log);
 		}
 	}
 }
