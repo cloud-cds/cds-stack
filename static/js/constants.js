@@ -53,6 +53,10 @@ var LOG_STRINGS = {
 		"customized": [
 			" <b>customized</b> ",
 			" values to "
+		],
+		"ordered": [
+			" <b>placed a</b> ",
+			" - status: "
 		]
 	},
 	"deactivate": " <b>deactivated</b> the patient",
@@ -155,8 +159,40 @@ var criteriaKeyToName = {
 		{"name": "Lactate Measurement",
 		"units": "mmol/L"}
 	],
+	"crystalloid_fluid": [
+		{"name": "Fluids", "units": "ml/kg"}
+	],
+	"systolic_bp": [
+		{"name": "Systolic Blood Pressure"}
+	],
+	"hypotension_dsbp": [
+		{"name": "Decrease in Systolic Blood Pressure (for Hypotension)",
+		"units": "mmHg"}
+	],
+	"hypotension_map": [
+		{"name": "Mean Arterial Pressure (for Hypotension)",
+		"units": "mmHg"}
+	],
 	"suspicion_of_infection": [
 		{"name": "Suspicion of Infection"}
+	],
+	"antibiotics_order": [
+		{"name": "Antibiotics Order"}
+	],
+	"blood_culture_order": [
+		{"name": "Blood Culture Order"}
+	],
+	"crystalloid_fluid_order": [
+		{"name": "Fluids Order"}
+	],
+	"initial_lactate_order": [
+		{"name": "Initial Lactate Order"}
+	],
+	"repeat_lactate_order": [
+		{"name": "Repeat Lactate Order"}
+	],
+	"vasopressors_order": [
+		{"name": "Vasopressors Order"}
 	]
 }
 
