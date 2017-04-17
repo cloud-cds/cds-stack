@@ -478,6 +478,7 @@ class DBCompareTest():
       engine = db_config['engine']
     await engine.init()
     rm_data = [
+      "delete from trews;",
       "delete from cdm_s;",
       "delete from cdm_t;",
       "delete from cdm_twf;",
