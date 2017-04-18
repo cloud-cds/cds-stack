@@ -709,7 +709,9 @@ CREATE TABLE group_table (
 DROP TABLE IF EXISTS historical_criteria;
 CREATE TABLE historical_criteria (
     pat_id              text,
+    dataset_id          integer REFERENCES dw_version(dataset_id),
+    model_id            smallint REFERENCES model_version(model_id),
     pat_state           integer,
     window_ts           timestamptz,
-    primary key         (pat_id,window_ts)
+    primary key         (pat_id,dataset_id,model_id,window_ts)
 );

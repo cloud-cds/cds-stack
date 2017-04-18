@@ -729,7 +729,8 @@ BEGIN
 END; $func$;
 
 
-CREATE OR REPLACE FUNCTION calculate_criteria(this_pat_id text, ts_start timestamptz, ts_end timestamptz, is_historical BOOLEAN DEFAULT FALSE)
+CREATE OR REPLACE FUNCTION calculate_criteria(this_pat_id text, ts_start timestamptz, ts_end timestamptz,
+                                              is_historical BOOLEAN DEFAULT FALSE, _dataset_id INTEGER DEFAULT NULL, _model_id INTEGER DEFAULT NULL)
  RETURNS table(pat_id                           varchar(50),
                name                             varchar(50),
                measurement_time                 timestamptz,
@@ -756,6 +757,11 @@ IF is_historical THEN
   group by s.dataset_id, s.pat_id, s.name;
 END IF;
 
+select coalesce(_dataset_id, max(dataset_id)) into _dataset_id from dw_version;
+select coalesce(_model_id, max(model_id)) into _model_id from model_version;
+
+raise notice 'Running criteria on dataset_id %', _dataset_id;
+raise notice 'Running criteria on model_id % ',  _model_id;
 
 return query
     with pat_ids as (
@@ -1990,7 +1996,7 @@ END; $function$;
 -- ===========================================================================
 -- calculate historical_criteria
 -- ===========================================================================
-CREATE OR REPLACE FUNCTION calculate_historical_criteria(this_pat_id text)
+CREATE OR REPLACE FUNCTION calculate_historical_criteria(this_pat_id text, _dataset_id INTEGER DEFAULT NULL, _model_id INTEGER DEFAULT NULL)
 --   passing in a null value will calculate historical criteria over all patientis
 --  RETURNS table(window_ts                        timestamptz,
 --                pat_id                           varchar(50),
@@ -2002,6 +2008,13 @@ AS $function$
 DECLARE
     window_size interval := get_parameter('lookbackhours')::interval;
 BEGIN
+
+select coalesce(_dataset_id, max(dataset_id)) into _dataset_id from dw_version;
+select coalesce(_model_id, max(model_id)) into _model_id from model_version;
+
+raise notice 'Running calculate historical criteria on dataset_id %', _dataset_id;
+raise notice 'Running calculate historical criteria on model_id % ',  _model_id;
+
     create temporary table new_criteria_windows as
         select window_ends.tsp as ts, new_criteria.*
 
@@ -2009,19 +2022,20 @@ BEGIN
                 where meas.pat_id = coalesce(this_pat_id, meas.pat_id)
 --                 and meas.tsp between ts_start and ts_end
         ) window_ends
+
         inner join lateral calculate_criteria(
             coalesce(this_pat_id, window_ends.pat_id),
             window_ends.tsp - window_size, window_ends.tsp,
-            TRUE
+            TRUE, _dataset_id, _model_id
         ) new_criteria
         on window_ends.pat_id = new_criteria.pat_id;
 
 --     RETURNS table( ts timestamptz, pat_id varchar(50), state int) AS $func$ BEGIN RETURN QUERY EXECUTE
 
-    insert into historical_criteria (pat_id, pat_state, window_ts)
-    select sw.pat_id, sw.state, sw.ts
+    insert into historical_criteria (pat_id, dataset_id, model_id, pat_state, window_ts)
+    select sw.pat_id, _dataset_id, _model_id, sw.state, sw.ts
     from get_window_states('new_criteria_windows', this_pat_id) sw
-    ON CONFLICT (pat_id,               window_ts) DO UPDATE SET pat_state = excluded.pat_state;
+    ON CONFLICT (pat_id, dataset_id, model_id, window_ts) DO UPDATE SET pat_state = excluded.pat_state;
 
     drop table new_criteria_windows;
     return;
