@@ -397,7 +397,6 @@ async def push_notifications_to_epic(db_pool, eid):
             'visit_id': n['visit_id'],
             'notifications': n['count']
         } for n in notifications]
-        logging.info("sending notifications to epic")
         loader = Loader('prod', client_id, client_secret)
         loader.load_notifications(patients)
       else:
