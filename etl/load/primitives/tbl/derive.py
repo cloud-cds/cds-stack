@@ -592,62 +592,20 @@ async def resp_sofa_update(fid, fid_input, conn, log, dataset_id=None, twf_table
   """ % {'fid':fid, 'twf_table': twf_table, 'with_ds': with_ds(dataset_id)}
   await conn.execute(update_clause)
 
-  select_sql = """
-  SELECT * FROM cdm_t WHERE fid = 'vent'%s ORDER BY enc_id, tsp
-  """ % with_ds(dataset_id)
-  records = await conn.fetch(select_sql)
-  block_enc_id = -1
-  block_start = None
-  block_end = None
-  block_c = 0
-  update_sql = """
-  UPDATE %(twf_table)s SET resp_sofa = (CASE
+  update_vent_clause = """
+  UPDATE %(twf_table)s SET %(fid)s = (CASE
     WHEN pao2_to_fio2 < 100 THEN 4
     WHEN pao2_to_fio2 < 200 THEN 3
-    ELSE resp_sofa
-    END),
-    resp_sofa_c = resp_sofa_c | %(block_c)s
-  WHERE enc_id = %(enc_id)s%(with_ds)s
-  AND tsp >= timestamptz '%(tsp_start)s'
-  """
-  for rec in records:
-    if block_enc_id != rec['enc_id']:
-      # new enc_id
-      # update last block
-      if block_start is not None:
-        block_update_sql = update_sql \
-          % {'enc_id':block_enc_id, 'block_c':block_c,
-             'tsp_start':block_start, 'twf_table': twf_table, 'with_ds': with_ds(dataset_id)}
-        await conn.execute(block_update_sql)
-      # start new block
-      block_start = None
-      block_end = None
-      block_c = 0
-      block_enc_id = rec['enc_id']
-    if rec['value'] == 'True':
-      if block_start is None:
-        block_start = rec['tsp']
-        block_c = int(rec['confidence'])
-      else:
-        block_c = block_c | int(rec['confidence'])
-    else:
-      block_end = rec['tsp']
-      block_c = block_c | int(rec['confidence'])
-      if block_start is not None:
-        block_update_sql = (update_sql + \
-          "AND tsp < timestamptz '%(tsp_end)s'") \
-          % {'enc_id':block_enc_id, 'block_c':block_c,
-             'tsp_start':block_start, 'tsp_end':block_end,
-             'twf_table': twf_table, 'with_ds': with_ds(dataset_id)}
-        await conn.execute(block_update_sql)
-      block_start = None
-      block_end = None
-      block_c = 0
-  if block_start is not None:
-    block_update_sql = update_sql \
-      % {'enc_id':block_enc_id, 'block_c':block_c,
-         'tsp_start':block_start, 'twf_table': twf_table, 'with_ds': with_ds(dataset_id)}
-    await conn.execute(block_update_sql)
+    ELSE %(fid)s
+  END),
+  %(fid)s_c = pao2_to_fio2_c
+  FROM (select * from cdm_t where fid = 'vent') as t
+  where %(twf_table)s.enc_id = t.enc_id and %(twf_table)s.tsp = t.tsp
+  %(with_ds)s
+  ;
+  """ % {'fid':fid, 'twf_table': twf_table, 'with_ds': with_ds(dataset_id)}
+  print(update_vent_clause)
+  await conn.execute(update_vent_clause)
 
 # Special case (mini-pipeline)
 async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
