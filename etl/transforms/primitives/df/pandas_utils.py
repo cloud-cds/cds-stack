@@ -102,12 +102,13 @@ def upsert_db(df, sql_tbl_name, connection, on_conflict_cols):
 
 async def async_read_df(sql,con):
   record_list = await con.fetch(sql)
-  df = pd.DataFrame.from_records(record_list)
+  if len(record_list) > 0:
+    df = pd.DataFrame.from_records(record_list)
 
-  col_names = list()
-  for key in record_list[0].keys():
-    col_names.append(key)
+    col_names = list()
+    for key in record_list[0].keys():
+      col_names.append(key)
 
-  df.columns = col_names
+    df.columns = col_names
 
-  return df
+    return df

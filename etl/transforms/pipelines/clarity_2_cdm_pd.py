@@ -16,12 +16,14 @@ async def pull_med_orders(connection, dataset_id, log, is_plan):
 
     log.info('Entered Med Orders Extraction')
 
-    mo = await async_read_df("""select pe.enc_id, mo."ORDER_INST", mo."display_name", mo."MedUnit",mo."Dose" 
-                                 from "OrderMed" mo 
+    mo = await async_read_df("""select pe.enc_id, mo."ORDER_INST", mo."display_name", mo."MedUnit",mo."Dose"
+                                 from "OrderMed" mo
                                  inner join
                                  pat_enc pe
                                  on mo."CSN_ID"::text=pe.visit_id
                                 ;""", connection)
+    if mo is None:
+        return
 
     mo = restructure.select_columns(mo, {'enc_id': 'enc_id',
                                          'ORDER_INST':'tsp',
@@ -83,11 +85,14 @@ async def pull_medication_admin(connection, dataset_id, log, is_plan):
                                   ma."Dose", ma."MedUnit",
                                   ma."INFUSION_RATE", ma."MAR_INF_RATE_UNIT",
                                   ma."TimeActionTaken"
-                              from 
+                              from
                               "MedicationAdministration"  ma
                               inner join
                               pat_enc pe
                               on ma."CSN_ID"::text=pe.visit_id""",connection)
+
+  if ma is None:
+    return
 
   ma = restructure.select_columns(ma, {'enc_id': 'enc_id',
                                       'display_name':'full_name',
@@ -140,12 +145,14 @@ async def bands(connection, dataset_id, log, is_plan):
 
   labs = await async_read_df("""select pe.enc_id, lb."NAME" ,
                                 lb."ResultValue", lb."RESULT_TIME"
-                                from 
+                                from
                                   "Labs_643"  lb
                                 inner join
                                   pat_enc pe
                                 on lb."CSN_ID"::text=pe.visit_id
                                 WHERE "NAME"='BANDS';""",connection)
+  if labs is None:
+    return
 
   labs = restructure.select_columns(labs, {'enc_id': 'enc_id',
                                            'NAME': 'fid',
@@ -166,12 +173,13 @@ async def pull_order_procs(connection, dataset_id, log, is_plan):
   op = await async_read_df("""select pe.enc_id,
                               op."CSN_ID",op."proc_name", op."ORDER_TIME", op."OrderStatus", op."LabStatus",
                               op."PROC_START_TIME",op."PROC_ENDING_TIME"
-                              from 
+                              from
                                 "OrderProcs"  op
                               inner join
                                 pat_enc pe
                               on op."CSN_ID"::text=pe.visit_id;""",connection)
-
+  if op is None:
+      return
   lp_map = await async_read_df("""SELECT * FROM lab_proc_dict;""", connection)
 
   op = restructure.select_columns(op, {'enc_id': 'enc_id',
