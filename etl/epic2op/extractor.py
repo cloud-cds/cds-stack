@@ -231,5 +231,7 @@ class Extractor:
             'InstantValueTaken':    str(dt.datetime.utcnow()),
             'FlowsheetTemplateID':  '304700006',
         } for n in notifications]
+        for n in notifications:
+            logging.info('%s NOTIFY %s %s %s' % (n['InstantValueTaken'], n['PatientID'], n['ContactID'], n['Value']))
         self.make_requests(resource, payloads, 'POST')
         logging.info("pushed notifications to epic")
