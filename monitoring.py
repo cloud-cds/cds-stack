@@ -67,7 +67,9 @@ class APIMonitor:
         self._push_period_secs = int(os.environ['api_monitor_cw_push_period']) \
                                     if 'api_monitor_cw_push_period' in os.environ else 60
 
-        self.cw_metrics = FluentMetric().with_namespace('OpsDX')
+        # k8s pods have their pod name set as the hostname.
+        stream_id = os.environ['HOSTNAME'] if 'HOSTNAME' in os.environ else 'api-testing'
+        self.cw_metrics = FluentMetric().with_namespace('OpsDX').with_stream_id(stream_id)
 
         # Latencies and request counters.
         self._counters = {}
