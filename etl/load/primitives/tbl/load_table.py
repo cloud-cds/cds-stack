@@ -344,3 +344,17 @@ async def load_cdm_to_criteria_meas(conn, dataset_id):
 async def calculate_historical_criteria(conn):
     sql = 'select * from calculate_historical_criteria(NULL);'
     await conn.execute(sql)
+
+async def workspace_notes_2_cdm_notes(conn, job_id):
+    load_notes_sql = \
+    '''
+    insert into cdm_notes
+        select N.pat_id, N.note_id, N.note_type, N.note_status, NT.note_body, N.dates::json, N.providers::json
+        from workspace.%(job)s_notes_transformed N
+        left join workspace.%(job)s_note_texts_transformed NT on N.note_id = NT.note_id
+    on conflict (pat_id, note_id, note_type, note_status) do update
+        set note_body = excluded.note_body,
+            dates = excluded.dates,
+            providers = excluded.providers;
+    ''' % {'job': job_id}
+    await conn.execute(load_notes_sql)

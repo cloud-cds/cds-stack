@@ -22,6 +22,7 @@ tables_to_load = {
   'cdm_s'                    : 'dataset',
   'cdm_m'                    : 'dataset',
   'cdm_t'                    : 'dataset',
+  'cdm_notes'                : 'dataset',
   'criteria_meas'            : 'dataset',
   'criteria'                 : 'dataset',
   'criteria_events'          : 'dataset',

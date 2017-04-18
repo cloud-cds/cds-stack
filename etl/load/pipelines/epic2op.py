@@ -344,4 +344,5 @@ class Epic2OpLoader:
     await primitives.workspace_flowsheets_2_cdm_twf(conn, self.job_id)
     await primitives.workspace_lab_results_2_cdm_twf(conn, self.job_id)
     await primitives.workspace_medication_administration_2_cdm_twf(conn, self.job_id)
+    await primitives.workspace_notes_2_cdm_notes(conn, self.job_id)
     # TODO load lab orders and active procedures to cdm

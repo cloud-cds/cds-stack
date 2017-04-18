@@ -7,6 +7,8 @@ import numpy as np
 import re
 import logging
 import itertools
+import base64
+import json
 
 def format_numeric(df, column):
     df[column] = pd.to_numeric(df[column])
@@ -20,6 +22,26 @@ def format_gender_to_int(df, column):
 def format_tsp(df, column):
     df[column] = pd.to_datetime(df[column])
     df[column] = df[column].dt.tz_localize(app_config.TIMEZONE).dt.strftime(app_config.tsp_fmt)
+    return df
+
+def base64_decode(df, column):
+    df[column] = df[column].map(lambda x: base64.b64decode(x).decode('UTF-8'))
+    return df
+
+def base64_safe_decode(df, column):
+    df[column] = df[column].map(lambda x: base64.b64decode(x).decode('unicode_escape').encode('UTF-8').decode('UTF-8'))
+    return df
+
+def base64_encode(df, column):
+    df[column] = df[column].map(lambda x: base64.b64encode(x))
+    return df
+
+def json_decode(df, column):
+    df[column] = df[column].map(lambda x: json.loads(x))
+    return df
+
+def json_encode(df, column):
+    df[column] = df[column].map(lambda x: json.dumps(x))
     return df
 
 def filter_empty_values(df, column):
