@@ -103,6 +103,18 @@ CREATE TABLE cdm_t (
     PRIMARY KEY (enc_id, tsp, fid)
 );
 
+DROP TABLE IF EXISTS cdm_notes;
+CREATE TABLE cdm_notes (
+    pat_id          varchar(50),
+    note_id         varchar(50),
+    note_type       varchar(50),
+    note_status     varchar(50),
+    note_body       text,
+    dates           json,
+    providers       json,
+    PRIMARY KEY (pat_id, note_id, note_type, note_status)
+);
+
 DROP TABLE IF EXISTS metrics_events;
 CREATE TABLE metrics_events
 (
