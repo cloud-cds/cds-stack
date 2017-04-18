@@ -20,7 +20,13 @@
     mkvirtualenv dashan-etl --python=python3.6
     pip3 install -r requirements.txt
     pip3 install -e .
+    
+# Building docker container
 
+You need both __dashan-etl__ and __dashan-db__ in the image. 
+
+- cd into the directory above `dashan-etl/` and `dashan-db`
+- run `docker build -t trews_etl -f ./dashan-etl/Dockerfile .`
 
 # Project layout
 
