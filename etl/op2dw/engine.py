@@ -18,7 +18,7 @@ tables_to_load = {
   'cdm_function'             : 'dataset',
   'cdm_feature'              : 'dataset',
   'pat_enc'                  : 'dataset',
-  'cdm_g'                    : 'both',
+  'cdm_g'                    : 'dataset',
   'cdm_s'                    : 'dataset',
   'cdm_m'                    : 'dataset',
   'cdm_t'                    : 'dataset',
