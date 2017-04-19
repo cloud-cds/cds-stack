@@ -213,11 +213,13 @@ class Extractor:
 
 
     def extract_note_texts(self, notes):
-        resource = '/patients/documents/text'
-        payloads = [{ 'key' : note['Key'] } for _, note in notes.iterrows()]
-        responses = self.make_requests(resource, payloads, 'GET')
-        dfs = [pd.DataFrame([{'DocumentText': r['DocumentText']}] if r else None) for r in responses]
-        return self.combine(dfs, notes[['Key']])
+        if not notes.empty:
+            resource = '/patients/documents/text'
+            payloads = [{ 'key' : note['Key'] } for _, note in notes.iterrows()]
+            responses = self.make_requests(resource, payloads, 'GET')
+            dfs = [pd.DataFrame([{'DocumentText': r['DocumentText']}] if r else None) for r in responses]
+            return self.combine(dfs, notes[['Key']])
+        return pd.DataFrame()
 
 
     def push_notifications(self, notifications):
