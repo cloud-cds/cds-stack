@@ -173,7 +173,7 @@ job_c2dw_daily_light = {
   },
   'transform': {
     'populate_patients': {
-      'max_num_pats': 40,
+      'max_num_pats': 20,
     },
     'populate_measured_features': {
       'plan': False,
@@ -197,7 +197,7 @@ job_c2dw_daily_light = {
 daily_compare_light = [
   {
     'name': 'daily_epic2op_light',
-    'engine': EngineEpic2op(db_name='daily_epic2op_light', max_num_pats=20),
+    'engine': EngineEpic2op(db_name='daily_epic2op_light', max_num_pats=40),
     'pipeline': {
       'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
       'populate_db': True,
