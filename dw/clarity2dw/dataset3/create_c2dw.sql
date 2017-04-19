@@ -2,16 +2,10 @@
 -- raise notice '';
 
 INSERT INTO dw_version (dataset_id, created, description)
-VALUES (1,
+VALUES (3,
         now(),
-        'clarity2dw')
+        'clarity2dw 3 years')
 on conflict do NOTHING ;
-
-INSERT INTO model_version (model_id, created, description)
-VALUES (1,
-        now(),
-        'clarity2dw default model')
-on conflict do NOTHING;
 
 -- ======================================
 -- Upsert CDM_function
@@ -81,7 +75,7 @@ DROP TABLE IF EXISTS cdm_feature_temp;
 -- ======================================
 DELETE
 FROM parameters
-WHERE dataset_id = 1;
+WHERE dataset_id = 3;
 
  \COPY parameters FROM 'parameters.csv' WITH csv header DELIMITER AS ',';
 
@@ -90,35 +84,35 @@ WHERE dataset_id = 1;
 -- ======================================
 DELETE
 FROM cdm_g
-WHERE dataset_id = 1;
+WHERE dataset_id = 3;
 
 
 
  \COPY cdm_g FROM 'CDM_G.csv' WITH csv header DELIMITER AS ',';
 
-drop table if exists flowsheet_dict;
-create table flowsheet_dict
-(
- FLO_MEAS_ID text,
- FLO_MEAS_NAME text
- );
-\copy flowsheet_dict from '/home/ubuntu/clarity-dw/flowsheet_dict.rpt' with csv header delimiter as E'\t' NULL 'NULL' QUOTE E'\b';
+-- drop table if exists flowsheet_dict;
+-- create table flowsheet_dict
+-- (
+--  FLO_MEAS_ID text,
+--  FLO_MEAS_NAME text
+--  );
+-- \copy flowsheet_dict from '/home/ubuntu/clarity-dw/flowsheet_dict.rpt' with csv header delimiter as E'\t' NULL 'NULL' QUOTE E'\b';
 
-drop table if exists lab_dict;
-create table lab_dict
-(
- component_id text,
- name text,
- base_name text,
- external_name text
- );
-\copy lab_dict from '/home/ubuntu/clarity-dw/lab_dict.rpt' with csv header delimiter as E'\t' NULL 'NULL' QUOTE E'\b';
+-- drop table if exists lab_dict;
+-- create table lab_dict
+-- (
+--  component_id text,
+--  name text,
+--  base_name text,
+--  external_name text
+--  );
+-- \copy lab_dict from '/home/ubuntu/clarity-dw/lab_dict.rpt' with csv header delimiter as E'\t' NULL 'NULL' QUOTE E'\b';
 
-drop table if exists lab_proc_dict;
-create table lab_proc_dict
-(
- proc_id text,
- proc_name text,
- proc_code text
- );
-\copy lab_proc_dict from '/home/ubuntu/clarity-dw/lab_proc.rpt' with csv header delimiter as E'\t' NULL 'NULL' QUOTE E'\b';
+-- drop table if exists lab_proc_dict;
+-- create table lab_proc_dict
+-- (
+--  proc_id text,
+--  proc_name text,
+--  proc_code text
+--  );
+-- \copy lab_proc_dict from '/home/ubuntu/clarity-dw/lab_proc.rpt' with csv header delimiter as E'\t' NULL 'NULL' QUOTE E'\b';
