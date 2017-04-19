@@ -155,13 +155,13 @@ BEGIN
         ') AS text) FROM ' || target || '  WHERE '|| quote_ident(fid_c)
         ||' < 8 and dataset_id = ' || dataset_id INTO popmean;
     RAISE NOTICE '% = %', fid_popmean, popmean;
-    EXECUTE 'SELECT INSERT INTO cdm_g (dataset_id,model_id,value,confidence) values (' || dataset_id || ',' || model_id || ',' ||quote_literal(fid_popmean)||', '||quote_literal(popmean)||', 24)';
+    EXECUTE 'SELECT INSERT INTO cdm_g (dataset_id,value,confidence) values (' || dataset_id || ',' ||quote_literal(fid_popmean)||', '||quote_literal(popmean)||', 24)';
     return popmean;
 END
 $BODY$
 LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION last_value_in_window(fid TEXT, target TEXT, win_h real, recalculate_popmean boolean, dataset_id int, model_id int)
+CREATE OR REPLACE FUNCTION last_value_in_window(fid TEXT, target TEXT, win_h real, recalculate_popmean boolean, dataset_id int)
 RETURNS VOID
 AS $BODY$
 DECLARE
@@ -190,10 +190,10 @@ BEGIN
         ') = (null, null) WHERE '|| quote_ident(fid_c) ||' >= 8';
     IF recalculate_popmean THEN
         -- calculate population mean
-        SELECT INTO popmean calculate_popmean(target, fid, dataset_id, model_id);
+        SELECT INTO popmean calculate_popmean(target, fid, dataset_id );
     ELSE
         fid_popmean = fid || '_popmean';
-        EXECUTE 'SELECT value from cdm_g where fid = ' || quote_literal(fid_popmean) || ' and dataset_id = ' || dataset_id || ' and model_id = ' || model_id INTO popmean;
+        EXECUTE 'SELECT value from cdm_g where fid = ' || quote_literal(fid_popmean) || ' and dataset_id = ' || dataset_id INTO popmean;
     END IF;
     RAISE NOTICE 'popmean:%', popmean;
     FOR row IN EXECUTE 'SELECT enc_id, tsp, '
@@ -282,6 +282,7 @@ LANGUAGE plpgsql;
 -- UDFs for TREWS
 ----------------------------
 CREATE OR REPLACE FUNCTION get_parameter(key text)
+--   does this need to depend on dataset ID?
 RETURNS text as
 $$
 select value from parameters where name = key;
@@ -624,11 +625,11 @@ BEGIN
     ), false);
 END; $func$;
 
-create or replace function urine_output_met(urine_output numeric, weight numeric)
+create or replace function urine_output_met(urine_output numeric, weight numeric, _dataset_id integer)
     returns boolean language plpgsql as $func$
 BEGIN
     return coalesce((
-        urine_output / coalesce( weight, ( select value::numeric from cdm_g where fid = 'weight_popmean' ) )
+        urine_output / coalesce( weight, ( select value::numeric from cdm_g where fid = 'weight_popmean' and dataset_id = _dataset_id ) )
             < 0.5
     ), false);
 END; $func$;
@@ -664,7 +665,7 @@ BEGIN
     ) ss;
 END; $func$;
 
-create or replace function hypotension_met(this_pat_id varchar, this_tsp timestamptz, next_tsp timestamptz, override boolean)
+create or replace function hypotension_met(this_pat_id varchar, this_tsp timestamptz, next_tsp timestamptz, override boolean, _dataset_id INTEGER)
     returns table(is_met boolean) language plpgsql as $func$
 BEGIN
     return query
@@ -680,6 +681,7 @@ BEGIN
             (case when override then c_fluid.fid in ('crystalloid_fluid', 'fluids_intake')
                 else c_fluid.fid = 'crystalloid_fluid'
                 end)
+        and c_fluid.dataset_id = _dataset_id
         and c_fluid.pat_id = this_pat_id
         and isnumeric(c_fluid.value);
 END; $func$;
@@ -730,7 +732,7 @@ END; $func$;
 
 
 CREATE OR REPLACE FUNCTION calculate_criteria(this_pat_id text, ts_start timestamptz, ts_end timestamptz,
-                                              is_historical BOOLEAN DEFAULT FALSE, _dataset_id INTEGER DEFAULT NULL, _model_id INTEGER DEFAULT NULL)
+                                              is_historical BOOLEAN DEFAULT FALSE, _dataset_id INTEGER DEFAULT NULL)
  RETURNS table(pat_id                           varchar(50),
                name                             varchar(50),
                measurement_time                 timestamptz,
@@ -749,7 +751,7 @@ AS $function$ BEGIN
 
 
 IF is_historical THEN
-  delete from criteria where criteria.pat_id = this_pat_id;
+  delete from criteria where criteria.pat_id = this_pat_id and criteria.dataset_id = _dataset_id;
   insert into criteria ( dataset_id, pat_id, name, is_met, measurement_time,override_time,override_user, override_value, value, update_date)
   select s.dataset_id, s.pat_id, s.name, last(s.is_met), last(s.measurement_time),last(s.override_time),last(s.override_user), last(s.override_value), last(s.value), last(s.update_date)
   from suspicion_of_infection_hist s
@@ -758,21 +760,19 @@ IF is_historical THEN
 END IF;
 
 select coalesce(_dataset_id, max(dataset_id)) into _dataset_id from dw_version;
-select coalesce(_model_id, max(model_id)) into _model_id from model_version;
 
-raise notice 'Running criteria on dataset_id %', _dataset_id;
-raise notice 'Running criteria on model_id % ',  _model_id;
+raise notice 'Running calculate criteria on pat %, dataset_id % between %, %',this_pat_id, _dataset_id, ts_start , ts_end;
 
 return query
     with pat_ids as (
         select distinct pat_enc.pat_id from pat_enc
-        where pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id)
+        where pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id) and pat_enc.dataset_id = _dataset_id
     ),
     pat_urine_output as (
         select pat_ids.pat_id, sum(uo.value::numeric) as value
         from pat_ids
         inner join criteria_meas uo on pat_ids.pat_id = uo.pat_id
-        where uo.fid = 'urine_output'
+        where uo.fid = 'urine_output' and uo.dataset_id = _dataset_id
         and isnumeric(uo.value)
         and ts_end - uo.tsp < interval '2 hours'
         group by pat_ids.pat_id
@@ -783,7 +783,7 @@ return query
             select pat_ids.pat_id, weights.value::numeric as value
             from pat_ids
             inner join criteria_meas weights on pat_ids.pat_id = weights.pat_id
-            where weights.fid = 'weight'
+            where weights.fid = 'weight'  and weights.dataset_id = _dataset_id
             order by weights.tsp
         ) as ordered
         group by ordered.pat_id
@@ -792,7 +792,7 @@ return query
         select pat_ids.pat_id, avg(sbp_meas.value::numeric) as value
         from pat_ids
         inner join criteria_meas sbp_meas on pat_ids.pat_id = sbp_meas.pat_id
-        where isnumeric(sbp_meas.value) and sbp_meas.fid = 'bp_sys'
+        where isnumeric(sbp_meas.value) and sbp_meas.fid = 'bp_sys' and sbp_meas.dataset_id = _dataset_id
         group by pat_ids.pat_id
     ),
     pat_cvalues as (
@@ -808,11 +808,12 @@ return query
                cd.override_value as d_ovalue
         from pat_ids
         cross join criteria_default as cd
-        left join criteria c on pat_ids.pat_id = c.pat_id and cd.name = c.name
+        left join criteria c on pat_ids.pat_id = c.pat_id and cd.name = c.name and cd.dataset_id = c.dataset_id
         left join criteria_meas meas
-            on pat_ids.pat_id = meas.pat_id and meas.fid = cd.fid
+            on pat_ids.pat_id = meas.pat_id and meas.fid = cd.fid and cd.dataset_id = meas.dataset_id
             and meas.fid = cd.fid
             and (meas.tsp is null or meas.tsp between ts_start and ts_end)
+        where meas.dataset_id = _dataset_id
     ),
     infection as (
         select
@@ -888,7 +889,7 @@ return query
                 pat_cvalues.c_ovalue,
                 (coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value) is not null) as is_met
             from pat_cvalues
-            inner join pat_enc on pat_cvalues.pat_id = pat_enc.pat_id
+--             inner join pat_enc on pat_cvalues.pat_id = pat_enc.pat_id -- Why have this join
             where pat_cvalues.category = 'respiratory_failure'
             order by pat_cvalues.tsp
         ) as ordered
@@ -922,7 +923,8 @@ return query
                         when pat_cvalues.category = 'urine_output' then
                             urine_output_met(
                                 (select max(pat_urine_output.value) from pat_urine_output where pat_urine_output.pat_id = pat_cvalues.pat_id),
-                                (select max(pat_weights.value) from pat_weights where pat_weights.pat_id = pat_cvalues.pat_id)
+                                (select max(pat_weights.value) from pat_weights where pat_weights.pat_id = pat_cvalues.pat_id),
+                                _dataset_id
                             )
 
                         else criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
@@ -1023,7 +1025,8 @@ return query
                             (select bool_or(hm.is_met) from
                                 hypotension_met(pat_cvalues.pat_id, pat_cvalues.tsp,
                                                             (select next.tsp from get_next_meas(pat_cvalues.pat_id, pat_cvalues.fid, pat_cvalues.tsp) as next),
-                                                            (select coalesce(pat_cvalues.c_ovalue#>>'{0,text}' = 'Not Indicated', false) from crystalloid_fluid where crystalloid_fluid.pat_id = pat_cvalues.pat_id)
+                                                            (select coalesce(pat_cvalues.c_ovalue#>>'{0,text}' = 'Not Indicated', false) from crystalloid_fluid where crystalloid_fluid.pat_id = pat_cvalues.pat_id),
+                                                            _dataset_id
                                 ) as hm)
                                 and criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
                                 -- and next consecutive value also met
@@ -1037,7 +1040,8 @@ return query
                                     pat_cvalues.tsp,
                                     (select next.tsp from get_next_meas(pat_cvalues.pat_id, pat_cvalues.fid, pat_cvalues.tsp) as next),
                                     (select coalesce(pat_cvalues.c_ovalue#>>'{0,text}' = 'Not Indicated', false)
-                                        from crystalloid_fluid where crystalloid_fluid.pat_id = pat_cvalues.pat_id)
+                                        from crystalloid_fluid where crystalloid_fluid.pat_id = pat_cvalues.pat_id),
+                                    _dataset_id
                                 ) as hm)
                                 and decrease_in_sbp_met(
                                         (select max(pat_bp_sys.value) from pat_bp_sys where pat_bp_sys.pat_id = pat_cvalues.pat_id),
@@ -1996,7 +2000,7 @@ END; $function$;
 -- ===========================================================================
 -- calculate historical_criteria
 -- ===========================================================================
-CREATE OR REPLACE FUNCTION calculate_historical_criteria(this_pat_id text, _dataset_id INTEGER DEFAULT NULL, _model_id INTEGER DEFAULT NULL)
+CREATE OR REPLACE FUNCTION calculate_historical_criteria(this_pat_id text, _dataset_id INTEGER DEFAULT NULL)
 --   passing in a null value will calculate historical criteria over all patientis
 --  RETURNS table(window_ts                        timestamptz,
 --                pat_id                           varchar(50),
@@ -2010,32 +2014,29 @@ DECLARE
 BEGIN
 
 select coalesce(_dataset_id, max(dataset_id)) into _dataset_id from dw_version;
-select coalesce(_model_id, max(model_id)) into _model_id from model_version;
-
 raise notice 'Running calculate historical criteria on dataset_id %', _dataset_id;
-raise notice 'Running calculate historical criteria on model_id % ',  _model_id;
 
     create temporary table new_criteria_windows as
         select window_ends.tsp as ts, new_criteria.*
 
         from (  select distinct meas.pat_id, meas.tsp from criteria_meas meas
-                where meas.pat_id = coalesce(this_pat_id, meas.pat_id)
+                where meas.pat_id = coalesce(this_pat_id, meas.pat_id) and meas.dataset_id = _dataset_id
 --                 and meas.tsp between ts_start and ts_end
         ) window_ends
 
         inner join lateral calculate_criteria(
             coalesce(this_pat_id, window_ends.pat_id),
             window_ends.tsp - window_size, window_ends.tsp,
-            TRUE, _dataset_id, _model_id
+            TRUE, _dataset_id
         ) new_criteria
         on window_ends.pat_id = new_criteria.pat_id;
 
 --     RETURNS table( ts timestamptz, pat_id varchar(50), state int) AS $func$ BEGIN RETURN QUERY EXECUTE
 
-    insert into historical_criteria (pat_id, dataset_id, model_id, pat_state, window_ts)
-    select sw.pat_id, _dataset_id, _model_id, sw.state, sw.ts
+    insert into historical_criteria (pat_id, dataset_id, pat_state, window_ts)
+    select sw.pat_id, _dataset_id, sw.state, sw.ts
     from get_window_states('new_criteria_windows', this_pat_id) sw
-    ON CONFLICT (pat_id, dataset_id, model_id, window_ts) DO UPDATE SET pat_state = excluded.pat_state;
+    ON CONFLICT (pat_id, dataset_id, window_ts) DO UPDATE SET pat_state = excluded.pat_state;
 
     drop table new_criteria_windows;
     return;

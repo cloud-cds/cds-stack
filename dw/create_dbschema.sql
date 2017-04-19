@@ -111,11 +111,10 @@ CREATE TABLE pat_enc (
 DROP TABLE IF EXISTS cdm_g;
 CREATE TABLE cdm_g (
     dataset_id      integer REFERENCES dw_version(dataset_id),
-    model_id        smallint REFERENCES model_version(model_id),
     fid             varchar(50), -- REFERENCES cdm_feature(fid),
     value           text,
     confidence      integer,
-    PRIMARY KEY     (dataset_id, model_id, fid)
+    PRIMARY KEY     (dataset_id, fid)
 );
 
 DROP TABLE IF EXISTS cdm_s;
@@ -710,8 +709,7 @@ DROP TABLE IF EXISTS historical_criteria;
 CREATE TABLE historical_criteria (
     pat_id              text,
     dataset_id          integer REFERENCES dw_version(dataset_id),
-    model_id            smallint REFERENCES model_version(model_id),
     pat_state           integer,
     window_ts           timestamptz,
-    primary key         (pat_id,dataset_id,model_id,window_ts)
+    primary key         (pat_id,dataset_id,window_ts)
 );
