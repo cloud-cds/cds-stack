@@ -593,6 +593,10 @@ body.waiting {
     text-align: center;
     font-size: 12px;
 }
+#activity p.none {
+    text-align: center;
+    font-size: 12px;
+}
 .notification,
 .log-item {
     padding: 10px;

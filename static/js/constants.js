@@ -53,9 +53,14 @@ var LOG_STRINGS = {
 		"customized": [
 			" <b>customized</b> ",
 			" values to "
+		],
+		"ordered": [
+			" <b>placed a</b> ",
+			" - status: "
 		]
 	},
 	"deactivate": " <b>deactivated</b> the patient",
+	"activate": " <b>activated</b> the patient",
 	"toggle_notifications": " toggled notifications"
 }
 
@@ -127,7 +132,7 @@ var criteriaKeyToName = {
 		"units": "mmHg"}
 	],
 	"respiratory_failure": [
-		{"name": "Respiratory Failure: PaO2/FiO2",
+		{"name": "Respiratory Failure: Mechanical Support",
 		"units": ""}
 	],
 	"creatinine": [
@@ -153,6 +158,41 @@ var criteriaKeyToName = {
 	"lactate": [
 		{"name": "Lactate Measurement",
 		"units": "mmol/L"}
+	],
+	"crystalloid_fluid": [
+		{"name": "Fluids", "units": "ml/kg"}
+	],
+	"systolic_bp": [
+		{"name": "Systolic Blood Pressure"}
+	],
+	"hypotension_dsbp": [
+		{"name": "Decrease in Systolic Blood Pressure (for Hypotension)",
+		"units": "mmHg"}
+	],
+	"hypotension_map": [
+		{"name": "Mean Arterial Pressure (for Hypotension)",
+		"units": "mmHg"}
+	],
+	"suspicion_of_infection": [
+		{"name": "Suspicion of Infection"}
+	],
+	"antibiotics_order": [
+		{"name": "Antibiotics Order"}
+	],
+	"blood_culture_order": [
+		{"name": "Blood Culture Order"}
+	],
+	"crystalloid_fluid_order": [
+		{"name": "Fluids Order"}
+	],
+	"initial_lactate_order": [
+		{"name": "Initial Lactate Order"}
+	],
+	"repeat_lactate_order": [
+		{"name": "Repeat Lactate Order"}
+	],
+	"vasopressors_order": [
+		{"name": "Vasopressors Order"}
 	]
 }
 
@@ -294,17 +334,17 @@ var severe_sepsis = {
 		}, {
 			"key": "respiratory_failure",
 			"criteria_display_name": "Acute respiratory failure evidenced by invasive or non-invasive ventiliation",
-			"dropdown": "Respiratory rate is normal",
+			"dropdown": "Respiratory failure is normal",
 			"overrideModal": [{
-				"id": "override_respiratory_rate",
-				"header": "Override Respiratory Rate",
-				"name": "Respiratory Failure: PaO2/FiO2",
+				"id": "override_respiratory_failure",
+				"header": "Override Respiratory Failure",
+				"name": "Respiratory Failure",
 				"units": "",
 				"step": 1,
 				"range": 'max',
 				"minAbsolute": 0,
-				"maxAbsolute": 200,
-				"value": 100
+				"maxAbsolute": 1,
+				"value": 0
 			}],
 			"precision": 4
 		}, {

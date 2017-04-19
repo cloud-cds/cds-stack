@@ -1,4 +1,4 @@
-FROM python:2.7
+FROM python:3.6.1
 
 ENV WORKDIR  /pyflame/
 ENV prometheus_multiproc_dir /tmp
@@ -15,4 +15,4 @@ ADD . /trews_rest_api
 RUN pip install -r /trews_rest_api/requirements.txt
 
 WORKDIR /trews_rest_api
-CMD [ "sh", "start.sh" ]
+CMD [ "sh", "start-dev.sh" ]

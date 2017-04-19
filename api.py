@@ -1,480 +1,452 @@
-import falcon
-# from Crypto.Cipher import AES
-from pkcs7 import PKCS7Encoder
-import os
-import base64
-import hashlib
-import binascii
-import urllib
-import data_example
-import ujson as json
-import dashan_query as query
+import os, sys, traceback
+import time, datetime, calendar
+import asyncio
+import copy
+import functools
 import logging
 import json
-import time
-import datetime
-import pandas as pd
-import numpy as np
-import pprint
-import copy
-import re
-import calendar
-import os, sys, traceback
-from monitoring import prometheus
+import pytz
 
-#THRESHOLD = 0.85
+import data_example
+import dashan_query as query
+
+from aiohttp import web
+from aiohttp.web import Response, json_response
+from aiocache import LRUMemoryCache
+from aiocache.plugins import HitMissRatioPlugin
+
+from monitoring import APIMonitor
+
+
 logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.INFO)
-#hashed_key = 'C8ED911A8907EFE4C1DE24CA67DF5FA2'
-#hashed_key = '\xC8\xED\x91\x1A\x89\x07\xEF\xE4\xC1\xDE\x24\xCA\x67\xDF\x5F\xA2'
-#hashed_key = 'e7cde81226f1d5e03c2681035692964d'
-# hashed_key = '\xe7\xcd\xe8\x12\x26\xf1\xd5\xe0\x3c\x26\x81\x03\x56\x92\x96\x4d'
-# IV = '\x00' * 16
-# MODE = AES.MODE_CBC
 
-DECRYPTED = False
+##############################
+# Globals: cache and monitor.
+pat_cache = LRUMemoryCache(plugins=[HitMissRatioPlugin()], max_size=5000)
+api_monitor = APIMonitor()
+
+# Register API metrics
+if api_monitor.enabled:
+  api_monitor.register_metric('CacheSize', 'None', [('API', api_monitor.monitor_target)])
+  api_monitor.register_metric('CacheHits', 'Count', [('API', api_monitor.monitor_target)])
+  api_monitor.register_metric('CacheMisses', 'Count', [('API', api_monitor.monitor_target)])
+  api_monitor.register_metric('CacheRequests', 'Count', [('API', api_monitor.monitor_target)])
 
 
 def temp_f_to_c(f):
     return (f - 32) * .5556
 
-class NumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.integer):
-            return int(obj)
-        elif isinstance(obj, np.floating):
-            return float(obj)
-        elif isinstance(obj, np.ndarray):
-            return obj.tolist()
-        elif isinstance(obj, np.bool_):
-            return bool(obj)
-        elif isinstance(obj, np.int64):
-            return int(obj)
+class TREWSAPI(web.View):
+
+  async def get(self):
+    try:
+      reponse = Response()
+      response.content_type = 'text/html'
+      response.body = "TREWS API"
+      return response
+
+    except Exception as ex:
+      logging.warning(str(ex))
+      traceback.print_exc()
+      raise web.HTTPBadRequest(body=json.dumps({'message': str(ex)}))
+
+
+  # match and test the consistent API for overriding
+  async def take_action(self, db_pool, actionType, actionData, eid, uid):
+
+    # Match pollNotifications first since this is the most common action.
+    if actionType == u'pollNotifications':
+      notifications = await query.get_notifications(db_pool, eid)
+      return {'notifications': notifications}
+
+    elif actionType == u'pollAuditlist':
+      auditlist = await query.get_criteria_log(db_pool, eid)
+      return {'auditlist': auditlist}
+
+    elif actionType == u'override':
+      action_is_clear = 'clear' in actionData and actionData['clear']
+      logging.info('override_criteria action %(clear)s: %(v)s' % {'v': json.dumps(actionData), 'clear': action_is_clear})
+      if action_is_clear:
+        await query.override_criteria(db_pool, eid, actionData['actionName'], clear=True, user=uid)
+      else:
+        logging.info('override_criteria value: %(name)s %(val)s' % {'name': actionData['actionName'], 'val': actionData['value']})
+        await query.override_criteria(db_pool, eid, actionData['actionName'], value=actionData['value'], user=uid)
+
+    elif actionType == u'suspicion_of_infection':
+      if 'value' in actionData and actionData['value'] == 'Reset':
+        await query.override_criteria(db_pool, eid, actionData['actionName'], clear=True, user=uid)
+      else:
+        if "other" in actionData:
+          value = '[{ "text": "%(val)s", "other": true }]' % {'val': actionData['other']}
+          await query.override_criteria(db_pool, eid, actionType, value=value, user=uid)
         else:
-            print "encoder:", obj
-            print type(obj)
-            return super(NumpyEncoder, self).default(obj)
+          value = '[{ "text": "%(val)s" }]' % {'val': actionData['value']}
+          await query.override_criteria(db_pool, eid, actionType, value=value, user=uid)
 
-class TREWSAPI(object):
-    def on_get(self, req, resp):
-        """
-        See example in test_decrpyt.py
-        """
-        try:
-            resp.content_type = 'text/html'
-            resp.status = falcon.HTTP_200  # This is the default status
-            body += "TREWS API"
-            resp.body = (body)
-        except Exception as ex:
-            raise falcon.HTTPError(falcon.HTTP_400, 'Error', ex.message)
+    elif actionType == u'notification':
+      if 'id' in actionData and 'read' in actionData:
+        await query.toggle_notification_read(db_pool, eid, actionData['id'], actionData['read'])
+      else:
+        msg = 'Invalid notification update action data' + json.dumps(actionData)
+        logging.error(msg)
+        return {'message': msg}
 
-    # def decrypt(self, encrypted_text):
-    #     encrypted_text = urllib.unquote(encrypted_text)
-    #     decodetext =  base64.b64decode(encrypted_text)
-    #     aes = AES.new(hashed_key, MODE, IV)
-    #     cipher = aes.decrypt(decodetext)
-    #     encoder = PKCS7Encoder()
-    #     pad_text = encoder.decode(cipher)
-    #     return pad_text
+    elif actionType == u'place_order':
+      await query.override_criteria(db_pool, eid, actionData['actionName'], value='[{ "text": "Ordered" }]', user=uid)
 
-    # match and test the consistent API for overriding
-    def take_action(self, actionType, actionData, eid, uid):
+    elif actionType == u'complete_order':
+      await query.override_criteria(db_pool, eid, actionData['actionName'], value='[{ "text": "Completed" }]', user=uid)
 
-        # Match pollNotifications first since this is the most common action.
-        if actionType == u'pollNotifications':
-            notifications = query.get_notifications(eid)
-            return {'notifications': notifications}
+    elif actionType == u'order_not_indicated':
+      await query.override_criteria(db_pool, eid, actionData['actionName'], value='[{ "text": "Not Indicated" }]', user=uid)
 
-        elif actionType == u'pollAuditlist':
-            auditlist = query.get_criteria_log(eid)
-            return {'auditlist': auditlist}
+    elif actionType == u'reset_patient':
+      event_id = actionData['value'] if actionData is not None and 'value' in actionData else None
+      await query.reset_patient(db_pool, eid, uid, event_id)
 
-        elif actionType == u'override':
-            action_is_clear = 'clear' in actionData and actionData['clear']
-            logging.info('override_criteria action %(clear)s: %(v)s' % {'v': json.dumps(actionData), 'clear': action_is_clear})
-            if action_is_clear:
-                query.override_criteria(eid, actionData['actionName'], clear=True, user=uid)
-            else:
-                logging.info('override_criteria value: %(name)s %(val)s' % {'name': actionData['actionName'], 'val': actionData['value']})
-                query.override_criteria(eid, actionData['actionName'], value=actionData['value'], user=uid)
+    elif actionType == u'deactivate':
+      await query.deactivate(db_pool, eid, uid, actionData['value'])
 
-        elif actionType == u'suspicion_of_infection':
-            if 'value' in actionData and actionData['value'] == 'Reset':
-                query.override_criteria(eid, actionData['actionName'], clear=True, user=uid)
-            else:
-                if "other" in actionData:
-                    value = '[{ "text": "%(val)s", "other": true }]' % {'val': actionData['other']}
-                    query.override_criteria(eid, actionType, value=value, user=uid)
-                else:
-                    value = '[{ "text": "%(val)s" }]' % {'val': actionData['value']}
-                    query.override_criteria(eid, actionType, value=value, user=uid)
+    elif actionType == u'set_deterioration_feedback':
+      deterioration = {"value": actionData['value'], "other": actionData["other"]}
+      await query.set_deterioration_feedback(db_pool, eid, deterioration, uid)
 
-        elif actionType == u'notification':
-            if 'id' in actionData and 'read' in actionData:
-                query.toggle_notification_read(eid, actionData['id'], actionData['read'])
-            else:
-                msg = 'Invalid notification update action data' + json.dumps(actionData)
-                logging.error(msg)
-                return {'message': msg}
+    else:
+      msg = 'Invalid action type: ' + actionType
+      logging.error(msg)
+      return {'message': msg}
 
-        elif actionType == u'place_order':
-            query.override_criteria(eid, actionData['actionName'], value='[{ "text": "Ordered" }]', user=uid)
+    # All actions other than pollNotifications or pollAuditlist
+    # reach this point, and thus we invalidate the cached patient data here.
+    # These non-polling actions may change the patient or frontend state,
+    # thus we must ensure we query the database again.
+    logging.info("Invalidating cache for %s" % eid)
+    await pat_cache.delete(eid)
 
-        elif actionType == u'complete_order':
-            query.override_criteria(eid, actionData['actionName'], value='[{ "text": "Completed" }]', user=uid)
+    return {'result': 'OK'}
 
-        elif actionType == u'order_not_indicated':
-            query.override_criteria(eid, actionData['actionName'], value='[{ "text": "Not Indicated" }]', user=uid)
 
-        elif actionType == u'reset_patient':
-            event_id = actionData['value'] if actionData is not None and 'value' in actionData else None
-            query.reset_patient(eid, uid, event_id)
+  def update_criteria(self, criteria_result_set, data):
 
-        elif actionType == u'deactivate':
-            query.deactivate(eid, uid, actionData['value'])
+    SIRS = ['sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc']
+    ORGAN_DYSFUNCTION = ["blood_pressure",
+                         "mean_arterial_pressure",
+                         "decrease_in_sbp",
+                         "respiratory_failure",
+                         "creatinine",
+                         "bilirubin",
+                         "platelet",
+                         "inr",
+                         "lactate"
+                         ]
 
-        elif actionType == u'set_deterioration_feedback':
-            deterioration = {"value": actionData['value'], "other": actionData["other"]}
-            query.set_deterioration_feedback(eid, deterioration, uid)
 
+    HYPOTENSION = ["systolic_bp",
+                   "hypotension_map",
+                   "hypotension_dsbp"
+                  ]
+
+    HYPOPERFUSION = ['initial_lactate']
+
+    ORDERS = [ "initial_lactate_order",
+               "blood_culture_order",
+               "antibiotics_order",
+               "crystalloid_fluid_order",
+               "repeat_lactate_order",
+               "vasopressors_order",
+               "focus_exam_order"
+             ]
+
+    sirs_cnt    = 0
+    od_cnt      = 0
+    sirs_onsets = []
+    od_onsets   = []
+    hp_cnt      = 0
+    hpf_cnt     = 0
+    shock_onsets_hypotension   = []
+    shock_onsets_hypoperfusion = []
+
+    data['event_id'] = None
+
+    epoch = datetime.datetime.utcfromtimestamp(0).replace(tzinfo=pytz.UTC)
+
+    for row in criteria_result_set:
+      # Update the event id.
+      if data['event_id'] is None and row['event_id'] is not None:
+        event_id = str(row['event_id'])
+        data['event_id'] = None if event_id == "nan" else event_id
+
+      # update every criteria
+      criterion = {
+          "name"             : row['name'],
+          "is_met"           : row['is_met'],
+          "value"            : row['value'],
+          "measurement_time" : (row['measurement_time'] - epoch).total_seconds() if row['measurement_time'] is not None else None,
+          "override_time"    : (row['override_time'] - epoch).total_seconds() if row['override_time'] is not None else None,
+          "override_user"    : row['override_user'],
+          "override_value"   : json.loads(row['override_value']) if row['override_value'] is not None else None,
+      }
+
+      if criterion["name"] == 'suspicion_of_infection':
+        data['severe_sepsis']['suspicion_of_infection'] = {
+          "name": "suspicion_of_infection",
+          "update_time": criterion['override_time'],
+          "update_user": criterion['override_user']
+        }
+        if criterion['override_value']:
+          text = criterion['override_value'][0]['text']
+          data['severe_sepsis']['suspicion_of_infection']["value"] = text
+          if 'other' in criterion['override_value'][0] and criterion['override_value'][0]['other']:
+              data['severe_sepsis']['suspicion_of_infection']["other"] = True
         else:
-            msg = 'Invalid action type: ' + actionType
-            logging.error(msg)
-            return {'message': msg}
+          data['severe_sepsis']['suspicion_of_infection']["value"] = None
 
-        return {'result': 'OK'}
+      if criterion["name"] == "sirs_temp" and criterion["override_value"]:
+        if criterion["override_value"][0]["lower"]:
+          criterion["override_value"][0]["lower"] = temp_f_to_c(criterion["override_value"][0]["lower"])
+        if criterion["override_value"][0]["upper"]:
+          criterion["override_value"][0]["upper"] = temp_f_to_c(criterion["override_value"][0]["upper"])
 
+      if criterion["name"] in SIRS:
+        sirs_idx = SIRS.index(criterion["name"])
+        data['severe_sepsis']['sirs']['criteria'][sirs_idx] = criterion
+        if criterion["is_met"]:
+          sirs_cnt += 1
+          if criterion['override_user']:
+            sirs_onsets.append(criterion['override_time'])
+          else:
+            sirs_onsets.append(criterion['measurement_time'])
 
-    def update_criteria(self, criteria, data):
-
-        SIRS = ['sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc']
-        ORGAN_DYSFUNCTION = ["blood_pressure",
-                             "mean_arterial_pressure",
-                             "decrease_in_sbp",
-                             "respiratory_failure",
-                             "creatinine",
-                             "bilirubin",
-                             "platelet",
-                             "inr",
-                             "lactate"
-                             ]
-
-
-        HYPOTENSION = ["systolic_bp",
-                       "hypotension_map",
-                       "hypotension_dsbp"
-                      ]
-
-        HYPOPERFUSION = ['initial_lactate']
-
-        ORDERS = [ "initial_lactate_order",
-                   "blood_culture_order",
-                   "antibiotics_order",
-                   "crystalloid_fluid_order",
-                   "repeat_lactate_order",
-                   "vasopressors_order",
-                   "focus_exam_order"
-                 ]
-
-        sirs_cnt = 0
-        od_cnt = 0
-        sirs_onsets = []
-        od_onsets = []
-        hp_cnt = 0
-        shock_onsets_hypotension = []
-        shock_onsets_hypoperfusion = []
-        hpf_cnt = 0
-        data['event_id'] = None
-        # Update the event id.
-        if criteria['event_id'] is not None and len(criteria['event_id'].values) > 0:
-            event_id = str(criteria['event_id'].values[0])
-            data['event_id'] = None if event_id == "nan" else event_id
-
-        # TODO: set up the onset time
-        criteria['override_epoch'] = pd.DatetimeIndex(criteria.override_time).astype(np.int64) // 10**9
-        criteria['measurement_epoch'] = pd.DatetimeIndex(criteria.measurement_time).astype(np.int64) // 10**9
-        for idx, row in criteria.iterrows():
-            # update every criteria
-            criterion = {
-                "name": row['name'],
-                "is_met": row['is_met'],
-                "value": row['value'],
-                "measurement_time": row['measurement_epoch'] if row['measurement_epoch'] > 0 else None,
-                "override_time": row['override_epoch'] if row['override_epoch'] > 0 else None,
-                "override_user": row['override_user'],
-                "override_value": row['override_value'],
-            }
-
-            if criterion["name"] == 'suspicion_of_infection':
-                data['severe_sepsis']['suspicion_of_infection'] = {
-                    "name": "suspicion_of_infection",
-                    "update_time": criterion['override_time'],
-                    "update_user": criterion['override_user']
-                }
-                if criterion['override_value']:
-                    text = criterion['override_value'][0]['text']
-                    data['severe_sepsis']['suspicion_of_infection']["value"] = text
-                    if 'other' in criterion['override_value'][0] and criterion['override_value'][0]['other']:
-                        data['severe_sepsis']['suspicion_of_infection']["other"] = True
-                else:
-                    data['severe_sepsis']['suspicion_of_infection']["value"] = None
-
-            if criterion["name"] == "sirs_temp" and criterion["override_value"]:
-                if criterion["override_value"][0]["lower"]:
-                    criterion["override_value"][0]["lower"] = temp_f_to_c(criterion["override_value"][0]["lower"])
-                if criterion["override_value"][0]["upper"]:
-                    criterion["override_value"][0]["upper"] = temp_f_to_c(criterion["override_value"][0]["upper"])
-
-            if criterion["name"] in SIRS:
-                sirs_idx = SIRS.index(criterion["name"])
-                data['severe_sepsis']['sirs']['criteria'][sirs_idx] = criterion
-                if criterion["is_met"]:
-                    sirs_cnt += 1
-                    if criterion['override_user']:
-                        sirs_onsets.append(criterion['override_time'])
-                    else:
-                        sirs_onsets.append(criterion['measurement_time'])
-
-            if criterion["name"] in ORGAN_DYSFUNCTION:
-                od_idx = ORGAN_DYSFUNCTION.index(criterion["name"])
-                data['severe_sepsis']['organ_dysfunction']['criteria'][od_idx] = criterion
-                if criterion["is_met"]:
-                    od_cnt += 1
-                    if criterion['override_user']:
-                        od_onsets.append(criterion['override_time'])
-                    else:
-                        od_onsets.append(criterion['measurement_time'])
-
-            # septic shock
+      if criterion["name"] in ORGAN_DYSFUNCTION:
+        od_idx = ORGAN_DYSFUNCTION.index(criterion["name"])
+        data['severe_sepsis']['organ_dysfunction']['criteria'][od_idx] = criterion
+        if criterion["is_met"]:
+          od_cnt += 1
+          if criterion['override_user']:
+            od_onsets.append(criterion['override_time'])
+          else:
+            od_onsets.append(criterion['measurement_time'])
 
 
-            if criterion["name"] in HYPOTENSION:
-                hp_idx = HYPOTENSION.index(criterion["name"])
-                data['septic_shock']['hypotension']['criteria'][hp_idx] = criterion
-                if criterion["is_met"]:
-                    hp_cnt += 1
-                    if criterion['override_user']:
-                        shock_onsets_hypotension.append(criterion['override_time'])
-                    else:
-                        shock_onsets_hypotension.append(criterion['measurement_time'])
+      # septic shock
+
+      if criterion["name"] in HYPOTENSION:
+        hp_idx = HYPOTENSION.index(criterion["name"])
+        data['septic_shock']['hypotension']['criteria'][hp_idx] = criterion
+        if criterion["is_met"]:
+          hp_cnt += 1
+          if criterion['override_user']:
+            shock_onsets_hypotension.append(criterion['override_time'])
+          else:
+            shock_onsets_hypotension.append(criterion['measurement_time'])
 
 
-            if criterion["name"] in HYPOPERFUSION:
-                hpf_idx = HYPOPERFUSION.index(criterion["name"])
-                data['septic_shock']['hypoperfusion']['criteria'][hpf_idx] = criterion
-                if criterion["is_met"]:
-                    hpf_cnt += 1
-                    if criterion['override_user']:
-                        shock_onsets_hypoperfusion.append(criterion['override_time'])
-                    else:
-                        shock_onsets_hypoperfusion.append(criterion['measurement_time'])
+      if criterion["name"] in HYPOPERFUSION:
+        hpf_idx = HYPOPERFUSION.index(criterion["name"])
+        data['septic_shock']['hypoperfusion']['criteria'][hpf_idx] = criterion
+        if criterion["is_met"]:
+          hpf_cnt += 1
+          if criterion['override_user']:
+            shock_onsets_hypoperfusion.append(criterion['override_time'])
+          else:
+            shock_onsets_hypoperfusion.append(criterion['measurement_time'])
 
-            if criterion["name"] == 'crystalloid_fluid':
-                data['septic_shock']['crystalloid_fluid'] = criterion
+      if criterion["name"] == 'crystalloid_fluid':
+        data['septic_shock']['crystalloid_fluid'] = criterion
 
-            # update orders
-            if criterion["name"] in ORDERS:
-                value = criterion['value']
-                if ('override_value' in criterion) and (criterion['override_value'] is not None) and ('text' in criterion['override_value'][0]):
-                    value = criterion['override_value'][0]['text']
+      # update orders
+      if criterion["name"] in ORDERS:
+        value = criterion['value']
+        if ('override_value' in criterion) and (criterion['override_value'] is not None) and ('text' in criterion['override_value'][0]):
+            value = criterion['override_value'][0]['text']
 
-                valid_override_ts = 'override_time' in criterion and criterion['override_time'] is not None
-                order_ts = criterion['override_time'] if valid_override_ts else criterion['measurement_time']
+        valid_override_ts = 'override_time' in criterion and criterion['override_time'] is not None
+        order_ts = criterion['override_time'] if valid_override_ts else criterion['measurement_time']
 
-                data[criterion["name"]] = {
-                    "name": criterion["name"],
-                    "status": value,
-                    "time": order_ts,
-                    "user": criterion['override_user'],
-                    "note": "note"
-                }
-
-        # update sirs
-        data['severe_sepsis']['sirs']['is_met'] = sirs_cnt > 1
-        data['severe_sepsis']['sirs']["num_met"] = sirs_cnt
-        if sirs_cnt > 1:
-            data['severe_sepsis']['sirs']['onset_time'] = sorted(sirs_onsets)[1]
-
-        # update organ dysfunction
-        data['severe_sepsis']['organ_dysfunction']['is_met'] = od_cnt > 0
-        data['severe_sepsis']['organ_dysfunction']["num_met"] = od_cnt
-        if od_cnt > 0:
-            data['severe_sepsis']['organ_dysfunction']['onset_time'] = sorted(od_onsets)[0]
-
-        # update severe_sepsis
-        if data['severe_sepsis']['sirs']['is_met'] and \
-            data['severe_sepsis']['organ_dysfunction']['is_met'] and\
-            not ( data['severe_sepsis']['suspicion_of_infection']['value'] == 'No Infection' \
-                or data['severe_sepsis']['suspicion_of_infection']['value'] is None):
-            data['severe_sepsis']['is_met'] = 1
-            data['severe_sepsis']['onset_time'] = sorted(
-                    [
-                        data['severe_sepsis']['sirs']['onset_time'] ,
-                        data['severe_sepsis']['organ_dysfunction']['onset_time'] ,
-                        data['severe_sepsis']['suspicion_of_infection']['update_time']
-                        ]
-                )[2]
-            data['chart_data']['severe_sepsis_onset']['timestamp'] = data['severe_sepsis']['onset_time']
-        else:
-            data['severe_sepsis']['is_met'] = 0
-
-        # update septic shock
-        data['septic_shock']['hypotension']['is_met'] = hp_cnt > 0
-        data['septic_shock']['hypotension']['num_met'] = hp_cnt
-        data['septic_shock']['hypoperfusion']['is_met'] = hpf_cnt > 0
-        data['septic_shock']['hypoperfusion']['num_met'] = hpf_cnt
-        if data['severe_sepsis']['is_met']:
-            # only when severs_sepsis is met
-            if (data['septic_shock']['crystalloid_fluid']['is_met'] == 1 and hp_cnt > 0) or hpf_cnt > 0:
-                data['septic_shock']['is_met'] = True
-                # setup onset time
-                if data['septic_shock']['crystalloid_fluid']['is_met'] == 1 and hp_cnt > 0:
-                    max_fluid_time = max(data['septic_shock']['crystalloid_fluid']['override_time'], data['septic_shock']['crystalloid_fluid']['measurement_time'])
-                    data['septic_shock']['onset_time'] = sorted(shock_onsets_hypotension + [max_fluid_time])[-1]
-                    # print shock_onsets_hypotension
-                    if hpf_cnt > 0:
-                        data['septic_shock']['onset_time'] = sorted([data['septic_shock']['onset_time']] +shock_onsets_hypoperfusion)[0]
-                else:
-                    data['septic_shock']['onset_time'] = sorted(shock_onsets_hypoperfusion)[0]
-        #logging.info(json.dumps(data['severe_sepsis'], indent=4))
-        #logging.info(json.dumps(data['septic_shock'], indent=4))
-
-
-
-
-    def update_response_json(self, data, eid):
-        data['pat_id'] = eid
-
-        # update criteria from database query
-        criteria               = query.get_criteria(eid)
-        chart_values           = query.get_trews_contributors(eid)
-        notifications, history = query.get_patient_events(eid)
-        patient_scalars        = query.get_patient_profile(eid)
-
-        self.update_criteria(criteria, data)
-
-        # update chart data
-        data['chart_data']['patient_arrival']['timestamp'] = patient_scalars['admit_time']
-        data['chart_data']['trewscore_threshold']          = patient_scalars['trews_threshold']
-        data['chart_data']['chart_values']                 = chart_values
-
-        # update_notifications and history
-        data['notifications'] = notifications
-        data['auditlist']     = history
-
-        # update profile components
-        data['deactivated'] = patient_scalars['deactivated']
-
-        data['deterioration_feedback'] = {
-            "tsp"           : patient_scalars['detf_tsp'],
-            "deterioration" : patient_scalars['deterioration'],
-            "uid"           : patient_scalars['detf_uid']
+        data[criterion["name"]] = {
+          "name": criterion["name"],
+          "status": value,
+          "time": order_ts,
+          "user": criterion['override_user'],
+          "note": "note"
         }
 
+    # update sirs
+    data['severe_sepsis']['sirs']['is_met'] = sirs_cnt > 1
+    data['severe_sepsis']['sirs']["num_met"] = sirs_cnt
+    if sirs_cnt > 1:
+      data['severe_sepsis']['sirs']['onset_time'] = sorted(sirs_onsets)[1]
 
-    def on_post(self, req, resp):
+    # update organ dysfunction
+    data['severe_sepsis']['organ_dysfunction']['is_met'] = od_cnt > 0
+    data['severe_sepsis']['organ_dysfunction']["num_met"] = od_cnt
+    if od_cnt > 0:
+      data['severe_sepsis']['organ_dysfunction']['onset_time'] = sorted(od_onsets)[0]
+
+    # update severe_sepsis
+    if data['severe_sepsis']['sirs']['is_met'] and \
+      data['severe_sepsis']['organ_dysfunction']['is_met'] and\
+      not ( data['severe_sepsis']['suspicion_of_infection']['value'] == 'No Infection' \
+          or data['severe_sepsis']['suspicion_of_infection']['value'] is None):
+      data['severe_sepsis']['is_met'] = 1
+      data['severe_sepsis']['onset_time'] = sorted(
+            [
+                data['severe_sepsis']['sirs']['onset_time'] ,
+                data['severe_sepsis']['organ_dysfunction']['onset_time'] ,
+                data['severe_sepsis']['suspicion_of_infection']['update_time']
+                ]
+        )[2]
+      data['chart_data']['severe_sepsis_onset']['timestamp'] = data['severe_sepsis']['onset_time']
+    else:
+      data['severe_sepsis']['is_met'] = 0
+
+    # update septic shock
+    data['septic_shock']['hypotension']['is_met'] = hp_cnt > 0
+    data['septic_shock']['hypotension']['num_met'] = hp_cnt
+    data['septic_shock']['hypoperfusion']['is_met'] = hpf_cnt > 0
+    data['septic_shock']['hypoperfusion']['num_met'] = hpf_cnt
+    if data['severe_sepsis']['is_met']:
+      # only when severs_sepsis is met
+      if (data['septic_shock']['crystalloid_fluid']['is_met'] == 1 and hp_cnt > 0) or hpf_cnt > 0:
+        data['septic_shock']['is_met'] = True
+        # setup onset time
+        if data['septic_shock']['crystalloid_fluid']['is_met'] == 1 and hp_cnt > 0:
+          max_fluid_time = max(data['septic_shock']['crystalloid_fluid']['override_time'], data['septic_shock']['crystalloid_fluid']['measurement_time'])
+          data['septic_shock']['onset_time'] = sorted(shock_onsets_hypotension + [max_fluid_time])[-1]
+          # print shock_onsets_hypotension
+          if hpf_cnt > 0:
+            data['septic_shock']['onset_time'] = sorted([data['septic_shock']['onset_time']] +shock_onsets_hypoperfusion)[0]
+        else:
+          data['septic_shock']['onset_time'] = sorted(shock_onsets_hypoperfusion)[0]
+
+
+  async def update_response_json(self, db_pool, data, eid):
+    global pat_cache
+
+    data['pat_id'] = eid
+
+    # cache lookup
+    pat_values = await pat_cache.get(eid)
+
+    if pat_values is None:
+      api_monitor.add_metric('CacheMisses')
+
+      # parallel query execution
+      pat_values = await asyncio.gather(
+                      query.get_criteria(db_pool, eid),
+                      query.get_trews_contributors(db_pool, eid),
+                      query.get_patient_events(db_pool, eid),
+                      query.get_patient_profile(db_pool, eid)
+                    )
+
+      await pat_cache.set(eid, pat_values, ttl=300)
+
+    else:
+      api_monitor.add_metric('CacheHits')
+
+    sz = await pat_cache.raw('__len__')
+    api_monitor.add_metric('CacheSize', value=sz)
+    api_monitor.add_metric('CacheRequests')
+
+    logging.info('*** Cache stats: s: %s h: %s t: %s' %
+      ( sz, pat_cache.hit_miss_ratio["hits"], pat_cache.hit_miss_ratio["total"] ))
+
+    criteria_result_set    = pat_values[0]
+    chart_values           = pat_values[1]
+    notifications, history = pat_values[2]
+    patient_scalars        = pat_values[3]
+
+    self.update_criteria(criteria_result_set, data)
+
+    # update chart data
+    data['chart_data']['patient_arrival']['timestamp'] = patient_scalars['admit_time']
+    data['chart_data']['trewscore_threshold']          = patient_scalars['trews_threshold']
+    data['chart_data']['chart_values']                 = chart_values
+
+    # update_notifications and history
+    data['notifications'] = notifications
+    data['auditlist']     = history
+
+    # update profile components
+    data['deactivated'] = patient_scalars['deactivated']
+
+    data['deterioration_feedback'] = {
+        "tsp"           : patient_scalars['detf_tsp'],
+        "deterioration" : patient_scalars['deterioration'],
+        "uid"           : patient_scalars['detf_uid']
+    }
+
+
+  async def post(self):
+    try:
+      with api_monitor.time(self.request.path):
+        api_monitor.request(self.request.path)
+
         try:
-            with prometheus.trews_api_request_latency.labels(prometheus.prom_job, 'any').time():
-                prometheus.trews_api_request_counts.labels(prometheus.prom_job, 'any').inc()
+          srvnow = datetime.datetime.utcnow().isoformat()
+          req_body = await self.request.json()
 
-                try:
-                    srvnow = datetime.datetime.utcnow().isoformat()
-                    raw_json = req.stream.read()
-                    req_body = json.loads(raw_json)
-                    req.context['body'] = req_body
+          # Make available to the CW log middleware
+          self.request.app['body'] = req_body
 
-                    logging.info('%(date)s %(reqdate)s %(remote_addr)s %(access_route)s %(protocol)s %(method)s %(host)s %(headers)s %(body)s'
-                        % { 'date'         : srvnow,
-                            'reqdate'      : str(req.date),
-                            'remote_addr'  : req.remote_addr,
-                            'access_route' : req.access_route,
-                            'protocol'     : req.protocol,
-                            'method'       : req.method,
-                            'host'         : req.host,
-                            'headers'      : str(req.headers),
-                            'body'         : json.dumps(raw_json, indent=4) })
+          logging.info('%(date)s %(method)s %(host)s %(headers)s %(body)s'
+              % { 'date'         : srvnow,
+                  'method'       : self.request.method,
+                  'host'         : self.request.host,
+                  'headers'      : dict(self.request.headers.items()),
+                  'body'         : json.dumps(req_body, indent=4) })
 
-                except ValueError as ex:
-                    # logging.info(json.dumps(ex, default=lambda o: o.__dict__))
-                    raise falcon.HTTPError(falcon.HTTP_400,
-                        'Malformed JSON',
-                        'Could not decode the request body. The '
-                        'JSON was incorrect. request body = %s' % raw_json)
-
-                except Exception as ex:
-                    # logging.info(json.dumps(ex, default=lambda o: o.__dict__))
-                    raise falcon.HTTPError(falcon.HTTP_400, 'Error', ex.message)
-
-                eid = req_body['q']
-                uid = req_body['u'] if 'u' in req_body and req_body['u'] is not None else 'user'
-                resp.status = falcon.HTTP_202
-                data = copy.deepcopy(data_example.patient_data_example)
-
-                if eid:
-                    # if DECRYPTED:
-                    #     eid = self.decrypt(eid)
-                    #     print("unknown eid: " + eid)
-
-                    if query.eid_exist(eid):
-                        logging.info("query for eid: " + eid)
-
-                        response_body = {}
-                        if 'actionType' in req_body and 'action' in req_body:
-                            actionType = req_body['actionType']
-                            with prometheus.trews_api_request_latency.labels(prometheus.prom_job, actionType).time():
-                                prometheus.trews_api_request_counts.labels(prometheus.prom_job, actionType).inc()
-                                actionData = req_body['action']
-
-                                if actionType is not None:
-                                    response_body = self.take_action(actionType, actionData, eid, uid)
-
-                                if actionType != u'pollNotifications' and actionType != u'pollAuditlist':
-                                    self.update_response_json(data, eid)
-                                    response_body = {'trewsData': data}
-                        else:
-                            response_body = {'message': 'Invalid TREWS REST API request'}
-
-                        resp.body = json.dumps(response_body, cls=NumpyEncoder)
-                        resp.status = falcon.HTTP_200
-
-                    else:
-                        resp.status = falcon.HTTP_400
-                        resp.body = json.dumps({'message': 'No patient found'})
+        except ValueError as ex:
+          logging.warning(str(ex))
+          traceback.print_exc()
+          raise web.HTTPBadRequest(body=json.dumps({'message': 'Invalid JSON body: %s' % str(ex)}))
 
         except Exception as ex:
-            logging.warning(ex.message)
-            traceback.print_exc()
-            raise falcon.HTTPError(falcon.HTTP_400, 'Error', ex.message)
+          logging.warning(ex.message)
+          traceback.print_exc()
+          raise web.HTTPBadRequest(body=json.dumps({'message': str(ex)}))
 
-    def hash_password(key):
-        """
-        example in test_hash.py
-        Note: not sure do we need to run this code in runtime
-        """
-        hash_object = hashlib.sha1(key.encode('utf-8'))
-        dig = bytearray(hash_object.digest())
-        hex_dig = hash_object.hexdigest()
-        key_size = 128
-        hashed_key_1 = bytearray('\x00' * 64)
-        hashed_key_2 = bytearray('\x00' * 64)
+        db_pool = self.request.app['db_pool']
 
-        for i in range(64):
-            if i < len(dig):
-                hashed_key_1[i] = dig[i] ^ 0x36
+        eid = req_body['q']
+        uid = req_body['u'] if 'u' in req_body and req_body['u'] is not None else 'user'
+        data = copy.deepcopy(data_example.patient_data_example)
+
+        if eid:
+          eid_exists = await query.eid_exist(db_pool, eid)
+          if eid_exists:
+            logging.info("query for eid: " + eid)
+
+            response_body = {}
+            if 'actionType' in req_body and 'action' in req_body:
+              actionType = req_body['actionType']
+              stats_name = '%s[%s]' % (self.request.path, actionType)
+
+              with api_monitor.time(stats_name):
+                api_monitor.request(stats_name)
+                actionData = req_body['action']
+
+                if actionType is not None:
+                  response_body = await self.take_action(db_pool, actionType, actionData, eid, uid)
+
+                if actionType != u'pollNotifications' and actionType != u'pollAuditlist':
+                  await self.update_response_json(db_pool, data, eid)
+                  response_body = {'trewsData': data}
             else:
-                hashed_key_1[i] = 0x36
+              response_body = {'message': 'Invalid TREWS REST API request'}
 
-        for i in range(64):
-            if i < len(dig):
-                hashed_key_2[i] = dig[i] ^ 0x5c
-            else:
-                hashed_key_2[i] = 0x5c
+            return json_response(response_body)
 
-        hash_object = hashlib.sha1(hashed_key_1)
-        hashed_key_1 = bytearray(hash_object.digest())
+          else:
+            raise web.HTTPBadRequest(body=json.dumps({'message': 'No patient found'}))
 
-        hash_object = hashlib.sha1(hashed_key_2)
-        hashed_key_2 = bytearray(hash_object.digest())
+        else:
+          raise web.HTTPBadRequest(body=json.dumps({'message': 'No patient identifier supplied in request'}))
 
+    except web.HTTPException:
+      raise
 
-        hashed_key = hashed_key_1 + hashed_key_2
-        return binascii.hexlify(hashed_key[:16])
+    except Exception as ex:
+      logging.warning(str(ex))
+      traceback.print_exc()
+      raise web.HTTPBadRequest(body=json.dumps({'message': str(ex)}))
