@@ -200,8 +200,8 @@ class Engine():
       'med_orders':    len(med_orders_t.index),
       'med_admin':     len(med_admin_t.index),
       'loc_history':   len(loc_history_t.index),
-      'notes':         len(notes_t.index),
-      'note_texts':    len(note_texts_t.index),
+      'notes':         0 if notes_t is None or notes_t.empty else len(notes_t.index),
+      'note_texts':    0 if note_texts_t is None or note_texts_t.empty else len(note_texts_t.index),
     }
 
     # Prepare for database
