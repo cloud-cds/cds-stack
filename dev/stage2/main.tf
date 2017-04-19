@@ -9,6 +9,8 @@ provider "aws" {
 module "k8s" {
   source = "./k8s"
   dummy_file = "foo"
+  node_sg_id = ""
+  controller_sg_id = ""
 }
 
 module "k8s_ml" {
