@@ -6,6 +6,7 @@ COPY ./dashan-db /dashan-db
 
 RUN apk add --update --no-cache \
         g++ pkgconfig ca-certificates \
+        bash \
         postgresql-dev make \
     && ln -s /usr/include/locale.h /usr/include/xlocale.h \
     && pip install --upgrade pip \
