@@ -142,7 +142,7 @@ diazepam_dose,T,JSON,yes,no,,,,,Medication,1,mg
 admit_weight,S,Real,no,no,,,admit_weight_update,weight,Admission weight,1,kg
 nadolol_dose,T,JSON,yes,no,,,,,Medication,1,
 chronic_airway_obstruction_prob,S,Boolean,yes,no,,,,,ProblemList,1,no unit
-vent,T,Boolean,yes,no,,,,,need to know when is on and when it taken away,1,no unit
+vent,T,String,yes,no,,,,,need to know when is on and when it taken away,1,no unit
 ards_inhosp,T,String,yes,no,,,,,"Diagnoses, t if patient diagnosed with ARDS during hospital stay",1,
 asthma_hist,S,Boolean,yes,no,,,,,History,1,no unit
 anion_gap,TWF,Real,yes,no,last_value_in_window,28,,,Physiologic,1,

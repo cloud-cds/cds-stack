@@ -208,7 +208,7 @@ daily_compare_light = [
     'engine': EngineC2dw,
     'job': job_c2dw_daily_light,
     'pipeline': {
-      # 'load_clarity': {'folder': '~/clarity-db-staging/2017-04-06/'},
+      'load_clarity': {'folder': '~/clarity-db-staging/2017-04-06/'},
       'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
       'copy_pat_enc': True,
       'populate_db': True,
@@ -580,6 +580,10 @@ class DBCompareTest():
     print(select_pat_ids_to_compare)
     async with dbpool.acquire() as conn:
       pat_ids = await conn.fetch(select_pat_ids_to_compare)
+    if pat_ids is None or len(pat_ids) == 0:
+      print("No common enc_id found in two databases")
+      self.passed = False
+      return self.passed
     pat_id_range = 'pat_id in (%s)' % ','.join([ '\'' + str(e['pat_id'])+ '\'' for e in pat_ids])
     print(pat_id_range)
     # enc_id_range = 'enc_id < 31'

@@ -37,7 +37,7 @@ tables_to_compare = {  # touple 1, extra field, dataset_id, model_id, both, toup
       'cdm_feature'              : ('dataset',   []),
       # 'datalink_feature_mapping' : ('dataset', []),
       # 'pat_enc'                  : ('dataset',   [pat_enc_query]),
-      'cdm_g'                    : ('both'   ,   [cdm_g_query]),
+      'cdm_g'                    : ('dataset'   ,   [cdm_g_query]),
       # 'cdm_s'                    : ('dataset', [cdm_s_query1]),
       # 'cdm_m'                    : ('dataset', []),
       # 'cdm_t'                    : ('dataset', [cdm_t_query1, cdm_t_query2, cdm_t_query3, cdm_t_query4]),
@@ -98,10 +98,10 @@ def generate_sql(table, diff_rows, dataset_id, model_id):
   groups ={}
   key = table_key.get(table, None)
   if key:
-    if dataset_id is None:
-      key.remove['dataset_id']
-    if model_id is None:
-      key.remove['model_id']
+    if dataset_id is None and 'dataset_id' in key:
+      key.remove('dataset_id')
+    if model_id is None and 'model_id' in key:
+      key.remove('model_id')
     if dataset_id and 'dataset_id' in key:
       for record in diff_rows:
         record['dataset_id'] = dataset_id
@@ -148,8 +148,10 @@ async def run_cdm_meta_compare(db_host, db_name_1, db_name_2, dataset_id, model_
   dbpool = await asyncpg.create_pool(database=db_name_2, user=user, password=pw, host=db_host, port=port)
   if not dataset_id:
     tables_to_compare.pop('dw_version', None)
+    dataset_id = None
   if not model_id:
     tables_to_compare.pop('model_version', None)
+    model_id = None
   for tbl, version_type_and_queries in tables_to_compare.items():
     version_type = version_type_and_queries[0]
     queries = version_type_and_queries[1]
