@@ -63,9 +63,9 @@ job = {
     'calculate_historical_criteria':False
   },
   'config': {
-    'dataset_id': 1,
+    'dataset_id': 3,
     'debug': True,
-    # 'db_name': 'test_c2dw',
+    'db_name': 'opsdx_dev_dw',
     # 'db_host': 'dev.opsdx.io',
     'conf': CONF,
   },
