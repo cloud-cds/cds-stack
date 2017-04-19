@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -x
 
-echo "Running dummy test script..."
-sleep 10
+echo "Start"
+echo $db_host
+env
 echo "Done"

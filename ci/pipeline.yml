@@ -1,105 +1,213 @@
 ---
 resource_types:
-- name: pull-request
-  type: docker-image
-  source:
-    repository: jtarchie/pr
+  - name: pull-request
+    type: docker-image
+    source: {repository: jtarchie/pr}
+
 
 resources:
-- name: dashan-etl-pr
-  type: pull-request
-  source:
-    repo: dashan-emr/dashan-etl
-    uri: git@github.com:dashan-emr/dashan-etl.git
-    access_token: {{github-access-token}}
-    private_key: {{github-private-key}}
-- name: dashan-etl
-  type: git
-  source:
-    branch: master
-    uri: git@github.com:dashan-emr/dashan-etl.git
-    private_key: {{github-private-key}}
-- name: dashan-db
-  type: git
-  source:
-    branch: master
-    uri: git@github.com:dashan-emr/dashan-db.git
-    private_key: {{github-private-key}}
-- name: dashan-docker-image
-  type: docker-image
-  source:
-    repository: {{aws-repository-uri}}
-    aws_access_key_id: {{aws-access-key-id}}
-    aws_secret_access_key: {{aws-secret-access-key}}
-    tag: "latest"
-- name: dashan-version
-  type: semver
-  source:
-    driver: git
-    initial_version: 0.0.1
-    uri: git@github.com:dashan-emr/dashan-etl.git
-    branch: version
-    file: version
-    private_key: {{github-private-key}}
-    git_user: Concourse <ci@ci.ci>
-# - name: 1m
-#   type: time
-#   source: {interval: 1m}
+
+##############
+# Repositories
+#
+  - name: dashan-etl
+    type: git
+    source:
+      branch: master
+      uri: git@github.com:dashan-emr/dashan-etl.git
+      private_key: {{github-private-key}}
+
+  - name: dashan-db
+    type: git
+    source:
+      branch: master
+      uri: git@github.com:dashan-emr/dashan-db.git
+      private_key: {{github-private-key}}
+
+  - name: trews-rest-api
+    type: git
+    source:
+      branch: master
+      uri: git@github.com:dashan-emr/trews_rest_api.git
+      private_key: {{github-private-key}}
+
+###############
+# Pull requests
+#
+  - name: dashan-etl-pr
+    type: pull-request
+    source:
+      repo: dashan-emr/dashan-etl
+      uri: git@github.com:dashan-emr/dashan-etl.git
+      access_token: {{github-access-token}}
+      private_key: {{github-private-key}}
+
+  - name: trews-rest-api-pr
+    type: pull-request
+    source:
+      repo: dashan-emr/trews_rest_api
+      uri: git@github.com:dashan-emr/trews_rest_api.git
+      access_token: {{github-access-token}}
+      private_key: {{github-private-key}}
+
+###############
+# Docker images
+#
+  - name: dashan-docker-image
+    type: docker-image
+    source:
+      repository: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-etl
+      aws_access_key_id: {{aws-access-key-id}}
+      aws_secret_access_key: {{aws-secret-access-key}}
+      tag: "latest"
+
+  - name: trews-rest-api-docker-image
+    type: docker-image
+    source:
+      repository: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api
+      aws_access_key_id: {{aws-access-key-id}}
+      aws_secret_access_key: {{aws-secret-access-key}}
+      tag: "latest"
+
+#####################
+# Semantic versioning
+#
+  - name: dashan-etl-version
+    type: semver
+    source:
+      driver: git
+      initial_version: 0.0.1
+      uri: git@github.com:dashan-emr/dashan-etl.git
+      branch: version
+      file: version
+      private_key: {{github-private-key}}
+      git_user: Concourse <ci@ci.ci>
+
+  - name: trews-rest-api-version
+    type: semver
+    source:
+      driver: git
+      initial_version: 1.0.0
+      uri: git@github.com:dashan-emr/trews_rest_api.git
+      branch: version
+      file: version
+      private_key: {{github-private-key}}
+      git_user: Concourse <ci@ci.ci>
+
+
 
 jobs:
-- name: test-db-compare
-  public: false
-  serial: true
-  plan:
-  - get: dashan-etl
-    trigger: true
-  - get: dashan-db
-    trigger: true
-  - get: dashan-docker-image
-  - task: run-tests
-    image: dashan-docker-image
-    file: dashan-etl/ci/tests_full.yml
-# Test commits to a pull request
-- name: test-pull-request
-  public: false
-  serial: true
-  plan:
-  - get: dashan-etl-pr
-    trigger: true
-  - get: dashan-docker-image
-  - put: dashan-etl-pr
-    params:
-      path: dashan-etl-pr
-      status: pending
-  - task: run-tests
-    image: dashan-docker-image
-    file: dashan-etl-pr/ci/tests_pr.yml
-    on_success:
-      put: dashan-etl-pr
-      params:
-        path: dashan-etl-pr
-        status: success
-    on_failure:
-      put: dashan-etl-pr
-      params:
-        path: dashan-etl-pr
-        status: failure
-# Build a new docker image on changes to master
-- name: build-new-docker-image
-  public: false
-  serial: true
-  plan:
-  - get: dashan-etl
-    trigger: true
-  - get: dashan-db
-    trigger: false
-  - get: dashan-version
-    params: {bump: patch}
-  - put: dashan-docker-image
-    params:
-      build: .
-      dockerfile: dashan-etl/Dockerfile
-      tag_as_latest: true
-      tag: dashan-version/number
-  - put: dashan-version
-    params: {file: dashan-version/version}
+
+#######
+# Tests
+#
+  - name: test-db-compare
+    public: false
+    serial: true
+    plan:
+      - get: dashan-db
+        trigger: true
+      - get: dashan-etl
+      - get: dashan-docker-image
+      - task: run-tests
+        image: dashan-docker-image
+        file: dashan-etl/ci/tests_full.yml
+
+  - name: test-dashan-etl-pull-request
+    public: false
+    serial: true
+    plan:
+      - get: dashan-etl-pr
+        trigger: true
+      - get: dashan-docker-image
+      - get: dashan-db
+      - put: dashan-etl-pr
+        params: {path: dashan-etl-pr, status: pending}
+      - task: run-tests
+        image: dashan-docker-image
+        file: dashan-etl-pr/ci/tests_pr.yml
+        params:
+          db_host: {{DEV_PGHOST}}
+          db_password: {{DEV_PGPASSWORD}}
+          db_port: {{DEV_PGPORT}}
+          db_user: {{DEV_PGUSER}}
+          db_name: {{DEV_PGDATABASE}}
+          PGPASSWORD: {{DEV_PGPASSWORD}}
+          TREWS_ETL_SERVER: {{TREWS_ETL_SERVER}}
+          TREWS_ETL_HOSPITAL: {{TREWS_ETL_HOSPITAL}}
+          TREWS_ETL_HOURS: {{TREWS_ETL_HOURS}}
+          TREWS_ETL_ARCHIVE: {{TREWS_ETL_ARCHIVE}}
+          TREWS_ETL_MODE: {{TREWS_ETL_MODE}}
+          TREWS_ETL_DEMO_MODE: {{TREWS_ETL_DEMO_MODE}}
+          TREWS_ETL_EPIC_NOTIFICATIONS: {{TREWS_ETL_EPIC_NOTIFICATIONS}}
+          TREWS_ETL_STREAM_SLEEP_SECS: {{TREWS_ETL_STREAM_SLEEP_SECS}}
+          TREWS_ETL_STREAM_HOURS: {{TREWS_ETL_STREAM_HOURS}}
+          TREWS_ETL_STREAM_SLICES: {{TREWS_ETL_STREAM_SLICES}}
+          jhapi_client_id: {{jhapi_client_id}}
+          jhapi_client_secret: {{jhapi_client_secret}}
+          AWS_DEFAULT_REGION: {{AWS_DEFAULT_REGION}}
+          AWS_SECRET_ACCESS_KEY: {{aws-secret-access-key}}
+          AWS_ACCESS_KEY_ID: {{aws-access-key-id}}
+        on_success:
+          put: dashan-etl-pr
+          params: {path: dashan-etl-pr, status: success}
+        on_failure:
+          put: dashan-etl-pr
+          params: {path: dashan-etl-pr, status: failure}
+
+  - name: test-trews-rest-api-pull-request
+    public: false
+    serial: true
+    plan:
+      - get: trews-rest-api-pr
+        trigger: true
+      - get: trews-rest-api-docker-image
+      - get: dashan-etl
+      - put: trews-rest-api-pr
+        params: {path: trews-rest-api-pr, status: pending}
+      - task: api-tests
+        image: trews-rest-api-docker-image
+        file: dashan-etl/ci/test_rest_api.yml
+        on_success:
+          put: trews-rest-api-pr
+          params: {path: trews-rest-api-pr, status: success}
+        on_failure:
+          put: trews-rest-api-pr
+          params: {path: trews-rest-api-pr, status: failure}
+
+########################
+# Building docker images
+#
+  - name: build-dashan-docker-image
+    public: false
+    serial: true
+    plan:
+      - get: dashan-etl
+        trigger: true
+      - get: dashan-db
+        trigger: false
+      - get: dashan-etl-version
+        params: {bump: patch}
+      - put: dashan-docker-image
+        params:
+          build: .
+          dockerfile: dashan-etl/Dockerfile
+          tag_as_latest: true
+          tag: dashan-etl-version/number
+      - put: dashan-etl-version
+        params: {file: dashan-etl-version/version}
+
+  - name: build-trews-rest-api-docker-image
+    public: false
+    serial: true
+    plan:
+      - get: trews-rest-api
+      - get: trews-rest-api-version
+        params: {bump: patch}
+      - put: trews-rest-api-docker-image
+        params:
+          build: trews-rest-api
+          tag_as_latest: true
+          tag: trews-rest-api-version/number
+      - put: trews-rest-api-version
+        params: {file: trews-rest-api-version/version}

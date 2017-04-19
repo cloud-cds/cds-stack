@@ -7,7 +7,7 @@ CREATE EXTENSION IF NOT EXISTS dblink;
 DROP SERVER IF EXISTS opsdx_dev_srv;
 CREATE SERVER opsdx_dev_srv
   FOREIGN DATA WRAPPER postgres_fdw
-  OPTIONS (host '@@RDBHOST@@', port '5432', dbname 'opsdx_dev', sslmode 'require');
+  OPTIONS (host '@@RDBHOST@@', port '5432', dbname 'opsdx_dev', sslmode 'disable');
 
 DROP USER MAPPING IF EXISTS FOR @@LDBUSER@@ SERVER opsdx_dev_srv;
 CREATE USER MAPPING FOR @@LDBUSER@@

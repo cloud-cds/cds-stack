@@ -7,4 +7,4 @@ inputs:
 run:
   path: dashan-db/test/run_test_db_compare.py
   args:
-  - archive_compare
+  - daily_compare
