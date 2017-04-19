@@ -750,10 +750,13 @@ CREATE OR REPLACE FUNCTION calculate_criteria(this_pat_id text, ts_start timesta
 AS $function$ BEGIN
 
 
+select coalesce(_dataset_id, max(dataset_id)) into _dataset_id from dw_version;
+raise notice 'Running calculate criteria on pat %, dataset_id % between %, %',this_pat_id, _dataset_id, ts_start , ts_end;
+
 IF is_historical THEN
 
-  delete from criteria where criteria.pat_id = this_pat_id and criteria.dataset_id = _dataset_id;
-  insert into criteria ( dataset_id, pat_id, name, is_met, measurement_time,override_time,override_user, override_value, value, update_date)
+  delete from suspicion_of_infection_buff where suspicion_of_infection_buff.pat_id = this_pat_id and suspicion_of_infection_buff.dataset_id = _dataset_id;
+  insert into suspicion_of_infection_buff ( dataset_id, pat_id, name, is_met, measurement_time,override_time,override_user, override_value, value, update_date)
 
   with sus as (
     select s.dataset_id, s.pat_id, s.name, last(s.is_met) as is_met, last(s.measurement_time) as measurement_time, last(s.override_time) as override_time,last(s.override_user) as override_user, last(s.override_value) as override_value, last(s.value) as value, last(s.update_date) as update_date
@@ -778,9 +781,7 @@ IF is_historical THEN
 
 END IF;
 
-select coalesce(_dataset_id, max(dataset_id)) into _dataset_id from dw_version;
 
-raise notice 'Running calculate criteria on pat %, dataset_id % between %, %',this_pat_id, _dataset_id, ts_start , ts_end;
 
 return query
     with pat_ids as (
@@ -827,12 +828,12 @@ return query
                cd.override_value as d_ovalue
         from pat_ids
         cross join criteria_default as cd
-        left join criteria c on pat_ids.pat_id = c.pat_id and cd.name = c.name and cd.dataset_id = c.dataset_id
+        left join suspicion_of_infection_buff c on pat_ids.pat_id = c.pat_id and cd.name = c.name and cd.dataset_id = c.dataset_id
         left join criteria_meas meas
             on pat_ids.pat_id = meas.pat_id and meas.fid = cd.fid and cd.dataset_id = meas.dataset_id
             and meas.fid = cd.fid
             and (meas.tsp is null or meas.tsp between ts_start and ts_end)
-        where meas.dataset_id = _dataset_id
+        where cd.dataset_id = _dataset_id
     ),
     infection as (
         select
@@ -2019,7 +2020,8 @@ END; $function$;
 -- ===========================================================================
 -- calculate historical_criteria
 -- ===========================================================================
-CREATE OR REPLACE FUNCTION calculate_historical_criteria(this_pat_id text, _dataset_id INTEGER DEFAULT NULL)
+CREATE OR REPLACE FUNCTION calculate_historical_criteria(this_pat_id text,  _dataset_id INTEGER DEFAULT NULL,  ts_start timestamptz DEFAULT '-infinity'::timestamptz, ts_end timestamptz DEFAULT 'infinity'::timestamptz)
+--   @Peter, positive inf time and negative inf time?
 --   passing in a null value will calculate historical criteria over all patientis
 --  RETURNS table(window_ts                        timestamptz,
 --                pat_id                           varchar(50),
@@ -2035,12 +2037,15 @@ BEGIN
 select coalesce(_dataset_id, max(dataset_id)) into _dataset_id from dw_version;
 raise notice 'Running calculate historical criteria on dataset_id %', _dataset_id;
 
+
+    drop table if exists new_criteria_windows;
     create temporary table new_criteria_windows as
         select window_ends.tsp as ts, new_criteria.*
 
         from (  select distinct meas.pat_id, meas.tsp from criteria_meas meas
                 where meas.pat_id = coalesce(this_pat_id, meas.pat_id) and meas.dataset_id = _dataset_id
---                 and meas.tsp between ts_start and ts_end
+                      and meas.tsp between ts_start and ts_end
+                order by meas.tsp
         ) window_ends
 
         inner join lateral calculate_criteria(

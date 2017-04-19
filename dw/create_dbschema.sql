@@ -225,6 +225,23 @@ CREATE TABLE suspicion_of_infection_hist
     primary key         (dataset_id, pat_id, name, override_time)
 );
 
+DROP TABLE IF EXISTS suspicion_of_infection_buff;
+CREATE TABLE suspicion_of_infection_buff
+(
+    dataset_id          integer REFERENCES dw_version(dataset_id),
+    pat_id              varchar(50),
+    name                varchar(50),
+    is_met              boolean,
+    measurement_time    timestamptz,
+    override_time       timestamptz,
+    override_user       text,
+    override_value      json,
+    value               text,
+    update_date         timestamptz,
+    primary key         (dataset_id, pat_id, name)
+);
+
+
 DROP TABLE IF EXISTS criteria_events;
 CREATE SEQUENCE IF NOT EXISTS criteria_event_ids;
 CREATE TABLE criteria_events
