@@ -2,7 +2,8 @@ db_host_1=$1
 db1=$2
 db_host_2=$3
 db2=$4
-model_id=$5
+dataset_id=$5
+model_id=$6
 
 dashan_db_path=$(dirname `pwd`)
 export PGPASSWORD=$db_password
@@ -13,7 +14,7 @@ sh create_db.sh $db_host_1 $db1
 
 echo "create database" $db2
 cd $dashan_db_path/dw
-sh create_db.sh $db_host_2 $db2 $model_id
+sh create_db.sh $db_host_2 $db2 $dataset_id $model_id
 
 echo "create dblink" $db2
 cd ${dashan_db_path}/test
