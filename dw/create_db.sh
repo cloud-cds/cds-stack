@@ -1,6 +1,7 @@
 db_host=$1
 db_name=$2
-model_id=$3
+dataset_id=$3
+model_id=$4
 dashan_db_dw_path=`pwd`
 PGPASSWORD=$db_password
 
@@ -14,7 +15,7 @@ psql -h $db_host -U $db_user -d $db_name -p $db_port -f create_dbschema.sql
 psql -h $db_host -U $db_user -d $db_name -p $db_port -f create_udf.sql
 
 echo "load default dataset parameters"
-cd ${dashan_db_dw_path}/clarity2dw
+cd ${dashan_db_dw_path}/clarity2dw/dataset${dataset_id}
 psql -h $db_host -U $db_user -d $db_name -p $db_port -f create_c2dw.sql
 
 cd ${dashan_db_dw_path}/op2dw
