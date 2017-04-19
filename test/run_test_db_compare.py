@@ -173,7 +173,7 @@ job_c2dw_daily_light = {
   },
   'transform': {
     'populate_patients': {
-      'max_num_pats': 20,
+      'max_num_pats': 40,
     },
     'populate_measured_features': {
       'plan': False,
