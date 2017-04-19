@@ -1390,7 +1390,7 @@ BEGIN
     deactivate_old_snapshot as
     (
         update criteria_events
-        set flag = -1
+        set flag = flag - 1000
         from state_change
         where criteria_events.event_id = state_change.from_event_id
         and criteria_events.pat_id = state_change.pat_id
@@ -1459,7 +1459,7 @@ BEGIN
     ),
     deactivate_old_snapshot as (
         update criteria_events
-        set flag = -1
+        set flag = flag - 1000
         from new_criteria
         where criteria_events.event_id = (
             select max(event_id) from criteria_events ce
@@ -1734,8 +1734,8 @@ insert into pat_status (pat_id, deactivated, deactivated_tsp)
     set deactivated = Excluded.deactivated, deactivated_tsp = now();
 -- if false then reset patient
 IF not deactivated THEN
-    update criteria_events set flag = -1
-    where pat_id = pid and flag <> -1;
+    update criteria_events set flag = flag - 1000
+    where pat_id = pid and flag > 0;
     delete from notifications where pat_id = pid;
     perform advance_criteria_snapshot(pid);
 END IF;
