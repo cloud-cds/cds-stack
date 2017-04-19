@@ -772,7 +772,7 @@ class DBCompareTest():
       # 'cdm_feature'              : ('dataset',   []),
       # 'datalink_feature_mapping' : ('dataset', []),
       'pat_enc'                  : ('dataset',   [pat_enc_query]),
-      # 'cdm_g'                    : ('both'   ,   []),
+      # 'cdm_g'                    : ('dataset'   ,   []),
       # 'cdm_s'                    : ('dataset', [cdm_s_query1]),
       # 'cdm_m'                    : ('dataset', []),
       # 'cdm_t'                    : ('dataset', [cdm_t_query1, cdm_t_query2, cdm_t_query3, cdm_t_query4]),
