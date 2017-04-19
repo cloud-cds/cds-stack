@@ -751,12 +751,31 @@ AS $function$ BEGIN
 
 
 IF is_historical THEN
+
   delete from criteria where criteria.pat_id = this_pat_id and criteria.dataset_id = _dataset_id;
   insert into criteria ( dataset_id, pat_id, name, is_met, measurement_time,override_time,override_user, override_value, value, update_date)
-  select s.dataset_id, s.pat_id, s.name, last(s.is_met), last(s.measurement_time),last(s.override_time),last(s.override_user), last(s.override_value), last(s.value), last(s.update_date)
-  from suspicion_of_infection_hist s
-  where s.override_time between ts_start and ts_end and s.pat_id = this_pat_id
-  group by s.dataset_id, s.pat_id, s.name;
+
+  with sus as (
+    select s.dataset_id, s.pat_id, s.name, last(s.is_met) as is_met, last(s.measurement_time) as measurement_time, last(s.override_time) as override_time,last(s.override_user) as override_user, last(s.override_value) as override_value, last(s.value) as value, last(s.update_date) as update_date
+    from suspicion_of_infection_hist s
+    where s.pat_id = this_pat_id
+    group by s.dataset_id, s.pat_id, s.name),
+  cnt as
+    (select count(*) as n from sus)
+  select
+    case cnt.n when 0 then _dataset_id else (select sus.dataset_id from sus) end,
+    case cnt.n when 0 then this_pat_id else (select sus.pat_id from sus) end,
+    case cnt.n when 0 then 'suspicion_of_infection' else (select sus.name from sus) end,
+    case cnt.n when 0 then FALSE else (select sus.is_met from sus) end,
+    case cnt.n when 0 then NULL else (select sus.measurement_time from sus) end,
+    case cnt.n when 0 then NULL else (select sus.override_time from sus) end,
+    case cnt.n when 0 then NULL else (select sus.override_user from sus) end,
+    case cnt.n when 0 then NULL else (select sus.override_value from sus) end,
+    case cnt.n when 0 then NULL else (select sus.value from sus) end,
+    case cnt.n when 0 then NOW() else (select sus.update_date from sus) end
+  from cnt;
+
+
 END IF;
 
 select coalesce(_dataset_id, max(dataset_id)) into _dataset_id from dw_version;
