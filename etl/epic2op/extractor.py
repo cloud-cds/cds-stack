@@ -216,7 +216,7 @@ class Extractor:
         resource = '/patients/documents/text'
         payloads = [{ 'key' : note['Key'] } for _, note in notes.iterrows()]
         responses = self.make_requests(resource, payloads, 'GET')
-        dfs = [pd.DataFrame([{'DocumentText': r['DocumentText']}]) for r in responses]
+        dfs = [pd.DataFrame([{'DocumentText': r['DocumentText']}] if r else None) for r in responses]
         return self.combine(dfs, notes[['Key']])
 
 
