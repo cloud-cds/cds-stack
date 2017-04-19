@@ -43,9 +43,8 @@ class Extractor:
             async with sem:
                 async with session.request(**setting) as response:
                     if response.status != 200:
-                        logging.error("  Status={}\tMessage={}".format(
-                            response.status, response.text
-                        ))
+                        body = await response.text()
+                        logging.error("  Status={}\tMessage={}".format(response.status, body))
                         return None
                     return await response.json()
 
@@ -208,6 +207,8 @@ class Extractor:
             'dateTo'   : dateTo
         } for _, pat in bedded_patients.iterrows()]
         responses = self.make_requests(resource, payloads, 'GET')
+        logging.info('#NOTES PAYLOADS: %s' % len(payloads))
+        logging.info('#NOTES RESPONSES: %s' % len(responses))
         dfs = [pd.DataFrame(r['DocumentListData'] if r else None) for r in responses]
         return self.combine(dfs, bedded_patients[['pat_id']])
 
@@ -217,6 +218,8 @@ class Extractor:
             resource = '/patients/documents/text'
             payloads = [{ 'key' : note['Key'] } for _, note in notes.iterrows()]
             responses = self.make_requests(resource, payloads, 'GET')
+            logging.info('#NOTE TEXTS PAYLOADS: %s' % len(payloads))
+            logging.info('#NOTE TEXTS RESPONSES: %s' % len(responses))
             dfs = [pd.DataFrame([{'DocumentText': r['DocumentText']}] if r else None) for r in responses]
             return self.combine(dfs, notes[['Key']])
         return pd.DataFrame()

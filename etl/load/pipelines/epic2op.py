@@ -312,7 +312,10 @@ class Epic2OpLoader:
   def epic_2_workspace(self, db_data, dtypes=None):
     engine = create_engine(self.config.get_db_conn_string_sqlalchemy())
     for df_name, df in db_data.items():
-      primitives.data_2_workspace(engine, self.job_id, df_name, df, dtypes=dtypes)
+      if df is None or df.empty:
+        self.log.warning("Skipping table load for %s (invalid datafame)" % df_name)
+      else:
+        primitives.data_2_workspace(engine, self.job_id, df_name, df, dtypes=dtypes)
 
   def test_data_2_workspace(self, mode):
     engine = create_engine(self.config.get_db_conn_string_sqlalchemy())
