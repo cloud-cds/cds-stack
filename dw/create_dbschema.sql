@@ -730,3 +730,15 @@ CREATE TABLE historical_criteria (
     window_ts           timestamptz,
     primary key         (pat_id,dataset_id,window_ts)
 );
+
+DROP TABLE IF EXISTS usr_web_log;
+CREATE TABLE usr_web_log (
+    doc_id      varchar(50),
+    tsp         timestamptz,
+    pat_id      varchar(50),
+    visit_id    varchar(50),
+    loc         varchar(50),
+    dep         varchar(50),
+    raw_url     text,
+    PRIMARY KEY (doc_id, tsp, pat_id)
+);
