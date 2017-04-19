@@ -321,7 +321,7 @@ class Epic2OpLoader:
     engine = create_engine(self.config.get_db_conn_string_sqlalchemy())
     for table in ('bedded_patients', 'flowsheet', 'lab_orders',
                        'lab_results', 'med_orders', 'med_admin',
-                       'location_history'):
+                       'location_history', 'active_procedures'):
 
       df = pd.read_sql_table("test_{}".format(table), engine).drop('index', axis=1)
 
