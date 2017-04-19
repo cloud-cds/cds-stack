@@ -90,7 +90,7 @@ WHERE dataset_id = 1;
 -- ======================================
 DELETE
 FROM cdm_g
-WHERE dataset_id = 1 and model_id = 1;
+WHERE dataset_id = 1;
 
 
 
