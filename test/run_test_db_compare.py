@@ -208,7 +208,7 @@ daily_compare_light = [
     'engine': EngineC2dw,
     'job': job_c2dw_daily_light,
     'pipeline': {
-      'load_clarity': {'folder': '~/clarity-db-staging/2017-04-06/'},
+      #'load_clarity': {'folder': '~/clarity-db-staging/2017-04-06/'},
       'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
       'copy_pat_enc': True,
       'populate_db': True,
