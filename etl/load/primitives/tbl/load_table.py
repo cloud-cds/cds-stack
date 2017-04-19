@@ -3,12 +3,15 @@ import logging
 
 # TODO: make async / use COPY
 def data_2_workspace(engine, job_id, df_name, df, dtypes=None, if_exists='replace'):
-    nrows = df.shape[0]
-    table_name = "{}_{}".format(job_id, df_name)
-    logging.info("saving data frame to %s: nrows = %s" % (table_name, nrows))
-    if dtypes is not None:
-        df = df.astype(dtypes)
-    df.to_sql(table_name, engine, if_exists=if_exists, index=False, schema='workspace')
+    if df is not None:
+        nrows = df.shape[0]
+        table_name = "{}_{}".format(job_id, df_name)
+        logging.info("saving data frame to %s: nrows = %s" % (table_name, nrows))
+        if dtypes is not None:
+            df = df.astype(dtypes)
+        df.to_sql(table_name, engine, if_exists=if_exists, index=False, schema='workspace')
+    else:
+        logging.error('Failed to load table %s (invalid dataframe)' % df_name)
     '''
     buf = StringIO()
     # saving a data frame to a buffer (same as with a regular file):
@@ -345,16 +348,27 @@ async def calculate_historical_criteria(conn):
     sql = 'select * from calculate_historical_criteria(NULL);'
     await conn.execute(sql)
 
+
 async def workspace_notes_2_cdm_notes(conn, job_id):
-    load_notes_sql = \
+    test_tables_sql = \
     '''
-    insert into cdm_notes
-        select N.pat_id, N.note_id, N.note_type, N.note_status, NT.note_body, N.dates::json, N.providers::json
-        from workspace.%(job)s_notes_transformed N
-        left join workspace.%(job)s_note_texts_transformed NT on N.note_id = NT.note_id
-    on conflict (pat_id, note_id, note_type, note_status) do update
-        set note_body = excluded.note_body,
-            dates = excluded.dates,
-            providers = excluded.providers;
-    ''' % {'job': job_id}
-    await conn.execute(load_notes_sql)
+    select (
+        select count(*) from information_schema.tables
+        where table_schema = 'workspace'
+        and table_name in ('%(job)s_notes_transformed', '%(job)s_note_texts_transformed')
+    ) = 2;
+    '''
+    tbl_count = await conn.fetchval(test_tables_sql)
+    if tbl_count:
+        load_notes_sql = \
+        '''
+        insert into cdm_notes
+            select N.pat_id, N.note_id, N.note_type, N.note_status, NT.note_body, N.dates::json, N.providers::json
+            from workspace.%(job)s_notes_transformed N
+            left join workspace.%(job)s_note_texts_transformed NT on N.note_id = NT.note_id
+        on conflict (pat_id, note_id, note_type, note_status) do update
+            set note_body = excluded.note_body,
+                dates = excluded.dates,
+                providers = excluded.providers;
+        ''' % {'job': job_id}
+        await conn.execute(load_notes_sql)
