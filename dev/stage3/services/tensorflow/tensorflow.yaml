@@ -16,7 +16,7 @@ spec:
 apiVersion: apps/v1beta1
 kind: StatefulSet
 metadata:
-  name: tensorflow
+  name: tflmc1
 spec:
   serviceName: tensorflow-svc
   replicas: 3
@@ -45,7 +45,7 @@ spec:
       containers:
       - name: tensorflow
         imagePullPolicy: Always
-        image: damsl/tf:aws
+        image: damsl/tf:test
         ports:
         - containerPort: 2222
           name: server
@@ -57,24 +57,31 @@ spec:
         - name : BATCHSIZE
           value: '2'
         - name : NUM_SVI_ITER
-          value: '10'
+          value: '1000'
         - name : FEAT_SIZE
-          value: '0'
+          value: '2'
         - name : MC_SAMPLES
           value: '1000'
         - name : TOTAL_PATIENTS
-          value: '20'
+          value: '3150'
         - name : MAX_LBFGS_ITER
-          value: '20'
+          value: '500'
         - name : MIN_NUM_SAMPLES
-          value: '4'
+          value: '5'
         - name : NUM_WINDOWS
-          value: '2'
+          value: '10'
         - name : NUM_TEST_WINDOWS
-          value: '1'
+          value: '5'
+        - name : DATABASE
+          value: 'dev'
+        - name : DB_PASS
+          valueFrom:
+            secretKeyRef:
+              name: dbpass
+              key : dbpass_dev
         command:
         - sh
         - -c
-        - cd /lmc/LMC-Based-On-GPflow && ./gok8s.sh
+        - cd /lmc/LMC-Based-On-GPflow && ./gok8s.sh          
       nodeSelector:
-        nodegroup: tf
+        opsdx_nodegroup: tf1
