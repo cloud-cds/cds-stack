@@ -751,7 +751,7 @@ AS $function$ BEGIN
 
 
 select coalesce(_dataset_id, max(dataset_id)) into _dataset_id from dw_version;
-raise notice 'Running calculate criteria on pat %, dataset_id % between %, %',this_pat_id, _dataset_id, ts_start , ts_end;
+-- raise notice 'Running calculate criteria on pat %, dataset_id % between %, %',this_pat_id, _dataset_id, ts_start , ts_end;
 
 IF is_historical THEN
 
@@ -2020,7 +2020,7 @@ END; $function$;
 -- ===========================================================================
 -- calculate historical_criteria
 -- ===========================================================================
-CREATE OR REPLACE FUNCTION calculate_historical_criteria(this_pat_id text,  _dataset_id INTEGER DEFAULT NULL,  ts_start timestamptz DEFAULT '-infinity'::timestamptz, ts_end timestamptz DEFAULT 'infinity'::timestamptz)
+CREATE OR REPLACE FUNCTION calculate_historical_criteria(this_pat_id text,  _dataset_id INTEGER DEFAULT NULL,  ts_start timestamptz DEFAULT '-infinity'::timestamptz, ts_end timestamptz DEFAULT 'infinity'::timestamptz, window_limit text default 'all')
 --   @Peter, positive inf time and negative inf time?
 --   passing in a null value will calculate historical criteria over all patientis
 --  RETURNS table(window_ts                        timestamptz,
@@ -2039,28 +2039,51 @@ raise notice 'Running calculate historical criteria on dataset_id %', _dataset_i
 
 
     drop table if exists new_criteria_windows;
-    create temporary table new_criteria_windows as
+
+     EXECUTE format('create temporary table new_criteria_windows as
         select window_ends.tsp as ts, new_criteria.*
 
         from (  select distinct meas.pat_id, meas.tsp from criteria_meas meas
-                where meas.pat_id = coalesce(this_pat_id, meas.pat_id) and meas.dataset_id = _dataset_id
-                      and meas.tsp between ts_start and ts_end
-                order by meas.tsp
+                where meas.pat_id = coalesce(%s, meas.pat_id) and meas.dataset_id = %s
+                      and meas.tsp between ''%s''::timestamptz and ''%s''::timestamptz
+                order by meas.pat_id, meas.tsp
+                limit %s
         ) window_ends
 
         inner join lateral calculate_criteria(
-            coalesce(this_pat_id, window_ends.pat_id),
-            window_ends.tsp - window_size, window_ends.tsp,
-            TRUE, _dataset_id
+            coalesce(%s, window_ends.pat_id),
+            window_ends.tsp - ''%s''::interval, window_ends.tsp,
+            TRUE, %s
         ) new_criteria
-        on window_ends.pat_id = new_criteria.pat_id;
+        on window_ends.pat_id = new_criteria.pat_id;', coalesce(this_pat_id,'NULL'), _dataset_id, ts_start, ts_end, window_limit, coalesce(this_pat_id,'NULL'), window_size, _dataset_id);
 
---     RETURNS table( ts timestamptz, pat_id varchar(50), state int) AS $func$ BEGIN RETURN QUERY EXECUTE
 
     insert into historical_criteria (pat_id, dataset_id, pat_state, window_ts)
     select sw.pat_id, _dataset_id, sw.state, sw.ts
     from get_window_states('new_criteria_windows', this_pat_id) sw
     ON CONFLICT (pat_id, dataset_id, window_ts) DO UPDATE SET pat_state = excluded.pat_state;
+
+--     with pat_events (
+--       select PW.pat_id, PW.ts, EID.event_id from
+--         ( select distinct pat_id, ts from new_criteria_windows ) PW
+--         cross join (select nextval('criteria_event_ids') event_id) E
+--     )
+--     insert into criteria_events (
+--       dataset_id, event_id, pat_id, name, is_met, measurement_time, override_time, override_user, override_value, value, update_date, flag
+--     )
+--     select _dataset_id, pat_events.event_id, cw.pat_id, name, is_met, measurement_time, override_time, override_user, override_value, value, update_date, hc.pat_state-1000
+--     from new_criteria_windows cw
+--     inner join pat_events on cw.pat_id = pat_events.pat_id and cw.ts = pat_events.ts
+--     inner join historical_criteria  hc on cw.pat_id = hc.pat_id and cw.ts = hc.window_ts
+--     on conflict (dataset_id, event_id, pat_id, name) do update
+--       set is_met = excluded.is_met,
+--           measurement_time = excluded.measurement_time,
+--           override_time = excluded.override_time,
+--           override_user = excluded.override_user,
+--           override_value = excluded.override_value,
+--           value = excluded.value,
+--           update_date = excluded.update_date,
+--           flag = excluded.flag;
 
     drop table new_criteria_windows;
     return;
