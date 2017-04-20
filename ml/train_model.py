@@ -1,15 +1,15 @@
 # train_model.py
 
-import cPickle as pickle
+import pickle
 import time
 
-import dashan_core.src.ews_client.utility as util
+import ml.utility as util
 import numpy as np
-from dashan_app_sepsis.DashanInput import InputParamFactory
-from dashan_app_sepsis import sepsis_functions as func
-from dashan_core.src.ews_client.client import DataFrameFactory, DataFrame
+from ml.dashan_input import InputParamFactory
+from ml import sepsis_functions as func
+from ml.client import DataFrameFactory, DataFrame
 from sklearn import cross_validation
-from dashan_app_sepsis.offLine.InitialProcessing import getAdverseEventName
+from ml.preprocessing import getAdverseEventName
 
 def splitTestAndTrainData(inputValues, data_frame_p, left_edge, right_edge):
     model_id = inputValues.model_id
@@ -46,22 +46,22 @@ def splitTestAndTrainData(inputValues, data_frame_p, left_edge, right_edge):
     data_train = data_frame_pr[is_train, :]
     data_test = data_frame_pr[is_test, :]
 
-    print "start to standardize"
+    print("start to standardize")
     std_scale, data_train_sd, data_test_sd = util.standardize(data_train, data_test, ColNamesList=prColNamesList,
                                                               handleMinutesSinceFeats=True)
 
-    print "complete"
+    print("complete")
 
-    print "save std_scale to file"
+    print("save std_scale to file")
     with open('%s.std_scale.pkl' % model_id, 'wb') as output:
         # Pickle dictionary using protocol 0.
         pickle.dump(std_scale, output)
 
-    print "save standardized datasets"
+    print("save standardized datasets")
     data_train_sd = DataFrame(data_train_sd, data_frame_pr.colnames())
-    data_train_sd.save(model_id + "_train_sd")  # predict and train
+    data_train_sd.save(str(model_id) + "_train_sd")  # predict and train
     data_test_sd = DataFrame(data_test_sd, data_frame_pr.colnames())
-    data_test_sd.save(model_id + "_test_sd")  # predict
+    data_test_sd.save(str(model_id) + "_test_sd")  # predict
 
 
 
@@ -85,36 +85,37 @@ def train_model(inputPassedIn):
     inputFact = InputParamFactory()
     inputValues = inputFact.parseInput(inputPassedIn)
 
-    data_id = inputValues.data_id
+    dataset_id = inputValues.dataset_id
     model_id = inputValues.model_id
 
-    print "----------------------------------------------------"
-    print time.strftime("%H:%M:%S") + " Training {} on dataset {}".format(model_id, data_id)
-    print "----------------------------------------------------"
-    print time.strftime("%H:%M:%S") + " Begin Data Preprocessing"
+    print("----------------------------------------------------")
+    print(time.strftime("%H:%M:%S") + " Training {} on dataset {}".format(model_id, dataset_id))
+    print("----------------------------------------------------")
+    print(time.strftime("%H:%M:%S") + " Begin Data Preprocessing")
     getAdverseEventName(inputPassedIn)
     data_frame_p, left_edge, right_edge = loadData(inputValues)
 
     data_train_sd, left_train, right_train  = splitTestAndTrainData(inputValues, data_frame_p, left_edge, right_edge)
 
-    print time.strftime("%H:%M:%S") + " Data Preprocessing Complete"
+    print(time.strftime("%H:%M:%S") + " Data Preprocessing Complete")
 
-    print time.strftime("%H:%M:%S") + " Training"
+    print(time.strftime("%H:%M:%S") + " Training")
 
-    # print 'shapes', data_train.shape, left.shape, right.shape
-    print time.strftime("%H:%M:%S"), " generate mi_train_data"
+    # print('shapes', data_train.shape, left.shape, right.shape)
+    print(time.strftime("%H:%M:%S"), " generate mi_train_data")
     mi_train_data = np.asarray(np.concatenate( \
         (data_train_sd, np.vstack((left_train, right_train)).T), axis=1), dtype=float)
-    print time.strftime("%H:%M:%S"), " complete mi_train_data"
-    print "mi_train_data.shape", mi_train_data.shape
+    print(time.strftime("%H:%M:%S"), " complete mi_train_data")
+    print("mi_train_data.shape", mi_train_data.shape)
 
-    print time.strftime("%H:%M:%S"), " start mi_surv_R"
+    print(time.strftime("%H:%M:%S"), " start mi_surv_R")
     sub_idx = range(0, mi_train_data.shape[0], inputValues.downSampleFactor)
+    print("len of sub_idx = {}".format(len(sub_idx)))
     sv_probs = func.mi_surv_R(mi_train_data[sub_idx])
 
     np.savetxt('%s.sv_probs.txt' % model_id, sv_probs, delimiter=',', fmt='%f')
-    print time.strftime("%H:%M:%S"), " complete mi_surv_R"
-    print "sv_probs.shape:", sv_probs.shape
+    print(time.strftime("%H:%M:%S"), " complete mi_surv_R")
+    print("sv_probs.shape:", sv_probs.shape)
 
     # interval censored rows
     interval_idx = np.logical_and(left_train < right_train, np.isfinite(right_train))
@@ -129,7 +130,7 @@ def train_model(inputPassedIn):
 
     miicd_event_time = np.copy(left_train)
     miicd_is_right_cens = np.isinf(right_train)
-    print time.strftime("%H:%M:%S"), " start training "
+    print(time.strftime("%H:%M:%S"), " start training ")
 
     lambdaList = inputValues.lambda_list
 

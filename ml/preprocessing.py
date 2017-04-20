@@ -2,38 +2,39 @@
 # ## 1. Download data frame and save a local copy
 # ### import libraries and set global variables
 # updated: 10/21/2016
-# Note: introduce dashan_id with frame_id; separate diagnosis, medical history, and, problem list.
-# 
+# Note: introduce db_name with frame_id; separate diagnosis, medical history, and, problem list.
+#
 # updated: 10/18/2016
-# Note: minor chagnes: disable "convert gender to int" since gender is integer now; 
-# 
+# Note: minor chagnes: disable "convert gender to int" since gender is integer now;
+#
 # updated: 9/6/2016
 # Note: minor changes: convert gender to int; add subtype approx features
-# 
+#
 # updated: 5/26/2016
 # Note: make full dataset include data after shock
-# 
+#
 # updated: 4/17/2016
 # Note: remove sirs_intp in the feature_list
 
-from dashan_app_sepsis.DashanInput import InputParamFactory, inputParams
-from dashan_core.src.ews_client.client import DataFrameFactory, DataFrame, Session
-from dashan_app_sepsis import sepsis_functions as func
+from ml.dashan_input import InputParamFactory, InputParams
+from ml.client import DataFrameFactory, DataFrame, Session
+import ml.sepsis_functions as func
 import numpy as np
 import sys
 import time
+import logging
 
 def GenerateDataFrame(inputPassedIn):
     inputFact = InputParamFactory()
     inputValues = inputFact.parseInput(inputPassedIn)
 
-    print inputValues
+    logging.info(inputValues)
 
-    dashan_id = inputValues.dashan_id
-    data_id = inputValues.data_id
+    db_name = inputValues.db_name
+    dataset_id = inputValues.dataset_id
     feature_list = inputValues.feature_list
 
-    print 'Generating data for ' + data_id
+    logging.info('Generating data for ' + str(dataset_id))
     #==============================================================
     ## Add Mandatory Columns
     #==============================================================
@@ -48,17 +49,16 @@ def GenerateDataFrame(inputPassedIn):
     #==============================================================
     ## Download Data Frame
     #==============================================================
-    print "selected features for sepsis:", feature_list
+    logging.info("selected features for sepsis:" + ", ".join(feature_list))
 
-    session = Session(dashan_id)
+    session = Session(db_name)
     session.log.info('connect to the database')
     session.connect()
-    session.log.info('dowloading ...')
-
-    sql, feature_name_lst = session.build_sql_string(feature_list, nrows=inputValues.maxNumRows)
+    session.log.info('downloading ...')
+    sql, feature_name_lst = session.build_sql_string(feature_list, nrows=inputValues.maxNumRows, dataset_id = inputValues.dataset_id)
     data_frame = session.download_sql_string(sql, (['enc_id', 'tsp'] + feature_name_lst))
 
-    data_frame.save(data_id)
+    data_frame.save(dataset_id)
     session.disconnect()
     session.log.info('disconnect to the database')
     #==============================================================
@@ -87,39 +87,39 @@ def GenerateDataFrame(inputPassedIn):
         data_frame.replace_none(feature, False)
 
 
-    print "processed data frame:"
-    print "shape:", data_frame.shape
-    print "column_names:", data_frame.colnames()
+    logging.info("processed data frame:")
+    logging.info("shape:" + str(data_frame.shape))
+    logging.info ("column_names:" + str(data_frame.colnames()))
 
     #==============================================================
     ## generate min_to_cmi, min_to_shock, min_to_severe_sepsis
     #==============================================================
     colnames = data_frame.colnames()
     data_frame_p_full = data_frame
-    data_frame_p_full.save('%s_cleaned' % data_id)
+    data_frame_p_full.save('%s_cleaned' % dataset_id)
 
 def getAdverseEventName(inputValues):
-    data_id = inputValues.data_id
+    dataset_id = inputValues.dataset_id
     censoring_event = inputValues.censoring_event
     adverse_event = inputValues.adverse_event
 
-    name = data_id + '.' + adverse_event
+    name = str(dataset_id) + '.' + adverse_event
     return name
 
 def adverseEventProcessing(inputValues):
 
     #@peter, you have to fix all of these
 
-    data_id = inputValues.data_id
+    dataset_id = inputValues.dataset_id
     name_string = getAdverseEventName(inputValues)
     # ===================================
     # Load Data
     # ===================================
 
-    print time.strftime("%H:%M:%S") + " loading  dataset "
+    logging.info(time.strftime("%H:%M:%S") + " loading  dataset ")
     factory = DataFrameFactory()
-    data_frame_p_full = factory.load('%s_cleaned' % data_id)
-    print time.strftime("%H:%M:%S") + " load complete"
+    data_frame_p_full = factory.load('%s_cleaned' % dataset_id)
+    logging.info(time.strftime("%H:%M:%S") + " load complete")
 
     # ===================================
     # Get Adverse Event Information and filter by adverse event

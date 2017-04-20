@@ -69,13 +69,13 @@ def normScore(score_df, toNorm='raw_score', normed='score', thisPreProcInfo=None
     toNormscore = score_df[toNorm]
 
     if (thisPreProcInfo is not None)and('score_scale' in thisPreProcInfo.params):
-        print "Applying old Normalization Factors"
+        print("Applying old Normalization Factors")
         score_scale = thisPreProcInfo.params['score_scale']
     else:
         score_scale = None
 
     if score_scale is None:
-        print "Recalculating Normalization Factors"
+        print("Recalculating Normalization Factors")
         score_scale = [0,0]
         # score_scale[0] = np.min(toNormscore, axis=0)
         # score_scale[1] = np.max(toNormscore, axis=0)
@@ -120,7 +120,7 @@ def process(score_df, PreProcName=None, thisPreProcInfo=None):
     elif PreProcType == 'lagMean':
         score_df, thisPreProcInfo, valid = applyFuncToLagWindow(score_df, np.mean, 'lagMean', thisPreProcInfo=thisPreProcInfo)
     else:
-        print 'unknown pre-proc name, defaulting to simple'
+        print('unknown pre-proc name, defaulting to simple')
         doSimple = True
     #===================================================================
     #  Simple Pre-processing

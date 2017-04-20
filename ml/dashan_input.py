@@ -1,28 +1,26 @@
-import cPickle as Pickle
-
 import numpy as np
+from constants import Lambda_List
+import os
+import pickle
 
-
-class inputParams(object):
-    def __init__(self, dashan_id='hcgh_1608', data_id='', model_id='', score_id='', eval_id='',
+class InputParams(object):
+    def __init__(self,
+                        db_name='', dataset_id=1, model_id='', score_id='', eval_id='',
                  forceRedo=False,
                  maxNumRows = None, feature_list=None, featureConstraints=None,
-                 numberOfIterations=100, ncpus=25, lambda_list=None, downSampleFactor=50,
+                 numberOfIterations=100, ncpus=25, lambda_list=Lambda_List, downSampleFactor=50,
                  testFraction=0.4, adverse_event='septic_shock', censoring_event='cmi',
                  preProcStrat='simple', sensitivityTargets=[0.85], thresholds='',subtypes='', evaluationLambdas=None):
 
         #===============================
         # Documentation Parameters
         #===============================
-        self.dashan_id = dashan_id #name associated with the database
+        self.db_name = db_name #name associated with the database
 
-        if data_id is '':
-            self.data_id = self.dashan_id
-        else:
-            self.data_id = data_id #name associated with the data from the database
+        self.dataset_id = dataset_id #name associated with the data from the database
 
         if model_id is '':
-            self.model_id = self.data_id
+            self.model_id = self.dataset_id
         else:
             self.model_id = model_id #name associated with the model, and choices made by the model
 
@@ -62,8 +60,6 @@ class inputParams(object):
 
         self.featureConstraints = featureConstraints
 
-        if lambda_list is None:
-            lambda_list = np.loadtxt('scripts/hcgh_1608_general.lambda_list.txt', delimiter=',')
         self.lambda_list = lambda_list
 
         self.ncpus = ncpus #number of CPU's available to use
@@ -99,21 +95,22 @@ class inputParams(object):
 
 
 
-    def toPickle(self, outputFile=None):
+    def toPickle(self, outputFile=None, dir='tmp/'):
+        if not os.path.exists(dir):
+            os.makedirs(dir)
         if outputFile is None:
-            outputFile = 'scripts/' + self.model_id + '.pkl'
-
-        with open(outputFile,'w') as output:
+            outputFile = dir + str(self.model_id) + '.pkl'
+        with open(outputFile,'wb') as output:
             # Pickle dictionary using protocol 0.
-            Pickle.dump(self, output)
+            pickle.dump(self, output)
 
-        print 'Wrote :' + outputFile
+        print('Wrote :' + outputFile)
 
     def __str__(self):
         outStr = ''
-        outStr += 'dashan_id: ' + self.dashan_id + '\n'
-        outStr += 'data_id: ' + self.data_id + '\n'
-        outStr += 'model_id: ' + self.model_id + '\n'
+        outStr += 'db_name: ' + self.db_name + '\n'
+        outStr += 'dataset_id: ' + str(self.dataset_id) + '\n'
+        outStr += 'model_id: ' + str(self.model_id) + '\n'
         outStr += 'adverseEvent:  ' + self.adverse_event + '\n'
         outStr += 'censoring_event ' + self.censoring_event + '\n'
         return outStr
@@ -125,18 +122,19 @@ class InputParamFactory(object):
 
     def getInputsFromPkl(self, pklPath):
         with open(pklPath, 'rb') as f:
-            params = Pickle.load(f)
+            params = pickle.load(f)
         return params
 
     def parseInput(self, datin):
-        if isinstance(datin, basestring):
+        print(type(datin))
+        if isinstance(datin, str):
             if datin.endswith('.pkl'):
                 return self.getInputsFromPkl(datin)
             elif datin.endswith('.json'):
                 return self.getInputsFromJson(datin)
             else:
                 raise ValueError('Unknown how to return input params from this file extension. ')
-        elif (type(datin)==inputParams):
+        elif (type(datin)==InputParams):
             return datin
         else:
             raise ValueError('Unknown how to return input parms from supplied object')
@@ -144,5 +142,5 @@ class InputParamFactory(object):
 if __name__ == "__main__":
     import sys
     dataID = sys.argv[1]
-    thisinput = inputParams(data_id=dataID)
+    thisinput = InputParams(dataset_id=dataID)
     thisinput.toPickle()
