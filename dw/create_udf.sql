@@ -755,13 +755,13 @@ select coalesce(_dataset_id, max(dataset_id)) into _dataset_id from dw_version;
 
 IF is_historical THEN
 
-  delete from suspicion_of_infection_buff where suspicion_of_infection_buff.pat_id = this_pat_id and suspicion_of_infection_buff.dataset_id = _dataset_id;
+  delete from suspicion_of_infection_buff;
   insert into suspicion_of_infection_buff ( dataset_id, pat_id, name, is_met, measurement_time,override_time,override_user, override_value, value, update_date)
 
   with sus as (
     select s.dataset_id, s.pat_id, s.name, last(s.is_met) as is_met, last(s.measurement_time) as measurement_time, last(s.override_time) as override_time,last(s.override_user) as override_user, last(s.override_value) as override_value, last(s.value) as value, last(s.update_date) as update_date
     from suspicion_of_infection_hist s
-    where s.pat_id = this_pat_id
+    where s.pat_id = coalesce(this_pat_id, s.pat_id) and s.dataset_id = _dataset_id
     group by s.dataset_id, s.pat_id, s.name),
   cnt as
     (select count(*) as n from sus)
@@ -2032,30 +2032,64 @@ CREATE OR REPLACE FUNCTION calculate_historical_criteria(this_pat_id text,  _dat
 AS $function$
 DECLARE
     window_size interval := get_parameter('lookbackhours')::interval;
+    pat_id_str text;
 BEGIN
 
 select coalesce(_dataset_id, max(dataset_id)) into _dataset_id from dw_version;
 raise notice 'Running calculate historical criteria on dataset_id %', _dataset_id;
 
 
+    IF this_pat_id is NULL THEN
+      pat_id_str = 'NULL';
+    ELSE
+      pat_id_str = format('''%s''',this_pat_id);
+    END IF;
+
     drop table if exists new_criteria_windows;
 
-     EXECUTE format('create temporary table new_criteria_windows as
+     EXECUTE format(
+         '
+        create temporary table new_criteria_windows as
+        with
+        pat_start as(
+          select pat_id, min(tsp) as min_time
+          from criteria_meas meas
+          where dataset_id = %s
+          group by pat_id
+         ),
+        meas_bins as (
+          select distinct meas.pat_id, meas.tsp ,
+            floor(extract(EPOCH FROM meas.tsp - pat_start.min_time) /
+            extract(EPOCH from interval ''1 hour''))+1 as bin
+          from
+            criteria_meas meas
+            inner join pat_start
+            on pat_start.pat_id = meas.pat_id
+          where
+            meas.pat_id = coalesce(%s, meas.pat_id) and
+            meas.dataset_id = %s and
+            meas.tsp between ''%s''::timestamptz and ''%s''::timestamptz
+          ),
+        window_ends as (
+          select
+            pat_id, max(tsp) as tsp
+          from
+            meas_bins
+          group by pat_id, bin
+          order by pat_id, tsp
+          limit %s)
         select window_ends.tsp as ts, new_criteria.*
+        from
+          window_ends
+          inner join lateral
+          calculate_criteria(coalesce(%s, window_ends.pat_id),
+                             window_ends.tsp - ''%s''::interval,
+                             window_ends.tsp,TRUE,
+                             %s) new_criteria
+        on window_ends.pat_id = new_criteria.pat_id;'
+        ,_dataset_id,  pat_id_str, _dataset_id, ts_start, ts_end, window_limit, pat_id_str, window_size, _dataset_id);
 
-        from (  select distinct meas.pat_id, meas.tsp from criteria_meas meas
-                where meas.pat_id = coalesce(%s, meas.pat_id) and meas.dataset_id = %s
-                      and meas.tsp between ''%s''::timestamptz and ''%s''::timestamptz
-                order by meas.pat_id, meas.tsp
-                limit %s
-        ) window_ends
 
-        inner join lateral calculate_criteria(
-            coalesce(%s, window_ends.pat_id),
-            window_ends.tsp - ''%s''::interval, window_ends.tsp,
-            TRUE, %s
-        ) new_criteria
-        on window_ends.pat_id = new_criteria.pat_id;', coalesce(this_pat_id,'NULL'), _dataset_id, ts_start, ts_end, window_limit, coalesce(this_pat_id,'NULL'), window_size, _dataset_id);
 
 
     insert into historical_criteria (pat_id, dataset_id, pat_state, window_ts)
@@ -2063,27 +2097,28 @@ raise notice 'Running calculate historical criteria on dataset_id %', _dataset_i
     from get_window_states('new_criteria_windows', this_pat_id) sw
     ON CONFLICT (pat_id, dataset_id, window_ts) DO UPDATE SET pat_state = excluded.pat_state;
 
---     with pat_events (
---       select PW.pat_id, PW.ts, EID.event_id from
---         ( select distinct pat_id, ts from new_criteria_windows ) PW
---         cross join (select nextval('criteria_event_ids') event_id) E
---     )
---     insert into criteria_events (
---       dataset_id, event_id, pat_id, name, is_met, measurement_time, override_time, override_user, override_value, value, update_date, flag
---     )
---     select _dataset_id, pat_events.event_id, cw.pat_id, name, is_met, measurement_time, override_time, override_user, override_value, value, update_date, hc.pat_state-1000
---     from new_criteria_windows cw
---     inner join pat_events on cw.pat_id = pat_events.pat_id and cw.ts = pat_events.ts
---     inner join historical_criteria  hc on cw.pat_id = hc.pat_id and cw.ts = hc.window_ts
---     on conflict (dataset_id, event_id, pat_id, name) do update
---       set is_met = excluded.is_met,
---           measurement_time = excluded.measurement_time,
---           override_time = excluded.override_time,
---           override_user = excluded.override_user,
---           override_value = excluded.override_value,
---           value = excluded.value,
---           update_date = excluded.update_date,
---           flag = excluded.flag;
+
+    with pat_events as (
+      select pat_id, ts, row_number() over () as event_id
+      from ( select distinct pat_id, ts from new_criteria_windows ) PW
+    )
+    insert into criteria_events (
+      dataset_id, event_id, pat_id, name, is_met, measurement_time, override_time, override_user, override_value, value, update_date, flag
+    )
+    select _dataset_id, pat_events.event_id, cw.pat_id, name, is_met, measurement_time, override_time, override_user, override_value, value, update_date, hc.pat_state-1000
+    from new_criteria_windows cw
+    inner join pat_events on cw.pat_id = pat_events.pat_id and cw.ts = pat_events.ts
+    inner join historical_criteria  hc on cw.pat_id = hc.pat_id and cw.ts = hc.window_ts
+    where hc.dataset_id = _dataset_id
+    on conflict (dataset_id, event_id, pat_id, name) do update
+      set is_met = excluded.is_met,
+          measurement_time = excluded.measurement_time,
+          override_time = excluded.override_time,
+          override_user = excluded.override_user,
+          override_value = excluded.override_value,
+          value = excluded.value,
+          update_date = excluded.update_date,
+          flag = excluded.flag;
 
     drop table new_criteria_windows;
     return;
