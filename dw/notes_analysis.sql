@@ -55,6 +55,35 @@ insert into negation_keywords (keyword) values
 ('[hH]ave had')
 ;
 
+-----------------------------------------
+-- Candidate search via positive version
+------------------------------------------
+
+drop function if exists match_clarity_infection_positives(integer, integer);
+
+create or replace function match_clarity_infection_positives(num_matches integer, match_offset integer)
+ RETURNS table(csn_id text, start_ts timestamptz, note text)
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+  positive text := '';
+  grouped_positive text := '';
+  match_query text := '';
+BEGIN
+  select array_to_string(array_agg(keyword), '|') into positive
+  from infection_keywords;
+  select '(' || array_to_string(array_agg(keyword), '|') || ')' into grouped_positive
+  from infection_keywords;
+  match_query :=
+     'select "CSN_ID" as csn_id, "CREATE_INSTANT_DTTM" at time zone ''EST'' as start_ts,'
+  || '       regexp_replace(array_to_string(array_agg("NOTE_TEXT"), ''\n''), E''' || grouped_positive || ''', E''__MATCH__\\1'', ''g'') as note'
+  || ' from "Notes"'
+  || ' where "NOTE_TEXT" ~ E''' || positive || ''''
+  || ' group by "CSN_ID", "CREATE_INSTANT_DTTM"'
+  || ' order by "CSN_ID", "CREATE_INSTANT_DTTM" limit ' || num_matches::text || ' offset ' || match_offset::text;
+  --raise notice 'query %', match_query;
+  return query execute match_query;
+END; $function$;
 
 
 ----------------------------------------
@@ -130,8 +159,8 @@ BEGIN
      'select "CSN_ID" as csn_id, "CREATE_INSTANT_DTTM" at time zone ''EST'' as start_ts,'
   || '       regexp_replace("NOTE_TEXT", E''' || negative || ''', ''NEGATED_PHRASE'', ''g'') as body'
   || ' from "Notes"'
-  || '  where "CSN_ID" = coalesce(E''' || this_csn_id || ''', "CSN_ID") order by "CREATE_INSTANT_DTTM"';
-  raise notice 'query %', match_query;
+  || ' where "CSN_ID" = coalesce(E''' || this_csn_id || ''', "CSN_ID") order by "CREATE_INSTANT_DTTM"';
+  --raise notice 'query %', match_query;
   return query execute match_query;
 END; $function$;
 
