@@ -2,59 +2,58 @@ drop table if exists infection_keywords;
 create table infection_keywords(keyword text);
 insert into infection_keywords (keyword) values
 ('(VRE |vre )*( UTI | uti )'),
-('urinary tract infection'),
-('urosepsis'),
-('pyelonephritis'),
-('pyelo'),
-('biliary sepsis'),
-('cholecystitis'),
-('cystitis'),
-('appendicitis'),
-('cholangitis'),
-('cholelithiasis'),
-('hepatic abscess'),
-('intra abdominal sepsis'),
-('pneumoperitoneum'),
-('pneumotosis'),
-('peritonitis'),
-('spontaneous bacerial peritonitis'),
+('[uU]rinary [tT]ract [iI]nfection'),
+('[uU]rosepsis'),
+('[pP]yelo(nephritis)*'),
+('[bB]iliary [sS]epsis'),
+('[cC]holecystitis'),
+('[cC]ystitis'),
+('[aA]ppendicitis'),
+('[cC]holangitis'),
+('[cC]holelithiasis'),
+('[hH]epatic [aA]bscess'),
+('[iI]ntra [aA]bdominal [sS]epsis'),
+('[pP]neumoperitoneum'),
+('[pP]neumotosis'),
+('[pP]eritonitis'),
+('[sS]pontaneous [bB]acerial [pP]eritonitis'),
 ('(MRSA )*[cC](lostridium)*[. ]*[dD]if[f]*(icile)*( colitis)*'),
-('colitis'),
-('([vV]ent associated|[hH]ospital[- ]*[aA]cquired |[rR]ight [lL]ower [lL]obe|RLL|MRSA |[aA]spiration |[pP]ost[- ]obst(ructive)* )*pneumonia'),
+('[cC]olitis'),
+('([vV]ent associated|[hH]ospital[- ]*[aA]cquired |[rR]ight [lL]ower [lL]obe|RLL|MRSA |[aA]spiration |[pP]ost[- ]obst(ructive)* )*[pP]neumonia'),
 (' HCAP '),
 (' CAP '),
-('empyema'),
-('line sepsis'),
-('endocarditis'),
-('blood stream infection'),
-('cellulitis'),
-('mediastinitis'),
-('central line infection'),
+('[eE]mpyema'),
+('[lL]ine [sS]epsis'),
+('[eE]ndocarditis'),
+('[bB]lood [sS]tream [iI]nfection'),
+('[cC]ellulitis'),
+('[mM]ediastinitis'),
+('[cC]entral [lL]ine [iI]nfection'),
 ('CLABSI'),
-('myocarditis'),
-('osteomyelitis'),
-('necrotizing fasciitis'),
-('pseudomonas')
+('[mM]yocarditis'),
+('[oO]steomyelitis'),
+('[nN]ecrotizing [fF]asciitis'),
+('[pP]seudomonas')
 ;
 
 drop table if exists negation_keywords;
 create table negation_keywords(keyword text);
 insert into negation_keywords (keyword) values
-('history of( recurrent|recent)*'),
-('h/o|H/O'),
-('hx of(recurrent|recent)*'),
-('[Nn]o'),
-('no sign of'),
-('no evidence of'),
-('no diagnosis of'),
-('not'),
+('[hH](istory)*(x)* of( recurrent|recent)*'),
+('[hH]/[oO]'),
+('[Nn]o(sign)*(evidence)*(diagnosis)*( of)*'),
+('[nN]ot'),
 ('[Nn]eg(ative)*'),
-('recently had'),
-('denies'),
-('denies any'),
-('recently hospitalized for'),
-('recurrent')
+('[rR]ecently had'),
+('[dD]enies'),
+('[dD]enies any'),
+('[rR]ecently hospitalized for'),
+('[rR]ecurrent'),
+('[aA]bsence of'),
+('[hH]ave had')
 ;
+
+
 
 ----------------------------------------
 -- Clarity Notes Processing
@@ -102,7 +101,8 @@ BEGIN
   || '     where body ~ ''' || positive || ''''
   || '   ) DOCS, lateral unnest(words) W(word)'
   || ' ) NGRAMS'
-  || ' where ( ngram_arr[4] like ''%__MATCH__%'') or ( array_length(ngram_arr, 1) < ' || (rows_before+rows_after+1)::text || ' and (select count(*) from unnest(ngram_arr) W(word) where word like ''%__MATCH__%'' ) > 0 )';
+  || ' where ( ngram_arr[4] like ''%__MATCH__%'') or ( array_length(ngram_arr, 1) < ' || (rows_before+rows_after+1)::text || ' and (select count(*) from unnest(ngram_arr) W(word) where word like ''%__MATCH__%'' ) > 0 )'
+  || ' order by csn_id, start_ts';
   raise notice 'query %', match_query;
   return query execute match_query;
 END; $function$;
@@ -178,7 +178,8 @@ BEGIN
   || '     where body ~ ''' || positive || ''''
   || '   ) DOCS, lateral unnest(words) W(word)'
   || ' ) NGRAMS'
-  || ' where ( ngram_arr[4] like ''%__MATCH__%'') or ( array_length(ngram_arr, 1) < ' || (rows_before+rows_after+1)::text || ' and (select count(*) from unnest(ngram_arr) W(word) where word like ''%__MATCH__%'' ) > 0 )';
+  || ' where ( ngram_arr[4] like ''%__MATCH__%'') or ( array_length(ngram_arr, 1) < ' || (rows_before+rows_after+1)::text || ' and (select count(*) from unnest(ngram_arr) W(word) where word like ''%__MATCH__%'' ) > 0 )'
+  || ' order by csn_id, start_ts';
   raise notice 'query %', match_query;
   return query execute match_query;
   drop table if exists match_csns;
@@ -227,7 +228,8 @@ BEGIN
   || '     where body ~ ''' || positive || ''''
   || '   ) DOCS, lateral unnest(words) W(word)'
   || ' ) NGRAMS'
-  || ' where ( ngram_arr[4] like ''%__MATCH__%'') or ( array_length(ngram_arr, 1) < ' || (rows_before+rows_after+1)::text || ' and (select count(*) from unnest(ngram_arr) W(word) where word like ''%__MATCH__%'' ) > 0 )';
+  || ' where ( ngram_arr[4] like ''%__MATCH__%'') or ( array_length(ngram_arr, 1) < ' || (rows_before+rows_after+1)::text || ' and (select count(*) from unnest(ngram_arr) W(word) where word like ''%__MATCH__%'' ) > 0 )'
+  || ' order by csn_id, start_ts';
   raise notice 'query %', match_query;
   return query execute match_query;
 END; $function$;
