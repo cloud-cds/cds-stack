@@ -197,7 +197,7 @@ job_c2dw_daily_light = {
 daily_compare_light = [
   {
     'name': 'daily_epic2op_light',
-    'engine': EngineEpic2op(db_name='daily_epic2op_light', max_num_pats=20),
+    'engine': EngineEpic2op(db_name='daily_epic2op_light', max_num_pats=40),
     'pipeline': {
       'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
       'populate_db': True,
@@ -208,7 +208,7 @@ daily_compare_light = [
     'engine': EngineC2dw,
     'job': job_c2dw_daily_light,
     'pipeline': {
-      'load_clarity': {'folder': '~/clarity-db-staging/2017-04-06/'},
+      #'load_clarity': {'folder': '~/clarity-db-staging/2017-04-06/'},
       'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
       'copy_pat_enc': True,
       'populate_db': True,

@@ -334,10 +334,11 @@ DROP TABLE IF EXISTS notifications;
 CREATE  TABLE notifications
 (
     dataset_id          integer REFERENCES dw_version(dataset_id),
+    model_id            integer REFERENCES model_version(model_id),
     notification_id     serial,
     pat_id              varchar(50) not null,
     message             json,
-    primary key         (dataset_id, notification_id)
+    primary key         (dataset_id, model_id, notification_id)
 );
 
 DROP TABLE IF EXISTS parameters;
@@ -729,4 +730,18 @@ CREATE TABLE historical_criteria (
     pat_state           integer,
     window_ts           timestamptz,
     primary key         (pat_id,dataset_id,window_ts)
+);
+
+DROP TABLE IF EXISTS usr_web_log;
+CREATE TABLE usr_web_log (
+    dataset_id          integer REFERENCES dw_version(dataset_id),
+    model_id            integer REFERENCES model_version(model_id),
+    doc_id      varchar(50),
+    tsp         timestamptz,
+    pat_id      varchar(50),
+    visit_id    varchar(50),
+    loc         varchar(50),
+    dep         varchar(50),
+    raw_url     text,
+    PRIMARY KEY (dataset_id, model_id, doc_id, tsp, pat_id)
 );

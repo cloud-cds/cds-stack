@@ -5,6 +5,8 @@ DROP TABLE IF EXISTS test_lab_procedures;
 DROP TABLE IF EXISTS test_lab_results;
 DROP TABLE IF EXISTS test_med_admin;
 DROP TABLE IF EXISTS test_med_orders;
+DROP TABLE IF EXISTS test_location_history;
+DROP TABLE IF EXISTS test_active_procedures;
 
 CREATE TABLE test_bedded_patients (
     index bigint,
@@ -92,6 +94,25 @@ CREATE TABLE test_med_orders (
     visit_id text
 );
 
+CREATE TABLE test_location_history (
+    index bigint,
+    pat_id   text,
+    tsp      text,
+    visit_id text,
+    value    text,
+    fid      text
+);
+
+CREATE TABLE test_active_procedures (
+ INDEX bigint,
+ pat_id   text,
+ visit_id text,
+ tsp      text,
+ order_id text,
+ fid      text,
+ status   text
+);
+
 CREATE INDEX ix_test_bedded_patients_index ON test_bedded_patients USING btree (index);
 
 CREATE INDEX ix_test_flowsheet_index ON test_flowsheet USING btree (index);
@@ -106,4 +127,7 @@ CREATE INDEX ix_test_med_admin_index ON test_med_admin USING btree (index);
 
 CREATE INDEX ix_test_med_orders_index ON test_med_orders USING btree (index);
 
+CREATE INDEX ix_test_location_history_index ON test_location_history USING btree (index);
+
+CREATE INDEX ix_test_active_procedures_index ON test_active_procedures USING btree (index);
 
