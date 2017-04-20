@@ -1,0 +1,9 @@
+---
+platform: linux
+
+inputs:
+- name: dashan-etl
+- name: trews-rest-api-pr
+
+run:
+  path: dashan-etl/ci/test_api.sh
