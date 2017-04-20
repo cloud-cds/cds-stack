@@ -124,7 +124,7 @@ job_c2dw_daily = {
     'dataset_id': 1,
     'debug': True,
     'db_name': 'daily_test_c2dw',
-    'conf': CONF,
+    'conf': 'dashan-etl-pr/etl/clarity2dw/conf',
   },
 }
 
@@ -143,7 +143,7 @@ daily_compare = [
     'job': job_c2dw_daily,
     'pipeline': {
       # TODO: load the latest clarity db staging files
-      'load_clarity': {'folder': '~/clarity-db-staging/2017-04-06/'},
+      # 'load_clarity': {'folder': '~/clarity-db-staging/2017-04-06/'},
       'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
       'copy_pat_enc': True,
       'populate_db': True,

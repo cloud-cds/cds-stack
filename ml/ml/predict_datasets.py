@@ -2,14 +2,12 @@
 import time
 
 import numpy as np
-from dashan_app_sepsis import sepsis_functions as func
-from dashan_core.src.ews_client.client import DataFrameFactory
+from ml import sepsis_functions as func
+from ml.client import DataFrameFactory
 
-try:
-    import cPickle as pickle
-except:
-    import pickle
-from dashan_app_sepsis.DashanInput import InputParamFactory
+
+import pickle
+from ml.dashan_input import InputParamFactory
 
 def predict(models, data_frame, n_cpu, filename=None):
 
@@ -28,22 +26,22 @@ def predict_test_train(inputPassedIn):
     model_id = inputValues.model_id
     score_id = inputValues.score_id
 
-    print time.strftime("%H:%M:%S") + " Predicting test/train for model ID {} with data ID {}".format(model_id,data_id)
+    print(time.strftime("%H:%M:%S") + " Predicting test/train for model ID {} with data ID {}".format(model_id,data_id))
 
-    print (time.strftime("%H:%M:%S"))
-    print (time.strftime("%H:%M:%S")) + " loading data id:".format(data_id)
+    print(time.strftime("%H:%M:%S"))
+    print(time.strftime("%H:%M:%S")) + " loading data id:".format(data_id)
 
     factory = DataFrameFactory()
     data_train_sd = factory.load(model_id + "_train_sd")
     data_test_sd = factory.load(model_id + "_test_sd")
 
-    print "loading model data id:", model_id
+    print("loading model data id:" + model_id)
 
     mdls_f = open('%s.mdl.pkl' % model_id, 'rb')
     models = pickle.load(mdls_f)
     mdls_f.close()
 
-    print " Generating scores for {}: Predicting:", score_id
+    print(" Generating scores for {}: Predicting:" + score_id)
 
     n_cpu = inputValues.ncpus
 

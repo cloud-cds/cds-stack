@@ -1,7 +1,7 @@
 import os
 import sys
-from dashan_ml import InitialProcessing, train_model, predict_datasets, evaluate
-from dashan_ml.input import InputParamFactory
+from ml import preprocessing, train_model, predict_datasets, evaluate
+from ml.dashan_input import InputParamFactory
 
 def full_pipe(input_arg):
     #---------------------------
@@ -15,18 +15,19 @@ def full_pipe(input_arg):
     # Generate Frame
     #---------------------------
     if forceRedo:
+        print('forceRedo is ON')
         getData = 1
     else:
-        data_id = inputValues.data_id
-        if not os.path.isfile('%s_processed_full.npy' % data_id):
+        dataset_id = inputValues.dataset_id
+        if not os.path.isfile('%s_processed_full.npy' % dataset_id):
             getData = 1
         else:
-            print "Existing Dataset found with id {}".format(data_id)
+            print("Existing Dataset found with id {}".format(dataset_id))
             getData = 0
 
     if getData:
-        InitialProcessing.GenerateDataFrame(inputValues)
-        InitialProcessing.adverseEventProcessing(inputValues)
+        preprocessing.GenerateDataFrame(inputValues)
+        preprocessing.adverseEventProcessing(inputValues)
 
 
     #---------------------------
@@ -39,7 +40,7 @@ def full_pipe(input_arg):
         if not os.path.isfile('%s.mdl.pkl' % model_id):
             doTrain = True
         else:
-            print "Existing Model found with id {}".format(model_id)
+            print("Existing Model found with id {}".format(model_id))
             doTrain = False
 
     if doTrain:
@@ -55,7 +56,7 @@ def full_pipe(input_arg):
         if not os.path.isfile('{}.test_score.txt'.format(score_id)):
             doPredict = True
         else:
-            print "Existing predictions found with id {}".format(score_id)
+            print("Existing predictions found with id {}".format(score_id))
             doPredict = False
 
     if doPredict:
@@ -71,7 +72,7 @@ def full_pipe(input_arg):
         if not os.path.isfile('%s_evalComplete.txt' % eval_id):
             doEval = True
         else:
-            print "Existing Evaluations found with id {}".format(eval_id)
+            print("Existing Evaluations found with id {}".format(eval_id))
             doEval = False
 
     if doEval:

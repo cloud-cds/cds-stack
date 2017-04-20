@@ -1,9 +1,9 @@
 import numpy as np
-from dashan_ml.input import DashanInput
+from ml import dashan_input
+from constants import Lambda_List
 
 def main():
-    lambda_list = np.loadtxt('scripts/hcgh_test.lambda_list.txt', delimiter=',') #this list should not be changed
-    lambda_list = lambda_list[5:]
+    lambda_list = Lambda_List[5:]
 
     # featureOrig_list = np.loadtxt('sepsis_features.csv', delimiter=',', dtype=str,usecols=(0,))
     # featureOrig_list = list(featureOrig_list)
@@ -91,13 +91,18 @@ def main():
 
     featureConstraints = {'lactate': np.array([0,np.inf])}
 
-    out=DashanInput.inputParams(data_id='lactateConstr',adverse_event='severe_sepsis',
+    out=dashan_input.InputParams(
+                                db_name='opsdx_dev_dw',
+                                dataset_id=1,
+                                adverse_event='severe_sepsis',
                                 lambda_list=lambda_list, feature_list=impFeatsList,featureConstraints=featureConstraints,
                                 numberOfIterations=50, ncpus=50,
                                 evaluationLambdas=[0.008, 0.005, 0.003, 0.001, 0.0008, 0.0005, 0.0003],
                                 sensitivityTargets=[0.15, 0.50, 0.85],
-                                forceRedo=True).toPickle()
-    print "Complete"
+                                forceRedo=False,
+                                # maxNumRows=10000,
+                                ).toPickle()
+    print("Complete")
 
 if __name__ == "__main__":
     main()
