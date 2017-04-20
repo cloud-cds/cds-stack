@@ -1,3 +1,61 @@
+drop table if exists infection_keywords;
+create table infection_keywords(keyword text);
+insert into infection_keywords (keyword) values
+('(VRE |vre )*( UTI | uti )'),
+('urinary tract infection'),
+('urosepsis'),
+('pyelonephritis'),
+('pyelo'),
+('biliary sepsis'),
+('cholecystitis'),
+('cystitis'),
+('appendicitis'),
+('cholangitis'),
+('cholelithiasis'),
+('hepatic abscess'),
+('intra abdominal sepsis'),
+('pneumoperitoneum'),
+('pneumotosis'),
+('peritonitis'),
+('spontaneous bacerial peritonitis'),
+('(MRSA )*[cC](lostridium)*[. ]*[dD]if[f]*(icile)*( colitis)*'),
+('colitis'),
+('([vV]ent associated|[hH]ospital[- ]*[aA]cquired |[rR]ight [lL]ower [lL]obe|RLL|MRSA |[aA]spiration |[pP]ost[- ]obst(ructive)* )*pneumonia'),
+(' HCAP '),
+(' CAP '),
+('empyema'),
+('line sepsis'),
+('endocarditis'),
+('blood stream infection'),
+('cellulitis'),
+('mediastinitis'),
+('central line infection'),
+('CLABSI'),
+('myocarditis'),
+('osteomyelitis'),
+('necrotizing fasciitis'),
+('pseudomonas')
+;
+
+drop table if exists negation_keywords;
+create table negation_keywords(keyword text);
+insert into negation_keywords (keyword) values
+('history of( recurrent|recent)*'),
+('h/o|H/O'),
+('hx of(recurrent|recent)*'),
+('[Nn]o'),
+('no sign of'),
+('no evidence of'),
+('no diagnosis of'),
+('not'),
+('[Nn]eg(ative)*'),
+('recently had'),
+('denies'),
+('denies any'),
+('recently hospitalized for'),
+('recurrent')
+;
+
 ----------------------------------------
 -- Clarity Notes Processing
 ----------------------------------------
