@@ -1924,15 +1924,16 @@ DECLARE
 BEGIN
   EXECUTE format(
   'insert into criteria_meas (dataset_id,         pat_id,         tsp,         fid,           value,      update_date)
-    select            cdm_twf.dataset_id, pat_enc.pat_id, cdm_twf.tsp,         ''%s''::text,  cdm_twf.%s,      now()
+    select            cdm_twf.dataset_id, pat_enc.pat_id, cdm_twf.tsp,         ''%s''::text,  last(cdm_twf.%s),      now()
     FROM
     cdm_twf
     inner join
     pat_enc
     on cdm_twf.enc_id = pat_enc.enc_id
-    where cdm_twf.%s_c <8 and cdm_twf.dataset_id = %s
+    where cdm_twf.%s_c <8 and cdm_twf.dataset_id = %s and pat_enc.dataset_id = %s
+    group by cdm_twf.dataset_id, pat_enc.pat_id, cdm_twf.tsp
     ON CONFLICT (dataset_id, pat_id, tsp, fid) DO UPDATE SET value = excluded.value, update_date=excluded.update_date;
-  ',_fid,_fid,_fid,_dataset_id);
+  ',_fid,_fid,_fid,_dataset_id,_dataset_id);
 END; $function$;
 -- ===========================================================================
 -- load_cdm_to_criteria_meas
@@ -1996,23 +1997,25 @@ BEGIN
     raise notice 'handling bp_sys as a special case';
 
     insert into criteria_meas (dataset_id,         pat_id,         tsp,               fid,               value,    update_date)
-    select            cdm_twf.dataset_id, pat_enc.pat_id, cdm_twf.tsp,         'bp_sys'::text,  cdm_twf.nbp_sys,      now()
+    select            cdm_twf.dataset_id, pat_enc.pat_id, cdm_twf.tsp,         'bp_sys'::text,  last(cdm_twf.nbp_sys),      now()
     FROM
     cdm_twf
     inner join
     pat_enc
     on cdm_twf.enc_id = pat_enc.enc_id
     where cdm_twf.nbp_sys_c <8 and cdm_twf.dataset_id = _dataset_id
+    group by cdm_twf.dataset_id, pat_enc.pat_id, cdm_twf.tsp
     ON CONFLICT (dataset_id,   pat_id,               tsp, fid) DO UPDATE SET value = excluded.value, update_date=excluded.update_date;
 
     insert into criteria_meas (dataset_id,         pat_id,         tsp,               fid,               value,    update_date)
-    select            cdm_twf.dataset_id, pat_enc.pat_id, cdm_twf.tsp,         'bp_sys'::text,  cdm_twf.abp_sys,      now()
+    select            cdm_twf.dataset_id, pat_enc.pat_id, cdm_twf.tsp,         'bp_sys'::text,  last(cdm_twf.abp_sys),      now()
     FROM
     cdm_twf
     inner join
     pat_enc
     on cdm_twf.enc_id = pat_enc.enc_id
     where cdm_twf.abp_sys_c <8 and cdm_twf.dataset_id = _dataset_id
+    group by cdm_twf.dataset_id, pat_enc.pat_id, cdm_twf.tsp
     ON CONFLICT (dataset_id,   pat_id,               tsp, fid) DO UPDATE SET value = excluded.value, update_date=excluded.update_date;
 
 
