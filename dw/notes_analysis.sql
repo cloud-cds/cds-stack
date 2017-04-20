@@ -1,7 +1,7 @@
 drop table if exists infection_keywords;
 create table infection_keywords(keyword text);
 insert into infection_keywords (keyword) values
-('(VRE |vre )*( UTI | uti )'),
+('(VRE |vre )*([^a-zA-Z]UTI[^a-zA-Z]|[^a-zA-Z]uti[^a-zA-Z])'),
 ('[uU]rinary [tT]ract [iI]nfection'),
 ('[uU]rosepsis'),
 ('[pP]yelo(nephritis)*'),
@@ -19,7 +19,8 @@ insert into infection_keywords (keyword) values
 ('[sS]pontaneous [bB]acerial [pP]eritonitis'),
 ('(MRSA )*[cC](lostridium)*[. ]*[dD]if[f]*(icile)*( colitis)*'),
 ('[cC]olitis'),
-('([vV]ent associated|[hH]ospital[- ]*[aA]cquired |[rR]ight [lL]ower [lL]obe|RLL|MRSA |[aA]spiration |[pP]ost[- ]obst(ructive)* )*[pP]neumonia'),
+('([vV]ent associated|[hH]ospital[- ]*[aA]cquired |([rR]ight|[lL]eft) [lL]ower [lL]obe|RLL|MRSA |[aA]spiration |[pP]ost[- ]obst(ructive)* )*[pP]neumonia'),
+('[^a-zA-Z]PNA[^a-zA-Z]'),
 (' HCAP '),
 (' CAP '),
 ('[eE]mpyema'),
@@ -41,7 +42,7 @@ create table negation_keywords(keyword text);
 insert into negation_keywords (keyword) values
 ('[hH](istory)*(x)* of( recurrent|recent)*'),
 ('[hH]/[oO]'),
-('[Nn]o(sign)*(evidence)*(diagnosis)*( of)*'),
+('[Nn]o( sign)*( evidence)*( diagnosis)*( of)*'),
 ('[nN]ot'),
 ('[Nn]eg(ative)*'),
 ('[rR]ecently had'),
