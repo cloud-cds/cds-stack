@@ -190,7 +190,7 @@ job_c2dw_daily_light = {
     'dataset_id': 1,
     'debug': True,
     'db_name': 'daily_c2dw_light',
-    'conf': CONF,
+    'conf': 'dashan-etl-pr/etl/clarity2dw/conf',
   },
 }
 
