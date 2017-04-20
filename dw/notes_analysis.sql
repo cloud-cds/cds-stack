@@ -34,7 +34,8 @@ insert into infection_keywords (keyword) values
 ('[mM]yocarditis'),
 ('[oO]steomyelitis'),
 ('[nN]ecrotizing [fF]asciitis'),
-('[pP]seudomonas')
+('[pP]seudomonas'),
+('[iI]nfluenza')
 ;
 
 drop table if exists negation_keywords;
