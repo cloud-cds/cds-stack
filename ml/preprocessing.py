@@ -30,7 +30,7 @@ def GenerateDataFrame(inputPassedIn):
 
     logging.info(inputValues)
 
-    db_name = inputValues.db_name
+    name = inputValues.name
     dataset_id = inputValues.dataset_id
     feature_list = inputValues.feature_list
 
@@ -51,7 +51,7 @@ def GenerateDataFrame(inputPassedIn):
     #==============================================================
     logging.info("selected features for sepsis:" + ", ".join(feature_list))
 
-    session = Session(db_name)
+    session = Session(name)
     session.log.info('connect to the database')
     session.connect()
     session.log.info('downloading ...')

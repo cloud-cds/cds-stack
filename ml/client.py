@@ -139,9 +139,9 @@ class DataFrame(np.ndarray):
 
 
 class Session():
-    def __init__(self, db_name):
-        self.name = db_name
-        self.config = Config(db_name=db_name)
+    def __init__(self, name):
+        self.name = name
+        self.config = Config()
         self.log = self.config.log
         self.db_conn_string = self.config.get_db_conn_string_sqlalchemy()
         self.engine = create_engine(self.db_conn_string)

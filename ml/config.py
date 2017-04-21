@@ -48,18 +48,15 @@ class Config:
         self.log = logging
 
         self.db_user = os.environ['db_user']
-        self.db_host = os.environ['db_host']
+        self.db_host = os.environ['dw_host']
+        self.db_name = os.environ['dw_name']
         self.db_port = os.environ['db_port']
         self.db_pass = os.environ['db_password']
         if db_name:
             self.db_name = db_name
-        else:
-            self.db_name = os.environ['db_name']
         if db_host:
             self.db_host = db_host
-        else:
-            self.db_host = os.environ['db_host']
-        # self.log.info("current database: {} at {}".format(self.db_name, self.db_host))
+        self.log.info("current database: {} at {}".format(self.db_name, self.db_host))
 
     def get_db_conn_string(self):
         return "user={}, dbname={}, host={}, port={}, password={}".format(

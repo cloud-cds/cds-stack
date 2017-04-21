@@ -5,7 +5,8 @@ import pickle
 
 class InputParams(object):
     def __init__(self,
-                        db_name='', dataset_id=1, model_id='', score_id='', eval_id='',
+                        name='ml',
+                        dataset_id=1, model_id='', score_id='', eval_id='',
                  forceRedo=False,
                  maxNumRows = None, feature_list=None, featureConstraints=None,
                  numberOfIterations=100, ncpus=25, lambda_list=Lambda_List, downSampleFactor=50,
@@ -15,8 +16,7 @@ class InputParams(object):
         #===============================
         # Documentation Parameters
         #===============================
-        self.db_name = db_name #name associated with the database
-
+        self.name = name #name associated with the temp files
         self.dataset_id = dataset_id #name associated with the data from the database
 
         if model_id is '':
@@ -95,7 +95,7 @@ class InputParams(object):
 
 
 
-    def toPickle(self, outputFile=None, dir='tmp/'):
+    def toPickle(self, outputFile=None, dir='input/'):
         if not os.path.exists(dir):
             os.makedirs(dir)
         if outputFile is None:
@@ -108,7 +108,7 @@ class InputParams(object):
 
     def __str__(self):
         outStr = ''
-        outStr += 'db_name: ' + self.db_name + '\n'
+        outStr += 'name: ' + str(self.name) + '\n'
         outStr += 'dataset_id: ' + str(self.dataset_id) + '\n'
         outStr += 'model_id: ' + str(self.model_id) + '\n'
         outStr += 'adverseEvent:  ' + self.adverse_event + '\n'
@@ -126,7 +126,6 @@ class InputParamFactory(object):
         return params
 
     def parseInput(self, datin):
-        print(type(datin))
         if isinstance(datin, str):
             if datin.endswith('.pkl'):
                 return self.getInputsFromPkl(datin)

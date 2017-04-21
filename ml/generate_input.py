@@ -92,14 +92,15 @@ def main():
     featureConstraints = {'lactate': np.array([0,np.inf])}
 
     out=dashan_input.InputParams(
-                                db_name='opsdx_dev_dw',
+                                name='test',
                                 dataset_id=1,
                                 adverse_event='severe_sepsis',
                                 lambda_list=lambda_list, feature_list=impFeatsList,featureConstraints=featureConstraints,
-                                numberOfIterations=50, ncpus=50,
+                                numberOfIterations=10, ncpus=2,
                                 evaluationLambdas=[0.008, 0.005, 0.003, 0.001, 0.0008, 0.0005, 0.0003],
                                 sensitivityTargets=[0.15, 0.50, 0.85],
                                 forceRedo=False,
+                                downSampleFactor=50,
                                 # maxNumRows=10000,
                                 ).toPickle()
     print("Complete")
