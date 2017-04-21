@@ -96,11 +96,11 @@ def main():
                                 dataset_id=1,
                                 adverse_event='severe_sepsis',
                                 lambda_list=lambda_list, feature_list=impFeatsList,featureConstraints=featureConstraints,
-                                numberOfIterations=5, ncpus=2,
+                                numberOfIterations=10, ncpus=2,
                                 evaluationLambdas=[0.008, 0.005, 0.003, 0.001, 0.0008, 0.0005, 0.0003],
                                 sensitivityTargets=[0.15, 0.50, 0.85],
                                 forceRedo=True,
-                                downSampleFactor=100,
+                                downSampleFactor=50,
                                 # maxNumRows=100000,
                                 ).toPickle()
     print("Complete")

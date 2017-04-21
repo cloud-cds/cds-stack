@@ -50,7 +50,7 @@ RUN R CMD BATCH /ml/install-packages.R
 RUN apk add --update --no-cache \
         g++ pkgconfig ca-certificates \
         bash \
-        postgresql-dev make \
+        postgresql-client make \
     && ln -s /usr/include/locale.h /usr/include/xlocale.h \
     && pip install --upgrade pip \
     && pip install --no-cache-dir setuptools \
