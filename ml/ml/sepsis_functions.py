@@ -263,7 +263,9 @@ def mi_surv_R(train_data):
     # mi_train_data = robjects.r["subset"](mi_train_data, select=robjects.r('c("left", "right")'))
     robjects.globalenv['mi_train_data'] = mi_train_data
     print("mi_surv_R mi_train_data shape: " + str(robjects.r("dim(mi_train_data)")) )
-    model_survival = miicd.MI_surv(m = 5, data = mi_train_data)
+    # model_survival = miicd.MI_surv(k=5, m = 5, data = bcos)
+    robjects.r('save(mi_train_data,file="mi_train_data.Rda")')
+    model_survival = robjects.r("MI.surv(m = 5, data = mi_train_data)")
     # print(model_survival)
     # use the first two column: time, surv
     sv_probs = np.array(model_survival[0][0:2]).T
@@ -368,7 +370,7 @@ def resolveFeatureConstraints(data_as_frame, feature_names, featureConstraints):
         minConArray = np.ones((len(feature_names)))*np.inf*-1.0
         maxConArray = np.ones((len(feature_names)))*np.inf
 
-        for key, value in featureConstraints.iteritems():
+        for key, value in featureConstraints.items():
             feat_idx = feature_names.index(key)
             minConArray[feat_idx] = value[0]
             maxConArray[feat_idx] = value[1]
@@ -395,13 +397,26 @@ def train_R_in_para(frame_id, num_iter, data_as_frame, miicd_event_time,
     robjects.globalenv['data_as_frame'] = data_as_frame
     robjects.globalenv['lambda_list'] = lambda_list
     robjects.globalenv['miicd_isRand'] = interval_idx
-
+    print("null values in data frame:")
+    print(robjects.r("sum(is.nan(data_as_frame))"))
+    print(robjects.r("sum(is.na(data_as_frame))"))
+    print(robjects.r("sum(!is.numeric(data_as_frame))"))
     minConArray, maxConArray = resolveFeatureConstraints(data_as_frame, feature_names, featureConstraints)
     robjects.globalenv['minCon'] = minConArray
     robjects.globalenv['maxCon'] = maxConArray
     models = []
 
-
+    robjects.r('''
+        curr_evTime = miicd_evTime
+        curr_evTime[which(miicd_isRand)] = imputed_event_time[,1]
+        surv_times_all <- Surv(curr_evTime, 1-miicd_isCens)
+        not_neg_times <- which(!(surv_times_all[,'time'] <=0))
+        data_as_frame_tmp <- as.matrix(data_as_frame[not_neg_times,])
+        surv_times <- surv_times_all[not_neg_times,]
+        mdl <- glmnet(data_as_frame_tmp, surv_times, family='cox', lambda=lambda_list, alpha=1,lower.limits=minCon,upper.limits=maxCon)
+        cat(format(Sys.time(), "%%X"), "complete iteration:", 1, "\n")
+        '''
+        )
 
     r_code = '''
     registerDoMC(%s)
