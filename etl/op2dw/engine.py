@@ -30,7 +30,7 @@ tables_to_load = {
   'criteria_meas_archive'    : 'dataset',
   'criteria_archive'         : 'dataset',
   'criteria_default'         : 'dataset',
-  'notifications'            : 'dataset',
+  'notifications'            : 'both',
   'parameters'               : 'dataset',
   'trews_scaler'             : 'model',
   'trews_feature_weights'    : 'model',
@@ -40,6 +40,7 @@ tables_to_load = {
   'pat_status'               : 'dataset',
   'deterioration_feedback'   : 'dataset',
   'feedback_log'             : 'dataset',
+  'usr_web_log'              : 'both',
 }
 
 # engine for clarity ETL
