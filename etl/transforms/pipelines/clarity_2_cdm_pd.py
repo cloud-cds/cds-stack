@@ -20,8 +20,8 @@ async def pull_med_orders(connection, dataset_id, log, is_plan):
                                  from "OrderMed" mo
                                  inner join
                                  pat_enc pe
-                                 on mo."CSN_ID"::text=pe.visit_id
-                                ;""", connection)
+                                 on mo."CSN_ID"::text=pe.visit_id and pe.dataset_id = {}
+                                ;""".format(dataset_id), connection)
     if mo is None:
         return
 
@@ -89,7 +89,7 @@ async def pull_medication_admin(connection, dataset_id, log, is_plan):
                               "MedicationAdministration"  ma
                               inner join
                               pat_enc pe
-                              on ma."CSN_ID"::text=pe.visit_id""",connection)
+                              on ma."CSN_ID"::text=pe.visit_id and pe.dataset_id = {}""".format(dataset_id),connection)
 
   if ma is None:
     return
@@ -149,8 +149,8 @@ async def bands(connection, dataset_id, log, is_plan):
                                   "Labs_643"  lb
                                 inner join
                                   pat_enc pe
-                                on lb."CSN_ID"::text=pe.visit_id
-                                WHERE "NAME"='BANDS';""",connection)
+                                on lb."CSN_ID"::text=pe.visit_id and pe.dataset_id = {}
+                                WHERE "NAME"='BANDS';""".format(dataset_id),connection)
   if labs is None:
     return
 
@@ -182,7 +182,7 @@ async def pull_order_procs(connection, dataset_id, log, is_plan):
                                 "OrderProcs"  op
                               inner join
                                 pat_enc pe
-                              on op."CSN_ID"::text=pe.visit_id;""",connection)
+                              on op."CSN_ID"::text=pe.visit_id and pe.dataset_id = {};""".format(dataset_id),connection)
   if op is None:
       return
   lp_map = await async_read_df("""SELECT * FROM lab_proc_dict;""", connection)
