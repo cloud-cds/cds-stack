@@ -2,17 +2,6 @@ FROM python:3.6-alpine
 # Copy the main code base folder inside the container
 COPY ./ml /ml
 
-# Install python related libs
-RUN apk add --update --no-cache \
-        g++ pkgconfig ca-certificates \
-        bash \
-        postgresql-dev make \
-    && ln -s /usr/include/locale.h /usr/include/xlocale.h \
-    && pip install --upgrade pip \
-    && pip install --no-cache-dir setuptools \
-    && pip install -r /ml/requirements.txt \
-    && pip install /ml
-
 # Install R
 RUN apk add --no-cache R R-dev R-doc curl libressl-dev curl-dev libxml2-dev gcc g++ git coreutils bash ncurses
 
@@ -36,6 +25,16 @@ RUN R -q -e "install.packages(c('devtools', 'covr', 'roxygen2', 'testthat'), rep
 # Install R packages
 RUN R CMD BATCH /ml/install-packages.R
 
+# Install python related libs
+RUN apk add --update --no-cache \
+        g++ pkgconfig ca-certificates \
+        bash \
+        postgresql-dev make \
+    && ln -s /usr/include/locale.h /usr/include/xlocale.h \
+    && pip install --upgrade pip \
+    && pip install --no-cache-dir setuptools \
+    && pip install -r /ml/requirements.txt \
+    && pip install /ml
 
 # Set the default directory where CMD will execute
 WORKDIR /ml
