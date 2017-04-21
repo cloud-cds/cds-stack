@@ -182,6 +182,9 @@ async def pull_order_procs(connection, dataset_id, log, is_plan):
       return
   lp_map = await async_read_df("""SELECT * FROM lab_proc_dict;""", connection)
 
+  if lp_map is None:
+    return
+
   op = restructure.select_columns(op, {'enc_id': 'enc_id',
                                        'proc_name': 'fid',
                                        'ORDER_TIME': 'tsp',
