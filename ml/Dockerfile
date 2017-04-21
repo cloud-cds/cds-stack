@@ -5,7 +5,7 @@ COPY ./ml /ml
 # Install R
 ARG R_VERSION
 
-ENV R_VERSION ${R_VERSION:-3.3.1}
+ENV R_VERSION ${R_VERSION:-3.3.3}
 
 RUN apk --no-cache add build-base gfortran readline-dev \
        icu-dev bzip2-dev xz-dev pcre-dev \
@@ -50,7 +50,7 @@ RUN R CMD BATCH /ml/install-packages.R
 RUN apk add --update --no-cache \
         g++ pkgconfig ca-certificates \
         bash \
-        postgresql-client make \
+        postgresql-dev make
     && ln -s /usr/include/locale.h /usr/include/xlocale.h \
     && pip install --upgrade pip \
     && pip install --no-cache-dir setuptools \
