@@ -12,8 +12,11 @@ import csv
 import numpy as np
 import pandas as pd
 import ml.evaluationDataset as eData
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 import logging
+import pytz
+from dateutil import tz
+
 #dialect+driver://username:password@host:port/database
 engine = create_engine('postgresql:///hcgh_1608')
 
@@ -264,7 +267,6 @@ def mi_surv_R(train_data):
     robjects.globalenv['mi_train_data'] = mi_train_data
     print("mi_surv_R mi_train_data shape: " + str(robjects.r("dim(mi_train_data)")) )
     # model_survival = miicd.MI_surv(k=5, m = 5, data = bcos)
-    robjects.r('save(mi_train_data,file="mi_train_data.Rda")')
     model_survival = robjects.r("MI.surv(m = 5, data = mi_train_data)")
     # print(model_survival)
     # use the first two column: time, surv
@@ -406,17 +408,22 @@ def train_R_in_para(frame_id, num_iter, data_as_frame, miicd_event_time,
     robjects.globalenv['maxCon'] = maxConArray
     models = []
 
-    robjects.r('''
-        curr_evTime = miicd_evTime
-        curr_evTime[which(miicd_isRand)] = imputed_event_time[,1]
-        surv_times_all <- Surv(curr_evTime, 1-miicd_isCens)
-        not_neg_times <- which(!(surv_times_all[,'time'] <=0))
-        data_as_frame_tmp <- as.matrix(data_as_frame[not_neg_times,])
-        surv_times <- surv_times_all[not_neg_times,]
-        mdl <- glmnet(data_as_frame_tmp, surv_times, family='cox', lambda=lambda_list, alpha=1,lower.limits=minCon,upper.limits=maxCon)
-        cat(format(Sys.time(), "%%X"), "complete iteration:", 1, "\n")
-        '''
-        )
+    # robjects.r('''
+    #     curr_evTime = miicd_evTime
+    #     curr_evTime[which(miicd_isRand)] = imputed_event_time[,1]
+    #     surv_times_all <- Surv(curr_evTime, 1-miicd_isCens)
+    #     not_neg_times <- which(!(surv_times_all[,'time'] <=0))
+    #     data_as_frame_tmp <- as.matrix(data_as_frame[not_neg_times,])
+    #     surv_times <- surv_times_all[not_neg_times,]
+    #     save(data_as_frame_tmp,file="data_as_frame_tmp.Rda")
+    #     save(surv_times,file="surv_times.Rda")
+    #     save(minCon,file="minCon.Rda")
+    #     save(maxCon,file="maxCon.Rda")
+    #     save(lambda_list,file="lambda_list.Rda")
+    #     mdl <- glmnet(data_as_frame_tmp, surv_times, family='cox', lambda=lambda_list, alpha=1,lower.limits=minCon,upper.limits=maxCon)
+    #     cat(format(Sys.time(), "%%X"), "complete iteration:", 1, "\n")
+    #     '''
+    #     )
 
     r_code = '''
     registerDoMC(%s)
@@ -434,12 +441,13 @@ def train_R_in_para(frame_id, num_iter, data_as_frame, miicd_event_time,
     ''' % (n_cpu, num_iter)
     print("r code: " + r_code)
     robjects.r(r_code)
-    print("models" + robjects.globalenv['models'])
+    print("models:")
+    print(robjects.globalenv['models'])
     models = robjects.r('models')
     weights_avg = None
     # @peter the R is doing some weird stuff guys, it sometimes returns different sized arrays
     for i in range(num_iter):
-        print("save feature weight iter " + i)
+        print("save feature weight iter {}".format(i))
         weights = robjects.r('as.matrix(models[[%s]]$beta)' % (i+1))
         np.savetxt('%s.feature_weights.%s.csv' % (frame_id, i), weights.T, \
             delimiter=',', fmt='%f', header=','.join(feature_names), comments='')
@@ -468,7 +476,7 @@ def predict_R_in_parallel(models, test_data, n_cpu):
     robjects.globalenv['models'] = models
     robjects.globalenv['test_data'] = test_data
     print("predicting for testing set")
-    print("testing set shape " + test_data.shape)
+    print("testing set shape " + str(test_data.shape))
 
     r_code = '''
     num_iter = length(models)
@@ -626,8 +634,13 @@ def getRelativeTime(in_df, t0Event, events2MakeRelativeList, units='h', whereT0N
 
     for event in events2MakeRelativeList:
         if post is not None:
+            print(out_df.head())
             out_df.drop(event, 1, inplace=True)
-            out_df[event+post] = np.true_divide((in_df[event] - t0Series), np.timedelta64(1, units))
+            print(t0Series)
+            print(event)
+            print(in_df[event])
+            print(in_df[event].replace(tzinfo=tz.tzutc()) - t0Series.replace(tzinfo=tz.tzutc()))
+            out_df[event+post] = np.true_divide(in_df[event].replace(tzinfo=tz.tzutc()) - t0Series.replace(tzinfo=tz.tzutc()), np.timedelta64(1, units))
         else:
             out_df[event] = np.true_divide((in_df[event] - t0Series), np.timedelta64(1, units))
 
@@ -658,14 +671,16 @@ def getThresholdInformation(score_df, pop_df, event_df, threshold, min2AdverseEv
     wasdet_df = pd.merge(wasdet_df, event_df, how='left', left_index=True, right_index=True)
 
     eventList = event_df.columns.tolist()
-    eventList = [i.encode('ascii', 'ignore') for i in eventList]
-
-    reldet_df = getRelativeTime(wasdet_df, 'first_det_tsp', eventList)
-
+    # eventList = [i.encode('ascii', 'ignore') for i in eventList]
+    print(wasdet_df)
+    # reldet_df = getRelativeTime(wasdet_df, 'first_det_tsp', eventList)
+    reldet_df = wasdet_df
 
     #---------------------------------------
     # Compute Results
     #---------------------------------------
+    # print(pop_df)
+    # print(reldet_df)
     results_df = pd.merge(pop_df, reldet_df, suffixes=['pop','det'],
                           how='left', left_index=True, right_index=True) #inner join to remove censored people
 
@@ -733,3 +748,102 @@ def write_metrics_to_csv(metrics, frame_id, lambda_val, metrics_cols):
             print("I/O error: ({})".format(error))
     return
 
+def create_events_table(engine, dataset_id):
+    event_list = ['any_pressor','any_organ_failure','severe_sepsis','septic_shock',
+                  'any_antibiotics_order','any_antibiotics', 'discharge','qsofa','sirs_intp']
+    agg_func = ['' for event in event_list]
+    agg_func[-1] = 'max'
+
+    force_list = [False for event in event_list]
+    force_list[-1] = True
+
+    #special case event tables, which are still event times by enc_id
+    specialCase = [];
+
+    enter = """SELECT enc_id, min(tsp) as entranceTime
+            FROM cdm_t
+            WHERE fid like 'care_unit' and dataset_id = {}
+            GROUP BY ENC_ID""".format(dataset_id)
+    specialCase.append(enter)
+
+    deathSql = """with
+                dischargeTbl as (
+                select enc_id, tsp, cast(value AS json)->> 'disposition' as disp from cdm_t where fid = 'discharge' and dataset_id = {}
+                )
+                select enc_id, tsp as death_Time
+                from dischargeTbl
+                where disp like '%Expired%'""".format(dataset_id)
+    specialCase.append(deathSql)
+
+    lastEmger = """select enc_id, max(leave_time) as last_emerg_leave_time from (
+                        SELECT enc_id, tsp, fid, value,
+                        lead(tsp,1) OVER (PARTITION BY enc_id ORDER BY tsp) as leave_time
+                        FROM cdm_t
+                        WHERE fid like 'care_unit' and dataset_id = {}
+                        ORDER BY enc_id, tsp) as winT
+                    WHERE value like 'HCGH EMERGENCY%'
+                    GROUP BY enc_id""".format(dataset_id)
+    specialCase.append(lastEmger)
+
+    cultureSentTbl = """with cultStatTbl as (select enc_id, tsp, cast(value AS json)->>'status' as status from cdm_t where fid like 'culture_order' and dataset_id = {})
+    select enc_id, min(tsp) as firstCultureSent
+    from cultStatTbl
+    where status like 'Sent'
+    group by enc_id""".format(dataset_id)
+
+    specialCase.append(cultureSentTbl)
+
+
+    # # Get Feature Table Information
+    #handle basic boolean features
+    sql_prefix = 'SELECT fid, category, data_type from cdm_feature where \n'
+    eventListProc = ['FID like \'{}\''.format(event) for event in event_list]
+    event_sql = ' or \n'.join(eventListProc)
+    event_sql = sql_prefix + '(' + event_sql + ') and dataset_id = {};'.format(dataset_id)
+    print("event sql:")
+    print(event_sql)
+    featureTypeTbl = pd.read_sql_query(text(event_sql),con=engine)
+    featureTypeTbl.set_index('fid',inplace=True)
+    print(featureTypeTbl.head())
+
+    agg_func = [func if len(func)>0 else 'min' for func in agg_func]
+    func2suffix= {'min':'_first','max':'_last'}
+    cdm_t_queryTemplate = 'select enc_id, {}(tsp) as {} from cdm_t where fid = \'{}\' and dataset_id = {} group by enc_id'
+    cdm_twf_queryTemplate = 'select enc_id, {}(tsp) as {} from cdm_twf where {}::int = 1 and dataset_id = {} group by enc_id'
+    fid = 'any_organ_failure'
+
+
+    subQueries = [];
+    for agg, fid, force in zip(agg_func, event_list,force_list):
+        ft = featureTypeTbl.loc[fid]['data_type'].lower()
+        if ft=='boolean'or ft=='integer' or force:
+            suff = func2suffix[agg]
+            name = fid + suff
+            if featureTypeTbl.loc[fid]['category'].lower() == 't':
+                subQueries.append(cdm_t_queryTemplate.format(agg,name,fid, dataset_id))
+            elif featureTypeTbl.loc[fid]['category'].lower() == 'twf':
+                subQueries.append(cdm_twf_queryTemplate.format(agg,name,fid, dataset_id))
+            else:
+                raise ValueError('Unknown category {}'.format(featureTypeTbl[fid]['category']))
+        else:
+            print("Unclear if automatic query constructor can handle feature type {}, skipping {}".format(ft, fid))
+    print(subQueries)
+
+
+    subQueries = specialCase + subQueries
+
+    asStatement = ''
+    fromStatement = ''
+    for idx, subQuery in enumerate(subQueries):
+       asStatement += 'tbl_{} as ({}), \n'.format(idx,subQuery)
+       if idx == 0:
+           fromStatement += 'tbl_{}'.format(idx)
+       else:
+           fromStatement += '\nFULL OUTER JOIN\n tbl_{} USING (enc_id)'.format(idx)
+
+    asStatement = asStatement[:-3]
+
+    joinQuery = 'with \n{} \n select * from \n{}'.format(asStatement, fromStatement)
+    print("join query:")
+    print(joinQuery)
+    return pd.read_sql_query(text(joinQuery), con=engine, index_col='enc_id')
