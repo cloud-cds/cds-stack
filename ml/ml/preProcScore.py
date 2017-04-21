@@ -82,7 +82,7 @@ def normScore(score_df, toNorm='raw_score', normed='score', thisPreProcInfo=None
         # less outlier rejection means that the data has a small dynamic range.
         score_scale[0] = np.percentile(toNormscore, 1) # more  outlier regection runs risk that meaningful operating points will be out of 0/1
         score_scale[1] = np.percentile(toNormscore, 99) # more outlier regection runs risk that meaningful operating points will be out of 0/1
-    if score_scale[1] <= np.power(10,-6):
+    if score_scale[1] <= 10 ** -6:
         return score_df, None, False
 
     if thisPreProcInfo is None:
