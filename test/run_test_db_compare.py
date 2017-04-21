@@ -882,14 +882,15 @@ if __name__ == '__main__':
       db_pair = op2dw_compare
     else:
       print('unkown db_pair: {}'.format(db_pair_name))
-      exit(0)
+      exit(1)
   else:
     print('please input db_pair_name')
-    exit(0)
+    exit(1)
   test = DBCompareTest(db_pair)
   test.run()
   if test.passed:
     print("test succeed")
+    exit(0)
   else:
     print("test failed")
-  exit(test.passed)
+    exit(1)
