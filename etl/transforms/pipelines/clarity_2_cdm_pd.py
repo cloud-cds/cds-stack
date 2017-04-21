@@ -158,6 +158,11 @@ async def bands(connection, dataset_id, log, is_plan):
                                            'NAME': 'fid',
                                            'ResultValue': 'value',
                                            'RESULT_TIME': 'tsp'})
+
+  labs['fid'] = labs['fid'].apply(lambda x: x.lower())
+
+  labs = format_data.clean_values(labs, 'fid', 'value')
+
   labs['confidence'] = 2
 
   if not is_plan:

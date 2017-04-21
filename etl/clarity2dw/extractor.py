@@ -104,7 +104,7 @@ class Extractor:
     sql = '''
     insert into pat_enc (dataset_id, visit_id, pat_id)
     SELECT %(dataset_id)s, demo."CSN_ID" visit_id, demo."pat_id"
-    FROM "Demographics" demo left join pat_enc pe on demo."CSN_ID" = pe.visit_id
+    FROM "Demographics" demo left join pat_enc pe on demo."CSN_ID"::text = pe.visit_id::text
     where pe.visit_id is null %(limit)s
     ''' % {'dataset_id': self.config.dataset_id, 'limit': 'limit {}'.format(limit) if limit else ''}
     self.log.debug("ETL populate_patients sql: " + sql)
