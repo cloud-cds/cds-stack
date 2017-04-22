@@ -523,45 +523,60 @@ end;
 $$
 LANGUAGE plpgsql;
 
+
 CREATE OR REPLACE FUNCTION get_states_snapshot(this_pat_id text)
 RETURNS table( pat_id                           varchar(50),
+               event_id                         int,
                state                            int,
                severe_sepsis_onset              timestamptz,
                septic_shock_onset               timestamptz,
-               severe_sepsis_wo_infection_onset timestamptz,
-               event_id                         int)
-AS $func$ BEGIN RETURN QUERY
-select pat_enc.pat_id,
-       coalesce(ce.flag, 0),
-       ce.severe_sepsis_onset,
-       ce.septic_shock_onset,
-       ce.severe_sepsis_wo_infection_onset,
-       ce.event_id
-from (select distinct pat_enc.pat_id from pat_enc) as pat_enc
-left join
-(select criteria_events.pat_id, max(flag) flag,
-    GREATEST( max(case when name = 'suspicion_of_infection' then override_time else null end),
-        (array_agg(measurement_time order by measurement_time)  filter (where name in ('sirs_temp','heart_rate','respiratory_rate','wbc') and is_met ) )[2],
-        min(measurement_time) filter (where name in ('blood_pressure','mean_arterial_pressure','decrease_in_sbp','respiratory_failure','creatinine','bilirubin','platelet','inr','lactate') and is_met ))
-    as severe_sepsis_onset,
-    LEAST(
-        min(measurement_time) filter (where name in ('systolic_bp','hypotension_map','hypotension_dsbp') and is_met ),
-        min(measurement_time) filter (where name = 'initial_lactate' and is_met)
-    ) as septic_shock_onset,
-    GREATEST(
-        (array_agg(measurement_time order by measurement_time)  filter (where name in ('sirs_temp','heart_rate','respiratory_rate','wbc') and is_met ) )[2],
-        min(measurement_time) filter (where name in ('blood_pressure','mean_arterial_pressure','decrease_in_sbp','respiratory_failure','creatinine','bilirubin','platelet','inr','lactate') and is_met ))
-    as severe_sepsis_wo_infection_onset,
-    max(criteria_events.event_id) event_id
- from
- criteria_events
- where criteria_events.pat_id = coalesce(this_pat_id, criteria_events.pat_id) and
-       criteria_events.event_id = (select max(ce2.event_id) from criteria_events ce2 where ce2.pat_id = criteria_events.pat_id and flag >= 0)
- group by criteria_events.pat_id
-)
-as ce on pat_enc.pat_id = ce.pat_id
-where pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id)
-; END $func$ LANGUAGE plpgsql;
+               severe_sepsis_wo_infection_onset timestamptz
+             )
+AS $func$ BEGIN
+
+  RETURN QUERY
+  with max_events_by_pat as (
+    select    PE.pat_id, max(CE.event_id) as event_id
+    from      pat_enc PE
+    left join criteria_events CE on PE.pat_id = CE.pat_id
+    where     PE.pat_id = coalesce(this_pat_id, PE.pat_id)
+    and       ( CE.flag is null or CE.flag >= 0 )
+    group by  PE.pat_id
+  )
+  select MEV.pat_id,
+         MEV.event_id,
+         coalesce(CE.flag, 0) as state,
+         CE.severe_sepsis_onset,
+         CE.septic_shock_onset,
+         CE.severe_sepsis_wo_infection_onset
+  from max_events_by_pat MEV
+  left join lateral (
+    select
+      ICE.pat_id,
+      max(flag) flag,
+      GREATEST( max(case when name = 'suspicion_of_infection' then override_time else null end),
+          (array_agg(measurement_time order by measurement_time)  filter (where name in ('sirs_temp','heart_rate','respiratory_rate','wbc') and is_met ) )[2],
+          min(measurement_time) filter (where name in ('blood_pressure','mean_arterial_pressure','decrease_in_sbp','respiratory_failure','creatinine','bilirubin','platelet','inr','lactate') and is_met ))
+      as severe_sepsis_onset,
+      LEAST(
+          min(measurement_time) filter (where name in ('systolic_bp','hypotension_map','hypotension_dsbp') and is_met ),
+          min(measurement_time) filter (where name = 'initial_lactate' and is_met)
+      ) as septic_shock_onset,
+      GREATEST(
+          (array_agg(measurement_time order by measurement_time)  filter (where name in ('sirs_temp','heart_rate','respiratory_rate','wbc') and is_met ) )[2],
+          min(measurement_time) filter (where name in ('blood_pressure','mean_arterial_pressure','decrease_in_sbp','respiratory_failure','creatinine','bilirubin','platelet','inr','lactate') and is_met ))
+      as severe_sepsis_wo_infection_onset
+    from
+    criteria_events ICE
+    where ICE.pat_id   = MEV.pat_id
+    and   ICE.event_id = MEV.event_id
+    and   ICE.flag >= 0
+    group by ICE.pat_id
+  )
+  as CE on MEV.pat_id = CE.pat_id;
+
+END $func$ LANGUAGE plpgsql;
+
 
 CREATE OR REPLACE FUNCTION get_states(table_name text, this_pat_id text)
 RETURNS table( pat_id varchar(50), state int) AS $func$ BEGIN RETURN QUERY EXECUTE
