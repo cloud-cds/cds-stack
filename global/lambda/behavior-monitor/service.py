@@ -18,10 +18,52 @@ import pandas as pd
 from datetime import datetime, timedelta
 import time
 import logging
-from analysis.criteria_state_metrics import state_group_list, get_state_counts
 logging.basicConfig()
 
 logging.debug("Import complete")
+
+state_group_list = [
+{'state':range(-50,50), 'test_out':10 , 'var':'total',         'english':'total (with state information)'},
+{'state':range(20,40),  'test_out':10 , 'var':'sev',           'english':'had severe sepsis in this interval'},
+{'state':range(30,40),  'test_out':5  , 'var':'sho',           'english':'had septic shock in this interval'},
+{'state':[10, 12],      'test_out':5  , 'var':'sev_nosus',     'english':'had severe sepsis without sus in this interval'},
+{'state':[32, 22],      'test_out':5  ,  'var':'sev_3_m',      'english':'where the severe sepsis 3 hour bundle was missed'},
+{'state':[34, 24],      'test_out':5  ,  'var':'sev_6_m',      'english':'where the severe sepsis 6 hour bundle was missed'},
+{'state':[31, 21],      'test_out':5  ,  'var':'sev_3_h',      'english':'where the severe sepsis 3 hour bundle was met'},
+{'state':[33, 23],      'test_out':5  ,  'var':'sev_6_h',      'english':'where the severe sepsis 6 hour bundle was met'},
+{'state':[36],          'test_out':5  ,  'var':'sho_3_h',      'english':'where the septic shock 6 hour bundle was missed'},
+{'state':[35],          'test_out':5  ,  'var':'sho_6_h',      'english':'where the septic shock 6 hour bundle was met'},
+]
+
+def get_state_counts(db_con, state_group_list, start_time_str, stop_time_str, dataset_id, source_tbl):
+  state_group_out = []
+  for state_group in state_group_list:
+    query = sqlalchemy.text(
+      """select count(DISTINCT PAT_ID) as {name}
+          from {table_name}
+          where window_ts between \'{start}\'::timestamptz and \'{stop}\'::timestamptz
+              and dataset_id = {dataset}
+              and pat_state in ({pat_states});""".
+                              format(name=state_group['var'],
+                                     start=start_time_str,
+                                     stop=stop_time_str,
+                                     pat_states=','.join([str(num) for num in state_group['state']]),
+                                     dataset=dataset_id,
+                                     table_name=source_tbl))
+
+    out_df = pd.read_sql(query,db_con)
+    # print(out_df)
+    print("\n")
+    print(query)
+    # state_group['results'] = state_group['test_out']
+    state_group['results'] = out_df[state_group['var']].iloc[0]
+    state_group_out.append(state_group)
+
+  return state_group_out
+  # =============================
+  ## Get Results
+  # =============================
+
 #==================================================
 ## Parameters
 #==================================================
