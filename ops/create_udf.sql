@@ -530,7 +530,8 @@ RETURNS table( pat_id                           varchar(50),
                state                            int,
                severe_sepsis_onset              timestamptz,
                septic_shock_onset               timestamptz,
-               severe_sepsis_wo_infection_onset timestamptz
+               severe_sepsis_wo_infection_onset timestamptz,
+               severe_sepsis_lead_time          timestamptz
              )
 AS $func$ BEGIN
 
@@ -548,24 +549,32 @@ AS $func$ BEGIN
          coalesce(CE.flag, 0) as state,
          CE.severe_sepsis_onset,
          CE.septic_shock_onset,
-         CE.severe_sepsis_wo_infection_onset
+         CE.severe_sepsis_wo_infection_onset,
+         CE.severe_sepsis_lead_time
   from max_events_by_pat MEV
   left join lateral (
     select
       ICE.pat_id,
       max(flag) flag,
       GREATEST( max(case when name = 'suspicion_of_infection' then override_time else null end),
-          (array_agg(measurement_time order by measurement_time)  filter (where name in ('sirs_temp','heart_rate','respiratory_rate','wbc') and is_met ) )[2],
-          min(measurement_time) filter (where name in ('blood_pressure','mean_arterial_pressure','decrease_in_sbp','respiratory_failure','creatinine','bilirubin','platelet','inr','lactate') and is_met ))
+                (array_agg(measurement_time order by measurement_time)  filter (where name in ('sirs_temp','heart_rate','respiratory_rate','wbc') and is_met ) )[2],
+                min(measurement_time) filter (where name in ('blood_pressure','mean_arterial_pressure','decrease_in_sbp','respiratory_failure','creatinine','bilirubin','platelet','inr','lactate') and is_met ))
       as severe_sepsis_onset,
+
       LEAST(
           min(measurement_time) filter (where name in ('systolic_bp','hypotension_map','hypotension_dsbp') and is_met ),
           min(measurement_time) filter (where name = 'initial_lactate' and is_met)
       ) as septic_shock_onset,
+
       GREATEST(
           (array_agg(measurement_time order by measurement_time)  filter (where name in ('sirs_temp','heart_rate','respiratory_rate','wbc') and is_met ) )[2],
           min(measurement_time) filter (where name in ('blood_pressure','mean_arterial_pressure','decrease_in_sbp','respiratory_failure','creatinine','bilirubin','platelet','inr','lactate') and is_met ))
-      as severe_sepsis_wo_infection_onset
+      as severe_sepsis_wo_infection_onset,
+
+      LEAST( max(case when name = 'suspicion_of_infection' then override_time else null end),
+             (array_agg(measurement_time order by measurement_time)  filter (where name in ('sirs_temp','heart_rate','respiratory_rate','wbc') and is_met ) )[2],
+             min(measurement_time) filter (where name in ('blood_pressure','mean_arterial_pressure','decrease_in_sbp','respiratory_failure','creatinine','bilirubin','platelet','inr','lactate') and is_met ))
+      as severe_sepsis_lead_time
     from
     criteria_events ICE
     where ICE.pat_id   = MEV.pat_id
@@ -847,12 +856,12 @@ BEGIN
         limit 1;
 END; $func$;
 
-create or replace function after_severe_sepsis_met(this_pat_id text, m_tsp timestamptz, sevsep_is_met boolean, sevsep_onset timestamptz)
+create or replace function after_severe_sepsis_met(this_pat_id text, m_tsp timestamptz, sevsep_is_met boolean, sevsep_lead timestamptz)
     returns table(is_met boolean) language plpgsql as $func$
 BEGIN
     return query select coalesce(bool_or(ss.is_met), false) from (
-        select (sevsep_is_met and m_tsp > sevsep_onset) as is_met
-        union all select bool_or(m_tsp > ss.severe_sepsis_onset) is_met
+        select (sevsep_is_met and m_tsp > sevsep_lead) as is_met
+        union all select bool_or(m_tsp > ss.severe_sepsis_lead_time) is_met
                   from get_states_snapshot(this_pat_id) ss
                   where ss.state >= 20
     ) ss;
@@ -889,11 +898,17 @@ BEGIN
         and isnumeric(c_fluid.value);
 END; $func$;
 
+-- REVIEW: (Yanif)->(Andong): additional statuses in DW version:
+-- 'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result'
+-- 'Final', 'Final result', 'Edited Result - FINAL',
+-- 'Completed', 'Corrected', 'Not Indicated'
 create or replace function order_met(order_name text, order_value text)
     returns boolean language plpgsql as $func$
 BEGIN
     return case when order_name = 'blood_culture_order'
                     then order_value in ('In  process', 'Preliminary', 'Final', 'Completed', 'Not Indicated')
+
+                -- REVIEW: (Yanif)->(Andong): why is there no 'In  process' below analogously to order_status?
                 when order_name = 'initial_lactate_order' or order_name = 'repeat_lactate_order'
                     then order_value in ('Preliminary', 'Sent', 'Final', 'Completed', 'Not Indicated')
                 else false
@@ -910,13 +925,17 @@ BEGIN
             end;
 END; $func$;
 
+-- REVIEW: (Yanif)->(Andong): additional statuses in DW version:
+-- 'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result'
+-- 'Final', 'Final result', 'Edited Result - FINAL',
+-- 'Completed', 'Corrected', 'Not Indicated'
 create or replace function order_status(order_fid text, value_text text, override_value_text text)
     returns text language plpgsql as $func$
 BEGIN
     return case when override_value_text = 'Not Indicated' then 'Completed'
-                when order_fid = 'lactate_order' and value_text in ('In  process', 'Sent', 'Preliminary', 'Final', 'Completed', 'Not Indicated') then 'Completed'
+                when order_fid = 'lactate_order' and value_text in ('In  process', 'Sent', 'Preliminary', 'Final', 'Completed', 'Corrected', 'Not Indicated') then 'Completed'
                 when order_fid = 'lactate_order' and value_text = 'Signed' then 'Ordered'
-                when order_fid = 'blood_culture_order' and value_text in ('In  process', 'Sent', 'Preliminary', 'Final', 'Completed', 'Not Indicated') then 'Completed'
+                when order_fid = 'blood_culture_order' and value_text in ('In  process', 'Sent', 'Preliminary', 'Final', 'Completed', 'Corrected', 'Not Indicated') then 'Completed'
                 when order_fid = 'blood_culture_order' and value_text = 'Signed' then 'Ordered'
                 else null
             end;
@@ -999,7 +1018,6 @@ return query
         left join criteria c on pat_ids.pat_id = c.pat_id and cd.name = c.name
         left join criteria_meas meas
             on pat_ids.pat_id = meas.pat_id and meas.fid = cd.fid
-            and meas.fid = cd.fid
             and (meas.tsp is null or meas.tsp between ts_start and ts_end)
     ),
     infection as (
@@ -1128,29 +1146,79 @@ return query
         union all select * from respiratory_failures
         union all select * from organ_dysfunction_except_rf
     ),
-    severe_sepsis_now as (
+    severe_sepsis_criteria as (
         with organ_dysfunction as (
             select * from respiratory_failures
             union all select * from organ_dysfunction_except_rf
         )
+        select IC.pat_id,
+               sum(IC.cnt) > 0 as suspicion_of_infection,
+               sum(SC.cnt) as sirs_cnt,
+               sum(OC.cnt) as org_df_cnt,
+               max(IC.onset) as inf_onset,
+               max(SC.onset) as sirs_onset,
+               max(OC.onset) as org_df_onset
+        from
+        (
+          select infection.pat_id,
+                 sum(case when infection.is_met then 1 else 0 end) as cnt,
+                 max(infection.override_time) as onset
+          from infection
+          group by infection.pat_id
+        ) IC
+        left join
+        (
+          select sirs.pat_id,
+                 sum(case when sirs.is_met then 1 else 0 end) as cnt,
+                 (array_agg(sirs.measurement_time order by sirs.measurement_time))[2] as onset
+          from sirs
+          group by sirs.pat_id
+        ) SC on IC.pat_id = SC.pat_id
+        left join
+        (
+          select organ_dysfunction.pat_id,
+                 sum(case when organ_dysfunction.is_met then 1 else 0 end) as cnt,
+                 min(organ_dysfunction.measurement_time) as onset
+          from organ_dysfunction
+          group by organ_dysfunction.pat_id
+        ) OC on IC.pat_id = OC.pat_id
+        group by IC.pat_id
+    ),
+    severe_sepsis_now as (
+      select sspm.pat_id,
+             sspm.severe_sepsis_is_met,
+             (case when sspm.severe_sepsis_onset <> 'infinity'::timestamptz
+                   then sspm.severe_sepsis_onset
+                   else null end
+             ) as severe_sepsis_onset,
+             (case when sspm.severe_sepsis_wo_infection_onset <> 'infinity'::timestamptz
+                   then sspm.severe_sepsis_wo_infection_onset
+                   else null end
+             ) as severe_sepsis_wo_infection_onset,
+             sspm.severe_sepsis_lead_time
+      from (
         select stats.pat_id,
-               coalesce(bool_or(stats.suspicion_of_infection and stats.sirs_cnt > 1 and stats.org_df_cnt > 0), false) as severe_sepsis_is_met,
-               max(greatest(stats.inf_onset, stats.sirs_onset, stats.org_df_onset)) as severe_sepsis_onset,
-               max(greatest(stats.sirs_onset, stats.org_df_onset)) as severe_sepsis_wo_infection_onset
-        from (
-            select infection.pat_id,
-                   coalesce(bool_or(infection.is_met), false) as suspicion_of_infection,
-                   sum(case when sirs.is_met then 1 else 0 end) as sirs_cnt,
-                   sum(case when organ_dysfunction.is_met then 1 else 0 end) as org_df_cnt,
-                   max(infection.override_time) as inf_onset,
-                   (array_agg(sirs.measurement_time order by sirs.measurement_time))[2] as sirs_onset,
-                   min(organ_dysfunction.measurement_time) as org_df_onset
-            from infection
-            left join sirs on infection.pat_id = sirs.pat_id
-            left join organ_dysfunction on infection.pat_id = organ_dysfunction.pat_id
-            group by infection.pat_id
-        ) stats
+               coalesce(bool_or(stats.suspicion_of_infection
+                                  and stats.sirs_cnt > 1
+                                  and stats.org_df_cnt > 0)
+                        , false
+                        ) as severe_sepsis_is_met,
+
+               max(greatest(coalesce(stats.inf_onset, 'infinity'::timestamptz),
+                            coalesce(stats.sirs_onset, 'infinity'::timestamptz),
+                            coalesce(stats.org_df_onset, 'infinity'::timestamptz))
+                   ) as severe_sepsis_onset,
+
+               max(greatest(coalesce(stats.sirs_onset, 'infinity'::timestamptz),
+                            coalesce(stats.org_df_onset, 'infinity'::timestamptz))
+                   ) as severe_sepsis_wo_infection_onset,
+
+               min(least(stats.inf_onset, stats.sirs_onset, stats.org_df_onset))
+                  as severe_sepsis_lead_time
+
+        from severe_sepsis_criteria stats
         group by stats.pat_id
+      ) sspm
     ),
     crystalloid_fluid as (
         select
@@ -1342,7 +1410,7 @@ return query
                             (select bool_or(assm.is_met)
                                 from after_severe_sepsis_met(pat_cvalues.pat_id, greatest(pat_cvalues.c_otime, pat_cvalues.tsp),
                                     (select bool_or(severe_sepsis_now.severe_sepsis_is_met) from severe_sepsis_now),
-                                    (select min(severe_sepsis_now.severe_sepsis_onset) from severe_sepsis_now)
+                                    (select min(severe_sepsis_now.severe_sepsis_lead_time) from severe_sepsis_now)
                                 ) assm)
                             and ( order_met(pat_cvalues.name, coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value)) )
 
@@ -1350,7 +1418,7 @@ return query
                             (select bool_or(assm.is_met)
                                 from after_severe_sepsis_met(pat_cvalues.pat_id, greatest(pat_cvalues.c_otime, pat_cvalues.tsp),
                                     (select bool_or(severe_sepsis_now.severe_sepsis_is_met) from severe_sepsis_now),
-                                    (select min(severe_sepsis_now.severe_sepsis_onset) from severe_sepsis_now)
+                                    (select min(severe_sepsis_now.severe_sepsis_lead_time) from severe_sepsis_now)
                                 ) assm)
                             and ( dose_order_met(pat_cvalues.fid, pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value::numeric,
                                     coalesce((pat_cvalues.c_ovalue#>>'{0,lower}')::numeric,
@@ -1409,11 +1477,17 @@ return query
                     pat_cvalues.c_otime,
                     pat_cvalues.c_ouser,
                     pat_cvalues.c_ovalue,
-                    (not(coalesce(initial_lactate_order.is_met and lactate_results.is_met, false)
-                            and order_met(pat_cvalues.name, coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value)))
-                     and (lactate_results.tsp is null
-                          or (pat_cvalues.tsp > initial_lactate_order.tsp and lactate_results.tsp > initial_lactate_order.tsp))
-                    ) is_met
+                    ((
+                      coalesce(initial_lactate_order.is_met and lactate_results.is_met, false)
+                        and order_met(pat_cvalues.name, coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value))
+                        and (coalesce(pat_cvalues.tsp > initial_lactate_order.tsp, false)
+                                and coalesce(lactate_results.tsp > initial_lactate_order.tsp, false))
+                    ) or
+                    (
+                      not( coalesce(initial_lactate_order.is_met
+                                      and ( lactate_results.is_met or pat_cvalues.tsp <= initial_lactate_order.tsp )
+                                    , false) )
+                    )) is_met
             from pat_cvalues
             left join (
                 select oc.pat_id,
@@ -1452,6 +1526,7 @@ return query
 
 return;
 END; $function$;
+
 
 -- Calculates criteria over windows, with each window based on the timestamps
 -- at which a measurement is available. This could be replaced by regularly-spaced
@@ -1523,6 +1598,7 @@ DECLARE
     window_size interval := get_parameter('lookbackhours')::interval;
 BEGIN
     perform auto_deactivate(this_pat_id);
+
     create temporary table new_criteria as
         select * from calculate_criteria(this_pat_id, ts_end - window_size, ts_end);
 
@@ -1543,7 +1619,8 @@ BEGIN
     ),
     state_change as
     (
-        select snapshot.pat_id, snapshot.event_id as from_event_id, snapshot.state as state_from, live.state as state_to
+        select snapshot.pat_id, snapshot.event_id as from_event_id,
+               snapshot.state as state_from, live.state as state_to
         from get_states('new_criteria', this_pat_id) live
         left join get_states_snapshot(this_pat_id) snapshot on snapshot.pat_id = live.pat_id
         where snapshot.state < live.state
@@ -1569,10 +1646,17 @@ BEGIN
             group by new_criteria.pat_id
         ) nc on si.pat_id = nc.pat_id
         left join lateral update_notifications(si.pat_id, flag_to_alert_codes(si.state_to),
-            nc.severe_sepsis_onset, nc.septic_shock_onset, nc.severe_sepsis_wo_infection_onset) n on si.pat_id = n.pat_id
+                                               nc.severe_sepsis_onset,
+                                               nc.septic_shock_onset,
+                                               nc.severe_sepsis_wo_infection_onset
+                                               ) n
+        on si.pat_id = n.pat_id
     )
-    insert into criteria_events (event_id, pat_id, name, measurement_time, value, override_time, override_user, override_value, is_met, update_date, flag)
-    select s.event_id, c.pat_id, c.name, c.measurement_time, c.value, c.override_time, c.override_user, c.override_value, c.is_met, c.update_date, s.state_to as flag
+    insert into criteria_events (event_id, pat_id, name, measurement_time, value,
+                                 override_time, override_user, override_value, is_met, update_date, flag)
+    select s.event_id, c.pat_id, c.name, c.measurement_time, c.value,
+           c.override_time, c.override_user, c.override_value, c.is_met, c.update_date,
+           s.state_to as flag
     from ( select ssid.event_id, si.pat_id, si.state_to
            from state_change si
            cross join (select nextval('criteria_event_ids') event_id) ssid
@@ -1644,13 +1728,16 @@ BEGIN
             nc.severe_sepsis_onset, nc.septic_shock_onset, nc.severe_sepsis_wo_infection_onset) n
         on pat_states.pat_id = n.pat_id
     )
-    insert into criteria_events (event_id, pat_id, name, measurement_time, value, override_time, override_user, override_value, is_met, update_date, flag)
-    select ssid.event_id, new_criteria.pat_id, new_criteria.name, new_criteria.measurement_time, new_criteria.value, new_criteria.override_time, new_criteria.override_user, new_criteria.override_value, new_criteria.is_met, new_criteria.update_date, pat_states.state as flag
-    from new_criteria
+    insert into criteria_events (event_id, pat_id, name, measurement_time, value,
+                                 override_time, override_user, override_value, is_met, update_date, flag)
+    select ssid.event_id, NC.pat_id, NC.name, NC.measurement_time, NC.value,
+           NC.override_time, NC.override_user, NC.override_value, NC.is_met, NC.update_date,
+           pat_states.state as flag
+    from new_criteria NC
     cross join (select nextval('criteria_event_ids') event_id) ssid
-    inner join pat_states on new_criteria.pat_id = pat_states.pat_id
-    left join notified_patients np on new_criteria.pat_id = np.pat_id
-    where not new_criteria.name like '%_order';
+    inner join pat_states on NC.pat_id = pat_states.pat_id
+    left join notified_patients np on NC.pat_id = np.pat_id
+    where not NC.name like '%_order';
 
     drop table new_criteria;
     return;
@@ -1663,38 +1750,46 @@ END; $function$;
 
 -- '200','201','202','203','204','300','301','302','303','304','305','306'
 CREATE OR REPLACE FUNCTION update_notifications(this_pat_id text, alert_codes text[],
-    severe_sepsis_onset timestamptz, septic_shock_onset timestamptz, sirs_plus_organ_onset timestamptz)
+                                                severe_sepsis_onset timestamptz,
+                                                septic_shock_onset timestamptz,
+                                                sirs_plus_organ_onset timestamptz)
 RETURNS table(pat_id varchar(50), alert_code text) AS $$
 BEGIN
--- clean notifications
-delete from notifications
-    where notifications.pat_id = this_pat_id and notifications.message#>>'{alert_code}' <> any(alert_codes);
+    -- clean notifications
+    -- REVIEW: (Yanif)->(Andong): any(alert_codes) does not make sense here, e.g.,
+    -- select 1 <> any(array[1,2]::int[]) yields 't'
+    -- (and will always yield 't' with alert_codes > 1 distinct values)
+    delete from notifications
+        where notifications.pat_id = this_pat_id
+        and notifications.message#>>'{alert_code}' <> any(alert_codes);
 
--- add new notifications
-return query
-insert into notifications (pat_id, message)
-select
-    pat_enc.pat_id,
-    json_build_object('alert_code', code, 'read', false,'timestamp',
-        date_part('epoch',
-            (case when code in ('201','204','303','306') then septic_shock_onset
-                        when code in ('205', '300') then sirs_plus_organ_onset
-                        else severe_sepsis_onset
-                        end)::timestamptz
-            +
-                    (case
-                        when code = '202' then '3 hours'
-                        when code in ('203','204','205') then '6 hours'
-                        when code = '304' then '2 hours'
-                        when code in ('305','306') then '5 hours'
-                        else '0 hours'
-                        end)::interval
-    )) message
-from (select distinct pat_enc.pat_id from pat_enc) as pat_enc
-cross join unnest(alert_codes) as code
-left join notifications n2 on n2.pat_id = pat_enc.pat_id and n2.message#>>'{alert_code}' = code
-where pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id) and n2.message is null and code <> '0'
-returning notifications.pat_id, message#>>'{alert_code}';
+    -- add new notifications
+    return query
+    insert into notifications (pat_id, message)
+    select
+        pat_enc.pat_id,
+        json_build_object('alert_code', code, 'read', false,'timestamp',
+            date_part('epoch',
+                (case when code in ('201','204','303','306') then septic_shock_onset
+                      when code in ('205', '300') then sirs_plus_organ_onset
+                      else severe_sepsis_onset
+                      end)::timestamptz
+                +
+                (case
+                    when code = '202' then '3 hours'
+                    when code in ('203','204','205') then '6 hours'
+                    when code = '304' then '2 hours'
+                    when code in ('305','306') then '5 hours'
+                    else '0 hours'
+                    end)::interval
+        )) message
+    from (select distinct pat_enc.pat_id from pat_enc) as pat_enc
+    cross join unnest(alert_codes) as code
+    left join notifications n2
+        on n2.pat_id = pat_enc.pat_id and n2.message#>>'{alert_code}' = code
+    where pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id)
+    and n2.message is null and code <> '0'
+    returning notifications.pat_id, message#>>'{alert_code}';
 
 END;
 $$ LANGUAGE PLPGSQL;
@@ -1754,199 +1849,111 @@ RETURNS table(
     visit_id            varchar(50),
     count               int
 ) AS $func$ BEGIN RETURN QUERY
-select pat_enc.pat_id, pat_enc.visit_id,
-    (case when deactivated is true then 0
-      else coalesce(counts.count::int, 0)
-    end)
-    from pat_enc
-    left join pat_status on pat_enc.pat_id = pat_status.pat_id
-    left join
-    (
-    select notifications.pat_id,
-        (
-            case when count(*) > 5 then 5
-            else count(*)
-            end
-        ) as count
-    from
-    notifications
-    where not (message#>>'{read}')::bool
-        and (message#>>'{timestamp}')::numeric < date_part('epoch', now())
-    group by notifications.pat_id
-    ) as counts on counts.pat_id = pat_enc.pat_id
-    where pat_enc.pat_id like 'E%' and pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id);
+  select pat_enc.pat_id, pat_enc.visit_id,
+        (case when deactivated is true then 0
+          else coalesce(counts.count::int, 0)
+        end)
+  from pat_enc
+  left join pat_status on pat_enc.pat_id = pat_status.pat_id
+  left join
+  (
+      select notifications.pat_id,
+            (case when count(*) > 5 then 5
+                  else count(*)
+                  end
+            ) as count
+      from
+      notifications
+      where not (message#>>'{read}')::bool
+      and (message#>>'{timestamp}')::numeric < date_part('epoch', now())
+      group by notifications.pat_id
+  ) as counts on counts.pat_id = pat_enc.pat_id
+  where pat_enc.pat_id like 'E%' and pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id);
 END $func$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION calculate_popmean(target TEXT, fid TEXT)
-RETURNS real
-AS $BODY$
-DECLARE
-    fid_c TEXT;
-    fid_popmean TEXT;
-    popmean TEXT;
-BEGIN
-    fid_c = fid || '_c';
-    fid_popmean = fid || '_popmean';
-    EXECUTE 'SELECT cast(avg('|| quote_ident(fid) ||
-        ') AS text) FROM ' || target || '  WHERE '|| quote_ident(fid_c)
-        ||' < 8 ' INTO popmean;
-    RAISE NOTICE '% = %', fid_popmean, popmean;
-    EXECUTE 'SELECT merge_cdm_g('||quote_literal(fid_popmean)||', '||quote_literal(popmean)||', 24)';
-    return popmean;
-END
-$BODY$
-LANGUAGE plpgsql;
-
-CREATE OR REPLACE FUNCTION drop_tables(IN _schema TEXT, IN name TEXT)
-RETURNS void
-LANGUAGE plpgsql
-AS
-$$
-DECLARE
-    row     record;
-BEGIN
-    FOR row IN
-        SELECT
-            table_schema,
-            table_name
-        FROM
-            information_schema.tables
-        WHERE
-            table_type = 'BASE TABLE'
-        AND
-            table_schema = _schema
-        AND
-            table_name ILIKE (name || '%')
-    LOOP
-        EXECUTE 'DROP TABLE ' || quote_ident(row.table_schema) || '.' || quote_ident(row.table_name);
-        RAISE INFO 'Dropped table: %', quote_ident(row.table_schema) || '.' || quote_ident(row.table_name);
-    END LOOP;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION drop_tables_pattern(IN _schema TEXT, IN pattern TEXT)
-RETURNS void
-LANGUAGE plpgsql
-AS
-$$
-DECLARE
-    row     record;
-BEGIN
-    FOR row IN
-        SELECT
-            table_schema,
-            table_name
-        FROM
-            information_schema.tables
-        WHERE
-            table_type = 'BASE TABLE'
-        AND
-            table_schema = _schema
-        AND
-            table_name ILIKE pattern || '%'
-    LOOP
-        EXECUTE 'DROP TABLE ' || quote_ident(row.table_schema) || '.' || quote_ident(row.table_name);
-        RAISE INFO 'Dropped table: %', quote_ident(row.table_schema) || '.' || quote_ident(row.table_name);
-    END LOOP;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION del_pat(this_pat_id text) RETURNS void LANGUAGE plpgsql AS $$ BEGIN
-DELETE
-FROM cdm_twf
-WHERE enc_id IN
-    (SELECT enc_id
-     FROM pat_enc
-     WHERE pat_id = this_pat_id);
-  DELETE
-  FROM cdm_t WHERE enc_id IN
-    (SELECT enc_id
-     FROM pat_enc
-     WHERE pat_id = this_pat_id);
-  DELETE
-  FROM cdm_s WHERE enc_id IN
-    (SELECT enc_id
-     FROM pat_enc
-     WHERE pat_id = this_pat_id);
-  DELETE
-  FROM criteria WHERE pat_id = this_pat_id;
-  DELETE
-  FROM criteria_meas WHERE pat_id = this_pat_id;
-  DELETE
-  FROM pat_enc WHERE pat_id = this_pat_id;
-END;
-$$;
-
-create or replace function delete_test_scenarios() returns void language plpgsql as $$ begin
-    delete from criteria where pat_id ~ E'^\\d+$' and pat_id::integer between 3000 and 3200;
-    delete from criteria_events where pat_id ~ E'^\\d+$' and pat_id::integer between 3000 and 3200;
-    delete from notifications where pat_id ~ E'^\\d+$' and pat_id::integer between 3000 and 3200;
-end; $$;
 
 ----------------------------------------------------
 --  deactivate functionality for patients
 ----------------------------------------------------
 
-create or replace function deactivate(pid text, deactivated boolean) returns void language plpgsql as $$ begin
-insert into pat_status (pat_id, deactivated, deactivated_tsp)
-    values (
-        pid, deactivated, now()
+create or replace function deactivate(pid text, deactivated boolean) returns void language plpgsql
+as $$ begin
+    insert into pat_status (pat_id, deactivated, deactivated_tsp)
+        values (
+            pid, deactivated, now()
         )
     on conflict (pat_id) do update
-    set deactivated = Excluded.deactivated, deactivated_tsp = now();
--- if false then reset patient
-IF not deactivated THEN
-    update criteria_events set flag = flag - 1000
-    where pat_id = pid and flag > 0;
-    delete from notifications where pat_id = pid;
-    perform advance_criteria_snapshot(pid);
-END IF;
+    set deactivated = excluded.deactivated, deactivated_tsp = now();
+
+    -- if false then reset patient
+    if not deactivated then
+        update criteria_events set flag = flag - 1000
+        where pat_id = pid and flag > 0;
+        delete from notifications where pat_id = pid;
+        perform advance_criteria_snapshot(pid);
+    end IF;
 end; $$;
 
-CREATE OR REPLACE FUNCTION auto_deactivate(pid text DEFAULT NULL) RETURNS void LANGUAGE plpgsql AS $$ BEGIN -- if criteria_events has been in an event for longer than deactivate_hours, then this patient should be deactivated automatically
-perform deactivate(pat_id, TRUE)
-FROM
-  ( SELECT DISTINCT snapshot.pat_id
-   FROM get_states_snapshot(pid) snapshot
-   LEFT JOIN pat_status s ON s.pat_id = snapshot.pat_id
-   WHERE STATE >= 20
-     AND now() - severe_sepsis_onset > get_parameter('deactivate_hours')::interval
-     AND (s.pat_id IS NULL
-          OR NOT s.deactivated) ) AS sub ; END; $$;
+CREATE OR REPLACE FUNCTION auto_deactivate(pid text DEFAULT NULL) RETURNS void LANGUAGE plpgsql
+AS $$ BEGIN
+    -- if criteria_events has been in an event for longer than deactivate_hours,
+    -- then this patient should be deactivated automatically
+    --
+    -- REVIEW: (Yanif)->(Andong): why is this only for state >= 20? What about state >= 10?
+    perform deactivate(pat_id, TRUE)
+    from
+    (
+      select distinct snapshot.pat_id
+      from get_states_snapshot(pid) snapshot
+      left join pat_status s on s.pat_id = snapshot.pat_id
+      where state >= 20
+      and now() - severe_sepsis_onset > get_parameter('deactivate_hours')::interval
+      and (s.pat_id IS NULL or not s.deactivated)
+    ) AS sub;
+END; $$;
+
+
 ------------------------------
 -- garbage collection
 ------------------------------
+
+-- REVIEW: (Yanif)->(Andong): refactor. Having both garbage_collection *and* reactivate is unnecessary.
 create or replace function garbage_collection() returns void language plpgsql as $$ begin
-perform reactivate();
+    perform reactivate();
 end; $$;
 
-create or replace function reactivate(this_pat_id text default null) returns void language plpgsql as $$ begin
-perform deactivate(pat_id, false) from(
-    select pat_id from pat_status
-    where deactivated
-    and now() - deactivated_tsp > get_parameter('deactivate_expire_hours')::interval
-    and pat_id = coalesce(this_pat_id, pat_id)
-) as sub;
+create or replace function reactivate(this_pat_id text default null) returns void language plpgsql
+as $$ begin
+    perform deactivate(pat_id, false) from (
+        select pat_id from pat_status
+        where deactivated
+        and now() - deactivated_tsp > get_parameter('deactivate_expire_hours')::interval
+        and pat_id = coalesce(this_pat_id, pat_id)
+    ) as sub;
 end; $$;
+
 
 ----------------------------------------------------
 -- deterioration feedback functions
 ----------------------------------------------------
-CREATE OR REPLACE FUNCTION set_deterioration_feedback(pid text, tsp timestamptz, deterioration json, uid text) RETURNS void LANGUAGE plpgsql AS $$ BEGIN
-INSERT INTO deterioration_feedback (pat_id, tsp, deterioration, uid)
-VALUES (pid,
-        tsp,
-        deterioration,
-        uid) ON conflict (pat_id) DO
-UPDATE
-SET tsp = Excluded.tsp,
-    deterioration = Excluded.deterioration,
-    uid = Excluded.uid;
-INSERT INTO criteria_log (pat_id, tsp, event, update_date)
-VALUES ( pid,
-         now(),
-         json_build_object('event_type', 'set_deterioration_feedback', 'uid', uid, 'value', deterioration),
-         now() ); END; $$;
+CREATE OR REPLACE FUNCTION set_deterioration_feedback(pid text, tsp timestamptz, deterioration json, uid text)
+    RETURNS void LANGUAGE plpgsql
+AS $$ BEGIN
+    INSERT INTO deterioration_feedback (pat_id, tsp, deterioration, uid)
+    VALUES (pid,
+            tsp,
+            deterioration,
+            uid)
+    ON conflict (pat_id) DO UPDATE
+    SET tsp = Excluded.tsp,
+        deterioration = Excluded.deterioration,
+        uid = Excluded.uid;
+    INSERT INTO criteria_log (pat_id, tsp, event, update_date)
+    VALUES ( pid,
+             now(),
+             json_build_object('event_type', 'set_deterioration_feedback', 'uid', uid, 'value', deterioration),
+             now() );
+END; $$;
 
 
 ----------------------------------------------------------------------
@@ -2118,3 +2125,114 @@ begin
     drop table twf_rank;
     return;
 end $func$ LANGUAGE plpgsql;
+
+
+----------------------------------------
+-- Utility methods.
+----------------------------------------
+CREATE OR REPLACE FUNCTION calculate_popmean(target TEXT, fid TEXT)
+RETURNS real
+AS $BODY$
+DECLARE
+    fid_c TEXT;
+    fid_popmean TEXT;
+    popmean TEXT;
+BEGIN
+    fid_c = fid || '_c';
+    fid_popmean = fid || '_popmean';
+    EXECUTE 'SELECT cast(avg('|| quote_ident(fid) ||
+        ') AS text) FROM ' || target || '  WHERE '|| quote_ident(fid_c)
+        ||' < 8 ' INTO popmean;
+    RAISE NOTICE '% = %', fid_popmean, popmean;
+    EXECUTE 'SELECT merge_cdm_g('||quote_literal(fid_popmean)||', '||quote_literal(popmean)||', 24)';
+    return popmean;
+END
+$BODY$
+LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION drop_tables(IN _schema TEXT, IN name TEXT)
+RETURNS void
+LANGUAGE plpgsql
+AS
+$$
+DECLARE
+    row     record;
+BEGIN
+    FOR row IN
+        SELECT
+            table_schema,
+            table_name
+        FROM
+            information_schema.tables
+        WHERE
+            table_type = 'BASE TABLE'
+        AND
+            table_schema = _schema
+        AND
+            table_name ILIKE (name || '%')
+    LOOP
+        EXECUTE 'DROP TABLE ' || quote_ident(row.table_schema) || '.' || quote_ident(row.table_name);
+        RAISE INFO 'Dropped table: %', quote_ident(row.table_schema) || '.' || quote_ident(row.table_name);
+    END LOOP;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION drop_tables_pattern(IN _schema TEXT, IN pattern TEXT)
+RETURNS void
+LANGUAGE plpgsql
+AS
+$$
+DECLARE
+    row     record;
+BEGIN
+    FOR row IN
+        SELECT
+            table_schema,
+            table_name
+        FROM
+            information_schema.tables
+        WHERE
+            table_type = 'BASE TABLE'
+        AND
+            table_schema = _schema
+        AND
+            table_name ILIKE pattern || '%'
+    LOOP
+        EXECUTE 'DROP TABLE ' || quote_ident(row.table_schema) || '.' || quote_ident(row.table_name);
+        RAISE INFO 'Dropped table: %', quote_ident(row.table_schema) || '.' || quote_ident(row.table_name);
+    END LOOP;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION del_pat(this_pat_id text) RETURNS void LANGUAGE plpgsql AS $$ BEGIN
+DELETE
+FROM cdm_twf
+WHERE enc_id IN
+    (SELECT enc_id
+     FROM pat_enc
+     WHERE pat_id = this_pat_id);
+  DELETE
+  FROM cdm_t WHERE enc_id IN
+    (SELECT enc_id
+     FROM pat_enc
+     WHERE pat_id = this_pat_id);
+  DELETE
+  FROM cdm_s WHERE enc_id IN
+    (SELECT enc_id
+     FROM pat_enc
+     WHERE pat_id = this_pat_id);
+  DELETE
+  FROM criteria WHERE pat_id = this_pat_id;
+  DELETE
+  FROM criteria_meas WHERE pat_id = this_pat_id;
+  DELETE
+  FROM pat_enc WHERE pat_id = this_pat_id;
+END;
+$$;
+
+create or replace function delete_test_scenarios() returns void language plpgsql as $$ begin
+    delete from criteria where pat_id ~ E'^\\d+$' and pat_id::integer between 3000 and 3200;
+    delete from criteria_events where pat_id ~ E'^\\d+$' and pat_id::integer between 3000 and 3200;
+    delete from notifications where pat_id ~ E'^\\d+$' and pat_id::integer between 3000 and 3200;
+end; $$;
+

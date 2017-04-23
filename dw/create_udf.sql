@@ -584,9 +584,18 @@ create or replace function order_met(order_name text, order_value text)
     returns boolean language plpgsql as $func$
 BEGIN
     return case when order_name = 'blood_culture_order'
-                    then order_value in ('In  process', 'Preliminary', 'Final', 'Completed', 'Not Indicated')
+                    then order_value in (
+                        'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result'
+                        'Final', 'Final result', 'Edited Result - FINAL',
+                        'Completed', 'Corrected', 'Not Indicated'
+                    )
+
                 when order_name = 'initial_lactate_order' or order_name = 'repeat_lactate_order'
-                    then order_value in ('Preliminary', 'Sent', 'Final', 'Completed', 'Not Indicated')
+                    then order_value in (
+                        'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result'
+                        'Final', 'Final result', 'Edited Result - FINAL',
+                        'Completed', 'Corrected', 'Not Indicated'
+                    )
                 else false
             end;
 END; $func$;
@@ -605,10 +614,21 @@ create or replace function order_status(order_fid text, value_text text, overrid
     returns text language plpgsql as $func$
 BEGIN
     return case when override_value_text = 'Not Indicated' then 'Completed'
-                when order_fid = 'lactate_order' and value_text in ('In  process', 'Sent', 'Preliminary', 'Final', 'Completed', 'Not Indicated') then 'Completed'
-                when order_fid = 'lactate_order' and value_text = 'Signed' then 'Ordered'
-                when order_fid = 'blood_culture_order' and value_text in ('In  process', 'Sent', 'Preliminary', 'Final', 'Completed', 'Not Indicated') then 'Completed'
-                when order_fid = 'blood_culture_order' and value_text = 'Signed' then 'Ordered'
+                when order_fid = 'lactate_order' and value_text in (
+                        'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result'
+                        'Final', 'Final result', 'Edited Result - FINAL',
+                        'Completed', 'Corrected', 'Not Indicated'
+                    ) then 'Completed'
+
+                when order_fid = 'lactate_order' and value_text in ('None', 'Signed') then 'Ordered'
+
+                when order_fid = 'blood_culture_order' and value_text in (
+                        'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result'
+                        'Final', 'Final result', 'Edited Result - FINAL',
+                        'Completed', 'Corrected', 'Not Indicated'
+                    ) then 'Completed'
+
+                when order_fid = 'blood_culture_order' and value_text in ('None', 'Signed') then 'Ordered'
                 else null
             end;
 END; $func$;
@@ -698,10 +718,14 @@ BEGIN
            cd.override_value as d_ovalue
     from pat_ids
     cross join criteria_default as cd
-    left join suspicion_of_infection_buff c on pat_ids.pat_id = c.pat_id and cd.name = c.name and cd.dataset_id = c.dataset_id
+    left join suspicion_of_infection_buff c
+      on pat_ids.pat_id = c.pat_id
+      and cd.name = c.name
+      and cd.dataset_id = c.dataset_id
     left join criteria_meas meas
-        on pat_ids.pat_id = meas.pat_id and meas.fid = cd.fid and cd.dataset_id = meas.dataset_id
+        on pat_ids.pat_id = meas.pat_id
         and meas.fid = cd.fid
+        and cd.dataset_id = meas.dataset_id
         and (meas.tsp is null or meas.tsp between ts_start - window_size and ts_end)
     where cd.dataset_id = _dataset_id
   ),
@@ -861,32 +885,80 @@ BEGIN
 
   -- Calculate severe sepsis in an extended window, for use in
   -- any criteria that has requirements after severe sepsis is met.
-  severe_sepsis_onsets as (
-    with organ_dysfunction as (
-      select * from respiratory_failures
-      union all select * from organ_dysfunction_except_rf
-    )
-    select stats.pat_id,
-           coalesce(bool_or(stats.suspicion_of_infection and stats.sirs_cnt > 1 and stats.org_df_cnt > 0), false) as severe_sepsis_is_met,
-           max(greatest(stats.inf_onset, stats.sirs_onset, stats.org_df_onset)) as severe_sepsis_onset,
-           max(greatest(stats.sirs_onset, stats.org_df_onset)) as severe_sepsis_wo_infection_onset
-    from (
+  severe_sepsis_criteria as (
+      with organ_dysfunction as (
+          select * from respiratory_failures
+          union all select * from organ_dysfunction_except_rf
+      )
+      select IC.pat_id,
+             sum(IC.cnt) > 0 as suspicion_of_infection,
+             sum(SC.cnt) as sirs_cnt,
+             sum(OC.cnt) as org_df_cnt,
+             max(IC.onset) as inf_onset,
+             max(SC.onset) as sirs_onset,
+             max(OC.onset) as org_df_onset
+      from
+      (
         select infection.pat_id,
-               coalesce(bool_or(infection.is_met), false) as suspicion_of_infection,
-               sum(case when sirs.is_met then 1 else 0 end) as sirs_cnt,
-               sum(case when organ_dysfunction.is_met then 1 else 0 end) as org_df_cnt,
-               max(infection.override_time) as inf_onset,
-               (array_agg(sirs.measurement_time order by sirs.measurement_time))[2] as sirs_onset,
-               min(organ_dysfunction.measurement_time) as org_df_onset
+               sum(case when infection.is_met then 1 else 0 end) as cnt,
+               max(infection.override_time) as onset
         from infection
-        left join sirs on infection.pat_id = sirs.pat_id
-        left join organ_dysfunction on infection.pat_id = organ_dysfunction.pat_id
-        where greatest(sirs.measurement_time, organ_dysfunction.measurement_time)
-                - least(sirs.measurement_time, organ_dysfunction.measurement_time)
-                < window_size
         group by infection.pat_id
-    ) stats
-    group by stats.pat_id
+      ) IC
+      left join
+      (
+        select sirs.pat_id,
+               sum(case when sirs.is_met then 1 else 0 end) as cnt,
+               (array_agg(sirs.measurement_time order by sirs.measurement_time))[2] as onset
+        from sirs
+        group by sirs.pat_id
+      ) SC on IC.pat_id = SC.pat_id
+      left join
+      (
+        select organ_dysfunction.pat_id,
+               sum(case when organ_dysfunction.is_met then 1 else 0 end) as cnt,
+               min(organ_dysfunction.measurement_time) as onset
+        from organ_dysfunction
+        group by organ_dysfunction.pat_id
+      ) OC on IC.pat_id = OC.pat_id
+      where greatest(SC.onset, OC.onset) - least(SC.onset, OC.onset) < window_size
+      group by IC.pat_id
+  ),
+  severe_sepsis_onsets as (
+    select sspm.pat_id,
+           sspm.severe_sepsis_is_met,
+           (case when sspm.severe_sepsis_onset <> 'infinity'::timestamptz
+                 then sspm.severe_sepsis_onset
+                 else null end
+           ) as severe_sepsis_onset,
+           (case when sspm.severe_sepsis_wo_infection_onset <> 'infinity'::timestamptz
+                 then sspm.severe_sepsis_wo_infection_onset
+                 else null end
+           ) as severe_sepsis_wo_infection_onset,
+           sspm.severe_sepsis_lead_time
+    from (
+      select stats.pat_id,
+             coalesce(bool_or(stats.suspicion_of_infection
+                                and stats.sirs_cnt > 1
+                                and stats.org_df_cnt > 0)
+                      , false
+                      ) as severe_sepsis_is_met,
+
+             max(greatest(coalesce(stats.inf_onset, 'infinity'::timestamptz),
+                          coalesce(stats.sirs_onset, 'infinity'::timestamptz),
+                          coalesce(stats.org_df_onset, 'infinity'::timestamptz))
+                 ) as severe_sepsis_onset,
+
+             max(greatest(coalesce(stats.sirs_onset, 'infinity'::timestamptz),
+                          coalesce(stats.org_df_onset, 'infinity'::timestamptz))
+                 ) as severe_sepsis_wo_infection_onset,
+
+             min(least(stats.inf_onset, stats.sirs_onset, stats.org_df_onset))
+                as severe_sepsis_lead_time
+
+      from severe_sepsis_criteria stats
+      group by stats.pat_id
+    ) sspm
   ),
 
   crystalloid_fluid as (
@@ -1094,7 +1166,7 @@ BEGIN
                     (select coalesce(
                               bool_or(SSP.severe_sepsis_is_met
                                         and greatest(pat_cvalues.c_otime, pat_cvalues.tsp)
-                                              > SSP.severe_sepsis_onset)
+                                              > SSP.severe_sepsis_lead_time)
                               , false)
                       from severe_sepsis_onsets SSP
                       where SSP.pat_id = coalesce(this_pat_id, SSP.pat_id)
@@ -1105,7 +1177,7 @@ BEGIN
                     (select coalesce(
                               bool_or(SSP.severe_sepsis_is_met
                                         and greatest(pat_cvalues.c_otime, pat_cvalues.tsp)
-                                              > SSP.severe_sepsis_onset)
+                                              > SSP.severe_sepsis_lead_time)
                               , false)
                       from severe_sepsis_onsets SSP
                       where SSP.pat_id = coalesce(this_pat_id, SSP.pat_id)
@@ -1173,16 +1245,22 @@ BEGIN
                 pat_cvalues.c_otime,
                 pat_cvalues.c_ouser,
                 pat_cvalues.c_ovalue,
-                (not(coalesce(initial_lactate_order.is_met and lactate_results.is_met, false)
-                        and order_met(pat_cvalues.name, coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value)))
-                 and (lactate_results.tsp is null
-                      or (pat_cvalues.tsp > initial_lactate_order.tsp and lactate_results.tsp > initial_lactate_order.tsp))
-                ) is_met
+                ((
+                  coalesce(initial_lactate_order.is_met and lactate_results.is_met, false)
+                    and order_met(pat_cvalues.name, coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value))
+                    and (coalesce(pat_cvalues.tsp > initial_lactate_order.tsp, false)
+                            and coalesce(lactate_results.tsp > initial_lactate_order.tsp, false))
+                ) or
+                (
+                  not( coalesce(initial_lactate_order.is_met
+                                  and ( lactate_results.is_met or pat_cvalues.tsp <= initial_lactate_order.tsp )
+                                , false) )
+                )) is_met
         from pat_cvalues
         left join (
             select oc.pat_id,
                    max(case when oc.is_met then oc.measurement_time else null end) as tsp,
-                   bool_or(oc.is_met) as is_met
+                   coalesce(bool_or(oc.is_met), false) as is_met
             from orders_criteria oc
             where oc.name = 'initial_lactate_order'
             group by oc.pat_id
@@ -1207,13 +1285,7 @@ BEGIN
          SSH.septic_shock_onset
   from (
       select * from severe_sepsis SSP
-        -- where (SSP.measurement_time is null or SSP.measurement_time between ts_start and ts_end)
-        -- and   (SSP.override_time is null or SSP.override_time between ts_start and ts_end)
-
       union all select * from septic_shock SSH
-        -- where (SSH.measurement_time is null or SSH.measurement_time between ts_start and ts_end)
-        -- and   (SSH.override_time is null or SSH.override_time between ts_start and ts_end)
-
       union all select * from orders_criteria
       union all select * from repeat_lactate
   ) new_criteria
