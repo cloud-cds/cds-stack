@@ -144,8 +144,4 @@ protokubeImage:
 __EOF_KUBE_ENV
 
 download-release
-echo "Pull Docker Image"
-docker pull damsl/tf:test
-docker pull damsl/tf:dev
-echo "Image Pulled!"
 echo "== nodeup node config done =="
