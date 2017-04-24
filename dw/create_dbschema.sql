@@ -570,6 +570,7 @@ CREATE TABLE cdm_twf (
 DROP TABLE IF EXISTS trews;
 CREATE TABLE trews (
     dataset_id                             integer,
+    model_id                               integer,
     enc_id                                 integer,
     tsp                                    timestamptz,
     trewscore                              numeric,
@@ -671,7 +672,7 @@ CREATE TABLE trews (
     septic_shock                           double precision,
     lactate                                double precision,
     minutes_since_any_organ_fail           double precision,
-    PRIMARY KEY     (dataset_id, enc_id, tsp),
+    PRIMARY KEY     (dataset_id, model_id, enc_id, tsp),
     FOREIGN KEY     (dataset_id, enc_id) REFERENCES pat_enc(dataset_id, enc_id)
 );
 
