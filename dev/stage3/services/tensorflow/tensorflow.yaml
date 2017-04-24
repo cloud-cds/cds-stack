@@ -19,7 +19,7 @@ metadata:
   name: tflmc1
 spec:
   serviceName: tensorflow-svc
-  replicas: 3
+  replicas: 9
   template:
     metadata:
       labels:
@@ -44,34 +44,46 @@ spec:
     spec:
       containers:
       - name: tensorflow
-        imagePullPolicy: Always
-        image: damsl/tf:test
+        imagePullPolicy: IfNotPresent
+        image: damsl/tf:dev
         ports:
         - containerPort: 2222
           name: server
         env:
         - name : LMCHOME
           value: /lmc/LMC-Based-On-GPflow/
+        - name : DESCRIPTION
+          value: 'debug'
         - name : NUM_WORKERS
-          value: '2'
+          value: '8'
         - name : BATCHSIZE
-          value: '2'
+          value: '1'
         - name : NUM_SVI_ITER
-          value: '1000'
+          value: '50'
         - name : FEAT_SIZE
           value: '2'
         - name : MC_SAMPLES
           value: '1000'
         - name : TOTAL_PATIENTS
-          value: '3150'
+          value: '3151'
         - name : MAX_LBFGS_ITER
           value: '500'
         - name : MIN_NUM_SAMPLES
-          value: '5'
+          value: '10'
         - name : NUM_WINDOWS
           value: '10'
         - name : NUM_TEST_WINDOWS
           value: '5'
+        - name : INTEGRAL_FEATURES
+          value: 'False'
+        - name : LKH_TYPE
+          value: 'Gaussian'
+        - name : NUM_TSK_KERNS
+          value: '1'
+        - name : SYNCH_BLOCK
+          value: '1'
+        - name : SYNCH_METHOD
+          value: 'synch'
         - name : DATABASE
           value: 'dev'
         - name : DB_PASS
@@ -82,6 +94,6 @@ spec:
         command:
         - sh
         - -c
-        - cd /lmc/LMC-Based-On-GPflow && ./gok8s.sh          
+        - cd /lmc/LMC-Based-On-GPflow && ./gok8s.sh
       nodeSelector:
         opsdx_nodegroup: tf1
