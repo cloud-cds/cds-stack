@@ -96,6 +96,138 @@ resource "aws_route53_record" "db" {
    records = ["${aws_db_instance.db.address}"]
 }
 
+###################
+# Data Warehouse
+# For now, this uses the same engine type as the Op DB
+resource "aws_db_instance" "dw" {
+  depends_on              = ["aws_security_group.db_sg"]
+  identifier              = "${var.dw_identifier}"
+  allocated_storage       = "${var.db_storage}"
+  engine                  = "${var.db_engine}"
+  engine_version          = "${lookup(var.db_engine_version, var.db_engine)}"
+  instance_class          = "${var.db_instance_class}"
+  name                    = "${var.dw_name}"
+  username                = "${var.dw_username}"
+  password                = "${var.dw_password}"
+  vpc_security_group_ids  = ["${aws_security_group.db_sg.id}"]
+  db_subnet_group_name    = "${aws_db_subnet_group.db_subnet_group.id}"
+  backup_retention_period = 2
+  multi_az                = true
+  publicly_accessible     = false
+  storage_encrypted       = true
+  tags {
+    Name = "${var.deploy_name}"
+    Stack = "${var.deploy_stack}"
+    Component = "DW RDS"
+  }
+}
+
+resource "aws_route53_record" "dw" {
+   zone_id = "${var.domain_zone_id}"
+   name    = "${var.dw_dns_name}"
+   type    = "CNAME"
+   ttl     = "300"
+   records = ["${aws_db_instance.dw.address}"]
+}
+
+resource "aws_db_parameter_group" "pgstats" {
+  name   = "${var.deploy_prefix}-pgstats-pg"
+  family = "postgres9.5"
+
+  parameter {
+    name = "shared_preload_libraries"
+    value = "pg_stat_statements"
+    apply_method = "pending-reboot"
+  }
+
+  parameter {
+    name = "track_activity_query_size"
+    value = "2048"
+    apply_method = "pending-reboot"
+  }
+
+  parameter {
+    name = "pg_stat_statements.track"
+    value = "ALL"
+    apply_method = "pending-reboot"
+  }
+}
+
+resource "aws_db_parameter_group" "pgbadger" {
+  name   = "${var.deploy_prefix}-pgbadger-pg"
+  family = "postgres9.5"
+
+  parameter {
+    name  = "lc_messages"
+    value = "C"
+  }
+
+  parameter {
+    name  = "log_autovacuum_min_duration"
+    value = "0"
+  }
+
+  parameter {
+    name  = "log_connections"
+    value = "1"
+  }
+
+  parameter {
+    name  = "log_disconnections"
+    value = "1"
+  }
+
+  parameter {
+    name  = "log_duration"
+    value = "0"
+  }
+
+  parameter {
+    name  = "log_error_verbosity"
+    value = "default"
+  }
+
+  parameter {
+    name  = "log_filename"
+    value = "postgresql.log.%Y-%m-%d"
+  }
+
+  parameter {
+    name  = "log_lock_waits"
+    value = "1"
+  }
+
+  parameter {
+    name  = "log_min_duration_statement"
+    value = "5"
+  }
+
+  parameter {
+    name  = "log_rotation_age"
+    value = "1440"
+  }
+
+  parameter {
+    name  = "log_rotation_size"
+    value = "2097151"
+  }
+
+  parameter {
+    name  = "log_statement"
+    value = "none"
+  }
+
+  parameter {
+    name  = "log_temp_files"
+    value = "0"
+  }
+
+  parameter {
+    name  = "rds.log_retention_period"
+    value = "10080"
+  }
+}
+
 ###########
 # Outputs
 

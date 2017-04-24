@@ -219,6 +219,10 @@ output "vpc_id" {
   value = "${aws_vpc.main.id}"
 }
 
+output "controller_security_group_id" {
+  value = "${aws_security_group.controller_sg.id}"
+}
+
 output "vpc_cidr" {
   value = "${aws_vpc.main.cidr}"
 }
