@@ -732,6 +732,13 @@ CREATE TABLE historical_criteria (
     primary key         (pat_id,dataset_id,window_ts)
 );
 
+DROP TABLE IF EXISTS historical_notifications;
+CREATE TABLE historical_notifications (
+    dataset_id          integer REFERENCES dw_version(dataset_id),
+    pat_id              text,
+    message             json
+);
+
 DROP TABLE IF EXISTS usr_web_log;
 CREATE TABLE usr_web_log (
     dataset_id          integer REFERENCES dw_version(dataset_id),

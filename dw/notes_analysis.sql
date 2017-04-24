@@ -260,7 +260,7 @@ BEGIN
   || '   ) DOCS, lateral unnest(words) W(word)'
   || ' ) NGRAMS'
   || ' where ( ngram_arr[4] like ''%__MATCH__%'') or ( array_length(ngram_arr, 1) < ' || (rows_before+rows_after+1)::text || ' and (select count(*) from unnest(ngram_arr) W(word) where word like ''%__MATCH__%'' ) > 0 )'
-  || ' order by csn_id, start_ts';
+  || ' order by enc_id, spec_note_time';
   raise notice 'query %', match_query;
   return query execute match_query;
 END; $function$;
