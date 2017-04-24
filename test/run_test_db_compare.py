@@ -909,4 +909,4 @@ if __name__ == '__main__':
     print("test succeed")
   else:
     print("test failed")
-  exit(test.passed)
+  exit(not test.passed)
