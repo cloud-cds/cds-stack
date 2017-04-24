@@ -30,14 +30,14 @@ class Criteria:
       await self.notify_etl_listeners(conn)
 
   async def garbage_collection(self, conn):
-      self.log.info("advancing criteria snapshot")
+      self.log.info("start garbage_collection")
       await conn.execute("select garbage_collection();")
-      self.log.info("advanced criteria snapshot")
+      self.log.info("completed garbage_collection")
 
   async def advance_criteria_snapshot(self, conn):
-      self.log.info("start garbage_collection")
+      self.log.info("advancing criteria snapshot")
       await conn.execute("select advance_criteria_snapshot();")
-      self.log.info("completed garbage_collection")
+      self.log.info("advanced criteria snapshot")
 
   async def notify_etl_listeners(self, conn):
       if 'etl_channel' in os.environ:

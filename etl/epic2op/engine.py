@@ -13,6 +13,7 @@ import asyncpg
 import ujson as json
 import boto3
 import botocore
+from time import sleep
 
 MODE = {
   1: 'real',
@@ -51,7 +52,7 @@ class Engine():
 
   def skip_none(self, df, transform_function):
     if df is None or df.empty:
-      return None
+      return pd.DataFrame()
     try:
       start = dt.datetime.now()
       df = transform_function(df)
@@ -69,7 +70,7 @@ class Engine():
     logging.info("Transforming {}".format(df_name))
     start = dt.datetime.now()
     if df is None:
-      return None
+      return pd.DataFrame()
     if type(df) == list:
       df = pd.concat(df)
     for transform_fn in transform_list:
@@ -81,9 +82,18 @@ class Engine():
   def extract(self, extract_func, extract_name, extract_func_args=[]):
     logging.info("Extracting {}".format(extract_name))
     start = dt.datetime.now()
-    df = extract_func(*extract_func_args)
-    self.extract_time += (dt.datetime.now() - start)
-    return df
+    attempts = 5
+    for attempt in range(attempts):
+      try:
+        df = extract_func(*extract_func_args)
+        self.extract_time += (dt.datetime.now() - start)
+        return df
+      except aiohttp.client_exceptions.ClientConnectorError:
+        if attempt < attempts - 1: # need -1 because attempt is 0 indexed
+          logging.info("Caught ClientConnectorError, retrying...")
+          sleep(10)
+          continue
+        raise
 
 
   def push_cloudwatch_metrics(self, stats):
@@ -120,6 +130,11 @@ class Engine():
       logging.error(e)
 
 
+  def tz_hack(self, tsp):
+    est_tsp_fmt = '%Y-%m-%dT%H:%M:%S-05:00'
+    return (dateparser.parse(tsp) - dt.timedelta(hours=5)).strftime(est_tsp_fmt)
+
+
   def main(self):
     self.db_data = None
     self.db_raw_data = None
@@ -144,6 +159,9 @@ class Engine():
 
     flowsheets = self.extract(self.extractor.extract_flowsheets, "flowsheets", [pats_t])
     flowsheets_t = self.transform(flowsheets, jhapi.flowsheet_transforms, "flowsheets")
+    # Timezone hack
+    if not flowsheets.empty:
+      flowsheets_t['tsp'] = flowsheets_t['tsp'].apply(self.tz_hack)
 
     active_procedures = self.extract(self.extractor.extract_active_procedures, "active_procedures", [pats_t])
     active_procedures_t = self.transform(active_procedures, jhapi.active_procedures_transforms, "active_procedures")
@@ -159,23 +177,23 @@ class Engine():
 
     med_orders = self.extract(self.extractor.extract_med_orders, "med_orders", [pats_t])
     med_orders_t = self.transform(med_orders, jhapi.med_orders_transforms, "med_orders")
-    med_orders_t['fid'] += '_order'
 
-    request_data = med_orders_t[['pat_id', 'visit_id', 'ids']]\
-      .groupby(['pat_id', 'visit_id'])['ids']\
-      .apply(list)\
-      .reset_index()
-    ma_start = dt.datetime.now()
-    med_admin = self.extract(self.extractor.extract_med_admin, "med_admin", [request_data])
-    ma_total = dt.datetime.now() - ma_start
-    med_admin_t = self.transform(med_admin, jhapi.med_admin_transforms, "med_admin")
-
-    # Timezone hack
-    def tz_hack(tsp):
-      est_tsp_fmt = '%Y-%m-%dT%H:%M:%S-05:00'
-      return (dateparser.parse(tsp) - dt.timedelta(hours=5)).strftime(est_tsp_fmt)
-    flowsheets_t['tsp'] = flowsheets_t['tsp'].apply(tz_hack)
-    med_admin_t['tsp'] = med_admin_t['tsp'].apply(tz_hack)
+    if not med_orders_t.empty:
+      request_data = med_orders_t[['pat_id', 'visit_id', 'ids']]\
+        .groupby(['pat_id', 'visit_id'])['ids']\
+        .apply(list)\
+        .reset_index()
+      ma_start = dt.datetime.now()
+      med_admin = self.extract(self.extractor.extract_med_admin, "med_admin", [request_data])
+      ma_total = dt.datetime.now() - ma_start
+      med_admin_t = self.transform(med_admin, jhapi.med_admin_transforms, "med_admin")
+      # Timezone hack
+      if not med_admin_t.empty:
+        med_admin_t['tsp'] = med_admin_t['tsp'].apply(self.tz_hack)
+    else:
+      # Make empty dataframes so functions down the line don't break
+      med_admin   = pd.DataFrame()
+      med_admin_t = pd.DataFrame()
 
     notes = self.extract(self.extractor.extract_notes, "notes", [pats_t])
     notes_t = self.transform(notes, jhapi.notes_transforms, "notes")
@@ -190,18 +208,18 @@ class Engine():
 
     # Create stats object
     self.cloudwatch_stats = {
-      'total_time':    (dt.datetime.now() - self.driver_start).total_seconds(),
-      'request_time':  self.extract_time.total_seconds(),
-      'bedded_pats':   len(pats_t.index),
-      'flowsheets':    len(flowsheets_t.index),
-      'lab_orders':    len(lab_orders_t.index),
-      'active_procedures':    len(active_procedures_t.index),
-      'lab_results':   len(lab_results_t.index),
-      'med_orders':    len(med_orders_t.index),
-      'med_admin':     len(med_admin_t.index),
-      'loc_history':   len(loc_history_t.index),
-      'notes':         0 if notes_t is None or notes_t.empty else len(notes_t.index),
-      'note_texts':    0 if note_texts_t is None or note_texts_t.empty else len(note_texts_t.index),
+      'total_time'        : (dt.datetime.now() - self.driver_start).total_seconds(),
+      'request_time'      : self.extract_time.total_seconds(),
+      'bedded_pats'       : len(pats_t.index),
+      'flowsheets'        : len(flowsheets_t.index),
+      'lab_orders'        : len(lab_orders_t.index),
+      'active_procedures' : len(active_procedures_t.index),
+      'lab_results'       : len(lab_results_t.index),
+      'med_orders'        : len(med_orders_t.index),
+      'med_admin'         : len(med_admin_t.index),
+      'loc_history'       : len(loc_history_t.index),
+      'notes'             : len(notes_t.index),
+      'note_texts'        : len(note_texts_t.index),
     }
 
     # Prepare for database
@@ -209,7 +227,8 @@ class Engine():
     pats_t.history = pats_t.history.apply(json.dumps)
     pats_t.problem = pats_t.problem.apply(json.dumps)
     pats_t.problem_all = pats_t.problem_all.apply(json.dumps)
-    med_orders_t.ids = med_orders_t.ids.apply(json.dumps)
+    if not med_orders_t.empty:
+      med_orders_t['ids'] = med_orders_t['ids'].apply(json.dumps)
     self.db_data = {
       'bedded_patients_transformed': pats_t,
       'flowsheets_transformed': flowsheets_t,

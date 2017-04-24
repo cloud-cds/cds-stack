@@ -10,6 +10,10 @@ import itertools
 import base64
 import json
 
+def add_order_to_fid(df):
+    df['fid'] += '_order'
+    return df
+
 def format_numeric(df, column):
     df[column] = pd.to_numeric(df[column])
     return df
