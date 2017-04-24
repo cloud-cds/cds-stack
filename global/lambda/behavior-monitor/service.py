@@ -7,19 +7,62 @@ try:
 except:
   print("Lambda Root Not inserted Into Path")
 import boto3
-
 import base64
 import json
 import zlib
 import sqlalchemy
 from pytz import timezone
-import pytz
 import re
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
 import time
 import logging
+logging.basicConfig()
+
+logging.debug("Import complete")
+
+state_group_list = [
+{'state':range(-50,50), 'test_out':10 , 'var':'total',         'english':'total (with state information)'},
+{'state':range(20,40),  'test_out':10 , 'var':'sev',           'english':'had severe sepsis in this interval'},
+{'state':range(30,40),  'test_out':5  , 'var':'sho',           'english':'had septic shock in this interval'},
+{'state':[10, 12],      'test_out':5  , 'var':'sev_nosus',     'english':'had severe sepsis without sus in this interval'},
+{'state':[32, 22],      'test_out':5  ,  'var':'sev_3_m',      'english':'where the severe sepsis 3 hour bundle was missed'},
+{'state':[34, 24],      'test_out':5  ,  'var':'sev_6_m',      'english':'where the severe sepsis 6 hour bundle was missed'},
+{'state':[31, 21],      'test_out':5  ,  'var':'sev_3_h',      'english':'where the severe sepsis 3 hour bundle was met'},
+{'state':[33, 23],      'test_out':5  ,  'var':'sev_6_h',      'english':'where the severe sepsis 6 hour bundle was met'},
+{'state':[36],          'test_out':5  ,  'var':'sho_3_h',      'english':'where the septic shock 6 hour bundle was missed'},
+{'state':[35],          'test_out':5  ,  'var':'sho_6_h',      'english':'where the septic shock 6 hour bundle was met'},
+]
+
+def get_state_counts(db_con, state_group_list, start_time_str, stop_time_str, dataset_id, source_tbl):
+  state_group_out = []
+  for state_group in state_group_list:
+    query = sqlalchemy.text(
+      """select count(DISTINCT PAT_ID) as {name}
+          from {table_name}
+          where window_ts between \'{start}\'::timestamptz and \'{stop}\'::timestamptz
+              and dataset_id = {dataset}
+              and pat_state in ({pat_states});""".
+                              format(name=state_group['var'],
+                                     start=start_time_str,
+                                     stop=stop_time_str,
+                                     pat_states=','.join([str(num) for num in state_group['state']]),
+                                     dataset=dataset_id,
+                                     table_name=source_tbl))
+
+    out_df = pd.read_sql(query,db_con)
+    # print(out_df)
+    print("\n")
+    print(query)
+    # state_group['results'] = state_group['test_out']
+    state_group['results'] = out_df[state_group['var']].iloc[0]
+    state_group_out.append(state_group)
+
+  return state_group_out
+  # =============================
+  ## Get Results
+  # =============================
 
 #==================================================
 ## Parameters
@@ -50,6 +93,7 @@ unique_usrs_window = timedelta(minutes=60)
 
 reports_window = timedelta(hours=24)
 
+
 #==================================================
 ## Evnvironment Variables
 #==================================================
@@ -62,7 +106,7 @@ def try_to_read_from_environ(var_str, default_val):
     return default_val
 
 BEHAMON_MODE = try_to_read_from_environ('BEHAMON_MODE','watcher')
-BEHAMON_STACK = try_to_read_from_environ('BEHAMON_STACK','Dev')
+BEHAMON_STACK = try_to_read_from_environ('BEHAMON_STACK','dev')
 BEHAMON_WEB_LOG_LISTEN = try_to_read_from_environ('BEHAMON_WEB_LOG_LISTEN','opsdx-web-logs-dev')
 BEHAMON_WEB_FILT_STR = try_to_read_from_environ('BEHAMON_WEB_FILT_STR','*USERID*')
 BEHAMON_WEB_LOG_STREAM_STR = try_to_read_from_environ('BEHAMON_WEB_LOG_STREAM_STR','monitoring')
@@ -245,7 +289,6 @@ def getfiltLogEvent(firstTime, lasTime, client,
 
   return resList
 
-
 def apply_func_over_sliding_window(firstTime,lastTime,func):
   unique_usrs_window_sec = unique_usrs_window.total_seconds()* (10 ** 3)
 
@@ -270,6 +313,111 @@ def apply_func_over_sliding_window(firstTime,lastTime,func):
 
 
   return time_list, metric_list
+
+
+#==================================================
+## html metrics
+#==================================================
+def get_report_intro(first_time_str, last_time_str):
+  html = '<p>'
+  html += 'The following report was generated from {stack} data in {db_name}<br>'.format(stack=BEHAMON_STACK,db_name=os.environ['db_name'])
+  html += 'It covers times between {s} and {e}'.format(s=first_time_str, e=last_time_str)
+  html += '</p>'
+  return html
+
+def pats_seen_by_docs(connection, first_time_str, last_time_str):
+  num_pats_seen = """
+      select doc_id, count(distinct pat_id) as num_pats_seen, min(tsp) as first_access, max(tsp) as last_access
+      from usr_web_log
+      where tsp between \'{}\'::timestamptz and \'{}\'::timestamptz group by doc_id;""".format(first_time_str, last_time_str)
+
+  logger.debug("Metrics query: %s" % num_pats_seen)
+
+  num_pats_seen_df = pd.read_sql(num_pats_seen, connection)
+
+  logger.debug("Report query shape: %s" % str(num_pats_seen_df.shape))
+
+  return num_pats_seen_df.to_html()
+
+def sepsis_stats(connection, first_time_str, last_time_str):
+
+  tmp_hist_state_table_name = """lambda_hist_pat_state_{now}""".format(now=datetime.utcnow().strftime("%Y%m%d%H%M%S"))
+
+  tmp_ds_id = -1
+
+  get_hist_states = """
+    create temporary table {tmp_tbl} as 
+    select pat_id, {ds_id} as dataset_id, 
+      case when last(flag) >= 0 then last(flag) else last(flag) + 1000 END as pat_state, 
+      last(update_date) as window_ts
+    from
+    criteria_events
+    where is_met = true and flag != -1
+    group by pat_id, event_id
+    order by pat_id, window_ts;
+  """.format(ds_id=tmp_ds_id,tmp_tbl=tmp_hist_state_table_name)
+
+  logger.debug("Hist State from Events Query: %s" % get_hist_states)
+
+  connection.execute(sqlalchemy.text(get_hist_states))
+
+  logger.debug("Temp Table Created")
+
+  state_group_out = get_state_counts(connection, state_group_list, first_time_str, last_time_str, tmp_ds_id, tmp_hist_state_table_name)
+
+  logger.debug("Got State Counts")
+
+
+  def state_stats_to_html(state_group_out):
+    html = '<p>'
+    for state_group in state_group_out:
+      html += "{num} patients {english}<br>".format(num=state_group['results'], english=state_group['english'])
+    html += '</p>'
+    return html
+
+  return state_stats_to_html(state_group_out)
+
+def notification_stats(connection, first_time_str, last_time_str):
+
+  logger.info("inside notification stats")
+
+  notification_q = """
+  with
+  flat_notifications as (
+    select
+      pat_id,
+      to_timestamp(cast(message#>>'{{timestamp}}' as numeric)) as tsp,
+      cast(message#>>'{{read}}' as boolean) as read,
+      cast(message#>>'{{alert_code}}' as integer) alert_code
+    from notifications
+    ),
+  num_notes_at_once as (
+    select pat_id, tsp, count(distinct(alert_code)) as number_of_unread_notifications
+    from
+    flat_notifications
+    where not read and tsp BETWEEN '{start}'::timestamptz and '{end}'::timestamptz
+    group by pat_id, tsp
+  ),
+  max_notes_at_once as (
+    select pat_id, max(number_of_unread_notifications) as max_unread_notes
+    from num_notes_at_once
+    group by pat_id
+  )
+  select
+    max_unread_notes,
+    count(distinct(pat_id)) as number_of_pats
+  from max_notes_at_once
+  group by max_unread_notes
+  order by max_unread_notes;
+  """.format(start=first_time_str,end=last_time_str)
+
+  logger.debug(notification_q)
+
+  notifications_df = pd.read_sql(sqlalchemy.text(notification_q), connection)
+
+  logger.debug("Notifications query shape: %s" % str(notifications_df.shape))
+
+  return notifications_df.to_html()
 
 #==================================================
 ## lambda_main
@@ -367,48 +515,73 @@ def calc_behamon_ts_metrics(firstTime, lastTime):
   if len(error_codes) > 0:
     logger.info('Error codes: %s' % str(error_codes))
 
-
-def calc_behamon_report_metrics(firstTime, lastTime):
+def calc_behamon_report_metrics(firstTime, lastTime, send_email=True):
   logger.info('Processing report for %s %s' % (firstTime.isoformat(), lastTime.isoformat()))
 
   # ===============================
   # Get data from DB
   # ===============================
   engine = get_db_engine()
+  connection = engine.connect()
 
   out_tsp_fmt, tz = get_tz_format(tz_in_str='US/Eastern')
 
-  num_pats_seen = """
-      select doc_id, count(distinct pat_id) as num_pats_seen, min(tsp) as first_access, max(tsp) as last_access
-      from usr_web_log
-      where tsp between \'{}\'::timestamptz and \'{}\'::timestamptz group by doc_id;""".format(
-        to_tz_str(firstTime, out_tsp_fmt, tz), to_tz_str(lastTime, out_tsp_fmt, tz))
+  first_time_str = to_tz_str(firstTime, out_tsp_fmt, tz)
+  last_time_str = to_tz_str(lastTime, out_tsp_fmt, tz)
 
-  logger.debug("Metrics query: %s" % num_pats_seen)
 
-  num_pats_seen_df = pd.read_sql(num_pats_seen, engine)
+  metric_template = '<h1>{name}</h1><p>{out}</p>'
 
+  html_body = ''
+
+  html_body += metric_template.format(
+        name='Introduction',
+        out=get_report_intro(first_time_str, last_time_str)
+        )
+
+  html_body += metric_template.format(
+        name='Usage Statistics',
+        out=pats_seen_by_docs(connection, first_time_str, last_time_str)
+        )
+
+  html_body += metric_template.format(
+        name='Sepsis / Bundle Overview',
+        out=sepsis_stats(connection, first_time_str, last_time_str)
+        )
+
+  html_body += metric_template.format(
+        name='Notification Statisitcs',
+        out=notification_stats(connection, first_time_str, last_time_str)
+        )
+
+  connection.close()
   engine.dispose()
-  logger.debug("Report query shape: %s" % str(num_pats_seen_df.shape))
-
+  #---------------------------
+  ## Build HTML
+  #---------------------------
+  print('\n')
+  print(html_body)
+  print('\n')
+  #---------------------------
+  ## send email
+  #---------------------------
   client = boto3.client('ses')
-
-  response = client.send_email(
-    Source='trews-jhu@opsdx.io',
-    Destination={
-      'ToAddresses': ['trews-jhu@opsdx.io'],
-    },
-    Message={
-      'Subject': {'Data': 'Behavior Monitor Report (%s)' % BEHAMON_STACK},
-      'Body': {
-        'Html': {'Data': num_pats_seen_df.to_html()},
+  if send_email:
+    response = client.send_email(
+      Source='trews-jhu@opsdx.io',
+      Destination={
+        'ToAddresses': ['trews-jhu@opsdx.io'],
       },
-    }
-  )
-
-  logger.info('Send email status: %s' % str(response))
-
-
+      Message={
+        'Subject': {'Data': 'Report Metrics (%s)' % BEHAMON_STACK},
+        'Body': {
+          'Html': {'Data': html_body},
+        },
+      }
+    )
+    logger.info('Send email status: %s' % str(response))
+  else:
+    print('email not sent due to function option')
 
 
 #==================================================
