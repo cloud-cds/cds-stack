@@ -100,6 +100,14 @@ variable "db_password" {
   description = "DB Password"
 }
 
+variable "dw_username" {
+  description = "DW admin account"
+}
+
+variable "dw_password" {
+  description = "DW Password"
+}
+
 variable "db_subnet1_cidr" {
   description = "Multi-AZ DB Subnet CIDR block 1"
   default = "10.0.128.0/24"
