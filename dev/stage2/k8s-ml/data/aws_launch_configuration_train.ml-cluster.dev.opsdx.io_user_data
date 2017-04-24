@@ -145,3 +145,6 @@ __EOF_KUBE_ENV
 
 download-release
 echo "== nodeup node config done =="
+echo "Pulling TREWS-ML docker image"
+docker pull 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-ml:0.0.1
+echo "Done pulling TREWS-ML image"
