@@ -1484,7 +1484,7 @@ return query
                                 and coalesce(lactate_results.tsp > initial_lactate_order.tsp, false))
                     ) or
                     (
-                      not( coalesce(initial_lactate_order.is_met
+                      not( coalesce(initial_lactate_order.is_completed
                                       and ( lactate_results.is_met or pat_cvalues.tsp <= initial_lactate_order.tsp )
                                     , false) )
                     )) is_met
@@ -1492,7 +1492,8 @@ return query
             left join (
                 select oc.pat_id,
                        max(case when oc.is_met then oc.measurement_time else null end) as tsp,
-                       bool_or(oc.is_met) as is_met
+                       bool_or(oc.is_met) as is_met,
+                       coalesce(min(value) = 'Completed', false) as is_completed
                 from orders_criteria oc
                 where oc.name = 'initial_lactate_order'
                 group by oc.pat_id
