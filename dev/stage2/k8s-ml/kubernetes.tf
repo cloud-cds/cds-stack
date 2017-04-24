@@ -446,10 +446,54 @@ resource "aws_launch_configuration" "tf1-ml-cluster-dev-opsdx-io" {
   }
 }
 
+resource "aws_launch_configuration" "tf1-sir-ml-cluster-dev-opsdx-io" {
+  name_prefix                 = "tf1.m4-lrg.sir.ml-cluster.dev.opsdx.io-"
+  image_id                    = "ami-5f1afc49"
+  instance_type               = "m4.large"
+  spot_price                  = "0.10"
+  key_name                    = "${aws_key_pair.kubernetes-ml-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
+  iam_instance_profile        = "${aws_iam_instance_profile.nodes-ml-cluster-dev-opsdx-io.id}"
+  security_groups             = ["${aws_security_group.nodes-ml-cluster-dev-opsdx-io.id}"]
+  associate_public_ip_address = false
+  user_data                   = "${file("${path.module}/data/aws_launch_configuration_tf1.ml-cluster.dev.opsdx.io_user_data")}"
+
+  root_block_device = {
+    volume_type           = "gp2"
+    volume_size           = 20
+    delete_on_termination = true
+  }
+
+  lifecycle = {
+    create_before_destroy = true
+  }
+}
+
 resource "aws_launch_configuration" "tf2-ml-cluster-dev-opsdx-io" {
   name_prefix                 = "tf2.ml-cluster.dev.opsdx.io-"
   image_id                    = "ami-5f1afc49"
   instance_type               = "t2.xlarge"
+  key_name                    = "${aws_key_pair.kubernetes-ml-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
+  iam_instance_profile        = "${aws_iam_instance_profile.nodes-ml-cluster-dev-opsdx-io.id}"
+  security_groups             = ["${aws_security_group.nodes-ml-cluster-dev-opsdx-io.id}"]
+  associate_public_ip_address = false
+  user_data                   = "${file("${path.module}/data/aws_launch_configuration_tf2.ml-cluster.dev.opsdx.io_user_data")}"
+
+  root_block_device = {
+    volume_type           = "gp2"
+    volume_size           = 20
+    delete_on_termination = true
+  }
+
+  lifecycle = {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_launch_configuration" "tf2-sir-ml-cluster-dev-opsdx-io" {
+  name_prefix                 = "tf2.m4.xl.sir.ml-cluster.dev.opsdx.io-"
+  image_id                    = "ami-5f1afc49"
+  instance_type               = "m4.xlarge"
+  spot_price                  = "0.15"
   key_name                    = "${aws_key_pair.kubernetes-ml-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
   iam_instance_profile        = "${aws_iam_instance_profile.nodes-ml-cluster-dev-opsdx-io.id}"
   security_groups             = ["${aws_security_group.nodes-ml-cluster-dev-opsdx-io.id}"]
@@ -488,10 +532,54 @@ resource "aws_launch_configuration" "tf3-ml-cluster-dev-opsdx-io" {
   }
 }
 
+resource "aws_launch_configuration" "tf3-sir-ml-cluster-dev-opsdx-io" {
+  name_prefix                 = "tf3.m4-2xl.ml-cluster.dev.opsdx.io-"
+  image_id                    = "ami-5f1afc49"
+  instance_type               = "m4.2xlarge"
+  spot_price                  = "0.35"
+  key_name                    = "${aws_key_pair.kubernetes-ml-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
+  iam_instance_profile        = "${aws_iam_instance_profile.nodes-ml-cluster-dev-opsdx-io.id}"
+  security_groups             = ["${aws_security_group.nodes-ml-cluster-dev-opsdx-io.id}"]
+  associate_public_ip_address = false
+  user_data                   = "${file("${path.module}/data/aws_launch_configuration_tf3.ml-cluster.dev.opsdx.io_user_data")}"
+
+  root_block_device = {
+    volume_type           = "gp2"
+    volume_size           = 20
+    delete_on_termination = true
+  }
+
+  lifecycle = {
+    create_before_destroy = true
+  }
+}
+
 resource "aws_launch_configuration" "tf4-ml-cluster-dev-opsdx-io" {
   name_prefix                 = "tf4.ml-cluster.dev.opsdx.io-"
   image_id                    = "ami-5f1afc49"
   instance_type               = "c4.4xlarge"
+  key_name                    = "${aws_key_pair.kubernetes-ml-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
+  iam_instance_profile        = "${aws_iam_instance_profile.nodes-ml-cluster-dev-opsdx-io.id}"
+  security_groups             = ["${aws_security_group.nodes-ml-cluster-dev-opsdx-io.id}"]
+  associate_public_ip_address = false
+  user_data                   = "${file("${path.module}/data/aws_launch_configuration_tf4.ml-cluster.dev.opsdx.io_user_data")}"
+
+  root_block_device = {
+    volume_type           = "gp2"
+    volume_size           = 20
+    delete_on_termination = true
+  }
+
+  lifecycle = {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_launch_configuration" "tf4-sir-ml-cluster-dev-opsdx-io" {
+  name_prefix                 = "tf4.m4-4x.sir.ml-cluster.dev.opsdx.io-"
+  image_id                    = "ami-5f1afc49"
+  instance_type               = "m4.4xlarge"
+  spot_price                  = "0.75"
   key_name                    = "${aws_key_pair.kubernetes-ml-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
   iam_instance_profile        = "${aws_iam_instance_profile.nodes-ml-cluster-dev-opsdx-io.id}"
   security_groups             = ["${aws_security_group.nodes-ml-cluster-dev-opsdx-io.id}"]
