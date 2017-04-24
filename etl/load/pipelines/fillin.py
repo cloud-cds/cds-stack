@@ -1,6 +1,6 @@
 from etl.load.primitives.tbl import fillin
 
-async def fillin_pipeline(log, conn, feature, dataset_id=None, recalculate_popmean=True, table='cdm_twf', model_id=1):
+async def fillin_pipeline(log, conn, feature, dataset_id=None, recalculate_popmean=True, table='cdm_twf'):
   fid = feature['fid']
   if feature['category'] == 'TWF' and feature['is_measured']:
     select_sql = """
@@ -14,7 +14,7 @@ async def fillin_pipeline(log, conn, feature, dataset_id=None, recalculate_popme
       fillin_func_id = feature['fillin_func_id']
       fillin_func_args = [table,
                 feature['window_size_in_hours'],
-                recalculate_popmean,dataset_id,model_id]
+                recalculate_popmean,dataset_id]
       log.info('start fillin fid %s: %s (%s)' \
         % (fid, fillin_func_id, fillin_func_args))
       fillin_sql = fillin.fillin(fid, fillin_func_id, fillin_func_args)
@@ -29,10 +29,9 @@ async def fillin_pipeline(log, conn, feature, dataset_id=None, recalculate_popme
         update_sql = """
         update %(table)s set %(fid)s = popmean, %(fid)s_c = 24
         from (
-          SELECT value::numeric as popmean from cdm_g where fid = '%(fid)s_popmean' %(model_id)s
-          ) t
+          SELECT value::numeric as popmean from cdm_g where fid = '%(fid)s_popmean' %(and_dataset_block)s) t
         %(dataset_block)s
-        """ % {'table':table, 'fid':fid, 'dataset_block': ' where dataset_id = %s' % dataset_id if dataset_id is not None else '', 'model_id': ' and model_id = %s' % model_id if dataset_id is not None else ''}
+        """ % {'table':table, 'fid':fid, 'dataset_block': ' where dataset_id = %s' % dataset_id if dataset_id is not None else '', 'and_dataset_block': ' and dataset_id = %s' % dataset_id if dataset_id is not None else ''}
         await conn.execute(update_sql)
   else:
     log.error('This feature is not a TWF feature!')
