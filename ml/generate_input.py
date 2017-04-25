@@ -1,6 +1,7 @@
 import numpy as np
 from ml import dashan_input
 from constants import Lambda_List
+import os
 
 def main():
     lambda_list = Lambda_List[5:]
@@ -92,8 +93,8 @@ def main():
     featureConstraints = {'lactate': np.array([0,np.inf])}
 
     out=dashan_input.InputParams(
-                                name='test',
-                                dataset_id=1,
+                                name='train',
+                                dataset_id=int(os.environ['dataset_id']),
                                 adverse_event='severe_sepsis',
                                 lambda_list=lambda_list, feature_list=impFeatsList,featureConstraints=featureConstraints,
                                 numberOfIterations=50, ncpus=8,
