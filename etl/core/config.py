@@ -7,6 +7,7 @@ import logging.config
 
 TIMEZONE = 'US/Eastern'
 tsp_fmt = '%Y-%m-%d %H:%M:%S %Z'
+LOG_FMT = '%(asctime)s|%(name)s|%(pid)s|%(levelname)s|%(message)s'
 
 class Config:
     """
@@ -14,38 +15,50 @@ class Config:
     """
     CONF = os.path.dirname(os.path.abspath(__file__))
     CONF = os.path.join(CONF, 'conf')
-    LOG_CONF = os.path.join(CONF, 'logging.conf')
+    # LOG_CONF = os.path.join(CONF, 'logging.conf')
     # may not useful so comment out by zad
     # CDM_FEATURE_CSV = os.path.join(CONF, 'CDM_Feature.csv')
     # CDM_FUNCTION_CSV = os.path.join(CONF, 'CDM_Function.csv')
     FEATURE_MAPPING_CSV = os.path.join(CONF, 'feature_mapping.csv')
-    LOG_FMT = '%(asctime)s|%(name)s|%(levelname)s|%(message)s'
 
     def set_log(self, log):
         self.log = log
 
     def __init__(self, log='Dashan', debug=False, logfile=None, conf=None, db_name=None, db_host=None, dataset_id=None):
+        self.log_fmt = LOG_FMT
         if conf:
             self.CONF = conf
-            self.LOG_CONF = os.path.join(self.CONF, 'logging.conf')
+            # self.LOG_CONF = os.path.join(self.CONF, 'logging.conf')
             self.FEATURE_MAPPING_CSV = os.path.join(self.CONF, 'feature_mapping.csv')
         if dataset_id is not None:
             self.dataset_id = dataset_id
         if logfile:
             self.log = logging.getLogger(log)
             fh = logging.FileHandler(logfile)
-            formatter = logging.Formatter(self.LOG_FMT)
+            formatter = logging.Formatter(self.log_fmt)
             fh.setFormatter(formatter)
             self.log.addHandler(fh)
         else:
             level = logging.INFO
-            self.LOG_FMT = self.LOG_FMT.replace("%(name)s", log)
+            # print(log)
+            self.log_fmt = self.log_fmt.replace("%(name)s", log)
         if debug:
             level = logging.DEBUG
-        logging.basicConfig(level    = level,
-                            format   = self.LOG_FMT,
-                            handlers = [logging.StreamHandler()])
-        self.log = logging
+        # print(self.log_fmt)
+        self.log_fmt = self.log_fmt.replace("%(pid)s", str(os.getpid()))
+        # print(self.log_fmt)
+        self.log = logging.getLogger(log)
+        self.log.setLevel(level)
+        sh = logging.StreamHandler()
+        formatter = logging.Formatter(self.log_fmt)
+        sh.setFormatter(formatter)
+        self.log.addHandler(sh)
+        self.log.propagate = False
+        # logging.basicConfig(level    = level,
+        #                     format   = self.log_fmt,
+        #                     handlers = [logging.StreamHandler()])
+        logging.info(self.log_fmt)
+        # self.log = logging
 
         self.db_user = os.environ['db_user']
         self.db_host = os.environ['db_host']

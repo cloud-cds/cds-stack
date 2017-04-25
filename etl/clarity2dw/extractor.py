@@ -7,8 +7,47 @@ from etl.load.pipelines.derive_main import derive_main
 import etl.load.primitives.tbl.load_table as load_table
 import timeit
 import importlib
+import concurrent.futures
+import asyncio
+import asyncpg
+import logging
+from etl.core.config import Config
+import sys
+from multiprocessing import Pool
+import os
 
 recalculate_popmean = False # if False, then remember to import cdm_g before extraction
+
+async def run_transform_tasks(executor, feature_mapping, job, log):
+  # Configure logging to show the id of the process
+  # where the log message originates.
+  log.info("start running transform tasks")
+  transform_tasks = [
+    asyncio.get_event_loop().run_in_executor(executor, transform_feature_mapping_task, mapping_row.to_dict(), job) for i, mapping_row in feature_mapping.iterrows()
+  ]
+  log.info("waiting for executor tasks")
+  completed, pending = await asyncio.wait(transform_tasks)
+  results = [t.result() for t in completed]
+  log.info("results: {!r}".format(results))
+  log.info("exit transform")
+
+def transform_feature_mapping_task(mapping_row, job):
+  '''
+  The task to ETL one mapping row using a standalone process
+  '''
+  async def _run_(job, mapping_row):
+    config = Config(**job['config'])
+    config.log.info("start subprocess for fid = {}".format(mapping_row['fid(s)']))
+    async with asyncpg.create_pool(database=config.db_name, user=config.db_user, password=config.db_pass, host=config.db_host, port=config.db_port) as pool:
+      config.log.info("access database pool")
+      extractor = Extractor(pool, config)
+      async with pool.acquire() as conn:
+        await extractor.transform_feature_mapping_row(conn, mapping_row)
+    config.log.info("completed current task in this subprocess")
+
+  loop = asyncio.new_event_loop()
+  asyncio.set_event_loop(loop)
+  loop.run_until_complete(_run_(job, mapping_row))
 
 
 class Extractor:
@@ -18,6 +57,7 @@ class Extractor:
     self.log = self.config.log
 
   async def run(self, job):
+    self.job = job
     self.log.info("start to run clarity ETL")
     async with self.pool.acquire() as conn:
       self.cdm_feature_dict = await self.get_cdm_feature_dict(conn)
@@ -31,6 +71,7 @@ class Extractor:
         await self.derive(conn, job['derive'])
       if job.get("offline_criteria_processing", False):
         await self.offline_criteria_processing(conn, job['offline_criteria_processing'])
+    self.log.info("completed clarity ETL")
 
 
   async def transform(self, conn, transform_job):
@@ -49,7 +90,8 @@ class Extractor:
       fid = None
       if populate_measured_features_job.get('fid', False):
         fid = transform_job['populate_measured_features']['fid']
-      await self.populate_measured_features(conn, fid)
+      nproc = populate_measured_features_job.get('nproc', None)
+      await self.populate_measured_features(conn, fid, nproc=nproc)
 
   async def run_fillin(self, conn, job):
     self.log.info("start fillin pipeline")
@@ -111,46 +153,69 @@ class Extractor:
     result = await conn.execute(sql)
     self.log.info("ETL populate_patients: " + result)
 
-
-  async def populate_measured_features(self, conn, fids_2_proc=None):
+  async def populate_measured_features(self, conn, fids_2_proc=None, nproc=None):
     self.log.info("Using Feature Mapping:")
     self.log.info("{}".format(self.config.FEATURE_MAPPING_CSV))
-    feature_mapping = pd.read_csv(self.config.FEATURE_MAPPING_CSV)
+    self.feature_mapping = pd.read_csv(self.config.FEATURE_MAPPING_CSV)
 
     pat_mappings = await self.get_pat_mapping(conn)
     self.visit_id_to_enc_id = pat_mappings['visit_id_to_enc_id']
     self.pat_id_to_enc_ids = pat_mappings['pat_id_to_enc_ids']
     self.log.info("load feature mapping")
 
-    for row_idx, mapping_row in feature_mapping.iterrows():
-      self.log.debug(mapping_row)
-      fids = mapping_row['fid(s)']
-      if fids_2_proc:
-        if isinstance(fids_2_proc, list):
-          if fids not in fids_2_proc:
-            continue
-        else:
-          if fids != fids_2_proc:
-            continue
-      fids = [fid.strip() for fid in fids.split(',')] if ',' in fids else [fids]
+    if nproc is not None:
+      executor = concurrent.futures.ProcessPoolExecutor(max_workers=nproc)
+      await run_transform_tasks(executor, self.feature_mapping, self.job, self.log)
+
+      # Create a limited process pool
+      # executor = concurrent.futures.ProcessPoolExecutor(max_workers=nproc)
+      # event_loop = asyncio.new_event_loop()
+      # try:
+      #   event_loop.run_until_complete(
+      #     await run_transform_tasks(executor, self.feature_mapping, self.job, event_loop, self.log)
+      #   )
+      # finally:
+      #   event_loop.close()
+
+      # # using multiprocessing
+      # pool = Pool(processes=nproc)
+      # for row_idx, mapping_row in self.feature_mapping.iterrows():
+      #   result = pool.apply_async(transform_feature_mapping_task, args=(mapping_row, self.job))
+      # pool.close()
+      # pool.join()
+    else:
+      for row_idx, mapping_row in self.feature_mapping.iterrows():
+        await self.transform_feature_mapping_row(conn, mapping_row, fids_2_proc=fids_2_proc)
+
+  async def transform_feature_mapping_row(self, conn, mapping_row, fids_2_proc=None):
+    self.log.debug(mapping_row)
+    fids = mapping_row['fid(s)']
+    if fids_2_proc:
+      if isinstance(fids_2_proc, list):
+        if fids not in fids_2_proc:
+          return
+      else:
+        if fids != fids_2_proc:
+          return
+    fids = [fid.strip() for fid in fids.split(',')] if ',' in fids else [fids]
+    for fid in fids:
+      if not self.cdm_feature_dict.get(fid, False):
+        self.log.error("feature %s is not in cdm_feature" % fid)
+        raise(ValueError("feature %s is not in cdm_feature" % fid))
+    # get transform function
+    transform_func_id = mapping_row['transform_func_id']
+    if "." in str(transform_func_id): # if custom function
+      i = len(transform_func_id) - transform_func_id[::-1].index('.')
+      package = transform_func_id[:(i-1)]
+      transform_func_id = transform_func_id[i:]
+      self.log.info("fid: %s using package: %s and transform_func_id: %s" % (",".join(fids), package, transform_func_id))
+      module = importlib.import_module(package)
+      func = getattr(module, transform_func_id)
+      await func(conn,self.config.dataset_id,self.log,self.plan)
+    else: #if standard function
+      # For now, use the fact that only custom functions are many to one.
       for fid in fids:
-        if not self.cdm_feature_dict.get(fid, False):
-          self.log.error("feature %s is not in cdm_feature" % fid)
-          raise(ValueError("feature %s is not in cdm_feature" % fid))
-      # get transform function
-      transform_func_id = mapping_row['transform_func_id']
-      if "." in str(transform_func_id): # if custom function
-        i = len(transform_func_id) - transform_func_id[::-1].index('.')
-        package = transform_func_id[:(i-1)]
-        transform_func_id = transform_func_id[i:]
-        self.log.info("fid: %s using package: %s and transform_func_id: %s" % (",".join(fids), package, transform_func_id))
-        module = importlib.import_module(package)
-        func = getattr(module, transform_func_id)
-        await func(conn,self.config.dataset_id,self.log,self.plan)
-      else: #if standard function
-        # For now, use the fact that only custom functions are many to one.
-        for fid in fids:
-          await self.populate_feature_to_cdm(mapping_row.copy().set_value('fid', fid), conn, self.cdm_feature_dict[fid])
+        await self.populate_feature_to_cdm(mapping_row.copy().set_value('fid', fid), conn, self.cdm_feature_dict[fid])
 
   async def get_pat_mapping(self, conn):
     sql = "select * from pat_enc where dataset_id = %s" % self.config.dataset_id

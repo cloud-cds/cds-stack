@@ -50,23 +50,24 @@ job = {
     'populate_measured_features': {
       'plan': False,
   # 'fid': ['fluids_intake'],
+      'nproc': 2, #8,
     },
   },
-  'fillin': {
-    'recalculate_popmean': False,
-  },
-  'derive': {
-    'fid': None,
-  },
-  'offline_criteria_processing': {
-    'load_cdm_to_criteria_meas':True,
-    'calculate_historical_criteria':False
-  },
+  # 'fillin': {
+  #   'recalculate_popmean': False,
+  # },
+  # 'derive': {
+  #   'fid': None,
+  # },
+  # 'offline_criteria_processing': {
+  #   'load_cdm_to_criteria_meas':True,
+  #   'calculate_historical_criteria':False
+  # },
   'config': {
-    'dataset_id': 3,
+    'dataset_id': 1, #3,
     'debug': True,
-    'db_name': 'opsdx_dev_dw',
-    # 'db_host': 'dev.opsdx.io',
+    'db_name': 'test_c2dw', #'opsdx_dev_dw',
+    'db_host': 'db.dev.opsdx.io',
     'conf': CONF,
   },
 }
