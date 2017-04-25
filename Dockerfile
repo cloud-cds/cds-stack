@@ -35,11 +35,5 @@ RUN pip install --upgrade pip \
     && pip install -r /ml/requirements.txt \
     && pip install /ml
 
-# Install R packages
-RUN R CMD BATCH /ml/install-packages.R
-
 # Set the default directory where CMD will execute
 WORKDIR /ml
-
-# TODO start ml job
-#CMD ["source", "run-ml.sh"]
