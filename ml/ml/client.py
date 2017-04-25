@@ -572,3 +572,9 @@ class Session():
         res = cursor.fetchall()
 
         return res
+
+    def insert_report(self, report_string):
+        sql = """
+        INSERT INTO model_training_report VALUES ({}, now());
+        """
+        self.conn.execute(sql.format(report_string))

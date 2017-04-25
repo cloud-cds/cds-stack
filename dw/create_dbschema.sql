@@ -730,3 +730,10 @@ CREATE TABLE historical_criteria (
     window_ts           timestamptz,
     primary key         (pat_id,dataset_id,window_ts)
 );
+
+DROP TABLE IF EXISTS model_training_report;
+CREATE TABLE model_training_report (
+    report_id       serial PRIMARY KEY,
+    report              json,
+    create_at       timestamptz
+);

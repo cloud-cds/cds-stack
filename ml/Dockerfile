@@ -8,7 +8,8 @@ RUN apt-get update \
     && curl -o /tmp/get-pip.py "https://bootstrap.pypa.io/get-pip.py" \
     && python3.6 /tmp/get-pip.py \
     && rm -rf /var/lib/apt/lists/* \
-    && alias python=python3.6
+    && alias python=python3.6 \
+    && echo "alias python=python3.6" >> /root/.bashrc
 
 
 RUN apt-get update \
