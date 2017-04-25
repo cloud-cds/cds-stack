@@ -1,0 +1,10 @@
+{
+  "kind": "Namespace",
+  "apiVersion": "v1",
+  "metadata": {
+    "name": "trews-ml",
+    "labels": {
+      "name": "trews-ml"
+    }
+  }
+}
