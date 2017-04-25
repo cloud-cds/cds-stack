@@ -27,7 +27,7 @@ insert into infection_keywords (keyword) values
 ('[lL]ine [sS]epsis'),
 ('[eE]ndocarditis'),
 ('[bB]lood [sS]tream [iI]nfection'),
-('[cC]ellulitis'),
+('[rRlL]*(ight)*(eft)*[ ]*[lL]*(ower)*[ ]*[eE]*(xtremity)*[ ]*[cC]ellulitis'),
 ('[mM]ediastinitis'),
 ('[cC]entral [lL]ine [iI]nfection'),
 ('CLABSI'),
@@ -35,7 +35,8 @@ insert into infection_keywords (keyword) values
 ('[oO]steomyelitis'),
 ('[nN]ecrotizing [fF]asciitis'),
 ('[pP]seudomonas'),
-('[iI]nfluenza')
+('[iI]nfluenza'),
+('([sS]ubcutaneous )*([iI]ntraperitoneal )*[aA]bscess')
 ;
 
 drop table if exists negation_keywords;
@@ -43,7 +44,7 @@ create table negation_keywords(keyword text);
 insert into negation_keywords (keyword) values
 ('[hH](istory)*(x)* of( recurrent|recent)*'),
 ('[hH]/[oO]'),
-('[Nn]o( sign)*( evidence)*( diagnosis)*( of)*'),
+('[Nn]o( sign)*( evidence)*( diagnosis)*( of)*( acute)*'),
 ('[nN]ot'),
 ('[Nn]eg(ative)*'),
 ('[rR]ecently had'),
@@ -52,7 +53,8 @@ insert into negation_keywords (keyword) values
 ('[rR]ecently hospitalized for'),
 ('[rR]ecurrent'),
 ('[aA]bsence of'),
-('[hH]ave had')
+('[hH]ave had'),
+('•[ ]*')
 ;
 
 -----------------------------------------
@@ -81,7 +83,7 @@ BEGIN
   || ' where "NOTE_TEXT" ~ E''' || positive || ''''
   || ' group by "CSN_ID", "CREATE_INSTANT_DTTM"'
   || ' order by "CSN_ID", "CREATE_INSTANT_DTTM" limit ' || num_matches::text || ' offset ' || match_offset::text;
-  --raise notice 'query %', match_query;
+  raise notice 'query %', match_query;
   return query execute match_query;
 END; $function$;
 
@@ -156,7 +158,7 @@ BEGIN
   select array_to_string(array_agg(N.keyword || E'\\\\s+' || I.keyword), '|') into negative
   from infection_keywords I, negation_keywords N;
   match_query :=
-     'select "CSN_ID" as csn_id, "CREATE_INSTANT_DTTM" at time zone ''EST'' as start_ts,'
+    'select "CSN_ID" as csn_id, "CREATE_INSTANT_DTTM"  at time zone ''EST'' as start_ts,'
   || '       regexp_replace("NOTE_TEXT", E''' || negative || ''', ''NEGATED_PHRASE'', ''g'') as body'
   || ' from "Notes"'
   || ' where "CSN_ID" = coalesce(E''' || this_csn_id || ''', "CSN_ID") order by "CREATE_INSTANT_DTTM"';
