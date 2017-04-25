@@ -3,6 +3,7 @@ create table infection_keywords(keyword text);
 insert into infection_keywords (keyword) values
 ('(VRE |vre )*([^a-zA-Z]UTI[^a-zA-Z]|[^a-zA-Z]uti[^a-zA-Z])'),
 ('[uU]rinary [tT]ract [iI]nfection'),
+(' CAUTI '),
 ('[uU]rosepsis'),
 ('[pP]yelo(nephritis)*'),
 ('[bB]iliary [sS]epsis'),
