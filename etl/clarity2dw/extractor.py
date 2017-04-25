@@ -163,7 +163,7 @@ class Extractor:
     self.pat_id_to_enc_ids = pat_mappings['pat_id_to_enc_ids']
     self.log.info("load feature mapping")
 
-    if nproc is not None:
+    if nproc is not None and nproc > 0:
       executor = concurrent.futures.ProcessPoolExecutor(max_workers=nproc)
       await run_transform_tasks(executor, self.feature_mapping, self.job, self.log)
 
