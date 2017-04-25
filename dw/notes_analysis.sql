@@ -78,15 +78,18 @@ BEGIN
   select '(' || array_to_string(array_agg(keyword), '|') || ')' into grouped_positive
   from infection_keywords;
   match_query :=
-     'select "CSN_ID" as csn_id, "CREATE_INSTANT_DTTM" at time zone ''EST'' as start_ts,'
+     'select "CSN_ID" as csn_id, "CREATE_INSTANT_DTTM" at time zone ''UTC'' as start_ts,'
   || '       regexp_replace(array_to_string(array_agg("NOTE_TEXT"), ''\n''), E''' || grouped_positive || ''', E''__MATCH__\\1'', ''g'') as note'
   || ' from "Notes"'
   || ' where "NOTE_TEXT" ~ E''' || positive || ''''
+  || ' and "AuthorType" <> ''Pharmacist'''
   || ' group by "CSN_ID", "CREATE_INSTANT_DTTM"'
   || ' order by "CSN_ID", "CREATE_INSTANT_DTTM" limit ' || num_matches::text || ' offset ' || match_offset::text;
-  raise notice 'query %', match_query;
+  --raise notice 'query %', match_query;
   return query execute match_query;
 END; $function$;
+
+
 
 
 ----------------------------------------
@@ -119,7 +122,7 @@ BEGIN
   select array_to_string(array_agg(N.keyword || E'\\\\s*' || I.keyword), '|') into negative
   from infection_keywords I, negation_keywords N;
   match_query :=
-     ' select csn_id, start_ts at time zone ''EST'', array_to_string(ngram_arr, '' '') as ngram  '
+     ' select csn_id, start_ts at time zone ''UTC'', array_to_string(ngram_arr, '' '') as ngram  '
   || ' from ('
   || '   select DOCS.csn_id, DOCS.start_ts, '
   || '          array_agg(W.word) over ( ROWS BETWEEN ' || rows_before::text || ' PRECEDING AND ' || rows_after::text || ' FOLLOWING ) as ngram_arr'
@@ -131,13 +134,15 @@ BEGIN
   || '              regexp_replace("NOTE_TEXT", E''' || negative || ''', ''NEGATED_PHRASE'', ''g'') as body'
   || '       from "Notes"'
   || '       where "CSN_ID" = coalesce(E''' || this_csn_id || ''', "CSN_ID")'
+  || '       and "AuthorType" <> ''Pharmacist'''
   || '     ) NEG'
   || '     where body ~ ''' || positive || ''''
+  || '     and "AuthorType" <> ''Pharmacist'''
   || '   ) DOCS, lateral unnest(words) W(word)'
   || ' ) NGRAMS'
   || ' where ( ngram_arr[4] like ''%__MATCH__%'') or ( array_length(ngram_arr, 1) < ' || (rows_before+rows_after+1)::text || ' and (select count(*) from unnest(ngram_arr) W(word) where word like ''%__MATCH__%'' ) > 0 )'
   || ' order by csn_id, start_ts';
-  raise notice 'query %', match_query;
+  --raise notice 'query %', match_query;
   return query execute match_query;
 END; $function$;
 
@@ -159,10 +164,12 @@ BEGIN
   select array_to_string(array_agg(N.keyword || E'\\\\s*' || I.keyword), '|') into negative
   from infection_keywords I, negation_keywords N;
   match_query :=
-    'select "CSN_ID" as csn_id, "CREATE_INSTANT_DTTM"  at time zone ''EST'' as start_ts,'
+    'select "CSN_ID" as csn_id, "CREATE_INSTANT_DTTM" at time zone ''UTC'' as start_ts,'
   || '       regexp_replace("NOTE_TEXT", E''' || negative || ''', ''NEGATED_PHRASE'', ''g'') as body'
   || ' from "Notes"'
-  || ' where "CSN_ID" = coalesce(E''' || this_csn_id || ''', "CSN_ID") order by "CREATE_INSTANT_DTTM"';
+  || ' where "CSN_ID" = coalesce(E''' || this_csn_id || ''', "CSN_ID")'
+  || ' and "AuthorType" <> ''Pharmacist'''
+  || ' order by "CREATE_INSTANT_DTTM"';
   --raise notice 'query %', match_query;
   return query execute match_query;
 END; $function$;
@@ -196,7 +203,7 @@ BEGIN
     select * from unnest(csn_ids) E(match_csn_id);
 
   match_query :=
-     ' select csn_id, start_ts at time zone ''EST'', array_to_string(ngram_arr, '' '') as ngram  '
+     ' select csn_id, start_ts at time zone ''UTC'', array_to_string(ngram_arr, '' '') as ngram  '
   || ' from ('
   || '   select DOCS.csn_id, DOCS.start_ts, '
   || '          array_agg(W.word) over ( ROWS BETWEEN ' || rows_before::text || ' PRECEDING AND ' || rows_after::text || ' FOLLOWING ) as ngram_arr'
@@ -208,13 +215,15 @@ BEGIN
   || '              regexp_replace("NOTE_TEXT", E''' || negative || ''', ''NEGATED_PHRASE'') as body'
   || '       from "Notes"'
   || '       where "CSN_ID" in (select * from match_csns)'
+  || '       and "AuthorType" <> ''Pharmacist'''
   || '     ) NEG'
   || '     where body ~ ''' || positive || ''''
+  || '     and "AuthorType" <> ''Pharmacist'''
   || '   ) DOCS, lateral unnest(words) W(word)'
   || ' ) NGRAMS'
   || ' where ( ngram_arr[4] like ''%__MATCH__%'') or ( array_length(ngram_arr, 1) < ' || (rows_before+rows_after+1)::text || ' and (select count(*) from unnest(ngram_arr) W(word) where word like ''%__MATCH__%'' ) > 0 )'
   || ' order by csn_id, start_ts';
-  raise notice 'query %', match_query;
+  --raise notice 'query %', match_query;
   return query execute match_query;
   drop table if exists match_csns;
   return;
@@ -264,6 +273,6 @@ BEGIN
   || ' ) NGRAMS'
   || ' where ( ngram_arr[4] like ''%__MATCH__%'') or ( array_length(ngram_arr, 1) < ' || (rows_before+rows_after+1)::text || ' and (select count(*) from unnest(ngram_arr) W(word) where word like ''%__MATCH__%'' ) > 0 )'
   || ' order by enc_id, spec_note_time';
-  raise notice 'query %', match_query;
+  --raise notice 'query %', match_query;
   return query execute match_query;
 END; $function$;
