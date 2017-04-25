@@ -677,10 +677,17 @@ BEGIN
   IF is_historical THEN
 
     delete from suspicion_of_infection_buff;
-    insert into suspicion_of_infection_buff ( dataset_id, pat_id, name, is_met, measurement_time,override_time,override_user, override_value, value, update_date)
-
+    insert into suspicion_of_infection_buff ( dataset_id, pat_id, name, is_met, measurement_time,
+                                              override_time,override_user, override_value, value, update_date)
     with sus as (
-      select s.dataset_id, s.pat_id, s.name, last(s.is_met) as is_met, last(s.measurement_time) as measurement_time, last(s.override_time) as override_time,last(s.override_user) as override_user, last(s.override_value) as override_value, last(s.value) as value, last(s.update_date) as update_date
+      select s.dataset_id, s.pat_id, s.name,
+             last(s.is_met) as is_met,
+             last(s.measurement_time) as measurement_time,
+             last(s.override_time) as override_time,
+             last(s.override_user) as override_user,
+             last(s.override_value) as override_value,
+             last(s.value) as value,
+             last(s.update_date) as update_date
       from suspicion_of_infection_hist s
       where s.pat_id = coalesce(this_pat_id, s.pat_id) and s.dataset_id = _dataset_id
       group by s.dataset_id, s.pat_id, s.name),
@@ -895,6 +902,7 @@ BEGIN
              sum(SC.cnt) as sirs_cnt,
              sum(OC.cnt) as org_df_cnt,
              max(IC.onset) as inf_onset,
+             max(SC.initial) as sirs_initial,
              max(SC.onset) as sirs_onset,
              max(OC.onset) as org_df_onset
       from
@@ -909,6 +917,7 @@ BEGIN
       (
         select sirs.pat_id,
                sum(case when sirs.is_met then 1 else 0 end) as cnt,
+               (array_agg(sirs.measurement_time order by sirs.measurement_time))[1] as initial,
                (array_agg(sirs.measurement_time order by sirs.measurement_time))[2] as onset
         from sirs
         group by sirs.pat_id
@@ -921,7 +930,7 @@ BEGIN
         from organ_dysfunction
         group by organ_dysfunction.pat_id
       ) OC on IC.pat_id = OC.pat_id
-      where greatest(SC.onset, OC.onset) - least(SC.onset, OC.onset) < window_size
+      where greatest(SC.onset, OC.onset) - least(SC.initial, OC.onset) < window_size
       group by IC.pat_id
   ),
   severe_sepsis_onsets as (
@@ -953,7 +962,7 @@ BEGIN
                           coalesce(stats.org_df_onset, 'infinity'::timestamptz))
                  ) as severe_sepsis_wo_infection_onset,
 
-             min(least(stats.inf_onset, stats.sirs_onset, stats.org_df_onset))
+             min(least(stats.inf_onset, stats.sirs_initial, stats.org_df_onset))
                 as severe_sepsis_lead_time
 
       from severe_sepsis_criteria stats
@@ -1166,7 +1175,7 @@ BEGIN
                     (select coalesce(
                               bool_or(SSP.severe_sepsis_is_met
                                         and greatest(pat_cvalues.c_otime, pat_cvalues.tsp)
-                                              > SSP.severe_sepsis_lead_time)
+                                              > (SSP.severe_sepsis_lead_time - interval '6 hours'))
                               , false)
                       from severe_sepsis_onsets SSP
                       where SSP.pat_id = coalesce(this_pat_id, SSP.pat_id)
@@ -1177,7 +1186,7 @@ BEGIN
                     (select coalesce(
                               bool_or(SSP.severe_sepsis_is_met
                                         and greatest(pat_cvalues.c_otime, pat_cvalues.tsp)
-                                              > SSP.severe_sepsis_lead_time)
+                                              > (SSP.severe_sepsis_lead_time - interval '6 hours'))
                               , false)
                       from severe_sepsis_onsets SSP
                       where SSP.pat_id = coalesce(this_pat_id, SSP.pat_id)
