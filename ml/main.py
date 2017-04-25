@@ -1,6 +1,6 @@
 import os
 import sys
-from ml import preprocessing, train_model, predict_datasets, evaluate
+from ml import preprocessing, train_model, predict_datasets, evaluate, postprocessing
 from ml.dashan_input import InputParamFactory
 
 def full_pipe(input_arg):
@@ -79,8 +79,10 @@ def full_pipe(input_arg):
         evaluate.evaluate(inputValues)
 
     #---------------------------
-    # Add a package for real time function here
+    # Generate report and save to DB
     #---------------------------
+    report = {"inputValues": inputValues}
+    postprocessing.save_report(report)
 
 if __name__ == "__main__":
     input_arg = sys.argv[1]
