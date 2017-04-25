@@ -116,7 +116,7 @@ BEGIN
   from infection_keywords;
   select '(' || array_to_string(array_agg(keyword), '|') || ')' into grouped_positive
   from infection_keywords;
-  select array_to_string(array_agg(N.keyword || E'\\\\s+' || I.keyword), '|') into negative
+  select array_to_string(array_agg(N.keyword || E'\\\\s*' || I.keyword), '|') into negative
   from infection_keywords I, negation_keywords N;
   match_query :=
      ' select csn_id, start_ts at time zone ''EST'', array_to_string(ngram_arr, '' '') as ngram  '
@@ -156,7 +156,7 @@ DECLARE
   negative text := '';
   match_query text := '';
 BEGIN
-  select array_to_string(array_agg(N.keyword || E'\\\\s+' || I.keyword), '|') into negative
+  select array_to_string(array_agg(N.keyword || E'\\\\s*' || I.keyword), '|') into negative
   from infection_keywords I, negation_keywords N;
   match_query :=
     'select "CSN_ID" as csn_id, "CREATE_INSTANT_DTTM"  at time zone ''EST'' as start_ts,'
@@ -189,7 +189,7 @@ BEGIN
   select '(' || array_to_string(array_agg(keyword), '|') || ')' into grouped_positive
   from infection_keywords;
 
-  select array_to_string(array_agg(N.keyword || E'\\\\s+' || I.keyword), '|') into negative
+  select array_to_string(array_agg(N.keyword || E'\\\\s*' || I.keyword), '|') into negative
   from infection_keywords I, negation_keywords N;
 
   create temporary table match_csns as
@@ -241,7 +241,7 @@ BEGIN
   from infection_keywords;
   select '(' || array_to_string(array_agg(keyword), '|') || ')' into grouped_positive
   from infection_keywords;
-  select array_to_string(array_agg(N.keyword || E'\\\\s+' || I.keyword), '|') into negative
+  select array_to_string(array_agg(N.keyword || E'\\\\s*' || I.keyword), '|') into negative
   from infection_keywords I, negation_keywords N;
   match_query :=
      ' select enc_id, spec_note_time, array_to_string(ngram_arr, '' '') as ngram  '
