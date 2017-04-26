@@ -22,12 +22,12 @@ from etl.load.primitives.tbl import clean_tbl
 def derive(fid, func_id, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
   this_mod = sys.modules[__name__]
   func = getattr(this_mod, func_id)
-  print(dataset_id)
+  # print(dataset_id)
   return func(fid, fid_input, conn, log, dataset_id=dataset_id, twf_table=twf_table)
 
 def with_ds(dataset_id, table_name=None, conjunctive=True):
   if dataset_id is not None:
-    '%s %sdataset_id = %s' % (' and' if conjunctive else 'where', '' if table_name is None else table_name+'.', dataset_id)
+    return '%s %sdataset_id = %s' % (' and' if conjunctive else ' where', '' if table_name is None else table_name+'.', dataset_id)
   return ''
 
 async def lookup_population_mean(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
@@ -79,7 +79,6 @@ async def any_pressor_update(fid, fid_input, conn, log, dataset_id=None, twf_tab
     assert fid_input_items[i].endswith('dose'), \
       'wrong fid_input %s' % fid_input
   for dose in fid_input_items:
-    print('dataset_id:' + str(dataset_id))
     await any_continuous_dose_update(fid, dose, conn, log, dataset_id=dataset_id, twf_table=twf_table)
 
 # Same as any_continuous_dose_update (special case)
@@ -104,6 +103,7 @@ async def any_continuous_dose_update(fid, dose, conn, log, dataset_id=None, twf_
     select enc_id, tsp, value::json->>'action' as action, confidence
     from cdm_t where fid = '%(dose)s'%(with_ds)s order by enc_id, tsp
   """ % {'dose': dose, 'with_ds': with_ds(dataset_id) }
+  log.info("any_continuous_dose_update: sql: {}".format(select_sql))
   records = await conn.fetch(select_sql)
   block = {'enc_id':None, 'start_tsp':None, 'end_tsp':None,
        'start_c': 0, 'end_c': 0}
@@ -121,12 +121,12 @@ async def any_continuous_dose_update(fid, dose, conn, log, dataset_id=None, twf_
         block['end_tsp'] = tsp
         block['end_c'] = c
         # block is reaty to update
-        await update_continuous_dose_block(fid, block, conn, log, dataset_id=dataset_id)
+        await update_continuous_dose_block(fid, block, conn, log, dataset_id=dataset_id, twf_table=twf_table)
         block = {'enc_id':None, 'start_tsp':None, 'end_tsp':None,
              'start_c': 0, 'end_c': 0}
     elif block['enc_id'] != enc_id and not action in STOPPED_ACTIONS:
       # update current block
-      await update_continuous_dose_block(fid, block, conn, log, dataset_id=dataset_id)
+      await update_continuous_dose_block(fid, block, conn, log, dataset_id=dataset_id, twf_table=twf_table)
       # create new block
       block = {'enc_id':enc_id, 'start_tsp':tsp, 'end_tsp':None,
            'start_c': 0, 'end_c': 0}
@@ -135,7 +135,8 @@ async def any_continuous_dose_update(fid, dose, conn, log, dataset_id=None, twf_
 async def update_continuous_dose_block(fid, block, conn, log, dataset_id=None, twf_table='cdm_twf'):
   select_sql = """
     select value from cdm_t where enc_id = %s and fid = '%s'%s
-    and tsp <= timestamptz '%s' order by tsp DESC
+    and tsp <= timestamptz '%s'
+    order by tsp DESC
   """ % (block['enc_id'], fid, with_ds(dataset_id), block['start_tsp'])
   prev = await conn.fetchrow(select_sql)
   if prev is None or prev['value'] == 'False':
@@ -336,6 +337,7 @@ async def sirs_intp_update(fid, fid_input, conn, log, dataset_id=None, twf_table
   WHERE (query.sirs_raw OR query.sirs_raw_prev) OR
       query.enc_id IS DISTINCT FROM query.enc_id_prev
   """ % {'twf_table': twf_table, 'with_ds': with_ds(dataset_id, table_name=twf_table, conjunctive=False)}
+  log.info(select_sql)
   records = await conn.fetch(select_sql)
   block_start = None
   block_end = None
@@ -411,6 +413,7 @@ async def sirs_intp_update(fid, fid_input, conn, log, dataset_id=None, twf_table
   WHERE (query.sirs_intp or query.sirs_intp_prev) OR
       (query.enc_id IS DISTINCT FROM query.enc_id_prev)
   """ % {'twf_table': twf_table, 'with_ds': with_ds(dataset_id, table_name=twf_table, conjunctive=False)}
+  log.info(select_sql)
   records = await conn.fetch(select_sql)
   interval_start = None
   interval_end = None
@@ -479,24 +482,29 @@ async def renal_sofa_update(fid, fid_input, conn, log, dataset_id=None, twf_tabl
   END)
   , %(fid)s_c = coalesce(%(creat)s_c, 0)
   %(with_ds)s;
-  """ % {'fid':fid, 'creat':fid_input_items[0], 'twf_table': twf_table, 'with_ds': with_ds(dataset_id)}
+  """ % {'fid':fid, 'creat':fid_input_items[0], 'twf_table': twf_table, 'with_ds': with_ds(dataset_id, conjunctive=False)}
+  log.info(update_clause)
   await conn.execute(update_clause)
 
   update_clause = """
+  WITH min_tsp as (SELECT min(cdm_twf_2.tsp), enc_id FROM %(twf_table)s cdm_twf_2
+          %(with_ds_where)s group by enc_id)
   UPDATE %(twf_table)s SET %(fid)s = (CASE
       WHEN %(urine_output)s < 200 THEN 4
       WHEN %(fid)s < 3 AND %(urine_output)s < 500 THEN 3
       ELSE %(fid)s
     END)
     , %(fid)s_c = coalesce(%(fid)s_c,0) | coalesce(%(urine_output)s_c,0)
+    FROM min_tsp
     WHERE %(urine_output)s < 500
       AND
-      tsp - (SELECT min(cdm_twf_2.tsp) FROM %(twf_table)s cdm_twf_2
-           WHERE cdm_twf_2.enc_id = %(twf_table)s.enc_id)
-      >= interval '24 hours'
+      min_tsp.enc_id = %(twf_table)s.enc_id
+      AND
+      %(twf_table)s.tsp - min_tsp.min >= interval '24 hours'
       %(with_ds)s
     ;
-  """ % {'fid':fid, 'urine_output':fid_input_items[1], 'twf_table': twf_table, 'with_ds': with_ds(dataset_id)}
+  """ % {'fid':fid, 'urine_output':fid_input_items[1], 'twf_table': twf_table, 'with_ds': with_ds(dataset_id), 'with_ds_where': with_ds(dataset_id, conjunctive=False)}
+  log.info(update_clause)
   await conn.execute(update_clause)
 
 
@@ -564,7 +572,7 @@ async def septic_shock_update(fid, fid_input, conn, log, dataset_id=None, twf_ta
   UPDATE %(twf_table)s SET septic_shock = ( case when septic_shock = 7 then 1
     else 0 end)
   %(with_ds)s
-  """ % {'twf_table': twf_table, 'with_ds': with_ds(dataset_id)}
+  """ % {'twf_table': twf_table, 'with_ds': with_ds(dataset_id, conjunctive=False)}
   await conn.execute(update_clause)
 
 
@@ -589,22 +597,24 @@ async def resp_sofa_update(fid, fid_input, conn, log, dataset_id=None, twf_table
   %(fid)s_c = pao2_to_fio2_c
   %(with_ds)s
   ;
-  """ % {'fid':fid, 'twf_table': twf_table, 'with_ds': with_ds(dataset_id)}
+  """ % {'fid':fid, 'twf_table': twf_table, 'with_ds': with_ds(dataset_id, conjunctive=False)}
   await conn.execute(update_clause)
 
   update_vent_clause = """
+  WITH vent as (select * from cdm_t where fid = 'vent' %(with_ds)s)
   UPDATE %(twf_table)s SET %(fid)s = (CASE
     WHEN pao2_to_fio2 < 100 THEN 4
     WHEN pao2_to_fio2 < 200 THEN 3
     ELSE %(fid)s
   END),
   %(fid)s_c = pao2_to_fio2_c
-  FROM (select * from cdm_t where fid = 'vent') as t
-  where %(twf_table)s.enc_id = t.enc_id and %(twf_table)s.tsp = t.tsp
-  %(with_ds)s
+  FROM vent
+  where %(twf_table)s.enc_id = vent.enc_id and %(twf_table)s.tsp = vent.tsp
+  %(with_ds_table)s
   ;
-  """ % {'fid':fid, 'twf_table': twf_table, 'with_ds': with_ds(dataset_id)}
-  print(update_vent_clause)
+  """ % {'fid':fid, 'twf_table': twf_table, 'with_ds': with_ds(dataset_id),  'with_ds_table': with_ds(dataset_id, table_name=twf_table)}
+  # print(update_vent_clause)
+  log.info(update_vent_clause)
   await conn.execute(update_vent_clause)
 
 # Special case (mini-pipeline)
