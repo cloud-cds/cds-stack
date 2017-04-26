@@ -53,16 +53,16 @@ job = {
       'nproc': int(os.environ['nproc']), #8,
     },
   },
-  # 'fillin': {
-  #   'recalculate_popmean': False,
-  # },
-  # 'derive': {
-  #   'fid': None,
-  # },
-  # 'offline_criteria_processing': {
-  #   'load_cdm_to_criteria_meas':True,
-  #   'calculate_historical_criteria':False
-  # },
+  'fillin': {
+    'recalculate_popmean': False,
+  },
+  'derive': {
+    'fid': None,
+  },
+  'offline_criteria_processing': {
+    'load_cdm_to_criteria_meas':True,
+    'calculate_historical_criteria':False
+  },
   'config': {
     'dataset_id': int(os.environ['dataset_id']),
     'debug': True,
