@@ -1,0 +1,46 @@
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: c2dw-etl-3y-deployment
+spec:
+  replicas: 1 # tells deployment to run 1 pods matching the template
+  template: # create pods using pod definition in this template
+    metadata:
+      # unlike pod-nginx.yaml, the name is not included in the meta data as a unique name is
+      # generated from the deployment name
+      labels:
+        app: c2dw-etl-3y
+    spec:
+      nodeSelector:
+        opsdx_nodegroup: c2dw-etl
+      containers:
+      - name: c2dw-etl-3y
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/c2dw-etl:0.0.1
+        ports:
+        - containerPort: 80
+        command:
+          - "python"
+          - "./etl/clarity2dw/engine.py"
+        env:
+        - name: dataset_id
+          value: "3"
+        - name: nproc
+          value: '-1'
+        - name: db_host
+          value: "dw.dev.opsdx.io"
+        - name: db_port
+          value: "5432"
+        - name: db_name
+          value: "opsdx_dev_dw"
+        - name: db_user
+          valueFrom:
+            secretKeyRef:
+              name: c2dw-etl-secrets
+              key: db-username
+        - name: db_password
+          valueFrom:
+            secretKeyRef:
+              name: c2dw-etl-secrets
+              key: db-password
+---
