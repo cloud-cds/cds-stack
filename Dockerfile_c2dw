@@ -1,7 +1,7 @@
 FROM python:3.6-alpine
 
 # Copy the main code base folder inside the container
-COPY ./dashan-etl /dashan-etl
+COPY ../dashan-etl /dashan-etl
 
 RUN apk add --update --no-cache \
         g++ pkgconfig ca-certificates \
