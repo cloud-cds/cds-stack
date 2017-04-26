@@ -7,6 +7,7 @@ from etl.load.pipelines.derive_main import derive_feature, get_derive_seq
 from etl.load.pipelines.fillin import fillin_pipeline
 import pandas as pd
 import os
+import logging
 
 class Epic2OpLoader:
   def __init__(self, config):
@@ -39,14 +40,22 @@ class Epic2OpLoader:
         self.epic_2_workspace(db_data)
       if 'test' in mode:
         self.test_data_2_workspace(mode)
-      await self.workspace_to_cdm(conn)
-      await self.load_online_prediction_parameters(conn)
-      await self.workspace_fillin(conn)
-      await self.workspace_derive(conn)
-      await self.workspace_predict(conn)
-      await self.workspace_submit(conn)
-      await self.workspace_to_criteria_meas(conn)
-      await self.drop_tables(conn)
+      workspace_functions = [
+        self.workspace_to_cdm,
+        self.load_online_prediction_parameters,
+        self.workspace_fillin,
+        self.workspace_derive,
+        self.workspace_predict,
+        self.workspace_submit,
+        self.workspace_to_criteria_meas,
+        self.drop_tables,
+      ]
+      for func in workspace_functions:
+        try:
+          await func(conn)
+        except asyncpg.exceptions.UndefinedTableError:
+          logging.error("Workspace table does exist for {}".format(func))
+          continue
 
   def get_notifications_for_epic(self):
     async def run(loop):

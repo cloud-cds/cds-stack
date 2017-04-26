@@ -176,6 +176,7 @@ med_orders_transforms = [
          'levofloxacin_dose', 'moxifloxacin_dose', 'vancomycin_dose',
          'metronidazole_dose', 'aztronam_dose', 'ciprofloxacin_dose',
          'gentamicin_dose', 'azithromycin_dose',]),
+    lambda mo: format_data.add_order_to_fid(mo),
     # lambda mo: format_data.threshold_values(mo, 'dose'),
 ]
 

@@ -36,7 +36,7 @@ tables_to_load = {
   'trews_feature_weights'    : 'model',
   'trews_parameters'         : 'model',
   'cdm_twf'                  : 'dataset',
-  'trews'                    : 'dataset',
+  'trews'                    : 'both',
   'pat_status'               : 'dataset',
   'deterioration_feedback'   : 'dataset',
   'feedback_log'             : 'dataset',
