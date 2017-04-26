@@ -208,7 +208,7 @@ daily_compare_light = [
     'engine': EngineC2dw,
     'job': job_c2dw_daily_light,
     'pipeline': {
-      'load_clarity': {'folder': '~/clarity-db-staging/2017-04-06/'},
+      # 'load_clarity': {'folder': '/data/opsdx/clarity-db-staging/2017-04-06/'},
       'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
       'copy_pat_enc': True,
       'populate_db': True,
@@ -535,6 +535,17 @@ class DBCompareTest():
     loop = asyncio.get_event_loop()
     loop.run_until_complete(self.run_db_compare(db_config))
 
+  async def check_tsp_range(self, tsp_range, src_server, dbpool):
+    sql = '''
+    select (t1.min, t1.max) OVERLAPS (t2.min, t2.max) from (select min(tsp), max(tsp) from cdm_twf) t1 cross join
+        dblink('%s', $OPDB$ select min(tsp), max(tsp) from cdm_twf $OPDB$) as t2 (min timestamptz
+    , max timestamptz)
+    ''' % src_server
+    async with dbpool.acquire() as conn:
+      overlapping = await conn.fetch(sql)
+      print(overlapping)
+    return bool(overlapping[0][0])
+
   async def run_db_compare(self, db_config):
     print("db_compare %s vs %s" % (self.db_pair[0]['name'], self.db_pair[1]['name']))
     job = db_config['job']
@@ -554,9 +565,15 @@ class DBCompareTest():
     if 'date' in args:
       date = args['date']
     else:
-      date = (dt.datetime.now() - dt.timedelta(days=3)).strftime('%Y-%m-%d')
+      async with dbpool.acquire() as conn:
+        date = await conn.fetch("select max(tsp) from cdm_twf")
+      date = (date[0]['max'] - dt.timedelta(days=2)).strftime('%Y-%m-%d')
     tsp_range = " tsp > '%(date)s 10:00:00 utc'::timestamptz and tsp < '%(date)s 20:00:00 utc'::timestamptz" % {'date': date}
 
+    if not await self.check_tsp_range(tsp_range, src_server, dbpool):
+      print("two databases are not overlapping in time range")
+      self.passed = True
+      return self.passed
     select_enc_ids_to_compare = '''
     SELECT distinct pat_enc.enc_id from pat_enc inner join cdm_s on cdm_s.enc_id = pat_enc.enc_id
           inner join dblink('%s', $OPDB$ select distinct enc_id from cdm_s where cdm_s.fid = 'age' $OPDB$) as remote (enc_id int) on remote.enc_id = pat_enc.enc_id
@@ -892,4 +909,4 @@ if __name__ == '__main__':
     print("test succeed")
   else:
     print("test failed")
-  exit(test.passed)
+  exit(not test.passed)
