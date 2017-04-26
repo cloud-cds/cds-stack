@@ -187,7 +187,7 @@ BEGIN
     -- clean filled values
     EXECUTE 'UPDATE ' || target || ' SET('
         || quote_ident(fid) ||', '|| quote_ident(fid_c) ||
-        ') = (null, null) WHERE '|| quote_ident(fid_c) ||' >= 8';
+        ') = (null, null) WHERE '|| quote_ident(fid_c) ||' >= 8 and dataset_id = ' || dataset_id ;
     IF recalculate_popmean THEN
         -- calculate population mean
         SELECT INTO popmean calculate_popmean(target, fid, dataset_id );
