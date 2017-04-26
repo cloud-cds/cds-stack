@@ -334,10 +334,11 @@ DROP TABLE IF EXISTS notifications;
 CREATE  TABLE notifications
 (
     dataset_id          integer REFERENCES dw_version(dataset_id),
+    model_id            integer REFERENCES model_version(model_id),
     notification_id     serial,
     pat_id              varchar(50) not null,
     message             json,
-    primary key         (dataset_id, notification_id)
+    primary key         (dataset_id, model_id, notification_id)
 );
 
 DROP TABLE IF EXISTS parameters;
@@ -569,6 +570,7 @@ CREATE TABLE cdm_twf (
 DROP TABLE IF EXISTS trews;
 CREATE TABLE trews (
     dataset_id                             integer,
+    model_id                               integer,
     enc_id                                 integer,
     tsp                                    timestamptz,
     trewscore                              numeric,
@@ -670,7 +672,7 @@ CREATE TABLE trews (
     septic_shock                           double precision,
     lactate                                double precision,
     minutes_since_any_organ_fail           double precision,
-    PRIMARY KEY     (dataset_id, enc_id, tsp),
+    PRIMARY KEY     (dataset_id, model_id, enc_id, tsp),
     FOREIGN KEY     (dataset_id, enc_id) REFERENCES pat_enc(dataset_id, enc_id)
 );
 
@@ -731,9 +733,32 @@ CREATE TABLE historical_criteria (
     primary key         (pat_id,dataset_id,window_ts)
 );
 
+DROP TABLE IF EXISTS historical_notifications;
+CREATE TABLE historical_notifications (
+    dataset_id          integer REFERENCES dw_version(dataset_id),
+    pat_id              text,
+    message             json
+);
+
+DROP TABLE IF EXISTS usr_web_log;
+CREATE TABLE usr_web_log (
+    dataset_id          integer REFERENCES dw_version(dataset_id),
+    model_id            integer REFERENCES model_version(model_id),
+    doc_id      varchar(50),
+    tsp         timestamptz,
+    pat_id      varchar(50),
+    visit_id    varchar(50),
+    loc         varchar(50),
+    dep         varchar(50),
+    raw_url     text,
+    PRIMARY KEY (dataset_id, model_id, doc_id, tsp, pat_id)
+);
+
 DROP TABLE IF EXISTS model_training_report;
 CREATE TABLE model_training_report (
     report_id       serial PRIMARY KEY,
     report              json,
     create_at       timestamptz
 );
+
+
