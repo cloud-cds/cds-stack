@@ -148,6 +148,8 @@ jobs:
           AWS_DEFAULT_REGION: {{AWS_DEFAULT_REGION}}
           AWS_SECRET_ACCESS_KEY: {{aws-secret-access-key}}
           AWS_ACCESS_KEY_ID: {{aws-access-key-id}}
+          dataset_id: {{dataset_id}}
+          nproc: {{nproc}}
         on_success:
           put: dashan-etl-pr
           params: {path: dashan-etl-pr, status: success}

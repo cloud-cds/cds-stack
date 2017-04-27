@@ -50,7 +50,7 @@ job = {
     'populate_measured_features': {
       'plan': False,
       # 'fid': ['fluids_intake'],
-      'nproc': int(os.environ['nproc']), #8,
+      'nproc': int(os.environ['nproc']), #8
     },
   },
   'fillin': {

@@ -9,10 +9,9 @@ import pandas as pd
 import datetime as dt
 import dateparser
 import logging
-import asyncpg
+import asyncpg, aiohttp
 import ujson as json
-import boto3
-import botocore
+import boto3, botocore
 from time import sleep
 
 MODE = {
