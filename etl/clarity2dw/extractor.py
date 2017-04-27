@@ -55,6 +55,7 @@ class Extractor:
     self.config = config
     self.pool = pool
     self.log = self.config.log
+    self.min_tsp = None
     if 'min_tsp' in os.environ:
       self.min_tsp = os.environ['min_tsp']
 
