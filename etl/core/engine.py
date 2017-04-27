@@ -2,11 +2,43 @@ import os, logging
 from collections import deque
 
 import asyncio
+import asyncpg
 import concurrent.futures
 import functools
 
 ENGINE_LOG_FMT = '%(asctime)s|%(name)s|%(process)s-%(thread)s|%(levelname)s|%(message)s'
 
+####################
+# Utility methods.
+async def mk_context(name, config):
+  log = logging.getLogger(name)
+  log.setLevel(logging.INFO)
+
+  db_pool = await asyncpg.create_pool( \
+                    database=config['db_name'], user=config['db_user'], password=config['db_pass'], \
+                    host=config['db_host'], port=config['db_port'])
+
+  return { 'name': name, 'log': log, 'db_pool': db_pool }
+
+def run_fn_with_context(fn, name, config, *args):
+  loop = asyncio.new_event_loop()
+  context = loop.run_until_complete(mk_context(name, config))
+  context['loop'] = loop
+  result = fn(context, *args)
+  loop.close()
+  return result
+
+def run_coro_with_context(coro, name, config, *args):
+  loop = asyncio.new_event_loop()
+  context = loop.run_until_complete(mk_context(name, config))
+  context['loop'] = loop
+  result = loop.run_until_complete(coro(context, *args))
+  loop.close()
+  return result
+
+
+#################
+#
 class Engine:
   """
   An engine that runs a DAG of Python coroutines
@@ -25,8 +57,12 @@ class Engine:
     self.log.addHandler(sh)
     self.log.propagate = False
 
-    # A dictionary of tasks, mapping task name => (task sources, task coroutine)
+    # A dictionary of tasks, mapping task name => (task sources, task_body)
     # Sources are other task names, and represent child->parent task edges
+    # The task body is a dictionary with one of the following key:
+    #   'fn': a synchronous function in a subprocess
+    #   'coro': a coroutine that runs in a subprocess on the main event loop
+    #
     self.tasks = kwargs.get('tasks', {})
 
     # Downstreams are reverse dependencies (i.e., task name => task destinations)
@@ -120,6 +156,7 @@ class Engine:
     else:
       self.log.error('Invalid task id "%s"' % task_id)
 
+
   # Runs all (independent) pending tasks
   def run_block(self):
     ids_and_futures = []
@@ -130,10 +167,23 @@ class Engine:
 
       # Execute task_id using outputs from dependencies.
       if task_id in self.tasks:
-        dependencies, task_fn = self.tasks[task_id]
+        dependencies, task_body = self.tasks[task_id]
         args = [self.task_results[d] if d in self.task_results else None for d in dependencies]
-        self.log.debug('Starting task %s' % task_id)
-        future = asyncio.get_event_loop().run_in_executor(self.executor, task_fn, *args)
+
+        if 'fn' in task_body:
+          self.log.debug('Starting task function %s' % task_id)
+          future = asyncio.get_event_loop().run_in_executor( \
+                    self.executor, run_fn_with_context, \
+                    task_body['fn'], task_id, task_body['config'], *args)
+
+        elif 'coro' in task_body:
+          self.log.debug('Starting task coroutine %s' % task_id)
+          future = asyncio.get_event_loop().run_in_executor( \
+                    self.executor, run_coro_with_context, \
+                    task_body['coro'], task_id, task_body['config'], *args)
+
+        else:
+          self.log.error('Invalid function body for %s' % task_id)
 
         self.task_futures[task_id] = future
         ids_and_futures.append((task_id, future))
