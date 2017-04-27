@@ -2,7 +2,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: trews-ml-Job
+  name: trews-ml-job
 spec:
   template: # create pods using pod definition in this template
     metadata:
