@@ -55,6 +55,8 @@ class Extractor:
     self.config = config
     self.pool = pool
     self.log = self.config.log
+    if 'min_tsp' in os.environ:
+      self.min_tsp = os.environ['min_tsp']
 
   async def run(self, job):
     self.job = job
@@ -147,6 +149,7 @@ class Extractor:
     insert into pat_enc (dataset_id, visit_id, pat_id)
     SELECT %(dataset_id)s, demo."CSN_ID" visit_id, demo."pat_id"
     FROM "Demographics" demo left join pat_enc pe on demo."CSN_ID"::text = pe.visit_id::text
+    and pe.dataset_id = %(dataset_id)s
     where pe.visit_id is null %(limit)s
     ''' % {'dataset_id': self.config.dataset_id, 'limit': 'limit {}'.format(limit) if limit else ''}
     self.log.debug("ETL populate_patients sql: " + sql)
@@ -264,7 +267,7 @@ class Extractor:
     elif is_med_action and fid == 'vent':
       line = await self.populate_vent(conn, mapping, fid, transform_func_id, data_type, fid_info)
     else:
-      line = await self.populate_non_medaction_features(conn, mapping, fid, transform_func_id, data_type, category, is_no_add)
+      line = await self.populate_non_medaction_features(conn, mapping, fid, transform_func_id, data_type, category, is_no_add, fid_info)
     if not self.plan:
       duration = timeit.default_timer() - start
       if line == 0:
@@ -281,7 +284,7 @@ class Extractor:
     # order by csn_id, medication id, and timeActionTaken
     line = 0
     orderby = '"CSN_ID", "MEDICATION_ID", "TimeActionTaken"'
-    sql = self.get_feature_sql_query(mapping, orderby=orderby)
+    sql = self.get_feature_sql_query(mapping, fid_info, orderby=orderby)
     if self.plan:
       async with conn.transaction():
         async for row in conn.cursor(sql):
@@ -327,7 +330,7 @@ class Extractor:
   async def populate_vent(self, conn, mapping, fid, transform_func_id, data_type, fid_info):
     line = 0
     orderby = " icustay_id, realtime"
-    sql = self.get_feature_sql_query(mapping, orderby=orderby)
+    sql = self.get_feature_sql_query(mapping, fid_info, orderby=orderby)
     if self.plan:
       async with conn.transaction():
         async for row in conn.cursor(sql):
@@ -360,10 +363,10 @@ class Extractor:
           fid_info, mapping, cdm)
     return line
 
-  async def populate_non_medaction_features(self, conn, mapping, fid, transform_func_id, data_type, category, is_no_add):
+  async def populate_non_medaction_features(self, conn, mapping, fid, transform_func_id, data_type, category, is_no_add, fid_info):
     line = 0
     # process features unrelated to med actions
-    sql = self.get_feature_sql_query(mapping)
+    sql = self.get_feature_sql_query(mapping, fid_info)
     if self.plan:
       async with conn.transaction():
         async for row in conn.cursor(sql):
@@ -399,7 +402,7 @@ class Extractor:
             self.log.info('import rows %s', line)
     return line
 
-  def get_feature_sql_query(self, mapping, orderby=None):
+  def get_feature_sql_query(self, mapping, fid_info, orderby=None):
     if 'subject_id' in mapping['select_cols'] \
       and 'pat_id' not in mapping['select_cols']:
       # hist features in mimic
@@ -414,6 +417,8 @@ class Extractor:
     where_clause = str(mapping['where_conditions'])
     if where_clause == 'nan':
       where_clause = ''
+    if 'T' in fid_info['category'] and self.min_tsp is not None:
+      where_clause = self.add_min_tsp(where_clause, select_clause)
     sql = "SELECT %s FROM %s %s" % (select_clause, dbtable, where_clause)
     if orderby:
       sql += " order by " + orderby
@@ -421,6 +426,37 @@ class Extractor:
       sql += " limit 100"
     self.log.info("sql: %s" % sql)
     return sql
+
+  def add_min_tsp(self, where_clause, select_clause):
+    tsp=self.get_tsp_name(select_clause)
+    min_tsp_sql = ''' {conjunctive} "{tsp}"::timestamptz > '{min_tsp}'::timestamptz'''.format(\
+      conjunctive='and' if 'where' in where_clause.lower() else 'where', tsp=tsp
+      , min_tsp=self.min_tsp) if tsp else ''
+    if 'where' in where_clause.lower():
+      where_clause = 'WHERE (' + where_clause[5:] + ')'
+    return where_clause + min_tsp_sql
+
+  def get_tsp_name(self, select_clause):
+    if 'TimeActionTaken' in select_clause:
+      return 'TimeActionTaken'
+    elif 'RESULT_TIME' in select_clause:
+      return 'RESULT_TIME'
+    elif 'TimeTaken' in select_clause:
+      return 'TimeTaken'
+    elif 'effective_time' in select_clause:
+      return 'effective_time'
+    elif 'ORDER_TIME' in select_clause:
+      return 'ORDER_TIME'
+    elif 'HOSP_DISCH_TIME' in select_clause:
+      return 'HOSP_DISCH_TIME'
+    elif 'PLACEMENT_INSTANT' in select_clause:
+      return 'PLACEMENT_INSTANT'
+    elif 'firstdocumented' in select_clause:
+      return 'firstdocumented'
+    elif 'SPEC_NOTE_TIME_DTTM' in select_clause:
+      return 'SPEC_NOTE_TIME_DTTM'
+    elif 'PROC_START_TIME' in select_clause:
+      return 'PROC_START_TIME'
 
   async def _transform_med_action(self, fid, mapping, event, fid_info, conn, enc_id):
     dose_entry = transform.transform(fid, mapping['transform_func_id'], \
