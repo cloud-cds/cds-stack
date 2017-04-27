@@ -47,6 +47,9 @@ class Engine:
     # An engine identifier.
     self.name = kwargs.get('name', 'etl-engine')
 
+    # Number of processes
+    self.nprocs = kwargs.get('nprocs', 1)
+
     # Configure engine logging.
     self.log = logging.getLogger(self.name)
     self.log.setLevel(kwargs.get('loglevel', logging.INFO))
@@ -92,7 +95,7 @@ class Engine:
     self.task_results = {}
 
     # Executor
-    self.executor = concurrent.futures.ProcessPoolExecutor(max_workers=2)
+    self.executor = concurrent.futures.ProcessPoolExecutor(max_workers=self.nprocs)
 
     # A queue of tasks ready, and waiting to run.
     self.pending_queue = deque()

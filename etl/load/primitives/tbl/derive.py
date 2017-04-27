@@ -27,7 +27,7 @@ def derive(fid, func_id, fid_input, conn, log, dataset_id=None, twf_table='cdm_t
 
 def with_ds(dataset_id, table_name=None, conjunctive=True):
   if dataset_id is not None:
-    return '%s %sdataset_id = %s' % (' and' if conjunctive else 'where', '' if table_name is None else table_name+'.', dataset_id)
+    return '%s %sdataset_id = %s' % (' and' if conjunctive else ' where', '' if table_name is None else table_name+'.', dataset_id)
   return ''
 
 async def lookup_population_mean(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
@@ -337,6 +337,7 @@ async def sirs_intp_update(fid, fid_input, conn, log, dataset_id=None, twf_table
   WHERE (query.sirs_raw OR query.sirs_raw_prev) OR
       query.enc_id IS DISTINCT FROM query.enc_id_prev
   """ % {'twf_table': twf_table, 'with_ds': with_ds(dataset_id, table_name=twf_table, conjunctive=False)}
+  log.info(select_sql)
   records = await conn.fetch(select_sql)
   block_start = None
   block_end = None
@@ -412,6 +413,7 @@ async def sirs_intp_update(fid, fid_input, conn, log, dataset_id=None, twf_table
   WHERE (query.sirs_intp or query.sirs_intp_prev) OR
       (query.enc_id IS DISTINCT FROM query.enc_id_prev)
   """ % {'twf_table': twf_table, 'with_ds': with_ds(dataset_id, table_name=twf_table, conjunctive=False)}
+  log.info(select_sql)
   records = await conn.fetch(select_sql)
   interval_start = None
   interval_end = None
@@ -485,20 +487,24 @@ async def renal_sofa_update(fid, fid_input, conn, log, dataset_id=None, twf_tabl
   await conn.execute(update_clause)
 
   update_clause = """
+  WITH min_tsp as (SELECT min(cdm_twf_2.tsp), enc_id FROM %(twf_table)s cdm_twf_2
+          %(with_ds_where)s group by enc_id)
   UPDATE %(twf_table)s SET %(fid)s = (CASE
       WHEN %(urine_output)s < 200 THEN 4
       WHEN %(fid)s < 3 AND %(urine_output)s < 500 THEN 3
       ELSE %(fid)s
     END)
     , %(fid)s_c = coalesce(%(fid)s_c,0) | coalesce(%(urine_output)s_c,0)
+    FROM min_tsp
     WHERE %(urine_output)s < 500
       AND
-      tsp - (SELECT min(cdm_twf_2.tsp) FROM %(twf_table)s cdm_twf_2
-           WHERE cdm_twf_2.enc_id = %(twf_table)s.enc_id)
-      >= interval '24 hours'
+      min_tsp.enc_id = %(twf_table)s.enc_id
+      AND
+      %(twf_table)s.tsp - min_tsp.min >= interval '24 hours'
       %(with_ds)s
     ;
-  """ % {'fid':fid, 'urine_output':fid_input_items[1], 'twf_table': twf_table, 'with_ds': with_ds(dataset_id)}
+  """ % {'fid':fid, 'urine_output':fid_input_items[1], 'twf_table': twf_table, 'with_ds': with_ds(dataset_id), 'with_ds_where': with_ds(dataset_id, conjunctive=False)}
+  log.info(update_clause)
   await conn.execute(update_clause)
 
 
@@ -595,18 +601,20 @@ async def resp_sofa_update(fid, fid_input, conn, log, dataset_id=None, twf_table
   await conn.execute(update_clause)
 
   update_vent_clause = """
+  WITH vent as (select * from cdm_t where fid = 'vent' %(with_ds)s)
   UPDATE %(twf_table)s SET %(fid)s = (CASE
     WHEN pao2_to_fio2 < 100 THEN 4
     WHEN pao2_to_fio2 < 200 THEN 3
     ELSE %(fid)s
   END),
   %(fid)s_c = pao2_to_fio2_c
-  FROM (select * from cdm_t where fid = 'vent') as t
-  where %(twf_table)s.enc_id = t.enc_id and %(twf_table)s.tsp = t.tsp
-  %(with_ds)s
+  FROM vent
+  where %(twf_table)s.enc_id = vent.enc_id and %(twf_table)s.tsp = vent.tsp
+  %(with_ds_table)s
   ;
-  """ % {'fid':fid, 'twf_table': twf_table, 'with_ds': with_ds(dataset_id)}
+  """ % {'fid':fid, 'twf_table': twf_table, 'with_ds': with_ds(dataset_id),  'with_ds_table': with_ds(dataset_id, table_name=twf_table)}
   # print(update_vent_clause)
+  log.info(update_vent_clause)
   await conn.execute(update_vent_clause)
 
 # Special case (mini-pipeline)

@@ -1,5 +1,6 @@
 import os
 import asyncio
+import functools
 import logging
 import time
 from etl.core.engine import Engine
@@ -15,35 +16,35 @@ db_config = {
   'db_port': os.environ['db_port']
 }
 
-# def a(ctxt):
-#   logging.info('a sleeping 5 secs')
-#   time.sleep(5)
-#   logging.info('a woke up')
-#   return 1
+def a(ctxt):
+  logging.info('a sleeping 5 secs')
+  time.sleep(5)
+  logging.info('a woke up')
+  return 1
 
-# def b(ctxt):
-#   logging.info('b sleeping 5 secs')
-#   time.sleep(5)
-#   logging.info('b woke up')
-#   return 2
+def b(ctxt):
+  logging.info('b sleeping 5 secs')
+  time.sleep(5)
+  logging.info('b woke up')
+  return 2
 
-# def c(ctxt, x, y):
-#   logging.info('c sleeping 5 secs')
-#   time.sleep(5)
-#   logging.info('c woke up %s %s' % (x, y))
-#   return 3
+def c(ctxt, x, y):
+  logging.info('c sleeping 5 secs')
+  time.sleep(5)
+  logging.info('c woke up %s %s' % (x, y))
+  return 3
 
-# g = {
-#   'a': ([],         {'config': db_config, 'fn': a}),
-#   'b': ([],         {'config': db_config, 'fn': b}),
-#   'c': (['a', 'b'], {'config': db_config, 'fn': c})
-# }
+g = {
+  'a': ([],         {'config': db_config, 'fn': a}),
+  'b': ([],         {'config': db_config, 'fn': b}),
+  'c': (['a', 'b'], {'config': db_config, 'fn': c})
+}
 
-# e = Engine(name='engine1', tasks=g)
-# loop = asyncio.new_event_loop()
-# asyncio.set_event_loop(loop)
-# loop.run_until_complete(e.run())
-# loop.close()
+e = Engine(name='engine1', tasks=g)
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+loop.run_until_complete(e.run())
+loop.close()
 
 class TestClass:
   async def test_query(self, ctxt, _):

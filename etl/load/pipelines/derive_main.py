@@ -1,6 +1,7 @@
 # derive pipeline for cdm_twf
 import etl.load.primitives.tbl.derive as derive_func
 import etl.load.primitives.tbl.clean_tbl as clean_tbl
+from etl.load.primitives.tbl.derive import with_ds
 
 async def derive_main(log, conn, cdm_feature_dict, mode=None, fid=None, dataset_id=None, table="cdm_twf"):
   '''
@@ -126,8 +127,15 @@ async def derive_func_driver(fid, fid_category, derive_func_id, derive_func_inpu
       update_clause = ''
       if fid_category == 'TWF':
         update_expr = config_entry['fid_update_expr']
+        update_expr_params = {}
         if '%(twf_table)s' in update_expr:
-          update_expr = update_expr % {'twf_table': twf_table}
+          update_expr_params['twf_table'] = twf_table
+        if '%(with_ds_s)s' in update_expr:
+          update_expr_params['with_ds_s'] = with_ds(dataset_id, table_name='cdm_s')
+        if '%(with_ds_twf)s' in update_expr:
+          update_expr_params['with_ds_twf'] = with_ds(dataset_id, table_name='cdm_twf')
+        if update_expr_params:
+          update_expr = update_expr % update_expr_params
         c_update_expr = config_entry['fid_c_update_expr']
         if '%(twf_table)s' in c_update_expr:
           c_update_expr = c_update_expr % {'twf_table': twf_table}
@@ -143,7 +151,12 @@ async def derive_func_driver(fid, fid_category, derive_func_id, derive_func_inpu
         if config_entry['derive_type'] == 'simple':
           update_clause +=  '' if dataset_id is None else ' WHERE dataset_id = %s' % dataset_id
         elif config_entry['derive_type'] == 'subquery':
-          update_from = (" FROM " + config_entry['fid_update_from']) % {'twf_table': twf_table}
+          update_from_params = {}
+          if '%(twf_table)s' in config_entry['fid_update_from']:
+            update_from_params['twf_table'] = twf_table
+          if '%(with_ds_twf)s' in config_entry['fid_update_from']:
+            update_from_params['with_ds_twf'] = with_ds(dataset_id, table_name='cdm_twf', conjunctive=False)
+          update_from = (" FROM " + config_entry['fid_update_from']) % update_from_params
           update_where = " WHERE " + config_entry['fid_update_where'] % {'twf_table': twf_table}
           update_where += ('' if dataset_id is None else ' and dataset_id = %s' % dataset_id)
           update_clause += update_from + update_where
@@ -330,7 +343,12 @@ derive_config = {
   },
   'acute_organ_failure': {
     'fid_input_items': ['inr', 'platelets', 'creatinine', 'chronic_kidney_hist', 'bilirubin', 'liver_disease_hist', 'urine_output_24hr', 'lactate', 'pao2_to_fio2', 'chronic_pulmonary_hist', 'hypotension_intp'],
-    'derive_type': 'simple',
+    'derive_type': 'subquery',
+    'fid_update_from': '''
+                    (SELECT enc_id, min(cdm_twf.tsp) FROM %(twf_table)s cdm_twf
+                           %(with_ds_twf)s group by enc_id
+                    ) as subquery
+                    ''',
     'fid_update_expr': '''
                     (inr > 1.5 and based_on_popmean(inr_c) != 1)
                     OR (platelets < 100 and based_on_popmean(platelets_c) != 1)
@@ -339,28 +357,27 @@ derive_config = {
                     OR (creatinine > 2 and based_on_popmean(creatinine_c) != 1 and
                       coalesce((select cast(value as boolean) from cdm_s
                       where cdm_s.enc_id = cdm_twf.enc_id
-                        and cdm_s.fid = 'chronic_kidney_hist' limit 1)
+                        and cdm_s.fid = 'chronic_kidney_hist' %(with_ds_s)s limit 1)
                       , False) = False)
                     OR (bilirubin > 2 and based_on_popmean(bilirubin_c) != 1 and
                       coalesce((select cast(value as boolean) from cdm_s
                       where cdm_s.enc_id = cdm_twf.enc_id
-                        and cdm_s.fid = 'liver_disease_hist' limit 1)
+                        and cdm_s.fid = 'liver_disease_hist' %(with_ds_s)s limit 1)
                       , False) = False)
                     OR (pao2_to_fio2 < 100 and based_on_popmean(pao2_to_fio2_c) != 1 and
                       coalesce((select cast(value as boolean) from cdm_s
                       where cdm_s.enc_id = cdm_twf.enc_id
-                        and cdm_s.fid = 'chronic_pulmonary_hist' limit 1)
+                        and cdm_s.fid = 'chronic_pulmonary_hist' %(with_ds_s)s limit 1)
                       , False) = False)
                       OR (
                       urine_output_24hr < 500
                       AND
-                        tsp - (SELECT min(cdm_twf_2.tsp) FROM %(twf_table)s cdm_twf_2
-                           WHERE cdm_twf_2.enc_id = cdm_twf.enc_id)
+                        tsp - subquery.min
                         >= interval '24 hours'
                       AND
                         coalesce((select cast(value as boolean) from cdm_s
                         where cdm_s.enc_id = cdm_twf.enc_id
-                          and cdm_s.fid = 'chronic_kidney_hist' limit 1)
+                          and cdm_s.fid = 'chronic_kidney_hist' %(with_ds_s)s limit 1)
                         , False) = False
                       )
                     ''',
@@ -372,6 +389,7 @@ derive_config = {
                       | coalesce(hypotension_intp_c,0)
                       | coalesce(urine_output_24hr_c,0)
                       ''',
+    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id',
   },
   'severe_sepsis': {
     'fid_input_items': ['sirs_intp', 'acute_organ_failure', 'sepsis_note','infections_angus_diag', 'infections_angus_hist'],
