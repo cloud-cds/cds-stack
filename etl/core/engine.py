@@ -70,11 +70,11 @@ class Engine:
       schedulable_tasks = self.tasks.keys()
 
     for task_id in schedulable_tasks:
-      if not completed([task_id]):
+      if not self.completed([task_id]):
         # Check if task is ready, as either task has no dependencies,
         # or all dependencies have completed futures and results.
         dependencies, _ = self.tasks[task_id]
-        if (not dependencies) or completed(dependencies):
+        if (not dependencies) or self.completed(dependencies):
           logging.info('Enqueueing "%s"' % task_id)
           self.pending_queue.append(task_id)
       else:
@@ -111,7 +111,7 @@ class Engine:
       task_id = self.pending_queue.popleft()
       logging.info('Engine dispatching task: %s' % task_id)
 
-      future = asyncio.get_event_loop().run_in_executor(self.executor, run_task, task_id)
+      future = asyncio.get_event_loop().run_in_executor(self.executor, self.run_task, task_id)
       self.task_futures[task_id] = future
       ids_and_futures.append((task_id, future))
 
@@ -125,11 +125,11 @@ class Engine:
       await asyncio.wait([idf[1] for idf in ids_and_futures], return_when=asyncio.FIRST_COMPLETED)
 
       # Schedule next tasks
-      completed = [idf[0] for idf in ids_and_futures if idf[1].done()]
-      logging.info('Engine (iter %s) completed %s' % (iteration, str(completed)))
+      finished = [idf[0] for idf in ids_and_futures if idf[1].done()]
+      logging.info('Engine (iter %s) completed %s' % (iteration, str(finished)))
 
-      if completed:
-        self.schedule(just_ran=completed)
+      if finished:
+        self.schedule(just_ran=finished)
         logging.info('Queue (iter %s) %s' % (iteration, str(list(self.pending_queue))))
       else:
         logging.info('Scheduler no-op, no new tasks completed')
