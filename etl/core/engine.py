@@ -5,7 +5,7 @@ import asyncio
 import concurrent.futures
 import functools
 
-logging.basicConfig(level=logging.INFO)
+ENGINE_LOG_FMT = '%(asctime)s|%(name)s|%(process)s-%(thread)s|%(levelname)s|%(message)s'
 
 class Engine:
   """
@@ -15,20 +15,36 @@ class Engine:
     # An engine identifier.
     self.name = kwargs.get('name', 'etl-engine')
 
+    # Configure engine logging.
+    self.log = logging.getLogger(self.name)
+    self.log.setLevel(kwargs.get('loglevel', logging.INFO))
+
+    sh = logging.StreamHandler()
+    formatter = logging.Formatter(ENGINE_LOG_FMT)
+    sh.setFormatter(formatter)
+    self.log.addHandler(sh)
+    self.log.propagate = False
+
     # A dictionary of tasks, mapping task name => (task sources, task coroutine)
-    # Sources are other task names.
+    # Sources are other task names, and represent child->parent task edges
     self.tasks = kwargs.get('tasks', {})
 
-    # Compute reverse dependencies (i.e., task destinations)
+    # Downstreams are reverse dependencies (i.e., task name => task destinations)
+    # and represent parent->child task edges.
+    self.downstreams = {}
+
+    # Counters for pending parents, i.e., task names => # unfinished parents
     self.dep_counters = {}
-    self.reverse_dependencies = {}
+
+    # Counters for pending downstreams, i.e., task names => # unfinished downstreams
     self.gc_counters = {}
 
+    # Initialize downstreams and counters from task graph.
     for task_id, task_data in self.tasks.items():
       dependencies, _ = task_data
       self.dep_counters[task_id] = len(dependencies)
       for d in dependencies:
-        self.reverse_dependencies[d] = self.reverse_dependencies.get(d, []) + [task_id]
+        self.downstreams[d] = self.downstreams.get(d, []) + [task_id]
         self.gc_counters[d] = self.gc_counters.get(d, 0) + 1
 
     # A dictionary of task futures, mapping task names => list of dependency futures.
@@ -58,6 +74,19 @@ class Engine:
 
     return all(dones)
 
+  # Check if task is ready, as either task has no dependencies,
+  # or all dependencies have completed futures and results.
+  def schedule_task(self, task_id):
+    if not self.completed([task_id]):
+      dependencies, _ = self.tasks[task_id]
+      if (not dependencies) or self.completed(dependencies):
+        self.log.debug('Enqueueing "%s"' % task_id)
+        self.pending_queue.append(task_id)
+      else:
+        self.log.debug('Scheduler passing on %s (not ready)' % task_id)
+    else:
+      self.log.debug('Scheduler passing on %s (completed)' % task_id)
+
   # Adds tasks to the queue based on their readiness.
   def schedule(self, just_ran=None):
     # Schedule downstream neighbors of a task if it just ran,
@@ -65,9 +94,9 @@ class Engine:
     schedulable_tasks = []
     if just_ran:
       for task_ran in just_ran:
-        if task_ran in self.tasks and task_ran in self.reverse_dependencies:
-          for next_task in self.reverse_dependencies[task_ran]:
-            logging.info('Attempting to schedule %s, barrier: %s' % (next_task, self.dep_counters[next_task]))
+        if task_ran in self.tasks and task_ran in self.downstreams:
+          for next_task in self.downstreams[task_ran]:
+            self.log.debug('Attempting to schedule %s, barrier: %s' % (next_task, self.dep_counters[next_task]))
             self.dep_counters[next_task] -= 1
             if self.dep_counters[next_task] <= 0:
               schedulable_tasks.append(next_task)
@@ -76,15 +105,7 @@ class Engine:
       schedulable_tasks = [k for k,v in self.dep_counters.items() if v == 0]
 
     for task_id in schedulable_tasks:
-      if not self.completed([task_id]):
-        # Check if task is ready, as either task has no dependencies,
-        # or all dependencies have completed futures and results.
-        dependencies, _ = self.tasks[task_id]
-        if (not dependencies) or self.completed(dependencies):
-          logging.info('Enqueueing "%s"' % task_id)
-          self.pending_queue.append(task_id)
-      else:
-        logging.info('Scheduler skipping completed task "%s"' % task_id)
+      self.schedule_task(task_id)
 
   # Task result garbage collection.
   # Releases dependencies' results when all downstreams of dependencies are complete.
@@ -95,9 +116,9 @@ class Engine:
         self.gc_counters[d] -= 1
         if self.gc_counters[d] <= 0:
           self.task_results[d] = None
-          logging.info('Engine garbage collecting %s' % d)
+          self.log.info('Engine garbage collecting %s' % d)
     else:
-      logging.error('Invalid task id "%s"' % task_id)
+      self.log.error('Invalid task id "%s"' % task_id)
 
   # Runs all (independent) pending tasks
   def run_block(self):
@@ -105,20 +126,20 @@ class Engine:
     while self.pending_queue:
       task_id = self.pending_queue.popleft()
 
-      logging.info('Engine dispatching task: %s' % task_id)
+      self.log.debug('Engine dispatching task: %s' % task_id)
 
       # Execute task_id using outputs from dependencies.
       if task_id in self.tasks:
         dependencies, task_fn = self.tasks[task_id]
         args = [self.task_results[d] if d in self.task_results else None for d in dependencies]
-        logging.info('Starting task %s' % task_id)
+        self.log.debug('Starting task %s' % task_id)
         future = asyncio.get_event_loop().run_in_executor(self.executor, task_fn, *args)
 
         self.task_futures[task_id] = future
         ids_and_futures.append((task_id, future))
 
       else:
-        logging.error('Invalid task id "%s"' % task_id)
+        self.log.error('Invalid task id "%s"' % task_id)
 
     return ids_and_futures
 
@@ -138,7 +159,7 @@ class Engine:
 
       # Process finished tasks.
       finished = [idf for idf in ids_and_futures if idf[1].done()]
-      logging.info('Engine (iter %s) completed %s' % (iteration, str([f[0] for f in finished])))
+      self.log.info('Engine (iter %s) completed %s' % (iteration, str([f[0] for f in finished])))
 
       for task_id, future in finished:
         self.task_results[task_id] = future.result()
@@ -147,11 +168,12 @@ class Engine:
       # Schedule next tasks
       if finished:
         self.schedule(just_ran=[f[0] for f in finished])
-        logging.info('Queue (iter %s) %s' % (iteration, str(list(self.pending_queue))))
+        self.log.debug('Queue (iter %s) %s' % (iteration, str(list(self.pending_queue))))
       else:
-        logging.info('Scheduler no-op, no new tasks completed')
+        self.log.debug('Scheduler no-op, no new tasks completed')
 
-      logging.info('Engine progress: %s / %s tasks completed' % (len(self.task_results), len(self.tasks)))
+      self.log.info('Engine progress (iter %s): %s / %s tasks completed' % (iteration, len(self.task_results), len(self.tasks)))
+      iteration += 1
 
-    logging.info('Engine completed.')
+    self.log.info('Engine completed.')
 

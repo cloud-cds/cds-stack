@@ -1,6 +1,9 @@
 import asyncio
+import logging
 import time
 from etl.core.engine import Engine
+
+logging.basicConfig(level=logging.INFO)
 
 def a():
   print('a sleeping 5 secs')
@@ -26,7 +29,7 @@ g = {
   'c': (['a', 'b'], c)
 }
 
-e = Engine(tasks=g)
+e = Engine(name='engine1', tasks=g)
 loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
 loop.run_until_complete(e.run())
@@ -59,7 +62,7 @@ g2 = {
   'c': (['a', 'b'], t.cls_c)
 }
 
-e2 = Engine(tasks=g2)
+e2 = Engine(name='engine2', tasks=g2)
 loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
 loop.run_until_complete(e2.run())
