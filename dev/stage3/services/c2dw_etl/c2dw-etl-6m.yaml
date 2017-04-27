@@ -2,41 +2,44 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: trews-ml-Job
+  name: c2dw-etl-6m-job
 spec:
   template: # create pods using pod definition in this template
     metadata:
       # unlike pod-nginx.yaml, the name is not included in the meta data as a unique name is
       # generated from the deployment name
-      labels:
-        app: trews-ml
+      name: c2dw-etl-6m
     spec:
       nodeSelector:
-        opsdx_nodegroup: train
+        opsdx_nodegroup: c2dw-etl
       containers:
-      - name: trews-ml
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-ml:0.0.2
+      - name: c2dw-etl-6m
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/c2dw-etl:0.0.2
         command:
-          - "sh"
-          - "run-ml.sh"
+          - "python"
+          - "./etl/clarity2dw/engine.py"
         env:
         - name: dataset_id
-          value: "1"
-        - name: dw_host
+          value: "4"
+        - name: min_tsp
+          value: "2016-10-27"
+        - name: nproc
+          value: '-1'
+        - name: db_host
           value: "dw.dev.opsdx.io"
         - name: db_port
           value: "5432"
-        - name: dw_name
+        - name: db_name
           value: "opsdx_dev_dw"
         - name: db_user
           valueFrom:
             secretKeyRef:
-              name: trews-ml-secrets
+              name: c2dw-etl-secrets
               key: db-username
         - name: db_password
           valueFrom:
             secretKeyRef:
-              name: trews-ml-secrets
+              name: c2dw-etl-secrets
               key: db-password
       restartPolicy: Never
 ---
