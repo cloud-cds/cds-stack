@@ -10,30 +10,36 @@ ENGINE_LOG_FMT = '%(asctime)s|%(name)s|%(process)s-%(thread)s|%(levelname)s|%(me
 
 ####################
 # Utility methods.
-async def mk_context(name, config):
-  log = logging.getLogger(name)
-  log.setLevel(logging.INFO)
+class TaskContext:
+  def __init__(self, name, config):
+    self.name = name
+    self.config = config
+    self.log = logging.getLogger(self.name)
+    self.log.setLevel(logging.INFO)
 
-  db_pool = await asyncpg.create_pool( \
-                    database=config['db_name'], user=config['db_user'], password=config['db_pass'], \
-                    host=config['db_host'], port=config['db_port'])
+  async def async_init(self):
+    self.db_pool = await asyncpg.create_pool( \
+                    database=self.config['db_name'], \
+                    user=self.config['db_user'], \
+                    password=self.config['db_pass'], \
+                    host=self.config['db_host'], \
+                    port=self.config['db_port'])
 
-  return { 'name': name, 'log': log, 'db_pool': db_pool }
 
 def run_fn_with_context(fn, name, config, *args):
-  loop = asyncio.new_event_loop()
-  context = loop.run_until_complete(mk_context(name, config))
-  context['loop'] = loop
-  result = fn(context, *args)
-  loop.close()
+  ctxt = TaskContext(name, config)
+  ctxt.loop = asyncio.new_event_loop()
+  ctxt.loop.run_until_complete(ctxt.async_init())
+  result = fn(ctxt, *args)
+  ctxt.loop.close()
   return result
 
 def run_coro_with_context(coro, name, config, *args):
-  loop = asyncio.new_event_loop()
-  context = loop.run_until_complete(mk_context(name, config))
-  context['loop'] = loop
-  result = loop.run_until_complete(coro(context, *args))
-  loop.close()
+  ctxt = TaskContext(name, config)
+  ctxt.loop = asyncio.new_event_loop()
+  ctxt.loop.run_until_complete(ctxt.async_init())
+  result = ctxt.loop.run_until_complete(coro(ctxt, *args))
+  ctxt.loop.close()
   return result
 
 
@@ -48,7 +54,7 @@ class Engine:
     self.name = kwargs.get('name', 'etl-engine')
 
     # Number of processes
-    self.nprocs = kwargs.get('nprocs', 1)
+    self.nprocs = kwargs.get('nprocs', 2)
 
     # Configure engine logging.
     self.log = logging.getLogger(self.name)

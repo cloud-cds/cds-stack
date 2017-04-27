@@ -48,29 +48,29 @@ loop.close()
 
 class TestClass:
   async def test_query(self, ctxt, _):
-    async with ctxt['db_pool'].acquire() as conn:
+    async with ctxt.db_pool.acquire() as conn:
       sql = 'select count(*) as cnt from pat_enc;'
-      ctxt['log'].info('Test query: %s' % sql)
+      ctxt.log.info('Test query: %s' % sql)
       result = await conn.fetchval(sql)
-      ctxt['log'].info('Query result: %s' % result)
+      ctxt.log.info('Query result: %s' % result)
       return result
 
   def cls_a(self, ctxt):
-    logging.info('cls_a sleeping 5 secs')
+    ctxt.log.info('cls_a sleeping 5 secs')
     time.sleep(2)
-    logging.info('cls_a woke up')
+    ctxt.log.info('cls_a woke up')
     return 1
 
   def cls_b(self, ctxt):
-    logging.info('cls_b sleeping 5 secs')
+    ctxt.log.info('cls_b sleeping 5 secs')
     time.sleep(2)
-    logging.info('cls_b woke up')
+    ctxt.log.info('cls_b woke up')
     return 2
 
   def cls_c(self, ctxt, x, y):
-    logging.info('cls_c sleeping 5 secs')
+    ctxt.log.info('cls_c sleeping 5 secs')
     time.sleep(2)
-    logging.info('cls_c woke up %s %s' % (x, y))
+    ctxt.log.info('cls_c woke up %s %s' % (x, y))
     return 3
 
 t = TestClass()
