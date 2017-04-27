@@ -2,14 +2,15 @@ import asyncio
 import logging
 import time
 from etl.core.engine import Engine
-
+import functools
 logging.basicConfig(level=logging.INFO)
 
-def a():
+def a(x=1):
   print('a sleeping 5 secs')
   time.sleep(5)
+  print(x)
   print('a woke up')
-  return 1
+  return 2
 
 def b():
   print('b sleeping 5 secs')
@@ -24,7 +25,7 @@ def c(x, y):
   return 3
 
 g = {
-  'a': ([], a),
+  'a': ([], functools.partial(a, x=2)),
   'b': ([], b),
   'c': (['a', 'b'], c)
 }

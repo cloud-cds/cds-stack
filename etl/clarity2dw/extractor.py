@@ -15,8 +15,12 @@ from etl.core.config import Config
 import sys
 from multiprocessing import Pool
 import os
+import functools
+import time
 
 recalculate_popmean = False # if False, then remember to import cdm_g before extraction
+
+
 
 async def run_transform_tasks(executor, feature_mapping, job, log):
   # Configure logging to show the id of the process
@@ -51,10 +55,23 @@ def transform_feature_mapping_task(mapping_row, job):
 
 
 class Extractor:
-  def __init__(self, pool, config):
+  def __init__(self, config, pool=None):
     self.config = config
     self.pool = pool
     self.log = self.config.log
+
+  def task(f):
+    @functools.wraps(f)
+    def wrapper(*args, **kwds):
+      print('Calling decorated task')
+      return f(*args, **kwds)
+    return wrapper
+
+  @task
+  def example(self):
+    print('example task')
+    sleep(2)
+
 
   async def run(self, job):
     self.job = job
