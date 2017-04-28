@@ -193,7 +193,7 @@ module "op2dw_etl" {
   op2dw_dataset_id = "2"
   op2dw_model_id = "1"
 
-  db_host      = "db.${var.domain}"
+  db_host      = "dw.${var.domain}"
   db_name      = "${replace(var.deploy_prefix, "-", "_")}_dw"
   db_username  = "${var.db_username}"
   db_password  = "${var.db_password}"
