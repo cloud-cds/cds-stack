@@ -15,21 +15,35 @@ class TaskContext:
     self.name = name
     self.config = config
     self.log = logging.getLogger(self.name)
-    self.log.setLevel(logging.INFO)
+    self.log.setLevel(logging.DEBUG)
+    sh = logging.StreamHandler()
+    formatter = logging.Formatter(ENGINE_LOG_FMT)
+    sh.setFormatter(formatter)
+    self.log.addHandler(sh)
+    self.log.propagate = False
 
-  async def async_init(self):
-    self.db_pool = await asyncpg.create_pool( \
-                    database=self.config['db_name'], \
-                    user=self.config['db_user'], \
-                    password=self.config['db_pass'], \
-                    host=self.config['db_host'], \
-                    port=self.config['db_port'])
+  async def async_init(self, loop=None):
+    if loop:
+      self.db_pool = await asyncpg.create_pool( \
+                      database=self.config['db_name'], \
+                      user=self.config['db_user'], \
+                      password=self.config['db_pass'], \
+                      host=self.config['db_host'], \
+                      port=self.config['db_port'], \
+                      loop=loop)
+    else:
+      self.db_pool = await asyncpg.create_pool( \
+                      database=self.config['db_name'], \
+                      user=self.config['db_user'], \
+                      password=self.config['db_pass'], \
+                      host=self.config['db_host'], \
+                      port=self.config['db_port'])
 
 
 def run_fn_with_context(fn, name, config, *args):
   ctxt = TaskContext(name, config)
   ctxt.loop = asyncio.new_event_loop()
-  ctxt.loop.run_until_complete(ctxt.async_init())
+  ctxt.loop.run_until_complete(ctxt.async_init(ctxt.loop))
   result = fn(ctxt, *args)
   ctxt.loop.close()
   return result
@@ -37,7 +51,7 @@ def run_fn_with_context(fn, name, config, *args):
 def run_coro_with_context(coro, name, config, *args):
   ctxt = TaskContext(name, config)
   ctxt.loop = asyncio.new_event_loop()
-  ctxt.loop.run_until_complete(ctxt.async_init())
+  ctxt.loop.run_until_complete(ctxt.async_init(ctxt.loop))
   result = ctxt.loop.run_until_complete(coro(ctxt, *args))
   ctxt.loop.close()
   return result

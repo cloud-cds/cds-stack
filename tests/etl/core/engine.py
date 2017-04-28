@@ -17,20 +17,20 @@ db_config = {
 }
 
 def a(ctxt):
-  logging.info('a sleeping 5 secs')
-  time.sleep(5)
+  logging.info('a sleeping 2 secs')
+  time.sleep(2)
   logging.info('a woke up')
   return 1
 
 def b(ctxt):
-  logging.info('b sleeping 5 secs')
-  time.sleep(5)
+  logging.info('b sleeping 2 secs')
+  time.sleep(2)
   logging.info('b woke up')
   return 2
 
 def c(ctxt, x, y):
-  logging.info('c sleeping 5 secs')
-  time.sleep(5)
+  logging.info('c sleeping 2 secs')
+  time.sleep(2)
   logging.info('c woke up %s %s' % (x, y))
   return 3
 
@@ -40,21 +40,55 @@ g = {
   'c': (['a', 'b'], {'config': db_config, 'fn': c})
 }
 
-e = Engine(name='engine1', tasks=g)
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
-loop.run_until_complete(e.run())
-loop.close()
+# e = Engine(name='engine1', tasks=g)
+# loop = asyncio.new_event_loop()
+# asyncio.set_event_loop(loop)
+# loop.run_until_complete(e.run())
+# loop.close()
 
 class TestClass:
   async def test_query(self, ctxt, x, y):
     async with ctxt.db_pool.acquire() as conn:
       print(x, y)
-      sql = 'select count(*) as cnt from pat_enc;'
+      sql = 'select count(*) as cnt from pat_enc where dataset_id = 1;'
       ctxt.log.info('Test query: %s' % sql)
       result = await conn.fetchval(sql)
       ctxt.log.info('Query result: %s' % result)
       return result
+
+  async def test_transaction(self, ctxt, _):
+    async with ctxt.db_pool.acquire() as conn:
+      sql = 'select enc_id from pat_enc where dataset_id = 1 limit 10;'
+      ctxt.log.info('Test query: %s' % sql)
+      async with conn.transaction():
+        async for row in conn.cursor(sql):
+          ctxt.log.info(row)
+      ctxt.log.info('transaction end')
+      return None
+
+  async def test_transaction_w(self, ctxt, _):
+    async with ctxt.db_pool.acquire() as conn:
+      sql = 'select enc_id from pat_enc where dataset_id =1 limit 10;'
+      ctxt.log.info('Test query: %s' % sql)
+      async with conn.transaction():
+        futures = []
+        async for row in conn.cursor(sql):
+          ctxt.log.info(row['enc_id'])
+          sql_insert = "insert into cdm_s (dataset_id, enc_id, fid, value, confidence) values (1, {}, 'age', 2, 0) on conflict (dataset_id, enc_id, fid) do update set value = Excluded.value, confidence = Excluded.confidence".format(row['enc_id'])
+          ctxt.log.info(sql_insert)
+          futures.append(conn.execute(sql_insert))
+        await asyncio.wait(futures)
+      ctxt.log.info('transaction end')
+      return None
+
+  async def test_multi_transaction(self, ctxt, _):
+    # async with ctxt.db_pool.acquire() as conn:
+    futures = []
+    for i in range(2):
+      futures.append(self.test_transaction_w(ctxt, _))
+    print(futures)
+    await asyncio.wait(futures)
+    return None
 
   def cls_a(self, ctxt, x):
     ctxt.log.info('cls_a sleeping {} secs'.format(x))
@@ -80,7 +114,8 @@ g2 = {
   'a': ([],         {'config': db_config, 'fn': functools.partial(t.cls_a, x=1)}),
   'b': ([],         {'config': db_config, 'fn': t.cls_b}),
   'c': (['a', 'b'], {'config': db_config, 'fn': t.cls_c}),
-  'd': (['c'],      {'config': db_config, 'coro': t.test_query, 'args': [1]})
+  'd': (['c'],      {'config': db_config, 'coro': t.test_query, 'args': [1]}),
+  'e': (['c'],      {'config': db_config, 'coro': t.test_multi_transaction})
 }
 
 e2 = Engine(name='engine2', tasks=g2)

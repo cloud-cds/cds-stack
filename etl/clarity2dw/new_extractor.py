@@ -16,6 +16,7 @@ import asyncpg
 import logging
 from etl.core.config import Config
 import sys
+import random
 
 class Extractor:
   def __init__(self, job):
@@ -81,7 +82,7 @@ class Extractor:
       sql = '''
       insert into pat_enc (dataset_id, visit_id, pat_id)
       SELECT %(dataset_id)s, demo."CSN_ID" visit_id, demo."pat_id"
-      FROM "Demographics" demo left join pat_enc pe on demo."CSN_ID"::text = pe.visit_id::text
+      FROM "Demographics" demo left join pat_enc pe on demo."CSN_ID"::text = pe.visit_id::text and pe.dataset_id = %(dataset_id)s
       where pe.visit_id is null %(limit)s
       ''' % {'dataset_id': self.dataset_id, 'limit': 'limit {}'.format(limit) if limit else ''}
       ctxt.log.debug("ETL populate_patients sql: " + sql)
@@ -96,7 +97,7 @@ class Extractor:
       self.visit_id_to_enc_id = pat_mappings['visit_id_to_enc_id']
       self.pat_id_to_enc_ids = pat_mappings['pat_id_to_enc_ids']
       ctxt.log.info("loaded feature and pat mapping")
-      return None
+      return pat_mappings
 
   async def get_pat_mapping(self, conn):
     sql = "select * from pat_enc where dataset_id = %s" % self.dataset_id
@@ -118,21 +119,34 @@ class Extractor:
     mapping_list = self.feature_mapping.to_dict('records')
     l = len(mapping_list)
     # Try divide by half
-    transform_tasks = [
-      mapping_list[0:2], [mapping_list[3]]
-    ]
+    transform_tasks = self.partition(mapping_list, 2)
     return transform_tasks
 
-  async def run_transform_task(self, ctxt, _, task):
-    async with ctxt.db_pool.acquire() as conn:
-      await self.query_cdm_feature_dict(conn)
-      futures = []
-      for mapping_row in task:
-        futures.append(self.transform_feature_mapping_row(ctxt.log, conn, mapping_row))
-      await asyncio.wait(futures)
+  def partition(self, lst, n, random_shuffle=False):
+    # if random_shuffle:
+    #   random.shuffle(lst)
+    # division = len(lst) / n
+    # return [lst[round(division * i):round(division * (i + 1))] for i in range(n)]
+    return [ [lst[0]]]
 
-  async def transform_feature_mapping_row(self, log, conn, mapping_row):
-    log.info("run transform {}".format(mapping_row))
+  async def run_transform_task(self, ctxt, pat_mappings, task):
+    self.visit_id_to_enc_id = pat_mappings['visit_id_to_enc_id']
+    self.pat_id_to_enc_ids = pat_mappings['pat_id_to_enc_ids']
+    futures = []
+    for mapping_row in task:
+      async with ctxt.db_pool.acquire() as conn:
+        await self.query_cdm_feature_dict(conn)
+      futures.extend(self.transform_feature_mapping_row(ctxt, conn, mapping_row))
+      ctxt.log.info("run_transform_task futures:")
+    ctxt.log.info(futures)
+    done, _ = await asyncio.wait(futures)
+    for future in done:
+      ctxt.log.info("run_transform_task completed: {}".format(future.result()))
+    return None
+
+  def transform_feature_mapping_row(self, ctxt, conn, mapping_row):
+    log = ctxt.log
+    log.info("run transform {}".format(mapping_row['fid(s)']))
     log.debug(mapping_row)
     fids = mapping_row['fid(s)']
     fids = [fid.strip() for fid in fids.split(',')] if ',' in fids else [fids]
@@ -155,11 +169,14 @@ class Extractor:
       # For now, use the fact that only custom functions are many to one.
       for fid in fids:
         mapping_row.update({'fid': fid})
-        futures.append(self.populate_feature_to_cdm(log, mapping_row, conn, self.cdm_feature_dict[fid]))
-    await asyncio.wait(futures)
+        futures.extend(self.populate_feature_to_cdm(ctxt, mapping_row, conn, self.cdm_feature_dict[fid]))
+    log.info("print futures")
+    log.info(futures)
+    return futures
 
-  async def populate_feature_to_cdm(self, log, mapping, conn, cdm_feature_attributes):
+  def populate_feature_to_cdm(self, ctxt, mapping, conn, cdm_feature_attributes):
     data_type = cdm_feature_attributes['data_type']
+    log = ctxt.log
     log.debug(mapping)
     fid = mapping['fid']
     log.info('importing feature value fid %s' % fid)
@@ -176,23 +193,12 @@ class Extractor:
       % (is_no_add, is_med_action))
     fid_info = {'fid':fid, 'category':category, 'is_no_add':is_no_add,
           'data_type':data_type}
-    start = timeit.default_timer()
     if is_med_action and fid != 'vent':
-      line = await self.populate_medaction_features(log, conn, mapping, fid, transform_func_id, data_type, fid_info)
+      return self.populate_medaction_features(ctxt, conn, mapping, fid, transform_func_id, data_type, fid_info)
     elif is_med_action and fid == 'vent':
-      line = await self.populate_vent(log, conn, mapping, fid, transform_func_id, data_type, fid_info)
+      return self.populate_vent(ctxt, conn, mapping, fid, transform_func_id, data_type, fid_info)
     else:
-      line = await self.populate_non_medaction_features(log, conn, mapping, fid, transform_func_id, data_type, category, is_no_add)
-    if not self.plan:
-      duration = timeit.default_timer() - start
-      if line == 0:
-        log.warn(\
-          'stats: Zero line found in dblink for fid %s %s s' \
-            % (fid, duration))
-      else:
-        log.info(\
-          'stats: %s valid lines found in dblink for fid %s %s s' \
-            % (line, fid, duration))
+      return self.populate_non_medaction_features(ctxt, conn, mapping, fid, transform_func_id, data_type, category, is_no_add)
 
   def get_feature_sql_query(self, log, mapping, orderby=None):
     if 'subject_id' in mapping['select_cols'] \
@@ -220,7 +226,6 @@ class Extractor:
   async def populate_medaction_features(self, log, conn, mapping, fid, transform_func_id, data_type, fid_info):
     # process medication action input for HC_EPIC
     # order by csn_id, medication id, and timeActionTaken
-    line = 0
     orderby = '"CSN_ID", "MEDICATION_ID", "TimeActionTaken"'
     sql = self.get_feature_sql_query(log, mapping, orderby=orderby)
     if self.plan:
@@ -265,7 +270,6 @@ class Extractor:
                         cur_med_events, fid_info, mapping,
                         conn)
       await asyncio.wait(futures)
-    return line
 
   async def process_med_events(self, log, enc_id, med_id, med_events,
                fid_info, mapping, conn):
@@ -336,18 +340,33 @@ class Extractor:
       await asyncio.wait(futures)
     return line
 
-  async def populate_non_medaction_features(self, log, conn, mapping, fid, transform_func_id, data_type, category, is_no_add):
-    line = 0
-    # process features unrelated to med actions
-    sql = self.get_feature_sql_query(log, mapping)
-    if self.plan:
+  async def run_plan_query(self, ctxt, conn, sql, fid):
+    rows = 0
+    start = timeit.default_timer()
+    async with ctxt.db_pool.acquire() as conn:
       async with conn.transaction():
         async for row in conn.cursor(sql):
-          logging.debug(row)
-          print(row)
+          rows += 1
+    self.log_time(ctxt.log, fid, start, rows)
+
+  def log_time(self, log, fid, start, rows):
+    log.info('performed {} rows(s)'.format(rows))
+    duration = timeit.default_timer() - start
+    if rows == 0:
+      log.warn(\
+        'STATS: Zero row found in dblink for fid %s %s s' \
+          % (fid, duration))
     else:
+      log.info(\
+        'STATS: %s valid rows found in dblink for fid %s %s s' \
+          % (rows, fid, duration))
+
+  def populate_non_medaction_features(self, ctxt, conn, mapping, fid, transform_func_id, data_type, category, is_no_add):
+    # process features unrelated to med actions
+    async def _run_etl(ctxt, conn, mapping, fid, transform_func_id, data_type, category, is_no_add):
+      rows = 0
+      start = timeit.default_timer()
       pat_id_based = 'pat_id' in mapping['select_cols']
-      futures = []
       async with conn.transaction():
         async for row in conn.cursor(sql):
           if pat_id_based:
@@ -357,9 +376,9 @@ class Extractor:
                 result = transform.transform(fid, \
                   transform_func_id, row, data_type, log)
                 if result is not None:
-                  line += 1
-                  futures.append(self.save_result_to_cdm(fid, category, enc_id, \
-                    row, result, conn, is_no_add))
+                  rows += 1
+                  await self.save_result_to_cdm(fid, category, enc_id, \
+                    row, result, conn, is_no_add)
           elif str(row['visit_id']) in self.visit_id_to_enc_id:
             enc_id = self.visit_id_to_enc_id[str(row['visit_id'])]
             if enc_id:
@@ -369,13 +388,19 @@ class Extractor:
                 row, data_type, log)
               # print row, result
               if result is not None:
-                line += 1
-                futures.append(self.save_result_to_cdm(fid, category, enc_id, \
-                  row, result, conn, is_no_add))
-          if line > 0 and line % 10000 == 0:
-            log.info('import rows %s', line)
-      await asyncio.wait(futures)
-    return line
+                rows += 1
+                await self.save_result_to_cdm(fid, category, enc_id, \
+                  row, result, conn, is_no_add)
+        self.log_time(log, fid, start, rows)
+
+    log = ctxt.log
+    sql = self.get_feature_sql_query(log, mapping)
+    futures = []
+    if self.plan:
+      futures.append(self.run_plan_query(ctxt, conn, sql, fid))
+    else:
+      futures.append(_run_etl(ctxt, conn, mapping, fid, transform_func_id, data_type, category, is_no_add))
+    return futures
 
   async def process_vent_events(self, log, enc_id, vent_events, fid_info, mapping, conn):
     log.debug("\nentries from enc_id %s:" % enc_id)
@@ -399,15 +424,16 @@ class Extractor:
           confidence = result[2]
 
           if fid_info['is_no_add']:
-            futures.append(load_row.upsert_t(conn, [enc_id, tsp, fid, on_off, confidence], dataset_id = self.config.dataset_id))
+            futures.append(load_row.upsert_t(conn, [enc_id, tsp, fid, on_off, confidence], dataset_id = self.dataset_id))
           else:
-            futures.append(load_row.add_t(conn, [enc_id, tsp, fid, on_off, confidence], dataset_id = self.config.dataset_id))
+            futures.append(load_row.add_t(conn, [enc_id, tsp, fid, on_off, confidence], dataset_id = self.dataset_id))
       await asyncio.wait(futures)
 
   async def save_result_to_cdm(self, fid, category, enc_id, row, results, conn, \
     is_no_add):
     if not isinstance(results[0], list):
       results = [results]
+    futures = []
     for result in results:
       tsp = None
       if len(result) == 3:
@@ -418,9 +444,9 @@ class Extractor:
       confidence = result[1]
       if category == 'S':
         if is_no_add:
-          return load_row.upsert_s(conn, [enc_id, fid, str(value), confidence], dataset_id = self.config.dataset_id)
+          await load_row.upsert_s(conn, [enc_id, fid, str(value), confidence], dataset_id = self.dataset_id)
         else:
-          return load_row.add_s(conn, [enc_id, fid, str(value), confidence], dataset_id = self.config.dataset_id)
+          await load_row.add_s(conn, [enc_id, fid, str(value), confidence], dataset_id = self.dataset_id)
       elif category == 'T':
         if tsp is None:
           if len(row) >= 4:
@@ -429,9 +455,9 @@ class Extractor:
             tsp = row[1]
         if tsp is not None:
           if is_no_add:
-            return load_row.upsert_t(conn, [enc_id, tsp, str(fid), str(value), confidence], dataset_id = self.config.dataset_id)
+            await load_row.upsert_t(conn, [enc_id, tsp, str(fid), str(value), confidence], dataset_id = self.dataset_id)
           else:
-            return load_row.add_t(conn, [enc_id, tsp, str(fid), str(value), confidence], dataset_id = self.config.dataset_id)
+            await load_row.add_t(conn, [enc_id, tsp, str(fid), str(value), confidence], dataset_id = self.dataset_id)
       elif category == 'TWF':
         if tsp is None:
           if len(row) >= 4:
@@ -439,6 +465,6 @@ class Extractor:
           else:
             tsp = row[1]
         if is_no_add:
-          return load_row.upsert_twf(conn, [enc_id, tsp, fid, value, confidence], dataset_id = self.config.dataset_id)
+          await load_row.upsert_twf(conn, [enc_id, tsp, fid, value, confidence], dataset_id = self.dataset_id)
         else:
-          return load_row.add_twf(conn, [enc_id, tsp, fid, value, confidence], dataset_id = self.config.dataset_id)
+          await load_row.add_twf(conn, [enc_id, tsp, fid, value, confidence], dataset_id = self.dataset_id)
