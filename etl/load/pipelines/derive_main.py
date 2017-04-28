@@ -162,7 +162,7 @@ async def derive_func_driver(fid, fid_category, derive_func_id, derive_func_inpu
             update_from_params['with_ds_ttwf'] = with_ds(dataset_id, table_name='cdm_twf') + (' AND cdm_t.dataset_id = cdm_twf.dataset_id' if dataset_id else '')
           update_from = (" FROM " + config_entry['fid_update_from']) % update_from_params
           update_where = " WHERE " + config_entry['fid_update_where'] % {'twf_table': twf_table}
-          update_where += ('' if dataset_id is None else ' and %(twf_table)s.dataset_id = subquery.dataset_id and dataset_id = %(dataset_id)s' % {'dataset_id': dataset_id, 'twf_table': twf_table})
+          update_where += ('' if dataset_id is None else ' and dataset_id = %(dataset_id)s' % {'dataset_id': dataset_id})
           update_clause += update_from + update_where
         sql = update_clause
       elif fid_category == 'T':
