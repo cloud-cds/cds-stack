@@ -3,7 +3,7 @@ import etl.load.primitives.tbl.derive as derive_func
 import etl.load.primitives.tbl.clean_tbl as clean_tbl
 from etl.load.primitives.tbl.derive import with_ds
 
-async def derive_main(log, conn, cdm_feature_dict, mode=None, fid=None, dataset_id=None, table="cdm_twf"):
+async def derive_main(log, conn, cdm_feature_dict, mode="append", fid=None, dataset_id=None, table="cdm_twf"):
   '''
   mode: "append", run derive functions beginning with @fid sequentially
   mode: "dependent", run derive functions for @fid and other features depends on @fid
@@ -158,6 +158,8 @@ async def derive_func_driver(fid, fid_category, derive_func_id, derive_func_inpu
             update_from_params['twf_table'] = twf_table
           if '%(with_ds_twf)s' in config_entry['fid_update_from']:
             update_from_params['with_ds_twf'] = with_ds(dataset_id, table_name='cdm_twf', conjunctive=False)
+          if '%(with_ds_t)s' in config_entry['fid_update_from']:
+            update_from_params['with_ds_t'] = with_ds(dataset_id, table_name='cdm_t', conjunctive=True)
           if '%(with_ds_ttwf)s' in config_entry['fid_update_from']:
             update_from_params['with_ds_ttwf'] = with_ds(dataset_id, table_name='cdm_twf') + (' AND cdm_t.dataset_id = cdm_twf.dataset_id' if dataset_id else '')
           update_from = (" FROM " + config_entry['fid_update_from']) % update_from_params
