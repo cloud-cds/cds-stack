@@ -55,9 +55,9 @@ class TestClass:
       ctxt.log.info('Query result: %s' % result)
       return result
 
-  def cls_a(self, ctxt):
-    ctxt.log.info('cls_a sleeping 5 secs')
-    time.sleep(2)
+  def cls_a(self, ctxt, x):
+    ctxt.log.info('cls_a sleeping {} secs'.format(x))
+    time.sleep(x)
     ctxt.log.info('cls_a woke up')
     return 1
 
@@ -76,7 +76,7 @@ class TestClass:
 t = TestClass()
 
 g2 = {
-  'a': ([],         {'config': db_config, 'fn': t.cls_a}),
+  'a': ([],         {'config': db_config, 'fn': functools.partial(t.cls_a, x=1)}),
   'b': ([],         {'config': db_config, 'fn': t.cls_b}),
   'c': (['a', 'b'], {'config': db_config, 'fn': t.cls_c}),
   'd': (['c'],      {'config': db_config, 'coro': t.test_query})

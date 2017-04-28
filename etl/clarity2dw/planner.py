@@ -10,7 +10,7 @@ from etl.clarity2dw.new_extractor import Extractor
 CONF = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'conf')
 
 # a complete job definition
-JOB = {
+job_config = {
   'reset_dataset': {
     'remove_pat_enc': True,
     'remove_data': True,
@@ -50,7 +50,17 @@ JOB = {
     'conf': CONF,
   },
 }
+
 PLANNER_LOG_FMT = '%(asctime)s|%(name)s|%(process)s-%(thread)s|%(levelname)s|%(message)s'
+
+db_config = {
+  'db_name': os.environ['db_name'],
+  'db_user': os.environ['db_user'],
+  'db_pass': os.environ['db_password'],
+  'db_host': os.environ['db_host'],
+  'db_port': os.environ['db_port']
+}
+
 
 class Planner():
   def __init__(self, job):
@@ -70,12 +80,17 @@ class Planner():
   def generate_plan(self):
     self.log.info("planning now")
     self.plan = {
-      'clean_dataset': ([], self.extractor.example),
-      'populate_patients': (['clean_dataset'], self.extractor.example)
+      'extract_init': ([], 'config': db_config, 'coro': functools.partial(self.extractor.extract_init, job=self.job))
+      'populate_patients': (['reset_dataset'], {'config': db_config, 'coro': self.extractor.example}),
     }
+    self.generate_transform_plan()
     self.log.info("plan is ready")
     self.log.info("current plan is {}".format(self.plan))
     return self.plan
+
+  def generate_transform_plan():
+    for i, transform_task in enumerate(self.extractor.get_transform_tasks()):
+      self.plan.update({'transform_task_{}'.format(i): (['populate_patients'], {'config': db_config, 'coro': transform_task})})
 
   def start_engine(self):
     self.log.info("start job in the engine")
@@ -91,6 +106,6 @@ class Planner():
 
 
 if __name__ == '__main__':
-  planner = Planner(JOB)
+  planner = Planner(job_config)
   planner.generate_plan()
   planner.start_engine()
