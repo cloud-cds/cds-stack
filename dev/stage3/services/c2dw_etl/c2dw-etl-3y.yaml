@@ -1,10 +1,9 @@
 ---
-apiVersion: extensions/v1beta1
-kind: Deployment
+apiVersion: batch/v1
+kind: Job
 metadata:
-  name: c2dw-etl-3y-deployment
+  name: c2dw-etl-3y-job
 spec:
-  replicas: 1 # tells deployment to run 1 pods matching the template
   template: # create pods using pod definition in this template
     metadata:
       # unlike pod-nginx.yaml, the name is not included in the meta data as a unique name is
@@ -17,8 +16,6 @@ spec:
       containers:
       - name: c2dw-etl-3y
         image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/c2dw-etl:0.0.1
-        ports:
-        - containerPort: 80
         command:
           - "python"
           - "./etl/clarity2dw/engine.py"
@@ -43,4 +40,5 @@ spec:
             secretKeyRef:
               name: c2dw-etl-secrets
               key: db-password
+      restartPolicy: Never
 ---
