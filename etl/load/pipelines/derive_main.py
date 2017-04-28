@@ -669,7 +669,7 @@ derive_config = {
     'derive_type': 'subquery',
     'fid_update_from': '''
                         (
-                            select twf.enc_id, twf.tsp,
+                            select cdm_twf.enc_id, cdm_twf.tsp,
                             sum(cdm_t.value::float) sum_v, max(cdm_t.confidence) max_c
                             from %(twf_table)s cdm_twf
                             inner join cdm_t
@@ -689,7 +689,7 @@ derive_config = {
     'derive_type': 'subquery',
     'fid_update_from': '''
                         (
-                            select twf.enc_id, twf.tsp,
+                            select cdm_twf.enc_id, cdm_twf.tsp,
                             sum(cdm_t.value::float) sum_v, max(cdm_t.confidence) max_c
                             from %(twf_table)s cdm_twf
                             inner join cdm_t
@@ -709,7 +709,7 @@ derive_config = {
     'derive_type': 'subquery',
     'fid_update_from': '''
                         (
-                            select twf.enc_id, twf.tsp,
+                            select cdm_twf.enc_id, cdm_twf.tsp,
                             sum(cdm_t.value::float) sum_v, max(cdm_t.confidence) max_c
                             from %(twf_table)s cdm_twf
                             inner join cdm_t
