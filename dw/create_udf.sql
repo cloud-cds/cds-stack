@@ -2233,7 +2233,8 @@ end; $func$;
 
 create or replace function criteria_report(this_pat_state  integer,
                                            this_dataset_id integer)
-  returns table ( pat_id                            varchar(50),
+  returns table ( pat_worst_state                   integer,
+                  pat_id                            varchar(50),
                   severe_sepsis_onset               text,
                   sirs_organ_dys_onset              text,
                   septic_shock_onset                text,
@@ -2246,7 +2247,8 @@ create or replace function criteria_report(this_pat_state  integer,
 language plpgsql
 as $func$ begin
   return query
-    select Report.pat_id,
+    select WS.max_state as pat_worst_state,
+           Report.pat_id,
            Report.severe_sepsis_onset,
            Report.sirs_organ_dys_onset,
            Report.septic_shock_onset,
@@ -2345,5 +2347,6 @@ as $func$ begin
       WS.pat_id, WS.window_ts - interval '6 hours', WS.window_ts, WS.dataset_id
     ) Report
       on WS.pat_id = Report.pat_id
+    order by WS.max_state desc, Report.pat_id
     ;
 end; $func$;
