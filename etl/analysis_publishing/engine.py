@@ -119,7 +119,7 @@ class Engine:
 def parse_arguments():
   parser = argparse.ArgumentParser(description='Behavioral monitoring engine')
   parser.add_argument('mode', type=str, choices=['reports', 'metrics'])
-  parser.add_argument('execution_period_hours', type=int)
+  parser.add_argument('execution_period_minutes', type=int)
   return parser.parse_args()
 
 
@@ -127,7 +127,7 @@ def parse_arguments():
 
 if __name__ == '__main__':
   args = parse_arguments()
-  last_execution = datetime.now() - timedelta(hours=args.execution_period_hours)
+  last_execution = datetime.now() - timedelta(minutes=args.execution_period_hours)
   this_execution = datetime.now()
   engine = Engine(last_execution, this_execution)
   engine.run(args.mode)
