@@ -62,3 +62,23 @@ class Extractor:
       result = await conn.execute(sql)
       ctxt.log.info("ETL populate_patients: " + result)
       return result
+
+  async def transform_init(self, ctxt, config):
+    ctxt.log.info("Using Feature Mapping:")
+    CONF = os.path.dirname(os.path.abspath(__file__))
+    CONF = os.path.join(CONF, 'conf')
+    feature_mapping_csv = os.path.join(CONF, 'feature_mapping.csv')
+    ctxt.log.info("{}".format(feature_mapping_csv))
+    self.feature_mapping = pd.read_csv(feature_mapping_csv)
+
+    pat_mappings = await self.get_pat_mapping(conn)
+    self.visit_id_to_enc_id = pat_mappings['visit_id_to_enc_id']
+    self.pat_id_to_enc_ids = pat_mappings['pat_id_to_enc_ids']
+    ctxt.log.info("load feature mapping")
+
+    if nproc is not None and nproc > 0:
+      executor = concurrent.futures.ProcessPoolExecutor(max_workers=nproc)
+      await run_transform_tasks(executor, self.feature_mapping, self.job, self.log)
+    else:
+      for row_idx, mapping_row in self.feature_mapping.iterrows():
+        await self.transform_feature_mapping_row(conn, mapping_row, fids_2_proc=fids_2_proc)

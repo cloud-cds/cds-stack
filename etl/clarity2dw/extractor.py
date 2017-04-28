@@ -183,23 +183,6 @@ class Extractor:
     if nproc is not None and nproc > 0:
       executor = concurrent.futures.ProcessPoolExecutor(max_workers=nproc)
       await run_transform_tasks(executor, self.feature_mapping, self.job, self.log)
-
-      # Create a limited process pool
-      # executor = concurrent.futures.ProcessPoolExecutor(max_workers=nproc)
-      # event_loop = asyncio.new_event_loop()
-      # try:
-      #   event_loop.run_until_complete(
-      #     await run_transform_tasks(executor, self.feature_mapping, self.job, event_loop, self.log)
-      #   )
-      # finally:
-      #   event_loop.close()
-
-      # # using multiprocessing
-      # pool = Pool(processes=nproc)
-      # for row_idx, mapping_row in self.feature_mapping.iterrows():
-      #   result = pool.apply_async(transform_feature_mapping_task, args=(mapping_row, self.job))
-      # pool.close()
-      # pool.join()
     else:
       for row_idx, mapping_row in self.feature_mapping.iterrows():
         await self.transform_feature_mapping_row(conn, mapping_row, fids_2_proc=fids_2_proc)
