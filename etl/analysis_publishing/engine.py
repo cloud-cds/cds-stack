@@ -67,9 +67,11 @@ class Engine:
     report_metric_factory.calc_all_metrics()
 
     if mode == 'reports':
-      self.send_email(report_metric_factory.build_report_body())
+      report_html_body = report_metric_factory.build_report_body()
+      self.send_email(report_html_body)
     elif mode == 'metrics':
-      self.push_to_cwm(report_metric_factory.get_cwm_output())
+      cwm_metrics_list = report_metric_factory.get_cwm_output()
+      self.push_to_cwm(cwm_metrics_list)
     else:
       logger.error("Invalid mode: {}".format(mode))
 
@@ -78,15 +80,14 @@ class Engine:
 
 
   def push_to_cwm(self, cwm_list):
-
-    dimList = [{'Name': 'analysis','Value': self.BEHAMON_STACK}]
-
+    logger.info("Sending metrics to cloudwatch")
+    
     for md in cwm_list:
-      md['Dimensions'] = dimList
+      md['Dimensions'] = [{'Name': 'analysis','Value': self.BEHAMON_STACK}]
 
     put_status = self.boto_cloudwatch_client.put_metric_data(
-      Namespace='OpsDX',
-      MetricData=cwm_list,
+      Namespace  = 'OpsDX',
+      MetricData = cwm_list,
     )
 
     logger.info("Metrics sent to cloudwatch ")
