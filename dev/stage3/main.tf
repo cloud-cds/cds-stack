@@ -199,6 +199,38 @@ module "op2dw_etl" {
   db_password  = "${var.db_password}"
 }
 
+module "analysis_publishing" {
+  source = "./services/analysis_publishing"
+
+  deploy_prefix = "${var.deploy_prefix}"
+
+  s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
+  aws_klaunch_lambda_package = "${var.aws_klaunch_lambda_package}"
+  aws_klaunch_lambda_role_arn = "${var.aws_klaunch_lambda_role_arn}"
+
+  k8s_server_host = "${var.k8s_server_host}"
+  k8s_server_port = "${var.k8s_server_port}"
+
+  k8s_name      = "${var.k8s_name}"
+  k8s_server    = "${var.k8s_server}"
+  k8s_user      = "${var.k8s_user}"
+  k8s_pass      = "${var.k8s_pass}"
+  k8s_image     = "${var.k8s_op2dw_image}"
+  k8s_cert_auth = "${var.k8s_cert_auth}"
+
+  analysis_publishing_timeseries_firing_rate_min = "5"
+  analysis_publishing_reports_firing_rate_min    = "180"
+  analysis_publishing_reports_firing_rate_expr   = "3 hours"
+
+  db_host      = "db.${var.domain}"
+  db_name      = "${replace(var.deploy_prefix, "-", "_")}"
+  db_username  = "${var.db_username}"
+  db_password  = "${var.db_password}"
+}
+
+
+
+
 module "monitor" {
   source = "./services/monitor"
   deploy_prefix = "${var.deploy_prefix}"
