@@ -89,7 +89,11 @@ class Planner():
     return self.plan
 
   def generate_transform_plan():
-    self.plan.update('transform_init': (['populate_patients'], {'config': db_config, 'coro': self.extractor.transform_init}))
+    self.plan.update('transform_init': (['populate_patients'],
+                                {
+                                'config': db_config,
+                                'coro': functools.partial(self.extractor.transform_init, self.job)
+                                }))
     for i, transform_task in enumerate(self.extractor.get_transform_tasks()):
       self.plan.update({'transform_task_{}'.format(i): (['transform_init'], {'config': db_config, 'coro': transform_task})})
 
