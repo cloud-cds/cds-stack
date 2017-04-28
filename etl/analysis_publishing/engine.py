@@ -127,7 +127,7 @@ def parse_arguments():
 
 if __name__ == '__main__':
   args = parse_arguments()
-  last_execution = datetime.now() - timedelta(minutes=args.execution_period_hours)
+  last_execution = datetime.now() - timedelta(minutes=args.execution_period_minutes)
   this_execution = datetime.now()
   engine = Engine(last_execution, this_execution)
   engine.run(args.mode)
