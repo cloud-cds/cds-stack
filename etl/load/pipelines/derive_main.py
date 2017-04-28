@@ -681,7 +681,7 @@ derive_config = {
                       ''',
     'fid_update_expr': 'coalesce(subquery.sum_v, 0)',
     'fid_c_update_expr': 'coalesce(subquery.max_c,0)',
-    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id and %(twf_table)s.tsp = subquery.tsp',
+    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id',
     'clean': {'value': 0, 'confidence': 0},
   },
   'fluids_intake_1hr': {
@@ -701,7 +701,7 @@ derive_config = {
                       ''',
     'fid_update_expr': 'coalesce(subquery.sum_v, 0)',
     'fid_c_update_expr': 'coalesce(subquery.max_c,0)',
-    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id and %(twf_table)s.tsp = subquery.tsp',
+    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id',
     'clean': {'value': 0, 'confidence': 0},
   },
   'fluids_intake_24hr': {
@@ -721,7 +721,7 @@ derive_config = {
                       ''',
     'fid_update_expr': 'coalesce(subquery.sum_v, 0)',
     'fid_c_update_expr': 'coalesce(subquery.max_c,0)',
-    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id and %(twf_table)s.tsp = subquery.tsp',
+    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id',
     'clean': {'value': 0, 'confidence': 0},
   },
   'urine_output_6hr': {
@@ -741,7 +741,7 @@ derive_config = {
                       ''',
     'fid_update_expr': 'coalesce(subquery.sum_v, 0)',
     'fid_c_update_expr': 'coalesce(subquery.max_c,0)',
-    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id and %(twf_table)s.tsp = subquery.tsp',
+    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id',
     'clean': {'value': 0, 'confidence': 0},
   },
   'urine_output_24hr': {
@@ -761,7 +761,7 @@ derive_config = {
                       ''',
     'fid_update_expr': 'coalesce(subquery.sum_v, 0)',
     'fid_c_update_expr': 'coalesce(subquery.max_c,0)',
-    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id and %(twf_table)s.tsp = subquery.tsp',
+    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id',
     'clean': {'value': 0, 'confidence': 0},
   },
   'any_anticoagulant': {
