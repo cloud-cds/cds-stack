@@ -80,7 +80,10 @@ class Engine:
 
 
   def push_to_cwm(self, cwm_list):
-    logger.info("Sending metrics to cloudwatch")
+    logger.info("Sending the following metrics to cloudwatch:")
+
+    for x in cwm_list:
+      logger.info("\t" + str(x))
     
     for md in cwm_list:
       md['Dimensions'] = [{'Name': 'analysis','Value': self.BEHAMON_STACK}]
