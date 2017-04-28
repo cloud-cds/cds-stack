@@ -60,5 +60,5 @@ class Extractor:
       ''' % {'dataset_id': self.dataset_id, 'limit': 'limit {}'.format(limit) if limit else ''}
       ctxt.log.debug("ETL populate_patients sql: " + sql)
       result = await conn.execute(sql)
+      ctxt.log.info("ETL populate_patients: " + result)
       return result
-    ctxt.log.info("ETL populate_patients: " + result)
