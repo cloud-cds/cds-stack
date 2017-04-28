@@ -47,8 +47,9 @@ loop.run_until_complete(e.run())
 loop.close()
 
 class TestClass:
-  async def test_query(self, ctxt, _):
+  async def test_query(self, ctxt, x, y):
     async with ctxt.db_pool.acquire() as conn:
+      print(x, y)
       sql = 'select count(*) as cnt from pat_enc;'
       ctxt.log.info('Test query: %s' % sql)
       result = await conn.fetchval(sql)
@@ -79,7 +80,7 @@ g2 = {
   'a': ([],         {'config': db_config, 'fn': functools.partial(t.cls_a, x=1)}),
   'b': ([],         {'config': db_config, 'fn': t.cls_b}),
   'c': (['a', 'b'], {'config': db_config, 'fn': t.cls_c}),
-  'd': (['c'],      {'config': db_config, 'coro': t.test_query})
+  'd': (['c'],      {'config': db_config, 'coro': t.test_query, 'args': [1]})
 }
 
 e2 = Engine(name='engine2', tasks=g2)

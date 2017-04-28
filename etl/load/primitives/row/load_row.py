@@ -16,7 +16,7 @@ async def upsert_g(conn, row, dataset_id = None, model_id=0):
     on conflict (fid) do update
     set value = Excluded.value::numeric, confidence = Excluded.confidence
     ''' % (dataset_id, model_id, row[0], row[1], row[2])
-  await conn.execute(sql)
+  return conn.execute(sql)
 
 async def add_t(conn, row, dataset_id=None):
   if dataset_id is None:
@@ -27,7 +27,7 @@ async def add_t(conn, row, dataset_id=None):
     sql = '''
     select add_cdm_t(%s, %s, '%s', '%s', '%s', %s)
     ''' % (dataset_id, row[0], row[1], row[2], row[3], row[4])
-  await conn.execute(sql)
+  return conn.execute(sql)
 
 
 async def upsert_t(conn, row, dataset_id=None):
@@ -45,7 +45,7 @@ async def upsert_t(conn, row, dataset_id=None):
     on conflict (dataset_id, enc_id, tsp, fid) do update
     set value = Excluded.value, confidence = Excluded.confidence
     ''' % (dataset_id, row[0], row[1], row[2], str(row[3]).replace("'","''"), row[4])
-  await conn.execute(sql)
+  return conn.execute(sql)
 
 async def upsert_s(conn, row, dataset_id=None):
   if dataset_id is None:
@@ -62,7 +62,7 @@ async def upsert_s(conn, row, dataset_id=None):
     on conflict (dataset_id, enc_id, fid) do update
     set value = Excluded.value, confidence = Excluded.confidence
     ''' % (dataset_id, row[0], row[1], str(row[2]).replace("'","''"), row[3])
-  await conn.execute(sql)
+  return conn.execute(sql)
 
 async def add_s(conn, row, dataset_id=None):
   if dataset_id is None:
@@ -79,7 +79,7 @@ async def add_s(conn, row, dataset_id=None):
     on conflict (dataset_id, enc_id, fid) do update
     set value = cdm_s.value::numeric + Excluded.value::numeric, confidence = cdm_s.confidence + Excluded.confidence
     ''' % (dataset_id, row[0], row[1], row[2], row[3])
-  await conn.execute(sql)
+  return conn.execute(sql)
 
 async def upsert_twf(conn, row, dataset_id=None):
   if dataset_id is None:
@@ -100,7 +100,7 @@ async def upsert_twf(conn, row, dataset_id=None):
     ''' % {
       'dataset_id': dataset_id, 'enc_id': row[0], 'tsp': row[1], 'fid': row[2], 'value': row[3], 'conf': row[4]
     }
-  await conn.execute(sql)
+  return conn.execute(sql)
 
 async def add_twf(conn, row, dataset_id=None):
   if dataset_id is None:
@@ -121,4 +121,4 @@ async def add_twf(conn, row, dataset_id=None):
     ''' % {
       'dataset_id': dataset_id, 'enc_id': row[0], 'tsp': row[1], 'fid': row[2], 'value': row[3], 'conf': row[4]
     }
-  await conn.execute(sql)
+  return conn.execute(sql)

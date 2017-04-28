@@ -6,21 +6,24 @@ import uvloop
 import os
 import json
 from etl.clarity2dw.new_extractor import Extractor
+import functools
 
 CONF = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'conf')
 
 # a complete job definition
 job_config = {
+  'plan': True,
   'reset_dataset': {
     'remove_pat_enc': True,
     'remove_data': True,
     'start_enc_id': 1
   },
   'transform': {
-    'populate_patients': True,
+    'populate_patients': {
+      'limit': None
+    },
     'populate_measured_features': {
-      'plan': False,
-      # 'fid': ['fluids_intake'],
+      'fid': None,
     },
   },
   'fillin': {
@@ -36,6 +39,7 @@ job_config = {
   'engine': {
     'name': 'engine-c2dw',
     'nprocs': int(os.environ['nprocs']),
+    'loglevel': logging.DEBUG
   },
   'planner': {
     'name': 'planner-c2dw',
@@ -45,8 +49,6 @@ job_config = {
     'name': 'extractor-c2dw',
     'dataset_id': int(os.environ['dataset_id']),
     'loglevel': logging.DEBUG,
-    'db_name': 'test_c2dw_parallel', #'opsdx_dev_dw',
-    'db_host': 'db.dev.opsdx.io',
     'conf': CONF,
   },
 }
@@ -65,7 +67,7 @@ db_config = {
 class Planner():
   def __init__(self, job):
     self.job = job
-    self.extractor = Extractor(**self.job['extractor'])
+    self.extractor = Extractor(self.job)
     # Configure planner logging.
     self.name = self.job['planner']['name']
     self.log = logging.getLogger(self.name)
@@ -80,27 +82,30 @@ class Planner():
   def generate_plan(self):
     self.log.info("planning now")
     self.plan = {
-      'extract_init': ([], 'config': db_config, 'coro': functools.partial(self.extractor.extract_init, job=self.job))
-      'populate_patients': (['reset_dataset'], {'config': db_config, 'coro': self.extractor.example}),
+      'extract_init': ([], {'config': db_config, 'coro': self.extractor.extract_init}),
+      'populate_patients': (['extract_init'], {'config': db_config, 'coro': self.extractor.populate_patients}),
     }
     self.generate_transform_plan()
     self.log.info("plan is ready")
-    self.log.info("current plan is {}".format(self.plan))
     return self.plan
 
-  def generate_transform_plan():
-    self.plan.update('transform_init': (['populate_patients'],
+  def generate_transform_plan(self):
+    self.plan.update({'transform_init': (['populate_patients'],
                                 {
                                 'config': db_config,
-                                'coro': functools.partial(self.extractor.transform_init, self.job)
-                                }))
+                                'coro': self.extractor.transform_init
+                                })})
     for i, transform_task in enumerate(self.extractor.get_transform_tasks()):
-      self.plan.update({'transform_task_{}'.format(i): (['transform_init'], {'config': db_config, 'coro': transform_task})})
+      self.plan.update({'transform_task_{}'.format(i): (['transform_init'],
+                                  {
+                                  'config': db_config,
+                                  'coro': self.extractor.run_transform_task,
+                                  'args': [transform_task]
+                                  })})
 
   def start_engine(self):
     self.log.info("start job in the engine")
     self.job['engine']['tasks'] = self.plan
-    self.log.info('engine conf: {}'.format(self.job['engine']))
     self.engine = Engine(**self.job['engine'])
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     loop = asyncio.new_event_loop()

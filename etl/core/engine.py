@@ -178,6 +178,8 @@ class Engine:
       if task_id in self.tasks:
         dependencies, task_body = self.tasks[task_id]
         args = [self.task_results[d] if d in self.task_results else None for d in dependencies]
+        if 'args' in task_body:
+          args += task_body['args']
 
         if 'fn' in task_body:
           self.log.debug('Starting task function %s' % task_id)
