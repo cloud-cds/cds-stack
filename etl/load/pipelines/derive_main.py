@@ -3,7 +3,7 @@ import etl.load.primitives.tbl.derive as derive_func
 import etl.load.primitives.tbl.clean_tbl as clean_tbl
 from etl.load.primitives.tbl.derive import with_ds
 
-async def derive_main(log, conn, cdm_feature_dict, mode="append", fid=None, dataset_id=None, table="cdm_twf"):
+async def derive_main(log, conn, cdm_feature_dict, mode=None, fid=None, dataset_id=None, table="cdm_twf"):
   '''
   mode: "append", run derive functions beginning with @fid sequentially
   mode: "dependent", run derive functions for @fid and other features depends on @fid
