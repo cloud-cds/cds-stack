@@ -669,6 +669,9 @@ CREATE OR REPLACE FUNCTION calculate_criteria(
 AS $function$
 DECLARE
   window_size interval := ts_end - ts_start;
+
+  -- Lookback before the initial severe sepsis indicator.
+  orders_lookback interval := interval '6 hours';
 BEGIN
 
   select coalesce(_dataset_id, max(dataset_id)) into _dataset_id from dw_version;
@@ -1160,77 +1163,124 @@ BEGIN
         now() as update_date
     from
     (
-      select  pat_cvalues.pat_id,
-              pat_cvalues.name,
-              pat_cvalues.tsp as measurement_time,
-              (case when pat_cvalues.category in ('after_severe_sepsis_dose', 'after_septic_shock_dose')
-                      then dose_order_status(pat_cvalues.fid, pat_cvalues.c_ovalue#>>'{0,text}')
-                    else order_status(pat_cvalues.fid, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}')
+      -- We calculate extended_pat_cvalues for orders only based on the
+      -- severe_sepsis_lead_time above. This lets us search for orders
+      -- before the initial indicator of sepsis.
+      --
+      -- We cannot calculate pat_cvalues in one go to address both the
+      -- need for severe_sepsis_lead_time and orders, since there is a
+      -- dependency between the two calculations.
+      --
+      with orders_cvalues as (
+        select * from pat_cvalues
+        where name in (
+          'initial_lactate_order',
+          'blood_culture_order',
+          'antibiotics_order',
+          'crystalloid_fluid_order',
+          'vasopressors_order'
+        )
+        union all
+        select pat_ids.pat_id,
+               cd.name,
+               meas.fid,
+               cd.category,
+               meas.tsp,
+               meas.value,
+               c.override_time as c_otime,
+               c.override_user as c_ouser,
+               c.override_value as c_ovalue,
+               cd.override_value as d_ovalue
+        from pat_ids
+        cross join criteria_default as cd
+        left join suspicion_of_infection_buff c
+          on pat_ids.pat_id = c.pat_id
+          and cd.name = c.name
+          and cd.dataset_id = c.dataset_id
+        left join criteria_meas meas
+            on pat_ids.pat_id = meas.pat_id
+            and meas.fid = cd.fid
+            and cd.dataset_id = meas.dataset_id
+            and (meas.tsp is null
+              -- This predicate safely returns no rows if
+              -- severe_sepsis_lead_time - orders_lookback
+              -- is chronologically before ts_start - window_size
+              or meas.tsp between SSP.severe_sepsis_lead_time - orders_lookback
+                          and ts_start - window_size
+            )
+        where cd.dataset_id = _dataset_id
+        and cd.name in (
+          'initial_lactate_order',
+          'blood_culture_order',
+          'antibiotics_order',
+          'crystalloid_fluid_order',
+          'vasopressors_order'
+        )
+      )
+      select  CV.pat_id,
+              CV.name,
+              CV.tsp as measurement_time,
+              (case when CV.category in ('after_severe_sepsis_dose', 'after_septic_shock_dose')
+                      then dose_order_status(CV.fid, CV.c_ovalue#>>'{0,text}')
+                    else order_status(CV.fid, CV.value, CV.c_ovalue#>>'{0,text}')
                end) as value,
-              pat_cvalues.c_otime,
-              pat_cvalues.c_ouser,
-              pat_cvalues.c_ovalue,
+              CV.c_otime,
+              CV.c_ouser,
+              CV.c_ovalue,
               (case
-                  when pat_cvalues.category = 'after_severe_sepsis' then
+                  when CV.category = 'after_severe_sepsis' then
                     (select coalesce(
                               bool_or(SSP.severe_sepsis_is_met
-                                        and greatest(pat_cvalues.c_otime, pat_cvalues.tsp)
-                                              > (SSP.severe_sepsis_lead_time - interval '6 hours'))
+                                        and greatest(CV.c_otime, CV.tsp)
+                                              > (SSP.severe_sepsis_lead_time - orders_lookback))
                               , false)
                       from severe_sepsis_onsets SSP
                       where SSP.pat_id = coalesce(this_pat_id, SSP.pat_id)
                     )
-                    and ( order_met(pat_cvalues.name, coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value)) )
+                    and ( order_met(CV.name, coalesce(CV.c_ovalue#>>'{0,text}', CV.value)) )
 
-                  when pat_cvalues.category = 'after_severe_sepsis_dose' then
+                  when CV.category = 'after_severe_sepsis_dose' then
                     (select coalesce(
                               bool_or(SSP.severe_sepsis_is_met
-                                        and greatest(pat_cvalues.c_otime, pat_cvalues.tsp)
-                                              > (SSP.severe_sepsis_lead_time - interval '6 hours'))
+                                        and greatest(CV.c_otime, CV.tsp)
+                                              > (SSP.severe_sepsis_lead_time - orders_lookback))
                               , false)
                       from severe_sepsis_onsets SSP
                       where SSP.pat_id = coalesce(this_pat_id, SSP.pat_id)
                     )
-                    and ( dose_order_met(pat_cvalues.fid, pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value::numeric,
-                            coalesce((pat_cvalues.c_ovalue#>>'{0,lower}')::numeric,
-                                     (pat_cvalues.d_ovalue#>>'{lower}')::numeric)) )
+                    and ( dose_order_met(CV.fid, CV.c_ovalue#>>'{0,text}', CV.value::numeric,
+                            coalesce((CV.c_ovalue#>>'{0,lower}')::numeric,
+                                     (CV.d_ovalue#>>'{lower}')::numeric)) )
 
-                  when pat_cvalues.category = 'after_septic_shock' then
+                  when CV.category = 'after_septic_shock' then
                     (select coalesce(
                               bool_or(SSH.septic_shock_is_met
-                                        and greatest(pat_cvalues.c_otime, pat_cvalues.tsp)
+                                        and greatest(CV.c_otime, CV.tsp)
                                               > SSH.septic_shock_onset)
                               , false)
                       from septic_shock_onsets SSH
                       where SSH.pat_id = coalesce(this_pat_id, SSH.pat_id)
                     )
-                    and ( order_met(pat_cvalues.name, coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value)) )
+                    and ( order_met(CV.name, coalesce(CV.c_ovalue#>>'{0,text}', CV.value)) )
 
-                  when pat_cvalues.category = 'after_septic_shock_dose' then
+                  when CV.category = 'after_septic_shock_dose' then
                     (select coalesce(
                               bool_or(SSH.septic_shock_is_met
-                                        and greatest(pat_cvalues.c_otime, pat_cvalues.tsp)
+                                        and greatest(CV.c_otime, CV.tsp)
                                               > SSH.septic_shock_onset)
                               , false)
                       from septic_shock_onsets SSH
                       where SSH.pat_id = coalesce(this_pat_id, SSH.pat_id)
                     )
-                    and ( dose_order_met(pat_cvalues.fid, pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value::numeric,
-                            coalesce((pat_cvalues.c_ovalue#>>'{0,lower}')::numeric,
-                                     (pat_cvalues.d_ovalue#>>'{lower}')::numeric)) )
+                    and ( dose_order_met(CV.fid, CV.c_ovalue#>>'{0,text}', CV.value::numeric,
+                            coalesce((CV.c_ovalue#>>'{0,lower}')::numeric,
+                                     (CV.d_ovalue#>>'{lower}')::numeric)) )
 
-                  else criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
+                  else criteria_value_met(CV.value, CV.c_ovalue, CV.d_ovalue)
                   end
               ) as is_met
-      from pat_cvalues
-      where pat_cvalues.name in (
-        'initial_lactate_order',
-        'blood_culture_order',
-        'antibiotics_order',
-        'crystalloid_fluid_order',
-        'vasopressors_order'
-      )
-      order by pat_cvalues.tsp
+      from orders_cvalues CV
+      order by CV.tsp
     ) as ordered
     group by ordered.pat_id, ordered.name
   ),
