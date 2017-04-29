@@ -158,6 +158,8 @@ async def derive_func_driver(fid, fid_category, derive_func_id, derive_func_inpu
             update_from_params['twf_table'] = twf_table
           if '%(with_ds_twf)s' in config_entry['fid_update_from']:
             update_from_params['with_ds_twf'] = with_ds(dataset_id, table_name='cdm_twf', conjunctive=False)
+          if '%(and_with_ds_twf)s' in config_entry['fid_update_from']:
+            update_from_params['and_with_ds_twf'] = with_ds(dataset_id, table_name='cdm_twf', conjunctive=True)
           if '%(with_ds_t)s' in config_entry['fid_update_from']:
             update_from_params['with_ds_t'] = with_ds(dataset_id, table_name='cdm_t', conjunctive=True)
           if '%(with_ds_ttwf)s' in config_entry['fid_update_from']:
@@ -537,7 +539,7 @@ derive_config = {
                       (
                         select enc_id, tsp from %(twf_table)s cdm_twf
                          where severe_sepsis
-                         %(with_ds_twf)s
+                         %(and_with_ds_twf)s
                       ) as subquery
                     ''',
     'fid_update_expr': '''
@@ -570,7 +572,7 @@ derive_config = {
                         (
                           select enc_id, first(tsp) tsp, first(any_organ_failure_c) c from(
                             select enc_id, tsp, any_organ_failure_c from %(twf_table)s cdm_twf
-                            where any_organ_failure %(with_ds_twf)s
+                            where any_organ_failure %(and_with_ds_twf)s
                             order by tsp
                             ) as ordered
                           group by ordered.enc_id

@@ -40,34 +40,35 @@ job_test_c2dw = {
 
 # a complete job definition
 job = {
-  'reset_dataset': {
-    'remove_pat_enc': True,
-    'remove_data': True,
-    'start_enc_id': 1
-  },
-  'transform': {
-    'populate_patients': True,
-    'populate_measured_features': {
-      'plan': False,
-      # 'fid': ['fluids_intake'],
-      'nproc': int(os.environ['nproc']), #8
-    },
-  },
-  'fillin': {
-    'recalculate_popmean': False,
-  },
+  #'reset_dataset': {
+  #  'remove_pat_enc': True,
+  #  'remove_data': True,
+  #  'start_enc_id': 1
+  #},
+  #'transform': {
+  #  'populate_patients': True,
+  #  'populate_measured_features': {
+  #    'plan': False,
+  #    # 'fid': ['fluids_intake'],
+  #    'nproc': int(os.environ['nproc']), #8
+  #  },
+  #},
+  #'fillin': {
+  #  'recalculate_popmean': False,
+  #},
   'derive': {
-    'fid': None,
+    'fid': 'cmi',
+    'mode': 'append',
   },
-  'offline_criteria_processing': {
-    'load_cdm_to_criteria_meas':True,
-    'calculate_historical_criteria':False
-  },
+  #'offline_criteria_processing': {
+  #  'load_cdm_to_criteria_meas':True,
+  #  'calculate_historical_criteria':False
+  #},
   'config': {
     'dataset_id': int(os.environ['dataset_id']),
     'debug': True,
-    # 'db_name': 'test_c2dw', #'opsdx_dev_dw',
-    # 'db_host': 'db.dev.opsdx.io',
+    'db_name': 'opsdx_dev_dw',
+    'db_host': 'dw.dev.opsdx.io',
     'conf': CONF,
   },
 }
