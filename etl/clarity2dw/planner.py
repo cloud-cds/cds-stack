@@ -5,7 +5,7 @@ from etl.core.engine import Engine
 import uvloop
 import os
 import json
-from etl.clarity2dw.new_extractor import Extractor
+from etl.clarity2dw.extractor import Extractor
 import functools
 
 CONF = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'conf')

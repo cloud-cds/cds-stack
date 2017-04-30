@@ -66,22 +66,52 @@ class TestClass:
       ctxt.log.info('transaction end')
       return None
 
-  async def test_transaction_w(self, ctxt, _):
+  async def test_transaction_w2(self, ctxt, _):
     async with ctxt.db_pool.acquire() as conn:
       sql = 'select enc_id from pat_enc where dataset_id =1 limit 10;'
       ctxt.log.info('Test query: %s' % sql)
+      futures = []
       async with conn.transaction():
-        futures = []
         async for row in conn.cursor(sql):
           ctxt.log.info(row['enc_id'])
           sql_insert = "insert into cdm_s (dataset_id, enc_id, fid, value, confidence) values (1, {}, 'age', 2, 0) on conflict (dataset_id, enc_id, fid) do update set value = Excluded.value, confidence = Excluded.confidence".format(row['enc_id'])
           ctxt.log.info(sql_insert)
           futures.append(conn.execute(sql_insert))
-        await asyncio.wait(futures)
+      await asyncio.wait(futures)
       ctxt.log.info('transaction end')
       return None
 
-  async def test_multi_transaction(self, ctxt, _):
+  async def test_transaction_w3(self, ctxt, _):
+    async with ctxt.db_pool.acquire() as conn:
+      sql = 'select enc_id from pat_enc where dataset_id =1 limit 10;'
+      ctxt.log.info('Test query: %s' % sql)
+      futures = []
+      raw = await conn.fetch(sql)
+      transformed = [(1, row['enc_id'], 'age', 2, 0) for row in raw]
+      upsert_sql = "insert into cdm_s (dataset_id, enc_id, fid, value, confidence) values ($1, $2, $3, $4, $5) on conflict (dataset_id, enc_id, fid) do update set value = Excluded.value, confidence = Excluded.confidence"
+      result = await conn.executemany(upsert_sql, transformed)
+      ctxt.log.info(result)
+      return None
+
+  async def test_transaction_w(self, ctxt, _):
+    async with ctxt.db_pool.acquire() as conn:
+      sql = 'select enc_id from pat_enc where dataset_id =1 limit 10;'
+      ctxt.log.info('Test query: %s' % sql)
+      async with conn.transaction():
+        cur = await conn.cursor(sql)
+        rows = await cur.fetch(2)
+        while rows:
+          ctxt.log.info(rows)
+          async with conn.transaction():
+            for row in rows:
+              sql_insert = "insert into cdm_s (dataset_id, enc_id, fid, value, confidence) values (1, {}, 'age', 2, 0) on conflict (dataset_id, enc_id, fid) do update set value = Excluded.value, confidence = Excluded.confidence".format(row['enc_id'])
+              ctxt.log.info(sql_insert)
+              await conn.execute(sql_insert)
+          rows = await cur.fetch(2)
+      ctxt.log.info('transaction end')
+      return None
+
+  async def test_multi_tasks(self, ctxt, _):
     # async with ctxt.db_pool.acquire() as conn:
     futures = []
     for i in range(2):
@@ -115,7 +145,7 @@ g2 = {
   'b': ([],         {'config': db_config, 'fn': t.cls_b}),
   'c': (['a', 'b'], {'config': db_config, 'fn': t.cls_c}),
   'd': (['c'],      {'config': db_config, 'coro': t.test_query, 'args': [1]}),
-  'e': (['c'],      {'config': db_config, 'coro': t.test_multi_transaction})
+  'e': (['c'],      {'config': db_config, 'coro': t.test_multi_tasks})
 }
 
 e2 = Engine(name='engine2', tasks=g2)
