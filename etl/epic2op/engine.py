@@ -87,9 +87,10 @@ class Engine():
         df = extract_func(*extract_func_args)
         self.extract_time += (dt.datetime.now() - start)
         return df
-      except aiohttp.client_exceptions.ClientConnectorError:
+      except (aiohttp.client_exceptions.ClientConnectorError,
+              aiohttp.client_exceptions.ClientOSError) as e:
         if attempt < attempts - 1: # need -1 because attempt is 0 indexed
-          logging.info("Caught ClientConnectorError, retrying...")
+          logging.error("Caught {}, retrying...".format(type(e)))
           sleep(10)
           continue
         raise
