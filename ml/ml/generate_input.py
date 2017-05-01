@@ -1,16 +1,14 @@
+import sys
+# sys.path.remove('/home/ubuntu/zad/dashan-db/ml')
+print(sys.path)
 import numpy as np
-from ml import dashan_input
-from constants import Lambda_List
+from ml.dashan_input import InputParams
+from ml.constants import Lambda_List
 import os
 
 def main():
-    lambda_list = Lambda_List[5:]
 
-    # featureOrig_list = np.loadtxt('sepsis_features.csv', delimiter=',', dtype=str,usecols=(0,))
-    # featureOrig_list = list(featureOrig_list)
-    #
-    # conditionalFeatures_list = np.loadtxt('sepsis_features_ckd_gender.csv', delimiter=',', dtype=str,usecols=(0,))
-    # conditionalFeatures_list = list(conditionalFeatures_list)
+    lambda_list = Lambda_List[5:]
 
     impFeatsList = ['pao2'
                     , 'hepatic_sofa'
@@ -92,32 +90,23 @@ def main():
 
     featureConstraints = {'lactate': np.array([0,np.inf])}
 
-    out=dashan_input.InputParams(
+    print("Writing Input")
+
+    this_file = InputParams(
                                 name='train',
-                                dataset_id=int(os.environ['dataset_id']),
+                                dataset_id=1, #int(os.environ['dataset_id']),
                                 adverse_event='severe_sepsis',
                                 lambda_list=lambda_list, feature_list=impFeatsList,featureConstraints=featureConstraints,
-                                numberOfIterations=50, ncpus=8,
-                                evaluationLambdas=[0.008, 0.005, 0.003, 0.001, 0.0008, 0.0005, 0.0003],
+                                numberOfIterations=4, ncpus=8,
+                                evaluationLambdas=[0.008, 0.005, 0.003, 0.001],
                                 sensitivityTargets=[0.85, 0.50, 0.15],
-                                forceRedo=True,
+                                forceRedo=False,
                                 downSampleFactor=50,
-                                # maxNumRows=100000,
-                                ).toPickle()
+                                maxNumRows=100000,
+                                )
+    this_file.to_pickle_file()
+
     print("Complete")
 
 if __name__ == "__main__":
     main()
-
-# subtypes = {
-#     'heart_failure': ['heart_failure_diag', 'heart_failure_hist'],
-#     'heapatic_failure': ['hepatic_failure_inhosp', 'acute_liver_failure'],
-#     'chronic_kidney_disease': ['chronic_kidney_hist', 'esrd_hist', 'esrd_diag', 'esrd_prob', 'renal_insufficiency_hist'],
-#     'met_carcinoma': ['met_carcinoma_hist', 'met_carcinoma_diag'],
-#     'immuno_comp': ['immuno_comp_hist', 'immuno_comp_diag'],
-#     'asthma': ['asthma_hist', 'asthma_diag', 'asthma_prob'],
-#     'bronchiectasis': ['bronchiectasis_hist', 'bronchiectasis_diag', 'bronchiectasis_prob'],
-#     'chronic_airway_obstruction': ['chronic_airway_obstruction_hist', 'chronic_airway_obstruction_diag', 'chronic_airway_obstruction_prob'],
-#     'chronic_bronchitis': ['chronic_bronchitis_hist', 'chronic_bronchitis_diag', 'chronic_bronchitis_prob'],
-#     'emphysema': ['emphysema_hist', 'emphysema_diag', 'emphysema_prob'],
-#     'hypersensitivity_pneumonitis': ['hypersensitivity_pneumonitis_hist',' hypersensitivity_pneumonitis_diag', 'hypersensitivity_pneumonitis_prob']}

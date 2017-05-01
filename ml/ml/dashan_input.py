@@ -1,15 +1,17 @@
 import numpy as np
-from constants import Lambda_List
+from ml.constants import Lambda_List
+import json
 import os
 import pickle
 
 class InputParams(object):
     def __init__(self,
-                        name='ml',
-                        dataset_id=1, model_id='', score_id='', eval_id='',
+                 name='ml',
+                 dataset_id=1, model_id='', score_id='', eval_id='',
                  forceRedo=False,
                  maxNumRows = None, feature_list=None, featureConstraints=None,
-                 numberOfIterations=100, ncpus=25, lambda_list=Lambda_List, downSampleFactor=50,
+                 numberOfIterations=100, ncpus=25, lambda_list=Lambda_List, downSampleFactor=50, population_split_file
+                 =None,
                  testFraction=0.4, adverse_event='septic_shock', censoring_event='cmi',
                  preProcStrat='simple', sensitivityTargets=[0.85], thresholds='',subtypes='', evaluationLambdas=None):
 
@@ -46,10 +48,8 @@ class InputParams(object):
 
         # List of Features To use for these Runs
         if feature_list is None:
-            feature_list = np.loadtxt('sepsis_features.csv', delimiter=',', dtype=str, usecols=(0,))
-            feature_list = list(feature_list)
+            raise(ValueError('No Feature List Passed In'))
         self.feature_list = feature_list
-
         #===============================
         # Train Parameters
         #===============================
@@ -73,6 +73,8 @@ class InputParams(object):
         self.adverse_event = adverse_event
 
         self.censoring_event = censoring_event
+
+        self.population_split_file = population_split_file
         #===============================
         # Score Parameters
         #===============================
@@ -93,9 +95,19 @@ class InputParams(object):
         else:
             self.evaluationLambdas = evaluationLambdas
 
+    def to_json_dict(self):
+        input_dict = self.__dict__
 
+        out_dict = dict()
+        for key, value in input_dict.items():
+            if isinstance(value, str)|isinstance(value, int)|isinstance(value, float)|(value is None):
+                out_dict[key] = value
+            else:
+                out_dict[key] = list(value)
 
-    def toPickle(self, outputFile=None, dir='input/'):
+        return out_dict
+
+    def to_pickle_file(self, outputFile=None, dir='input/'):
         if not os.path.exists(dir):
             os.makedirs(dir)
         if outputFile is None:
