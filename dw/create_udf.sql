@@ -1156,8 +1156,8 @@ BEGIN
       -- dependency between the two calculations.
       --
       with orders_cvalues as (
-        select * from pat_cvalues
-        where pat_cvalues.name in (
+        select * from pat_cvalues CV
+        where CV.name in (
           'initial_lactate_order',
           'blood_culture_order',
           'antibiotics_order',
@@ -1177,6 +1177,8 @@ BEGIN
                cd.override_value as d_ovalue
         from pat_ids
         cross join criteria_default as cd
+        left join severe_sepsis_onsets SSP
+          on pat_ids.pat_id = SSP.pat_id
         left join suspicion_of_infection_buff c
           on pat_ids.pat_id = c.pat_id
           and cd.name = c.name
