@@ -81,8 +81,7 @@ def full_pipe(input_arg):
     #---------------------------
     # Generate report and save to DB
     #---------------------------
-    report = {"inputValues": inputValues}
-    postprocessing.save_report(report)
+    postprocessing.save_report(inputValues)
 
 if __name__ == "__main__":
     input_arg = sys.argv[1]
