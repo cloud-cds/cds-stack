@@ -8,7 +8,8 @@ class Extractor:
   def __init__(self, remote_server, dataset_id, model_id,
                      source_tbl, dest_tbl=None,
                      field_map=None, primary_key=None,
-                     version_extension='dataset'):
+                     version_extension='dataset',
+                     remote_delta_constraint=None, remote_delta_query=None):
     self.remote_server = remote_server
     self.dataset_id = dataset_id
     self.model_id = model_id
@@ -17,6 +18,8 @@ class Extractor:
     self.field_map = field_map
     self.primary_key = primary_key
     self.version_extension = version_extension
+    self.remote_delta_constraint = remote_delta_constraint
+    self.remote_delta_query = remote_delta_query
 
   def version_extension_ids(self):
     if self.version_extension == 'dataset':
@@ -111,12 +114,24 @@ class Extractor:
 
 
   async def load_query(self, pool, src_tbl, src_fields, dst_tbl, dst_fields, dst_key_fields):
+
+    remote_constraint = None
+    if self.remote_delta_query is not None and self.remote_delta_constraint is not None:
+      async with pool.acquire() as conn:
+        threshold = await conn.fetchval(self.remote_delta_query)
+        logging.info('Remote constraint threshold: {}'.format(threshold))
+        remote_constraint = self.remote_delta_constraint % {'delta_threshold': threshold}
+
     non_key_assignments = [[snt[0], 'excluded.{}'.format(dnt[0])] \
                               for snt, dnt in zip(src_fields, dst_fields) if dnt not in dst_key_fields]
 
     remote_query = \
-      'select %(remote_fields)s from %(remote_table)s' \
-        % {'remote_table': src_tbl, 'remote_fields': ', '.join(map(lambda nt: nt[0], src_fields)) }
+      'select %(remote_fields)s from %(remote_table)s %(remote_delta_constraint)s' \
+        % {
+          'remote_table': src_tbl,
+          'remote_fields': ', '.join(map(lambda nt: nt[0], src_fields)),
+          'remote_delta_constraint': remote_constraint if remote_constraint is not None else ''
+        }
 
     version_map = { 'model_id': self.model_id, 'dataset_id': self.dataset_id }
     extension_ids = self.version_extension_ids()

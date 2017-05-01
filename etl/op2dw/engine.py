@@ -43,6 +43,18 @@ tables_to_load = {
   'usr_web_log'              : 'both',
 }
 
+pat_enc_delta = (
+  'where enc_id <= %(delta_threshold)s',
+  "select * from dblink('%s', $opdb$ select max(enc_id) from pat_enc $opdb) as max_enc(enc_id integer)" % remote_server
+)
+
+delta_constraints = {
+  'cdm_s'   : pat_enc_delta,
+  'cdm_t'   : pat_enc_delta,
+  'cdm_twf' : pat_enc_delta,
+  'trews'   : pat_enc_delta
+}
+
 # engine for clarity ETL
 class Engine(object):
   '''
@@ -68,7 +80,14 @@ class Engine(object):
       exit(0)
 
     for tbl, version_type in tables_to_load.items():
-      e = Extractor(remote_server, dataset_id, model_id, tbl, version_extension=version_type)
+      delta_c = None
+      delta_q = None
+      if tbl in delta_constraints:
+        delta_c, delta_q = delta_constraints[tbl]
+
+      e = Extractor(remote_server, dataset_id, model_id, tbl, version_extension=version_type, \
+                    remote_delta_constraint=delta_c, remote_delta_query=delta_q)
+
       await e.run(self.dbpool)
 
 if __name__ == '__main__':
