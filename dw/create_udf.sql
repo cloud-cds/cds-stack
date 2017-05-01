@@ -645,7 +645,7 @@ BEGIN
 END; $func$;
 
 
-CREATE OR REPLACE FUNCTION calculate_criteria_v2(
+CREATE OR REPLACE FUNCTION calculate_criteria(
                 this_pat_id                      text,
                 ts_start                         timestamptz,
                 ts_end                           timestamptz,
@@ -1413,7 +1413,7 @@ BEGIN
         from
           window_ends
           inner join lateral
-          calculate_criteria_v2(coalesce(%s, window_ends.pat_id),
+          calculate_criteria(coalesce(%s, window_ends.pat_id),
                              window_ends.tsp - ''%s''::interval,
                              window_ends.tsp,
                              %s) new_criteria
@@ -2279,7 +2279,7 @@ as $func$ begin
                    else null
               end
             ) as o
-    from calculate_criteria_v2(this_pat_id, ts_start, ts_end, dataset_id) C
+    from calculate_criteria(this_pat_id, ts_start, ts_end, dataset_id) C
     group by C.pat_id, C.severe_sepsis_onset, C.severe_sepsis_wo_infection_onset, C.septic_shock_onset
   ) R
   order by pat_id;
