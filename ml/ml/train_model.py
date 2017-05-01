@@ -10,6 +10,7 @@ from ml import sepsis_functions as func
 from ml.client import DataFrameFactory, DataFrame
 from sklearn import cross_validation
 from ml.preprocessing import getAdverseEventName
+import pandas as pd
 
 def splitTestAndTrainData(inputValues, data_frame_p, left_edge, right_edge):
     model_id = inputValues.model_id
@@ -20,13 +21,22 @@ def splitTestAndTrainData(inputValues, data_frame_p, left_edge, right_edge):
     valid_enc_ids = np.array([int(x) for x in valid_enc_ids])
     valid_enc_ids = valid_enc_ids[~np.isnan(valid_enc_ids)]
 
-    rs = cross_validation.ShuffleSplit(len(valid_enc_ids), n_iter=1, test_size=inputValues.testFraction,
-                                       random_state=0)
-    train_ids = []
-    test_ids = []
-    for train_idx, test_idx in rs:
-        train_ids = valid_enc_ids[train_idx]
-        test_ids = valid_enc_ids[test_idx]
+    if inputValues.population_split_file is None:
+        print("Randomly Splitting Train and Test")
+        rs = cross_validation.ShuffleSplit(len(valid_enc_ids), n_iter=1, test_size=inputValues.testFraction,
+                                           random_state=0)
+        train_ids = []
+        test_ids = []
+        for train_idx, test_idx in rs:
+            train_ids = valid_enc_ids[train_idx]
+            test_ids = valid_enc_ids[test_idx]
+
+    else:
+        print("Using Pre-defined test train split")
+        train_test_split_df = pd.read_csv(inputValues.population_split_file)
+        valid_test_train_split = train_test_split_df[train_test_split_df['enc_id'].apply(lambda x: x in valid_enc_ids)]
+        train_ids = valid_test_train_split[valid_test_train_split['split']=='train']['enc_id']
+        test_ids = valid_test_train_split[valid_test_train_split['split']=='test']['enc_id']
 
     is_train = np.in1d(data_frame_p[:, 'enc_id'], train_ids)
     is_test = np.in1d(data_frame_p[:, 'enc_id'], test_ids)

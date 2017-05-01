@@ -5,11 +5,12 @@ import pickle
 
 class InputParams(object):
     def __init__(self,
-                        name='ml',
-                        dataset_id=1, model_id='', score_id='', eval_id='',
+                 name='ml',
+                 dataset_id=1, model_id='', score_id='', eval_id='',
                  forceRedo=False,
                  maxNumRows = None, feature_list=None, featureConstraints=None,
-                 numberOfIterations=100, ncpus=25, lambda_list=Lambda_List, downSampleFactor=50,
+                 numberOfIterations=100, ncpus=25, lambda_list=Lambda_List, downSampleFactor=50, population_split_file
+                 =None,
                  testFraction=0.4, adverse_event='septic_shock', censoring_event='cmi',
                  preProcStrat='simple', sensitivityTargets=[0.85], thresholds='',subtypes='', evaluationLambdas=None):
 
@@ -73,6 +74,8 @@ class InputParams(object):
         self.adverse_event = adverse_event
 
         self.censoring_event = censoring_event
+
+        self.population_split_file = population_split_file
         #===============================
         # Score Parameters
         #===============================
