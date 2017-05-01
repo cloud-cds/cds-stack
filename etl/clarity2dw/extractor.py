@@ -113,6 +113,8 @@ class Extractor:
     mode = None
     if 'fid' in job:
       fid = job['fid']
+    if 'mode' in job:
+      mode = job['mode']
     await derive_main(self.log, conn, self.cdm_feature_dict, dataset_id = self.config.dataset_id, fid = fid, mode=mode)
     self.log.info("derive completed")
 

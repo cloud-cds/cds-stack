@@ -132,6 +132,8 @@ async def derive_func_driver(fid, fid_category, derive_func_id, derive_func_inpu
           update_expr_params['twf_table'] = twf_table
         if '%(with_ds_s)s' in update_expr:
           update_expr_params['with_ds_s'] = with_ds(dataset_id, table_name='cdm_s')
+        if '%(with_ds_t)s' in update_expr:
+          update_expr_params['with_ds_t'] = with_ds(dataset_id, table_name='cdm_t')
         if '%(with_ds_twf)s' in update_expr:
           update_expr_params['with_ds_twf'] = with_ds(dataset_id, table_name='cdm_twf')
         if update_expr_params:
@@ -156,9 +158,15 @@ async def derive_func_driver(fid, fid_category, derive_func_id, derive_func_inpu
             update_from_params['twf_table'] = twf_table
           if '%(with_ds_twf)s' in config_entry['fid_update_from']:
             update_from_params['with_ds_twf'] = with_ds(dataset_id, table_name='cdm_twf', conjunctive=False)
+          if '%(and_with_ds_twf)s' in config_entry['fid_update_from']:
+            update_from_params['and_with_ds_twf'] = with_ds(dataset_id, table_name='cdm_twf', conjunctive=True)
+          if '%(with_ds_t)s' in config_entry['fid_update_from']:
+            update_from_params['with_ds_t'] = with_ds(dataset_id, table_name='cdm_t', conjunctive=True)
+          if '%(with_ds_ttwf)s' in config_entry['fid_update_from']:
+            update_from_params['with_ds_ttwf'] = with_ds(dataset_id, table_name='cdm_twf') + (' AND cdm_t.dataset_id = cdm_twf.dataset_id' if dataset_id else '')
           update_from = (" FROM " + config_entry['fid_update_from']) % update_from_params
           update_where = " WHERE " + config_entry['fid_update_where'] % {'twf_table': twf_table}
-          update_where += ('' if dataset_id is None else ' and dataset_id = %s' % dataset_id)
+          update_where += ('' if dataset_id is None else ' and dataset_id = %(dataset_id)s' % {'dataset_id': dataset_id})
           update_clause += update_from + update_where
         sql = update_clause
       elif fid_category == 'T':
@@ -407,32 +415,6 @@ derive_config = {
                     ''',
     'fid_c_update_expr': 'coalesce(acute_organ_failure_c,0) | coalesce(sirs_raw_c, 0)',
   },
-  'cmi': {
-    'fid_input_items': ['severe_sepsis', 'fluid_resuscitation', 'vasopressor_resuscitation','fluids_intake_1hr'],
-    'derive_type': 'simple',
-    'fid_update_expr': '''
-                    (CASE
-                    WHEN
-                      (
-                      (fluid_resuscitation is TRUE
-                        or vasopressor_resuscitation is true)
-                      OR fluids_intake_1hr > 250
-                      )
-                      AND
-                      (select bool_or(severe_sepsis) from %(twf_table)s twf
-                         where twf.enc_id = cdm_twf.enc_id
-                         and twf.tsp <= cdm_twf.tsp
-                         and cdm_twf.tsp - twf.tsp < interval '6 hours'
-                      )
-                      THEN TRUE
-                    ELSE FALSE
-                    END)
-                   ''',
-    'fid_c_update_expr': '''cmi_c | coalesce(severe_sepsis_c,0)
-                      | coalesce(fluid_resuscitation_c,0)
-                      | coalesce(vasopressor_resuscitation_c,0)
-                      | coalesce(fluids_intake_1hr_c,0)''',
-  },
   'worst_sofa': {
     'fid_input_items': ['resp_sofa', 'hepatic_sofa', 'hematologic_sofa', 'cardio_sofa', 'neurologic_sofa', 'renal_sofa'],
     'derive_type': 'simple',
@@ -550,14 +532,47 @@ derive_config = {
                       END)
                      ''',
   },
+  'cmi': {
+    'fid_input_items': ['severe_sepsis', 'fluid_resuscitation', 'vasopressor_resuscitation','fluids_intake_1hr'],
+    'derive_type': 'subquery',
+    'fid_update_from': '''
+                      (
+                        select enc_id, tsp from %(twf_table)s cdm_twf
+                         where severe_sepsis
+                         %(and_with_ds_twf)s
+                      ) as subquery
+                    ''',
+    'fid_update_expr': '''
+                    (CASE
+                    WHEN
+                      (
+                      (fluid_resuscitation is TRUE
+                        or vasopressor_resuscitation is true)
+                      OR fluids_intake_1hr > 250
+                      )
+                      AND
+                      (
+                        subquery.tsp <= cdm_twf.tsp
+                        and cdm_twf.tsp - subquery.tsp < interval '6 hours'
+                      )
+                      THEN TRUE
+                    ELSE FALSE
+                    END)
+                   ''',
+    'fid_c_update_expr': '''cmi_c | coalesce(severe_sepsis_c,0)
+                      | coalesce(fluid_resuscitation_c,0)
+                      | coalesce(vasopressor_resuscitation_c,0)
+                      | coalesce(fluids_intake_1hr_c,0)''',
+    'fid_update_where': '''%(twf_table)s.enc_id = subquery.enc_id''',
+  },
   'minutes_since_any_organ_fail': {
     'fid_input_items': ['any_organ_failure'],
     'derive_type': 'subquery',
     'fid_update_from': '''
                         (
                           select enc_id, first(tsp) tsp, first(any_organ_failure_c) c from(
-                            select enc_id, tsp, any_organ_failure_c from %(twf_table)s
-                            where any_organ_failure
+                            select enc_id, tsp, any_organ_failure_c from %(twf_table)s cdm_twf
+                            where any_organ_failure %(and_with_ds_twf)s
                             order by tsp
                             ) as ordered
                           group by ordered.enc_id
@@ -579,8 +594,8 @@ derive_config = {
     'fid_update_from': '''
                         (
                           select enc_id, first(tsp) tsp, first(septic_shock_c) c from(
-                            select enc_id, tsp, septic_shock_c from %(twf_table)s
-                            where septic_shock
+                            select enc_id, tsp, septic_shock_c from %(twf_table)s cdm_twf
+                            where septic_shock %(with_ds_twf)s
                             order by tsp
                             ) as ordered
                           group by ordered.enc_id
@@ -602,7 +617,7 @@ derive_config = {
                         (
                           select enc_id, first(tsp) tsp, first(confidence)::int c from(
                             select enc_id, tsp, confidence from cdm_t
-                            where fid = 'any_antibiotics' and value::boolean
+                            where fid = 'any_antibiotics' and value::boolean %(with_ds_t)s
                             order by tsp
                             ) as ordered
                           group by ordered.enc_id
@@ -631,13 +646,14 @@ derive_config = {
                         (
                             select enc_id,tsp, confidence::int c from cdm_t
                             where
-                              fid = 'any_antibiotics'
+                              (fid = 'any_antibiotics'
                               or fid = 'any_anticoagulant'
                               or fid = 'any_beta_blocker'
                               or fid = 'any_glucocorticoid'
                               or fid = 'any_inotrope'
                               or fid = 'any_pressor'
-                              or fid = 'vent' and value = 'True'
+                              or fid = 'vent' and value = 'True')
+                              %(with_ds_t)s
                         ) as subquery
                       ''',
     'fid_update_expr': '''
@@ -657,19 +673,19 @@ derive_config = {
     'derive_type': 'subquery',
     'fid_update_from': '''
                         (
-                            select twf.enc_id, twf.tsp,
-                            sum(t.value::float) sum_v, max(t.confidence) max_c
-                            from %(twf_table)s twf
-                            inner join cdm_t t
-                            on t.enc_id = twf.enc_id and t.tsp <= twf.tsp
-                            and t.tsp > twf.tsp - interval '3 hours'
-                            and fid = 'fluids_intake'
-                            group by twf.enc_id, twf.tsp
+                            select cdm_twf.enc_id, cdm_twf.tsp,
+                            sum(cdm_t.value::float) sum_v, max(cdm_t.confidence) max_c
+                            from %(twf_table)s cdm_twf
+                            inner join cdm_t
+                            on cdm_t.enc_id = cdm_twf.enc_id and cdm_t.tsp <= cdm_twf.tsp
+                            and cdm_t.tsp > cdm_twf.tsp - interval '3 hours'
+                            and fid = 'fluids_intake' %(with_ds_ttwf)s
+                            group by cdm_twf.enc_id, cdm_twf.tsp
                         ) as subquery
                       ''',
     'fid_update_expr': 'coalesce(subquery.sum_v, 0)',
     'fid_c_update_expr': 'coalesce(subquery.max_c,0)',
-    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id and %(twf_table)s.tsp = subquery.tsp',
+    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id',
     'clean': {'value': 0, 'confidence': 0},
   },
   'fluids_intake_1hr': {
@@ -677,19 +693,19 @@ derive_config = {
     'derive_type': 'subquery',
     'fid_update_from': '''
                         (
-                            select twf.enc_id, twf.tsp,
-                            sum(t.value::float) sum_v, max(t.confidence) max_c
-                            from %(twf_table)s twf
-                            inner join cdm_t t
-                            on t.enc_id = twf.enc_id and t.tsp <= twf.tsp
-                            and t.tsp > twf.tsp - interval '1 hours'
-                            and fid = 'fluids_intake'
-                            group by twf.enc_id, twf.tsp
+                            select cdm_twf.enc_id, cdm_twf.tsp,
+                            sum(cdm_t.value::float) sum_v, max(cdm_t.confidence) max_c
+                            from %(twf_table)s cdm_twf
+                            inner join cdm_t
+                            on cdm_t.enc_id = cdm_twf.enc_id and cdm_t.tsp <= cdm_twf.tsp
+                            and cdm_t.tsp > cdm_twf.tsp - interval '1 hours'
+                            and fid = 'fluids_intake' %(with_ds_ttwf)s
+                            group by cdm_twf.enc_id, cdm_twf.tsp
                         ) as subquery
                       ''',
     'fid_update_expr': 'coalesce(subquery.sum_v, 0)',
     'fid_c_update_expr': 'coalesce(subquery.max_c,0)',
-    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id and %(twf_table)s.tsp = subquery.tsp',
+    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id',
     'clean': {'value': 0, 'confidence': 0},
   },
   'fluids_intake_24hr': {
@@ -697,19 +713,19 @@ derive_config = {
     'derive_type': 'subquery',
     'fid_update_from': '''
                         (
-                            select twf.enc_id, twf.tsp,
-                            sum(t.value::float) sum_v, max(t.confidence) max_c
-                            from %(twf_table)s twf
-                            inner join cdm_t t
-                            on t.enc_id = twf.enc_id and t.tsp <= twf.tsp
-                            and t.tsp > twf.tsp - interval '24 hours'
-                            and fid = 'fluids_intake'
-                            group by twf.enc_id, twf.tsp
+                            select cdm_twf.enc_id, cdm_twf.tsp,
+                            sum(cdm_t.value::float) sum_v, max(cdm_t.confidence) max_c
+                            from %(twf_table)s cdm_twf
+                            inner join cdm_t
+                            on cdm_t.enc_id = cdm_twf.enc_id and cdm_t.tsp <= cdm_twf.tsp
+                            and cdm_t.tsp > cdm_twf.tsp - interval '24 hours'
+                            and fid = 'fluids_intake' %(with_ds_ttwf)s
+                            group by cdm_twf.enc_id, cdm_twf.tsp
                         ) as subquery
                       ''',
     'fid_update_expr': 'coalesce(subquery.sum_v, 0)',
     'fid_c_update_expr': 'coalesce(subquery.max_c,0)',
-    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id and %(twf_table)s.tsp = subquery.tsp',
+    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id',
     'clean': {'value': 0, 'confidence': 0},
   },
   'urine_output_6hr': {
@@ -717,19 +733,19 @@ derive_config = {
     'derive_type': 'subquery',
     'fid_update_from': '''
                         (
-                            select twf.enc_id, twf.tsp,
-                            sum(t.value::float) sum_v, max(t.confidence) max_c
-                            from %(twf_table)s twf
-                            inner join cdm_t t
-                            on t.enc_id = twf.enc_id and t.tsp <= twf.tsp
-                            and t.tsp > twf.tsp - interval '6 hours'
-                            and fid = 'urine_output'
-                            group by twf.enc_id, twf.tsp
+                            select cdm_twf.enc_id, cdm_twf.tsp,
+                            sum(cdm_t.value::float) sum_v, max(cdm_t.confidence) max_c
+                            from %(twf_table)s cdm_twf
+                            inner join cdm_t
+                            on cdm_t.enc_id = cdm_twf.enc_id and cdm_t.tsp <= cdm_twf.tsp
+                            and cdm_t.tsp > cdm_twf.tsp - interval '6 hours'
+                            and fid = 'urine_output' %(with_ds_ttwf)s
+                            group by cdm_twf.enc_id, cdm_twf.tsp
                         ) as subquery
                       ''',
     'fid_update_expr': 'coalesce(subquery.sum_v, 0)',
     'fid_c_update_expr': 'coalesce(subquery.max_c,0)',
-    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id and %(twf_table)s.tsp = subquery.tsp',
+    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id',
     'clean': {'value': 0, 'confidence': 0},
   },
   'urine_output_24hr': {
@@ -737,19 +753,19 @@ derive_config = {
     'derive_type': 'subquery',
     'fid_update_from': '''
                         (
-                            select twf.enc_id, twf.tsp,
-                            sum(t.value::float) sum_v, max(t.confidence) max_c
-                            from %(twf_table)s twf
-                            inner join cdm_t t
-                            on t.enc_id = twf.enc_id and t.tsp <= twf.tsp
-                            and t.tsp > twf.tsp - interval '24 hours'
-                            and fid = 'urine_output'
-                            group by twf.enc_id, twf.tsp
+                            select cdm_twf.enc_id, cdm_twf.tsp,
+                            sum(cdm_t.value::float) sum_v, max(cdm_t.confidence) max_c
+                            from %(twf_table)s cdm_twf
+                            inner join cdm_t
+                            on cdm_t.enc_id = cdm_twf.enc_id and cdm_t.tsp <= cdm_twf.tsp
+                            and cdm_t.tsp > cdm_twf.tsp - interval '24 hours'
+                            and fid = 'urine_output' %(with_ds_ttwf)s
+                            group by cdm_twf.enc_id, cdm_twf.tsp
                         ) as subquery
                       ''',
     'fid_update_expr': 'coalesce(subquery.sum_v, 0)',
     'fid_c_update_expr': 'coalesce(subquery.max_c,0)',
-    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id and %(twf_table)s.tsp = subquery.tsp',
+    'fid_update_where': '%(twf_table)s.enc_id = subquery.enc_id',
     'clean': {'value': 0, 'confidence': 0},
   },
   'any_anticoagulant': {
