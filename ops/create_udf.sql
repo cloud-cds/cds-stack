@@ -858,10 +858,12 @@ END; $func$;
 
 create or replace function after_severe_sepsis_met(this_pat_id text, m_tsp timestamptz, sevsep_is_met boolean, sevsep_lead timestamptz)
     returns table(is_met boolean) language plpgsql as $func$
+DECLARE
+    orders_lookback interval := interval '6 hours';
 BEGIN
     return query select coalesce(bool_or(ss.is_met), false) from (
         select (sevsep_is_met and m_tsp > sevsep_lead) as is_met
-        union all select bool_or(m_tsp > ss.severe_sepsis_lead_time) is_met
+        union all select bool_or(m_tsp > ss.severe_sepsis_lead_time - orders_lookback) is_met
                   from get_states_snapshot(this_pat_id) ss
                   where ss.state >= 20
     ) ss;
