@@ -43,9 +43,11 @@ tables_to_load = {
   'usr_web_log'              : 'both',
 }
 
-delta_thresholds = {
+delta_threshold_queries = {
   'enc_id': "select * from dblink('%s', $opdb$ select max(enc_id) from pat_enc $opdb$) as max_enc(enc_id integer)" % remote_server
 }
+
+delta_thresholds = {}
 
 pat_enc_delta = ( 'where enc_id <= %(delta_threshold)s', 'enc_id' )
 
@@ -81,10 +83,10 @@ class Engine(object):
       exit(0)
 
     # Compute all thresholds up front.
-    for k, query in delta_thresholds.items():
-      async with pool.acquire() as conn:
-        threshold = await conn.fetchval(query)
-        logging.info('Threshold %s: %s' % (k, threshold))
+    for k, query in delta_threshold_queries.items():
+      async with self.dbpool.acquire() as conn:
+        delta_thresholds[k] = await conn.fetchval(query)
+        logging.info('Threshold %s: %s' % (k, delta_thresholds[k]))
 
     for tbl, version_type in tables_to_load.items():
       delta_c = None
