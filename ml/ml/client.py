@@ -156,7 +156,6 @@ class Session():
     def __str__(self):
         this_str = 'dashan/ml session object \n'
         this_str += 'Name : {} \n'.format(self.name)
-        this_str += 'Connection : {} \n'.format(self.db_conn_string)
         return this_str
 
 
