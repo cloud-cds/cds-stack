@@ -43,10 +43,11 @@ tables_to_load = {
   'usr_web_log'              : 'both',
 }
 
-pat_enc_delta = (
-  'where enc_id <= %(delta_threshold)s',
-  "select * from dblink('%s', $opdb$ select max(enc_id) from pat_enc $opdb) as max_enc(enc_id integer)" % remote_server
-)
+delta_thresholds = {
+  'enc_id': "select * from dblink('%s', $opdb$ select max(enc_id) from pat_enc $opdb$) as max_enc(enc_id integer)" % remote_server
+}
+
+pat_enc_delta = ( 'where enc_id <= %(delta_threshold)s', 'enc_id' )
 
 delta_constraints = {
   'cdm_s'   : pat_enc_delta,
@@ -70,7 +71,7 @@ class Engine(object):
 
   async def run(self):
     await self._init_()
-    # extractors to run ETL
+
     logging.info("Running op2dw ETL")
     if 'OP2DW_DATASET_ID' in os.environ and 'OP2DW_MODEL_ID' in os.environ:
       dataset_id = os.environ['OP2DW_DATASET_ID']
@@ -79,14 +80,21 @@ class Engine(object):
       print("OP2DW_MODEL_ID or OP2DW_DATASET_ID is missing")
       exit(0)
 
+    # Compute all thresholds up front.
+    for k, query in delta_thresholds.items():
+      async with pool.acquire() as conn:
+        threshold = await conn.fetchval(query)
+        logging.info('Threshold %s: %s' % (k, threshold))
+
     for tbl, version_type in tables_to_load.items():
       delta_c = None
       delta_q = None
       if tbl in delta_constraints:
-        delta_c, delta_q = delta_constraints[tbl]
+        delta_c, delta_threshold_id = delta_constraints[tbl]
+        delta_c = delta_c % { 'delta_threshold': delta_thresholds[delta_threshold_id] }
 
-      e = Extractor(remote_server, dataset_id, model_id, tbl, version_extension=version_type, \
-                    remote_delta_constraint=delta_c, remote_delta_query=delta_q)
+      e = Extractor(remote_server, dataset_id, model_id, tbl, \
+                    version_extension=version_type, remote_delta_constraint=delta_c)
 
       await e.run(self.dbpool)
 
