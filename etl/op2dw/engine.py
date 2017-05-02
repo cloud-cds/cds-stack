@@ -49,7 +49,7 @@ delta_threshold_queries = {
 
 delta_thresholds = {}
 
-pat_enc_delta = ( 'where enc_id <= %(delta_threshold)s', 'enc_id' )
+pat_enc_delta = ( 'where enc_id <= %(enc_id)s', ['enc_id'] )
 
 delta_constraints = {
   'cdm_s'   : pat_enc_delta,
@@ -92,8 +92,9 @@ class Engine(object):
       delta_c = None
       delta_q = None
       if tbl in delta_constraints:
-        delta_c, delta_threshold_id = delta_constraints[tbl]
-        delta_c = delta_c % { 'delta_threshold': delta_thresholds[delta_threshold_id] }
+        delta_c, sub_ids = delta_constraints[tbl]
+        substitutions = {sid: delta_thresholds[sid] for sid in sub_ids}
+        delta_c = delta_c % substitutions
 
       e = Extractor(remote_server, dataset_id, model_id, tbl, \
                     version_extension=version_type, remote_delta_constraint=delta_c)
