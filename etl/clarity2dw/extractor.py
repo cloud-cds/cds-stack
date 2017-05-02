@@ -299,7 +299,7 @@ class Extractor:
       conjunctive='and' if 'where' in where_clause.lower() else 'where', tsp=tsp
       , min_tsp=self.min_tsp) if tsp else ''
     if 'where' in where_clause.lower():
-      where_clause = 'WHERE (' + where_clause[5:] + ')'
+      where_clause = 'WHERE (' + where_clause.strip()[5:] + ')'
     return where_clause + min_tsp_sql
 
   def get_tsp_name(self, select_clause):
