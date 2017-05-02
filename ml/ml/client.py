@@ -5,7 +5,7 @@ import numpy as np
 import csv
 import datetime
 from config import Config
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 
 class DataFrameFactory():
     def load_csv(self, fname):
@@ -152,6 +152,11 @@ class Session():
     def disconnect(self):
         if self.conn:
             self.conn.close()
+
+    def __str__(self):
+        this_str = 'dashan/ml session object \n'
+        this_str += 'Name : {} \n'.format(self.name)
+        return this_str
 
 
     """ operations for clients """
@@ -575,6 +580,6 @@ class Session():
 
     def insert_report(self, report_string):
         sql = """
-        INSERT INTO model_training_report VALUES ({}, now());
+        INSERT INTO model_training_report (report, create_at) VALUES ('{}', now());
         """
-        self.conn.execute(sql.format(report_string))
+        self.conn.execute(text(sql.format(report_string)))

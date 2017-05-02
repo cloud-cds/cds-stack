@@ -757,7 +757,7 @@ CREATE TABLE usr_web_log (
 DROP TABLE IF EXISTS model_training_report;
 CREATE TABLE model_training_report (
     report_id       serial PRIMARY KEY,
-    report              json,
+    report          json,
     create_at       timestamptz
 );
 
