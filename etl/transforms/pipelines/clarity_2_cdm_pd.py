@@ -8,6 +8,15 @@ from etl.load.primitives.row import load_row
 import etl.transforms.primitives.df.filter_rows as filter_rows
 from etl.clarity2dw.extractor import log_time
 import timeit
+import os
+
+
+def get_min_tsp(tsp_name):
+  if 'min_tsp' in os.environ:
+      min_tsp = os.environ['min_tsp']
+      return ''' and "{tsp}"::timestamptz > '{min_tsp}'::timestamptz'''.format(tsp=tsp_name, min_tsp=min_tsp)
+  else:
+    return ''
 
 #============================
 # Utilities
@@ -15,16 +24,18 @@ import timeit
 async def pull_med_orders(connection, dataset_id, log, is_plan):
   start = timeit.default_timer()
   log.info('Entered Med Orders Extraction')
-
-  mo = await async_read_df("""select pe.enc_id, mo."ORDER_INST", mo."display_name", mo."MedUnit",mo."Dose"
+  sql = """select pe.enc_id, mo."ORDER_INST", mo."display_name", mo."MedUnit",mo."Dose"
                                from "OrderMed" mo
                                inner join
                                pat_enc pe
-                               on mo."CSN_ID"::text=pe.visit_id and pe.dataset_id = {}
-                              ;""".format(dataset_id), connection)
+                               on mo."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp}
+                              ;""".format(dataset_id=dataset_id, min_tsp=get_min_tsp("ORDER_INST"))
+  log.info(sql)
+  mo = await async_read_df(sql, connection)
   if mo is None:
       return
   extracted = mo.shape[0]
+
   mo = restructure.select_columns(mo, {'enc_id': 'enc_id',
                                        'ORDER_INST':'tsp',
                                        'display_name': 'full_name',
@@ -59,13 +70,9 @@ async def pull_med_orders(connection, dataset_id, log, is_plan):
                              'gentamicin_dose', 'azithromycin_dose'],keep_originals=False)
 
   mo = format_data.threshold_values(mo, 'dose')
-
   mo = mo.loc[mo['fid'].apply(lambda x: x in ['cms_antibiotics', 'crystalloid_fluid', 'vasopressors_dose'])]
-
   mo['fid'] += '_order'
-
   mo['confidence'] = 2
-
   if not is_plan:
     for idx, row in mo.iterrows():
       await load_row.upsert_t(connection,
@@ -81,8 +88,7 @@ async def pull_med_orders(connection, dataset_id, log, is_plan):
 async def pull_medication_admin(connection, dataset_id, log, is_plan):
   start = timeit.default_timer()
   log.info('Entering Medication Administrtaion Processing')
-
-  ma = await async_read_df("""select pe.enc_id, ma.display_name,
+  sql = """select pe.enc_id, ma.display_name,
                                   ma."Dose", ma."MedUnit",
                                   ma."INFUSION_RATE", ma."MAR_INF_RATE_UNIT",
                                   ma."TimeActionTaken"
@@ -90,7 +96,9 @@ async def pull_medication_admin(connection, dataset_id, log, is_plan):
                               "MedicationAdministration"  ma
                               inner join
                               pat_enc pe
-                              on ma."CSN_ID"::text=pe.visit_id and pe.dataset_id = {}""".format(dataset_id),connection)
+                              on ma."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp}""".format(dataset_id=dataset_id, min_tsp=get_min_tsp("TimeActionTaken"))
+  log.info(sql)
+  ma = await async_read_df(sql,connection)
 
   if ma is None:
     return
@@ -145,14 +153,16 @@ async def pull_medication_admin(connection, dataset_id, log, is_plan):
 async def bands(connection, dataset_id, log, is_plan):
   log.info("Entering bands Processing")
   start = timeit.default_timer()
-  labs = await async_read_df("""select pe.enc_id, lb."NAME" ,
+  sql = """select pe.enc_id, lb."NAME" ,
                                 lb."ResultValue", lb."RESULT_TIME"
                                 from
                                   "Labs_643"  lb
                                 inner join
                                   pat_enc pe
-                                on lb."CSN_ID"::text=pe.visit_id and pe.dataset_id = {}
-                                WHERE "NAME"='BANDS';""".format(dataset_id),connection)
+                                on lb."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp}
+                                WHERE "NAME"='BANDS';""".format(dataset_id=dataset_id, min_tsp=get_min_tsp("RESULT_TIME"))
+  log.info(sql)
+  labs = await async_read_df(sql,connection)
   if labs is None:
     return
   extracted = labs.shape[0]
@@ -182,14 +192,16 @@ async def pull_order_procs(connection, dataset_id, log, is_plan):
   log.info("Entering order procs Processing")
   start = timeit.default_timer()
   extracted = 0
-  op = await async_read_df("""select pe.enc_id,
+  sql = """select pe.enc_id,
                               op."CSN_ID",op."proc_name", op."ORDER_TIME", op."OrderStatus", op."LabStatus",
                               op."PROC_START_TIME",op."PROC_ENDING_TIME"
                               from
                                 "OrderProcs"  op
                               inner join
                                 pat_enc pe
-                              on op."CSN_ID"::text=pe.visit_id and pe.dataset_id = {};""".format(dataset_id),connection)
+                              on op."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp};""".format(dataset_id=dataset_id, min_tsp=get_min_tsp("ORDER_TIME"))
+  log.info(sql)
+  op = await async_read_df(sql,connection)
   if op is None:
       return
   lp_map = await async_read_df("""SELECT * FROM lab_proc_dict;""", connection)

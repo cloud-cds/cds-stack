@@ -49,8 +49,8 @@ job = {
     'populate_patients': True,
     'populate_measured_features': {
       'plan': False,
-      # 'fid': ['fluids_intake'],
-      'nproc': int(os.environ['nproc']), #8,
+  #    # 'fid': ['fluids_intake'],
+      'nproc': int(os.environ['nproc']), #8
     },
   },
   'fillin': {
@@ -58,6 +58,7 @@ job = {
   },
   'derive': {
     'fid': None,
+    'mode': None,
   },
   'offline_criteria_processing': {
     'load_cdm_to_criteria_meas':True,
@@ -66,8 +67,8 @@ job = {
   'config': {
     'dataset_id': int(os.environ['dataset_id']),
     'debug': True,
-    # 'db_name': 'test_c2dw', #'opsdx_dev_dw',
-    # 'db_host': 'db.dev.opsdx.io',
+    #'db_name': 'opsdx_dev_dw',
+    #'db_host': 'dw.dev.opsdx.io',
     'conf': CONF,
   },
 }

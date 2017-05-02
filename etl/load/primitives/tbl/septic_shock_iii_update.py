@@ -22,7 +22,7 @@ async def septic_shock_iii_update(fid, fid_input, conn, log, dataset_id = None, 
     await conn.execute(update_clause)
 
     update_clause = """
-    update %(twf_table)s set septic_shock_iii=value  from (select c1.enc_id, c1.tsp, 2 as value , c2.lactate_c|c2.hypotension_intp_c confidence from (select enc_id, tsp, qsofa, worst_sofa, lactate, fluid_resuscitation, vasopressor_resuscitation, hypotension_intp, lactate_c, hypotension_intp_c from %(twf_table)s ) c1
+    update %(twf_table)s set septic_shock_iii=value  from (select c1.enc_id, c1.tsp, 2 as value , c2.lactate_c|c2.hypotension_intp_c confidence from (select enc_id, tsp, qsofa, worst_sofa, lactate, fluid_resuscitation, vasopressor_resuscitation, hypotension_intp, lactate_c, hypotension_intp_c from %(twf_table)s %(dataset_where_block)s) c1
     join (select enc_id, tsp, qsofa, worst_sofa, lactate, fluid_resuscitation, vasopressor_resuscitation, hypotension_intp, lactate_c, hypotension_intp_c from %(twf_table)s %(dataset_where_block)s ) c2
     on c1.enc_id=c2.enc_id and c2.tsp <=c1.tsp and c2.tsp >= c1.tsp - interval '6 hours'
     where c2.qsofa >= 2 and c2.worst_sofa >= 2 and c2.lactate >2 and c2.lactate_c < 24
