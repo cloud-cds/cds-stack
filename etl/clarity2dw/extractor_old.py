@@ -314,12 +314,12 @@ class Extractor:
             # print "cur events temp:", cur_med_events
             cur_med_events.append(row)
             # print "cur events:", cur_med_events
-        if cur_enc_id is not None and cur_med_id is not None:
-          # process cur_med_events
-          len_of_events = len(cur_med_events)
-          if len_of_events > 0:
-            line += len_of_events
-            await self.process_med_events(cur_enc_id, cur_med_id,
+          if cur_enc_id is not None and cur_med_id is not None:
+            # process cur_med_events
+            len_of_events = len(cur_med_events)
+            if len_of_events > 0:
+              line += len_of_events
+              await self.process_med_events(cur_enc_id, cur_med_id,
                         cur_med_events, fid_info, mapping,
                         conn)
     return line

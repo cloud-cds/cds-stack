@@ -31,7 +31,6 @@ def log_time(log, name, start, extracted, loaded):
     log.info(\
       'STATS: %s valid rows extraced for %s %s s' \
         % (extracted, name, duration))
-  log.info('loaded {} row(s)'.format(loaded))
   if loaded == 0:
     log.warn(\
       'STATS: Zero row loaded in CDM for %s %s s' \
@@ -92,34 +91,39 @@ class Extractor:
       ''' % {'dataset_id': self.dataset_id}
     if 'start_enc_id' in reset_job:
       reset_sql += "select setval('pat_enc_enc_id_seq', %s);" % reset_job['start_enc_id']
-    ctxt.log.info("ETL init sql: " + reset_sql)
-    result = await conn.execute(reset_sql)
-    ctxt.log.info("ETL Init: " + result)
+    if reset_sql:
+      ctxt.log.info("ETL init sql: " + reset_sql)
+      result = await conn.execute(reset_sql)
+      ctxt.log.info("ETL Init: " + result)
     return None
 
   async def populate_patients(self, ctxt, _):
-    async with ctxt.db_pool.acquire() as conn:
-      populate_patients_job = self.job['transform']['populate_patients']
-      limit = populate_patients_job.get('limit', None)
-      sql = '''
-      insert into pat_enc (dataset_id, visit_id, pat_id)
-      SELECT %(dataset_id)s, demo."CSN_ID" visit_id, demo."pat_id"
-      FROM "Demographics" demo left join pat_enc pe on demo."CSN_ID"::text = pe.visit_id::text and pe.dataset_id = %(dataset_id)s
-      where pe.visit_id is null %(limit)s
-      ''' % {'dataset_id': self.dataset_id, 'limit': 'limit {}'.format(limit) if limit else ''}
-      ctxt.log.debug("ETL populate_patients sql: " + sql)
-      result = await conn.execute(sql)
-      ctxt.log.info("ETL populate_patients: " + result)
-      return result
+    if self.job.get('transform', False):
+      if self.job.get('transform').get('populate_patients', False):
+        async with ctxt.db_pool.acquire() as conn:
+          populate_patients_job = self.job['transform']['populate_patients']
+          limit = populate_patients_job.get('limit', None)
+          sql = '''
+          insert into pat_enc (dataset_id, visit_id, pat_id)
+          SELECT %(dataset_id)s, demo."CSN_ID" visit_id, demo."pat_id"
+          FROM "Demographics" demo left join pat_enc pe on demo."CSN_ID"::text = pe.visit_id::text and pe.dataset_id = %(dataset_id)s
+          where pe.visit_id is null %(limit)s
+          ''' % {'dataset_id': self.dataset_id, 'limit': 'limit {}'.format(limit) if limit else ''}
+          ctxt.log.debug("ETL populate_patients sql: " + sql)
+          result = await conn.execute(sql)
+          ctxt.log.info("ETL populate_patients: " + result)
+          return result
 
   async def transform_init(self, ctxt, _):
-    async with ctxt.db_pool.acquire() as conn:
-      ctxt.log.info("Using Feature Mapping:")
-      pat_mappings = await self.get_pat_mapping(conn)
-      self.visit_id_to_enc_id = pat_mappings['visit_id_to_enc_id']
-      self.pat_id_to_enc_ids = pat_mappings['pat_id_to_enc_ids']
-      ctxt.log.info("loaded feature and pat mapping")
-      return pat_mappings
+    if self.job.get('transform', False):
+      if self.job.get('transform').get('populate_measured_features', False):
+        async with ctxt.db_pool.acquire() as conn:
+          ctxt.log.info("Using Feature Mapping:")
+          pat_mappings = await self.get_pat_mapping(conn)
+          self.visit_id_to_enc_id = pat_mappings['visit_id_to_enc_id']
+          self.pat_id_to_enc_ids = pat_mappings['pat_id_to_enc_ids']
+          ctxt.log.info("loaded feature and pat mapping")
+          return pat_mappings
 
   async def get_pat_mapping(self, conn):
     sql = "select * from pat_enc where dataset_id = %s" % self.dataset_id
@@ -139,54 +143,65 @@ class Extractor:
 
   def get_transform_tasks(self):
     mapping_list = self.feature_mapping.to_dict('records')
-    l = len(mapping_list)
-    # Try divide by half
-    transform_tasks = self.partition(mapping_list, 8)
+    nprocs = 1
+    if self.job.get('transform', False):
+      nprocs = int(self.job.get('transform').get('nprocs', nprocs))
+    transform_tasks = self.partition(mapping_list,  nprocs)
     return transform_tasks
 
-  def partition(self, lst, n, random_shuffle=False):
-    # if random_shuffle:
-    #   random.shuffle(lst)
-    # division = len(lst) / n
-    # return [lst[round(division * i):round(division * (i + 1))] for i in range(n)]
+  def partition(self, lst, n, random_shuffle=True):
+    if random_shuffle:
+      random.shuffle(lst)
+    division = len(lst) // n
+    return [lst[division * i:division * (i + 1)] for i in range(n)]
 
-    # TEST CASES
-    lst_vent = None
-    lst_med = None
-    lst_bands = None
-    for item in lst:
-      if item['fid(s)'] == 'vent':
-        lst_vent = item
-      if item['fid(s)'] == 'ampicillin_dose':
-        lst_med = item
-      if item['fid(s)'] == 'bands':
-        lst_bands = item
-      if item['fid(s)'] == 'heart_rate':
-        lst_heart_rate = item
-      if item['fid(s)'] == 'co2':
-        lst_co2 = item
-      if item['fid(s)'] == 'spo2':
-        lst_spo2 = item
-    return [ [lst[0], lst[2], lst_med, lst_bands, lst_spo2, lst_heart_rate], [lst[1], lst[3], lst_vent, lst_co2]]
-    # return [ [lst[0]] ]#, lst[2], lst_med, lst_bands]]
+    # # TEST CASE B
+    # lst = lst[:40]
+    # division = len(lst) // n
+    # return [lst[division * i:division * (i + 1)] for i in range(n)]
+
+    # # TEST CASE A
+    # lst_vent = None
+    # lst_med = None
+    # lst_bands = None
+    # for item in lst:
+    #   if item['fid(s)'] == 'vent':
+    #     lst_vent = item
+    #   if item['fid(s)'] == 'aclidinium_dose':
+    #     lst_med = item
+    #   if item['fid(s)'] == 'bands':
+    #     lst_bands = item
+    #   if item['fid(s)'] == 'heart_rate':
+    #     lst_heart_rate = item
+    #   if item['fid(s)'] == 'co2':
+    #     lst_co2 = item
+    #   if item['fid(s)'] == 'spo2':
+    #     lst_spo2 = item
+    #   if item['fid(s)'] == 'uti_approx':
+    #     lst_approx = item
+    #   if item['fid(s)'] == 'hematocrit':
+    #     lst_hematocrit = item
+    # return [ [lst[0], lst[2], lst_hematocrit, lst_med, lst_bands, lst_spo2, lst_heart_rate], [lst[1], lst[3], lst_approx, lst_vent, lst_co2]]
+    # # return [ [lst[0]] ]#, lst[2], lst_med, lst_bands]]
 
   async def run_transform_task(self, ctxt, pat_mappings, task):
-    self.visit_id_to_enc_id = pat_mappings['visit_id_to_enc_id']
-    self.pat_id_to_enc_ids = pat_mappings['pat_id_to_enc_ids']
-    futures = []
-    async with ctxt.db_pool.acquire() as conn:
-        await self.query_cdm_feature_dict(conn)
-    for mapping_row in task:
-      futures.extend(self.run_feature_mapping_row(ctxt, mapping_row))
-    ctxt.log.info("run_transform_task futures: {}".format(futures))
-    done, _ = await asyncio.wait(futures)
-    for future in done:
-      ctxt.log.info("run_transform_task completed: {}".format(future.result()))
+    if self.job.get('transform', False):
+      if self.job.get('transform').get('populate_measured_features', False):
+        self.visit_id_to_enc_id = pat_mappings['visit_id_to_enc_id']
+        self.pat_id_to_enc_ids = pat_mappings['pat_id_to_enc_ids']
+        futures = []
+        async with ctxt.db_pool.acquire() as conn:
+            await self.query_cdm_feature_dict(conn)
+        for mapping_row in task:
+          futures.extend(self.run_feature_mapping_row(ctxt, mapping_row))
+        ctxt.log.info("run_transform_task futures: {}".format(', '.join([m['fid(s)'] for m in task])))
+        done, _ = await asyncio.wait(futures)
+        for future in done:
+          ctxt.log.info("run_transform_task completed: {}".format(future.result()))
     return None
 
   def run_feature_mapping_row(self, ctxt, mapping_row):
     log = ctxt.log
-    log.info("run_feature_mapping_row {}".format(mapping_row['fid(s)']))
     fids = mapping_row['fid(s)']
     fids = [fid.strip() for fid in fids.split(',')] if ',' in fids else [fids]
     # fid validation check
@@ -238,7 +253,7 @@ class Extractor:
     category = cdm_feature_attributes['category']
     is_no_add = bool(mapping['is_no_add'] == "yes")
     is_med_action = bool(mapping['is_med_action'] == "yes")
-    log.info('importing feature value fid %s, transform func: %s, is_no_add: %s, is_med_action: %s' \
+    log.info('loading feature value fid %s, transform func: %s, is_no_add: %s, is_med_action: %s' \
       % (fid, transform_func_id, is_no_add, is_med_action))
     if str(transform_func_id) == 'nan':
       transform_func_id = None
@@ -313,16 +328,14 @@ class Extractor:
                 cur_enc_id = enc_id
                 cur_med_id = med_id
                 cur_med_events = []
-                # print "cur events temp:", cur_med_events
-                cur_med_events.append(row)
-                # print "cur events:", cur_med_events
-            if cur_enc_id is not None and cur_med_id is not None:
-              # process cur_med_events
-              len_of_events = len(cur_med_events)
-              if len_of_events > 0:
-                loaded_rows += await self.process_med_events(log, cur_enc_id, cur_med_id,
-                            cur_med_events, fid_info, mapping,
-                            conn)
+              # print "cur events temp:", cur_med_events
+              cur_med_events.append(row)
+              # print("cur events:", cur_med_events)
+        if cur_enc_id is not None and cur_med_id is not None:
+          # process  last cur_med_events
+          len_of_events = len(cur_med_events)
+          if len_of_events > 0:
+            loaded_rows += await self.process_med_events(log, cur_enc_id, cur_med_id, cur_med_events, fid_info, mapping, conn)
             if loaded_rows > 0 and loaded_rows % 5000 == 0:
               log.info('loaded {rows} rows for fid {fid}'.format(rows=loaded_rows, fid=fid))
       log_time(log, fid, start, extracted_rows, loaded_rows)
@@ -371,7 +384,7 @@ class Extractor:
 
 
 
-  async def populate_stateless_features(self, ctxt, mapping, fid, transform_func_id, data_type, category, is_no_add, num_fetch=1000):
+  async def populate_stateless_features(self, ctxt, mapping, fid, transform_func_id, data_type, category, is_no_add, num_fetch=10000):
     # process features unrelated to med actions
     log = ctxt.log
     sql = self.get_feature_sql_query(log, mapping)
@@ -386,47 +399,51 @@ class Extractor:
       pat_id_based = 'pat_id' in mapping['select_cols']
       async with ctxt.db_pool.acquire() as conn:
         async with conn.transaction():
-          cur = await conn.cursor(sql)
-          rows = await cur.fetch(num_fetch)
-          while rows:
-            extracted_rows += len(rows)
-            log.info('extracted {rows} rows for fid {fid}'.format(rows=extracted_rows, fid=fid))
-            loading_list = []
-            # transform
-            for row in rows:
-              enc_ids = None
-              if pat_id_based:
-                  if str(row['pat_id']) in self.pat_id_to_enc_ids:
-                    enc_ids = self.pat_id_to_enc_ids[str(row['pat_id'])]
-              elif str(row['visit_id']) in self.visit_id_to_enc_id:
-                  enc_ids = [self.visit_id_to_enc_id[str(row['visit_id'])]]
-              if enc_ids is None:
-                  log.warn("populate_stateless_features {}: Unknow patient information".format(fid))
-              else:
-                for enc_id in enc_ids:
-                  transformed = transform.transform(fid, transform_func_id, row, data_type, log)
-                  if transformed is not None:
-                    loading_list.append((enc_id, row, transformed))
-            # loading
-            attempts = 0
-            while True:
-              try:
-                async with ctxt.db_pool.acquire() as cdm_conn:
-                  async with cdm_conn.transaction():
-                    for loading in loading_list:
-                      loaded_rows += await self.load_cdm(fid, category, loading[0], loading[1], loading[2], cdm_conn, is_no_add)
-                    if loaded_rows > 0 and loaded_rows % num_fetch == 0:
-                      log.info('loaded {rows} rows for fid {fid}'.format(rows=loaded_rows, fid=fid))
-                break
-              except Exception as e:
-                attempts += 1
-                log.warn("PSQL Error %s %s" % (fid, e))
-                log.info("Transaction retry attempts: {} times for {}".format(attempts, fid))
-                time.sleep(PSQL_WAIT_IN_SECS * (attempts if attempts < TRANSACTION_RETRY else TRANSACTION_RETRY))
-                if attempts == TRANSACTION_RETRY:
-                  log.error("Transaction retry failed {}".format(fid))
-                continue
-            rows = await cur.fetch(num_fetch)
+          async for row in conn.cursor(sql):
+            extracted_rows += 1
+            if extracted_rows % num_fetch == 0:
+              log.info('extracted {rows} rows for fid {fid}'.format(rows=extracted_rows, fid=fid))
+            # transform & loading
+            enc_ids = None
+            if pat_id_based:
+                if str(row['pat_id']) in self.pat_id_to_enc_ids:
+                  enc_ids = self.pat_id_to_enc_ids[str(row['pat_id'])]
+            elif str(row['visit_id']) in self.visit_id_to_enc_id:
+                enc_ids = [self.visit_id_to_enc_id[str(row['visit_id'])]]
+            if enc_ids:
+              for enc_id in enc_ids:
+                transformed = transform.transform(fid, transform_func_id, row, data_type, log)
+                # if transformed is not None:
+                #   loading_list.append((enc_id, row, transformed))
+                # loading
+                # await cdm_conn.execute("LOCK cdm_twf IN EXCLUSIVE MODE")
+                # for loading in loading_list:
+                if transformed is not None:
+                  loaded_rows += await self.load_cdm(fid, category, enc_id, row, transformed, conn, is_no_add)
+                  if loaded_rows > 0 and loaded_rows % num_fetch == 0:
+                    log.info('loaded {rows} rows for fid {fid}'.format(rows=loaded_rows, fid=fid))
+            else:
+              log.warn("populate_stateless_features {}: Unknow patient information".format(fid))
+            # attempts = 0
+            # while True:
+            #   try:
+            #     async with ctxt.db_pool.acquire() as cdm_conn:
+            #       async with cdm_conn.transaction():
+            #         # await cdm_conn.execute("LOCK cdm_twf IN EXCLUSIVE MODE")
+            #         for loading in loading_list:
+            #           loaded_rows += await self.load_cdm(fid, category, loading[0], loading[1], loading[2], cdm_conn, is_no_add)
+            #         if loaded_rows > 0 and loaded_rows % num_fetch == 0:
+            #           log.info('loaded {rows} rows for fid {fid}'.format(rows=loaded_rows, fid=fid))
+            #     break
+            #   except Exception as e:
+            #     attempts += 1
+            #     log.warn("PSQL Error %s %s" % (fid, e))
+            #     log.info("Transaction retry attempts: {} times for {}".format(attempts, fid))
+            #     time.sleep(PSQL_WAIT_IN_SECS * (attempts if attempts < TRANSACTION_RETRY else TRANSACTION_RETRY))
+            #     if attempts == TRANSACTION_RETRY:
+            #       log.error("Transaction retry failed {}".format(fid))
+            #     continue
+            # rows = await cur.fetch(num_fetch)
       log_time(log, fid, start, extracted_rows, loaded_rows)
       return mapping
 
@@ -519,7 +536,7 @@ class Extractor:
           await load_row.upsert_s(conn, [enc_id, fid, str(value), confidence], dataset_id = self.dataset_id)
         else:
           await load_row.add_s(conn, [enc_id, fid, str(value), confidence], dataset_id = self.dataset_id)
-      elif category == 'T':
+      elif category == 'T' or category == 'TWF':
         if tsp is None:
           if len(row) >= 4:
             tsp = row[2]
@@ -530,15 +547,42 @@ class Extractor:
             await load_row.upsert_t(conn, [enc_id, tsp, str(fid), str(value), confidence], dataset_id = self.dataset_id)
           else:
             await load_row.add_t(conn, [enc_id, tsp, str(fid), str(value), confidence], dataset_id = self.dataset_id)
-      elif category == 'TWF':
-        if tsp is None:
-          if len(row) >= 4:
-            tsp = row[2]
-          else:
-            tsp = row[1]
-        if is_no_add:
-          await load_row.upsert_twf(conn, [enc_id, tsp, fid, value, confidence], dataset_id = self.dataset_id)
-        else:
-          await load_row.add_twf(conn, [enc_id, tsp, fid, value, confidence], dataset_id = self.dataset_id)
+      # elif category == 'TWF':
+      #   if tsp is None:
+      #     if len(row) >= 4:
+      #       tsp = row[2]
+      #     else:
+      #       tsp = row[1]
+      #   if is_no_add:
+      #     await load_row.upsert_twf(conn, [enc_id, tsp, fid, value, confidence], dataset_id = self.dataset_id)
+      #   else:
+      #     await load_row.add_twf(conn, [enc_id, tsp, fid, value, confidence], dataset_id = self.dataset_id)
       rows += 1
     return rows
+
+
+  async def run_fillin(self, ctxt, *args):
+    if self.job.get('fillin', False):
+      log = ctxt.log
+      log.info("start fillin pipeline")
+      # we run the optimized fillin in one run, e.g., update set all columns
+      fillin_sql = '''
+      WITH twf_fids as (
+        select array_agg(fid)::text[] as arr from cdm_feature where dataset_id = {dataset_id} and is_measured and category = 'TWF'
+      )
+      SELECT * from load_cdm_twf_from_cdm_t(
+            (select arr from twf_fids),
+            'cdm_twf'::text, {dataset_id}
+      )
+      ;
+      WITH twf_fids as (
+        select array_agg(fid)::text[] as arr from cdm_feature where dataset_id = {dataset_id} and is_measured and category = 'TWF'
+      )
+      SELECT * from last_value_in_window(
+        (select arr from twf_fids), 'cdm_twf'::text, {dataset_id})
+      '''.format(dataset_id=self.dataset_id)
+      log.info("fillin sql: {}".format(fillin_sql))
+      async with ctxt.db_pool.acquire() as conn:
+        result = await conn.execute(fillin_sql)
+        log.info(result)
+      log.info("fillin completed")

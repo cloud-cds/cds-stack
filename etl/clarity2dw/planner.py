@@ -24,6 +24,7 @@ job_config = {
     },
     'populate_measured_features': {
       'fid': None,
+      'nprocs': 8,
     },
   },
   'fillin': {
@@ -86,6 +87,7 @@ class Planner():
       'populate_patients': (['extract_init'], {'config': db_config, 'coro': self.extractor.populate_patients}),
     }
     self.generate_transform_plan()
+    self.generate_fillin_plan()
     self.log.info("plan is ready")
     return self.plan
 
@@ -102,6 +104,14 @@ class Planner():
                                   'coro': self.extractor.run_transform_task,
                                   'args': [transform_task]
                                   })})
+
+  def generate_fillin_plan(self):
+    transform_tasks = [task for task in self.plan if task.startswith('transform_task_')]
+    self.plan.update({'fillin': (transform_tasks,
+                                {
+                                  'config': db_config,
+                                  'coro': self.extractor.run_fillin,
+                                })})
 
   def start_engine(self):
     self.log.info("start job in the engine")
