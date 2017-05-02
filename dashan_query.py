@@ -6,13 +6,14 @@ import json
 import datetime
 import logging
 import pytz
+import requests
 
 from jhapi_io import Loader
 
 logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.INFO)
 
 epic_notifications = os.environ['epic_notifications']
-client_id = os.environ['jhapi_client_id'],
+client_id = os.environ['jhapi_client_id']
 client_secret = os.environ['jhapi_client_secret']
 
 
@@ -398,7 +399,14 @@ async def push_notifications_to_epic(db_pool, eid):
             'notifications': n['count']
         } for n in notifications]
         loader = Loader('prod', client_id, client_secret)
-        loader.load_notifications(patients)
+        responses = loader.load_notifications(patients)
+
+        for pt, response in zip(patients, responses):
+          if response is None:
+            logging.error('Failed to push notifications: %s %s %s' % (pt['pat_id'], pt['visit_id'], pt['notifications']))
+          elif response.status_code != requests.codes.ok:
+            logging.error('Failed to push notifications: %s %s %s HTTP %s' % (pt['pat_id'], pt['visit_id'], pt['notifications'], response.status_code))
+
       else:
         logging.info("no notifications")
 
