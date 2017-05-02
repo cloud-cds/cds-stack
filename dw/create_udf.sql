@@ -161,6 +161,134 @@ END
 $BODY$
 LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION load_cdm_twf_from_cdm_t(twf_fids TEXT[], twf_table TEXT, this_dataset_id int, enc_ids int[] default null, start_tsp timestamptz default null, end_tsp timestamptz default null, is_exec boolean default true)
+RETURNS VOID
+AS $BODY$
+DECLARE
+    query_str text;
+BEGIN
+    with fid_date_type as (
+        select fid, data_type from unnest(twf_fids) inner join cdm_feature on unnest = fid where category = 'TWF' and is_measured and dataset_id = this_dataset_id
+        ),
+    select_fid_array as (
+        select '(' || string_agg('''' || fid || '''' , ', ') || ')' as fid_array from fid_date_type
+        ),
+    select_enc_id_array as (
+        select '(' || string_agg(enc_id::text, ', ') || ')' as enc_id_array from unnest(enc_ids) as enc_id
+        ),
+    select_insert_cols as (
+        select string_agg(fid || ', ' || fid || '_c' , ', ') as insert_cols from fid_date_type
+        ),
+    select_from_cols as (
+        select string_agg(
+                '((rec->>''' || fid || ''')::json->>''value'')::' || data_type || ' as ' || fid ||
+                ', ((rec->>''' || fid || ''')::json->>''confidence'')::int as ' || fid || '_c'
+            , ',') from_cols from fid_date_type
+        ) ,
+    select_set_cols as (
+        select string_agg(
+            fid || ' = excluded.' || fid || ', ' || fid || '_c = excluded.' || fid || '_c', ', '
+            ) as set_cols from fid_date_type
+        )
+    select
+        'insert into cdm_twf (dataset_id, enc_id, tsp, ' || insert_cols || ')
+        (
+          select dataset_id, enc_id, tsp, ' || from_cols || '
+          from
+          (
+            select dataset_id, enc_id, tsp, json_object_agg(fid, json_build_object(''value'', value, ''confidence'', confidence)) as rec
+            from cdm_t where dataset_id = ' || this_dataset_id || ' and fid in ' || fid_array || (case when enc_ids is not null then ' and enc_id in ' ||enc_id_array else '' end) || ' ' ||
+            (case
+                    when start_tsp is not null
+                        then ' and tsp >= ''' || start_tsp || '''::timestamptz'
+                    else '' end) ||
+                (case
+                    when end_tsp is not null
+                        then ' and tsp <= ''' || end_tsp || '''::timestamptz'
+                    else '' end)
+            || '
+            group by dataset_id, enc_id, tsp
+          ) as T
+        ) on conflict (dataset_id, enc_id, tsp) do update set ' || set_cols
+    into query_str
+    from select_insert_cols cross join select_from_cols cross join select_set_cols cross join select_fid_array cross join select_enc_id_array;
+    raise notice '%', query_str;
+    IF is_exec THEN
+        execute query_str;
+    END IF;
+END
+$BODY$
+LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION last_value_in_window(twf_fids TEXT[], twf_table TEXT, this_dataset_id int, enc_ids int[] default null, start_tsp timestamptz default null, end_tsp timestamptz default null, is_exec boolean default true)
+RETURNS VOID
+AS $BODY$
+DECLARE
+    query_str text;
+BEGIN
+    raise notice 'Fillin talbe % for fids: %', twf_table, twf_fids;
+    with fid_win as (
+        select fid, window_size_in_hours from unnest(twf_fids) inner join cdm_feature on unnest = fid where category = 'TWF' and is_measured and dataset_id = this_dataset_id
+    ),
+    select_enc_id_array as (
+        select '(' || string_agg(enc_id::text, ', ') || ')' as enc_id_array from unnest(enc_ids) as enc_id
+        ),
+    select_u_col as (
+        select
+            string_agg(fid || ' = U.' || fid || ', ' || fid || '_c = U.' || fid || '_c', ',' || E'\n') as u_col from fid_win
+    ),
+    select_r_col as (
+        select
+            string_agg('(case when ' || fid || '_c < 8 then ' || fid || ' else null end) as ' || fid || ', (case when ' || fid || '_c < 8 then ' || fid || '_c else null end) as ' || fid || '_c', ',' || E'\n') as r_col from fid_win
+    ),
+    select_s_col as(
+        SELECT
+            string_agg(fid || ', ' || fid || '_c, coalesce(last(case when ' || fid || ' is null then null else json_build_object(''val'', ' || fid || ', ''ts'', tsp,  ''conf'', '|| fid || '_c) end) over (partition by enc_id order by tsp rows between unbounded preceding and current row), (select json_build_object(''val'', value::numeric) from cdm_g where fid = ''' || fid || '_popmean'' and dataset_id = ' || this_dataset_id || ')) as prev_' || fid || ', ''' || window_size_in_hours || 'hours''::interval as ' || fid || '_win', ',' || E'\n') as s_col
+                    from fid_win
+    ),
+    select_col as (
+        select string_agg('(case when ' || fid || ' is not null then ' || fid || ' when (tsp - (prev_' || fid || '->>''ts'')::timestamptz) < ' || fid || '_win then (prev_' || fid || '->>''val'')::numeric else (select value::numeric from cdm_g where fid = ''' || fid || '_popmean'' and dataset_id = ' || this_dataset_id || ') end ) as ' || fid || ',' || E'\n' || '(case when ' || fid || ' is not null then ' || fid || '_c when (tsp - (prev_' || fid || '->>''ts'')::timestamptz) < ' || fid || '_win then ((prev_' || fid || '->>''conf'')::int | 8) else 24 end ) as ' || fid || '_c', ',' || E'\n') as col
+            from fid_win
+    )
+    select
+    'update ' || twf_table || '
+        set ' || u_col || '
+    from (
+        select enc_id, tsp,
+           ' || col || '
+        from (
+            select enc_id, tsp,
+            ' || s_col || '
+            from (
+                select enc_id, tsp,
+                ' || r_col || '
+                from ' || twf_table || '
+                where dataset_id = ' || this_dataset_id  ||
+                (case
+                    when start_tsp is not null
+                        then ' and tsp >= ''' || start_tsp || '''::timestamptz'
+                    else '' end) ||
+                (case
+                    when end_tsp is not null
+                        then ' and tsp <= ''' || end_tsp || '''::timestamptz'
+                    else '' end) ||
+                (case
+                    when enc_ids is not null
+                        then ' and enc_id in ' || enc_id_array
+                    else '' end) || '
+                order by enc_id, tsp
+            ) R
+        ) S
+    ) U where ' || twf_table || '.enc_id = U.enc_id and ' || twf_table || '.tsp = U.tsp and ' ||  twf_table || '.dataset_id = ' || this_dataset_id || ';'
+        into query_str from select_r_col cross join select_s_col cross join select_col cross join select_u_col cross join select_enc_id_array;
+    raise notice '%', query_str;
+    IF is_exec THEN
+        execute query_str;
+    END IF;
+END
+$BODY$
+LANGUAGE plpgsql;
+
 CREATE OR REPLACE FUNCTION last_value_in_window(fid TEXT, target TEXT, win_h real, recalculate_popmean boolean, dataset_id int)
 RETURNS VOID
 AS $BODY$
