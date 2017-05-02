@@ -24,7 +24,7 @@ job_config = {
     },
     'populate_measured_features': {
       'fid': None,
-      'nprocs': 8,
+      'nprocs': os.environ['nprocs'] if 'nprocs' in os.environ else 1,
       'min_tsp': os.environ['min_tsp'] if 'min_tsp' in os.environ else None
     },
   },
