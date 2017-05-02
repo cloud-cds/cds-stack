@@ -25,6 +25,7 @@ job_config = {
     'populate_measured_features': {
       'fid': None,
       'nprocs': 8,
+      'min_tsp': os.environ['min_tsp'] if 'min_tsp' in os.environ else None
     },
   },
   'fillin': {

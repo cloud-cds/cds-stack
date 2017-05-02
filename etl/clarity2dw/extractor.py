@@ -189,6 +189,7 @@ class Extractor:
       if self.job.get('transform').get('populate_measured_features', False):
         self.visit_id_to_enc_id = pat_mappings['visit_id_to_enc_id']
         self.pat_id_to_enc_ids = pat_mappings['pat_id_to_enc_ids']
+        self.min_tsp = self.job.get('transform').get('populate_measured_features').get('min_tsp')
         futures = []
         async with ctxt.db_pool.acquire() as conn:
             await self.query_cdm_feature_dict(conn)
@@ -264,10 +265,10 @@ class Extractor:
     elif is_med_action and fid == 'vent':
       futures.append(self.populate_vent(ctxt, mapping, fid, transform_func_id, data_type, fid_info))
     else:
-      futures.append(self.populate_stateless_features(ctxt, mapping, fid, transform_func_id, data_type, category, is_no_add))
+      futures.append(self.populate_stateless_features(ctxt, mapping, fid, transform_func_id, data_type, fid_info, is_no_add))
     return futures
 
-  def get_feature_sql_query(self, log, mapping, orderby=None):
+  def get_feature_sql_query(self, log, mapping, fid_info, orderby=None):
     if 'subject_id' in mapping['select_cols'] \
       and 'pat_id' not in mapping['select_cols']:
       # hist features in mimic
@@ -282,6 +283,8 @@ class Extractor:
     where_clause = str(mapping['where_conditions'])
     if where_clause == 'nan':
       where_clause = ''
+    if 'T' in fid_info['category'] and self.min_tsp is not None:
+      where_clause = self.add_min_tsp(where_clause, select_clause)
     sql = "SELECT %s FROM %s %s" % (select_clause, dbtable, where_clause)
     if orderby:
       sql += " order by " + orderby
@@ -290,12 +293,44 @@ class Extractor:
     log.info("sql: %s" % sql)
     return sql
 
+  def add_min_tsp(self, where_clause, select_clause):
+    tsp=self.get_tsp_name(select_clause)
+    min_tsp_sql = ''' {conjunctive} "{tsp}"::timestamptz > '{min_tsp}'::timestamptz'''.format(\
+      conjunctive='and' if 'where' in where_clause.lower() else 'where', tsp=tsp
+      , min_tsp=self.min_tsp) if tsp else ''
+    if 'where' in where_clause.lower():
+      where_clause = 'WHERE (' + where_clause[5:] + ')'
+    return where_clause + min_tsp_sql
+
+  def get_tsp_name(self, select_clause):
+    if 'TimeActionTaken' in select_clause:
+      return 'TimeActionTaken'
+    elif 'RESULT_TIME' in select_clause:
+      return 'RESULT_TIME'
+    elif 'TimeTaken' in select_clause:
+      return 'TimeTaken'
+    elif 'effective_time' in select_clause:
+      return 'effective_time'
+    elif 'ORDER_TIME' in select_clause:
+      return 'ORDER_TIME'
+    elif 'HOSP_DISCH_TIME' in select_clause:
+      return 'HOSP_DISCH_TIME'
+    elif 'PLACEMENT_INSTANT' in select_clause:
+      return 'PLACEMENT_INSTANT'
+    elif 'firstdocumented' in select_clause:
+      return 'firstdocumented'
+    elif 'SPEC_NOTE_TIME_DTTM' in select_clause:
+      return 'SPEC_NOTE_TIME_DTTM'
+    elif 'PROC_START_TIME' in select_clause:
+      return 'PROC_START_TIME'
+
+
   async def populate_medaction_features(self, ctxt, mapping, fid, transform_func_id, data_type, fid_info):
     # process medication action input for HC_EPIC
     # order by csn_id, medication id, and timeActionTaken
     log = ctxt.log
     orderby = '"CSN_ID", "MEDICATION_ID", "TimeActionTaken"'
-    sql = self.get_feature_sql_query(log, mapping, orderby=orderby)
+    sql = self.get_feature_sql_query(log, mapping, fid_info, orderby=orderby)
     if self.plan:
       log.info("run plan query: {}".format(sql))
       await self.run_plan_query(ctxt, sql, fid)
@@ -384,10 +419,11 @@ class Extractor:
 
 
 
-  async def populate_stateless_features(self, ctxt, mapping, fid, transform_func_id, data_type, category, is_no_add, num_fetch=10000):
+  async def populate_stateless_features(self, ctxt, mapping, fid, transform_func_id, data_type, fid_info, is_no_add, num_fetch=10000):
     # process features unrelated to med actions
     log = ctxt.log
-    sql = self.get_feature_sql_query(log, mapping)
+    category = fid_info['category']
+    sql = self.get_feature_sql_query(log, mapping, fid_info)
     if self.plan:
       log.info("run plan query: {}".format(sql))
       await self.run_plan_query(ctxt, sql, fid)
@@ -450,7 +486,7 @@ class Extractor:
   async def populate_vent(self, ctxt, mapping, fid, transform_func_id, data_type, fid_info, num_fetch=1000):
     orderby = " icustay_id, realtime"
     log = ctxt.log
-    sql = self.get_feature_sql_query(log, mapping, orderby=orderby)
+    sql = self.get_feature_sql_query(log, mapping, fid_info, orderby=orderby)
     if self.plan:
       log.info("run plan query: {}".format(sql))
       await self.run_plan_query(ctxt, sql, fid)
