@@ -28,7 +28,7 @@ variable "db_password" {}
 variable "op2dw_etl_remote_server" {}
 variable "op2dw_dataset_id" {}
 variable "op2dw_model_id" {}
-variable "op2dw_etl_lambda_firing_rate_mins" {}
+variable "op2dw_etl_lambda_firing_rate_hours" {}
 
 # ETL Lambda functions for production and development databases.
 
@@ -76,8 +76,8 @@ resource "aws_lambda_function" "op2dw_etl_lambda" {
 
 resource "aws_cloudwatch_event_rule" "op2dw_etl_schedule_rule" {
     name = "${var.deploy_prefix}-op2dw-etl-schedule-rule"
-    description = "Fires every ${var.op2dw_etl_lambda_firing_rate_mins} minutes"
-    schedule_expression = "rate(${var.op2dw_etl_lambda_firing_rate_mins} minutes)"
+    description = "Fires every ${var.op2dw_etl_lambda_firing_rate_hours} hours"
+    schedule_expression = "rate(${var.op2dw_etl_lambda_firing_rate_hours} hours)"
 }
 
 resource "aws_cloudwatch_event_target" "op2dw_etl_schedule_target" {

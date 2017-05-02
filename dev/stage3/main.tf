@@ -188,7 +188,7 @@ module "op2dw_etl" {
   k8s_key       = "${var.k8s_key}"
   k8s_token     = "${var.k8s_token}"
 
-  op2dw_etl_lambda_firing_rate_mins = "60"
+  op2dw_etl_lambda_firing_rate_hours = "4"
   op2dw_etl_remote_server = "opsdx_dev_srv"
   op2dw_dataset_id = "2"
   op2dw_model_id = "1"
