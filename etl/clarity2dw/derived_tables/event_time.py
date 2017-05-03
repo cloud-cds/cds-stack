@@ -65,7 +65,7 @@ def populate_events_table(connection, dataset_id):
   #----------------------------------
   # Handle Typical Cases
   #----------------------------------
-  event_list = ['any_pressor','any_organ_failure','severe_sepsis','septic_shock',
+  event_list = ['any_pressor','acute_organ_failure','severe_sepsis','septic_shock',
                 'any_antibiotics_order','any_antibiotics','qsofa','sirs_intp']
 
   agg_func = ['min' for event in event_list]
@@ -119,3 +119,7 @@ def populate_events_table(connection, dataset_id):
 
 
   return
+
+# if __name__ =='__main__':
+#
+#   populate_events_table(engine.connect(),4)
