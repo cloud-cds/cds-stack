@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 from sqlalchemy import create_engine, text
+from etl.clarity2dw.conf.derived_tables import standard_event_list
+
 #dialect+driver://username:password@host:port/database
 # engine = create_engine('postgresql:///hcgh_1608')
 
@@ -65,13 +67,12 @@ def populate_events_table(connection, dataset_id):
   #----------------------------------
   # Handle Typical Cases
   #----------------------------------
-  event_list = ['any_pressor','acute_organ_failure','severe_sepsis','septic_shock',
-                'any_antibiotics_order','any_antibiotics','qsofa','sirs_intp']
-
-  agg_func = ['min' for event in event_list]
 
 
-  force_list     = [False for event in event_list]
+  agg_func = ['min' for event in standard_event_list]
+
+
+  force_list     = [False for event in standard_event_list]
 
   #---------------------
   # Get feature metadata
@@ -80,7 +81,7 @@ def populate_events_table(connection, dataset_id):
 
   cdm_feature_prefix = 'SELECT fid, category, data_type from cdm_feature where dataset_id = {ds_id} and  \n'
 
-  eventListProc = ['FID like \'{}\''.format(event) for event in event_list]
+  eventListProc = ['FID like \'{}\''.format(event) for event in standard_event_list]
 
   event_sql = ' or \n'.join(eventListProc)
 
@@ -98,7 +99,7 @@ def populate_events_table(connection, dataset_id):
   # Execute Loop
   #---------------------
 
-  for agg, fid, force in zip(agg_func, event_list,force_list):
+  for agg, fid, force in zip(agg_func, standard_event_list, force_list):
       ft = cdm_feature_df.loc[fid]['data_type'].lower()
 
       if ft=='boolean' or ft=='integer' or force:
