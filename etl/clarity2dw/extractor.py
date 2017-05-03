@@ -144,12 +144,14 @@ class Extractor:
   def get_transform_tasks(self):
     mapping_list = self.feature_mapping.to_dict('records')
     nprocs = 1
+    shuffle = False
     if self.job.get('transform', False):
       nprocs = int(self.job.get('transform').get('nprocs', nprocs))
-    transform_tasks = self.partition(mapping_list,  nprocs)
+      shuffle = self.job.get('transform').get('shuffle', False)
+    transform_tasks = self.partition(mapping_list,  nprocs, random_shuffle=shuffle)
     return transform_tasks
 
-  def partition(self, lst, n, random_shuffle=True):
+  def partition(self, lst, n, random_shuffle=False):
     if random_shuffle:
       random.shuffle(lst)
     division = len(lst) // n
