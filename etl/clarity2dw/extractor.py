@@ -8,7 +8,7 @@ from etl.load.primitives.row import load_row
 from etl.load.pipelines.fillin import fillin_pipeline
 from etl.load.pipelines.derive_main import derive_main
 import etl.load.primitives.tbl.load_table as load_table
-import timeit
+import time
 import importlib
 import concurrent.futures
 import asyncio
@@ -22,7 +22,7 @@ TRANSACTION_RETRY = 10
 PSQL_WAIT_IN_SECS = 5
 
 def log_time(log, name, start, extracted, loaded):
-  duration = timeit.default_timer() - start
+  duration = time.time() - start
   if extracted == 0:
     log.warn(\
       'STATS: Zero row extraced for %s %s s' \
@@ -156,39 +156,41 @@ class Extractor:
     return transform_tasks
 
   def partition(self, lst, n, random_shuffle=True):
-    if random_shuffle:
-      random.shuffle(lst)
-    division = len(lst) // n
-    return [lst[division * i:division * (i + 1)] for i in range(n)]
+    # if random_shuffle:
+    #   random.shuffle(lst)
+    # division = len(lst) // n
+    # return [lst[division * i:division * (i + 1)] for i in range(n)]
 
     # # TEST CASE B
     # lst = lst[:40]
     # division = len(lst) // n
     # return [lst[division * i:division * (i + 1)] for i in range(n)]
 
-    # # TEST CASE A
-    # lst_vent = None
-    # lst_med = None
-    # lst_bands = None
-    # for item in lst:
-    #   if item['fid(s)'] == 'vent':
-    #     lst_vent = item
-    #   if item['fid(s)'] == 'aclidinium_dose':
-    #     lst_med = item
-    #   if item['fid(s)'] == 'bands':
-    #     lst_bands = item
-    #   if item['fid(s)'] == 'heart_rate':
-    #     lst_heart_rate = item
-    #   if item['fid(s)'] == 'co2':
-    #     lst_co2 = item
-    #   if item['fid(s)'] == 'spo2':
-    #     lst_spo2 = item
-    #   if item['fid(s)'] == 'uti_approx':
-    #     lst_approx = item
-    #   if item['fid(s)'] == 'hematocrit':
-    #     lst_hematocrit = item
-    # return [ [lst[0], lst[2], lst_hematocrit, lst_med, lst_bands, lst_spo2, lst_heart_rate], [lst[1], lst[3], lst_approx, lst_vent, lst_co2]]
-    # # return [ [lst[0]] ]#, lst[2], lst_med, lst_bands]]
+    # TEST CASE A
+    lst_vent = None
+    lst_med = None
+    lst_bands = None
+    for item in lst:
+      if item['fid(s)'] == 'vent':
+        lst_vent = item
+      if item['fid(s)'] == 'aclidinium_dose':
+        lst_med = item
+      if item['fid(s)'] == 'bands':
+        lst_bands = item
+      if item['fid(s)'] == 'heart_rate':
+        lst_heart_rate = item
+      if item['fid(s)'] == 'co2':
+        lst_co2 = item
+      if item['fid(s)'] == 'spo2':
+        lst_spo2 = item
+      if item['fid(s)'] == 'uti_approx':
+        lst_approx = item
+      if item['fid(s)'] == 'hematocrit':
+        lst_hematocrit = item
+      if item['fid(s)'] == 'cms_antibiotics, crystalloid_fluid, vasopressors_dose':
+        lst_cus = item
+    return [ [ lst_cus, lst[0], lst[2], lst_hematocrit, lst_med, lst_bands, lst_spo2, lst_heart_rate], [lst[1], lst[3], lst_approx, lst_vent, lst_co2]]
+    # return [ [lst[0]] ]#, lst[2], lst_med, lst_bands]]
 
   async def run_transform_task(self, ctxt, pat_mappings, task):
     if self.job.get('transform', False):
@@ -252,8 +254,11 @@ class Extractor:
     #         continue
     # if attempts == TRANSACTION_RETRY:
     #   log.error("Transaction retry failed")
-    async with ctxt.db_pool.acquire() as conn:
-      await func(conn, dataset_id, log, plan)
+    try:
+      async with ctxt.db_pool.acquire() as conn:
+        await func(conn, dataset_id, log, plan)
+    except Exception as e:
+      log.warn("custom function error %s %s" % (transform_func_id, e))
 
   def populate_raw_feature_to_cdm(self, ctxt, mapping, cdm_feature_attributes):
     futures = []
@@ -347,7 +352,7 @@ class Extractor:
     else:
       extracted_rows = 0
       loaded_rows = 0
-      start = timeit.default_timer()
+      start = time.time()
       log.info("run extract query: {}".format(sql))
       cur_enc_id = None
       cur_med_id = None
@@ -420,7 +425,7 @@ class Extractor:
 
   async def run_plan_query(self, ctxt, sql, fid):
     rows = 0
-    start = timeit.default_timer()
+    start = time.time()
     async with ctxt.db_pool.acquire() as conn:
       async with conn.transaction():
         async for row in conn.cursor(sql):
@@ -440,7 +445,7 @@ class Extractor:
     else:
       extracted_rows = 0
       loaded_rows = 0
-      start = timeit.default_timer()
+      start = time.time()
       log.info("run extract query: {}".format(sql))
       pat_id_based = 'pat_id' in mapping['select_cols']
       async with ctxt.db_pool.acquire() as conn:
@@ -503,7 +508,7 @@ class Extractor:
     else:
       extracted_rows = 0
       loaded_rows = 0
-      start = timeit.default_timer()
+      start = time.time()
       log.info("run extract query: {}".format(sql))
       cur_enc_id = None
       cur_vent_events = []
