@@ -7,7 +7,7 @@ from etl.mappings import lab_procedures as lp_config
 from etl.load.primitives.row import load_row
 import etl.transforms.primitives.df.filter_rows as filter_rows
 from etl.clarity2dw.extractor import log_time
-import timeit
+import time
 import os
 
 
@@ -22,7 +22,7 @@ def get_min_tsp(tsp_name):
 # Utilities
 #============================
 async def pull_med_orders(connection, dataset_id, log, is_plan):
-  start = timeit.default_timer()
+  start = time.time()
   log.info('Entered Med Orders Extraction')
   sql = """select pe.enc_id, mo."ORDER_INST", mo."display_name", mo."MedUnit",mo."Dose"
                                from "OrderMed" mo
@@ -86,7 +86,7 @@ async def pull_med_orders(connection, dataset_id, log, is_plan):
   return 'pull_med_orders'
 
 async def pull_medication_admin(connection, dataset_id, log, is_plan):
-  start = timeit.default_timer()
+  start = time.time()
   log.info('Entering Medication Administrtaion Processing')
   sql = """select pe.enc_id, ma.display_name,
                                   ma."Dose", ma."MedUnit",
@@ -152,7 +152,7 @@ async def pull_medication_admin(connection, dataset_id, log, is_plan):
 
 async def bands(connection, dataset_id, log, is_plan):
   log.info("Entering bands Processing")
-  start = timeit.default_timer()
+  start = time.time()
   sql = """select pe.enc_id, lb."NAME" ,
                                 lb."ResultValue", lb."RESULT_TIME"
                                 from
@@ -190,7 +190,7 @@ async def bands(connection, dataset_id, log, is_plan):
 
 async def pull_order_procs(connection, dataset_id, log, is_plan):
   log.info("Entering order procs Processing")
-  start = timeit.default_timer()
+  start = time.time()
   extracted = 0
   sql = """select pe.enc_id,
                               op."CSN_ID",op."proc_name", op."ORDER_TIME", op."OrderStatus", op."LabStatus",

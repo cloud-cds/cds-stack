@@ -24,21 +24,15 @@ PSQL_WAIT_IN_SECS = 5
 def log_time(log, name, start, extracted, loaded):
   duration = time.time() - start
   if extracted == 0:
-    log.warn(\
-      'STATS: Zero row extraced for %s %s s' \
-        % (name, duration))
+    msg = '%s STATS: Zero row extraced, ' % name
   else:
-    log.info(\
-      'STATS: %s valid rows extraced for %s %s s' \
-        % (extracted, name, duration))
+    msg = '%s STATS: %s valid rows extraced, ' \
+        % (extracted, name)
   if loaded == 0:
-    log.warn(\
-      'STATS: Zero row loaded in CDM for %s %s s' \
-        % (name, duration))
+    msg += 'Zero row loaded in CDM, duration %s s' % duration
   else:
-    log.info(\
-      'STATS: %s valid rows loaded in CDM for %s %s s' \
-        % (loaded, name, duration))
+    msg += '%s valid rows loaded in CDM, duration %s s' % (loaded, duration)
+  log.info(msg)
 
 class Extractor:
   def __init__(self, job):
