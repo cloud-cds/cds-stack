@@ -50,7 +50,7 @@ variable "db_engine_version" {
 }
 
 variable "db_instance_class" {
-  default = "db.t2.large"
+  default = "db.m4.large"
   description = "Instance class"
 }
 
@@ -71,6 +71,23 @@ variable "db_password" {
 
 variable "dw_identifier" {
   description = "RDS DW Resource Identifier"
+}
+
+variable "dw_engine" {
+  description = "Postgres-backed DB Engine"
+  default = "postgres"
+}
+
+variable "dw_engine_version" {
+  description = "Engine version"
+  default = {
+    postgres = "9.6.2"
+  }
+}
+
+variable "dw_instance_class" {
+  default = "db.m4.2xlarge"
+  description = "Instance class"
 }
 
 variable "dw_name" {

@@ -103,9 +103,9 @@ resource "aws_db_instance" "dw" {
   depends_on              = ["aws_security_group.db_sg"]
   identifier              = "${var.dw_identifier}"
   allocated_storage       = "${var.db_storage}"
-  engine                  = "${var.db_engine}"
-  engine_version          = "${lookup(var.db_engine_version, var.db_engine)}"
-  instance_class          = "${var.db_instance_class}"
+  engine                  = "${var.dw_engine}"
+  engine_version          = "${lookup(var.dw_engine_version, var.dw_engine)}"
+  instance_class          = "${var.dw_instance_class}"
   name                    = "${var.dw_name}"
   username                = "${var.dw_username}"
   password                = "${var.dw_password}"
@@ -133,6 +133,29 @@ resource "aws_route53_record" "dw" {
 resource "aws_db_parameter_group" "pgstats" {
   name   = "${var.deploy_prefix}-pgstats-pg"
   family = "postgres9.5"
+
+  parameter {
+    name = "shared_preload_libraries"
+    value = "pg_stat_statements"
+    apply_method = "pending-reboot"
+  }
+
+  parameter {
+    name = "track_activity_query_size"
+    value = "2048"
+    apply_method = "pending-reboot"
+  }
+
+  parameter {
+    name = "pg_stat_statements.track"
+    value = "ALL"
+    apply_method = "pending-reboot"
+  }
+}
+
+resource "aws_db_parameter_group" "pgstats96" {
+  name   = "${var.deploy_prefix}-pgstats-pg96"
+  family = "postgres9.6"
 
   parameter {
     name = "shared_preload_libraries"
