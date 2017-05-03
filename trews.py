@@ -17,6 +17,12 @@ from aiohttp.web import Response, json_response
 from jinja2 import Environment, FileSystemLoader
 from monitoring import TREWSPrometheusMetrics, cloudwatch_logger_middleware, cwlog_enabled
 
+import base64
+import urllib
+import urllib.parse
+from Crypto.Cipher import AES
+from encrypt import decrypt
+
 import api, dashan_query
 from api import pat_cache, api_monitor
 
@@ -85,35 +91,55 @@ class TREWSStaticResource(web.View):
       r_content_type = 'application/octet-stream'
 
     if filename.endswith(INDEX_FILENAME):
-      # TODO: customize order keys based on LOC
       parameters = self.request.query
-      hospital = 'JHH'
-      if 'LOC' in parameters:
-        loc = parameters['LOC']
-        if len(loc) == 6:
-          if loc.startswith("1101"):
-            loc = 'JHH'
-          elif loc.startswith("1102"):
-            loc = 'BMC'
-            KEYS['antibiotics'] = '6'
-            KEYS['vasopressors'] = '13'
-          elif loc.startswith("1103"):
-            loc = 'HCGH'
-            KEYS['antibiotics'] = '3'
-          elif loc.startswith("1104"):
-            loc = 'Sibley'
-          elif loc.startswith("1105"):
-            loc = 'Suburban'
-          elif loc.startswith("1107"):
-            loc = 'KKI'
-        else:
-          logging.error("LOC parsing error:" + loc)
-      else:
-        logging.warning("No LOC in query string. Use JHH as default hospital")
 
-      j2_env = Environment(loader=FileSystemLoader(STATIC_DIR), trim_blocks=True)
-      r_body = j2_env.get_template(INDEX_FILENAME).render(keys=KEYS)
-      logging.info("Static file request on index.html")
+      # TODO: handle encrypted query string
+      if 'token' in parameters:
+        param_str = decrypt(parameters['token'])
+        if param_str is not None:
+          # Debugging
+          decrypted_params = urllib.parse.parse_qs(param_str)
+          query_params = urllib.parse.urlencode(decrypted_params)
+          logging.info('Found encrypted params: ' + str(decrypted_params))
+          logging.info('Using redirect params: ' + str(query_params))
+
+          # TODO: redirect to the index page, with unencrypted query variables.
+          return web.HTTPFound(URL+INDEX_FILENAME+'?'+query_params)
+
+        else:
+          error_msg = 'Failed to decrypt querystring'
+          logging.error(error_msg)
+          raise web.HTTPBadRequest(body=json.dumps({'message': error_msg}))
+
+      else:
+        # TODO: customize order keys based on LOC
+        hospital = 'JHH'
+        if 'LOC' in parameters:
+          loc = parameters['LOC']
+          if len(loc) == 6:
+            if loc.startswith("1101"):
+              loc = 'JHH'
+            elif loc.startswith("1102"):
+              loc = 'BMC'
+              KEYS['antibiotics'] = '6'
+              KEYS['vasopressors'] = '13'
+            elif loc.startswith("1103"):
+              loc = 'HCGH'
+              KEYS['antibiotics'] = '3'
+            elif loc.startswith("1104"):
+              loc = 'Sibley'
+            elif loc.startswith("1105"):
+              loc = 'Suburban'
+            elif loc.startswith("1107"):
+              loc = 'KKI'
+          else:
+            logging.error("LOC parsing error:" + loc)
+        else:
+          logging.warning("No LOC in query string. Use JHH as default hospital")
+
+        j2_env = Environment(loader=FileSystemLoader(STATIC_DIR), trim_blocks=True)
+        r_body = j2_env.get_template(INDEX_FILENAME).render(keys=KEYS)
+        logging.info("Static file request on index.html")
 
     else:
       if os.path.exists(filename):
