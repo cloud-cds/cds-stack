@@ -760,5 +760,29 @@ CREATE TABLE model_training_report (
     report          json,
     create_at       timestamptz
 );
+-- event_time (dataset_id, enc_id, tsp, event)
 
+DROP TABLE IF EXISTS event_time;
+create table event_time(
+    dataset_id integer REFERENCES dw_version(dataset_id),
+    enc_id integer,
+    tsp timestamptz,
+    event text
+);
+
+DROP TABLE IF EXISTS sub_populations;
+create table sub_populations(
+    dataset_id integer REFERENCES dw_version(dataset_id),
+    enc_id integer,
+    population_name text
+);
+
+DROP TABLE IF EXISTS care_unit;
+create table care_unit(
+    dataset_id integer REFERENCES dw_version(dataset_id),
+    enc_id integer,
+    enter_time timestamptz,
+    leave_time timestamptz,
+    care_unit text
+);
 
