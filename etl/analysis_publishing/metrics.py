@@ -177,7 +177,7 @@ class get_sepsis_state_stats(metric):
     source_tbl = """lambda_hist_pat_state_{now}""".format(now=datetime.utcnow().strftime("%Y%m%d%H%M%S"))
 
     get_hist_states = """
-      create table {tmp_tbl} as
+      create TEMPORARY table  {tmp_tbl} as
       with
       all_pats_in_window as (
         select distinct pat_id from criteria_meas
