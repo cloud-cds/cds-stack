@@ -23,7 +23,7 @@ cdm_twf_queryTemplate = """
 
 func2suffix = {'min': '_first', 'max': '_last'}
 
-def populate_events_table(connection, dataset_id):
+def populate(connection, dataset_id):
   #----------------------------------
   # Handle Special Cases
   #----------------------------------
