@@ -150,41 +150,41 @@ class Extractor:
     return transform_tasks
 
   def partition(self, lst, n, random_shuffle=True):
-    # if random_shuffle:
-    #   random.shuffle(lst)
-    # division = len(lst) // n
-    # return [lst[division * i:division * (i + 1)] for i in range(n)]
+    if random_shuffle:
+      random.shuffle(lst)
+    division = len(lst) // n
+    return [lst[division * i:division * (i + 1)] for i in range(n)]
 
     # # TEST CASE B
     # lst = lst[:40]
     # division = len(lst) // n
     # return [lst[division * i:division * (i + 1)] for i in range(n)]
 
-    # TEST CASE A
-    lst_vent = None
-    lst_med = None
-    lst_bands = None
-    for item in lst:
-      if item['fid(s)'] == 'vent':
-        lst_vent = item
-      if item['fid(s)'] == 'aclidinium_dose':
-        lst_med = item
-      if item['fid(s)'] == 'bands':
-        lst_bands = item
-      if item['fid(s)'] == 'heart_rate':
-        lst_heart_rate = item
-      if item['fid(s)'] == 'co2':
-        lst_co2 = item
-      if item['fid(s)'] == 'spo2':
-        lst_spo2 = item
-      if item['fid(s)'] == 'uti_approx':
-        lst_approx = item
-      if item['fid(s)'] == 'hematocrit':
-        lst_hematocrit = item
-      if item['fid(s)'] == 'cms_antibiotics, crystalloid_fluid, vasopressors_dose':
-        lst_cus = item
-    return [ [ lst_cus, lst[0], lst[2], lst_hematocrit, lst_med, lst_bands, lst_spo2, lst_heart_rate], [lst[1], lst[3], lst_approx, lst_vent, lst_co2]]
-    # return [ [lst[0]] ]#, lst[2], lst_med, lst_bands]]
+    # # TEST CASE A
+    # lst_vent = None
+    # lst_med = None
+    # lst_bands = None
+    # for item in lst:
+    #   if item['fid(s)'] == 'vent':
+    #     lst_vent = item
+    #   if item['fid(s)'] == 'aclidinium_dose':
+    #     lst_med = item
+    #   if item['fid(s)'] == 'bands':
+    #     lst_bands = item
+    #   if item['fid(s)'] == 'heart_rate':
+    #     lst_heart_rate = item
+    #   if item['fid(s)'] == 'co2':
+    #     lst_co2 = item
+    #   if item['fid(s)'] == 'spo2':
+    #     lst_spo2 = item
+    #   if item['fid(s)'] == 'uti_approx':
+    #     lst_approx = item
+    #   if item['fid(s)'] == 'hematocrit':
+    #     lst_hematocrit = item
+    #   if item['fid(s)'] == 'cms_antibiotics, crystalloid_fluid, vasopressors_dose':
+    #     lst_cus = item
+    # return [ [ lst_cus, lst[0], lst[2], lst_hematocrit, lst_med, lst_bands, lst_spo2, lst_heart_rate], [lst[1], lst[3], lst_approx, lst_vent, lst_co2]]
+    # # return [ [lst[0]] ]#, lst[2], lst_med, lst_bands]]
 
   async def run_transform_task(self, ctxt, pat_mappings, task):
     if self.job.get('transform', False):
