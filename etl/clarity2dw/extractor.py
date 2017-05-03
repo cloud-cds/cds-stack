@@ -113,6 +113,10 @@ class Extractor:
           result = await conn.execute(sql)
           ctxt.log.info("ETL populate_patients: " + result)
           return result
+      else:
+        ctxt.log.info("populate_patients skipped")
+    else:
+      ctxt.log.info("populate_patients skipped")
 
   async def transform_init(self, ctxt, _):
     if self.job.get('transform', False):
@@ -124,6 +128,8 @@ class Extractor:
           self.pat_id_to_enc_ids = pat_mappings['pat_id_to_enc_ids']
           ctxt.log.info("loaded feature and pat mapping")
           return pat_mappings
+    else:
+      ctxt.log.info("transform_init skipped")
 
   async def get_pat_mapping(self, conn):
     sql = "select * from pat_enc where dataset_id = %s" % self.dataset_id
@@ -199,6 +205,8 @@ class Extractor:
         done, _ = await asyncio.wait(futures)
         for future in done:
           ctxt.log.info("run_transform_task completed: {}".format(future.result()))
+    else:
+      ctxt.log.info("transform task skipped")
     return None
 
   def run_feature_mapping_row(self, ctxt, mapping_row):
@@ -231,19 +239,21 @@ class Extractor:
   async def run_custom_func(self, package, transform_func_id, ctxt, dataset_id, log, plan):
     module = importlib.import_module(package)
     func = getattr(module, transform_func_id)
-    attempts = 0
-    while attempts < TRANSACTION_RETRY:
-        async with ctxt.db_pool.acquire() as conn:
-          try:
-            await func(conn, dataset_id, log, plan)
-            break
-          except Exception as e:
-            attempts += 1
-            log.warn("PSQL Error %s %s" % (transform_func_id, e))
-            log.info("Transaction retry attempts: {} {}".format(attempts, transform_func_id))
-            continue
-    if attempts == TRANSACTION_RETRY:
-      log.error("Transaction retry failed")
+    # attempts = 0
+    # while attempts < TRANSACTION_RETRY:
+    #     async with ctxt.db_pool.acquire() as conn:
+    #       try:
+    #         await func(conn, dataset_id, log, plan)
+    #         break
+    #       except Exception as e:
+    #         attempts += 1
+    #         log.warn("PSQL Error %s %s" % (transform_func_id, e))
+    #         log.info("Transaction retry attempts: {} {}".format(attempts, transform_func_id))
+    #         continue
+    # if attempts == TRANSACTION_RETRY:
+    #   log.error("Transaction retry failed")
+    async with ctxt.db_pool.acquire() as conn:
+      await func(conn, dataset_id, log, plan)
 
   def populate_raw_feature_to_cdm(self, ctxt, mapping, cdm_feature_attributes):
     futures = []
@@ -459,7 +469,7 @@ class Extractor:
                   if loaded_rows > 0 and loaded_rows % num_fetch == 0:
                     log.info('loaded {rows} rows for fid {fid}'.format(rows=loaded_rows, fid=fid))
             else:
-              log.warn("populate_stateless_features {}: Unknow patient information".format(fid))
+              log.warn("populate_stateless_features {}: Unknown patient information".format(fid))
             # attempts = 0
             # while True:
             #   try:
@@ -622,3 +632,16 @@ class Extractor:
         result = await conn.execute(fillin_sql)
         log.info(result)
       log.info("fillin completed")
+    else:
+      log.info("fillin skipped")
+
+  async def run_derive(self, ctxt):
+    if self.job.get('derive', False):
+      fid = self.job.get('derive').get('fid', None)
+      mode = self.job.get('derive').get('mode', None)
+      async with ctxt.db_pool.acquire() as conn:
+        await self.query_cdm_feature_dict(conn)
+        await derive_main(log, conn, self.cdm_feature_dict, dataset_id = self.dataset_id, fid = fid, mode=mode)
+      self.log.info("derive completed")
+    else:
+      self.log.info("derive skipped")

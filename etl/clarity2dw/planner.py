@@ -83,21 +83,29 @@ class Planner():
 
   def generate_plan(self):
     self.log.info("planning now")
-    self.plan = {
-      'extract_init': ([], {'config': db_config, 'coro': self.extractor.extract_init}),
-      'populate_patients': (['extract_init'], {'config': db_config, 'coro': self.extractor.populate_patients}),
-    }
-    self.generate_transform_plan()
-    self.generate_fillin_plan()
+    self.init_plan()
+    self.gen_transform_plan()
+    self.gen_fillin_plan()
     self.log.info("plan is ready")
     return self.plan
 
-  def generate_transform_plan(self):
-    self.plan.update({'transform_init': (['populate_patients'],
-                                {
-                                'config': db_config,
-                                'coro': self.extractor.transform_init
-                                })})
+  def init_plan(self):
+    self.plan = {
+      'extract_init': ([],
+        {'config': db_config,
+         'coro': self.extractor.extract_init}),
+    }
+
+  def gen_transform_plan(self):
+    self.plan.update({
+                                'populate_patients': (['extract_init'],
+                                  {'config': db_config,
+                                   'coro': self.extractor.populate_patients}),
+                                'transform_init': (['populate_patients'],
+                                  {
+                                  'config': db_config,
+                                  'coro': self.extractor.transform_init
+                                  })})
     for i, transform_task in enumerate(self.extractor.get_transform_tasks()):
       self.plan.update({'transform_task_{}'.format(i): (['transform_init'],
                                   {
@@ -106,13 +114,22 @@ class Planner():
                                   'args': [transform_task]
                                   })})
 
-  def generate_fillin_plan(self):
+  def gen_fillin_plan(self):
     transform_tasks = [task for task in self.plan if task.startswith('transform_task_')]
     self.plan.update({'fillin': (transform_tasks,
                                 {
                                   'config': db_config,
                                   'coro': self.extractor.run_fillin,
                                 })})
+
+  def get_derive_plan(self):
+    self.plan.update(
+        {'derive': (['fillin'],
+          {
+            'config': db_config,
+            'coro': self.extractor.run_derive,
+          })}
+      )
 
   def start_engine(self):
     self.log.info("start job in the engine")
