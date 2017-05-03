@@ -3,6 +3,9 @@ from sqlalchemy import create_engine, text
 from etl.clarity2dw.conf.derived_tables import standard_event_list
 
 def populate(connection, dataset_id):
+
+  connection.execute(text("""delete from care_unit where dataset_id = {ds}""".format(ds=dataset_id)))
+
   care_unit = """
   insert into care_unit (dataset_id, enc_id, enter_time, leave_time, care_unit)
   with raw_care_unit_tbl as (
