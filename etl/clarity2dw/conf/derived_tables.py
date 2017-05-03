@@ -7,6 +7,14 @@ sub_populations_t = [
               'pulmonary_emboli',
               'acute_pancreatitis',
               'hepatic_failure_inhosp',
+              'urosepsis_approx',
+              'pneumonia_approx',
+              'biliary_sepsis_approx',
+              'line_sepsis_approx',
+              'ards_approx',
+              'peritonitis_approx',
+              'uti_approx',
+              'cellulitis_approx'
               ]
 
 sub_populations_s = [
@@ -48,10 +56,6 @@ sub_populations_twf = [
                 'mi'
                ]
 
-sepsis_subtypes = ['pneumonia_sepsis']
-
-sepsis_subtypes_approx = [
-                   'urosepsis_approx', 'pneumonia_approx', 'biliary_sepsis_approx',
-                   'line_sepsis_approx', 'ards_approx',
-                   'peritonitis_approx', 'uti_approx', 'cellulitis_approx'
-                   ]
+sepsis_subtypes = [
+              'pneumonia_sepsis'
+                ]
