@@ -185,3 +185,67 @@ pg_dump -h db.dev.opsdx.io -U opsdx_root -d test_c2dw -p 5432 -F c -b -v -f ~/cl
 ```bash
 pg_restore --clean -h db.dev.opsdx.io -U opsdx_root -d test_c2dw_a -p 5432 -v  ~/clarity-db-staging/c2dw_a/2017-04-05.sql
 ```
+
+Cheetsheet
+----------------
+Use SQL to compre two datasets in the same database:
+```sql
+ WITH A_DIFF_B AS (
+        SELECT enc_id, fid, value, confidence FROM cdm_s where dataset_id = 4
+        EXCEPT
+          select enc_id, fid, value, confidence from cdm_s where dataset_id = 1
+      ), B_DIFF_A AS (
+          select enc_id, fid, value, confidence from cdm_s where dataset_id = 1
+        EXCEPT
+        SELECT enc_id, fid, value, confidence FROM cdm_s where dataset_id = 4
+      )
+
+      SELECT * FROM (
+        SELECT true as missing_remotely, * FROM A_DIFF_B
+        UNION
+        SELECT false as missing_remotely, * FROM B_DIFF_A
+      ) R
+      ORDER BY fid, enc_id
+
+
+ WITH A_DIFF_B AS (
+        SELECT enc_id, tsp, fid, value, confidence FROM cdm_t where dataset_id = 4
+        EXCEPT
+        SELECT enc_id, tsp, fid, value, confidence
+        FROM (
+          select enc_id, tsp, fid, value, confidence from cdm_t where dataset_id = 1
+        ) AS cdm_t_compare
+      ), B_DIFF_A AS (
+        SELECT enc_id, tsp, fid, value, confidence
+        FROM (
+          select enc_id, tsp, fid, value, confidence from cdm_t where dataset_id = 1
+        ) AS cdm_t_compare
+        EXCEPT
+        SELECT enc_id, tsp, fid, value, confidence FROM cdm_t where dataset_id = 4
+      )
+
+      SELECT * FROM (
+        SELECT true as missing_remotely, * FROM A_DIFF_B
+        UNION
+        SELECT false as missing_remotely, * FROM B_DIFF_A
+      ) R
+      ORDER BY fid, enc_id, tsp
+
+WITH A_DIFF_B AS (
+        SELECT enc_id, tsp, co2,  co2_c, ddimer,  ddimer_c, ast_liver_enzymes,  ast_liver_enzymes_c, ptt,  ptt_c, abp_sys,  abp_sys_c, magnesium,  magnesium_c, bicarbonate,  bicarbonate_c, lipase,  lipase_c, heart_rate,  heart_rate_c, anion_gap,  anion_gap_c, amylase,  amylase_c, hematocrit,  hematocrit_c, temperature,  temperature_c, chloride,  chloride_c, spo2,  spo2_c, resp_rate,  resp_rate_c, potassium,  potassium_c, bun,  bun_c, calcium,  calcium_c, abp_dias,  abp_dias_c, hemoglobin,  hemoglobin_c, inr,  inr_c, creatinine,  creatinine_c, bilirubin,  bilirubin_c, alt_liver_enzymes,  alt_liver_enzymes_c, map,  map_c, gcs,  gcs_c FROM cdm_twf where dataset_id = 4
+        EXCEPT
+          select enc_id, tsp, co2,  co2_c, ddimer,  ddimer_c, ast_liver_enzymes,  ast_liver_enzymes_c, ptt,  ptt_c, abp_sys,  abp_sys_c, magnesium,  magnesium_c, bicarbonate,  bicarbonate_c, lipase,  lipase_c, heart_rate,  heart_rate_c, anion_gap,  anion_gap_c, amylase,  amylase_c, hematocrit,  hematocrit_c, temperature,  temperature_c, chloride,  chloride_c, spo2,  spo2_c, resp_rate,  resp_rate_c, potassium,  potassium_c, bun,  bun_c, calcium,  calcium_c, abp_dias,  abp_dias_c, hemoglobin,  hemoglobin_c, inr,  inr_c, creatinine,  creatinine_c, bilirubin,  bilirubin_c, alt_liver_enzymes,  alt_liver_enzymes_c, map,  map_c, gcs,  gcs_c from cdm_twf where dataset_id = 1
+      ), B_DIFF_A AS (
+          select enc_id, tsp, co2,  co2_c, ddimer,  ddimer_c, ast_liver_enzymes,  ast_liver_enzymes_c, ptt,  ptt_c, abp_sys,  abp_sys_c, magnesium,  magnesium_c, bicarbonate,  bicarbonate_c, lipase,  lipase_c, heart_rate,  heart_rate_c, anion_gap,  anion_gap_c, amylase,  amylase_c, hematocrit,  hematocrit_c, temperature,  temperature_c, chloride,  chloride_c, spo2,  spo2_c, resp_rate,  resp_rate_c, potassium,  potassium_c, bun,  bun_c, calcium,  calcium_c, abp_dias,  abp_dias_c, hemoglobin,  hemoglobin_c, inr,  inr_c, creatinine,  creatinine_c, bilirubin,  bilirubin_c, alt_liver_enzymes,  alt_liver_enzymes_c, map,  map_c, gcs,  gcs_c from cdm_twf where dataset_id = 1
+        EXCEPT
+        SELECT enc_id, tsp, co2,  co2_c, ddimer,  ddimer_c, ast_liver_enzymes,  ast_liver_enzymes_c, ptt,  ptt_c, abp_sys,  abp_sys_c, magnesium,  magnesium_c, bicarbonate,  bicarbonate_c, lipase,  lipase_c, heart_rate,  heart_rate_c, anion_gap,  anion_gap_c, amylase,  amylase_c, hematocrit,  hematocrit_c, temperature,  temperature_c, chloride,  chloride_c, spo2,  spo2_c, resp_rate,  resp_rate_c, potassium,  potassium_c, bun,  bun_c, calcium,  calcium_c, abp_dias,  abp_dias_c, hemoglobin,  hemoglobin_c, inr,  inr_c, creatinine,  creatinine_c, bilirubin,  bilirubin_c, alt_liver_enzymes,  alt_liver_enzymes_c, map,  map_c, gcs,  gcs_c FROM cdm_twf where dataset_id = 4
+      )
+
+      SELECT * FROM (
+        SELECT true as missing_remotely, * FROM A_DIFF_B
+        UNION
+        SELECT false as missing_remotely, * FROM B_DIFF_A
+      ) R
+      ORDER BY enc_id,tsp
+
+```

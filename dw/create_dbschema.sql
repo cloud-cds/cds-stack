@@ -753,3 +753,12 @@ CREATE TABLE usr_web_log (
     raw_url     text,
     PRIMARY KEY (dataset_id, model_id, doc_id, tsp, pat_id)
 );
+
+DROP TABLE IF EXISTS model_training_report;
+CREATE TABLE model_training_report (
+    report_id       serial PRIMARY KEY,
+    report          json,
+    create_at       timestamptz
+);
+
+
