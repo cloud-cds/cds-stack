@@ -264,12 +264,13 @@ async def notes(connection, dataset_id, log, is_plan):
           "NOTE_ID" as note_id,
           "NoteType" as note_type,
           "NoteStatus" as note_status,
-          "NOTE_TEXT" as note_body,
-          json_build_object('spec_note_time_dttm', "SPEC_NOTE_TIME_DTTM", 'entry_instant_dttm', "ENTRY_ISTANT_DTTM") as dates,
+          string_agg("NOTE_TEXT", E'\n') as note_body,
+          json_build_object('create_instant_dttm', "CREATE_INSTANT_DTTM", 'spec_note_time_dttm', "SPEC_NOTE_TIME_DTTM", 'entry_instant_dttm', "ENTRY_ISTANT_DTTM") as dates,
           json_build_object('AuthorType', "AuthorType") as providers
   from "Notes" N
   inner join pat_enc PE
     on N."CSN_ID" = PE.visit_id and PE.dataset_id = %(dataset_id)s %(min_tsp)s
+  group by PE.pat_id, "NOTE_ID", "AuthorType", "NoteType", "NoteStatus", "CREATE_INSTANT_DTTM", "SPEC_NOTE_TIME_DTTM", "ENTRY_ISTANT_DTTM"
   ''' % {'dataset_id': dataset_id, 'min_tsp': get_min_tsp('CREATE_INSTANT_DTTM')}
 
   log.info(sql)
