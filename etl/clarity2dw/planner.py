@@ -31,9 +31,9 @@ job_config = {
   'fillin': {
     'recalculate_popmean': False,
   },
-  # 'derive': {
-  #   'fid': None,
-  # },
+  'derive': {
+    'fid': None,
+  },
   'offline_criteria_processing': {
     'load_cdm_to_criteria_meas':True,
     'calculate_historical_criteria':False
@@ -86,6 +86,7 @@ class Planner():
     self.init_plan()
     self.gen_transform_plan()
     self.gen_fillin_plan()
+    self.gen_derive_plan()
     self.log.info("plan is ready")
     return self.plan
 
@@ -122,7 +123,7 @@ class Planner():
                                   'coro': self.extractor.run_fillin,
                                 })})
 
-  def get_derive_plan(self):
+  def gen_derive_plan(self):
     self.plan.update(
         {'derive': (['fillin'],
           {
