@@ -50,10 +50,11 @@ def transform(fid, func_id, entry, output_data_type, log):
         func = getattr(this_mod, func_id, log)
         try:
             return func(entry, log)
-        except:
+        except Exception as e:
             log.exception('transform function %s: Invalid data entry %s' \
                 % (func_id, entry))
-            traceback.print_exc(file=sys.stdout)
+            log.error(e, exc_info=True)
+            # traceback.print_exc()
             # return None
     else:
         """ dummy function"""

@@ -611,7 +611,8 @@ class Extractor:
     else:
       log.info("fillin skipped")
 
-  async def run_derive(self, ctxt):
+  async def run_derive(self, ctxt, _):
+    log = ctxt.log
     if self.job.get('derive', False):
       fid = self.job.get('derive').get('fid', None)
       mode = self.job.get('derive').get('mode', None)
