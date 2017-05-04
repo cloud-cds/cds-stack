@@ -71,7 +71,7 @@ CREATE TABLE cdm_feature (
     PRIMARY KEY             (dataset_id, fid),
     FOREIGN KEY             (dataset_id, fillin_func_id) REFERENCES cdm_function(dataset_id, func_id),
     FOREIGN KEY             (dataset_id, derive_func_id) REFERENCES cdm_function(dataset_id, func_id),
-    CHECK (category SIMILAR TO 'S|M|T|TWF|G')
+    CHECK (category SIMILAR TO 'S|M|T|TWF|G|N')
 );
 
 DROP TABLE IF EXISTS datalink_feature_mapping;
