@@ -270,7 +270,6 @@ async def notes(connection, dataset_id, log, is_plan):
   from "Notes" N
   inner join pat_enc PE
     on N."CSN_ID" = PE.visit_id and PE.dataset_id = %(dataset_id)s %(min_tsp)s
-  where
   ''' % {'dataset_id': dataset_id, 'min_tsp': get_min_tsp('CREATE_INSTANT_DTTM')}
 
   log.info(sql)
