@@ -819,6 +819,21 @@ BEGIN
     select distinct P.pat_id from pat_visit_ids P
   ),
   suspicion_of_infection_buff as (
+    -- select _dataset_id as dataset_id,
+    --        P.pat_id as pat_id,
+    --        'suspicion_of_infection'::text as name,
+    --        true as is_met,
+    --        min(M.start_ts) as measurement_time,
+    --        min(M.start_ts) as override_time,
+    --        'NLP'::text as override_user,
+    --        json_agg(json_build_object('text'::text, M.ngram::text)) as override_value,
+    --        min(M.ngram) as value,
+    --        now() as update_date
+    -- from pat_visit_ids P
+    -- inner join lateral match_clarity_infections(P.visit_id, 3, 3) M on P.visit_id = M.csn_id
+    -- group by P.pat_id
+
+    -- TODO: we have picked an arbitrary time interval for notes. Refine.
     select _dataset_id as dataset_id,
            P.pat_id as pat_id,
            'suspicion_of_infection'::text as name,
@@ -829,8 +844,10 @@ BEGIN
            json_agg(json_build_object('text'::text, M.ngram::text)) as override_value,
            min(M.ngram) as value,
            now() as update_date
-    from pat_visit_ids P
-    inner join lateral match_clarity_infections(P.visit_id, 3, 3) M on P.visit_id = M.csn_id
+    from pat_ids P
+    inner join lateral match_cdm_infections(P.pat_id, _dataset_id, 3, 3) M
+      on P.pat_id = M.pat_id
+      and M.start_ts between ts_start - interval '1 days' and ts_end + interval '1 days'
     group by P.pat_id
   ),
   pat_cvalues as (
