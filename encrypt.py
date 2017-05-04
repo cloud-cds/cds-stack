@@ -99,7 +99,6 @@ hash_key = None
 if querystring_key:
   encrypted_query = True
   hash_key = bytes(hash_password(querystring_key, 128))
-  logging.info('Query string key len: %s %s' % (len(querystring_key), len(hash_key)))
 
 def encrypt(text):
   if hash_key:

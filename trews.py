@@ -59,6 +59,16 @@ trews_app_key = os.environ['trews_app_key'] if 'trews_app_key' in os.environ els
 trews_admin_key = os.environ['trews_admin_key'] if 'trews_admin_key' in os.environ else None
 trews_open_access = os.environ['trews_open_access'] if 'trews_open_access' in os.environ else None
 
+logging.info('''TREWS Security Configuration::
+  encrypted query: %s
+  trews_app_key: %s
+  trews_admin_key: %s
+  trews_open_access: %s
+  ''' % ('on' if encrypted_query else 'off', \
+         'on' if trews_app_key else 'off', \
+         'on' if trews_admin_key else 'off', \
+         'on' if trews_open_access.lower() == 'true' else 'off')
+  )
 
 ###################################
 # Handlers
@@ -136,12 +146,6 @@ class TREWSStaticResource(web.View):
             params['trewsapp'] = encrypt(trews_app_key)
 
           new_qs = urllib.parse.urlencode(params)
-
-          # Debugging
-          logging.info('Encrypted token: ' + parameters['token'])
-          logging.info('Decrypted params: ' + param_str)
-          logging.info('Extended params: ' + str(params))
-          logging.info('Encoded params: ' + new_qs)
 
           # Redirect to the index page, with unencrypted query variables.
           # This is necessary becuase our Javascript code retrieves
