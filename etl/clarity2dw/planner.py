@@ -24,23 +24,23 @@ job_config = {
     },
     'populate_measured_features': {
       'fid': None,
-      'nprocs': os.environ['nprocs'] if 'nprocs' in os.environ else 1,
-      'min_tsp': os.environ['min_tsp'] if 'min_tsp' in os.environ else None
+      'nprocs': int(os.environ['nprocs']) if 'nprocs' in os.environ else 1,
     },
+    'min_tsp': os.environ['min_tsp'] if 'min_tsp' in os.environ else None
   },
   'fillin': {
     'recalculate_popmean': False,
   },
-  'derive': {
-    'fid': None,
-  },
+  # 'derive': {
+  #   'fid': None,
+  # },
   'offline_criteria_processing': {
     'load_cdm_to_criteria_meas':True,
     'calculate_historical_criteria':False
   },
   'engine': {
     'name': 'engine-c2dw',
-    'nprocs': int(os.environ['nprocs']),
+    'nprocs': int(os.environ['nprocs']) if 'nprocs' in os.environ else 1,
     'loglevel': logging.DEBUG
   },
   'planner': {

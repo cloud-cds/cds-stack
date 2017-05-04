@@ -56,6 +56,19 @@ class TestClass:
       ctxt.log.info('Query result: %s' % result)
       return result
 
+  async def test_timeout_query(self, ctxt, x, y):
+    async with ctxt.db_pool.acquire() as conn:
+      print(x, y)
+      sql = 'select count(*) as cnt from cdm_twf;'
+      ctxt.log.info('Test query: %s' % sql)
+      try:
+        result = await conn.fetchval(sql, timeout=0.1)
+      except Exception as e:
+        ctxt.log.warn('error: %s' % str(e))
+        result = await conn.fetchval(sql)
+      ctxt.log.info('Query result: %s' % result)
+      return result
+
   async def test_transaction(self, ctxt, _):
     async with ctxt.db_pool.acquire() as conn:
       sql = 'select enc_id from pat_enc where dataset_id = 1 limit 10;'
@@ -144,8 +157,8 @@ g2 = {
   'a': ([],         {'config': db_config, 'fn': functools.partial(t.cls_a, x=1)}),
   'b': ([],         {'config': db_config, 'fn': t.cls_b}),
   'c': (['a', 'b'], {'config': db_config, 'fn': t.cls_c}),
-  'd': (['c'],      {'config': db_config, 'coro': t.test_query, 'args': [1]}),
-  'e': (['c'],      {'config': db_config, 'coro': t.test_multi_tasks})
+  'd': (['c'],      {'config': db_config, 'coro': t.test_timeout_query, 'args': [1]}),
+  # 'e': (['c'],      {'config': db_config, 'coro': t.test_multi_tasks})
 }
 
 e2 = Engine(name='engine2', tasks=g2)
