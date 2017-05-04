@@ -58,9 +58,13 @@ insert into negation_keywords (keyword) values
 ('•[ ]*')
 ;
 
+
+-----------------------------------------
+-- Notes processing on Clarity tables.
+------------------------------------------
+
 -----------------------------------------
 -- Candidate search via positive version
-------------------------------------------
 
 drop function if exists match_clarity_infection_positives(integer, integer);
 
@@ -90,11 +94,8 @@ BEGIN
 END; $function$;
 
 
-
-
 ----------------------------------------
--- Clarity Notes Processing
-----------------------------------------
+-- Infection matching
 
 --- TODO: Add suffixes
 --- TODO: Handle groups of items
@@ -148,8 +149,7 @@ END; $function$;
 
 
 -------------------------
--- Negative version
--------------------------
+-- Negation removal
 
 drop function if exists match_clarity_infection_negatives(text);
 
@@ -174,9 +174,10 @@ BEGIN
   return query execute match_query;
 END; $function$;
 
+
 -------------------------------------
 -- Batch version
--------------------------------------
+
 drop function if exists match_clarity_infections_multi(text[],integer,integer);
 
 create or replace function match_clarity_infections_multi(csn_ids text[], rows_before integer, rows_after integer)
@@ -230,14 +231,56 @@ BEGIN
 END; $function$;
 
 
-----------------------------------------
--- CDM Notes Processing
-----------------------------------------
 
-drop function if exists match_infections(character varying(50),integer,integer);
+--------------------------------------------------------
+-- Notes processing on cdm tables, for Clarity datasets.
+--------------------------------------------------------
 
-create or replace function match_infections(this_enc_id character varying(50), rows_before integer, rows_after integer)
- RETURNS table(enc_id character varying(50), t timestamptz, note text)
+-----------------------------------------
+-- Candidate search via positive version
+
+drop function if exists match_cdm_infection_positives(integer, integer);
+
+create or replace function match_cdm_infection_positives(num_matches integer, match_offset integer)
+ RETURNS table(pat_id text, start_ts timestamptz, note text)
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+  positive text := '';
+  grouped_positive text := '';
+  match_query text := '';
+BEGIN
+  select array_to_string(array_agg(keyword), '|') into positive
+  from infection_keywords;
+  select '(' || array_to_string(array_agg(keyword), '|') || ')' into grouped_positive
+  from infection_keywords;
+  match_query :=
+     'select pat_id, (dates->>''create_instant_dttm'')::timestamp at time zone ''UTC'' as start_ts,'
+  || '       regexp_replace(array_to_string(array_agg(note_body), E''\n''), E''' || grouped_positive || ''', E''__MATCH__\\1'', ''g'') as note'
+  || ' from cdm_notes'
+  || ' where note_body ~ E''' || positive || ''''
+  || ' and providers->>''AuthorType'' <> ''Pharmacist'''
+  || ' group by pat_id, dates->>''create_instant_dttm'''
+  || ' order by pat_id, dates->>''create_instant_dttm'' limit ' || num_matches::text || ' offset ' || match_offset::text;
+  --raise notice 'query %', match_query;
+  return query execute match_query;
+END; $function$;
+
+
+----------------------------------------
+-- Infection matching
+
+--- TODO: Add suffixes
+--- TODO: Handle groups of items
+---       e.g., negated lists e.g., "no UTI or pneumonia" currently matches pneumonia
+---       e.g., PAST MEDICAL HISTORY followed by list of items
+--- Does attribution matter? I.e., should something mentioned in nurse's note trigger critieria
+---  or restrict this to physician notes?
+
+drop function if exists match_cdm_infections(text,integer,integer);
+
+create or replace function match_cdm_infections(this_pat_id text, rows_before integer, rows_after integer)
+ RETURNS table(pat_id text, start_ts timestamptz, ngram text)
  LANGUAGE plpgsql
 AS $function$
 DECLARE
@@ -253,26 +296,107 @@ BEGIN
   select array_to_string(array_agg(N.keyword || E'\\\\s*' || I.keyword), '|') into negative
   from infection_keywords I, negation_keywords N;
   match_query :=
-     ' select enc_id, spec_note_time, array_to_string(ngram_arr, '' '') as ngram  '
+     ' select pat_id, start_ts at time zone ''UTC'', array_to_string(ngram_arr, '' '') as ngram  '
   || ' from ('
-  || '   select DOCS.enc_id, DOCS.spec_note_time, '
+  || '   select DOCS.pat_id, DOCS.start_ts, '
   || '          array_agg(W.word) over ( ROWS BETWEEN ' || rows_before::text || ' PRECEDING AND ' || rows_after::text || ' FOLLOWING ) as ngram_arr'
   || '   from ('
-  || '     select enc_id, spec_note_time, '
+  || '     select pat_id, start_ts, '
   || '           regexp_split_to_array(regexp_replace(body, ''' || grouped_positive || ''', E''__MATCH__\\1'', ''g''), E''\\s+'') as words'
   || '     from ('
-  || '       select enc_id, spec_note_time::text::timestamptz,'
-  || '              regexp_replace(note_text, E''' || negative || ''', ''NEGATED_PHRASE'', ''g'') as body'
-  || '       from ('
-  || '          select pat_id as enc_id, json_array_elements(dates)::json->''Date'' as spec_note_time, json_array_elements(dates)::json->''DateType'' as date_type, '
-  || '          note_body as note_text from cdm_notes ) notes '
-  || '       where enc_id = '''|| this_enc_id || ''' and date_type::text~''NoteDate'' '
+  || '       select pat_id, dates->>''create_instant_dttm'' as start_ts,'
+  || '              regexp_replace(note_body, E''' || negative || ''', ''NEGATED_PHRASE'', ''g'') as body'
+  || '       from cdm_notes'
+  || '       where pat_id = coalesce(E''' || this_pat_id || ''', pat_id)'
+  || '       and providers->>''AuthorType'' <> ''Pharmacist'''
   || '     ) NEG'
   || '     where body ~ ''' || positive || ''''
   || '   ) DOCS, lateral unnest(words) W(word)'
   || ' ) NGRAMS'
   || ' where ( ngram_arr[4] like ''%__MATCH__%'') or ( array_length(ngram_arr, 1) < ' || (rows_before+rows_after+1)::text || ' and (select count(*) from unnest(ngram_arr) W(word) where word like ''%__MATCH__%'' ) > 0 )'
-  || ' order by enc_id, spec_note_time';
+  || ' order by pat_id, start_ts';
   --raise notice 'query %', match_query;
   return query execute match_query;
+END; $function$;
+
+
+-------------------------
+-- Negation removal
+
+drop function if exists match_cdm_infection_negatives(text);
+
+create or replace function match_cdm_infection_negatives(this_pat_id text)
+ RETURNS table(pat_id text, start_ts timestamptz, note text)
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+  negative text := '';
+  match_query text := '';
+BEGIN
+  select array_to_string(array_agg(N.keyword || E'\\\\s*' || I.keyword), '|') into negative
+  from infection_keywords I, negation_keywords N;
+  match_query :=
+     'select pat_id, (dates->>''create_instant_dttm'')::timestamp at time zone ''UTC'' as start_ts,'
+  || '       regexp_replace(note_body, E''' || negative || ''', ''NEGATED_PHRASE'', ''g'') as body'
+  || ' from cdm_notes'
+  || ' where pat_id = coalesce(E''' || this_pat_id || ''', pat_id)'
+  || ' and providers->>''AuthorType'' <> ''Pharmacist'''
+  || ' order by dates->>''create_instant_dttm''';
+  --raise notice 'query %', match_query;
+  return query execute match_query;
+END; $function$;
+
+
+-------------------------------------
+-- Batch version
+
+drop function if exists match_cdm_infections_multi(text[],integer,integer);
+
+create or replace function match_cdm_infections_multi(pat_ids text[], rows_before integer, rows_after integer)
+ RETURNS table(pat_id integer, start_ts timestamptz, note text)
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+  negative text := '';
+  positive text := '';
+  grouped_positive text := '';
+  match_query text := '';
+BEGIN
+
+  select array_to_string(array_agg(keyword), '|') into positive
+  from infection_keywords;
+
+  select '(' || array_to_string(array_agg(keyword), '|') || ')' into grouped_positive
+  from infection_keywords;
+
+  select array_to_string(array_agg(N.keyword || E'\\\\s*' || I.keyword), '|') into negative
+  from infection_keywords I, negation_keywords N;
+
+  create temporary table match_pats as
+    select * from unnest(pats_ids) E(match_pat_id);
+
+  match_query :=
+     ' select pat_id, start_ts at time zone ''UTC'', array_to_string(ngram_arr, '' '') as ngram  '
+  || ' from ('
+  || '   select DOCS.pat_id, DOCS.start_ts, '
+  || '          array_agg(W.word) over ( ROWS BETWEEN ' || rows_before::text || ' PRECEDING AND ' || rows_after::text || ' FOLLOWING ) as ngram_arr'
+  || '   from ('
+  || '     select pat_id, start_ts, '
+  || '           regexp_split_to_array(regexp_replace(body, ''' || grouped_positive || ''', E''__MATCH__\\1'', ''g''), E''\\s+'') as words'
+  || '     from ('
+  || '       select pat_id, dates->>''create_instant_dttm'' as start_ts,'
+  || '              regexp_replace(note_body, E''' || negative || ''', ''NEGATED_PHRASE'') as body'
+  || '       from cdm_notes'
+  || '       where pat_id in (select * from match_pats)'
+  || '       and providers->>''AuthorType'' <> ''Pharmacist'''
+  || '     ) NEG'
+  || '     where body ~ ''' || positive || ''''
+  || '   ) DOCS, lateral unnest(words) W(word)'
+  || ' ) NGRAMS'
+  || ' where ( ngram_arr[4] like ''%__MATCH__%'') or ( array_length(ngram_arr, 1) < ' || (rows_before+rows_after+1)::text || ' and (select count(*) from unnest(ngram_arr) W(word) where word like ''%__MATCH__%'' ) > 0 )'
+  || ' order by pat_id, start_ts';
+  --raise notice 'query %', match_query;
+  return query execute match_query;
+  drop table if exists match_csns;
+  return;
 END; $function$;
