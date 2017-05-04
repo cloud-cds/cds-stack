@@ -290,3 +290,4 @@ dataset_id,fid,category,data_type,is_measured,is_deprecated,fillin_func_id,windo
 1,blood_culture_order,T,Real,yes,no,,,,,blood culture order as used for the online sepsis bundle criteria calculation,1,order state
 1,bipap,T,Boolean,yes,no,,,,,Order Procedure,1,
 1,cpap,T,Boolean,yes,no,,,,,Order Procedure,1,
+1,note,N,String,yes,no,,,,,provider notes,1,no unit
