@@ -233,9 +233,13 @@ BEGIN
     select_enc_id_array as (
         select '(' || string_agg(enc_id::text, ', ') || ')' as enc_id_array from unnest(enc_ids) as enc_id
         ),
+    select_insert_col as (
+        select
+            string_agg(fid || ', ' || fid || '_c', ',' || E'\n') as insert_col from fid_win
+    ),
     select_u_col as (
         select
-            string_agg(fid || ' = U.' || fid || ', ' || fid || '_c = U.' || fid || '_c', ',' || E'\n') as u_col from fid_win
+            string_agg(fid || ' = excluded.' || fid || ', ' || fid || '_c = excluded.' || fid || '_c', ',' || E'\n') as u_col from fid_win
     ),
     select_r_col as (
         select
@@ -243,24 +247,25 @@ BEGIN
     ),
     select_s_col as(
         SELECT
-            string_agg(fid || ', ' || fid || '_c, coalesce(last(case when ' || fid || ' is null then null else json_build_object(''val'', ' || fid || ', ''ts'', tsp,  ''conf'', '|| fid || '_c) end) over (partition by enc_id order by tsp rows between unbounded preceding and current row), (select json_build_object(''val'', value::numeric) from cdm_g where fid = ''' || fid || '_popmean'' and dataset_id = ' || this_dataset_id || ')) as prev_' || fid || ', ''' || window_size_in_hours || 'hours''::interval as ' || fid || '_win', ',' || E'\n') as s_col
+            string_agg(fid || ', ' || fid || '_c, last(case when ' || fid || ' is null then null else json_build_object(''val'', ' || fid || ', ''ts'', tsp,  ''conf'', '|| fid || '_c) end) over (partition by enc_id order by tsp rows between unbounded preceding and current row) as prev_' || fid || ', (select value::numeric from cdm_g where fid = ''' || fid || '_popmean'' and dataset_id = ' || this_dataset_id || ') as ' || fid || '_popmean', ',' || E'\n') as s_col
                     from fid_win
     ),
     select_col as (
-        select string_agg('(case when ' || fid || ' is not null then ' || fid || ' when (tsp - (prev_' || fid || '->>''ts'')::timestamptz) < ' || fid || '_win then (prev_' || fid || '->>''val'')::numeric else (select value::numeric from cdm_g where fid = ''' || fid || '_popmean'' and dataset_id = ' || this_dataset_id || ') end ) as ' || fid || ',' || E'\n' || '(case when ' || fid || ' is not null then ' || fid || '_c when (tsp - (prev_' || fid || '->>''ts'')::timestamptz) < ' || fid || '_win then ((prev_' || fid || '->>''conf'')::int | 8) else 24 end ) as ' || fid || '_c', ',' || E'\n') as col
+        select string_agg('(case when ' || fid || ' is not null then ' || fid || ' when (tsp - (prev_' || fid || '->>''ts'')::timestamptz) < ''' || window_size_in_hours || 'hours''::interval then (prev_' || fid || '->>''val'')::numeric else ' || fid || '_popmean end ) as ' || fid || ',' || E'\n' || '(case when ' || fid || ' is not null then ' || fid || '_c when (tsp - (prev_' || fid || '->>''ts'')::timestamptz) < ''' || window_size_in_hours || 'hours''::interval then ((prev_' || fid || '->>''conf'')::int | 8) else 24 end ) as ' || fid || '_c', ',' || E'\n') as col
             from fid_win
     )
     select
-    'update ' || twf_table || '
-        set ' || u_col || '
-    from (
-        select enc_id, tsp,
+    'INSERT INTO ' || twf_table || '(
+    dataset_id, enc_id, tsp, ' || insert_col || '
+    )
+    (
+        select dataset_id, enc_id, tsp,
            ' || col || '
         from (
-            select enc_id, tsp,
+            select dataset_id, enc_id, tsp,
             ' || s_col || '
             from (
-                select enc_id, tsp,
+                select dataset_id, enc_id, tsp,
                 ' || r_col || '
                 from ' || twf_table || '
                 where dataset_id = ' || this_dataset_id  ||
@@ -279,8 +284,9 @@ BEGIN
                 order by enc_id, tsp
             ) R
         ) S
-    ) U where ' || twf_table || '.enc_id = U.enc_id and ' || twf_table || '.tsp = U.tsp and ' ||  twf_table || '.dataset_id = ' || this_dataset_id || ';'
-        into query_str from select_r_col cross join select_s_col cross join select_col cross join select_u_col cross join select_enc_id_array;
+    ) ON CONFLICT (dataset_id, enc_id, tsp) DO UPDATE SET
+    ' || u_col || ';'
+        into query_str from select_r_col cross join select_s_col cross join select_col cross join select_u_col cross join select_enc_id_array cross join select_insert_col;
     raise notice '%', query_str;
     IF is_exec THEN
         execute query_str;
