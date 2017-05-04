@@ -47,7 +47,7 @@ CREATE TABLE cdm_feature (
     description             text,
     version                 varchar(50),
     unit                    varchar(50),
-    CHECK (category SIMILAR TO 'S|M|T|TWF|G')
+    CHECK (category SIMILAR TO 'S|M|T|TWF|G|N')
 );
 
 DROP TABLE IF EXISTS datalink_feature_mapping;

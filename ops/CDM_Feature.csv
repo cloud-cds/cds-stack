@@ -281,3 +281,4 @@ admittime,S,String,yes,no,,,,,Demographic,1,timestamp time of admit time
 bipap,T,Boolean,yes,no,,,,,Order Procedure,1,
 cpap,T,Boolean,yes,no,,,,,Order Procedure,1,
 map,TWF,Real,yes,no,last_value_in_window,4,,,Phyiologic,1,mmHg
+note,N,String,yes,no,,,,,provider notes,1,no unit

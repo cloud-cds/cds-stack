@@ -17,11 +17,12 @@ port          = os.environ['db_port']
 db            = os.environ['db_name']
 user          = os.environ['db_user']
 pw            = os.environ['db_password']
+src_server = None
 if 'cmp_remote_server' in os.environ:
   src_server    = os.environ['cmp_remote_server']
 
-enc_id_range = 'enc_id < 31'
-tsp_range = " tsp > '2017-04-01 08:00:00 EDT'::timestamptz and tsp < '2017-04-01 16:00:00 EDT'::timestamptz"
+enc_id_range = 'enc_id < 5000'
+tsp_range = 'tsp < now()' #" and tsp > '2017-04-01 08:00:00 EDT'::timestamptz and tsp < '2017-04-01 16:00:00 EDT'::timestamptz"
 
 cdm_s_online_features = ['age','gender',
 'heart_failure_hist', 'chronic_pulmonary_hist', 'emphysema_hist',
@@ -101,8 +102,8 @@ cdm_t_fields1 = [
   ['tsp'                                , 'tsp',        'timestamptz' ],
   ['fid'                                , 'fid',        'varchar(50)' ],
   ["(value::json)#>>'{dose}'"           , 'dose',       'text'        ],
-  ["(value::json)#>>'{action}'"         , 'action',     'text'        ],
-  ["(value::json)#>>'{order_tsp}'"      , 'order_tsp',  'text'        ],
+  ["(value::json)#>>'{action}' as action"         , 'action',     'text'        ],
+  ["(value::json)#>>'{order_tsp}' as order_tsp"      , 'order_tsp',  'text'        ],
   ['confidence'                         , 'confidence', 'integer'     ],
 ]
 cdm_t_query1 = (cdm_t_fields1, 'fid like \'%_dose\' and ' + cdm_t_range + ' and ' + enc_id_range, 'fid, enc_id, tsp', cdm_t_dose_dependent_fields)
@@ -121,9 +122,9 @@ cdm_t_fields3 = [
   ['enc_id'                             , 'enc_id',     'integer'     ],
   ['tsp'                                , 'tsp',        'timestamptz' ],
   ['fid'                                , 'fid',        'varchar(50)' ],
-  ["(value::json)#>>'{diagname}'"           , 'diagname',       'text'        ],
-  ["(value::json)#>>'{ischronic}'"         , 'ischronic',     'text'        ],
-  ["""(value::json)#>>'{"present on admission"}'"""      , 'present_on_admission',  'text'        ],
+  ["(value::json)#>>'{diagname}' diagname"           , 'diagname',       'text'        ],
+  ["(value::json)#>>'{ischronic}' as ischronic"         , 'ischronic',     'text'        ],
+  ["""(value::json)#>>'{"present on admission"}' as present_on_admission"""      , 'present_on_admission',  'text'        ],
   ['confidence'                         , 'confidence', 'integer'     ],
 ]
 cdm_t_query3 = (cdm_t_fields3, 'fid like \'%_inhosp|pneumonia_sepsis|uro_sepsis|biliary_sepsis|intra_abdominal_sepsis\' and ' + cdm_t_range + ' and ' + enc_id_range, 'fid, enc_id, tsp', cdm_dependent_fields)
@@ -132,8 +133,8 @@ cdm_t_fields4 = [
   ['enc_id'                             , 'enc_id',     'integer'     ],
   ['tsp'                                , 'tsp',        'timestamptz' ],
   ['fid'                                , 'fid',        'varchar(50)' ],
-  ["(value::json)#>>'{status}'"           , 'status',       'text'        ],
-  ["(value::json)#>>'{name}'"         , 'name',     'text'        ],
+  ["(value::json)#>>'{status}' as status"           , 'status',       'text'        ],
+  ["(value::json)#>>'{name}' as name"         , 'name',     'text'        ],
   ['confidence'                         , 'confidence', 'integer'     ],
 ]
 cdm_t_query4 = (cdm_t_fields4, 'fid like \'bacterial_culture|_proc|culture_order\' and ' + cdm_t_range + ' and ' + enc_id_range, 'fid, enc_id, tsp', cdm_dependent_fields)
@@ -186,7 +187,7 @@ class TableComparator:
                      src_tbl, dst_tbl=None,
                      src_pred=None, dst_pred=None,
                      field_map=None, dependent_fields=None,
-                     version_extension='dataset', as_count_result=True, sort_field=None, dst_tsp_shift=None):
+                     version_extension='dataset', as_count_result=True, sort_field=None, dst_tsp_shift=None, local_compare=False):
 
     self.src_server     = src_server
     self.src_dataset_id = src_dataset_id
@@ -207,6 +208,7 @@ class TableComparator:
     self.as_count_result = as_count_result # what should the script output, count or rows?
     self.sort_field = sort_field # order field, ease to look at the difference, not computational.
     self.dst_tsp_shift = dst_tsp_shift
+    self.local_compare = local_compare
 
   def version_extension_ids(self):
     if self.version_extension == 'dataset':
@@ -234,14 +236,24 @@ class TableComparator:
 
   async def get_field_map(self, pool):
     async with pool.acquire() as conn:
-      remote_fields_query = \
-      '''
-      select *
-      from dblink('%(remote_server)s', $OPDB$
-        select column_name, data_type from information_schema.columns
-        where table_name = '%(remote_table)s' and table_schema = 'public'
-      $OPDB$) AS remote_fields (column_name text, data_type text)
-      ''' % { 'remote_server': self.src_server, 'remote_table': self.src_table }
+      if self.local_compare:
+        remote_fields_query = \
+        '''
+        select *
+        from (
+          select column_name, data_type from information_schema.columns
+          where table_name = '%(remote_table)s' and table_schema = 'public'
+        ) AS remote_fields
+        ''' % {'remote_table': self.src_table }
+      else:
+        remote_fields_query = \
+        '''
+        select *
+        from dblink('%(remote_server)s', $OPDB$
+          select column_name, data_type from information_schema.columns
+          where table_name = '%(remote_table)s' and table_schema = 'public'
+        $OPDB$) AS remote_fields (column_name text, data_type text)
+        ''' % { 'remote_server': self.src_server, 'remote_table': self.src_table }
 
       logging.info('Loading remote schema for {}'.format(self.src_table))
       remote_fields = await conn.fetch(remote_fields_query)
@@ -322,25 +334,47 @@ class TableComparator:
       ) R
       %s
       ''' % ('' if self.sort_field is None else ('ORDER BY %s' % self.sort_field))
-    compare_to_remote_query = \
-    '''
-    WITH A_DIFF_B AS (
-      SELECT %(local_exprs)s FROM %(local_table)s %(with_dst_extension)s
-      EXCEPT
-      SELECT %(local_fields)s
-      FROM dblink('%(srv)s', $OPDB$
-        %(query)s
-      $OPDB$) AS %(local_table)s_compare (%(local_fields_and_types)s)
-    ), B_DIFF_A AS (
-      SELECT %(local_fields)s
-      FROM dblink('%(srv)s', $OPDB$
-        %(query)s
-      $OPDB$) AS %(local_table)s_compare (%(local_fields_and_types)s)
-      EXCEPT
-      SELECT %(local_exprs)s FROM %(local_table)s %(with_dst_extension)s
-    )
-    %(finalizer)s
-    ''' % {
+    if not self.local_compare:
+      compare_to_remote_query_template = \
+      '''
+      WITH A_DIFF_B AS (
+        SELECT %(local_exprs)s FROM %(local_table)s %(with_dst_extension)s
+        EXCEPT
+        SELECT %(local_fields)s
+        FROM dblink('%(srv)s', $OPDB$
+          %(query)s
+        $OPDB$) AS %(local_table)s_compare (%(local_fields_and_types)s)
+      ), B_DIFF_A AS (
+        SELECT %(local_fields)s
+        FROM dblink('%(srv)s', $OPDB$
+          %(query)s
+        $OPDB$) AS %(local_table)s_compare (%(local_fields_and_types)s)
+        EXCEPT
+        SELECT %(local_exprs)s FROM %(local_table)s %(with_dst_extension)s
+      )
+      %(finalizer)s
+      '''
+    else:
+      compare_to_remote_query_template = \
+      '''
+      WITH A_DIFF_B AS (
+        SELECT %(local_exprs)s FROM %(local_table)s %(with_dst_extension)s
+        EXCEPT
+        SELECT %(local_fields)s
+        FROM (
+          %(query)s
+        ) AS %(local_table)s_compare
+      ), B_DIFF_A AS (
+        SELECT %(local_fields)s
+        FROM (
+          %(query)s
+        ) AS %(local_table)s_compare
+        EXCEPT
+        SELECT %(local_exprs)s FROM %(local_table)s %(with_dst_extension)s
+      )
+      %(finalizer)s
+      '''
+    compare_to_remote_query = compare_to_remote_query_template % {
       'srv'                    : self.src_server,
       'query'                  : remote_query,
       'local_table'            : dst_tbl,
@@ -388,6 +422,7 @@ async def run():
   parser.add_argument("--srcmid", type=int, default=None, help="Source model id")
   parser.add_argument("--dstmid", type=int, default=None, help="Dest model id")
   parser.add_argument("--counts", default=False, help="Show count of differing rows instead of values", action="store_true")
+  parser.add_argument("--local-compare", default=False, help="Source dataset and Dest dataset are in the same database", action="store_true")
   args = parser.parse_args()
 
   src_dataset_id = args.srcdid
@@ -407,14 +442,14 @@ async def run():
                             tbl, src_pred=predicate,
                             field_map=field_map, dependent_fields=dependent_fields,
                             version_extension=version_type,
-                            as_count_result=args.counts, sort_field=sort_field)
+                            as_count_result=args.counts, sort_field=sort_field, local_compare=args.local_compare)
         result = await c.run(dbpool)
         query_results.append(result)
     else:
       c = TableComparator(src_server,
                           src_dataset_id, src_model_id,
                           dst_dataset_id, dst_model_id,
-                          tbl, version_extension=version_type, as_count_result=args.counts)
+                          tbl, version_extension=version_type, as_count_result=args.counts, local_compare=args.local_compare)
       result = await c.run(dbpool)
       query_results.append(result)
   return query_results
