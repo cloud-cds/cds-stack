@@ -219,8 +219,8 @@ async def execute_load(conn, sql, log, timeout=2):
     try:
       attempts += 1
       async with conn.transaction():
-        await conn.execute(sql, timeout=timeout)
-        break
+        status = await conn.execute(sql, timeout=timeout)
+        return status
     except Exception as e:
       if log:
         log.warn("execute_load failed: retry %s times in %s secs" % (attempts, timeout**attempts))

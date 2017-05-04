@@ -9,6 +9,7 @@ import etl.transforms.primitives.df.filter_rows as filter_rows
 from etl.clarity2dw.extractor import log_time
 import time
 import os
+import asyncio
 
 
 def get_min_tsp(tsp_name):
@@ -252,3 +253,32 @@ async def pull_order_procs(connection, dataset_id, log, is_plan):
   loaded = op.shape[0]
   log_time(log, 'pull_order_procs', start, extracted, loaded)
   return 'pull_order_procs'
+
+async def notes(connection, dataset_id, log, is_plan):
+  log.info("Entering Notes Processing")
+  start = time.time()
+  sql = '''
+  insert into cdm_notes(dataset_id, pat_id, note_id, note_type, note_status, note_body, dates, providers)
+  select  %(dataset_id)s as dataset_id,
+          PE.pat_id as pat_id,
+          "NOTE_ID" as note_id,
+          "NoteType" as note_type,
+          "NoteStatus" as note_status,
+          "NOTE_TEXT" as note_body,
+          json_build_object('spec_note_time_dttm', "SPEC_NOTE_TIME_DTTM", 'entry_instant_dttm', "ENTRY_ISTANT_DTTM") as dates,
+          json_build_object('AuthorType', "AuthorType") as providers
+  from "Notes" N
+  inner join pat_enc PE
+    on N."CSN_ID" = PE.visit_id and PE.dataset_id = %(dataset_id)s %(min_tsp)s
+  where
+  ''' % {'dataset_id': dataset_id, 'min_tsp': get_min_tsp('CREATE_INSTANT_DTTM')}
+
+  log.info(sql)
+  status = 'did-not-run'
+  if not is_plan:
+    status = load_row.execute_load(connection, sql, log)
+  else:
+    log.info('Notes query skipped, due to plan mode')
+
+  log_time(log, 'note', start, '[status: %s]' % status, '[status: %s]' % status)
+  return 'note'

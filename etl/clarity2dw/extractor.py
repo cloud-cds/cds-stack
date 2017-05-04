@@ -26,8 +26,8 @@ def log_time(log, name, start, extracted, loaded):
   if extracted == 0:
     msg = '%s STATS: Zero row extraced, ' % name
   else:
-    msg = '%s STATS: %s valid rows extraced, ' \
-        % (extracted, name)
+    msg = '%s STATS: %s valid rows extracted, ' \
+        % (name, extracted)
   if loaded == 0:
     msg += 'Zero row loaded in CDM, duration %s s' % duration
   else:
