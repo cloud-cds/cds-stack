@@ -14,6 +14,8 @@ logging.debug("Import complete")
 
 print(os.environ)
 
+def_stack_to_english_dict = {'opsdx-prod':'Prod','opsdx-dev':'Dev','Test':'Test'}
+
 class Engine:
   def __init__(self, time_start, time_end):
     self.time_start = time_start
@@ -32,7 +34,10 @@ class Engine:
         logger.info("Selecting default value for {}".format(var_str))
         return default_val
 
-    self.BEHAMON_STACK = try_to_read_from_environ('BEHAMON_STACK','test')
+    self.BEHAMON_STACK = try_to_read_from_environ('BEHAMON_STACK','Test')
+
+    self.receiving_email_address = try_to_read_from_environ('REPORT_RECEIVING_EMAIL_ADDRESS','trews-jhu@opsdx.io')
+
 
   def run(self, mode):
     ''' Run the behavioral monitor engine '''
@@ -105,10 +110,10 @@ class Engine:
     self.boto_ses_client.send_email(
       Source='trews-jhu@opsdx.io',
       Destination={
-        'ToAddresses': ['trews-jhu@opsdx.io'],
+        'ToAddresses': [self.receiving_email_address],
       },
       Message={
-        'Subject': {'Data': 'Report Metrics (%s)' % self.BEHAMON_STACK},
+        'Subject': {'Data': 'Report Metrics (%s)' % def_stack_to_english_dict[self.BEHAMON_STACK]},
         'Body': {
           'Html': {'Data': build_report_body},
         },
