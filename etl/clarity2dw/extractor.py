@@ -611,8 +611,31 @@ class Extractor:
     else:
       log.info("fillin skipped")
 
-  def get_derive_tasks(self):
-    pass
+  def get_derive_tasks(self, config):
+    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+    loop = asyncio.get_event_loop()
+    conn = loop.run_until_complete(asyncpg.connect(database=config['db_name'], \
+                                                                                    user=config['db_user'], \
+                                                                                    password=config['db_pass'], \
+                                                                                    host=config['db_host'], \
+                                                                                    port=config['db_port'],))
+    derive_features = loop.run_until_complete(conn.fetch('''
+          SELECT fid, derive_func_input from cdm_feature
+          where not is_measured and not is_deprecated
+      '''))
+    derive_tasks = []
+    for feature in derive_features:
+      fid = feature['fid']
+      dependencies = ['derive_{}'.format(fid) for fid in feature['derive_func_input'].strip().split(",")]
+      name = 'derive_{}'.format(fid)
+      derive_tasks.append(
+        {
+          'name': name,
+          'dependencies': dependencies,
+          'fid': fid
+        }
+      )
+    return derive_tasks
 
   async def run_derive(self, ctxt, _):
     log = ctxt.log
