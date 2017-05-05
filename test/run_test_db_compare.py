@@ -566,7 +566,7 @@ class DBCompareTest():
       date = args['date']
     else:
       async with dbpool.acquire() as conn:
-        date = await conn.fetch("select max(tsp) from cdm_twf")
+        date = await conn.fetchval("select max(tsp) from cdm_twf")
       if date is None:
         date = (dt.datetime.now() - dt.timedelta(days=2)).strftime('%Y-%m-%d')
       else:
