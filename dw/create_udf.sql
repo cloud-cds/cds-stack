@@ -783,7 +783,8 @@ CREATE OR REPLACE FUNCTION calculate_criteria(
                 this_pat_id                      text,
                 ts_start                         timestamptz,
                 ts_end                           timestamptz,
-                _dataset_id                      INTEGER DEFAULT NULL
+                _dataset_id                      INTEGER DEFAULT NULL,
+                use_clarity_notes                boolean default false
   )
   RETURNS table(pat_id                           varchar(50),
                 name                             varchar(50),
@@ -819,36 +820,47 @@ BEGIN
     select distinct P.pat_id from pat_visit_ids P
   ),
   suspicion_of_infection_buff as (
-    -- select _dataset_id as dataset_id,
-    --        P.pat_id as pat_id,
-    --        'suspicion_of_infection'::text as name,
-    --        true as is_met,
-    --        min(M.start_ts) as measurement_time,
-    --        min(M.start_ts) as override_time,
-    --        'NLP'::text as override_user,
-    --        json_agg(json_build_object('text'::text, M.ngram::text)) as override_value,
-    --        min(M.ngram) as value,
-    --        now() as update_date
-    -- from pat_visit_ids P
-    -- inner join lateral match_clarity_infections(P.visit_id, 3, 3) M on P.visit_id = M.csn_id
-    -- group by P.pat_id
-
-    -- TODO: we have picked an arbitrary time interval for notes. Refine.
-    select _dataset_id as dataset_id,
-           P.pat_id as pat_id,
-           'suspicion_of_infection'::text as name,
-           true as is_met,
-           min(M.start_ts) as measurement_time,
-           min(M.start_ts) as override_time,
-           'NLP'::text as override_user,
-           json_agg(json_build_object('text'::text, M.ngram::text)) as override_value,
-           min(M.ngram) as value,
-           now() as update_date
-    from pat_ids P
-    inner join lateral match_cdm_infections(P.pat_id, _dataset_id, 3, 3) M
-      on P.pat_id = M.pat_id
-      and M.start_ts between ts_start - interval '1 days' and ts_end + interval '1 days'
-    group by P.pat_id
+    -- Use either clarity or cdm notes for now.
+    -- We implement this as a union over two queries, each gated
+    -- by a simple where clause based on an function argument.
+    with clarity_matches as (
+        select _dataset_id as dataset_id,
+               P.pat_id as pat_id,
+               'suspicion_of_infection'::text as name,
+               true as is_met,
+               min(M.start_ts) as measurement_time,
+               min(M.start_ts) as override_time,
+               'NLP'::text as override_user,
+               json_agg(json_build_object('text'::text, M.ngram::text)) as override_value,
+               min(M.ngram) as value,
+               now() as update_date
+        from pat_visit_ids P
+        inner join lateral match_clarity_infections(P.visit_id, 3, 3) M on P.visit_id = M.csn_id
+        where use_clarity_notes
+        group by P.pat_id
+    ),
+    cdm_matches as (
+        -- TODO: we have picked an arbitrary time interval for notes. Refine.
+        select _dataset_id as dataset_id,
+               P.pat_id as pat_id,
+               'suspicion_of_infection'::text as name,
+               true as is_met,
+               min(M.start_ts) as measurement_time,
+               min(M.start_ts) as override_time,
+               'NLP'::text as override_user,
+               json_agg(json_build_object('text'::text, M.ngram::text)) as override_value,
+               min(M.ngram) as value,
+               now() as update_date
+        from pat_ids P
+        inner join lateral match_cdm_infections(P.pat_id, _dataset_id, 3, 3) M
+          on P.pat_id = M.pat_id
+          and M.start_ts between ts_start - interval '1 days' and ts_end + interval '1 days'
+        where not use_clarity_notes
+        group by P.pat_id
+    )
+    select * from clarity_matches
+    union all
+    select * from cdm_matches
   ),
   pat_cvalues as (
     select pat_ids.pat_id,
