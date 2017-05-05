@@ -36,6 +36,8 @@ group by enc_id
 """
 
 def populate(connection, dataset_id):
+  connection.execute(text("""delete from sub_populations where dataset_id = {ds}""".format(ds=dataset_id)))
+
   for subtype in sub_populations_s:
     connection.execute(text(select_subtype_encs_s.format(subtype=subtype,ds=dataset_id)))
 

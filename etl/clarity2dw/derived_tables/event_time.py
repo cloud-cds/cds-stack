@@ -27,6 +27,7 @@ def populate(connection, dataset_id):
   #----------------------------------
   # Handle Special Cases
   #----------------------------------
+  connection.execute(text("""delete from event_time where dataset_id = {ds}""".format(ds=dataset_id)))
 
   connection.execute(text("""
     insert into event_time(dataset_id, enc_id, tsp, event)
