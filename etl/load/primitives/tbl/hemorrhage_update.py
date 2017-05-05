@@ -13,7 +13,7 @@ async def hemorrhage_update(fid, fid_input, conn, log , dataset_id=None, twf_tab
     fid_input_items = [item.strip() for item in fid_input.split(',')]
     assert fid_input_items[0] == 'transfuse_rbc', \
         'wrong fid_input %s' % fid_input
-    await clean_tbl.cdm_t_clean(conn, fid, dataset_id)
+    await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id))
     select_sql = """
         select rbc_2.enc_id, rbc_2.tsp, 1 confidence, prior_events, future_events from (select distinct c1.enc_id, c1.tsp, count (*) prior_events
             from cdm_t c1 join cdm_t c2

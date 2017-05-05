@@ -32,7 +32,9 @@ job_config = {
     'recalculate_popmean': False,
   },
   'derive': {
+    'parallel': False,
     'fid': None,
+    'mode': None,
   },
   'offline_criteria_processing': {
     'load_cdm_to_criteria_meas':True,

@@ -12,7 +12,7 @@ async def mi_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_t
     assert fid == 'mi', 'wrong fid %s' % fid
     assert fid_input == 'troponin', \
             'wrong fid_input %s' % fid_input
-    await clean_tbl.cdm_twf_clean(conn, fid, value = 0,  twf_table=twf_table, dataset_id=dataset_id)
+    await conn.execute(clean_tbl.cdm_twf_clean(fid, value = 0,  twf_table=twf_table, dataset_id=dataset_id))
     update_clause = """
     UPDATE %(twf_table)s SET mi = 1,
         mi_c = troponin_c

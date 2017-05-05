@@ -611,6 +611,9 @@ class Extractor:
     else:
       log.info("fillin skipped")
 
+  def get_derive_tasks(self):
+    pass
+
   async def run_derive(self, ctxt, _):
     log = ctxt.log
     if self.job.get('derive', False):
@@ -619,6 +622,14 @@ class Extractor:
       async with ctxt.db_pool.acquire() as conn:
         await self.query_cdm_feature_dict(conn)
         await derive_main(log, conn, self.cdm_feature_dict, dataset_id = self.dataset_id, fid = fid, mode=mode)
-      self.log.info("derive completed")
+      log.info("derive completed")
     else:
-      self.log.info("derive skipped")
+      log.info("derive skipped")
+
+  async def offline_criteria_processing(self, ctxt, _):
+    if self.job.get('load_cdm_to_criteria_meas', False):
+      async with ctxt.db_pool.acquire() as conn:
+        await load_table.load_cdm_to_criteria_meas(conn, self.dataset_id)
+    if self.job.get('calculate_historical_criteria', False):
+      async with ctxt.db_pool.acquire() as conn:
+        await load_table.calculate_historical_criteria(conn)

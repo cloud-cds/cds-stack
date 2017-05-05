@@ -270,12 +270,16 @@ async def notes(connection, dataset_id, log, is_plan):
   from "Notes" N
   inner join pat_enc PE
     on N."CSN_ID" = PE.visit_id and PE.dataset_id = %(dataset_id)s %(min_tsp)s
+  on conflict (dataset_id, pat_id, note_id, note_type, note_status) do update
+  set note_body = excluded.note_body,
+    dates = excluded.dates,
+    providers = excluded.providers;
   ''' % {'dataset_id': dataset_id, 'min_tsp': get_min_tsp('CREATE_INSTANT_DTTM')}
 
   log.info(sql)
   status = 'did-not-run'
   if not is_plan:
-    status = load_row.execute_load(connection, sql, log)
+    status = await load_row.execute_load(connection, sql, log, timeout=10)
   else:
     log.info('Notes query skipped, due to plan mode')
 
