@@ -14,7 +14,7 @@ logging.debug("Import complete")
 
 print(os.environ)
 
-def_stack_to_english_dict = {'opsdx-prod':'Prod','opsdx-dev':'Dev'}
+def_stack_to_english_dict = {'opsdx-prod':'Prod','opsdx-dev':'Dev','Test':'Test'}
 
 class Engine:
   def __init__(self, time_start, time_end):
