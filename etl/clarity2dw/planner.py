@@ -126,6 +126,7 @@ class Planner():
                                 })})
 
   def gen_derive_plan(self):
+    parallel = self.job.get('derive').get('parallel')
     if parallel:
       for task in self.extractor.get_derive_tasks(db_config):
         self.plan.update({
