@@ -567,7 +567,10 @@ class DBCompareTest():
     else:
       async with dbpool.acquire() as conn:
         date = await conn.fetch("select max(tsp) from cdm_twf")
-      date = (date[0]['max'] - dt.timedelta(days=2)).strftime('%Y-%m-%d')
+      if date is None:
+        date = (dt.datetime.now() - dt.timedelta(days=2)).strftime('%Y-%m-%d')
+      else:
+        date = (date[0]['max'] - dt.timedelta(days=2)).strftime('%Y-%m-%d')
     tsp_range = " tsp > '%(date)s 10:00:00 utc'::timestamptz and tsp < '%(date)s 20:00:00 utc'::timestamptz" % {'date': date}
 
     if not await self.check_tsp_range(tsp_range, src_server, dbpool):
