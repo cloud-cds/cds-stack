@@ -222,10 +222,12 @@ async def execute_load(conn, sql, log, timeout=2, backoff=2):
         status = await conn.execute(sql, timeout=timeout)
         return status
     except Exception as e:
+      timeout = timeout ** attempts
+      backoff = backoff ** attempts
       if log:
-        log.warn("execute_load failed: retry %s times in %s secs" % (attempts, timeout + backoff**attempts))
-        traceback.print_exc()
-        await asyncio.sleep(timeout + backoff**attempts)
+        log.warn("execute_load failed: retry %s times in %s secs with timeout %s" % (attempts, backoff, timeout))
+        log.exception(e)
+      await asyncio.sleep(backoff)
         # log.info(sql)
       continue
 
