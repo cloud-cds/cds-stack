@@ -265,12 +265,15 @@ async def notes(connection, dataset_id, log, is_plan):
           "NoteType" as note_type,
           "NoteStatus" as note_status,
           string_agg("NOTE_TEXT", E'\n') as note_body,
-          json_build_object('create_instant_dttm', min("CREATE_INSTANT_DTTM"), 'spec_note_time_dttm', min("SPEC_NOTE_TIME_DTTM"), 'entry_instant_dttm', min("ENTRY_ISTANT_DTTM")) as dates,
-          json_build_object('AuthorType', min("AuthorType")) as providers
+          json_build_object('create_instant_dttm', "CREATE_INSTANT_DTTM",
+                            'spec_note_time_dttm', json_agg(distinct "SPEC_NOTE_TIME_DTTM"),
+                            'entry_instant_dttm', json_agg(distinct "ENTRY_ISTANT_DTTM")
+                            ) as dates,
+          json_build_object('AuthorType', json_agg(distinct "AuthorType")) as providers
   from "Notes" N
   inner join pat_enc PE
     on N."CSN_ID" = PE.visit_id and PE.dataset_id = %(dataset_id)s %(min_tsp)s
-  group by PE.pat_id, "NOTE_ID", "NoteType", "NoteStatus"
+  group by PE.pat_id, "NOTE_ID", "NoteType", "NoteStatus", "CREATE_INSTANT_DTTM"
   on conflict (dataset_id, pat_id, note_id, note_type, note_status) do update
     set note_body = excluded.note_body,
         dates = excluded.dates,
