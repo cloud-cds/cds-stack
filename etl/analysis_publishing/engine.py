@@ -34,6 +34,9 @@ class Engine:
 
     self.BEHAMON_STACK = try_to_read_from_environ('BEHAMON_STACK','test')
 
+    self.receiving_email_address = try_to_read_from_environ('REPORT_RECEIVING_EMAIL_ADDRESS','peterm@opsdx.io') #trews-jhu@opsdx.io
+
+
   def run(self, mode):
     ''' Run the behavioral monitor engine '''
     self.engine = utils.get_db_engine()
@@ -105,7 +108,7 @@ class Engine:
     self.boto_ses_client.send_email(
       Source='trews-jhu@opsdx.io',
       Destination={
-        'ToAddresses': ['trews-jhu@opsdx.io'],
+        'ToAddresses': [self.receiving_email_address],
       },
       Message={
         'Subject': {'Data': 'Report Metrics (%s)' % self.BEHAMON_STACK},
