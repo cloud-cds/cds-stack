@@ -213,7 +213,7 @@ async def add_twf(conn, row, dataset_id=None, log=None):
     }
   await execute_load(conn, sql, log)
 
-async def execute_load(conn, sql, log, timeout=2):
+async def execute_load(conn, sql, log, timeout=2, backoff=2):
   attempts = 0
   while True:
     try:
@@ -222,10 +222,12 @@ async def execute_load(conn, sql, log, timeout=2):
         status = await conn.execute(sql, timeout=timeout)
         return status
     except Exception as e:
+      timeout = timeout ** attempts
+      backoff = backoff ** attempts
       if log:
-        log.warn("execute_load failed: retry %s times in %s secs" % (attempts, timeout**attempts))
-        traceback.print_exc()
-        await asyncio.sleep(timeout**attempts)
+        log.warn("execute_load failed: retry %s times in %s secs with timeout %s secs" % (attempts, backoff, timeout))
+        log.exception(e)
+      await asyncio.sleep(backoff)
         # log.info(sql)
       continue
 

@@ -15,7 +15,7 @@ async def hemorrhagic_shock_update(fid, fid_input, conn, log, dataset_id=None,  
         and fid_input_items[1] == 'lactate' \
         and fid_input_items[2] == 'sbpm', \
         'wrong fid_input %s' % fid_input
-    await clean_tbl.cdm_twf_clean(conn, fid,  twf_table=twf_table, dataset_id=dataset_id)
+    await conn.execute(clean_tbl.cdm_twf_clean(fid,  twf_table=twf_table, dataset_id=dataset_id))
     update_clause = """
       update %(twf_table)s SET hemorrhagic_shock = (num_transfusions >=4)::int, hemorrhagic_shock_c=confidence
       from

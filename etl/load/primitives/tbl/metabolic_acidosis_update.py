@@ -11,7 +11,7 @@ async def metabolic_acidosis_update(fid, fid_input, conn, log, dataset_id=None, 
     assert fid_input_items[0].strip() == 'arterial_ph' \
         and fid_input_items[1].strip() == 'bicarbonate', \
             'wrong fid_input %s' % fid_input
-    await clean_tbl.cdm_twf_clean(conn, fid, value = 0, twf_table=twf_table, dataset_id=dataset_id)
+    await conn.execute(clean_tbl.cdm_twf_clean(fid, value = 0, twf_table=twf_table, dataset_id=dataset_id))
     update_clause = """
     UPDATE %(twf_table)s SET metabolic_acidosis = 1,
         metabolic_acidosis_c = arterial_ph_c | bicarbonate_c

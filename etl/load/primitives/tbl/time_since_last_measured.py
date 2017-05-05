@@ -16,7 +16,7 @@ async def time_since_last_measured(fid, fid_input, conn, log, twf_table='cdm_twf
     """
     # Make sure the fid is correct (fid_input can be anything)
     assert fid == '%s_minutes_since_measurement' % fid_input, 'wrong fid %s' % fid_input
-    clean_tbl.cdm_twf_clean(conn, fid, twf_table=twf_table)
+    await conn(clean_tbl.cdm_twf_clean(fid, twf_table=twf_table))
 
     # Get all of the fid_input items ordered by enc_id then tsp
     records = await conn.fetch(\

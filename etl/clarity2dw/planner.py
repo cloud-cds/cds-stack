@@ -32,7 +32,9 @@ job_config = {
     'recalculate_popmean': False,
   },
   'derive': {
+    'parallel': False,
     'fid': None,
+    'mode': None,
   },
   'offline_criteria_processing': {
     'load_cdm_to_criteria_meas':True,
@@ -124,13 +126,25 @@ class Planner():
                                 })})
 
   def gen_derive_plan(self):
-    self.plan.update(
-        {'derive': (['fillin'],
-          {
-            'config': db_config,
-            'coro': self.extractor.run_derive,
-          })}
-      )
+    parallel = self.job.get('derive').get('parallel')
+    if parallel:
+      for task in self.extractor.get_derive_tasks(db_config):
+        self.plan.update({
+            task['name']: (task['dependencies'],
+              {
+                'config': db_config,
+                'coro': self.run_derive,
+                'args': task['fid']
+              })
+          })
+    else:
+      self.plan.update(
+          {'derive': (['fillin'],
+            {
+              'config': db_config,
+              'coro': self.extractor.run_derive,
+            })}
+        )
 
   def start_engine(self):
     self.log.info("start job in the engine")

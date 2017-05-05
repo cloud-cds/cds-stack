@@ -8,7 +8,7 @@ async def change_since_last_measured(fid, fid_input, conn, log, dataset_id = Non
     """
     # Make sure the fid is correct (fid_input can be anything)
     assert fid == '%s_change' % fid_input, 'wrong fid %s' % fid_input
-    await clean_tbl.cdm_twf_clean(conn, fid,  twf_table=twf_table, dataset_id=dataset_id)
+    await conn.execute(clean_tbl.cdm_twf_clean(fid,  twf_table=twf_table, dataset_id=dataset_id))
 
     sql = """
     create temp table change as select enc_id, tsp, %(fid)s, %(fid)s_c,

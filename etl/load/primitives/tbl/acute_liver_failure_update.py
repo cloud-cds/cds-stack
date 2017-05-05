@@ -14,7 +14,7 @@ async def acute_liver_failure_update(fid, fid_input, conn, log,  dataset_id=None
         and fid_input_items[1].strip() == 'gcs' \
         and fid_input_items[2].strip() == 'liver_disease_hist', \
             'wrong fid_input %s' % fid_input
-    await clean_tbl.cdm_twf_clean(conn, fid, value = 0, twf_table=twf_table, dataset_id=dataset_id)
+    await conn.execute(clean_tbl.cdm_twf_clean(fid, value = 0, twf_table=twf_table, dataset_id=dataset_id))
     update_clause = """
     UPDATE %(twf_table)s SET acute_liver_failure = 1,
         acute_liver_failure_c = inr_c | gcs_c

@@ -5,7 +5,7 @@ async def septic_shock_iii_update(fid, fid_input, conn, log, dataset_id = None, 
     # UPDATE 8/19/2016
     assert fid == 'septic_shock_iii', 'wrong fid %s' % fid
 
-    await clean_tbl.cdm_twf_clean(conn, fid, value=0, confidence=0, twf_table=twf_table, dataset_id=dataset_id)
+    await conn.execute(clean_tbl.cdm_twf_clean(fid, value=0, confidence=0, twf_table=twf_table, dataset_id=dataset_id))
 
 
     update_clause = """
