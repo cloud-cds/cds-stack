@@ -280,7 +280,7 @@ async def notes(connection, dataset_id, log, is_plan):
   log.info(sql)
   status = 'did-not-run'
   if not is_plan:
-    status = await load_row.execute_load(connection, sql, log, timeout=10)
+    status = await load_row.execute_load(connection, sql, log, timeout=None)
   else:
     log.info('Notes query skipped, due to plan mode')
 

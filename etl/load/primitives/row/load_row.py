@@ -1,6 +1,7 @@
 # sql query to load a row into CDM
 import datetime
 import traceback
+import random
 import asyncio
 CHUCK_SIZE=5000
 
@@ -213,8 +214,10 @@ async def add_twf(conn, row, dataset_id=None, log=None):
     }
   await execute_load(conn, sql, log)
 
-async def execute_load(conn, sql, log, timeout=2, backoff=2):
+async def execute_load(conn, sql, log, timeout=2, backoff=2, base=2, max_timeout=10*60, max_backoff=3*60):
   attempts = 0
+  if timeout:
+    init_timeout = timeout
   while True:
     try:
       attempts += 1
@@ -222,12 +225,14 @@ async def execute_load(conn, sql, log, timeout=2, backoff=2):
         status = await conn.execute(sql, timeout=timeout)
         return status
     except Exception as e:
-      timeout = timeout ** attempts
-      backoff = backoff ** attempts
+      random_secs = random.uniform(0, 1)
+      if timeout:
+        timeout = min(((base**attempts) + random_secs + init_timeout), max_timeout)
+      wait_time = min(((base**attempts) + random_secs), max_backoff)
       if log:
-        log.warn("execute_load failed: retry %s times in %s secs with timeout %s secs" % (attempts, backoff, timeout))
+        log.warn("execute_load failed: retry %s times in %s secs with timeout %s secs" % (attempts, wait_time, timeout))
         log.exception(e)
-      await asyncio.sleep(backoff)
+      await asyncio.sleep(wait_time)
         # log.info(sql)
       continue
 
