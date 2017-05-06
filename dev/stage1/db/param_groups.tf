@@ -57,7 +57,7 @@ resource "aws_db_parameter_group" "pg-etl-96" {
   # Autovacuum and checkpoints
   parameter {
     name  = "autovacuum"
-    value = "off"
+    value = "0"
   }
 
   parameter {
@@ -73,6 +73,22 @@ resource "aws_db_parameter_group" "pg-etl-96" {
   parameter {
     name  = "max_wal_size"
     value = "16384"
+  }
+
+  # Logging
+  parameter {
+    name  = "rds.log_retention_period"
+    value = "1440"
+  }
+
+  parameter {
+    name  = "log_error_verbosity"
+    value = "TERSE"
+  }
+
+  parameter {
+    name  = "log_min_error_statement"
+    value = "panic"
   }
 
   # Parallelism
