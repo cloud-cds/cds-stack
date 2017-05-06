@@ -7,6 +7,7 @@ import os
 import json
 from etl.clarity2dw.extractor import Extractor
 import functools
+import asyncpg
 
 CONF = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'conf')
 
@@ -90,7 +91,14 @@ class Planner():
     self.gen_fillin_plan()
     self.gen_derive_plan()
     self.log.info("plan is ready")
+    self.print_plan()
     return self.plan
+
+  def print_plan(self):
+    plan_to_do = "TASK TODO:\n"
+    for task_name in self.plan:
+      plan_to_do += "TASK {} -- Dependencies: {}\n".format(task_name, ', '.join(self.plan[task_name][0]))
+    self.log.info(plan_to_do)
 
   def init_plan(self):
     self.plan = {
@@ -128,12 +136,12 @@ class Planner():
   def gen_derive_plan(self):
     parallel = self.job.get('derive').get('parallel')
     if parallel:
-      for task in self.extractor.get_derive_tasks(db_config):
+      for task in get_derive_tasks(db_config, self.extractor.dataset_id):
         self.plan.update({
             task['name']: (task['dependencies'],
               {
                 'config': db_config,
-                'coro': self.run_derive,
+                'coro': self.extractor.run_derive,
                 'args': task['fid']
               })
           })
@@ -157,6 +165,44 @@ class Planner():
     loop.close()
     self.log.info("job completed")
 
+
+def get_derive_tasks(config, dataset_id):
+  async def _run_get_derive_tasks(config):
+    conn = await asyncpg.connect(database=config['db_name'], \
+                           user=config['db_user'], \
+                           password=config['db_pass'], \
+                           host=config['db_host'], \
+                           port=config['db_port'])
+    derive_features = await conn.fetch('''
+        SELECT fid, derive_func_input from cdm_feature
+        where not is_measured and not is_deprecated %s
+    ''' % ('and dataset_id = {}'.format(dataset_id) if dataset_id is not None else ''))
+    sql = "select * from cdm_feature where dataset_id = %s" % dataset_id
+    cdm_feature = await conn.fetch(sql)
+    cdm_feature_dict = {f['fid']:f for f in cdm_feature}
+    conn.close()
+    return [derive_features, cdm_feature_dict]
+
+  loop = asyncio.new_event_loop()
+  derive_features, cdm_feature_dict = loop.run_until_complete(_run_get_derive_tasks(config))
+  loop.close()
+
+  derive_tasks = []
+  for feature in derive_features:
+    fid = feature['fid']
+    inputs =[fid.strip() for fid in feature['derive_func_input'].split(',')]
+    dependencies = ['derive_{}'.format(fid) for fid in inputs if not cdm_feature_dict[fid]['is_measured']]
+    if [fid for fid in inputs if cdm_feature_dict[fid]['is_measured']]:
+      dependencies.append('fillin')
+    name = 'derive_{}'.format(fid)
+    derive_tasks.append(
+      {
+        'name': name,
+        'dependencies': dependencies,
+        'fid': fid
+      }
+    )
+  return derive_tasks
 
 if __name__ == '__main__':
   planner = Planner(job_config)
