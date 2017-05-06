@@ -12,19 +12,21 @@ spec:
     spec:
       nodeSelector:
         opsdx_nodegroup: c2dw-etl
+        kubernetes.io/hostname: ip-10-0-250-115.ec2.internal
       containers:
       - name: c2dw-etl-6m
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/c2dw-etl:0.0.2
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/c2dw-etl:0.0.7
         command:
-          - "python"
-          - "./etl/clarity2dw/engine.py"
+          - "sh"
+          - "-c"
+          - "nice -20 python -q -X faulthandler ./etl/clarity2dw/planner.py"
         env:
         - name: dataset_id
-          value: "4"
+          value: "5"
         - name: min_tsp
           value: "2016-10-27"
-        - name: nproc
-          value: '-1'
+        - name: nprocs
+          value: "4"
         - name: db_host
           value: "dw.dev.opsdx.io"
         - name: db_port

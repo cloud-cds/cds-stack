@@ -2,20 +2,20 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: c2dw-etl-1m-job
+  name: c2dw-etl-1y-job
 spec:
   template: # create pods using pod definition in this template
     metadata:
       # unlike pod-nginx.yaml, the name is not included in the meta data as a unique name is
       # generated from the deployment name
-      name: c2dw-etl-1m
+      name: c2dw-etl-1y
     spec:
       nodeSelector:
         opsdx_nodegroup: c2dw-etl
         kubernetes.io/hostname: ip-10-0-250-115.ec2.internal
       containers:
-      - name: c2dw-etl-1m
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/c2dw-etl:0.0.6
+      - name: c2dw-etl-1y
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/c2dw-etl:0.0.8
         command:
           - "sh"
           - "-c"
@@ -24,9 +24,9 @@ spec:
         - name: dataset_id
           value: "5"
         - name: min_tsp
-          value: "2017-03-27"
+          value: "2016-04-27"
         - name: nprocs
-          value: "4"
+          value: "8"
         - name: db_host
           value: "dw.dev.opsdx.io"
         - name: db_port

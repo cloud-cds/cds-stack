@@ -8,22 +8,23 @@ spec:
     metadata:
       # unlike pod-nginx.yaml, the name is not included in the meta data as a unique name is
       # generated from the deployment name
-      labels:
-        app: c2dw-etl-3y
+      name: c2dw-etl-3y
     spec:
       nodeSelector:
         opsdx_nodegroup: c2dw-etl
+        kubernetes.io/hostname: ip-10-0-250-115.ec2.internal
       containers:
       - name: c2dw-etl-3y
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/c2dw-etl:0.0.1
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/c2dw-etl:0.0.8
         command:
-          - "python"
-          - "./etl/clarity2dw/engine.py"
+          - "sh"
+          - "-c"
+          - "nice -20 python -q -X faulthandler ./etl/clarity2dw/planner.py"
         env:
         - name: dataset_id
-          value: "3"
-        - name: nproc
-          value: '-1'
+          value: "5"
+        - name: nprocs
+          value: "8"
         - name: db_host
           value: "dw.dev.opsdx.io"
         - name: db_port
