@@ -101,6 +101,7 @@ lab_orders_transforms = [
         'ComponentID':      'component_id',
     }),
     lambda lp: restructure.extract(lp, 'status', {'Title': 'status'}),
+    lambda lp: restructure.make_null_time_midnight(lp), # TEMPORARY WORKAROUND
     lambda lp: restructure.concat_str(lp, 'tsp', 'date', 'time'),
     lambda lp: restructure.concat_str(lp, 'res_tsp', 'res_date', 'res_time'),
     lambda lp: translate.translate_epic_id_to_fid(lp,
@@ -126,6 +127,7 @@ lab_results_transforms = [
         'Units':            'unit',
     }),
     lambda lr: restructure.unlist(lr, 'value'),
+    lambda lr: restructure.make_null_time_midnight(lr), # TEMPORARY WORKAROUND
     lambda lr: restructure.concat_str(lr, 'tsp', 'date', 'time'),
     lambda lr: restructure.concat_str(lr, 'res_tsp', 'res_date', 'res_time'),
     lambda lr: translate.translate_epic_id_to_fid(lr,
