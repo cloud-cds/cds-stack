@@ -73,6 +73,11 @@ variable "dw_identifier" {
   description = "RDS DW Resource Identifier"
 }
 
+variable "dw_storage" {
+  description = "Storage size in GB"
+  default = "132"
+}
+
 variable "dw_engine" {
   description = "Postgres-backed DB Engine"
   default = "postgres"
