@@ -13,6 +13,7 @@ import pandas as pd
 import datetime as dt
 import itertools
 import logging
+import pytz
 
 class Extractor:
     def __init__(self, hospital, lookback_hours, jhapi_server, jhapi_id,
@@ -225,15 +226,17 @@ class Extractor:
         return pd.DataFrame()
 
 
-    def push_notifications(self, notifications):
+    def push_notifications(self, notifications, push_tz='US/Eastern'):
         resource = '/patients/addflowsheetvalue'
+        t_utc = dt.datetime.utcnow().replace(tzinfo=pytz.utc)
+        current_time = str(t_utc.astimezone(pytz.timezone(push_tz)))
         payloads = [{
             'PatientID':            n['pat_id'],
             'ContactID':            n['visit_id'],
             'UserID':               'WSEPSIS',
             'FlowsheetID':          '9490',
             'Value':                n['count'],
-            'InstantValueTaken':    str(dt.datetime.utcnow()),
+            'InstantValueTaken':    str(current_time),
             'FlowsheetTemplateID':  '304700006',
         } for n in notifications]
         for payload in payloads:
