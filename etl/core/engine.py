@@ -1,3 +1,5 @@
+from etl.core.plan import Plan
+
 import os, logging
 from collections import deque
 
@@ -83,17 +85,17 @@ class Engine:
   """
   An engine that runs a DAG of Python coroutines
   """
-  def __init__(self, **kwargs):
+  def __init__(self, plan, name='etl-engine', nprocs=2, loglevel=logging.INFO):
     faulthandler.register(signal.SIGUSR1)
     # An engine identifier.
-    self.name = kwargs.get('name', 'etl-engine')
+    self.name = name
 
     # Number of processes
-    self.nprocs = kwargs.get('nprocs', 2)
+    self.nprocs = nprocs
 
     # Configure engine logging.
     self.log = logging.getLogger(self.name)
-    self.log.setLevel(kwargs.get('loglevel', logging.INFO))
+    self.log.setLevel(loglevel)
 
     sh = logging.StreamHandler()
     formatter = logging.Formatter(ENGINE_LOG_FMT)
@@ -101,13 +103,10 @@ class Engine:
     self.log.addHandler(sh)
     self.log.propagate = False
 
-    # A dictionary of tasks, mapping task name => (task sources, task_body)
-    # Sources are other task names, and represent child->parent task edges
-    # The task body is a dictionary with one of the following key:
-    #   'fn': a synchronous function in a subprocess
-    #   'coro': a coroutine that runs in a subprocess on the main event loop
-    #
-    self.tasks = kwargs.get('tasks', {})
+    # Plan
+    if type(plan) != Plan:
+      raise TypeError("First argument to Engine must be a plan of type 'Plan'")
+    self.tasks = plan.plan
 
     # Downstreams are reverse dependencies (i.e., task name => task destinations)
     # and represent parent->child task edges.

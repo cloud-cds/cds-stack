@@ -1,18 +1,46 @@
+from inspect import signature
+''' 
+Task class - a Plan is made up of these
+
+Attributes:
+  name (str): Name of the task.
+  deps (list, optional): List of dependencies.
+  coro (function, optional): Asyncronous function to run.
+  fn   (function, optional): Asyncronous function to run.
+  args (list, optional): List of arguments to pass to the coro or fn.
+'''
+
 class Task:
-  num_tasks = 0
+  def __init__(self, name, deps=[], coro=None, fn=None, args=None):
+    # Make sure a either a coroutine or function is set
+    if (not coro and not fn) or (coro and fn):
+      raise ValueError("Need a coroutine or function (but not both)")
 
-  def __init__(self, **kwargs):
-    self.task_id = Task.num_tasks
-    self.task_name = kwargs.get('name', '')
-    self.body = kwargs.get('run', None)
-    Task.num_tasks += 1
+    # Make sure that 'ctxt' is the first argument of the function or coroutine
+    params = signature(coro).parameters if coro else signature(fn).parameters
+    if 'ctxt' != list(params)[0]:
+      raise RuntimeError("Task function or coroutine needs 'ctxt' as first argument")
+    
+    # Make sure the number of arguments is valid
+    if ((len(args) if args else 0) + len(deps)) != (len(params) - 1): # Subtract 1 because of the 'ctxt'
+      error_str = "Task function or coroutine has an incorrect number of arguments or dependencies"
+      error_str += "\nExpected: {},  Found: {}".format((len(args) if args else 0) + len(deps), len(params) - 1)
+      raise RuntimeError(error_str)
+    
+    self.name = name
+    self.deps = deps
+    self.func = {'coro': coro} if coro else {'fn': fn}
+    self.args = {'args': args} if args else {}
 
-  def run(self):
-    """
-    Returns a list of next tasks to run.
 
-    Task subclasses should override this method (and need not call this method)
-    """
-    if body is not None:
-      return self.body()
-    return []
+
+  def __str__(self):
+    ''' String representation of the task '''
+    for f in self.func.items():
+      f_type = f[0]
+      f_func = f[1]
+    task_str = "{}:".format(self.name)
+    task_str += "\n  deps: {}".format(self.deps if self.deps else "-")
+    task_str += "\n  {}: {}".format(f_type, f_func)
+    task_str += "\n  args: {}".format(self.args if self.args else "-")
+    return task_str

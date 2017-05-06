@@ -40,11 +40,11 @@ g = {
   'c': (['a', 'b'], {'config': db_config, 'fn': c})
 }
 
-# e = Engine(name='engine1', tasks=g)
-# loop = asyncio.new_event_loop()
-# asyncio.set_event_loop(loop)
-# loop.run_until_complete(e.run())
-# loop.close()
+e = Engine(name='engine1', tasks=g)
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+loop.run_until_complete(e.run())
+loop.close()
 
 class TestClass:
   async def test_query(self, ctxt, x, y):
