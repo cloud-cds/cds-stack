@@ -679,41 +679,6 @@ BEGIN
     ), false);
 END; $func$;
 
-create or replace function get_next_meas(
-            this_dataset_id integer, this_pat_id varchar(50), this_fid varchar(50), tsp_prev timestamptz)
-    returns table(pat_id varchar(50), fid varchar(50), tsp timestamptz, value text) language plpgsql as $func$
-BEGIN
-    return query
-        select meas.pat_id, meas.fid, meas.tsp, meas.value
-        from criteria_meas meas
-        where meas.dataset_id = this_dataset_id
-        and meas.pat_id = this_pat_id
-        and meas.fid = this_fid
-        and meas.tsp > tsp_prev
-        limit 1;
-END; $func$;
-
-create or replace function hypotension_met(this_pat_id varchar, this_tsp timestamptz, next_tsp timestamptz, override boolean, _dataset_id INTEGER)
-    returns table(is_met boolean) language plpgsql as $func$
-BEGIN
-    return query
-        select bool_or(
-            (case when override then c_fluid.value::numeric > 0
-                else c_fluid.value::numeric > 30
-                end)
-            and this_tsp > c_fluid.tsp
-            and next_tsp < c_fluid.tsp + '1 hour'::interval
-        )
-        from criteria_meas c_fluid
-        where
-            (case when override then c_fluid.fid in ('crystalloid_fluid', 'fluids_intake')
-                else c_fluid.fid = 'crystalloid_fluid'
-                end)
-        and c_fluid.dataset_id = _dataset_id
-        and c_fluid.pat_id = this_pat_id
-        and isnumeric(c_fluid.value);
-END; $func$;
-
 create or replace function order_met(order_name text, order_value text)
     returns boolean language plpgsql as $func$
 BEGIN
@@ -1145,7 +1110,7 @@ BEGIN
                 then criteria_value_met(PC.value, PC.c_ovalue, PC.d_ovalue)
                 else PC.fid = 'crystalloid_fluid' and criteria_value_met(PC.value, PC.c_ovalue, PC.d_ovalue)
                 end )
-              and (SSP.severe_sepsis_onset is not null
+              and (SSP.severe_sepsis_is_met
                     and coalesce(PC.c_otime, PC.tsp) >= SSP.severe_sepsis_onset)
               as is_met
       from pat_cvalues PC
@@ -1168,59 +1133,75 @@ BEGIN
           now() as update_date
       from
       (
-          select  PC.pat_id,
-                  PC.name,
-                  PC.tsp as measurement_time,
-                  PC.value as value,
-                  PC.c_otime,
-                  PC.c_ouser,
-                  PC.c_ovalue,
-                  (case
-                      when PC.category = 'hypotension' then
-                          (select bool_or(hm.is_met) from
-                              hypotension_met(
-                                PC.pat_id,
-                                PC.tsp,
-                                (select next.tsp from get_next_meas(_dataset_id, PC.pat_id, PC.fid, PC.tsp) as next),
-                                (select coalesce(PC.c_ovalue#>>'{0,text}' = 'Not Indicated', false)
-                                  from crystalloid_fluid where crystalloid_fluid.pat_id = PC.pat_id),
-                                _dataset_id
-                              ) as hm
-                            )
-                            and criteria_value_met(PC.value, PC.c_ovalue, PC.d_ovalue)
-                            -- and next consecutive value also met
-                            and criteria_value_met(
-                                (select next.value from get_next_meas(_dataset_id, PC.pat_id, PC.fid, PC.tsp) as next),
-                                PC.c_ovalue, PC.d_ovalue)
+          with pat_fluid_overrides as (
+            select CFL.pat_id, coalesce(bool_or(CFL.override_value#>>'{0,text}' = 'Not Indicated'), false) as override
+            from crystalloid_fluid CFL
+            group by CFL.pat_id
+          ),
+          pats_fluid_after_severe_sepsis as (
+            select  MFL.pat_id,
+                    MFL.tsp,
+                    MFL.fid,
+                    MFL.value,
+                    -- TODO:
+                    -- Yanif: should overrides be checked for a valid fluid measurement?
+                    -- Overrides should be fully trusted.
+                    (case when OV.override then MFL.value::numeric > 0
+                          else MFL.value::numeric > 30
+                      end) as is_met
+            from criteria_meas MFL
+            left join severe_sepsis_now SSPN on MFL.pat_id = SSPN.pat_id
+            left join pat_fluid_overrides OV on MFL.pat_id = OV.pat_id
+            where isnumeric(MFL.value)
+            and SSPN.severe_sepsis_is_met
+            and MFL.tsp >= SSPN.severe_sepsis_onset
+            and (case when OV.override then MFL.fid in ('crystalloid_fluid', 'fluids_intake')
+                      else MFL.fid = 'crystalloid_fluid'
+                      end)
+          )
+            select PC.pat_id,
+                   PC.name,
+                   PC.tsp as measurement_time,
+                   PC.value as value,
+                   PC.c_otime,
+                   PC.c_ouser,
+                   PC.c_ovalue,
+                   (SSPN.severe_sepsis_is_met and coalesce(PC.c_otime, PC.tsp) >= SSPN.severe_sepsis_onset)
+                   and
+                   (case when PC.category = 'hypotension' then
+                           (PFL.is_met and PFL.tsp < PC.tsp and NEXT.tsp < PFL.tsp + interval '1 hour')
+                           and criteria_value_met(PC.value, PC.c_ovalue, PC.d_ovalue)
+                           and criteria_value_met(NEXT.value, PC.c_ovalue, PC.d_ovalue)
 
-                      when PC.category = 'hypotension_dsbp' then
-                          (select bool_or(hm.is_met) from
-                              hypotension_met(
-                                  PC.pat_id,
-                                  PC.tsp,
-                                  (select next.tsp from get_next_meas(_dataset_id, PC.pat_id, PC.fid, PC.tsp) as next),
-                                  (select coalesce(PC.c_ovalue#>>'{0,text}' = 'Not Indicated', false)
-                                      from crystalloid_fluid where crystalloid_fluid.pat_id = PC.pat_id),
-                                  _dataset_id
-                              ) as hm
-                          )
-                          and decrease_in_sbp_met(
-                                (select max(PBP.value) from pat_bp_sys PBP where PBP.pat_id = PC.pat_id),
-                                PC.value, PC.c_ovalue, PC.d_ovalue)
-                          -- and next consecutive value also met
-                          and decrease_in_sbp_met(
-                                (select max(PBP.value) from pat_bp_sys PBP where PBP.pat_id = PC.pat_id),
-                                (select next.value from get_next_meas(_dataset_id, PC.pat_id, PC.fid, PC.tsp) as next), PC.c_ovalue, PC.d_ovalue)
-                      else false
-                      end
-                  )
-                  and (SSP.severe_sepsis_onset is not null
-                          and coalesce(PC.c_otime, PC.tsp) >= SSP.severe_sepsis_onset)
-                  as is_met
-          from pat_cvalues PC
-          left join severe_sepsis_onsets SSP on PC.pat_id = SSP.pat_id
-          where PC.name in ('systolic_bp', 'hypotension_map', 'hypotension_dsbp')
-          order by PC.tsp
+                         when PC.category = 'hypotension_dsbp' then
+                           (PFL.is_met and PFL.tsp < PC.tsp and NEXT.tsp < PFL.tsp + interval '1 hour')
+                           and decrease_in_sbp_met(PBPSYS.value, PC.value, PC.c_ovalue, PC.d_ovalue)
+                           and decrease_in_sbp_met(PBPSYS.value, NEXT.value, PC.c_ovalue, PC.d_ovalue)
+
+                        else false
+                    end) as is_met
+            from pat_cvalues PC
+            left join severe_sepsis_now SSPN on PC.pat_id = SSPN.pat_id
+
+            left join pats_fluid_after_severe_sepsis PFL
+              on PC.pat_id = PFL.pat_id
+
+            left join lateral (
+              select meas.pat_id, meas.fid, meas.tsp, meas.value
+              from criteria_meas meas
+              where PC.pat_id = meas.pat_id and PC.fid = meas.fid and PC.tsp < meas.tsp
+              order by meas.tsp
+              limit 1
+            ) NEXT on PC.pat_id = NEXT.pat_id and PC.fid = NEXT.fid
+
+            left join lateral (
+              select BP.pat_id, max(BP.value) as value
+              from pat_bp_sys BP where PC.pat_id = BP.pat_id
+              group by BP.pat_id
+            ) PBPSYS on PC.pat_id = PBPSYS.pat_id
+
+            where PC.name in ('systolic_bp', 'hypotension_map', 'hypotension_dsbp')
+            order by PC.tsp
       ) as ordered
       group by ordered.pat_id, ordered.name
   ),
@@ -1404,8 +1385,7 @@ BEGIN
                   when CV.category = 'after_septic_shock' then
                     (select coalesce(
                               bool_or(SSH.septic_shock_is_met
-                                        and greatest(CV.c_otime, CV.tsp)
-                                              > SSH.septic_shock_onset)
+                                        and greatest(CV.c_otime, CV.tsp) > SSH.septic_shock_onset)
                               , false)
                       from septic_shock_onsets SSH
                       where SSH.pat_id = coalesce(this_pat_id, SSH.pat_id)
@@ -1415,8 +1395,7 @@ BEGIN
                   when CV.category = 'after_septic_shock_dose' then
                     (select coalesce(
                               bool_or(SSH.septic_shock_is_met
-                                        and greatest(CV.c_otime, CV.tsp)
-                                              > SSH.septic_shock_onset)
+                                        and greatest(CV.c_otime, CV.tsp) > SSH.septic_shock_onset)
                               , false)
                       from septic_shock_onsets SSH
                       where SSH.pat_id = coalesce(this_pat_id, SSH.pat_id)
