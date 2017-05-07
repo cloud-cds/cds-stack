@@ -614,7 +614,7 @@ query_config = {
     'derive_type': 'subquery',
     'subquery': lambda para: '''
     WITH subquery as (
-      select  %(dataset_id_key)s cdm_twf.enc_id, min(cdm_twf.tsp) tsp, max(cdm_twf.any_organ_failure_c)
+      select  %(dataset_id_key)s cdm_twf.enc_id, min(cdm_twf.tsp) tsp, max(cdm_twf.any_organ_failure_c) c
         FROM %(twf_table)s cdm_twf
         where cdm_twf.any_organ_failure %(dataset_id_equal)s
       group by %(dataset_id_key)s cdm_twf.enc_id
