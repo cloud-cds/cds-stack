@@ -269,20 +269,22 @@ class Engine:
     self.log.debug('Running ' + str(self))
 
     while len(self.task_results) != len(self.tasks):
-      # Launch a group of parallel tasks.
-      active = self.run_block()
+      active = []
       finished = []
 
-      # If we did not launch anything, retrieve the currently running tasks.
-      if not active:
-        for task_id, future in self.task_futures.items():
-          if not(future.done() or future.cancelled()):
-            active.append((task_id, future))
-          elif task_id not in self.task_results:
-            finished.append((task_id, future))
+      # Find all active and recently completed tasks.
+      for task_id, future in self.task_futures.items():
+        if not(future.done() or future.cancelled()):
+          active.append((task_id, future))
+        elif task_id not in self.task_results:
+          finished.append((task_id, future))
 
-        self.log.debug('Active Queue (iter %s) %s' % (iteration, str([idf[1] for idf in active])))
-        self.log.debug('Recently Completed (iter %s) %s' % (iteration, str([idf[1] for idf in finished])))
+      # Launch a group of parallel tasks if nothing completed recently.
+      if not finished:
+        active.extend(self.run_block())
+
+      self.log.debug('Active Queue (iter %s) %s' % (iteration, str([idf[1] for idf in active])))
+      self.log.debug('Recently Completed (iter %s) %s' % (iteration, str([idf[1] for idf in finished])))
 
       if not(active or finished):
         self.log.error('Engine has no tasks to wait on (no tasks launched/active/recently finished)')
