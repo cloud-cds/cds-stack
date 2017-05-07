@@ -247,6 +247,12 @@ def add_column(ctxt, df, col_name, col_data):
 def printer(ctxt, df):
   print(df)
 
+def build_med_admin_request_data(ctxt, med_orders):
+  return med_orders[['pat_id', 'visit_id', 'ids']]\
+    .groupby(['pat_id', 'visit_id'])['ids']\
+    .apply(list)\
+    .reset_index()
+
 def main(hospital=None, lookback_hours=None, db_name=None, max_num_pats=None):
   extractor = JHAPIConfig(
     hospital =       hospital or os.environ['TREWS_ETL_HOSPITAL'],
@@ -261,12 +267,16 @@ def main(hospital=None, lookback_hours=None, db_name=None, max_num_pats=None):
       'name': 'bedded_patients_extract', 
       'fn':   extractor.extract_bedded_patients,
       'args': [extractor.hospital, max_num_pats],
-    }, {
+    }, 
+    # Barrier 1
+    {
       'name': 'bedded_patients_transform',
       'deps': ['bedded_patients_extract'],
       'fn':   transform,
       'args': ['bedded_patients_transforms'],
-    }, {
+    }, 
+    # Barrier 2
+    {
       'name': 'flowsheets_extract',
       'deps': ['bedded_patients_transform'],
       'fn':   extractor.extract_flowsheets,
@@ -291,6 +301,12 @@ def main(hospital=None, lookback_hours=None, db_name=None, max_num_pats=None):
       'deps': ['bedded_patients_transform'],
       'fn':   extractor.extract_med_orders,
     }, {
+      'name': 'notes_extract',
+      'deps': ['bedded_patients_transform'],
+      'fn':   extractor.extract_notes,
+    }, 
+    # Barrier 3
+    {
       'name': 'flowsheets_transform',
       'deps': ['flowsheets_extract'],
       'fn':   transform,
@@ -321,38 +337,59 @@ def main(hospital=None, lookback_hours=None, db_name=None, max_num_pats=None):
       'fn':   transform,
       'args': ['med_orders_transforms'],
     }, {
-      'name': 'timezone_hack',
+      'name': 'notes_transform',
+      'deps': ['notes_extract'],
+      'fn':   transform,
+      'args': ['notes_transforms'],
+    }, 
+    # Barrier 4
+    {
+      'name': 'build_med_admin_request_data',
+      'deps': ['med_orders_transform'],
+      'fn':   build_med_admin_request_data,
+    }, {
+      'name': 'note_texts_extract',
+      'deps': ['notes_extract'],
+      'fn':   extractor.extract_note_texts,
+    }, 
+    # Barrier 5
+    {
+      'name': 'med_admin_extract',
+      'deps': ['build_med_admin_request_data'],
+      'fn':   extractor.extract_med_admin,
+    }, {
+      'name': 'notes_texts_transform',
+      'deps': ['notes_texts_extract'],
+      'fn':   transform,
+      'args': ['notes_texts_transforms'],
+    }, 
+    # Barrier 6
+    {
+      'name': 'med_admin_transform',
+      'deps': ['med_admin_extract'],
+      'fn':   transform,
+      'args': ['med_admin_transforms'],
+    },
+    # Barrier 7
+    {
+      'name': 'timezone_hack_flowsheets',
       'deps': ['flowsheets_transform'],
       'fn':   tz_hack,
     }, {
+      'name': 'timezone_hack_med_admin',
+      'deps': ['med_admin_transform'],
+      'fn':   tz_hack,
+    }, 
+    # Extra stuff
+    {
       'name': 'printer',
-      'deps': ['med_orders_transform'],
+      'deps': ['med_admin_transform'],
       'fn':   printer,
     }
   ]
 
-  # if not med_orders_t.empty:
-  #   request_data = med_orders_t[['pat_id', 'visit_id', 'ids']]\
-  #     .groupby(['pat_id', 'visit_id'])['ids']\
-  #     .apply(list)\
-  #     .reset_index()
-  #   ma_start = dt.datetime.now()
-  #   med_admin = self.extract(self.extractor.extract_med_admin, "med_admin", [request_data])
-  #   ma_total = dt.datetime.now() - ma_start
-  #   med_admin_t = self.transform(med_admin, jhapi.med_admin_transforms, "med_admin")
-  #   # Timezone hack
-  #   if not med_admin_t.empty:
-  #     med_admin_t['tsp'] = med_admin_t['tsp'].apply(self.tz_hack)
-  # else:
-  #   # Make empty dataframes so functions down the line don't break
-  #   med_admin   = pd.DataFrame()
-  #   med_admin_t = pd.DataFrame()
-  # notes = self.extract(self.extractor.extract_notes, "notes", [pats_t])
-  # notes_t = self.transform(notes, jhapi.notes_transforms, "notes")
-  # note_texts = self.extract(self.extractor.extract_note_texts, "note_texts", [notes])
-  # note_texts_t = self.transform(note_texts, jhapi.note_texts_transforms, "note_texts")
-
-
+  # TODO: Check if empty responses from extractor break the engine
+  # TODO: Push all final dataframes to the old main for cloudwatch logging
 
   plan = Plan(
     name="Epic to Operations plan", 
