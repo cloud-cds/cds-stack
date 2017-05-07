@@ -592,6 +592,7 @@ class Extractor:
     log = ctxt.log
     if self.job.get('fillin', False):
       log.info("start fillin pipeline")
+      need_vacuum = self.job.get('fillin').get('vacuum', False)
       # we run the optimized fillin in one run, e.g., update set all columns
       fillin_sql = '''
       WITH twf_fids as (
@@ -607,11 +608,22 @@ class Extractor:
       SELECT * from last_value_in_window(
         (select arr from twf_fids), 'cdm_twf'::text, {dataset_id});
       '''.format(dataset_id=self.dataset_id)
-      log.info("fillin sql: {}".format(fillin_sql))
       async with ctxt.db_pool.acquire() as conn:
+        if need_vacuum:
+          log.info('start vacuum for cdm_s')
+          result = await conn.execute('VACUUM FULL ANALYZE cdm_s;')
+          log.info(result)
+          log.info('start vacuum for cdm_t')
+          result = await conn.execute('VACUUM FULL ANALYZE cdm_t;')
+          log.info(result)
+          log.info('start vacuum for cdm_twf')
+          result = await conn.execute('VACUUM FULL ANALYZE cdm_twf;')
+          log.info(result)
+          log.info('vacuum completed')
+        log.info("start fillin: {}".format(fillin_sql))
         result = await conn.execute(fillin_sql)
         log.info(result)
-      log.info("fillin completed")
+        log.info("fillin completed")
     else:
       log.info("fillin skipped")
 
