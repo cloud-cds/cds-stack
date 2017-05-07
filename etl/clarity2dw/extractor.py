@@ -605,7 +605,6 @@ class Extractor:
     log = ctxt.log
     if self.job.get('fillin', False):
       log.info("start fillin pipeline")
-      need_vacuum = self.job.get('fillin').get('vacuum', False)
       # we run the optimized fillin in one run, e.g., update set all columns
       fillin_sql = '''
       WITH twf_fids as (

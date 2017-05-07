@@ -143,10 +143,19 @@ class Epic2OpLoader:
   async def workspace_fillin(self, conn):
     self.log.info("start fillin pipeline")
     fillin_table = 'workspace.%s_cdm_twf' % self.job_id
-    for fid in self.fillin_features:
-      feature = self.cdm_feature_dict[fid]
-      if feature['category'] == 'TWF' and feature['is_measured']:
-        await fillin_pipeline(self.log, conn, feature, recalculate_popmean=False, table=fillin_table)
+    log.info("start fillin pipeline")
+      # we run the optimized fillin in one run, e.g., update set all columns
+    fillin_sql = '''
+    SELECT * from last_value_in_window({fillin_fids}, {twf_table});
+    '''.format(
+        fillin_fids='array[{}]'.format(', '.join(self.fillin_features)),
+        twf_table=fillin_table
+      )
+    async with ctxt.db_pool.acquire() as conn:
+      log.info("start fillin: {}".format(fillin_sql))
+      result = await conn.execute(fillin_sql)
+      log.info(result)
+      log.info("fillin completed")
     self.log.info("fillin completed")
 
   async def workspace_derive(self, conn):
