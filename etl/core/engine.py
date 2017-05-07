@@ -126,8 +126,7 @@ class Engine:
         self.downstreams[d] = self.downstreams.get(d, []) + [task_id]
         self.gc_counters[d] = self.gc_counters.get(d, 0) + 1
 
-    # A dictionary of task futures, mapping task names => list of dependency futures.
-    # This allows us to wait on the last future to complete as a dependency barrier.
+    # A dictionary of task futures, mapping task names => future.
     self.task_futures = {}
 
     # A dictionary of task results, mapping task names => result object.
@@ -142,6 +141,32 @@ class Engine:
 
     # Prepare initial tasks.
     self.schedule()
+
+  def __str__(self):
+    '''Returns a string representation of the engine'''
+    _engine = '%s:' % self.name
+
+    _engine += '\n  Tasks:'
+    sorted_task_ids = sorted(self.task_futures)
+
+    for t in sorted_task_ids:
+      f = self.task_futures[t]
+      task_status = 'Running'
+
+      if f.done() and t in self.task_results:
+        task_status = 'Done, with result'
+      if f.done():
+        task_status = 'Done, no result'
+      if f.cancelled():
+        task_status = 'Cancelled'
+
+      _engine += '\n    Task: %s %s [%s %s %s]' \
+                    % (t, task_status, \
+                       self.dep_counters[t], \
+                       self.downstreams[t] if t in self.downstreams else [], \
+                       self.gc_counters[t] if t in self.gc_counters else 0)
+
+    return _engine
 
 
   # Return if a task has completed
@@ -240,20 +265,37 @@ class Engine:
 
   async def run(self):
     iteration = 0
+
+    self.log.debug('Running ' + str(self))
+
     while len(self.task_results) != len(self.tasks):
       # Launch a group of parallel tasks.
-      ids_and_futures = self.run_block()
+      active = self.run_block()
+      finished = []
 
       # If we did not launch anything, retrieve the currently running tasks.
-      if not ids_and_futures:
-        ids_and_futures = [(task_id, future) for task_id, future in self.task_futures.items() \
-                                                if not(future.done() or future.cancelled())]
+      if not active:
+        for task_id, future in self.task_futures.items():
+          if not(future.done() or future.cancelled()):
+            active.append((task_id, future))
+          elif task_id not in self.task_results:
+            finished.append((task_id, future))
 
-      # Wait for the first completion amongst the launched or running tasks.
-      await asyncio.wait([idf[1] for idf in ids_and_futures], return_when=asyncio.FIRST_COMPLETED)
+        self.log.debug('Active Queue (iter %s) %s' % (iteration, str([idf[1] for idf in active])))
+        self.log.debug('Recently Completed (iter %s) %s' % (iteration, str([idf[1] for idf in finished])))
 
-      # Process finished tasks.
-      finished = [idf for idf in ids_and_futures if idf[1].done()]
+      if not(active or finished):
+        self.log.error('Engine has no tasks to wait on (no tasks launched/active/recently finished)')
+        self.log.error(str(self))
+        break
+
+      if active:
+        # Wait for the first completion amongst the launched or running tasks.
+        await asyncio.wait([idf[1] for idf in active], return_when=asyncio.FIRST_COMPLETED)
+
+        # Track finished tasks.
+        finished.extend([idf for idf in active if idf[1].done()])
+
       self.log.info('Engine (iter %s) completed %s' % (iteration, str([f[0] for f in finished])))
 
       for task_id, future in finished:
@@ -270,5 +312,9 @@ class Engine:
       self.log.info('Engine progress (iter %s): %s / %s tasks completed' % (iteration, len(self.task_results), len(self.tasks)))
       iteration += 1
 
-    self.log.info('Engine completed.')
+    if len(self.task_results) == len(self.tasks):
+      self.log.info('Engine completed.')
+
+    else:
+      self.log.info('Engine failed to complete tasks, only %s / %s finished.' % (len(self.task_results), len(self.tasks)))
 
