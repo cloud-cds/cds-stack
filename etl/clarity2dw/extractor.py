@@ -622,17 +622,6 @@ class Extractor:
         (select arr from twf_fids), 'cdm_twf'::text, {dataset_id});
       '''.format(dataset_id=self.dataset_id)
       async with ctxt.db_pool.acquire() as conn:
-        if need_vacuum:
-          log.info('start vacuum for cdm_s')
-          result = await conn.execute('VACUUM FULL ANALYZE cdm_s;')
-          log.info(result)
-          log.info('start vacuum for cdm_t')
-          result = await conn.execute('VACUUM FULL ANALYZE cdm_t;')
-          log.info(result)
-          log.info('start vacuum for cdm_twf')
-          result = await conn.execute('VACUUM FULL ANALYZE cdm_twf;')
-          log.info(result)
-          log.info('vacuum completed')
         log.info("start fillin: {}".format(fillin_sql))
         result = await conn.execute(fillin_sql)
         log.info(result)

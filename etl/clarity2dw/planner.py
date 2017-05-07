@@ -33,7 +33,6 @@ job_config = {
     'min_tsp': os.environ['min_tsp'] if 'min_tsp' in os.environ else None
   },
   'fillin': {
-    'vacuum': True,
     'recalculate_popmean': False,
   },
   'derive': {
