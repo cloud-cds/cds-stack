@@ -162,7 +162,7 @@ hematocrit,TWF,Real,yes,no,last_value_in_window,28,,,Lab,1,%
 hydralazine_dose,T,JSON,yes,no,,,,,Medication,1,mg
 lisinopril_dose,T,JSON,yes,no,,,,,Medication,1,mg
 temperature,TWF,Real,yes,no,last_value_in_window,28,,,Physiologic,1,Fahrenheit
-any_beta_blocker,T,Boolean,no,no,,,beta_blocker_update,"acebutolol_dose, atenolol_dose, bisoprolol_dose, metoprolol_dose, nadolol_dose, propanolol_dose","Medication, 1 if any beta blocker administered",1,
+any_beta_blocker,T,Boolean,no,no,,,beta_blocker_update,"acebutolol_dose, atenolol_dose, bisoprolol_dose, metoprolol_dose, nadolol_dose, propranolol_dose","Medication, 1 if any beta blocker administered",1,
 penicillin_dose,T,JSON,yes,no,,3,,,Medication,1,Million Units
 sirs_wbc_oor,TWF,Boolean,no,no,,,sirs_wbc_oor_update,wbc,it should not be sparse,1,no unit
 any_glucocorticoid,T,Boolean,no,no,,,glucocorticoid_update,"hydrocortisone_dose, prednisone_dose, prednisolone_dose, methylprednisolone_dose, dexamethasone_dose, betamethasone_dose, fludrocortisone_dose","Medication, 1 if any glucocorticoid administered",1,
@@ -281,3 +281,4 @@ admittime,S,String,yes,no,,,,,Demographic,1,timestamp time of admit time
 bipap,T,Boolean,yes,no,,,,,Order Procedure,1,
 cpap,T,Boolean,yes,no,,,,,Order Procedure,1,
 map,TWF,Real,yes,no,last_value_in_window,4,,,Phyiologic,1,mmHg
+note,N,String,yes,no,,,,,provider notes,1,no unit

@@ -55,7 +55,7 @@ CREATE TABLE cdm_function (
 
 DROP TABLE IF EXISTS cdm_feature CASCADE;
 CREATE TABLE cdm_feature (
-    dataset_id              integer,
+    dataset_id              integer REFERENCES dw_version(dataset_id),
     fid                     varchar(50) NOT NULL,
     category                varchar(50) NOT NULL,
     data_type               varchar(20) NOT NULL,
@@ -71,7 +71,7 @@ CREATE TABLE cdm_feature (
     PRIMARY KEY             (dataset_id, fid),
     FOREIGN KEY             (dataset_id, fillin_func_id) REFERENCES cdm_function(dataset_id, func_id),
     FOREIGN KEY             (dataset_id, derive_func_id) REFERENCES cdm_function(dataset_id, func_id),
-    CHECK (category SIMILAR TO 'S|M|T|TWF|G')
+    CHECK (category SIMILAR TO 'S|M|T|TWF|G|N')
 );
 
 DROP TABLE IF EXISTS datalink_feature_mapping;
@@ -119,7 +119,7 @@ CREATE TABLE cdm_g (
 
 DROP TABLE IF EXISTS cdm_s;
 CREATE TABLE cdm_s (
-    dataset_id      integer,
+    dataset_id      integer REFERENCES dw_version(dataset_id),
     enc_id          integer,
     fid             varchar(50),
     value           text,
@@ -131,7 +131,7 @@ CREATE TABLE cdm_s (
 
 DROP TABLE IF EXISTS cdm_m;
 CREATE TABLE cdm_m (
-    dataset_id      integer,
+    dataset_id      integer REFERENCES dw_version(dataset_id),
     enc_id          integer,
     fid             varchar(50),
     line            smallint,
@@ -144,7 +144,7 @@ CREATE TABLE cdm_m (
 
 DROP TABLE IF EXISTS cdm_t;
 CREATE TABLE cdm_t (
-    dataset_id      integer,
+    dataset_id      integer REFERENCES dw_version(dataset_id),
     enc_id          integer,
     tsp             timestamptz,
     fid             varchar(50),
@@ -319,7 +319,7 @@ CREATE TABLE criteria_archive
 DROP TABLE IF EXISTS criteria_default;
 CREATE TABLE criteria_default
 (
-    dataset_id          integer,
+    dataset_id          integer REFERENCES dw_version(dataset_id),
     name                varchar(50),
     fid                 varchar(50),
     override_value      json,
