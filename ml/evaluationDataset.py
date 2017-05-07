@@ -88,8 +88,8 @@ class rocInformation(object):
         thisStr = 'Evaluation Type: {}\n'.format(self.evaluationType)
         thisStr += 'Pre-Processing Function: {}\n'.format(self.preProcInfo.funcName)
         thisStr += 'lambda: {:.3f}\n'.format(self.lambdaThis)
-        thisStr += 'AUC: {:.3f}\n'.format(self.AUC)
-        thisStr += 'AUC 95% CI: ({:.3f},{:.3f})\n'.format(self.AUC_interval[0],self.AUC_interval[1])
+        thisStr += 'model_level_metrics: {:.3f}\n'.format(self.AUC)
+        thisStr += 'model_level_metrics 95% CI: ({:.3f},{:.3f})\n'.format(self.AUC_interval[0],self.AUC_interval[1])
         thisStr += 'Num Associated Thresholds:({})\n'.format(len(self.thresholdInfoList))
         return thisStr
 
