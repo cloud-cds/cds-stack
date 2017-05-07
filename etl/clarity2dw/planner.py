@@ -114,7 +114,8 @@ class Planner():
 
   def gen_fillin_plan(self):
     transform_tasks = [task.name for task in self.plan.tasks if task.name.startswith('transform_task_')]
-    self.plan.add(Task('fillin', deps=transform_tasks, coro=self.extractor.run_fillin))
+    self.plan.add(Task('vacuum', deps=transform_tasks, coro=self.extractor.vacuum_analyze_dataset))
+    self.plan.add(Task('fillin', deps=['vacuum'], coro=self.extractor.run_fillin))
 
   def gen_derive_plan(self):
     parallel = self.job.get('derive').get('parallel')

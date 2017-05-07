@@ -51,8 +51,8 @@ class Extractor:
     ctxt.log.info("start extract_init task")
     async with ctxt.db_pool.acquire() as conn:
       await self.reset_dataset(conn, ctxt)
+      ctxt.log.info("completed extract_init task")
       return None
-    ctxt.log.info("completed extract_init task")
 
   async def query_cdm_feature_dict(self, conn):
     sql = "select * from cdm_feature where dataset_id = %s" % self.dataset_id
@@ -82,6 +82,19 @@ class Extractor:
       result = await conn.execute(reset_sql)
       ctxt.log.info("ETL Init: " + result)
     return None
+
+  async def vacuum_analyze_dataset(self, ctxt):
+    ctxt.log.info("start vacuum_analyze task")
+    async with ctxt.db_pool.acquire() as conn:
+      vacuum_sql = '''
+      vacuum analyze cdm_s;
+      vacuum analyze cdm_t;
+      vacuum analyze cdm_twf;
+      vacuum analyze criteria_meas;
+      '''
+      await conn.execute(vacuum_sql)
+      ctxt.log.info("completed vacuum_analyze task")
+      return None
 
   async def populate_patients(self, ctxt, _):
     if self.job.get('transform', False):
