@@ -214,7 +214,7 @@ async def add_twf(conn, row, dataset_id=None, log=None):
     }
   await execute_load(conn, sql, log)
 
-async def execute_load(conn, sql, log, timeout=2, backoff=2, base=2, max_timeout=10*60, max_backoff=3*60):
+async def execute_load(conn, sql, log, timeout=5, backoff=2, base=2, max_timeout=10*60, max_backoff=3*60):
   attempts = 0
   if timeout:
     init_timeout = timeout

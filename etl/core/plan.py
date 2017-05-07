@@ -1,5 +1,5 @@
-''' 
-Plan Class 
+'''
+Plan Class
 
 Attributes:
   name (str): Name of the plan.
@@ -32,7 +32,7 @@ class Plan:
   @property
   def plan(self):
     ''' Returns the plan as a dictionary '''
-    plan = {} 
+    plan = {}
     for t in self.tasks:
       plan[t.name] = (t.deps, {'config': self.config, **t.func, **t.args})
     return plan

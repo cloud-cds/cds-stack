@@ -17,6 +17,8 @@ import logging
 from etl.core.config import Config
 import sys
 import random
+import uvloop
+
 
 TRANSACTION_RETRY = 10
 PSQL_WAIT_IN_SECS = 5
@@ -46,9 +48,11 @@ class Extractor:
 
 
   async def extract_init(self, ctxt):
+    ctxt.log.info("start extract_init task")
     async with ctxt.db_pool.acquire() as conn:
       await self.reset_dataset(conn, ctxt)
       return None
+    ctxt.log.info("completed extract_init task")
 
   async def query_cdm_feature_dict(self, conn):
     sql = "select * from cdm_feature where dataset_id = %s" % self.dataset_id
@@ -611,37 +615,14 @@ class Extractor:
     else:
       log.info("fillin skipped")
 
-  def get_derive_tasks(self, config):
-    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-    loop = asyncio.get_event_loop()
-    conn = loop.run_until_complete(asyncpg.connect(database=config['db_name'], \
-                                                                                    user=config['db_user'], \
-                                                                                    password=config['db_pass'], \
-                                                                                    host=config['db_host'], \
-                                                                                    port=config['db_port'],))
-    derive_features = loop.run_until_complete(conn.fetch('''
-          SELECT fid, derive_func_input from cdm_feature
-          where not is_measured and not is_deprecated
-      '''))
-    derive_tasks = []
-    for feature in derive_features:
-      fid = feature['fid']
-      dependencies = ['derive_{}'.format(fid) for fid in feature['derive_func_input'].strip().split(",")]
-      name = 'derive_{}'.format(fid)
-      derive_tasks.append(
-        {
-          'name': name,
-          'dependencies': dependencies,
-          'fid': fid
-        }
-      )
-    return derive_tasks
 
-  async def run_derive(self, ctxt, _):
+
+  async def run_derive(self, ctxt, fid=None):
     log = ctxt.log
     if self.job.get('derive', False):
-      fid = self.job.get('derive').get('fid', None)
-      mode = self.job.get('derive').get('mode', None)
+      if fid is None:
+        fid = self.job.get('derive').get('fid', None)
+        mode = self.job.get('derive').get('mode', None)
       async with ctxt.db_pool.acquire() as conn:
         await self.query_cdm_feature_dict(conn)
         await derive_main(log, conn, self.cdm_feature_dict, dataset_id = self.dataset_id, fid = fid, mode=mode)

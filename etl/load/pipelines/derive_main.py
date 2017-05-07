@@ -21,7 +21,7 @@ async def derive_main(log, conn, cdm_feature_dict, mode=None, fid=None, dataset_
       await derive_feature(log, cdm_feature_dict[fid], conn, dataset_id=dataset_id, twf_table=table)
   elif mode == 'dependent':
     dependent = fid
-    if cdm_feature_dict[fid]['is_measured'] == 'no':
+    if not cdm_feature_dict[fid]['is_measured']:
       log.info("update feature %s and its dependents" % dependent)
       await derive_feature(log, cdm_feature_dict[fid], conn, dataset_id=dataset_id, twf_table=table)
     else:
@@ -69,11 +69,11 @@ def get_derive_seq(features=None, input_map=None):
     d_map = dict((k, reduce_dependencies(v)) for (k, v) in d_map.items())
   return order
 
-def get_dependent_features(feature_list, features):
+def get_dependent_features(feature_list, cdm_feature_dict):
   # create the dependency map
-  d_map = dict((fid, features[fid]['derive_func_input']) \
-      for fid in features if ((not features[fid]['is_measured']) \
-      and (not features[fid]['is_deprecated'])))
+  d_map = dict((fid, cdm_feature_dict[fid]['derive_func_input']) \
+      for fid in cdm_feature_dict if ((not cdm_feature_dict[fid]['is_measured']) \
+      and (not cdm_feature_dict[fid]['is_deprecated'])))
   derived_features = d_map.keys()
   get_dependents = feature_list
   dependency_list = []
@@ -90,12 +90,12 @@ def get_dependent_features(feature_list, features):
     # get_dependents = [fid in derived_features if \
     #     any(map(lambda x: x in d_map[fid], get_dependents))]
 
-  dependent_features = [item for lst in dependency_list for item in lst]
+  dependent_features = [fid for lst in dependency_list for fid in lst]
   if len(dependent_features) ==  0:
     return dependent_features
   else:
-    dic = dict((feature['fid'], feature['derive_func_input']) \
-        for feature in features if feature['fid'] in dependent_features)
+    dic = dict((fid, cdm_feature_dict[fid]['derive_func_input']) \
+        for fid in cdm_feature_dict if fid in dependent_features)
     return get_derive_seq(input_map=dic)
 
 async def derive_feature(log, feature, conn, dataset_id=None, twf_table='cdm_twf'):
@@ -388,25 +388,26 @@ query_config = {
       WITH S as (SELECT %(dataset_id_key)s cdm_twf.enc_id, min(cdm_twf.tsp) min_tsp FROM %(twf_table)s cdm_twf %(sub_dataset_id_equal)s
           group by %(dataset_id_key)s cdm_twf.enc_id)
       SELECT %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
-      (inr > 1.5 and based_on_popmean(inr_c) != 1)
-      OR (platelets < 100 and based_on_popmean(platelets_c) != 1)
-      OR (lactate > 4.0 and based_on_popmean(lactate_c) != 1)
-      OR hypotension_intp is TRUE
-      OR (creatinine > 2 and based_on_popmean(creatinine_c) != 1 and
-        coalesce((select cast(value as boolean) from cdm_s
-        where cdm_s.enc_id = cdm_twf.enc_id
-          and cdm_s.fid = 'chronic_kidney_hist' %(with_ds_s)s limit 1)
-        , False) = False)
-      OR (bilirubin > 2 and based_on_popmean(bilirubin_c) != 1 and
-        coalesce((select cast(value as boolean) from cdm_s
-        where cdm_s.enc_id = cdm_twf.enc_id
-          and cdm_s.fid = 'liver_disease_hist' %(with_ds_s)s limit 1)
-        , False) = False)
-      OR (pao2_to_fio2 < 100 and based_on_popmean(pao2_to_fio2_c) != 1 and
-        coalesce((select cast(value as boolean) from cdm_s
-        where cdm_s.enc_id = cdm_twf.enc_id
-          and cdm_s.fid = 'chronic_pulmonary_hist' %(with_ds_s)s limit 1)
-        , False) = False)
+      coalesce(
+        (inr > 1.5 and based_on_popmean(inr_c) != 1)
+        OR (platelets < 100 and based_on_popmean(platelets_c) != 1)
+        OR (lactate > 4.0 and based_on_popmean(lactate_c) != 1)
+        OR hypotension_intp is TRUE
+        OR (creatinine > 2 and based_on_popmean(creatinine_c) != 1 and
+          coalesce((select cast(value as boolean) from cdm_s
+          where cdm_s.enc_id = cdm_twf.enc_id
+            and cdm_s.fid = 'chronic_kidney_hist' %(with_ds_s)s limit 1)
+          , False) = False)
+        OR (bilirubin > 2 and based_on_popmean(bilirubin_c) != 1 and
+          coalesce((select cast(value as boolean) from cdm_s
+          where cdm_s.enc_id = cdm_twf.enc_id
+            and cdm_s.fid = 'liver_disease_hist' %(with_ds_s)s limit 1)
+          , False) = False)
+        OR (pao2_to_fio2 < 100 and based_on_popmean(pao2_to_fio2_c) != 1 and
+          coalesce((select cast(value as boolean) from cdm_s
+          where cdm_s.enc_id = cdm_twf.enc_id
+            and cdm_s.fid = 'chronic_pulmonary_hist' %(with_ds_s)s limit 1)
+          , False) = False)
         OR (
         urine_output_24hr < 500
         AND
@@ -417,24 +418,25 @@ query_config = {
           where cdm_s.enc_id = cdm_twf.enc_id
             and cdm_s.fid = 'chronic_kidney_hist' %(with_ds_s)s limit 1)
           , False) = False
-        ) as acute_organ_failure,
-       coalesce(inr_c,0)
-                    | coalesce(platelets_c,0) | coalesce(creatinine_c,0)
-                    | coalesce(bilirubin_c,0)
-                    | coalesce(lactate_c,0) | coalesce(pao2_to_fio2_c,0)
-                    | coalesce(hypotension_intp_c,0)
-                    | coalesce(urine_output_24hr_c,0) as acute_organ_failure_c
-        FROM %(twf_table)s cdm_twf inner join S on %(dataset_id_match)s
+        ), false) as acute_organ_failure,
+      coalesce(inr_c,0)
+      | coalesce(platelets_c,0) | coalesce(creatinine_c,0)
+      | coalesce(bilirubin_c,0)
+      | coalesce(lactate_c,0) | coalesce(pao2_to_fio2_c,0)
+      | coalesce(hypotension_intp_c,0)
+      | coalesce(urine_output_24hr_c,0) as acute_organ_failure_c
+      FROM %(twf_table)s cdm_twf inner join S on %(dataset_id_match)s
         and cdm_twf.enc_id = S.enc_id
         %(dataset_id_equal)s
-      ''' % {
-        'twf_table': para.get("twf_table"),
-        'dataset_id_key': para.get("dataset_id_key"),
-        'dataset_id_match': dataset_id_match(" ", "cdm_twf", "S", para.get("dataset_id")),
-        'dataset_id_equal': dataset_id_equal(" WHERE ", "cdm_twf", para.get("dataset_id")),
-        'sub_dataset_id_equal': dataset_id_equal("WHERE ", "cdm_twf", para.get("dataset_id")),
-        'with_ds_s': dataset_id_equal(" and ", "cdm_s", para.get("dataset_id"))
-      },
+    ''' % {
+      'twf_table': para.get("twf_table"),
+      'dataset_id_key': para.get("dataset_id_key"),
+      'dataset_id_match': dataset_id_match(" ", "cdm_twf", "S", para.get("dataset_id")),
+      'dataset_id_equal': dataset_id_equal(" WHERE ", "cdm_twf", para.get("dataset_id")),
+      'sub_dataset_id_equal': dataset_id_equal("WHERE ", "cdm_twf", para.get("dataset_id")),
+      'with_ds_s': dataset_id_equal(" and ", "cdm_s", para.get("dataset_id"))
+    },
+    'clean': {'value': False, 'confidence': 0},
   },
   'severe_sepsis': {
     'fid_input_items': ['sirs_intp', 'acute_organ_failure', 'sepsis_note','infections_angus_diag', 'infections_angus_hist'],
@@ -612,12 +614,10 @@ query_config = {
     'derive_type': 'subquery',
     'subquery': lambda para: '''
     WITH subquery as (
-      select  %(dataset_id_key_ord)s ordered.enc_id, first(ordered.tsp) tsp, first(ordered.any_organ_failure_c) c from(
-        select %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp, cdm_twf.any_organ_failure_c from %(twf_table)s cdm_twf
+      select  %(dataset_id_key)s cdm_twf.enc_id, min(cdm_twf.tsp) tsp, max(cdm_twf.any_organ_failure_c)
+        FROM %(twf_table)s cdm_twf
         where cdm_twf.any_organ_failure %(dataset_id_equal)s
-        order by cdm_twf.tsp
-        ) as ordered
-      group by %(dataset_id_key_ord)s ordered.enc_id
+      group by %(dataset_id_key)s cdm_twf.enc_id
     )
     SELECT %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
     (case when cdm_twf.tsp > subquery.tsp
@@ -632,7 +632,6 @@ query_config = {
     ''' % {
       'twf_table': para.get("twf_table"),
       'dataset_id_key': para.get("dataset_id_key"),
-      'dataset_id_key_ord': dataset_id_key("ordered", para.get("dataset_id_key")),
       'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id")),
       'dataset_id_equal_w': dataset_id_equal(" where ", "cdm_twf", para.get("dataset_id")),
       'dataset_id_match': dataset_id_match(" and ", "cdm_twf", "subquery", para.get("dataset_id"))
@@ -645,12 +644,10 @@ query_config = {
     'subquery': lambda para:
     '''
     WITH subquery as (
-      select %(dataset_id_key)s enc_id, first(tsp) tsp, first(septic_shock_c) c from(
-        select enc_id, tsp, septic_shock_c from %(twf_table)s cdm_twf
+      select %(dataset_id_key)s enc_id, min(tsp) tsp, max(septic_shock_c) c from
+        %(twf_table)s cdm_twf
         where septic_shock %(dataset_id_equal)s
-        order by tsp
-        ) as ordered
-      group by %(dataset_id_key)s ordered.enc_id
+      group by %(dataset_id_key)s enc_id
     )
     SELECT %(dataset_id_key)s enc_id, tsp,
     (case when %(twf_table)s.tsp > subquery.tsp
@@ -671,12 +668,10 @@ query_config = {
     'derive_type': 'subquery',
     'subquery': lambda para: '''
     WITH subquery as (
-      select %(dataset_id_key_o)s ordered.enc_id, first(ordered.tsp) tsp, first(ordered.confidence)::int c from(
-        select %(dataset_id_key_t)s cdm_t.enc_id, cdm_t.tsp, cdm_t.confidence from cdm_t
+      select %(dataset_id_key_t)s cdm_t.enc_id, min(tsp) tsp, max(confidence)::int c
+        from cdm_t
         where cdm_t.fid = 'any_antibiotics' and cdm_t.value::boolean %(dataset_id_equal_t)s
-        order by cdm_t.tsp
-        ) as ordered
-      group by %(dataset_id_key_o)s ordered.enc_id
+      group by %(dataset_id_key_t)s enc_id
     )
     SELECT %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
      (case when %(twf_table)s.tsp > subquery.tsp
@@ -685,12 +680,12 @@ query_config = {
      end) as minutes_since_any_antibiotics,
      subquery.c as minutes_since_any_antibiotics_c
     FROM %(twf_table)s cdm_twf inner join subquery on cdm_twf.enc_id = subquery.enc_id
+    and cdm_twf.tsp >= subquery.tsp
     %(dataset_id_match)s
     %(dataset_id_equal)s
     ''' % {
       'dataset_id_key': para.get("dataset_id_key"),
       'dataset_id_key_t': dataset_id_key('cdm_t', para.get('dataset_id')),
-      'dataset_id_key_o': dataset_id_key('ordered', para.get('dataset_id')),
       'dataset_id_equal_t': dataset_id_equal('and ', 'cdm_t', para.get("dataset_id")),
       'dataset_id_equal': dataset_id_equal(' and ', 'cdm_twf', para.get("dataset_id")),
       'twf_table': para.get('twf_table'),
@@ -745,7 +740,8 @@ query_config = {
     'derive_type': 'subquery',
     'subquery': lambda para: '''
           SELECT %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
-          coalesce(sum(cdm_t.value::float), 0) fluids_intake_3hr, coalesce(max(cdm_t.confidence), 0) fluids_intake_3hr_c
+          sum(coalesce(cdm_t.value::float,0)) fluids_intake_3hr,
+          max(coalesce(cdm_t.confidence, 0)) fluids_intake_3hr_c
           from %(twf_table)s cdm_twf
           inner join cdm_t
           on cdm_t.enc_id = cdm_twf.enc_id and cdm_t.tsp <= cdm_twf.tsp
@@ -761,12 +757,42 @@ query_config = {
     },
     'clean': {'value': 0, 'confidence': 0},
   },
+  'renal_sofa': {
+    'fid_input_items': ['creatinine', 'urine_output_24hr'],
+    'derive_type': 'subquery',
+    'subquery': lambda para: '''
+          WITH S as (SELECT %(dataset_id_key)s cdm_twf.enc_id, min(cdm_twf.tsp) min_tsp FROM %(twf_table)s cdm_twf %(where_dataset_id_equal)s
+          group by %(dataset_id_key)s cdm_twf.enc_id)
+          SELECT %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
+          (
+            case when creatinine > 5.0 or (urine_output_24hr < 200 and tsp - min_tsp >= '24 hours'::interval) then 4
+            when creatinine >= 3.5 or (urine_output_24hr < 500 and tsp - min_tsp >= '24 hours'::interval) then 3
+            when creatinine >= 2.0 then 2
+            when creatinine >= 1.2 then 1
+            else 0 end
+          ) as renal_sofa,
+          (
+            creatinine_c | urine_output_24hr_c
+          ) as renal_sofa_c
+          FROM %(twf_table)s cdm_twf
+          inner join S on cdm_twf.enc_id = S.enc_id
+          %(dataset_id_match)s %(dataset_id_equal)s
+    ''' % {
+      'dataset_id_key': para.get("dataset_id_key"),
+      'twf_table': para.get('twf_table'),
+      'dataset_id_match': dataset_id_match(' and ','S', 'cdm_twf', para.get("dataset_id")),
+      'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id")),
+      'where_dataset_id_equal': dataset_id_equal(" where ", "cdm_twf", para.get("dataset_id"))
+    },
+    'clean': {'value': 0, 'confidence': 0},
+  },
   'fluids_intake_1hr': {
     'fid_input_items': ['fluids_intake'],
     'derive_type': 'subquery',
     'subquery': lambda para: '''
           SELECT %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
-          coalesce(sum(cdm_t.value::float), 0) fluids_intake_1hr, coalesce(max(cdm_t.confidence), 0) fluids_intake_1hr_c
+          sum(coalesce(cdm_t.value::float,0)) fluids_intake_1hr,
+          max(coalesce(cdm_t.confidence, 0)) fluids_intake_1hr_c
           from %(twf_table)s cdm_twf
           inner join cdm_t
           on cdm_t.enc_id = cdm_twf.enc_id and cdm_t.tsp <= cdm_twf.tsp
@@ -787,7 +813,8 @@ query_config = {
     'derive_type': 'subquery',
     'subquery': lambda para: '''
           SELECT %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
-          coalesce(sum(cdm_t.value::float), 0) fluids_intake_24hr, coalesce(max(cdm_t.confidence), 0) fluids_intake_24hr_c
+          sum(coalesce(cdm_t.value::float,0)) fluids_intake_24hr,
+          max(coalesce(cdm_t.confidence, 0)) fluids_intake_24hr_c
           from %(twf_table)s cdm_twf
           inner join cdm_t
           on cdm_t.enc_id = cdm_twf.enc_id and cdm_t.tsp <= cdm_twf.tsp
@@ -808,7 +835,8 @@ query_config = {
     'derive_type': 'subquery',
     'subquery': lambda para: '''
           SELECT %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
-          coalesce(sum(cdm_t.value::float), 0) urine_output_6hr, coalesce(max(cdm_t.confidence), 0) urine_output_6hr_c
+          sum(coalesce(cdm_t.value::float, 0)) urine_output_6hr,
+          max(coalesce(cdm_t.confidence, 0)) urine_output_6hr_c
           from %(twf_table)s cdm_twf
           inner join cdm_t
           on cdm_t.enc_id = cdm_twf.enc_id and cdm_t.tsp <= cdm_twf.tsp
@@ -822,15 +850,17 @@ query_config = {
       'dataset_id_match': dataset_id_match(' and ','cdm_t', 'cdm_twf', para.get("dataset_id")),
       'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id"))
     },
+    'clean': {'value': 0, 'confidence': 0},
   },
   'urine_output_24hr': {
     'fid_input_items': ['urine_output'],
     'derive_type': 'subquery',
     'subquery': lambda para: '''
           SELECT %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
-          coalesce(sum(cdm_t.value::float), 0) urine_output_24hr, coalesce(max(cdm_t.confidence), 0) urine_output_24hr_c
+          sum(coalesce(cdm_t.value::float, 0)) urine_output_24hr,
+          max(coalesce(cdm_t.confidence, 0)) urine_output_24hr_c
           from %(twf_table)s cdm_twf
-          inner join cdm_t
+          left join cdm_t
           on cdm_t.enc_id = cdm_twf.enc_id and cdm_t.tsp <= cdm_twf.tsp
           and cdm_t.tsp > cdm_twf.tsp - interval '24 hours' %(dataset_id_match)s
           where fid = 'urine_output' %(dataset_id_equal)s
@@ -842,6 +872,7 @@ query_config = {
       'dataset_id_match': dataset_id_match(' and ','cdm_t', 'cdm_twf', para.get("dataset_id")),
       'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id"))
     },
+    'clean': {'value': 0, 'confidence': 0},
   },
   # TBD
   # 'acute_kidney_failure':

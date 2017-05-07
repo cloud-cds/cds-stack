@@ -455,62 +455,6 @@ async def sirs_intp_update(fid, fid_input, conn, log, dataset_id=None, twf_table
       interval_c = 0
 
 
-
-
-
-
-
-# Simple (w/ complex expressions)
-async def renal_sofa_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
-  """
-  fid should be renal_sofa (TWF)
-  fid input should be creatinine, urine_output_24hr (both TWF)
-  """
-  fid_input_items = [item.strip() for item in fid_input.split(',')]
-  assert fid == 'renal_sofa', 'wrong fid %s' % fid
-  assert fid_input_items[0] == 'creatinine' \
-    and fid_input_items[1] == 'urine_output_24hr', \
-      'wrong fid_input %s' % fid_input
-  await conn.execute(clean_tbl.cdm_twf_clean(fid, value=0, twf_table=twf_table, dataset_id=dataset_id))
-  update_clause = """
-  UPDATE %(twf_table)s SET %(fid)s = (CASE
-    WHEN %(creat)s > 5 THEN 4
-    WHEN %(creat)s >= 3.5 THEN 3
-    WHEN %(creat)s >= 2 THEN 2
-    WHEN %(creat)s >= 1.2 THEN 1
-    ELSE 0
-  END)
-  , %(fid)s_c = coalesce(%(creat)s_c, 0)
-  %(with_ds)s;
-  """ % {'fid':fid, 'creat':fid_input_items[0], 'twf_table': twf_table, 'with_ds': with_ds(dataset_id, conjunctive=False)}
-  log.info(update_clause)
-  await conn.execute(update_clause)
-
-  update_clause = """
-  WITH min_tsp as (SELECT min(cdm_twf_2.tsp), enc_id FROM %(twf_table)s cdm_twf_2
-          %(with_ds_where)s group by enc_id)
-  UPDATE %(twf_table)s SET %(fid)s = (CASE
-      WHEN %(urine_output)s < 200 THEN 4
-      WHEN %(fid)s < 3 AND %(urine_output)s < 500 THEN 3
-      ELSE %(fid)s
-    END)
-    , %(fid)s_c = coalesce(%(fid)s_c,0) | coalesce(%(urine_output)s_c,0)
-    FROM min_tsp
-    WHERE %(urine_output)s < 500
-      AND
-      min_tsp.enc_id = %(twf_table)s.enc_id
-      AND
-      %(twf_table)s.tsp - min_tsp.min >= interval '24 hours'
-      %(with_ds)s
-    ;
-  """ % {'fid':fid, 'urine_output':fid_input_items[1], 'twf_table': twf_table, 'with_ds': with_ds(dataset_id), 'with_ds_where': with_ds(dataset_id, conjunctive=False)}
-  log.info(update_clause)
-  await conn.execute(update_clause)
-
-
-
-
-
 # Subquery chain
 async def septic_shock_update(fid, fid_input, conn, log, dataset_id=None, twf_table='cdm_twf'):
   # UPDATE 8/19/2016
