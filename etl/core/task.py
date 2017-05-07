@@ -1,5 +1,5 @@
 from inspect import signature
-''' 
+'''
 Task class - a Plan is made up of these
 
 Attributes:
@@ -20,13 +20,13 @@ class Task:
     params = signature(coro).parameters if coro else signature(fn).parameters
     if 'ctxt' != list(params)[0]:
       raise RuntimeError("Task function or coroutine needs 'ctxt' as first argument")
-    
+
     # Make sure the number of arguments is valid
     if ((len(args) if args else 0) + len(deps)) != (len(params) - 1): # Subtract 1 because of the 'ctxt'
       error_str = "Task function or coroutine has an incorrect number of arguments or dependencies"
       error_str += "\nExpected: {},  Found: {}".format((len(args) if args else 0) + len(deps), len(params) - 1)
       raise RuntimeError(error_str)
-    
+
     self.name = name
     self.deps = deps
     self.func = {'coro': coro} if coro else {'fn': fn}

@@ -1,12 +1,15 @@
 import asyncio
 import logging
 import time
-from etl.core.engine import Engine
 import uvloop
 import os
 import json
-from etl.clarity2dw.extractor import Extractor
 import functools
+
+from etl.core.engine import Engine
+from etl.core.task import Task
+from etl.core.plan import Plan
+from etl.clarity2dw.extractor import Extractor
 
 CONF = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'conf')
 
@@ -93,63 +96,33 @@ class Planner():
     return self.plan
 
   def init_plan(self):
-    self.plan = {
-      'extract_init': ([],
-        {'config': db_config,
-         'coro': self.extractor.extract_init}),
-    }
+    self.plan = Plan('plan-c2dw', db_config)
+    self.plan.add(Task('extract_init', deps=[], coro=self.extractor.extract_init))
 
   def gen_transform_plan(self):
-    self.plan.update({
-                                'populate_patients': (['extract_init'],
-                                  {'config': db_config,
-                                   'coro': self.extractor.populate_patients}),
-                                'transform_init': (['populate_patients'],
-                                  {
-                                  'config': db_config,
-                                  'coro': self.extractor.transform_init
-                                  })})
+    self.plan.add(Task('populate_patients', deps=['extract_init'], coro=self.extractor.populate_patients))
+    self.plan.add(Task('transform_init', deps=['populate_patients'], coro=self.extractor.transform_init))
+
     for i, transform_task in enumerate(self.extractor.get_transform_tasks()):
-      self.plan.update({'transform_task_{}'.format(i): (['transform_init'],
-                                  {
-                                  'config': db_config,
-                                  'coro': self.extractor.run_transform_task,
-                                  'args': [transform_task]
-                                  })})
+      self.plan.add(Task('transform_task_{}'.format(i), \
+        deps=['transform_init'], coro=self.extractor.run_transform_task, args=[transform_task]))
 
   def gen_fillin_plan(self):
     transform_tasks = [task for task in self.plan if task.startswith('transform_task_')]
-    self.plan.update({'fillin': (transform_tasks,
-                                {
-                                  'config': db_config,
-                                  'coro': self.extractor.run_fillin,
-                                })})
+    self.plan.add(Task('fillin', deps=transform_tasks, coro=self.extractor.run_fillin))
 
   def gen_derive_plan(self):
     parallel = self.job.get('derive').get('parallel')
     if parallel:
       for task in self.extractor.get_derive_tasks(db_config):
-        self.plan.update({
-            task['name']: (task['dependencies'],
-              {
-                'config': db_config,
-                'coro': self.run_derive,
-                'args': task['fid']
-              })
-          })
+        self.plan.add(Task(task['name'], deps=task['dependencies'], coro=self.extractor.run_derive, args=task['fid']))
     else:
-      self.plan.update(
-          {'derive': (['fillin'],
-            {
-              'config': db_config,
-              'coro': self.extractor.run_derive,
-            })}
-        )
+      self.plan.add(Task('derive', deps=['fillin'], coro=self.extractor.run_derive))
+
 
   def start_engine(self):
     self.log.info("start job in the engine")
-    self.job['engine']['tasks'] = self.plan
-    self.engine = Engine(**self.job['engine'])
+    self.engine = Engine(self.plan, **self.job['engine'])
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
