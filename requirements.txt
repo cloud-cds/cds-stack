@@ -25,6 +25,7 @@ multidict==2.1.4
 packaging==16.8
 prometheus-client==0.0.19
 pyasn1==0.2.3
+pycrypto==2.6.1
 pyparsing==2.2.0
 python-dateutil==2.6.0
 pytz==2017.2
