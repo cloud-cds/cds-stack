@@ -162,7 +162,7 @@ dataset_id,fid,category,data_type,is_measured,is_deprecated,fillin_func_id,windo
 3,hydralazine_dose,T,JSON,yes,no,,,,,Medication,1,mg
 3,lisinopril_dose,T,JSON,yes,no,,,,,Medication,1,mg
 3,temperature,TWF,Real,yes,no,last_value_in_window,28,,,Physiologic,1,Fahrenheit
-3,any_beta_blocker,T,Boolean,no,no,,,beta_blocker_update,"acebutolol_dose, atenolol_dose, bisoprolol_dose, metoprolol_dose, nadolol_dose, propanolol_dose","Medication, 1 if any beta blocker administered",1,
+3,any_beta_blocker,T,Boolean,no,no,,,beta_blocker_update,"acebutolol_dose, atenolol_dose, bisoprolol_dose, metoprolol_dose, nadolol_dose, propranolol_dose","Medication, 1 if any beta blocker administered",1,
 3,penicillin_dose,T,JSON,yes,no,,3,,,Medication,1,Million Units
 3,sirs_wbc_oor,TWF,Boolean,no,no,,,sirs_wbc_oor_update,wbc,it should not be sparse,1,no unit
 3,any_glucocorticoid,T,Boolean,no,no,,,glucocorticoid_update,"hydrocortisone_dose, prednisone_dose, prednisolone_dose, methylprednisolone_dose, dexamethasone_dose, betamethasone_dose, fludrocortisone_dose","Medication, 1 if any glucocorticoid administered",1,
