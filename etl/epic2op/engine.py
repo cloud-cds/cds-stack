@@ -2,6 +2,7 @@ from etl.core.exceptions import TransformError
 from etl.core.config import Config
 from etl.transforms.pipelines import jhapi as jhapi_transform_lists
 from etl.load.pipelines.epic2op import Epic2OpLoader
+import etl.load.pipelines.epic2op as epic2op_loader
 from etl.load.pipelines.criteria import get_criteria_tasks
 from etl.core.task import Task
 from etl.core.plan import Plan
@@ -59,21 +60,32 @@ def main(max_num_pats=None, hospital=None, lookback_hours=None, db_name=None):
 
   ########################
   # Build plan
+  job_id = loader.job_id
   all_tasks = []
   if 'real' in mode:
     all_tasks += get_extraction_tasks(extractor, max_num_pats)
     all_tasks += get_combine_tasks()
     all_tasks += [
-      {'name': 'load_task', 'deps': ['combine_data', 'build_db_extract_data'], 'fn': loader.run_loop, 'args': [mode]},
-      {'name': 'push_cloudwatch_metrics', 'deps': ['combine_cloudwatch_data'], 'fn': push_cloudwatch_metrics, 'args': [aws_region, prod_or_dev]},
-      {'name': 'get_notifications', 'deps': [], 'coro': loader.get_notifications_for_epic}, 
-      {'name': 'push_notifications', 'deps': ['get_notifications'], 'fn': extractor.push_notifications},
+      { 
+        'name': 'load_task', 'deps': ['combine_data', 'build_db_extract_data'],
+        'fn':   loader.run_loop, 'args': [mode]
+      }, {
+        'name': 'push_cloudwatch_metrics', 'deps': ['combine_cloudwatch_data'],
+        'fn': push_cloudwatch_metrics, 'args': [aws_region, prod_or_dev]
+      }, {
+        'name': 'get_notifications', 'deps': ['load_task'],
+        'coro': epic2op_loader.get_notifications_for_epic,
+        'args': [job_id]
+      }, {
+        'name': 'push_notifications', 'deps': ['get_notifications'],
+        'fn': extractor.push_notifications
+      },
     ]
     if notify_epic:
       all_tasks += get_notification_tasks(loader, extractor)
   else:
     all_tasks = [
-      {'name': 'load_task', 'deps': [], 'fn': loader.run_loop, 'args': [None, None, mode]}
+      {'name': 'load_task', 'fn': loader.run_loop, 'args': [None, None, mode]}
     ]
 
   criteria_tasks = get_criteria_tasks(dependency = 'load_task')

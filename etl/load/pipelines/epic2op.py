@@ -9,6 +9,15 @@ import pandas as pd
 import os
 import logging
 
+async def get_notifications_for_epic(ctxt, _, job_id):
+  async with ctxt.db_pool.acquire() as conn:
+    ctxt.log.info("getting notifications to push to epic")
+    return await conn.fetch("""
+      SELECT n.* from get_notifications_for_epic(null) n
+      inner join workspace.{}_bedded_patients_transformed bp
+      on n.pat_id = bp.pat_id
+      """.format(job_id))
+
 class Epic2OpLoader:
   def __init__(self, config):
     self.config = config
@@ -56,21 +65,6 @@ class Epic2OpLoader:
         except asyncpg.exceptions.UndefinedTableError:
           logging.error("Workspace table does exist for {}".format(func))
           continue
-
-  def get_notifications_for_epic(self):
-    async def run(loop):
-      async with self.pool.acquire() as conn:
-        self.log.info("getting notifications to push to epic")
-        return await conn.fetch("""
-          SELECT n.* from get_notifications_for_epic(null) n
-          inner join workspace.{}_bedded_patients_transformed bp
-          on n.pat_id = bp.pat_id
-          """.format(self.job_id))
-
-    loop = asyncio.get_event_loop()
-    future = asyncio.ensure_future(run(loop))
-    loop.run_until_complete(future)
-    return future.result()
 
   async def get_cdm_feature_dict(self, conn):
     sql = "select * from cdm_feature"

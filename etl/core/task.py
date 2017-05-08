@@ -14,12 +14,12 @@ class Task:
   def __init__(self, name, deps=[], coro=None, fn=None, args=None):
     # Make sure a either a coroutine or function is set
     if (not coro and not fn) or (coro and fn):
-      raise ValueError("Need a coroutine or function (but not both)")
+      raise ValueError("Task {} needs a coroutine or function (but not both)".format(name))
 
     # Make sure that 'ctxt' is the first argument of the function or coroutine
     params = signature(coro).parameters if coro else signature(fn).parameters
     if 'ctxt' != list(params)[0]:
-      raise RuntimeError("Task function or coroutine needs 'ctxt' as first argument")
+      raise RuntimeError("Task {} function or coroutine needs 'ctxt' as first argument".format(name))
 
     # Make sure the number of arguments is valid
     # Subtract 1 because of the 'ctxt'
