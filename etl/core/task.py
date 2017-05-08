@@ -22,9 +22,13 @@ class Task:
       raise RuntimeError("Task function or coroutine needs 'ctxt' as first argument")
 
     # Make sure the number of arguments is valid
-    if ((len(args) if args else 0) + len(deps)) != (len(params) - 1): # Subtract 1 because of the 'ctxt'
-      error_str = "Task function or coroutine has an incorrect number of arguments or dependencies"
-      error_str += "\nExpected: {},  Found: {}".format((len(args) if args else 0) + len(deps), len(params) - 1)
+    # Subtract 1 because of the 'ctxt'
+    if ((len(args) if args else 0) + len(deps)) != (len(params) - 1) and \
+      "args" not in params:
+      error_str = "Task '{}' ".format(name)
+      error_str += "function or coroutine has an incorrect number of arguments or dependencies"
+      error_str += "\n   Expected: {},  Found: {}".format(
+        (len(args) if args else 0) + len(deps), len(params) - 1)
       raise RuntimeError(error_str)
 
     self.name = name
