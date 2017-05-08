@@ -351,7 +351,7 @@ END
 $BODY$
 LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION last_value_in_window(twf_fids TEXT[], twf_table TEXT enc_ids int[] default null, start_tsp timestamptz default null, end_tsp timestamptz default null, is_exec boolean default true)
+CREATE OR REPLACE FUNCTION last_value_in_window(twf_fids TEXT[], twf_table TEXT, enc_ids int[] default null, start_tsp timestamptz default null, end_tsp timestamptz default null, is_exec boolean default true)
 RETURNS VOID
 AS $BODY$
 DECLARE
