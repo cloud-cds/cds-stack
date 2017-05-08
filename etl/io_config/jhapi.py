@@ -3,13 +3,14 @@ from etl.mappings.flowsheet_ids import flowsheet_ids
 from etl.mappings.component_ids import component_ids
 from etl.mappings.lab_procedures import procedure_ids
 
-import sys, time
+import sys
 import asyncio
 import uvloop
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 from aiohttp import ClientSession
 from aiohttp import client_exceptions
+from time import sleep
 import pandas as pd
 import datetime as dt
 import itertools

@@ -14,17 +14,21 @@ class Task:
   def __init__(self, name, deps=[], coro=None, fn=None, args=None):
     # Make sure a either a coroutine or function is set
     if (not coro and not fn) or (coro and fn):
-      raise ValueError("Need a coroutine or function (but not both)")
+      raise ValueError("Task {} needs a coroutine or function (but not both)".format(name))
 
     # Make sure that 'ctxt' is the first argument of the function or coroutine
     params = signature(coro).parameters if coro else signature(fn).parameters
     if 'ctxt' != list(params)[0]:
-      raise RuntimeError("Task function or coroutine needs 'ctxt' as first argument")
+      raise RuntimeError("Task {} function or coroutine needs 'ctxt' as first argument".format(name))
 
     # Make sure the number of arguments is valid
-    if ((len(args) if args else 0) + len(deps)) != (len(params) - 1): # Subtract 1 because of the 'ctxt'
-      error_str = "Task function or coroutine has an incorrect number of arguments or dependencies"
-      error_str += "\nExpected: {},  Found: {}".format((len(args) if args else 0) + len(deps), len(params) - 1)
+    # Subtract 1 because of the 'ctxt'
+    if ((len(args) if args else 0) + len(deps)) != (len(params) - 1) and \
+      "args" not in params:
+      error_str = "Task '{}' ".format(name)
+      error_str += "function or coroutine has an incorrect number of arguments or dependencies"
+      error_str += "\n   Expected: {},  Found: {}".format(
+        (len(args) if args else 0) + len(deps), len(params) - 1)
       raise RuntimeError(error_str)
 
     self.name = name
