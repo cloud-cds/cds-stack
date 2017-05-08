@@ -1,8 +1,7 @@
 from etl.core.exceptions import TransformError
 from etl.core.config import Config
 from etl.transforms.pipelines import jhapi as jhapi_transform_lists
-from etl.load.pipelines.epic2op import Epic2OpLoader
-import etl.load.pipelines.epic2op as epic2op_loader
+import etl.load.pipelines.epic2op as loader
 from etl.load.pipelines.criteria import get_criteria_tasks
 from etl.core.task import Task
 from etl.core.plan import Plan
@@ -36,8 +35,8 @@ def main(max_num_pats=None, hospital=None, lookback_hours=None, db_name=None):
     'db_port': os.environ['db_port'],
   }
 
-  # Create loader
-  loader = Epic2OpLoader()
+  # Create data for loader
+  job_id = "job_etl_{}".format(dt.datetime.now().strftime('%m%d%H%M%S')).lower()
   archive = int(os.environ.get('TREWS_ETL_ARCHIVE', 0))
   notify_epic = int(os.environ['TREWS_ETL_EPIC_NOTIFICATIONS'])
 
@@ -49,7 +48,7 @@ def main(max_num_pats=None, hospital=None, lookback_hours=None, db_name=None):
     jhapi_id =       os.environ['jhapi_client_id'],
     jhapi_secret =   os.environ['jhapi_client_secret'],
   )
-  
+
   # Get stuff for boto client
   aws_region = os.environ['AWS_DEFAULT_REGION']
   prod_or_dev = os.environ['db_name']
@@ -59,28 +58,27 @@ def main(max_num_pats=None, hospital=None, lookback_hours=None, db_name=None):
 
   ########################
   # Build plan
-  job_id = loader.job_id
   all_tasks = []
   if 'real' in mode:
     all_tasks += get_extraction_tasks(extractor, max_num_pats)
     all_tasks += get_combine_tasks()
     all_tasks.append({
-        'name': 'push_cloudwatch_metrics', 
+        'name': 'push_cloudwatch_metrics',
         'deps': ['combine_cloudwatch_data'],
-        'fn':   push_cloudwatch_metrics, 
+        'fn':   push_cloudwatch_metrics,
         'args': [aws_region, prod_or_dev]
       })
     if notify_epic:
       all_tasks.append({
-        'name': 'push_notifications', 
+        'name': 'push_notifications',
         'deps': ['get_notifications_for_epic'],
         'fn': extractor.push_notifications
       })
-  
-  
-  loading_tasks  = loader.get_tasks('combine_db_data', 'combine_extract_data', mode, archive, config.get_db_conn_string_sqlalchemy())
+
+
+  loading_tasks  = loader.get_tasks(job_id,  'combine_db_data', 'combine_extract_data', mode, archive, config.get_db_conn_string_sqlalchemy())
   criteria_tasks = get_criteria_tasks(dependency = 'get_notifications_for_epic')
-  
+
 
   ########################
   # Run plan
@@ -101,8 +99,8 @@ def main(max_num_pats=None, hospital=None, lookback_hours=None, db_name=None):
 
 
 
-def combine_extract_data(ctxt, pats, flowsheets, active_procedures, lab_orders, 
-                      lab_results, med_orders, med_admin, loc_history, notes, 
+def combine_extract_data(ctxt, pats, flowsheets, active_procedures, lab_orders,
+                      lab_results, med_orders, med_admin, loc_history, notes,
                       note_texts):
   return {
     'bedded_patients': pats,
@@ -118,8 +116,8 @@ def combine_extract_data(ctxt, pats, flowsheets, active_procedures, lab_orders,
   }
 
 
-def combine_db_data(ctxt, pats_t, flowsheets_t, active_procedures_t, lab_orders_t, 
-                 lab_results_t, med_orders_t, med_admin_t, loc_history_t, 
+def combine_db_data(ctxt, pats_t, flowsheets_t, active_procedures_t, lab_orders_t,
+                 lab_results_t, med_orders_t, med_admin_t, loc_history_t,
                  notes_t, note_texts_t):
   pats_t.diagnosis = pats_t.diagnosis.apply(json.dumps)
   pats_t.history = pats_t.history.apply(json.dumps)
@@ -142,8 +140,8 @@ def combine_db_data(ctxt, pats_t, flowsheets_t, active_procedures_t, lab_orders_
   return db_data
 
 
-def combine_cloudwatch_data(ctxt, pats_t, flowsheets_t, lab_orders_t, 
-                            active_procedures_t, lab_results_t, med_orders_t, 
+def combine_cloudwatch_data(ctxt, pats_t, flowsheets_t, lab_orders_t,
+                            active_procedures_t, lab_results_t, med_orders_t,
                             med_admin_t, loc_history_t, notes_t, note_texts_t):
   return {
     # 'total_time'        : (dt.datetime.now() - self.driver_start).total_seconds(),
@@ -279,7 +277,7 @@ def transform(ctxt, df, transform_list_name):
 def get_extraction_tasks(extractor, max_num_pats=None):
   return [
     {
-      'name': 'bedded_patients_extract', 
+      'name': 'bedded_patients_extract',
       'fn':   extractor.extract_bedded_patients,
       'args': [extractor.hospital, max_num_pats],
     }, { # Barrier 1
