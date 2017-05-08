@@ -398,8 +398,11 @@ BEGIN
             from (
                 select enc_id, tsp,
                 ' || r_col || '
-                from ' || twf_table || '
-                where '||
+                from ' || twf_table ||
+                (case
+                    when start_tsp is not null or end_tsp is not null or enc_ids is not null then ' where '
+                 else ' ' end)
+                ||
                 (case
                     when start_tsp is not null
                         then ' and tsp >= ''' || start_tsp || '''::timestamptz'
