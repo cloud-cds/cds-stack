@@ -1150,7 +1150,7 @@ BEGIN
                           else MFL.value::numeric > 30
                       end) as is_met
             from criteria_meas MFL
-            left join severe_sepsis_now SSPN on MFL.pat_id = SSPN.pat_id
+            left join severe_sepsis_onsets SSPN on MFL.pat_id = SSPN.pat_id
             left join pat_fluid_overrides OV on MFL.pat_id = OV.pat_id
             where isnumeric(MFL.value)
             and SSPN.severe_sepsis_is_met
@@ -1181,7 +1181,7 @@ BEGIN
                         else false
                     end) as is_met
             from pat_cvalues PC
-            left join severe_sepsis_now SSPN on PC.pat_id = SSPN.pat_id
+            left join severe_sepsis_onsets SSPN on PC.pat_id = SSPN.pat_id
 
             left join pats_fluid_after_severe_sepsis PFL
               on PC.pat_id = PFL.pat_id
@@ -1492,7 +1492,8 @@ CREATE OR REPLACE FUNCTION calculate_historical_criteria(
         _dataset_id INTEGER DEFAULT NULL,
         ts_start timestamptz DEFAULT '-infinity'::timestamptz,
         ts_end timestamptz DEFAULT 'infinity'::timestamptz,
-        window_limit text default 'all'
+        window_limit text default 'all',
+        use_clarity_notes boolean default false
   )
 --   @Peter, positive inf time and negative inf time?
 --   passing in a null value will calculate historical criteria over all patientis
@@ -1558,9 +1559,9 @@ BEGIN
           calculate_criteria(coalesce(%s, window_ends.pat_id),
                              window_ends.tsp - ''%s''::interval,
                              window_ends.tsp,
-                             %s) new_criteria
+                             %s, %s) new_criteria
         on window_ends.pat_id = new_criteria.pat_id;'
-        ,_dataset_id,  pat_id_str, _dataset_id, ts_start, ts_end, window_limit, pat_id_str, window_size, _dataset_id);
+        ,_dataset_id,  pat_id_str, _dataset_id, ts_start, ts_end, window_limit, pat_id_str, window_size, _dataset_id, use_clarity_notes);
 
 
     insert into historical_criteria (pat_id, dataset_id, pat_state, window_ts)
