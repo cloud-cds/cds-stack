@@ -118,17 +118,12 @@ async def derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=None, deri
       if fid_category == 'TWF':
         twf_table = derive_feature_addr[fid]['twf_table']
         twf_table_temp = derive_feature_addr[fid]['twf_table_temp']
-        # TODO figure out how to do clean in new framework
-        # if 'clean' in config_entry:
-        #   clean_args = config_entry['clean']
-        #   clean_sql = clean_tbl.cdm_twf_clean(fid, twf_table = twf_table_temp, dataset_id = dataset_id, **clean_args)
-        # else:
-        #   # default clean
-        #   clean_sql = clean_tbl.cdm_twf_clean(fid, twf_table = twf_table_temp, dataset_id = dataset_id)
+        if 'clean' in config_entry:
+          clean_args = config_entry['clean']
+          clean_sql = clean_tbl.cdm_twf_clean(fid, twf_table = twf_table_temp, dataset_id = dataset_id, **clean_args)
         if config_entry['derive_type'] == 'simple':
           sql = gen_simple_twf_query(config_entry, fid, dataset_id, derive_feature_addr, cdm_feature_dict)
         elif config_entry['derive_type'] == 'subquery':
-          # TODO update template for subquery upsert query
           sql = gen_subquery_upsert_query(config_entry, fid, dataset_id, derive_feature_addr, cdm_feature_dict)
         log.debug(clean_sql + sql)
         await conn.execute(clean_sql + sql)
