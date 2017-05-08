@@ -1,6 +1,7 @@
 import grequests
 import datetime as dt
 import logging
+import pytz
 
 SERVERS = {
     'test': 'https://api-test.jh.edu/internal/v2/clinical',
@@ -21,12 +22,13 @@ class Loader:
             'User-Agent': ''
         }
 
-    def load_notifications(self, patients):
+    def load_notifications(self, patients, load_tz='US/Eastern'):
         if patients is None or len(patients) == 0:
             logging.warn('No patients passed in')
             return None
         url = self.server + '/patients/addflowsheetvalue'
-        current_time = str(dt.datetime.utcnow())
+        t_utc = dt.datetime.utcnow().replace(tzinfo=pytz.utc)
+        current_time = str(t_utc.astimezone(pytz.timezone(load_tz)))
         payloads = [{
             'PatientID':            pat['pat_id'],
             'ContactID':            pat['visit_id'],

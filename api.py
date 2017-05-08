@@ -20,6 +20,7 @@ from monitoring import APIMonitor
 
 logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.INFO)
 
+
 ##############################
 # Globals: cache and monitor.
 pat_cache = LRUMemoryCache(plugins=[HitMissRatioPlugin()], max_size=5000)
@@ -49,7 +50,6 @@ class TREWSAPI(web.View):
       logging.warning(str(ex))
       traceback.print_exc()
       raise web.HTTPBadRequest(body=json.dumps({'message': str(ex)}))
-
 
   # match and test the consistent API for overriding
   async def take_action(self, db_pool, actionType, actionData, eid, uid):

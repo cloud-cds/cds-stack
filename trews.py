@@ -17,8 +17,11 @@ from aiohttp.web import Response, json_response
 from jinja2 import Environment, FileSystemLoader
 from monitoring import TREWSPrometheusMetrics, cloudwatch_logger_middleware, cwlog_enabled
 
+import urllib.parse
+
 import api, dashan_query
 from api import pat_cache, api_monitor
+from encrypt import encrypt, decrypt, encrypted_query
 
 
 #################################
@@ -52,12 +55,57 @@ port = os.environ['db_port']
 pw   = os.environ['db_password']
 etl_channel = os.environ['etl_channel'] if 'etl_channel' in os.environ else None
 
+trews_app_key = os.environ['trews_app_key'] if 'trews_app_key' in os.environ else None
+trews_admin_key = os.environ['trews_admin_key'] if 'trews_admin_key' in os.environ else None
+trews_open_access = os.environ['trews_open_access'] if 'trews_open_access' in os.environ else None
+
+logging.info('''TREWS Security Configuration::
+  encrypted query: %s
+  trews_app_key: %s
+  trews_admin_key: %s
+  trews_open_access: %s
+  ''' % ('on' if encrypted_query else 'off', \
+         'on' if trews_app_key else 'off', \
+         'on' if trews_admin_key else 'off', \
+         'on' if trews_open_access.lower() == 'true' else 'off')
+  )
 
 ###################################
 # Handlers
 
 ## Static files.
 class TREWSStaticResource(web.View):
+
+  def get_index_body(self, parameters):
+    # TODO: customize order keys based on LOC
+    hospital = 'JHH'
+    if 'LOC' in parameters:
+      loc = parameters['LOC']
+      if len(loc) == 6:
+        if loc.startswith("1101"):
+          loc = 'JHH'
+        elif loc.startswith("1102"):
+          loc = 'BMC'
+          KEYS['antibiotics'] = '6'
+          KEYS['vasopressors'] = '13'
+        elif loc.startswith("1103"):
+          loc = 'HCGH'
+          KEYS['antibiotics'] = '3'
+        elif loc.startswith("1104"):
+          loc = 'Sibley'
+        elif loc.startswith("1105"):
+          loc = 'Suburban'
+        elif loc.startswith("1107"):
+          loc = 'KKI'
+      else:
+        logging.error("LOC parsing error:" + loc)
+    else:
+      logging.warning("No LOC in query string. Use JHH as default hospital")
+
+    logging.info("Static file request on index.html")
+    j2_env = Environment(loader=FileSystemLoader(STATIC_DIR), trim_blocks=True)
+    return j2_env.get_template(INDEX_FILENAME).render(keys=KEYS)
+
   async def get(self):
     global URL_STATIC, STATIC_DIR, INDEX_FILENAME
 
@@ -85,35 +133,46 @@ class TREWSStaticResource(web.View):
       r_content_type = 'application/octet-stream'
 
     if filename.endswith(INDEX_FILENAME):
-      # TODO: customize order keys based on LOC
       parameters = self.request.query
-      hospital = 'JHH'
-      if 'LOC' in parameters:
-        loc = parameters['LOC']
-        if len(loc) == 6:
-          if loc.startswith("1101"):
-            loc = 'JHH'
-          elif loc.startswith("1102"):
-            loc = 'BMC'
-            KEYS['antibiotics'] = '6'
-            KEYS['vasopressors'] = '13'
-          elif loc.startswith("1103"):
-            loc = 'HCGH'
-            KEYS['antibiotics'] = '3'
-          elif loc.startswith("1104"):
-            loc = 'Sibley'
-          elif loc.startswith("1105"):
-            loc = 'Suburban'
-          elif loc.startswith("1107"):
-            loc = 'KKI'
-        else:
-          logging.error("LOC parsing error:" + loc)
-      else:
-        logging.warning("No LOC in query string. Use JHH as default hospital")
 
-      j2_env = Environment(loader=FileSystemLoader(STATIC_DIR), trim_blocks=True)
-      r_body = j2_env.get_template(INDEX_FILENAME).render(keys=KEYS)
-      logging.info("Static file request on index.html")
+      if encrypted_query and 'token' in parameters:
+        param_bytes = decrypt(parameters['token'])
+        param_str = param_bytes.decode() if param_bytes else None
+        params = dict(urllib.parse.parse_qsl(param_str)) if param_str else None
+
+        if params is not None and 'USERID' in params and 'PATID' in params:
+
+          if trews_app_key:
+            params['trewsapp'] = encrypt(trews_app_key)
+
+          new_qs = urllib.parse.urlencode(params)
+
+          # Redirect to the index page, with unencrypted query variables.
+          # This is necessary becuase our Javascript code retrieves
+          # variables from the query string.
+          # We add a private token to the query string during the redirect
+          # to ensure that consider subsequent accesses verified.
+          return web.HTTPFound(URL+INDEX_FILENAME+'?'+new_qs)
+
+        else:
+          self.bad_request('Failed to decrypt query parameters')
+
+      else:
+        validated = trews_open_access.lower() == 'true' if trews_open_access else False
+
+        if 'trewsapp' in parameters:
+          query_app_key_bytes = decrypt(parameters['trewsapp'])
+          query_app_key = query_app_key_bytes.decode() if query_app_key_bytes else None
+          validated = query_app_key == trews_app_key
+
+        elif 'adminkey' in parameters:
+          validated = trews_admin_key == parameters['adminkey']
+
+        if validated:
+          r_body = self.get_index_body(parameters)
+
+        else:
+          self.bad_request('Unauthorized access')
 
     else:
       if os.path.exists(filename):
@@ -123,6 +182,12 @@ class TREWSStaticResource(web.View):
         raise web.HTTPNotFound(body=json.dumps({'message': 'Invalid file: %s' % filename}))
 
     return Response(content_type=r_content_type, body=r_body)
+
+
+  def bad_request(self, error_msg):
+    logging.error(error_msg)
+    raise web.HTTPBadRequest(body=json.dumps({'message': error_msg}))
+
 
 
 class TREWSLog(web.View):
