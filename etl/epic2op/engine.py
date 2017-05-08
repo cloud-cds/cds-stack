@@ -37,9 +37,8 @@ def main(max_num_pats=None, hospital=None, lookback_hours=None, db_name=None):
   }
 
   # Create loader
-  loader = Epic2OpLoader(config)
-  if 'TREWS_ETL_ARCHIVE' in os.environ:
-    loader.archive = int(os.environ['TREWS_ETL_ARCHIVE'])
+  loader = Epic2OpLoader()
+  archive = int(os.environ.get('TREWS_ETL_ARCHIVE', 0))
   notify_epic = int(os.environ['TREWS_ETL_EPIC_NOTIFICATIONS'])
 
   # Create jhapi_extractor
@@ -65,30 +64,22 @@ def main(max_num_pats=None, hospital=None, lookback_hours=None, db_name=None):
   if 'real' in mode:
     all_tasks += get_extraction_tasks(extractor, max_num_pats)
     all_tasks += get_combine_tasks()
-    all_tasks += [
-      { 
-        'name': 'load_task', 'deps': ['combine_data', 'build_db_extract_data'],
-        'fn':   loader.run_loop, 'args': [mode]
-      }, {
-        'name': 'push_cloudwatch_metrics', 'deps': ['combine_cloudwatch_data'],
-        'fn': push_cloudwatch_metrics, 'args': [aws_region, prod_or_dev]
-      }, {
-        'name': 'get_notifications', 'deps': ['load_task'],
-        'coro': epic2op_loader.get_notifications_for_epic,
-        'args': [job_id]
-      }, {
-        'name': 'push_notifications', 'deps': ['get_notifications'],
-        'fn': extractor.push_notifications
-      },
-    ]
+    all_tasks.append({
+        'name': 'push_cloudwatch_metrics', 
+        'deps': ['combine_cloudwatch_data'],
+        'fn':   push_cloudwatch_metrics, 
+        'args': [aws_region, prod_or_dev]
+      })
     if notify_epic:
-      all_tasks += get_notification_tasks(loader, extractor)
-  else:
-    all_tasks = [
-      {'name': 'load_task', 'fn': loader.run_loop, 'args': [None, None, mode]}
-    ]
-
-  criteria_tasks = get_criteria_tasks(dependency = 'load_task')
+      all_tasks.append({
+        'name': 'push_notifications', 
+        'deps': ['get_notifications_for_epic'],
+        'fn': extractor.push_notifications
+      })
+  
+  
+  loading_tasks  = loader.get_tasks('combine_db_data', 'combine_extract_data', mode, archive, config.get_db_conn_string_sqlalchemy())
+  criteria_tasks = get_criteria_tasks(dependency = 'get_notifications_for_epic')
   
 
   ########################
@@ -98,6 +89,8 @@ def main(max_num_pats=None, hospital=None, lookback_hours=None, db_name=None):
   for task_def in all_tasks:
     plan.add(Task(**task_def))
   for task in criteria_tasks:
+    plan.add(task)
+  for task in loading_tasks:
     plan.add(task)
   engine = Engine(plan=plan, name="epic2op_engine", nprocs=2, loglevel=logging.DEBUG)
   loop = asyncio.new_event_loop()
@@ -170,7 +163,7 @@ def combine_cloudwatch_data(ctxt, pats_t, flowsheets_t, lab_orders_t,
 
 def get_combine_tasks():
   return [{
-    'name': 'combine_data',
+    'name': 'combine_db_data',
     'deps': [
       'bedded_patients_transform',
       'timezone_hack_flowsheets',
