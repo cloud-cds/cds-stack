@@ -17,30 +17,30 @@ CONF = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'conf')
 # a complete job definition
 job_config = {
   'plan': False,
-  # 'reset_dataset': {
-  #   'remove_pat_enc': True,
-  #   'remove_data': True,
-  #   'start_enc_id': 1
-  # },
-  # 'transform': {
-  #   'populate_patients': {
-  #     'limit': None
-  #   },
-  #   'populate_measured_features': {
-  #     'fid': None,
-  #     'nprocs': int(os.environ['nprocs']) if 'nprocs' in os.environ else 1,
-  #   },
-  #   'min_tsp': os.environ['min_tsp'] if 'min_tsp' in os.environ else None
-  # },
-  # 'fillin': {
-  #   'recalculate_popmean': False,
-  #   'vacuum': True,
-  # },
+  'reset_dataset': {
+    # 'remove_pat_enc': True,
+    # 'remove_data': True,
+    # 'start_enc_id': 1
+  },
+  'transform': {
+    # 'populate_patients': {
+    #   'limit': None
+    # },
+    # 'populate_measured_features': {
+    #   'fid': None,
+    #   'nprocs': int(os.environ['nprocs']) if 'nprocs' in os.environ else 1,
+    # },
+    # 'min_tsp': os.environ['min_tsp'] if 'min_tsp' in os.environ else None
+  },
+  'fillin': {
+    # 'recalculate_popmean': False,
+    # 'vacuum': True,
+  },
   'derive': {
     'parallel': False,
-    'fid': 'bun_to_cr',
+    'fid': None,
     'mode': None,
-    'num_derive_groups': 4,
+    'num_derive_groups': 0,
   },
   'offline_criteria_processing': {
     'load_cdm_to_criteria_meas':True,
@@ -124,21 +124,27 @@ class Planner():
   def gen_derive_plan(self):
     num_derive_groups = self.job.get('derive').get('num_derive_groups', 0)
     parallel = self.job.get('derive').get('parallel')
-    derive_feature_addr = get_derive_feature_addr(db_config, self.extractor.dataset_id, num_derive_groups)
+    self.extractor.derive_feature_addr = get_derive_feature_addr(db_config, self.extractor.dataset_id, num_derive_groups)
+    self.log.info("derive_feature_addr: {}".format(self.extractor.derive_feature_addr))
     if num_derive_groups:
-      self.plan.add(Task('derive_init', deps=['fillin'], coro=self.extractor.derive_init, args=(num_derive_groups, derive_feature_addr)))
+      self.plan.add(Task('derive_init', deps=['vacuum'], coro=self.extractor.derive_init))
     if parallel:
       for task in get_derive_tasks(db_config, self.extractor.dataset_id, num_derive_groups > 0):
-        self.plan.add(Task(task['name'], deps=task['dependencies'], coro=self.extractor.run_derive, args=(task['fid'], derive_feature_addr)))
+        self.plan.add(Task(task['name'], deps=task['dependencies'], coro=self.extractor.run_derive, args=task['fid']))
     else:
-      self.plan.add(Task('derive', deps=['fillin'], coro=self.extractor.run_derive, args=derive_feature_addr))
+      self.plan.add(Task('derive', deps=['vacuum'], coro=self.extractor.run_derive))
     if num_derive_groups:
-      derive_tasks = [task.name for task in self.plan.tasks if task.name.startswith['derive']]
-      self.plan.add(Task('derive_join', deps=derive_tasks, coro=self.extractor.derive_join, args=(derive_feature_addr, dataset_id)))
+      derive_tasks = [task.name for task in self.plan.tasks if task.name.startswith('derive')]
+      self.plan.add(Task('derive_join', deps=derive_tasks, coro=self.extractor.derive_join))
 
   def get_offline_criteria_plan(self):
+    num_derive_groups = self.job.get('derive').get('num_derive_groups', 0)
+    if num_derive_groups:
+      deps = ['derive_join']
+    else:
+      deps = ['derive']
     self.plan.add(
-      Task('offline_criteria', deps=['fillin'], coro=self.extractor.offline_criteria_processing)
+      Task('offline_criteria', deps=deps, coro=self.extractor.offline_criteria_processing)
       )
 
   def start_engine(self):
@@ -167,7 +173,7 @@ def get_derive_tasks(config, dataset_id, is_grouped):
                                             if dataset_id is not None else '')
     cdm_feature = await conn.fetch(sql)
     cdm_feature_dict = {f['fid']:f for f in cdm_feature}
-    conn.close()
+    await conn.close()
     return [derive_features, cdm_feature_dict]
 
   loop = asyncio.new_event_loop()
@@ -201,12 +207,12 @@ def get_derive_feature_addr(config, dataset_id, num_derive_groups, twf_table='cd
     sql = "select * from cdm_feature where not is_measured and not is_deprecated %s" %\
               ('and dataset_id = {}'.format(dataset_id) if dataset_id is not None else '')
     derive_features = await conn.fetch(sql)
-    conn.close()
+    await conn.close()
     return derive_features
 
   def partition(lst, n):
-    division = len(lst) // n
-    return [lst[division * i:division * (i + 1)] for i in range(n)]
+    division = len(lst) / n
+    return [lst[round(division) * i:round(division) * (i + 1)] for i in range(n)]
 
   loop = asyncio.new_event_loop()
   derive_features = loop.run_until_complete(_get_cdm_feature_dict(config))
@@ -216,16 +222,21 @@ def get_derive_feature_addr(config, dataset_id, num_derive_groups, twf_table='cd
     derive_feature_groups = partition(derive_features, num_derive_groups)
   else:
     derive_feature_groups = [derive_features]
-
+  print(derive_features)
+  print(derive_feature_groups)
   derive_feature_addr = {}
-  if num_derive_groups:
-    for i, group in enumerate(derive_feature_groups):
-      for feature in group:
-        fid = feature['fid']
-        derive_feature_addr[fid] = {
-          'twf_table': twf_table if feature['category'] == 'TWF' else None,
-          'twf_table_temp': "{}_temp_{}".format(twf_table, i) if feature['category'] == 'TWF' else None,
-        }
+  for i, group in enumerate(derive_feature_groups):
+    for feature in group:
+      fid = feature['fid']
+      if num_derive_groups:
+        twf_table_temp = "{}_temp_{}".format(twf_table, i) if feature['category'] == 'TWF' else None
+      else:
+        twf_table_temp = twf_table if feature['category'] == 'TWF' else None
+      derive_feature_addr[fid] = {
+        'category'      : feature['category'],
+        'twf_table'     : twf_table if feature['category'] == 'TWF' else None,
+        'twf_table_temp': twf_table_temp,
+      }
   return derive_feature_addr
 
 if __name__ == '__main__':
