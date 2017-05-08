@@ -3,39 +3,42 @@ import etl.load.primitives.tbl.derive as derive_func
 import etl.load.primitives.tbl.clean_tbl as clean_tbl
 from etl.load.primitives.tbl.derive import with_ds
 
-async def derive_main(log, conn, cdm_feature_dict, mode=None, fid=None, dataset_id=None, table="cdm_twf"):
+async def derive_main(log, conn, cdm_feature_dict, mode=None, fid=None, dataset_id=None, derive_feature_addr=None):
   '''
   mode: "append", run derive functions beginning with @fid sequentially
   mode: "dependent", run derive functions for @fid and other features depends on @fid
   mode: None, run derive functions sequentially for all derive features
   '''
   # generate a sequence to derive
-  derive_feature_order = get_derive_seq(cdm_feature_dict)
-  log.debug("derive feautre order: " + ", ".join(derive_feature_order))
   if mode == 'append':
     append = fid
     log.info("starts from feature %s" % append)
+    derive_feature_order = get_derive_seq(cdm_feature_dict)
+    log.debug("derive feautre order: " + ", ".join(derive_feature_order))
     idx = derive_feature_order.index(append)
     for i in range(idx, len(derive_feature_order)):
       fid = derive_feature_order[i]
-      await derive_feature(log, cdm_feature_dict[fid], conn, dataset_id=dataset_id, twf_table=table)
+      await derive_feature(log, cdm_feature_dict[fid], conn, dataset_id=dataset_id, derive_feature_addr=derive_feature_addr)
   elif mode == 'dependent':
     dependent = fid
     if not cdm_feature_dict[fid]['is_measured']:
       log.info("update feature %s and its dependents" % dependent)
-      await derive_feature(log, cdm_feature_dict[fid], conn, dataset_id=dataset_id, twf_table=table)
+      await derive_feature(log, cdm_feature_dict[fid], conn, dataset_id=dataset_id, derive_feature_addr=derive_feature_addr)
     else:
       log.info("update feature %s's dependents" % dependent)
     derive_feature_order = get_dependent_features([dependent], cdm_feature_dict)
     for fid in derive_feature_order:
-      await derive_feature(log, cdm_feature_dict[fid], conn, dataset_id=dataset_id, twf_table=table)
-  elif mode is None and fid is None:
-    log.info("derive features one by one")
-    for fid in derive_feature_order:
-      await derive_feature(log, cdm_feature_dict[fid], conn, dataset_id=dataset_id, twf_table=table)
-  elif mode is None and fid is not None:
-    log.info("derive feature: %s" % fid)
-    await derive_feature(log, cdm_feature_dict[fid], conn, dataset_id=dataset_id, twf_table=table)
+      await derive_feature(log, cdm_feature_dict[fid], conn, dataset_id=dataset_id, derive_feature_addr=derive_feature_addr)
+  elif mode is None:
+    if fid is None:
+      log.info("derive features one by one")
+      derive_feature_order = get_derive_seq(cdm_feature_dict)
+      log.debug("derive feautre order: " + ", ".join(derive_feature_order))
+      for fid in derive_feature_order:
+        await derive_feature(log, cdm_feature_dict[fid], conn, dataset_id=dataset_id, derive_feature_addr=derive_feature_addr)
+    else:
+      log.info("derive feature: %s" % fid)
+      await derive_feature(log, cdm_feature_dict[fid], conn, dataset_id=dataset_id, derive_feature_addr=derive_feature_addr)
   else:
     log.error("Unknown mode!")
 
@@ -98,17 +101,58 @@ def get_dependent_features(feature_list, cdm_feature_dict):
         for fid in cdm_feature_dict if fid in dependent_features)
     return get_derive_seq(input_map=dic)
 
-async def derive_feature(log, feature, conn, dataset_id=None, twf_table='cdm_twf'):
+async def derive_feature(log, feature, conn, dataset_id=None, derive_feature_addr=None):
   fid = feature['fid']
   derive_func_id = feature['derive_func_id']
   derive_func_input = feature['derive_func_input']
   fid_category = feature['category']
   log.info("derive feature %s, function %s, inputs (%s) %s" \
   % (fid, derive_func_id, derive_func_input, 'dataset_id %s' % dataset_id if dataset_id is not None else ''))
-  await derive_func_driver(fid, fid_category, derive_func_id, derive_func_input, conn, log, dataset_id, twf_table)
+  if fid in query_config:
+    # TODO update templated derive features
+    config_entry = query_config[fid]
+    fid_input_items = [item.strip() for item in derive_func_input.split(',')]
+    clean_sql = ''
+    if fid_input_items == config_entry['fid_input_items']:
+      if fid_category == 'TWF':
+        twf_table = derive_feature_addr[fid]['twf_table']
+        twf_table_temp = derive_feature_addr[fid]['twf_table_temp']
+        # TODO figure out how to do clean in new framework
+        # if 'clean' in config_entry:
+        #   clean_args = config_entry['clean']
+        #   clean_sql = clean_tbl.cdm_twf_clean(fid, twf_table = twf_table_temp, dataset_id = dataset_id, **clean_args)
+        # else:
+        #   # default clean
+        #   clean_sql = clean_tbl.cdm_twf_clean(fid, twf_table = twf_table_temp, dataset_id = dataset_id)
+        if config_entry['derive_type'] == 'simple':
+          sql = gen_simple_twf_query(config_entry, fid, dataset_id, derive_feature_addr)
+        elif config_entry['derive_type'] == 'subquery':
+          sql = gen_subquery_upsert_query(config_entry, fid, dataset_id, derive_feature_addr)
+        log.debug(clean_sql + sql)
+        await conn.execute(clean_sql + sql)
+      elif fid_category == 'T':
+        # default clean
+        clean_sql = clean_tbl.cdm_t_clean(fid, dataset_id = dataset_id)
+        sql = gen_cdm_t_delete_and_insert_query(config_entry, fid, dataset_id)
+        log.debug(clean_sql + sql)
+        await conn.execute(clean_sql + sql)
+      else:
+        log.error("Invalid derive fid category: {}".format(fid_category))
+    else:
+      log.error("fid_input dismatch")
+  else:
+    log.info("Derive function is not implemented in driver, so we use legacy derive function")
+    # TODO update custom derive functions
+    await derive_func.derive(fid, derive_func_id, derive_func_input, conn, log, dataset_id, derive_feature_addr)
   log.info("derive feature %s end." % fid)
 
-def gen_simple_update_query(config_entry, fid, dataset_id, twf_table):
+
+
+def gen_simple_twf_query(config_entry, fid, dataset_id, derive_feature_addr):
+  twf_table = derive_feature_addr[fid]['twf_table']
+  twf_table_temp = derive_feature_addr[fid]['twf_table_temp']
+  fid_input_items = config_entry['fid_input_items']
+  select_table_joins = get_select_table_joins(fid_input_items, derive_feature_addr, dataset_id)
   update_expr = config_entry['fid_update_expr']
   update_expr_params = {}
   if '%(twf_table)s' in update_expr:
@@ -124,17 +168,21 @@ def gen_simple_update_query(config_entry, fid, dataset_id, twf_table):
   c_update_expr = config_entry['fid_c_update_expr']
   if '%(twf_table)s' in c_update_expr:
     c_update_expr = c_update_expr % {'twf_table': twf_table}
-  update_clause = """
-  UPDATE %(twf_table)s SET %(fid)s = %(update_expr)s,
-    %(fid)s_c = %(c_update_expr)s
+  sql = """
+  INSERT INTO %(twf_table_temp)s (%(dataset_id_key)s enc_id, tsp, %(insert_cols)s)
+  SELECT %(dataset_id_key)s enc_id, tsp, %(select_cols)s FROM
+  (%(select_table_joins)s) source
+  ON CONFLICT (%(dataset_id_key)s enc_id, tsp) DO UPDATE SET
+  %(update_cols)s
   """ % {
-    'fid':fid,
-    'update_expr': update_expr,
-    'c_update_expr': c_update_expr,
-    'twf_table': twf_table
+    'twf_table_temp'          : twf_table_temp,
+    'dataset_id_key'          : dataset_id_key(None, dataset_id),
+    'select_table_joins'      : select_table_joins,
+    'select_cols'             : '{update_expr} as {fid}, {c_update_expr} as {fid}_c'.format(\
+                                  update_expr=update_expr, fid=fid, c_update_expr=c_update_expr),
+    'update_cols'             : '{fid} = excluded.{fid}, {fid}_c = excluded.{fid}_c'
   }
-  update_clause +=  '' if dataset_id is None else ' WHERE dataset_id = %s' % dataset_id
-  return update_clause
+  return sql
 
 def gen_subquery_upsert_query(config_entry, fid, dataset_id, twf_table):
   subquery_params = {}
@@ -179,34 +227,7 @@ def gen_cdm_t_delete_and_insert_query(config_entry, fid, dataset_id):
   }
   return insert_clause
 
-async def derive_func_driver(fid, fid_category, derive_func_id, derive_func_input, conn, log, dataset_id, twf_table):
-  if fid in query_config:
-    config_entry = query_config[fid]
-    fid_input_items = [item.strip() for item in derive_func_input.split(',')]
-    clean_sql = ''
-    if fid_input_items == config_entry['fid_input_items']:
-      if 'clean' in config_entry and fid_category == 'TWF':
-        clean_args = config_entry['clean']
-        clean_sql = clean_tbl.cdm_twf_clean(fid, twf_table = twf_table, dataset_id = dataset_id, **clean_args)
-      else:
-        if fid_category == 'TWF':
-          clean_sql = clean_tbl.cdm_twf_clean(fid, twf_table = twf_table, dataset_id = dataset_id)
-        elif fid_category == 'T':
-          clean_sql = clean_tbl.cdm_t_clean(fid, dataset_id = dataset_id)
-      if fid_category == 'TWF':
-        if config_entry['derive_type'] == 'simple':
-          sql = gen_simple_update_query(config_entry, fid, dataset_id, twf_table)
-        elif config_entry['derive_type'] == 'subquery':
-          sql = gen_subquery_upsert_query(config_entry, fid, dataset_id, twf_table)
-      elif fid_category == 'T':
-        sql = gen_cdm_t_delete_and_insert_query(config_entry, fid, dataset_id)
-      log.debug(sql)
-      await conn.execute(clean_sql + sql)
-    else:
-      log.error("fid_input dismatch")
-  else:
-    log.info("Derive function is not implemented in driver, so we use legacy derive function")
-    await derive_func.derive(fid, derive_func_id, derive_func_input, conn, log, dataset_id, twf_table)
+
 
 #########################
 # query helper functions
@@ -219,7 +240,51 @@ def dataset_id_match(prefix, left_table, right_table, dataset_id_val):
   return "{}{}.dataset_id = {}.dataset_id".format(prefix, left_table, right_table) if dataset_id_val else ''
 
 def dataset_id_key(table, dataset_id):
-  return '{}.dataset_id, '.format(table) if dataset_id is not None else ''
+  return '{}dataset_id, '.format('{}.'.format(table) if table else '') if dataset_id is not None else ''
+
+def get_src_twf_table(derive_feature_addr):
+  for fid in derive_feature_addr:
+    if derive_feature_addr[fid]['twf_table'] is not None:
+      return derive_feature_addr[fid]['twf_table']
+
+def get_select_table_joins(fid_input_items, derive_feature_addr, dataset_id):
+  src_twf_table = get_src_twf_table(derive_feature_addr)
+  twf_table = None
+  existing_tables = {}
+  sql_template = '''
+  SELECT {cols} FROM {table_joins}
+  '''
+  cols = ''
+  table_joins = ''
+  for fid in fid_input_items:
+    if fid in derive_feature_addr:
+      # derive feature
+      cur_twf_table = derive_feature_addr[fid]['twf_table_temp']
+    else:
+      # measured feature
+      cur_twf_table = src_twf_table
+    if twf_table and not cur_twf_table in existing_tables:
+      existing_tables.add(cur_twf_table)
+      table_joins += ' inner join {tbl} on {tbl}.enc_id = {twf_table}.enc_id and {tbl}.tsp = {twf_table}.tsp {dataset_match}'.format(
+          tbl=twf_table,
+          dataset_match=dataset_id_match('and ', cur_twf_table, twf_table, dataset_id)
+        )
+      cols += '{tbl}.{fid}, {tbl}.{fid}_c'.format(
+          dataset_id_key=dataset_id_key(twf_table, dataset_id),
+          tbl=cur_twf_table,
+          fid=fid
+        )
+    else:
+      twf_table = cur_twf_table
+      existing_tables.add(cur_twf_table)
+      table_joins += twf_table
+      cols += '{dataset_id_key} {tbl}.enc_id, {tbl}.tsp, {tbl}.{fid}, {tbl}.{fid}_c'.format(
+          dataset_id_key=dataset_id_key(twf_table, dataset_id),
+          tbl=twf_table,
+          fid=fid
+        )
+  table_joins += dataset_id_equal(' where ', twf_table, dataset_id)
+  return select_table_joins.format(cols=cols, table_joins=table_joins)
 
 query_config = {
   'bun_to_cr': {

@@ -83,17 +83,23 @@ class Extractor:
       ctxt.log.info("ETL Init: " + result)
     return None
 
-  async def vacuum_analyze_dataset(self, ctxt):
-    ctxt.log.info("start vacuum_analyze task")
-    async with ctxt.db_pool.acquire() as conn:
-      vacuum_sql = '''
-      vacuum analyze cdm_s;
-      vacuum analyze cdm_t;
-      vacuum analyze cdm_twf;
-      vacuum analyze criteria_meas;
-      '''
-      await conn.execute(vacuum_sql)
-      ctxt.log.info("completed vacuum_analyze task")
+  async def vacuum_analyze_dataset(self, ctxt, *args):
+    if self.job.get('fillin', False) and self.job.get('fillin').get('vacuum', False):
+      ctxt.log.info("start vacuum_analyze task")
+      async with ctxt.db_pool.acquire() as conn:
+        vacuum_sql = [
+          'vacuum analyze cdm_s;',
+          'vacuum analyze cdm_t;',
+          'vacuum analyze cdm_twf;',
+          'vacuum analyze criteria_meas;',
+        ]
+        for sql in vacuum_sql:
+          ctxt.log.info(sql)
+          result = await conn.execute(sql)
+          ctxt.log.info(result)
+        ctxt.log.info("completed vacuum_analyze task")
+    else:
+      ctxt.log.info("skipped vacuum")
       return None
 
   async def populate_patients(self, ctxt, _):
@@ -229,6 +235,7 @@ class Extractor:
     for fid in fids:
       if not self.cdm_feature_dict.get(fid, False):
         log.error("feature %s is not in cdm_feature" % fid)
+        print(self.cdm_feature_dict)
         raise(ValueError("feature %s is not in cdm_feature" % fid))
     # get transform function
     transform_func_id = mapping_row['transform_func_id']
@@ -629,8 +636,72 @@ class Extractor:
       log.info("fillin skipped")
 
 
+  async def derive_init(self, ctxt, derive_feature_addr, dataset_id):
+    ctxt.log('start derive_init')
+    temp_table_groups = {}
+    twf_table = None
+    for fid in derive_feature_addr:
+      twf_table_temp = derive_feature_addr[fid]['twf_table_temp']
+      if twf_table is None and derive_feature_addr[fid]['twf_table'] is not None:
+        twf_table = derive_feature_addr[fid]['twf_table']
+      if twf_table_temp in temp_table_groups:
+        temp_table_groups[twf_table_temp].append(fid)
+      else:
+        temp_table_groups[twf_table_temp] = [fid]
+    create_temp_table = '''
+    DROP TABLE IF EXISTS {table_name};
+    CREATE TABLE UNLOGGED {table_name}
+    AS {query}
+    WITH NO DATA;
+    '''
+    async with ctxt.db_pool.acquire() as conn:
+      for table_name in temp_table_groups:
+        query = 'select {dataset_id} enc_id, tsp, {cols} from {twf_table} limit 1'.format(
+            dataset_id='{},'.format(dataset_id) if dataset_id else '',
+            cols=', '.join(['{}, {}_c'.format(fid) in temp_table_groups[table_name]]),
+            twf_table=twf_table
+          )
+        sql = create_temp_table.format(table_name=table_name, query=query)
+        ctxt.log.info("create temp table: " + sql)
+        await conn.execute(sql)
+    ctxt.log('derive_init completed')
 
-  async def run_derive(self, ctxt, fid=None):
+  async def derive_join(self, ctxt, derive_feature_addr, dataset_id):
+    ctxt.log.info("start derive_join")
+    join_sql = '''
+    INSERT INTO {twf_table} ({dataset_id_key} enc_id, tsp, {cols})
+    SELECT cdm_twf.dataset_id, cdm_twf.enc_id, cdm_twf.tsp, {cols}
+    FORM {twf_table} cdm_twf {inner_joins}
+    ON CONFLICT ({dataset_id_key} enc_id, tsp) DO UPDATE SET
+    {set_cols};
+    '''
+    temp_table_groups = {}
+    twf_table = None
+    dataset_id_key='{},'.format(dataset_id) if dataset_id else ''
+    for fid in derive_feature_addr:
+      twf_table_temp = derive_feature_addr[fid]['twf_table_temp']
+      if twf_table is None and derive_feature_addr[fid]['twf_table'] is not None:
+        twf_table = derive_feature_addr[fid]['twf_table']
+      if twf_table_temp in temp_table_groups:
+        temp_table_groups[twf_table_temp].append(fid)
+      else:
+        temp_table_groups[twf_table_temp] = [fid]
+    cols = ', '.join(['{}, {}_c' for fid in derive_feature_addr])
+    set_cols = ', '.join(['{} = excluded.{}, {}_c = excluded.{}_c' for fid in derive_feature_addr])
+    inner_joins = ['inner join {tbl} on {dataset_match} cdm_twf.enc_id = {tbl}.enc_id and cdm_twf.tsp = {tbl}.tsp'.format(tbl=table, dataset_match='cdm_twf.dataset_id = {tbl}.dataset_id'.format(tbl=table) if dataset_id is not None else '') for table in temp_table_groups]
+    join_sql = join_sql.format(
+        twf_table=twf_table,
+        dataset_id_key=dataset_id_key,
+        cols=cols,
+        inner_joins=inner_joins,
+        set_cols=set_cols
+      )
+    for table_name in temp_table_groups:
+      join_sql += 'DROP TABLE {};'.format(table_name)
+    ctxt.log.info(join_sql)
+    ctxt.log.info("completed derive_join")
+
+  async def run_derive(self, ctxt, fid=None, derive_feature_addr=None):
     log = ctxt.log
     if self.job.get('derive', False):
       if fid is None:
@@ -638,7 +709,7 @@ class Extractor:
         mode = self.job.get('derive').get('mode', None)
       async with ctxt.db_pool.acquire() as conn:
         await self.query_cdm_feature_dict(conn)
-        await derive_main(log, conn, self.cdm_feature_dict, dataset_id = self.dataset_id, fid = fid, mode=mode)
+        await derive_main(log, conn, self.cdm_feature_dict, dataset_id = self.dataset_id, fid = fid, mode=mode, derive_feature_addr=derive_feature_addr)
       log.info("derive completed")
     else:
       log.info("derive skipped")
