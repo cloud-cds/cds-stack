@@ -37,7 +37,7 @@ engine = Engine(
     loglevel = logging.DEBUG,
 )
 
-loop = asyncio.new_event_loop()
+loop = uvloop.new_event_loop()
 asyncio.set_event_loop(loop)
 loop.run_until_complete(engine.run())
 loop.close()

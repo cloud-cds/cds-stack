@@ -1,4 +1,5 @@
 import asyncio
+import uvloop
 import logging
 import time
 import os
@@ -182,7 +183,7 @@ class Planner():
   def start_engine(self):
     self.log.info("start job in the engine")
     self.engine = Engine(self.plan, **self.job['engine'])
-    loop = asyncio.new_event_loop()
+    loop = uvloop.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.run_until_complete(self.engine.run())
     self.engine.shutdown()
@@ -208,7 +209,7 @@ def get_derive_tasks(config, dataset_id, is_grouped):
     await conn.close()
     return [derive_features, cdm_feature_dict]
 
-  loop = asyncio.new_event_loop()
+  loop = uvloop.new_event_loop()
   derive_features, cdm_feature_dict = loop.run_until_complete(_run_get_derive_tasks(config))
   loop.close()
 
@@ -246,7 +247,7 @@ def get_derive_feature_addr(config, dataset_id, num_derive_groups, twf_table='cd
     division = len(lst) / n
     return [lst[round(division) * i:round(division) * (i + 1)] for i in range(n)]
 
-  loop = asyncio.new_event_loop()
+  loop = uvloop.new_event_loop()
   derive_features = loop.run_until_complete(_get_derive_features(config))
   loop.close()
   # get derive_features order based on dependencies

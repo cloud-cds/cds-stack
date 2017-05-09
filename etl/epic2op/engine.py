@@ -92,7 +92,7 @@ def main(max_num_pats=None, hospital=None, lookback_hours=None, db_name=None):
   for task in loading_tasks:
     plan.add(task)
   engine = Engine(plan=plan, name="epic2op_engine", nprocs=2, loglevel=logging.DEBUG)
-  loop = asyncio.new_event_loop()
+  loop = uvloop.new_event_loop()
   asyncio.set_event_loop(loop)
   loop.run_until_complete(engine.run())
   loop.close()

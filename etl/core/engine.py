@@ -3,7 +3,8 @@ from etl.core.plan import Plan
 import os, logging
 from collections import deque
 
-import asyncio, uvloop
+import asyncio
+import uvloop
 import asyncpg
 import concurrent.futures
 import functools
@@ -64,7 +65,7 @@ class TaskContext:
 
 def run_fn_with_context(fn, name, config, *args):
   ctxt = TaskContext(name, config)
-  ctxt.loop = asyncio.new_event_loop()
+  ctxt.loop = uvloop.new_event_loop()
   ctxt.loop.run_until_complete(ctxt.async_init(ctxt.loop))
   result = fn(ctxt, *args)
   ctxt.loop.close()
@@ -72,7 +73,7 @@ def run_fn_with_context(fn, name, config, *args):
 
 def run_coro_with_context(coro, name, config, *args):
   ctxt = TaskContext(name, config)
-  ctxt.loop = asyncio.new_event_loop()
+  ctxt.loop = uvloop.new_event_loop()
   ctxt.loop.run_until_complete(ctxt.async_init(ctxt.loop))
   result = ctxt.loop.run_until_complete(coro(ctxt, *args))
   ctxt.loop.close()
