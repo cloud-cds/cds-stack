@@ -1505,6 +1505,7 @@ AS $function$
 DECLARE
     window_size interval := get_parameter('lookbackhours')::interval;
     pat_id_str text;
+    use_clarity_notes_str text;
 BEGIN
 
     select coalesce(_dataset_id, max(dataset_id)) into _dataset_id from dw_version;
@@ -1515,6 +1516,13 @@ BEGIN
       pat_id_str = 'NULL';
     ELSE
       pat_id_str = format('''%s''',this_pat_id);
+    END IF;
+
+
+    if use_clarity_notes THEN
+      use_clarity_notes_str = 'True';
+    ELSE
+      use_clarity_notes_str = 'False';
     END IF;
 
     drop table if exists new_criteria_windows;
@@ -1559,7 +1567,7 @@ BEGIN
                              window_ends.tsp,
                              %s, %s) new_criteria
         on window_ends.pat_id = new_criteria.pat_id;'
-        ,_dataset_id,  pat_id_str, _dataset_id, ts_start, ts_end, window_limit, pat_id_str, window_size, _dataset_id, use_clarity_notes);
+        ,_dataset_id,  pat_id_str, _dataset_id, ts_start, ts_end, window_limit, pat_id_str, window_size, _dataset_id, use_clarity_notes_str);
 
 
     insert into historical_criteria (pat_id, dataset_id, pat_state, window_ts)
