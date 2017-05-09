@@ -540,8 +540,7 @@ class DBCompareTest():
 
   async def run_db_compare(self, db_config):
     print("db_compare %s vs %s" % (self.db_pair[0]['name'], self.db_pair[1]['name']))
-    job = db_config['job']
-    engine = db_config['engine'](job)
+    engine = db_config['engine'](db_config['job']) if 'job' in db_config else db_config['engine']
     await engine.init()
     dbpool = engine.pool
     args = db_config['db_compare']
