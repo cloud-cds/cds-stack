@@ -83,7 +83,7 @@ BEGIN
   from infection_keywords;
   match_query :=
      'select "CSN_ID" as csn_id, "CREATE_INSTANT_DTTM" at time zone ''UTC'' as start_ts,'
-  || '       regexp_replace(array_to_string(array_agg("NOTE_TEXT"), ''\n''), E''' || grouped_positive || ''', E''__MATCH__\\1'', ''g'') as note'
+  || '       regexp_replace(array_to_string(array_agg("NOTE_TEXT"), ''\n''), E''' || grouped_positive || ''', E''##**\\1**##'', ''g'') as note'
   || ' from "Notes"'
   || ' where "NOTE_TEXT" ~ E''' || positive || ''''
   || ' and "AuthorType" <> ''Pharmacist'''
@@ -129,7 +129,7 @@ BEGIN
   || '          array_agg(W.word) over ( ROWS BETWEEN ' || rows_before::text || ' PRECEDING AND ' || rows_after::text || ' FOLLOWING ) as ngram_arr'
   || '   from ('
   || '     select csn_id, start_ts, '
-  || '           regexp_split_to_array(regexp_replace(body, ''' || grouped_positive || ''', E''__MATCH__\\1'', ''g''), E''\\s+'') as words'
+  || '           regexp_split_to_array(regexp_replace(body, ''' || grouped_positive || ''', E''##**\\1**##'', ''g''), E''\\s+'') as words'
   || '     from ('
   || '       select "CSN_ID" as csn_id, "CREATE_INSTANT_DTTM" as start_ts,'
   || '              regexp_replace("NOTE_TEXT", E''' || negative || ''', ''NEGATED_PHRASE'', ''g'') as body'
@@ -138,10 +138,9 @@ BEGIN
   || '       and "AuthorType" <> ''Pharmacist'''
   || '     ) NEG'
   || '     where body ~ ''' || positive || ''''
-  || '     and "AuthorType" <> ''Pharmacist'''
   || '   ) DOCS, lateral unnest(words) W(word)'
   || ' ) NGRAMS'
-  || ' where ( ngram_arr[4] like ''%__MATCH__%'') or ( array_length(ngram_arr, 1) < ' || (rows_before+rows_after+1)::text || ' and (select count(*) from unnest(ngram_arr) W(word) where word like ''%__MATCH__%'' ) > 0 )'
+  || ' where ( ngram_arr[4] like ''%##**%'') or ( array_length(ngram_arr, 1) < ' || (rows_before+rows_after+1)::text || ' and (select count(*) from unnest(ngram_arr) W(word) where word like ''%##**%'' ) > 0 )'
   || ' order by csn_id, start_ts';
   --raise notice 'query %', match_query;
   return query execute match_query;
@@ -210,7 +209,7 @@ BEGIN
   || '          array_agg(W.word) over ( ROWS BETWEEN ' || rows_before::text || ' PRECEDING AND ' || rows_after::text || ' FOLLOWING ) as ngram_arr'
   || '   from ('
   || '     select csn_id, start_ts, '
-  || '           regexp_split_to_array(regexp_replace(body, ''' || grouped_positive || ''', E''__MATCH__\\1'', ''g''), E''\\s+'') as words'
+  || '           regexp_split_to_array(regexp_replace(body, ''' || grouped_positive || ''', E''##**\\1**##'', ''g''), E''\\s+'') as words'
   || '     from ('
   || '       select "CSN_ID" as csn_id, "CREATE_INSTANT_DTTM" as start_ts,'
   || '              regexp_replace("NOTE_TEXT", E''' || negative || ''', ''NEGATED_PHRASE'') as body'
@@ -222,7 +221,7 @@ BEGIN
   || '     and "AuthorType" <> ''Pharmacist'''
   || '   ) DOCS, lateral unnest(words) W(word)'
   || ' ) NGRAMS'
-  || ' where ( ngram_arr[4] like ''%__MATCH__%'') or ( array_length(ngram_arr, 1) < ' || (rows_before+rows_after+1)::text || ' and (select count(*) from unnest(ngram_arr) W(word) where word like ''%__MATCH__%'' ) > 0 )'
+  || ' where ( ngram_arr[4] like ''%##**%'') or ( array_length(ngram_arr, 1) < ' || (rows_before+rows_after+1)::text || ' and (select count(*) from unnest(ngram_arr) W(word) where word like ''%##**%'' ) > 0 )'
   || ' order by csn_id, start_ts';
   --raise notice 'query %', match_query;
   return query execute match_query;
@@ -281,7 +280,7 @@ BEGIN
   from infection_keywords;
   match_query :=
      'select pat_id, note_date(dates) as start_ts,'
-  || '       regexp_replace(array_to_string(array_agg(note_body), E''\n''), E''' || grouped_positive || ''', E''__MATCH__\\1'', ''g'') as note'
+  || '       regexp_replace(array_to_string(array_agg(note_body), E''\n''), E''' || grouped_positive || ''', E''##**\\1**##'', ''g'') as note'
   || ' from cdm_notes'
   || ' where dataset_id = coalesce(' || this_dataset_id::text || '::integer, dataset_id)'
   || ' and note_body ~ E''' || positive || ''''
@@ -328,7 +327,7 @@ BEGIN
   || '          array_agg(W.word) over ( ROWS BETWEEN ' || rows_before::text || ' PRECEDING AND ' || rows_after::text || ' FOLLOWING ) as ngram_arr'
   || '   from ('
   || '     select pat_id, start_ts, '
-  || '           regexp_split_to_array(regexp_replace(body, ''' || grouped_positive || ''', E''__MATCH__\\1'', ''g''), E''\\s+'') as words'
+  || '           regexp_split_to_array(regexp_replace(body, ''' || grouped_positive || ''', E''##**\\1**##'', ''g''), E''\\s+'') as words'
   || '     from ('
   || '       select pat_id, note_date(dates) as start_ts,'
   || '              regexp_replace(note_body, E''' || negative || ''', ''NEGATED_PHRASE'', ''g'') as body'
@@ -340,9 +339,9 @@ BEGIN
   || '     where body ~ ''' || positive || ''''
   || '   ) DOCS, lateral unnest(words) W(word)'
   || ' ) NGRAMS'
-  || ' where ( ngram_arr[4] like ''%__MATCH__%'') '
+  || ' where ( ngram_arr[4] like ''%##**%'') '
   || ' or ( array_length(ngram_arr, 1) < ' || (rows_before+rows_after+1)::text
-  ||       ' and (select count(*) from unnest(ngram_arr) W(word) where word like ''%__MATCH__%'' ) > 0 )'
+  ||       ' and (select count(*) from unnest(ngram_arr) W(word) where word like ''%##**%'' ) > 0 )'
   || ' order by pat_id, start_ts';
   --raise notice 'query %', match_query;
   return query execute match_query;
@@ -412,7 +411,7 @@ BEGIN
   || '          array_agg(W.word) over ( ROWS BETWEEN ' || rows_before::text || ' PRECEDING AND ' || rows_after::text || ' FOLLOWING ) as ngram_arr'
   || '   from ('
   || '     select pat_id, start_ts, '
-  || '           regexp_split_to_array(regexp_replace(body, ''' || grouped_positive || ''', E''__MATCH__\\1'', ''g''), E''\\s+'') as words'
+  || '           regexp_split_to_array(regexp_replace(body, ''' || grouped_positive || ''', E''##**\\1**##'', ''g''), E''\\s+'') as words'
   || '     from ('
   || '       select pat_id, note_date(dates) as start_ts,'
   || '              regexp_replace(note_body, E''' || negative || ''', ''NEGATED_PHRASE'') as body'
@@ -424,7 +423,7 @@ BEGIN
   || '     where body ~ ''' || positive || ''''
   || '   ) DOCS, lateral unnest(words) W(word)'
   || ' ) NGRAMS'
-  || ' where ( ngram_arr[4] like ''%__MATCH__%'') or ( array_length(ngram_arr, 1) < ' || (rows_before+rows_after+1)::text || ' and (select count(*) from unnest(ngram_arr) W(word) where word like ''%__MATCH__%'' ) > 0 )'
+  || ' where ( ngram_arr[4] like ''%##**%'') or ( array_length(ngram_arr, 1) < ' || (rows_before+rows_after+1)::text || ' and (select count(*) from unnest(ngram_arr) W(word) where word like ''%##**%'' ) > 0 )'
   || ' order by pat_id, start_ts';
   --raise notice 'query %', match_query;
   return query execute match_query;

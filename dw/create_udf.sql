@@ -679,41 +679,6 @@ BEGIN
     ), false);
 END; $func$;
 
-create or replace function get_next_meas(
-            this_dataset_id integer, this_pat_id varchar(50), this_fid varchar(50), tsp_prev timestamptz)
-    returns table(pat_id varchar(50), fid varchar(50), tsp timestamptz, value text) language plpgsql as $func$
-BEGIN
-    return query
-        select meas.pat_id, meas.fid, meas.tsp, meas.value
-        from criteria_meas meas
-        where meas.dataset_id = this_dataset_id
-        and meas.pat_id = this_pat_id
-        and meas.fid = this_fid
-        and meas.tsp > tsp_prev
-        limit 1;
-END; $func$;
-
-create or replace function hypotension_met(this_pat_id varchar, this_tsp timestamptz, next_tsp timestamptz, override boolean, _dataset_id INTEGER)
-    returns table(is_met boolean) language plpgsql as $func$
-BEGIN
-    return query
-        select bool_or(
-            (case when override then c_fluid.value::numeric > 0
-                else c_fluid.value::numeric > 30
-                end)
-            and this_tsp > c_fluid.tsp
-            and next_tsp < c_fluid.tsp + '1 hour'::interval
-        )
-        from criteria_meas c_fluid
-        where
-            (case when override then c_fluid.fid in ('crystalloid_fluid', 'fluids_intake')
-                else c_fluid.fid = 'crystalloid_fluid'
-                end)
-        and c_fluid.dataset_id = _dataset_id
-        and c_fluid.pat_id = this_pat_id
-        and isnumeric(c_fluid.value);
-END; $func$;
-
 create or replace function order_met(order_name text, order_value text)
     returns boolean language plpgsql as $func$
 BEGIN
@@ -783,8 +748,8 @@ CREATE OR REPLACE FUNCTION calculate_criteria(
                 this_pat_id                      text,
                 ts_start                         timestamptz,
                 ts_end                           timestamptz,
-                is_historical                    BOOLEAN DEFAULT FALSE,
-                _dataset_id                      INTEGER DEFAULT NULL
+                _dataset_id                      INTEGER DEFAULT NULL,
+                use_clarity_notes                boolean default false
   )
   RETURNS table(pat_id                           varchar(50),
                 name                             varchar(50),
@@ -803,41 +768,64 @@ CREATE OR REPLACE FUNCTION calculate_criteria(
 AS $function$
 DECLARE
   window_size interval := ts_end - ts_start;
+
+  -- Lookback before the initial severe sepsis indicator.
+  orders_lookback interval := interval '6 hours';
 BEGIN
 
   select coalesce(_dataset_id, max(dataset_id)) into _dataset_id from dw_version;
   -- raise notice 'Running calculate criteria on pat %, dataset_id % between %, %',this_pat_id, _dataset_id, ts_start , ts_end;
 
-  IF is_historical THEN
-
-    delete from suspicion_of_infection_buff;
-    insert into suspicion_of_infection_buff ( dataset_id, pat_id, name, is_met, measurement_time,override_time,override_user, override_value, value, update_date)
-
-    with sus as (
-      select s.dataset_id, s.pat_id, s.name, last(s.is_met) as is_met, last(s.measurement_time) as measurement_time, last(s.override_time) as override_time,last(s.override_user) as override_user, last(s.override_value) as override_value, last(s.value) as value, last(s.update_date) as update_date
-      from suspicion_of_infection_hist s
-      where s.pat_id = coalesce(this_pat_id, s.pat_id) and s.dataset_id = _dataset_id
-      group by s.dataset_id, s.pat_id, s.name),
-    cnt as
-      (select count(*) as n from sus)
-    select
-      case cnt.n when 0 then _dataset_id else (select sus.dataset_id from sus) end,
-      case cnt.n when 0 then this_pat_id else (select sus.pat_id from sus) end,
-      case cnt.n when 0 then 'suspicion_of_infection' else (select sus.name from sus) end,
-      case cnt.n when 0 then FALSE else (select sus.is_met from sus) end,
-      case cnt.n when 0 then NULL else (select sus.measurement_time from sus) end,
-      case cnt.n when 0 then NULL else (select sus.override_time from sus) end,
-      case cnt.n when 0 then NULL else (select sus.override_user from sus) end,
-      case cnt.n when 0 then NULL else (select sus.override_value from sus) end,
-      case cnt.n when 0 then NULL else (select sus.value from sus) end,
-      case cnt.n when 0 then NOW() else (select sus.update_date from sus) end
-    from cnt;
-  END IF;
-
   return query
-  with pat_ids as (
-    select distinct pat_enc.pat_id from pat_enc
-    where pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id) and pat_enc.dataset_id = _dataset_id
+  with pat_visit_ids as (
+    select distinct P.pat_id, P.visit_id from pat_enc P
+    where P.pat_id = coalesce(this_pat_id, P.pat_id) and P.dataset_id = _dataset_id
+  ),
+  pat_ids as (
+    select distinct P.pat_id from pat_visit_ids P
+  ),
+  suspicion_of_infection_buff as (
+    -- Use either clarity or cdm notes for now.
+    -- We implement this as a union over two queries, each gated
+    -- by a simple where clause based on an function argument.
+    with clarity_matches as (
+        select _dataset_id as dataset_id,
+               P.pat_id as pat_id,
+               'suspicion_of_infection'::text as name,
+               true as is_met,
+               min(M.start_ts) as measurement_time,
+               min(M.start_ts) as override_time,
+               'NLP'::text as override_user,
+               json_agg(json_build_object('text'::text, M.ngram::text)) as override_value,
+               min(M.ngram) as value,
+               now() as update_date
+        from pat_visit_ids P
+        inner join lateral match_clarity_infections(P.visit_id, 3, 3) M on P.visit_id = M.csn_id
+        where use_clarity_notes
+        group by P.pat_id
+    ),
+    cdm_matches as (
+        -- TODO: we have picked an arbitrary time interval for notes. Refine.
+        select _dataset_id as dataset_id,
+               P.pat_id as pat_id,
+               'suspicion_of_infection'::text as name,
+               true as is_met,
+               min(M.start_ts) as measurement_time,
+               min(M.start_ts) as override_time,
+               'NLP'::text as override_user,
+               json_agg(json_build_object('text'::text, M.ngram::text)) as override_value,
+               min(M.ngram) as value,
+               now() as update_date
+        from pat_ids P
+        inner join lateral match_cdm_infections(P.pat_id, _dataset_id, 3, 3) M
+          on P.pat_id = M.pat_id
+          and M.start_ts between ts_start - interval '1 days' and ts_end + interval '1 days'
+        where not use_clarity_notes
+        group by P.pat_id
+    )
+    select * from clarity_matches
+    union all
+    select * from cdm_matches
   ),
   pat_cvalues as (
     select pat_ids.pat_id,
@@ -1029,6 +1017,7 @@ BEGIN
              sum(SC.cnt) as sirs_cnt,
              sum(OC.cnt) as org_df_cnt,
              max(IC.onset) as inf_onset,
+             max(SC.initial) as sirs_initial,
              max(SC.onset) as sirs_onset,
              max(OC.onset) as org_df_onset
       from
@@ -1043,6 +1032,7 @@ BEGIN
       (
         select sirs.pat_id,
                sum(case when sirs.is_met then 1 else 0 end) as cnt,
+               (array_agg(sirs.measurement_time order by sirs.measurement_time))[1] as initial,
                (array_agg(sirs.measurement_time order by sirs.measurement_time))[2] as onset
         from sirs
         group by sirs.pat_id
@@ -1055,7 +1045,7 @@ BEGIN
         from organ_dysfunction
         group by organ_dysfunction.pat_id
       ) OC on IC.pat_id = OC.pat_id
-      where greatest(SC.onset, OC.onset) - least(SC.onset, OC.onset) < window_size
+      where greatest(SC.onset, OC.onset) - least(SC.initial, OC.onset) < window_size
       group by IC.pat_id
   ),
   severe_sepsis_onsets as (
@@ -1087,7 +1077,7 @@ BEGIN
                           coalesce(stats.org_df_onset, 'infinity'::timestamptz))
                  ) as severe_sepsis_wo_infection_onset,
 
-             min(least(stats.inf_onset, stats.sirs_onset, stats.org_df_onset))
+             min(least(stats.inf_onset, stats.sirs_initial, stats.org_df_onset))
                 as severe_sepsis_lead_time
 
       from severe_sepsis_criteria stats
@@ -1120,7 +1110,7 @@ BEGIN
                 then criteria_value_met(PC.value, PC.c_ovalue, PC.d_ovalue)
                 else PC.fid = 'crystalloid_fluid' and criteria_value_met(PC.value, PC.c_ovalue, PC.d_ovalue)
                 end )
-              and (SSP.severe_sepsis_onset is not null
+              and (SSP.severe_sepsis_is_met
                     and coalesce(PC.c_otime, PC.tsp) >= SSP.severe_sepsis_onset)
               as is_met
       from pat_cvalues PC
@@ -1143,57 +1133,71 @@ BEGIN
           now() as update_date
       from
       (
-          select  PC.pat_id,
-                  PC.name,
-                  PC.tsp as measurement_time,
-                  PC.value as value,
-                  PC.c_otime,
-                  PC.c_ouser,
-                  PC.c_ovalue,
-                  (case
-                      when PC.category = 'hypotension' then
-                          (select bool_or(hm.is_met) from
-                              hypotension_met(
-                                PC.pat_id,
-                                PC.tsp,
-                                (select next.tsp from get_next_meas(_dataset_id, PC.pat_id, PC.fid, PC.tsp) as next),
-                                (select coalesce(PC.c_ovalue#>>'{0,text}' = 'Not Indicated', false)
-                                  from crystalloid_fluid where crystalloid_fluid.pat_id = PC.pat_id),
-                                _dataset_id
-                              ) as hm
-                            )
-                            and criteria_value_met(PC.value, PC.c_ovalue, PC.d_ovalue)
-                            -- and next consecutive value also met
-                            and criteria_value_met(
-                                (select next.value from get_next_meas(_dataset_id, PC.pat_id, PC.fid, PC.tsp) as next),
-                                PC.c_ovalue, PC.d_ovalue)
+          with pat_fluid_overrides as (
+            select CFL.pat_id, coalesce(bool_or(CFL.override_value#>>'{0,text}' = 'Not Indicated'), false) as override
+            from crystalloid_fluid CFL
+            group by CFL.pat_id
+          ),
+          pats_fluid_after_severe_sepsis as (
+            select  MFL.pat_id,
+                    MFL.tsp,
+                    sum(MFL.value::numeric) as total_fluid,
+                    -- Fluids are met if they are overriden or if we have more than
+                    -- min(1.2L, 30 mL * weight) administered from 6 hours before severe sepsis
+                    (coalesce(bool_or(OV.override), false)
+                        or coalesce(sum(MFL.value::numeric), 0) > least(1200, 30 * max(PW.value))
+                    ) as is_met
+            from criteria_meas MFL
+            left join pat_weights PW on MFL.pat_id = PW.pat_id
+            left join severe_sepsis_now SSPN on MFL.pat_id = SSPN.pat_id
+            left join pat_fluid_overrides OV on MFL.pat_id = OV.pat_id
+            where isnumeric(MFL.value)
+            and SSPN.severe_sepsis_is_met
+            and MFL.tsp >= (SSPN.severe_sepsis_onset - orders_lookback)
+            and (MFL.fid = 'crystalloid_fluid' or coalesce(OV.override, false))
+            group by MFL.pat_id, MFL.tsp
+          )
+          select PC.pat_id,
+                 PC.name,
+                 PC.tsp as measurement_time,
+                 PC.value as value,
+                 PC.c_otime,
+                 PC.c_ouser,
+                 PC.c_ovalue,
+                 (SSPN.severe_sepsis_is_met and coalesce(PC.c_otime, PC.tsp) >= SSPN.severe_sepsis_onset)
+                 and
+                 (case when PC.category = 'hypotension' then
+                         (PFL.is_met and PFL.tsp < PC.tsp and NEXT.tsp < PFL.tsp + interval '1 hour')
+                         and criteria_value_met(PC.value, PC.c_ovalue, PC.d_ovalue)
+                         and criteria_value_met(NEXT.value, PC.c_ovalue, PC.d_ovalue)
 
-                      when PC.category = 'hypotension_dsbp' then
-                          (select bool_or(hm.is_met) from
-                              hypotension_met(
-                                  PC.pat_id,
-                                  PC.tsp,
-                                  (select next.tsp from get_next_meas(_dataset_id, PC.pat_id, PC.fid, PC.tsp) as next),
-                                  (select coalesce(PC.c_ovalue#>>'{0,text}' = 'Not Indicated', false)
-                                      from crystalloid_fluid where crystalloid_fluid.pat_id = PC.pat_id),
-                                  _dataset_id
-                              ) as hm
-                          )
-                          and decrease_in_sbp_met(
-                                (select max(PBP.value) from pat_bp_sys PBP where PBP.pat_id = PC.pat_id),
-                                PC.value, PC.c_ovalue, PC.d_ovalue)
-                          -- and next consecutive value also met
-                          and decrease_in_sbp_met(
-                                (select max(PBP.value) from pat_bp_sys PBP where PBP.pat_id = PC.pat_id),
-                                (select next.value from get_next_meas(_dataset_id, PC.pat_id, PC.fid, PC.tsp) as next), PC.c_ovalue, PC.d_ovalue)
+                       when PC.category = 'hypotension_dsbp' then
+                         (PFL.is_met and PFL.tsp < PC.tsp and NEXT.tsp < PFL.tsp + interval '1 hour')
+                         and decrease_in_sbp_met(PBPSYS.value, PC.value, PC.c_ovalue, PC.d_ovalue)
+                         and decrease_in_sbp_met(PBPSYS.value, NEXT.value, PC.c_ovalue, PC.d_ovalue)
+
                       else false
-                      end
-                  )
-                  and (SSP.severe_sepsis_onset is not null
-                          and coalesce(PC.c_otime, PC.tsp) >= SSP.severe_sepsis_onset)
-                  as is_met
+                  end) as is_met
           from pat_cvalues PC
-          left join severe_sepsis_onsets SSP on PC.pat_id = SSP.pat_id
+          left join severe_sepsis_onsets SSPN on PC.pat_id = SSPN.pat_id
+
+          left join pats_fluid_after_severe_sepsis PFL
+            on PC.pat_id = PFL.pat_id
+
+          left join lateral (
+            select meas.pat_id, meas.fid, meas.tsp, meas.value
+            from criteria_meas meas
+            where PC.pat_id = meas.pat_id and PC.fid = meas.fid and PC.tsp < meas.tsp
+            order by meas.tsp
+            limit 1
+          ) NEXT on PC.pat_id = NEXT.pat_id and PC.fid = NEXT.fid
+
+          left join lateral (
+            select BP.pat_id, max(BP.value) as value
+            from pat_bp_sys BP where PC.pat_id = BP.pat_id
+            group by BP.pat_id
+          ) PBPSYS on PC.pat_id = PBPSYS.pat_id
+
           where PC.name in ('systolic_bp', 'hypotension_map', 'hypotension_dsbp')
           order by PC.tsp
       ) as ordered
@@ -1285,77 +1289,124 @@ BEGIN
         now() as update_date
     from
     (
-      select  pat_cvalues.pat_id,
-              pat_cvalues.name,
-              pat_cvalues.tsp as measurement_time,
-              (case when pat_cvalues.category in ('after_severe_sepsis_dose', 'after_septic_shock_dose')
-                      then dose_order_status(pat_cvalues.fid, pat_cvalues.c_ovalue#>>'{0,text}')
-                    else order_status(pat_cvalues.fid, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}')
+      -- We calculate extended_pat_cvalues for orders only based on the
+      -- severe_sepsis_lead_time above. This lets us search for orders
+      -- before the initial indicator of sepsis.
+      --
+      -- We cannot calculate pat_cvalues in one go to address both the
+      -- need for severe_sepsis_lead_time and orders, since there is a
+      -- dependency between the two calculations.
+      --
+      with orders_cvalues as (
+        select * from pat_cvalues CV
+        where CV.name in (
+          'initial_lactate_order',
+          'blood_culture_order',
+          'antibiotics_order',
+          'crystalloid_fluid_order',
+          'vasopressors_order'
+        )
+        union all
+        select pat_ids.pat_id,
+               cd.name,
+               meas.fid,
+               cd.category,
+               meas.tsp,
+               meas.value,
+               c.override_time as c_otime,
+               c.override_user as c_ouser,
+               c.override_value as c_ovalue,
+               cd.override_value as d_ovalue
+        from pat_ids
+        cross join criteria_default as cd
+        left join severe_sepsis_onsets SSP
+          on pat_ids.pat_id = SSP.pat_id
+        left join suspicion_of_infection_buff c
+          on pat_ids.pat_id = c.pat_id
+          and cd.name = c.name
+          and cd.dataset_id = c.dataset_id
+        left join criteria_meas meas
+            on pat_ids.pat_id = meas.pat_id
+            and meas.fid = cd.fid
+            and cd.dataset_id = meas.dataset_id
+            and (meas.tsp is null
+              -- This predicate safely returns no rows if
+              -- severe_sepsis_lead_time - orders_lookback
+              -- is chronologically before ts_start - window_size
+              or meas.tsp between SSP.severe_sepsis_lead_time - orders_lookback
+                          and ts_start - window_size
+            )
+        where cd.dataset_id = _dataset_id
+        and cd.name in (
+          'initial_lactate_order',
+          'blood_culture_order',
+          'antibiotics_order',
+          'crystalloid_fluid_order',
+          'vasopressors_order'
+        )
+      )
+      select  CV.pat_id,
+              CV.name,
+              CV.tsp as measurement_time,
+              (case when CV.category in ('after_severe_sepsis_dose', 'after_septic_shock_dose')
+                      then dose_order_status(CV.fid, CV.c_ovalue#>>'{0,text}')
+                    else order_status(CV.fid, CV.value, CV.c_ovalue#>>'{0,text}')
                end) as value,
-              pat_cvalues.c_otime,
-              pat_cvalues.c_ouser,
-              pat_cvalues.c_ovalue,
+              CV.c_otime,
+              CV.c_ouser,
+              CV.c_ovalue,
               (case
-                  when pat_cvalues.category = 'after_severe_sepsis' then
+                  when CV.category = 'after_severe_sepsis' then
                     (select coalesce(
                               bool_or(SSP.severe_sepsis_is_met
-                                        and greatest(pat_cvalues.c_otime, pat_cvalues.tsp)
-                                              > SSP.severe_sepsis_lead_time)
+                                        and greatest(CV.c_otime, CV.tsp)
+                                              > (SSP.severe_sepsis_lead_time - orders_lookback))
                               , false)
                       from severe_sepsis_onsets SSP
                       where SSP.pat_id = coalesce(this_pat_id, SSP.pat_id)
                     )
-                    and ( order_met(pat_cvalues.name, coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value)) )
+                    and ( order_met(CV.name, coalesce(CV.c_ovalue#>>'{0,text}', CV.value)) )
 
-                  when pat_cvalues.category = 'after_severe_sepsis_dose' then
+                  when CV.category = 'after_severe_sepsis_dose' then
                     (select coalesce(
                               bool_or(SSP.severe_sepsis_is_met
-                                        and greatest(pat_cvalues.c_otime, pat_cvalues.tsp)
-                                              > SSP.severe_sepsis_lead_time)
+                                        and greatest(CV.c_otime, CV.tsp)
+                                              > (SSP.severe_sepsis_lead_time - orders_lookback))
                               , false)
                       from severe_sepsis_onsets SSP
                       where SSP.pat_id = coalesce(this_pat_id, SSP.pat_id)
                     )
-                    and ( dose_order_met(pat_cvalues.fid, pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value::numeric,
-                            coalesce((pat_cvalues.c_ovalue#>>'{0,lower}')::numeric,
-                                     (pat_cvalues.d_ovalue#>>'{lower}')::numeric)) )
+                    and ( dose_order_met(CV.fid, CV.c_ovalue#>>'{0,text}', CV.value::numeric,
+                            coalesce((CV.c_ovalue#>>'{0,lower}')::numeric,
+                                     (CV.d_ovalue#>>'{lower}')::numeric)) )
 
-                  when pat_cvalues.category = 'after_septic_shock' then
+                  when CV.category = 'after_septic_shock' then
                     (select coalesce(
                               bool_or(SSH.septic_shock_is_met
-                                        and greatest(pat_cvalues.c_otime, pat_cvalues.tsp)
-                                              > SSH.septic_shock_onset)
+                                        and greatest(CV.c_otime, CV.tsp) > SSH.septic_shock_onset)
                               , false)
                       from septic_shock_onsets SSH
                       where SSH.pat_id = coalesce(this_pat_id, SSH.pat_id)
                     )
-                    and ( order_met(pat_cvalues.name, coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value)) )
+                    and ( order_met(CV.name, coalesce(CV.c_ovalue#>>'{0,text}', CV.value)) )
 
-                  when pat_cvalues.category = 'after_septic_shock_dose' then
+                  when CV.category = 'after_septic_shock_dose' then
                     (select coalesce(
                               bool_or(SSH.septic_shock_is_met
-                                        and greatest(pat_cvalues.c_otime, pat_cvalues.tsp)
-                                              > SSH.septic_shock_onset)
+                                        and greatest(CV.c_otime, CV.tsp) > SSH.septic_shock_onset)
                               , false)
                       from septic_shock_onsets SSH
                       where SSH.pat_id = coalesce(this_pat_id, SSH.pat_id)
                     )
-                    and ( dose_order_met(pat_cvalues.fid, pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value::numeric,
-                            coalesce((pat_cvalues.c_ovalue#>>'{0,lower}')::numeric,
-                                     (pat_cvalues.d_ovalue#>>'{lower}')::numeric)) )
+                    and ( dose_order_met(CV.fid, CV.c_ovalue#>>'{0,text}', CV.value::numeric,
+                            coalesce((CV.c_ovalue#>>'{0,lower}')::numeric,
+                                     (CV.d_ovalue#>>'{lower}')::numeric)) )
 
-                  else criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
+                  else criteria_value_met(CV.value, CV.c_ovalue, CV.d_ovalue)
                   end
               ) as is_met
-      from pat_cvalues
-      where pat_cvalues.name in (
-        'initial_lactate_order',
-        'blood_culture_order',
-        'antibiotics_order',
-        'crystalloid_fluid_order',
-        'vasopressors_order'
-      )
-      order by pat_cvalues.tsp
+      from orders_cvalues CV
+      order by CV.tsp
     ) as ordered
     group by ordered.pat_id, ordered.name
   ),
@@ -1386,7 +1437,7 @@ BEGIN
                             and coalesce(lactate_results.tsp > initial_lactate_order.tsp, false))
                 ) or
                 (
-                  not( coalesce(initial_lactate_order.is_met
+                  not( coalesce(initial_lactate_order.is_completed
                                   and ( lactate_results.is_met or pat_cvalues.tsp <= initial_lactate_order.tsp )
                                 , false) )
                 )) is_met
@@ -1394,7 +1445,8 @@ BEGIN
         left join (
             select oc.pat_id,
                    max(case when oc.is_met then oc.measurement_time else null end) as tsp,
-                   coalesce(bool_or(oc.is_met), false) as is_met
+                   coalesce(bool_or(oc.is_met), false) as is_met,
+                   coalesce(min(oc.value) = 'Completed', false) as is_completed
             from orders_criteria oc
             where oc.name = 'initial_lactate_order'
             group by oc.pat_id
@@ -1438,7 +1490,8 @@ CREATE OR REPLACE FUNCTION calculate_historical_criteria(
         _dataset_id INTEGER DEFAULT NULL,
         ts_start timestamptz DEFAULT '-infinity'::timestamptz,
         ts_end timestamptz DEFAULT 'infinity'::timestamptz,
-        window_limit text default 'all'
+        window_limit text default 'all',
+        use_clarity_notes boolean default false
   )
 --   @Peter, positive inf time and negative inf time?
 --   passing in a null value will calculate historical criteria over all patientis
@@ -1503,10 +1556,10 @@ BEGIN
           inner join lateral
           calculate_criteria(coalesce(%s, window_ends.pat_id),
                              window_ends.tsp - ''%s''::interval,
-                             window_ends.tsp,TRUE,
-                             %s) new_criteria
+                             window_ends.tsp,
+                             %s, %s) new_criteria
         on window_ends.pat_id = new_criteria.pat_id;'
-        ,_dataset_id,  pat_id_str, _dataset_id, ts_start, ts_end, window_limit, pat_id_str, window_size, _dataset_id);
+        ,_dataset_id,  pat_id_str, _dataset_id, ts_start, ts_end, window_limit, pat_id_str, window_size, _dataset_id, use_clarity_notes);
 
 
     insert into historical_criteria (pat_id, dataset_id, pat_state, window_ts)
@@ -2149,3 +2202,347 @@ begin
     drop table twf_rank;
     return;
 end $func$ LANGUAGE plpgsql;
+
+
+--------------------------------------------------
+-- Columnar criteria report for a patient-window.
+--------------------------------------------------
+create or replace function humanize_report_timestamp(reference timestamptz, ts timestamptz)
+  returns text language plpgsql
+as $func$ begin
+  return
+  case when reference is null and date_part('year', ts) = date_part('year', current_timestamp)
+       then to_char(ts, 'MM-DD HH24:MI')
+
+       when date_part('day', ts) = date_part('day', reference)
+            and date_part('month', ts) = date_part('month', reference)
+            and date_part('year', ts) = date_part('year', reference)
+       then to_char(ts, 'HH24:MI')
+
+       when date_part('year', ts) = date_part('year', reference)
+       then to_char(ts, 'MM-DD HH24:MI')
+
+       else to_char(ts, 'MM-DD-YY HH24:MI')
+  end;
+end; $func$;
+
+create or replace function humanize_report_infection(value json)
+  returns text language plpgsql
+as $func$
+declare
+  bvalue jsonb := value::jsonb;
+begin
+  return
+    case when bvalue is null then null
+         when jsonb_array_length(bvalue) > 1 and (bvalue->0) ? ('text'::text)
+         then '# Matches: '
+              || jsonb_array_length(bvalue)::text
+              || ', First: '
+              || ((bvalue->0)->>'text')
+
+         when jsonb_array_length(bvalue) > 0 and (bvalue->0) ? ('text'::text)
+         then (bvalue->0)->>'text'
+         else bvalue::text
+    end;
+end; $func$;
+
+create or replace function humanize_report_note(value text, t text)
+  returns text language plpgsql
+as $func$ begin
+  return
+  case when value is null or t is null
+       then null
+       else 'Note @' || t || ': ' || value
+  end;
+end; $func$;
+
+create or replace function humanize_report_entry(tag text, value text, t text)
+  returns text language plpgsql
+as $func$ begin
+  return
+  case when value is null or t is null
+       then null
+       else tag || ': ' || value || ' @' || t
+  end;
+end; $func$;
+
+
+create or replace function criteria_window_report(this_pat_id text,
+                                                  ts_start    timestamptz,
+                                                  ts_end      timestamptz,
+                                                  dataset_id  integer)
+  returns table ( pat_id                            varchar(50),
+                  severe_sepsis_onset               text,
+                  sirs_organ_dys_onset              text,
+                  septic_shock_onset                text,
+                  antibiotics_order_met             text,
+                  antibiotics_order_t               text,
+                  antibiotics_order_value           text,
+                  bilirubin_t                       text,
+                  bilirubin_value                   text,
+                  blood_culture_order_met           text,
+                  blood_culture_order_t             text,
+                  blood_culture_order_value         text,
+                  blood_pressure_t                  text,
+                  blood_pressure_value              text,
+                  creatinine_t                      text,
+                  creatinine_value                  text,
+                  crystalloid_fluid_t               text,
+                  crystalloid_fluid_value           text,
+                  crystalloid_fluid_order_met       text,
+                  crystalloid_fluid_order_t         text,
+                  crystalloid_fluid_order_value     text,
+                  decrease_in_sbp_t                 text,
+                  decrease_in_sbp_value             text,
+                  heart_rate_t                      text,
+                  heart_rate_value                  text,
+                  hypotension_dsbp_t                text,
+                  hypotension_dsbp_value            text,
+                  hypotension_map_t                 text,
+                  hypotension_map_value             text,
+                  initial_lactate_t                 text,
+                  initial_lactate_value             text,
+                  initial_lactate_order_met         text,
+                  initial_lactate_order_t           text,
+                  initial_lactate_order_value       text,
+                  inr_t                             text,
+                  inr_value                         text,
+                  lactate_t                         text,
+                  lactate_value                     text,
+                  mean_arterial_pressure_t          text,
+                  mean_arterial_pressure_value      text,
+                  platelet_t                        text,
+                  platelet_value                    text,
+                  repeat_lactate_order_met          text,
+                  repeat_lactate_order_t            text,
+                  repeat_lactate_order_value        text,
+                  respiratory_failure_t             text,
+                  respiratory_failure_value         text,
+                  respiratory_rate_t                text,
+                  respiratory_rate_value            text,
+                  sirs_temp_t                       text,
+                  sirs_temp_value                   text,
+                  suspicion_of_infection_t          text,
+                  suspicion_of_infection_value      text,
+                  systolic_bp_t                     text,
+                  systolic_bp_value                 text,
+                  vasopressors_order_met            text,
+                  vasopressors_order_t              text,
+                  vasopressors_order_value          text,
+                  wbc_t                             text,
+                  wbc_value                         text
+                )
+  language plpgsql
+as $func$ begin
+  return query
+  select  R.pat_id,
+          humanize_report_timestamp(null, R.severe_sepsis_onset),
+          humanize_report_timestamp(R.severe_sepsis_onset, R.severe_sepsis_wo_infection_onset) as sirs_organ_dys_onset,
+          humanize_report_timestamp(R.severe_sepsis_onset, R.septic_shock_onset),
+          R.o#>>'{antibiotics_order, met}'         as antibiotics_order_met,
+          R.o#>>'{antibiotics_order, t}'           as antibiotics_order_t,
+          R.o#>>'{antibiotics_order, value}'       as antibiotics_order_value,
+          R.o#>>'{bilirubin, t}'                   as bilirubin_t,
+          R.o#>>'{bilirubin, value}'               as bilirubin_value,
+          R.o#>>'{blood_culture_order, met}'       as blood_culture_order_met,
+          R.o#>>'{blood_culture_order, t}'         as blood_culture_order_t,
+          R.o#>>'{blood_culture_order, value}'     as blood_culture_order_value,
+          R.o#>>'{blood_pressure, t}'              as blood_pressure_t,
+          R.o#>>'{blood_pressure, value}'          as blood_pressure_value,
+          R.o#>>'{creatinine, t}'                  as creatinine_t,
+          R.o#>>'{creatinine, value}'              as creatinine_value,
+          R.o#>>'{crystalloid_fluid, t}'           as crystalloid_fluid_t,
+          R.o#>>'{crystalloid_fluid, value}'       as crystalloid_fluid_value,
+          R.o#>>'{crystalloid_fluid_order, met}'   as crystalloid_fluid_order_met,
+          R.o#>>'{crystalloid_fluid_order, t}'     as crystalloid_fluid_order_t,
+          R.o#>>'{crystalloid_fluid_order, value}' as crystalloid_fluid_order_value,
+          R.o#>>'{decrease_in_sbp, t}'             as decrease_in_sbp_t,
+          R.o#>>'{decrease_in_sbp, value}'         as decrease_in_sbp_value,
+          R.o#>>'{heart_rate, t}'                  as heart_rate_t,
+          R.o#>>'{heart_rate, value}'              as heart_rate_value,
+          R.o#>>'{hypotension_dsbp, t}'            as hypotension_dsbp_t,
+          R.o#>>'{hypotension_dsbp, value}'        as hypotension_dsbp_value,
+          R.o#>>'{hypotension_map, t}'             as hypotension_map_t,
+          R.o#>>'{hypotension_map, value}'         as hypotension_map_value,
+          R.o#>>'{initial_lactate, t}'             as initial_lactate_t,
+          R.o#>>'{initial_lactate, value}'         as initial_lactate_value,
+          R.o#>>'{initial_lactate_order, met}'     as initial_lactate_order_met,
+          R.o#>>'{initial_lactate_order, t}'       as initial_lactate_order_t,
+          R.o#>>'{initial_lactate_order, value}'   as initial_lactate_order_value,
+          R.o#>>'{inr, t}'                         as inr_t,
+          R.o#>>'{inr, value}'                     as inr_value,
+          R.o#>>'{lactate, t}'                     as lactate_t,
+          R.o#>>'{lactate, value}'                 as lactate_value,
+          R.o#>>'{mean_arterial_pressure, t}'      as mean_arterial_pressure_t,
+          R.o#>>'{mean_arterial_pressure, value}'  as mean_arterial_pressure_value,
+          R.o#>>'{platelet, t}'                    as platelet_t,
+          R.o#>>'{platelet, value}'                as platelet_value,
+          R.o#>>'{repeat_lactate_order, met}'      as repeat_lactate_order_met,
+          R.o#>>'{repeat_lactate_order, t}'        as repeat_lactate_order_t,
+          R.o#>>'{repeat_lactate_order, value}'    as repeat_lactate_order_value,
+          R.o#>>'{respiratory_failure, t}'         as respiratory_failure_t,
+          R.o#>>'{respiratory_failure, value}'     as respiratory_failure_value,
+          R.o#>>'{respiratory_rate, t}'            as respiratory_rate_t,
+          R.o#>>'{respiratory_rate, value}'        as respiratory_rate_value,
+          R.o#>>'{sirs_temp, t}'                   as sirs_temp_t,
+          R.o#>>'{sirs_temp, value}'               as sirs_temp_value,
+          R.o#>>'{suspicion_of_infection, t}'      as suspicion_of_infection_t,
+          R.o#>>'{suspicion_of_infection, value}'  as suspicion_of_infection_value,
+          R.o#>>'{systolic_bp, t}'                 as systolic_bp_t,
+          R.o#>>'{systolic_bp, value}'             as systolic_bp_value,
+          R.o#>>'{vasopressors_order, met}'        as vasopressors_order_met,
+          R.o#>>'{vasopressors_order, t}'          as vasopressors_order_t,
+          R.o#>>'{vasopressors_order, value}'      as vasopressors_order_value,
+          R.o#>>'{wbc, t}'                         as wbc_t,
+          R.o#>>'{wbc, value}'                     as wbc_value
+  from (
+    select  C.pat_id, C.severe_sepsis_onset, C.severe_sepsis_wo_infection_onset, C.septic_shock_onset,
+            json_object_agg(C.name,
+              case when C.name = 'suspicion_of_infection'
+                    then json_object('{t, value}', ARRAY[
+                           humanize_report_timestamp(C.severe_sepsis_onset, coalesce(C.override_time, C.measurement_time)),
+                           coalesce(humanize_report_infection(C.override_value), C.value)::text
+                         ]::text[])
+
+                   when C.name like '%_order'
+                    then json_object('{t, value, met}', ARRAY[
+                           humanize_report_timestamp(C.severe_sepsis_onset, coalesce(C.override_time, C.measurement_time)),
+                           coalesce(C.override_value::text, C.value)::text,
+                           C.is_met::text
+                         ]::text[])
+
+                   when C.is_met
+                    then json_object('{t, value}', ARRAY[
+                           humanize_report_timestamp(C.severe_sepsis_onset, coalesce(C.override_time, C.measurement_time)),
+                           coalesce(C.override_value::text, C.value)::text
+                         ]::text[])
+
+                   else null
+              end
+            ) as o
+    from calculate_criteria(this_pat_id, ts_start, ts_end, dataset_id) C
+    group by C.pat_id, C.severe_sepsis_onset, C.severe_sepsis_wo_infection_onset, C.septic_shock_onset
+  ) R
+  order by pat_id;
+end; $func$;
+
+
+create or replace function criteria_report(this_pat_state  integer,
+                                           this_dataset_id integer)
+  returns table ( pat_worst_state                   integer,
+                  pat_id                            varchar(50),
+                  severe_sepsis_onset               text,
+                  sirs_organ_dys_onset              text,
+                  septic_shock_onset                text,
+                  infection                         text,
+                  sirs_criteria                     text,
+                  org_df_criteria                   text,
+                  septic_shock_criteria             text,
+                  orders                            text
+  )
+language plpgsql
+as $func$ begin
+  return query
+    select WS.max_state as pat_worst_state,
+           Report.pat_id,
+           Report.severe_sepsis_onset,
+           Report.sirs_organ_dys_onset,
+           Report.septic_shock_onset,
+
+           humanize_report_note(suspicion_of_infection_value, suspicion_of_infection_t)
+            as infection,
+
+           array_to_string(array_remove(
+            ARRAY[
+              humanize_report_entry( 'TEMP', sirs_temp_value, sirs_temp_t ),
+              humanize_report_entry( 'HR', heart_rate_value, heart_rate_t ),
+              humanize_report_entry( 'RR', respiratory_rate_value, respiratory_rate_t ),
+              humanize_report_entry( 'WBC', wbc_value, wbc_t )
+            ],
+           NULL), ' ', '') as sirs_criteria,
+
+           array_to_string(array_remove(
+            ARRAY[
+              humanize_report_entry( 'SBP', systolic_bp_value, systolic_bp_t),
+              humanize_report_entry( 'MAP', mean_arterial_pressure_value, mean_arterial_pressure_t ),
+              humanize_report_entry( 'DSBP', decrease_in_sbp_value, decrease_in_sbp_t ),
+              humanize_report_entry( 'RSPF', respiratory_failure_value, respiratory_failure_t ),
+              humanize_report_entry( 'CRT', creatinine_value, creatinine_t ),
+              humanize_report_entry( 'BILI', bilirubin_value, bilirubin_t ),
+              humanize_report_entry( 'PLT', platelet_value, platelet_t ),
+              humanize_report_entry( 'INR', inr_value, inr_t ),
+              humanize_report_entry( 'BP', blood_pressure_value, blood_pressure_t ),
+              humanize_report_entry( 'LC', lactate_value, lactate_t )
+            ]::text[],
+           NULL), ' ', '') as org_df_criteria,
+
+           array_to_string(array_remove(
+            ARRAY[
+              humanize_report_entry( 'FLD', crystalloid_fluid_value, crystalloid_fluid_t ),
+              humanize_report_entry( 'HT_DBSP', hypotension_dsbp_value, hypotension_dsbp_t ),
+              humanize_report_entry( 'HT_MAP', hypotension_map_value, hypotension_map_t ),
+              humanize_report_entry( 'ILC', initial_lactate_value, initial_lactate_t )
+            ]::text[],
+           NULL), ' ', '') as septic_shock_criteria,
+
+           array_to_string(array_remove(
+             ARRAY[
+              humanize_report_entry(
+                'AB',
+                antibiotics_order_value || (case when antibiotics_order_met::boolean then '✓' else '' end),
+                antibiotics_order_t
+                )
+             ,
+              humanize_report_entry(
+                'BC',
+                blood_culture_order_value || (case when blood_culture_order_met::boolean then '✓' else '' end),
+                blood_culture_order_t
+              )
+             ,
+              humanize_report_entry(
+                'FL',
+                crystalloid_fluid_order_value || (case when crystalloid_fluid_order_met::boolean then '✓' else '' end),
+                crystalloid_fluid_order_t
+              )
+             ,
+              humanize_report_entry(
+                'ILC',
+                initial_lactate_order_value || (case when initial_lactate_order_met::boolean then '✓' else '' end),
+                initial_lactate_order_t
+              )
+             ,
+              humanize_report_entry(
+                'RLC',
+                repeat_lactate_order_value || (case when repeat_lactate_order_met::boolean then '✓' else '' end),
+                repeat_lactate_order_t
+              )
+             ,
+              humanize_report_entry(
+                'VP',
+                vasopressors_order_value || (case when vasopressors_order_met::boolean then '✓' else '' end),
+                vasopressors_order_t
+              )
+             ]::text[],
+           NULL), ' ', '') as orders
+    from (
+      select R2.pat_id, R2.dataset_id, min(R2.window_ts) as window_ts, max(R2.pat_state) as max_state
+      from (
+        select HC.pat_id, max(HC.pat_state) as pat_state
+        from historical_criteria HC
+        where HC.dataset_id = coalesce(this_dataset_id, HC.dataset_id)
+        group by HC.pat_id
+      ) R1
+      inner join historical_criteria R2
+          on R1.pat_id = R2.pat_id
+          and R1.pat_state = R2.pat_state
+      where R1.pat_state = coalesce(this_pat_state, R1.pat_state)
+      and R2.dataset_id = coalesce(this_dataset_id, R2.dataset_id)
+      group by R2.pat_id, R2.dataset_id
+    ) WS
+    inner join lateral criteria_window_report(
+      WS.pat_id, WS.window_ts - interval '6 hours', WS.window_ts, WS.dataset_id
+    ) Report
+      on WS.pat_id = Report.pat_id
+    order by WS.max_state desc, Report.pat_id
+    ;
+end; $func$;
