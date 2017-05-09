@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import time
-import uvloop
 import os
 import json
 import functools
@@ -183,7 +182,6 @@ class Planner():
   def start_engine(self):
     self.log.info("start job in the engine")
     self.engine = Engine(self.plan, **self.job['engine'])
-    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.run_until_complete(self.engine.run())

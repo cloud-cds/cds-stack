@@ -5,8 +5,6 @@ from etl.mappings.lab_procedures import procedure_ids
 
 import sys
 import asyncio
-import uvloop
-asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 from aiohttp import ClientSession
 from aiohttp import client_exceptions

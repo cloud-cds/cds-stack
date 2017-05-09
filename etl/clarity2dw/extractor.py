@@ -17,7 +17,6 @@ import logging
 from etl.core.config import Config
 import sys
 import random
-import uvloop
 
 
 TRANSACTION_RETRY = 10

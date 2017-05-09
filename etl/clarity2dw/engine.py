@@ -1,7 +1,5 @@
 # DEPRECATED
 import asyncio
-import uvloop
-asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 import asyncpg
 from etl.core.config import Config

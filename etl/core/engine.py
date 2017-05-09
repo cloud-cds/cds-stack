@@ -3,7 +3,7 @@ from etl.core.plan import Plan
 import os, logging
 from collections import deque
 
-import asyncio
+import asyncio, uvloop
 import asyncpg
 import concurrent.futures
 import functools
