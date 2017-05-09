@@ -10,6 +10,7 @@ def data_2_workspace(logger, engine, job_id, df_name, df, dtypes=None, if_exists
         if dtypes is not None:
             df = df.astype(dtypes)
         df.to_sql(table_name, engine, if_exists=if_exists, index=False, schema='workspace')
+        logger.info('Successfully saved dataframe to {}, using engine {}'.format(table_name, engine))
     else:
         logger.error('Failed to load table %s (invalid dataframe)' % df_name)
     '''
