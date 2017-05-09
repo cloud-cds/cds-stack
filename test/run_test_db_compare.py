@@ -1,5 +1,5 @@
 from etl.clarity2dw.engine import Engine as EngineC2dw
-from etl.epic2op.engine import Engine as EngineEpic2op
+from etl.epic2op.engine import main as EngineEpic2op
 import os
 from etl.clarity2dw.engine import job_test_c2dw, CONF
 import asyncio
