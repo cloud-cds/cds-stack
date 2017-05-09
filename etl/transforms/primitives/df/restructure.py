@@ -28,6 +28,11 @@ def concat_str(df, new_col, col_1, col_2, drop_original=True):
         df.drop([col_1, col_2], axis=1, inplace=True)
     return df
 
+import random
+def make_null_time_midnight(df):
+    df['time'] = df['time'].apply(lambda x: '12:00 AM' if x is None else x)
+    return df
+
 def extract_id_from_list(df, id_column, id_type):
     def get_id(id_list):
         for x in id_list:

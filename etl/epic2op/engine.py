@@ -228,8 +228,10 @@ def push_cloudwatch_metrics(ctxt, stats, aws_region, prod_or_dev):
     md['Timestamp'] = dt.datetime.utcnow()
   try:
     boto_client.put_metric_data(Namespace='OpsDX', MetricData=metric_data)
+    ctxt.log.info('successfully pushed cloudwatch metrics')
   except botocore.exceptions.EndpointConnectionError as e:
-    logging.error(e)
+    ctxt.log.error('unsuccessfully pushed cloudwatch metrics')
+    ctxt.log.error(e)
 
 
 
@@ -390,5 +392,5 @@ if __name__ == '__main__':
   pd.set_option('display.max_colwidth', 40)
   pd.options.mode.chained_assignment = None
   logging.getLogger().setLevel(0)
-  results = main(max_num_pats=20)
+  results = main()
   print(results)
