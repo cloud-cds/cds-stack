@@ -1141,67 +1141,65 @@ BEGIN
           pats_fluid_after_severe_sepsis as (
             select  MFL.pat_id,
                     MFL.tsp,
-                    MFL.fid,
-                    MFL.value,
-                    -- TODO:
-                    -- Yanif: should overrides be checked for a valid fluid measurement?
-                    -- Overrides should be fully trusted.
-                    (case when OV.override then MFL.value::numeric > 0
-                          else MFL.value::numeric > 30
-                      end) as is_met
+                    sum(MFL.value::numeric) as total_fluid,
+                    -- Fluids are met if they are overriden or if we have more than
+                    -- min(1.2L, 30 mL * weight) administered from 6 hours before severe sepsis
+                    (coalesce(bool_or(OV.override), false)
+                        or coalesce(sum(MFL.value::numeric), 0) > least(1200, 30 * max(PW.value))
+                    ) as is_met
             from criteria_meas MFL
-            left join severe_sepsis_onsets SSPN on MFL.pat_id = SSPN.pat_id
+            left join pat_weights PW on MFL.pat_id = PW.pat_id
+            left join severe_sepsis_now SSPN on MFL.pat_id = SSPN.pat_id
             left join pat_fluid_overrides OV on MFL.pat_id = OV.pat_id
             where isnumeric(MFL.value)
             and SSPN.severe_sepsis_is_met
-            and MFL.tsp >= SSPN.severe_sepsis_onset
-            and (case when OV.override then MFL.fid in ('crystalloid_fluid', 'fluids_intake')
-                      else MFL.fid = 'crystalloid_fluid'
-                      end)
+            and MFL.tsp >= (SSPN.severe_sepsis_onset - orders_lookback)
+            and (MFL.fid = 'crystalloid_fluid' or coalesce(OV.override, false))
+            group by MFL.pat_id, MFL.tsp
           )
-            select PC.pat_id,
-                   PC.name,
-                   PC.tsp as measurement_time,
-                   PC.value as value,
-                   PC.c_otime,
-                   PC.c_ouser,
-                   PC.c_ovalue,
-                   (SSPN.severe_sepsis_is_met and coalesce(PC.c_otime, PC.tsp) >= SSPN.severe_sepsis_onset)
-                   and
-                   (case when PC.category = 'hypotension' then
-                           (PFL.is_met and PFL.tsp < PC.tsp and NEXT.tsp < PFL.tsp + interval '1 hour')
-                           and criteria_value_met(PC.value, PC.c_ovalue, PC.d_ovalue)
-                           and criteria_value_met(NEXT.value, PC.c_ovalue, PC.d_ovalue)
+          select PC.pat_id,
+                 PC.name,
+                 PC.tsp as measurement_time,
+                 PC.value as value,
+                 PC.c_otime,
+                 PC.c_ouser,
+                 PC.c_ovalue,
+                 (SSPN.severe_sepsis_is_met and coalesce(PC.c_otime, PC.tsp) >= SSPN.severe_sepsis_onset)
+                 and
+                 (case when PC.category = 'hypotension' then
+                         (PFL.is_met and PFL.tsp < PC.tsp and NEXT.tsp < PFL.tsp + interval '1 hour')
+                         and criteria_value_met(PC.value, PC.c_ovalue, PC.d_ovalue)
+                         and criteria_value_met(NEXT.value, PC.c_ovalue, PC.d_ovalue)
 
-                         when PC.category = 'hypotension_dsbp' then
-                           (PFL.is_met and PFL.tsp < PC.tsp and NEXT.tsp < PFL.tsp + interval '1 hour')
-                           and decrease_in_sbp_met(PBPSYS.value, PC.value, PC.c_ovalue, PC.d_ovalue)
-                           and decrease_in_sbp_met(PBPSYS.value, NEXT.value, PC.c_ovalue, PC.d_ovalue)
+                       when PC.category = 'hypotension_dsbp' then
+                         (PFL.is_met and PFL.tsp < PC.tsp and NEXT.tsp < PFL.tsp + interval '1 hour')
+                         and decrease_in_sbp_met(PBPSYS.value, PC.value, PC.c_ovalue, PC.d_ovalue)
+                         and decrease_in_sbp_met(PBPSYS.value, NEXT.value, PC.c_ovalue, PC.d_ovalue)
 
-                        else false
-                    end) as is_met
-            from pat_cvalues PC
-            left join severe_sepsis_onsets SSPN on PC.pat_id = SSPN.pat_id
+                      else false
+                  end) as is_met
+          from pat_cvalues PC
+          left join severe_sepsis_onsets SSPN on PC.pat_id = SSPN.pat_id
 
-            left join pats_fluid_after_severe_sepsis PFL
-              on PC.pat_id = PFL.pat_id
+          left join pats_fluid_after_severe_sepsis PFL
+            on PC.pat_id = PFL.pat_id
 
-            left join lateral (
-              select meas.pat_id, meas.fid, meas.tsp, meas.value
-              from criteria_meas meas
-              where PC.pat_id = meas.pat_id and PC.fid = meas.fid and PC.tsp < meas.tsp
-              order by meas.tsp
-              limit 1
-            ) NEXT on PC.pat_id = NEXT.pat_id and PC.fid = NEXT.fid
+          left join lateral (
+            select meas.pat_id, meas.fid, meas.tsp, meas.value
+            from criteria_meas meas
+            where PC.pat_id = meas.pat_id and PC.fid = meas.fid and PC.tsp < meas.tsp
+            order by meas.tsp
+            limit 1
+          ) NEXT on PC.pat_id = NEXT.pat_id and PC.fid = NEXT.fid
 
-            left join lateral (
-              select BP.pat_id, max(BP.value) as value
-              from pat_bp_sys BP where PC.pat_id = BP.pat_id
-              group by BP.pat_id
-            ) PBPSYS on PC.pat_id = PBPSYS.pat_id
+          left join lateral (
+            select BP.pat_id, max(BP.value) as value
+            from pat_bp_sys BP where PC.pat_id = BP.pat_id
+            group by BP.pat_id
+          ) PBPSYS on PC.pat_id = PBPSYS.pat_id
 
-            where PC.name in ('systolic_bp', 'hypotension_map', 'hypotension_dsbp')
-            order by PC.tsp
+          where PC.name in ('systolic_bp', 'hypotension_map', 'hypotension_dsbp')
+          order by PC.tsp
       ) as ordered
       group by ordered.pat_id, ordered.name
   ),

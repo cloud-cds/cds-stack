@@ -1306,23 +1306,21 @@ return query
             pats_fluid_after_severe_sepsis as (
               select  MFL.pat_id,
                       MFL.tsp,
-                      MFL.fid,
-                      MFL.value,
-                      -- TODO:
-                      -- Yanif: should overrides be checked for a valid fluid measurement?
-                      -- Overrides should be fully trusted.
-                      (case when OV.override then MFL.value::numeric > 0
-                            else MFL.value::numeric > 30
-                        end) as is_met
+                      sum(MFL.value::numeric) as total_fluid,
+                      -- Fluids are met if they are overriden or if we have more than
+                      -- min(1.2L, 30 mL * weight) administered from 6 hours before severe sepsis
+                      (coalesce(bool_or(OV.override), false)
+                          or coalesce(sum(MFL.value::numeric), 0) > least(1200, 30 * max(PW.value))
+                      ) as is_met
               from criteria_meas MFL
+              left join pat_weights PW on MFL.pat_id = PW.pat_id
               left join severe_sepsis_now SSPN on MFL.pat_id = SSPN.pat_id
               left join pat_fluid_overrides OV on MFL.pat_id = OV.pat_id
               where isnumeric(MFL.value)
               and SSPN.severe_sepsis_is_met
-              and MFL.tsp >= SSPN.severe_sepsis_onset
-              and (case when OV.override then MFL.fid in ('crystalloid_fluid', 'fluids_intake')
-                        else MFL.fid = 'crystalloid_fluid'
-                        end)
+              and MFL.tsp >= (SSPN.severe_sepsis_onset - orders_lookback)
+              and (MFL.fid = 'crystalloid_fluid' or coalesce(OV.override, false))
+              group by MFL.pat_id, MFL.tsp
             )
             select PC.pat_id,
                    PC.name,
