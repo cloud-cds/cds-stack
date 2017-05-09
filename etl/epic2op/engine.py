@@ -24,6 +24,7 @@ MODE = {
   3: 'real&test'
 }
 
+
 def main(max_num_pats=None, hospital=None, lookback_hours=None, db_name=None):
   # Create config objects
   config = Config(debug=True, db_name=db_name)
@@ -383,6 +384,16 @@ def get_extraction_tasks(extractor, max_num_pats=None):
     }
   ]
 
+
+class Epic2Op:
+  def __init__(self, max_num_pats=None, hospital=None, lookback_hours=None, db_name=None):
+    self.max_num_pats   = max_num_pats
+    self.hospital       = hospital
+    self.lookback_hours = lookback_hours
+    self.db_name        = db_name
+
+  def main(self):
+    main(self.max_num_pats, self.hospital, self.lookback_hours, self.db_name)
 
 
 if __name__ == '__main__':
