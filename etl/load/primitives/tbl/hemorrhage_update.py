@@ -8,7 +8,7 @@ import etl.load.primitives.row.load_row as load_row
     Purpose: Insert hemorrhage events into cdm_t based on definition in arch file
     Comments: Need to implement transfuse_rbc feature before this function can be run
 '''
-async def hemorrhage_update(fid, fid_input, conn, log , dataset_id=None, twf_table='cdm_twf'):
+async def hemorrhage_update(fid, fid_input, conn, log , dataset_id, derive_feature_addr, cdm_feature_dict):
     assert fid == 'hemorrhage', 'wrong fid %s' % fid
     fid_input_items = [item.strip() for item in fid_input.split(',')]
     assert fid_input_items[0] == 'transfuse_rbc', \

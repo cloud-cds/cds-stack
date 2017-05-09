@@ -40,7 +40,7 @@ job_config = {
     'parallel': False,
     'fid': None,
     'mode': None,
-    'num_derive_groups': 0,
+    'num_derive_groups': 2,
   },
   'offline_criteria_processing': {
     'load_cdm_to_criteria_meas':True,

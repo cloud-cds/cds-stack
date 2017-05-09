@@ -668,13 +668,14 @@ class Extractor:
           )
         insert_idx = '''
         INSERT INTO {table_name} ({dataset_id} enc_id, tsp)
-        (SELECT {dataset_id}, enc_id, tsp FROM {twf_table});
+        (SELECT {dataset_id} enc_id, tsp FROM {twf_table});
         '''.format(table_name=table_name, dataset_id=dataset_id, twf_table=twf_table)
         keys = '{dataset_id} enc_id, tsp'.format(dataset_id=dataset_id)
         sql = create_temp_table.format(table_name=table_name, query=query,
                                        keys=keys, insert_idx=insert_idx)
         ctxt.log.info("create temp table: " + sql)
-        await conn.execute(sql)
+        result = await conn.execute(sql)
+        ctxt.log.info(result)
     ctxt.log.info('derive_init completed')
 
   async def derive_join(self, ctxt, *args):
