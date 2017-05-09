@@ -27,7 +27,7 @@ async def admit_weight_update(fid, fid_input, conn, log, dataset_id, derive_feat
     sql = '''
     insert into cdm_s (dataset_id, enc_id, fid, value, confidence)
     (
-      select pat_enc.dataset_id, pat_enc.enc_id, 'admit_weight', coalesce(first(ordered.weight::text),(select value::text from cdm_g where fid = 'weight_popmean' limit 1)),
+      select pat_enc.dataset_id, pat_enc.enc_id, 'admit_weight', coalesce(first(ordered.weight::text),(select value::text from cdm_g where fid = 'weight_popmean' and dataset_id = %(dataset_id)s limit 1)),
       coalesce(first(ordered.weight_c), 24)
       from
         pat_enc
@@ -37,8 +37,9 @@ async def admit_weight_update(fid, fid_input, conn, log, dataset_id, derive_feat
           and dataset_id = %(dataset_id)s
         order by enc_id, tsp) as ordered
         on pat_enc.dataset_id = ordered.dataset_id and pat_enc.enc_id = ordered.enc_id
+      where pat_enc.dataset_id = %(dataset_id)s
       group by pat_enc.dataset_id, pat_enc.enc_id
-    )on conflict (dataset_id, enc_id, fid) do update set
+    ) on conflict (dataset_id, enc_id, fid) do update set
       value = Excluded.value,
       confidence = Excluded.confidence
     ;
