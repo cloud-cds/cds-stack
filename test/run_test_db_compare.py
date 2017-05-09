@@ -506,8 +506,7 @@ class DBCompareTest():
     loop.close()
 
   async def run_copy_pat_enc(self, db_config):
-    job = db_config['job']
-    engine = db_config['engine'](job)
+    engine = db_config['engine'](db_config['job']) if 'job' in db_config else db_config['engine']
     await engine.init()
     pool = engine.pool
     sql = '''
