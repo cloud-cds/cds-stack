@@ -391,12 +391,21 @@ class Epic2Op:
     self.hospital       = hospital
     self.lookback_hours = lookback_hours
     self.db_name        = db_name
+    self.config         = {
+      'db_name': db_name or os.environ['db_name'],
+      'db_user': os.environ['db_user'],
+      'db_pass': os.environ['db_password'],
+      'db_host': os.environ['db_host'],
+      'db_port': os.environ['db_port'],
+    }
 
   def main(self):
     main(self.max_num_pats, self.hospital, self.lookback_hours, self.db_name)
 
-  def init(self):
-    pass
+  async def init(self):
+    self.pool = await asyncpg.create_pool(database=self.config.db_name,
+      user=self.config.db_user, password=self.config.db_pass,
+      host=self.config.db_host, port=self.config.db_port)
 
 if __name__ == '__main__':
   pd.set_option('display.width', 200)
