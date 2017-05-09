@@ -551,41 +551,31 @@ async def resp_sofa_update(fid, fid_input, conn, log, dataset_id, derive_feature
   update_clause = """
   INSERT INTO %(twf_table_temp)s (%(dataset_id)s enc_id,tsp,resp_sofa, resp_sofa_c)
   (
-    SELECT %(dataset_id)s enc_id,tsp,
+    WITH vent as (select enc_id,tsp,fid from cdm_t where fid = 'vent' %(with_ds)s)
+    SELECT %(dataset_id)s source.enc_id, source.tsp,
       (CASE
+      WHEN pao2_to_fio2 < 100 and fid is not null THEN 4
+      WHEN pao2_to_fio2 < 200 and fid is not null THEN 3
       WHEN pao2_to_fio2 < 300 THEN 2
       WHEN pao2_to_fio2 < 400 THEN 1
       ELSE 0 END) %(fid)s,
       pao2_to_fio2_c %(fid)s_c
     FROM (
       %(twf_table_join)s
-    ) source
+    ) source left join vent on source.enc_id = vent.enc_id
+    and source.tsp = vent.tsp
   )
   ON CONFLICT (%(dataset_id)s enc_id,tsp) DO UPDATE SET
   %(fid)s = excluded.%(fid)s,
   %(fid)s_c = excluded.%(fid)s_c
   ;
-  """ % {'fid':fid, 'twf_table_temp': twf_table_temp, 'dataset_id': 'dataset_id,' if dataset_id else '',
+  """ % {'fid':fid,
+         'with_ds': with_ds(dataset_id, table_name='cdm_t'),
+         'twf_table_temp': twf_table_temp,
+         'dataset_id': 'dataset_id,' if dataset_id else '',
          'twf_table_join': get_select_table_joins(['pao2_to_fio2'], derive_feature_addr, cdm_feature_dict, dataset_id)}
   log.info(update_clause)
   await conn.execute(update_clause)
-
-  update_vent_clause = """
-  WITH vent as (select * from cdm_t where fid = 'vent' %(with_ds)s)
-  UPDATE %(twf_table)s SET %(fid)s = (CASE
-    WHEN pao2_to_fio2 < 100 THEN 4
-    WHEN pao2_to_fio2 < 200 THEN 3
-    ELSE %(fid)s
-  END),
-  %(fid)s_c = pao2_to_fio2_c
-  FROM vent
-  where %(twf_table)s.enc_id = vent.enc_id and %(twf_table)s.tsp = vent.tsp
-  %(with_ds_table)s
-  ;
-  """ % {'fid':fid, 'twf_table': twf_table_temp, 'with_ds': with_ds(dataset_id),
-         'with_ds_table': with_ds(dataset_id, table_name=twf_table_temp)}
-  log.info(update_vent_clause)
-  await conn.execute(update_vent_clause)
 
 # Special case (mini-pipeline)
 async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict):

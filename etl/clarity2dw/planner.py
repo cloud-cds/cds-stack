@@ -11,6 +11,7 @@ from etl.core.engine import Engine
 from etl.core.task import Task
 from etl.core.plan import Plan
 from etl.clarity2dw.extractor import Extractor
+from etl.load.pipelines.derive_main import get_derive_seq
 
 CONF = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'conf')
 
@@ -37,10 +38,10 @@ job_config = {
     'vacuum': True,
   },
   'derive': {
-    'parallel': False,
+    'parallel': True,
     'fid': None,
     'mode': None,
-    'num_derive_groups': 2,
+    'num_derive_groups': 8,
   },
   'offline_criteria_processing': {
     'load_cdm_to_criteria_meas':True,
@@ -130,7 +131,7 @@ class Planner():
       self.plan.add(Task('derive_init', deps=['vacuum'], coro=self.extractor.derive_init))
     if parallel:
       for task in get_derive_tasks(db_config, self.extractor.dataset_id, num_derive_groups > 0):
-        self.plan.add(Task(task['name'], deps=task['dependencies'], coro=self.extractor.run_derive, args=task['fid']))
+        self.plan.add(Task(task['name'], deps=task['dependencies'], coro=self.extractor.run_derive, args=[task['fid']]))
     else:
       self.plan.add(Task('derive', deps=['vacuum'], coro=self.extractor.run_derive))
     if num_derive_groups:
@@ -185,7 +186,7 @@ def get_derive_tasks(config, dataset_id, is_grouped):
     fid = feature['fid']
     inputs =[fid.strip() for fid in feature['derive_func_input'].split(',')]
     dependencies = ['derive_{}'.format(fid) for fid in inputs if not cdm_feature_dict[fid]['is_measured']]
-    if [fid for fid in inputs if cdm_feature_dict[fid]['is_measured']]:
+    if len(dependencies) == 0:
       dependencies.append('fillin' if not is_grouped else 'derive_init')
     name = 'derive_{}'.format(fid)
     derive_tasks.append(
@@ -198,7 +199,7 @@ def get_derive_tasks(config, dataset_id, is_grouped):
   return derive_tasks
 
 def get_derive_feature_addr(config, dataset_id, num_derive_groups, twf_table='cdm_twf'):
-  async def _get_cdm_feature_dict(config):
+  async def _get_derive_features(config):
     conn = await asyncpg.connect(database=config['db_name'], \
                                  user=config['db_user'],     \
                                  password=config['db_pass'], \
@@ -215,9 +216,14 @@ def get_derive_feature_addr(config, dataset_id, num_derive_groups, twf_table='cd
     return [lst[round(division) * i:round(division) * (i + 1)] for i in range(n)]
 
   loop = asyncio.new_event_loop()
-  derive_features = loop.run_until_complete(_get_cdm_feature_dict(config))
+  derive_features = loop.run_until_complete(_get_derive_features(config))
   loop.close()
-
+  # get derive_features order based on dependencies
+  derive_feature_dict = {
+   feature['fid']:feature for feature in derive_features
+  }
+  derive_feature_order = get_derive_seq(derive_feature_dict)
+  derive_features = [derive_feature_dict[fid] for fid in derive_feature_order]
   if num_derive_groups > 1:
     derive_feature_groups = partition(derive_features, num_derive_groups)
   else:

@@ -714,17 +714,35 @@ class Extractor:
     ctxt.log.info(join_sql)
     ctxt.log.info("completed derive_join")
 
-  async def run_derive(self, ctxt, fid=None):
+  async def run_derive(self, ctxt, *args):
     log = ctxt.log
+    base = 2
+    max_backoff = 3*60
+    if len(args) > 0:
+      fid = args[-1]
     if self.job.get('derive', False):
       if fid is None:
         fid = self.job.get('derive').get('fid', None)
         mode = self.job.get('derive').get('mode', None)
-      async with ctxt.db_pool.acquire() as conn:
-        await self.query_cdm_feature_dict(conn)
-        await derive_main(log, conn, self.cdm_feature_dict, dataset_id = self.dataset_id, \
-          fid = fid, mode=mode, derive_feature_addr=self.derive_feature_addr)
-      log.info("derive completed")
+      else:
+        mode = None
+      attempts = 0
+      while True:
+        try:
+          async with ctxt.db_pool.acquire() as conn:
+            await self.query_cdm_feature_dict(conn)
+            await derive_main(log, conn, self.cdm_feature_dict, dataset_id = self.dataset_id, \
+              fid = fid, mode=mode, derive_feature_addr=self.derive_feature_addr)
+          log.info("derive completed")
+          break
+        except Exception as e:
+          attempts += 1
+          log.warn("PSQL Error derive: %s %s" % (fid if fid else 'run_derive', e))
+          random_secs = random.uniform(0, 1)
+          wait_time = min(((base**attempts) + random_secs), max_backoff)
+          await asyncio.sleep(wait_time)
+          log.info("run_derive {} attempts {}".format(fid or '', attempts))
+          continue
     else:
       log.info("derive skipped")
 

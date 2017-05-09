@@ -110,7 +110,6 @@ async def derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=None, deri
   log.info("derive feature %s, function %s, inputs (%s) %s" \
   % (fid, derive_func_id, derive_func_input, 'dataset_id %s' % dataset_id if dataset_id is not None else ''))
   if fid in query_config:
-    # TODO update templated derive features
     config_entry = query_config[fid]
     fid_input_items = [item.strip() for item in derive_func_input.split(',')]
     clean_sql = ''
@@ -139,7 +138,6 @@ async def derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=None, deri
       log.error("fid_input dismatch")
   else:
     log.info("Derive function is not implemented in driver, so we use legacy derive function")
-    # TODO update custom derive functions
     await derive_func.derive(fid, derive_func_id, derive_func_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict)
   log.info("derive feature %s end." % fid)
 
