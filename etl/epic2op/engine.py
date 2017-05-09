@@ -28,7 +28,7 @@ def main(max_num_pats=None, hospital=None, lookback_hours=None, db_name=None):
   # Create config objects
   config = Config(debug=True, db_name=db_name)
   config_dict = {
-    'db_name': os.environ['db_name'],
+    'db_name': db_name or os.environ['db_name'],
     'db_user': os.environ['db_user'],
     'db_pass': os.environ['db_password'],
     'db_host': os.environ['db_host'],
