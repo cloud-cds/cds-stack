@@ -24,11 +24,12 @@ MODE = {
   3: 'real&test'
 }
 
+
 def main(max_num_pats=None, hospital=None, lookback_hours=None, db_name=None):
   # Create config objects
   config = Config(debug=True, db_name=db_name)
   config_dict = {
-    'db_name': os.environ['db_name'],
+    'db_name': db_name or os.environ['db_name'],
     'db_user': os.environ['db_user'],
     'db_pass': os.environ['db_password'],
     'db_host': os.environ['db_host'],
@@ -384,6 +385,21 @@ def get_extraction_tasks(extractor, max_num_pats=None):
   ]
 
 
+class Epic2Op:
+  def __init__(self, max_num_pats=None, hospital=None, lookback_hours=None, db_name=None):
+    self.max_num_pats   = max_num_pats
+    self.hospital       = hospital
+    self.lookback_hours = lookback_hours
+    self.db_name        = db_name
+    self.config         = Config(debug=True, db_name=db_name)
+
+  def main(self):
+    main(self.max_num_pats, self.hospital, self.lookback_hours, self.db_name)
+
+  async def init(self):
+    self.pool = await asyncpg.create_pool(database=self.config.db_name,
+      user=self.config.db_user, password=self.config.db_pass,
+      host=self.config.db_host, port=self.config.db_port)
 
 if __name__ == '__main__':
   pd.set_option('display.width', 200)
