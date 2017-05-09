@@ -121,7 +121,7 @@ daily_compare = [
     'name': 'daily_test_epic2op',
     'engine': EngineEpic2op(db_name='daily_test_epic2op'),
     'pipeline': {
-      # 'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
+      'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
       # 'populate_db': True,
     },
   },
