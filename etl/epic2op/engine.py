@@ -395,6 +395,8 @@ class Epic2Op:
   def main(self):
     main(self.max_num_pats, self.hospital, self.lookback_hours, self.db_name)
 
+  def init(self):
+    pass
 
 if __name__ == '__main__':
   pd.set_option('display.width', 200)
