@@ -90,8 +90,10 @@ lab_orders_transforms = [
         'pat_id':           'pat_id',
         'visit_id':         'visit_id',
         'Components':       'components',
-        'ResultDate':       'date',
-        'ResultTime':       'time',
+        'CollectionDate':   'date',
+        'CollectionTime':   'time',
+        'ResultDate':       'res_date',
+        'ResultTime':       'res_time',
     }),
     lambda lp: restructure.unlist(lp, 'components'),
     lambda lp: restructure.extract(lp, 'components', {
@@ -100,13 +102,17 @@ lab_orders_transforms = [
         'ComponentID':      'component_id',
     }),
     lambda lp: restructure.extract(lp, 'status', {'Title': 'status'}),
+    lambda lp: restructure.make_null_time_midnight(lp), # TEMPORARY WORKAROUND
     lambda lp: restructure.concat_str(lp, 'tsp', 'date', 'time'),
+    lambda lp: restructure.concat_str(lp, 'res_tsp', 'res_date', 'res_time'),
     lambda lp: translate.translate_epic_id_to_fid(lp,
         col = 'component_id', new_col = 'fid',
         config_map = component_ids, drop_original = True,
         add_string = '_order', add_string_fid=['blood_culture', 'lactate']
     ),
     lambda lp: format_data.format_tsp(lp, 'tsp'),
+    lambda lp: format_data.format_tsp(lp, 'res_tsp'),
+    lambda lp: derive.use_correct_tsp(lp, first='tsp', second='res_tsp'),
 ]
 
 lab_results_transforms = [
@@ -114,13 +120,17 @@ lab_results_transforms = [
         'pat_id':           'pat_id',
         'visit_id':         'visit_id',
         'ComponentID':      'component_id',
-        'ResultDate':       'date',
-        'ResultTime':       'time',
+        'CollectionDate':   'date',
+        'CollectionTime':   'time',
+        'ResultDate':       'res_date',
+        'ResultTime':       'res_time',
         'Value':            'value',
         'Units':            'unit',
     }),
     lambda lr: restructure.unlist(lr, 'value'),
+    lambda lr: restructure.make_null_time_midnight(lr), # TEMPORARY WORKAROUND
     lambda lr: restructure.concat_str(lr, 'tsp', 'date', 'time'),
+    lambda lr: restructure.concat_str(lr, 'res_tsp', 'res_date', 'res_time'),
     lambda lr: translate.translate_epic_id_to_fid(lr,
         col = 'component_id', new_col = 'fid',
         config_map = component_ids,
@@ -132,6 +142,8 @@ lab_results_transforms = [
     lambda lr: format_data.threshold_values(lr, 'value'),
     lambda lr: format_data.filter_to_final_units(lr, 'unit'),
     lambda lr: format_data.format_tsp(lr, 'tsp'),
+    lambda lr: format_data.format_tsp(lr, 'res_tsp'),
+    lambda lr: derive.use_correct_tsp(lr, first='tsp', second='res_tsp'),
 ]
 
 med_orders_transforms = [

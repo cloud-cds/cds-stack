@@ -21,6 +21,11 @@ def sum_values_at_same_tsp(df, list_of_fids):
         df = df[~fid_values].append(combined)
     return df
 
+def use_correct_tsp(df, first, second):
+    df[first] = df.apply(lambda row: row[first] if row[first] != "NaT" else row[second], axis=1)
+    df = df.drop(second, 1)
+    return df
+
 def derive_procedure_status(df):
     def get_status(row):
         order = row['order_status']

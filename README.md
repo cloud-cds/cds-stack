@@ -4,7 +4,7 @@
 </p>
 <p align="center">
   <a href="http://concourse.dev.opsdx.io">
-      <img src="http://concourse.dev.opsdx.io/api/v1/teams/main/pipelines/main-pipeline/jobs/test-master/badge"
+      <img src="http://concourse.dev.opsdx.io/api/v1/teams/main/pipelines/main-pipeline/jobs/test-dashan-etl-pull-request/badge"
            alt="CI Status">
   </a>
 </p>
