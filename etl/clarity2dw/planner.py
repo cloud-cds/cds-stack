@@ -29,7 +29,7 @@ job_config = {
     },
     'populate_measured_features': {
       'fid': None,
-      'nprocs': int(os.environ['nprocs']) if 'nprocs' in os.environ else 1,
+      'nprocs': int(os.environ['nprocs']) if 'nprocs' in os.environ else 2,
     },
     'min_tsp': os.environ['min_tsp'] if 'min_tsp' in os.environ else None
   },
@@ -41,7 +41,8 @@ job_config = {
     'parallel': True,
     'fid': None,
     'mode': None,
-    'num_derive_groups': 8,
+    'num_derive_groups': int(os.environ['num_derive_groups']) if 'num_derive_groups' in os.environ else 2,
+    'vacuum_temp_table': bool(os.environ['vacuum_temp_table']) if 'vacuum_temp_table' in os.environ else False
   },
   'offline_criteria_processing': {
     'load_cdm_to_criteria_meas':True,
@@ -49,7 +50,7 @@ job_config = {
   },
   'engine': {
     'name': 'engine-c2dw',
-    'nprocs': int(os.environ['nprocs']) if 'nprocs' in os.environ else 1,
+    'nprocs': int(os.environ['nprocs']) if 'nprocs' in os.environ else 2,
     'loglevel': logging.DEBUG
   },
   'planner': {
@@ -76,8 +77,20 @@ db_config = {
 
 
 class Planner():
-  def __init__(self, job):
+  def main(self):
+    self.generate_plan()
+    self.start_engine()
+
+  def set_db_config(self, config):
+    if 'db_name' in config:
+      db_config['db_name'] = config['db_name']
+    if 'db_host' in config:
+      db_config['db_host'] = config['db_host']
+
+  def __init__(self, job, config=None):
     self.job = job
+    if config:
+      self.set_db_config(config)
     self.extractor = Extractor(self.job)
     # Configure planner logging.
     self.name = self.job['planner']['name']
@@ -96,7 +109,7 @@ class Planner():
     self.gen_transform_plan()
     self.gen_fillin_plan()
     self.gen_derive_plan()
-    self.get_offline_criteria_plan()
+    self.gen_offline_criteria_plan()
     self.log.info("plan is ready")
     self.print_plan()
     return self.plan
@@ -125,6 +138,7 @@ class Planner():
   def gen_derive_plan(self):
     num_derive_groups = self.job.get('derive').get('num_derive_groups', 0)
     parallel = self.job.get('derive').get('parallel')
+    vacuum_temp_table = self.job.get('derive').get('vacuum_temp_table', False)
     self.extractor.derive_feature_addr = get_derive_feature_addr(db_config, self.extractor.dataset_id, num_derive_groups)
     self.log.info("derive_feature_addr: {}".format(self.extractor.derive_feature_addr))
     if num_derive_groups:
@@ -135,10 +149,28 @@ class Planner():
     else:
       self.plan.add(Task('derive', deps=['vacuum'], coro=self.extractor.run_derive))
     if num_derive_groups:
-      derive_tasks = [task.name for task in self.plan.tasks if task.name.startswith('derive')]
-      self.plan.add(Task('derive_join', deps=derive_tasks, coro=self.extractor.derive_join))
+      if vacuum_temp_table:
+        self.gen_vacuum_temp_table_plan()
+        vacuum_temp_table_tasks = [task.name for task in self.plan.tasks if task.name.startswith('vacuum_temp_table')]
+        self.plan.add(Task('derive_join', deps=vacuum_temp_table_tasks, coro=self.extractor.derive_join))
+      else:
+        derive_tasks = [task.name for task in self.plan.tasks if task.name.startswith('derive')]
+        self.plan.add(Task('derive_join', deps=derive_tasks, coro=self.extractor.derive_join))
 
-  def get_offline_criteria_plan(self):
+  def gen_vacuum_temp_table_plan(self):
+    temp_table_feature_mapping = {}
+    for fid in self.extractor.derive_feature_addr:
+      category = self.extractor.derive_feature_addr[fid]['category']
+      temp_table = self.extractor.derive_feature_addr[fid]['twf_table_temp']
+      if category == 'TWF':
+        if temp_table in temp_table_feature_mapping:
+          temp_table_feature_mapping[temp_table].append(fid)
+        else:
+          temp_table_feature_mapping[temp_table] = [fid]
+    for temp_table in temp_table_feature_mapping:
+      self.plan.add(Task('vacuum_temp_table-{}'.format(temp_table), deps=['derive_{}'.format(fid) for fid in temp_table_feature_mapping[temp_table]], coro=self.extractor.run_vacuum, args=[temp_table]))
+
+  def gen_offline_criteria_plan(self):
     num_derive_groups = self.job.get('derive').get('num_derive_groups', 0)
     if num_derive_groups:
       deps = ['derive_join']
@@ -155,6 +187,7 @@ class Planner():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.run_until_complete(self.engine.run())
+    self.engine.shutdown()
     loop.close()
     self.log.info("job completed")
 
@@ -171,7 +204,7 @@ def get_derive_tasks(config, dataset_id, is_grouped):
         where not is_measured and not is_deprecated %s
     ''' % ('and dataset_id = {}'.format(dataset_id) if dataset_id is not None else ''))
     sql = "select * from cdm_feature %s" % ('where dataset_id = {}'.format(dataset_id) \
-                                            if dataset_id is not None else '')
+            if dataset_id is not None else '')
     cdm_feature = await conn.fetch(sql)
     cdm_feature_dict = {f['fid']:f for f in cdm_feature}
     await conn.close()
@@ -244,6 +277,7 @@ def get_derive_feature_addr(config, dataset_id, num_derive_groups, twf_table='cd
         'twf_table_temp': twf_table_temp,
       }
   return derive_feature_addr
+
 
 if __name__ == '__main__':
   planner = Planner(job_config)

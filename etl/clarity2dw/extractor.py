@@ -83,25 +83,6 @@ class Extractor:
       ctxt.log.info("ETL Init: " + result)
     return None
 
-  async def vacuum_analyze_dataset(self, ctxt, *args):
-    if self.job.get('fillin', False) and self.job.get('fillin').get('vacuum', False):
-      ctxt.log.info("start vacuum_analyze task")
-      async with ctxt.db_pool.acquire() as conn:
-        vacuum_sql = [
-          'vacuum analyze cdm_s;',
-          'vacuum analyze cdm_t;',
-          'vacuum analyze cdm_twf;',
-          'vacuum analyze criteria_meas;',
-        ]
-        for sql in vacuum_sql:
-          ctxt.log.info(sql)
-          result = await conn.execute(sql)
-          ctxt.log.info(result)
-        ctxt.log.info("completed vacuum_analyze task")
-    else:
-      ctxt.log.info("skipped vacuum")
-      return None
-
   async def populate_patients(self, ctxt, _):
     if self.job.get('transform', False):
       self.min_tsp = self.job.get('transform').get('min_tsp')
@@ -607,13 +588,33 @@ class Extractor:
       else:
         await load_row.add_t(conn, rows, dataset_id = self.dataset_id, many=True, log=log)
 
+  async def vacuum_analyze_dataset(self, ctxt, *args):
+    if self.job.get('fillin', False) and self.job.get('fillin').get('vacuum', False):
+      ctxt.log.info("start vacuum_analyze task")
+      async with ctxt.db_pool.acquire() as conn:
+        vacuum_sql = [
+          'vacuum analyze cdm_s;',
+          'vacuum analyze cdm_twf;',
+        ]
+        futures = []
+        for sql in vacuum_sql:
+          ctxt.log.info(sql)
+          futures.append(conn.execute(sql))
+        results = await asyncio.wait(futures)
+        ctxt.log.info(results)
+        ctxt.log.info("completed vacuum_analyze task")
+    else:
+      ctxt.log.info("skipped vacuum")
+      return None
 
   async def run_fillin(self, ctxt, *args):
     log = ctxt.log
     if self.job.get('fillin', False):
       log.info("start fillin pipeline")
       # we run the optimized fillin in one run, e.g., update set all columns
-      fillin_sql = '''
+      vacuum_analyze_t = 'vacuum analyze cdm_t;'
+      vacuum_analyze_twf = 'vacuum analyze cdm_twf;'
+      load_sql = '''
       WITH twf_fids as (
         select array_agg(fid)::text[] as arr from cdm_feature where dataset_id = {dataset_id} and is_measured and category = 'TWF'
       )
@@ -621,6 +622,8 @@ class Extractor:
             (select arr from twf_fids),
             'cdm_twf'::text, {dataset_id}
       );
+      '''.format(dataset_id=self.dataset_id)
+      fillin_sql = '''
       WITH twf_fids as (
         select array_agg(fid)::text[] as arr from cdm_feature where dataset_id = {dataset_id} and is_measured and category = 'TWF'
       )
@@ -628,13 +631,26 @@ class Extractor:
         (select arr from twf_fids), 'cdm_twf'::text, {dataset_id});
       '''.format(dataset_id=self.dataset_id)
       async with ctxt.db_pool.acquire() as conn:
-        log.info("start fillin: {}".format(fillin_sql))
+        log.info("start fillin")
+        result = await conn.execute(vacuum_analyze_t)
+        log.info(result)
+        result = await conn.execute(load_sql)
+        log.info(result)
+        result = await conn.execute(vacuum_analyze_twf)
+        log.info(result)
         result = await conn.execute(fillin_sql)
         log.info(result)
         log.info("fillin completed")
     else:
       log.info("fillin skipped")
 
+  async def run_vacuum(self, ctxt, *args):
+    table_name = args[-1]
+    vacuum_sql = 'vacuum analyze {};'.format(table_name)
+    async with ctxt.db_pool.acquire() as conn:
+      ctxt.log.info("vacuum start:{}".format(vacuum_sql))
+      result = await conn.execute(vacuum_sql)
+      ctxt.log.info("vacuum completed:{}".format(result))
 
   async def derive_init(self, ctxt, _):
     ctxt.log.info('start derive_init')
@@ -747,9 +763,13 @@ class Extractor:
       log.info("derive skipped")
 
   async def offline_criteria_processing(self, ctxt, _):
-    if self.job.get('load_cdm_to_criteria_meas', False):
-      async with ctxt.db_pool.acquire() as conn:
-        await load_table.load_cdm_to_criteria_meas(conn, self.dataset_id)
-    if self.job.get('calculate_historical_criteria', False):
-      async with ctxt.db_pool.acquire() as conn:
-        await load_table.calculate_historical_criteria(conn)
+    criteria_job = self.job.get('offline_criteria_processing', False)
+    if criteria_job:
+      if criteria_job.get('load_cdm_to_criteria_meas', False):
+        async with ctxt.db_pool.acquire() as conn:
+          await load_table.load_cdm_to_criteria_meas(conn, self.dataset_id)
+      if criteria_job.get('calculate_historical_criteria', False):
+        async with ctxt.db_pool.acquire() as conn:
+          await load_table.calculate_historical_criteria(conn)
+    else:
+      ctxt.log.info("skipped offline criteria processing")

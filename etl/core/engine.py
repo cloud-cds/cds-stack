@@ -320,3 +320,6 @@ class Engine:
     else:
       self.log.info('Engine failed to complete tasks, only %s / %s finished.' % (len(self.task_results), len(self.tasks)))
 
+  def shutdown(self):
+    self.executor.shutdown(wait=True)
+    self.log.info('Engine has been shutdown')
