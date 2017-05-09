@@ -17,31 +17,31 @@ async def get_notifications_for_epic(ctxt, job_id):
   ''' Get all notifications to send to epic '''
   async with ctxt.db_pool.acquire() as conn:
     ctxt.log.info("getting notifications to push to epic")
-    return await conn.fetch("""
+    result = await conn.fetch("""
       SELECT n.* from get_notifications_for_epic(null) n
       inner join workspace.{}_bedded_patients_transformed bp
       on n.pat_id = bp.pat_id
       """.format(job_id))
+    return list(dict(x) for x in result)
 
 
 
 
 def epic_2_workspace(ctxt, db_data, sqlalchemy_str, job_id, dtypes=None):
   ''' Push all the dataframes to a workspace table '''
-  print(sqlalchemy_str)
   engine = create_engine(sqlalchemy_str)
   for df_name, df in db_data.items():
     if df is None or df.empty:
       ctxt.log.warning("Skipping table load for {} (invalid datafame)".format(df_name))
       continue
-    primitives.data_2_workspace(engine, job_id, df_name, df, dtypes=dtypes)
+    primitives.data_2_workspace(ctxt.log, engine, job_id, df_name, df, dtypes=dtypes)
   return job_id
 
 
 
 
-def test_data_2_workspace(ctxt, mode, job_id):
-  engine = create_engine(ctxt.get_db_conn_string_sqlalchemy())
+def test_data_2_workspace(ctxt, sqlalchemy_str, mode, job_id):
+  engine = create_engine(sqlalchemy_str)
   for table in ('bedded_patients', 'flowsheet', 'lab_orders', 'lab_results',
     'med_orders', 'med_admin', 'location_history', 'active_procedures'):
     df = pd.read_sql_table("test_{}".format(table), engine).drop('index', axis=1)
@@ -50,7 +50,7 @@ def test_data_2_workspace(ctxt, mode, job_id):
         df['tsp'] = df['tsp'].apply(lambda x: dt.datetime.utcfromtimestamp(float(x)).isoformat())
     df_name = "{}_transformed".format(table + 's' if table == 'flowsheet' else table)
     if_exists = 'append' if 'real' in mode else 'replace'
-    primitives.data_2_workspace(engine, job_id, df_name, df, dtypes=None, if_exists = if_exists)
+    primitives.data_2_workspace(ctxt.log, engine, job_id, df_name, df, dtypes=None, if_exists = if_exists)
 
 
 
@@ -92,7 +92,7 @@ async def load_online_prediction_parameters(ctxt, job_id):
     trews_feature_weights = await conn.fetch("select * from trews_feature_weights")
     for weight in trews_feature_weights:
       feature_weights[weight['fid']] = weight['weight']
-      ctxt.log.info("feature: {:30} weight: {}".fomat(weight['fid'], weight['weight']))
+      ctxt.log.info("feature: {:30} weight: {}".format(weight['fid'], weight['weight']))
     trews_parameters = await conn.fetch("select * from trews_parameters")
     for parameter in trews_parameters:
       if parameter['name'] == 'max_score':
@@ -114,7 +114,6 @@ async def load_online_prediction_parameters(ctxt, job_id):
     # list the fillin features for online prediction
     fillin_features = [fid for fid in features_with_intermediates if \
       cdm_feature_dict[fid]["is_measured"] and cdm_feature_dict[fid]["category"] == "TWF"]
-    print(fillin_features)
     ctxt.log.info("The fillin features in online prediction: {}".format(fillin_features))
 
     # list the derive features for online prediction
@@ -139,8 +138,8 @@ async def workspace_fillin(ctxt, prediction_params, job_id):
   fillin_sql = '''
     SELECT * from last_value_in_window({fillin_fids}, {twf_table});
     '''.format(
-      fillin_fids = 'array[{}]'.format(', '.join(prediction_params['fillin_features'])),
-      twf_table   = 'workspace.{}_cdm_twf'.format(job_id)
+      fillin_fids = 'array[{}]'.format(','.join(["'{}'".format(x) for x in prediction_params['fillin_features']])),
+      twf_table   = "'workspace.{}_cdm_twf'".format(job_id)
     )
   async with ctxt.db_pool.acquire() as conn:
     ctxt.log.info("start fillin: {}".format(fillin_sql))
@@ -152,6 +151,7 @@ async def workspace_fillin(ctxt, prediction_params, job_id):
 
 
 
+
 async def workspace_derive(ctxt, prediction_params, job_id):
   cdm_feature_dict = prediction_params['cdm_feature_dict']
   derive_features = prediction_params['derive_features']
@@ -159,14 +159,27 @@ async def workspace_derive(ctxt, prediction_params, job_id):
   # get derive order based on the input derive_features
   derive_feature_dict = {fid: cdm_feature_dict[fid] for fid in derive_features}
   derive_feature_order = get_derive_seq(derive_feature_dict)
-  # derive the features sequentially
   twf_table = 'workspace.{}_cdm_twf'.format(job_id)
+
+  # get info for old function
+  derive_feature_addr = {}
+  for fid in derive_feature_order:
+    table = twf_table if derive_feature_dict[fid]['category'] == 'TWF' else None
+    derive_feature_addr[fid] = {
+      'twf_table': table,
+      'twf_table_temp': table,
+      'category': derive_feature_dict[fid]['category'],
+    }
+
+
+  # derive the features sequentially
   async with ctxt.db_pool.acquire() as conn:
     for fid in derive_feature_order:
       ctxt.log.info("deriving fid {}".format(fid))
-      await derive_feature(ctxt.log, cdm_feature_dict[fid], conn, twf_table=twf_table)
+      await derive_feature(ctxt.log, fid, cdm_feature_dict, conn, derive_feature_addr=derive_feature_addr)
     ctxt.log.info("derive completed")
     return job_id
+
 
 
 
@@ -278,6 +291,7 @@ async def workspace_submit(ctxt, job_id):
 
 
 
+# TODO: Make sure the table exists before insert
 async def workspace_to_criteria_meas(ctxt, job_id):
   # insert all results to the measurement table
   upsert_meas_sql = \
@@ -339,6 +353,7 @@ async def drop_tables(ctxt, job_id, days_offset=2):
     ctxt.log.info("cleaning data in workspace for day:%s" % day)
     await conn.execute("select drop_tables_pattern('workspace', '%%_%s');" % day)
     ctxt.log.info("cleaned data in workspace for day:%s" % day)
+    return job_id
 
 
 
@@ -391,7 +406,7 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
     all_tasks += Task(
       name = 'test_data_2_workspace',
       fn   = test_data_2_workspace,
-      args = [mode, job_id],
+      args = [sqlalchemy_str, mode, job_id],
     )
   all_tasks += [
     Task(name = 'epic_2_workspace',
@@ -420,8 +435,9 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
          deps = ['workspace_submit'],
          coro = workspace_to_criteria_meas),
     Task(name = 'drop_tables',
-         deps = ['workspace_to_criteria_meas', 2],
-         coro = drop_tables),
+         deps = ['workspace_to_criteria_meas'],
+         coro = drop_tables,
+         args = [2]),
     Task(name = 'get_notifications_for_epic',
          deps = ['drop_tables'],
          coro = get_notifications_for_epic),

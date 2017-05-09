@@ -179,6 +179,18 @@ cdm_defs = {
         'thresh':   (None, None),
         'human_readable':   'Total Crystalloid Fluid',
     },
+    'dextrose_water': {
+        'unit':     'ml',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Dextrose Water',
+    },
+    'dextrose_normal_saline': {
+        'unit':     'ml',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Dextrose Normal Saline',
+    },
     'dobutamine_dose': {
         'unit':     'mcg/kg/min',
         'value':    float,
@@ -412,6 +424,12 @@ cdm_defs = {
         'value':    float,
         'thresh':   (115, 160),
         'human_readable':   'Sodium',
+    },
+    'sodium_bicarbonate': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Sodium Bicarbonate',
     },
     'sodium_chloride': {
         'unit':     '',

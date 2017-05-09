@@ -6,7 +6,7 @@ import sys
 import etl.confidence as confidence
 import datetime
 from etl.transforms.primitives.row.transform import STOPPED_ACTIONS
-from etl.load.primitives.tbl.acute_liver_failure_update import *
+# from etl.load.primitives.tbl.acute_liver_failure_update import *
 # from etl.load.primitives.tbl.acute_pancreatitis_update import *
 from etl.load.primitives.tbl.admit_weight_update import *
 from etl.load.primitives.tbl.change_since_last_measured import *
