@@ -53,8 +53,7 @@ CREATE TABLE cdm_feature_temp (
     unit                    varchar(50),
     PRIMARY KEY             (dataset_id, fid),
     FOREIGN KEY             (dataset_id, fillin_func_id) REFERENCES cdm_function(dataset_id, func_id),
-    FOREIGN KEY             (dataset_id, derive_func_id) REFERENCES cdm_function(dataset_id, func_id),
-    CHECK (category SIMILAR TO 'S|M|T|TWF|G')
+    FOREIGN KEY             (dataset_id, derive_func_id) REFERENCES cdm_function(dataset_id, func_id)
 );
 
 \COPY cdm_feature_temp FROM 'CDM_Feature.csv' WITH csv header DELIMITER AS ',';

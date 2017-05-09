@@ -1,7 +1,7 @@
-from etl.clarity2dw.engine import Engine as EngineC2dw
+from etl.clarity2dw.planner import Planner as PlannerC2DW
+from etl.clarity2dw.planner import CONF as CONF
 from etl.epic2op.engine import Epic2Op as EngineEpic2op
 import os
-from etl.clarity2dw.engine import job_test_c2dw, CONF
 import asyncio
 import asyncpg
 from compare_cdm import TableComparator
@@ -12,6 +12,7 @@ import subprocess
 from collections import OrderedDict
 import pandas as pd
 import sys
+import logging
 
 class Restore():
   def __init__(self, db_name, file):
@@ -53,13 +54,6 @@ job_c2dw_1 = {
     'load_cdm_to_criteria_meas': True,
     # 'calculate_historical_criteria':False
   },
-  'config': {
-    'dataset_id': 1,
-    'debug': True,
-    'db_name': 'test_c2dw',
-    # 'db_host': 'dev.opsdx.io',
-    'conf': CONF,
-  },
 }
 # ome/ubuntu/clarity-db-staging/epic2op
 epic2op_vs_c2dw = [
@@ -74,7 +68,7 @@ epic2op_vs_c2dw = [
   },
   {
     'name': 'test_c2dw',
-    'engine': EngineC2dw,
+    'engine': PlannerC2DW,
     'job': job_c2dw_1,
     'pipeline': {
       # 'load_clarity': {'folder': '~/clarity-db-staging/2017-04-12/'},
@@ -120,12 +114,6 @@ job_c2dw_daily = {
   {
     'fid': None
   },
-  'config': {
-    'dataset_id': 1,
-    'debug': True,
-    'db_name': 'daily_test_c2dw',
-    'conf': 'dashan-etl-pr/etl/clarity2dw/conf',
-  },
 }
 
 daily_compare = [
@@ -139,7 +127,7 @@ daily_compare = [
   },
   {
     'name': 'daily_test_c2dw',
-    'engine': EngineC2dw,
+    'engine': PlannerC2DW,
     'job': job_c2dw_daily,
     'pipeline': {
       # TODO: load the latest clarity db staging files
@@ -165,31 +153,50 @@ daily_compare = [
 # daily_compare_light:
 # daily_test_epic2op and daily_test_c2dw databases have to be created first
 # the CI will run this when a new docker image is created
-job_c2dw_daily_light = {
+daily_c2dw_light_config = {
+  'plan': False,
   'reset_dataset': {
-    'remove_pat_enc': False,
+    'remove_pat_enc': True,
     'remove_data': True,
-    'start_enc_id': '(select max(enc_id) from pat_enc)'
+    'start_enc_id': 1
   },
   'transform': {
     'populate_patients': {
-      'max_num_pats': 20,
+      'limit': None
     },
     'populate_measured_features': {
-      'plan': False,
+      'fid': None,
+      'nprocs': 2,
     },
+    'min_tsp': os.environ['min_tsp'] if 'min_tsp' in os.environ else None
   },
   'fillin': {
     'recalculate_popmean': False,
+    'vacuum': True,
   },
-  'derive':
-  {
-    'fid': None
+  'derive': {
+    'parallel': True,
+    'fid': None,
+    'mode': None,
+    'num_derive_groups': 2,
   },
-  'config': {
+  'offline_criteria_processing': {
+    'load_cdm_to_criteria_meas':True,
+    'calculate_historical_criteria':False
+  },
+  'engine': {
+    'name': 'engine-c2dw',
+    'nprocs': 2,
+    'loglevel': logging.DEBUG
+  },
+  'planner': {
+    'name': 'planner-c2dw',
+    'loglevel': logging.DEBUG,
+  },
+  'extractor': {
+    'name': 'extractor-c2dw',
     'dataset_id': 1,
-    'debug': True,
-    'db_name': 'daily_c2dw_light',
+    'loglevel': logging.DEBUG,
     'conf': CONF,
   },
 }
@@ -205,12 +212,11 @@ daily_compare_light = [
   },
   {
     'name': 'daily_c2dw_light',
-    'engine': EngineC2dw,
-    'job': job_c2dw_daily_light,
+    'engine': PlannerC2DW(daily_c2dw_light_config, {'db_name': 'daily_c2dw_light'}),
     'pipeline': {
       # 'load_clarity': {'folder': '/data/opsdx/clarity-db-staging/2017-04-06/'},
-      'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
-      'copy_pat_enc': True,
+      # 'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
+      # 'copy_pat_enc': True,
       'populate_db': True,
     },
     'db_compare': {
@@ -252,12 +258,6 @@ job_opsdx_dev_dw = {
   # {
   #   'fid': None
   # },
-  'config': {
-    'dataset_id': 1,
-    'debug': True,
-    'db_name': 'opsdx_dev_dw',
-    'conf': CONF,
-  },
 }
 
 op2dw_compare = [
@@ -271,7 +271,7 @@ op2dw_compare = [
   },
   {
     'name': 'opsdx_dev_dw',
-    'engine': EngineC2dw,
+    'engine': PlannerC2DW,
     'job': job_opsdx_dev_dw,
     # 'pipeline': {
     #   # 'load_clarity': {'folder': '~/clarity-db-staging/2017-04-06/'},
@@ -321,12 +321,6 @@ job_c2dw_archive = {
     'load_cdm_to_criteria_meas': True,
     'calculate_historical_criteria': False
   },
-  'config': {
-    'dataset_id': 1,
-    'debug': True,
-    'db_name': 'archive_c2dw',
-    'conf': CONF,
-  },
 }
 
 archive_compare = [
@@ -339,7 +333,7 @@ archive_compare = [
   },
   {
     'name': 'archive_c2dw',
-    'engine': EngineC2dw,
+    'engine': PlannerC2DW,
     'job': job_c2dw_archive,
     'pipeline': {
       'load_clarity': {'folder': '~/clarity-db-staging/2017-04-06/'},
@@ -366,11 +360,6 @@ archive_compare = [
 # compare c2dw with c2dw_a (archived version)
 ##########################################################
 
-job_c2dw_a = copy.deepcopy(job_test_c2dw)
-job_c2dw_a['config']['db_name'] = 'test_c2dw_a'
-job_c2dw_2 = copy.deepcopy(job_test_c2dw)
-job_c2dw_2['config']['db_name'] = 'test_c2dw'
-job_c2dw_2['reset_dataset']['remove_pat_enc'] = False
 # c2dw_a_vs_c2dw = [
 #   {
 #     'name': 'test_c2dw_a',
@@ -381,7 +370,7 @@ job_c2dw_2['reset_dataset']['remove_pat_enc'] = False
 #   },
 #   # {
 #   #   'name': 'test_c2dw_a',
-#   #   'engine': EngineC2dw,
+#   #   'engine': PlannerC2DW,
 #   #   'job': job_c2dw_a,
 #   #   'pipeline': {
 #   #     # 'load_clarity': {'folder': '~/clarity-db-staging/2017-04-05/'},
@@ -391,7 +380,7 @@ job_c2dw_2['reset_dataset']['remove_pat_enc'] = False
 #   # },
 #   {
 #     'name': 'test_c2dw',
-#     'engine': EngineC2dw,
+#     'engine': PlannerC2DW,
 #     'job': job_c2dw_2,
 #     'pipeline': {
 #       'load_clarity': {'folder': '~/clarity-db-staging/2017-04-05/'},
