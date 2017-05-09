@@ -738,7 +738,7 @@ def getROCInformation(score_dfIn, evaluationType, lambdaIn, pop_df, thisPreProcI
 
 def write_metrics_to_csv(metrics, frame_id, lambda_val, metrics_cols):
     try:
-        csv_file = '%s.%s.operating_point_metrics.csv' % (frame_id, lambda_val)
+        csv_file = '%s.%s.metrics.csv' % (frame_id, lambda_val)
         with open(csv_file, 'w') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=metrics_cols)
             writer.writeheader()
