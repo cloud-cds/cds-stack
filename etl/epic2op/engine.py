@@ -408,5 +408,7 @@ if __name__ == '__main__':
   pd.set_option('display.max_colwidth', 40)
   pd.options.mode.chained_assignment = None
   logging.getLogger().setLevel(0)
-  results = main()
+  eng = Epic2Op()
+  eng.init()
+  results = eng.main()
   print(results)
