@@ -360,3 +360,21 @@ create table lab_proc_dict
  proc_code text
  );
 \copy lab_proc_dict from '{folder}lab_proc.rpt' with csv header delimiter as E'\t' NULL 'NULL' QUOTE E'\b';
+
+drop table if exists med_dict;
+create table med_dict
+(
+ MEDICATION_ID text,
+ name text,
+ GENERIC_NAME text,
+ STRENGTH text,
+ form text,
+ route text,
+ PHARM_CLASS_C int,
+ pharm_class_name text,
+ pharm_class_title text,
+ THERA_CLASS_C int,
+ threa_class_name text,
+ threa_class_title text
+ );
+\copy med_dict from '{folder}med_dict.rpt' with csv header delimiter as E'\t' NULL 'NULL' QUOTE E'\b';

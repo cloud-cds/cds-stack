@@ -351,6 +351,84 @@ END
 $BODY$
 LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION last_value_in_window(twf_fids TEXT[], twf_table TEXT, enc_ids int[] default null, start_tsp timestamptz default null, end_tsp timestamptz default null, is_exec boolean default true)
+RETURNS VOID
+AS $BODY$
+DECLARE
+    query_str text;
+BEGIN
+    raise notice 'Fillin talbe % for fids: %', twf_table, twf_fids;
+    with fid_win as (
+        select fid, window_size_in_hours from unnest(twf_fids) inner join cdm_feature on unnest = fid where category = 'TWF' and is_measured
+    ),
+    select_enc_id_array as (
+        select '(' || string_agg(enc_id::text, ', ') || ')' as enc_id_array from unnest(enc_ids) as enc_id
+        ),
+    select_insert_col as (
+        select
+            string_agg(fid || ', ' || fid || '_c', ',' || E'\n') as insert_col from fid_win
+    ),
+    select_u_col as (
+        select
+            string_agg(fid || ' = excluded.' || fid || ', ' || fid || '_c = excluded.' || fid || '_c', ',' || E'\n') as u_col from fid_win
+    ),
+    select_r_col as (
+        select
+            string_agg('(case when ' || fid || '_c < 8 then ' || fid || ' else null end) as ' || fid || ', (case when ' || fid || '_c < 8 then ' || fid || '_c else null end) as ' || fid || '_c', ',' || E'\n') as r_col from fid_win
+    ),
+    select_s_col as(
+        SELECT
+            string_agg(fid || ', ' || fid || '_c, last(case when ' || fid || ' is null then null else json_build_object(''val'', ' || fid || ', ''ts'', tsp,  ''conf'', '|| fid || '_c) end) over (partition by enc_id order by tsp rows between unbounded preceding and current row) as prev_' || fid || ', (select value::numeric from cdm_g where fid = ''' || fid || '_popmean'') as ' || fid || '_popmean', ',' || E'\n') as s_col
+                    from fid_win
+    ),
+    select_col as (
+        select string_agg('(case when ' || fid || ' is not null then ' || fid || ' when (tsp - (prev_' || fid || '->>''ts'')::timestamptz) <= ''' || window_size_in_hours || 'hours''::interval then (prev_' || fid || '->>''val'')::numeric else ' || fid || '_popmean end ) as ' || fid || ',' || E'\n' || '(case when ' || fid || ' is not null then ' || fid || '_c when (tsp - (prev_' || fid || '->>''ts'')::timestamptz) <= ''' || window_size_in_hours || 'hours''::interval then ((prev_' || fid || '->>''conf'')::int | 8) else 24 end ) as ' || fid || '_c', ',' || E'\n') as col
+            from fid_win
+    )
+    select
+    'INSERT INTO ' || twf_table || '(
+    enc_id, tsp, ' || insert_col || '
+    )
+    (
+        select enc_id, tsp,
+           ' || col || '
+        from (
+            select enc_id, tsp,
+            ' || s_col || '
+            from (
+                select enc_id, tsp,
+                ' || r_col || '
+                from ' || twf_table ||
+                (case
+                    when start_tsp is not null or end_tsp is not null or enc_ids is not null then ' where '
+                 else ' ' end)
+                ||
+                (case
+                    when start_tsp is not null
+                        then ' and tsp >= ''' || start_tsp || '''::timestamptz'
+                    else '' end) ||
+                (case
+                    when end_tsp is not null
+                        then ' and tsp <= ''' || end_tsp || '''::timestamptz'
+                    else '' end) ||
+                (case
+                    when enc_ids is not null
+                        then ' and enc_id in ' || enc_id_array
+                    else '' end) || '
+                order by enc_id, tsp
+            ) R
+        ) S
+    ) ON CONFLICT (enc_id, tsp) DO UPDATE SET
+    ' || u_col || ';'
+        into query_str from select_r_col cross join select_s_col cross join select_col cross join select_u_col cross join select_enc_id_array cross join select_insert_col;
+    raise notice '%', query_str;
+    IF is_exec THEN
+        execute query_str;
+    END IF;
+END
+$BODY$
+LANGUAGE plpgsql;
+
 CREATE OR REPLACE FUNCTION last_value_in_window(fid TEXT, target TEXT, win_h real, recalculate_popmean boolean)
 RETURNS VOID
 AS $BODY$
@@ -847,57 +925,6 @@ BEGIN
     ), false);
 END; $func$;
 
-create or replace function get_next_meas(
-            this_pat_id varchar(50), this_fid varchar(50), tsp_prev timestamptz)
-    returns table(pat_id varchar(50), fid varchar(50), tsp timestamptz, value text) language plpgsql as $func$
-BEGIN
-    return query select meas.pat_id, meas.fid, meas.tsp, meas.value from criteria_meas meas
-        where meas.pat_id = this_pat_id and meas.fid = this_fid and meas.tsp > tsp_prev
-        limit 1;
-END; $func$;
-
-create or replace function after_severe_sepsis_met(this_pat_id text, m_tsp timestamptz, sevsep_is_met boolean, sevsep_lead timestamptz)
-    returns table(is_met boolean) language plpgsql as $func$
-BEGIN
-    return query select coalesce(bool_or(ss.is_met), false) from (
-        select (sevsep_is_met and m_tsp > sevsep_lead) as is_met
-        union all select bool_or(m_tsp > ss.severe_sepsis_lead_time) is_met
-                  from get_states_snapshot(this_pat_id) ss
-                  where ss.state >= 20
-    ) ss;
-END; $func$;
-
-create or replace function after_septic_shock_met(this_pat_id text, m_tsp timestamptz, sepshk_is_met boolean, sepshk_onset timestamptz)
-    returns table(is_met boolean) language plpgsql as $func$
-BEGIN
-    return query select coalesce(bool_or(ss.is_met), false) from (
-        select (sepshk_is_met and m_tsp > sepshk_onset) as is_met
-        union all select bool_or(m_tsp > ss.septic_shock_onset)
-                  from get_states_snapshot(this_pat_id) ss
-                  where ss.state >= 30
-    ) ss;
-END; $func$;
-
-create or replace function hypotension_met(this_pat_id varchar, this_tsp timestamptz, next_tsp timestamptz, override boolean)
-    returns table(is_met boolean) language plpgsql as $func$
-BEGIN
-    return query
-        select bool_or(
-            (case when override then c_fluid.value::numeric > 0
-                else c_fluid.value::numeric > 30
-                end)
-            and this_tsp > c_fluid.tsp
-            and next_tsp < c_fluid.tsp + '1 hour'::interval
-        )
-        from criteria_meas c_fluid
-        where
-            (case when override then c_fluid.fid in ('crystalloid_fluid', 'fluids_intake')
-                else c_fluid.fid = 'crystalloid_fluid'
-                end)
-        and c_fluid.pat_id = this_pat_id
-        and isnumeric(c_fluid.value);
-END; $func$;
-
 -- REVIEW: (Yanif)->(Andong): additional statuses in DW version:
 -- 'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result'
 -- 'Final', 'Final result', 'Edited Result - FINAL',
@@ -953,6 +980,7 @@ BEGIN
 END; $func$;
 
 
+
 CREATE OR REPLACE FUNCTION calculate_criteria(this_pat_id text, ts_start timestamptz, ts_end timestamptz)
  RETURNS table(pat_id                           varchar(50),
                name                             varchar(50),
@@ -968,8 +996,10 @@ CREATE OR REPLACE FUNCTION calculate_criteria(this_pat_id text, ts_start timesta
                septic_shock_onset               timestamptz
                )
  LANGUAGE plpgsql
-AS $function$ BEGIN
-
+AS $function$
+DECLARE
+  orders_lookback interval := interval '6 hours';
+BEGIN
 return query
     with pat_ids as (
         select distinct pat_enc.pat_id from pat_enc
@@ -1240,11 +1270,12 @@ return query
                     pat_cvalues.c_otime,
                     pat_cvalues.c_ouser,
                     pat_cvalues.c_ovalue,
-                    (case when coalesce(pat_cvalues.c_ovalue#>>'{0,text}' = 'Not Indicated', false) then
-                                    criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
-                                else pat_cvalues.fid = 'crystalloid_fluid' and criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
-                            end)
-                    and (ssn.severe_sepsis_onset is not null
+                    (case when coalesce(pat_cvalues.c_ovalue#>>'{0,text}' = 'Not Indicated', false)
+                          then criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
+                          else pat_cvalues.fid = 'crystalloid_fluid'
+                                and criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
+                     end)
+                    and (ssn.severe_sepsis_is_met
                             and coalesce(pat_cvalues.c_otime, pat_cvalues.tsp) >= ssn.severe_sepsis_onset)
                     as is_met
             from pat_cvalues
@@ -1267,51 +1298,73 @@ return query
             now() as update_date
         from
         (
-            select  pat_cvalues.pat_id,
-                    pat_cvalues.name,
-                    pat_cvalues.tsp as measurement_time,
-                    pat_cvalues.value as value,
-                    pat_cvalues.c_otime,
-                    pat_cvalues.c_ouser,
-                    pat_cvalues.c_ovalue,
-                    (case
-                        when pat_cvalues.category = 'hypotension' then
-                            (select bool_or(hm.is_met) from
-                                hypotension_met(pat_cvalues.pat_id, pat_cvalues.tsp,
-                                                            (select next.tsp from get_next_meas(pat_cvalues.pat_id, pat_cvalues.fid, pat_cvalues.tsp) as next),
-                                                            (select coalesce(pat_cvalues.c_ovalue#>>'{0,text}' = 'Not Indicated', false) from crystalloid_fluid where crystalloid_fluid.pat_id = pat_cvalues.pat_id)
-                                ) as hm)
-                                and criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
-                                -- and next consecutive value also met
-                                and criteria_value_met(
-                                    (select next.value from get_next_meas(pat_cvalues.pat_id, pat_cvalues.fid, pat_cvalues.tsp) as next)
-                                    , pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
-                        when pat_cvalues.category = 'hypotension_dsbp' then
-                            (select bool_or(hm.is_met) from
-                                hypotension_met(
-                                    pat_cvalues.pat_id,
-                                    pat_cvalues.tsp,
-                                    (select next.tsp from get_next_meas(pat_cvalues.pat_id, pat_cvalues.fid, pat_cvalues.tsp) as next),
-                                    (select coalesce(pat_cvalues.c_ovalue#>>'{0,text}' = 'Not Indicated', false)
-                                        from crystalloid_fluid where crystalloid_fluid.pat_id = pat_cvalues.pat_id)
-                                ) as hm)
-                                and decrease_in_sbp_met(
-                                        (select max(pat_bp_sys.value) from pat_bp_sys where pat_bp_sys.pat_id = pat_cvalues.pat_id),
-                                        pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
-                                -- and next consecutive value also met
-                                and decrease_in_sbp_met(
-                                        (select max(pat_bp_sys.value) from pat_bp_sys where pat_bp_sys.pat_id = pat_cvalues.pat_id),
-                                        (select next.value from get_next_meas(pat_cvalues.pat_id, pat_cvalues.fid, pat_cvalues.tsp) as next), pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
+            with pat_fluid_overrides as (
+              select CFL.pat_id, coalesce(bool_or(CFL.override_value#>>'{0,text}' = 'Not Indicated'), false) as override
+              from crystalloid_fluid CFL
+              group by CFL.pat_id
+            ),
+            pats_fluid_after_severe_sepsis as (
+              select  MFL.pat_id,
+                      MFL.tsp,
+                      sum(MFL.value::numeric) as total_fluid,
+                      -- Fluids are met if they are overriden or if we have more than
+                      -- min(1.2L, 30 mL * weight) administered from 6 hours before severe sepsis
+                      (coalesce(bool_or(OV.override), false)
+                          or coalesce(sum(MFL.value::numeric), 0) > least(1200, 30 * max(PW.value))
+                      ) as is_met
+              from criteria_meas MFL
+              left join pat_weights PW on MFL.pat_id = PW.pat_id
+              left join severe_sepsis_now SSPN on MFL.pat_id = SSPN.pat_id
+              left join pat_fluid_overrides OV on MFL.pat_id = OV.pat_id
+              where isnumeric(MFL.value)
+              and SSPN.severe_sepsis_is_met
+              and MFL.tsp >= (SSPN.severe_sepsis_onset - orders_lookback)
+              and (MFL.fid = 'crystalloid_fluid' or coalesce(OV.override, false))
+              group by MFL.pat_id, MFL.tsp
+            )
+            select PC.pat_id,
+                   PC.name,
+                   PC.tsp as measurement_time,
+                   PC.value as value,
+                   PC.c_otime,
+                   PC.c_ouser,
+                   PC.c_ovalue,
+                   (SSPN.severe_sepsis_is_met and coalesce(PC.c_otime, PC.tsp) >= SSPN.severe_sepsis_onset)
+                   and
+                   (case when PC.category = 'hypotension' then
+                           (PFL.is_met and PFL.tsp < PC.tsp and NEXT.tsp < PFL.tsp + interval '1 hour')
+                           and criteria_value_met(PC.value, PC.c_ovalue, PC.d_ovalue)
+                           and criteria_value_met(NEXT.value, PC.c_ovalue, PC.d_ovalue)
+
+                         when PC.category = 'hypotension_dsbp' then
+                           (PFL.is_met and PFL.tsp < PC.tsp and NEXT.tsp < PFL.tsp + interval '1 hour')
+                           and decrease_in_sbp_met(PBPSYS.value, PC.value, PC.c_ovalue, PC.d_ovalue)
+                           and decrease_in_sbp_met(PBPSYS.value, NEXT.value, PC.c_ovalue, PC.d_ovalue)
+
                         else false
-                        end
-                    )
-                    and (ssn.severe_sepsis_onset is not null
-                            and coalesce(pat_cvalues.c_otime, pat_cvalues.tsp) >= ssn.severe_sepsis_onset)
-                    as is_met
-            from pat_cvalues
-            left join severe_sepsis_now ssn on pat_cvalues.pat_id = ssn.pat_id
-            where pat_cvalues.name in ('systolic_bp', 'hypotension_map', 'hypotension_dsbp')
-            order by pat_cvalues.tsp
+                    end) as is_met
+            from pat_cvalues PC
+            left join severe_sepsis_now SSPN on PC.pat_id = SSPN.pat_id
+
+            left join pats_fluid_after_severe_sepsis PFL
+              on PC.pat_id = PFL.pat_id
+
+            left join lateral (
+              select meas.pat_id, meas.fid, meas.tsp, meas.value
+              from criteria_meas meas
+              where PC.pat_id = meas.pat_id and PC.fid = meas.fid and PC.tsp < meas.tsp
+              order by meas.tsp
+              limit 1
+            ) NEXT on PC.pat_id = NEXT.pat_id and PC.fid = NEXT.fid
+
+            left join lateral (
+              select BP.pat_id, max(BP.value) as value
+              from pat_bp_sys BP where PC.pat_id = BP.pat_id
+              group by BP.pat_id
+            ) PBPSYS on PC.pat_id = PBPSYS.pat_id
+
+            where PC.name in ('systolic_bp', 'hypotension_map', 'hypotension_dsbp')
+            order by PC.tsp
         ) as ordered
         group by ordered.pat_id, ordered.name
     ),
@@ -1336,7 +1389,7 @@ return query
                     pat_cvalues.c_ouser,
                     pat_cvalues.c_ovalue,
                     criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
-                        and (ssn.severe_sepsis_onset is not null
+                        and (ssn.severe_sepsis_is_met
                                 and coalesce(pat_cvalues.c_otime, pat_cvalues.tsp) >= ssn.severe_sepsis_onset)
                         as is_met
             from pat_cvalues
@@ -1371,6 +1424,17 @@ return query
         left join severe_sepsis_now ssn on stats.pat_id = ssn.pat_id
         group by stats.pat_id
     ),
+    pats_that_have_orders as (
+        select distinct pat_cvalues.pat_id
+        from pat_cvalues
+        where pat_cvalues.name in (
+            'initial_lactate_order',
+            'blood_culture_order',
+            'antibiotics_order',
+            'crystalloid_fluid_order',
+            'vasopressors_order'
+        )
+    ),
     orders_criteria as (
         select
             ordered.pat_id,
@@ -1395,6 +1459,47 @@ return query
             now() as update_date
         from
         (
+            with past_criteria as (
+                select  PO.pat_id, SNP.state,
+                        min(SNP.severe_sepsis_lead_time) as severe_sepsis_lead_time,
+                        min(SNP.septic_shock_onset) as septic_shock_onset
+                from pats_that_have_orders PO
+                inner join lateral get_states_snapshot(PO.pat_id) SNP on PO.pat_id = SNP.pat_id
+                where SNP.state >= 20
+                group by PO.pat_id, SNP.state
+            ),
+            orders_severe_sepsis_lead_times as (
+                select LT.pat_id, min(LT.severe_sepsis_lead_time) - orders_lookback as severe_sepsis_lead_time
+                from (
+                    select  SSPN.pat_id,
+                            min(case when SSPN.severe_sepsis_is_met then SSPN.severe_sepsis_lead_time else null end)
+                                as severe_sepsis_lead_time
+                        from severe_sepsis_now SSPN
+                        group by SSPN.pat_id
+                    union all
+                    select PC.pat_id, min(PC.severe_sepsis_lead_time) as severe_sepsis_lead_time
+                        from past_criteria PC
+                        where PC.state >= 20
+                        group by PC.pat_id
+                ) LT
+                group by LT.pat_id
+            ),
+            orders_septic_shock_onsets as (
+                select ONST.pat_id, min(ONST.septic_shock_onset) as septic_shock_onset
+                from (
+                    select  SSHN.pat_id,
+                            min(case when SSHN.septic_shock_is_met then SSHN.septic_shock_onset else null end)
+                                as septic_shock_onset
+                        from septic_shock_now SSHN
+                        group by SSHN.pat_id
+                    union all
+                    select PC.pat_id, min(PC.septic_shock_onset) as septic_shock_onset
+                        from past_criteria PC
+                        where PC.state >= 30
+                        group by PC.pat_id
+                ) ONST
+                group by ONST.pat_id
+            )
             select  pat_cvalues.pat_id,
                     pat_cvalues.name,
                     pat_cvalues.tsp as measurement_time,
@@ -1407,37 +1512,21 @@ return query
                     pat_cvalues.c_ovalue,
                     (case
                         when pat_cvalues.category = 'after_severe_sepsis' then
-                            (select bool_or(assm.is_met)
-                                from after_severe_sepsis_met(pat_cvalues.pat_id, greatest(pat_cvalues.c_otime, pat_cvalues.tsp),
-                                    (select bool_or(severe_sepsis_now.severe_sepsis_is_met) from severe_sepsis_now),
-                                    (select min(severe_sepsis_now.severe_sepsis_lead_time) from severe_sepsis_now)
-                                ) assm)
+                            ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > OLT.severe_sepsis_lead_time, false) )
                             and ( order_met(pat_cvalues.name, coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value)) )
 
                         when pat_cvalues.category = 'after_severe_sepsis_dose' then
-                            (select bool_or(assm.is_met)
-                                from after_severe_sepsis_met(pat_cvalues.pat_id, greatest(pat_cvalues.c_otime, pat_cvalues.tsp),
-                                    (select bool_or(severe_sepsis_now.severe_sepsis_is_met) from severe_sepsis_now),
-                                    (select min(severe_sepsis_now.severe_sepsis_lead_time) from severe_sepsis_now)
-                                ) assm)
+                            ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > OLT.severe_sepsis_lead_time, false) )
                             and ( dose_order_met(pat_cvalues.fid, pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value::numeric,
                                     coalesce((pat_cvalues.c_ovalue#>>'{0,lower}')::numeric,
                                              (pat_cvalues.d_ovalue#>>'{lower}')::numeric)) )
 
                         when pat_cvalues.category = 'after_septic_shock' then
-                            (select bool_or(assm.is_met)
-                                from after_septic_shock_met(pat_cvalues.pat_id, greatest(pat_cvalues.c_otime, pat_cvalues.tsp),
-                                    (select bool_or(septic_shock_now.septic_shock_is_met) from septic_shock_now),
-                                    (select min(septic_shock_now.septic_shock_onset) from septic_shock_now)
-                                ) assm)
+                            ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > OST.septic_shock_onset, false) )
                             and ( order_met(pat_cvalues.name, coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value)) )
 
                         when pat_cvalues.category = 'after_septic_shock_dose' then
-                            (select bool_or(assm.is_met)
-                                from after_septic_shock_met(pat_cvalues.pat_id, greatest(pat_cvalues.c_otime, pat_cvalues.tsp),
-                                    (select bool_or(septic_shock_now.septic_shock_is_met) from septic_shock_now),
-                                    (select min(septic_shock_now.septic_shock_onset) from septic_shock_now)
-                                ) assm)
+                            ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > OST.septic_shock_onset, false) )
                             and ( dose_order_met(pat_cvalues.fid, pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value::numeric,
                                     coalesce((pat_cvalues.c_ovalue#>>'{0,lower}')::numeric,
                                              (pat_cvalues.d_ovalue#>>'{lower}')::numeric)) )
@@ -1446,6 +1535,10 @@ return query
                         end
                     ) as is_met
             from pat_cvalues
+              left join orders_severe_sepsis_lead_times OLT
+                on pat_cvalues.pat_id = OLT.pat_id
+              left join orders_septic_shock_onsets OST
+                on pat_cvalues.pat_id = OST.pat_id
             where pat_cvalues.name in (
                 'initial_lactate_order',
                 'blood_culture_order',
@@ -1484,7 +1577,7 @@ return query
                                 and coalesce(lactate_results.tsp > initial_lactate_order.tsp, false))
                     ) or
                     (
-                      not( coalesce(initial_lactate_order.is_met
+                      not( coalesce(initial_lactate_order.is_completed
                                       and ( lactate_results.is_met or pat_cvalues.tsp <= initial_lactate_order.tsp )
                                     , false) )
                     )) is_met
@@ -1492,7 +1585,8 @@ return query
             left join (
                 select oc.pat_id,
                        max(case when oc.is_met then oc.measurement_time else null end) as tsp,
-                       bool_or(oc.is_met) as is_met
+                       bool_or(oc.is_met) as is_met,
+                       coalesce(min(oc.value) = 'Completed', false) as is_completed
                 from orders_criteria oc
                 where oc.name = 'initial_lactate_order'
                 group by oc.pat_id
