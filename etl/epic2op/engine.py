@@ -391,13 +391,7 @@ class Epic2Op:
     self.hospital       = hospital
     self.lookback_hours = lookback_hours
     self.db_name        = db_name
-    self.config         = {
-      'db_name': db_name or os.environ['db_name'],
-      'db_user': os.environ['db_user'],
-      'db_pass': os.environ['db_password'],
-      'db_host': os.environ['db_host'],
-      'db_port': os.environ['db_port'],
-    }
+    self.config         = Config(debug=True, db_name=db_name)
 
   def main(self):
     main(self.max_num_pats, self.hospital, self.lookback_hours, self.db_name)
