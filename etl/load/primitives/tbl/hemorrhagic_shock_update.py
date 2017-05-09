@@ -1,6 +1,6 @@
 import asyncio
 import etl.load.primitives.tbl.clean_tbl as clean_tbl
-
+from etl.load.primitives.tbl.derive_helper import *
 '''
   Created: 09/01/2016
   Author: Katie Henry
@@ -15,6 +15,7 @@ async def hemorrhagic_shock_update(fid, fid_input, conn, log, dataset_id, derive
         and fid_input_items[1] == 'lactate' \
         and fid_input_items[2] == 'sbpm', \
         'wrong fid_input %s' % fid_input
+    twf_table_src = get_src_twf_table(derive_feature_addr)
     twf_table_temp = derive_feature_addr[fid]['twf_table_temp']
     await conn.execute(clean_tbl.cdm_twf_clean(fid,  twf_table=twf_table_temp, dataset_id=dataset_id))
     update_clause = """
@@ -28,6 +29,8 @@ async def hemorrhagic_shock_update(fid, fid_input, conn, log, dataset_id, derive
         on c1.enc_id=c2.enc_id and c2.tsp >= c1.tsp and c2.tsp <= c1.tsp + interval '6 hours'
         group by c1.enc_id, c1.tsp, lactate_c, sbpm_c, lactate, sbpm ) c4
       where %(twf_table)s.enc_id=c4.enc_id and %(twf_table)s.tsp=c4.tsp %(dataset_block)s;
-    """ % {'twf_table': twf_table_temp, 'dataset_block': ' and dataset_id = %s' % dataset_id if dataset_id is not None else ''}
+    """ % {'twf_table': twf_table_src,
+           'twf_table_temp': twf_table_temp,
+           'dataset_block': ' and dataset_id = %s' % dataset_id if dataset_id is not None else ''}
     log.info("hemorrhagic_shock_update:%s" % update_clause)
     await conn.execute(update_clause)

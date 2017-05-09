@@ -465,7 +465,7 @@ async def septic_shock_update(fid, fid_input, conn, log, dataset_id, derive_feat
   # UPDATE 8/19/2016
   assert fid == 'septic_shock', 'wrong fid %s' % fid
   select_sql = """
-  select enc_id, tsp from %(twf_table)s
+  select enc_id, tsp, coalesce(%(conf)s,0) conf from %(twf_table)s
   where %(condition)s %(with_ds)s
   """
 
@@ -482,11 +482,14 @@ async def septic_shock_update(fid, fid_input, conn, log, dataset_id, derive_feat
   severe_sepsis_twf_table_temp = derive_feature_addr['severe_sepsis']['twf_table_temp']
   twf_table_temp = derive_feature_addr['septic_shock']['twf_table_temp']
   records = \
-    await conn.fetch(select_sql % {'condition':'severe_sepsis is true',
-                      'twf_table': severe_sepsis_twf_table_temp, 'with_ds': with_ds(dataset_id)})
+    await conn.fetch(select_sql \
+      % {'condition':'severe_sepsis is true',
+         'conf': 'severe_sepsis_c',
+         'twf_table': severe_sepsis_twf_table_temp,
+         'with_ds': with_ds(dataset_id)})
   for rec in records:
     await conn.execute(update_clause \
-      % {'conf':'severe_sepsis_c',
+      % {'conf':rec['conf'],
          'flag':1,
          'enc_id': rec['enc_id'],
          'tsp': rec['tsp'],
@@ -497,11 +500,12 @@ async def septic_shock_update(fid, fid_input, conn, log, dataset_id, derive_feat
   records = \
     await conn.fetch(select_sql \
       % {'condition':'hypotension_intp is true or lactate > 4',
+         'conf': 'hypotension_intp_c | lactate_c',
          'twf_table':'(' + subquery + ') source',
          'with_ds': with_ds(dataset_id)})
   for rec in records:
     await conn.execute(update_clause \
-      % {'conf':'hypotension_intp_c | lactate_c',
+      % {'conf': rec['conf'],
          'flag':2,
          'enc_id': rec['enc_id'],
          'tsp': rec['tsp'],
@@ -511,11 +515,12 @@ async def septic_shock_update(fid, fid_input, conn, log, dataset_id, derive_feat
   records = \
     await conn.fetch(select_sql % \
       {'condition':'fluid_resuscitation is true or vasopressor_resuscitation is true',
+       'conf': 'fluid_resuscitation_c | vasopressor_resuscitation_c',
        'twf_table': '(' + subquery + ') source',
        'with_ds': with_ds(dataset_id)})
   for rec in records:
     await conn.execute(update_clause \
-      % {'conf':'fluid_resuscitation_c | vasopressor_resuscitation_c',
+      % {'conf':rec['conf'],
          'flag':4,
          'enc_id': rec['enc_id'],
          'tsp': rec['tsp'],
@@ -1275,12 +1280,12 @@ async def acute_kidney_failure_update(fid, fid_input, conn, log, dataset_id, der
   select_uo = """
   SELECT tsp FROM %(twf_table_ur24)s
   WHERE urine_output_24hr < 500
-    and enc_id = %(enc_id)s%(with_ds)s
+    and enc_id = %(enc_id)s %(with_ds)s
     and tsp >= timestamptz '%(tsp)s'
     and timestamptz '%(tsp)s' <= tsp + interval '24 hours'
     AND
-      tsp - (SELECT min(cdm_twf_2.tsp) FROM %(twf_table)s cdm_twf_2
-           WHERE cdm_twf_2.enc_id = cdm_twf.enc_id)
+      tsp - (SELECT min(cdm_twf_2.tsp) FROM %(twf_table_ur24)s cdm_twf_2
+           WHERE cdm_twf_2.enc_id = %(twf_table_ur24)s.enc_id)
       >= interval '24 hours'
   ORDER BY tsp
   """
@@ -1308,12 +1313,13 @@ async def acute_kidney_failure_update(fid, fid_input, conn, log, dataset_id, der
     t1 = tsp
     if len(evidence) > 0:
       t1 = evidence[0]['tsp']
-
-    evidence = await conn.fetch(select_uo \
-      % {'enc_id':enc_id, 'tsp':tsp,
+    sql = select_uo \
+      % {'enc_id':enc_id,
+         'tsp':tsp,
          'twf_table_ur24': twf_table_uo,
-         'twf_table': src_twf_table,
-         'with_ds': with_ds(dataset_id)})
+         'with_ds': with_ds(dataset_id)}
+    # log.info(sql)
+    evidence = await conn.fetch(sql)
     t2 = tsp
     if len(evidence) > 0:
       t2 = evidence[0]['tsp']

@@ -18,23 +18,23 @@ CONF = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'conf')
 job_config = {
   'plan': False,
   'reset_dataset': {
-    # 'remove_pat_enc': True,
-    # 'remove_data': True,
-    # 'start_enc_id': 1
+    'remove_pat_enc': True,
+    'remove_data': True,
+    'start_enc_id': 1
   },
   'transform': {
-    # 'populate_patients': {
-    #   'limit': None
-    # },
-    # 'populate_measured_features': {
-    #   'fid': None,
-    #   'nprocs': int(os.environ['nprocs']) if 'nprocs' in os.environ else 1,
-    # },
-    # 'min_tsp': os.environ['min_tsp'] if 'min_tsp' in os.environ else None
+    'populate_patients': {
+      'limit': None
+    },
+    'populate_measured_features': {
+      'fid': None,
+      'nprocs': int(os.environ['nprocs']) if 'nprocs' in os.environ else 1,
+    },
+    'min_tsp': os.environ['min_tsp'] if 'min_tsp' in os.environ else None
   },
   'fillin': {
-    # 'recalculate_popmean': False,
-    # 'vacuum': True,
+    'recalculate_popmean': False,
+    'vacuum': True,
   },
   'derive': {
     'parallel': False,

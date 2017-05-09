@@ -33,6 +33,7 @@ async def hemorrhage_update(fid, fid_input, conn, log , dataset_id, derive_featu
             where prior_events =1 and future_events >= 3
             order by rbc_2.enc_id, rbc_2.tsp;
     """ % {'dataset_block': ' and c1.dataset_id = %s and c2.dataset_id = %s' % (dataset_id, dataset_id) if dataset_id is not None else ''}
+    # log.info(select_sql)
     rows = await conn.fetch(select_sql)
     for row in rows:
         values = [row['enc_id'], row['tsp'], fid, "True",
