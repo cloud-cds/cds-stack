@@ -421,8 +421,9 @@ class DBCompareTest():
     self.passed = False
 
   def _init_(self):
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
     loop.run_until_complete(self.run_init())
+    loop.close()
 
   async def run_init(self):
     self.epic2op_pool = await asyncpg.create_pool(
@@ -466,8 +467,9 @@ class DBCompareTest():
 
   def clean_db(self, db_config):
     print("clean_db: %s" % db_config['name'])
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
     loop.run_until_complete(self.run_clean_db(db_config))
+    loop.close()
 
   async def run_clean_db(self, db_config):
     if 'job' in db_config:
@@ -510,8 +512,9 @@ class DBCompareTest():
 
   def copy_pat_enc(self, db_config):
     print("copy_pat_enc")
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
     loop.run_until_complete(self.run_copy_pat_enc(db_config))
+    loop.close()
 
   async def run_copy_pat_enc(self, db_config):
     job = db_config['job']
@@ -532,8 +535,9 @@ class DBCompareTest():
       print(result)
 
   def db_compare(self, db_config):
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
     loop.run_until_complete(self.run_db_compare(db_config))
+    loop.close()
 
   async def check_tsp_range(self, tsp_range, src_server, dbpool):
     sql = '''
