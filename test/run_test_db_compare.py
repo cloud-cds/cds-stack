@@ -199,7 +199,7 @@ daily_compare_light = [
     'name': 'daily_epic2op_light',
     'engine': EngineEpic2op(db_name='daily_epic2op_light', max_num_pats=20),
     'pipeline': {
-      'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
+      # 'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
       'populate_db': True,
     },
   },
