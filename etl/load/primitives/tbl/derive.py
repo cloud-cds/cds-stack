@@ -1254,7 +1254,7 @@ async def acute_kidney_failure_update(fid, fid_input, conn, log, dataset_id, der
   WITH S as (
     SELECT enc_id, min(tsp) pat_min_tsp from %(twf_table)s
     %(dataset_id_equal)s
-    group by %(dataset_id)s enc_id
+    group by enc_id
   )
   INSERT INTO cdm_t (%(dataset_id)s enc_id, tsp, fid, value, confidence)
   SELECT %(dataset_id)s enc_id, tsp, 'acute_kidney_failure' as fid, 'True' as value, max(conf) as confidence
@@ -1267,7 +1267,7 @@ async def acute_kidney_failure_update(fid, fid_input, conn, log, dataset_id, der
     LEFT JOIN cdm_t di on di.tsp >= akfi.tsp and di.tsp <= akfi.tsp + '24 hours'::interval and di.enc_id = akfi.enc_id
     where akfi.fid = 'acute_kidney_failure_inhosp'
       %(dataset_id_equal_akfi)s
-      and cr.creatinine > 5 %(dataset_id_equal_cr)s
+      and cr.creatinine > 5 and cr.creatinine_c < 8 %(dataset_id_equal_cr)s
       and ur24.urine_output_24hr < 500 and ur24.tsp - (select pat_min_tsp from S where S.enc_id = ur24.enc_id) >= '24 hours'::interval %(dataset_id_equal_ur24)s
       and di.value = 'True' %(dataset_id_equal_di)s
   ) source
