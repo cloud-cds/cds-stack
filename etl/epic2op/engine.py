@@ -43,11 +43,11 @@ def main(max_num_pats=None, hospital=None, lookback_hours=None, db_name=None):
 
   # Create jhapi_extractor
   extractor = JHAPIConfig(
-    hospital =       hospital or os.environ['TREWS_ETL_HOSPITAL'],
+    hospital       = hospital or os.environ['TREWS_ETL_HOSPITAL'],
     lookback_hours = lookback_hours or os.environ['TREWS_ETL_HOURS'],
-    jhapi_server =   'prod' or os.environ['TREWS_ETL_SERVER'],
-    jhapi_id =       os.environ['jhapi_client_id'],
-    jhapi_secret =   os.environ['jhapi_client_secret'],
+    jhapi_server   = 'prod' or os.environ['TREWS_ETL_SERVER'],
+    jhapi_id       = os.environ['jhapi_client_id'],
+    jhapi_secret   = os.environ['jhapi_client_secret'],
   )
 
   # Get stuff for boto client
@@ -394,6 +394,15 @@ class Epic2Op:
 
   def main(self):
     main(self.max_num_pats, self.hospital, self.lookback_hours, self.db_name)
+
+  def get_db_config(self):
+    return {
+      'db_name': self.config.db_name,
+      'db_user': self.config.db_user,
+      'db_pass': self.config.db_pass,
+      'db_host': self.config.db_host,
+      'db_port': self.config.db_port,
+    }
 
   async def init(self):
     self.pool = await asyncpg.create_pool(database=self.config.db_name,
