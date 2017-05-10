@@ -41,7 +41,8 @@ job_config = {
     'fid': None,
     'mode': None,
     'num_derive_groups': int(os.environ['num_derive_groups']) if 'num_derive_groups' in os.environ else 2,
-    'vacuum_temp_table': bool(os.environ['vacuum_temp_table']) if 'vacuum_temp_table' in os.environ else False
+    'vacuum_temp_table': bool(os.environ['vacuum_temp_table']) if 'vacuum_temp_table' in os.environ else False,
+    'partition_mode': int(os.environ['partition_mode']) if 'partition_mode' in os.environ else 1,
   },
   'offline_criteria_processing': {
     'load_cdm_to_criteria_meas':True,
@@ -137,9 +138,10 @@ class Planner():
 
   def gen_derive_plan(self):
     num_derive_groups = self.job.get('derive').get('num_derive_groups', 0)
+    partition_mode = self.job.get('derive').get('partition_mode')
     parallel = self.job.get('derive').get('parallel')
     vacuum_temp_table = self.job.get('derive').get('vacuum_temp_table', False)
-    self.extractor.derive_feature_addr = get_derive_feature_addr(self.db_config, self.extractor.dataset_id, num_derive_groups)
+    self.extractor.derive_feature_addr = get_derive_feature_addr(self.db_config, self.extractor.dataset_id, num_derive_groups, partition_mode)
     self.log.info("derive_feature_addr: {}".format(self.extractor.derive_feature_addr))
     if num_derive_groups:
       self.plan.add(Task('derive_init', deps=['vacuum'], coro=self.extractor.derive_init))
@@ -229,7 +231,7 @@ def get_derive_tasks(config, dataset_id, is_grouped):
     )
   return derive_tasks
 
-def get_derive_feature_addr(config, dataset_id, num_derive_groups, twf_table='cdm_twf'):
+def get_derive_feature_addr(config, dataset_id, num_derive_groups, partition_mode, twf_table='cdm_twf'):
   async def _get_derive_features(config):
     conn = await asyncpg.connect(database=config['db_name'], \
                                  user=config['db_user'],     \
@@ -243,8 +245,13 @@ def get_derive_feature_addr(config, dataset_id, num_derive_groups, twf_table='cd
     return derive_features
 
   def partition(lst, n):
-    division = len(lst) / n
-    return [lst[round(division) * i:round(division) * (i + 1)] for i in range(n)]
+    if partition_mode == 1:
+      division = len(lst) / n
+      return [lst[round(division) * i:round(division) * (i + 1)] for i in range(n)]
+    elif partition_mode == 2: # this is not efficient
+      return [lst[i::n] for i in range(n)]
+    else:
+      raise Exception('Unknown partition mode')
 
   loop = asyncio.new_event_loop()
   derive_features = loop.run_until_complete(_get_derive_features(config))
