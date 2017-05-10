@@ -68,6 +68,7 @@ class Extractor:
       delete from cdm_s where dataset_id = %(dataset_id)s;
       delete from cdm_t where dataset_id = %(dataset_id)s;
       delete from cdm_twf where dataset_id = %(dataset_id)s;
+      delete from cdm_notes where dataset_id = %(dataset_id)s;
       delete from criteria_meas where dataset_id = %(dataset_id)s;
       ''' % {'dataset_id': self.dataset_id}
     if reset_job.get('remove_pat_enc', False):

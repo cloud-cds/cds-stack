@@ -263,7 +263,7 @@ async def notes(connection, dataset_id, log, is_plan):
           PE.pat_id as pat_id,
           "NOTE_ID" as note_id,
           "NoteType" as note_type,
-          "NoteStatus" as note_status,
+          coalesce("NoteStatus", 'unknown') as note_status,
           string_agg("NOTE_TEXT", E'\n') as note_body,
           json_build_object('create_instant_dttm', "CREATE_INSTANT_DTTM",
                             'spec_note_time_dttm', json_agg(distinct "SPEC_NOTE_TIME_DTTM"),
