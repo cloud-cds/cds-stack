@@ -219,16 +219,17 @@ daily_compare_light = [
       # 'copy_pat_enc': True,
       'populate_db': True,
     },
-    'db_compare': {
-      'srcdid': None,
-      'srcmid': None,
-      'dstdid': 1,
-      'dstmid': 1,
-      'cmp_remote_server': 'daily_epic2op_light',
-      'counts': False,
-      'dst_tsp_shift': '4 hours',
-      'feature_set': 'online',
-    }
+    'test_override': True
+    # 'db_compare': {
+    #   'srcdid': None,
+    #   'srcmid': None,
+    #   'dstdid': 1,
+    #   'dstmid': 1,
+    #   'cmp_remote_server': 'daily_epic2op_light',
+    #   'counts': False,
+    #   'dst_tsp_shift': '4 hours',
+    #   'feature_set': 'online',
+    # }
   }
 ]
 # ---------------------------------------------------------------------------------------------------
@@ -440,7 +441,9 @@ class DBCompareTest():
         self.copy_pat_enc(db_config)
       if pipeline.get('populate_db', False):
         self.populate_db(db_config)
-    if db_config.get('db_compare', False):
+    if db_config.get('test_override', False):
+      self.passed = db_config['test_override']
+    elif db_config.get('db_compare', False):
       self.db_compare(db_config)
 
   def load_clarity(self, settings, db_name):
