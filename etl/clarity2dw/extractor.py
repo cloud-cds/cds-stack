@@ -716,7 +716,7 @@ class Extractor:
           temp_table_groups[twf_table_temp] = [fid]
     cols = ', '.join(['{fid}, {fid}_c'.format(fid=fid) for fid in self.derive_feature_addr if self.derive_feature_addr[fid]['category'] == 'TWF'])
     select_cols = ', '.join(['{twf_table_temp}.{fid}, {twf_table_temp}.{fid}_c'.format(fid=fid, twf_table_temp=self.derive_feature_addr[fid]['twf_table_temp']) for fid in self.derive_feature_addr if self.derive_feature_addr[fid]['category'] == 'TWF'])
-    set_cols = ', '.join(['{fid} = excluded.{fid}, {fid}_c = excluded.{fid}_c'.format(fid=fid) for fid in self.derive_feature_addr])
+    set_cols = ', '.join(['{fid} = excluded.{fid}, {fid}_c = excluded.{fid}_c'.format(fid=fid) for fid in self.derive_feature_addr if self.derive_feature_addr[fid]['category'] == 'TWF'])
     joins = ' '.join(['left join {tbl} on {dataset_match} cdm_twf.enc_id = {tbl}.enc_id and cdm_twf.tsp = {tbl}.tsp'.format(tbl=table, dataset_match='cdm_twf.dataset_id = {tbl}.dataset_id and'.format(tbl=table) if self.dataset_id is not None else '') for table in temp_table_groups])
     join_sql = join_sql.format(
         twf_table=twf_table,
@@ -726,8 +726,8 @@ class Extractor:
         joins=joins,
         set_cols=set_cols
       )
-    for table_name in temp_table_groups:
-      join_sql += 'DROP TABLE {};'.format(table_name)
+    # for table_name in temp_table_groups:
+    #   join_sql += 'DROP TABLE {};'.format(table_name)
     ctxt.log.info(join_sql)
     async with ctxt.db_pool.acquire() as conn:
       result = await conn.execute(join_sql)
