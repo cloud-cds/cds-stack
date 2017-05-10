@@ -1249,82 +1249,47 @@ async def acute_kidney_failure_update(fid, fid_input, conn, log, dataset_id, der
     "fid_input error: %s" % fid_input_items
   # clean previous values
   await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id))
-  # Retrieve all records of acute_kidney_failure_inhosp
-  select_sql = """
-  SELECT distinct enc_id, tsp FROM cdm_t
-  WHERE  fid = 'acute_kidney_failure_inhosp'%s
-  ORDER BY enc_id,  tsp;
-  """
-  records = await conn.fetch(select_sql % with_ds(dataset_id))
+
+  sql = """
+  WITH S as (
+    SELECT enc_id, min(tsp) from %(twf_table)s
+    %(dataset_id_equal)s
+    group by %(dataset_id)s enc_id
+  )
+  INSERT INTO cdm_t (%(dataset_id)s enc_id, tsp, fid, value, confidence)
+  SELECT %(dataset_id)s enc_id, tsp, fid, 'True', conf
+  FROM (
+    SELECT %(dataset_id_akfi)s akfi.enc_id, coalesce(least(cr.tsp, ur24.tsp, di.tsp), akfi.tsp) as tsp, 'acute_kidney_failure', 'True', greatest(cr.creatinine_c, ur24.urine_output_24hr_c, di.confidence) as conf
+    FROM cdm_t akfi
+    LEFT JOIN %(twf_table)s cr on cr.tsp >= akfi.tsp and
+      cr.tsp <= akfi.tsp + '24 hours'::interval
+    LEFT JOIN %(twf_table_ur24)s ur24 on ur24.tsp >= akfi.tsp and ur24.tsp <= akfi.tsp + '24 hours'::interval
+    LEFT JOIN cdm_t di on di.tsp >= akfi.tsp and di.tsp <= akfi.tsp + '24 hours'::interval
+    where akfi.fid = 'acute_kidney_failure_inhosp'
+      %(dataset_id_equal_akfi)s
+      and cr.creatinine > 5 %(dataset_id_equal_cr)s
+      and ur24.urine_output_24hr < 500 and ur24.tsp - (select min_tsp from S where S.enc_id = ur24.enc_id) >= '24 hours'::interval %(dataset_id_equal_ur24)s
+      and di.value == 'True' %(dataset_id_equal_di)s
+  ) source
+  ON CONFLICT (%(dataset_id)s enc_id,tsp,fid) DO UPDATE SET
+    value = excluded.value and confidence = excluded.confidence
+  """ % {
+    'twf_table': get_src_twf_table(derive_feature_addr),
+    'dataset_id_equal': 'where dataset_id = {}'.format(dataset_id) if dataset_id else '',
+    'dataset_id': 'dataset_id,' if dataset_id else '',
+    'dataset_id_akfi': 'akfi.dataset_id,' if dataset_id else '',
+    'twf_table_ur24': derive_feature_addr['urine_output_24hr']['twf_table_temp'],
+    'dataset_id_equal_akfi': ' and akfi.dataset_id = {}'.format(dataset_id) if dataset_id else '',
+    'dataset_id_equal_cr': ' and cr.dataset_id = {}'.format(dataset_id) if dataset_id else '',
+    'dataset_id_equal_ur24': ' and ur24.dataset_id = {}'.format(dataset_id) if dataset_id else '',
+    'dataset_id_equal_di': ' and di.dataset_id = {}'.format(dataset_id) if dataset_id else '',
+  }
+  log.info(sql)
+  await conn.execute(sql)
 
 
-  select_cr = """
-  SELECT tsp FROM %(src_twf_table)s
-  WHERE creatinine > 5
-    and enc_id = %(enc_id)s%(with_ds)s
-    and tsp >= timestamptz '%(tsp)s'
-    and timestamptz '%(tsp)s' <= tsp + interval '24 hours'
-  ORDER BY tsp
-  """
 
-  select_uo = """
-  SELECT tsp FROM %(twf_table_ur24)s
-  WHERE urine_output_24hr < 500
-    and enc_id = %(enc_id)s %(with_ds)s
-    and tsp >= timestamptz '%(tsp)s'
-    and timestamptz '%(tsp)s' <= tsp + interval '24 hours'
-    AND
-      tsp - (SELECT min(cdm_twf_2.tsp) FROM %(twf_table_ur24)s cdm_twf_2
-           WHERE cdm_twf_2.enc_id = %(twf_table_ur24)s.enc_id)
-      >= interval '24 hours'
-  ORDER BY tsp
-  """
 
-  select_di = """
-  SELECT tsp, value FROM cdm_t
-  WHERE fid = 'dialysis'
-    and enc_id = %(enc_id)s%(with_ds)s
-    and tsp >= timestamptz '%(tsp)s'
-    and timestamptz '%(tsp)s' <= tsp + interval '24 hours'
-  ORDER BY tsp
-  """
-
-  # For each instance of stroke
-  # Set diagnosis time to be min (time of CT, time of  MRI)
-  # Update cdm_t with stroke=TRUE at diagnosis time
-  src_twf_table = get_src_twf_table(derive_feature_addr)
-  twf_table_uo = derive_feature_addr['urine_output_24hr']['twf_table_temp']
-  for record in records:
-    enc_id = record['enc_id']
-    tsp = record['tsp']
-
-    evidence = await conn.fetch(select_cr % {'enc_id':enc_id, 'tsp':tsp,
-                  'src_twf_table': src_twf_table, 'with_ds': with_ds(dataset_id)})
-    t1 = tsp
-    if len(evidence) > 0:
-      t1 = evidence[0]['tsp']
-    sql = select_uo \
-      % {'enc_id':enc_id,
-         'tsp':tsp,
-         'twf_table_ur24': twf_table_uo,
-         'with_ds': with_ds(dataset_id)}
-    # log.info(sql)
-    evidence = await conn.fetch(sql)
-    t2 = tsp
-    if len(evidence) > 0:
-      t2 = evidence[0]['tsp']
-
-    evidence = await conn.fetch(select_di % {'enc_id':enc_id, 'tsp':tsp, 'with_ds': with_ds(dataset_id)})
-    t3 = tsp
-    if len(evidence) > 0:
-      if evidence[0]['value'] == 'True':
-        t3 = evidence[0]['tsp']
-    # By default set datetime of diagnosis to time given in ProblemList table
-    # This datetime only specifies date though
-    tsp_first = min(t1, t2, t3)
-    conf=confidence.NO_TRANSFORM
-
-    await load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf], dataset_id=dataset_id)
 
 
 
