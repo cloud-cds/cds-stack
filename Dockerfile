@@ -1,4 +1,4 @@
-FROM python:3.6-alpine
+FROM python:3.6.1-alpine
 
 # Copy the main code base folder inside the container
 COPY ./dashan-etl /dashan-etl

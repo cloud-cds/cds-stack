@@ -68,8 +68,9 @@ class Engine(object):
     self.dbpool = await asyncpg.create_pool(database=db, user=user, password=pw, host=host, port=port)
 
   def run_loop(self):
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
     loop.run_until_complete(self.run())
+    loop.close()
 
   async def run(self):
     await self._init_()

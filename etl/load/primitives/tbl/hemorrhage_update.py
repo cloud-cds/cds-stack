@@ -8,12 +8,12 @@ import etl.load.primitives.row.load_row as load_row
     Purpose: Insert hemorrhage events into cdm_t based on definition in arch file
     Comments: Need to implement transfuse_rbc feature before this function can be run
 '''
-async def hemorrhage_update(fid, fid_input, conn, log , dataset_id=None, twf_table='cdm_twf'):
+async def hemorrhage_update(fid, fid_input, conn, log , dataset_id, derive_feature_addr, cdm_feature_dict):
     assert fid == 'hemorrhage', 'wrong fid %s' % fid
     fid_input_items = [item.strip() for item in fid_input.split(',')]
     assert fid_input_items[0] == 'transfuse_rbc', \
         'wrong fid_input %s' % fid_input
-    await clean_tbl.cdm_t_clean(conn, fid, dataset_id)
+    await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id))
     select_sql = """
         select rbc_2.enc_id, rbc_2.tsp, 1 confidence, prior_events, future_events from (select distinct c1.enc_id, c1.tsp, count (*) prior_events
             from cdm_t c1 join cdm_t c2
@@ -33,6 +33,7 @@ async def hemorrhage_update(fid, fid_input, conn, log , dataset_id=None, twf_tab
             where prior_events =1 and future_events >= 3
             order by rbc_2.enc_id, rbc_2.tsp;
     """ % {'dataset_block': ' and c1.dataset_id = %s and c2.dataset_id = %s' % (dataset_id, dataset_id) if dataset_id is not None else ''}
+    # log.info(select_sql)
     rows = await conn.fetch(select_sql)
     for row in rows:
         values = [row['enc_id'], row['tsp'], fid, "True",

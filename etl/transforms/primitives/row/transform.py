@@ -50,10 +50,11 @@ def transform(fid, func_id, entry, output_data_type, log):
         func = getattr(this_mod, func_id, log)
         try:
             return func(entry, log)
-        except:
+        except Exception as e:
             log.exception('transform function %s: Invalid data entry %s' \
                 % (func_id, entry))
-            traceback.print_exc(file=sys.stdout)
+            log.error(e, exc_info=True)
+            # traceback.print_exc()
             # return None
     else:
         """ dummy function"""
@@ -290,6 +291,7 @@ AMOXIL = {
     "amoxicillin-clavulanate (AUGMENTIN) 500-125 mg per tablet 1 tablet" : 500,
     "amoxicillin-clavulanate (AUGMENTIN) 875-125 mg per tablet 1 tablet" : 875,
     "amoxicillin-clavulanate (AUGMENTIN) 875-125 mg per tablet 875 mg" : 875,
+    "amoxicillin-clavulanate (AUGMENTIN) 250-125 mg per tablet: Dose: 1 tablet" : 250,
     "amoxicillin-clavulanate (AUGMENTIN) 875-125 mg per tablet: Dose: 1 tablet" : 875
 }
 
@@ -1180,13 +1182,17 @@ def threshold(entry, lower, upper, log):
         if entry is not None:
             if str(type(entry)) == "<class 'Record'>" or isinstance(entry, list):
                 # entry is a list
-                value = float(entry[-1]) # last item is the value
-            else:
-                value = float(entry) # entry is a number
-            if value >= lower and value <= upper:
-                return [value, confidence.NO_TRANSFORM]
-    except:
-        log.warn("ValueError for threshold function: %s, lower: %s, upper: %s" % (entry, lower, upper))
+                entry = entry[-1] # last item is the value
+            # entry is a number item
+            if isinstance(entry, str) and (entry.startswith('<') or entry.startswith('>')):
+                entry = entry[1:]
+            value = entry
+            if value is not None:
+                value = float(value)
+                if lower <= value <= upper:
+                    return [value, confidence.NO_TRANSFORM]
+    except Exception as e:
+        log.warn("%s for threshold function: %s, lower: %s, upper: %s" % (e, entry, lower, upper))
 
 # def threshold_fio2(entry, log):
 #     return threshold(entry, 0.1, 1, log)

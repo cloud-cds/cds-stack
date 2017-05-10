@@ -15,16 +15,12 @@ class Config:
     """
     CONF = os.path.dirname(os.path.abspath(__file__))
     CONF = os.path.join(CONF, 'conf')
-    # LOG_CONF = os.path.join(CONF, 'logging.conf')
-    # may not useful so comment out by zad
-    # CDM_FEATURE_CSV = os.path.join(CONF, 'CDM_Feature.csv')
-    # CDM_FUNCTION_CSV = os.path.join(CONF, 'CDM_Function.csv')
     FEATURE_MAPPING_CSV = os.path.join(CONF, 'feature_mapping.csv')
 
     def set_log(self, log):
         self.log = log
 
-    def __init__(self, log='Dashan', debug=False, logfile=None, conf=None, db_name=None, db_host=None, dataset_id=None):
+    def __init__(self, name='Dashan', debug=False, logfile=None, conf=None, db_name=None, db_host=None, dataset_id=None):
         self.log_fmt = LOG_FMT
         if conf:
             self.CONF = conf
@@ -33,7 +29,7 @@ class Config:
         if dataset_id is not None:
             self.dataset_id = dataset_id
         if logfile:
-            self.log = logging.getLogger(log)
+            self.log = logging.getLogger(name)
             fh = logging.FileHandler(logfile)
             formatter = logging.Formatter(self.log_fmt)
             fh.setFormatter(formatter)
@@ -41,13 +37,13 @@ class Config:
         else:
             level = logging.INFO
             # print(log)
-            self.log_fmt = self.log_fmt.replace("%(name)s", log)
+            self.log_fmt = self.log_fmt.replace("%(name)s", name)
         if debug:
             level = logging.DEBUG
         # print(self.log_fmt)
         self.log_fmt = self.log_fmt.replace("%(pid)s", str(os.getpid()))
         # print(self.log_fmt)
-        self.log = logging.getLogger(log)
+        self.log = logging.getLogger(name)
         self.log.setLevel(level)
         sh = logging.StreamHandler()
         formatter = logging.Formatter(self.log_fmt)

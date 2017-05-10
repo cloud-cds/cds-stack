@@ -18,6 +18,7 @@ bedded_patients_transforms = [
         'MedicalHistory':   'history',
         'ProblemList':      'problem_all',
         'HospProblemList':  'problem',
+        'hospital':         'hospital',
     }),
     lambda bp: restructure.extract_id_from_list(bp, 'pat_id', 'EMRN'),
     lambda bp: filter_rows.filter_on_icd9(bp),

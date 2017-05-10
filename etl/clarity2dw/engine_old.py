@@ -1,6 +1,5 @@
+# DEPRECATED
 import asyncio
-import uvloop
-asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 import asyncpg
 from etl.core.config import Config
@@ -88,8 +87,9 @@ class Engine(object):
     self.extractor = Extractor(self.pool, self.config)
 
   def main(self):
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
     loop.run_until_complete(self.run())
+    loop.close()
 
   async def run(self):
     # extractors to run ETL

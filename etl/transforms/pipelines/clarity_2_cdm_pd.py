@@ -6,7 +6,10 @@ from etl.transforms.primitives.df.pandas_utils import async_read_df
 from etl.mappings import lab_procedures as lp_config
 from etl.load.primitives.row import load_row
 import etl.transforms.primitives.df.filter_rows as filter_rows
+from etl.clarity2dw.extractor import log_time
+import time
 import os
+import asyncio
 
 
 def get_min_tsp(tsp_name):
@@ -20,73 +23,71 @@ def get_min_tsp(tsp_name):
 # Utilities
 #============================
 async def pull_med_orders(connection, dataset_id, log, is_plan):
+  start = time.time()
+  log.info('Entered Med Orders Extraction')
+  sql = """select pe.enc_id, mo."ORDER_INST", mo."display_name", mo."MedUnit",mo."Dose"
+                               from "OrderMed" mo
+                               inner join
+                               pat_enc pe
+                               on mo."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp}
+                              ;""".format(dataset_id=dataset_id, min_tsp=get_min_tsp("ORDER_INST"))
+  log.info(sql)
+  mo = await async_read_df(sql, connection)
+  if mo is None:
+      return
+  extracted = mo.shape[0]
 
-    log.info('Entered Med Orders Extraction')
-    sql = """select pe.enc_id, mo."ORDER_INST", mo."display_name", mo."MedUnit",mo."Dose"
-                                 from "OrderMed" mo
-                                 inner join
-                                 pat_enc pe
-                                 on mo."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp}
-                                ;""".format(dataset_id=dataset_id, min_tsp=get_min_tsp("ORDER_INST"))
-    log.info(sql)
-    mo = await async_read_df(sql, connection)
-    if mo is None:
-        return
+  mo = restructure.select_columns(mo, {'enc_id': 'enc_id',
+                                       'ORDER_INST':'tsp',
+                                       'display_name': 'full_name',
+                                       'MedUnit':'dose_unit',
+                                       'Dose': 'dose'})
 
-    mo = restructure.select_columns(mo, {'enc_id': 'enc_id',
-                                         'ORDER_INST':'tsp',
-                                         'display_name': 'full_name',
-                                         'MedUnit':'dose_unit',
-                                         'Dose': 'dose'})
-
-    mo = mo.dropna(subset=['full_name'])
-    mo = translate.translate_med_name_to_fid(mo)
-    mo = filter_rows.filter_medications(mo)
-    mo = format_data.clean_units(mo, 'fid', 'dose_unit')
-    mo = format_data.clean_values(mo, 'fid', 'dose')
-    mo = translate.convert_units(mo, fid_col='fid',
-                                 fids=['piperacillin_tazbac_dose', 'vancomycin_dose',
-                                          'cefazolin_dose', 'cefepime_dose', 'ceftriaxone_dose',
-                                          'ampicillin_dose'],
-                                 unit_col='dose_unit', from_unit='g', to_unit='mg',
-                                 value_col='dose', convert_func=translate.g_to_mg)
+  mo = mo.dropna(subset=['full_name'])
+  mo = translate.translate_med_name_to_fid(mo)
+  mo = filter_rows.filter_medications(mo)
+  mo = format_data.clean_units(mo, 'fid', 'dose_unit')
+  mo = format_data.clean_values(mo, 'fid', 'dose')
+  mo = translate.convert_units(mo, fid_col='fid',
+                               fids=['piperacillin_tazbac_dose', 'vancomycin_dose',
+                                        'cefazolin_dose', 'cefepime_dose', 'ceftriaxone_dose',
+                                        'ampicillin_dose'],
+                               unit_col='dose_unit', from_unit='g', to_unit='mg',
+                               value_col='dose', convert_func=translate.g_to_mg)
 
 
-    mo = derive.combine(mo, 'vasopressors_dose',
-                        ['vasopressin_dose', 'neosynephrine_dose', 'levophed_infusion_dose',
-                               'lactated_ringers', 'epinephrine_dose', 'dopamine_dose',
-                               'dobutamine_dose'],keep_originals=False)
+  mo = derive.combine(mo, 'vasopressors_dose',
+                      ['vasopressin_dose', 'neosynephrine_dose', 'levophed_infusion_dose',
+                             'lactated_ringers', 'epinephrine_dose', 'dopamine_dose',
+                             'dobutamine_dose'],keep_originals=False)
 
-    mo = derive.combine(mo, 'crystalloid_fluid',
-                        ['lactated_ringers', 'sodium_chloride'],keep_originals=False)
+  mo = derive.combine(mo, 'crystalloid_fluid',
+                      ['lactated_ringers', 'sodium_chloride'],keep_originals=False)
 
-    mo = derive.combine(mo, 'cms_antibiotics',
-                        ['cefepime_dose', 'ceftriaxone_dose', 'piperacillin_tazbac_dose',
-                               'levofloxacin_dose', 'moxifloxacin_dose', 'vancomycin_dose',
-                               'metronidazole_dose', 'aztronam_dose', 'ciprofloxacin_dose',
-                               'gentamicin_dose', 'azithromycin_dose'],keep_originals=False)
+  mo = derive.combine(mo, 'cms_antibiotics',
+                      ['cefepime_dose', 'ceftriaxone_dose', 'piperacillin_tazbac_dose',
+                             'levofloxacin_dose', 'moxifloxacin_dose', 'vancomycin_dose',
+                             'metronidazole_dose', 'aztronam_dose', 'ciprofloxacin_dose',
+                             'gentamicin_dose', 'azithromycin_dose'],keep_originals=False)
 
-    mo = format_data.threshold_values(mo, 'dose')
-
-    mo = mo.loc[mo['fid'].apply(lambda x: x in ['cms_antibiotics', 'crystalloid_fluid', 'vasopressors_dose'])]
-
-    mo['fid'] += '_order'
-
-    mo['confidence'] = 2
-
-    if not is_plan:
-      for idx, row in mo.iterrows():
-        await load_row.upsert_t(connection,
-                                [row['enc_id'], row['tsp'], row['fid'], str(row['dose']), row['confidence']],
-                                dataset_id=dataset_id)
-      log.info('Medication Administration Write complete')
-    else:
-      log.info('Medication Administration Upsert skipped, due to plan mode')
-
-    return mo
+  mo = format_data.threshold_values(mo, 'dose')
+  mo = mo.loc[mo['fid'].apply(lambda x: x in ['cms_antibiotics', 'crystalloid_fluid', 'vasopressors_dose'])]
+  mo['fid'] += '_order'
+  mo['confidence'] = 2
+  if not is_plan:
+    for idx, row in mo.iterrows():
+      await load_row.upsert_t(connection,
+                              [row['enc_id'], row['tsp'], row['fid'], str(row['dose']), row['confidence']],
+                              dataset_id=dataset_id)
+    log.info('Medication Administration Write complete')
+  else:
+    log.info('Medication Administration Upsert skipped, due to plan mode')
+  loaded = mo.shape[0]
+  log_time(log, 'pull_med_orders', start, extracted, loaded)
+  return 'pull_med_orders'
 
 async def pull_medication_admin(connection, dataset_id, log, is_plan):
-
+  start = time.time()
   log.info('Entering Medication Administrtaion Processing')
   sql = """select pe.enc_id, ma.display_name,
                                   ma."Dose", ma."MedUnit",
@@ -102,7 +103,7 @@ async def pull_medication_admin(connection, dataset_id, log, is_plan):
 
   if ma is None:
     return
-
+  extracted = ma.shape[0]
   ma = restructure.select_columns(ma, {'enc_id': 'enc_id',
                                       'display_name':'full_name',
                                       'Dose':'dose_value',
@@ -146,11 +147,13 @@ async def pull_medication_admin(connection, dataset_id, log, is_plan):
     log.info('Medication Order Write complete')
   else:
     log.info('Medication Order Upsert skipped, due to plan mode')
-
-  return ma
+  loaded = ma.shape[0]
+  log_time(log, 'pull_medication_admin', start, extracted, loaded)
+  return 'pull_medication_admin'
 
 async def bands(connection, dataset_id, log, is_plan):
   log.info("Entering bands Processing")
+  start = time.time()
   sql = """select pe.enc_id, lb."NAME" ,
                                 lb."ResultValue", lb."RESULT_TIME"
                                 from
@@ -163,6 +166,7 @@ async def bands(connection, dataset_id, log, is_plan):
   labs = await async_read_df(sql,connection)
   if labs is None:
     return
+  extracted = labs.shape[0]
 
   labs = restructure.select_columns(labs, {'enc_id': 'enc_id',
                                            'NAME': 'fid',
@@ -181,9 +185,14 @@ async def bands(connection, dataset_id, log, is_plan):
     log.info('Bands Write complete')
   else:
     log.info('Bands write skipped, due to plan mode')
+  loaded = labs.shape[0]
+  log_time(log, 'bands', start, extracted, loaded)
+  return 'bands'
 
 async def pull_order_procs(connection, dataset_id, log, is_plan):
   log.info("Entering order procs Processing")
+  start = time.time()
+  extracted = 0
   sql = """select pe.enc_id,
                               op."CSN_ID",op."proc_name", op."ORDER_TIME", op."OrderStatus", op."LabStatus",
                               op."PROC_START_TIME",op."PROC_ENDING_TIME"
@@ -241,5 +250,42 @@ async def pull_order_procs(connection, dataset_id, log, is_plan):
     log.info('Order Procs Write complete')
   else:
     log.info('Order Procs write skipped, due to plan mode')
+  loaded = op.shape[0]
+  log_time(log, 'pull_order_procs', start, extracted, loaded)
+  return 'pull_order_procs'
 
-  pass
+async def notes(connection, dataset_id, log, is_plan):
+  log.info("Entering Notes Processing")
+  start = time.time()
+  sql = '''
+  insert into cdm_notes(dataset_id, pat_id, note_id, note_type, note_status, note_body, dates, providers)
+  select  %(dataset_id)s as dataset_id,
+          PE.pat_id as pat_id,
+          "NOTE_ID" as note_id,
+          "NoteType" as note_type,
+          "NoteStatus" as note_status,
+          string_agg("NOTE_TEXT", E'\n') as note_body,
+          json_build_object('create_instant_dttm', "CREATE_INSTANT_DTTM",
+                            'spec_note_time_dttm', json_agg(distinct "SPEC_NOTE_TIME_DTTM"),
+                            'entry_instant_dttm', json_agg(distinct "ENTRY_ISTANT_DTTM")
+                            ) as dates,
+          json_build_object('AuthorType', json_agg(distinct "AuthorType")) as providers
+  from "Notes" N
+  inner join pat_enc PE
+    on N."CSN_ID" = PE.visit_id and PE.dataset_id = %(dataset_id)s %(min_tsp)s
+  group by PE.pat_id, "NOTE_ID", "NoteType", "NoteStatus", "CREATE_INSTANT_DTTM"
+  on conflict (dataset_id, pat_id, note_id, note_type, note_status) do update
+    set note_body = excluded.note_body,
+        dates = excluded.dates,
+        providers = excluded.providers
+  ''' % {'dataset_id': dataset_id, 'min_tsp': get_min_tsp('CREATE_INSTANT_DTTM')}
+
+  log.info(sql)
+  status = 'did-not-run'
+  if not is_plan:
+    status = await load_row.execute_load(connection, sql, log, timeout=None)
+  else:
+    log.info('Notes query skipped, due to plan mode')
+
+  log_time(log, 'note', start, '[status: %s]' % status, '[status: %s]' % status)
+  return 'note'

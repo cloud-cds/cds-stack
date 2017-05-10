@@ -50,6 +50,18 @@ med_regex = [
         'pos': '^clindamycin',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop'
     }, {
+        'fid': 'dextrose_water',
+        'pos': '^dextrose (5|10)( %|%) in water',
+        'neg': 'syringe|nasal spray|injection|gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
+        # 'part_of': ['fluids_intake', 'crystalloid_fluid'],
+        'part_of': ['crystalloid_fluid']
+    }, {
+        'fid': 'dextrose_normal_saline',
+        'pos': '^dextrose (5|10)( %|%) and (0.2|0.45|0.9)( %|%) NS',
+        'neg': 'syringe|nasal spray|injection|gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
+        # 'part_of': ['fluids_intake', 'crystalloid_fluid'],
+        'part_of': ['crystalloid_fluid']
+    }, {
         'fid': 'dobutamine_dose',
         'pos': 'dobutamine',
         'neg':  'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
@@ -80,7 +92,7 @@ med_regex = [
         # 'part_of': ['fluids_intake'],
     }, {
         'fid': 'lactated_ringers',
-        'pos': '^lactated ringers|^dextrose 5% lactated ringers bolus',
+        'pos': '^lactated ringers|^dextrose 5( %|%) in lactated ringers bolus',
         'neg': 'syringe|nasal spray|injection|gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
         # 'part_of': ['fluids_intake', 'crystalloid_fluid'],
         'part_of': ['crystalloid_fluid']
@@ -135,8 +147,14 @@ med_regex = [
         'pos': '^rifampin',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
     }, {
+        'fid': 'sodium_bicarbonate',
+        'pos': '^sodium bicarbonate.*infusion$',
+        'neg': 'syringe|nasal spray|injection|gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
+        # 'part_of': ['fluids_intake', 'crystalloid_fluid'],
+        'part_of': ['crystalloid_fluid'],
+    }, {
         'fid': 'sodium_chloride',
-        'pos': '^sodium chloride 0.9( %|%)',
+        'pos': '^sodium chloride (0.45|0.9)( %|%)',
         'neg': 'syringe|nasal spray|injection|gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
         # 'part_of': ['fluids_intake', 'crystalloid_fluid'],
         'part_of': ['crystalloid_fluid'],

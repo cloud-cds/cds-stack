@@ -2,16 +2,17 @@ import etl.core.config
 import logging
 
 # TODO: make async / use COPY
-def data_2_workspace(engine, job_id, df_name, df, dtypes=None, if_exists='replace'):
+def data_2_workspace(logger, engine, job_id, df_name, df, dtypes=None, if_exists='replace'):
     if df is not None:
         nrows = df.shape[0]
         table_name = "{}_{}".format(job_id, df_name)
-        logging.info("saving data frame to %s: nrows = %s" % (table_name, nrows))
+        logger.info("saving data frame to %s: nrows = %s" % (table_name, nrows))
         if dtypes is not None:
             df = df.astype(dtypes)
         df.to_sql(table_name, engine, if_exists=if_exists, index=False, schema='workspace')
+        logger.info('Successfully saved dataframe to {}, using engine {}'.format(table_name, engine))
     else:
-        logging.error('Failed to load table %s (invalid dataframe)' % df_name)
+        logger.error('Failed to load table %s (invalid dataframe)' % df_name)
     '''
     buf = StringIO()
     # saving a data frame to a buffer (same as with a regular file):
