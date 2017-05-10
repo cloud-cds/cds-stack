@@ -12,11 +12,11 @@ import pandas as pd
 import datetime as dt
 import dateparser
 import logging
+import asyncio, uvloop
 import asyncpg, aiohttp
 import ujson as json
 import boto3, botocore
 from time import sleep
-import asyncio
 
 MODE = {
   1: 'real',

@@ -3,7 +3,7 @@ from etl.core.plan import Plan
 from etl.core.engine import Engine
 from inspect import signature
 import logging
-import asyncio
+import asyncio, uvloop
 import os
 TEST_LOG_FMT = '%(asctime)s|%(funcName)s|%(process)s-%(thread)s|%(levelname)s|%(message)s'
 logging.basicConfig(level=logging.INFO, format=TEST_LOG_FMT)
