@@ -425,6 +425,9 @@ class DBCompareTest():
     )
 
   def run(self):
+    print('DB0 override: ' + str(self.db_pair[0].get('test_override', False)))
+    print('DB1 override: ' + str(self.db_pair[1].get('test_override', False)))
+    print('DB1 override[]: ' + str(self.db_pair[1]['test_override']))
     self.db_setup(self.db_pair[0])
     self.db_setup(self.db_pair[1])
 
@@ -441,6 +444,7 @@ class DBCompareTest():
         self.copy_pat_enc(db_config)
       if pipeline.get('populate_db', False):
         self.populate_db(db_config)
+
     if db_config.get('test_override', False):
       self.passed = db_config['test_override']
     elif db_config.get('db_compare', False):
