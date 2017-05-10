@@ -158,6 +158,7 @@ CREATE TABLE cdm_t (
 DROP TABLE IF EXISTS cdm_notes;
 CREATE TABLE cdm_notes (
     dataset_id      integer REFERENCES dw_version(dataset_id),
+    nid             serial,
     pat_id          varchar(50),
     note_id         varchar(50),
     note_type       varchar(50),
@@ -165,7 +166,7 @@ CREATE TABLE cdm_notes (
     note_body       text,
     dates           json,
     providers       json,
-    PRIMARY KEY (dataset_id, pat_id, note_id, note_type, note_status)
+    PRIMARY KEY (dataset_id, nid)
 );
 
 
