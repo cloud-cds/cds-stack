@@ -270,7 +270,7 @@ cdm_defs = {
         'human_readable':   'Lactate',
     },
     'lactated_ringers': {
-        'unit':     '',
+        'unit':     'ml',
         'value':    float,
         'thresh':   (None, None),
         'human_readable':   'Lactated Ringers',
@@ -426,13 +426,13 @@ cdm_defs = {
         'human_readable':   'Sodium',
     },
     'sodium_bicarbonate': {
-        'unit':     '',
+        'unit':     'ml',
         'value':    float,
         'thresh':   (None, None),
         'human_readable':   'Sodium Bicarbonate',
     },
     'sodium_chloride': {
-        'unit':     '',
+        'unit':     'ml',
         'value':    float,
         'thresh':   (None, None),
         'human_readable':   'Saline',

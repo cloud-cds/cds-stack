@@ -36,6 +36,12 @@ def filter_medications(med_data):
     med_data = med_data[med_data['fid'] != 'Invalid Medication']
     return med_data
 
+def filter_stopped_medications(med_data):
+    return med_data[~med_data['action'].isin(['Paused', 'Stopped'])]
+
+def filter_by_doses(med_data):
+    return med_data[~(pd.isnull(med_data['dose_unit']) | pd.isnull(med_data['dose_value']))]
+
 def filter_location_history_events(lh):
     mask = [et in ['Admission', 'Transfer In','Discharge'] for et in lh.EventType]
     lh = lh[mask]

@@ -86,13 +86,16 @@ class Engine:
   """
   An engine that runs a DAG of Python coroutines
   """
-  def __init__(self, plan, name='etl-engine', nprocs=2, loglevel=logging.INFO):
+  def __init__(self, plan, name='etl-engine', nprocs=2, loglevel=logging.INFO, with_gc=True):
     faulthandler.register(signal.SIGUSR1)
     # An engine identifier.
     self.name = name
 
     # Number of processes
     self.nprocs = nprocs
+
+    # Enable GC
+    self.with_gc = with_gc
 
     # Configure engine logging.
     self.log = logging.getLogger(self.name)
@@ -219,7 +222,7 @@ class Engine:
       dependencies, _ = self.tasks[task_id]
       for d in dependencies:
         self.gc_counters[d] -= 1
-        if self.gc_counters[d] <= 0:
+        if self.with_gc and self.gc_counters[d] <= 0:
           self.task_results[d] = None
           self.log.info('Engine garbage collecting %s' % d)
     else:

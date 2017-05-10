@@ -154,7 +154,7 @@ med_regex = [
         'part_of': ['crystalloid_fluid'],
     }, {
         'fid': 'sodium_chloride',
-        'pos': '^sodium chloride (0.45|0.9)( %|%)',
+        'pos': '^sodium chloride 0.9( %|%)',
         'neg': 'syringe|nasal spray|injection|gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
         # 'part_of': ['fluids_intake', 'crystalloid_fluid'],
         'part_of': ['crystalloid_fluid'],
