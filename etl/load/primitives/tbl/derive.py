@@ -1262,9 +1262,9 @@ async def acute_kidney_failure_update(fid, fid_input, conn, log, dataset_id, der
     SELECT %(dataset_id_akfi)s akfi.enc_id, coalesce(least(cr.tsp, ur24.tsp, di.tsp), akfi.tsp) as tsp, greatest(cr.creatinine_c, ur24.urine_output_24hr_c, di.confidence) as conf
     FROM cdm_t akfi
     LEFT JOIN %(twf_table)s cr on cr.tsp >= akfi.tsp and
-      cr.tsp <= akfi.tsp + '24 hours'::interval
-    LEFT JOIN %(twf_table_ur24)s ur24 on ur24.tsp >= akfi.tsp and ur24.tsp <= akfi.tsp + '24 hours'::interval
-    LEFT JOIN cdm_t di on di.tsp >= akfi.tsp and di.tsp <= akfi.tsp + '24 hours'::interval
+      cr.tsp <= akfi.tsp + '24 hours'::interval and cr.enc_id = akfi.enc_id
+    LEFT JOIN %(twf_table_ur24)s ur24 on ur24.tsp >= akfi.tsp and ur24.tsp <= akfi.tsp + '24 hours'::interval and akfi.enc_id = ur24.enc_id
+    LEFT JOIN cdm_t di on di.tsp >= akfi.tsp and di.tsp <= akfi.tsp + '24 hours'::interval and di.enc_id = akfi.enc_id
     where akfi.fid = 'acute_kidney_failure_inhosp'
       %(dataset_id_equal_akfi)s
       and cr.creatinine > 5 %(dataset_id_equal_cr)s
