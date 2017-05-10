@@ -913,7 +913,7 @@ if __name__ == '__main__':
     elif db_pair_name == 'op2dw_compare':
       db_pair = op2dw_compare
     else:
-      print('unkown db_pair: {}'.format(db_pair_name))
+      print('unknown db_pair: {}'.format(db_pair_name))
       exit(0)
   else:
     print('please input db_pair_name')
