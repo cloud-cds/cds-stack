@@ -67,41 +67,42 @@ job_config = {
 
 PLANNER_LOG_FMT = '%(asctime)s|%(name)s|%(process)s-%(thread)s|%(levelname)s|%(message)s'
 
-db_config = {
-  'db_name': os.environ['db_name'],
-  'db_user': os.environ['db_user'],
-  'db_pass': os.environ['db_password'],
-  'db_host': os.environ['db_host'],
-  'db_port': os.environ['db_port']
-}
-
-
 class Planner():
-  def main(self):
-    self.generate_plan()
-    self.start_engine()
-
-  def set_db_config(self, config):
-    if 'db_name' in config:
-      db_config['db_name'] = config['db_name']
-    if 'db_host' in config:
-      db_config['db_host'] = config['db_host']
-
   def __init__(self, job, config=None):
     self.job = job
+
+    self.db_config = {
+      'db_name': os.environ['db_name'],
+      'db_user': os.environ['db_user'],
+      'db_pass': os.environ['db_password'],
+      'db_host': os.environ['db_host'],
+      'db_port': os.environ['db_port']
+    }
+
     if config:
-      self.set_db_config(config)
+      if 'db_name' in config:
+        self.db_config['db_name'] = config['db_name']
+      if 'db_host' in config:
+        self.db_config['db_host'] = config['db_host']
+
     self.extractor = Extractor(self.job)
-    # Configure planner logging.
     self.name = self.job['planner']['name']
+
+    # Configure planner logging.
     self.log = logging.getLogger(self.name)
     self.log.setLevel(self.job['planner'].get('loglevel', logging.INFO))
-
     sh = logging.StreamHandler()
     formatter = logging.Formatter(PLANNER_LOG_FMT)
     sh.setFormatter(formatter)
     self.log.addHandler(sh)
     self.log.propagate = False
+
+  def get_db_config(self):
+    return self.db_config
+
+  def main(self):
+    self.generate_plan()
+    self.start_engine()
 
   def generate_plan(self):
     self.log.info("planning now")
@@ -118,7 +119,7 @@ class Planner():
     self.log.info("TASK TODO:\n" + str(self.plan))
 
   def init_plan(self):
-    self.plan = Plan('plan-c2dw', db_config)
+    self.plan = Plan('plan-c2dw', self.db_config)
     self.plan.add(Task('extract_init', deps=[], coro=self.extractor.extract_init))
 
   def gen_transform_plan(self):
@@ -139,12 +140,12 @@ class Planner():
     num_derive_groups = self.job.get('derive').get('num_derive_groups', 0)
     parallel = self.job.get('derive').get('parallel')
     vacuum_temp_table = self.job.get('derive').get('vacuum_temp_table', False)
-    self.extractor.derive_feature_addr = get_derive_feature_addr(db_config, self.extractor.dataset_id, num_derive_groups)
+    self.extractor.derive_feature_addr = get_derive_feature_addr(self.db_config, self.extractor.dataset_id, num_derive_groups)
     self.log.info("derive_feature_addr: {}".format(self.extractor.derive_feature_addr))
     if num_derive_groups:
       self.plan.add(Task('derive_init', deps=['vacuum'], coro=self.extractor.derive_init))
     if parallel:
-      for task in get_derive_tasks(db_config, self.extractor.dataset_id, num_derive_groups > 0):
+      for task in get_derive_tasks(self.db_config, self.extractor.dataset_id, num_derive_groups > 0):
         self.plan.add(Task(task['name'], deps=task['dependencies'], coro=self.extractor.run_derive, args=[task['fid']]))
     else:
       self.plan.add(Task('derive', deps=['vacuum'], coro=self.extractor.run_derive))
