@@ -27,6 +27,16 @@ class Restore():
     os.system(" ".join(cmd))
     # print(subprocess.check_output(cmd, stderr=subprocess.STDOUT))
 
+  def get_db_config(self):
+    return {
+      'db_name': os.environ['db_name'],
+      'db_user': os.environ['db_user'],
+      'db_pass': os.environ['db_password'],
+      'db_host': os.environ['db_host'],
+      'db_port': os.environ['db_port']
+    }
+
+
 #########################################################
 # compare online ETL (epic2op) with offline ETL (c2dw)
 #########################################################
@@ -121,7 +131,7 @@ daily_compare = [
     'name': 'daily_test_epic2op',
     'engine': EngineEpic2op(db_name='daily_test_epic2op'),
     'pipeline': {
-      # 'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
+      'clean_db': ['rm_data', 'rm_pats', 'reset_seq'],
       # 'populate_db': True,
     },
   },
@@ -408,40 +418,46 @@ class DBCompareTest():
   def __init__(self, db_pair):
     self.db_pair = db_pair
     self.passed = False
-
-  def _init_(self):
-    loop = asyncio.new_event_loop()
-    loop.run_until_complete(self.run_init())
-    loop.close()
-
-  async def run_init(self):
-    self.epic2op_pool = await asyncpg.create_pool(
-      database = self.epic2op.config.db_name,
-      user     = self.epic2op.config.db_user,
-      password = self.epic2op.config.db_pass,
-      host     = self.epic2op.config.db_host,
-      port     = self.epic2op.config.db_port
-    )
+    self.db_pool = None
 
   def run(self):
     self.db_setup(self.db_pair[0])
     self.db_setup(self.db_pair[1])
 
-  def db_setup(self, db_config):
-    if db_config.get('pipeline', False):
-      pipeline = db_config['pipeline']
+  async def get_db_pool(self, loop, engine):
+    if self.db_pool:
+      return self.db_pool
+
+    db_config = engine.get_db_config()
+    self.db_pool = await asyncpg.create_pool( \
+                      database = db_config['db_name'], \
+                      user     = db_config['db_user'], \
+                      password = db_config['db_pass'], \
+                      host     = db_config['db_host'], \
+                      port     = db_config['db_port'], \
+                      loop     = loop)
+
+    return self.db_pool
+
+
+  def db_setup(self, db_test_config):
+    if db_test_config.get('pipeline', False):
+      pipeline = db_test_config['pipeline']
       if pipeline.get('load_clarity', False):
-        self.load_clarity(pipeline['load_clarity'], db_config['name'])
+        self.load_clarity(pipeline['load_clarity'], db_test_config['name'])
       if pipeline.get('clean_db', False):
-        self.clean_db(db_config)
+        self.clean_db(db_test_config)
       print(pipeline.get('copy_pat_enc', False))
       if pipeline.get('copy_pat_enc', False):
         print(pipeline.get('copy_pat_enc', False))
-        self.copy_pat_enc(db_config)
+        self.copy_pat_enc(db_test_config)
       if pipeline.get('populate_db', False):
-        self.populate_db(db_config)
-    if db_config.get('db_compare', False):
-      self.db_compare(db_config)
+        self.populate_db(db_test_config)
+
+    if db_test_config.get('test_override', False):
+      self.passed = db_test_config['test_override']
+    elif db_test_config.get('db_compare', False):
+      self.db_compare(db_test_config)
 
   def load_clarity(self, settings, db_name):
     with open('load_clarity_template.sql', 'r') as f:
@@ -454,20 +470,22 @@ class DBCompareTest():
     db_user = os.environ['db_user']
     call(["psql", "-h", db_host, "-U", db_user, "-d", db_name, "-p", "5432", "-f", 'load_clarity.sql'])
 
-  def clean_db(self, db_config):
-    print("clean_db: %s" % db_config['name'])
+  def clean_db(self, db_test_config):
+    print("clean_db: %s" % db_test_config['name'])
     loop = asyncio.new_event_loop()
-    loop.run_until_complete(self.run_clean_db(db_config))
+    loop.run_until_complete(self.run_clean_db(loop, db_test_config))
     loop.close()
 
-  async def run_clean_db(self, db_config):
-    if 'job' in db_config:
-      job = db_config['job']
+  async def run_clean_db(self, loop, db_test_config):
+    if 'job' in db_test_config:
+      job = db_test_config['job']
       # job['db_name'] = 'test_c2dw_a'
-      engine = db_config['engine'](job)
+      engine = db_test_config['engine'](job)
     else:
-      engine = db_config['engine']
-    await engine.init()
+      engine = db_test_config['engine']
+
+    db_pool = await self.get_db_pool(loop, engine)
+
     rm_data = [
       "delete from trews;",
       "delete from cdm_s;",
@@ -478,38 +496,38 @@ class DBCompareTest():
     ]
     rm_pats = "delete from pat_enc;"
     reset_seq = "select setval('pat_enc_enc_id_seq', 1);"
-    async with engine.pool.acquire() as conn:
-      if 'rm_data' in db_config['pipeline']['clean_db']:
+    async with db_pool.acquire() as conn:
+      if 'rm_data' in db_test_config['pipeline']['clean_db']:
         for query in rm_data:
           pglog = await conn.execute(query)
           print(pglog)
-      if 'rm_pats' in db_config['pipeline']['clean_db']:
+      if 'rm_pats' in db_test_config['pipeline']['clean_db']:
         pglog = await conn.execute(rm_pats)
         print(pglog)
-      if 'reset_seq' in db_config['pipeline']['clean_db']:
+      if 'reset_seq' in db_test_config['pipeline']['clean_db']:
         pglog = await conn.execute(reset_seq)
         print(pglog)
 
-  def populate_db(self, db_config):
-    print("populate_db: %s" % db_config['name'])
-    if 'job' in db_config:
-      job = db_config['job']
-      engine = db_config['engine'](job)
+  def populate_db(self, db_test_config):
+    print("populate_db: %s" % db_test_config['name'])
+    if 'job' in db_test_config:
+      job = db_test_config['job']
+      engine = db_test_config['engine'](job)
     else:
-      engine = db_config['engine']
+      engine = db_test_config['engine']
     engine.main()
 
-  def copy_pat_enc(self, db_config):
+  def copy_pat_enc(self, db_test_config):
     print("copy_pat_enc")
     loop = asyncio.new_event_loop()
-    loop.run_until_complete(self.run_copy_pat_enc(db_config))
+    loop.run_until_complete(self.run_copy_pat_enc(loop, db_test_config))
     loop.close()
 
-  async def run_copy_pat_enc(self, db_config):
-    job = db_config['job']
-    engine = db_config['engine'](job)
-    await engine.init()
-    pool = engine.pool
+  async def run_copy_pat_enc(self, loop, db_test_config):
+    engine = db_test_config['engine'](db_test_config['job']) \
+                if 'job' in db_test_config else db_test_config['engine']
+
+    db_pool = await self.get_db_pool(loop, engine)
     sql = '''
     insert into pat_enc (dataset_id, enc_id, pat_id, visit_id)
     (
@@ -519,33 +537,33 @@ class DBCompareTest():
     );
     ''' % self.db_pair[0]['name']
     print(sql)
-    async with pool.acquire() as conn:
+    async with db_pool.acquire() as conn:
       result = await conn.execute(sql)
       print(result)
 
-  def db_compare(self, db_config):
+  def db_compare(self, db_test_config):
     loop = asyncio.new_event_loop()
-    loop.run_until_complete(self.run_db_compare(db_config))
+    loop.run_until_complete(self.run_db_compare(loop, db_test_config))
     loop.close()
 
-  async def check_tsp_range(self, tsp_range, src_server, dbpool):
+  async def check_tsp_range(self, tsp_range, src_server, db_pool):
     sql = '''
     select (t1.min, t1.max) OVERLAPS (t2.min, t2.max) from (select min(tsp), max(tsp) from cdm_twf) t1 cross join
         dblink('%s', $OPDB$ select min(tsp), max(tsp) from cdm_twf $OPDB$) as t2 (min timestamptz
     , max timestamptz)
     ''' % src_server
-    async with dbpool.acquire() as conn:
+    async with db_pool.acquire() as conn:
       overlapping = await conn.fetch(sql)
       print(overlapping)
     return bool(overlapping[0][0])
 
-  async def run_db_compare(self, db_config):
+  async def run_db_compare(self, loop, db_test_config):
     print("db_compare %s vs %s" % (self.db_pair[0]['name'], self.db_pair[1]['name']))
-    job = db_config['job']
-    engine = db_config['engine'](job)
-    await engine.init()
-    dbpool = engine.pool
-    args = db_config['db_compare']
+    engine = db_test_config['engine'](db_test_config['job']) \
+                if 'job' in db_test_config else db_test_config['engine']
+    db_pool = await self.get_db_pool(loop, engine)
+
+    args = db_test_config['db_compare']
     src_dataset_id = args['srcdid']
     src_model_id   = args['srcmid']
     dst_dataset_id = args['dstdid']
@@ -558,15 +576,16 @@ class DBCompareTest():
     if 'date' in args:
       date = args['date']
     else:
-      async with dbpool.acquire() as conn:
+      async with db_pool.acquire() as conn:
         date = await conn.fetchval("select max(tsp) from cdm_twf")
-      if date is None:
-        date = (dt.datetime.now() - dt.timedelta(days=2)).strftime('%Y-%m-%d')
-      else:
-        date = (date[0]['max'] - dt.timedelta(days=2)).strftime('%Y-%m-%d')
+        if date is None:
+          date = (dt.datetime.now() - dt.timedelta(days=2)).strftime('%Y-%m-%d')
+        else:
+          date = (date - dt.timedelta(days=2)).strftime('%Y-%m-%d')
+
     tsp_range = " tsp > '%(date)s 10:00:00 utc'::timestamptz and tsp < '%(date)s 20:00:00 utc'::timestamptz" % {'date': date}
 
-    if not await self.check_tsp_range(tsp_range, src_server, dbpool):
+    if not await self.check_tsp_range(tsp_range, src_server, db_pool):
       print("two databases are not overlapping in time range")
       self.passed = True
       return self.passed
@@ -578,7 +597,7 @@ class DBCompareTest():
           %s
     ''' % (src_server, pat_limit)
     print(select_enc_ids_to_compare)
-    async with dbpool.acquire() as conn:
+    async with db_pool.acquire() as conn:
       enc_ids = await conn.fetch(select_enc_ids_to_compare)
     enc_id_range = 'enc_id in (%s)' % ','.join([str(e['enc_id']) for e in enc_ids])
     # enc_id_range = 'enc_id < 31'
@@ -591,7 +610,7 @@ class DBCompareTest():
           limit 50
     ''' % src_server
     print(select_pat_ids_to_compare)
-    async with dbpool.acquire() as conn:
+    async with db_pool.acquire() as conn:
       pat_ids = await conn.fetch(select_pat_ids_to_compare)
     if pat_ids is None or len(pat_ids) == 0:
       print("No common enc_id found in two databases")
@@ -825,14 +844,14 @@ class DBCompareTest():
                               field_map=field_map, dependent_fields=dependent_fields,
                               version_extension=version_type,
                               as_count_result=counts, sort_field=sort_field, dst_tsp_shift=dst_tsp_shift)
-          records = await c.run(dbpool)
+          records = await c.run(db_pool)
           results.append(records)
       else: #which is the remote defined here, can all be none
         c = TableComparator(src_server,
                             src_dataset_id, src_model_id,
                             dst_dataset_id, dst_model_id,
                             tbl, version_extension=version_type, as_count_result=counts, dst_tsp_shift=dst_tsp_shift)
-        records = await c.run(dbpool)
+        records = await c.run(db_pool)
         results.append(records)
     print("======== result ========")
     self.passed = True
