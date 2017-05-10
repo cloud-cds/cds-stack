@@ -726,8 +726,8 @@ class Extractor:
         joins=joins,
         set_cols=set_cols
       )
-    for table_name in temp_table_groups:
-      join_sql += 'DROP TABLE {};'.format(table_name)
+    # for table_name in temp_table_groups:
+    #   join_sql += 'DROP TABLE {};'.format(table_name)
     ctxt.log.info(join_sql)
     async with ctxt.db_pool.acquire() as conn:
       result = await conn.execute(join_sql)
