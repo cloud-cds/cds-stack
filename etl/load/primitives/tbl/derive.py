@@ -1269,7 +1269,7 @@ async def acute_kidney_failure_update(fid, fid_input, conn, log, dataset_id, der
       %(dataset_id_equal_akfi)s
       and cr.creatinine > 5 %(dataset_id_equal_cr)s
       and ur24.urine_output_24hr < 500 and ur24.tsp - (select pat_min_tsp from S where S.enc_id = ur24.enc_id) >= '24 hours'::interval %(dataset_id_equal_ur24)s
-      and di.value == 'True' %(dataset_id_equal_di)s
+      and di.value = 'True' %(dataset_id_equal_di)s
   ) source
   ON CONFLICT (%(dataset_id)s enc_id,tsp,fid) DO UPDATE SET
     value = excluded.value and confidence = excluded.confidence
