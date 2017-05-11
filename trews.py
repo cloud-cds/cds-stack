@@ -136,9 +136,16 @@ class TREWSStaticResource(web.View):
       parameters = self.request.query
 
       if encrypted_query and 'token' in parameters:
+        logging.info('Found encrypted query: %s' % parameters['token'])
+
         param_bytes = decrypt(parameters['token'])
         param_str = param_bytes.decode() if param_bytes else None
         params = dict(urllib.parse.parse_qsl(param_str)) if param_str else None
+
+        logging.info('param_bytes: %s' % str(param_bytes))
+        logging.info('param_str: %s' % param_str)
+        logging.info('params: %s' % str(params))
+
 
         if params is not None and 'USERID' in params and 'PATID' in params:
 
