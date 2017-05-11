@@ -88,6 +88,7 @@ class Extractor:
 
   async def populate_patients(self, ctxt, _):
     if self.job.get('transform', False):
+      incremental = self.job.get('incremental', False)
       self.min_tsp = self.job.get('transform').get('min_tsp')
       if self.job.get('transform').get('populate_patients', False):
         async with ctxt.db_pool.acquire() as conn:
@@ -95,12 +96,14 @@ class Extractor:
           limit = populate_patients_job.get('limit', None)
           sql = '''
           insert into pat_enc (dataset_id, visit_id, pat_id, meta_data)
-          SELECT %(dataset_id)s, demo."CSN_ID" visit_id, demo."pat_id", json_build_object('pending', true) meta_data
+          SELECT %(dataset_id)s, demo."CSN_ID" visit_id, demo."pat_id",
+          %(meta_data)s meta_data
           FROM "Demographics" demo left join pat_enc pe on demo."CSN_ID"::text = pe.visit_id::text and pe.dataset_id = %(dataset_id)s
           where pe.visit_id is null %(min_tsp)s %(limit)s
           ''' % {'dataset_id': self.dataset_id,
-                  'min_tsp': ''' and "HOSP_ADMSN_TIME" >= '{}'::timestamptz'''.format(self.min_tsp) if self.min_tsp else '',
-                  'limit': 'limit {}'.format(limit) if limit else ''}
+                 'min_tsp': ''' and "HOSP_ADMSN_TIME" >= '{}'::timestamptz'''.format(self.min_tsp) if self.min_tsp else '',
+                 'limit': 'limit {}'.format(limit) if limit else '',
+                 'meta_data': "json_build_object('pending', true)" if incremental else 'null'}
           ctxt.log.debug("ETL populate_patients sql: " + sql)
           result = await conn.execute(sql)
           ctxt.log.info("ETL populate_patients: " + result)
