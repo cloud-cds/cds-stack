@@ -22,15 +22,15 @@ def get_min_tsp(tsp_name):
 #============================
 # Utilities
 #============================
-async def pull_med_orders(connection, dataset_id, log, is_plan):
+async def pull_med_orders(connection, dataset_id, log, is_plan, clarity_workspace):
   start = time.time()
   log.info('Entered Med Orders Extraction')
   sql = """select pe.enc_id, mo."ORDER_INST", mo."display_name", mo."MedUnit",mo."Dose"
-                               from "OrderMed" mo
+                               from {ws}."OrderMed" mo
                                inner join
                                pat_enc pe
                                on mo."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp}
-                              ;""".format(dataset_id=dataset_id, min_tsp=get_min_tsp("ORDER_INST"))
+                              ;""".format(dataset_id=dataset_id, min_tsp=get_min_tsp("ORDER_INST"), ws=clarity_workspace)
   log.info(sql)
   mo = await async_read_df(sql, connection)
   if mo is None:
@@ -86,7 +86,7 @@ async def pull_med_orders(connection, dataset_id, log, is_plan):
   log_time(log, 'pull_med_orders', start, extracted, loaded)
   return 'pull_med_orders'
 
-async def pull_medication_admin(connection, dataset_id, log, is_plan):
+async def pull_medication_admin(connection, dataset_id, log, is_plan, clarity_workspace):
   start = time.time()
   log.info('Entering Medication Administrtaion Processing')
   sql = """select pe.enc_id, ma.display_name,
@@ -94,10 +94,10 @@ async def pull_medication_admin(connection, dataset_id, log, is_plan):
                                   ma."INFUSION_RATE", ma."MAR_INF_RATE_UNIT",
                                   ma."TimeActionTaken"
                               from
-                              "MedicationAdministration"  ma
+                              {ws}."MedicationAdministration"  ma
                               inner join
                               pat_enc pe
-                              on ma."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp}""".format(dataset_id=dataset_id, min_tsp=get_min_tsp("TimeActionTaken"))
+                              on ma."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp}""".format(dataset_id=dataset_id, min_tsp=get_min_tsp("TimeActionTaken"), ws=clarity_workspace)
   log.info(sql)
   ma = await async_read_df(sql,connection)
 
@@ -157,11 +157,11 @@ async def bands(connection, dataset_id, log, is_plan):
   sql = """select pe.enc_id, lb."NAME" ,
                                 lb."ResultValue", lb."RESULT_TIME"
                                 from
-                                  "Labs_643"  lb
+                                  {ws}."Labs_643"  lb
                                 inner join
                                   pat_enc pe
                                 on lb."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp}
-                                WHERE "NAME"='BANDS';""".format(dataset_id=dataset_id, min_tsp=get_min_tsp("RESULT_TIME"))
+                                WHERE "NAME"='BANDS';""".format(dataset_id=dataset_id, min_tsp=get_min_tsp("RESULT_TIME"), ws=clarity_workspace)
   log.info(sql)
   labs = await async_read_df(sql,connection)
   if labs is None:
@@ -197,15 +197,15 @@ async def pull_order_procs(connection, dataset_id, log, is_plan):
                               op."CSN_ID",op."proc_name", op."ORDER_TIME", op."OrderStatus", op."LabStatus",
                               op."PROC_START_TIME",op."PROC_ENDING_TIME"
                               from
-                                "OrderProcs"  op
+                                {ws}."OrderProcs"  op
                               inner join
                                 pat_enc pe
-                              on op."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp};""".format(dataset_id=dataset_id, min_tsp=get_min_tsp("ORDER_TIME"))
+                              on op."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp};""".format(dataset_id=dataset_id, min_tsp=get_min_tsp("ORDER_TIME"), ws=clarity_workspace)
   log.info(sql)
   op = await async_read_df(sql,connection)
   if op is None:
       return
-  lp_map = await async_read_df("""SELECT * FROM lab_proc_dict;""", connection)
+  lp_map = await async_read_df("""SELECT * FROM {}.lab_proc_dict;""".format(clarity_workspace), connection)
 
   if lp_map is None:
     return
@@ -254,7 +254,7 @@ async def pull_order_procs(connection, dataset_id, log, is_plan):
   log_time(log, 'pull_order_procs', start, extracted, loaded)
   return 'pull_order_procs'
 
-async def notes(connection, dataset_id, log, is_plan):
+async def notes(connection, dataset_id, log, is_plan, clarity_workspace):
   log.info("Entering Notes Processing")
   start = time.time()
   sql = '''
@@ -270,7 +270,7 @@ async def notes(connection, dataset_id, log, is_plan):
                             'entry_instant_dttm', json_agg(distinct "ENTRY_ISTANT_DTTM")
                             ) as dates,
           json_build_object('AuthorType', json_agg(distinct "AuthorType")) as providers
-  from "Notes" N
+  from %(ws)s."Notes" N
   inner join pat_enc PE
     on N."CSN_ID" = PE.visit_id and PE.dataset_id = %(dataset_id)s %(min_tsp)s
   group by PE.pat_id, "NOTE_ID", "NoteType", "NoteStatus", "CREATE_INSTANT_DTTM"
@@ -278,7 +278,7 @@ async def notes(connection, dataset_id, log, is_plan):
     set note_body = excluded.note_body,
         dates = excluded.dates,
         providers = excluded.providers
-  ''' % {'dataset_id': dataset_id, 'min_tsp': get_min_tsp('CREATE_INSTANT_DTTM')}
+  ''' % {'dataset_id': dataset_id, 'min_tsp': get_min_tsp('CREATE_INSTANT_DTTM'), 'ws': clarity_workspace}
 
   log.info(sql)
   status = 'did-not-run'

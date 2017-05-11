@@ -25,6 +25,8 @@ job_config = {
     'start_enc_id': 1
   },
   'transform': {
+    'clarity_workspace': os.environ['clarity_workspace'] \
+        if 'clarity_workspace' in os.environ else 'public',
     'populate_patients': {
       'limit': None
     },
@@ -42,9 +44,12 @@ job_config = {
     'parallel': True,
     'fid': None,
     'mode': None,
-    'num_derive_groups': int(os.environ['num_derive_groups']) if 'num_derive_groups' in os.environ else 2,
-    'vacuum_temp_table': bool(os.environ['vacuum_temp_table']) if 'vacuum_temp_table' in os.environ else False,
-    'partition_mode': int(os.environ['partition_mode']) if 'partition_mode' in os.environ else 1,
+    'num_derive_groups': int(os.environ['num_derive_groups']) \
+        if 'num_derive_groups' in os.environ else 2,
+    'vacuum_temp_table': bool(os.environ['vacuum_temp_table']) \
+        if 'vacuum_temp_table' in os.environ else False,
+    'partition_mode': int(os.environ['partition_mode']) \
+        if 'partition_mode' in os.environ else 1,
   },
   'offline_criteria_processing': {
     'load_cdm_to_criteria_meas':True,
@@ -67,7 +72,8 @@ job_config = {
   },
 }
 
-PLANNER_LOG_FMT = '%(asctime)s|%(name)s|%(process)s-%(thread)s|%(levelname)s|%(message)s'
+PLANNER_LOG_FMT = \
+'%(asctime)s|%(name)s|%(process)s-%(thread)s|%(levelname)s|%(message)s'
 
 class Planner():
   def __init__(self, job, config=None):
@@ -113,6 +119,7 @@ class Planner():
     self.gen_fillin_plan()
     self.gen_derive_plan()
     self.gen_offline_criteria_plan()
+    self.gen_postprocessing_plan()
     self.log.info("plan is ready")
     self.print_plan()
     return self.plan
@@ -122,20 +129,27 @@ class Planner():
 
   def init_plan(self):
     self.plan = Plan('plan-c2dw', self.db_config)
-    self.plan.add(Task('extract_init', deps=[], coro=self.extractor.extract_init))
+    self.plan.add(Task('extract_init', deps=[],
+                       coro=self.extractor.extract_init))
 
   def gen_transform_plan(self):
-    self.plan.add(Task('populate_patients', deps=['extract_init'], coro=self.extractor.populate_patients))
-    self.plan.add(Task('transform_init', deps=['populate_patients'], coro=self.extractor.transform_init))
+    self.plan.add(Task('populate_patients', deps=['extract_init'],
+                       coro=self.extractor.populate_patients))
+    self.plan.add(Task('transform_init', deps=['populate_patients'],
+                       coro=self.extractor.transform_init))
 
     for i, transform_task in enumerate(self.extractor.get_transform_tasks()):
       self.plan.add(Task('transform_task_{}'.format(i), \
-        deps=['transform_init'], coro=self.extractor.run_transform_task, args=[transform_task]))
+        deps=['transform_init'], coro=self.extractor.run_transform_task,
+        args=[transform_task]))
 
   def gen_fillin_plan(self):
-    transform_tasks = [task.name for task in self.plan.tasks if task.name.startswith('transform_task_')]
-    self.plan.add(Task('fillin', deps=transform_tasks, coro=self.extractor.run_fillin))
-    self.plan.add(Task('vacuum', deps=['fillin'], coro=self.extractor.vacuum_analyze_dataset))
+    transform_tasks = [task.name for task in self.plan.tasks \
+        if task.name.startswith('transform_task_')]
+    self.plan.add(Task('fillin', deps=transform_tasks, \
+          coro=self.extractor.run_fillin))
+    self.plan.add(Task('vacuum', deps=['fillin'], \
+          coro=self.extractor.vacuum_analyze_dataset))
 
 
   def gen_derive_plan(self):
@@ -143,23 +157,34 @@ class Planner():
     partition_mode = self.job.get('derive').get('partition_mode', 1)
     parallel = self.job.get('derive').get('parallel')
     vacuum_temp_table = self.job.get('derive').get('vacuum_temp_table', False)
-    self.extractor.derive_feature_addr = get_derive_feature_addr(self.db_config, self.extractor.dataset_id, num_derive_groups, partition_mode)
-    self.log.info("derive_feature_addr: {}".format(self.extractor.derive_feature_addr))
+    self.extractor.derive_feature_addr = get_derive_feature_addr(\
+      self.db_config, self.extractor.dataset_id, num_derive_groups,
+       partition_mode)
+    self.log.info("derive_feature_addr: {}".format(\
+        self.extractor.derive_feature_addr))
     if num_derive_groups:
-      self.plan.add(Task('derive_init', deps=['vacuum'], coro=self.extractor.derive_init))
+      self.plan.add(Task('derive_init', deps=['vacuum'], \
+        coro=self.extractor.derive_init))
     if parallel:
-      for task in get_derive_tasks(self.db_config, self.extractor.dataset_id, num_derive_groups > 0):
-        self.plan.add(Task(task['name'], deps=task['dependencies'], coro=self.extractor.run_derive, args=[task['fid']]))
+      for task in get_derive_tasks(self.db_config, self.extractor.dataset_id, \
+        num_derive_groups > 0):
+        self.plan.add(Task(task['name'], deps=task['dependencies'], \
+          coro=self.extractor.run_derive, args=[task['fid']]))
     else:
-      self.plan.add(Task('derive', deps=['vacuum'], coro=self.extractor.run_derive))
+      self.plan.add(Task('derive', deps=['vacuum'], \
+        coro=self.extractor.run_derive))
     if num_derive_groups:
       if vacuum_temp_table:
         self.gen_vacuum_temp_table_plan()
-        vacuum_temp_table_tasks = [task.name for task in self.plan.tasks if task.name.startswith('vacuum_temp_table')]
-        self.plan.add(Task('derive_join', deps=vacuum_temp_table_tasks, coro=self.extractor.derive_join))
+        vacuum_temp_table_tasks = [task.name for task in self.plan.tasks \
+            if task.name.startswith('vacuum_temp_table')]
+        self.plan.add(Task('derive_join', deps=vacuum_temp_table_tasks, \
+          coro=self.extractor.derive_join))
       else:
-        derive_tasks = [task.name for task in self.plan.tasks if task.name.startswith('derive')]
-        self.plan.add(Task('derive_join', deps=derive_tasks, coro=self.extractor.derive_join))
+        derive_tasks = [task.name for task in self.plan.tasks \
+            if task.name.startswith('derive')]
+        self.plan.add(Task('derive_join', deps=derive_tasks, \
+            coro=self.extractor.derive_join))
 
   def gen_vacuum_temp_table_plan(self):
     temp_table_feature_mapping = {}
@@ -172,7 +197,10 @@ class Planner():
         else:
           temp_table_feature_mapping[temp_table] = [fid]
     for temp_table in temp_table_feature_mapping:
-      self.plan.add(Task('vacuum_temp_table-{}'.format(temp_table), deps=['derive_{}'.format(fid) for fid in temp_table_feature_mapping[temp_table]], coro=self.extractor.run_vacuum, args=[temp_table]))
+      self.plan.add(Task('vacuum_temp_table-{}'.format(temp_table), \
+        deps=['derive_{}'.format(fid) for fid in \
+          temp_table_feature_mapping[temp_table]], \
+          coro=self.extractor.run_vacuum, args=[temp_table]))
 
   def gen_offline_criteria_plan(self):
     num_derive_groups = self.job.get('derive').get('num_derive_groups', 0)
@@ -181,8 +209,14 @@ class Planner():
     else:
       deps = ['derive']
     self.plan.add(
-      Task('offline_criteria', deps=deps, coro=self.extractor.offline_criteria_processing)
+      Task('offline_criteria', deps=deps, \
+        coro=self.extractor.offline_criteria_processing)
       )
+
+  def gen_postprocessing_plan(self):
+    self.plan.add(
+      Task('postprocessing', deps=['offline_criteria'], \
+        coro=self.extractor.postprocessing))
 
   def start_engine(self):
     self.log.info("start job in the engine")
@@ -204,8 +238,10 @@ def get_derive_tasks(config, dataset_id, is_grouped):
     derive_features = await conn.fetch('''
         SELECT fid, derive_func_input from cdm_feature
         where not is_measured and not is_deprecated %s
-    ''' % ('and dataset_id = {}'.format(dataset_id) if dataset_id is not None else ''))
-    sql = "select * from cdm_feature %s" % ('where dataset_id = {}'.format(dataset_id) \
+    ''' % ('and dataset_id = {}'.format(dataset_id) \
+      if dataset_id is not None else ''))
+    sql = "select * from cdm_feature %s" % \
+      ('where dataset_id = {}'.format(dataset_id) \
             if dataset_id is not None else '')
     cdm_feature = await conn.fetch(sql)
     cdm_feature_dict = {f['fid']:f for f in cdm_feature}
@@ -213,14 +249,16 @@ def get_derive_tasks(config, dataset_id, is_grouped):
     return [derive_features, cdm_feature_dict]
 
   loop = asyncio.new_event_loop()
-  derive_features, cdm_feature_dict = loop.run_until_complete(_run_get_derive_tasks(config))
+  derive_features, cdm_feature_dict = \
+    loop.run_until_complete(_run_get_derive_tasks(config))
   loop.close()
 
   derive_tasks = []
   for feature in derive_features:
     fid = feature['fid']
     inputs =[fid.strip() for fid in feature['derive_func_input'].split(',')]
-    dependencies = ['derive_{}'.format(fid) for fid in inputs if not cdm_feature_dict[fid]['is_measured']]
+    dependencies = ['derive_{}'.format(fid) for fid in inputs \
+      if not cdm_feature_dict[fid]['is_measured']]
     if len(dependencies) == 0:
       dependencies.append('fillin' if not is_grouped else 'derive_init')
     name = 'derive_{}'.format(fid)
@@ -233,15 +271,18 @@ def get_derive_tasks(config, dataset_id, is_grouped):
     )
   return derive_tasks
 
-def get_derive_feature_addr(config, dataset_id, num_derive_groups, partition_mode, twf_table='cdm_twf'):
+def get_derive_feature_addr(config, dataset_id, num_derive_groups,
+                            partition_mode, twf_table='cdm_twf'):
   async def _get_derive_features(config):
     conn = await asyncpg.connect(database=config['db_name'], \
                                  user=config['db_user'],     \
                                  password=config['db_pass'], \
                                  host=config['db_host'],     \
                                  port=config['db_port'])
-    sql = "select * from cdm_feature where not is_measured and not is_deprecated %s" %\
-              ('and dataset_id = {}'.format(dataset_id) if dataset_id is not None else '')
+    sql = """select * from cdm_feature
+    where not is_measured and not is_deprecated %s""" %\
+      ('and dataset_id = {}'.format(dataset_id) \
+        if dataset_id is not None else '')
     derive_features = await conn.fetch(sql)
     await conn.close()
     return derive_features
@@ -249,7 +290,8 @@ def get_derive_feature_addr(config, dataset_id, num_derive_groups, partition_mod
   def partition(lst, n, partition_mode):
     if partition_mode == 1:
       division = len(lst) / n
-      return [lst[round(division) * i:round(division) * (i + 1)] for i in range(n)]
+      return [lst[round(division) * i:round(division) * (i + 1)] \
+        for i in range(n)]
     elif partition_mode == 2: # this is not efficient
       return [lst[i::n] for i in range(n)]
     else:
@@ -265,7 +307,8 @@ def get_derive_feature_addr(config, dataset_id, num_derive_groups, partition_mod
   derive_feature_order = get_derive_seq(derive_feature_dict)
   derive_features = [derive_feature_dict[fid] for fid in derive_feature_order]
   if num_derive_groups > 1:
-    derive_feature_groups = partition(derive_features, num_derive_groups, partition_mode)
+    derive_feature_groups = partition(derive_features, num_derive_groups,
+                                      partition_mode)
   else:
     derive_feature_groups = [derive_features]
   print(derive_features)
@@ -275,7 +318,8 @@ def get_derive_feature_addr(config, dataset_id, num_derive_groups, partition_mod
     for feature in group:
       fid = feature['fid']
       if num_derive_groups:
-        twf_table_temp = "{}_temp_{}".format(twf_table, i) if feature['category'] == 'TWF' else None
+        twf_table_temp = "{}_temp_{}".format(twf_table, i) \
+          if feature['category'] == 'TWF' else None
       else:
         twf_table_temp = twf_table if feature['category'] == 'TWF' else None
       derive_feature_addr[fid] = {

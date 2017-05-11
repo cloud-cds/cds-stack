@@ -338,12 +338,11 @@ async def workspace_medication_administration_2_cdm_twf(conn, job_id):
     logging.info("load raw data to cdm completed")
 
 
-async def load_cdm_to_criteria_meas(conn, dataset_id):
-    sql = 'select * from load_cdm_to_criteria_meas({dataset_id});'.format(dataset_id=dataset_id)
+async def load_cdm_to_criteria_meas(conn, dataset_id, incremental):
+    sql = """select * from load_cdm_to_criteria_meas(
+    {dataset_id}, {incremental});
+    """.format(dataset_id=dataset_id, incremental=incremental)
     await conn.execute(sql)
-    # await cdm_t_to_criteria_meas(conn)
-    # await cdm_twf_to_criteira_meas(conn)
-
 
 async def calculate_historical_criteria(conn):
     sql = 'select * from calculate_historical_criteria(NULL);'

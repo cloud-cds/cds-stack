@@ -48,6 +48,13 @@ class Extractor:
 
   async def extract_init(self, ctxt):
     ctxt.log.info("start extract_init task")
+    sql = """
+      update dw_version set updated = Now()
+      where dataset_id = %s
+      """ % self.dataset_id
+    async with ctxt.db_pool.acquire() as conn:
+      ctxt.log.info(sql)
+      await conn.execute(sql)
     if self.job.get('incremental', False):
       ctxt.log.info("skip reset_dataset for incremental ETL")
     else:
@@ -89,6 +96,7 @@ class Extractor:
   async def populate_patients(self, ctxt, _):
     if self.job.get('transform', False):
       incremental = self.job.get('incremental', False)
+      clarity_workspace = self.job.get('clarity_workspace', 'public')
       self.min_tsp = self.job.get('transform').get('min_tsp')
       if self.job.get('transform').get('populate_patients', False):
         async with ctxt.db_pool.acquire() as conn:
@@ -98,12 +106,17 @@ class Extractor:
           insert into pat_enc (dataset_id, visit_id, pat_id, meta_data)
           SELECT %(dataset_id)s, demo."CSN_ID" visit_id, demo."pat_id",
           %(meta_data)s meta_data
-          FROM "Demographics" demo left join pat_enc pe on demo."CSN_ID"::text = pe.visit_id::text and pe.dataset_id = %(dataset_id)s
-          where pe.visit_id is null %(min_tsp)s %(limit)s
+          FROM %(workspace)s."Demographics" demo %(min_tsp)s %(limit)s
+          ON CONFLICT(dataset_id, visit_id, pat_id) DO %(do)s
           ''' % {'dataset_id': self.dataset_id,
-                 'min_tsp': ''' and "HOSP_ADMSN_TIME" >= '{}'::timestamptz'''.format(self.min_tsp) if self.min_tsp else '',
+                 'min_tsp': ''' and "HOSP_ADMSN_TIME" >= '{}'::timestamptz'''\
+                    .format(self.min_tsp) if self.min_tsp else '',
                  'limit': 'limit {}'.format(limit) if limit else '',
-                 'meta_data': "json_build_object('pending', true)" if incremental else 'null'}
+                 'meta_data': "json_build_object('pending', true)" \
+                    if incremental else 'null',
+                 'workspace': clarity_workspace,
+                 'do': "UPDATE SET meta_data = json_build_object('pending', true)" \
+                    if incremental else 'nothing'}
           ctxt.log.debug("ETL populate_patients sql: " + sql)
           result = await conn.execute(sql)
           ctxt.log.info("ETL populate_patients: " + result)
@@ -218,6 +231,8 @@ class Extractor:
     log = ctxt.log
     fids = mapping_row['fid(s)']
     fids = [fid.strip() for fid in fids.split(',')] if ',' in fids else [fids]
+    self.clarity_workspace = \
+      self.job.get('transform').get('clarity_workspace', 'public')
     # fid validation check
     for fid in fids:
       if not self.cdm_feature_dict.get(fid, False):
@@ -232,37 +247,28 @@ class Extractor:
       i = len(transform_func_id) - transform_func_id[::-1].index('.')
       package = transform_func_id[:(i-1)]
       transform_func_id = transform_func_id[i:]
-      log.info("fid: %s using package: %s and transform_func_id: %s" % (",".join(fids), package, transform_func_id))
-      futures.append(self.run_custom_func(package, transform_func_id, ctxt, self.dataset_id, log,self.plan))
+      log.info("fid: %s using package: %s and transform_func_id: %s" \
+        % (",".join(fids), package, transform_func_id))
+      futures.append(self.run_custom_func(package, transform_func_id, ctxt,
+                     self.dataset_id, log,self.plan, self.clarity_workspace))
     else:
       # if it is standard function
       # For now, use the fact that only custom functions are many to one.
       for fid in fids:
         mapping_row.update({'fid': fid})
-        futures.extend(self.populate_raw_feature_to_cdm(ctxt, mapping_row, self.cdm_feature_dict[fid]))
+        futures.extend(self.populate_raw_feature_to_cdm(ctxt, mapping_row,
+                       self.cdm_feature_dict[fid]))
     return futures
 
-  async def run_custom_func(self, package, transform_func_id, ctxt, dataset_id, log, plan):
+  async def run_custom_func(self, package, transform_func_id, ctxt, dataset_id,
+                            log, plan, clarity_workspace):
     module = importlib.import_module(package)
     func = getattr(module, transform_func_id)
-    # attempts = 0
-    # while attempts < TRANSACTION_RETRY:
-    #     async with ctxt.db_pool.acquire() as conn:
-    #       try:
-    #         await func(conn, dataset_id, log, plan)
-    #         break
-    #       except Exception as e:
-    #         attempts += 1
-    #         log.warn("PSQL Error %s %s" % (transform_func_id, e))
-    #         log.info("Transaction retry attempts: {} {}".format(attempts, transform_func_id))
-    #         continue
-    # if attempts == TRANSACTION_RETRY:
-    #   log.error("Transaction retry failed")
     try:
       conn_acquired = False
       async with ctxt.db_pool.acquire() as conn:
         conn_acquired = True
-        await func(conn, dataset_id, log, plan)
+        await func(conn, dataset_id, log, plan, clarity_workspace)
       if not conn_acquired:
         log.error("Error: connection is not acquired for {}".format(transform_func_id))
     except Exception as e:
@@ -284,11 +290,14 @@ class Extractor:
     fid_info = {'fid':fid, 'category':category, 'is_no_add':is_no_add,
           'data_type':data_type}
     if is_med_action and fid != 'vent':
-      futures.append(self.populate_medaction_features(ctxt, mapping, fid, transform_func_id, data_type, fid_info))
+      futures.append(self.populate_medaction_features(ctxt, mapping, fid, \
+        transform_func_id, data_type, fid_info))
     elif is_med_action and fid == 'vent':
-      futures.append(self.populate_vent(ctxt, mapping, fid, transform_func_id, data_type, fid_info))
+      futures.append(self.populate_vent(ctxt, mapping, fid, \
+        transform_func_id, data_type, fid_info))
     else:
-      futures.append(self.populate_stateless_features(ctxt, mapping, fid, transform_func_id, data_type, fid_info, is_no_add))
+      futures.append(self.populate_stateless_features(ctxt, mapping, fid, \
+        transform_func_id, data_type, fid_info, is_no_add))
     return futures
 
   def get_feature_sql_query(self, log, mapping, fid_info, orderby=None):
@@ -302,7 +311,7 @@ class Extractor:
       select_clause = mapping['select_cols']
     else:
       select_clause = '"CSN_ID" visit_id,' + mapping['select_cols']
-    dbtable = mapping['dbtable']
+    dbtable = self.clarity_workspace + '.' + mapping['dbtable']
     where_clause = str(mapping['where_conditions'])
     if where_clause == 'nan':
       where_clause = ''
@@ -805,18 +814,33 @@ class Extractor:
       log.info("derive skipped")
 
   async def offline_criteria_processing(self, ctxt, _):
-    # TODO: make sure offline_criteria can be incremental
     criteria_job = self.job.get('offline_criteria_processing', False)
+    incremental = self.job.get('incremental', False)
     if criteria_job:
       if criteria_job.get('load_cdm_to_criteria_meas', False):
         async with ctxt.db_pool.acquire() as conn:
-          await load_table.load_cdm_to_criteria_meas(conn, self.dataset_id)
+          await load_table.load_cdm_to_criteria_meas(conn, self.dataset_id, incremental)
       if criteria_job.get('calculate_historical_criteria', False):
         async with ctxt.db_pool.acquire() as conn:
           await load_table.calculate_historical_criteria(conn)
     else:
       ctxt.log.info("skipped offline criteria processing")
 
-  async def remove_pat_enc_pending(self, ctxt, *args):
-    # TODO modify pending pat_enc records
-    pass
+  async def postprocessing(self, ctxt, *args):
+    postprocessing_sql = ''
+    ctxt.log.info("Enter postprocessing")
+    # modify pending pat_enc records
+    if self.job.get('incremental', False):
+      postprocessing_sql += """
+      UPDATE pat_enc SET meta_data = null
+      WHERE (meta_data->>'pending')::boolean
+      and dataset_id = %s;
+      """ % self.dataset_id
+    # update the updated column for this dataset
+    postprocessing_sql += 'UPDATE dw_version SET updated = Now()' \
+      + ' WHERE dataset_id = %s' % self.dataset_id
+    async with ctxt.db_pool.acquire() as conn:
+      ctxt.log.info(postprocessing_sql)
+      result = await conn.execute(postprocessing_sql)
+    ctxt.log.info("Completed postprocessing")
+    return result
