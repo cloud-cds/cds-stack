@@ -16,7 +16,8 @@ def get_src_twf_table(derive_feature_addr):
     if derive_feature_addr[fid]['twf_table'] is not None:
       return derive_feature_addr[fid]['twf_table']
 
-def get_select_table_joins(fid_input_items, derive_feature_addr, cdm_feature_dict, dataset_id):
+def get_select_table_joins(fid_input_items, derive_feature_addr,
+                           cdm_feature_dict, dataset_id, incremental):
   src_twf_table = get_src_twf_table(derive_feature_addr)
   twf_table = None
   existing_tables = set()
@@ -63,5 +64,29 @@ def get_select_table_joins(fid_input_items, derive_feature_addr, cdm_feature_dic
             tbl=src_twf_table
           )
     table_joins = src_twf_table
-  table_joins += dataset_id_equal(' where ', twf_table if twf_table else src_twf_table, dataset_id)
+  if incremental:
+    table_joins += \
+      incremental_enc_id_join(\
+        twf_table if twf_table else src_twf_table, dataset_id, incremental) \
+      + incremental_enc_id_match(' where ',incremental)
+    table_joins += dataset_id_equal(' and ', \
+      twf_table if twf_table else src_twf_table, dataset_id)
+  else:
+    table_joins += dataset_id_equal(' where ', \
+      twf_table if twf_table else src_twf_table, dataset_id)
   return sql_template.format(cols=cols, table_joins=table_joins)
+
+def incremental_enc_id_join(table, dataset_id, incremental):
+  return """
+  inner join pat_enc pe on pe.enc_id = {table}.enc_id
+  {dataset_id_match}
+  """.format(table=table, dataset_id_match=dataset_id_match(' and ', table, 'pe', dataset_id))\
+  if incremental else ''
+
+def incremental_enc_id_match(conjunctive, incremental):
+  return "{} (pe.meta_data->>'pending')::boolean".format(conjunctive) \
+    if incremental else ''
+
+def incremental_enc_id_in(conjunctive, table, dataset_id, incremental):
+  return "{con} {tbl}.enc_id in (select enc_id from pat_enc pe where (pe.meta_data->>'pending')::boolean {dataset_id_match})".format(con=conjunctive, tbl=table, dataset_id_match=dataset_id_equal(' and ', 'pe', dataset_id)) \
+      if incremental else ''

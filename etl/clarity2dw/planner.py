@@ -17,6 +17,8 @@ CONF = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'conf')
 # a complete job definition
 job_config = {
   'plan': False,
+  'incremental': bool(os.environ['incremental'])\
+                    if 'incremental' in os.environ else False,
   'reset_dataset': {
     'remove_pat_enc': True,
     'remove_data': True,

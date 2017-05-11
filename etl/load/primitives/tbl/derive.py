@@ -19,17 +19,18 @@ from etl.load.primitives.tbl import clean_tbl
 from etl.load.primitives.tbl.derive_helper import *
 
 
-def derive(fid, func_id, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict):
+def derive(fid, func_id, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
   this_mod = sys.modules[__name__]
   func = getattr(this_mod, func_id)
-  return func(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict)
+  return func(fid, fid_input, conn, log, dataset_id, derive_feature_addr,
+              cdm_feature_dict, incremental)
 
 def with_ds(dataset_id, table_name=None, conjunctive=True):
   if dataset_id is not None:
     return '%s %sdataset_id = %s' % (' and' if conjunctive else ' where', '' if table_name is None else table_name+'.', dataset_id)
   return ''
 
-async def lookup_population_mean(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict):
+async def lookup_population_mean(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
   """
   check if fid_popmean exists or not;
   if not, calculate it
@@ -54,7 +55,7 @@ async def lookup_population_mean(fid, fid_input, conn, log, dataset_id, derive_f
       log.error("lookup_population_mean %s" % fid)
 
 # Same as any_continuous_dose_update (special case)
-async def any_antibiotics_order_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict):
+async def any_antibiotics_order_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
   """
   fid should be any_antibiotics_order (T, boolean)
   fid_input should be a list of dose
@@ -64,10 +65,9 @@ async def any_antibiotics_order_update(fid, fid_input, conn, log, dataset_id, de
   for i in range(len(fid_input_items)):
     assert fid_input_items[i].endswith('dose'), \
       'wrong fid_input %s' % fid_input
-  await any_med_order_update(fid, fid_input, conn, log, dataset_id=dataset_id)
+  await any_med_order_update(fid, fid_input, conn, log, dataset_id, incremental)
 
-# Same as any_continuous_dose_update (special case)
-async def any_pressor_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict):
+async def any_pressor_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
   """
   fid should be any_pressor (T, boolean)
   fid_input should be a list of dose
@@ -78,10 +78,9 @@ async def any_pressor_update(fid, fid_input, conn, log, dataset_id, derive_featu
     assert fid_input_items[i].endswith('dose'), \
       'wrong fid_input %s' % fid_input
   for dose in fid_input_items:
-    await any_continuous_dose_update(fid, dose, conn, log, dataset_id=dataset_id)
+    await any_continuous_dose_update(fid, dose, conn, log, dataset_id=dataset_id, incremental=incremental)
 
-# Same as any_continuous_dose_update (special case)
-async def any_inotrope_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict):
+async def any_inotrope_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
   """
   fid should be any_inotrope (T, boolean)
   fid_input should be a list of dose
@@ -91,17 +90,24 @@ async def any_inotrope_update(fid, fid_input, conn, log, dataset_id, derive_feat
   for i in range(len(fid_input_items)):
     assert fid_input_items[i].endswith('dose'), \
       'wrong fid_input %s' % fid_input
-  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id))
+  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id,
+                                           incremental=incremental))
   for dose in fid_input_items:
-    await any_continuous_dose_update(fid, dose, conn, log, dataset_id=dataset_id)
+    await any_continuous_dose_update(fid, dose, conn, log,
+                                     dataset_id=dataset_id,
+                                     incremental=incremental)
 
 # Special case
-async def any_continuous_dose_update(fid, dose, conn, log, dataset_id=None):
+async def any_continuous_dose_update(fid, dose, conn, log, dataset_id=None,
+                                     incremental=False):
   global STOPPED_ACTIONS
   select_sql = """
     select enc_id, tsp, value::json->>'action' as action, confidence
-    from cdm_t where fid = '%(dose)s'%(with_ds)s order by enc_id, tsp
-  """ % {'dose': dose, 'with_ds': with_ds(dataset_id) }
+    from cdm_t where fid = '%(dose)s'%(with_ds)s %(incremental_enc_id_in)s
+    order by enc_id, tsp
+  """ % {'dose': dose, 'with_ds': with_ds(dataset_id),
+         'incremental_enc_id_in': incremental_enc_id_in(' and ', 'cdm_t', dataset_id,
+                                                        incremental)}
   log.info("any_continuous_dose_update: sql: {}".format(select_sql))
   records = await conn.fetch(select_sql)
   block = {'enc_id':None, 'start_tsp':None, 'end_tsp':None,
@@ -120,12 +126,14 @@ async def any_continuous_dose_update(fid, dose, conn, log, dataset_id=None):
         block['end_tsp'] = tsp
         block['end_c'] = c
         # block is reaty to update
-        await update_continuous_dose_block(fid, block, conn, log, dataset_id=dataset_id)
+        await update_continuous_dose_block(fid, block, conn, log,
+                                           dataset_id=dataset_id)
         block = {'enc_id':None, 'start_tsp':None, 'end_tsp':None,
              'start_c': 0, 'end_c': 0}
     elif block['enc_id'] != enc_id and not action in STOPPED_ACTIONS:
       # update current block
-      await update_continuous_dose_block(fid, block, conn, log, dataset_id=dataset_id)
+      await update_continuous_dose_block(fid, block, conn, log,
+                                         dataset_id=dataset_id)
       # create new block
       block = {'enc_id':enc_id, 'start_tsp':tsp, 'end_tsp':None,
            'start_c': 0, 'end_c': 0}
@@ -165,9 +173,11 @@ async def update_continuous_dose_block(fid, block, conn, log, dataset_id):
 
 
 # Special case
-async def any_med_order_update(fid, fid_input, conn, log, dataset_id=None):
+async def any_med_order_update(fid, fid_input, conn, log, dataset_id=None,
+                               incremental=False):
   # Updated on 3/19/2016
-  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id))
+  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id,
+                                           incremental=incremental))
   fid_input_items = [item.strip() for item in fid_input.split(',')]
   doses = '|'.join(fid_input_items)
   select_sql = """
@@ -175,8 +185,10 @@ async def any_med_order_update(fid, fid_input, conn, log, dataset_id=None):
       value::json->>'order_tsp' order_tsp,
       max(confidence) confidence FROM cdm_t
     WHERE fid ~ '%s'%s AND cast(value::json->>'dose' as numeric) > 0
+    %s
     group by enc_id, order_tsp
-  """ % (doses, with_ds(dataset_id))
+  """ % (doses, with_ds(dataset_id),
+         incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental))
   rows = await conn.fetch(select_sql)
   for row in rows:
     if row['order_tsp']:
@@ -191,22 +203,26 @@ async def any_med_order_update(fid, fid_input, conn, log, dataset_id=None):
 
 
 # Special case
-async def suspicion_of_infection_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict):
+async def suspicion_of_infection_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
   # 03/20/2016
   assert fid == 'suspicion_of_infection', 'wrong fid %s' % fid
   fid_input_items = [item.strip() for item in fid_input.split(',')]
   assert fid_input_items[0] == 'culture_order' \
     and fid_input_items[1] == 'any_antibiotics_order', \
     'wrong fid_input %s' % fid_input
-  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id))
+  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
   select_sql = """
     select t1.enc_id, t1.tsp, t1.confidence|t2.confidence confidence
       from cdm_t t1
     inner join cdm_t t2 on t1.enc_id = t2.enc_id
       and t2.fid = 'any_antibiotics_order'
       and t2.tsp >= t1.tsp and t2.tsp <= t1.tsp + interval '72 hours'
-    where t1.fid = 'culture_order'%s%s
-  """ % (with_ds(dataset_id, table_name='t1'), with_ds(dataset_id, table_name='t2'))
+    where t1.fid = 'culture_order'%s%s%s
+  """ % (with_ds(dataset_id, table_name='t1'),
+         with_ds(dataset_id, table_name='t2'),
+         incremental_enc_id_in(' and ', 't1', dataset_id, incremental),
+         )
+  log.info(select_sql)
   rows = await conn.fetch(select_sql)
   for row in rows:
     values = [row['enc_id'], row['tsp'], fid, "True",
@@ -218,8 +234,11 @@ async def suspicion_of_infection_update(fid, fid_input, conn, log, dataset_id, d
     inner join cdm_t t2 on t1.enc_id = t2.enc_id
       and t2.fid = 'culture_order'
       and t2.tsp >= t1.tsp and t2.tsp <= t1.tsp + interval '24 hours'
-    where t1.fid = 'any_antibiotics_order'%s%s
-  """ % (with_ds(dataset_id, table_name='t1'), with_ds(dataset_id, table_name='t2'))
+    where t1.fid = 'any_antibiotics_order'%s%s%s
+  """ % (with_ds(dataset_id, table_name='t1'),
+         with_ds(dataset_id, table_name='t2'),
+         incremental_enc_id_in(' and ', 't1', dataset_id, incremental),
+         )
   rows = await conn.fetch(select_sql)
   for row in rows:
     values = [row['enc_id'], row['tsp'], fid, "True",
@@ -237,26 +256,31 @@ async def suspicion_of_infection_update(fid, fid_input, conn, log, dataset_id, d
 
 
 # Special subquery (subquery with if-then-else cases)
-async def hypotension_intp_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict):
+async def hypotension_intp_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
   assert fid == 'hypotension_intp', 'wrong fid %s' % fid
   assert fid_input == 'hypotension_raw', 'wrong fid_input %s' % fid
   twf_table_temp = derive_feature_addr[fid]['twf_table_temp']
-  await conn.execute(clean_tbl.cdm_twf_clean(fid, value=False, dataset_id=dataset_id, twf_table=twf_table_temp))
+  await conn.execute(clean_tbl.cdm_twf_clean(fid, value=False, dataset_id=dataset_id, twf_table=twf_table_temp, incremental=incremental))
   fid_input_twf_table_temp = derive_feature_addr[fid_input]['twf_table_temp']
   select_sql = """
   SELECT *
   FROM
-    (SELECT enc_id, tsp, hypotension_raw, hypotension_raw_c,
+    (SELECT enc_id, tsp, hypotension_raw, coalesce(hypotension_raw_c, 0) as
+    hypotension_raw_c,
         lag(enc_id) over w as enc_id_prev,
         lag(tsp) over w as tsp_prev,
         lag(hypotension_raw) over w as hypotension_raw_prev
-     FROM %(twf_table)s%(with_ds)s
+     FROM %(twf_table)s%(with_ds)s %(incremental_enc_id_in)s
      WINDOW w as (order by enc_id,tsp)
      ORDER by enc_id, tsp) as query
   WHERE (query.hypotension_raw OR query.hypotension_raw_prev) OR
       query.enc_id IS DISTINCT FROM query.enc_id_prev
   """ % {'twf_table': fid_input_twf_table_temp,
-         'with_ds': with_ds(dataset_id, table_name=fid_input_twf_table_temp, conjunctive=False)}
+         'with_ds': with_ds(dataset_id, table_name=fid_input_twf_table_temp, \
+            conjunctive=False),
+         'incremental_enc_id_in': incremental_enc_id_in(' and ' if dataset_id else ' where ', \
+            fid_input_twf_table_temp, dataset_id, incremental)}
+  log.info(select_sql)
   records = await conn.fetch(select_sql)
   block_start = None
   block_end = None
@@ -316,7 +340,7 @@ async def hypotension_intp_update(fid, fid_input, conn, log, dataset_id, derive_
       block_c = block_c | rec['hypotension_raw_c']
 
 # Special subquery (multiple subqueries)
-async def sirs_intp_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict):
+async def sirs_intp_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
   """
   SIRS_INTP 30m version
   """
@@ -324,7 +348,7 @@ async def sirs_intp_update(fid, fid_input, conn, log, dataset_id, derive_feature
   assert fid == 'sirs_intp', 'wrong fid %s' % fid
   assert fid_input == 'sirs_raw', 'wrong fid_input %s' % fid
   twf_table_temp = derive_feature_addr[fid]['twf_table_temp']
-  await conn.execute(clean_tbl.cdm_twf_clean(fid, value=False, confidence=0, twf_table=twf_table_temp, dataset_id=dataset_id))
+  await conn.execute(clean_tbl.cdm_twf_clean(fid, value=False, confidence=0, twf_table=twf_table_temp, dataset_id=dataset_id, incremental=incremental))
   # 1. Identify all periods of time where sirs_raw=1 for
   # at least 1 consecutive hours and set sirs_intp=1
   fid_input_twf_table_temp = derive_feature_addr[fid_input]['twf_table_temp']
@@ -336,12 +360,16 @@ async def sirs_intp_update(fid, fid_input, conn, log, dataset_id, derive_feature
         lag(tsp) over w as tsp_prev,
         lag(sirs_raw) over w as sirs_raw_prev
      FROM %(twf_table)s%(with_ds)s
+     %(incremental_enc_id_in)s
      WINDOW w as (order by enc_id,tsp)
      ORDER by enc_id, tsp) as query
   WHERE (query.sirs_raw OR query.sirs_raw_prev) OR
       query.enc_id IS DISTINCT FROM query.enc_id_prev
   """ % {'twf_table': fid_input_twf_table_temp,
-         'with_ds': with_ds(dataset_id, table_name=fid_input_twf_table_temp, conjunctive=False)}
+         'with_ds': with_ds(dataset_id, table_name=fid_input_twf_table_temp, \
+            conjunctive=False),
+         'incremental_enc_id_in': incremental_enc_id_in(' and ' if dataset_id else ' where ', \
+            fid_input_twf_table_temp, dataset_id, incremental)}
   log.info(select_sql)
   records = await conn.fetch(select_sql)
   block_start = None
@@ -413,11 +441,16 @@ async def sirs_intp_update(fid, fid_input, conn, log, dataset_id, derive_feature
         lag(sirs_intp) over w as sirs_intp_prev,
         lag(sirs_intp_c) over w as sirs_intp_c_prev
      FROM %(twf_table)s%(with_ds)s
+     %(incremental_enc_id_in)s
      WINDOW w as (order by enc_id,tsp)
      ORDER by enc_id, tsp) as query
   WHERE (query.sirs_intp or query.sirs_intp_prev) OR
       (query.enc_id IS DISTINCT FROM query.enc_id_prev)
-  """ % {'twf_table': twf_table_temp, 'with_ds': with_ds(dataset_id, table_name=twf_table_temp, conjunctive=False)}
+  """ % {'twf_table': twf_table_temp,
+         'with_ds': with_ds(dataset_id, table_name=twf_table_temp, \
+            conjunctive=False),
+         'incremental_enc_id_in': incremental_enc_id_in(' and ' if dataset_id else ' where ', \
+            twf_table_temp, dataset_id, incremental)}
   log.info(select_sql)
   records = await conn.fetch(select_sql)
   interval_start = None
@@ -461,7 +494,7 @@ async def sirs_intp_update(fid, fid_input, conn, log, dataset_id, derive_feature
 
 
 # Subquery chain
-async def septic_shock_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict):
+async def septic_shock_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
   # UPDATE 8/19/2016
   assert fid == 'septic_shock', 'wrong fid %s' % fid
   select_sql = """
@@ -482,11 +515,13 @@ async def septic_shock_update(fid, fid_input, conn, log, dataset_id, derive_feat
   severe_sepsis_twf_table_temp = derive_feature_addr['severe_sepsis']['twf_table_temp']
   twf_table_temp = derive_feature_addr['septic_shock']['twf_table_temp']
   records = \
-    await conn.fetch(select_sql \
+    await conn.fetch((select_sql + ' %(incremental_enc_id_in)s') \
       % {'condition':'severe_sepsis is true',
          'conf': 'severe_sepsis_c',
          'twf_table': severe_sepsis_twf_table_temp,
-         'with_ds': with_ds(dataset_id)})
+         'with_ds': with_ds(dataset_id),
+         'incremental_enc_id_in': incremental_enc_id_in(' and ', \
+            severe_sepsis_twf_table_temp, dataset_id, incremental)})
   for rec in records:
     await conn.execute(update_clause \
       % {'conf':rec['conf'],
@@ -496,7 +531,7 @@ async def septic_shock_update(fid, fid_input, conn, log, dataset_id, derive_feat
          'twf_table': twf_table_temp,
          'with_ds': with_ds(dataset_id)})
 
-  subquery = get_select_table_joins(['hypotension_intp', 'lactate'], derive_feature_addr, cdm_feature_dict, dataset_id)
+  subquery = get_select_table_joins(['hypotension_intp', 'lactate'], derive_feature_addr, cdm_feature_dict, dataset_id, incremental)
   records = \
     await conn.fetch(select_sql \
       % {'condition':'hypotension_intp is true or lactate > 4',
@@ -511,7 +546,7 @@ async def septic_shock_update(fid, fid_input, conn, log, dataset_id, derive_feat
          'tsp': rec['tsp'],
          'twf_table': twf_table_temp,
          'with_ds': with_ds(dataset_id)})
-  subquery = get_select_table_joins(['fluid_resuscitation', 'vasopressor_resuscitation'], derive_feature_addr, cdm_feature_dict, dataset_id)
+  subquery = get_select_table_joins(['fluid_resuscitation', 'vasopressor_resuscitation'], derive_feature_addr, cdm_feature_dict, dataset_id, incremental)
   records = \
     await conn.fetch(select_sql % \
       {'condition':'fluid_resuscitation is true or vasopressor_resuscitation is true',
@@ -537,7 +572,7 @@ async def septic_shock_update(fid, fid_input, conn, log, dataset_id, derive_feat
 
 
 # Special case (mini-pipeline)
-async def resp_sofa_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict):
+async def resp_sofa_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
   """
   fid should be resp_sofa
   fid_input should be (vent (T), pao2_to_fio2 (TWF))
@@ -547,11 +582,13 @@ async def resp_sofa_update(fid, fid_input, conn, log, dataset_id, derive_feature
   assert fid_input_items[0] == 'vent' \
     and fid_input_items[1] == 'pao2_to_fio2', 'wrong fid_input %s' % fid_input
   twf_table_temp = derive_feature_addr[fid]['twf_table_temp']
-  await conn.execute(clean_tbl.cdm_twf_clean(fid, value=0, twf_table=twf_table_temp, dataset_id=dataset_id))
+  await conn.execute(clean_tbl.cdm_twf_clean(fid, value=0, twf_table=twf_table_temp, dataset_id=dataset_id, incremental=incremental))
   update_clause = """
-  INSERT INTO %(twf_table_temp)s (%(dataset_id)s enc_id,tsp,resp_sofa, resp_sofa_c)
+  INSERT INTO %(twf_table_temp)s (%(dataset_id)s
+    enc_id, tsp, resp_sofa, resp_sofa_c)
   (
-    WITH vent as (select enc_id,tsp,fid from cdm_t where fid = 'vent' %(with_ds)s)
+    WITH vent as (select enc_id,tsp,fid from cdm_t where fid = 'vent'
+    %(with_ds)s %(incremental_enc_id_in)s)
     SELECT %(dataset_id)s source.enc_id, source.tsp,
       (CASE
       WHEN pao2_to_fio2 < 100 and fid is not null THEN 4
@@ -573,12 +610,15 @@ async def resp_sofa_update(fid, fid_input, conn, log, dataset_id, derive_feature
          'with_ds': with_ds(dataset_id, table_name='cdm_t'),
          'twf_table_temp': twf_table_temp,
          'dataset_id': 'dataset_id,' if dataset_id else '',
-         'twf_table_join': get_select_table_joins(['pao2_to_fio2'], derive_feature_addr, cdm_feature_dict, dataset_id)}
+         'twf_table_join': get_select_table_joins(['pao2_to_fio2'], \
+            derive_feature_addr, cdm_feature_dict, dataset_id, incremental),
+         'incremental_enc_id_in': \
+            incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental)}
   log.info(update_clause)
   await conn.execute(update_clause)
 
 # Special case (mini-pipeline)
-async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict):
+async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
   """
   fid should be cardio_sofa
   03/20/2016
@@ -595,14 +635,14 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
     % fid_input
 
   twf_table_temp = derive_feature_addr[fid]['twf_table_temp']
-  await conn.execute(clean_tbl.cdm_twf_clean(fid, value=0, twf_table=twf_table_temp, dataset_id=dataset_id))
+  await conn.execute(clean_tbl.cdm_twf_clean(fid, value=0, twf_table=twf_table_temp, dataset_id=dataset_id, incremental=incremental))
 
   # update cardio_sofa based on mapm
   mapm_table_temp = derive_feature_addr['mapm']['twf_table_temp']
   update_clause = """
   INSERT INTO %(twf_table_temp)s (%(dataset_id)s enc_id,tsp, cardio_sofa, cardio_sofa_c)
   SELECT %(dataset_id)s enc_id, tsp, 1 as cardio_sofa, mapm_c as cardio_sofa_c
-  FROM %(mapm_table_temp)s where mapm < 70%(with_ds)s
+  FROM %(mapm_table_temp)s where mapm < 70%(with_ds)s %(incremental_enc_id_in)s
   ON CONFLICT (%(dataset_id)s enc_id,tsp) DO UPDATE SET
   cardio_sofa = excluded.cardio_sofa,
   cardio_sofa_c = excluded.cardio_sofa_c
@@ -610,7 +650,9 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
          'twf_table_temp': twf_table_temp,
          'with_ds': with_ds(dataset_id),
          'mapm_table_temp': mapm_table_temp,
-         'dataset_id': 'dataset_id, ' if dataset_id else ''}
+         'dataset_id': 'dataset_id, ' if dataset_id else '',
+         'incremental_enc_id_in': incremental_enc_id_in(' and ', \
+            mapm_table_temp, dataset_id, incremental)}
   await conn.execute(update_clause)
 
   select_sql = """
@@ -618,7 +660,7 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
     value::json->>'action' as action, value::json->>'dose' as dose,
     confidence
     FROM cdm_t
-  WHERE fid = '%s'%s ORDER BY enc_id, tsp
+  WHERE fid = '%s'%s %s ORDER BY enc_id, tsp
   """
 
   update_clause = """
@@ -641,7 +683,9 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
   """
 
   # update cardio_sofa based on dopamine_dose
-  records = await conn.fetch(select_sql % ('dopamine_dose', with_ds(dataset_id)))
+  records = await conn.fetch(select_sql % \
+      ('dopamine_dose', with_ds(dataset_id),
+       incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental)))
   for i, rec in enumerate(records):
     action = rec['action']
     if not action in STOPPED_ACTIONS and rec['dose'] is not None:
@@ -674,7 +718,10 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
   unit = await conn.fetchrow(get_unit_sql)
   unit = unit['unit']
   if unit == 'mcg/kg/min':
-    records = await conn.fetch(select_sql % ('epinephrine_dose', with_ds(dataset_id)))
+    records = await conn.fetch(select_sql \
+      % ('epinephrine_dose',
+         with_ds(dataset_id)),
+         incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental))
   elif unit == 'mcg/min':
     select_sql_with_weight = """
       select sub.enc_id, sub.tsp,
@@ -688,13 +735,18 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
         inner join cdm_twf twf
           on t.fid = '%s' and twf.enc_id = t.enc_id
           and t.tsp >= twf.tsp
-        %s
+        %s %s
         ORDER BY t.enc_id, t.tsp, twf.tsp
       ) as sub
       group by sub.enc_id, sub.tsp, sub.value, sub.confidence
     """
-    log.info("select_sql_with_weight:%s" % (select_sql_with_weight % ('epinephrine_dose', with_ds(dataset_id, table_name='t', conjunctive=False))))
-    records = await conn.fetch(select_sql_with_weight % ('epinephrine_dose', with_ds(dataset_id, table_name='t', conjunctive=False)))
+    sql = select_sql_with_weight % \
+      ('epinephrine_dose',
+       with_ds(dataset_id, table_name='t', conjunctive=False),
+       incremental_enc_id_in(' and ' if dataset_id else ' where ', 'twf', dataset_id,
+                             incremental))
+    log.info("select_sql_with_weight:%s" % sql)
+    records = await conn.fetch(sql)
   for i, rec in enumerate(records):
     action = rec['action']
     if not action in STOPPED_ACTIONS and rec['dose'] is not None:
@@ -719,7 +771,7 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
                'enc_id': rec['enc_id'], 'tsp':rec['tsp'],
                'twf_table': twf_table_temp, 'with_ds': with_ds(dataset_id)})
   # update cardio_sofa based on dobutamine_dose
-  records = await conn.fetch(select_sql % ('dobutamine_dose', with_ds(dataset_id)))
+  records = await conn.fetch(select_sql % ('dobutamine_dose', with_ds(dataset_id),incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental)))
   for i, rec in enumerate(records):
     action = rec['action']
     if not action in STOPPED_ACTIONS and rec['dose'] is not None:
@@ -743,7 +795,7 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
   unit = await conn.fetchrow(get_unit_sql)
   unit = unit['unit']
   if unit == 'mcg/kg/min':
-    records = await conn.fetch(select_sql % ('levophed_infusion_dose', with_ds(dataset_id)))
+    records = await conn.fetch(select_sql % ('levophed_infusion_dose', with_ds(dataset_id),incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental)))
   elif unit == 'mcg/min':
     select_sql_with_weight = """
       select sub.enc_id, sub.tsp,
@@ -757,13 +809,18 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
         inner join cdm_twf twf
           on t.fid = '%s' and twf.enc_id = t.enc_id
           and t.tsp >= twf.tsp
-        %s
+        %s %s
         ORDER BY t.enc_id, t.tsp, twf.tsp
       ) as sub
       group by sub.enc_id, sub.tsp, sub.value, sub.confidence
     """
-    log.info("select_sql_with_weight:%s" % (select_sql_with_weight % ('levophed_infusion_dose', with_ds(dataset_id, table_name='t', conjunctive=False))))
-    records = await conn.fetch(select_sql_with_weight % ('levophed_infusion_dose', with_ds(dataset_id, table_name='t', conjunctive=False)))
+    sql = select_sql_with_weight % \
+      ('levophed_infusion_dose',
+       with_ds(dataset_id, table_name='t', conjunctive=False),
+       incremental_enc_id_in(' and ' if dataset_id else ' where ', 'twf', dataset_id,
+                             incremental))
+    log.info("select_sql_with_weight:%s" % sql)
+    records = await conn.fetch(sql)
 
   for i, rec in enumerate(records):
     action = rec['action']
@@ -789,7 +846,7 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
 
 
 # Special case (mini-pipeline)
-async def vasopressor_resuscitation_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict):
+async def vasopressor_resuscitation_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
   """
   fid should be vasopressor_resuscitation (TWF, boolean)
   fid_input should be levophed_infusion_dose and dopamine_dose
@@ -801,10 +858,10 @@ async def vasopressor_resuscitation_update(fid, fid_input, conn, log, dataset_id
     'wrong fid_input %s' % fid_input
   twf_table_temp = derive_feature_addr[fid]['twf_table_temp']
 
-  await conn.execute(clean_tbl.cdm_twf_clean(fid, value=False, confidence=0, twf_table=twf_table_temp, dataset_id=dataset_id))
+  await conn.execute(clean_tbl.cdm_twf_clean(fid, value=False, confidence=0, twf_table=twf_table_temp, dataset_id=dataset_id, incremental=incremental))
   select_sql = """
   select enc_id, tsp, value::json->>'action' as action from cdm_t
-  where fid = '%s'%s order by enc_id, tsp;
+  where fid = '%s'%s %s order by enc_id, tsp;
   """
 
   update_sql_with_stop = """
@@ -817,7 +874,10 @@ async def vasopressor_resuscitation_update(fid, fid_input, conn, log, dataset_id
   where enc_id = %(enc_id)s%(with_ds)s and tsp >= timestamptz '%(begin)s'
   """
 
-  records = await conn.fetch(select_sql % ('levophed_infusion_dose', with_ds(dataset_id)))
+  records = await conn.fetch(\
+    select_sql % ('levophed_infusion_dose',
+                  with_ds(dataset_id),
+                  incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental)))
   enc_id_cur = None
   start_tsp = None
   stop_tsp = None
@@ -854,7 +914,10 @@ async def vasopressor_resuscitation_update(fid, fid_input, conn, log, dataset_id
                          'begin':start_tsp,
                          'twf_table': twf_table_temp, 'with_ds': with_ds(dataset_id)})
 
-  records = await conn.fetch(select_sql % ('dopamine_dose', with_ds(dataset_id)))
+  records = await conn.fetch(\
+    select_sql % ('dopamine_dose',
+                  with_ds(dataset_id),
+                  incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental)))
   enc_id_cur = None
   start_tsp = None
   stop_tsp = None
@@ -892,7 +955,7 @@ async def vasopressor_resuscitation_update(fid, fid_input, conn, log, dataset_id
 
 
 # Special case (mini-pipeline)
-async def heart_attack_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict):
+async def heart_attack_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
   """
   NEED TO MODIFY
   fid_input should be heart_attack_inhosp, ekg_proc, troponin
@@ -907,14 +970,16 @@ async def heart_attack_update(fid, fid_input, conn, log, dataset_id, derive_feat
     and 'troponin' == fid_input_items[2], \
     "fid_input error: %s" % fid_input_items
   # clean previous values
-  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id))
+  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
   # Retrieve all records of heart_attack_inhosp
   select_sql = """
   SELECT * FROM cdm_t
-  WHERE  fid = 'heart_attack_inhosp'%s
+  WHERE  fid = 'heart_attack_inhosp'%s %s
   ORDER BY enc_id, tsp;
   """
-  records = await conn.fetch(select_sql % with_ds(dataset_id))
+  records = await conn.fetch(\
+    select_sql % (with_ds(dataset_id),
+                  incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental)))
 
   # Retrieve troponin above threshold
   # and EKG procedure order times to corroborate time of diagnosis
@@ -925,6 +990,7 @@ async def heart_attack_update(fid, fid_input, conn, log, dataset_id, derive_feat
     and cdm_t.enc_id = %(enc_id)s%(with_ds)s
     and tsp >= timestamptz '%(tsp)s'
     and timestamptz '%(tsp)s' <= tsp + interval '24 hours'
+    %(incremental_enc_id_in)s
   ORDER BY tsp
   """
   select_troponin = """
@@ -933,6 +999,7 @@ async def heart_attack_update(fid, fid_input, conn, log, dataset_id, derive_feat
     and enc_id = %(enc_id)s%(with_ds)s
     and tsp >= timestamptz '%(tsp)s'
     and timestamptz '%(tsp)s' <= tsp + interval '24 hours'
+    %(incremental_enc_id_in)s
   ORDER BY tsp
   """
   # For each instance of heart attack
@@ -944,13 +1011,23 @@ async def heart_attack_update(fid, fid_input, conn, log, dataset_id, derive_feat
     tsp = record['tsp']
     # By default set datetime of diagnosis to time given in ProblemList table
     # This datetime only specifies date though
-    evidence = await conn.fetch(select_troponin % {'enc_id':enc_id,
-                                 'tsp':tsp, 'twf_table': twf_table_troponin, 'with_ds': with_ds(dataset_id)})
+    evidence = await conn.fetch(\
+      select_troponin % \
+        {'enc_id':enc_id, 'tsp':tsp,
+         'twf_table': twf_table_troponin,
+         'with_ds': with_ds(dataset_id),
+         'incremental_enc_id_in': \
+            incremental_enc_id_in(' and ',
+                                  twf_table_troponin,dataset_id,
+                                  incremental)})
     t1 = tsp
     if len(evidence) > 0:
       t1 = evidence[0]['tsp']
 
-    evidence = await conn.fetch(select_ekg % {'enc_id':enc_id, 'tsp':tsp, 'with_ds': with_ds(dataset_id)})
+    evidence = await conn.fetch(select_ekg \
+      % {'enc_id':enc_id, 'tsp':tsp, 'with_ds': with_ds(dataset_id),
+         'incremental_enc_id_in': \
+            incremental_enc_id_in(' and ', 'cdm_t', dataset_id,incremental)})
     t2 = tsp
     if len(evidence) > 0:
       t2 = evidence[0]['tsp']
@@ -960,10 +1037,11 @@ async def heart_attack_update(fid, fid_input, conn, log, dataset_id, derive_feat
     tsp_first = min(t1, t2)
     conf=confidence.NO_TRANSFORM
 
-    await load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf], dataset_id = dataset_id)
+    await load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf],
+                            dataset_id = dataset_id)
 
 # Special case (mini-pipeline)
-async def stroke_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict):
+async def stroke_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
   """
   fid_input should be stroke_inhosp, ct_proc, mri_proc
   fid should be heart_attack (T)
@@ -976,15 +1054,17 @@ async def stroke_update(fid, fid_input, conn, log, dataset_id, derive_feature_ad
       and 'mri_proc' == fid_input_items[2], "fid_input error: %s" % fid_input_items
 
   # clean previous values
-  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id))
+  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
 
   # Retrieve all records of stroke_inhosp
   select_sql = """
   SELECT distinct enc_id, tsp FROM cdm_t
   WHERE  fid = 'stroke_inhosp'%s
+  %s
   ORDER BY enc_id,  tsp;
   """
-  records = await conn.fetch(select_sql % with_ds(dataset_id))
+  records = await conn.fetch(select_sql \
+    % (with_ds(dataset_id), incremental_enc_id_in(' and ', 'cdm_t', dataset_id,incremental)))
 
   # Retrieve CT and MRI order times to corroborate time of diagnosis
   select_sql = """
@@ -1018,7 +1098,7 @@ async def stroke_update(fid, fid_input, conn, log, dataset_id, derive_feature_ad
     await load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf], dataset_id=dataset_id)
 
 # Special case (mini-pipeline)
-async def gi_bleed_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict):
+async def gi_bleed_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
   """
   fid_input should be gi_bleed_inhosp, ct_proc, mri_proc
   fid should be gi_bleed (T)
@@ -1031,14 +1111,15 @@ async def gi_bleed_update(fid, fid_input, conn, log, dataset_id, derive_feature_
       and 'mri_proc' == fid_input_items[2], "fid_input error: %s" % fid_input_items
 
   # clean previous values
-  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id))
+  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
   # Retrieve all records of gi_bleed_inhosp
   select_sql = """
   SELECT distinct enc_id, tsp FROM cdm_t
-  WHERE  fid = 'gi_bleed_inhosp'%s
+  WHERE  fid = 'gi_bleed_inhosp'%s %s
   ORDER BY enc_id,  tsp;
   """
-  records = await conn.fetch(select_sql % with_ds(dataset_id))
+  records = await conn.fetch(select_sql % \
+    (with_ds(dataset_id), incremental_enc_id_in(' and ', 'cdm_t',dataset_id, incremental)))
 
   # Retrieve CT and MRI order times to corroborate time of diagnosis
   select_sql = """
@@ -1076,7 +1157,7 @@ async def gi_bleed_update(fid, fid_input, conn, log, dataset_id, derive_feature_
 
 
 # Special case (mini-pipeline)
-async def severe_pancreatitis_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict):
+async def severe_pancreatitis_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
   """
   fid_input should be severe_pancreatitis_inhosp, ct_proc, mri_proc
   fid should be heart_attack (T)
@@ -1088,14 +1169,15 @@ async def severe_pancreatitis_update(fid, fid_input, conn, log, dataset_id, deri
   assert 'severe_pancreatitis_inhosp' == fid_input_items[0] and 'ct_proc' == fid_input_items[1] \
       and 'mri_proc' == fid_input_items[2], "fid_input error: %s" % fid_input_items
   # clean previous values
-  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id))
+  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
   # Retrieve all records of severe_pancreatitis_inhosp
   select_sql = """
   SELECT distinct enc_id, tsp FROM cdm_t
-  WHERE  fid = 'severe_pancreatitis_inhosp'%s
-  ORDER BY enc_id,  tsp;
+  WHERE  fid = 'severe_pancreatitis_inhosp'%s %s
+  ORDER BY enc_id, tsp;
   """
-  records = await conn.fetch(select_sql % with_ds(dataset_id))
+  records = await conn.fetch(select_sql \
+    % (with_ds(dataset_id), incremental_enc_id_in(' and ', 'cdm_t', dataset_id,incremental)))
 
   # Retrieve CT and MRI order times to corroborate time of diagnosis
   select_sql = """
@@ -1128,7 +1210,7 @@ async def severe_pancreatitis_update(fid, fid_input, conn, log, dataset_id, deri
     await load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf], dataset_id=dataset_id)
 
 # Special case (mini-pipeline)
-async def pulmonary_emboli_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict):
+async def pulmonary_emboli_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
   """
   fid_input should be pulmonary_emboli_inhosp, ct_proc, ekg_proc
   fid should be heart_attack (T)
@@ -1140,14 +1222,15 @@ async def pulmonary_emboli_update(fid, fid_input, conn, log, dataset_id, derive_
   assert 'pulmonary_emboli_inhosp' == fid_input_items[0] and 'ct_proc' == fid_input_items[1] \
       and 'ekg_proc' == fid_input_items[2], "fid_input error: %s" % fid_input_items
   # clean previous values
-  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id))
+  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
   # Retrieve all records of pulmonary_emboli_inhosp
   select_sql = """
   SELECT distinct enc_id, tsp FROM cdm_t
-  WHERE  fid = 'pulmonary_emboli_inhosp'%s
+  WHERE  fid = 'pulmonary_emboli_inhosp'%s %s
   ORDER BY enc_id,  tsp;
   """
-  records = await conn.fetch(select_sql % with_ds(dataset_id))
+  records = await conn.fetch(select_sql \
+    % (with_ds(dataset_id), incremental_enc_id_in(' and ', 'cdm_t',dataset_id, incremental)))
 
   # Retrieve CT and MRI order times to corroborate time of diagnosis
   select_sql = """
@@ -1180,7 +1263,7 @@ async def pulmonary_emboli_update(fid, fid_input, conn, log, dataset_id, derive_
     await load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf], dataset_id=dataset_id)
 
 # Special case (mini-pipeline)
-async def bronchitis_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict):
+async def bronchitis_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
   """
   fid_input should be bronchitis_inhosp, chest_xray, bacterial_culture
   fid should be heart_attack (T)
@@ -1192,14 +1275,15 @@ async def bronchitis_update(fid, fid_input, conn, log, dataset_id, derive_featur
   assert 'bronchitis_inhosp' == fid_input_items[0] and 'chest_xray' == fid_input_items[1] \
       and 'bacterial_culture' == fid_input_items[2], "fid_input error: %s" % fid_input_items
   # clean previous values
-  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id))
+  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
   # Retrieve all records of bronchitis_inhosp
   select_sql = """
   SELECT distinct enc_id, tsp FROM cdm_t
-  WHERE  fid = 'bronchitis_inhosp'%s
+  WHERE  fid = 'bronchitis_inhosp'%s %s
   ORDER BY enc_id,  tsp;
   """
-  records = await conn.fetch(select_sql % with_ds(dataset_id))
+  records = await conn.fetch(select_sql \
+    % (with_ds(dataset_id), incremental_enc_id_in(' and ', 'cdm_t', dataset_id,incremental)))
 
   # Retrieve chest x-ray and bacterial culture order times to corroborate time of diagnosis
   select_sql = """
@@ -1232,7 +1316,7 @@ async def bronchitis_update(fid, fid_input, conn, log, dataset_id, derive_featur
     await load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf], dataset_id=dataset_id)
 
 # Special case (mini-pipeline)
-async def acute_kidney_failure_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict):
+async def acute_kidney_failure_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
   """
   fid_input should be
   acute_kidney_failure_inhosp, creatinine, urine_output_24hr, dialysis
@@ -1248,7 +1332,7 @@ async def acute_kidney_failure_update(fid, fid_input, conn, log, dataset_id, der
     and 'dialysis' == fid_input_items[3], \
     "fid_input error: %s" % fid_input_items
   # clean previous values
-  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id))
+  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
 
   sql = """
   WITH S as (
@@ -1270,6 +1354,7 @@ async def acute_kidney_failure_update(fid, fid_input, conn, log, dataset_id, der
       and cr.creatinine > 5 and cr.creatinine_c < 8 %(dataset_id_equal_cr)s
       and ur24.urine_output_24hr < 500 and ur24.tsp - (select pat_min_tsp from S where S.enc_id = ur24.enc_id) >= '24 hours'::interval %(dataset_id_equal_ur24)s
       and di.value = 'True' %(dataset_id_equal_di)s
+      %(incremental_enc_id_in)s
   ) source
   GROUP BY %(dataset_id)s enc_id,tsp,fid
   ON CONFLICT (%(dataset_id)s enc_id,tsp,fid) DO UPDATE SET
@@ -1284,6 +1369,7 @@ async def acute_kidney_failure_update(fid, fid_input, conn, log, dataset_id, der
     'dataset_id_equal_cr': ' and cr.dataset_id = {}'.format(dataset_id) if dataset_id else '',
     'dataset_id_equal_ur24': ' and ur24.dataset_id = {}'.format(dataset_id) if dataset_id else '',
     'dataset_id_equal_di': ' and di.dataset_id = {}'.format(dataset_id) if dataset_id else '',
+    'incremental_enc_id_in': incremental_enc_id_in(' and ', 'akfi', dataset_id,incremental)
   }
   log.info(sql)
   await conn.execute(sql)
@@ -1296,7 +1382,7 @@ async def acute_kidney_failure_update(fid, fid_input, conn, log, dataset_id, der
 
 
 # Special case (mini-pipeline)
-async def ards_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict):
+async def ards_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
   """
   fid_input should be ards_inhosp, pao2_to_fio2, vent
   fid should be ards (T)
@@ -1309,14 +1395,15 @@ async def ards_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr
     and 'pao2_to_fio2' == fid_input_items[1] \
     and 'vent' == fid_input_items[2], \
     "fid_input error: %s" % fid_input_items
-  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id))
+  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
   # Retrieve all records of ards_inhosp
   select_sql = """
   SELECT distinct enc_id, tsp FROM cdm_t
-  WHERE  fid = 'ards_inhosp'%s
+  WHERE  fid = 'ards_inhosp'%s %s
   ORDER BY enc_id,  tsp;
   """
-  records = await conn.fetch(select_sql % with_ds(dataset_id))
+  records = await conn.fetch(select_sql \
+    % (with_ds(dataset_id), incremental_enc_id_in(' and ', 'cdm_t',dataset_id, incremental)))
 
   select_ptf = """
   SELECT tsp FROM %(twf_table_ptf)s
@@ -1363,7 +1450,7 @@ async def ards_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr
     await load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf], dataset_id=dataset_id)
 
 # Special case (mini-pipeline)
-async def hepatic_failure_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict):
+async def hepatic_failure_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
   """
   fid_input should be hepatic_failure_inhosp, bilirubin
   fid should be hepatic_failure (T)
@@ -1376,14 +1463,15 @@ async def hepatic_failure_update(fid, fid_input, conn, log, dataset_id, derive_f
     and 'bilirubin' == fid_input_items[1] \
     , "fid_input error: %s" % fid_input_items
   # clean previous values
-  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id))
+  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
   # Retrieve all records of hepatic_inhosp
   select_sql = """
   SELECT distinct enc_id, tsp FROM cdm_t
-  WHERE  fid = 'hepatic_failure_inhosp'%s
+  WHERE  fid = 'hepatic_failure_inhosp'%s %s
   ORDER BY enc_id,  tsp;
   """
-  records = await conn.fetch(select_sql % with_ds(dataset_id))
+  records = await conn.fetch(select_sql \
+    % (with_ds(dataset_id), incremental_enc_id_in(' and ', 'cdm_t',dataset_id, incremental)))
 
 
   # Retrieve bilirubin order times to corroborate time of diagnosis

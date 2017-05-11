@@ -4,7 +4,9 @@ import etl.load.primitives.tbl.clean_tbl as clean_tbl
 from etl.load.primitives.tbl.derive import with_ds
 from etl.load.primitives.tbl.derive_helper import *
 
-async def derive_main(log, conn, cdm_feature_dict, mode=None, fid=None, dataset_id=None, derive_feature_addr=None):
+async def derive_main(log, conn, cdm_feature_dict, mode=None, fid=None,
+                      dataset_id=None, derive_feature_addr=None,
+                      incremental=False):
   '''
   mode: "append", run derive functions beginning with @fid sequentially
   mode: "dependent", run derive functions for @fid and other features depends on @fid
@@ -19,27 +21,43 @@ async def derive_main(log, conn, cdm_feature_dict, mode=None, fid=None, dataset_
     idx = derive_feature_order.index(append)
     for i in range(idx, len(derive_feature_order)):
       fid = derive_feature_order[i]
-      await derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=dataset_id, derive_feature_addr=derive_feature_addr)
+      await derive_feature(log, fid, cdm_feature_dict, conn,
+                           dataset_id=dataset_id,
+                           derive_feature_addr=derive_feature_addr,
+                           incremental=incremental)
   elif mode == 'dependent':
     dependent = fid
     if not cdm_feature_dict[fid]['is_measured']:
       log.info("update feature %s and its dependents" % dependent)
-      await derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=dataset_id, derive_feature_addr=derive_feature_addr)
+      await derive_feature(log, fid, cdm_feature_dict, conn,
+                           dataset_id=dataset_id,
+                           derive_feature_addr=derive_feature_addr,
+                           incremental=incremental)
     else:
       log.info("update feature %s's dependents" % dependent)
-    derive_feature_order = get_dependent_features([dependent], cdm_feature_dict)
+    derive_feature_order = get_dependent_features([dependent],
+                                                  cdm_feature_dict)
     for fid in derive_feature_order:
-      await derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=dataset_id, derive_feature_addr=derive_feature_addr)
+      await derive_feature(log, fid, cdm_feature_dict, conn,
+                           dataset_id=dataset_id,
+                           derive_feature_addr=derive_feature_addr,
+                           incremental=incremental)
   elif mode is None:
     if fid is None:
       log.info("derive features one by one")
       derive_feature_order = get_derive_seq(cdm_feature_dict)
       log.debug("derive feautre order: " + ", ".join(derive_feature_order))
       for fid in derive_feature_order:
-        await derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=dataset_id, derive_feature_addr=derive_feature_addr)
+        await derive_feature(log, fid, cdm_feature_dict, conn,
+                             dataset_id=dataset_id,
+                             derive_feature_addr=derive_feature_addr,
+                             incremental=incremental)
     else:
       log.info("derive feature: %s" % fid)
-      await derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=dataset_id, derive_feature_addr=derive_feature_addr)
+      await derive_feature(log, fid, cdm_feature_dict, conn,
+                           dataset_id=dataset_id,
+                           derive_feature_addr=derive_feature_addr,
+                           incremental=incremental)
   else:
     log.error("Unknown mode!")
 
@@ -102,7 +120,7 @@ def get_dependent_features(feature_list, cdm_feature_dict):
         for fid in cdm_feature_dict if fid in dependent_features)
     return get_derive_seq(input_map=dic)
 
-async def derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=None, derive_feature_addr=None):
+async def derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=None, derive_feature_addr=None,incremental=False):
   feature = cdm_feature_dict[fid]
   derive_func_id = feature['derive_func_id']
   derive_func_input = feature['derive_func_input']
@@ -120,16 +138,19 @@ async def derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=None, deri
         twf_table_temp = derive_feature_addr[fid]['twf_table_temp']
         if 'clean' in config_entry:
           clean_args = config_entry['clean']
-          clean_sql = clean_tbl.cdm_twf_clean(fid, twf_table = twf_table_temp, dataset_id = dataset_id, **clean_args)
+          clean_sql = clean_tbl.cdm_twf_clean(fid, twf_table=twf_table_temp, \
+            dataset_id = dataset_id, incremental=incremental, **clean_args)
         if config_entry['derive_type'] == 'simple':
-          sql = gen_simple_twf_query(config_entry, fid, dataset_id, derive_feature_addr, cdm_feature_dict)
+          sql = gen_simple_twf_query(config_entry, fid, dataset_id, \
+            derive_feature_addr, cdm_feature_dict, incremental)
         elif config_entry['derive_type'] == 'subquery':
-          sql = gen_subquery_upsert_query(config_entry, fid, dataset_id, derive_feature_addr, cdm_feature_dict)
+          sql = gen_subquery_upsert_query(config_entry, fid, dataset_id, derive_feature_addr, cdm_feature_dict, incremental)
         log.debug(clean_sql + sql)
         await conn.execute(clean_sql + sql)
       elif fid_category == 'T':
         # Note they do not touch TWF table
-        sql = gen_cdm_t_delete_and_insert_query(config_entry, fid, dataset_id)
+        sql = gen_cdm_t_delete_and_insert_query(config_entry, fid,
+                                                dataset_id, incremental)
         log.debug(clean_sql + sql)
         await conn.execute(clean_sql + sql)
       else:
@@ -138,16 +159,18 @@ async def derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=None, deri
       log.error("fid_input dismatch")
   else:
     log.info("Derive function is not implemented in driver, so we use legacy derive function")
-    await derive_func.derive(fid, derive_func_id, derive_func_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict)
+    await derive_func.derive(fid, derive_func_id, derive_func_input, conn, \
+      log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental)
   log.info("derive feature %s end." % fid)
 
 
 
-def gen_simple_twf_query(config_entry, fid, dataset_id, derive_feature_addr, cdm_feature_dict):
+def gen_simple_twf_query(config_entry, fid, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
   twf_table = derive_feature_addr[fid]['twf_table']
   twf_table_temp = derive_feature_addr[fid]['twf_table_temp']
   fid_input_items = config_entry['fid_input_items']
-  select_table_joins = get_select_table_joins(fid_input_items, derive_feature_addr, cdm_feature_dict, dataset_id)
+  select_table_joins = get_select_table_joins(fid_input_items, \
+    derive_feature_addr, cdm_feature_dict, dataset_id, incremental)
   update_expr = config_entry['fid_update_expr']
   update_expr_params = {}
   if '%(twf_table)s' in update_expr:
@@ -180,15 +203,16 @@ def gen_simple_twf_query(config_entry, fid, dataset_id, derive_feature_addr, cdm
   }
   return sql
 
-def gen_subquery_upsert_query(config_entry, fid, dataset_id, derive_feature_addr, cdm_feature_dict):
+def gen_subquery_upsert_query(config_entry, fid, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
   twf_table = derive_feature_addr[fid]['twf_table']
   twf_table_temp = derive_feature_addr[fid]['twf_table_temp']
   subquery_params = {}
+  subquery_params['incremental'] = incremental
   subquery_params['fid'] = fid
   fid_input_items = config_entry['fid_input_items']
   # generate twf_table from selection
   subquery_params['twf_table_join'] = '(' + \
-    get_select_table_joins(fid_input_items, derive_feature_addr, cdm_feature_dict, dataset_id) \
+    get_select_table_joins(fid_input_items, derive_feature_addr, cdm_feature_dict, dataset_id, incremental) \
     + ')'
   subquery_params['twf_table'] = twf_table
   subquery_params['dataset_id'] = dataset_id
@@ -214,20 +238,26 @@ def gen_subquery_upsert_query(config_entry, fid, dataset_id, derive_feature_addr
   }
   return upsert_clause
 
-def gen_cdm_t_delete_and_insert_query(config_entry, fid, dataset_id):
+def gen_cdm_t_delete_and_insert_query(config_entry, fid, dataset_id, incremental):
   fid_select_expr = config_entry['fid_select_expr'] % {
-    'dataset_col_block': 'dataset_id,' if dataset_id is not None else '',
-    'dataset_where_block': (' and dataset_id = %s' % dataset_id) if dataset_id is not None else ''
+    'dataset_col_block': 'cdm_t.dataset_id,' if dataset_id is not None else '',
+    'dataset_where_block': (' and cdm_t.dataset_id = %s' % dataset_id) if dataset_id is not None else '',
+    'incremental_enc_id_join': incremental_enc_id_join('cdm_t', dataset_id, incremental),
+    'incremental_enc_id_match': incremental_enc_id_match(' and ', incremental)
   }
+  print(fid_select_expr)
   insert_clause = """
-  DELETE FROM cdm_t where fid = '%(fid)s' %(dataset_where_block)s;
+  DELETE FROM cdm_t where fid = '%(fid)s' %(dataset_where_block)s
+  %(incremental_enc_id_in)s;
   INSERT INTO cdm_t (%(dataset_col_block)s enc_id,tsp,fid,value,confidence) (%(select_expr)s);
   """ % {
     'fid':fid,
     'select_expr': fid_select_expr,
     'dataset_col_block': 'dataset_id,' if dataset_id is not None else '',
-    'dataset_where_block': (' and dataset_id = %s' % dataset_id) if dataset_id is not None else ''
+    'dataset_where_block': (' and dataset_id = %s' % dataset_id) if dataset_id is not None else '',
+    'incremental_enc_id_in': incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental)
   }
+  print(insert_clause)
   return insert_clause
 
 
@@ -419,7 +449,11 @@ query_config = {
     'fid_input_items': ['inr', 'platelets', 'creatinine', 'chronic_kidney_hist', 'bilirubin', 'liver_disease_hist', 'urine_output_24hr', 'lactate', 'pao2_to_fio2', 'chronic_pulmonary_hist', 'hypotension_intp'],
     'derive_type': 'subquery',
     'subquery': lambda para: '''
-      WITH S as (SELECT %(dataset_id_key)s cdm_twf.enc_id, min(cdm_twf.tsp) min_tsp FROM %(twf_table)s cdm_twf %(sub_dataset_id_equal)s
+      WITH S as (
+      SELECT %(dataset_id_key)s cdm_twf.enc_id, min(cdm_twf.tsp) min_tsp
+      FROM %(twf_table)s cdm_twf %(incremental_enc_id_join)s
+          %(incremental_enc_id_match)s
+          %(sub_dataset_id_equal)s
           group by %(dataset_id_key)s cdm_twf.enc_id)
       SELECT %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
       coalesce(
@@ -468,8 +502,10 @@ query_config = {
       'dataset_id_key'      : para.get("dataset_id_key"),
       'dataset_id_match'    : dataset_id_match(" ", "cdm_twf", "S", para.get("dataset_id")),
       'dataset_id_equal'    : dataset_id_equal(" WHERE ", "cdm_twf", para.get("dataset_id")),
-      'sub_dataset_id_equal': dataset_id_equal("WHERE ", "cdm_twf", para.get("dataset_id")),
-      'with_ds_s'           : dataset_id_equal(" and ", "cdm_s", para.get("dataset_id"))
+      'sub_dataset_id_equal': dataset_id_equal(" and " if para.get("incremental") else "WHERE " , "cdm_twf", para.get("dataset_id")),
+      'with_ds_s'           : dataset_id_equal(" and ", "cdm_s", para.get("dataset_id")),
+      'incremental_enc_id_join'         : incremental_enc_id_join('cdm_twf', para.get("dataset_id"), para.get("incremental")),
+      'incremental_enc_id_match': incremental_enc_id_match(' and ', para.get("incremental"))
     },
     'clean': {'value': False, 'confidence': 0},
   },
@@ -638,10 +674,10 @@ query_config = {
         %(dataset_id_match)s
         GROUP BY %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp
         ''' % {
-          'twf_table_join': para['twf_table_join'],
-          'dataset_id_key': para['dataset_id_key'],
-          'and_with_ds_twf': dataset_id_equal(" and ", "cdm_twf", para['dataset_id']),
-          'dataset_id_match': dataset_id_match(" and ", "cdm_twf", "subquery", para['dataset_id'])
+          'twf_table_join'  : para['twf_table_join'],
+          'dataset_id_key'  : para['dataset_id_key'],
+          'and_with_ds_twf' : dataset_id_equal(" and ", "cdm_twf", para['dataset_id']),
+          'dataset_id_match': dataset_id_match(" and ", "cdm_twf", "subquery", para['dataset_id']),
         },
   },
   'minutes_since_any_organ_fail': {
@@ -665,11 +701,11 @@ query_config = {
     %(dataset_id_match)s
     %(dataset_id_equal_w)s
     ''' % {
-      'twf_table_join': para.get("twf_table_join"),
-      'dataset_id_key': para.get("dataset_id_key"),
-      'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id")),
+      'twf_table_join'    : para.get("twf_table_join"),
+      'dataset_id_key'    : para.get("dataset_id_key"),
+      'dataset_id_equal'  : dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id")),
       'dataset_id_equal_w': dataset_id_equal(" where ", "cdm_twf", para.get("dataset_id")),
-      'dataset_id_match': dataset_id_match(" and ", "cdm_twf", "subquery", para.get("dataset_id"))
+      'dataset_id_match'  : dataset_id_match(" and ", "cdm_twf", "subquery", para.get("dataset_id")),
     },
     'clean': {'value': 0, 'confidence': 0},
   },
@@ -695,7 +731,7 @@ query_config = {
       'dataset_id_key': para.get("dataset_id_key"),
       'twf_table_join': para.get('twf_table_join'),
       'dataset_id_equal': dataset_id_equal(' and ', 'cdm_twf', para.get("dataset_id")),
-      'dataset_id_match': dataset_id_match(' and ', 'cdm_twf', 'subquery', para.get("dataset_id"))
+      'dataset_id_match': dataset_id_match(' and ', 'cdm_twf', 'subquery', para.get("dataset_id")),
     }
   },
   'minutes_since_any_antibiotics': {
@@ -704,9 +740,9 @@ query_config = {
     'subquery': lambda para: '''
     WITH subquery as (
       select %(dataset_id_key_t)s cdm_t.enc_id, min(tsp) tsp, max(confidence)::int c
-        from cdm_t
-        where cdm_t.fid = 'any_antibiotics' and cdm_t.value::boolean %(dataset_id_equal_t)s
-      group by %(dataset_id_key_t)s enc_id
+        from cdm_t %(incremental_enc_id_join)s
+        where cdm_t.fid = 'any_antibiotics' and cdm_t.value::boolean %(dataset_id_equal_t)s %(incremental_enc_id_match)s
+      group by %(dataset_id_key_t)s cdm_t.enc_id
     )
     SELECT %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
      (case when cdm_twf.tsp > subquery.tsp
@@ -724,7 +760,9 @@ query_config = {
       'dataset_id_equal_t': dataset_id_equal('and ', 'cdm_t', para.get("dataset_id")),
       'dataset_id_equal': dataset_id_equal(' and ', 'cdm_twf', para.get("dataset_id")),
       'twf_table_join': para.get('twf_table_join'),
-      'dataset_id_match': dataset_id_match(" and ", "cdm_twf", "subquery", para.get("dataset_id"))
+      'dataset_id_match': dataset_id_match(" and ", "cdm_twf", "subquery", para.get("dataset_id")),
+      'incremental_enc_id_join': incremental_enc_id_join('cdm_t', para.get("dataset_id"), para.get("incremental")),
+      'incremental_enc_id_match': incremental_enc_id_match(' and ', para.get('incremental'))
     },
     'clean': {'value': 0, 'confidence': 0},
   },
@@ -740,6 +778,7 @@ query_config = {
     'subquery': lambda para: '''
     WITH subquery as (
         select %(dataset_id_key)s enc_id,tsp, confidence::int c from cdm_t
+        %(incremental_enc_id_join)s
         where
           (fid = 'any_antibiotics'
           or fid = 'any_anticoagulant'
@@ -748,7 +787,7 @@ query_config = {
           or fid = 'any_inotrope'
           or fid = 'any_pressor'
           or fid = 'vent' and value = 'True')
-          %(dataset_id_equal_t)s
+          %(dataset_id_equal_t)s %(incremental_enc_id_match)s
     )
     SELECT %(dataset_id_key)s enc_id, tsp
      (case when cdm_twf.treatment_within_6_hours then true
@@ -767,7 +806,9 @@ query_config = {
       'dataset_id_equal_t': dataset_id_equal(' and ', 'cdm_t', para.get('dataset_id')),
       'twf_table_join': para.get('twf_table_join'),
       'dataset_id_match': dataset_id_match(' and ', 'cdm_twf', 'subquery', para.get('dataset_id')),
-      'dataset_id_equal': dataset_id_equal(' and ', 'cdm_twf', para.get('dataset_id'))
+      'dataset_id_equal': dataset_id_equal(' and ', 'cdm_twf', para.get('dataset_id')),
+      'incremental_enc_id_join': incremental_enc_id_join('cdm_t', para.get("dataset_id"), para.get("incremental")),
+      'incremental_enc_id_match': incremental_enc_id_match(' and ', para.get('incremental'))
     }
   },
   'fluids_intake_3hr': {
@@ -788,7 +829,7 @@ query_config = {
       'twf_table_join': para.get('twf_table_join'),
       'with_ds_ttwf': para.get('with_ds_ttwf'),
       'dataset_id_match': dataset_id_match(' and ','cdm_t', 'cdm_twf', para.get("dataset_id")),
-      'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id"))
+      'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id")),
     },
     'clean': {'value': 0, 'confidence': 0},
   },
@@ -797,7 +838,8 @@ query_config = {
     'derive_type': 'subquery',
     'subquery': lambda para: '''
           WITH S as (SELECT %(dataset_id_key)s cdm_twf.enc_id, min(cdm_twf.tsp) min_tsp
-          FROM %(twf_table)s cdm_twf %(where_dataset_id_equal)s
+          FROM %(twf_table)s cdm_twf %(incremental_enc_id_join)s
+          %(where_dataset_id_equal)s %(incremental_enc_id_match)s
           group by %(dataset_id_key)s cdm_twf.enc_id)
           SELECT %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
           (
@@ -819,7 +861,9 @@ query_config = {
       'twf_table_join': para.get('twf_table_join'),
       'dataset_id_match': dataset_id_match(' and ','S', 'cdm_twf', para.get("dataset_id")),
       'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id")),
-      'where_dataset_id_equal': dataset_id_equal(" where ", "cdm_twf", para.get("dataset_id"))
+      'where_dataset_id_equal': dataset_id_equal(" where ", "cdm_twf", para.get("dataset_id")),
+      'incremental_enc_id_join': incremental_enc_id_join('cdm_twf', para.get("dataset_id"), para.get("incremental")),
+      'incremental_enc_id_match': incremental_enc_id_match(' and ', para.get('incremental'))
     },
     'clean': {'value': 0, 'confidence': 0},
   },
@@ -841,7 +885,7 @@ query_config = {
       'twf_table_join': para.get('twf_table_join'),
       'with_ds_ttwf': para.get('with_ds_ttwf'),
       'dataset_id_match': dataset_id_match(' and ','cdm_t', 'cdm_twf', para.get("dataset_id")),
-      'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id"))
+      'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id")),
     },
     'clean': {'value': 0, 'confidence': 0},
   },
@@ -855,7 +899,8 @@ query_config = {
           from %(twf_table_join)s cdm_twf
           inner join cdm_t
           on cdm_t.enc_id = cdm_twf.enc_id and cdm_t.tsp <= cdm_twf.tsp
-          and cdm_t.tsp > cdm_twf.tsp - interval '24 hours' %(dataset_id_match)s
+          and cdm_t.tsp > cdm_twf.tsp - interval '24 hours'
+          %(dataset_id_match)s
           where fid = 'fluids_intake' %(dataset_id_equal)s
           group by %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp
     ''' % {
@@ -863,7 +908,7 @@ query_config = {
       'twf_table_join': para.get('twf_table_join'),
       'with_ds_ttwf': para.get('with_ds_ttwf'),
       'dataset_id_match': dataset_id_match(' and ','cdm_t', 'cdm_twf', para.get("dataset_id")),
-      'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id"))
+      'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id")),
     },
     'clean': {'value': 0, 'confidence': 0},
   },
@@ -885,7 +930,7 @@ query_config = {
       'twf_table_join': para.get('twf_table_join'),
       'with_ds_ttwf': para.get('with_ds_ttwf'),
       'dataset_id_match': dataset_id_match(' and ','cdm_t', 'cdm_twf', para.get("dataset_id")),
-      'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id"))
+      'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id")),
     },
     'clean': {'value': 0, 'confidence': 0},
   },
@@ -907,75 +952,44 @@ query_config = {
       'twf_table_join': para.get('twf_table_join'),
       'with_ds_ttwf': para.get('with_ds_ttwf'),
       'dataset_id_match': dataset_id_match(' and ','cdm_t', 'cdm_twf', para.get("dataset_id")),
-      'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id"))
+      'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id")),
     },
     'clean': {'value': 0, 'confidence': 0},
   },
-  # TBD
-  # 'acute_kidney_failure':
-  # {
-  #   'fid_input_items': ['acute_kidney_failure_inhosp', 'creatinine', 'urine_output_24hr', 'dialysis'],
-  #   'derive_type': 'subquery',
-  #   'subquery': lambda para: '''
-  #   WITH A as(
-  #     SELECT distinct enc_id, tsp FROM cdm_t
-  #       WHERE  fid = 'acute_kidney_failure_inhosp' %(dataset_id_equal_t)s
-  #       ORDER BY enc_id,  tsp
-  #   ),
-  #   min_tsp as (
-  #     select cdm_twf.enc_id, min(cdm_twf.tsp) from %(twf_table)s cdm_twf
-  #     %(dataset_id_equal)s
-  #     group by cdm_twf.enc_id
-  #   )
-  #   select %(dataset_id)s
-  #   FROM A left join %(twf_table) B on A.enc_id = B.enc_id and B.tsp >= A.tsp
-  #     and A.tsp <= B.tsp + interval '24 hours'
-  #   left join %(twf_table) C on A.enc_id = C.enc_id and C.tsp >= A.tsp
-  #     and A.tsp <= C.tsp + interval '24 hours'
-  #   inner join min_tsp on C.enc_id = min_tsp.enc_id and C.tsp - min_tsp.min >= interval '24 hours'
-  #   left join cdm_t D on D.enc_id = A.enc_id and D.tsp >= A.tsp and A.tsp <= D.tsp + interval '24 hours'
-  #   WHERE B.creatinine > 5 and C.urine_output_24hr < 500 and D.fid = 'dialysis'
-  #   %(dataset_id_equal_b)s %(dataset_id_equal_c)s %(dataset_id_equal_d)s
-  #   ''' % {
-  #     'twf_table': para.get('twf_table')
-  #     'dataset_id_equal': dataset_id_equal(" where ", 'cdm_twf', para.get("dataset_id"))
-  #     'dataset_id_equal_t': dataset_id_equal(" and ", 'cdm_t', para.get("dataset_id")),
-  #     'dataset_id_equal_b': dataset_id_equal(" and ", 'B', para.get("dataset_id")),
-  #     'dataset_id_equal_c': dataset_id_equal(" and ", 'C', para.get("dataset_id")),
-  #     'dataset_id_equal_d': dataset_id_equal(" and ", 'D', para.get("dataset_id")),
-  #   }
-  # }
+  #####################
+  # cdm_t features
+  #####################
   'any_anticoagulant': {
     'fid_input_items': ['apixaban_dose', 'dabigatran_dose', 'rivaroxaban_dose', 'warfarin_dose', 'heparin_dose'],
     'derive_type': 'simple',
     'fid_select_expr': '''
-                                SELECT distinct %(dataset_col_block)s enc_id, tsp, 'any_anticoagulant', 'True', max(confidence) confidence FROM cdm_t
-                                WHERE fid ~ 'apixaban_dose|dabigatran_dose|rivaroxaban_dose|warfarin_dose|heparin_dose' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s
-                                group by %(dataset_col_block)s enc_id, tsp''',
+                                SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_anticoagulant', 'True', max(cdm_t.confidence) confidence FROM cdm_t %(incremental_enc_id_join)s
+                                WHERE fid ~ 'apixaban_dose|dabigatran_dose|rivaroxaban_dose|warfarin_dose|heparin_dose' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s %(incremental_enc_id_match)s
+                                group by %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp''',
   },
   'any_beta_blocker': {
     'fid_input_items': ['acebutolol_dose', 'atenolol_dose', 'bisoprolol_dose', 'metoprolol_dose', 'nadolol_dose', 'propanolol_dose'],
     'derive_type': 'simple',
     'fid_select_expr': '''
-                                SELECT distinct %(dataset_col_block)s enc_id, tsp, 'any_beta_blocker', 'True', max(confidence) confidence FROM cdm_t
-                                WHERE fid ~ 'acebutolol_dose|atenolol_dose|bisoprolol_dose|metoprolol_dose|nadolol_dose|propanolol_dose' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s
-                                group by %(dataset_col_block)s enc_id, tsp''',
+                                SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_beta_blocker', 'True', max(cdm_t.confidence) confidence FROM cdm_t %(incremental_enc_id_join)s
+                                WHERE fid ~ 'acebutolol_dose|atenolol_dose|bisoprolol_dose|metoprolol_dose|nadolol_dose|propanolol_dose' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s %(incremental_enc_id_match)s
+                                group by %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp''',
   },
   'any_glucocorticoid': {
     'fid_input_items': ['hydrocortisone_dose', 'prednisone_dose', 'prednisolone_dose', 'methylprednisolone_dose', 'dexamethasone_dose', 'betamethasone_dose', 'fludrocortisone_dose'],
     'derive_type': 'simple',
     'fid_select_expr': '''
-                                SELECT distinct %(dataset_col_block)s enc_id, tsp, 'any_glucocorticoid', 'True', max(confidence) confidence FROM cdm_t
-                                WHERE fid ~ 'hydrocortisone_dose|prednisone_dose|prednisolone_dose|methylprednisolone_dose|dexamethasone_dose|betamethasone_dose|fludrocortisone_dose' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s
-                                group by %(dataset_col_block)s enc_id, tsp''',
+                                SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_glucocorticoid', 'True', max(cdm_t.confidence) confidence FROM cdm_t %(incremental_enc_id_join)s
+                                WHERE fid ~ 'hydrocortisone_dose|prednisone_dose|prednisolone_dose|methylprednisolone_dose|dexamethasone_dose|betamethasone_dose|fludrocortisone_dose' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s %(incremental_enc_id_match)s
+                                group by %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp''',
   },
   'any_antibiotics': {
     'fid_input_items': ['ampicillin_dose', 'clindamycin_dose', 'erythromycin_dose' , 'gentamicin_dose' , 'oxacillin_dose' , 'tobramycin_dose' , 'vancomycin_dose' , 'ceftazidime_dose' , 'cefazolin_dose' , 'penicillin_g_dose' , 'meropenem_dose' , 'penicillin_dose' , 'amoxicillin_dose' , 'piperacillin_tazbac_dose', 'rifampin_dose', 'meropenem_dose', 'rapamycin_dose'],
     'derive_type': 'simple',
     'fid_select_expr': '''
-                                SELECT distinct %(dataset_col_block)s enc_id, tsp, 'any_antibiotics', 'True', max(confidence) confidence FROM cdm_t
-                                WHERE fid ~ 'ampicillin_dose|clindamycin_dose|erythromycin_dose|gentamicin_dose|oxacillin_dose|tobramycin_dose|vancomycin_dose|ceftazidime_dose|cefazolin_dose|penicillin_g_dose|meropenem_dose|penicillin_dose|amoxicillin_dose|piperacillin_tazbac_dose|rifampin_dose|meropenem_dose|rapamycin_dose' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s
-                                group by %(dataset_col_block)s enc_id, tsp''',
+                                SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_antibiotics', 'True', max(cdm_t.confidence) confidence FROM cdm_t %(incremental_enc_id_join)s
+                                WHERE fid ~ 'ampicillin_dose|clindamycin_dose|erythromycin_dose|gentamicin_dose|oxacillin_dose|tobramycin_dose|vancomycin_dose|ceftazidime_dose|cefazolin_dose|penicillin_g_dose|meropenem_dose|penicillin_dose|amoxicillin_dose|piperacillin_tazbac_dose|rifampin_dose|meropenem_dose|rapamycin_dose' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s %(incremental_enc_id_match)s
+                                group by %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp''',
   },
 }
 

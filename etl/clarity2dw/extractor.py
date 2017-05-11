@@ -7,6 +7,7 @@ from etl.transforms.primitives.row import transform
 from etl.load.primitives.row import load_row
 from etl.load.pipelines.fillin import fillin_pipeline
 from etl.load.pipelines.derive_main import derive_main
+from etl.load.primitives.tbl.derive_helper import *
 import etl.load.primitives.tbl.load_table as load_table
 import time
 import importlib
@@ -48,10 +49,13 @@ class Extractor:
 
   async def extract_init(self, ctxt):
     ctxt.log.info("start extract_init task")
-    async with ctxt.db_pool.acquire() as conn:
-      await self.reset_dataset(conn, ctxt)
-      ctxt.log.info("completed extract_init task")
-      return None
+    if self.job.get('incremental', False):
+      ctxt.log.info("skip reset_dataset for incremental ETL")
+    else:
+      async with ctxt.db_pool.acquire() as conn:
+        await self.reset_dataset(conn, ctxt)
+        ctxt.log.info("completed extract_init task")
+    return None
 
   async def query_cdm_feature_dict(self, conn):
     sql = "select * from cdm_feature where dataset_id = %s" % self.dataset_id
@@ -91,8 +95,8 @@ class Extractor:
           populate_patients_job = self.job['transform']['populate_patients']
           limit = populate_patients_job.get('limit', None)
           sql = '''
-          insert into pat_enc (dataset_id, visit_id, pat_id)
-          SELECT %(dataset_id)s, demo."CSN_ID" visit_id, demo."pat_id"
+          insert into pat_enc (dataset_id, visit_id, pat_id, meta_data)
+          SELECT %(dataset_id)s, demo."CSN_ID" visit_id, demo."pat_id", json_build_object('pending', true) meta_data
           FROM "Demographics" demo left join pat_enc pe on demo."CSN_ID"::text = pe.visit_id::text and pe.dataset_id = %(dataset_id)s
           where pe.visit_id is null %(min_tsp)s %(limit)s
           ''' % {'dataset_id': self.dataset_id,
@@ -614,22 +618,38 @@ class Extractor:
       # we run the optimized fillin in one run, e.g., update set all columns
       vacuum_analyze_t = 'vacuum analyze cdm_t;'
       vacuum_analyze_twf = 'vacuum analyze cdm_twf;'
+      with_enc_ids = ''
+      select_enc_ids = ''
+      if self.job.get('incremental', False):
+        with_enc_ids = """
+        , enc_ids as (
+          select array_agg(enc_id)::int[] as arr from pat_enc
+          where dataset_id = {dataset_id}
+            and (meta_data->>'pending')::boolean
+        )
+        """.format(dataset_id=self.dataset_id)
+        select_enc_ids = ', (select arr from enc_ids)'
       load_sql = '''
       WITH twf_fids as (
         select array_agg(fid)::text[] as arr from cdm_feature where dataset_id = {dataset_id} and is_measured and category = 'TWF'
-      )
+      ){with_enc_ids}
       SELECT * from load_cdm_twf_from_cdm_t(
             (select arr from twf_fids),
-            'cdm_twf'::text, {dataset_id}
+            'cdm_twf'::text, {dataset_id}{select_enc_ids}
       );
-      '''.format(dataset_id=self.dataset_id)
+      '''.format(dataset_id=self.dataset_id,
+                 with_enc_ids=with_enc_ids,
+                 select_enc_ids=select_enc_ids)
       fillin_sql = '''
       WITH twf_fids as (
         select array_agg(fid)::text[] as arr from cdm_feature where dataset_id = {dataset_id} and is_measured and category = 'TWF'
-      )
+      ){with_enc_ids}
       SELECT * from last_value_in_window(
-        (select arr from twf_fids), 'cdm_twf'::text, {dataset_id});
-      '''.format(dataset_id=self.dataset_id)
+        (select arr from twf_fids), 'cdm_twf'::text,
+        {dataset_id}{select_enc_ids});
+      '''.format(dataset_id=self.dataset_id,
+                 with_enc_ids=with_enc_ids,
+                 select_enc_ids=select_enc_ids)
       async with ctxt.db_pool.acquire() as conn:
         log.info("start fillin")
         result = await conn.execute(vacuum_analyze_t)
@@ -656,6 +676,7 @@ class Extractor:
     ctxt.log.info('start derive_init')
     temp_table_groups = {}
     twf_table = None
+    incremental = self.job.get('incremental', False)
     for fid in self.derive_feature_addr:
       twf_table_temp = self.derive_feature_addr[fid]['twf_table_temp']
       if twf_table_temp:
@@ -684,8 +705,14 @@ class Extractor:
           )
         insert_idx = '''
         INSERT INTO {table_name} ({dataset_id} enc_id, tsp)
-        (SELECT {dataset_id} enc_id, tsp FROM {twf_table});
-        '''.format(table_name=table_name, dataset_id=dataset_id, twf_table=twf_table)
+        (SELECT cdm_twf.{dataset_id} cdm_twf.enc_id, cdm_twf.tsp
+        FROM {twf_table} cdm_twf {dataset_id_equal} {incremental_enc_id_in});
+        '''.format(table_name=table_name, dataset_id=dataset_id,
+                   twf_table=twf_table,
+                   dataset_id_equal=dataset_id_equal(' where ', twf_table,
+                                                     self.dataset_id),
+                   incremental_enc_id_in=incremental_enc_id_in(\
+                      (' and ' if self.dataset_id else ' where '), twf_table, self.dataset_id, incremental))
         keys = '{dataset_id} enc_id, tsp'.format(dataset_id=dataset_id)
         sql = create_temp_table.format(table_name=table_name, query=query,
                                        keys=keys, insert_idx=insert_idx)
@@ -696,10 +723,11 @@ class Extractor:
 
   async def derive_join(self, ctxt, *args):
     ctxt.log.info("start derive_join")
+    incremental = self.job.get('incremental', False)
     join_sql = '''
     INSERT INTO {twf_table} ({dataset_id_key} enc_id, tsp, {cols})
     SELECT cdm_twf.dataset_id, cdm_twf.enc_id, cdm_twf.tsp, {select_cols}
-    FROM {twf_table} cdm_twf {joins}
+    FROM {twf_table} cdm_twf {joins} {incremental_enc_id_in}
     ON CONFLICT ({dataset_id_key} enc_id, tsp) DO UPDATE SET
     {set_cols};
     '''
@@ -725,7 +753,8 @@ class Extractor:
         cols=cols,
         select_cols=select_cols,
         joins=joins,
-        set_cols=set_cols
+        set_cols=set_cols,
+        incremental_enc_id_in=incremental_enc_id_in(" where ", 'cdm_twf', self.dataset_id, incremental)
       )
     # for table_name in temp_table_groups:
     #   join_sql += 'DROP TABLE {};'.format(table_name)
@@ -739,6 +768,7 @@ class Extractor:
     log = ctxt.log
     base = 2
     max_backoff = 3*60
+    incremental = self.job.get('incremental', False)
     if len(args) > 0:
       fid = args[-1]
     if self.job.get('derive', False):
@@ -752,22 +782,28 @@ class Extractor:
         try:
           async with ctxt.db_pool.acquire() as conn:
             await self.query_cdm_feature_dict(conn)
-            await derive_main(log, conn, self.cdm_feature_dict, dataset_id = self.dataset_id, \
-              fid = fid, mode=mode, derive_feature_addr=self.derive_feature_addr)
+            await derive_main(log, conn, self.cdm_feature_dict, \
+                              dataset_id = self.dataset_id, fid = fid, \
+                              mode=mode, \
+                              derive_feature_addr=self.derive_feature_addr, \
+                              incremental=incremental)
           log.info("derive completed")
           break
         except Exception as e:
           attempts += 1
-          log.warn("PSQL Error derive: %s %s" % (fid if fid else 'run_derive', e))
+          log.exception("PSQL Error derive: %s %s" % (fid if fid else 'run_derive', e))
           random_secs = random.uniform(0, 1)
           wait_time = min(((base**attempts) + random_secs), max_backoff)
           await asyncio.sleep(wait_time)
           log.info("run_derive {} attempts {}".format(fid or '', attempts))
+          if fid is None:
+            raise Exception('batch derive stopped due to exception')
           continue
     else:
       log.info("derive skipped")
 
   async def offline_criteria_processing(self, ctxt, _):
+    # TODO: make sure offline_criteria can be incremental
     criteria_job = self.job.get('offline_criteria_processing', False)
     if criteria_job:
       if criteria_job.get('load_cdm_to_criteria_meas', False):
@@ -778,3 +814,7 @@ class Extractor:
           await load_table.calculate_historical_criteria(conn)
     else:
       ctxt.log.info("skipped offline criteria processing")
+
+  async def remove_pat_enc_pending(self, ctxt, *args):
+    # TODO modify pending pat_enc records
+    pass
