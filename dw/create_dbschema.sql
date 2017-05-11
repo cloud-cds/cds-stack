@@ -14,6 +14,7 @@ DROP TABLE IF EXISTS dw_version CASCADE;
 CREATE TABLE dw_version (
     dataset_id      serial primary key,
     created         timestamptz,
+    updated         timestamptz,
     description     text
 );
 

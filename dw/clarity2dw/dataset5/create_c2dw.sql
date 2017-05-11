@@ -4,7 +4,7 @@
 INSERT INTO dw_version (dataset_id, created, description)
 VALUES (5,
         now(),
-        'clarity2dw 6 months through kubernetes job')
+        'clarity2dw 6 months')
 on conflict do NOTHING ;
 
 -- ======================================

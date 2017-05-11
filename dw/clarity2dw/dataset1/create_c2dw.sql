@@ -4,7 +4,7 @@
 INSERT INTO dw_version (dataset_id, created, description)
 VALUES (1,
         now(),
-        'clarity2dw')
+        'clarity2dw 1 year')
 on conflict do NOTHING ;
 
 INSERT INTO model_version (model_id, created, description)
