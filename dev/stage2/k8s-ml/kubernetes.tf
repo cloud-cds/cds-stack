@@ -11,11 +11,15 @@ output "node_security_group_ids" {
 }
 
 output "node_subnet_ids" {
-  value = ["${aws_subnet.us-east-1d-ml-cluster-dev-opsdx-io.id}"]
+  value = ["subnet-7fb46137"]
 }
 
 output "region" {
   value = "us-east-1"
+}
+
+output "subnet_ids" {
+  value = ["subnet-20b56068", "subnet-7fb46137"]
 }
 
 output "vpc_id" {
@@ -34,9 +38,9 @@ resource "aws_autoscaling_attachment" "master-us-east-1d-masters-ml-cluster-dev-
 resource "aws_autoscaling_group" "c2dw-etl-ml-cluster-dev-opsdx-io" {
   name                 = "c2dw-etl.ml-cluster.dev.opsdx.io"
   launch_configuration = "${aws_launch_configuration.c2dw-etl-ml-cluster-dev-opsdx-io.id}"
-  max_size             = 1
+  max_size             = 5
   min_size             = 0
-  vpc_zone_identifier  = ["${aws_subnet.us-east-1d-ml-cluster-dev-opsdx-io.id}"]
+  vpc_zone_identifier  = ["subnet-7fb46137"]
 
   tag = {
     key                 = "Component"
@@ -74,7 +78,7 @@ resource "aws_autoscaling_group" "master-us-east-1d-masters-ml-cluster-dev-opsdx
   launch_configuration = "${aws_launch_configuration.master-us-east-1d-masters-ml-cluster-dev-opsdx-io.id}"
   max_size             = 1
   min_size             = 1
-  vpc_zone_identifier  = ["${aws_subnet.us-east-1d-ml-cluster-dev-opsdx-io.id}"]
+  vpc_zone_identifier  = ["subnet-7fb46137"]
 
   tag = {
     key                 = "KubernetesCluster"
@@ -95,164 +99,12 @@ resource "aws_autoscaling_group" "master-us-east-1d-masters-ml-cluster-dev-opsdx
   }
 }
 
-resource "aws_autoscaling_group" "tf1-ml-cluster-dev-opsdx-io" {
-  name                 = "tf1.ml-cluster.dev.opsdx.io"
-  launch_configuration = "${aws_launch_configuration.tf1-ml-cluster-dev-opsdx-io.id}"
-  max_size             = 33
-  min_size             = 0
-  vpc_zone_identifier  = ["${aws_subnet.us-east-1d-ml-cluster-dev-opsdx-io.id}"]
-
-  tag = {
-    key                 = "Component"
-    value               = "Tensorflow Node"
-    propagate_at_launch = true
-  }
-
-  tag = {
-    key                 = "KubernetesCluster"
-    value               = "ml-cluster.dev.opsdx.io"
-    propagate_at_launch = true
-  }
-
-  tag = {
-    key                 = "Name"
-    value               = "tf1.ml-cluster.dev.opsdx.io"
-    propagate_at_launch = true
-  }
-
-  tag = {
-    key                 = "Stack"
-    value               = "Dev-ML"
-    propagate_at_launch = true
-  }
-
-  tag = {
-    key                 = "k8s.io/role/node"
-    value               = "1"
-    propagate_at_launch = true
-  }
-}
-
-resource "aws_autoscaling_group" "tf2-ml-cluster-dev-opsdx-io" {
-  name                 = "tf2.ml-cluster.dev.opsdx.io"
-  launch_configuration = "${aws_launch_configuration.tf2-ml-cluster-dev-opsdx-io.id}"
-  max_size             = 33
-  min_size             = 0
-  vpc_zone_identifier  = ["${aws_subnet.us-east-1d-ml-cluster-dev-opsdx-io.id}"]
-
-  tag = {
-    key                 = "Component"
-    value               = "Tensorflow Node"
-    propagate_at_launch = true
-  }
-
-  tag = {
-    key                 = "KubernetesCluster"
-    value               = "ml-cluster.dev.opsdx.io"
-    propagate_at_launch = true
-  }
-
-  tag = {
-    key                 = "Name"
-    value               = "tf2.ml-cluster.dev.opsdx.io"
-    propagate_at_launch = true
-  }
-
-  tag = {
-    key                 = "Stack"
-    value               = "Dev-ML"
-    propagate_at_launch = true
-  }
-
-  tag = {
-    key                 = "k8s.io/role/node"
-    value               = "1"
-    propagate_at_launch = true
-  }
-}
-
-resource "aws_autoscaling_group" "tf3-ml-cluster-dev-opsdx-io" {
-  name                 = "tf3.ml-cluster.dev.opsdx.io"
-  launch_configuration = "${aws_launch_configuration.tf3-ml-cluster-dev-opsdx-io.id}"
-  max_size             = 33
-  min_size             = 0
-  vpc_zone_identifier  = ["${aws_subnet.us-east-1d-ml-cluster-dev-opsdx-io.id}"]
-
-  tag = {
-    key                 = "Component"
-    value               = "Tensorflow Node"
-    propagate_at_launch = true
-  }
-
-  tag = {
-    key                 = "KubernetesCluster"
-    value               = "ml-cluster.dev.opsdx.io"
-    propagate_at_launch = true
-  }
-
-  tag = {
-    key                 = "Name"
-    value               = "tf3.ml-cluster.dev.opsdx.io"
-    propagate_at_launch = true
-  }
-
-  tag = {
-    key                 = "Stack"
-    value               = "Dev-ML"
-    propagate_at_launch = true
-  }
-
-  tag = {
-    key                 = "k8s.io/role/node"
-    value               = "1"
-    propagate_at_launch = true
-  }
-}
-
-resource "aws_autoscaling_group" "tf4-ml-cluster-dev-opsdx-io" {
-  name                 = "tf4.ml-cluster.dev.opsdx.io"
-  launch_configuration = "${aws_launch_configuration.tf4-ml-cluster-dev-opsdx-io.id}"
-  max_size             = 33
-  min_size             = 0
-  vpc_zone_identifier  = ["${aws_subnet.us-east-1d-ml-cluster-dev-opsdx-io.id}"]
-
-  tag = {
-    key                 = "Component"
-    value               = "Tensorflow Node"
-    propagate_at_launch = true
-  }
-
-  tag = {
-    key                 = "KubernetesCluster"
-    value               = "ml-cluster.dev.opsdx.io"
-    propagate_at_launch = true
-  }
-
-  tag = {
-    key                 = "Name"
-    value               = "tf4.ml-cluster.dev.opsdx.io"
-    propagate_at_launch = true
-  }
-
-  tag = {
-    key                 = "Stack"
-    value               = "Dev-ML"
-    propagate_at_launch = true
-  }
-
-  tag = {
-    key                 = "k8s.io/role/node"
-    value               = "1"
-    propagate_at_launch = true
-  }
-}
-
 resource "aws_autoscaling_group" "train-ml-cluster-dev-opsdx-io" {
   name                 = "train.ml-cluster.dev.opsdx.io"
   launch_configuration = "${aws_launch_configuration.train-ml-cluster-dev-opsdx-io.id}"
   max_size             = 10
   min_size             = 0
-  vpc_zone_identifier  = ["${aws_subnet.us-east-1d-ml-cluster-dev-opsdx-io.id}"]
+  vpc_zone_identifier  = ["subnet-7fb46137"]
 
   tag = {
     key                 = "Component"
@@ -269,6 +121,44 @@ resource "aws_autoscaling_group" "train-ml-cluster-dev-opsdx-io" {
   tag = {
     key                 = "Name"
     value               = "train.ml-cluster.dev.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Stack"
+    value               = "Dev-ML"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "k8s.io/role/node"
+    value               = "1"
+    propagate_at_launch = true
+  }
+}
+
+resource "aws_autoscaling_group" "utility-ml-cluster-dev-opsdx-io" {
+  name                 = "utility.ml-cluster.dev.opsdx.io"
+  launch_configuration = "${aws_launch_configuration.utility-ml-cluster-dev-opsdx-io.id}"
+  max_size             = 1
+  min_size             = 1
+  vpc_zone_identifier  = ["subnet-7fb46137"]
+
+  tag = {
+    key                 = "Component"
+    value               = "Cluster Utility Node"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "KubernetesCluster"
+    value               = "ml-cluster.dev.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Name"
+    value               = "utility.ml-cluster.dev.opsdx.io"
     propagate_at_launch = true
   }
 
@@ -313,10 +203,6 @@ resource "aws_ebs_volume" "d-etcd-main-ml-cluster-dev-opsdx-io" {
   }
 }
 
-resource "aws_eip" "us-east-1d-ml-cluster-dev-opsdx-io" {
-  vpc = true
-}
-
 resource "aws_elb" "api-ml-cluster-dev-opsdx-io" {
   name = "api-ml-cluster-dev-opsdx--a2ljfg"
 
@@ -328,7 +214,7 @@ resource "aws_elb" "api-ml-cluster-dev-opsdx-io" {
   }
 
   security_groups = ["${aws_security_group.api-elb-ml-cluster-dev-opsdx-io.id}"]
-  subnets         = ["${aws_subnet.utility-us-east-1d-ml-cluster-dev-opsdx-io.id}"]
+  subnets         = ["subnet-20b56068"]
 
   health_check = {
     target              = "TCP:443"
@@ -386,7 +272,7 @@ resource "aws_key_pair" "kubernetes-ml-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6
 resource "aws_launch_configuration" "c2dw-etl-ml-cluster-dev-opsdx-io" {
   name_prefix                 = "c2dw-etl.ml-cluster.dev.opsdx.io-"
   image_id                    = "ami-5f1afc49"
-  instance_type               = "m4.xlarge"
+  instance_type               = "m4.2xlarge"
   key_name                    = "${aws_key_pair.kubernetes-ml-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
   iam_instance_profile        = "${aws_iam_instance_profile.nodes-ml-cluster-dev-opsdx-io.id}"
   security_groups             = ["${aws_security_group.nodes-ml-cluster-dev-opsdx-io.id}"]
@@ -407,7 +293,7 @@ resource "aws_launch_configuration" "c2dw-etl-ml-cluster-dev-opsdx-io" {
 resource "aws_launch_configuration" "master-us-east-1d-masters-ml-cluster-dev-opsdx-io" {
   name_prefix                 = "master-us-east-1d.masters.ml-cluster.dev.opsdx.io-"
   image_id                    = "ami-5f1afc49"
-  instance_type               = "t2.xlarge"
+  instance_type               = "t2.large"
   key_name                    = "${aws_key_pair.kubernetes-ml-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
   iam_instance_profile        = "${aws_iam_instance_profile.masters-ml-cluster-dev-opsdx-io.id}"
   security_groups             = ["${aws_security_group.masters-ml-cluster-dev-opsdx-io.id}"]
@@ -425,182 +311,10 @@ resource "aws_launch_configuration" "master-us-east-1d-masters-ml-cluster-dev-op
   }
 }
 
-resource "aws_launch_configuration" "tf1-ml-cluster-dev-opsdx-io" {
-  name_prefix                 = "tf1.ml-cluster.dev.opsdx.io-"
-  image_id                    = "ami-5f1afc49"
-  instance_type               = "t2.large"
-  key_name                    = "${aws_key_pair.kubernetes-ml-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
-  iam_instance_profile        = "${aws_iam_instance_profile.nodes-ml-cluster-dev-opsdx-io.id}"
-  security_groups             = ["${aws_security_group.nodes-ml-cluster-dev-opsdx-io.id}"]
-  associate_public_ip_address = false
-  user_data                   = "${file("${path.module}/data/aws_launch_configuration_tf1.ml-cluster.dev.opsdx.io_user_data")}"
-
-  root_block_device = {
-    volume_type           = "gp2"
-    volume_size           = 20
-    delete_on_termination = true
-  }
-
-  lifecycle = {
-    create_before_destroy = true
-  }
-}
-
-resource "aws_launch_configuration" "tf1-sir-ml-cluster-dev-opsdx-io" {
-  name_prefix                 = "tf1.m4-lrg.sir.ml-cluster.dev.opsdx.io-"
-  image_id                    = "ami-5f1afc49"
-  instance_type               = "m4.large"
-  spot_price                  = "0.10"
-  key_name                    = "${aws_key_pair.kubernetes-ml-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
-  iam_instance_profile        = "${aws_iam_instance_profile.nodes-ml-cluster-dev-opsdx-io.id}"
-  security_groups             = ["${aws_security_group.nodes-ml-cluster-dev-opsdx-io.id}"]
-  associate_public_ip_address = false
-  user_data                   = "${file("${path.module}/data/aws_launch_configuration_tf1.ml-cluster.dev.opsdx.io_user_data")}"
-
-  root_block_device = {
-    volume_type           = "gp2"
-    volume_size           = 20
-    delete_on_termination = true
-  }
-
-  lifecycle = {
-    create_before_destroy = true
-  }
-}
-
-resource "aws_launch_configuration" "tf2-ml-cluster-dev-opsdx-io" {
-  name_prefix                 = "tf2.ml-cluster.dev.opsdx.io-"
-  image_id                    = "ami-5f1afc49"
-  instance_type               = "t2.xlarge"
-  key_name                    = "${aws_key_pair.kubernetes-ml-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
-  iam_instance_profile        = "${aws_iam_instance_profile.nodes-ml-cluster-dev-opsdx-io.id}"
-  security_groups             = ["${aws_security_group.nodes-ml-cluster-dev-opsdx-io.id}"]
-  associate_public_ip_address = false
-  user_data                   = "${file("${path.module}/data/aws_launch_configuration_tf2.ml-cluster.dev.opsdx.io_user_data")}"
-
-  root_block_device = {
-    volume_type           = "gp2"
-    volume_size           = 20
-    delete_on_termination = true
-  }
-
-  lifecycle = {
-    create_before_destroy = true
-  }
-}
-
-resource "aws_launch_configuration" "tf2-sir-ml-cluster-dev-opsdx-io" {
-  name_prefix                 = "tf2.m4.xl.sir.ml-cluster.dev.opsdx.io-"
-  image_id                    = "ami-5f1afc49"
-  instance_type               = "m4.xlarge"
-  spot_price                  = "0.15"
-  key_name                    = "${aws_key_pair.kubernetes-ml-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
-  iam_instance_profile        = "${aws_iam_instance_profile.nodes-ml-cluster-dev-opsdx-io.id}"
-  security_groups             = ["${aws_security_group.nodes-ml-cluster-dev-opsdx-io.id}"]
-  associate_public_ip_address = false
-  user_data                   = "${file("${path.module}/data/aws_launch_configuration_tf2.ml-cluster.dev.opsdx.io_user_data")}"
-
-  root_block_device = {
-    volume_type           = "gp2"
-    volume_size           = 20
-    delete_on_termination = true
-  }
-
-  lifecycle = {
-    create_before_destroy = true
-  }
-}
-
-resource "aws_launch_configuration" "tf3-ml-cluster-dev-opsdx-io" {
-  name_prefix                 = "tf3.ml-cluster.dev.opsdx.io-"
-  image_id                    = "ami-5f1afc49"
-  instance_type               = "c4.2xlarge"
-  key_name                    = "${aws_key_pair.kubernetes-ml-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
-  iam_instance_profile        = "${aws_iam_instance_profile.nodes-ml-cluster-dev-opsdx-io.id}"
-  security_groups             = ["${aws_security_group.nodes-ml-cluster-dev-opsdx-io.id}"]
-  associate_public_ip_address = false
-  user_data                   = "${file("${path.module}/data/aws_launch_configuration_tf3.ml-cluster.dev.opsdx.io_user_data")}"
-
-  root_block_device = {
-    volume_type           = "gp2"
-    volume_size           = 20
-    delete_on_termination = true
-  }
-
-  lifecycle = {
-    create_before_destroy = true
-  }
-}
-
-resource "aws_launch_configuration" "tf3-sir-ml-cluster-dev-opsdx-io" {
-  name_prefix                 = "tf3.m4-2xl.ml-cluster.dev.opsdx.io-"
-  image_id                    = "ami-5f1afc49"
-  instance_type               = "m4.2xlarge"
-  spot_price                  = "0.35"
-  key_name                    = "${aws_key_pair.kubernetes-ml-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
-  iam_instance_profile        = "${aws_iam_instance_profile.nodes-ml-cluster-dev-opsdx-io.id}"
-  security_groups             = ["${aws_security_group.nodes-ml-cluster-dev-opsdx-io.id}"]
-  associate_public_ip_address = false
-  user_data                   = "${file("${path.module}/data/aws_launch_configuration_tf3.ml-cluster.dev.opsdx.io_user_data")}"
-
-  root_block_device = {
-    volume_type           = "gp2"
-    volume_size           = 20
-    delete_on_termination = true
-  }
-
-  lifecycle = {
-    create_before_destroy = true
-  }
-}
-
-resource "aws_launch_configuration" "tf4-ml-cluster-dev-opsdx-io" {
-  name_prefix                 = "tf4.ml-cluster.dev.opsdx.io-"
-  image_id                    = "ami-5f1afc49"
-  instance_type               = "c4.4xlarge"
-  key_name                    = "${aws_key_pair.kubernetes-ml-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
-  iam_instance_profile        = "${aws_iam_instance_profile.nodes-ml-cluster-dev-opsdx-io.id}"
-  security_groups             = ["${aws_security_group.nodes-ml-cluster-dev-opsdx-io.id}"]
-  associate_public_ip_address = false
-  user_data                   = "${file("${path.module}/data/aws_launch_configuration_tf4.ml-cluster.dev.opsdx.io_user_data")}"
-
-  root_block_device = {
-    volume_type           = "gp2"
-    volume_size           = 20
-    delete_on_termination = true
-  }
-
-  lifecycle = {
-    create_before_destroy = true
-  }
-}
-
-resource "aws_launch_configuration" "tf4-sir-ml-cluster-dev-opsdx-io" {
-  name_prefix                 = "tf4.m4-4x.sir.ml-cluster.dev.opsdx.io-"
-  image_id                    = "ami-5f1afc49"
-  instance_type               = "m4.4xlarge"
-  spot_price                  = "0.75"
-  key_name                    = "${aws_key_pair.kubernetes-ml-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
-  iam_instance_profile        = "${aws_iam_instance_profile.nodes-ml-cluster-dev-opsdx-io.id}"
-  security_groups             = ["${aws_security_group.nodes-ml-cluster-dev-opsdx-io.id}"]
-  associate_public_ip_address = false
-  user_data                   = "${file("${path.module}/data/aws_launch_configuration_tf4.ml-cluster.dev.opsdx.io_user_data")}"
-
-  root_block_device = {
-    volume_type           = "gp2"
-    volume_size           = 20
-    delete_on_termination = true
-  }
-
-  lifecycle = {
-    create_before_destroy = true
-  }
-}
-
 resource "aws_launch_configuration" "train-ml-cluster-dev-opsdx-io" {
   name_prefix                 = "train.ml-cluster.dev.opsdx.io-"
   image_id                    = "ami-5f1afc49"
-  instance_type               = "t2.2xlarge"
+  instance_type               = "m4.2xlarge"
   key_name                    = "${aws_key_pair.kubernetes-ml-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
   iam_instance_profile        = "${aws_iam_instance_profile.nodes-ml-cluster-dev-opsdx-io.id}"
   security_groups             = ["${aws_security_group.nodes-ml-cluster-dev-opsdx-io.id}"]
@@ -618,21 +332,25 @@ resource "aws_launch_configuration" "train-ml-cluster-dev-opsdx-io" {
   }
 }
 
-resource "aws_nat_gateway" "us-east-1d-ml-cluster-dev-opsdx-io" {
-  allocation_id = "${aws_eip.us-east-1d-ml-cluster-dev-opsdx-io.id}"
-  subnet_id     = "${aws_subnet.utility-us-east-1d-ml-cluster-dev-opsdx-io.id}"
-}
+resource "aws_launch_configuration" "utility-ml-cluster-dev-opsdx-io" {
+  name_prefix                 = "utility.ml-cluster.dev.opsdx.io-"
+  image_id                    = "ami-5f1afc49"
+  instance_type               = "t2.micro"
+  key_name                    = "${aws_key_pair.kubernetes-ml-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
+  iam_instance_profile        = "${aws_iam_instance_profile.nodes-ml-cluster-dev-opsdx-io.id}"
+  security_groups             = ["${aws_security_group.nodes-ml-cluster-dev-opsdx-io.id}"]
+  associate_public_ip_address = false
+  user_data                   = "${file("${path.module}/data/aws_launch_configuration_utility.ml-cluster.dev.opsdx.io_user_data")}"
 
-resource "aws_route" "0-0-0-0--0" {
-  route_table_id         = "${aws_route_table.ml-cluster-dev-opsdx-io.id}"
-  destination_cidr_block = "0.0.0.0/0"
-  gateway_id             = "igw-e2153385"
-}
+  root_block_device = {
+    volume_type           = "gp2"
+    volume_size           = 20
+    delete_on_termination = true
+  }
 
-resource "aws_route" "private-us-east-1d-0-0-0-0--0" {
-  route_table_id         = "${aws_route_table.private-us-east-1d-ml-cluster-dev-opsdx-io.id}"
-  destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id         = "${aws_nat_gateway.us-east-1d-ml-cluster-dev-opsdx-io.id}"
+  lifecycle = {
+    create_before_destroy = true
+  }
 }
 
 resource "aws_route53_record" "api-ml-cluster-dev-opsdx-io" {
@@ -646,34 +364,6 @@ resource "aws_route53_record" "api-ml-cluster-dev-opsdx-io" {
   }
 
   zone_id = "/hostedzone/Z2GCTM75P01WXX"
-}
-
-resource "aws_route_table" "ml-cluster-dev-opsdx-io" {
-  vpc_id = "vpc-6fd4b409"
-
-  tags = {
-    KubernetesCluster = "ml-cluster.dev.opsdx.io"
-    Name              = "ml-cluster.dev.opsdx.io"
-  }
-}
-
-resource "aws_route_table" "private-us-east-1d-ml-cluster-dev-opsdx-io" {
-  vpc_id = "vpc-6fd4b409"
-
-  tags = {
-    KubernetesCluster = "ml-cluster.dev.opsdx.io"
-    Name              = "private-us-east-1d.ml-cluster.dev.opsdx.io"
-  }
-}
-
-resource "aws_route_table_association" "private-us-east-1d-ml-cluster-dev-opsdx-io" {
-  subnet_id      = "${aws_subnet.us-east-1d-ml-cluster-dev-opsdx-io.id}"
-  route_table_id = "${aws_route_table.private-us-east-1d-ml-cluster-dev-opsdx-io.id}"
-}
-
-resource "aws_route_table_association" "utility-us-east-1d-ml-cluster-dev-opsdx-io" {
-  subnet_id      = "${aws_subnet.utility-us-east-1d-ml-cluster-dev-opsdx-io.id}"
-  route_table_id = "${aws_route_table.ml-cluster-dev-opsdx-io.id}"
 }
 
 resource "aws_security_group" "api-elb-ml-cluster-dev-opsdx-io" {
@@ -824,26 +514,4 @@ resource "aws_security_group_rule" "ssh-external-to-node-0-0-0-0--0" {
   to_port           = 22
   protocol          = "tcp"
   cidr_blocks       = ["0.0.0.0/0"]
-}
-
-resource "aws_subnet" "us-east-1d-ml-cluster-dev-opsdx-io" {
-  vpc_id            = "vpc-6fd4b409"
-  cidr_block        = "10.0.248.0/22"
-  availability_zone = "us-east-1d"
-
-  tags = {
-    KubernetesCluster = "ml-cluster.dev.opsdx.io"
-    Name              = "us-east-1d.ml-cluster.dev.opsdx.io"
-  }
-}
-
-resource "aws_subnet" "utility-us-east-1d-ml-cluster-dev-opsdx-io" {
-  vpc_id            = "vpc-6fd4b409"
-  cidr_block        = "10.0.255.0/24"
-  availability_zone = "us-east-1d"
-
-  tags = {
-    KubernetesCluster = "ml-cluster.dev.opsdx.io"
-    Name              = "utility-us-east-1d.ml-cluster.dev.opsdx.io"
-  }
 }

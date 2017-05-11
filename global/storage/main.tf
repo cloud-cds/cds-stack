@@ -30,6 +30,15 @@ resource "aws_s3_bucket" "kops-ml" {
     }
 }
 
+resource "aws_s3_bucket" "kops-ml-tf" {
+    bucket = "opsdx-kops-ml-tf"
+    acl = "private"
+
+    versioning {
+        enabled = true
+    }
+}
+
 resource "aws_s3_bucket" "lambda-repo" {
     bucket = "opsdx-lambda-repo"
     acl = "private"

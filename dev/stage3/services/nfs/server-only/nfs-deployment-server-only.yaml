@@ -14,9 +14,9 @@ spec:
 kind: Service
 apiVersion: v1
 metadata:
-  name: nfs-provisioner
+  name: nfs-server
   labels:
-    app: nfs-provisioner
+    app: nfs-server
 spec:
   ports:
     - name: nfs
@@ -25,27 +25,24 @@ spec:
       port: 20048
     - name: rpcbind
       port: 111
-    - name: rpcbind-udp
-      port: 111
-      protocol: UDP
   type: NodePort
   selector:
-    app: nfs-provisioner
+    app: nfs-server
 ---
 kind: Deployment
 apiVersion: extensions/v1beta1
 metadata:
-  name: nfs-provisioner
+  name: nfs-server
 spec:
   replicas: 1
   template:
     metadata:
       labels:
-        app: nfs-provisioner
+        app: nfs-server
     spec:
       containers:
-        - name: nfs-provisioner
-          image: quay.io/kubernetes_incubator/nfs-provisioner:v1.0.3
+        - name: nfs-server
+          image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-nginx:nfs
           ports:
             - name: nfs
               containerPort: 2049
@@ -53,30 +50,12 @@ spec:
               containerPort: 20048
             - name: rpcbind
               containerPort: 111
-            - name: rpcbind-udp
-              containerPort: 111
-              protocol: UDP
           securityContext:
-            capabilities:
-              add:
-                - DAC_READ_SEARCH
-          args:
-            - "-provisioner=opsdx/nfs"
-          env:
-            - name: POD_IP
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.podIP
-            - name: SERVICE_NAME
-              value: nfs-provisioner
-            - name: POD_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-          imagePullPolicy: "IfNotPresent"
+            privileged: true
+          imagePullPolicy: "Always"
           volumeMounts:
             - name: export-volume
-              mountPath: /export
+              mountPath: /exports
       volumes:
         - name: export-volume
           persistentVolumeClaim:

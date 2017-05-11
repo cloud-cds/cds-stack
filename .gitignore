@@ -9,3 +9,4 @@ concourse-keys
 .DS_Store
 .idea/
 *.pyc
+aws-*env.sh

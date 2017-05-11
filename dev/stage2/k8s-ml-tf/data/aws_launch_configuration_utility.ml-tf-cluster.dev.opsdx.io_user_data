@@ -120,9 +120,9 @@ Assets:
 - 5a0f87aa53dc8ad24b8d6fbdc8621ae4ceea4c08@https://storage.googleapis.com/kubernetes-release/release/v1.5.6/bin/linux/amd64/kubectl
 - 19d49f7b2b99cd2493d5ae0ace896c64e289ccbb@https://storage.googleapis.com/kubernetes-release/network-plugins/cni-07a8a28637e97b22eb8dfe710eeae1344f69d16e.tar.gz
 - 661289336f118e82194000adc63f2b72f449636e@https://kubeupv2.s3.amazonaws.com/kops/1.5.3/linux/amd64/utils.tar.gz
-ClusterName: ml-cluster.dev.opsdx.io
-ConfigBase: s3://opsdx-kops-ml/ml-cluster.dev.opsdx.io
-InstanceGroupName: train
+ClusterName: ml-tf-cluster.dev.opsdx.io
+ConfigBase: s3://opsdx-kops-ml-tf/ml-tf-cluster.dev.opsdx.io
+InstanceGroupName: utility
 Tags:
 - _automatic_upgrades
 - _aws
@@ -135,7 +135,7 @@ Tags:
 - _networking_cni
 - _protokube
 channels:
-- s3://opsdx-kops-ml/ml-cluster.dev.opsdx.io/addons/bootstrap-channel.yaml
+- s3://opsdx-kops-ml-tf/ml-tf-cluster.dev.opsdx.io/addons/bootstrap-channel.yaml
 protokubeImage:
   hash: 1d73d1816cd7492ce1e5a8eb7346a302982b0db2
   name: protokube:1.5.3
