@@ -106,7 +106,9 @@ CREATE TABLE pat_enc (
     visit_id        varchar(50) NOT NULL,
     pat_id          varchar(50) NOT NULL,
     dept_id         varchar(50),
-    PRIMARY KEY     (dataset_id, enc_id)
+    PRIMARY KEY     (dataset_id, enc_id),
+    UNIQUE          (dataset_id, visit_id, pat_id),
+    UNIQUE          (dataset_id, enc_id, visit_id, pat_id)
 );
 
 DROP TABLE IF EXISTS cdm_g;
