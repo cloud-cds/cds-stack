@@ -53,6 +53,15 @@ def translate_med_name_to_fid(med_data):
     return med_data
 
 
+def override_empty_doses_with_rates(med_data, fid_col, fids):
+    med_idx = med_data[fid_col].isin(fids) & \
+                (pd.isnull(med_data['dose_unit']) | pd.isnull(med_data['dose_value']))
+
+    med_data['dose_value'][med_idx] = med_data['rate_value'][med_idx]
+    med_data['dose_unit'][med_idx] = med_data['rate_unit'][med_idx]
+    return med_data
+
+
 def extract_sys_dias_from_bp(df, fid_col, value_col, bp):
     def get_sys(row):
         if (len(row) != 2) or (not row[0].isdigit()):
@@ -100,6 +109,9 @@ def g_per_l_to_g_per_dl(value):
 
 def g_to_mg(value):
     return float(value)/10.0
+
+def ml_per_hr_to_ml_for_1hr(value):
+    return float(value)
 
 def rass_str_to_number(rass_str):
     rass_dict = {

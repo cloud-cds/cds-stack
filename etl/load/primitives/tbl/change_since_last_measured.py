@@ -2,7 +2,7 @@ import asyncio
 import etl.load.primitives.tbl.clean_tbl as clean_tbl
 from etl.load.primitives.tbl.derive_helper import *
 
-async def change_since_last_measured(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict):
+async def change_since_last_measured(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
     """
     fid_input should be name of the feature for which change is to be computed
     fid should be <fid of old feather>_change
@@ -25,7 +25,7 @@ async def change_since_last_measured(fid, fid_input, conn, log, dataset_id, deri
         lag(%(fid)s, -1) over (order by enc_id, tsp) %(fid)s_next,
         lag(%(fid)s_c, -1) over (order by enc_id, tsp) %(fid)s_c_next
     from %(twf_table_fid)s
-    where %(fid)s_c < 8 %(dataset_block)s
+    where %(fid)s_c < 8 %(dataset_block)s %(incremental_enc_id_in)s
     order by enc_id, tsp;
 
     delete from change where enc_id <> enc_id_last;
@@ -52,7 +52,11 @@ async def change_since_last_measured(fid, fid_input, conn, log, dataset_id, deri
     """ % {'fid': fid, 'fid_input': fid_input,
            'twf_table_fid': twf_table_temp,
            'twf_table_fid_input': twf_table_fid_input,
-           'dataset_block': ' and dataset_id = %s' % dataset_id if dataset_id is not None else ''}
+           'dataset_block': \
+                ' and dataset_id = %s' % dataset_id \
+                    if dataset_id is not None else '',
+           'incremental_enc_id_in': \
+                incremental_enc_id_in(' and ', twf_table_temp, dataset_id,incremental)}
 
     log.info("change_since_last_measured:%s" % sql)
     await conn.execute(sql)
