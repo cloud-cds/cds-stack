@@ -114,6 +114,9 @@ def decrypt(encrypted):
   if hash_key:
     aes = AES.new(hash_key, AES.MODE_CBC, IV=('\x00' * 16)) if querystring_key else None
     decoded = base64.b64decode(encrypted)
+    logging.info('Decoded: %s' % str(decoded))
     decrypted = aes.decrypt(decoded)
+    logging.info('Decrypted: %s' % str(decrypted))
     unpadded = pkcs7_encoder.decode(decrypted)
+    logging.info('Unpadded: %s' % str(unpadded))
     return unpadded
