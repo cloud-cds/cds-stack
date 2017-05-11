@@ -46,7 +46,7 @@ resource "aws_lambda_function" "analysis_publishing_timeseries_lambda" {
         PYKUBE_KUBERNETES_SERVICE_HOST = "${var.k8s_server_host}"
         PYKUBE_KUBERNETES_SERVICE_PORT = "${var.k8s_server_port}"
 
-        kube_job_name  = "behavior-timeseries-dev"
+        kube_job_name  = "behavior-timeseries-prod"
         kube_name      = "${var.k8s_name}"
         kube_server    = "${var.k8s_server}"
         kube_cert_auth = "${var.k8s_cert_auth}"
@@ -109,7 +109,7 @@ resource "aws_lambda_function" "analysis_publishing_reports_lambda" {
         PYKUBE_KUBERNETES_SERVICE_HOST = "${var.k8s_server_host}"
         PYKUBE_KUBERNETES_SERVICE_PORT = "${var.k8s_server_port}"
 
-        kube_job_name  = "behavior-reports-dev"
+        kube_job_name  = "behavior-reports-prod"
         kube_name      = "${var.k8s_name}"
         kube_server    = "${var.k8s_server}"
         kube_cert_auth = "${var.k8s_cert_auth}"
@@ -123,7 +123,7 @@ resource "aws_lambda_function" "analysis_publishing_reports_lambda" {
 
         # ETL Environment Variables
         k8s_job_BEHAMON_STACK                      = "${var.deploy_prefix}"
-        k8s_job_REPORT_RECEIVING_EMAIL_ADDRESS     = "peterm@opsdx.io" #trews-jhu@opsdx.io, peterm@opsdx.io
+        k8s_job_REPORT_RECEIVING_EMAIL_ADDRESS     = "peterm@opsdx.io"  #trews-jhu@opsdx.io, peterm@opsdx.io
         k8s_job_db_host                            = "${var.db_host}"
         k8s_job_db_port                            = "${var.db_port}"
         k8s_job_db_name                            = "${var.db_name}"

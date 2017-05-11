@@ -215,12 +215,12 @@ module "analysis_publishing" {
   k8s_server    = "${var.k8s_server}"
   k8s_user      = "${var.k8s_user}"
   k8s_pass      = "${var.k8s_pass}"
-  k8s_image     = "${var.k8s_op2dw_image}"
+  k8s_analysis_publishing_image  = "359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-etl:latest"
   k8s_cert_auth = "${var.k8s_cert_auth}"
 
   analysis_publishing_timeseries_firing_rate_min = "5"
-  analysis_publishing_reports_firing_rate_min    = "180"
-  analysis_publishing_reports_firing_rate_expr   = "3 hours"
+  analysis_publishing_reports_firing_rate_min    = "5"
+  analysis_publishing_reports_firing_rate_expr   = "5 minutes"
 
   db_host      = "db.${var.domain}"
   db_name      = "${replace(var.deploy_prefix, "-", "_")}"
