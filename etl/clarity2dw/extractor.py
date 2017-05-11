@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 from etl.transforms.primitives.row import transform
 from etl.load.primitives.row import load_row
-from etl.load.pipelines.fillin import fillin_pipeline
 from etl.load.pipelines.derive_main import derive_main
 from etl.load.primitives.tbl.derive_helper import *
 import etl.load.primitives.tbl.load_table as load_table
