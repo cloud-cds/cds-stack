@@ -22,7 +22,9 @@ CREATE TABLE pat_enc (
     enc_id          serial PRIMARY KEY,
     visit_id        varchar(50) NOT NULL,
     pat_id          varchar(50) NOT NULL,
-    dept_id         varchar(50)
+    dept_id         varchar(50),
+    UNIQUE          (visit_id, pat_id),
+    UNIQUE          (enc_id, visit_id, pat_id)
 );
 
 DROP TABLE IF EXISTS cdm_function CASCADE;
