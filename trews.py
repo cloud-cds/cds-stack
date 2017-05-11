@@ -55,9 +55,13 @@ port = os.environ['db_port']
 pw   = os.environ['db_password']
 etl_channel = os.environ['etl_channel'] if 'etl_channel' in os.environ else None
 
+# Security configuration.
+# Also, see 'querystring_key' in encrypt.py
 trews_app_key = os.environ['trews_app_key'] if 'trews_app_key' in os.environ else None
 trews_admin_key = os.environ['trews_admin_key'] if 'trews_admin_key' in os.environ else None
 trews_open_access = os.environ['trews_open_access'] if 'trews_open_access' in os.environ else None
+
+log_decryption = os.environ['log_decryption'] if 'log_decryption' in os.environ else None
 
 logging.info('''TREWS Security Configuration::
   encrypted query: %s
@@ -136,16 +140,17 @@ class TREWSStaticResource(web.View):
       parameters = self.request.query
 
       if encrypted_query and 'token' in parameters:
-        logging.info('Found encrypted query: %s' % parameters['token'])
+        if log_decryption:
+          logging.info('Found encrypted query: %s' % parameters['token'])
 
         param_bytes = decrypt(parameters['token'])
         param_str = param_bytes.decode() if param_bytes else None
         params = dict(urllib.parse.parse_qsl(param_str)) if param_str else None
 
-        logging.info('param_bytes: %s' % str(param_bytes))
-        logging.info('param_str: %s' % param_str)
-        logging.info('params: %s' % str(params))
-
+        if log_decryption:
+          decrypt_msg = 'Decrypted %s\n\tfrom\n\tbytes: %s\n\tstr: %s' \
+                            % (str(params), str(param_bytes), param_str)
+          logging.info(decrypt_msg)
 
         if params is not None and 'USERID' in params and 'PATID' in params:
 
