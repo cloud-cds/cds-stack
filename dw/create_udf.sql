@@ -1149,7 +1149,7 @@ BEGIN
                     ) as is_met
             from criteria_meas MFL
             left join pat_weights PW on MFL.pat_id = PW.pat_id
-            left join severe_sepsis_now SSPN on MFL.pat_id = SSPN.pat_id
+            left join severe_sepsis_onsets SSPN on MFL.pat_id = SSPN.pat_id
             left join pat_fluid_overrides OV on MFL.pat_id = OV.pat_id
             where isnumeric(MFL.value)
             and SSPN.severe_sepsis_is_met
@@ -1567,7 +1567,8 @@ BEGIN
                              window_ends.tsp,
                              %s, %s) new_criteria
         on window_ends.pat_id = new_criteria.pat_id;'
-        ,_dataset_id,  pat_id_str, _dataset_id, ts_start, ts_end, window_limit, pat_id_str, window_size, _dataset_id, use_clarity_notes_str);
+        , _dataset_id,  pat_id_str, _dataset_id, ts_start, ts_end, window_limit
+        , pat_id_str, window_size, _dataset_id, use_clarity_notes_str);
 
 
     insert into historical_criteria (pat_id, dataset_id, pat_state, window_ts)
