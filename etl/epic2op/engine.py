@@ -404,10 +404,6 @@ class Epic2Op:
       'db_port': self.config.db_port,
     }
 
-  async def init(self):
-    self.pool = await asyncpg.create_pool(database=self.config.db_name,
-      user=self.config.db_user, password=self.config.db_pass,
-      host=self.config.db_host, port=self.config.db_port)
 
 if __name__ == '__main__':
   pd.set_option('display.width', 200)
@@ -417,6 +413,5 @@ if __name__ == '__main__':
   pd.options.mode.chained_assignment = None
   logging.getLogger().setLevel(0)
   eng = Epic2Op()
-  eng.init()
   results = eng.main()
   print(results)

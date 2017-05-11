@@ -146,6 +146,50 @@ lab_results_transforms = [
     lambda lr: derive.use_correct_tsp(lr, first='tsp', second='res_tsp'),
 ]
 
+cms_antibiotics_fids = [
+        'cefepime_dose',
+        'ceftriaxone_dose',
+        'piperacillin_tazbac_dose',
+        'levofloxacin_dose',
+        'moxifloxacin_dose',
+        'vancomycin_dose',
+        'metronidazole_dose',
+        'aztronam_dose',
+        'ciprofloxacin_dose',
+        'gentamicin_dose',
+        'azithromycin_dose'
+    ]
+
+fluids_intake_fids = [
+        'albumin_dose',
+        'hetastarch',
+        'sodium_chloride',
+        'lactated_ringers'
+    ]
+
+# crystalloid_fluid_fids = [
+#         'dextrose_water',
+#         'dextrose_normal_saline',
+#         'sodium_bicarbonate',
+#         'lactated_ringers',
+#         'sodium_chloride'
+#     ]
+
+crystalloid_fluid_fids = [
+        'lactated_ringers',
+        'sodium_chloride'
+    ]
+
+vasopressors_fids = [
+        'vasopressin_dose',
+        'neosynephrine_dose',
+        'levophed_infusion_dose',
+        'epinephrine_dose',
+        'dopamine_dose',
+        'milrinone_dose'
+        'dobutamine_dose'
+    ]
+
 med_orders_transforms = [
     lambda mo: restructure.select_columns(mo, {
         'pat_id':           'pat_id',
@@ -175,20 +219,10 @@ med_orders_transforms = [
     #     unit_col = 'dose_unit', from_unit = 'g', to_unit = 'mg',
     #     value_col = 'dose', convert_func = translate.g_to_mg
     # ),
-    lambda mo: derive.combine(mo, 'fluids_intake',
-        ['albumin_dose', 'hetastarch', 'sodium_chloride',
-        'lactated_ringers']),
-    lambda mo: derive.combine(mo, 'vasopressors_dose',
-        ['vasopressin_dose', 'neosynephrine_dose', 'levophed_infusion_dose',
-        'lactated_ringers', 'epinephrine_dose', 'dopamine_dose',
-        'dobutamine_dose']),
-    lambda mo: derive.combine(mo, 'crystalloid_fluid',
-        ['lactated_ringers', 'sodium_chloride']),
-    lambda mo: derive.combine(mo, 'cms_antibiotics',
-        ['cefepime_dose', 'ceftriaxone_dose', 'piperacillin_tazbac_dose',
-         'levofloxacin_dose', 'moxifloxacin_dose', 'vancomycin_dose',
-         'metronidazole_dose', 'aztronam_dose', 'ciprofloxacin_dose',
-         'gentamicin_dose', 'azithromycin_dose',]),
+    lambda mo: derive.combine(mo, 'fluids_intake', fluids_intake_fids),
+    lambda mo: derive.combine(mo, 'vasopressors_dose', vasopressors_fids),
+    lambda mo: derive.combine(mo, 'crystalloid_fluid', crystalloid_fluid_fids),
+    lambda mo: derive.combine(mo, 'cms_antibiotics', cms_antibiotics_fids),
     lambda mo: format_data.add_order_to_fid(mo),
     # lambda mo: format_data.threshold_values(mo, 'dose'),
 ]
@@ -217,6 +251,9 @@ med_admin_transforms = [
     }),
     lambda ma: translate.translate_med_name_to_fid(ma),
     lambda ma: filter_rows.filter_medications(ma),
+    lambda ma: filter_rows.filter_stopped_medications(ma),
+    #lambda ma: translate.override_empty_doses_with_rates(ma, fid_col='fid', fids=['sodium_bicarbonate']),
+    lambda ma: filter_rows.filter_by_doses(ma),
     lambda ma: translate.convert_units(ma,
         fid_col = 'fid',
         fids = ['piperacillin_tazbac_dose', 'vancomycin_dose',
@@ -225,20 +262,16 @@ med_admin_transforms = [
         unit_col = 'dose_unit', from_unit = 'g', to_unit = 'mg',
         value_col = 'dose_value', convert_func = translate.g_to_mg
     ),
-    lambda ma: derive.combine(ma, 'fluids_intake',
-        ['albumin_dose', 'hetastarch', 'sodium_chloride',
-        'lactated_ringers']),
-    lambda ma: derive.combine(ma, 'vasopressors_dose',
-        ['vasopressin_dose', 'neosynephrine_dose', 'levophed_infusion_dose',
-        'epinephrine_dose', 'dopamine_dose', 'milrinone_dose'
-        'dobutamine_dose']),
-    lambda ma: derive.combine(ma, 'crystalloid_fluid',
-        ['lactated_ringers', 'sodium_chloride']),
-    lambda ma: derive.combine(ma, 'cms_antibiotics',
-        ['cefepime_dose', 'ceftriaxone_dose', 'piperacillin_tazbac_dose',
-         'levofloxacin_dose', 'moxifloxacin_dose', 'vancomycin_dose',
-         'metronidazole_dose', 'aztronam_dose', 'ciprofloxacin_dose',
-         'gentamicin_dose', 'azithromycin_dose',]),
+    lambda ma: translate.convert_units(ma,
+       fid_col = 'fid',
+       fids = crystalloid_fluid_fids,
+       unit_col = 'dose_unit', from_unit = 'mL/hr', to_unit = 'mL',
+       value_col = 'dose_value', convert_func = translate.ml_per_hr_to_ml_for_1hr
+    ),
+    lambda ma: derive.combine(ma, 'fluids_intake', fluids_intake_fids),
+    lambda ma: derive.combine(ma, 'vasopressors_dose', vasopressors_fids),
+    lambda ma: derive.combine(ma, 'crystalloid_fluid', crystalloid_fluid_fids),
+    lambda ma: derive.combine(ma, 'cms_antibiotics', cms_antibiotics_fids),
     lambda ma: format_data.threshold_values(ma, 'dose_value'),
     # lambda ma: derive.derive_fluids_intake(ma)
 ]
