@@ -5,7 +5,6 @@ import asyncpg
 import asyncio
 from sqlalchemy import create_engine
 from etl.load.pipelines.derive_main import derive_feature, get_derive_seq
-from etl.load.pipelines.fillin import fillin_pipeline
 import pandas as pd
 import os
 import logging
