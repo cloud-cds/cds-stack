@@ -83,6 +83,7 @@ class Extractor:
       ''' % {'dataset_id': self.dataset_id}
     if reset_job.get('remove_pat_enc', False):
       reset_sql += '''
+      delete from trews where dataset_id = %(dataset_id)s;
       delete from pat_enc where dataset_id = %(dataset_id)s;
       ''' % {'dataset_id': self.dataset_id}
     if 'start_enc_id' in reset_job:
