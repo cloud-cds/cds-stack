@@ -246,7 +246,7 @@ def get_derive_feature_addr(config, dataset_id, num_derive_groups, partition_mod
     await conn.close()
     return derive_features
 
-  def partition(lst, n):
+  def partition(lst, n, partition_mode):
     if partition_mode == 1:
       division = len(lst) / n
       return [lst[round(division) * i:round(division) * (i + 1)] for i in range(n)]
@@ -265,7 +265,7 @@ def get_derive_feature_addr(config, dataset_id, num_derive_groups, partition_mod
   derive_feature_order = get_derive_seq(derive_feature_dict)
   derive_features = [derive_feature_dict[fid] for fid in derive_feature_order]
   if num_derive_groups > 1:
-    derive_feature_groups = partition(derive_features, num_derive_groups)
+    derive_feature_groups = partition(derive_features, num_derive_groups, partition_mode)
   else:
     derive_feature_groups = [derive_features]
   print(derive_features)
