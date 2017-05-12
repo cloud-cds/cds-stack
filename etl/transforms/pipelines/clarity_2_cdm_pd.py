@@ -217,14 +217,25 @@ async def pull_order_procs(connection, dataset_id, fids, log, is_plan):
   log.info("Entering order procs Processing")
   start = time.time()
   extracted = 0
+  t_field = ''
+  if 'lactate_order' in fids:
+    t_field = 'op."RESULT_TIME"'
+  elif 'blood_culture_order' in fids:
+    t_field = 'op."ORDER_TIME"'
+  else:
+    log.error('Invalid fid for pull_order_procs: %s' % str(fids))
+    return
+
   sql = """select pe.enc_id,
-            op."CSN_ID",op."proc_name", op."ORDER_TIME", op."OrderStatus", op."LabStatus",
+            op."CSN_ID",op."proc_name", {t_field} as "TSP", op."OrderStatus", op."LabStatus",
             op."PROC_START_TIME",op."PROC_ENDING_TIME"
             from
               {ws}."OrderProcs"  op
             inner join
               pat_enc pe
-            on op."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp};""".format(dataset_id=dataset_id, min_tsp=get_min_tsp("ORDER_TIME"), ws=clarity_workspace)
+            on op."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp};
+        """.format(dataset_id=dataset_id, min_tsp=get_min_tsp(t_field), ws=clarity_workspace, t_field=t_field)
+
   log.info(sql)
   op = await async_read_df(sql,connection)
   if op is None:
@@ -236,7 +247,7 @@ async def pull_order_procs(connection, dataset_id, fids, log, is_plan):
 
   op = restructure.select_columns(op, {'enc_id': 'enc_id',
                                        'proc_name': 'fid',
-                                       'ORDER_TIME': 'tsp',
+                                       'TSP': 'tsp',
                                        'OrderStatus': 'order_status',
                                        'LabStatus': 'proc_status',
                                        'PROC_START_TIME': 'proc_start_tsp',
@@ -246,13 +257,17 @@ async def pull_order_procs(connection, dataset_id, fids, log, is_plan):
 
   def get_fid_name_mapping(lp_map):
     fid_map = dict()
-    for fid, codes in lp_config.procedure_ids:
-      nameList = list()
-      for code in codes:
-        rs = lp_map[lp_map['proc_id'] == code]['proc_name']
-        if not rs.empty:
-          nameList.append(rs.iloc[0])
-      fid_map[fid] = nameList
+    for fid in fids:
+      if fid in lp_config.procedure_ids:
+        codes = lp_config.procedure_ids[fid]
+        nameList = list()
+        for code in codes:
+          rs = lp_map[lp_map['proc_id'] == code]['proc_name']
+          if not rs.empty:
+            nameList.append(rs.iloc[0])
+        fid_map[fid] = nameList
+      else:
+        return {}
     return fid_map
 
   fid_map = get_fid_name_mapping(lp_map)
