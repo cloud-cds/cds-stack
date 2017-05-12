@@ -250,8 +250,9 @@ class Extractor:
       transform_func_id = transform_func_id[i:]
       log.info("fid: %s using package: %s and transform_func_id: %s" \
         % (",".join(fids), package, transform_func_id))
-      futures.append(self.run_custom_func(package, transform_func_id, ctxt,
-                     self.dataset_id, log,self.plan, self.clarity_workspace))
+      futures.append(self.run_custom_func(package, transform_func_id, fids,
+                     ctxt, self.dataset_id, log,self.plan,
+                     self.clarity_workspace))
     else:
       # if it is standard function
       # For now, use the fact that only custom functions are many to one.
@@ -261,15 +262,15 @@ class Extractor:
                        self.cdm_feature_dict[fid]))
     return futures
 
-  async def run_custom_func(self, package, transform_func_id, ctxt, dataset_id,
-                            log, plan, clarity_workspace):
+  async def run_custom_func(self, package, transform_func_id, fids, ctxt,
+                            dataset_id, log, plan, clarity_workspace):
     module = importlib.import_module(package)
     func = getattr(module, transform_func_id)
     try:
       conn_acquired = False
       async with ctxt.db_pool.acquire() as conn:
         conn_acquired = True
-        await func(conn, dataset_id, log, plan, clarity_workspace)
+        await func(conn, dataset_id, fids, log, plan, clarity_workspace)
       if not conn_acquired:
         log.error("Error: connection is not acquired for {}".format(transform_func_id))
     except Exception as e:

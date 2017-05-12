@@ -22,7 +22,7 @@ def get_min_tsp(tsp_name):
 #============================
 # Utilities
 #============================
-async def pull_med_orders(connection, dataset_id, log, is_plan, clarity_workspace):
+async def pull_med_orders(connection, dataset_id, fids, log, is_plan, clarity_workspace):
   start = time.time()
   log.info('Entered Med Orders Extraction')
   sql = """select pe.enc_id, mo."ORDER_INST", mo."display_name", mo."MedUnit",mo."Dose"
@@ -86,7 +86,7 @@ async def pull_med_orders(connection, dataset_id, log, is_plan, clarity_workspac
   log_time(log, 'pull_med_orders', start, extracted, loaded)
   return 'pull_med_orders'
 
-async def pull_medication_admin(connection, dataset_id, log, is_plan, clarity_workspace):
+async def pull_medication_admin(connection, dataset_id, fids, log, is_plan, clarity_workspace):
   start = time.time()
   log.info('Entering Medication Administration Processing')
   sql = """select pe.enc_id, ma.display_name,
@@ -175,7 +175,7 @@ async def pull_medication_admin(connection, dataset_id, log, is_plan, clarity_wo
   log_time(log, 'pull_medication_admin', start, extracted, loaded)
   return 'pull_medication_admin'
 
-async def bands(connection, dataset_id, log, is_plan):
+async def bands(connection, dataset_id, fids, log, is_plan):
   log.info("Entering bands Processing")
   start = time.time()
   sql = """select pe.enc_id, lb."NAME" ,
@@ -213,7 +213,7 @@ async def bands(connection, dataset_id, log, is_plan):
   log_time(log, 'bands', start, extracted, loaded)
   return 'bands'
 
-async def pull_order_procs(connection, dataset_id, log, is_plan):
+async def pull_order_procs(connection, dataset_id, fids, log, is_plan):
   log.info("Entering order procs Processing")
   start = time.time()
   extracted = 0
@@ -278,7 +278,7 @@ async def pull_order_procs(connection, dataset_id, log, is_plan):
   log_time(log, 'pull_order_procs', start, extracted, loaded)
   return 'pull_order_procs'
 
-async def notes(connection, dataset_id, log, is_plan, clarity_workspace):
+async def notes(connection, dataset_id, fids, log, is_plan, clarity_workspace):
   log.info("Entering Notes Processing")
   start = time.time()
   sql = '''
