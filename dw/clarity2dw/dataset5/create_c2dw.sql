@@ -4,7 +4,7 @@
 INSERT INTO dw_version (dataset_id, created, description)
 VALUES (5,
         now(),
-        'clarity2dw 6 months through kubernetes job')
+        'clarity2dw 6 months')
 on conflict do NOTHING ;
 
 -- ======================================
@@ -88,6 +88,19 @@ WHERE dataset_id = 5;
 
 
  \COPY cdm_g FROM 'CDM_G.csv' WITH csv header DELIMITER AS ',';
+
+-- ======================================
+-- Upsert criteria_default
+-- ======================================
+DELETE
+FROM criteria_default
+WHERE dataset_id = 5;
+
+
+
+ \COPY criteria_default FROM 'criteria_default.csv' WITH csv header DELIMITER AS ',';
+
+
 
 -- drop table if exists flowsheet_dict;
 -- create table flowsheet_dict

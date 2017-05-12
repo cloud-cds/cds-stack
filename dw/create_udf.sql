@@ -1936,12 +1936,27 @@ $BODY$ Language plpgsql;
 -- ===========================================================================
 -- load_cdm_twf_to_criteria_meas
 -- ===========================================================================
-CREATE OR REPLACE FUNCTION load_cdm_twf_to_criteria_meas(_fid text, _dataset_id integer)
+CREATE OR REPLACE FUNCTION load_cdm_twf_to_criteria_meas(_fid text, _dataset_id integer, incremental boolean)
   returns VOID
    LANGUAGE plpgsql
 AS $function$
 DECLARE
 BEGIN
+IF incremental THEN
+  EXECUTE format(
+  'insert into criteria_meas (dataset_id,         pat_id,         tsp,         fid,           value,      update_date)
+    select            cdm_twf.dataset_id, pat_enc.pat_id, cdm_twf.tsp,         ''%s''::text,  last(cdm_twf.%s),      now()
+    FROM
+    cdm_twf
+    inner join
+    pat_enc
+    on cdm_twf.enc_id = pat_enc.enc_id
+    where cdm_twf.%s_c <8 and cdm_twf.dataset_id = %s and pat_enc.dataset_id = %s
+    and (pat_enc.meta_data->>''pending'')::boolean
+    group by cdm_twf.dataset_id, pat_enc.pat_id, cdm_twf.tsp
+    ON CONFLICT (dataset_id, pat_id, tsp, fid) DO UPDATE SET value = excluded.value, update_date=excluded.update_date;
+  ',_fid,_fid,_fid,_dataset_id,_dataset_id);
+ELSE
   EXECUTE format(
   'insert into criteria_meas (dataset_id,         pat_id,         tsp,         fid,           value,      update_date)
     select            cdm_twf.dataset_id, pat_enc.pat_id, cdm_twf.tsp,         ''%s''::text,  last(cdm_twf.%s),      now()
@@ -1954,12 +1969,13 @@ BEGIN
     group by cdm_twf.dataset_id, pat_enc.pat_id, cdm_twf.tsp
     ON CONFLICT (dataset_id, pat_id, tsp, fid) DO UPDATE SET value = excluded.value, update_date=excluded.update_date;
   ',_fid,_fid,_fid,_dataset_id,_dataset_id);
+END IF;
 END; $function$;
 
 -- ===========================================================================
 -- load_cdm_to_criteria_meas
 -- ===========================================================================
-CREATE OR REPLACE FUNCTION load_cdm_to_criteria_meas(_dataset_id integer)
+CREATE OR REPLACE FUNCTION load_cdm_to_criteria_meas(_dataset_id integer, incremental boolean)
  RETURNS VOID
  LANGUAGE plpgsql
 AS $function$
@@ -1976,7 +1992,10 @@ BEGIN
     left join
     pat_enc
     on cdm_t.enc_id = pat_enc.enc_id
-    where cdm_t.fid='suspicion_of_infection' and cdm_t.dataset_id = _dataset_id and pat_enc.dataset_id = _dataset_id
+    where cdm_t.fid='suspicion_of_infection'
+    and cdm_t.dataset_id = _dataset_id
+    and pat_enc.dataset_id = _dataset_id
+    and (not incremental or (pat_enc.meta_data->>'pending')::boolean)
     group by cdm_t.dataset_id, pat_enc.pat_id, cdm_t.tsp
     ON CONFLICT (dataset_id, pat_id, name, override_time) DO UPDATE SET
       is_met=EXCLUDED.is_met,              measurement_time=EXCLUDED.measurement_time,
@@ -1994,7 +2013,10 @@ BEGIN
     inner JOIN
     criteria_default
     on cdm_t.fid = criteria_default.fid
-    where cdm_t.dataset_id = _dataset_id and not(cdm_t.fid = 'suspicion_of_infection') and criteria_default.dataset_id = _dataset_id
+    where cdm_t.dataset_id = _dataset_id
+    and not(cdm_t.fid = 'suspicion_of_infection')
+    and criteria_default.dataset_id = _dataset_id
+    and (not incremental or (pat_enc.meta_data->>'pending')::boolean)
     group by cdm_t.dataset_id, pat_enc.pat_id, cdm_t.tsp, cdm_t.fid
     ON CONFLICT (dataset_id,   pat_id,               tsp, fid) DO UPDATE SET value = excluded.value, update_date=excluded.update_date;
     -- ================================================
@@ -2010,7 +2032,7 @@ BEGIN
       where f.category = 'TWF'
       group by cd.fid
     LOOP
-      PERFORM load_cdm_twf_to_criteria_meas(_fid,_dataset_id);
+      PERFORM load_cdm_twf_to_criteria_meas(_fid,_dataset_id, incremental);
     END LOOP;
     -- ================================================
     -- Handle bp_sys as a special case
@@ -2025,6 +2047,7 @@ BEGIN
     pat_enc
     on cdm_twf.enc_id = pat_enc.enc_id
     where cdm_twf.nbp_sys_c <8 and cdm_twf.dataset_id = _dataset_id and pat_enc.dataset_id = _dataset_id
+    and (not incremental or (pat_enc.meta_data->>'pending')::boolean)
     group by cdm_twf.dataset_id, pat_enc.pat_id, cdm_twf.tsp
     ON CONFLICT (dataset_id,   pat_id,               tsp, fid) DO UPDATE SET value = excluded.value, update_date=excluded.update_date;
 
@@ -2036,6 +2059,7 @@ BEGIN
     pat_enc
     on cdm_twf.enc_id = pat_enc.enc_id
     where cdm_twf.abp_sys_c <8 and cdm_twf.dataset_id = _dataset_id and pat_enc.dataset_id = _dataset_id
+    and (not incremental or (pat_enc.meta_data->>'pending')::boolean)
     group by cdm_twf.dataset_id, pat_enc.pat_id, cdm_twf.tsp
     ON CONFLICT (dataset_id,   pat_id,               tsp, fid) DO UPDATE SET value = excluded.value, update_date=excluded.update_date;
 

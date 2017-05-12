@@ -2,9 +2,9 @@
 -- raise notice '';
 
 INSERT INTO dw_version (dataset_id, created, description)
-VALUES (4,
+VALUES (6,
         now(),
-        'clarity2dw 1 month')
+        'clarity2dw 1 month with full note')
 on conflict do NOTHING ;
 
 -- ======================================
@@ -74,7 +74,7 @@ DROP TABLE IF EXISTS cdm_feature_temp;
 -- ======================================
 DELETE
 FROM parameters
-WHERE dataset_id = 4;
+WHERE dataset_id = 6;
 
  \COPY parameters FROM 'parameters.csv' WITH csv header DELIMITER AS ',';
 
@@ -83,19 +83,18 @@ WHERE dataset_id = 4;
 -- ======================================
 DELETE
 FROM cdm_g
-WHERE dataset_id = 4;
+WHERE dataset_id = 6;
 
 
 
  \COPY cdm_g FROM 'CDM_G.csv' WITH csv header DELIMITER AS ',';
-
 
 -- ======================================
 -- Upsert criteria_default
 -- ======================================
 DELETE
 FROM criteria_default
-WHERE dataset_id = 4;
+WHERE dataset_id = 6;
 
 
 

@@ -4,7 +4,7 @@
 INSERT INTO dw_version (dataset_id, created, description)
 VALUES (1,
         now(),
-        'clarity2dw')
+        'clarity2dw 1 year')
 on conflict do NOTHING ;
 
 INSERT INTO model_version (model_id, created, description)
@@ -94,6 +94,19 @@ WHERE dataset_id = 1;
 
 
  \COPY cdm_g FROM 'CDM_G.csv' WITH csv header DELIMITER AS ',';
+
+
+-- ======================================
+-- Upsert criteria_default
+-- ======================================
+DELETE
+FROM criteria_default
+WHERE dataset_id = 1;
+
+
+
+ \COPY criteria_default FROM 'criteria_default.csv' WITH csv header DELIMITER AS ',';
+
 
 -- drop table if exists flowsheet_dict;
 -- create table flowsheet_dict
