@@ -2272,9 +2272,7 @@ CREATE OR REPLACE FUNCTION get_cms_label_series(
         use_app_infections      boolean default false,
         use_clarity_notes       boolean default false
   )
---   @Peter, positive inf time and negative inf time?
---   passing in a null value will calculate historical criteria over all patientis
-  returns void
+  returns integer
   LANGUAGE plpgsql
 AS $function$
 DECLARE
@@ -2358,7 +2356,7 @@ BEGIN
           label = excluded.label;
 
     drop table new_criteria_windows;
-    return;
+    return generated_label_id;
 END; $function$;
 
 
