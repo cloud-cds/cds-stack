@@ -270,6 +270,7 @@ class Extractor:
       conn_acquired = False
       async with ctxt.db_pool.acquire() as conn:
         conn_acquired = True
+        log.info('Running custom func for %s' % str(fids))
         await func(conn, dataset_id, fids, log, plan, clarity_workspace)
       if not conn_acquired:
         log.error("Error: connection is not acquired for {}".format(transform_func_id))

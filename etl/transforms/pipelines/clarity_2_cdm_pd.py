@@ -213,7 +213,7 @@ async def bands(connection, dataset_id, fids, log, is_plan):
   log_time(log, 'bands', start, extracted, loaded)
   return 'bands'
 
-async def pull_order_procs(connection, dataset_id, fids, log, is_plan):
+async def pull_order_procs(connection, dataset_id, fids, log, is_plan, clarity_workspace):
   log.info("Entering order procs Processing")
   start = time.time()
   extracted = 0
