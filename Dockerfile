@@ -5,7 +5,9 @@ COPY ./dashan-etl /dashan-etl
 COPY ./dashan-db /dashan-db
 
 # Get pip to download and install requirements:
-RUN pip install --upgrade pip \
+RUN apt-get update \
+    && apt-get install -y g++ libpq-dev \
+    && pip install --upgrade pip \
     && pip install --no-cache-dir setuptools \
     && pip install -r /dashan-etl/requirements.txt \
     && pip install /dashan-etl
