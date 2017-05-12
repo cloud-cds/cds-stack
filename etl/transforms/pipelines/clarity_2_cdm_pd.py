@@ -26,11 +26,11 @@ async def pull_med_orders(connection, dataset_id, log, is_plan, clarity_workspac
   start = time.time()
   log.info('Entered Med Orders Extraction')
   sql = """select pe.enc_id, mo."ORDER_INST", mo."display_name", mo."MedUnit",mo."Dose"
-                               from {ws}."OrderMed" mo
-                               inner join
-                               pat_enc pe
-                               on mo."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp}
-                              ;""".format(dataset_id=dataset_id, min_tsp=get_min_tsp("ORDER_INST"), ws=clarity_workspace)
+           from {ws}."OrderMed" mo
+           inner join
+           pat_enc pe
+           on mo."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp}
+          ;""".format(dataset_id=dataset_id, min_tsp=get_min_tsp("ORDER_INST"), ws=clarity_workspace)
   log.info(sql)
   mo = await async_read_df(sql, connection)
   if mo is None:
@@ -88,16 +88,16 @@ async def pull_med_orders(connection, dataset_id, log, is_plan, clarity_workspac
 
 async def pull_medication_admin(connection, dataset_id, log, is_plan, clarity_workspace):
   start = time.time()
-  log.info('Entering Medication Administrtaion Processing')
+  log.info('Entering Medication Administration Processing')
   sql = """select pe.enc_id, ma.display_name,
-                                  ma."Dose", ma."MedUnit",
-                                  ma."INFUSION_RATE", ma."MAR_INF_RATE_UNIT",
-                                  ma."TimeActionTaken"
-                              from
-                              {ws}."MedicationAdministration"  ma
-                              inner join
-                              pat_enc pe
-                              on ma."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp}""".format(dataset_id=dataset_id, min_tsp=get_min_tsp("TimeActionTaken"), ws=clarity_workspace)
+                  ma."Dose", ma."MedUnit",
+                  ma."INFUSION_RATE", ma."MAR_INF_RATE_UNIT",
+                  ma."TimeActionTaken"
+          from
+          {ws}."MedicationAdministration"  ma
+          inner join
+          pat_enc pe
+          on ma."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp}""".format(dataset_id=dataset_id, min_tsp=get_min_tsp("TimeActionTaken"), ws=clarity_workspace)
   log.info(sql)
   ma = await async_read_df(sql,connection)
 
@@ -112,28 +112,52 @@ async def pull_medication_admin(connection, dataset_id, log, is_plan, clarity_wo
                                       'MAR_INF_RATE_UNIT':'rate_unit',
                                       'TimeActionTaken':'tsp'})
 
+  cms_antibiotics_fids = [
+        'cefepime_dose',
+        'ceftriaxone_dose',
+        'piperacillin_tazbac_dose',
+        'levofloxacin_dose',
+        'moxifloxacin_dose',
+        'vancomycin_dose',
+        'metronidazole_dose',
+        'aztronam_dose',
+        'ciprofloxacin_dose',
+        'gentamicin_dose',
+        'azithromycin_dose'
+    ]
+
+  crystalloid_fluid_fids = ['lactated_ringers', 'sodium_chloride']
+
+  vasopressors_fids = [
+        'vasopressin_dose',
+        'neosynephrine_dose',
+        'levophed_infusion_dose',
+        'epinephrine_dose',
+        'dopamine_dose',
+        'milrinone_dose'
+        'dobutamine_dose'
+    ]
+
   ma = translate.translate_med_name_to_fid(ma)
   ma = filter_rows.filter_medications(ma)
+  ma = filter_rows.filter_stopped_medications(ma),
   ma = translate.convert_units(ma,
                                fid_col = 'fid',
                                fids = ['piperacillin_tazbac_dose', 'vancomycin_dose',
-                          'cefazolin_dose', 'cefepime_dose', 'ceftriaxone_dose',
-                          'ampicillin_dose'],
+                                       'cefazolin_dose', 'cefepime_dose', 'ceftriaxone_dose',
+                                       'ampicillin_dose'],
                                unit_col = 'dose_unit', from_unit = 'g', to_unit = 'mg',
                                value_col = 'dose_value', convert_func = translate.g_to_mg)
 
-  ma = derive.combine(ma, 'vasopressors_dose',
-                      ['vasopressin_dose', 'neosynephrine_dose', 'levophed_infusion_dose',
-                      'epinephrine_dose', 'dopamine_dose', 'milrinone_dose'
-                                                           'dobutamine_dose'],keep_originals=False)
-  ma = derive.combine(ma, 'crystalloid_fluid',
-                      ['lactated_ringers', 'sodium_chloride'],keep_originals=False)
+  ma = translate.convert_units(ma,
+                               fid_col = 'fid',
+                               fids = crystalloid_fluid_fids,
+                               unit_col = 'dose_unit', from_unit = 'mL/hr', to_unit = 'mL',
+                               value_col = 'dose_value', convert_func = translate.ml_per_hr_to_ml_for_1hr)
 
-  ma = derive.combine(ma, 'cms_antibiotics',
-                      ['cefepime_dose', 'ceftriaxone_dose', 'piperacillin_tazbac_dose',
-                      'levofloxacin_dose', 'moxifloxacin_dose', 'vancomycin_dose',
-                      'metronidazole_dose', 'aztronam_dose', 'ciprofloxacin_dose',
-                      'gentamicin_dose', 'azithromycin_dose'],keep_originals=False)
+  ma = derive.combine(ma, 'vasopressors_dose', vasopressors_fids, keep_originals=False)
+  ma = derive.combine(ma, 'crystalloid_fluid', crystalloid_fluid_fids, keep_originals=False)
+  ma = derive.combine(ma, 'cms_antibiotics', cms_antibiotics_fids, keep_originals=False)
 
   ma = format_data.threshold_values(ma, 'dose_value')
 
@@ -194,13 +218,13 @@ async def pull_order_procs(connection, dataset_id, log, is_plan):
   start = time.time()
   extracted = 0
   sql = """select pe.enc_id,
-                              op."CSN_ID",op."proc_name", op."ORDER_TIME", op."OrderStatus", op."LabStatus",
-                              op."PROC_START_TIME",op."PROC_ENDING_TIME"
-                              from
-                                {ws}."OrderProcs"  op
-                              inner join
-                                pat_enc pe
-                              on op."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp};""".format(dataset_id=dataset_id, min_tsp=get_min_tsp("ORDER_TIME"), ws=clarity_workspace)
+            op."CSN_ID",op."proc_name", op."ORDER_TIME", op."OrderStatus", op."LabStatus",
+            op."PROC_START_TIME",op."PROC_ENDING_TIME"
+            from
+              {ws}."OrderProcs"  op
+            inner join
+              pat_enc pe
+            on op."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp};""".format(dataset_id=dataset_id, min_tsp=get_min_tsp("ORDER_TIME"), ws=clarity_workspace)
   log.info(sql)
   op = await async_read_df(sql,connection)
   if op is None:
