@@ -170,7 +170,7 @@ class Extractor:
     if random_shuffle:
       random.shuffle(lst)
     division = round(len(lst) / n)
-    return [lst[i:i + n] for i in range(0, len(lst), division)]
+    return [lst[i:i + division] for i in range(0, len(lst), division)]
 
     # # TEST CASE B
     # lst = lst[:40]
