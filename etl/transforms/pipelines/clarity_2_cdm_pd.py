@@ -221,7 +221,7 @@ async def pull_order_procs(connection, dataset_id, fids, log, is_plan):
   if 'lactate_order' in fids:
     t_field = 'op."RESULT_TIME"'
   elif 'blood_culture_order' in fids:
-    t_field = 'op."ORDER_TIME"'
+    t_field = 'op."SPECIMN_TAKEN_TIME"'
   else:
     log.error('Invalid fid for pull_order_procs: %s' % str(fids))
     return
