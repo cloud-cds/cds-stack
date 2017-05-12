@@ -1,15 +1,11 @@
-FROM python:3.6.1-alpine
+FROM python:3.6.1-slim
 
 # Copy the main code base folder inside the container
 COPY ./dashan-etl /dashan-etl
 COPY ./dashan-db /dashan-db
 
-RUN apk add --update --no-cache \
-        g++ pkgconfig ca-certificates \
-        bash \
-        postgresql-dev make \
-    && ln -s /usr/include/locale.h /usr/include/xlocale.h \
-    && pip install --upgrade pip \
+# Get pip to download and install requirements:
+RUN pip install --upgrade pip \
     && pip install --no-cache-dir setuptools \
     && pip install -r /dashan-etl/requirements.txt \
     && pip install /dashan-etl
