@@ -777,6 +777,7 @@ BEGIN
   -- raise notice 'Running calculate criteria on pat %, dataset_id % between %, %',this_pat_id, _dataset_id, ts_start , ts_end;
 
   return query
+
   with pat_visit_ids as (
     select distinct P.pat_id, P.visit_id from pat_enc P
     where P.pat_id = coalesce(this_pat_id, P.pat_id) and P.dataset_id = _dataset_id
@@ -1975,7 +1976,7 @@ BEGIN
     left join
     pat_enc
     on cdm_t.enc_id = pat_enc.enc_id
-    where cdm_t.fid='suspicion_of_infection' and cdm_t.dataset_id = _dataset_id
+    where cdm_t.fid='suspicion_of_infection' and cdm_t.dataset_id = _dataset_id and pat_enc.dataset_id = _dataset_id
     group by cdm_t.dataset_id, pat_enc.pat_id, cdm_t.tsp
     ON CONFLICT (dataset_id, pat_id, name, override_time) DO UPDATE SET
       is_met=EXCLUDED.is_met,              measurement_time=EXCLUDED.measurement_time,
@@ -1993,7 +1994,7 @@ BEGIN
     inner JOIN
     criteria_default
     on cdm_t.fid = criteria_default.fid
-    where cdm_t.dataset_id = _dataset_id and not(cdm_t.fid = 'suspicion_of_infection')
+    where cdm_t.dataset_id = _dataset_id and not(cdm_t.fid = 'suspicion_of_infection') and criteria_default.dataset_id = _dataset_id
     group by cdm_t.dataset_id, pat_enc.pat_id, cdm_t.tsp, cdm_t.fid
     ON CONFLICT (dataset_id,   pat_id,               tsp, fid) DO UPDATE SET value = excluded.value, update_date=excluded.update_date;
     -- ================================================
@@ -2023,7 +2024,7 @@ BEGIN
     inner join
     pat_enc
     on cdm_twf.enc_id = pat_enc.enc_id
-    where cdm_twf.nbp_sys_c <8 and cdm_twf.dataset_id = _dataset_id
+    where cdm_twf.nbp_sys_c <8 and cdm_twf.dataset_id = _dataset_id and pat_enc.dataset_id = _dataset_id
     group by cdm_twf.dataset_id, pat_enc.pat_id, cdm_twf.tsp
     ON CONFLICT (dataset_id,   pat_id,               tsp, fid) DO UPDATE SET value = excluded.value, update_date=excluded.update_date;
 
@@ -2034,7 +2035,7 @@ BEGIN
     inner join
     pat_enc
     on cdm_twf.enc_id = pat_enc.enc_id
-    where cdm_twf.abp_sys_c <8 and cdm_twf.dataset_id = _dataset_id
+    where cdm_twf.abp_sys_c <8 and cdm_twf.dataset_id = _dataset_id and pat_enc.dataset_id = _dataset_id
     group by cdm_twf.dataset_id, pat_enc.pat_id, cdm_twf.tsp
     ON CONFLICT (dataset_id,   pat_id,               tsp, fid) DO UPDATE SET value = excluded.value, update_date=excluded.update_date;
 
