@@ -169,8 +169,7 @@ class Extractor:
   def partition(self, lst, n, random_shuffle=False):
     if random_shuffle:
       random.shuffle(lst)
-    division = len(lst) / n
-    return [lst[round(division) * i:round(division) * (i + 1)] for i in range(n)]
+    return [lst[i:i + n] for i in range(0, len(lst), n)]
 
     # # TEST CASE B
     # lst = lst[:40]
