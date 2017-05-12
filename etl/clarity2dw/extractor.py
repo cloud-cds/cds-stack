@@ -110,7 +110,7 @@ class Extractor:
           FROM %(workspace)s."Demographics" demo %(min_tsp)s %(limit)s
           ON CONFLICT(dataset_id, visit_id, pat_id) DO %(do)s
           ''' % {'dataset_id': self.dataset_id,
-                 'min_tsp': ''' and "HOSP_ADMSN_TIME" >= '{}'::timestamptz'''\
+                 'min_tsp': ''' where "HOSP_ADMSN_TIME" >= '{}'::timestamptz'''\
                     .format(self.min_tsp) if self.min_tsp else '',
                  'limit': 'limit {}'.format(limit) if limit else '',
                  'meta_data': "json_build_object('pending', true)" \
