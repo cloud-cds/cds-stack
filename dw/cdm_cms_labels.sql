@@ -143,26 +143,25 @@ BEGIN
       group by P.pat_id
   ),
   pat_weights as (
-    select ordered.pat_id, first(ordered.value) as value
+    select weights.pat_id, first(weights.value order by weights.tsp) as value
     from (
-        select P.pat_id, weights.value::numeric as value
+        select P.pat_id, weights.tsp, weights.value::numeric as value
         from pat_ids P
         inner join criteria_meas weights on P.pat_id = weights.pat_id
         where weights.fid = 'weight'  and weights.dataset_id = _dataset_id
-        order by weights.tsp
-    ) as ordered
-    group by ordered.pat_id
+    ) as weights
+    group by weights.pat_id
   ),
   infection as (
       select
-          ordered.pat_id,
-          ordered.name,
-          first(ordered.measurement_time) as measurement_time,
-          first(ordered.value)::text as value,
-          first(ordered.c_otime) as override_time,
-          first(ordered.c_ouser) as override_user,
-          first(ordered.c_ovalue) as override_value,
-          coalesce(bool_or(ordered.is_met), false) as is_met,
+          infct.pat_id,
+          infct.name,
+          first(infct.measurement_time order by coalesce(infct.measurement_time, infct.c_otime)) as measurement_time,
+          first(infct.value            order by coalesce(infct.measurement_time, infct.c_otime))::text as value,
+          first(infct.c_otime          order by coalesce(infct.measurement_time, infct.c_otime)) as override_time,
+          first(infct.c_ouser          order by coalesce(infct.measurement_time, infct.c_otime)) as override_user,
+          first(infct.c_ovalue         order by coalesce(infct.measurement_time, infct.c_otime)) as override_value,
+          coalesce(bool_or(infct.is_met), false) as is_met,
           now() as update_date
       from (
           select  PC.pat_id,
@@ -175,20 +174,19 @@ BEGIN
                   (coalesce(PC.c_ovalue#>>'{0,text}', PC.value) <> 'No Infection') as is_met
           from pat_cvalues PC
           where PC.name = 'suspicion_of_infection'
-          order by PC.tsp
-      ) as ordered
-      group by ordered.pat_id, ordered.name
+      ) as infct
+      group by infct.pat_id, infct.name
   ),
   sirs as (
       select
-          ordered.pat_id,
-          ordered.name,
-          first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
-          first(case when ordered.is_met then ordered.value else null end)::text as value,
-          first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-          first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-          first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
-          coalesce(bool_or(ordered.is_met), false) as is_met,
+          sirs.pat_id,
+          sirs.name,
+          first((case when sirs.is_met then sirs.measurement_time else null end) order by coalesce(sirs.measurement_time, sirs.c_otime)) as measurement_time,
+          first((case when sirs.is_met then sirs.value            else null end) order by coalesce(sirs.measurement_time, sirs.c_otime))::text as value,
+          first((case when sirs.is_met then sirs.c_otime          else null end) order by coalesce(sirs.measurement_time, sirs.c_otime)) as override_time,
+          first((case when sirs.is_met then sirs.c_ouser          else null end) order by coalesce(sirs.measurement_time, sirs.c_otime)) as override_user,
+          first((case when sirs.is_met then sirs.c_ovalue         else null end) order by coalesce(sirs.measurement_time, sirs.c_otime)) as override_value,
+          coalesce(bool_or(sirs.is_met), false) as is_met,
           now() as update_date
       from (
           select  PC.pat_id,
@@ -201,26 +199,25 @@ BEGIN
                   criteria_value_met(PC.value, PC.c_ovalue, PC.d_ovalue) as is_met
           from pat_cvalues PC
           where PC.name in ('sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc')
-          order by PC.tsp
-      ) as ordered
-      group by ordered.pat_id, ordered.name
+      ) as sirs
+      group by sirs.pat_id, sirs.name
   ),
   respiratory_failures as (
     select
-        ordered.pat_id,
-        ordered.name,
-        first(case when ordered.is_met then ordered.tsp else null end) as measurement_time,
-        first(case when ordered.is_met then ordered.value else null end)::text as value,
-        first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-        first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-        first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
-        coalesce(bool_or(ordered.is_met), false) as is_met,
+        rf.pat_id,
+        rf.name,
+        first((case when rf.is_met then rf.measurement_time else null end) order by coalesce(rf.measurement_time, rf.c_otime)) as measurement_time,
+        first((case when rf.is_met then rf.value            else null end) order by coalesce(rf.measurement_time, rf.c_otime))::text as value,
+        first((case when rf.is_met then rf.c_otime          else null end) order by coalesce(rf.measurement_time, rf.c_otime)) as override_time,
+        first((case when rf.is_met then rf.c_ouser          else null end) order by coalesce(rf.measurement_time, rf.c_otime)) as override_user,
+        first((case when rf.is_met then rf.c_ovalue         else null end) order by coalesce(rf.measurement_time, rf.c_otime)) as override_value,
+        coalesce(bool_or(rf.is_met), false) as is_met,
         now() as update_date
     from (
         select
             PC.pat_id,
             PC.name,
-            PC.tsp,
+            PC.tsp as measurement_time,
             (coalesce(PC.c_ovalue#>>'{0,text}', (PC.fid ||': '|| PC.value))) as value,
             PC.c_otime,
             PC.c_ouser,
@@ -228,20 +225,19 @@ BEGIN
             (coalesce(PC.c_ovalue#>>'{0,text}', PC.value) is not null) as is_met
         from pat_cvalues PC
         where PC.category = 'respiratory_failure'
-        order by PC.tsp
-    ) as ordered
-    group by ordered.pat_id, ordered.name
+    ) as rf
+    group by rf.pat_id, rf.name
   ),
   organ_dysfunction_except_rf as (
     select
-        ordered.pat_id,
-        ordered.name,
-        first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
-        first(case when ordered.is_met then ordered.value else null end)::text as value,
-        first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-        first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-        first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
-        coalesce(bool_or(ordered.is_met), false) as is_met,
+        odf.pat_id,
+        odf.name,
+        first((case when odf.is_met then odf.measurement_time else null end) order by coalesce(odf.measurement_time, odf.c_otime)) as measurement_time,
+        first((case when odf.is_met then odf.value            else null end) order by coalesce(odf.measurement_time, odf.c_otime))::text as value,
+        first((case when odf.is_met then odf.c_otime          else null end) order by coalesce(odf.measurement_time, odf.c_otime)) as override_time,
+        first((case when odf.is_met then odf.c_ouser          else null end) order by coalesce(odf.measurement_time, odf.c_otime)) as override_user,
+        first((case when odf.is_met then odf.c_ovalue         else null end) order by coalesce(odf.measurement_time, odf.c_otime)) as override_value,
+        coalesce(bool_or(odf.is_met), false) as is_met,
         now() as update_date
     from (
         select  PC.pat_id,
@@ -269,9 +265,8 @@ BEGIN
                 ) as is_met
         from pat_cvalues PC
         where PC.name in ('blood_pressure', 'mean_arterial_pressure', 'decrease_in_sbp', 'creatinine', 'bilirubin', 'platelet', 'inr', 'lactate')
-        order by PC.tsp
-    ) as ordered
-    group by ordered.pat_id, ordered.name
+    ) as odf
+    group by odf.pat_id, odf.name
   ),
   severe_sepsis as (
     select * from infection
@@ -362,14 +357,14 @@ BEGIN
 
   crystalloid_fluid as (
     select
-        ordered.pat_id,
-        ordered.name,
-        first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
-        first(case when ordered.is_met then ordered.value else null end)::text as value,
-        first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-        first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-        first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
-        coalesce(bool_or(ordered.is_met), false) as is_met,
+        cfl.pat_id,
+        cfl.name,
+        first((case when cfl.is_met then cfl.measurement_time else null end) order by coalesce(cfl.measurement_time, cfl.c_otime)) as measurement_time,
+        first((case when cfl.is_met then cfl.value            else null end) order by coalesce(cfl.measurement_time, cfl.c_otime))::text as value,
+        first((case when cfl.is_met then cfl.c_otime          else null end) order by coalesce(cfl.measurement_time, cfl.c_otime)) as override_time,
+        first((case when cfl.is_met then cfl.c_ouser          else null end) order by coalesce(cfl.measurement_time, cfl.c_otime)) as override_user,
+        first((case when cfl.is_met then cfl.c_ovalue         else null end) order by coalesce(cfl.measurement_time, cfl.c_otime)) as override_value,
+        coalesce(bool_or(cfl.is_met), false) as is_met,
         now() as update_date
     from
     (
@@ -391,20 +386,19 @@ BEGIN
       from pat_cvalues PC
       left join severe_sepsis_onsets SSP on PC.pat_id = SSP.pat_id
       where PC.name = 'crystalloid_fluid'
-      order by PC.tsp
-    ) as ordered
-    group by ordered.pat_id, ordered.name
+    ) as cfl
+    group by cfl.pat_id, cfl.name
   ),
   hypotension as (
       select
-          ordered.pat_id,
-          ordered.name,
-          first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
-          first(case when ordered.is_met then ordered.value else null end)::text as value,
-          first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-          first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-          first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
-          coalesce(bool_or(ordered.is_met), false) as is_met,
+          ht.pat_id,
+          ht.name,
+          first((case when ht.is_met then ht.measurement_time else null end) order by coalesce(ht.measurement_time, ht.c_otime)) as measurement_time,
+          first((case when ht.is_met then ht.value            else null end) order by coalesce(ht.measurement_time, ht.c_otime))::text as value,
+          first((case when ht.is_met then ht.c_otime          else null end) order by coalesce(ht.measurement_time, ht.c_otime)) as override_time,
+          first((case when ht.is_met then ht.c_ouser          else null end) order by coalesce(ht.measurement_time, ht.c_otime)) as override_user,
+          first((case when ht.is_met then ht.c_ovalue         else null end) order by coalesce(ht.measurement_time, ht.c_otime)) as override_value,
+          coalesce(bool_or(ht.is_met), false) as is_met,
           now() as update_date
       from
       (
@@ -474,20 +468,19 @@ BEGIN
           ) PBPSYS on PC.pat_id = PBPSYS.pat_id
 
           where PC.name in ('systolic_bp', 'hypotension_map', 'hypotension_dsbp')
-          order by PC.tsp
-      ) as ordered
-      group by ordered.pat_id, ordered.name
+      ) as ht
+      group by ht.pat_id, ht.name
   ),
   hypoperfusion as (
       select
-          ordered.pat_id,
-          ordered.name,
-          first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
-          first(case when ordered.is_met then ordered.value else null end)::text as value,
-          first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-          first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-          first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
-          coalesce(bool_or(ordered.is_met), false) as is_met,
+          hpf.pat_id,
+          hpf.name,
+          first((case when hpf.is_met then hpf.measurement_time else null end) order by coalesce(hpf.measurement_time, hpf.c_otime)) as measurement_time,
+          first((case when hpf.is_met then hpf.value            else null end) order by coalesce(hpf.measurement_time, hpf.c_otime))::text as value,
+          first((case when hpf.is_met then hpf.c_otime          else null end) order by coalesce(hpf.measurement_time, hpf.c_otime)) as override_time,
+          first((case when hpf.is_met then hpf.c_ouser          else null end) order by coalesce(hpf.measurement_time, hpf.c_otime)) as override_user,
+          first((case when hpf.is_met then hpf.c_ovalue         else null end) order by coalesce(hpf.measurement_time, hpf.c_otime)) as override_value,
+          coalesce(bool_or(hpf.is_met), false) as is_met,
           now() as update_date
       from
       (
@@ -505,9 +498,8 @@ BEGIN
           from pat_cvalues PC
           left join severe_sepsis_onsets SSP on PC.pat_id = SSP.pat_id
           where PC.name = 'initial_lactate'
-          order by PC.tsp
-      ) as ordered
-      group by ordered.pat_id, ordered.name
+      ) as hpf
+      group by hpf.pat_id, hpf.name
   ),
   septic_shock as (
     select * from crystalloid_fluid
@@ -542,25 +534,25 @@ BEGIN
 
   orders_criteria as (
     select
-        ordered.pat_id,
-        ordered.name,
-        coalesce(   first(case when ordered.is_met then ordered.measurement_time else null end),
-                    last(ordered.measurement_time)
+        ordc.pat_id,
+        ordc.name,
+        coalesce(   first((case when ordc.is_met then ordc.measurement_time else null end) order by coalesce(ordc.measurement_time, ordc.c_otime)),
+                    last(ordc.measurement_time order by coalesce(ordc.measurement_time, ordc.c_otime))
         ) as measurement_time,
-        coalesce(   first(case when ordered.is_met then ordered.value else null end)::text,
-                    last(ordered.value)::text
+        coalesce(   first((case when ordc.is_met then ordc.value else null end) order by coalesce(ordc.measurement_time, ordc.c_otime))::text,
+                    last(ordc.value order by coalesce(ordc.measurement_time, ordc.c_otime))::text
         ) as value,
-        coalesce(   first(case when ordered.is_met then ordered.c_otime else null end),
-                    last(ordered.c_otime)
+        coalesce(   first((case when ordc.is_met then ordc.c_otime else null end) order by coalesce(ordc.measurement_time, ordc.c_otime)),
+                    last(ordc.c_otime order by coalesce(ordc.measurement_time, ordc.c_otime))
         ) as override_time,
-        coalesce(   first(case when ordered.is_met then ordered.c_ouser else null end),
-                    last(ordered.c_ouser)
+        coalesce(   first((case when ordc.is_met then ordc.c_ouser else null end) order by coalesce(ordc.measurement_time, ordc.c_otime)),
+                    last(ordc.c_ouser order by coalesce(ordc.measurement_time, ordc.c_otime))
         ) as override_user,
         coalesce(
-            first(case when ordered.is_met then ordered.c_ovalue else null end),
-            last(ordered.c_ovalue)
+            first((case when ordc.is_met then ordc.c_ovalue else null end) order by coalesce(ordc.measurement_time, ordc.c_otime)),
+            last(ordc.c_ovalue order by coalesce(ordc.measurement_time, ordc.c_otime))
         ) as override_value,
-        coalesce(bool_or(ordered.is_met), false) as is_met,
+        coalesce(bool_or(ordc.is_met), false) as is_met,
         now() as update_date
     from
     (
@@ -681,20 +673,19 @@ BEGIN
                   end
               ) as is_met
       from orders_cvalues CV
-      order by CV.tsp
-    ) as ordered
-    group by ordered.pat_id, ordered.name
+    ) as ordc
+    group by ordc.pat_id, ordc.name
   ),
   repeat_lactate as (
     select
-        ordered.pat_id,
-        ordered.name,
-        first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
-        first(case when ordered.is_met then ordered.value else null end)::text as value,
-        first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-        first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-        first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
-        coalesce(bool_or(ordered.is_met), false) as is_met,
+        rlc.pat_id,
+        rlc.name,
+        first((case when rlc.is_met then rlc.measurement_time else null end) order by coalesce(rlc.measurement_time, rlc.c_otime)) as measurement_time,
+        first((case when rlc.is_met then rlc.value            else null end) order by coalesce(rlc.measurement_time, rlc.c_otime))::text as value,
+        first((case when rlc.is_met then rlc.c_otime          else null end) order by coalesce(rlc.measurement_time, rlc.c_otime)) as override_time,
+        first((case when rlc.is_met then rlc.c_ouser          else null end) order by coalesce(rlc.measurement_time, rlc.c_otime)) as override_user,
+        first((case when rlc.is_met then rlc.c_ovalue         else null end) order by coalesce(rlc.measurement_time, rlc.c_otime)) as override_value,
+        coalesce(bool_or(rlc.is_met), false) as is_met,
         now() as update_date
     from
     (
@@ -735,10 +726,9 @@ BEGIN
             group by p3.pat_id
         ) lactate_results on pat_cvalues.pat_id = lactate_results.pat_id
         where pat_cvalues.name = 'repeat_lactate_order'
-        order by pat_cvalues.tsp
     )
-    as ordered
-    group by ordered.pat_id, ordered.name
+    as rlc
+    group by rlc.pat_id, rlc.name
   )
   select new_criteria.*,
          SSP.severe_sepsis_onset,
@@ -832,12 +822,13 @@ BEGIN
     where cd.dataset_id = _dataset_id
   ),
   pat_aggregates as (
-    select ordered.pat_id,
-           avg(ordered.bp_sys) as bp_sys,
-           first(ordered.weight) as weight,
-           sum(ordered.urine_output) as urine_output
+    select aggs.pat_id,
+           avg(aggs.bp_sys) as bp_sys,
+           first(aggs.weight order by aggs.measurement_time) as weight,
+           sum(aggs.urine_output) as urine_output
     from (
         select P.pat_id,
+               meas.tsp as measurement_time,
                (case when meas.fid = 'bp_sys' then meas.value::numeric else null end) as bp_sys,
                (case when meas.fid = 'weight' then meas.value::numeric else null end) as weight,
                (case when meas.fid = 'urine_output'
@@ -849,20 +840,19 @@ BEGIN
         where meas.fid in ('bp_sys', 'urine_output', 'weight')
         and isnumeric(meas.value)
         and meas.dataset_id = _dataset_id
-        order by meas.tsp
-    ) as ordered
-    group by ordered.pat_id
+    ) as aggs
+    group by aggs.pat_id
   ),
   sirs_and_org_df_criteria as (
     select
-        ordered.pat_id,
-        ordered.name,
-        first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
-        first(case when ordered.is_met then ordered.value else null end)::text as value,
-        first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-        first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-        first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
-        coalesce(bool_or(ordered.is_met), false) as is_met,
+        sodf.pat_id,
+        sodf.name,
+        first((case when sodf.is_met then sodf.measurement_time else null end) order by coalesce(sodf.measurement_time, sodf.c_otime)) as measurement_time,
+        first((case when sodf.is_met then sodf.value            else null end) order by coalesce(sodf.measurement_time, sodf.c_otime))::text as value,
+        first((case when sodf.is_met then sodf.c_otime          else null end) order by coalesce(sodf.measurement_time, sodf.c_otime)) as override_time,
+        first((case when sodf.is_met then sodf.c_ouser          else null end) order by coalesce(sodf.measurement_time, sodf.c_otime)) as override_user,
+        first((case when sodf.is_met then sodf.c_ovalue         else null end) order by coalesce(sodf.measurement_time, sodf.c_otime)) as override_value,
+        coalesce(bool_or(sodf.is_met), false) as is_met,
         now() as update_date
     from (
       select  PC.pat_id,
@@ -877,12 +867,14 @@ BEGIN
               PC.c_ouser,
               PC.c_ovalue,
               (case
-                when PC.name in (
-                  'blood_pressure', 'mean_arterial_pressure', 'decrease_in_sbp',
-                  'creatinine', 'bilirubin', 'platelet', 'inr', 'lactate'
-                )
-                then
-                  (case
+                when PC.name = 'respiratory_failure'
+                then coalesce(PC.c_ovalue#>>'{0,text}', PC.value) is not null
+
+                when PC.name in ('sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc')
+                then criteria_value_met(PC.value, PC.c_ovalue, PC.d_ovalue)
+
+                else
+                (case
                     when PC.category = 'decrease_in_sbp' then
                       decrease_in_sbp_met(
                         (select max(PBP.bp_sys) from pat_aggregates PBP where PBP.pat_id = PC.pat_id),
@@ -899,8 +891,6 @@ BEGIN
                     else criteria_value_met(PC.value, PC.c_ovalue, PC.d_ovalue)
                     end
                   )
-
-                else criteria_value_met(PC.value, PC.c_ovalue, PC.d_ovalue)
                end) as is_met
       from pat_cvalues PC
       where PC.name in (
@@ -908,9 +898,8 @@ BEGIN
         'respiratory_failure',
         'blood_pressure', 'mean_arterial_pressure', 'decrease_in_sbp', 'creatinine', 'bilirubin', 'platelet', 'inr', 'lactate'
       )
-      order by PC.tsp
-    ) as ordered
-    group by ordered.pat_id, ordered.name
+    ) as sodf
+    group by sodf.pat_id, sodf.name
   ),
   severe_sepsis_wo_infection as (
     select CO.pat_id,
@@ -968,14 +957,14 @@ BEGIN
   ),
   app_infections as (
       select
-          ordered.pat_id,
-          ordered.name,
-          first(ordered.measurement_time) as measurement_time,
-          first(ordered.value)::text as value,
-          first(ordered.c_otime) as override_time,
-          first(ordered.c_ouser) as override_user,
-          first(ordered.c_ovalue) as override_value,
-          coalesce(bool_or(ordered.is_met), false) as is_met,
+          ainf.pat_id,
+          ainf.name,
+          first((ainf.measurement_time) order by coalesce(ainf.measurement_time, ainf.c_otime)) as measurement_time,
+          first((ainf.value)            order by coalesce(ainf.measurement_time, ainf.c_otime))::text as value,
+          first((ainf.c_otime)          order by coalesce(ainf.measurement_time, ainf.c_otime)) as override_time,
+          first((ainf.c_ouser)          order by coalesce(ainf.measurement_time, ainf.c_otime)) as override_user,
+          first((ainf.c_ovalue)         order by coalesce(ainf.measurement_time, ainf.c_otime)) as override_value,
+          coalesce(bool_or(ainf.is_met), false) as is_met,
           now() as update_date
       from (
           select  PC.pat_id,
@@ -989,9 +978,8 @@ BEGIN
           from pat_cvalues PC
           where PC.name = 'suspicion_of_infection'
           and use_app_infections
-          order by PC.tsp
-      ) as ordered
-      group by ordered.pat_id, ordered.name
+      ) as ainf
+      group by ainf.pat_id, ainf.name
   ),
   extracted_infections as (
     -- Use either clarity or cdm notes for now.
@@ -1109,14 +1097,14 @@ BEGIN
 
   crystalloid_fluid_and_hypoperfusion as (
     select
-        ordered.pat_id,
-        ordered.name,
-        first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
-        first(case when ordered.is_met then ordered.value else null end)::text as value,
-        first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-        first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-        first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
-        coalesce(bool_or(ordered.is_met), false) as is_met,
+        cfhf.pat_id,
+        cfhf.name,
+        first((case when cfhf.is_met then cfhf.measurement_time else null end) order by coalesce(cfhf.measurement_time, cfhf.c_otime)) as measurement_time,
+        first((case when cfhf.is_met then cfhf.value            else null end) order by coalesce(cfhf.measurement_time, cfhf.c_otime))::text as value,
+        first((case when cfhf.is_met then cfhf.c_otime          else null end) order by coalesce(cfhf.measurement_time, cfhf.c_otime)) as override_time,
+        first((case when cfhf.is_met then cfhf.c_ouser          else null end) order by coalesce(cfhf.measurement_time, cfhf.c_otime)) as override_user,
+        first((case when cfhf.is_met then cfhf.c_ovalue         else null end) order by coalesce(cfhf.measurement_time, cfhf.c_otime)) as override_value,
+        coalesce(bool_or(cfhf.is_met), false) as is_met,
         now() as update_date
     from
     (
@@ -1143,20 +1131,19 @@ BEGIN
       from pat_cvalues PC
       left join severe_sepsis_onsets SSP on PC.pat_id = SSP.pat_id
       where PC.name in ( 'crystalloid_fluid', 'initial_lactate' )
-      order by PC.tsp
-    ) as ordered
-    group by ordered.pat_id, ordered.name
+    ) as cfhf
+    group by cfhf.pat_id, cfhf.name
   ),
   hypotension as (
     select
-        ordered.pat_id,
-        ordered.name,
-        first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
-        first(case when ordered.is_met then ordered.value else null end)::text as value,
-        first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-        first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-        first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
-        coalesce(bool_or(ordered.is_met), false) as is_met,
+        ht.pat_id,
+        ht.name,
+        first((case when ht.is_met then ht.measurement_time else null end) order by coalesce(ht.measurement_time, ht.c_otime)) as measurement_time,
+        first((case when ht.is_met then ht.value            else null end) order by coalesce(ht.measurement_time, ht.c_otime))::text as value,
+        first((case when ht.is_met then ht.c_otime          else null end) order by coalesce(ht.measurement_time, ht.c_otime)) as override_time,
+        first((case when ht.is_met then ht.c_ouser          else null end) order by coalesce(ht.measurement_time, ht.c_otime)) as override_user,
+        first((case when ht.is_met then ht.c_ovalue         else null end) order by coalesce(ht.measurement_time, ht.c_otime)) as override_value,
+        coalesce(bool_or(ht.is_met), false) as is_met,
         now() as update_date
     from
     (
@@ -1227,9 +1214,8 @@ BEGIN
         ) PBPSYS on PC.pat_id = PBPSYS.pat_id
 
         where PC.name in ('systolic_bp', 'hypotension_map', 'hypotension_dsbp')
-        order by PC.tsp
-    ) as ordered
-    group by ordered.pat_id, ordered.name
+    ) as ht
+    group by ht.pat_id, ht.name
   ),
 
   septic_shock as (
@@ -1265,25 +1251,25 @@ BEGIN
 
   orders_criteria as (
     select
-        ordered.pat_id,
-        ordered.name,
-        coalesce(   first(case when ordered.is_met then ordered.measurement_time else null end),
-                    last(ordered.measurement_time)
+        ordc.pat_id,
+        ordc.name,
+        coalesce(   first((case when ordc.is_met then ordc.measurement_time else null end) order by coalesce(ordc.measurement_time, ordc.c_otime)),
+                    last(ordc.measurement_time order by coalesce(ordc.measurement_time, ordc.c_otime))
         ) as measurement_time,
-        coalesce(   first(case when ordered.is_met then ordered.value else null end)::text,
-                    last(ordered.value)::text
+        coalesce(   first((case when ordc.is_met then ordc.value else null end) order by coalesce(ordc.measurement_time, ordc.c_otime))::text,
+                    last(ordc.value order by coalesce(ordc.measurement_time, ordc.c_otime))::text
         ) as value,
-        coalesce(   first(case when ordered.is_met then ordered.c_otime else null end),
-                    last(ordered.c_otime)
+        coalesce(   first((case when ordc.is_met then ordc.c_otime else null end) order by coalesce(ordc.measurement_time, ordc.c_otime)),
+                    last((ordc.c_otime) order by coalesce(ordc.measurement_time, ordc.c_otime))
         ) as override_time,
-        coalesce(   first(case when ordered.is_met then ordered.c_ouser else null end),
-                    last(ordered.c_ouser)
+        coalesce(   first((case when ordc.is_met then ordc.c_ouser else null end) order by coalesce(ordc.measurement_time, ordc.c_otime)),
+                    last(ordc.c_ouser order by coalesce(ordc.measurement_time, ordc.c_otime))
         ) as override_user,
         coalesce(
-            first(case when ordered.is_met then ordered.c_ovalue else null end),
-            last(ordered.c_ovalue)
+            first((case when ordc.is_met then ordc.c_ovalue else null end) order by coalesce(ordc.measurement_time, ordc.c_otime)),
+            last(ordc.c_ovalue order by coalesce(ordc.measurement_time, ordc.c_otime))
         ) as override_value,
-        coalesce(bool_or(ordered.is_met), false) as is_met,
+        coalesce(bool_or(ordc.is_met), false) as is_met,
         now() as update_date
     from
     (
@@ -1403,20 +1389,19 @@ BEGIN
                   end
               ) as is_met
       from orders_cvalues CV
-      order by CV.tsp
-    ) as ordered
-    group by ordered.pat_id, ordered.name
+    ) as ordc
+    group by ordc.pat_id, ordc.name
   ),
   repeat_lactate as (
     select
-        ordered.pat_id,
-        ordered.name,
-        first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
-        first(case when ordered.is_met then ordered.value else null end)::text as value,
-        first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-        first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-        first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
-        coalesce(bool_or(ordered.is_met), false) as is_met,
+        rlc.pat_id,
+        rlc.name,
+        first((case when rlc.is_met then rlc.measurement_time else null end) order by coalesce(rlc.measurement_time, rlc.c_otime)) as measurement_time,
+        first((case when rlc.is_met then rlc.value            else null end) order by coalesce(rlc.measurement_time, rlc.c_otime))::text as value,
+        first((case when rlc.is_met then rlc.c_otime          else null end) order by coalesce(rlc.measurement_time, rlc.c_otime)) as override_time,
+        first((case when rlc.is_met then rlc.c_ouser          else null end) order by coalesce(rlc.measurement_time, rlc.c_otime)) as override_user,
+        first((case when rlc.is_met then rlc.c_ovalue         else null end) order by coalesce(rlc.measurement_time, rlc.c_otime)) as override_value,
+        coalesce(bool_or(rlc.is_met), false) as is_met,
         now() as update_date
     from
     (
@@ -1457,10 +1442,9 @@ BEGIN
             group by p3.pat_id
         ) lactate_results on pat_cvalues.pat_id = lactate_results.pat_id
         where pat_cvalues.name = 'repeat_lactate_order'
-        order by pat_cvalues.tsp
     )
-    as ordered
-    group by ordered.pat_id, ordered.name
+    as rlc
+    group by rlc.pat_id, rlc.name
   )
   select new_criteria.*,
          SSP.severe_sepsis_onset,
@@ -1554,12 +1538,13 @@ BEGIN
     where cd.dataset_id = _dataset_id
   ),
   pat_aggregates as (
-    select ordered.pat_id,
-           avg(ordered.bp_sys) as bp_sys,
-           first(ordered.weight) as weight,
-           sum(ordered.urine_output) as urine_output
+    select aggs.pat_id,
+           avg(aggs.bp_sys) as bp_sys,
+           first(aggs.weight order by aggs.measurement_time) as weight,
+           sum(aggs.urine_output) as urine_output
     from (
         select P.pat_id,
+               meas.tsp as measurement_time,
                (case when meas.fid = 'bp_sys' then meas.value::numeric else null end) as bp_sys,
                (case when meas.fid = 'weight' then meas.value::numeric else null end) as weight,
                (case when meas.fid = 'urine_output'
@@ -1571,20 +1556,19 @@ BEGIN
         where meas.fid in ('bp_sys', 'urine_output', 'weight')
         and isnumeric(meas.value)
         and meas.dataset_id = _dataset_id
-        order by meas.tsp
-    ) as ordered
-    group by ordered.pat_id
+    ) as aggs
+    group by aggs.pat_id
   ),
   sirs_and_org_df_criteria as (
     select
-        ordered.pat_id,
-        ordered.name,
-        first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
-        first(case when ordered.is_met then ordered.value else null end)::text as value,
-        first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-        first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-        first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
-        coalesce(bool_or(ordered.is_met), false) as is_met,
+        sodf.pat_id,
+        sodf.name,
+        first((case when sodf.is_met then sodf.measurement_time else null end) order by coalesce(sodf.measurement_time, sodf.c_otime)) as measurement_time,
+        first((case when sodf.is_met then sodf.value            else null end) order by coalesce(sodf.measurement_time, sodf.c_otime))::text as value,
+        first((case when sodf.is_met then sodf.c_otime          else null end) order by coalesce(sodf.measurement_time, sodf.c_otime)) as override_time,
+        first((case when sodf.is_met then sodf.c_ouser          else null end) order by coalesce(sodf.measurement_time, sodf.c_otime)) as override_user,
+        first((case when sodf.is_met then sodf.c_ovalue         else null end) order by coalesce(sodf.measurement_time, sodf.c_otime)) as override_value,
+        coalesce(bool_or(sodf.is_met), false) as is_met,
         now() as update_date
     from (
       select  PC.pat_id,
@@ -1599,12 +1583,14 @@ BEGIN
               PC.c_ouser,
               PC.c_ovalue,
               (case
-                when PC.name in (
-                  'blood_pressure', 'mean_arterial_pressure', 'decrease_in_sbp',
-                  'creatinine', 'bilirubin', 'platelet', 'inr', 'lactate'
-                )
-                then
-                  (case
+                when PC.name = 'respiratory_failure'
+                then coalesce(PC.c_ovalue#>>'{0,text}', PC.value) is not null
+
+                when PC.name in ('sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc')
+                then criteria_value_met(PC.value, PC.c_ovalue, PC.d_ovalue)
+
+                else
+                (case
                     when PC.category = 'decrease_in_sbp' then
                       decrease_in_sbp_met(
                         (select max(PBP.bp_sys) from pat_aggregates PBP where PBP.pat_id = PC.pat_id),
@@ -1621,8 +1607,6 @@ BEGIN
                     else criteria_value_met(PC.value, PC.c_ovalue, PC.d_ovalue)
                     end
                   )
-
-                else criteria_value_met(PC.value, PC.c_ovalue, PC.d_ovalue)
                end) as is_met
       from pat_cvalues PC
       where PC.name in (
@@ -1630,9 +1614,8 @@ BEGIN
         'respiratory_failure',
         'blood_pressure', 'mean_arterial_pressure', 'decrease_in_sbp', 'creatinine', 'bilirubin', 'platelet', 'inr', 'lactate'
       )
-      order by PC.tsp
-    ) as ordered
-    group by ordered.pat_id, ordered.name
+    ) as sodf
+    group by sodf.pat_id, sodf.name
   ),
   severe_sepsis_wo_infection as (
     select CO.pat_id,
@@ -1690,14 +1673,14 @@ BEGIN
   ),
   app_infections as (
       select
-          ordered.pat_id,
-          ordered.name,
-          first(ordered.measurement_time) as measurement_time,
-          first(ordered.value)::text as value,
-          first(ordered.c_otime) as override_time,
-          first(ordered.c_ouser) as override_user,
-          first(ordered.c_ovalue) as override_value,
-          coalesce(bool_or(ordered.is_met), false) as is_met,
+          ainf.pat_id,
+          ainf.name,
+          first((ainf.measurement_time) order by coalesce(ainf.measurement_time, ainf.c_otime)) as measurement_time,
+          first((ainf.value)            order by coalesce(ainf.measurement_time, ainf.c_otime))::text as value,
+          first((ainf.c_otime)          order by coalesce(ainf.measurement_time, ainf.c_otime)) as override_time,
+          first((ainf.c_ouser)          order by coalesce(ainf.measurement_time, ainf.c_otime)) as override_user,
+          first((ainf.c_ovalue)         order by coalesce(ainf.measurement_time, ainf.c_otime)) as override_value,
+          coalesce(bool_or(ainf.is_met), false) as is_met,
           now() as update_date
       from (
           select  PC.pat_id,
@@ -1711,9 +1694,8 @@ BEGIN
           from pat_cvalues PC
           where PC.name = 'suspicion_of_infection'
           and use_app_infections
-          order by PC.tsp
-      ) as ordered
-      group by ordered.pat_id, ordered.name
+      ) as ainf
+      group by ainf.pat_id, ainf.name
   ),
   extracted_infections as (
     -- Use either clarity or cdm notes for now.
@@ -1889,14 +1871,14 @@ BEGIN
 
   crystalloid_fluid_and_hypoperfusion as (
     select
-        ordered.pat_id,
-        ordered.name,
-        first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
-        first(case when ordered.is_met then ordered.value else null end)::text as value,
-        first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-        first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-        first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
-        coalesce(bool_or(ordered.is_met), false) as is_met,
+        cfhf.pat_id,
+        cfhf.name,
+        first((case when cfhf.is_met then cfhf.measurement_time else null end) order by coalesce(cfhf.measurement_time, cfhf.c_otime)) as measurement_time,
+        first((case when cfhf.is_met then cfhf.value            else null end) order by coalesce(cfhf.measurement_time, cfhf.c_otime))::text as value,
+        first((case when cfhf.is_met then cfhf.c_otime          else null end) order by coalesce(cfhf.measurement_time, cfhf.c_otime)) as override_time,
+        first((case when cfhf.is_met then cfhf.c_ouser          else null end) order by coalesce(cfhf.measurement_time, cfhf.c_otime)) as override_user,
+        first((case when cfhf.is_met then cfhf.c_ovalue         else null end) order by coalesce(cfhf.measurement_time, cfhf.c_otime)) as override_value,
+        coalesce(bool_or(cfhf.is_met), false) as is_met,
         now() as update_date
     from
     (
@@ -1923,20 +1905,19 @@ BEGIN
       from pat_cvalues PC
       left join severe_sepsis_onsets SSP on PC.pat_id = SSP.pat_id
       where PC.name in ( 'crystalloid_fluid', 'initial_lactate' )
-      order by PC.tsp
-    ) as ordered
-    group by ordered.pat_id, ordered.name
+    ) as cfhf
+    group by cfhf.pat_id, cfhf.name
   ),
   hypotension as (
     select
-        ordered.pat_id,
-        ordered.name,
-        first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
-        first(case when ordered.is_met then ordered.value else null end)::text as value,
-        first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-        first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-        first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
-        coalesce(bool_or(ordered.is_met), false) as is_met,
+        ht.pat_id,
+        ht.name,
+        first((case when ht.is_met then ht.measurement_time else null end) order by coalesce(ht.measurement_time, ht.c_otime)) as measurement_time,
+        first((case when ht.is_met then ht.value            else null end) order by coalesce(ht.measurement_time, ht.c_otime))::text as value,
+        first((case when ht.is_met then ht.c_otime          else null end) order by coalesce(ht.measurement_time, ht.c_otime)) as override_time,
+        first((case when ht.is_met then ht.c_ouser          else null end) order by coalesce(ht.measurement_time, ht.c_otime)) as override_user,
+        first((case when ht.is_met then ht.c_ovalue         else null end) order by coalesce(ht.measurement_time, ht.c_otime)) as override_value,
+        coalesce(bool_or(ht.is_met), false) as is_met,
         now() as update_date
     from
     (
@@ -2007,9 +1988,8 @@ BEGIN
         ) PBPSYS on PC.pat_id = PBPSYS.pat_id
 
         where PC.name in ('systolic_bp', 'hypotension_map', 'hypotension_dsbp')
-        order by PC.tsp
-    ) as ordered
-    group by ordered.pat_id, ordered.name
+    ) as ht
+    group by ht.pat_id, ht.name
   ),
 
   septic_shock as (
@@ -2045,25 +2025,25 @@ BEGIN
 
   orders_criteria as (
     select
-        ordered.pat_id,
-        ordered.name,
-        coalesce(   first(case when ordered.is_met then ordered.measurement_time else null end),
-                    last(ordered.measurement_time)
+        ordc.pat_id,
+        ordc.name,
+        coalesce(   first((case when ordc.is_met then ordc.measurement_time else null end) order by coalesce(ordc.measurement_time, ordc.c_otime)),
+                    last(ordc.measurement_time order by coalesce(ordc.measurement_time, ordc.c_otime))
         ) as measurement_time,
-        coalesce(   first(case when ordered.is_met then ordered.value else null end)::text,
-                    last(ordered.value)::text
+        coalesce(   first((case when ordc.is_met then ordc.value else null end) order by coalesce(ordc.measurement_time, ordc.c_otime))::text,
+                    last(ordc.value order by coalesce(ordc.measurement_time, ordc.c_otime))::text
         ) as value,
-        coalesce(   first(case when ordered.is_met then ordered.c_otime else null end),
-                    last(ordered.c_otime)
+        coalesce(   first((case when ordc.is_met then ordc.c_otime else null end) order by coalesce(ordc.measurement_time, ordc.c_otime)),
+                    last((ordc.c_otime) order by coalesce(ordc.measurement_time, ordc.c_otime))
         ) as override_time,
-        coalesce(   first(case when ordered.is_met then ordered.c_ouser else null end),
-                    last(ordered.c_ouser)
+        coalesce(   first((case when ordc.is_met then ordc.c_ouser else null end) order by coalesce(ordc.measurement_time, ordc.c_otime)),
+                    last(ordc.c_ouser order by coalesce(ordc.measurement_time, ordc.c_otime))
         ) as override_user,
         coalesce(
-            first(case when ordered.is_met then ordered.c_ovalue else null end),
-            last(ordered.c_ovalue)
+            first((case when ordc.is_met then ordc.c_ovalue else null end) order by coalesce(ordc.measurement_time, ordc.c_otime)),
+            last(ordc.c_ovalue order by coalesce(ordc.measurement_time, ordc.c_otime))
         ) as override_value,
-        coalesce(bool_or(ordered.is_met), false) as is_met,
+        coalesce(bool_or(ordc.is_met), false) as is_met,
         now() as update_date
     from
     (
@@ -2183,20 +2163,19 @@ BEGIN
                   end
               ) as is_met
       from orders_cvalues CV
-      order by CV.tsp
-    ) as ordered
-    group by ordered.pat_id, ordered.name
+    ) as ordc
+    group by ordc.pat_id, ordc.name
   ),
   repeat_lactate as (
     select
-        ordered.pat_id,
-        ordered.name,
-        first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
-        first(case when ordered.is_met then ordered.value else null end)::text as value,
-        first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-        first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-        first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
-        coalesce(bool_or(ordered.is_met), false) as is_met,
+        rlc.pat_id,
+        rlc.name,
+        first((case when rlc.is_met then rlc.measurement_time else null end) order by coalesce(rlc.measurement_time, rlc.c_otime)) as measurement_time,
+        first((case when rlc.is_met then rlc.value            else null end) order by coalesce(rlc.measurement_time, rlc.c_otime))::text as value,
+        first((case when rlc.is_met then rlc.c_otime          else null end) order by coalesce(rlc.measurement_time, rlc.c_otime)) as override_time,
+        first((case when rlc.is_met then rlc.c_ouser          else null end) order by coalesce(rlc.measurement_time, rlc.c_otime)) as override_user,
+        first((case when rlc.is_met then rlc.c_ovalue         else null end) order by coalesce(rlc.measurement_time, rlc.c_otime)) as override_value,
+        coalesce(bool_or(rlc.is_met), false) as is_met,
         now() as update_date
     from
     (
@@ -2237,10 +2216,9 @@ BEGIN
             group by p3.pat_id
         ) lactate_results on pat_cvalues.pat_id = lactate_results.pat_id
         where pat_cvalues.name = 'repeat_lactate_order'
-        order by pat_cvalues.tsp
     )
-    as ordered
-    group by ordered.pat_id, ordered.name
+    as rlc
+    group by rlc.pat_id, rlc.name
   )
   select new_criteria.*,
          SSP.severe_sepsis_onset,
@@ -2268,7 +2246,7 @@ CREATE OR REPLACE FUNCTION get_cms_label_series(
         ts_start                timestamptz DEFAULT '-infinity'::timestamptz,
         ts_end                  timestamptz DEFAULT 'infinity'::timestamptz,
         window_limit            text default 'all',
-        prospective_cms         integer,
+        label_function          integer default 0,
         use_app_infections      boolean default false,
         use_clarity_notes       boolean default false
   )
@@ -2290,10 +2268,10 @@ BEGIN
     pat_id_str = case when this_pat_id is null then 'NULL'
                       else format('''%s''',this_pat_id) end;
 
-    window_fn = case prospective_cms
-                  when 0 then 'get_cms_labels_for_window_inlined'
+    window_fn = case label_function
+                  when 0 then 'get_cms_labels_for_window'
                   when 1 then 'get_prospective_cms_labels_for_window'
-                  else 'get_cms_labels_for_window' end;
+                  else 'get_cms_labels_for_window_inlined' end;
 
     use_app_infections_str = case when use_app_infections then 'True' else 'False' end;
     use_clarity_notes_str = case when use_clarity_notes then 'True' else 'False' end;
