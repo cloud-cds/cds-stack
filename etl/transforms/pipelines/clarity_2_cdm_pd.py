@@ -263,7 +263,7 @@ async def pull_order_procs(connection, dataset_id, fids, log, is_plan, clarity_w
   if lp_map is None:
     return
 
-  log.info('pull_order_procs restructuring')
+  log.info('pull_order_procs restructuring %s' % str(op.head(5)))
   op = restructure.select_columns(op, {'enc_id': 'enc_id',
                                        'proc_name': 'fid',
                                        'TSP': 'tsp',
@@ -272,13 +272,17 @@ async def pull_order_procs(connection, dataset_id, fids, log, is_plan, clarity_w
                                        'PROC_START_TIME': 'proc_start_tsp',
                                        'PROC_ENDING_TIME': 'proc_end_tsp'})
 
-  log.info('pull_order_procs derive_lab_status_clarity')
+  log.info('pull_order_procs derive_lab_status_clarity %s' % str(op.head(5)))
   op = derive.derive_lab_status_clarity(op)
 
   log.info('pull_order_procs declaring get_fid_name_mapping')
+
   def get_fid_name_mapping(fids, lp_map):
+    log.info('pull_order_procs called get_fid_name_mapping with %s %s' % (str(fids), str(lp_map)))
     fid_map = dict()
-    for fid in fids:
+    for order_fid in fids:
+      fid = order_fid[:-6]
+      log.info('pull_order_procs get_fid_name_mapping for %s %s' % (order_fid, fid))
       if fid in lp_config.procedure_ids:
         codes = lp_config.procedure_ids[fid]
         nameList = list()
@@ -288,10 +292,12 @@ async def pull_order_procs(connection, dataset_id, fids, log, is_plan, clarity_w
             nameList.append(rs.iloc[0])
         fid_map[fid] = nameList
       else:
-        return {}
+        log.error('pull_order_procs could not find fid name mapping for %s' % fid)
+
+    log.info('pull_order_procs get_fid_name_mapping result: %s' % str(fid_map))
     return fid_map
 
-  log.info('pull_order_procs calling get_fid_name_mapping')
+  log.info('pull_order_procs calling get_fid_name_mapping with fids: %s' % str(fids))
   fid_map = get_fid_name_mapping(fids, lp_map)
   for fid, names in fid_map.items():
     for name in names:
@@ -304,7 +310,7 @@ async def pull_order_procs(connection, dataset_id, fids, log, is_plan, clarity_w
   op['fid'] += '_order'
   op['confidence']=2
 
-  log.info('pull_order_procs loading')
+  log.info('pull_order_procs loading: %s' % str(op))
 
   if not is_plan:
     for idx, row in op.iterrows():
