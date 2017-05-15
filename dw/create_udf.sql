@@ -623,22 +623,31 @@ format('select stats.ts, stats.pat_id,
 from
 (
 select %I.ts, %I.pat_id,
-    count(*) filter (where name = ''suspicion_of_infection'' and is_met) as sus_count,
+    count(*) filter (where name = ''suspicion_of_infection'' and is_met)                                                            as sus_count,
     count(*) filter (where name = ''suspicion_of_infection'' and (not is_met) and override_value#>>''{0,text}'' = ''No Infection'') as sus_noinf_count,
-    count(*) filter (where name = ''suspicion_of_infection'' and (not is_met) and override_value is null) as sus_null_count,
-    count(*) filter (where name = ''crystalloid_fluid'' and is_met) as fluid_count,
-    count(*) filter (where name = ''initial_lactate'' and is_met) as hypoperfusion_count,
-    count(*) filter (where name in (''sirs_temp'',''heart_rate'',''respiratory_rate'',''wbc'') and is_met ) as sirs_count,
-    count(*) filter (where name in (''blood_pressure'',''mean_arterial_pressure'',''decrease_in_sbp'',''respiratory_failure'',''creatinine'',''bilirubin'',''platelet'',''inr'',''lactate'') and is_met ) as organ_count,
-    count(*) filter (where name in (''systolic_bp'',''hypotension_map'',''hypotension_dsbp'') and is_met ) as hypotension_count,
-    count(*) filter (where name in (''initial_lactate_order'',''blood_culture_order'',''antibiotics_order'', ''crystalloid_fluid_order'') and is_met ) as sev_sep_3hr_count,
-    count(*) filter (where name = ''repeat_lactate_order'' and is_met ) as sev_sep_6hr_count,
-    count(*) filter (where name = ''vasopressors_order'' and is_met ) as sep_sho_6hr_count,
-    first(override_time) filter (where name = ''suspicion_of_infection'' and is_met) as sus_onset,
-    (array_agg(measurement_time order by measurement_time)  filter (where name in (''sirs_temp'',''heart_rate'',''respiratory_rate'',''wbc'') and is_met ) )[2]   as sirs_onset,
-    min(measurement_time) filter (where name in (''blood_pressure'',''mean_arterial_pressure'',''decrease_in_sbp'',''respiratory_failure'',''creatinine'',''bilirubin'',''platelet'',''inr'',''lactate'') and is_met ) as organ_onset,
-    min(measurement_time) filter (where name in (''systolic_bp'',''hypotension_map'',''hypotension_dsbp'') and is_met ) as hypotension_onset,
-    min(measurement_time) filter (where name = ''initial_lactate'' and is_met) as hypoperfusion_onset
+    count(*) filter (where name = ''suspicion_of_infection'' and (not is_met) and override_value is null)                           as sus_null_count,
+    count(*) filter (where name = ''crystalloid_fluid'' and is_met)                                                                 as fluid_count,
+    count(*) filter (where name = ''initial_lactate'' and is_met)                                                                   as hypoperfusion_count,
+    count(*) filter (where name in (''sirs_temp'',''heart_rate'',''respiratory_rate'',''wbc'')
+                        and is_met
+                        and severe_sepsis_wo_infection_onset is not null )                                                          as sirs_count,
+    count(*) filter (where name in (''blood_pressure'',''mean_arterial_pressure'',''decrease_in_sbp'',''respiratory_failure'',
+                                    ''creatinine'',''bilirubin'',''platelet'',''inr'',''lactate'')
+                        and is_met
+                        and severe_sepsis_wo_infection_onset is not null )                                                          as organ_count,
+    count(*) filter (where name in (''systolic_bp'',''hypotension_map'',''hypotension_dsbp'') and is_met )                          as hypotension_count,
+    count(*) filter (where name in (''initial_lactate_order'',''blood_culture_order'',
+                                    ''antibiotics_order'', ''crystalloid_fluid_order'') and is_met )                                as sev_sep_3hr_count,
+    count(*) filter (where name = ''repeat_lactate_order'' and is_met )                                                             as sev_sep_6hr_count,
+    count(*) filter (where name = ''vasopressors_order'' and is_met )                                                               as sep_sho_6hr_count,
+    first(override_time) filter (where name = ''suspicion_of_infection'' and is_met)                                                as sus_onset,
+    (array_agg(measurement_time order by measurement_time)
+       filter (where name in (''sirs_temp'',''heart_rate'',''respiratory_rate'',''wbc'') and is_met ) )[2]                          as sirs_onset,
+    min(measurement_time)
+       filter (where name in (''blood_pressure'',''mean_arterial_pressure'',''decrease_in_sbp'',''respiratory_failure'',
+                              ''creatinine'',''bilirubin'',''platelet'',''inr'',''lactate'') and is_met )                           as organ_onset,
+    min(measurement_time) filter (where name in (''systolic_bp'',''hypotension_map'',''hypotension_dsbp'') and is_met )             as hypotension_onset,
+    min(measurement_time) filter (where name = ''initial_lactate'' and is_met)                                                      as hypoperfusion_onset
 from %I
 where %I.pat_id = coalesce($1, %I.pat_id)
 group by %I.ts, %I.pat_id
