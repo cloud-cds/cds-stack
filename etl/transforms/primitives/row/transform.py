@@ -560,6 +560,15 @@ def convert_to_mg(entries, log):
             log.warn("convert_to_mg: non given action: %s" % action)
     return results
 
+def convert_to_cm(entry, log):
+    results = []
+    value=entry['Value']
+    height_cm = float(value) * 2.54
+    tsp = entry['TimeTaken']
+    results.append([tsp, height_cm,confidence.UNIT_TRANSFORMED])
+
+    return results
+
 def convert_gentamicin_dose_to_mg(entries, log):
     global GIVEN_ACTIONS
     global IV_START_ACTIONS
