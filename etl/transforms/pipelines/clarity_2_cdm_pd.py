@@ -143,9 +143,17 @@ async def pull_medication_admin(connection, dataset_id, fids, log, is_plan, clar
         'dobutamine_dose'
     ]
 
+  log.info('pull_medication_admin translate_med_name_to_fid')
   ma = translate.translate_med_name_to_fid(ma)
+
+  log.info('pull_medication_admin filter_medications')
   ma = filter_rows.filter_medications(ma)
+
+  log.info('pull_medication_admin filter_stopped_medications')
   ma = filter_rows.filter_stopped_medications(ma),
+
+  log.info('pull_medication_admin converting')
+
   ma = translate.convert_units(ma,
                                fid_col = 'fid',
                                fids = ['piperacillin_tazbac_dose', 'vancomycin_dose',
@@ -160,6 +168,8 @@ async def pull_medication_admin(connection, dataset_id, fids, log, is_plan, clar
                                unit_col = 'dose_unit', from_unit = 'mL/hr', to_unit = 'mL',
                                value_col = 'dose_value', convert_func = translate.ml_per_hr_to_ml_for_1hr)
 
+  log.info('pull_medication_admin combining')
+
   ma = derive.combine(ma, 'vasopressors_dose', vasopressors_fids, keep_originals=False)
   ma = derive.combine(ma, 'crystalloid_fluid', crystalloid_fluid_fids, keep_originals=False)
   ma = derive.combine(ma, 'cms_antibiotics', cms_antibiotics_fids, keep_originals=False)
@@ -169,6 +179,8 @@ async def pull_medication_admin(connection, dataset_id, fids, log, is_plan, clar
   ma = ma.loc[ma['fid'].apply(lambda x: x in ['cms_antibiotics', 'crystalloid_fluid', 'vasopressors_dose'])]
 
   ma['confidence'] = 2
+
+  log.info('pull_medication_admin loading')
 
   if not is_plan:
     for idx, row in ma.iterrows():
@@ -251,6 +263,7 @@ async def pull_order_procs(connection, dataset_id, fids, log, is_plan, clarity_w
   if lp_map is None:
     return
 
+  log.info('pull_order_procs restructuring')
   op = restructure.select_columns(op, {'enc_id': 'enc_id',
                                        'proc_name': 'fid',
                                        'TSP': 'tsp',
@@ -259,8 +272,10 @@ async def pull_order_procs(connection, dataset_id, fids, log, is_plan, clarity_w
                                        'PROC_START_TIME': 'proc_start_tsp',
                                        'PROC_ENDING_TIME': 'proc_end_tsp'})
 
+  log.info('pull_order_procs derive_lab_status_clarity')
   op = derive.derive_lab_status_clarity(op)
 
+  log.info('pull_order_procs declaring get_fid_name_mapping')
   def get_fid_name_mapping(lp_map):
     fid_map = dict()
     for fid in fids:
@@ -276,18 +291,20 @@ async def pull_order_procs(connection, dataset_id, fids, log, is_plan, clarity_w
         return {}
     return fid_map
 
+  log.info('pull_order_procs calling get_fid_name_mapping')
   fid_map = get_fid_name_mapping(lp_map)
   for fid, names in fid_map.items():
     for name in names:
       op.loc[op['fid'] == name, 'fid'] = fid
 
+  log.info('pull_order_procs creating op')
+
   op = op[[x in fid_map.keys() for x in op['fid']]]
-
   op = op.loc[op['fid'].apply(lambda x: x in ['blood_culture', 'lactate'])]
-
   op['fid'] += '_order'
-
   op['confidence']=2
+
+  log.info('pull_order_procs loading')
 
   if not is_plan:
     for idx, row in op.iterrows():
