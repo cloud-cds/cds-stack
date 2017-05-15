@@ -326,8 +326,7 @@ create table {workspace}."ProblemList"
  presentonadmission     text     ,
  chronic             integer                    ,
  diagname               text     ,
- code                   text     ,
- codecategory           text
+ code                   text
 );
 \copy {workspace}."ProblemList" from '{folder}prob.{ext}' with NULL '' csv header delimiter as E'\t' QUOTE E'\b' encoding 'windows-1251'; -- a ugly but working solution to ignore quote
 
