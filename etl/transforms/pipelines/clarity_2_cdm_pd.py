@@ -150,10 +150,9 @@ async def pull_medication_admin(connection, dataset_id, fids, log, is_plan, clar
   ma = filter_rows.filter_medications(ma)
 
   log.info('pull_medication_admin filter_stopped_medications')
-  ma = filter_rows.filter_stopped_medications(ma),
+  ma = filter_rows.filter_stopped_medications(ma)
 
-  log.info('pull_medication_admin converting')
-
+  log.info('pull_medication_admin converting g to mg')
   ma = translate.convert_units(ma,
                                fid_col = 'fid',
                                fids = ['piperacillin_tazbac_dose', 'vancomycin_dose',
@@ -162,6 +161,7 @@ async def pull_medication_admin(connection, dataset_id, fids, log, is_plan, clar
                                unit_col = 'dose_unit', from_unit = 'g', to_unit = 'mg',
                                value_col = 'dose_value', convert_func = translate.g_to_mg)
 
+  log.info('pull_medication_admin converting ml/hr to ml')
   ma = translate.convert_units(ma,
                                fid_col = 'fid',
                                fids = crystalloid_fluid_fids,
@@ -276,7 +276,7 @@ async def pull_order_procs(connection, dataset_id, fids, log, is_plan, clarity_w
   op = derive.derive_lab_status_clarity(op)
 
   log.info('pull_order_procs declaring get_fid_name_mapping')
-  def get_fid_name_mapping(lp_map):
+  def get_fid_name_mapping(fids, lp_map):
     fid_map = dict()
     for fid in fids:
       if fid in lp_config.procedure_ids:
@@ -292,7 +292,7 @@ async def pull_order_procs(connection, dataset_id, fids, log, is_plan, clarity_w
     return fid_map
 
   log.info('pull_order_procs calling get_fid_name_mapping')
-  fid_map = get_fid_name_mapping(lp_map)
+  fid_map = get_fid_name_mapping(fids, lp_map)
   for fid, names in fid_map.items():
     for name in names:
       op.loc[op['fid'] == name, 'fid'] = fid
