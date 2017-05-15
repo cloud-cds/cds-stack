@@ -264,13 +264,13 @@ async def pull_order_procs(connection, dataset_id, fids, log, is_plan, clarity_w
     return
 
   log.info('pull_order_procs restructuring %s' % str(op.head(5)))
-  op = restructure.select_columns(op, {'enc_id': 'enc_id',
-                                       'proc_name': 'fid',
-                                       'TSP': 'tsp',
-                                       'OrderStatus': 'order_status',
-                                       'LabStatus': 'proc_status',
-                                       'PROC_START_TIME': 'proc_start_tsp',
-                                       'PROC_ENDING_TIME': 'proc_end_tsp'})
+  op = restructure.select_columns(op, {'enc_id'           : 'enc_id',
+                                       'proc_name'        : 'fid',
+                                       'TSP'              : 'tsp',
+                                       'OrderStatus'      : 'order_status',
+                                       'LabStatus'        : 'proc_status',
+                                       'PROC_START_TIME'  : 'proc_start_tsp',
+                                       'PROC_ENDING_TIME' : 'proc_end_tsp'})
 
   log.info('pull_order_procs derive_lab_status_clarity %s' % str(op.head(5)))
   op = derive.derive_lab_status_clarity(op)
@@ -283,15 +283,19 @@ async def pull_order_procs(connection, dataset_id, fids, log, is_plan, clarity_w
     for order_fid in fids:
       fid = order_fid[:-6]
       log.info('pull_order_procs get_fid_name_mapping for %s %s' % (order_fid, fid))
-      if fid in lp_config.procedure_ids:
-        codes = lp_config.procedure_ids[fid]
-        nameList = list()
-        for code in codes:
-          rs = lp_map[lp_map['proc_id'] == code]['proc_name']
-          if not rs.empty:
-            nameList.append(rs.iloc[0])
-        fid_map[fid] = nameList
-      else:
+
+      found = False
+      for pfid, codes in lp_config.procedure_ids:
+        if fid == pfid:
+          found = True
+          nameList = list()
+          for code in codes:
+            rs = lp_map[lp_map['proc_id'] == code]['proc_name']
+            if not rs.empty:
+              nameList.append(rs.iloc[0])
+          fid_map[fid] = nameList
+
+      if not found:
         log.error('pull_order_procs could not find fid name mapping for %s' % fid)
 
     log.info('pull_order_procs get_fid_name_mapping result: %s' % str(fid_map))
