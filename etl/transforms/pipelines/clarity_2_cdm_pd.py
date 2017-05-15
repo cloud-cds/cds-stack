@@ -12,10 +12,13 @@ import os
 import asyncio
 
 
-def get_min_tsp(tsp_name):
+def get_min_tsp(tsp_name, tsp_with_quotes=True):
   if 'min_tsp' in os.environ:
       min_tsp = os.environ['min_tsp']
-      return ''' and "{tsp}"::timestamptz > '{min_tsp}'::timestamptz'''.format(tsp=tsp_name, min_tsp=min_tsp)
+      if with_quotes:
+        return ''' and "{tsp}"::timestamptz > '{min_tsp}'::timestamptz'''.format(tsp=tsp_name, min_tsp=min_tsp)
+      else:
+        return ''' and {tsp}::timestamptz > '{min_tsp}'::timestamptz'''.format(tsp=tsp_name, min_tsp=min_tsp)
   else:
     return ''
 
@@ -92,25 +95,27 @@ async def pull_medication_admin(connection, dataset_id, fids, log, is_plan, clar
   sql = """select pe.enc_id, ma.display_name,
                   ma."Dose", ma."MedUnit",
                   ma."INFUSION_RATE", ma."MAR_INF_RATE_UNIT",
-                  ma."TimeActionTaken"
+                  ma."TimeActionTaken", ma."ActionTaken"
           from
           {ws}."MedicationAdministration"  ma
           inner join
           pat_enc pe
-          on ma."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp}""".format(dataset_id=dataset_id, min_tsp=get_min_tsp("TimeActionTaken"), ws=clarity_workspace)
+          on ma."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp}
+        """.format(dataset_id=dataset_id, min_tsp=get_min_tsp("TimeActionTaken"), ws=clarity_workspace)
   log.info(sql)
   ma = await async_read_df(sql,connection)
 
   if ma is None:
     return
   extracted = ma.shape[0]
-  ma = restructure.select_columns(ma, {'enc_id': 'enc_id',
-                                      'display_name':'full_name',
-                                      'Dose':'dose_value',
-                                      'MedUnit':'dose_unit',
-                                      'INFUSION_RATE':'rate_value',
-                                      'MAR_INF_RATE_UNIT':'rate_unit',
-                                      'TimeActionTaken':'tsp'})
+  ma = restructure.select_columns(ma, {'enc_id'           : 'enc_id',
+                                      'display_name'      : 'full_name',
+                                      'Dose'              : 'dose_value',
+                                      'MedUnit'           : 'dose_unit',
+                                      'INFUSION_RATE'     : 'rate_value',
+                                      'MAR_INF_RATE_UNIT' : 'rate_unit',
+                                      'TimeActionTaken'   : 'tsp',
+                                      'ActionTaken'       : 'action'})
 
   cms_antibiotics_fids = [
         'cefepime_dose',
@@ -175,17 +180,18 @@ async def pull_medication_admin(connection, dataset_id, fids, log, is_plan, clar
   log_time(log, 'pull_medication_admin', start, extracted, loaded)
   return 'pull_medication_admin'
 
-async def bands(connection, dataset_id, fids, log, is_plan):
+async def bands(connection, dataset_id, fids, log, is_plan, clarity_workspace):
   log.info("Entering bands Processing")
   start = time.time()
   sql = """select pe.enc_id, lb."NAME" ,
-                                lb."ResultValue", lb."RESULT_TIME"
-                                from
-                                  {ws}."Labs_643"  lb
-                                inner join
-                                  pat_enc pe
-                                on lb."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp}
-                                WHERE "NAME"='BANDS';""".format(dataset_id=dataset_id, min_tsp=get_min_tsp("RESULT_TIME"), ws=clarity_workspace)
+                  lb."ResultValue", lb."RESULT_TIME"
+          from
+            {ws}."Labs_643"  lb
+          inner join
+            pat_enc pe
+          on lb."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp}
+          WHERE "NAME"='BANDS';
+        """.format(dataset_id=dataset_id, min_tsp=get_min_tsp("RESULT_TIME"), ws=clarity_workspace)
   log.info(sql)
   labs = await async_read_df(sql,connection)
   if labs is None:
@@ -234,7 +240,7 @@ async def pull_order_procs(connection, dataset_id, fids, log, is_plan, clarity_w
             inner join
               pat_enc pe
             on op."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp};
-        """.format(dataset_id=dataset_id, min_tsp=get_min_tsp(t_field), ws=clarity_workspace, t_field=t_field)
+        """.format(dataset_id=dataset_id, min_tsp=get_min_tsp(t_field, tsp_with_quotes=False), ws=clarity_workspace, t_field=t_field)
 
   log.info(sql)
   op = await async_read_df(sql,connection)

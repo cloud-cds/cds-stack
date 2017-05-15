@@ -37,7 +37,7 @@ def filter_medications(med_data):
     return med_data
 
 def filter_stopped_medications(med_data):
-    return med_data[~med_data['action'].isin(['Paused', 'Stopped'])]
+    return med_data[~med_data['action'].isin(['Paused', 'Stopped', 'Stopped '])]
 
 def filter_by_doses(med_data):
     return med_data[~(pd.isnull(med_data['dose_unit']) | pd.isnull(med_data['dose_value']))]
