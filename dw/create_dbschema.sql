@@ -106,6 +106,7 @@ CREATE TABLE pat_enc (
     visit_id        varchar(50) NOT NULL,
     pat_id          varchar(50) NOT NULL,
     dept_id         varchar(50),
+    meta_data       json,
     PRIMARY KEY     (dataset_id, enc_id),
     UNIQUE          (dataset_id, visit_id, pat_id),
     UNIQUE          (dataset_id, enc_id, visit_id, pat_id)
