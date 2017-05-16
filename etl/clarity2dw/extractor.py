@@ -55,12 +55,8 @@ class Extractor:
     async with ctxt.db_pool.acquire() as conn:
       ctxt.log.info(sql)
       await conn.execute(sql)
-    if self.job.get('incremental', False):
-      ctxt.log.info("skip reset_dataset for incremental ETL")
-    else:
-      async with ctxt.db_pool.acquire() as conn:
-        await self.reset_dataset(conn, ctxt)
-        ctxt.log.info("completed extract_init task")
+      await self.init_dataset(conn, ctxt)
+      ctxt.log.info("completed extract_init task")
     return None
 
   async def query_cdm_feature_dict(self, conn):
@@ -69,11 +65,11 @@ class Extractor:
     self.cdm_feature_dict = {f['fid']:f for f in cdm_feature}
     return None
 
-  async def reset_dataset(self, conn, ctxt):
-    ctxt.log.info("reset_dataset")
-    reset_job = self.job.get('reset_dataset', {})
+  async def init_dataset(self, conn, ctxt):
+    ctxt.log.info("init_dataset")
+    init_dataset_job = self.job.get('extract_init', {})
     reset_sql = ''
-    if reset_job.get('remove_data', False):
+    if init_dataset_job.get('remove_data', False):
       reset_sql += '''
       delete from cdm_s where dataset_id = %(dataset_id)s;
       delete from cdm_t where dataset_id = %(dataset_id)s;
@@ -81,18 +77,19 @@ class Extractor:
       delete from cdm_notes where dataset_id = %(dataset_id)s;
       delete from criteria_meas where dataset_id = %(dataset_id)s;
       ''' % {'dataset_id': self.dataset_id}
-    if reset_job.get('remove_pat_enc', False):
+    if init_dataset_job.get('remove_pat_enc', False):
       reset_sql += '''
       delete from trews where dataset_id = %(dataset_id)s;
       delete from pat_enc where dataset_id = %(dataset_id)s;
       ''' % {'dataset_id': self.dataset_id}
-    if 'start_enc_id' in reset_job:
-      reset_sql += "select setval('pat_enc_enc_id_seq', %s);" % reset_job['start_enc_id']
+    if 'start_enc_id' in init_dataset_job and init_dataset_job.get('start_enc_id', 0) > 0:
+      reset_sql += "select setval('pat_enc_enc_id_seq', %s);" % init_dataset_job['start_enc_id']
     if reset_sql:
       ctxt.log.info("ETL init sql: " + reset_sql)
       result = await conn.execute(reset_sql)
       ctxt.log.info("ETL Init: " + result)
     return None
+
 
   async def populate_patients(self, ctxt, _):
     if self.job.get('transform', False):

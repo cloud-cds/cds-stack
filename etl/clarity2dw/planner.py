@@ -19,14 +19,17 @@ job_config = {
   'plan': False,
   'incremental': bool(os.environ['incremental'])\
                     if 'incremental' in os.environ else False,
-  'reset_dataset': {
-    'remove_pat_enc': True,
-    'remove_data': True,
-    'start_enc_id': 1
+  'clarity_workspace': os.environ['clarity_workspace'] \
+        if 'clarity_workspace' in os.environ else 'public',
+  'extract_init': {
+    'remove_pat_enc': bool(os.environ['remove_pat_enc']) \
+      if 'remove_pat_enc' in os.environ else True,
+    'remove_data': bool(os.environ['remove_data']) \
+      if 'remove_data' in os.environ else True,
+    'start_enc_id': int(os.environ['start_enc_id']) \
+      if 'start_enc_id' in os.environ else 1
   },
   'transform': {
-    'clarity_workspace': os.environ['clarity_workspace'] \
-        if 'clarity_workspace' in os.environ else 'public',
     'populate_patients': {
       'limit': None
     },
