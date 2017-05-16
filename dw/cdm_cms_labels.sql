@@ -785,7 +785,11 @@ BEGIN
   septic_shock_onsets as (
     select stats.pat_id,
            bool_or(stats.cnt > 0) as septic_shock_is_met,
-           greatest(min(stats.onset), max(SSP.severe_sepsis_onset)) as septic_shock_onset
+           (case
+              when not(bool_or(stats.cnt > 0)) then null
+              else greatest(min(stats.onset), max(SSP.severe_sepsis_onset))
+              end
+            ) as septic_shock_onset
     from (
         -- Hypotension and hypoperfusion subqueries individually check
         -- that they occur after severe sepsis onset.
@@ -1526,7 +1530,11 @@ BEGIN
   septic_shock_onsets as (
     select stats.pat_id,
            bool_or(stats.cnt > 0) as septic_shock_is_met,
-           greatest(min(stats.onset), max(SSP.severe_sepsis_onset)) as septic_shock_onset
+           (case
+              when not(bool_or(stats.cnt > 0)) then null
+              else greatest(min(stats.onset), max(SSP.severe_sepsis_onset))
+              end
+            ) as septic_shock_onset
     from (
         -- Hypotension and hypoperfusion subqueries individually check
         -- that they occur after severe sepsis onset.
@@ -2185,7 +2193,11 @@ BEGIN
   septic_shock_onsets as (
     select stats.pat_id,
            bool_or(stats.cnt > 0) as septic_shock_is_met,
-           greatest(min(stats.onset), max(SSP.severe_sepsis_onset)) as septic_shock_onset
+           (case
+              when not(bool_or(stats.cnt > 0)) then null
+              else greatest(min(stats.onset), max(SSP.severe_sepsis_onset))
+              end
+            ) as septic_shock_onset
     from (
         -- Hypotension and hypoperfusion subqueries individually check
         -- that they occur after severe sepsis onset.
@@ -2985,7 +2997,11 @@ BEGIN
   septic_shock_onsets as (
     select stats.pat_id,
            bool_or(stats.cnt > 0) as septic_shock_is_met,
-           greatest(min(stats.onset), max(SSP.severe_sepsis_onset)) as septic_shock_onset
+           (case
+              when not(bool_or(stats.cnt > 0)) then null
+              else greatest(min(stats.onset), max(SSP.severe_sepsis_onset))
+              end
+            ) as septic_shock_onset
     from (
         -- Hypotension and hypoperfusion subqueries individually check
         -- that they occur after severe sepsis onset.
