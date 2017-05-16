@@ -267,6 +267,8 @@ module "c2dw_daily_etl" {
   k8s_key       = "${var.k8s_key}"
   k8s_token     = "${var.k8s_token}"
 
+  k8s_privileged = "true"
+
   db_host             = "db.${var.domain}"
   db_name             = "${replace(var.deploy_prefix, "-", "_")}"
   db_username         = "${var.db_username}"

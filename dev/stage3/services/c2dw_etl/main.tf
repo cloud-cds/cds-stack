@@ -21,6 +21,7 @@ variable "k8s_cert" {}
 variable "k8s_key" {}
 variable "k8s_token" {}
 variable "k8s_image" {}
+variable "k8s_privileged" {}
 
 variable "db_host" {}
 variable "db_port" { default = 5432 }
@@ -58,13 +59,14 @@ resource "aws_lambda_function" "c2dw_etl_lambda" {
         PYKUBE_KUBERNETES_SERVICE_HOST = "${var.k8s_server_host}"
         PYKUBE_KUBERNETES_SERVICE_PORT = "${var.k8s_server_port}"
 
-        kube_job_name  = "epic2op-dev"
-        kube_name      = "${var.k8s_name}"
-        kube_server    = "${var.k8s_server}"
-        kube_cert_auth = "${var.k8s_cert_auth}"
-        kube_user      = "${var.k8s_user}"
-        kube_pass      = "${var.k8s_pass}"
-        kube_image     = "${var.k8s_image}"
+        kube_job_name   = "epic2op-dev"
+        kube_name       = "${var.k8s_name}"
+        kube_server     = "${var.k8s_server}"
+        kube_cert_auth  = "${var.k8s_cert_auth}"
+        kube_user       = "${var.k8s_user}"
+        kube_pass       = "${var.k8s_pass}"
+        kube_image      = "${var.k8s_image}"
+        kube_privileged = "${var.k8s_privileged}"
         #kube_cert      = "${var.k8s_cert}"
         #kube_key       = "${var.k8s_key}"
         #kube_token     = "${var.k8s_token}"
