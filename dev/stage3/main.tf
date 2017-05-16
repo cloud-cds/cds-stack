@@ -261,7 +261,7 @@ module "c2dw_daily_etl" {
   k8s_server    = "${var.k8s_server}"
   k8s_user      = "${var.k8s_user}"
   k8s_pass      = "${var.k8s_pass}"
-  k8s_image     = "${var.k8s_epic2op_image}"
+  k8s_image     = "${var.k8s_c2dw_image}"
   k8s_cert_auth = "${var.k8s_cert_auth}"
   k8s_cert      = "${var.k8s_cert}"
   k8s_key       = "${var.k8s_key}"
