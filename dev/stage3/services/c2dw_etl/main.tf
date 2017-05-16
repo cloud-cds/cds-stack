@@ -7,7 +7,7 @@ variable "s3_opsdx_lambda" {}
 variable "aws_klaunch_lambda_package" {}
 variable "aws_klaunch_lambda_role_arn" {}
 
-variable "c2dw_etl_lambda_firing_rate_hours" {}
+variable "c2dw_etl_lambda_cron" {}
 
 variable "k8s_server_host" {}
 variable "k8s_server_port" {}
@@ -91,8 +91,8 @@ resource "aws_lambda_function" "c2dw_etl_lambda" {
 
 resource "aws_cloudwatch_event_rule" "c2dw_etl_schedule_rule" {
     name = "${var.deploy_prefix}-c2dw-etl-schedule-rule"
-    description = "Fires every ${var.c2dw_etl_lambda_firing_rate_hours} hours"
-    schedule_expression = "rate(${var.c2dw_etl_lambda_firing_rate_hours} hours)"
+    description = "Cron of ${var.c2dw_etl_lambda_cron}"
+    schedule_expression = "cron(${var.c2dw_etl_lambda_cron})"
 }
 
 resource "aws_cloudwatch_event_target" "c2dw_etl_schedule_target" {

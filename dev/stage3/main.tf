@@ -252,7 +252,7 @@ module "c2dw_daily_etl" {
   aws_klaunch_lambda_package = "${var.aws_klaunch_lambda_package}"
   aws_klaunch_lambda_role_arn = "${var.aws_klaunch_lambda_role_arn}"
 
-  c2dw_etl_lambda_firing_rate_hours = "24"
+  c2dw_etl_lambda_cron = "0 12 * * ? *"
 
   k8s_server_host = "${var.k8s_server_host}"
   k8s_server_port = "${var.k8s_server_port}"
