@@ -1,5 +1,7 @@
-drop table if exists "Demographics";
-create table "Demographics"
+CREATE SCHEMA IF NOT EXISTS {workspace};
+
+drop table if exists {workspace}."Demographics";
+create table {workspace}."Demographics"
 (
  "CSN_ID"                text,
  "pat_id"                text,
@@ -13,10 +15,10 @@ create table "Demographics"
  "DischargeDepartment"   text,
  "DischargeDisposition"  text
  );
-\copy "Demographics" from '{folder}demo.rpt' with csv header delimiter as E'\t' NULL 'NULL';
+\copy {workspace}."Demographics" from '{folder}demo.{ext}' with csv header delimiter as E'\t' NULL 'NULL';
 
-drop table if exists "ADT_Feed";
-create table "ADT_Feed"
+drop table if exists {workspace}."ADT_Feed";
+create table {workspace}."ADT_Feed"
 (
 "CSN_ID"    text,
 "EventType"  text,
@@ -25,10 +27,10 @@ create table "ADT_Feed"
 "DEPARTMENT_NAME"   text,
 "ROOM_NAME"    text
 );
-\copy "ADT_Feed" from '{folder}adt.rpt' with csv header delimiter as E'\t' NULL 'NULL';
+\copy {workspace}."ADT_Feed" from '{folder}adt.{ext}' with csv header delimiter as E'\t' NULL 'NULL';
 
-drop table if exists "Diagnoses";
-create table "Diagnoses"
+drop table if exists {workspace}."Diagnoses";
+create table {workspace}."Diagnoses"
 (
  "CSN_ID"         text
  ,"DX_ID"         numeric
@@ -42,10 +44,10 @@ create table "Diagnoses"
  ,"DX_CHRONIC_YN" text
  ,"ICD-9          Code    category" text
 );
-\copy "Diagnoses" from '{folder}diag.rpt' with csv header delimiter as E'\t' NULL 'NULL';
+\copy {workspace}."Diagnoses" from '{folder}diag.{ext}' with csv header delimiter as E'\t' NULL 'NULL';
 
-drop table if exists "FlowsheetValue-LDA";
-create table "FlowsheetValue-LDA"
+drop table if exists {workspace}."FlowsheetValue-LDA";
+create table {workspace}."FlowsheetValue-LDA"
 (
  "CSN_ID"               text      ,
  "FLO_MEAS_NAME"        text      ,
@@ -68,10 +70,10 @@ create table "FlowsheetValue-LDA"
  "LDAFLOMEASNAME"       text      ,
  "LDAGRPDISPNAME"       text
 );
-\copy "FlowsheetValue-LDA" from '{folder}flt_lda.rpt' with csv header delimiter as E'\t' NULL 'NULL';
+\copy {workspace}."FlowsheetValue-LDA" from '{folder}flt_lda.{ext}' with csv header delimiter as E'\t' NULL 'NULL';
 
-drop table if exists "FlowsheetValue";
-create table "FlowsheetValue"
+drop table if exists {workspace}."FlowsheetValue";
+create table {workspace}."FlowsheetValue"
 (
  "CSN_ID"               text      ,
  "FLO_MEAS_NAME"        text      ,
@@ -89,10 +91,10 @@ create table "FlowsheetValue"
  "TEMPLATE_NAME"        text      ,
  "TEMPLATE_DISP_NAME"   text
 );
-\copy "FlowsheetValue" from '{folder}flt.rpt' with csv header delimiter as E'\t' NULL 'NULL';
+\copy {workspace}."FlowsheetValue" from '{folder}flt.{ext}' with csv header delimiter as E'\t' NULL 'NULL';
 
-drop table if exists "FlowsheetValue_643";
-create table "FlowsheetValue_643"
+drop table if exists {workspace}."FlowsheetValue_643";
+create table {workspace}."FlowsheetValue_643"
 (
  "CSN_ID"               text      ,
  "FLO_MEAS_NAME"        text      ,
@@ -110,13 +112,13 @@ create table "FlowsheetValue_643"
  "TEMPLATE_NAME"        text      ,
  "TEMPLATE_DISP_NAME"   text
 );
-\copy "FlowsheetValue_643" from '{folder}flt_new.rpt' with csv header delimiter as E'\t' NULL 'NULL';
+\copy {workspace}."FlowsheetValue_643" from '{folder}flt_new.{ext}' with csv header delimiter as E'\t' NULL 'NULL';
 
--- start to use rpt format (i.e., delimiter is tab) because there are double quote in the data which makes the csv format hard to import to postgresql
--- remember to remove the last two lines in rpt files before importing to the database
+-- start to use {ext} format (i.e., delimiter is tab) because there are double quote in the data which makes the csv format hard to import to postgresql
+-- remember to remove the last two lines in {ext} files before importing to the database
 
-drop table if exists "Labs";
-create table "Labs"
+drop table if exists {workspace}."Labs";
+create table {workspace}."Labs"
 (
  "CSN_ID"            text      ,
  "COMPONENT_ID" text,
@@ -129,10 +131,10 @@ create table "Labs"
  "COMPONENT_COMMENT" text,
  "ORDER_PROC_ID"     text
 );
-\copy "Labs" from '{folder}labs.rpt' with NULL 'NULL' csv header delimiter as E'\t';
+\copy {workspace}."Labs" from '{folder}labs.{ext}' with NULL 'NULL' csv header delimiter as E'\t';
 
-drop table if exists "Labs_643";
-create table "Labs_643"
+drop table if exists {workspace}."Labs_643";
+create table {workspace}."Labs_643"
 (
  "CSN_ID"            text      ,
  "COMPONENT_ID" text,
@@ -145,10 +147,10 @@ create table "Labs_643"
  "COMPONENT_COMMENT" text,
  "ORDER_PROC_ID"     text
 );
-\copy "Labs_643" from '{folder}labs_new.rpt' with NULL 'NULL' csv header delimiter as E'\t';
+\copy {workspace}."Labs_643" from '{folder}labs_new.{ext}' with NULL 'NULL' csv header delimiter as E'\t';
 
-drop table if exists "LDAs";
-create table "LDAs"
+drop table if exists {workspace}."LDAs";
+create table {workspace}."LDAs"
 (
  "PAT_ID"              text,
  "PLACEMENT_INSTANT"   timestamp with    time zone,
@@ -158,10 +160,10 @@ create table "LDAs"
  "SITE"                text,
  "REMOVAL_DTTM"        timestamp with    time zone
 );
-\copy "LDAs" from '{folder}lda.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."LDAs" from '{folder}lda.{ext}' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 
-drop table if exists "MedicationAdministration";
-create table "MedicationAdministration"
+drop table if exists {workspace}."MedicationAdministration";
+create table {workspace}."MedicationAdministration"
 (
  "CSN_ID"             text,
  "display_name"       text,
@@ -184,10 +186,10 @@ create table "MedicationAdministration"
  "MIN_DISCRETE_DOSE"  real,
  "MAX_DISCRETE_DOSE"  real
 );
-\copy "MedicationAdministration" from '{folder}mar.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."MedicationAdministration" from '{folder}mar.{ext}' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 
-drop table if exists "MedicalHistory";
-create table "MedicalHistory"
+drop table if exists {workspace}."MedicalHistory";
+create table {workspace}."MedicalHistory"
 (
  "CSN_ID"               text,
  "PATIENTID"            text,
@@ -200,10 +202,10 @@ create table "MedicalHistory"
  "Medical_Hx_Date"      text,
  "ENC_Date"             timestamp with time zone
 );
-\copy "MedicalHistory" from '{folder}hist.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."MedicalHistory" from '{folder}hist.{ext}' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 
-drop table if exists "Notes";
-create table "Notes"
+drop table if exists {workspace}."Notes";
+create table {workspace}."Notes"
 (
  "CSN_ID"               text,
  "NOTE_ID"              text,
@@ -217,10 +219,10 @@ create table "Notes"
  "SPEC_NOTE_TIME_DTTM"  timestamp without time zone ,
  "ENTRY_ISTANT_DTTM"    timestamp without time zone
 );
-\copy "Notes" from '{folder}note.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."Notes" from '{folder}note.{ext}' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 
-drop table if exists "OrderMed";
-create table "OrderMed"
+drop table if exists {workspace}."OrderMed";
+create table {workspace}."OrderMed"
 (
  "CSN_ID"            text                       ,
  "display_name"      text     ,
@@ -231,10 +233,10 @@ create table "OrderMed"
  "MIN_DISCRETE_DOSE" real                       ,
  "MAX_DISCRETE_DOSE" real
 );
-\copy "OrderMed" from '{folder}ordermed.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."OrderMed" from '{folder}ordermed.{ext}' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 
-drop table if exists "OrderMedHome";
-create table "OrderMedHome"
+drop table if exists {workspace}."OrderMedHome";
+create table {workspace}."OrderMedHome"
 (
  "CSN_ID"            text                       ,
  "display_name"      text     ,
@@ -245,10 +247,10 @@ create table "OrderMedHome"
  "MIN_DISCRETE_DOSE" real                       ,
  "MAX_DISCRETE_DOSE" real
 );
-\copy "OrderMedHome" from '{folder}ordermed_home.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."OrderMedHome" from '{folder}ordermed_home.{ext}' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 
-drop table if exists "OrderProcs";
-create table "OrderProcs"
+drop table if exists {workspace}."OrderProcs";
+create table {workspace}."OrderProcs"
 (
  "CSN_ID"          text                        ,
  "OrderProcId"     text                        ,
@@ -264,12 +266,13 @@ create table "OrderProcs"
  "ParentStartTime"  timestamp without time zone ,
  "ParentEndingTime" timestamp without time zone ,
  "OrderStatus"     text,
- "LabStatus"     text
+ "LabStatus"     text,
+ "SPECIMN_TAKEN_TIME"  timestamp without time zone
 );
-\copy "OrderProcs" from '{folder}orderproc.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."OrderProcs" from '{folder}orderproc.{ext}' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 
-drop table if exists "OrderProcsImage";
-create table "OrderProcsImage"
+drop table if exists {workspace}."OrderProcsImage";
+create table {workspace}."OrderProcsImage"
 (
  "CSN_ID"            text                       ,
  "OrderProcId"       text                       ,
@@ -285,10 +288,10 @@ create table "OrderProcsImage"
  "LINE"              integer                    ,
  "NOTE_TEXT"         text
 );
-\copy "OrderProcsImage" from '{folder}orderproc_img.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."OrderProcsImage" from '{folder}orderproc_img.{ext}' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 
-drop table if exists "OrderProcs_643";
-create table "OrderProcs_643"
+drop table if exists {workspace}."OrderProcs_643";
+create table {workspace}."OrderProcs_643"
 (
  "CSN_ID"          text                        ,
  "OrderProcId"     text                        ,
@@ -313,10 +316,10 @@ create table "OrderProcs_643"
  quest_name         text,
  question       text
 );
-\copy "OrderProcs_643" from '{folder}orderproc_new.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."OrderProcs_643" from '{folder}orderproc_new.{ext}' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 
-drop table if exists "ProblemList";
-create table "ProblemList"
+drop table if exists {workspace}."ProblemList";
+create table {workspace}."ProblemList"
 (
  pat_id              text                       ,
  csn_id              text                       ,
@@ -331,38 +334,38 @@ create table "ProblemList"
  code                   text     ,
  codecategory           text
 );
-\copy "ProblemList" from '{folder}prob.rpt' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."ProblemList" from '{folder}prob.{ext}' with NULL 'NULL' csv header delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 
-drop table if exists flowsheet_dict;
-create table flowsheet_dict
+drop table if exists {workspace}.flowsheet_dict;
+create table {workspace}.flowsheet_dict
 (
  FLO_MEAS_ID text,
  FLO_MEAS_NAME text,
  DISP_NAME text
  );
-\copy flowsheet_dict from '{folder}flowsheet_dict.rpt' with csv header delimiter as E'\t' NULL 'NULL' QUOTE E'\b';
+\copy {workspace}.flowsheet_dict from '{folder}flowsheet_dict.{ext}' with csv header delimiter as E'\t' NULL 'NULL' QUOTE E'\b';
 
-drop table if exists lab_dict;
-create table lab_dict
+drop table if exists {workspace}.lab_dict;
+create table {workspace}.lab_dict
 (
  component_id text,
  name text,
  base_name text,
  external_name text
  );
-\copy lab_dict from '{folder}lab_dict.rpt' with csv header delimiter as E'\t' NULL 'NULL' QUOTE E'\b';
+\copy {workspace}.lab_dict from '{folder}lab_dict.{ext}' with csv header delimiter as E'\t' NULL 'NULL' QUOTE E'\b';
 
-drop table if exists lab_proc_dict;
-create table lab_proc_dict
+drop table if exists {workspace}.lab_proc_dict;
+create table {workspace}.lab_proc_dict
 (
  proc_id text,
  proc_name text,
  proc_code text
  );
-\copy lab_proc_dict from '{folder}lab_proc.rpt' with csv header delimiter as E'\t' NULL 'NULL' QUOTE E'\b';
+\copy {workspace}.lab_proc_dict from '{folder}lab_proc.{ext}' with csv header delimiter as E'\t' NULL 'NULL' QUOTE E'\b';
 
-drop table if exists med_dict;
-create table med_dict
+drop table if exists {workspace}.med_dict;
+create table {workspace}.med_dict
 (
  MEDICATION_ID text,
  name text,
@@ -377,4 +380,4 @@ create table med_dict
  threa_class_name text,
  threa_class_title text
  );
-\copy med_dict from '{folder}med_dict.rpt' with csv header delimiter as E'\t' NULL 'NULL' QUOTE E'\b';
+\copy {workspace}.med_dict from '{folder}med_dict.{ext}' with csv header delimiter as E'\t' NULL 'NULL' QUOTE E'\b';

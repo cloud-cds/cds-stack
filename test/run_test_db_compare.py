@@ -229,16 +229,16 @@ daily_compare_light = [
       # 'copy_pat_enc': True,
       'populate_db': True,
     },
-    'db_compare': {
-      'srcdid': None,
-      'srcmid': None,
-      'dstdid': 1,
-      'dstmid': 1,
-      'cmp_remote_server': 'daily_epic2op_light',
-      'counts': False,
-      'dst_tsp_shift': '4 hours',
-      'feature_set': 'online',
-    }
+    # 'db_compare': {
+    #   'srcdid': None,
+    #   'srcmid': None,
+    #   'dstdid': 1,
+    #   'dstmid': 1,
+    #   'cmp_remote_server': 'daily_epic2op_light',
+    #   'counts': False,
+    #   'dst_tsp_shift': '4 hours',
+    #   'feature_set': 'online',
+    # }
   }
 ]
 # ---------------------------------------------------------------------------------------------------
