@@ -276,7 +276,7 @@ class Extractor:
       if not conn_acquired:
         log.error("Error: connection is not acquired for {}".format(transform_func_id))
     except Exception as e:
-      log.Exception("Error: custom function error %s %s" % (transform_func_id, e))
+      log.exception("Error: custom function error %s %s" % (transform_func_id, e))
 
   def populate_raw_feature_to_cdm(self, ctxt, mapping, cdm_feature_attributes):
     futures = []
