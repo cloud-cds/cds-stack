@@ -318,7 +318,9 @@ async def pull_order_procs(connection, dataset_id, fids, log, is_plan, clarity_w
 
   if not is_plan:
     for idx, row in op.iterrows():
-      await load_row.upsert_t(connection, [row['enc_id'], row['tsp'], row['fid'], str(row['status']), row['confidence']], dataset_id=dataset_id)
+      # TODO need to make sure the data is valid
+      if row['tsp'] and not str(row['tsp']) == 'NaT':
+        await load_row.upsert_t(connection, [row['enc_id'], row['tsp'], row['fid'], str(row['status']), row['confidence']], log=log, dataset_id=dataset_id)
     log.info('Order Procs Write complete')
   else:
     log.info('Order Procs write skipped, due to plan mode')

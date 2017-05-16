@@ -170,7 +170,7 @@ class Extractor:
     return [lst[i:i + division] for i in range(0, len(lst), division)]
 
     # # TEST CASE B
-    # lst = lst[:40]
+    # lst = lst[-5:]
     # division = len(lst) // n
     # return [lst[division * i:division * (i + 1)] for i in range(n)]
 
@@ -178,6 +178,7 @@ class Extractor:
     # lst_vent = None
     # lst_med = None
     # lst_bands = None
+    # lst_bco = None
     # for item in lst:
     #   if item['fid(s)'] == 'vent':
     #     lst_vent = item
@@ -197,8 +198,11 @@ class Extractor:
     #     lst_hematocrit = item
     #   if item['fid(s)'] == 'cms_antibiotics, crystalloid_fluid, vasopressors_dose':
     #     lst_cus = item
-    # return [ [ lst_cus, lst[0], lst[2], lst_hematocrit, lst_med, lst_bands, lst_spo2, lst_heart_rate], [lst[1], lst[3], lst_approx, lst_vent, lst_co2]]
+    #   if item['fid(s)'] == 'blood_culture_order':
+    #     lst_bco = item
+    # # return [ [ lst_cus, lst[0], lst[2], lst_hematocrit, lst_med, lst_bands, lst_spo2, lst_heart_rate], [lst[1], lst[3], lst_approx, lst_vent, lst_co2]]
     # # return [ [lst[0], lst[2]], [lst_med, lst_bands]]
+    # return [ [lst_bco] ]
 
   async def run_transform_task(self, ctxt, pat_mappings, task):
     if self.job.get('transform', False):
@@ -230,7 +234,7 @@ class Extractor:
     fids = mapping_row['fid(s)']
     fids = [fid.strip() for fid in fids.split(',')] if ',' in fids else [fids]
     self.clarity_workspace = \
-      self.job.get('transform').get('clarity_workspace', 'public')
+      self.job.get('clarity_workspace', 'public')
     # fid validation check
     for fid in fids:
       if not self.cdm_feature_dict.get(fid, False):
@@ -457,7 +461,7 @@ class Extractor:
 
 
 
-  async def populate_stateless_features(self, ctxt, mapping, fid, transform_func_id, data_type, fid_info, is_no_add, num_fetch=1000):
+  async def populate_stateless_features(self, ctxt, mapping, fid, transform_func_id, data_type, fid_info, is_no_add, num_fetch=2000):
     # process features unrelated to med actions
     log = ctxt.log
     category = fid_info['category']
@@ -518,7 +522,7 @@ class Extractor:
         log.error("Error: connection is not acquired for {}".format(fid))
       return mapping
 
-  async def populate_vent(self, ctxt, mapping, fid, transform_func_id, data_type, fid_info, num_fetch=1000):
+  async def populate_vent(self, ctxt, mapping, fid, transform_func_id, data_type, fid_info, num_fetch=2000):
     orderby = " icustay_id, realtime"
     log = ctxt.log
     sql = self.get_feature_sql_query(log, mapping, fid_info, orderby=orderby)
