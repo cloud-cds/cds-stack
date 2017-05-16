@@ -36,7 +36,10 @@ CREATE OR REPLACE FUNCTION get_cms_candidates_for_window(
                 override_user                    text,
                 override_value                   json,
                 is_met                           boolean,
-                update_date                      timestamptz
+                update_date                      timestamptz,
+                severe_sepsis_onset              timestamptz,
+                severe_sepsis_wo_infection_onset timestamptz,
+                septic_shock_onset               timestamptz
   )
  LANGUAGE plpgsql
 AS $function$
@@ -179,9 +182,108 @@ BEGIN
            false                             as is_met,
            now()                             as update_date
     from pat_ids P
+  ),
+  severe_sepsis_wo_infection as (
+    select CO.pat_id,
+           false                as suspicion_of_infection,
+           sum(CO.sirs_cnt)     as sirs_cnt,
+           sum(CO.org_df_cnt)   as org_df_cnt,
+           null::timestamptz    as inf_onset,
+           max(CO.sirs_initial) as sirs_initial,
+           max(CO.sirs_onset)   as sirs_onset,
+           max(CO.org_df_onset) as org_df_onset
+    from (
+      select S.pat_id,
+
+             sum(case when S.name in ('sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc') and S.is_met
+                      then 1
+                      else 0
+                 end) as sirs_cnt,
+
+             (array_agg(
+                (case
+                  when S.name in ('sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc') and S.is_met
+                  then S.measurement_time else null end
+                ) order by S.measurement_time)
+              )[1] as sirs_initial,
+
+             (array_agg(
+                (case
+                  when S.name in ('sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc') and S.is_met
+                  then S.measurement_time else null end
+                ) order by S.measurement_time)
+              )[2] as sirs_onset,
+
+             sum(case when S.name in (
+                        'respiratory_failure',
+                        'blood_pressure', 'mean_arterial_pressure', 'decrease_in_sbp', 'creatinine', 'bilirubin', 'platelet', 'inr', 'lactate'
+                      )
+                      and S.is_met
+                      then 1
+                      else 0
+                 end
+             ) as org_df_cnt,
+
+             min(case when S.name in (
+                        'respiratory_failure',
+                        'blood_pressure', 'mean_arterial_pressure', 'decrease_in_sbp', 'creatinine', 'bilirubin', 'platelet', 'inr', 'lactate'
+                      )
+                      and S.is_met
+                      then S.measurement_time
+                      else null
+                 end
+              ) as org_df_onset
+      from sirs_and_org_df_criteria S
+      group by S.pat_id
+    ) CO
+    where greatest(CO.sirs_onset, CO.org_df_onset) - least(CO.sirs_initial, CO.org_df_onset) < window_size
+    group by CO.pat_id
+  ),
+  severe_sepsis_onsets as (
+    select sspm.pat_id,
+           sspm.severe_sepsis_is_met,
+           (case when sspm.severe_sepsis_onset <> 'infinity'::timestamptz
+                 then sspm.severe_sepsis_onset
+                 else null end
+           ) as severe_sepsis_onset,
+           (case when sspm.severe_sepsis_wo_infection_onset <> 'infinity'::timestamptz
+                 then sspm.severe_sepsis_wo_infection_onset
+                 else null end
+           ) as severe_sepsis_wo_infection_onset,
+           sspm.severe_sepsis_lead_time
+    from (
+      select stats.pat_id,
+             coalesce(bool_or(stats.suspicion_of_infection
+                                and stats.sirs_cnt > 1
+                                and stats.org_df_cnt > 0)
+                      , false
+                      ) as severe_sepsis_is_met,
+
+             max(greatest(coalesce(stats.inf_onset, 'infinity'::timestamptz),
+                          coalesce(stats.sirs_onset, 'infinity'::timestamptz),
+                          coalesce(stats.org_df_onset, 'infinity'::timestamptz))
+                 ) as severe_sepsis_onset,
+
+             max(greatest(coalesce(stats.sirs_onset, 'infinity'::timestamptz),
+                          coalesce(stats.org_df_onset, 'infinity'::timestamptz))
+                 ) as severe_sepsis_wo_infection_onset,
+
+             min(least(stats.inf_onset, stats.sirs_initial, stats.org_df_onset))
+                as severe_sepsis_lead_time
+
+      from severe_sepsis_wo_infection stats
+      group by stats.pat_id
+    ) sspm
   )
-  select * from sirs_and_org_df_criteria
-  union all select * from null_infections;
+  select new_criteria.*,
+         SSP.severe_sepsis_onset,
+         SSP.severe_sepsis_wo_infection_onset,
+         null::timestamptz as septic_shock_onset
+  from (
+      select * from sirs_and_org_df_criteria
+      union all select * from null_infections
+  ) new_criteria
+  left join severe_sepsis_onsets SSP on new_criteria.pat_id = SSP.pat_id;
 
   return;
 END; $function$;
