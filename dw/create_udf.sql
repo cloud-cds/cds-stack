@@ -623,22 +623,31 @@ format('select stats.ts, stats.pat_id,
 from
 (
 select %I.ts, %I.pat_id,
-    count(*) filter (where name = ''suspicion_of_infection'' and is_met) as sus_count,
+    count(*) filter (where name = ''suspicion_of_infection'' and is_met)                                                            as sus_count,
     count(*) filter (where name = ''suspicion_of_infection'' and (not is_met) and override_value#>>''{0,text}'' = ''No Infection'') as sus_noinf_count,
-    count(*) filter (where name = ''suspicion_of_infection'' and (not is_met) and override_value is null) as sus_null_count,
-    count(*) filter (where name = ''crystalloid_fluid'' and is_met) as fluid_count,
-    count(*) filter (where name = ''initial_lactate'' and is_met) as hypoperfusion_count,
-    count(*) filter (where name in (''sirs_temp'',''heart_rate'',''respiratory_rate'',''wbc'') and is_met ) as sirs_count,
-    count(*) filter (where name in (''blood_pressure'',''mean_arterial_pressure'',''decrease_in_sbp'',''respiratory_failure'',''creatinine'',''bilirubin'',''platelet'',''inr'',''lactate'') and is_met ) as organ_count,
-    count(*) filter (where name in (''systolic_bp'',''hypotension_map'',''hypotension_dsbp'') and is_met ) as hypotension_count,
-    count(*) filter (where name in (''initial_lactate_order'',''blood_culture_order'',''antibiotics_order'', ''crystalloid_fluid_order'') and is_met ) as sev_sep_3hr_count,
-    count(*) filter (where name = ''repeat_lactate_order'' and is_met ) as sev_sep_6hr_count,
-    count(*) filter (where name = ''vasopressors_order'' and is_met ) as sep_sho_6hr_count,
-    first(override_time) filter (where name = ''suspicion_of_infection'' and is_met) as sus_onset,
-    (array_agg(measurement_time order by measurement_time)  filter (where name in (''sirs_temp'',''heart_rate'',''respiratory_rate'',''wbc'') and is_met ) )[2]   as sirs_onset,
-    min(measurement_time) filter (where name in (''blood_pressure'',''mean_arterial_pressure'',''decrease_in_sbp'',''respiratory_failure'',''creatinine'',''bilirubin'',''platelet'',''inr'',''lactate'') and is_met ) as organ_onset,
-    min(measurement_time) filter (where name in (''systolic_bp'',''hypotension_map'',''hypotension_dsbp'') and is_met ) as hypotension_onset,
-    min(measurement_time) filter (where name = ''initial_lactate'' and is_met) as hypoperfusion_onset
+    count(*) filter (where name = ''suspicion_of_infection'' and (not is_met) and override_value is null)                           as sus_null_count,
+    count(*) filter (where name = ''crystalloid_fluid'' and is_met)                                                                 as fluid_count,
+    count(*) filter (where name = ''initial_lactate'' and is_met)                                                                   as hypoperfusion_count,
+    count(*) filter (where name in (''sirs_temp'',''heart_rate'',''respiratory_rate'',''wbc'')
+                        and is_met
+                        and severe_sepsis_wo_infection_onset is not null )                                                          as sirs_count,
+    count(*) filter (where name in (''blood_pressure'',''mean_arterial_pressure'',''decrease_in_sbp'',''respiratory_failure'',
+                                    ''creatinine'',''bilirubin'',''platelet'',''inr'',''lactate'')
+                        and is_met
+                        and severe_sepsis_wo_infection_onset is not null )                                                          as organ_count,
+    count(*) filter (where name in (''systolic_bp'',''hypotension_map'',''hypotension_dsbp'') and is_met )                          as hypotension_count,
+    count(*) filter (where name in (''initial_lactate_order'',''blood_culture_order'',
+                                    ''antibiotics_order'', ''crystalloid_fluid_order'') and is_met )                                as sev_sep_3hr_count,
+    count(*) filter (where name = ''repeat_lactate_order'' and is_met )                                                             as sev_sep_6hr_count,
+    count(*) filter (where name = ''vasopressors_order'' and is_met )                                                               as sep_sho_6hr_count,
+    first(override_time) filter (where name = ''suspicion_of_infection'' and is_met)                                                as sus_onset,
+    (array_agg(measurement_time order by measurement_time)
+       filter (where name in (''sirs_temp'',''heart_rate'',''respiratory_rate'',''wbc'') and is_met ) )[2]                          as sirs_onset,
+    min(measurement_time)
+       filter (where name in (''blood_pressure'',''mean_arterial_pressure'',''decrease_in_sbp'',''respiratory_failure'',
+                              ''creatinine'',''bilirubin'',''platelet'',''inr'',''lactate'') and is_met )                           as organ_onset,
+    min(measurement_time) filter (where name in (''systolic_bp'',''hypotension_map'',''hypotension_dsbp'') and is_met )             as hypotension_onset,
+    min(measurement_time) filter (where name = ''initial_lactate'' and is_met)                                                      as hypoperfusion_onset
 from %I
 where %I.pat_id = coalesce($1, %I.pat_id)
 group by %I.ts, %I.pat_id
@@ -777,6 +786,7 @@ BEGIN
   -- raise notice 'Running calculate criteria on pat %, dataset_id % between %, %',this_pat_id, _dataset_id, ts_start , ts_end;
 
   return query
+
   with pat_visit_ids as (
     select distinct P.pat_id, P.visit_id from pat_enc P
     where P.pat_id = coalesce(this_pat_id, P.pat_id) and P.dataset_id = _dataset_id
@@ -1149,7 +1159,7 @@ BEGIN
                     ) as is_met
             from criteria_meas MFL
             left join pat_weights PW on MFL.pat_id = PW.pat_id
-            left join severe_sepsis_now SSPN on MFL.pat_id = SSPN.pat_id
+            left join severe_sepsis_onsets SSPN on MFL.pat_id = SSPN.pat_id
             left join pat_fluid_overrides OV on MFL.pat_id = OV.pat_id
             where isnumeric(MFL.value)
             and SSPN.severe_sepsis_is_met
@@ -1567,7 +1577,8 @@ BEGIN
                              window_ends.tsp,
                              %s, %s) new_criteria
         on window_ends.pat_id = new_criteria.pat_id;'
-        ,_dataset_id,  pat_id_str, _dataset_id, ts_start, ts_end, window_limit, pat_id_str, window_size, _dataset_id, use_clarity_notes_str);
+        , _dataset_id,  pat_id_str, _dataset_id, ts_start, ts_end, window_limit
+        , pat_id_str, window_size, _dataset_id, use_clarity_notes_str);
 
 
     insert into historical_criteria (pat_id, dataset_id, pat_state, window_ts)
@@ -2239,345 +2250,3 @@ begin
 end $func$ LANGUAGE plpgsql;
 
 
---------------------------------------------------
--- Columnar criteria report for a patient-window.
---------------------------------------------------
-create or replace function humanize_report_timestamp(reference timestamptz, ts timestamptz)
-  returns text language plpgsql
-as $func$ begin
-  return
-  case when reference is null and date_part('year', ts) = date_part('year', current_timestamp)
-       then to_char(ts, 'MM-DD HH24:MI')
-
-       when date_part('day', ts) = date_part('day', reference)
-            and date_part('month', ts) = date_part('month', reference)
-            and date_part('year', ts) = date_part('year', reference)
-       then to_char(ts, 'HH24:MI')
-
-       when date_part('year', ts) = date_part('year', reference)
-       then to_char(ts, 'MM-DD HH24:MI')
-
-       else to_char(ts, 'MM-DD-YY HH24:MI')
-  end;
-end; $func$;
-
-create or replace function humanize_report_infection(value json)
-  returns text language plpgsql
-as $func$
-declare
-  bvalue jsonb := value::jsonb;
-begin
-  return
-    case when bvalue is null then null
-         when jsonb_array_length(bvalue) > 1 and (bvalue->0) ? ('text'::text)
-         then '# Matches: '
-              || jsonb_array_length(bvalue)::text
-              || ', First: '
-              || ((bvalue->0)->>'text')
-
-         when jsonb_array_length(bvalue) > 0 and (bvalue->0) ? ('text'::text)
-         then (bvalue->0)->>'text'
-         else bvalue::text
-    end;
-end; $func$;
-
-create or replace function humanize_report_note(value text, t text)
-  returns text language plpgsql
-as $func$ begin
-  return
-  case when value is null or t is null
-       then null
-       else 'Note @' || t || ': ' || value
-  end;
-end; $func$;
-
-create or replace function humanize_report_entry(tag text, value text, t text)
-  returns text language plpgsql
-as $func$ begin
-  return
-  case when value is null or t is null
-       then null
-       else tag || ': ' || value || ' @' || t
-  end;
-end; $func$;
-
-
-create or replace function criteria_window_report(this_pat_id text,
-                                                  ts_start    timestamptz,
-                                                  ts_end      timestamptz,
-                                                  dataset_id  integer)
-  returns table ( pat_id                            varchar(50),
-                  severe_sepsis_onset               text,
-                  sirs_organ_dys_onset              text,
-                  septic_shock_onset                text,
-                  antibiotics_order_met             text,
-                  antibiotics_order_t               text,
-                  antibiotics_order_value           text,
-                  bilirubin_t                       text,
-                  bilirubin_value                   text,
-                  blood_culture_order_met           text,
-                  blood_culture_order_t             text,
-                  blood_culture_order_value         text,
-                  blood_pressure_t                  text,
-                  blood_pressure_value              text,
-                  creatinine_t                      text,
-                  creatinine_value                  text,
-                  crystalloid_fluid_t               text,
-                  crystalloid_fluid_value           text,
-                  crystalloid_fluid_order_met       text,
-                  crystalloid_fluid_order_t         text,
-                  crystalloid_fluid_order_value     text,
-                  decrease_in_sbp_t                 text,
-                  decrease_in_sbp_value             text,
-                  heart_rate_t                      text,
-                  heart_rate_value                  text,
-                  hypotension_dsbp_t                text,
-                  hypotension_dsbp_value            text,
-                  hypotension_map_t                 text,
-                  hypotension_map_value             text,
-                  initial_lactate_t                 text,
-                  initial_lactate_value             text,
-                  initial_lactate_order_met         text,
-                  initial_lactate_order_t           text,
-                  initial_lactate_order_value       text,
-                  inr_t                             text,
-                  inr_value                         text,
-                  lactate_t                         text,
-                  lactate_value                     text,
-                  mean_arterial_pressure_t          text,
-                  mean_arterial_pressure_value      text,
-                  platelet_t                        text,
-                  platelet_value                    text,
-                  repeat_lactate_order_met          text,
-                  repeat_lactate_order_t            text,
-                  repeat_lactate_order_value        text,
-                  respiratory_failure_t             text,
-                  respiratory_failure_value         text,
-                  respiratory_rate_t                text,
-                  respiratory_rate_value            text,
-                  sirs_temp_t                       text,
-                  sirs_temp_value                   text,
-                  suspicion_of_infection_t          text,
-                  suspicion_of_infection_value      text,
-                  systolic_bp_t                     text,
-                  systolic_bp_value                 text,
-                  vasopressors_order_met            text,
-                  vasopressors_order_t              text,
-                  vasopressors_order_value          text,
-                  wbc_t                             text,
-                  wbc_value                         text
-                )
-  language plpgsql
-as $func$ begin
-  return query
-  select  R.pat_id,
-          humanize_report_timestamp(null, R.severe_sepsis_onset),
-          humanize_report_timestamp(R.severe_sepsis_onset, R.severe_sepsis_wo_infection_onset) as sirs_organ_dys_onset,
-          humanize_report_timestamp(R.severe_sepsis_onset, R.septic_shock_onset),
-          R.o#>>'{antibiotics_order, met}'         as antibiotics_order_met,
-          R.o#>>'{antibiotics_order, t}'           as antibiotics_order_t,
-          R.o#>>'{antibiotics_order, value}'       as antibiotics_order_value,
-          R.o#>>'{bilirubin, t}'                   as bilirubin_t,
-          R.o#>>'{bilirubin, value}'               as bilirubin_value,
-          R.o#>>'{blood_culture_order, met}'       as blood_culture_order_met,
-          R.o#>>'{blood_culture_order, t}'         as blood_culture_order_t,
-          R.o#>>'{blood_culture_order, value}'     as blood_culture_order_value,
-          R.o#>>'{blood_pressure, t}'              as blood_pressure_t,
-          R.o#>>'{blood_pressure, value}'          as blood_pressure_value,
-          R.o#>>'{creatinine, t}'                  as creatinine_t,
-          R.o#>>'{creatinine, value}'              as creatinine_value,
-          R.o#>>'{crystalloid_fluid, t}'           as crystalloid_fluid_t,
-          R.o#>>'{crystalloid_fluid, value}'       as crystalloid_fluid_value,
-          R.o#>>'{crystalloid_fluid_order, met}'   as crystalloid_fluid_order_met,
-          R.o#>>'{crystalloid_fluid_order, t}'     as crystalloid_fluid_order_t,
-          R.o#>>'{crystalloid_fluid_order, value}' as crystalloid_fluid_order_value,
-          R.o#>>'{decrease_in_sbp, t}'             as decrease_in_sbp_t,
-          R.o#>>'{decrease_in_sbp, value}'         as decrease_in_sbp_value,
-          R.o#>>'{heart_rate, t}'                  as heart_rate_t,
-          R.o#>>'{heart_rate, value}'              as heart_rate_value,
-          R.o#>>'{hypotension_dsbp, t}'            as hypotension_dsbp_t,
-          R.o#>>'{hypotension_dsbp, value}'        as hypotension_dsbp_value,
-          R.o#>>'{hypotension_map, t}'             as hypotension_map_t,
-          R.o#>>'{hypotension_map, value}'         as hypotension_map_value,
-          R.o#>>'{initial_lactate, t}'             as initial_lactate_t,
-          R.o#>>'{initial_lactate, value}'         as initial_lactate_value,
-          R.o#>>'{initial_lactate_order, met}'     as initial_lactate_order_met,
-          R.o#>>'{initial_lactate_order, t}'       as initial_lactate_order_t,
-          R.o#>>'{initial_lactate_order, value}'   as initial_lactate_order_value,
-          R.o#>>'{inr, t}'                         as inr_t,
-          R.o#>>'{inr, value}'                     as inr_value,
-          R.o#>>'{lactate, t}'                     as lactate_t,
-          R.o#>>'{lactate, value}'                 as lactate_value,
-          R.o#>>'{mean_arterial_pressure, t}'      as mean_arterial_pressure_t,
-          R.o#>>'{mean_arterial_pressure, value}'  as mean_arterial_pressure_value,
-          R.o#>>'{platelet, t}'                    as platelet_t,
-          R.o#>>'{platelet, value}'                as platelet_value,
-          R.o#>>'{repeat_lactate_order, met}'      as repeat_lactate_order_met,
-          R.o#>>'{repeat_lactate_order, t}'        as repeat_lactate_order_t,
-          R.o#>>'{repeat_lactate_order, value}'    as repeat_lactate_order_value,
-          R.o#>>'{respiratory_failure, t}'         as respiratory_failure_t,
-          R.o#>>'{respiratory_failure, value}'     as respiratory_failure_value,
-          R.o#>>'{respiratory_rate, t}'            as respiratory_rate_t,
-          R.o#>>'{respiratory_rate, value}'        as respiratory_rate_value,
-          R.o#>>'{sirs_temp, t}'                   as sirs_temp_t,
-          R.o#>>'{sirs_temp, value}'               as sirs_temp_value,
-          R.o#>>'{suspicion_of_infection, t}'      as suspicion_of_infection_t,
-          R.o#>>'{suspicion_of_infection, value}'  as suspicion_of_infection_value,
-          R.o#>>'{systolic_bp, t}'                 as systolic_bp_t,
-          R.o#>>'{systolic_bp, value}'             as systolic_bp_value,
-          R.o#>>'{vasopressors_order, met}'        as vasopressors_order_met,
-          R.o#>>'{vasopressors_order, t}'          as vasopressors_order_t,
-          R.o#>>'{vasopressors_order, value}'      as vasopressors_order_value,
-          R.o#>>'{wbc, t}'                         as wbc_t,
-          R.o#>>'{wbc, value}'                     as wbc_value
-  from (
-    select  C.pat_id, C.severe_sepsis_onset, C.severe_sepsis_wo_infection_onset, C.septic_shock_onset,
-            json_object_agg(C.name,
-              case when C.name = 'suspicion_of_infection'
-                    then json_object('{t, value}', ARRAY[
-                           humanize_report_timestamp(C.severe_sepsis_onset, coalesce(C.override_time, C.measurement_time)),
-                           coalesce(humanize_report_infection(C.override_value), C.value)::text
-                         ]::text[])
-
-                   when C.name like '%_order'
-                    then json_object('{t, value, met}', ARRAY[
-                           humanize_report_timestamp(C.severe_sepsis_onset, coalesce(C.override_time, C.measurement_time)),
-                           coalesce(C.override_value::text, C.value)::text,
-                           C.is_met::text
-                         ]::text[])
-
-                   when C.is_met
-                    then json_object('{t, value}', ARRAY[
-                           humanize_report_timestamp(C.severe_sepsis_onset, coalesce(C.override_time, C.measurement_time)),
-                           coalesce(C.override_value::text, C.value)::text
-                         ]::text[])
-
-                   else null
-              end
-            ) as o
-    from calculate_criteria(this_pat_id, ts_start, ts_end, dataset_id) C
-    group by C.pat_id, C.severe_sepsis_onset, C.severe_sepsis_wo_infection_onset, C.septic_shock_onset
-  ) R
-  order by pat_id;
-end; $func$;
-
-
-create or replace function criteria_report(this_pat_state  integer,
-                                           this_dataset_id integer)
-  returns table ( pat_worst_state                   integer,
-                  pat_id                            varchar(50),
-                  severe_sepsis_onset               text,
-                  sirs_organ_dys_onset              text,
-                  septic_shock_onset                text,
-                  infection                         text,
-                  sirs_criteria                     text,
-                  org_df_criteria                   text,
-                  septic_shock_criteria             text,
-                  orders                            text
-  )
-language plpgsql
-as $func$ begin
-  return query
-    select WS.max_state as pat_worst_state,
-           Report.pat_id,
-           Report.severe_sepsis_onset,
-           Report.sirs_organ_dys_onset,
-           Report.septic_shock_onset,
-
-           humanize_report_note(suspicion_of_infection_value, suspicion_of_infection_t)
-            as infection,
-
-           array_to_string(array_remove(
-            ARRAY[
-              humanize_report_entry( 'TEMP', sirs_temp_value, sirs_temp_t ),
-              humanize_report_entry( 'HR', heart_rate_value, heart_rate_t ),
-              humanize_report_entry( 'RR', respiratory_rate_value, respiratory_rate_t ),
-              humanize_report_entry( 'WBC', wbc_value, wbc_t )
-            ],
-           NULL), ' ', '') as sirs_criteria,
-
-           array_to_string(array_remove(
-            ARRAY[
-              humanize_report_entry( 'SBP', systolic_bp_value, systolic_bp_t),
-              humanize_report_entry( 'MAP', mean_arterial_pressure_value, mean_arterial_pressure_t ),
-              humanize_report_entry( 'DSBP', decrease_in_sbp_value, decrease_in_sbp_t ),
-              humanize_report_entry( 'RSPF', respiratory_failure_value, respiratory_failure_t ),
-              humanize_report_entry( 'CRT', creatinine_value, creatinine_t ),
-              humanize_report_entry( 'BILI', bilirubin_value, bilirubin_t ),
-              humanize_report_entry( 'PLT', platelet_value, platelet_t ),
-              humanize_report_entry( 'INR', inr_value, inr_t ),
-              humanize_report_entry( 'BP', blood_pressure_value, blood_pressure_t ),
-              humanize_report_entry( 'LC', lactate_value, lactate_t )
-            ]::text[],
-           NULL), ' ', '') as org_df_criteria,
-
-           array_to_string(array_remove(
-            ARRAY[
-              humanize_report_entry( 'FLD', crystalloid_fluid_value, crystalloid_fluid_t ),
-              humanize_report_entry( 'HT_DBSP', hypotension_dsbp_value, hypotension_dsbp_t ),
-              humanize_report_entry( 'HT_MAP', hypotension_map_value, hypotension_map_t ),
-              humanize_report_entry( 'ILC', initial_lactate_value, initial_lactate_t )
-            ]::text[],
-           NULL), ' ', '') as septic_shock_criteria,
-
-           array_to_string(array_remove(
-             ARRAY[
-              humanize_report_entry(
-                'AB',
-                antibiotics_order_value || (case when antibiotics_order_met::boolean then '✓' else '' end),
-                antibiotics_order_t
-                )
-             ,
-              humanize_report_entry(
-                'BC',
-                blood_culture_order_value || (case when blood_culture_order_met::boolean then '✓' else '' end),
-                blood_culture_order_t
-              )
-             ,
-              humanize_report_entry(
-                'FL',
-                crystalloid_fluid_order_value || (case when crystalloid_fluid_order_met::boolean then '✓' else '' end),
-                crystalloid_fluid_order_t
-              )
-             ,
-              humanize_report_entry(
-                'ILC',
-                initial_lactate_order_value || (case when initial_lactate_order_met::boolean then '✓' else '' end),
-                initial_lactate_order_t
-              )
-             ,
-              humanize_report_entry(
-                'RLC',
-                repeat_lactate_order_value || (case when repeat_lactate_order_met::boolean then '✓' else '' end),
-                repeat_lactate_order_t
-              )
-             ,
-              humanize_report_entry(
-                'VP',
-                vasopressors_order_value || (case when vasopressors_order_met::boolean then '✓' else '' end),
-                vasopressors_order_t
-              )
-             ]::text[],
-           NULL), ' ', '') as orders
-    from (
-      select R2.pat_id, R2.dataset_id, min(R2.window_ts) as window_ts, max(R2.pat_state) as max_state
-      from (
-        select HC.pat_id, max(HC.pat_state) as pat_state
-        from historical_criteria HC
-        where HC.dataset_id = coalesce(this_dataset_id, HC.dataset_id)
-        group by HC.pat_id
-      ) R1
-      inner join historical_criteria R2
-          on R1.pat_id = R2.pat_id
-          and R1.pat_state = R2.pat_state
-      where R1.pat_state = coalesce(this_pat_state, R1.pat_state)
-      and R2.dataset_id = coalesce(this_dataset_id, R2.dataset_id)
-      group by R2.pat_id, R2.dataset_id
-    ) WS
-    inner join lateral criteria_window_report(
-      WS.pat_id, WS.window_ts - interval '6 hours', WS.window_ts, WS.dataset_id
-    ) Report
-      on WS.pat_id = Report.pat_id
-    order by WS.max_state desc, Report.pat_id
-    ;
-end; $func$;
