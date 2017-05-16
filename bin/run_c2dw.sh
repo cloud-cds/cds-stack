@@ -2,6 +2,7 @@
 
 
 echo -n "Mounting Clarity ETL S3 bucket... "
+service rsyslog start
 cd bin
 ./goofys opsdx-clarity-etl-stage $clarity_stage_mnt
 
