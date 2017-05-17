@@ -148,9 +148,7 @@ class TREWSStaticResource(web.View):
         params = dict(urllib.parse.parse_qsl(param_str)) if param_str else None
 
         if log_decryption:
-          decrypt_msg = 'Decrypted %s\n\tfrom\n\tbytes: %s\n\tstr: %s' \
-                            % (str(params), str(param_bytes), param_str)
-          logging.info(decrypt_msg)
+          logging.info('Decrypted %s' % str(params))
 
         if params is not None and 'USERID' in params and 'PATID' in params:
 

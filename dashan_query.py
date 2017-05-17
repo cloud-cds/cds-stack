@@ -26,13 +26,14 @@ client_secret = os.environ['jhapi_client_secret']
 # For a patient, returns time series of:
 # - trews scores
 # - top 3 features that contributed to the each time point
-async def get_trews_contributors(db_pool, pat_id):
+async def get_trews_contributors(db_pool, pat_id, use_trews_lmc=False):
   rank_limit = 3
+  contributor_fn = 'calculate_lmc_contributors' if use_trews_lmc else 'calculate_trews_contributors'
   get_contributors_sql = \
   '''
   with trews_contributors as (
       select enc_id, tsp, trewscore, fid, cdm_value, rnk
-      from calculate_trews_contributors('%(pid)s', %(rank_limit)s)
+      from %(fn)s('%(pid)s', %(rank_limit)s)
             as R(enc_id, tsp, trewscore, fid, trews_value, cdm_value, rnk)
   ),
   latest_2_enc_ids as (
@@ -56,7 +57,7 @@ async def get_trews_contributors(db_pool, pat_id):
   select tsp, trewscore, fid, cdm_value, rnk from trews_contributors
   where enc_id in (select enc_id from desired_enc_ids)
   order by tsp
-  ''' % {'pid': pat_id, 'rank_limit': rank_limit}
+  ''' % {'fn': contributor_fn, 'pid': pat_id, 'rank_limit': rank_limit}
 
   # get_contributors_sql = \
   # '''
