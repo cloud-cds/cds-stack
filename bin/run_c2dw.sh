@@ -3,8 +3,8 @@
 DATE=`date +%Y-%m-%d`
 
 echo -n "Mounting Clarity ETL S3 bucket... "
-cd bin
-./goofys opsdx-clarity-etl-stage $clarity_stage_mnt
+service rsyslog start
+./bin/goofys opsdx-clarity-etl-stage $clarity_stage_mnt
 
 if [ ! -d "$clarity_stage_mnt/ssis/" ]; then
   echo "[FAILED]"
@@ -34,6 +34,7 @@ fi
 
 # loading clarity stage file to database
 echo -n "Loading C2DW staging tables in the data warehouse... "
+cd bin
 ./mk_load_clarity_sql.sh ${clarity_stage_mnt}/ssis/ clarity_daily csv
 export PGPASSWORD=$db_password
 psql -h $db_host -U $db_user -d $db_name -p $db_port -f load_clarity.clarity_daily.sql
