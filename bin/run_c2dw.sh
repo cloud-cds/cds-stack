@@ -5,10 +5,10 @@ DATE=`date +%Y-%m-%d`
 echo -n "Mounting Clarity ETL S3 bucket... "
 service rsyslog start
 ./bin/goofys opsdx-clarity-etl-stage $clarity_stage_mnt
-
+sleep 3
 if [ ! -d "$clarity_stage_mnt/ssis/" ]; then
   echo "[FAILED]"
-  exit 1
+  exit 0
 else
   echo "[OK]"
 fi
@@ -42,7 +42,7 @@ status=$?
 
 if [ $status -ne 0 ]; then
   echo "[FAILED]"
-  exit 1
+  exit 0
 else
   echo "[OK]"
 fi
@@ -55,7 +55,7 @@ status=$?
 
 if [ $status -ne 0 ]; then
   echo "[FAILED]"
-  exit 1
+  exit 0
 else
   echo "[OK]"
 fi
