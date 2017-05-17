@@ -38,7 +38,7 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: trews-rest-api
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.1.2
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.1.5
         command:
           - "sh"
           - "start-dev.sh"
@@ -90,6 +90,25 @@ spec:
             secretKeyRef:
               name: rest-api-db-secrets
               key: aws-secret-access-key
+        - name: querystring_key
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: querystring-key
+        - name: trews_app_key
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: trews-app-key
+        - name: trews_admin_key
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: trews-admin-key
+        - name: log_decryption
+          value: "1"
+        - name: trews_open_access
+          value: "true"
         - name: epic_notifications
           value: "0"
         - name: logging

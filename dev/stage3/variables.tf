@@ -174,6 +174,10 @@ variable "k8s_epic2op_image" {
   description = "Epic2Op Docker image"
 }
 
+variable "k8s_c2dw_image" {
+  description = "C2DW Docker image"
+}
+
 variable "k8s_op2dw_image" {
   description = "Op2DW Docker image"
 }

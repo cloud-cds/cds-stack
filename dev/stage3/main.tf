@@ -228,9 +228,6 @@ module "analysis_publishing" {
   db_password  = "${var.db_password}"
 }
 
-
-
-
 module "monitor" {
   source = "./services/monitor"
   deploy_prefix = "${var.deploy_prefix}"
@@ -242,4 +239,49 @@ module "monitor" {
   slack_hook     = "${var.slack_hook}"
   slack_channel  = "${var.slack_channel}"
   slack_watchers = "${var.slack_watchers}"
+}
+
+
+module "c2dw_daily_etl" {
+  source = "./services/c2dw_etl"
+
+  deploy_prefix = "${var.deploy_prefix}"
+  local_shell   = "${var.local_shell}"
+
+  s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
+  aws_klaunch_lambda_package = "${var.aws_klaunch_lambda_package}"
+  aws_klaunch_lambda_role_arn = "${var.aws_klaunch_lambda_role_arn}"
+
+  c2dw_etl_lambda_cron = "0 12 * * ? *"
+
+  k8s_server_host = "${var.k8s_server_host}"
+  k8s_server_port = "${var.k8s_server_port}"
+
+  k8s_name      = "${var.k8s_name}"
+  k8s_server    = "${var.k8s_server}"
+  k8s_user      = "${var.k8s_user}"
+  k8s_pass      = "${var.k8s_pass}"
+  k8s_image     = "${var.k8s_c2dw_image}"
+  k8s_cert_auth = "${var.k8s_cert_auth}"
+  k8s_cert      = "${var.k8s_cert}"
+  k8s_key       = "${var.k8s_key}"
+  k8s_token     = "${var.k8s_token}"
+
+  k8s_privileged = "true"
+
+  db_host             = "db.${var.domain}"
+  db_name             = "${replace(var.deploy_prefix, "-", "_")}"
+  db_username         = "${var.db_username}"
+  db_password         = "${var.db_password}"
+
+  clarity_stage_mnt   = "/mnt"
+  dataset_id          = "7"
+  incremental         = "True"
+  remove_pat_enc      = "False"
+  remove_data         = "False"
+  start_enc_id        = "-1"
+  clarity_workspace   = "clarity_daily"
+  nprocs              = "8"
+  num_derive_groups   = "8"
+  vacuum_temp_table   = "True"
 }

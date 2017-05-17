@@ -80,8 +80,15 @@ users:
   job_container = {
     "name"  : job_name,
     "image" : os.environ["kube_image"],
-    "env"   : job_env
+    "env"   : job_env,
   }
+
+  if "kube_privileged" in os.environ:
+    p_mode = os.environ['kube_privileged']
+    print('Job {} privileged mode: {}'.format(job_name, p_mode))
+    job_container['securityContext'] = {
+      'privileged': p_mode
+    }
 
   if len(cmd_array) > 0:
     job_container['command'] = cmd_array

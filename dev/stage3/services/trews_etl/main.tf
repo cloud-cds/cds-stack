@@ -1,5 +1,5 @@
 ############################
-# ETL via AWS Lambda
+# Epic2Op ETL via AWS Lambda
 
 variable "deploy_prefix" {}
 
@@ -46,7 +46,7 @@ variable "TREWS_ETL_EPIC_NOTIFICATIONS" {}
 variable "local_shell" {}
 
 
-# ETL Lambda functions for production and development databases.
+# A Lambda function for periodic ETL.
 
 resource "aws_lambda_function" "etl_lambda" {
 
