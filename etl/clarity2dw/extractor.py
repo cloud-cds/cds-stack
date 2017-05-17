@@ -55,12 +55,8 @@ class Extractor:
     async with ctxt.db_pool.acquire() as conn:
       ctxt.log.info(sql)
       await conn.execute(sql)
-    if self.job.get('incremental', False):
-      ctxt.log.info("skip reset_dataset for incremental ETL")
-    else:
-      async with ctxt.db_pool.acquire() as conn:
-        await self.reset_dataset(conn, ctxt)
-        ctxt.log.info("completed extract_init task")
+      await self.init_dataset(conn, ctxt)
+      ctxt.log.info("completed extract_init task")
     return None
 
   async def query_cdm_feature_dict(self, conn):
@@ -69,11 +65,11 @@ class Extractor:
     self.cdm_feature_dict = {f['fid']:f for f in cdm_feature}
     return None
 
-  async def reset_dataset(self, conn, ctxt):
-    ctxt.log.info("reset_dataset")
-    reset_job = self.job.get('reset_dataset', {})
+  async def init_dataset(self, conn, ctxt):
+    ctxt.log.info("init_dataset")
+    init_dataset_job = self.job.get('extract_init', {})
     reset_sql = ''
-    if reset_job.get('remove_data', False):
+    if init_dataset_job.get('remove_data', False):
       reset_sql += '''
       delete from cdm_s where dataset_id = %(dataset_id)s;
       delete from cdm_t where dataset_id = %(dataset_id)s;
@@ -81,18 +77,19 @@ class Extractor:
       delete from cdm_notes where dataset_id = %(dataset_id)s;
       delete from criteria_meas where dataset_id = %(dataset_id)s;
       ''' % {'dataset_id': self.dataset_id}
-    if reset_job.get('remove_pat_enc', False):
+    if init_dataset_job.get('remove_pat_enc', False):
       reset_sql += '''
       delete from trews where dataset_id = %(dataset_id)s;
       delete from pat_enc where dataset_id = %(dataset_id)s;
       ''' % {'dataset_id': self.dataset_id}
-    if 'start_enc_id' in reset_job:
-      reset_sql += "select setval('pat_enc_enc_id_seq', %s);" % reset_job['start_enc_id']
+    if 'start_enc_id' in init_dataset_job and init_dataset_job.get('start_enc_id', 0) > 0:
+      reset_sql += "select setval('pat_enc_enc_id_seq', %s);" % init_dataset_job['start_enc_id']
     if reset_sql:
       ctxt.log.info("ETL init sql: " + reset_sql)
       result = await conn.execute(reset_sql)
       ctxt.log.info("ETL Init: " + result)
     return None
+
 
   async def populate_patients(self, ctxt, _):
     if self.job.get('transform', False):
@@ -110,7 +107,7 @@ class Extractor:
           FROM %(workspace)s."Demographics" demo %(min_tsp)s %(limit)s
           ON CONFLICT(dataset_id, visit_id, pat_id) DO %(do)s
           ''' % {'dataset_id': self.dataset_id,
-                 'min_tsp': ''' and "HOSP_ADMSN_TIME" >= '{}'::timestamptz'''\
+                 'min_tsp': ''' where "HOSP_ADMSN_TIME" >= '{}'::timestamptz'''\
                     .format(self.min_tsp) if self.min_tsp else '',
                  'limit': 'limit {}'.format(limit) if limit else '',
                  'meta_data': "json_build_object('pending', true)" \
@@ -169,11 +166,11 @@ class Extractor:
   def partition(self, lst, n, random_shuffle=False):
     if random_shuffle:
       random.shuffle(lst)
-    division = len(lst) / n
-    return [lst[round(division) * i:round(division) * (i + 1)] for i in range(n)]
+    division = round(len(lst) / n)
+    return [lst[i:i + division] for i in range(0, len(lst), division)]
 
     # # TEST CASE B
-    # lst = lst[:40]
+    # lst = lst[-5:]
     # division = len(lst) // n
     # return [lst[division * i:division * (i + 1)] for i in range(n)]
 
@@ -181,6 +178,7 @@ class Extractor:
     # lst_vent = None
     # lst_med = None
     # lst_bands = None
+    # lst_bco = None
     # for item in lst:
     #   if item['fid(s)'] == 'vent':
     #     lst_vent = item
@@ -200,8 +198,11 @@ class Extractor:
     #     lst_hematocrit = item
     #   if item['fid(s)'] == 'cms_antibiotics, crystalloid_fluid, vasopressors_dose':
     #     lst_cus = item
-    # return [ [ lst_cus, lst[0], lst[2], lst_hematocrit, lst_med, lst_bands, lst_spo2, lst_heart_rate], [lst[1], lst[3], lst_approx, lst_vent, lst_co2]]
+    #   if item['fid(s)'] == 'blood_culture_order':
+    #     lst_bco = item
+    # # return [ [ lst_cus, lst[0], lst[2], lst_hematocrit, lst_med, lst_bands, lst_spo2, lst_heart_rate], [lst[1], lst[3], lst_approx, lst_vent, lst_co2]]
     # # return [ [lst[0], lst[2]], [lst_med, lst_bands]]
+    # return [ [lst_bco] ]
 
   async def run_transform_task(self, ctxt, pat_mappings, task):
     if self.job.get('transform', False):
@@ -233,7 +234,7 @@ class Extractor:
     fids = mapping_row['fid(s)']
     fids = [fid.strip() for fid in fids.split(',')] if ',' in fids else [fids]
     self.clarity_workspace = \
-      self.job.get('transform').get('clarity_workspace', 'public')
+      self.job.get('clarity_workspace', 'public')
     # fid validation check
     for fid in fids:
       if not self.cdm_feature_dict.get(fid, False):
@@ -250,8 +251,9 @@ class Extractor:
       transform_func_id = transform_func_id[i:]
       log.info("fid: %s using package: %s and transform_func_id: %s" \
         % (",".join(fids), package, transform_func_id))
-      futures.append(self.run_custom_func(package, transform_func_id, ctxt,
-                     self.dataset_id, log,self.plan, self.clarity_workspace))
+      futures.append(self.run_custom_func(package, transform_func_id, fids,
+                     ctxt, self.dataset_id, log,self.plan,
+                     self.clarity_workspace))
     else:
       # if it is standard function
       # For now, use the fact that only custom functions are many to one.
@@ -261,19 +263,20 @@ class Extractor:
                        self.cdm_feature_dict[fid]))
     return futures
 
-  async def run_custom_func(self, package, transform_func_id, ctxt, dataset_id,
-                            log, plan, clarity_workspace):
+  async def run_custom_func(self, package, transform_func_id, fids, ctxt,
+                            dataset_id, log, plan, clarity_workspace):
     module = importlib.import_module(package)
     func = getattr(module, transform_func_id)
     try:
       conn_acquired = False
       async with ctxt.db_pool.acquire() as conn:
         conn_acquired = True
-        await func(conn, dataset_id, log, plan, clarity_workspace)
+        log.info('Running custom func for %s' % str(fids))
+        await func(conn, dataset_id, fids, log, plan, clarity_workspace)
       if not conn_acquired:
         log.error("Error: connection is not acquired for {}".format(transform_func_id))
     except Exception as e:
-      log.warn("Error: custom function error %s %s" % (transform_func_id, e))
+      log.exception("Error: custom function error %s %s" % (transform_func_id, e))
 
   def populate_raw_feature_to_cdm(self, ctxt, mapping, cdm_feature_attributes):
     futures = []
@@ -458,7 +461,7 @@ class Extractor:
 
 
 
-  async def populate_stateless_features(self, ctxt, mapping, fid, transform_func_id, data_type, fid_info, is_no_add, num_fetch=1000):
+  async def populate_stateless_features(self, ctxt, mapping, fid, transform_func_id, data_type, fid_info, is_no_add, num_fetch=2000):
     # process features unrelated to med actions
     log = ctxt.log
     category = fid_info['category']
@@ -519,7 +522,7 @@ class Extractor:
         log.error("Error: connection is not acquired for {}".format(fid))
       return mapping
 
-  async def populate_vent(self, ctxt, mapping, fid, transform_func_id, data_type, fid_info, num_fetch=1000):
+  async def populate_vent(self, ctxt, mapping, fid, transform_func_id, data_type, fid_info, num_fetch=2000):
     orderby = " icustay_id, realtime"
     log = ctxt.log
     sql = self.get_feature_sql_query(log, mapping, fid_info, orderby=orderby)

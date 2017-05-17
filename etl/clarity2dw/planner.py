@@ -19,14 +19,17 @@ job_config = {
   'plan': False,
   'incremental': bool(os.environ['incremental'])\
                     if 'incremental' in os.environ else False,
-  'reset_dataset': {
-    'remove_pat_enc': True,
-    'remove_data': True,
-    'start_enc_id': 1
+  'clarity_workspace': os.environ['clarity_workspace'] \
+        if 'clarity_workspace' in os.environ else 'public',
+  'extract_init': {
+    'remove_pat_enc': bool(os.environ['remove_pat_enc']) \
+      if 'remove_pat_enc' in os.environ else True,
+    'remove_data': bool(os.environ['remove_data']) \
+      if 'remove_data' in os.environ else True,
+    'start_enc_id': int(os.environ['start_enc_id']) \
+      if 'start_enc_id' in os.environ else 1
   },
   'transform': {
-    'clarity_workspace': os.environ['clarity_workspace'] \
-        if 'clarity_workspace' in os.environ else 'public',
     'populate_patients': {
       'limit': None
     },
@@ -159,7 +162,7 @@ class Planner():
     vacuum_temp_table = self.job.get('derive').get('vacuum_temp_table', False)
     self.extractor.derive_feature_addr = get_derive_feature_addr(\
       self.db_config, self.extractor.dataset_id, num_derive_groups,
-       partition_mode)
+      partition_mode, self.job.get('clarity_workspace'))
     self.log.info("derive_feature_addr: {}".format(\
         self.extractor.derive_feature_addr))
     if num_derive_groups:
@@ -272,7 +275,7 @@ def get_derive_tasks(config, dataset_id, is_grouped):
   return derive_tasks
 
 def get_derive_feature_addr(config, dataset_id, num_derive_groups,
-                            partition_mode, twf_table='cdm_twf'):
+                            partition_mode, twf_table='cdm_twf', workspace):
   async def _get_derive_features(config):
     conn = await asyncpg.connect(database=config['db_name'], \
                                  user=config['db_user'],     \
@@ -318,7 +321,7 @@ def get_derive_feature_addr(config, dataset_id, num_derive_groups,
     for feature in group:
       fid = feature['fid']
       if num_derive_groups:
-        twf_table_temp = "{}_temp_{}".format(twf_table, i) \
+        twf_table_temp = "{}.{}_temp_{}".format(workspace, twf_table, i) \
           if feature['category'] == 'TWF' else None
       else:
         twf_table_temp = twf_table if feature['category'] == 'TWF' else None
