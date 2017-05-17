@@ -162,7 +162,7 @@ class Planner():
     vacuum_temp_table = self.job.get('derive').get('vacuum_temp_table', False)
     self.extractor.derive_feature_addr = get_derive_feature_addr(\
       self.db_config, self.extractor.dataset_id, num_derive_groups,
-      partition_mode, self.job.get('clarity_workspace'))
+      partition_mode, 'cdm_twf', self.job.get('clarity_workspace'))
     self.log.info("derive_feature_addr: {}".format(\
         self.extractor.derive_feature_addr))
     if num_derive_groups:
@@ -275,7 +275,7 @@ def get_derive_tasks(config, dataset_id, is_grouped):
   return derive_tasks
 
 def get_derive_feature_addr(config, dataset_id, num_derive_groups,
-                            partition_mode, twf_table='cdm_twf', workspace):
+                            partition_mode, twf_table, workspace):
   async def _get_derive_features(config):
     conn = await asyncpg.connect(database=config['db_name'], \
                                  user=config['db_user'],     \
