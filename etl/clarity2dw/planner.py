@@ -17,14 +17,14 @@ CONF = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'conf')
 # a complete job definition
 job_config = {
   'plan': False,
-  'incremental': bool(os.environ['incremental'])\
+  'incremental': os.environ['incremental'] == 'True'\
                     if 'incremental' in os.environ else False,
   'clarity_workspace': os.environ['clarity_workspace'] \
         if 'clarity_workspace' in os.environ else 'public',
   'extract_init': {
-    'remove_pat_enc': bool(os.environ['remove_pat_enc']) \
+    'remove_pat_enc': os.environ['remove_pat_enc'] == 'True' \
       if 'remove_pat_enc' in os.environ else True,
-    'remove_data': bool(os.environ['remove_data']) \
+    'remove_data': os.environ['remove_data'] == 'True' \
       if 'remove_data' in os.environ else True,
     'start_enc_id': int(os.environ['start_enc_id']) \
       if 'start_enc_id' in os.environ else 1
@@ -49,7 +49,7 @@ job_config = {
     'mode': None,
     'num_derive_groups': int(os.environ['num_derive_groups']) \
         if 'num_derive_groups' in os.environ else 2,
-    'vacuum_temp_table': bool(os.environ['vacuum_temp_table']) \
+    'vacuum_temp_table': os.environ['vacuum_temp_table'] == 'True' \
         if 'vacuum_temp_table' in os.environ else False,
     'partition_mode': int(os.environ['partition_mode']) \
         if 'partition_mode' in os.environ else 1,
@@ -162,7 +162,7 @@ class Planner():
     vacuum_temp_table = self.job.get('derive').get('vacuum_temp_table', False)
     self.extractor.derive_feature_addr = get_derive_feature_addr(\
       self.db_config, self.extractor.dataset_id, num_derive_groups,
-       partition_mode)
+      partition_mode, 'cdm_twf', self.job.get('clarity_workspace'))
     self.log.info("derive_feature_addr: {}".format(\
         self.extractor.derive_feature_addr))
     if num_derive_groups:
@@ -275,7 +275,7 @@ def get_derive_tasks(config, dataset_id, is_grouped):
   return derive_tasks
 
 def get_derive_feature_addr(config, dataset_id, num_derive_groups,
-                            partition_mode, twf_table='cdm_twf'):
+                            partition_mode, twf_table, workspace):
   async def _get_derive_features(config):
     conn = await asyncpg.connect(database=config['db_name'], \
                                  user=config['db_user'],     \
@@ -321,7 +321,7 @@ def get_derive_feature_addr(config, dataset_id, num_derive_groups,
     for feature in group:
       fid = feature['fid']
       if num_derive_groups:
-        twf_table_temp = "{}_temp_{}".format(twf_table, i) \
+        twf_table_temp = "{}.{}_temp_{}".format(workspace, twf_table, i) \
           if feature['category'] == 'TWF' else None
       else:
         twf_table_temp = twf_table if feature['category'] == 'TWF' else None

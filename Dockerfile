@@ -6,7 +6,7 @@ COPY ./dashan-db /dashan-db
 
 # Get pip to download and install requirements:
 RUN apt-get update \
-    && apt-get install -y g++ libpq-dev rsyslog fuse \
+    && apt-get install -y g++ libpq-dev rsyslog fuse postgresql-client\
     && pip install --upgrade pip \
     && pip install --no-cache-dir setuptools \
     && pip install -r /dashan-etl/requirements.txt \
