@@ -84,8 +84,11 @@ note, running that file will delete all the data in CDM. The ETL will have to be
 ## Step 6:
 setup, run, and debug the ET
 
+# Steps to add derived features to CDM (Template Method) :
 
-# Steps to add derived features to CDM (Old Style) :
+TODO
+
+# Steps to add derived features to CDM (Completely Custom Method) :
 ## Step 1: Write and document Pseudocode
 Write and document pseudo code for the derived feature you would like to add, and add that pseudocode to the dropbox CDM_Definition folder
 
