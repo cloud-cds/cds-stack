@@ -17,14 +17,14 @@ CONF = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'conf')
 # a complete job definition
 job_config = {
   'plan': False,
-  'incremental': bool(os.environ['incremental'])\
+  'incremental': os.environ['incremental'] == 'True'\
                     if 'incremental' in os.environ else False,
   'clarity_workspace': os.environ['clarity_workspace'] \
         if 'clarity_workspace' in os.environ else 'public',
   'extract_init': {
-    'remove_pat_enc': bool(os.environ['remove_pat_enc']) \
+    'remove_pat_enc': os.environ['remove_pat_enc'] == 'True' \
       if 'remove_pat_enc' in os.environ else True,
-    'remove_data': bool(os.environ['remove_data']) \
+    'remove_data': os.environ['remove_data'] == 'True' \
       if 'remove_data' in os.environ else True,
     'start_enc_id': int(os.environ['start_enc_id']) \
       if 'start_enc_id' in os.environ else 1
@@ -49,7 +49,7 @@ job_config = {
     'mode': None,
     'num_derive_groups': int(os.environ['num_derive_groups']) \
         if 'num_derive_groups' in os.environ else 2,
-    'vacuum_temp_table': bool(os.environ['vacuum_temp_table']) \
+    'vacuum_temp_table': os.environ['vacuum_temp_table'] == 'True' \
         if 'vacuum_temp_table' in os.environ else False,
     'partition_mode': int(os.environ['partition_mode']) \
         if 'partition_mode' in os.environ else 1,
