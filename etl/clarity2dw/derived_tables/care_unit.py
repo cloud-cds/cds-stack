@@ -10,7 +10,7 @@ def populate(connection, dataset_id):
   insert into care_unit (dataset_id, enc_id, enter_time, leave_time, care_unit)
   with raw_care_unit_tbl as (
     SELECT dataset_id, enc_id, tsp as enter_time,
-    lead(tsp,1) OVER (PARTITION BY enc_id ORDER BY tsp) as leave_time,
+    lead(tsp,1) OVER (PARTITION BY dataset_id, enc_id ORDER BY tsp) as leave_time,
     value as care_unit
     FROM cdm_t
     WHERE fid like 'care_unit' and dataset_id = {ds}
