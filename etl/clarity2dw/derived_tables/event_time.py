@@ -50,7 +50,7 @@ def populate(connection, dataset_id):
       insert into event_time (dataset_id, enc_id, tsp, event)
       select first(dataset_id), enc_id, max(leave_time) as tsp, 'last_leave_emergency' from (
           SELECT dataset_id, enc_id, tsp, fid, value,
-          lead(tsp,1) OVER (PARTITION BY enc_id ORDER BY tsp) as leave_time
+          lead(tsp,1) OVER (PARTITION BY dataset_id, enc_id ORDER BY tsp) as leave_time
           FROM cdm_t
           WHERE fid like 'care_unit'
           ORDER BY enc_id, tsp) as winT
