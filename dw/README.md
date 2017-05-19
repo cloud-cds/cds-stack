@@ -11,3 +11,12 @@ psql --host=xxx.opsdx.io --port=5432 --username=opsdx_root --dbname=opsdx_xxx -f
 ```{bash}
 psql --host=xxx.opsdx.io --port=5432 --username=opsdx_root --dbname=opsdx_xxx -f create_udf.sql
 ```
+
+## Setup parallel dblink
+```{sql}
+DROP SERVER IF EXISTS dblink_dist cascade;
+CREATE SERVER dblink_dist
+    FOREIGN DATA WRAPPER dblink_fdw OPTIONS (host 'dw.dev.opsdx.io', dbname 'opsdx_dev_dw');
+DROP USER MAPPING IF EXISTS FOR opsdx_root SERVER dblink_dist;
+CREATE USER MAPPING FOR opsdx_root SERVER dblink_dist OPTIONS (user 'opsdx_root', password 'XXXXX');
+```
