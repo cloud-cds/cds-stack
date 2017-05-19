@@ -20,6 +20,9 @@ from monitoring import APIMonitor
 
 logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.INFO)
 
+##############################
+# Constants.
+use_trews_lmc = os.environ['use_trews_lmc'] if 'use_trews_lmc' in os.environ else False
 
 ##############################
 # Globals: cache and monitor.
@@ -334,7 +337,7 @@ class TREWSAPI(web.View):
       # parallel query execution
       pat_values = await asyncio.gather(
                       query.get_criteria(db_pool, eid),
-                      query.get_trews_contributors(db_pool, eid),
+                      query.get_trews_contributors(db_pool, eid, use_trews_lmc=use_trews_lmc),
                       query.get_patient_events(db_pool, eid),
                       query.get_patient_profile(db_pool, eid)
                     )
