@@ -4,6 +4,7 @@ import etl.load.primitives.tbl.clean_tbl as clean_tbl
 from etl.load.primitives.tbl.derive import with_ds
 from etl.load.primitives.tbl.derive_helper import *
 
+
 async def derive_main(log, conn, cdm_feature_dict, mode=None, fid=None,
                       dataset_id=None, derive_feature_addr=None,
                       incremental=False):
@@ -25,6 +26,7 @@ async def derive_main(log, conn, cdm_feature_dict, mode=None, fid=None,
                            dataset_id=dataset_id,
                            derive_feature_addr=derive_feature_addr,
                            incremental=incremental)
+
   elif mode == 'dependent':
     dependent = fid
     if not cdm_feature_dict[fid]['is_measured']:
@@ -127,40 +129,62 @@ async def derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=None, deri
   fid_category = feature['category']
   log.info("derive feature %s, function %s, inputs (%s) %s" \
   % (fid, derive_func_id, derive_func_input, 'dataset_id %s' % dataset_id if dataset_id is not None else ''))
+
   if fid in query_config:
+    # =================================
+    # Query Coinfiguration Path
+    # =================================
+    log.info("Derive Function found in Driver")
     config_entry = query_config[fid]
     fid_input_items = [item.strip() for item in derive_func_input.split(',')]
     clean_sql = ''
     sql = ''
-    if fid_input_items == config_entry['fid_input_items']:
+
+
+    if fid_input_items == config_entry['fid_input_items']: #if what's in cdm_feature == what's in query config
+
       if fid_category == 'TWF':
         twf_table = derive_feature_addr[fid]['twf_table']
         twf_table_temp = derive_feature_addr[fid]['twf_table_temp']
+
         if 'clean' in config_entry:
           clean_args = config_entry['clean']
           clean_sql = clean_tbl.cdm_twf_clean(fid, twf_table=twf_table_temp, \
             dataset_id = dataset_id, incremental=incremental, **clean_args)
+
+
         if config_entry['derive_type'] == 'simple':
           sql = gen_simple_twf_query(config_entry, fid, dataset_id, \
             derive_feature_addr, cdm_feature_dict, incremental)
+
         elif config_entry['derive_type'] == 'subquery':
           sql = gen_subquery_upsert_query(config_entry, fid, dataset_id, derive_feature_addr, cdm_feature_dict, incremental)
+
         log.debug(clean_sql + sql)
         await conn.execute(clean_sql + sql)
+
       elif fid_category == 'T':
         # Note they do not touch TWF table
         sql = gen_cdm_t_delete_and_insert_query(config_entry, fid,
                                                 dataset_id, incremental)
         log.debug(clean_sql + sql)
+
         await conn.execute(clean_sql + sql)
       else:
         log.error("Invalid derive fid category: {}".format(fid_category))
+
     else:
-      log.error("fid_input dismatch")
+      log.error("Inputs in cdm_feature {} does not equal what's in the query config {}".format(fid_input_items, config_entry['fid_input_items']) )
+
+
   else:
+    # =================================
+    # Custom Derive Function
+    # =================================
     log.info("Derive function is not implemented in driver, so we use legacy derive function")
     await derive_func.derive(fid, derive_func_id, derive_func_input, conn, \
       log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental)
+
   log.info("derive feature %s end." % fid)
 
 
@@ -169,8 +193,10 @@ def gen_simple_twf_query(config_entry, fid, dataset_id, derive_feature_addr, cdm
   twf_table = derive_feature_addr[fid]['twf_table']
   twf_table_temp = derive_feature_addr[fid]['twf_table_temp']
   fid_input_items = config_entry['fid_input_items']
+
   select_table_joins = get_select_table_joins(fid_input_items, \
     derive_feature_addr, cdm_feature_dict, dataset_id, incremental)
+
   update_expr = config_entry['fid_update_expr']
   update_expr_params = {}
   if '%(twf_table)s' in update_expr:
@@ -993,3 +1019,56 @@ query_config = {
   },
 }
 
+if __name__ == '__main__':
+  import sys
+  import logging
+  import os, logging
+  import asyncio
+  import uvloop
+  import asyncpg
+  from etl.clarity2dw.planner import get_derive_feature_addr
+
+  logging.basicConfig(level=logging.DEBUG)
+  log = logging.getLogger()
+
+  mode = None
+  fid = sys.argv[1]
+  dataset_id = sys.argv[2]
+
+  config = dict()
+  config['db_name'] = os.environ['db_name']
+  config['db_user'] = os.environ['db_user']
+  config['db_pass'] = os.environ['db_password']
+  config['db_host'] = os.environ['db_host']
+  config['db_port'] = os.environ['db_port']
+
+
+
+  derive_feature_addr = get_derive_feature_addr(config, dataset_id, 0, 1, 'cdm_twf', 'public')
+
+  async def run_stand_alone(config,derive_feature_addr):
+
+
+
+    db_pool = await asyncpg.create_pool( \
+      database=config['db_name'], \
+      user=config['db_user'], \
+      password=config['db_pass'], \
+      host=config['db_host'], \
+      port=config['db_port'])
+
+
+    async with db_pool.acquire() as conn:
+
+      sql = "select * from cdm_feature where dataset_id = %s" % dataset_id
+      cdm_feature = await conn.fetch(sql)
+      cdm_feature_dict = {f['fid']: f for f in cdm_feature}
+
+      await derive_main(log, conn, cdm_feature_dict, mode=mode, fid=fid,
+                          dataset_id=dataset_id, derive_feature_addr=derive_feature_addr,
+                          incremental=False)
+
+  loop = asyncio.get_event_loop()
+  # Blocking call which returns when the hello_world() coroutine is done
+  loop.run_until_complete(run_stand_alone(config,derive_feature_addr))
+  loop.close()

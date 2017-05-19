@@ -93,7 +93,13 @@ Write and document pseudo code for the derived feature you would like to add, an
 
 
 ## Step 2: Implement Derive Function
-You're derive function must support both having and not having a dataset_id to support the datawherehouse and operational schemas
+You're derive function must support both having and not having a dataset_id to 
+support both the datawherehouse and operational schemas. 
+
+Temporary versions of cdm_twf table are created for each etl run. You're custom function is responsible for 
+joining the appropriate cdm_twf tables together to get the information required. There are some functions written in derive_helper.py to accomplish this
+
+The Template Method makes these steps easier.
 
 ## Step 3: Update CDM_Feature  / CDM_Function
 Select a dataset you'd like to do the extractio on.
