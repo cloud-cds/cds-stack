@@ -19,7 +19,7 @@ data:
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: lnmc-rest-api
+  name: lmc-rest-api
 spec:
   replicas: 2
   template:
@@ -114,7 +114,7 @@ spec:
         - name: logging
           value: "1"
         - name: use_trews_lmc
-          value: 1
+          value: "1"
         - name: cloudwatch_log_group
           value: "opsdx-web-logs-dev"
         - name: api_with_healthcheck
