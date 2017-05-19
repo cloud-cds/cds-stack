@@ -1,7 +1,6 @@
-
 # Up Front:
  - CDM, the Common Data Model, is a database schema designed by Andong to hold healthcare data, for ease of use in ML models.
- 
+
  - There are many tables inside CDM, the most import ones are cdm_twf, cdm_t, cdm_s, and cdm_feature, more about this tables can be found at: https://github.com/dashan-emr/dashan_core/wiki/database_schema and https://github.com/dashan-emr/dashan_core/wiki/Confidence-Flag-Dictionary
 
  - Your task will be to add features to CDM sufficient to build this cardiac deterioration model. 
@@ -108,6 +107,6 @@ Run the create_c2dw.sql file located in that same directory to push your updates
 Import your extraction function into dashan-etl/etl/load/tbl/derive.py
 
 ## Step 4: Update CDM_Feature
-#
+
 
 
