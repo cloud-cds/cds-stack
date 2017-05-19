@@ -88,3 +88,12 @@ async def calculate_major_blood_loss(output_fid, input_fid_string, conn, log, da
   await conn.execute(twf_update)
 
   return output_fid
+
+async def num_furosemide_IV_in_window(output_fid, input_fid_string, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
+  """
+  fid_input should be name of the feature for which change is to be computed
+  fid should be <fid of old feather>_change
+  """
+
+
+  return 1
