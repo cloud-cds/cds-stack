@@ -1,0 +1,157 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+data:
+  nginx-config: |-
+    server {
+        listen 80 default_server;
+        listen [::]:80 default_server;
+        root /var/www/html;
+        index index.html index.htm index.nginx-debian.html;
+        server_name _;
+        location / {
+          proxy_pass http://127.0.0.1:8000;
+        }
+    }
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: lmc-rest-api
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: lmc-rest-api
+    spec:
+      nodeSelector:
+        opsdx_nodegroup: nodes
+      containers:
+      - name: lmc-nginx
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        volumeMounts:
+          - name: config-volume
+            mountPath: "/etc/nginx/conf.d/"
+      - name: lmc-rest-api
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.1.6
+        command:
+          - "sh"
+          - "start-dev.sh"
+        securityContext:
+          capabilities:
+            add:
+            - "SYS_PTRACE"
+        ports:
+        - containerPort: 8000
+        env:
+        - name: db_host
+          value: "db.dev.opsdx.io"
+        - name: db_port
+          value: "5432"
+        - name: db_name
+          value: "opsdx_dev"
+        - name: db_user
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: db-username
+        - name: db_password
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: db-password
+        - name: jhapi_client_id
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: jhapi-client-id
+        - name: jhapi_client_secret
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: jhapi-client-secret
+        - name: AWS_DEFAULT_REGION
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-region
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-secret-access-key
+        - name: querystring_key
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: querystring-key
+        - name: trews_app_key
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: trews-app-key
+        - name: trews_admin_key
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: trews-admin-key
+        - name: log_decryption
+          value: "1"
+        - name: trews_open_access
+          value: "true"
+        - name: epic_notifications
+          value: "0"
+        - name: logging
+          value: "1"
+        - name: use_trews_lmc
+          value: "1"
+        - name: cloudwatch_log_group
+          value: "opsdx-web-logs-dev"
+        - name: api_with_healthcheck
+          value: "1"
+        - name: api_monitor
+          value: "1"
+        - name: api_monitor_prometheus
+          value: "0"
+        - name: api_monitor_cw_push_period
+          value: "10"
+        - name: prometheus_multiproc_dir
+          value: "/tmp"
+        - name: etl_channel
+          value: "on_opsdx_dev_etl"
+      volumes:
+        - name: config-volume
+          configMap:
+            name: nginx-config
+            items:
+              - key: nginx-config
+                path: trews.conf
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lmc-rest-svc
+  labels:
+    app: lmc-rest-api
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:acm:us-east-1:359300513585:certificate/e8391c84-070f-4feb-8946-27cf945840ad
+    service.beta.kubernetes.io/aws-load-balancer-ssl-ports: https
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: tcp
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 443
+    name: https
+    targetPort: 80
+  selector:
+    app: lmc-rest-api
