@@ -252,25 +252,22 @@ module "c2dw_daily_etl" {
   aws_klaunch_lambda_package = "${var.aws_klaunch_lambda_package}"
   aws_klaunch_lambda_role_arn = "${var.aws_klaunch_lambda_role_arn}"
 
-  c2dw_etl_lambda_cron = "0 12 * * ? *"
+  c2dw_etl_lambda_cron = "30 12 * * ? *"
 
-  k8s_server_host = "${var.k8s_server_host}"
-  k8s_server_port = "${var.k8s_server_port}"
+  k8s_server_host = "${var.k8s_ml_server_host}"
+  k8s_server_port = "${var.k8s_ml_server_port}"
 
-  k8s_name      = "${var.k8s_name}"
-  k8s_server    = "${var.k8s_server}"
-  k8s_user      = "${var.k8s_user}"
-  k8s_pass      = "${var.k8s_pass}"
-  k8s_image     = "${var.k8s_c2dw_image}"
-  k8s_cert_auth = "${var.k8s_cert_auth}"
-  k8s_cert      = "${var.k8s_cert}"
-  k8s_key       = "${var.k8s_key}"
-  k8s_token     = "${var.k8s_token}"
+  k8s_name      = "${var.k8s_ml_name}"
+  k8s_server    = "${var.k8s_ml_server}"
+  k8s_user      = "${var.k8s_ml_user}"
+  k8s_pass      = "${var.k8s_ml_pass}"
+  k8s_image     = "${var.k8s_ml_c2dw_image}"
+  k8s_cert_auth = "${var.k8s_ml_cert_auth}"
 
   k8s_privileged = "true"
 
-  db_host             = "db.${var.domain}"
-  db_name             = "${replace(var.deploy_prefix, "-", "_")}"
+  db_host             = "dw.${var.domain}"
+  db_name             = "${replace(var.deploy_prefix, "-", "_")}_dw"
   db_username         = "${var.db_username}"
   db_password         = "${var.db_password}"
 

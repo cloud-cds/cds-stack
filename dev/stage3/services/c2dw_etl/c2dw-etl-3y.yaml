@@ -15,7 +15,7 @@ spec:
         kubernetes.io/hostname: ip-10-0-120-206.ec2.internal
       containers:
       - name: c2dw-etl-3y
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-etl:latest
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-etl:1.0.92
         command:
           - "sh"
           - "-c"
@@ -23,6 +23,8 @@ spec:
         env:
         - name: dataset_id
           value: "3"
+        - name: clarity_workspace
+          value: "clarity_3y"
         - name: nprocs
           value: "8"
         - name: num_derive_groups

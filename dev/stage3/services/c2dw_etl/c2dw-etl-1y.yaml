@@ -15,7 +15,7 @@ spec:
         kubernetes.io/hostname: ip-10-0-120-206.ec2.internal
       containers:
       - name: c2dw-etl-1y
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/c2dw-etl:0.0.11
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-etl:1.0.84
         command:
           - "sh"
           - "-c"
@@ -23,6 +23,8 @@ spec:
         env:
         - name: dataset_id
           value: "1"
+        - name: clarity_workspace
+          value: "clarity_1y"
         - name: min_tsp
           value: "2016-04-27"
         - name: nprocs

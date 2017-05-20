@@ -87,7 +87,7 @@ users:
     p_mode = os.environ['kube_privileged']
     print('Job {} privileged mode: {}'.format(job_name, p_mode))
     job_container['securityContext'] = {
-      'privileged': p_mode
+      'privileged': bool(p_mode)
     }
 
   if len(cmd_array) > 0:
@@ -111,7 +111,8 @@ users:
       }
     }
   }
-
+  print("job spec:")
+  print(job_spec)
   job = pykube.Job(api, job_spec)
   if job.exists():
     # Refresh the job execution metadata.

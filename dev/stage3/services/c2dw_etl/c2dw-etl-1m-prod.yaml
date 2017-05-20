@@ -2,29 +2,32 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: c2dw-etl-6m-job
+  name: c2dw-etl-1m-job
 spec:
   template: # create pods using pod definition in this template
     metadata:
       # unlike pod-nginx.yaml, the name is not included in the meta data as a unique name is
       # generated from the deployment name
-      name: c2dw-etl-6m
+      name: c2dw-etl-1m
     spec:
       nodeSelector:
         opsdx_nodegroup: c2dw-etl
         kubernetes.io/hostname: ip-10-0-120-206.ec2.internal
       containers:
-      - name: c2dw-etl-6m
+      - name: c2dw-etl-1m
         image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/c2dw-etl:0.0.11
         command:
           - "sh"
           - "-c"
-          - "nice -20 python -q -X faulthandler ./etl/clarity2dw/planner.py"
+          - "./bin/run_c2dw.sh"
+          - "./bin/goofys opsdx-clarity-etl-stage /mnt && nice -20 python -q -X faulthandler ./etl/clarity2dw/planner.py"
+        securityContext:
+          privileged: true
         env:
         - name: dataset_id
-          value: "5"
+          value: "4"
         - name: min_tsp
-          value: "2016-10-27"
+          value: "2017-03-27"
         - name: nprocs
           value: "8"
         - name: num_derive_groups
@@ -32,11 +35,11 @@ spec:
         - name: vacuum_temp_table
           value: "True"
         - name: db_host
-          value: "dw.dev.opsdx.io"
+          value: "dw.prod.opsdx.io"
         - name: db_port
           value: "5432"
         - name: db_name
-          value: "opsdx_dev_dw"
+          value: "opsdx_prod_dw"
         - name: db_user
           valueFrom:
             secretKeyRef:

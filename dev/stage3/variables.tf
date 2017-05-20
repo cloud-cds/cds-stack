@@ -174,10 +174,6 @@ variable "k8s_epic2op_image" {
   description = "Epic2Op Docker image"
 }
 
-variable "k8s_c2dw_image" {
-  description = "C2DW Docker image"
-}
-
 variable "k8s_op2dw_image" {
   description = "Op2DW Docker image"
 }
@@ -240,3 +236,41 @@ variable "alarm2slack_kms_key_arn" {}
 variable "slack_hook" {}
 variable "slack_channel" {}
 variable "slack_watchers" {}
+
+
+###################################
+# K8s ml
+
+variable "k8s_ml_server_host" {
+  description = "Kubernetes master host"
+}
+
+variable "k8s_ml_server_port" {
+  description = "Kubernetes master port"
+}
+
+variable "k8s_ml_name" {
+  description = "Kubernetes context name"
+}
+
+variable "k8s_ml_server" {
+  description = "Kubernetes master dns name"
+}
+
+variable "k8s_ml_user" {
+  description = "Kubernetes username"
+}
+
+variable "k8s_ml_pass" {
+  description = "Kubernetes password"
+}
+
+variable "k8s_ml_c2dw_image" {
+  description = "C2DW Docker image"
+}
+
+variable "k8s_ml_cert_auth" {
+  description = "Kubernetes certificate auth data"
+}
+
+
