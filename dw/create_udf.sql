@@ -1986,7 +1986,7 @@ END; $function$;
 -- ===========================================================================
 -- load_cdm_to_criteria_meas
 -- ===========================================================================
-CREATE OR REPLACE FUNCTION load_cdm_to_criteria_meas(_dataset_id integer, incremental boolean)
+CREATE OR REPLACE FUNCTION load_cdm_to_criteria_meas(_dataset_id integer, incremental boolean default false)
  RETURNS VOID
  LANGUAGE plpgsql
 AS $function$
