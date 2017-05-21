@@ -48,7 +48,7 @@ FROM
     --no patients that are still present in hospital
     HOSP_DISCH_TIME IS NOT NULL
     --admitted between the dates in your cohort
-    AND HOSP_ADMSN_TIME BETWEEN '2014-04-27' AND  '2017-04-27'
+    AND HOSP_ADMSN_TIME BETWEEN '2017-04-10' AND  '2017-05-10'
 ) A (csn, pat_id, pat_mrn_id);
 
 -- DO NOT RUN THIS CODE UNTIL YOU'VE ALTERED THE DATES IN THE COHORT, OTHERWISE IT WILL CREATE DUPLICATE RECORDS!!!
@@ -61,7 +61,7 @@ FROM
 (SELECT DISTINCT patient.PAT_ID, patient.PAT_MRN_ID, IDENTITY_ID.IDENTITY_ID
   FROM CLARITY.dbo.PAT_ENC_HSP PAT_ENC_HSP_1
   INNER JOIN CLARITY.dbo.PATIENT patient ON PAT_ENC_HSP_1.PAT_ID = patient.PAT_ID
-      INNER JOIN CLARITY.dbo.IDENTITY_ID on IDENTITY_ID.PAT_ID = PAT_ENC_HSP_1.PAT_ID
+  INNER JOIN CLARITY.dbo.IDENTITY_ID on IDENTITY_ID.PAT_ID = PAT_ENC_HSP_1.PAT_ID
   INNER JOIN [CLARITY].[dbo].[CLARITY_ADT] Medicalxferin ON Medicalxferin.PAT_ENC_CSN_ID = PAT_ENC_HSP_1.PAT_ENC_CSN_ID
   LEFT JOIN [CLARITY].[dbo].[CLARITY_ADT] edxferout ON EDxferout.event_id = Medicalxferin.XFER_EVENT_ID
   LEFT JOIN CLARITY.dbo.CLARITY_ADT Medicalxferout ON Medicalxferin.EVENT_ID = Medicalxferout.LAST_IN_EVENT_ID
@@ -103,7 +103,7 @@ FROM
     --no patients that are still present in hospital
     HOSP_DISCH_TIME IS NOT NULL
     --admitted between the dates in your cohort
-    AND HOSP_ADMSN_TIME BETWEEN '2014-04-27' AND  '2017-04-27'
+    AND HOSP_ADMSN_TIME BETWEEN '2017-04-10' AND  '2017-05-10'
 ) A (pat_id, pat_mrn_id, identity_id);
 GO
 
@@ -736,6 +736,7 @@ SELECT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
   ,PARENTS.PROC_ENDING_TIME ParentEndingTime
   ,ordstat.NAME OrderStatus
   ,labstats.NAME LabStatus
+  ,procs2.SPECIMN_TAKEN_TIME
 FROM CLARITY..ORDER_PROC procs
 INNER JOIN CLARITY..CLARITY_EAP eap ON procs.proc_id = eap.PROC_ID
 LEFT JOIN CLARITY..IP_FREQUENCY freq on freq.FREQ_ID = eap.DFLT_INTER_ID
@@ -746,7 +747,8 @@ LEFT JOIN CCDA264_OrderProcCodes codes ON codes.ProcCode = eap.PROC_CODE
 LEFT JOIN CLARITY..zc_order_status ordstat on ordstat.ORDER_STATUS_C = procs.order_status_c
 LEFT JOIN CLARITY..zc_lab_status labstats on labstats.LAB_STATUS_C = procs.lab_status_c
 INNER JOIN CLARITY..ORDER_INSTANTIATED inst ON inst.INSTNTD_ORDER_ID = PROCS.ORDER_PROC_ID
-INNER JOIN CLARITY..ORDER_PROC parents on inst.ORDER_ID = parents.ORDER_PROC_ID;
+INNER JOIN CLARITY..ORDER_PROC parents on inst.ORDER_ID = parents.ORDER_PROC_ID
+LEFT JOIN CLARITY..ORDER_PROC_2 procs2 on procs.ORDER_PROC_ID = procs2.ORDER_PROC_ID;
 GO
 
 

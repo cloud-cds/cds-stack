@@ -31,8 +31,8 @@ GO
 
 :OUT \\Client\H$\Downloads\clarity\demo.rpt
 SET NOCOUNT ON
-SELECT DISTINCT PAT_ENC_HSP.PAT_ENC_CSN_ID
-  ,PAT_ENC_HSP.pat_id pat_id
+SELECT DISTINCT PAT_ENC_HSP.PAT_ENC_CSN_ID CSN_ID
+  ,IDENTITY_ID pat_id
   ,ADT_ARRIVAL_TIME
   ,ED_DEPARTURE_TIME
   ,HOSP_ADMSN_TIME
@@ -59,12 +59,13 @@ SELECT DISTINCT PAT_ENC_HSP.PAT_ENC_CSN_ID
     END IsEDPatient
   ,depDisch.DEPARTMENT_NAME DischargeDepartment
   ,zc_disch_disp.NAME DischargeDisposition
---INTO CCDA276_Demographics
 FROM CLARITY.dbo.PAT_ENC_HSP PAT_ENC_HSP
+INNER JOIN CLARITY.dbo.IDENTITY_ID on IDENTITY_ID.PAT_ID = PAT_ENC_HSP.PAT_ID
 INNER JOIN CLARITY.dbo.PATIENT patient ON PAT_ENC_HSP.pat_id = patient.pat_id
 INNER JOIN CLARITY.dbo.CLARITY_DEP depDisch ON PAT_ENC_HSP.DEPARTMENT_ID = depDisch.DEPARTMENT_ID
 LEFT JOIN CLARITY.dbo.zc_disch_disp zc_disch_disp ON PAT_ENC_HSP.disch_disp_c = zc_disch_disp.disch_disp_c
-WHERE ADT_ARRIVAL_TIME >= DATEADD(day,-7, GETDATE());
+WHERE IDENTITY_ID.line = 1
+  AND ADT_ARRIVAL_TIME >= DATEADD(day,-7, GETDATE());
 GO
 
 :OUT \\Client\H$\Downloads\clarity\diag.rpt
@@ -385,7 +386,7 @@ GO
 /****** Script for SelectTopNRows command from SSMS  ******/
 :OUT \\Client\H$\Downloads\clarity\lda.rpt
 SET NOCOUNT ON
-SELECT pat.pat_id PAT_ID
+SELECT IDENTITY_ID PAT_ID
       ,[PLACEMENT_INSTANT]
      ,GP.FLO_MEAS_NAME
     ,GP.DISP_NAME
@@ -396,7 +397,9 @@ SELECT pat.pat_id PAT_ID
   LEFT JOIN [CLARITY].[dbo].[IP_FLO_GP_DATA] gp on gp.FLO_MEAS_ID = LDA.FLO_MEAS_ID
   INNER JOIN
   pat_enc_hsp pat ON pat.PAT_ID = LDA.PAT_ID
-  AND [PLACEMENT_INSTANT] >= DATEADD(day,-7, GETDATE());
+  INNER JOIN CLARITY.dbo.IDENTITY_ID on IDENTITY_ID.PAT_ID = pat.PAT_ID
+  WHERE IDENTITY_ID.line = 1
+    AND [PLACEMENT_INSTANT] >= DATEADD(day,-7, GETDATE());
 GO
 
 USE CLARITY;
@@ -450,7 +453,7 @@ GO
 :OUT \\Client\H$\Downloads\clarity\hist.rpt
 SET NOCOUNT ON
 SELECT DISTINCT pat.pat_enc_csn_id CSN_ID
-  ,pat.pat_id PATIENTID
+  ,IDENTITY_ID PATIENTID
   ,CAST(COALESCE(Encounter.DEPARTMENT_ID, HospitalEncounter.DEPARTMENT_ID) AS VARCHAR(50)) DEPARTMENTID
   ,edg.DX_NAME diagName
   ,icd9.Code
@@ -478,9 +481,11 @@ FROM (
 LEFT OUTER JOIN clarity.dbo.PAT_ENC Encounter ON MedicalHistory.MINCSN = Encounter.PAT_ENC_CSN_ID
 LEFT OUTER JOIN clarity.dbo.PAT_ENC_HSP HospitalEncounter ON MedicalHistory.MINCSN = HospitalEncounter.PAT_ENC_CSN_ID
 INNER JOIN pat_enc_hsp pat ON pat.PAT_ID = MedicalHistory.PAT_ID
+INNER JOIN CLARITY.dbo.IDENTITY_ID on IDENTITY_ID.PAT_ID = pat.PAT_ID
 INNER JOIN CLARITY.dbo.CLARITY_EDG edg ON MedicalHistory.DX_ID = edg.DX_ID
 INNER JOIN CLARITY.DBO.EDG_CURRENT_ICD9 icd9 ON MedicalHistory.DX_ID = icd9.DX_ID
-AND pat.ADT_ARRIVAL_TIME >= DATEADD(day,-7, GETDATE());
+WHERE IDENTITY_ID.line = 1
+  AND pat.ADT_ARRIVAL_TIME >= DATEADD(day,-7, GETDATE());
 GO
 
 
@@ -561,6 +566,7 @@ SELECT PAT_ENC_HSP.pat_enc_csn_id CSN_ID
   ,PARENTS.PROC_ENDING_TIME ParentEndingTime
   ,ordstat.NAME OrderStatus
   ,labstats.NAME LabStatus
+  ,procs2.SPECIMN_TAKEN_TIME
 FROM CLARITY..ORDER_PROC procs
 INNER JOIN CLARITY..CLARITY_EAP eap ON procs.proc_id = eap.PROC_ID
 LEFT JOIN CLARITY..IP_FREQUENCY freq on freq.FREQ_ID = eap.DFLT_INTER_ID
@@ -570,6 +576,7 @@ LEFT JOIN CLARITY..zc_order_status ordstat on ordstat.ORDER_STATUS_C = procs.ord
 LEFT JOIN CLARITY..zc_lab_status labstats on labstats.LAB_STATUS_C = procs.lab_status_c
 INNER JOIN CLARITY..ORDER_INSTANTIATED inst ON inst.INSTNTD_ORDER_ID = PROCS.ORDER_PROC_ID
 INNER JOIN CLARITY..ORDER_PROC parents on inst.ORDER_ID = parents.ORDER_PROC_ID
+LEFT JOIN CLARITY..ORDER_PROC_2 procs2 on procs.ORDER_PROC_ID = procs2.ORDER_PROC_ID
 WHERE PROCS.RESULT_TIME >= DATEADD(day,-7, GETDATE());
 GO
 
@@ -659,7 +666,7 @@ GO
 
 :OUT \\Client\H$\Downloads\clarity\prob.rpt
 SET NOCOUNT ON
-SELECT DISTINCT pat.PAT_ID PAT_ID
+SELECT DISTINCT IDENTITY_ID PAT_ID
   ,pat.pat_enc_csn_id CSN_ID
   ,CAST(COALESCE(Encounter.DEPARTMENT_ID, HospitalEncounter.DEPARTMENT_ID) AS VARCHAR(50)) DEPARTMENTID
   ,COALESCE(ProblemList.NOTED_DATE, FirstHistory.HX_DATE_OF_ENTRY) FirstDocumented
@@ -705,9 +712,11 @@ LEFT OUTER JOIN CLARITY.DBO.PAT_ENC_HSP HospitalEncounter ON FirstHistory.HX_PRO
 LEFT OUTER JOIN CLARITY.DBO.ZC_PROBLEM_STATUS StatusCategory ON ProblemList.PROBLEM_STATUS_C = StatusCategory.PROBLEM_STATUS_C
 LEFT OUTER JOIN CLARITY.DBO.ZC_DX_POA PoaCategory ON ProblemList.IS_PRESENT_ON_ADM_C = PoaCategory.DX_POA_C
 INNER JOIN pat_enc_hsp pat ON pat.PAT_ID = ProblemList.PAT_ID
+INNER JOIN CLARITY.dbo.IDENTITY_ID on IDENTITY_ID.PAT_ID = pat.PAT_ID
 INNER JOIN CLARITY.dbo.CLARITY_EDG edg ON ProblemList.DX_ID = edg.DX_ID
 INNER JOIN CLARITY.DBO.EDG_CURRENT_ICD9 icd9 ON ProblemList.DX_ID = icd9.DX_ID
-WHERE ProblemList.DX_ID IS NOT NULL
+WHERE IDENTITY_ID.line = 1
+  AND ProblemList.DX_ID IS NOT NULL
   AND NULLIF(ProblemList.PAT_ID, '') IS NOT NULL
   AND NULLIF(3, ProblemList.PROBLEM_STATUS_C) IS NOT NULL
    AND pat.ADT_ARRIVAL_TIME >= DATEADD(day,-7, GETDATE());
@@ -719,7 +728,7 @@ USE CLARITY;
 SET NOCOUNT ON
 SELECT DISTINCT PAT_ENC_HSP.pat_enc_csn_id CSN_ID
   ,info.NOTE_ID
-  ,prov_type.NAME AuthorType
+  ,prov_type.NAME
   ,TYPINDEX.NAME NoteType
   ,info.CREATE_INSTANT_DTTM
   ,txt.line
