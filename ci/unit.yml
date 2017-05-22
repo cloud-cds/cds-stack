@@ -1,0 +1,8 @@
+---
+platform: linux
+
+inputs:
+- name: dashan-etl
+
+run:
+  path: dashan-etl/tests/unit_tests.sh
