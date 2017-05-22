@@ -68,8 +68,11 @@ def get_derive_seq(features=None, input_map=None):
   features is a list of dictionaries
   """
   def rm_measured_dependencies(row, df_list):
-    lst = map(str.lstrip, map(str.strip, row.split(',')))
-    return [x for x in lst if x in df_list]
+    if row is None:
+      return []
+    else:
+      lst = map(str.lstrip, map(str.strip, row.split(',')))
+      return [x for x in lst if x in df_list]
 
   def reduce_dependencies(dependency_lst):
     return [x for x in dependency_lst if x not in order]
