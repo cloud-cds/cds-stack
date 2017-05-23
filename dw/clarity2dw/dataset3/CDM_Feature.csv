@@ -291,3 +291,5 @@ dataset_id,fid,category,data_type,is_measured,is_deprecated,fillin_func_id,windo
 3,bipap,T,Boolean,yes,no,,,,,Order Procedure,1,
 3,cpap,T,Boolean,yes,no,,,,,Order Procedure,1,
 3,note,N,String,yes,no,,,,,provider notes,1,no unit
+3,adt_arrival_time,S,String,yes,no,,,,,Demographic,1,timestamp time of arrival time
+3,hosp_admsn_time,S,String,yes,no,,,,,Demographic,1,timestamp time of hosptial admission
