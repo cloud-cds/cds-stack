@@ -2,12 +2,14 @@
   <img src="https://cloud.githubusercontent.com/assets/7926463/24318897/34c9fefc-10e4-11e7-96c2-1433d7cbf168.png" width=50 height=50>
   <h3 align="center">Dashan ETL</h3>
 </p>
-<p align="center">
-  <a href="http://concourse.dev.opsdx.io">
-      <img src="http://concourse.dev.opsdx.io/api/v1/teams/main/pipelines/main-pipeline/jobs/test-dashan-etl-pull-request/badge"
-           alt="CI Status">
-  </a>
-</p>
+
+| Test               | Status        |
+|:------------------:|:-------------:|
+| Pull Request       | <img src="http://concourse.dev.opsdx.io/api/v1/teams/main/pipelines/main-pipeline/jobs/test-dashan-etl-pull-request/badge"> |
+| Unit Tests         | <img src="http://concourse.dev.opsdx.io/api/v1/teams/main/pipelines/main-pipeline/jobs/unit-tests/badge"> |
+| Integration Tests  | <img src="http://concourse.dev.opsdx.io/api/v1/teams/main/pipelines/main-pipeline/jobs/integration-tests/badge"> |
+| Docker Image Build | <img src="http://concourse.dev.opsdx.io/api/v1/teams/main/pipelines/main-pipeline/jobs/build-dashan-docker-image/badge"> |
+
 
 ---
 
