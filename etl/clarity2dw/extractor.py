@@ -159,6 +159,13 @@ class Extractor:
     shuffle = False
     if self.job.get('transform', False):
       nprocs = int(self.job.get('transform').get('populate_measured_features').get('nprocs', nprocs))
+
+      if self.job.get('transform').get('populate_measured_features').get('fid',None) is not None:
+        fids_2_proc = self.job.get('transform').get('populate_measured_features').get('fid')
+        print('bob')
+
+        mapping_list = [mapp for mapp in mapping_list  if mapp['fid(s)'] in fids_2_proc]
+
       shuffle = self.job.get('transform').get('populate_measured_features').get('shuffle', False)
     transform_tasks = self.partition(mapping_list,  nprocs, random_shuffle=shuffle)
     return transform_tasks
