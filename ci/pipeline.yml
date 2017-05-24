@@ -101,17 +101,57 @@ jobs:
 #######
 # Tests
 #
-  - name: test-db-compare
-    public: false
-    serial: true
+  - name: unit-tests
+    build_logs_to_retain: 50
     plan:
-      - get: dashan-db
-        trigger: true
-      - get: dashan-etl
       - get: dashan-docker-image
-      - task: run-tests
+      - get: dashan-etl
+        trigger: true
+      - task: unit
         image: dashan-docker-image
-        file: dashan-etl/ci/tests_full.yml
+        file: dashan-etl/ci/unit.yml
+      - task: measure-coverage
+        image: dashan-docker-image
+        file: dashan-etl/ci/coverage.yml
+
+  - name: integration-tests
+    build_logs_to_retain: 50
+    plan:
+      - get: dashan-docker-image
+        passed: [unit-tests]
+      - get: dashan-db
+      - get: dashan-etl
+        trigger: true
+        passed: [unit-tests]
+      - task: integration-tests
+        image: dashan-docker-image
+        file: dashan-etl/ci/integration.yml
+        params:
+          db_host: {{DEV_PGHOST}}
+          db_password: {{DEV_PGPASSWORD}}
+          db_port: {{DEV_PGPORT}}
+          db_user: {{DEV_PGUSER}}
+          db_name: {{DEV_PGDATABASE}}
+          PGPASSWORD: {{DEV_PGPASSWORD}}
+          TREWS_ETL_SERVER: {{TREWS_ETL_SERVER}}
+          TREWS_ETL_HOSPITAL: {{TREWS_ETL_HOSPITAL}}
+          TREWS_ETL_HOURS: {{TREWS_ETL_HOURS}}
+          TREWS_ETL_ARCHIVE: {{TREWS_ETL_ARCHIVE}}
+          TREWS_ETL_MODE: {{TREWS_ETL_MODE}}
+          TREWS_ETL_DEMO_MODE: {{TREWS_ETL_DEMO_MODE}}
+          TREWS_ETL_EPIC_NOTIFICATIONS: {{TREWS_ETL_EPIC_NOTIFICATIONS}}
+          TREWS_ETL_STREAM_SLEEP_SECS: {{TREWS_ETL_STREAM_SLEEP_SECS}}
+          TREWS_ETL_STREAM_HOURS: {{TREWS_ETL_STREAM_HOURS}}
+          TREWS_ETL_STREAM_SLICES: {{TREWS_ETL_STREAM_SLICES}}
+          jhapi_client_id: {{jhapi_client_id}}
+          jhapi_client_secret: {{jhapi_client_secret}}
+          AWS_DEFAULT_REGION: {{AWS_DEFAULT_REGION}}
+          AWS_SECRET_ACCESS_KEY: {{aws-secret-access-key}}
+          AWS_ACCESS_KEY_ID: {{aws-access-key-id}}
+          dataset_id: {{dataset_id}}
+          nproc: {{nproc}}
+
+
 
   - name: test-dashan-etl-pull-request
     public: false
@@ -125,7 +165,7 @@ jobs:
         params: {path: dashan-etl-pr, status: pending}
       - task: run-tests
         image: dashan-docker-image
-        file: dashan-etl-pr/ci/tests_pr.yml
+        file: dashan-etl-pr/ci/integration_lite.yml
         params:
           db_host: {{DEV_PGHOST}}
           db_password: {{DEV_PGPASSWORD}}
@@ -169,7 +209,7 @@ jobs:
         params: {path: trews-rest-api-pr, status: pending}
       - task: api-tests
         image: trews-rest-api-docker-image
-        file: dashan-etl/ci/test_rest_api.yml
+        file: dashan-etl/ci/integration_rest_api.yml
         on_success:
           put: trews-rest-api-pr
           params: {path: trews-rest-api-pr, status: success}
@@ -181,11 +221,11 @@ jobs:
 # Building docker images
 #
   - name: build-dashan-docker-image
-    public: false
     serial: true
     plan:
       - get: dashan-etl
         trigger: true
+        passed: ['integration-tests']
       - get: dashan-db
         trigger: false
       - get: dashan-etl-version

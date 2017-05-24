@@ -1,6 +1,7 @@
 import etl.transforms.primitives.df.pandas_utils as pandas_utils
 import pandas as pd
 import numpy as np
+import logging
 
 def select_columns(df, selection_dict):
     df = df[list(selection_dict.keys())]\
@@ -18,7 +19,9 @@ def extract(df, dict_column, selection_dict):
         return val
     df[dict_column] = df[dict_column].apply(fill_none)
     new_cols = pd.DataFrame(df[dict_column].tolist())
+    print(new_cols)
     new_cols = select_columns(new_cols, selection_dict)
+    print(new_cols)
     old_cols = df.drop(dict_column, axis=1)
     return pd.concat([old_cols, new_cols], axis=1)
 
@@ -37,7 +40,7 @@ def extract_id_from_list(df, id_column, id_type):
     def get_id(id_list):
         for x in id_list:
             if x.get('Type') == id_type:
-                return x['ID']
+                return str(x['ID'])
         logging.error('Could not find an ID. Throwing away row.')
         return 'Invalid ID'
 

@@ -1,0 +1,35 @@
+---
+platform: linux
+
+params:
+  db_host:
+  db_password:
+  db_user:
+  db_port:
+  db_name:
+  PGPASSWORD:
+  PGSSLMODE: disable
+  TREWS_ETL_SERVER:
+  TREWS_ETL_HOSPITAL:
+  TREWS_ETL_HOURS:
+  TREWS_ETL_ARCHIVE:
+  TREWS_ETL_MODE:
+  TREWS_ETL_DEMO_MODE:
+  TREWS_ETL_EPIC_NOTIFICATIONS:
+  TREWS_ETL_STREAM_SLEEP_SECS:
+  TREWS_ETL_STREAM_HOURS:
+  TREWS_ETL_STREAM_SLICES:
+  jhapi_client_id:
+  jhapi_client_secret:
+  AWS_DEFAULT_REGION:
+  AWS_ACCESS_KEY_ID:
+  AWS_SECRET_ACCESS_KEY:
+  dataset_id:
+  nproc:
+
+inputs:
+- name: dashan-db
+- name: dashan-etl
+
+run:
+  path: dashan-etl/tests/integration_tests.sh
