@@ -6,4 +6,4 @@ inputs:
 - name: trews-rest-api-pr
 
 run:
-  path: dashan-etl/ci/test_api.sh
+  path: dashan-etl/tests/api_tests.sh

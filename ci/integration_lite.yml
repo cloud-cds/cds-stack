@@ -32,4 +32,4 @@ inputs:
 - name: dashan-etl-pr
 
 run:
-  path: dashan-etl-pr/ci/tests_lite.sh
+  path: dashan-etl-pr/tests/lite_tests.sh
