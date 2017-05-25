@@ -4,6 +4,7 @@ import etl.load.primitives.tbl.clean_tbl as clean_tbl
 from etl.load.primitives.tbl.derive import with_ds
 from etl.load.primitives.tbl.derive_helper import *
 
+import time
 
 async def derive_main(log, conn, cdm_feature_dict, mode=None, fid=None,
                       dataset_id=None, derive_feature_addr=None,
@@ -125,7 +126,9 @@ def get_dependent_features(feature_list, cdm_feature_dict):
         for fid in cdm_feature_dict if fid in dependent_features)
     return get_derive_seq(input_map=dic)
 
+
 async def derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=None, derive_feature_addr=None,incremental=False):
+  ts = time.time()
   feature = cdm_feature_dict[fid]
   derive_func_id = feature['derive_func_id']
   derive_func_input = feature['derive_func_input']
@@ -188,7 +191,8 @@ async def derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=None, deri
     await derive_func.derive(fid, derive_func_id, derive_func_input, conn, \
       log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental)
 
-  log.info("derive feature %s end." % fid)
+  te = time.time()
+  log.info("derive feature %s end. (%2.2f secs)" % (fid, te-ts))
 
 
 

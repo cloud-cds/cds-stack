@@ -207,13 +207,16 @@ class Extractor:
     #     lst_cus = item
     #   if item['fid(s)'] == 'blood_culture_order':
     #     lst_bco = item
-    # # return [ [ lst_cus, lst[0], lst[2], lst_hematocrit, lst_med, lst_bands, lst_spo2, lst_heart_rate], [lst[1], lst[3], lst_approx, lst_vent, lst_co2]]
+    # # return [ [ lst_cus, lst[0], lst[2], lst_hematocrit, lst_med, \
+                # lst_bands, lst_spo2, lst_heart_rate], [lst[1], lst[3], \
+                # lst_approx, lst_vent, lst_co2]]
     # # return [ [lst[0], lst[2]], [lst_med, lst_bands]]
     # return [ [lst_bco] ]
 
   async def run_transform_task(self, ctxt, pat_mappings, task):
     if self.job.get('transform', False):
       if self.job.get('transform').get('populate_measured_features', False):
+        specified_fid = self.job.get('transform').get('populate_measured_features').get('fid', None)
         self.visit_id_to_enc_id = pat_mappings['visit_id_to_enc_id']
         self.pat_id_to_enc_ids = pat_mappings['pat_id_to_enc_ids']
         self.min_tsp = self.job.get('transform').get('min_tsp')
@@ -221,7 +224,8 @@ class Extractor:
         async with ctxt.db_pool.acquire() as conn:
             await self.query_cdm_feature_dict(conn)
         for mapping_row in task:
-          futures.extend(self.run_feature_mapping_row(ctxt, mapping_row))
+          if specified_fid is None or mapping_row['fid(s)'] in specified_fid:
+            futures.extend(self.run_feature_mapping_row(ctxt, mapping_row))
         ctxt.log.info("run_transform_task futures: {}".format(', '.join([m['fid(s)'] for m in task])))
         # done, _ = await asyncio.wait(futures)
         # for future in done:

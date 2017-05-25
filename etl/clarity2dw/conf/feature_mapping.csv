@@ -220,6 +220,8 @@ bipap,yes,no,"""OrderProcs_643""","""CSN_ID"" visit_id,""PROC_START_TIME"", ""PR
 cpap,yes,no,"""OrderProcs_643""","""CSN_ID"" visit_id,""PROC_START_TIME"", ""PROC_ENDING_TIME""","WHERE ""OrderProcId"" in ('67479', '38817', '38819', '38821', '38823', '55910', '100294', '100296', '100298', '100300', '304267')",convert_proc_to_boolean
 map,yes,no,"""FlowsheetValue_643""","""FLO_MEAS_NAME"", ""TimeTaken"", ""Value""","WHERE ""FLO_MEAS_ID"" in ('306270', '301360', '301250', '1120100022', '111301360', '212301360', '450070')",
 note,,,,,,etl.transforms.pipelines.clarity_2_cdm_pd.notes
+adt_arrival_time,yes,no,"""Demographics""","""ADT_ARRIVAL_TIME""","WHERE ""ADT_ARRIVAL_TIME"" is not null",
+hosp_admsn_time,yes,no,"""Demographics""","""HOSP_ADMSN_TIME""","WHERE ""HOSP_ADMSN_TIME"" is not null",
 bnp,yes,no,"""Labs""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue""","where ""COMPONENT_ID""  = ANY('{8100004188, 9000000516, 9700000141, 4000001279, 8100000292, 7000002083, 3000001261, 4000000283, 8200003476, 970000223, 9000000586, 4000000593, 2000001245}');",
 labetalol,yes,no,"""FlowsheetValue""","""FLO_MEAS_NAME"", ""TimeTaken"", ""Value""",where "FLO_MEAS_ID" = '3040101268',
 height,yes,no,"""FlowsheetValue_643""","""FLO_MEAS_NAME"", ""TimeTaken"", ""Value""",where "FLO_MEAS_NAME" ilike 'HEIGHT' and "Value" is not Null and "Value"::float between 22 and 108;,convert_to_cm
