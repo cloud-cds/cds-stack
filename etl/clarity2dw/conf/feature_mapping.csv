@@ -115,7 +115,7 @@ heart_attack_inhosp,yes,no,"""ProblemList""","""csn_id"" visit_id, ""diagname"",
 ekg_proc,yes,no,"""OrderProcs""","""CSN_ID"" visit_id,""display_name"", ""ORDER_TIME"", ""OrderStatus""","WHERE ""display_name"" ~* 'ECG|EKG'",convert_proc_to_json
 stroke_inhosp,yes,no,"""ProblemList""","""csn_id"" visit_id, ""diagname"", ""firstdocumented"", ""chronic"", ""presentonadmission""","WHERE ""diagname"" ~* 'stroke' and not ""diagname"" ~* 'due to stroke|effect of stroke'",convert_inhosp_to_json
 ct_proc,yes,no,"""OrderProcs""","""CSN_ID"" visit_id,""display_name"", ""ORDER_TIME"", ""OrderStatus""","WHERE ""proc_cat_name"" ~ 'IMG CT ORDERABLES'",convert_proc_to_json
-mri_proc,yes,no,"""OrderProcs""",,"WHERE ""proc_cat_name"" ~ 'IMG MRI ORDERABLES'",convert_proc_to_json
+mri_proc,yes,no,"""OrderProcs""","""CSN_ID"" visit_id,""display_name"", ""ORDER_TIME"", ""OrderStatus""","WHERE ""proc_cat_name"" ~ 'IMG MRI ORDERABLES'",convert_proc_to_json
 acute_kidney_failure_inhosp,yes,no,"""ProblemList""","""csn_id"" visit_id, ""diagname"", ""firstdocumented"", ""chronic"", ""presentonadmission""","WHERE ""diagname"" ~* 'acute kidney injury|acute kidney failure'",convert_inhosp_to_json
 bronchitis_inhosp,yes,no,"""ProblemList""","""csn_id"" visit_id, ""diagname"", ""firstdocumented"", ""chronic"", ""presentonadmission""","WHERE ""diagname"" ~* 'bronchitis'",convert_inhosp_to_json
 chest_xray,yes,no,"""OrderProcs""","""CSN_ID"" visit_id,""display_name"", ""ORDER_TIME"", ""OrderStatus""","WHERE ""display_name"" ~* 'x-ray chest'",convert_proc_to_json
