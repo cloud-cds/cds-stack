@@ -2,6 +2,7 @@ import asyncio
 import etl.load.primitives.tbl.clean_tbl as clean_tbl
 from etl.load.primitives.tbl.derive_helper import *
 import json
+import pandas as pd
 
 
 async def calculate_major_blood_loss(output_fid, input_fid_string, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
