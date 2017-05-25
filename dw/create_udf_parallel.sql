@@ -39,15 +39,8 @@ DECLARE
 
 BEGIN
 
-
-select * from distribute('dblink_dist', array['select * from pat_enc']);
-
   num_chunks := array_length(query_array, 1);
   RAISE NOTICE 'Total number of chunks:  %',num_chunks;
-  IF num_chunks < num_procs THEN
-    RAISE NOTICE 'Error: number of chunks < number of procs'
-    exit;
-  END IF;
 
   --initialize array for keeping track of finished processes
   sql := 'SELECT array_fill(0, ARRAY[' || num_procs ||']);';
@@ -185,7 +178,6 @@ exception when others then
     -- cancel a previous crashed query
     sql := 'SELECT dblink_cancel_query(' || QUOTE_LITERAL(conn) ||');';
     execute sql;
-
 
     sql := 'SELECT dblink_disconnect(' || QUOTE_LITERAL(conn) || ');';
     execute sql;
