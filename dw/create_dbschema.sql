@@ -790,3 +790,23 @@ create table care_unit(
     care_unit text
 );
 
+----------------------
+-- cdm stats tables --
+----------------------
+DROP TABLE IF EXISTS cdm_stats;
+CREATE TABLE cdm_stats(
+    dataset_id integer REFERENCES dw_version(dataset_id),
+    id text,
+    id_type text,
+    stats jsonb,
+    PRIMARY KEY (dataset_id, id, id_type)
+);
+
+DROP TABLE IF EXISTS cdm_stats_meta;
+CREATE TABLE cdm_stats_meta(
+    id text,
+    id_type text,
+    function text,
+    PRIMARY KEY (id, id_type, function)
+);
+\COPY cdm_stats_meta FROM 'cdm_stats_meta.csv' WITH csv header DELIMITER AS ',';

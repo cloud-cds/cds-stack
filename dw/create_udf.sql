@@ -1986,7 +1986,7 @@ END; $function$;
 -- ===========================================================================
 -- load_cdm_to_criteria_meas
 -- ===========================================================================
-CREATE OR REPLACE FUNCTION load_cdm_to_criteria_meas(_dataset_id integer, incremental boolean)
+CREATE OR REPLACE FUNCTION load_cdm_to_criteria_meas(_dataset_id integer, incremental boolean default false)
  RETURNS VOID
  LANGUAGE plpgsql
 AS $function$
@@ -1996,8 +1996,8 @@ BEGIN
     -- ================================================
     -- Upsert Suspicion of infection proxy
     -- ================================================
-    insert into suspicion_of_infection_hist (dataset_id, pat_id, name,                  is_met, measurement_time,override_time,override_user, override_value, value, update_date)
-    select cdm_t.dataset_id, pat_enc.pat_id, 'suspicion_of_infection', true, cdm_t.tsp, cdm_t.tsp,          'cdm_t'::text, '[{"text": "infection"}]'::json,'infection'::text,now()
+    insert into suspicion_of_infection_hist (dataset_id, pat_id, name, is_met, measurement_time,override_time,override_user, override_value, value, update_date)
+    select cdm_t.dataset_id, pat_enc.pat_id, 'suspicion_of_infection', true, cdm_t.tsp, cdm_t.tsp, 'cdm_t'::text, '[{"text": "infection"}]'::json,'infection'::text,now()
     from
     cdm_t
     left join
@@ -2013,8 +2013,8 @@ BEGIN
     -- ================================================
     -- Upsert cdm_t features
     -- ================================================
-    insert into criteria_meas (dataset_id,         pat_id,         tsp,               fid,               value,    update_date)
-    select               cdm_t.dataset_id, pat_enc.pat_id,   cdm_t.tsp,         cdm_t.fid,  first(cdm_t.value),    now()
+    insert into criteria_meas (dataset_id, pat_id, tsp, fid, value, update_date)
+    select cdm_t.dataset_id, pat_enc.pat_id, cdm_t.tsp, cdm_t.fid, first(cdm_t.value), now()
     FROM
     cdm_t
     inner join
@@ -2028,7 +2028,7 @@ BEGIN
     where cdm_t.dataset_id = _dataset_id and not(cdm_t.fid = 'suspicion_of_infection')
     and (not incremental or (pat_enc.meta_data->>'pending')::boolean)
     group by cdm_t.dataset_id, pat_enc.pat_id, cdm_t.tsp, cdm_t.fid
-    ON CONFLICT (dataset_id,   pat_id,               tsp, fid) DO UPDATE SET value = excluded.value, update_date=excluded.update_date;
+    ON CONFLICT (dataset_id, pat_id, tsp, fid) DO UPDATE SET value = excluded.value, update_date=excluded.update_date;
     -- ================================================
     -- Upsert cdm_twf
     -- ================================================
