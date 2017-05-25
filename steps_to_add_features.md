@@ -44,11 +44,18 @@ Dict to table Mapping
 "lab_proc_dict" to "OrderProcs" and "OrderProcs_643"
 "flowsheet_dict  to "FlowsheetValue","FlowsheetValue-LDA","FlowsheetValue_643"
 
-In some cases the dicts may missing or misleading entries, it's always good to check against the tables to see themselves to see if an extry exsits;
-TODO: Write Global Search function which looks for a string in all the dicts, and in the right entries in all of the tables, and outputs a count.
+In some cases the dicts may have missing or misleading entries, it's always good to check against the clarity tables 
+ themselves to see themselves to see if an extry exsits;
 
-Andong has access to all of the data in clarity, but it is possible that not all of it has been extracted to the clarity tables in our database. If you're unable to find the data where you believe it should be from the dictionaries in the clarity tables in your database, document what you can't find, and the query which you used to look. We'll batch up as list of such things, and hand them to Andong or collaborators at EPIC.
+TODO: Write Global Search function which looks for a string in all the dicts, and in the right entries in all of the  tables, and outputs a count.
 
+Andong has access to all of the data in clarity, but it is possible that not all of it has been extracted to the 
+clarity tables in our database. If you're unable to find the data where you believe it should be from the 
+dictionaries in the clarity tables in your database, document what you can't find, and the query which you used to 
+look. We'll batch up as list of such things, and hand them to Andong or collaborators at EPIC.
+
+If Andong does have to to a custom clarity extraction for you, you can follow the instruction in 
+dashan-db/dw/load_clarity_staging_files/README.md to see how to add the new clarity tables to the database
 
 ## Step 2: Extract the Data
 Write sql/python function to extract measured feature(s) from clarity
