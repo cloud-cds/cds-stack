@@ -84,7 +84,7 @@ dataset_id,fid,category,data_type,is_measured,is_deprecated,fillin_func_id,windo
 7,dabigatran_dose,T,JSON,yes,no,,,,,Medication,1,
 7,midazolam_dose,T,JSON,yes,no,,,,,Medication,1,mg
 7,gi_bleed,T,Boolean,no,no,,,gi_bleed_update,"gi_bleed_inhosp, ct_proc, mri_proc",,1,
-7,albuterol_dose,T,Real,yes,no,,,,,Medication,,mg
+7,albuterol_dose,T,json,yes,no,,,,,Medication,,mg
 7,bronchiectasis_hist,S,Boolean,yes,no,,,,,History,1,no unit
 7,gentamicin_dose,T,JSON,yes,no,,3,,,Medication,1,mg
 7,fluids_intake_1hr,TWF,Real,no,no,,,fluids_intake_1hr,fluids_intake,,1,ml
@@ -113,7 +113,7 @@ dataset_id,fid,category,data_type,is_measured,is_deprecated,fillin_func_id,windo
 7,transfuse_plasma,T,Boolean,yes,no,,,,,Whether patient received transfusion,1,no unit
 7,emphysema_prob,S,Boolean,yes,no,,,,,ProblemList,1,no unit
 7,heart_attack_inhosp,T,String,yes,no,,,,,"Diagnoses, t if patient diagnosed with heart attack during hospital stay",1,
-7,ekg_proc,T,Boolean,yes,no,,,,,Procedure,1,
+7,ekg_proc,T,json,yes,no,,,,,Procedure,1,
 7,severe_pancreatitis,T,Boolean,no,no,,,severe_pancreatitis_update,"severe_pancreatitis_inhosp, ct_proc, mri_proc",Diagnoses,1,
 7,any_antibiotics_order,T,Boolean,no,no,,,any_antibiotics_order_update,"ampicillin_dose, clindamycin_dose, erythromycin_dose , gentamicin_dose , oxacillin_dose , tobramycin_dose , vancomycin_dose , ceftazidime_dose , cefazolin_dose , penicillin_g_dose , meropenem_dose , penicillin_dose , amoxicillin_dose , piperacillin_tazbac_dose, rifampin_dose, meropenem_dose, rapamycin_dose",any antibiotics was ordered for the patient,1,no unit
 7,pancreatitis_chronic_prob,S,Boolean,yes,no,,,,,ProblemList,1,no unit
@@ -228,7 +228,7 @@ dataset_id,fid,category,data_type,is_measured,is_deprecated,fillin_func_id,windo
 7,vancomycin_dose,T,JSON,yes,no,,3,,,Medication,1,mg
 7,atenolol_dose,T,JSON,yes,no,,,,,Medication,1,
 7,bronchiectasis_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
-7,dialysis,T,Real,yes,no,,,,,Volume of fluid removed,1,
+7,dialysis,T,Boolean,yes,no,,,,,Volume of fluid removed,1,
 7,bilirubin,TWF,Real,yes,no,last_value_in_window,28,,,Lab,1,mg/dl
 7,alt_liver_enzymes,TWF,Real,yes,no,last_value_in_window,28,,,Physiologic,1,
 7,map,TWF,Real,yes,no,last_value_in_window,4,,,Phyiologic,1,mmHg
@@ -267,7 +267,7 @@ dataset_id,fid,category,data_type,is_measured,is_deprecated,fillin_func_id,windo
 7,infections_angus_hist,S,Boolean,yes,no,,,,,History,1,no unit
 7,age,S,Real,yes,no,,,,,Demographic,1,year
 7,hem_malig_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
-7,care_unit,T,Real,yes,no,,,,,Department,1,no unit
+7,care_unit,T,String,yes,no,,,,,Department,1,no unit
 7,septic_shock,TWF,Integer,no,no,,,septic_shock_update,"severe_sepsis,  hypotension_intp, lactate, fluid_resuscitation, vasopressor_resuscitation","mix of lab, vital signs, and history",1,no unit
 7,ards,T,Boolean,no,no,,,ards_update,"ards_inhosp, pao2_to_fio2, vent",Diagnoses,1,
 7,immunodeficiency_hist,S,Boolean,yes,no,,,,,History,1,no unit
@@ -286,8 +286,8 @@ dataset_id,fid,category,data_type,is_measured,is_deprecated,fillin_func_id,windo
 7,crystalloid_fluid_order,T,Real,yes,no,,,,,crystaloid fluid order as used for the online sepsis bundle criteria,1,mg
 7,vasopressors_dose_order,T,Real,yes,no,,,,,vasopressors dose order as used in the online sepsis bundle criteria,1,mg
 7,bands,T,Real,yes,no,,,,,bands as used in the online sepsis bundle criteria calculation,1,%
-7,lactate_order,T,Real,yes,no,,,,,lactate order as uses for the online sepsis bundle critieria calculation,1,order state
-7,blood_culture_order,T,Real,yes,no,,,,,blood culture order as used for the online sepsis bundle criteria calculation,1,order state
+7,lactate_order,T,String,yes,no,,,,,lactate order as uses for the online sepsis bundle critieria calculation,1,order state
+7,blood_culture_order,T,String,yes,no,,,,,blood culture order as used for the online sepsis bundle criteria calculation,1,order state
 7,bipap,T,Boolean,yes,no,,,,,Order Procedure,1,
 7,cpap,T,Boolean,yes,no,,,,,Order Procedure,1,
 7,note,N,String,yes,no,,,,,provider notes,1,no unit

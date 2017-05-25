@@ -84,7 +84,7 @@ pneumonia_approx,T,String,yes,no,,,,,,,
 dabigatran_dose,T,JSON,yes,no,,,,,Medication,1,
 midazolam_dose,T,JSON,yes,no,,,,,Medication,1,mg
 gi_bleed,T,Boolean,no,no,,,gi_bleed_update,"gi_bleed_inhosp, ct_proc, mri_proc",,1,
-albuterol_dose,T,Real,yes,no,,,,,Medication,,mg
+albuterol_dose,T,json,yes,no,,,,,Medication,,mg
 bronchiectasis_hist,S,Boolean,yes,no,,,,,History,1,no unit
 gentamicin_dose,T,JSON,yes,no,,3,,,Medication,1,mg
 fluids_intake_1hr,TWF,Real,no,no,,,fluids_intake_1hr,fluids_intake,,1,ml
@@ -228,7 +228,7 @@ chest_xray,T,Boolean,yes,no,,,,,"Procedure, true if chest x-ray performed",1,
 vancomycin_dose,T,JSON,yes,no,,3,,,Medication,1,mg
 atenolol_dose,T,JSON,yes,no,,,,,Medication,1,
 bronchiectasis_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
-dialysis,T,Real,yes,no,,,,,Volume of fluid removed,1,
+dialysis,T,Boolean,yes,no,,,,,Volume of fluid removed,1,
 bilirubin,TWF,Real,yes,no,last_value_in_window,28,,,Lab,1,mg/dl
 alt_liver_enzymes,TWF,Real,yes,no,last_value_in_window,28,,,Physiologic,1,
 mapm,TWF,Real,no,no,,,mapm_update,"abp_mean, nbp_mean","BP-based, Mean arterial pressure (MAP), it should not be sparse",1,mmHg
@@ -266,7 +266,7 @@ renal_insufficiency_hist,S,Boolean,yes,no,,,,,history,1,no unit
 infections_angus_hist,S,Boolean,yes,no,,,,,History,1,no unit
 age,S,Real,yes,no,,,,,Demographic,1,year
 hem_malig_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
-care_unit,T,Real,yes,no,,,,,Department,1,no unit
+care_unit,T,String,yes,no,,,,,Department,1,no unit
 septic_shock,TWF,Integer,no,no,,,septic_shock_update,"severe_sepsis,  hypotension_intp, lactate, fluid_resuscitation, vasopressor_resuscitation","mix of lab, vital signs, and history",1,no unit
 ards,T,Boolean,no,no,,,ards_update,"ards_inhosp, pao2_to_fio2, vent",Diagnoses,1,
 immunodeficiency_hist,S,Boolean,yes,no,,,,,History,1,no unit
