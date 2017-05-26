@@ -1,24 +1,60 @@
 drop table if exists cdm_reports;
 create table cdm_reports (
-    dataset_id                       integer,
-    label_id                         integer,
-    w_max_state                      integer,
-    w_start                          timestamptz,
-    w_end                            timestamptz,
-    pat_id                           varchar(50),
-    name                             varchar(50),
-    measurement_time                 timestamptz,
-    value                            text,
-    override_time                    timestamptz,
-    override_user                    text,
-    override_value                   json,
-    is_met                           boolean,
-    update_date                      timestamptz,
-    severe_sepsis_onset              timestamptz,
-    severe_sepsis_wo_infection_onset timestamptz,
-    septic_shock_onset               timestamptz,
+    dataset_id                         integer,
+    label_id                           integer,
+    w_max_state                        integer,
+    w_start                            timestamptz,
+    w_end                              timestamptz,
+    pat_id                             varchar(50),
+    name                               varchar(50),
+    measurement_time                   timestamptz,
+    value                              text,
+    override_time                      timestamptz,
+    override_user                      text,
+    override_value                     json,
+    is_met                             boolean,
+    update_date                        timestamptz,
+    severe_sepsis_onset                timestamptz,
+    severe_sepsis_wo_infection_onset   timestamptz,
+    septic_shock_onset                 timestamptz,
+    w_severe_sepsis_onset              timestamptz,
+    w_severe_sepsis_wo_infection_onset timestamptz,
+    w_septic_shock_onset               timestamptz,
     primary key (dataset_id, label_id, w_max_state, w_start, w_end, pat_id, name)
 );
+
+---------------------------------------------------
+-- State encoding helpers.
+
+create or replace function encode_hosp_best_state(label integer)
+  returns integer
+language plpgsql
+as $func$ begin
+  return
+    case when label = 35 then 37
+         when label = 33 then 35
+         when label = 31 then 33
+         when label = 23 then 25
+         when label = 21 then 23
+         else label
+    end;
+end; $func$;
+
+
+create or replace function decode_hosp_best_state(label integer)
+  returns integer
+language plpgsql
+as $func$ begin
+  return
+    case when label = 37 then 35
+         when label = 35 then 33
+         when label = 33 then 31
+         when label = 25 then 23
+         when label = 23 then 21
+         else label
+    end;
+end; $func$;
+
 
 ---------------------------------------------------
 -- Pat ID - Enc ID matching for labels and reports.
@@ -264,37 +300,195 @@ create or replace function create_criteria_report(_pat_state  integer,
   returns void
 language plpgsql
 as $func$ begin
-    insert into cdm_reports
-    select WS.dataset_id                     as dataset_id,
-           WS.label_id                       as label_id,
-           WS.max_state                      as w_max_state,
-           WS.window_ts - interval '6 hours' as w_start,
-           WS.window_ts                      as w_end,
-           CWindow.*
-    from (
-      -- Earliest occurrence of the worst state.
-      select L2.pat_id, L2.dataset_id, L2.label_id, min(L2.tsp) as window_ts, max(L2.label) as max_state
-      from (
-        -- Worst state for each patient.
-        select L.pat_id, max(L.label) as label
+    insert into cdm_reports (
+        dataset_id,
+        label_id,
+        w_max_state,
+        w_start,
+        w_end,
+        pat_id,
+        name,
+        measurement_time,
+        value,
+        override_time,
+        override_user,
+        override_value,
+        is_met,
+        update_date,
+        severe_sepsis_onset,
+        severe_sepsis_wo_infection_onset,
+        septic_shock_onset,
+        w_severe_sepsis_onset,
+        w_severe_sepsis_wo_infection_onset,
+        w_septic_shock_onset
+      )
+      -- Earliest occurrence of each state
+      with earliest_occurrences as (
+        select L.dataset_id, L.label_id, L.pat_id, L.label, min(L.tsp) as tsp
         from cdm_labels L
         where L.dataset_id = coalesce(_dataset_id, L.dataset_id)
         and   L.label_id   = coalesce(_label_id, L.label_id)
-        group by L.pat_id
-      ) L1
-      inner join cdm_labels L2
-          on L1.pat_id = L2.pat_id
-          and L1.label = L2.label
-      where L1.label    = coalesce(_pat_state, L1.label)
-      and L2.dataset_id = coalesce(_dataset_id, L2.dataset_id)
-      and L2.label_id   = coalesce(_label_id, L2.label_id)
-      group by L2.pat_id, L2.dataset_id, L2.label_id
-    ) WS
-    inner join lateral get_cms_labels_for_window_v5(
-      WS.pat_id, WS.window_ts - interval '6 hours', WS.window_ts, WS.dataset_id
-    ) CWindow
-      on WS.pat_id = CWindow.pat_id
-    order by WS.max_state desc, CWindow.pat_id;
+        group by L.dataset_id, L.label_id, L.pat_id, L.label
+      ),
+      state_onsets as (
+        select I.dataset_id, I.label_id, I.pat_id,
+               least(min(L10.sspwoi), min(L20.sspwoi), min(L30.sspwoi)) as severe_sepsis_wo_infection_onset,
+               least(min(L20.ssp), min(L30.ssp)) as severe_sepsis_onset,
+               min(L30.ssh) as septic_shock_onset
+        from
+        ( select distinct I.dataset_id, I.label_id, I.pat_id from earliest_occurrences I ) I
+
+        left join
+        (
+          -- Earliest occurrence of sspwoi.
+          /*
+          select L10.dataset_id, L10.label_id, L10.pat_id, min(L10.tsp) as tsp
+          from earliest_occurrences L10
+          where L10.label >= 10 and L10.label < 20
+          group by L10.pat_id, L10.dataset_id, L10.label_id
+          */
+          select WL10.dataset_id, WL10.label_id, WL10.pat_id,
+                 min(LWindow.severe_sepsis_wo_infection_onset) as sspwoi
+          from (
+            select L10.dataset_id, L10.label_id, L10.pat_id, min(L10.tsp) as tsp
+            from earliest_occurrences L10
+            where L10.label >= 10 and L10.label < 20
+            group by L10.pat_id, L10.dataset_id, L10.label_id
+          ) WL10
+          inner join lateral get_cms_labels_for_window_v5(
+            WL10.pat_id, WL10.tsp - interval '6 hours', WL10.tsp, WL10.dataset_id
+          ) LWindow
+            on WL10.pat_id = LWindow.pat_id
+          group by WL10.pat_id, WL10.dataset_id, WL10.label_id
+        ) L10
+          on I.dataset_id = L10.dataset_id
+          and I.label_id = L10.label_id
+          and I.pat_id = L10.pat_id
+
+        left join (
+          -- Earliest occurrence of ssp.
+          /*
+          select L20.dataset_id, L20.label_id, L20.pat_id, min(L20.tsp) as tsp
+          from earliest_occurrences L20
+          where L20.label >= 20 and L20.label < 30
+          group by L20.pat_id, L20.dataset_id, L20.label_id
+          */
+          select WL20.dataset_id, WL20.label_id, WL20.pat_id,
+                 min(LWindow.severe_sepsis_wo_infection_onset) as sspwoi,
+                 min(LWindow.severe_sepsis_onset) as ssp
+          from (
+            select L20.dataset_id, L20.label_id, L20.pat_id, min(L20.tsp) as tsp
+            from earliest_occurrences L20
+            where L20.label >= 20 and L20.label < 30
+            group by L20.pat_id, L20.dataset_id, L20.label_id
+          ) WL20
+          inner join lateral get_cms_labels_for_window_v5(
+            WL20.pat_id, WL20.tsp - interval '6 hours', WL20.tsp, WL20.dataset_id
+          ) LWindow
+            on WL20.pat_id = LWindow.pat_id
+          group by WL20.pat_id, WL20.dataset_id, WL20.label_id
+        ) L20
+          on I.dataset_id = L20.dataset_id
+          and I.label_id = L20.label_id
+          and I.pat_id = L20.pat_id
+
+        left join (
+          -- Earliest occurrence of ssh.
+          /*
+          select L30.dataset_id, L30.label_id, L30.pat_id, min(L30.tsp) as tsp
+          from earliest_occurrences L30
+          where L30.label >= 30
+          group by L30.pat_id, L30.dataset_id, L30.label_id
+          */
+          select WL30.dataset_id, WL30.label_id, WL30.pat_id,
+                 min(LWindow.severe_sepsis_wo_infection_onset) as sspwoi,
+                 min(LWindow.severe_sepsis_onset) as ssp,
+                 min(LWindow.septic_shock_onset) as ssh
+          from (
+            select L30.dataset_id, L30.label_id, L30.pat_id, min(L30.tsp) as tsp
+            from earliest_occurrences L30
+            where L30.label >= 30
+            group by L30.pat_id, L30.dataset_id, L30.label_id
+          ) WL30
+          inner join lateral get_cms_labels_for_window_v5(
+            WL30.pat_id, WL30.tsp - interval '6 hours', WL30.tsp, WL30.dataset_id
+          ) LWindow
+            on WL30.pat_id = LWindow.pat_id
+          group by WL30.pat_id, WL30.dataset_id, WL30.label_id
+        ) L30
+          on I.dataset_id = L30.dataset_id
+          and I.label_id = L30.label_id
+          and I.pat_id = L30.pat_id
+
+        group by I.dataset_id, I.label_id, I.pat_id
+      )
+
+      select WS.dataset_id                            as dataset_id,
+             WS.label_id                              as label_id,
+             WS.max_state                             as w_max_state,
+             WS.window_ts - interval '6 hours'        as w_start,
+             WS.window_ts                             as w_end,
+             CWindow.pat_id                           as pat_id,
+             CWindow.name                             as name,
+             CWindow.measurement_time                 as measurement_time,
+             CWindow.value                            as value,
+             CWindow.override_time                    as override_time,
+             CWindow.override_user                    as override_user,
+             CWindow.override_value                   as override_value,
+             CWindow.is_met                           as is_met,
+             CWindow.update_date                      as update_date,
+             S.severe_sepsis_onset                    as severe_sepsis_onset,
+             S.severe_sepsis_wo_infection_onset       as severe_sepsis_wo_infection_onset,
+             S.septic_shock_onset                     as septic_shock_onset,
+             CWindow.severe_sepsis_onset              as w_severe_sepsis_onset,
+             CWindow.severe_sepsis_wo_infection_onset as w_severe_sepsis_wo_infection_onset,
+             CWindow.septic_shock_onset               as w_septic_shock_onset
+      from (
+        -- Earliest occurrence of the worst state.
+        select L2.pat_id, L2.dataset_id, L2.label_id, min(L2.tsp) as window_ts, max(L2.label) as max_state
+        from (
+          -- Best hospital care state for each patient.
+          select L.pat_id, decode_hosp_best_state(max(encode_hosp_best_state(L.label))) as label
+          from cdm_labels L
+          where L.dataset_id = coalesce(_dataset_id, L.dataset_id)
+          and   L.label_id   = coalesce(_label_id, L.label_id)
+          group by L.pat_id
+        ) L1
+        inner join cdm_labels L2
+            on L1.pat_id = L2.pat_id
+            and L1.label = L2.label
+        where L1.label    = coalesce(_pat_state, L1.label)
+        and L2.dataset_id = coalesce(_dataset_id, L2.dataset_id)
+        and L2.label_id   = coalesce(_label_id, L2.label_id)
+        group by L2.pat_id, L2.dataset_id, L2.label_id
+      ) WS
+
+      inner join lateral get_cms_labels_for_window_v5(
+        WS.pat_id, WS.window_ts - interval '6 hours', WS.window_ts, WS.dataset_id
+      ) CWindow
+        on WS.pat_id = CWindow.pat_id
+
+      left join state_onsets S
+        on WS.dataset_id = S.dataset_id
+        and WS.label_id = S.label_id
+        and WS.pat_id = S.pat_id
+
+      order by WS.max_state desc, CWindow.pat_id
+    on conflict(dataset_id, label_id, w_max_state, w_start, w_end, pat_id, name)
+      do update
+        set measurement_time                   = excluded.measurement_time,
+            value                              = excluded.value,
+            override_time                      = excluded.override_time,
+            override_user                      = excluded.override_user,
+            override_value                     = excluded.override_value,
+            is_met                             = excluded.is_met,
+            update_date                        = excluded.update_date,
+            severe_sepsis_onset                = excluded.severe_sepsis_onset,
+            severe_sepsis_wo_infection_onset   = excluded.severe_sepsis_wo_infection_onset,
+            septic_shock_onset                 = excluded.septic_shock_onset,
+            w_severe_sepsis_onset              = excluded.w_severe_sepsis_onset,
+            w_severe_sepsis_wo_infection_onset = excluded.w_severe_sepsis_wo_infection_onset,
+            w_septic_shock_onset               = excluded.w_septic_shock_onset;
 end; $func$;
 
 
@@ -304,20 +498,24 @@ end; $func$;
 create or replace function tabulate_criteria(_pat_state  integer,
                                              _dataset_id integer,
                                              _label_id   integer)
-  returns table ( dataset_id                       integer,
-                  label_id                         integer,
-                  w_max_state                      integer,
-                  pat_id                           varchar(50),
-                  severe_sepsis_onset              timestamptz,
-                  severe_sepsis_wo_infection_onset timestamptz,
-                  septic_shock_onset               timestamptz,
-                  criteria                         json
+  returns table ( dataset_id                         integer,
+                  label_id                           integer,
+                  w_max_state                        integer,
+                  pat_id                             varchar(50),
+                  severe_sepsis_onset                timestamptz,
+                  severe_sepsis_wo_infection_onset   timestamptz,
+                  septic_shock_onset                 timestamptz,
+                  w_severe_sepsis_onset              timestamptz,
+                  w_severe_sepsis_wo_infection_onset timestamptz,
+                  w_septic_shock_onset               timestamptz,
+                  criteria                           json
   )
 language plpgsql
 as $func$ begin
   return query
     select  C.dataset_id, C.label_id, C.w_max_state, C.pat_id,
             C.severe_sepsis_onset, C.severe_sepsis_wo_infection_onset, C.septic_shock_onset,
+            C.w_severe_sepsis_onset, C.w_severe_sepsis_wo_infection_onset, C.w_septic_shock_onset,
             json_object_agg(C.name,
               case when C.name = 'suspicion_of_infection'
                     then json_object('{t, value}', ARRAY[
@@ -338,7 +536,7 @@ as $func$ begin
                           'respiratory_failure',
                           'blood_pressure', 'mean_arterial_pressure', 'decrease_in_sbp', 'creatinine', 'bilirubin', 'platelet', 'inr', 'lactate'
                         )
-                        and coalesce(C.override_time, C.measurement_time) between C.severe_sepsis_wo_infection_onset - interval '6 hours' and C.severe_sepsis_wo_infection_onset
+                        and coalesce(C.override_time, C.measurement_time) between C.w_severe_sepsis_wo_infection_onset - interval '6 hours' and C.w_severe_sepsis_wo_infection_onset
                     then json_object('{t, value}', ARRAY[
                            humanize_report_timestamp(C.severe_sepsis_onset, coalesce(C.override_time, C.measurement_time)),
                            coalesce(C.override_value::text, C.value)::text
@@ -363,7 +561,8 @@ as $func$ begin
     and   C.label_id    = coalesce(_label_id,   C.label_id)
     and   C.w_max_state = coalesce(_pat_state,  C.w_max_state)
     group by C.dataset_id, C.label_id, C.w_max_state, C.pat_id,
-             C.severe_sepsis_onset, C.severe_sepsis_wo_infection_onset, C.septic_shock_onset;
+             C.severe_sepsis_onset, C.severe_sepsis_wo_infection_onset, C.septic_shock_onset,
+             C.w_severe_sepsis_onset, C.w_severe_sepsis_wo_infection_onset, C.w_septic_shock_onset;
 end; $func$;
 
 
@@ -378,6 +577,9 @@ create or replace function criteria_report(_pat_state  integer,
                   severe_sepsis_onset               text,
                   sirs_organ_dys_onset              text,
                   septic_shock_onset                text,
+                  w_severe_sepsis_onset             text,
+                  w_sirs_organ_dys_onset            text,
+                  w_septic_shock_onset              text,
                   infection                         text,
                   sirs_criteria                     text,
                   org_df_criteria                   text,
@@ -392,6 +594,9 @@ as $func$ begin
            W.severe_sepsis_onset,
            W.sirs_organ_dys_onset,
            W.septic_shock_onset,
+           W.w_severe_sepsis_onset,
+           W.w_sirs_organ_dys_onset,
+           W.w_septic_shock_onset,
 
            humanize_report_note(suspicion_of_infection_value, suspicion_of_infection_t)
             as infection,
@@ -470,9 +675,12 @@ as $func$ begin
            NULL), ' ', '') as orders
     from (
       select  R.w_max_state, R.pat_id,
-              humanize_report_timestamp(null, R.severe_sepsis_onset) as severe_sepsis_onset,
-              humanize_report_timestamp(R.severe_sepsis_onset, R.severe_sepsis_wo_infection_onset) as sirs_organ_dys_onset,
-              humanize_report_timestamp(R.severe_sepsis_onset, R.septic_shock_onset) as septic_shock_onset,
+              humanize_report_timestamp(null, R.severe_sepsis_onset)                                 as severe_sepsis_onset,
+              humanize_report_timestamp(R.severe_sepsis_onset, R.severe_sepsis_wo_infection_onset)   as sirs_organ_dys_onset,
+              humanize_report_timestamp(R.severe_sepsis_onset, R.septic_shock_onset)                 as septic_shock_onset,
+              humanize_report_timestamp(R.severe_sepsis_onset, R.w_severe_sepsis_onset)              as w_severe_sepsis_onset,
+              humanize_report_timestamp(R.severe_sepsis_onset, R.w_severe_sepsis_wo_infection_onset) as w_sirs_organ_dys_onset,
+              humanize_report_timestamp(R.severe_sepsis_onset, R.w_septic_shock_onset)               as w_septic_shock_onset,
               R.criteria#>>'{antibiotics_order, met}'         as antibiotics_order_met,
               R.criteria#>>'{antibiotics_order, t}'           as antibiotics_order_t,
               R.criteria#>>'{antibiotics_order, value}'       as antibiotics_order_value,
