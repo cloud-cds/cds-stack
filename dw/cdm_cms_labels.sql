@@ -29,6 +29,9 @@ CREATE TABLE cdm_processed_notes (
     PRIMARY KEY (dataset_id, pat_id, note_id, note_type, note_status)
 );
 
+-------------------------------------------------------
+-- Per-window criteria calculation
+
 -- Calculates criteria for only SIRS and Organ Dysfunction.
 -- This is useful for identifying candidates for whom we can
 -- evaluate suspicion of infection.
@@ -180,7 +183,7 @@ BEGIN
     group by sodf.pat_id, sodf.name
   ),
   null_infections as (
-    -- This is necessary for get_window_states
+    -- This is necessary for get_window_labels_from_criteria
     select P.pat_id,
            'suspicion_of_infection'::varchar as name,
            null::timestamptz                 as measurement_time,
@@ -1326,7 +1329,7 @@ BEGIN
       select distinct SPWOI.pat_id from severe_sepsis_wo_infection SPWOI
     ),
     null_infections as (
-      -- get_window_states explicitly requires a null value to yield states 10 and 12
+      -- get_window_labels_from_criteria explicitly requires a null value to yield states 10 and 12
       select P.pat_id,
              'suspicion_of_infection'::text    as name,
              null::timestamptz                 as measurement_time,
@@ -2100,7 +2103,7 @@ BEGIN
       select distinct SPWOI.pat_id from severe_sepsis_wo_infection SPWOI
     ),
     null_infections as (
-      -- get_window_states explicitly requires a null value to yield states 10 and 12
+      -- get_window_labels_from_criteria explicitly requires a null value to yield states 10 and 12
       select P.pat_id,
              'suspicion_of_infection'::text    as name,
              null::timestamptz                 as measurement_time,
@@ -2850,7 +2853,7 @@ BEGIN
     group by CO.pat_id
   ),
   simulated_infections as (
-    -- get_window_states explicitly requires a null value to yield states 10 and 12
+    -- get_window_labels_from_criteria explicitly requires a null value to yield states 10 and 12
     select R.pat_id,
            'suspicion_of_infection'::text                                          as name,
            R.tsp                                                                   as measurement_time,
@@ -3633,7 +3636,7 @@ BEGIN
         )
     ),
     null_infections as (
-      -- get_window_states explicitly requires a null value to yield states 10 and 12
+      -- get_window_labels_from_criteria explicitly requires a null value to yield states 10 and 12
       select P.pat_id,
              'suspicion_of_infection'::text    as name,
              null::timestamptz                 as measurement_time,
@@ -4175,9 +4178,116 @@ BEGIN
 END; $function$;
 
 
+----------------------------------------------------------
+-- Per-window label calculation
+
+CREATE OR REPLACE FUNCTION get_window_labels_from_criteria(table_name text, _pat_id text, w_end timestamptz default now())
+  RETURNS table( ts timestamptz, pat_id varchar(50), state int)
+AS $func$ BEGIN
+  RETURN QUERY EXECUTE format(
+  'select stats.ts, stats.pat_id,
+      (
+      case
+      when sus_count = 1 then
+          (
+          case when sirs_count > 1 and organ_count > 0 and sspwoi_present then (
+              (
+              case
+              when (fluid_count = 1 and hypotension_count > 0) and hypoperfusion_count = 1 then
+                  (case
+                      -- septic shock
+                      when $1 - GREATEST(sus_onset, sirs_onset, organ_onset)  > ''3 hours''::interval and sev_sep_3hr_count < 4 then 32 -- sev_sep_3hr_exp
+                      when $1 - GREATEST(sus_onset, sirs_onset, organ_onset)  > ''6 hours''::interval and sev_sep_6hr_count = 0 then 34 -- sev_sep_6hr_exp
+                      when $1 - LEAST(hypotension_onset, hypoperfusion_onset) > ''6 hours''::interval and sep_sho_6hr_count = 0 then 36 -- sep_sho_6hr_exp
+                      when $1 - LEAST(hypotension_onset, hypoperfusion_onset) > ''6 hours''::interval and sep_sho_6hr_count = 1 then 35 -- sep_sho_6hr_com
+                      when $1 - GREATEST(sus_onset, sirs_onset, organ_onset)  > ''6 hours''::interval and sev_sep_6hr_count = 1 then 33 -- sev_sep_6hr_com
+                      when $1 - GREATEST(sus_onset, sirs_onset, organ_onset)  > ''3 hours''::interval and sev_sep_3hr_count = 4 then 31 -- sev_sep_3hr_com
+                      else
+                      30 end)
+              when (fluid_count = 1 and hypotension_count > 0) then
+                  (case
+                      -- septic shock
+                      when $1 - GREATEST(sus_onset, sirs_onset, organ_onset) > ''3 hours''::interval and sev_sep_3hr_count < 4 then 32 -- sev_sep_3hr_exp
+                      when $1 - GREATEST(sus_onset, sirs_onset, organ_onset) > ''6 hours''::interval and sev_sep_6hr_count = 0 then 34 -- sev_sep_6hr_exp
+                      when $1 - hypotension_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 36 -- sep_sho_6hr_exp
+                      when $1 - hypotension_onset > ''6 hours''::interval and sep_sho_6hr_count = 1 then 35 -- sep_sho_6hr_com
+                      when $1 - GREATEST(sus_onset, sirs_onset, organ_onset) > ''6 hours''::interval and sev_sep_6hr_count = 1 then 33 -- sev_sep_6hr_com
+                      when $1 - GREATEST(sus_onset, sirs_onset, organ_onset) > ''3 hours''::interval and sev_sep_3hr_count = 4 then 31 -- sev_sep_3hr_com
+                      else
+                      30 end)
+              when hypoperfusion_count = 1 then
+                  (case
+                      -- septic shock
+                      when $1 - GREATEST(sus_onset, sirs_onset, organ_onset) > ''3 hours''::interval and sev_sep_3hr_count < 4 then 32 -- sev_sep_3hr_exp
+                      when $1 - GREATEST(sus_onset, sirs_onset, organ_onset) > ''6 hours''::interval and sev_sep_6hr_count = 0 then 34 -- sev_sep_6hr_exp
+                      when $1 - hypoperfusion_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 36 -- sep_sho_6hr_exp
+                      when $1 - hypoperfusion_onset > ''6 hours''::interval and sep_sho_6hr_count = 1 then 35 -- sep_sho_6hr_com
+                      when $1 - GREATEST(sus_onset, sirs_onset, organ_onset) > ''6 hours''::interval and sev_sep_6hr_count = 1 then 33 -- sev_sep_6hr_com
+                      when $1 - GREATEST(sus_onset, sirs_onset, organ_onset) > ''3 hours''::interval and sev_sep_3hr_count = 4 then 31 -- sev_sep_3hr_com
+                      else
+                      30 end)
+              when $1 - GREATEST(sus_onset, sirs_onset, organ_onset) > ''3 hours''::interval and sev_sep_3hr_count < 4 then 22 -- sev_sep_3hr_exp
+              when $1 - GREATEST(sus_onset, sirs_onset, organ_onset) > ''6 hours''::interval and sev_sep_6hr_count = 0 then 24 -- sev_sep_6hr_exp
+              when $1 - GREATEST(sus_onset, sirs_onset, organ_onset) > ''6 hours''::interval and sev_sep_6hr_count = 1 then 23 -- sev_sep_6hr_com
+              when $1 - GREATEST(sus_onset, sirs_onset, organ_onset) > ''3 hours''::interval and sev_sep_3hr_count = 4 then 21 -- sev_sep_3hr_com
+              else
+              -- severe sepsis
+              20
+              end)
+          )
+          else
+              -- inactive
+              0
+          end
+          )
+      -- no sus
+      when sirs_count > 1 and organ_count > 0 and sspwoi_present and sus_null_count  = 1 then 10 -- sev_sep w.o. sus
+      when sirs_count > 1 and organ_count > 0 and sspwoi_present and sus_noinf_count = 1 then 12 -- sev_sep w.o. sus
+      when sirs_count > 0 and organ_count > 0 then 8
+      when sirs_count > 1 then 6
+      when sirs_count > 0 then 2
+      when organ_count > 0 then 4
+      else 0 -- healthy case
+      end) as state
+  from
+  (
+  select %I.ts, %I.pat_id,
+      bool_or(severe_sepsis_wo_infection_onset is not null)                                                                           as sspwoi_present,
+      count(*) filter (where name = ''suspicion_of_infection'' and is_met)                                                            as sus_count,
+      count(*) filter (where name = ''suspicion_of_infection'' and (not is_met) and override_value#>>''{0,text}'' = ''No Infection'') as sus_noinf_count,
+      count(*) filter (where name = ''suspicion_of_infection'' and (not is_met) and override_value is null)                           as sus_null_count,
+      count(*) filter (where name = ''crystalloid_fluid'' and is_met)                                                                 as fluid_count,
+      count(*) filter (where name = ''initial_lactate'' and is_met)                                                                   as hypoperfusion_count,
+      count(*) filter (where name in (''sirs_temp'',''heart_rate'',''respiratory_rate'',''wbc'') and is_met )                         as sirs_count,
+      count(*) filter (where name in (''blood_pressure'',''mean_arterial_pressure'',''decrease_in_sbp'',''respiratory_failure'',
+                                      ''creatinine'',''bilirubin'',''platelet'',''inr'',''lactate'')
+                          and is_met )                                                                                                as organ_count,
+      count(*) filter (where name in (''systolic_bp'',''hypotension_map'',''hypotension_dsbp'') and is_met )                          as hypotension_count,
+      count(*) filter (where name in (''initial_lactate_order'',''blood_culture_order'',
+                                      ''antibiotics_order'', ''crystalloid_fluid_order'') and is_met )                                as sev_sep_3hr_count,
+      count(*) filter (where name = ''repeat_lactate_order'' and is_met )                                                             as sev_sep_6hr_count,
+      count(*) filter (where name = ''vasopressors_order'' and is_met )                                                               as sep_sho_6hr_count,
+      first(override_time) filter (where name = ''suspicion_of_infection'' and is_met)                                                as sus_onset,
+      (array_agg(measurement_time order by measurement_time)
+         filter (where name in (''sirs_temp'',''heart_rate'',''respiratory_rate'',''wbc'') and is_met ) )[2]                          as sirs_onset,
+      min(measurement_time)
+         filter (where name in (''blood_pressure'',''mean_arterial_pressure'',''decrease_in_sbp'',''respiratory_failure'',
+                                ''creatinine'',''bilirubin'',''platelet'',''inr'',''lactate'') and is_met )                           as organ_onset,
+      min(measurement_time) filter (where name in (''systolic_bp'',''hypotension_map'',''hypotension_dsbp'') and is_met )             as hypotension_onset,
+      min(measurement_time) filter (where name = ''initial_lactate'' and is_met)                                                      as hypoperfusion_onset
+  from %I
+  where %I.pat_id = coalesce($2, %I.pat_id)
+  group by %I.ts, %I.pat_id
+  ) stats', table_name, table_name, table_name, table_name, table_name, table_name, table_name)
+  USING w_end, _pat_id;
+END $func$ LANGUAGE plpgsql;
+
+
+----------------------------------------------------------
+-- Top-level series labeling functions
 
 -- Returns binned timestamps for window boundaries
--- based on timestamps at which measuremenets are available.
+-- based on timestamps at which measurements are available.
 CREATE OR REPLACE FUNCTION get_meas_periodic_timestamps(
         _pat_id                 text,
         _dataset_id             integer,
@@ -4265,6 +4375,40 @@ BEGIN
 END; $function$;
 
 
+-- Returns timestamps for patient states >= 10, picking at most
+-- one timestamp per hour.
+CREATE OR REPLACE FUNCTION get_hourly_active_timestamps(
+        _pat_id                 text,
+        _dataset_id             integer,
+        _label_id               integer default 0,
+        ts_start                timestamptz DEFAULT '-infinity'::timestamptz,
+        ts_end                  timestamptz DEFAULT 'infinity'::timestamptz,
+        window_limit            text default 'all'
+  )
+  returns table(pat_id varchar(50), tsp timestamptz)
+  LANGUAGE plpgsql
+AS $function$
+DECLARE
+    pat_id_str text;
+BEGIN
+  pat_id_str = case when _pat_id is null then 'NULL'
+                    else format('''%s''', _pat_id) end;
+
+  return query execute format('
+    select pat_id::varchar(50), min(tsp)
+    from cdm_labels
+    where pat_id = coalesce(%s, pat_id)
+    and dataset_id = %s
+    and label_id = %s
+    and tsp between ''%s''::timestamptz and ''%s''::timestamptz
+    and label >= 10
+    group by dataset_id, label_id, pat_id, label_type, date_trunc(''hour'', tsp)
+    limit %s'
+    , pat_id_str, _dataset_id, _label_id, ts_start, ts_end, window_limit
+    );
+END; $function$;
+
+
 --
 -- Computes a label series using windows defined by the 'window_generator' UDF.
 CREATE OR REPLACE FUNCTION get_cms_label_series_for_windows(
@@ -4340,7 +4484,7 @@ BEGIN
     -- Populate label series
     insert into cdm_labels (dataset_id, label_id, pat_id, tsp, label_type, label)
       select _dataset_id, generated_label_id, sw.pat_id, sw.ts, 'cms state', sw.state
-      from get_window_states('new_criteria_windows', _pat_id) sw
+      from get_window_labels_from_criteria('new_criteria_windows', _pat_id) sw
     on conflict (dataset_id, label_id, pat_id, tsp) do update
       set label_type = excluded.label_type,
           label = excluded.label;
@@ -4446,7 +4590,7 @@ BEGIN
     -- Populate label series
     insert into cdm_labels (dataset_id, label_id, pat_id, tsp, label_type, label)
       select _dataset_id, generated_label_id, sw.pat_id, sw.ts, 'cms state', sw.state
-      from get_window_states('new_criteria_windows', _pat_id) sw
+      from get_window_labels_from_criteria('new_criteria_windows', _pat_id) sw
     on conflict (dataset_id, label_id, pat_id, tsp) do update
       set label_type = excluded.label_type,
           label = excluded.label;
@@ -4602,7 +4746,7 @@ BEGIN
       if label_function = 5 and refresh_notes then
         -- Preprocess notes.
         perform get_cms_note_matches_for_windows(
-          label_description, 'get_label_change_timestamps',
+          label_description, 'get_hourly_active_timestamps',
           _pat_id, _dataset_id, candidate_label_id, parallel_dblink, num_partitions, ts_start, ts_end, window_limit);
 
         raise notice 'Finished notes for get_cms_label_series on dataset_id %, label_id %', _dataset_id, candidate_label_id;
@@ -4610,7 +4754,7 @@ BEGIN
 
       -- Fine-grained pass, using windows based on state changes.
       select get_cms_label_series_for_windows_in_parallel(
-        label_description, 'get_label_change_timestamps', label_function,
+        label_description, 'get_hourly_active_timestamps', label_function,
         _pat_id, _dataset_id, candidate_label_id, parallel_dblink, num_partitions, ts_start, ts_end, window_limit, use_app_infections, use_clarity_notes)
       into result_label_id;
     else
