@@ -19,9 +19,7 @@ def extract(df, dict_column, selection_dict):
         return val
     df[dict_column] = df[dict_column].apply(fill_none)
     new_cols = pd.DataFrame(df[dict_column].tolist())
-    print(new_cols)
     new_cols = select_columns(new_cols, selection_dict)
-    print(new_cols)
     old_cols = df.drop(dict_column, axis=1)
     return pd.concat([old_cols, new_cols], axis=1)
 

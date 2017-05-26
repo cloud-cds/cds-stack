@@ -16,7 +16,10 @@ import asyncio
 import asyncpg, aiohttp
 import ujson as json
 import boto3, botocore
+import argparse
 from time import sleep
+import IPython
+
 
 MODE = {
   1: 'real',
@@ -25,7 +28,7 @@ MODE = {
 }
 
 
-def main(max_num_pats=None, hospital=None, lookback_hours=None, db_name=None):
+def main(max_pats=None, hospital=None, lookback_hours=None, db_name=None, repl=False):
   # Create config objects
   config = Config(debug=True, db_name=db_name)
   config_dict = {
@@ -61,7 +64,7 @@ def main(max_num_pats=None, hospital=None, lookback_hours=None, db_name=None):
   # Build plan
   all_tasks = []
   if 'real' in mode:
-    all_tasks += get_extraction_tasks(extractor, max_num_pats)
+    all_tasks += get_extraction_tasks(extractor, max_pats)
     all_tasks += get_combine_tasks()
     all_tasks.append({
         'name': 'push_cloudwatch_metrics',
@@ -80,6 +83,12 @@ def main(max_num_pats=None, hospital=None, lookback_hours=None, db_name=None):
   loading_tasks  = loader.get_tasks(job_id,  'combine_db_data', 'combine_extract_data', mode, archive, config.get_db_conn_string_sqlalchemy())
   criteria_tasks = get_criteria_tasks(dependency = 'get_notifications_for_epic')
 
+  ########################
+  # Build plan for repl
+  if repl:
+    all_tasks = get_extraction_tasks(extractor, max_pats)
+    loading_tasks = []
+    criteria_tasks = []
 
   ########################
   # Run plan
@@ -91,11 +100,17 @@ def main(max_num_pats=None, hospital=None, lookback_hours=None, db_name=None):
     plan.add(task)
   for task in loading_tasks:
     plan.add(task)
-  engine = Engine(plan=plan, name="epic2op_engine", nprocs=2, loglevel=logging.DEBUG)
+  engine = Engine(
+    plan     = plan,
+    name     = "epic2op_engine",
+    nprocs   = 2,
+    loglevel = logging.DEBUG,
+    with_gc  = (not repl),
+  )
   loop = asyncio.new_event_loop()
   loop.run_until_complete(engine.run())
   loop.close()
-  return "finished"
+  return engine
 
 
 
@@ -276,12 +291,12 @@ def transform(ctxt, df, transform_list_name):
     df = skip_none(df, transform_fn)
   return df
 
-def get_extraction_tasks(extractor, max_num_pats=None):
+def get_extraction_tasks(extractor, max_pats=None):
   return [
     {
       'name': 'bedded_patients_extract',
       'fn':   extractor.extract_bedded_patients,
-      'args': [extractor.hospital, max_num_pats],
+      'args': [extractor.hospital, max_pats],
     }, { # Barrier 1
       'name': 'bedded_patients_transform',
       'deps': ['bedded_patients_extract'],
@@ -384,25 +399,50 @@ def get_extraction_tasks(extractor, max_num_pats=None):
   ]
 
 
-class Epic2Op:
-  def __init__(self, max_num_pats=None, hospital=None, lookback_hours=None, db_name=None):
-    self.max_num_pats   = max_num_pats
-    self.hospital       = hospital
-    self.lookback_hours = lookback_hours
-    self.db_name        = db_name
-    self.config         = Config(debug=True, db_name=db_name)
 
-  def main(self):
-    main(self.max_num_pats, self.hospital, self.lookback_hours, self.db_name)
+def start_repl(task_results):
+  global results
+  results = task_results
+  print("\n\n\tStarting REPL.")
+  print("\n\n\tThe dictionary 'results' holds all dataframes.")
+  print("\n\n\tHere are the contents:")
+  for name, df in results.items():
+    print("\t{:30} -- dataframe of size {}".format(name, len(df)))
+  print("\n\n")
+  IPython.embed()
 
-  def get_db_config(self):
-    return {
-      'db_name': self.config.db_name,
-      'db_user': self.config.db_user,
-      'db_pass': self.config.db_pass,
-      'db_host': self.config.db_host,
-      'db_port': self.config.db_port,
-    }
+
+
+def parse_arguments():
+  parser = argparse.ArgumentParser(description='JHAPI ETL')
+  parser.add_argument(
+    '-m', '--max_pats',
+    type = int,
+    help = "The maximum number of patients to fetch from jhapi",
+  )
+  parser.add_argument(
+    '-ho', '--hospital',
+    choices = ['JHH', 'BMC', 'SMH', 'HCGH', 'SHM'],
+    help    = "The hospital to fetch patients for",
+  )
+  parser.add_argument(
+    '-l', '--lookback_hours',
+    type = int,
+    help = "The number of hours to search back in the flowsheets (72 max)",
+  )
+  parser.add_argument(
+    '-d', '--db_name',
+    type = str,
+    help = "The name of the db to load into (defaults to environment variable)",
+  )
+  parser.add_argument(
+    '-r', '--repl',
+    choices = [True, False],
+    type    = bool,
+    default = False,
+    help    = "Whether or not to skip loading and drop into a REPL",
+  )
+  return parser.parse_args()
 
 
 if __name__ == '__main__':
@@ -412,6 +452,13 @@ if __name__ == '__main__':
   pd.set_option('display.max_colwidth', 40)
   pd.options.mode.chained_assignment = None
   logging.getLogger().setLevel(0)
-  eng = Epic2Op()
-  results = eng.main()
-  print(results)
+  args = parse_arguments()
+  eng_ret = main(
+    max_pats       = args.max_pats,
+    hospital       = args.hospital,
+    lookback_hours = args.lookback_hours,
+    db_name        = args.db_name,
+    repl           = args.repl,
+  )
+  if args.repl:
+    start_repl(eng_ret.task_results)
