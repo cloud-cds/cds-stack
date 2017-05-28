@@ -798,9 +798,10 @@ CREATE TABLE cdm_stats(
     dataset_id integer REFERENCES dw_version(dataset_id),
     id text,
     id_type text,
+    cdm_table text,
     stats jsonb,
     PRIMARY KEY (dataset_id, id, id_type)
 );
 
 CREATE VIEW cdm_stats_view AS
-    select dataset_id, id, id_type, jsonb_pretty(stats) from cdm_stats;
+    select dataset_id, id, id_type, cdm_table, jsonb_pretty(stats) from cdm_stats;

@@ -2486,7 +2486,9 @@ end if;
 execute
   'insert into cdm_stats select ' ||
   _dataset_id || ' dataset_id,
-  '||quote_literal(_table)||' id, ''p'' id_type,
+  '||quote_literal(_table)||' id,
+  ''p'' id_type,
+  '||quote_literal(_table)||' cdm_table,
   jsonb_build_object(
   ''cnt_enc_id'', count(distinct p.enc_id),
   ''cnt_visit_id'', count(distinct p.visit_id),
@@ -2553,6 +2555,7 @@ insert into cdm_stats
 select t.dataset_id dataset_id,
   '||quote_literal(_table)||' id,
   ''t'' id_type,
+  '||quote_literal(_table)||' cdm_table,
   jsonb_build_object(''tsp'', t.stats_tsp,
     ''day_row_cnt'', day_rows::jsonb,
     ''day_rows_histogram'', hist::jsonb,
@@ -2629,6 +2632,7 @@ if _table = 'cdm_twf' then
       select M.dataset_id dataset_id,
       M.fid id,
       ''f'' id_type,
+      ''cdm_twf'' cdm_table,
       cnt || stats || jsonb_build_object(
         ''is_measured'', is_measured,
         ''data_type'', data_type,
@@ -2720,6 +2724,7 @@ q = '
   select M.dataset_id dataset_id,
   M.fid id,
   ''f'' id_type,
+  ' || quote_literal(_table) || ' cdm_table,
   cnt || stats || jsonb_build_object(
     ''is_measured'', is_measured,
     ''data_type'', data_type,
