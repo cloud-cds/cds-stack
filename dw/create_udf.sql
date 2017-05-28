@@ -2438,3 +2438,357 @@ as $func$
 begin
   return query select * from calculate_score_contributors('lmcscore', 'score', this_pat_id, rank_limit, true);
 end $func$ LANGUAGE plpgsql;
+
+
+-------------------------
+-- cdm stats functions --
+-------------------------
+create or replace function run_cdm_stats(_dataset_id int, server text default 'dev_dw', nprocs int default 2)
+RETURNS voids AS
+$func$
+begin
+  select run_cdm_stats_p(_dataset_id, 'pat_enc');
+  select run_cdm_stats_p(_dataset_id, 'cdm_s');
+  select run_cdm_stats_p(_dataset_id, 'cdm_t');
+  select run_cdm_stats_p(_dataset_id, 'cdm_twf');
+  select run_cdm_stats_p(_dataset_id, 'criteria_meas');
+  select run_cdm_stats_t(_dataset_id, 'cdm_t');
+  select run_cdm_stats_t(_dataset_id, 'cdm_twf');
+  select run_cdm_stats_t(_dataset_id, 'criteria_meas');
+  select run_cdm_stats_f(_dataset_id, 'cdm_s');
+  select run_cdm_stats_f(_dataset_id, 'cdm_t');
+  select run_cdm_stats_f(_dataset_id, 'criteria_meas');
+  select run_cdm_stats_f(_dataset_id, 'cdm_twf', server, nprocs);
+end $func$ language plpgsql;
+
+
+
+
+
+
+
+create or replace function run_cdm_stats_p(_dataset_id int, _table text)
+RETURNS void AS
+$func$
+declare
+  T text;
+begin
+if _table = 'pat_enc' then
+  T = 'pat_enc p';
+elsif _table = 'criteria_meas' then
+  T = 'criteria_meas t inner join pat_enc p on t.pat_id = p.pat_id
+    and t.dataset_id = p.dataset_id';
+else
+  T = _table || ' t inner join pat_enc p on t.enc_id = p.enc_id
+    and t.dataset_id = p.dataset_id';
+end if;
+execute
+  'insert into cdm_stats select ' ||
+  _dataset_id || ' dataset_id,
+  '||quote_literal(_table)||' id, ''p'' id_type,
+  jsonb_build_object(
+  ''cnt_enc_id'', count(distinct p.enc_id),
+  ''cnt_visit_id'', count(distinct p.visit_id),
+  ''cnt_pat_id'', count(distinct p.pat_id)) stats
+  from ' || T || ' where p.dataset_id = ' || _dataset_id
+  || 'on conflict(dataset_id, id, id_type) do update set
+    stats = excluded.stats'
+  ;
+end;
+$func$ LANGUAGE plpgsql;
+
+create or replace function run_cdm_stats_t(_dataset_id int, _table text)
+RETURNS void AS
+$func$
+declare
+begin
+execute
+'with day_cnt as (
+  select tsp::date date,
+  count(*)
+  from '||_table||'
+  where dataset_id = '|| _dataset_id ||'
+  group by 1
+  order by 1
+),
+hour_cnt as (
+  select extract(hour from tsp) hr,
+  count(*)
+  from '||_table||'
+  where dataset_id = '|| _dataset_id ||'
+  group by 1
+  order by 1
+),
+day_row_cnt as (
+  select jsonb_object_agg(date, count) day_rows from day_cnt
+),
+hour_row_cnt as (
+  select jsonb_object_agg(hr, count) hour_rows from hour_cnt
+),
+stats as (
+    select min(count) as min,
+           max(count) as max
+      from day_cnt
+),
+histogram as (
+  select width_bucket(count, min, max, 9) as bucket,
+        numrange(min(count)::numeric, max(count)::numeric, ''[]'') as range,
+        count(*) as freq
+  from day_cnt, stats
+  group by bucket
+  order by bucket
+),
+histogram_json as(
+  select ''bucket'' || bucket::text k,
+  jsonb_build_object(''range'', range, ''freq'', freq, ''bar'', repeat(''*'', ((freq)::float / max(freq) over() * 30)::int)
+  ) v
+  from histogram
+),
+day_rows_histogram as (
+  select jsonb_object_agg(k, v) hist
+  from histogram_json
+)
+insert into cdm_stats
+select t.dataset_id dataset_id,
+  '||quote_literal(_table)||' id,
+  ''t'' id_type,
+  jsonb_build_object(''tsp'', t.stats_tsp,
+    ''day_row_cnt'', day_rows::jsonb,
+    ''day_rows_histogram'', hist::jsonb,
+    ''hour_row_cnt'', hour_rows::jsonb) as stats
+from
+(select
+  '||_dataset_id||' dataset_id,
+  jsonb_build_object(
+    ''tsp_min'', min(tsp),
+    ''tsp_max'', max(tsp),
+    ''tsp_range'', age(max(tsp), min(tsp)),
+    ''tsp_mean'', (avg(tsp - ''2010-01-01''::timestamptz) + ''2010-01-01''::timestamptz),
+    ''tsp_25%'', percentile_disc(0.25) within group (order by tsp),
+    ''tsp_50%'', percentile_disc(0.5) within group (order by tsp),
+    ''tsp_85%'', percentile_disc(0.85) within group (order by tsp),
+    ''cnt_date'', count(distinct tsp::date)
+  ) stats_tsp
+  from ' || _table || '
+  where '||_table||'.dataset_id = '||_dataset_id||'
+) t, day_row_cnt, day_rows_histogram, hour_row_cnt
+on conflict(dataset_id, id, id_type) do update set stats = excluded.stats';
+end;
+$func$ LANGUAGE plpgsql;
+
+
+create or replace function run_cdm_stats_f(_dataset_id int, _table text, server text default 'dev_dw', nprocs int default 2)
+RETURNS void AS
+$func$
+declare
+queries text[];
+q text;
+use_hist boolean;
+rec record;
+begin
+if _table = 'cdm_twf' then
+  for rec in select * from cdm_feature f where f.category = 'TWF' and f.dataset_id = _dataset_id
+  loop
+    if rec.data_type ~* 'real|int' then
+      execute 'select min(' || rec.fid || ') <> max(' || rec.fid || ') from cdm_twf where dataset_id = ' || _dataset_id || ' and ' || rec.fid || '_c < 8' into use_hist;
+    else use_hist = false;
+    end if;
+    if use_hist then
+      q = '
+      with s as (
+        select
+               min('||rec.fid||') as min,
+               max('||rec.fid||') as max
+        from '||_table||' t
+        where t.dataset_id = '||_dataset_id||'
+      ),
+      histogram as (
+        select
+           width_bucket('||rec.fid||', min, max, 9) as bucket,
+           numrange(min('||rec.fid||')::numeric, max('||rec.fid||')::numeric, ''[]'') as range,
+           count(*) as freq
+        from s cross join '||_table||' t
+        where t.dataset_id = '|| _dataset_id ||'
+        group by bucket
+        order by bucket
+      ),
+      histogram_json as(
+      select ''bucket'' || bucket::text k,
+      jsonb_build_object(''range'', range, ''freq'', freq) v
+      from histogram
+      ),
+      histogram_agg as(
+        select jsonb_object_agg(k, v) hist from histogram_json
+      )';
+    else
+      q = '';
+    end if;
+    q = q || '
+      insert into cdm_stats
+      select M.dataset_id dataset_id,
+      M.fid id,
+      ''f'' id_type,
+      cnt || stats || jsonb_build_object(
+        ''is_measured'', is_measured,
+        ''data_type'', data_type,
+        ''histogram'', ';
+    if use_hist then
+      q = q || 'hist';
+    else
+      q = q || '''{}''::jsonb';
+    end if;
+    q = q || ') stats from
+      (select
+        '||_dataset_id||' dataset_id
+        , '''||rec.fid||'''::text fid
+        , jsonb_build_object(
+          ''cnt'', count(*),
+          ''cnt_meas'', count(*) filter (where '||rec.fid||'_c < 8),
+          ''cnt_fill_last'', count(*) filter (where '||rec.fid||'_c between 8 and 23),
+          ''cnt_fill_pop'', count(*) filter (where '||rec.fid||'_c = 24)
+          ) cnt
+        , last(f.is_measured) is_measured
+        , last(f.data_type) data_type
+        , ';
+    if use_hist then
+      q = q || '
+      coalesce(jsonb_build_object(
+                ''min'' , min('||rec.fid||') filter (where f.data_type ~* ''real|int'')
+              , ''max'' , max('||rec.fid||') filter (where f.data_type ~* ''real|int'')
+              , ''mean'', avg('||rec.fid||') filter (where f.data_type ~* ''real|int'')
+              , ''25%'' , percentile_disc(0.25) within group (order by '||rec.fid||')
+                          filter (where f.data_type ~* ''real|int'')
+              , ''50%'' , percentile_disc(0.5) within group (order by '||rec.fid||')
+                          filter (where f.data_type ~* ''real|int'')
+              , ''85%'' , percentile_disc(0.85) within group (order by '||rec.fid||')
+                          filter (where f.data_type ~* ''real|int'')
+              ), ''{}''::jsonb)';
+    elsif rec.data_type ~* 'bool' then
+      q = q || '
+      coalesce(jsonb_build_object(
+                ''cnt_true''  , count('||rec.fid||'::boolean) filter (where f.data_type ~* ''bool''),
+                ''cnt_false'' , count(not '||rec.fid||'::boolean) filter (where f.data_type ~* ''bool'')
+              ), ''{}''::jsonb)';
+    else
+      q = q || '''{}''::jsonb';
+    end if;
+    q = q || ' stats from '|| _table ||' s
+    inner join cdm_feature f
+    on s.dataset_id = f.dataset_id
+    where s.dataset_id = '|| _dataset_id ||' and f.fid = '''||rec.fid||'''
+    ) M';
+    if use_hist then
+      q = q || ', histogram_agg ht';
+    end if;
+    q = q || ' on conflict(dataset_id, id, id_type) do update set stats = excluded.stats';
+    queries = array_append(queries, q);
+  end loop;
+  perform distribute(server, queries, nprocs);
+else
+q = '
+  with s as (
+    select t.fid,
+           min(value::numeric) as min,
+           max(value::numeric) as max
+    from '||_table||' t inner join cdm_feature f
+    on f.dataset_id = t.dataset_id
+    and t.fid = f.fid
+    where t.dataset_id = '||_dataset_id||' and f.data_type ~* ''real|int''
+    and value <> ''nan''
+    group by t.fid
+  ),
+  histogram as (
+    select s.fid,
+           width_bucket(value::numeric, min, max, 9) as bucket,
+           int4range(floor(min(value::numeric))::int, ceil(max(value::numeric))::int, ''[]'') as range,
+           count(*) as freq
+    from s inner join '||_table||' t on s.fid = t.fid
+    where t.dataset_id = '|| _dataset_id ||' and t.value <> ''nan''
+    group by s.fid, bucket
+    order by s.fid, bucket
+  ),
+  histogram_json as(
+  select fid, ''bucket'' || bucket::text k,
+  jsonb_build_object(''range'', range, ''freq'', freq) v
+  from histogram
+  ),
+  histogram_agg as(
+    select fid, jsonb_object_agg(k, v) hist from histogram_json group by fid order by fid
+  )
+  insert into cdm_stats
+  select M.dataset_id dataset_id,
+  M.fid id,
+  ''f'' id_type,
+  cnt || stats || jsonb_build_object(
+    ''is_measured'', is_measured,
+    ''data_type'', data_type,
+    ''histogram'', hist
+  ) stats from
+  (select
+    s.dataset_id
+    , s.fid
+    , jsonb_build_object(''cnt'', count(*)) cnt
+    , last(f.is_measured) is_measured
+    , last(f.data_type) data_type
+    , (
+        case
+        when last(f.data_type) ~* ''real|int'' then
+          coalesce(jsonb_build_object(
+              ''min'' , min(value::numeric) filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
+            , ''max'' , max(value::numeric) filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
+            , ''mean'', avg(value::numeric) filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
+            , ''25%'' , percentile_disc(0.25) within group (order by value::numeric)
+                        filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
+            , ''50%'' , percentile_disc(0.5) within group (order by value::numeric)
+                        filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
+            , ''85%'' , percentile_disc(0.85) within group (order by value::numeric)
+                        filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
+            ), ''{}''::jsonb)
+        when last(f.data_type) ~* ''json'' and last(f.fid) ~* ''_dose'' then
+          coalesce(jsonb_build_object(
+              ''min'' , min((value::json->>''dose'')::numeric) filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
+            , ''max'' , max((value::json->>''dose'')::numeric) filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
+            , ''mean'', avg((value::json->>''dose'')::numeric) filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
+            , ''25%'' , percentile_disc(0.25) within group (order by (value::json->>''dose'')::numeric)
+                        filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
+            , ''50%'' , percentile_disc(0.5) within group (order by (value::json->>''dose'')::numeric)
+                        filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
+            , ''85%'' , percentile_disc(0.85) within group (order by (value::json->>''dose'')::numeric)
+                        filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
+            ), ''{}''::jsonb)
+        when last(f.data_type) ~* ''bool'' then
+          coalesce(jsonb_build_object(
+              ''cnt_true''  , count(*) filter (where f.data_type ~* ''bool'' and value::boolean and value <> ''nan''),
+              ''cnt_false'' , count(*) filter (where f.data_type ~* ''bool'' and not value::boolean and value <> ''nan'')
+            ), ''{}''::jsonb)
+        when last(f.data_type) ~* ''String'' and s.fid ~* ''_time'' then
+          coalesce(jsonb_build_object(
+              ''min'' , min(value::timestamptz)
+                        filter (where f.data_type ~* ''String'' and s.fid ~* ''_time'' and value <> ''nan''),
+              ''max'' , max(value::timestamptz)
+                        filter (where f.data_type ~* ''String'' and s.fid ~* ''_time'' and value <> ''nan''),
+              ''mean'', avg(value::timestamptz - ''2010-01-01''::timestamptz)
+                        filter (where f.data_type ~* ''String'' and s.fid ~* ''_time'' and value <> ''nan'') + ''2010-01-01''::timestamptz,
+              ''25%'' , percentile_disc(0.25) within group (order by value::timestamptz)
+                        filter (where f.data_type ~* ''String'' and s.fid ~* ''_time'' and value <> ''nan''),
+              ''50%'' , percentile_disc(0.5) within group (order by value::timestamptz)
+                        filter (where f.data_type ~* ''String'' and s.fid ~* ''_time'' and value <> ''nan''),
+              ''85%'' , percentile_disc(0.85) within group (order by value::timestamptz)
+                        filter (where f.data_type ~* ''String'' and s.fid ~* ''_time'' and value <> ''nan'')
+            ), ''{}''::jsonb)
+        else
+          ''{}''::jsonb
+        end
+      ) stats
+  from '|| _table ||' s
+  inner join cdm_feature f
+  on s.dataset_id = f.dataset_id and s.fid = f.fid
+  where s.dataset_id = '|| _dataset_id ||'
+  group by s.dataset_id, s.fid
+  order by s.fid) M left join histogram_agg ht on ht.fid = M.fid
+  order by M.fid
+  on conflict(dataset_id, id, id_type) do update set stats = excluded.stats';
+end if;
+execute q;
+end;
+$func$ LANGUAGE plpgsql;
