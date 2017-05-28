@@ -802,11 +802,5 @@ CREATE TABLE cdm_stats(
     PRIMARY KEY (dataset_id, id, id_type)
 );
 
-DROP TABLE IF EXISTS cdm_stats_meta;
-CREATE TABLE cdm_stats_meta(
-    id text,
-    id_type text,
-    function text,
-    PRIMARY KEY (id, id_type, function)
-);
-\COPY cdm_stats_meta FROM 'cdm_stats_meta.csv' WITH csv header DELIMITER AS ',';
+CREATE VIEW cdm_stats_view AS
+    select dataset_id, id, id_type, jsonb_pretty(stats) from cdm_stats;

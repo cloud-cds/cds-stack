@@ -42,96 +42,51 @@ DECLARE
 BEGIN
   num_chunks := array_length(query_array, 1);
   RAISE NOTICE 'Total number of chunks:  %',num_chunks;
-  IF num_chunks < num_procs THEN
-    RAISE NOTICE 'Error: number of chunks < number of procs';
-    RETURN 'Fail';
-  else
-    --initialize array for keeping track of finished processes
-    sql := 'SELECT array_fill(0, ARRAY[' || num_procs ||']);';
-    EXECUTE sql into array_procs;
 
-    current_proc := 0;
-    used_procs := 0;
-    -- loop through chunks
-    i := 0;
-    <<chunk_loop>>
-    FOREACH query in ARRAY query_array
-    LOOP
-      i := i + 1;
-      RAISE NOTICE 'Query %: %', i ,query;
+  --initialize array for keeping track of finished processes
+  sql := 'SELECT array_fill(0, ARRAY[' || num_procs ||']);';
+  EXECUTE sql into array_procs;
 
-      current_proc := current_proc + 1;
-      array_procs[current_proc] = 0;
-      used_procs := used_procs + 1;
+  current_proc := 0;
+  used_procs := 0;
+  -- loop through chunks
+  i := 0;
+  <<chunk_loop>>
+  FOREACH query in ARRAY query_array
+  LOOP
+    i := i + 1;
+    RAISE NOTICE 'Query %: %', i ,query;
+
+    current_proc := current_proc + 1;
+    array_procs[current_proc] = 0;
+    used_procs := used_procs + 1;
 
 
-      --make a new db connection
-      conn := 'conn_' || current_proc;
-      RAISE NOTICE 'New Connection name: %',conn;
+    --make a new db connection
+    conn := 'conn_' || current_proc;
+    RAISE NOTICE 'New Connection name: %',conn;
 
-      sql := 'SELECT dblink_connect(' || QUOTE_LITERAL(conn) || ',' || QUOTE_LITERAL(db) ||');';
-      raise NOTICE '%', sql;
-      execute sql;
+    sql := 'SELECT dblink_connect(' || QUOTE_LITERAL(conn) || ',' || QUOTE_LITERAL(db) ||');';
+    raise NOTICE '%', sql;
+    execute sql;
 
 
-      --send the query asynchronously using the dblink connection
-      sql := 'SELECT dblink_send_query(' || QUOTE_LITERAL(conn) || ',' || QUOTE_LITERAL(query) || ');';
-      raise NOTICE '%', sql;
-      execute sql into dispatch_result;
+    --send the query asynchronously using the dblink connection
+    sql := 'SELECT dblink_send_query(' || QUOTE_LITERAL(conn) || ',' || QUOTE_LITERAL(query) || ');';
+    raise NOTICE '%', sql;
+    execute sql into dispatch_result;
 
-      -- check for errors dispatching the query
-      if dispatch_result = 0 then
-         sql := 'SELECT dblink_error_message(' || QUOTE_LITERAL(conn)  || ');';
-         execute sql into dispatch_error;
-         RAISE 'Error: %', dispatch_error;
-      end if;
+    -- check for errors dispatching the query
+    if dispatch_result = 0 then
+       sql := 'SELECT dblink_error_message(' || QUOTE_LITERAL(conn)  || ');';
+       execute sql into dispatch_error;
+       RAISE 'Error: %', dispatch_error;
+    end if;
 
-      --check how many processors are in use right now
-      if (i<>(num_chunks+1)) and  used_procs>=num_procs then
-            done := 0 ;
-    --repetatly check until one proc is finished to relaunch the next chunck
-      Loop
-        for n in 1..num_procs
-        Loop
-        conn := 'conn_' || n;
-        sql := 'SELECT dblink_is_busy(' || QUOTE_LITERAL(conn) || ');';
-        execute sql into status;
-        if status = 0 THEN
-          -- check for error messages
-          sql := 'SELECT dblink_error_message(' || QUOTE_LITERAL(conn)  || ');';
-          execute sql into dispatch_error;
-          if dispatch_error <> 'OK' THEN
-            RAISE '%', dispatch_error;
-          end if;
-
-          --terminate the connection and resect the active proc counter so that the next
-          --connection is started with the correct index
-          RAISE NOTICE 'Process done:  %, Next Chunk to be started: %',conn,i+1;
-
-          --disconnect the connection
-          sql := 'SELECT dblink_disconnect(' || QUOTE_LITERAL(conn) || ');';
-          execute sql;
-
-          current_proc := n - 1; --as the counter gets increased at the beginning of the other loop
-          used_procs := used_procs - 1;
-          done := 1;
-          array_procs[n]=1;
-
-          exit; --terminate the loop
-        END if;
-        end loop;
-      if done = 1 then
-        exit;
-      end if;
-      sql := 'select pg_sleep(0.5)';
-      execute sql;
-      END loop;
-
-      end if;
-
-    end loop chunk_loop;
-
-    -- wait until all queries are finished
+    --check how many processors are in use right now
+    if (i<>(num_chunks+1)) and  used_procs>=num_procs then
+          done := 0 ;
+  --repetatly check until one proc is finished to relaunch the next chunck
     Loop
       for i in 1..num_procs
       Loop
@@ -182,7 +137,6 @@ exception when others then
     -- cancel a previous crashed query
     sql := 'SELECT dblink_cancel_query(' || QUOTE_LITERAL(conn) ||');';
     execute sql;
-
 
     sql := 'SELECT dblink_disconnect(' || QUOTE_LITERAL(conn) || ');';
     execute sql;

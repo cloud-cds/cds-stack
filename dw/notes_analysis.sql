@@ -430,3 +430,67 @@ BEGIN
   drop table if exists match_csns;
   return;
 END; $function$;
+
+
+-----------------------------------------
+-- Windowed matching.
+
+drop function if exists match_cdm_infections_from_candidates(text,integer,text,integer,integer);
+
+create or replace function match_cdm_infections_from_candidates(
+                              this_pat_id     text,
+                              this_dataset_id integer,
+                              candidate_table text,
+                              rows_before     integer,
+                              rows_after      integer
+                            )
+  RETURNS table(
+    dataset_id      integer,
+    pat_id          varchar(50),
+    note_id         varchar(50),
+    note_type       varchar(50),
+    note_status     varchar(50),
+    start_ts        timestamptz,
+    ngram           text
+  )
+  LANGUAGE plpgsql
+AS $function$
+DECLARE
+  negative text := '';
+  positive text := '';
+  grouped_positive text := '';
+  match_query text := '';
+BEGIN
+  select array_to_string(array_agg(keyword), '|') into positive
+  from infection_keywords;
+  select '(' || array_to_string(array_agg(keyword), '|') || ')' into grouped_positive
+  from infection_keywords;
+  select array_to_string(array_agg(N.keyword || E'\\\\s*' || I.keyword), '|') into negative
+  from infection_keywords I, negation_keywords N;
+  match_query :=
+     ' select $2 as dataset_id, NGRAMS.pat_id, NGRAMS.note_id, NGRAMS.note_type, NGRAMS.note_status, NGRAMS.start_ts, array_to_string(NGRAMS.ngram_arr, '' '') as ngram  '
+  || ' from ('
+  || '   select DOCS.pat_id, DOCS.note_id, DOCS.note_type, DOCS.note_status, DOCS.start_ts, '
+  || '          array_agg(W.word) over ( ROWS BETWEEN ' || rows_before::text || ' PRECEDING AND ' || rows_after::text || ' FOLLOWING ) as ngram_arr'
+  || '   from ('
+  || '     select NEG.pat_id, NEG.note_id, NEG.note_type, NEG.note_status, NEG.start_ts, '
+  || '           regexp_split_to_array(regexp_replace(NEG.body, ''' || grouped_positive || ''', E''##**\\1**##'', ''g''), E''\\s+'') as words'
+  || '     from ('
+  || '       select N.pat_id, N.note_id, N.note_type, N.note_status, note_date(N.dates) as start_ts,'
+  || '              regexp_replace(N.note_body, E''' || negative || ''', ''NEGATED_PHRASE'', ''g'') as body'
+  || '       from cdm_notes N'
+  || '       inner join ' || candidate_table || ' NC on N.note_id = NC.note_id'
+  || '       where N.pat_id = coalesce($1, N.pat_id)'
+  || '       and N.dataset_id = coalesce($2, N.dataset_id)'
+  || '       and note_provider_type(N.providers) <> ''Pharmacist'''
+  || '     ) NEG'
+  || '     where NEG.body ~ ''' || positive || ''''
+  || '   ) DOCS, lateral unnest(words) W(word)'
+  || ' ) NGRAMS'
+  || ' where ( ngram_arr[4] like ''%##**%'') '
+  || ' or ( array_length(ngram_arr, 1) < ' || (rows_before+rows_after+1)::text
+  ||       ' and (select count(*) from unnest(ngram_arr) W(word) where word like ''%##**%'' ) > 0 )'
+  || ' order by pat_id, start_ts';
+  --raise notice 'query %', match_query;
+  return query execute match_query using this_pat_id, this_dataset_id;
+END; $function$;

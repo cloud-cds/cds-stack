@@ -655,6 +655,7 @@ group by %I.ts, %I.pat_id
 USING this_pat_id
 ; END $func$ LANGUAGE plpgsql;
 
+
 -------------------------------------------------
 --  Criteria Management and Calculation.
 -------------------------------------------------
