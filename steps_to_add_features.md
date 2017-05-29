@@ -3,20 +3,12 @@
 
  - There are many tables inside CDM, the most import ones are cdm_twf, cdm_t, cdm_s, and cdm_feature, more about this tables can be found at: https://github.com/dashan-emr/dashan_core/wiki/database_schema and https://github.com/dashan-emr/dashan_core/wiki/Confidence-Flag-Dictionary
 
- - Your task will be to add features to CDM sufficient to build this cardiac deterioration model. 
- 	The repos needed to add features to CDM are:
-		https://github.com/dashan-emr/dashan-etl
-		https://github.com/dashan-emr/dashan-db
-	The repo needed to actually build the model is:
-		https://github.com/dashan-emr/dashan_app_sepsis
-
- - Writing to the database using our toolset risks data loss, so while you're developing your algorithum you should use your own DB, which you can safely write to.
-
- - Code can be developed and tested locally (i.e. without ssh-ing to RAMBO or the dev or prod machines) using a VPN. Yanif is working to set you all up with VPN access. 
-
- - Currently, it is only possible to train and grade models with features in cdm_twf. Adhiraj will eventually work on training on features in cdm_t. This means that for now, all features which you indend to be used in the model directly should be put in cdm_twf, while other features which may be used for things like determining the population, can be put in other tables
+ - A measured feature is a feature extracted directly from a data source (clarity, or JHU's EPIC API)
+ 
+ - A derived feature is a feature computed from other features in CDM
 
  - In general, writing to CDM_TWF is harder and risks data loss.
+ 
 
 # Steps to add measured features to CDM:
 ## Step 0: Learn
@@ -119,7 +111,9 @@ Run the create_c2dw.sql file located in that same directory to push your updates
 
 Import your extraction function into dashan-etl/etl/load/tbl/derive.py
 
-## Step 4: Update CDM_Feature
+## Step 4: ETL
+
+
 
 
 
