@@ -627,33 +627,32 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
   global STOPPED_ACTIONS
   fid_input_items = [item.strip() for item in fid_input.split(',')]
   assert fid == 'cardio_sofa', 'wrong fid %s' % fid
-  assert fid_input_items[0] == 'mapm' and \
+  assert fid_input_items[0] == 'map' and \
     fid_input_items[1] == 'dopamine_dose' \
     and fid_input_items[2] == 'epinephrine_dose'\
     and fid_input_items[3] == 'dobutamine_dose'\
     and fid_input_items[4] == 'levophed_infusion_dose' \
     and fid_input_items[5] == 'weight', 'wrong fid_input %s' \
     % fid_input
-
+  src_twf_table = get_src_twf_table(derive_feature_addr)
   twf_table_temp = derive_feature_addr[fid]['twf_table_temp']
   await conn.execute(clean_tbl.cdm_twf_clean(fid, value=0, twf_table=twf_table_temp, dataset_id=dataset_id, incremental=incremental))
 
-  # update cardio_sofa based on mapm
-  mapm_table_temp = derive_feature_addr['mapm']['twf_table_temp']
+  # update cardio_sofa based on map
   update_clause = """
   INSERT INTO %(twf_table_temp)s (%(dataset_id)s enc_id,tsp, cardio_sofa, cardio_sofa_c)
-  SELECT %(dataset_id)s enc_id, tsp, 1 as cardio_sofa, mapm_c as cardio_sofa_c
-  FROM %(mapm_table_temp)s where mapm < 70%(with_ds)s %(incremental_enc_id_in)s
+  SELECT %(dataset_id)s enc_id, tsp, 1 as cardio_sofa, map_c as cardio_sofa_c
+  FROM %(map_table)s where map < 70%(with_ds)s %(incremental_enc_id_in)s
   ON CONFLICT (%(dataset_id)s enc_id,tsp) DO UPDATE SET
   cardio_sofa = excluded.cardio_sofa,
   cardio_sofa_c = excluded.cardio_sofa_c
   """ % {'fid':fid,
          'twf_table_temp': twf_table_temp,
          'with_ds': with_ds(dataset_id),
-         'mapm_table_temp': mapm_table_temp,
+         'map_table': src_twf_table,
          'dataset_id': 'dataset_id, ' if dataset_id else '',
          'incremental_enc_id_in': incremental_enc_id_in(' and ', \
-            mapm_table_temp, dataset_id, incremental)}
+            src_twf_table, dataset_id, incremental)}
   await conn.execute(update_clause)
 
   select_sql = """

@@ -17,7 +17,7 @@ async def hemorrhagic_shock_update(fid, fid_input, conn, log, dataset_id, derive
         'wrong fid_input %s' % fid_input
     twf_table_src = get_src_twf_table(derive_feature_addr)
     twf_table_temp = derive_feature_addr[fid]['twf_table_temp']
-    await conn.execute(clean_tbl.cdm_twf_clean(fid,  twf_table=twf_table_temp, dataset_id=dataset_id))
+    await conn.execute(clean_tbl.cdm_twf_clean(fid, value=0, confidence=0, twf_table=twf_table_temp, dataset_id=dataset_id))
     update_clause = """
       update %(twf_table)s SET hemorrhagic_shock = (num_transfusions >=4)::int, hemorrhagic_shock_c=confidence
       from

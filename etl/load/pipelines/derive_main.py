@@ -435,10 +435,10 @@ query_config = {
     'fid_c_update_expr': 'lipase_c | amylase_c',
   },
   'hypotension_raw': {
-    'fid_input_items': ['sbpm', 'mapm'],
+    'fid_input_items': ['sbpm', 'map'],
     'derive_type': 'simple',
-    'fid_update_expr': '(sbpm < 90 and based_on_popmean(sbpm_c) != 1) OR (mapm < 65 and based_on_popmean(mapm_c) != 1)',
-    'fid_c_update_expr': 'coalesce(sbpm_c,0) | coalesce(mapm_c,0)',
+    'fid_update_expr': '(sbpm < 90 and based_on_popmean(sbpm_c) != 1) OR (map < 65 and based_on_popmean(map_c) != 1)',
+    'fid_c_update_expr': 'coalesce(sbpm_c,0) | coalesce(map_c,0)',
   },
   'sepsis_related_organ_failure': {
     'fid_input_items': ['inr', 'platelets', 'creatinine', 'bilirubin', 'urine_output_24hr', 'lactate', 'pao2_to_fio2', 'hypotension_intp'],
@@ -692,7 +692,8 @@ query_config = {
             )
             AND
             (
-              subquery.tsp <= cdm_twf.tsp
+              subquery.tsp is not null
+              and subquery.tsp <= cdm_twf.tsp
               and cdm_twf.tsp - subquery.tsp < interval '6 hours'
             )
             THEN TRUE
@@ -702,7 +703,7 @@ query_config = {
               | coalesce(fluid_resuscitation_c,0)
               | coalesce(vasopressor_resuscitation_c,0)
               | coalesce(fluids_intake_1hr_c,0)) as cmi_c
-        FROM %(twf_table_join)s cdm_twf inner join subquery
+        FROM %(twf_table_join)s cdm_twf left join subquery
         on cdm_twf.enc_id = subquery.enc_id
         %(dataset_id_match)s
         GROUP BY %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp
