@@ -11,7 +11,7 @@ async def change_since_last_measured(fid, fid_input, conn, log, dataset_id, deri
     assert fid == '%s_change' % fid_input, 'wrong fid %s' % fid_input
     destination_tbl = derive_feature_addr[fid]['twf_table_temp']
     source_tbl = derive_feature_addr[fid_input]['twf_table_temp'] if fid_input in derive_feature_addr else get_src_twf_table(derive_feature_addr)
-    await conn.execute(clean_tbl.cdm_twf_clean(fid,  twf_table=destination_tbl, dataset_id=dataset_id))
+    await conn.execute(clean_tbl.cdm_twf_clean(fid, twf_table=destination_tbl, dataset_id=dataset_id))
 
 
 
@@ -30,8 +30,8 @@ async def change_since_last_measured(fid, fid_input, conn, log, dataset_id, deri
     complete_calc as (
       select
         {complete_calc_select}
-        f.enc_id, 
-        f.tsp, 
+        f.enc_id,
+        f.tsp,
         coalesce(first(f.hemoglobin) - first(m.meas_value),0) as diff,
         greatest(first(f.hemoglobin_c), 4) as diff_c
       from
@@ -39,12 +39,12 @@ async def change_since_last_measured(fid, fid_input, conn, log, dataset_id, deri
         left join
         measured_twf m
       on {complete_calc_join} f.enc_id = m.enc_id and f.tsp > m.start_time and f.tsp <= m.end_time
-      where True {dataset_block} 
+      where True {dataset_block}
       group by {complete_calc_group_by} f.enc_id, f.tsp
     )
-    update {output_tbl} o 
-    set {fid} = diff, {fid}_c = diff_c 
-    from complete_calc cal 
+    update {output_tbl} o
+    set {fid} = diff, {fid}_c = diff_c
+    from complete_calc cal
     where {output_where} cal.enc_id = o.enc_id and cal.tsp = o.tsp {incremental_enc_id_in}
     """.format(fid= fid,
                fid_input=fid_input,

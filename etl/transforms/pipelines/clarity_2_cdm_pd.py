@@ -184,6 +184,7 @@ async def pull_medication_admin(connection, dataset_id, fids, log, is_plan, clar
 
   if not is_plan:
     for idx, row in ma.iterrows():
+      # NOTE: allow nan values here because some medication has no values, i.e., lactated ringers infusion
       await load_row.upsert_t(connection, [row['enc_id'], row['tsp'], row['fid'], str(row['dose_value']), row['confidence']], dataset_id=dataset_id)
     log.info('Medication Order Write complete')
   else:

@@ -14,7 +14,7 @@ async def time_since_last_measured(fid, fid_input, conn, log, dataset_id, derive
     assert fid == '%s_minutes_since_measurement' % fid_input, 'wrong fid %s' % fid_input
     destination_tbl = derive_feature_addr[fid]['twf_table_temp']
     source_tbl = derive_feature_addr[fid_input]['twf_table_temp'] if fid_input in derive_feature_addr else get_src_twf_table(derive_feature_addr)
-    await conn.execute(clean_tbl.cdm_twf_clean(fid,  twf_table=destination_tbl, dataset_id=dataset_id))
+    await conn.execute(clean_tbl.cdm_twf_clean(fid, value=-1, confidence=0, twf_table=destination_tbl, dataset_id=dataset_id))
 
     sql = """
     with
@@ -27,9 +27,9 @@ async def time_since_last_measured(fid, fid_input, conn, log, dataset_id, derive
       where {fid_input}_c < 8
     ),
     complete_calc as (
-    select 
-      {complete_calc_select} f.enc_id, f.tsp, 
-      coalesce(EXTRACT(EPOCH from f.tsp - max(m.meas_time))/60, 'Infinity'::float) time_since_last_meas, 
+    select
+      {complete_calc_select} f.enc_id, f.tsp,
+      coalesce(EXTRACT(EPOCH from f.tsp - max(m.meas_time))/60, 'Infinity'::float) time_since_last_meas,
       4 as fid_c
     from
       {input_tbl} f
@@ -39,9 +39,9 @@ async def time_since_last_measured(fid, fid_input, conn, log, dataset_id, derive
     where True {dataset_block}
     group by {complete_calc_group_by} f.enc_id, f.tsp
     )
-    update {output_tbl} o 
-    set {fid} = time_since_last_meas, {fid}_c = fid_c 
-    from complete_calc cal 
+    update {output_tbl} o
+    set {fid} = time_since_last_meas, {fid}_c = fid_c
+    from complete_calc cal
     where {output_where} cal.enc_id = o.enc_id and cal.tsp = o.tsp {incremental_enc_id_in}
     """.format(fid= fid,
                fid_input=fid_input,
