@@ -59,7 +59,7 @@ dataset_id,fid,category,data_type,is_measured,is_deprecated,fillin_func_id,windo
 4,heart_attack,T,Boolean,no,no,,,heart_attack_update,"heart_attack_inhosp, ekg_proc, troponin","Diagnoses, t at time of heart attack",1,
 4,levophed_injection_dose,T,JSON,yes,no,,3,,,Medication,1,mcg/kg/min
 4,gender,S,Integer,yes,no,,,,,Demographic,1,0 stands for female and 1 stands for male
-4,cardio_sofa,TWF,Integer,no,no,,,cardio_sofa_update,"mapm, dopamine_dose, epinephrine_dose, dobutamine_dose, levophed_infusion_dose, weight","a feature based on medication and vital sign, SOFA, Cardio vascular",1,no unit
+4,cardio_sofa,TWF,Integer,no,no,,,cardio_sofa_update,"map, dopamine_dose, epinephrine_dose, dobutamine_dose, levophed_infusion_dose, weight","a feature based on medication and vital sign, SOFA, Cardio vascular",1,no unit
 4,stroke,T,Boolean,no,no,,,stroke_update,"stroke_inhosp, ct_proc, mri_proc",Diagnoses,1,
 4,pulmonary_emboli_inhosp,T,String,yes,no,,,,,"Diagnoses, t if patient diagnosed with pulmonary emboli during hospital stay",1,
 4,acute_pancreatitis,TWF,integer,no,no,,,acute_pancreatitis_update,"lipase, amylase",event,1,no unit
@@ -125,7 +125,7 @@ dataset_id,fid,category,data_type,is_measured,is_deprecated,fillin_func_id,windo
 4,prednisolone_dose,T,JSON,yes,no,,,,,Medication,1,
 4,bisoprolol_dose,T,JSON,yes,no,,,,,Medication,1,
 4,asthma_prob,S,Boolean,yes,no,,,,,ProblemList,1,no unit
-4,hypotension_raw,TWF,Boolean,no,no,,,hypotension_raw_update,"sbpm, mapm","BP-based feature, it should not be sparse",1,no unit
+4,hypotension_raw,TWF,Boolean,no,no,,,hypotension_raw_update,"sbpm, map","BP-based feature, it should not be sparse",1,no unit
 4,salmeterol_dose,T,JSON,yes,no,,,,,Medication,1,Puff
 4,insulin_dose,T,JSON,yes,no,,,,,Medication,1,
 4,immunodeficiency_prob,S,Boolean,yes,no,,,,,ProblemList,1,no unit

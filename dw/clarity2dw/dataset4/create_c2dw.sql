@@ -4,7 +4,7 @@
 INSERT INTO dw_version (dataset_id, created, description)
 VALUES (4,
         now(),
-        'clarity2dw 1 month')
+        'clarity2dw 1 month with updated urine and map')
 on conflict do NOTHING ;
 
 -- ======================================

@@ -2445,21 +2445,21 @@ end $func$ LANGUAGE plpgsql;
 -- cdm stats functions --
 -------------------------
 create or replace function run_cdm_stats(_dataset_id int, server text default 'dev_dw', nprocs int default 2)
-RETURNS voids AS
+RETURNS void AS
 $func$
 begin
-  select run_cdm_stats_p(_dataset_id, 'pat_enc');
-  select run_cdm_stats_p(_dataset_id, 'cdm_s');
-  select run_cdm_stats_p(_dataset_id, 'cdm_t');
-  select run_cdm_stats_p(_dataset_id, 'cdm_twf');
-  select run_cdm_stats_p(_dataset_id, 'criteria_meas');
-  select run_cdm_stats_t(_dataset_id, 'cdm_t');
-  select run_cdm_stats_t(_dataset_id, 'cdm_twf');
-  select run_cdm_stats_t(_dataset_id, 'criteria_meas');
-  select run_cdm_stats_f(_dataset_id, 'cdm_s');
-  select run_cdm_stats_f(_dataset_id, 'cdm_t');
-  select run_cdm_stats_f(_dataset_id, 'criteria_meas');
-  select run_cdm_stats_f(_dataset_id, 'cdm_twf', server, nprocs);
+  perform run_cdm_stats_p(_dataset_id, 'pat_enc');
+  perform run_cdm_stats_p(_dataset_id, 'cdm_s');
+  perform run_cdm_stats_p(_dataset_id, 'cdm_t');
+  perform run_cdm_stats_p(_dataset_id, 'cdm_twf');
+  perform run_cdm_stats_p(_dataset_id, 'criteria_meas');
+  perform run_cdm_stats_t(_dataset_id, 'cdm_t');
+  perform run_cdm_stats_t(_dataset_id, 'cdm_twf');
+  perform run_cdm_stats_t(_dataset_id, 'criteria_meas');
+  perform run_cdm_stats_f(_dataset_id, 'cdm_s');
+  perform run_cdm_stats_f(_dataset_id, 'cdm_t');
+  perform run_cdm_stats_f(_dataset_id, 'criteria_meas');
+  perform run_cdm_stats_f(_dataset_id, 'cdm_twf', server, nprocs);
 end $func$ language plpgsql;
 
 
@@ -2494,7 +2494,7 @@ execute
   ''cnt_visit_id'', count(distinct p.visit_id),
   ''cnt_pat_id'', count(distinct p.pat_id)) stats
   from ' || T || ' where p.dataset_id = ' || _dataset_id
-  || 'on conflict(dataset_id, id, id_type) do update set
+  || 'on conflict(dataset_id, id, id_type, cdm_table) do update set
     stats = excluded.stats'
   ;
 end;
@@ -2567,7 +2567,7 @@ from
     ''tsp_min'', min(tsp),
     ''tsp_max'', max(tsp),
     ''tsp_range'', age(max(tsp), min(tsp)),
-    ''tsp_mean'', (avg(tsp - ''2010-01-01''::timestamptz) + ''2010-01-01''::timestamptz),
+    ''tsp_mean'', to_timestamp(avg(extract(''epoch'' from tsp))),
     ''tsp_25%'', percentile_disc(0.25) within group (order by tsp),
     ''tsp_50%'', percentile_disc(0.5) within group (order by tsp),
     ''tsp_85%'', percentile_disc(0.85) within group (order by tsp),
@@ -2576,7 +2576,7 @@ from
   from ' || _table || '
   where '||_table||'.dataset_id = '||_dataset_id||'
 ) t, day_row_cnt, day_rows_histogram, hour_row_cnt
-on conflict(dataset_id, id, id_type) do update set stats = excluded.stats';
+on conflict(dataset_id, id, id_type, cdm_table) do update set stats = excluded.stats';
 end;
 $func$ LANGUAGE plpgsql;
 
@@ -2671,8 +2671,8 @@ if _table = 'cdm_twf' then
     elsif rec.data_type ~* 'bool' then
       q = q || '
       coalesce(jsonb_build_object(
-                ''cnt_true''  , count('||rec.fid||'::boolean) filter (where f.data_type ~* ''bool''),
-                ''cnt_false'' , count(not '||rec.fid||'::boolean) filter (where f.data_type ~* ''bool'')
+                ''cnt_true''  , sum('||rec.fid||'::int) filter (where f.data_type ~* ''bool''),
+                ''cnt_false'' , sum((not '||rec.fid||')::int) filter (where f.data_type ~* ''bool'')
               ), ''{}''::jsonb)';
     else
       q = q || '''{}''::jsonb';
@@ -2685,7 +2685,7 @@ if _table = 'cdm_twf' then
     if use_hist then
       q = q || ', histogram_agg ht';
     end if;
-    q = q || ' on conflict(dataset_id, id, id_type) do update set stats = excluded.stats';
+    q = q || ' on conflict(dataset_id, id, id_type, cdm_table) do update set stats = excluded.stats';
     queries = array_append(queries, q);
   end loop;
   perform distribute(server, queries, nprocs);
@@ -2793,7 +2793,7 @@ q = '
   group by s.dataset_id, s.fid
   order by s.fid) M left join histogram_agg ht on ht.fid = M.fid
   order by M.fid
-  on conflict(dataset_id, id, id_type) do update set stats = excluded.stats';
+  on conflict(dataset_id, id, id_type, cdm_table) do update set stats = excluded.stats';
 end if;
 execute q;
 end;
