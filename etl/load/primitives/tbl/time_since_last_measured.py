@@ -29,7 +29,7 @@ async def time_since_last_measured(fid, fid_input, conn, log, dataset_id, derive
     complete_calc as (
     select 
       {complete_calc_select} f.enc_id, f.tsp, 
-      coalesce(EXTRACT(EPOCH from f.tsp - max(m.meas_time))/60, 'Infinity'::float) time_since_last_meas, 
+      EXTRACT(EPOCH from f.tsp - max(m.meas_time))/60 time_since_last_meas, 
       4 as fid_c
     from
       {input_tbl} f
