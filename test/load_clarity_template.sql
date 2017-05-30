@@ -91,7 +91,7 @@ create table {workspace}."FlowsheetValue"
  "TEMPLATE_NAME"        text      ,
  "TEMPLATE_DISP_NAME"   text
 );
-\copy {workspace}."FlowsheetValue" from '{folder}flt.{ext}' with csv delimiter as E'\t' NULL 'NULL';
+\copy {workspace}."FlowsheetValue" from '{folder}flt.{ext}' with csv delimiter as E'\t' NULL 'NULL' QUOTE E'\b';
 
 drop table if exists {workspace}."FlowsheetValue_643";
 create table {workspace}."FlowsheetValue_643"
