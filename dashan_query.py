@@ -31,15 +31,21 @@ async def get_trews_contributors(db_pool, pat_id, use_trews_lmc=False):
   contributor_fn = 'calculate_lmc_contributors' if use_trews_lmc else 'calculate_trews_contributors'
   get_contributors_sql = \
   '''
-  with trews_contributors as (
-      select enc_id, tsp, trewscore, fid, cdm_value, rnk
-      from %(fn)s('%(pid)s', %(rank_limit)s)
-            as R(enc_id, tsp, trewscore, fid, trews_value, cdm_value, rnk)
-  ),
-  latest_2_enc_ids as (
+  create temporary table trews_contributors as
+    select enc_id, tsp, trewscore, fid, cdm_value, rnk
+    from %(fn)s('%(pid)s', %(rank_limit)s)
+          as R(enc_id, tsp, trewscore, fid, trews_value, cdm_value, rnk)
+    where tsp >= now() - interval '10 days';
+
+  create temporary table trews_contributors_5_10 as
+    select * from trews_contributors
+    where tsp between now() - interval '10 days' and now() - interval '5 days';
+
+  with latest_2_enc_ids as (
       select enc_id, max(tsp) - min(tsp) as duration
       from trews_contributors
       group by enc_id
+      having max(tsp) >= now() - interval '10 days'
       order by enc_id desc limit 2
   ),
   desired_enc_ids as (
@@ -54,9 +60,18 @@ async def get_trews_contributors(db_pool, pat_id, use_trews_lmc=False):
           then 1 else 2 end )
       )
   )
-  select tsp, trewscore, fid, cdm_value, rnk from trews_contributors
-  where enc_id in (select enc_id from desired_enc_ids)
-  order by tsp
+  select * from (
+    select tsp, trewscore, fid, cdm_value, rnk
+    from trews_contributors
+    where enc_id in (select enc_id from desired_enc_ids)
+    and tsp between now() - interval '5 days' and now()
+    union all
+    select tsp, trewscore, fid, cdm_value, rnk
+    from trews_contributors_5_10 tablesample system(0.2)
+    where enc_id in (select enc_id from desired_enc_ids)
+    and tsp between now() - interval '10 days' and now() - interval '5 days'
+  ) R
+  order by tsp, rnk;
   ''' % {'fn': contributor_fn, 'pid': pat_id, 'rank_limit': rank_limit}
 
   # get_contributors_sql = \
