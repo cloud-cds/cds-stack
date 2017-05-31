@@ -126,8 +126,8 @@ module "analysis_publishing" {
   k8s_cert_auth = "${var.k8s_cert_auth}"
 
   analysis_publishing_timeseries_firing_rate_min = "5"
-  analysis_publishing_reports_firing_rate_min    = "5"
-  analysis_publishing_reports_firing_rate_expr   = "5 minutes"
+  analysis_publishing_reports_firing_rate_min    = "1440"
+  analysis_publishing_reports_firing_rate_expr   = "24 hours"
 
   db_host      = "db.${var.domain}"
   db_name      = "${replace(var.deploy_prefix, "-", "_")}"
