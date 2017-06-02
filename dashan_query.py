@@ -26,13 +26,13 @@ client_secret = os.environ['jhapi_client_secret']
 # For a patient, returns time series of:
 # - trews scores
 # - top 3 features that contributed to the each time point
-async def get_trews_contributors(db_pool, pat_id, use_trews_lmc=False):
+async def get_trews_contributors(db_pool, pat_id, use_trews_lmc=False, start_day=2, end_day=7, sample_hrs=12):
   contributor_fn = 'calculate_lmc_contributors' if use_trews_lmc else 'calculate_trews_contributors'
 
   rank_limit = 3
-  days_limit = 7
-  sample_start_day = 2
-  hours_per_sample = 12
+  sample_start_day = start_day
+  sample_end_day = end_day
+  hours_per_sample = sample_hrs
 
   get_contributors_sql = \
   '''
@@ -40,13 +40,13 @@ async def get_trews_contributors(db_pool, pat_id, use_trews_lmc=False):
     select enc_id, tsp, trewscore, fid, cdm_value, rnk
     from %(fn)s('%(pid)s', %(rank_limit)s)
           as R(enc_id, tsp, trewscore, fid, trews_value, cdm_value, rnk)
-    where tsp >= now() - interval '%(days_limit)s days'
+    where tsp >= now() - interval '%(sample_end_day)s days'
   ),
   latest_2_enc_ids as (
       select enc_id, max(tsp) - min(tsp) as duration
       from trews_contributors
       group by enc_id
-      having max(tsp) >= now() - interval '%(days_limit)s days'
+      having max(tsp) >= now() - interval '%(sample_end_day)s days'
       order by enc_id desc limit 2
   ),
   desired_enc_ids as (
@@ -71,15 +71,15 @@ async def get_trews_contributors(db_pool, pat_id, use_trews_lmc=False):
              avg(R.trewscore) over (partition by R.tsp),
              R.fid, R.cdm_value, R.rnk
       from (
-        select date_trunc('day', tsp) + (interval '%(hours_per_sample)s hours' * round(date_part('hour', tsp)::float / %(hours_per_sample)s)) as tsp,
+        select date_trunc('day', tsp) + (interval '%(hours_per_sample)s hours' * floor(date_part('hour', tsp)::float / %(hours_per_sample)s)) as tsp,
                avg(trewscore) as trewscore,
                first(fid order by trewscore desc) as fid,
                first(cdm_value order by trewscore desc) as cdm_value,
                rnk
         from trews_contributors
         where enc_id in (select enc_id from desired_enc_ids)
-        and tsp between now() - interval '%(days_limit)s days' and now() - interval '%(sample_start_day)s days'
-        group by date_trunc('day', tsp) + (interval '%(hours_per_sample)s hours' * round(date_part('hour', tsp)::float / %(hours_per_sample)s)), rnk
+        and tsp between now() - interval '%(sample_end_day)s days' and now() - interval '%(sample_start_day)s days'
+        group by date_trunc('day', tsp) + (interval '%(hours_per_sample)s hours' * floor(date_part('hour', tsp)::float / %(hours_per_sample)s)), rnk
       ) R
     )
   ) R
@@ -87,8 +87,8 @@ async def get_trews_contributors(db_pool, pat_id, use_trews_lmc=False):
   ''' % { 'fn'               : contributor_fn,
           'pid'              : pat_id,
           'rank_limit'       : rank_limit,
-          'days_limit'       : days_limit,
           'sample_start_day' : sample_start_day,
+          'sample_end_day'   : sample_end_day,
           'hours_per_sample' : hours_per_sample
          }
 
