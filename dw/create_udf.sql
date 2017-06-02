@@ -694,14 +694,14 @@ create or replace function order_met(order_name text, order_value text)
 BEGIN
     return case when order_name = 'blood_culture_order'
                     then order_value in (
-                        'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result'
+                        'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result',
                         'Final', 'Final result', 'Edited Result - FINAL',
                         'Completed', 'Corrected', 'Not Indicated'
                     )
 
                 when order_name = 'initial_lactate_order' or order_name = 'repeat_lactate_order'
                     then order_value in (
-                        'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result'
+                        'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result',
                         'Final', 'Final result', 'Edited Result - FINAL',
                         'Completed', 'Corrected', 'Not Indicated'
                     )
@@ -724,7 +724,7 @@ create or replace function order_status(order_fid text, value_text text, overrid
 BEGIN
     return case when override_value_text = 'Not Indicated' then 'Completed'
                 when order_fid = 'lactate_order' and value_text in (
-                        'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result'
+                        'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result',
                         'Final', 'Final result', 'Edited Result - FINAL',
                         'Completed', 'Corrected', 'Not Indicated'
                     ) then 'Completed'
@@ -732,7 +732,7 @@ BEGIN
                 when order_fid = 'lactate_order' and value_text in ('None', 'Signed') then 'Ordered'
 
                 when order_fid = 'blood_culture_order' and value_text in (
-                        'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result'
+                        'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result',
                         'Final', 'Final result', 'Edited Result - FINAL',
                         'Completed', 'Corrected', 'Not Indicated'
                     ) then 'Completed'
