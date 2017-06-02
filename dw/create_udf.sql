@@ -155,7 +155,7 @@ BEGIN
         ') AS text) FROM ' || target || '  WHERE '|| quote_ident(fid_c)
         ||' < 8 and dataset_id = ' || dataset_id INTO popmean;
     RAISE NOTICE '% = %', fid_popmean, popmean;
-    EXECUTE 'SELECT INSERT INTO cdm_g (dataset_id,value,confidence) values (' || dataset_id || ',' ||quote_literal(fid_popmean)||', '||quote_literal(popmean)||', 24)';
+    EXECUTE 'INSERT INTO cdm_g (dataset_id,fid,value,confidence) values (' || dataset_id || ',' ||quote_literal(fid_popmean)||', '||quote_literal(popmean)||', 24) on conflict(dataset_id,fid) do update set value=excluded.value, confidence=excluded.confidence';
     return popmean;
 END
 $BODY$
@@ -2440,7 +2440,60 @@ begin
   return query select * from calculate_score_contributors('lmcscore', 'score', this_pat_id, rank_limit, true);
 end $func$ LANGUAGE plpgsql;
 
-
+---------------------------------
+-- cdm healtch check functions --
+---------------------------------
+create or replace function dataset_config_compare(dataset_id_left int, dataset_id_right int)
+  returns table(
+    dataset_id              integer,
+    config_table              text,
+    content                 text)
+as $func$
+begin
+return query
+select * from(
+  select dataset_id_left dataset_id, 'cdm_feature', left_only.* from
+  (select concat_ws(', ', l.fid, l.category, l.data_type, l.is_measured, l.is_deprecated, l.fillin_func_id, l.window_size_in_hours, l.derive_func_id, l.derive_func_input, l.description, l.version, l.unit) from cdm_feature l where l.dataset_id = dataset_id_left
+  except
+  select concat_ws(', ', r.fid, r.category, r.data_type, r.is_measured, r.is_deprecated, r.fillin_func_id, r.window_size_in_hours, r.derive_func_id, r.derive_func_input, r.description, r.version, r.unit) from cdm_feature r where r.dataset_id = dataset_id_right) as left_only
+  union
+  select dataset_id_right dataset_id, 'cdm_feature', right_only.* from
+  (select concat_ws(', ', r.fid, r.category, r.data_type, r.is_measured, r.is_deprecated, r.fillin_func_id, r.window_size_in_hours, r.derive_func_id, r.derive_func_input, r.description, r.version, r.unit) from cdm_feature r where r.dataset_id = dataset_id_right
+  except
+  select concat_ws(', ', l.fid, l.category, l.data_type, l.is_measured, l.is_deprecated, l.fillin_func_id, l.window_size_in_hours, l.derive_func_id, l.derive_func_input, l.description, l.version, l.unit) from cdm_feature l where l.dataset_id = dataset_id_left) as right_only
+union
+  select dataset_id_left dataset_id, 'cdm_function', left_only.* from
+  (select concat_ws(', ', l.FUNC_ID,l.FUNC_TYPE,l.DESCRIPTION) from cdm_function l where l.dataset_id = dataset_id_left
+  except
+  select concat_ws(', ', r.FUNC_ID,r.FUNC_TYPE,r.DESCRIPTION) from cdm_function r where r.dataset_id = dataset_id_right) as left_only
+  union
+  select dataset_id_right dataset_id, 'cdm_function', right_only.* from
+  (select concat_ws(', ', r.FUNC_ID,r.FUNC_TYPE,r.DESCRIPTION) from cdm_function r where r.dataset_id = dataset_id_right
+  except
+  select concat_ws(', ', l.FUNC_ID,l.FUNC_TYPE,l.DESCRIPTION) from cdm_function l where l.dataset_id = dataset_id_left) as right_only
+union
+  select dataset_id_left dataset_id, 'parameters', left_only.* from
+  (select concat_ws(', ', l.name, l.value) from parameters l where l.dataset_id = dataset_id_left
+  except
+  select concat_ws(', ', r.name, r.value) from parameters r where r.dataset_id = dataset_id_right) as left_only
+  union
+  select dataset_id_right dataset_id, 'parameters', right_only.* from
+  (select concat_ws(', ', r.name, r.value) from parameters r where r.dataset_id = dataset_id_right
+  except
+  select concat_ws(', ', l.name, l.value) from parameters l where l.dataset_id = dataset_id_left) as right_only
+union
+  select dataset_id_left dataset_id, 'criteria_default', left_only.* from
+  (select concat_ws(', ', l.name, l.fid, l.override_value, l.category) from criteria_default l where l.dataset_id = dataset_id_left
+  except
+  select concat_ws(', ', r.name, r.fid, r.override_value, r.category) from criteria_default r where r.dataset_id = dataset_id_right) as left_only
+  union
+  select dataset_id_right dataset_id, 'criteria_default', right_only.* from
+  (select concat_ws(', ', r.name, r.fid, r.override_value, r.category) from criteria_default r where r.dataset_id = dataset_id_right
+  except
+  select concat_ws(', ', l.name, l.fid, l.override_value, l.category) from criteria_default l where l.dataset_id = dataset_id_left) as right_only
+) U
+order by config_table, dataset_id, content;
+end $func$ LANGUAGE plpgsql;
 -------------------------
 -- cdm stats functions --
 -------------------------
@@ -2594,7 +2647,7 @@ if _table = 'cdm_twf' then
   for rec in select * from cdm_feature f where f.category = 'TWF' and f.dataset_id = _dataset_id
   loop
     if rec.data_type ~* 'real|int' then
-      execute 'select min(' || rec.fid || ') <> max(' || rec.fid || ') from cdm_twf where dataset_id = ' || _dataset_id || ' and ' || rec.fid || '_c < 8' into use_hist;
+      execute 'select min(' || rec.fid || ') <> max(' || rec.fid || ') from cdm_twf where dataset_id = ' || _dataset_id into use_hist;
     else use_hist = false;
     end if;
     if use_hist then
@@ -2650,7 +2703,9 @@ if _table = 'cdm_twf' then
           ''cnt'', count(*),
           ''cnt_meas'', count(*) filter (where '||rec.fid||'_c < 8),
           ''cnt_fill_last'', count(*) filter (where '||rec.fid||'_c between 8 and 23),
-          ''cnt_fill_pop'', count(*) filter (where '||rec.fid||'_c = 24)
+          ''cnt_fill_pop'', count(*) filter (where '||rec.fid||'_c = 24),
+          ''cnt_null'', count(*) filter (where '||rec.fid||' is null),
+          ''cnt_c_null'', count(*) filter (where '||rec.fid||'_c is null)
           ) cnt
         , last(f.is_measured) is_measured
         , last(f.data_type) data_type
