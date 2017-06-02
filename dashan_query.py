@@ -162,10 +162,13 @@ async def get_patient_events(db_pool, pat_id):
 
     for row in result:
       if row['event_type'] == 0:
-        notification = json.loads(row['payload']) if row['payload'] is not None else {}
-        notification['timestamp'] = int(notification['timestamp'])
-        notification['id'] = row['evt_id']
-        notifications.append(notification)
+        if notification['timestamp'] is not None:
+          notification = json.loads(row['payload']) if row['payload'] is not None else {}
+          notification['timestamp'] = int(notification['timestamp'])
+          notification['id'] = row['evt_id']
+          notifications.append(notification)
+        else:
+          logging.error('Invalid patient event, no timestamp found: %s' % str(row))
       else:
         audit = json.loads(row['payload']) if row['payload'] is not None else {}
         audit['log_id'] = row['evt_id']
