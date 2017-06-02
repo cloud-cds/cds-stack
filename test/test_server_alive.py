@@ -2,6 +2,7 @@
 
 import requests, json
 import os, time
+import psutil
 
 passed_tests = True
 
@@ -35,6 +36,12 @@ if r.status_code != 200:
     print("\n\n\tFAILED getting response from /api")
     print("Response from /api = {}".format(r.status_code))
     passed_tests = False
+
+# Kill the server
+for p in psutil.process_iter():
+    pinfo = p.as_dict(attrs=['pid', 'name'])
+    if pinfo['name'] == 'gunicorn':
+        p.kill()
 
 # Return correct status code
 if passed_tests:
