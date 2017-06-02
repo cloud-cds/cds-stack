@@ -1,4 +1,0 @@
-dataset_id,name,value
-5,lookbackhours,6 hours
-5,deactivate_hours,8 hours
-5,deactivate_expire_hours,72 hours

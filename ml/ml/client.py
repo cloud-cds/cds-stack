@@ -342,7 +342,7 @@ class Session():
         return self.download_sql_string(sql, as_data_frame = as_data_frame)
 
     def download_sql_string(self, sql, colnames, as_data_frame=True):
-        self.log.info('query data frame:' + sql)
+        # self.log.info('query data frame:' + sql)
         cursor = self.conn.execute(sql)
         data = cursor.fetchall()
         if as_data_frame:
@@ -383,9 +383,16 @@ class Session():
         # build Query
         #--------------------------------------------------------------------------
         columns = ['cdm_twf.enc_id', 'cdm_twf.tsp'] + twf_features + featureConfidances
+        #for f in s_features:
+        #    if data_types[f] == 'String':
+        #        columns.append("%s.value as %s" % (f, f))
+        #    else:
+        #        columns.append("cast(%s.value as %s) as %s" % (f, data_types[f], f))
         for f in s_features:
             if data_types[f] == 'String':
                 columns.append("%s.value as %s" % (f, f))
+            elif f.endswith('_diag') or f.endswith('_hist') or f.endswith('_prob'):
+                columns.append("coalesce(cast(%s.value as %s), false) as %s" % (f, data_types[f], f))
             else:
                 columns.append("cast(%s.value as %s) as %s" % (f, data_types[f], f))
 

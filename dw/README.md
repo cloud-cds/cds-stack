@@ -14,6 +14,8 @@ psql --host=xxx.opsdx.io --port=5432 --username=opsdx_root --dbname=opsdx_xxx -f
 
 ## Setup parallel dblink
 ```{sql}
+CREATE EXTENSION IF NOT EXISTS dblink_fdw;
+CREATE EXTENSION IF NOT EXISTS dblink;
 DROP SERVER IF EXISTS dblink_dist cascade;
 CREATE SERVER dblink_dist
     FOREIGN DATA WRAPPER dblink_fdw OPTIONS (host 'dw.dev.opsdx.io', dbname 'opsdx_dev_dw');

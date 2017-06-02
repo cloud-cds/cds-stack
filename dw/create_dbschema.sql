@@ -793,20 +793,16 @@ create table care_unit(
 ----------------------
 -- cdm stats tables --
 ----------------------
-DROP TABLE IF EXISTS cdm_stats;
+DROP TABLE IF EXISTS cdm_stats cascade;
 CREATE TABLE cdm_stats(
     dataset_id integer REFERENCES dw_version(dataset_id),
     id text,
     id_type text,
+    cdm_table text,
     stats jsonb,
-    PRIMARY KEY (dataset_id, id, id_type)
+    PRIMARY KEY (dataset_id, id, id_type, cdm_table)
 );
 
-DROP TABLE IF EXISTS cdm_stats_meta;
-CREATE TABLE cdm_stats_meta(
-    id text,
-    id_type text,
-    function text,
-    PRIMARY KEY (id, id_type, function)
-);
-\COPY cdm_stats_meta FROM 'cdm_stats_meta.csv' WITH csv header DELIMITER AS ',';
+DROP VIEW IF EXISTS cdm_stats_view;
+CREATE VIEW cdm_stats_view AS
+    select dataset_id, id, id_type, cdm_table, jsonb_pretty(stats) from cdm_stats;
