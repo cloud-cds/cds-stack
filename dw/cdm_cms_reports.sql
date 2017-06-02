@@ -322,112 +322,18 @@ as $func$ begin
         w_severe_sepsis_wo_infection_onset,
         w_septic_shock_onset
       )
-      -- Earliest occurrence of each state
-      with earliest_occurrences as (
-        select L.dataset_id, L.label_id, L.pat_id, L.label, min(L.tsp) as tsp
-        from cdm_labels L
-        where L.dataset_id = coalesce(_dataset_id, L.dataset_id)
-        and   L.label_id   = coalesce(_label_id, L.label_id)
-        group by L.dataset_id, L.label_id, L.pat_id, L.label
-      ),
-      state_onsets as (
-        select I.dataset_id, I.label_id, I.pat_id,
-               least(min(L10.sspwoi), min(L20.sspwoi), min(L30.sspwoi)) as severe_sepsis_wo_infection_onset,
-               least(min(L20.ssp), min(L30.ssp)) as severe_sepsis_onset,
-               min(L30.ssh) as septic_shock_onset
-        from
-        ( select distinct I.dataset_id, I.label_id, I.pat_id from earliest_occurrences I ) I
-
-        left join
-        (
-          -- Earliest occurrence of sspwoi.
-          /*
-          select L10.dataset_id, L10.label_id, L10.pat_id, min(L10.tsp) as tsp
-          from earliest_occurrences L10
-          where L10.label >= 10 and L10.label < 20
-          group by L10.pat_id, L10.dataset_id, L10.label_id
-          */
-          select WL10.dataset_id, WL10.label_id, WL10.pat_id,
-                 min(LWindow.severe_sepsis_wo_infection_onset) as sspwoi
-          from (
-            select L10.dataset_id, L10.label_id, L10.pat_id, min(L10.tsp) as tsp
-            from earliest_occurrences L10
-            where L10.label >= 10 and L10.label < 20
-            group by L10.pat_id, L10.dataset_id, L10.label_id
-          ) WL10
-          inner join lateral get_cms_labels_for_window_v5(
-            WL10.pat_id, WL10.tsp - interval '6 hours', WL10.tsp, WL10.dataset_id
-          ) LWindow
-            on WL10.pat_id = LWindow.pat_id
-          group by WL10.pat_id, WL10.dataset_id, WL10.label_id
-        ) L10
-          on I.dataset_id = L10.dataset_id
-          and I.label_id = L10.label_id
-          and I.pat_id = L10.pat_id
-
-        left join (
-          -- Earliest occurrence of ssp.
-          /*
-          select L20.dataset_id, L20.label_id, L20.pat_id, min(L20.tsp) as tsp
-          from earliest_occurrences L20
-          where L20.label >= 20 and L20.label < 30
-          group by L20.pat_id, L20.dataset_id, L20.label_id
-          */
-          select WL20.dataset_id, WL20.label_id, WL20.pat_id,
-                 min(LWindow.severe_sepsis_wo_infection_onset) as sspwoi,
-                 min(LWindow.severe_sepsis_onset) as ssp
-          from (
-            select L20.dataset_id, L20.label_id, L20.pat_id, min(L20.tsp) as tsp
-            from earliest_occurrences L20
-            where L20.label >= 20 and L20.label < 30
-            group by L20.pat_id, L20.dataset_id, L20.label_id
-          ) WL20
-          inner join lateral get_cms_labels_for_window_v5(
-            WL20.pat_id, WL20.tsp - interval '6 hours', WL20.tsp, WL20.dataset_id
-          ) LWindow
-            on WL20.pat_id = LWindow.pat_id
-          group by WL20.pat_id, WL20.dataset_id, WL20.label_id
-        ) L20
-          on I.dataset_id = L20.dataset_id
-          and I.label_id = L20.label_id
-          and I.pat_id = L20.pat_id
-
-        left join (
-          -- Earliest occurrence of ssh.
-          /*
-          select L30.dataset_id, L30.label_id, L30.pat_id, min(L30.tsp) as tsp
-          from earliest_occurrences L30
-          where L30.label >= 30
-          group by L30.pat_id, L30.dataset_id, L30.label_id
-          */
-          select WL30.dataset_id, WL30.label_id, WL30.pat_id,
-                 min(LWindow.severe_sepsis_wo_infection_onset) as sspwoi,
-                 min(LWindow.severe_sepsis_onset) as ssp,
-                 min(LWindow.septic_shock_onset) as ssh
-          from (
-            select L30.dataset_id, L30.label_id, L30.pat_id, min(L30.tsp) as tsp
-            from earliest_occurrences L30
-            where L30.label >= 30
-            group by L30.pat_id, L30.dataset_id, L30.label_id
-          ) WL30
-          inner join lateral get_cms_labels_for_window_v5(
-            WL30.pat_id, WL30.tsp - interval '6 hours', WL30.tsp, WL30.dataset_id
-          ) LWindow
-            on WL30.pat_id = LWindow.pat_id
-          group by WL30.pat_id, WL30.dataset_id, WL30.label_id
-        ) L30
-          on I.dataset_id = L30.dataset_id
-          and I.label_id = L30.label_id
-          and I.pat_id = L30.pat_id
-
-        group by I.dataset_id, I.label_id, I.pat_id
-      )
-
       select WS.dataset_id                            as dataset_id,
              WS.label_id                              as label_id,
              WS.max_state                             as w_max_state,
-             WS.window_ts - interval '6 hours'        as w_start,
-             WS.window_ts                             as w_end,
+             (case when WS.max_state >= 20 and WS.max_state < 30 then coalesce(S.w_severe_sepsis_onset, WS.window_ts)
+                   when WS.max_state >= 30 then coalesce(S.w_septic_shock_onset, WS.window_ts)
+                   else WS.window_ts end
+               ) - interval '6 hours'
+              as w_start,
+             (case when WS.max_state >= 20 and WS.max_state < 30 then coalesce(S.w_severe_sepsis_onset, WS.window_ts)
+                   when WS.max_state >= 30 then coalesce(S.w_septic_shock_onset, WS.window_ts)
+                   else WS.window_ts end)
+              as w_end,
              CWindow.pat_id                           as pat_id,
              CWindow.name                             as name,
              CWindow.measurement_time                 as measurement_time,
@@ -444,11 +350,20 @@ as $func$ begin
              CWindow.severe_sepsis_wo_infection_onset as w_severe_sepsis_wo_infection_onset,
              CWindow.septic_shock_onset               as w_septic_shock_onset
       from (
-        -- Earliest occurrence of the worst state.
-        select L2.pat_id, L2.dataset_id, L2.label_id, min(L2.tsp) as window_ts, max(L2.label) as max_state
+        -- Earliest occurrence of the bundle compliance or worst cms state.
+        select L2.pat_id, L2.dataset_id, L2.label_id,
+               (case when bool_or(L1.bundle) then max(L2.tsp) else min(L2.tsp) end) as window_ts,
+               max(L2.label) as max_state,
+               bool_or(L1.bundle) as bundle
         from (
-          -- Best hospital care state for each patient.
-          select L.pat_id, decode_hosp_best_state(max(encode_hosp_best_state(L.label))) as label
+          -- Most important bundle compliance state, or best hospital care state, for each patient.
+          select L.pat_id,
+                 coalesce(bool_or(L.label_type like '%bundle%'), false) as bundle,
+                 decode_hosp_best_state(
+                  coalesce(
+                    max(case when L.label_type like '%bundle%' then encode_hosp_best_state(L.label) else null end),
+                    max(encode_hosp_best_state(L.label))
+                  )) as label
           from cdm_labels L
           where L.dataset_id = coalesce(_dataset_id, L.dataset_id)
           and   L.label_id   = coalesce(_label_id, L.label_id)
@@ -457,23 +372,64 @@ as $func$ begin
         inner join cdm_labels L2
             on L1.pat_id = L2.pat_id
             and L1.label = L2.label
+            and L1.bundle = (L2.label_type like '%bundle%')
         where L1.label    = coalesce(_pat_state, L1.label)
         and L2.dataset_id = coalesce(_dataset_id, L2.dataset_id)
         and L2.label_id   = coalesce(_label_id, L2.label_id)
         group by L2.pat_id, L2.dataset_id, L2.label_id
       ) WS
 
-      inner join lateral get_cms_labels_for_window_v5(
-        WS.pat_id, WS.window_ts - interval '6 hours', WS.window_ts, WS.dataset_id
-      ) CWindow
-        on WS.pat_id = CWindow.pat_id
-
-      left join state_onsets S
+      left join get_label_series_onset_timestamps(_dataset_id, _label_id) S
         on WS.dataset_id = S.dataset_id
         and WS.label_id = S.label_id
         and WS.pat_id = S.pat_id
 
+      left join lateral (
+        ( with at_onset as (
+            select * from get_cms_labels_for_window(
+              WS.pat_id,
+              (case when WS.max_state >= 20 and WS.max_state < 30 then coalesce(S.w_severe_sepsis_onset, WS.window_ts)
+                    when WS.max_state >= 30 then coalesce(S.w_septic_shock_onset, WS.window_ts)
+                    else WS.window_ts end
+                ) - interval '6 hours',
+              (case when WS.max_state >= 20 and WS.max_state < 30 then coalesce(S.w_severe_sepsis_onset, WS.window_ts)
+                    when WS.max_state >= 30 then coalesce(S.w_septic_shock_onset, WS.window_ts)
+                    else WS.window_ts end),
+              WS.dataset_id
+            )
+            where WS.bundle
+          ),
+          at_bundle as (
+            select * from get_cms_labels_for_window(
+              WS.pat_id, WS.window_ts - interval '6 hours', WS.window_ts, WS.dataset_id
+            )
+            where WS.bundle
+          )
+          select O.pat_id,
+                 O.name,
+                 (case when O.name like '%_order' then B.measurement_time else O.measurement_time end) as measurement_time,
+                 (case when O.name like '%_order' then B.value            else O.value            end) as value,
+                 (case when O.name like '%_order' then B.override_time    else O.override_time    end) as override_time,
+                 (case when O.name like '%_order' then B.override_user    else O.override_user    end) as override_user,
+                 (case when O.name like '%_order' then B.override_value   else O.override_value   end) as override_value,
+                 (case when O.name like '%_order' then B.is_met           else O.is_met           end) as is_met,
+                 (case when O.name like '%_order' then B.update_date      else O.update_date      end) as update_date,
+                 O.severe_sepsis_onset,
+                 O.severe_sepsis_wo_infection_onset,
+                 O.septic_shock_onset
+          from at_onset O inner join at_bundle B on O.pat_id = B.pat_id and O.name = B.name
+          where WS.bundle
+        )
+        union all
+        select * from get_cms_labels_for_window(
+          WS.pat_id, WS.window_ts - interval '6 hours', WS.window_ts, WS.dataset_id
+        ) C
+        where not WS.bundle
+      ) CWindow
+        on WS.pat_id = CWindow.pat_id
+
       order by WS.max_state desc, CWindow.pat_id
+
     on conflict(dataset_id, label_id, w_max_state, w_start, w_end, pat_id, name)
       do update
         set measurement_time                   = excluded.measurement_time,
@@ -574,12 +530,12 @@ create or replace function criteria_report(_pat_state  integer,
                                            _label_id   integer)
   returns table ( pat_worst_state                   integer,
                   pat_id                            varchar(50),
-                  severe_sepsis_onset               text,
-                  sirs_organ_dys_onset              text,
-                  septic_shock_onset                text,
-                  w_severe_sepsis_onset             text,
-                  w_sirs_organ_dys_onset            text,
-                  w_septic_shock_onset              text,
+                  first_severe_sepsis_onset         text,
+                  first_sirs_organ_dys_onset        text,
+                  first_septic_shock_onset          text,
+                  window_severe_sepsis_onset        text,
+                  window_sirs_organ_dys_onset       text,
+                  window_septic_shock_onset         text,
                   infection                         text,
                   sirs_criteria                     text,
                   org_df_criteria                   text,
@@ -757,6 +713,8 @@ create or replace function tabulate_compliance(_pat_state  integer,
                   severe_sepsis_onset              timestamptz,
                   severe_sepsis_wo_infection_onset timestamptz,
                   septic_shock_onset               timestamptz,
+                  arrival                          timestamptz,
+                  departure                        timestamptz,
                   age                              text,
                   gender                           text,
                   care_unit_entry                  timestamptz,
@@ -773,7 +731,10 @@ create or replace function tabulate_compliance(_pat_state  integer,
                   repeat_lactate_unmet             integer,
                   vasopressors_met                 integer,
                   vasopressors_unmet               integer,
-                  length_of_stay_hrs               double precision
+                  length_of_stay_hrs               double precision,
+                  meas_tsp                         timestamptz,
+                  meas_fid                         varchar(50),
+                  meas_value                       text
   )
 language plpgsql
 as $func$ begin
@@ -786,6 +747,8 @@ as $func$ begin
            R.severe_sepsis_onset,
            R.severe_sepsis_wo_infection_onset,
            R.septic_shock_onset,
+           E.arrival,
+           E.departure,
            (case when S.fid = 'age' then S.value else null end) as age,
            (case when S.fid = 'gender' then S.value else null end) as gender,
 
@@ -810,10 +773,14 @@ as $func$ begin
            (case when (R.criteria#>>'{vasopressors_order, met}')::boolean      then 0 else 1 end) as vasopressors_unmet,
 
            -- Length of stay
-           (extract(epoch from E.departure) - extract(epoch from E.arrival))/3600.0 as length_of_stay_hrs
+           (extract(epoch from E.departure) - extract(epoch from E.arrival))/3600.0 as length_of_stay_hrs,
+
+           -- Orders
+           M.tsp as meas_tsp, M.fid as meas_fid, M.value as meas_value
 
            -- TODO:
            -- Readmissions
+
     from tabulate_criteria(_pat_state, _dataset_id, _label_id) R
     inner join match_report_encounters(_pat_state, _dataset_id, _label_id) E
       on R.pat_id = E.pat_id
@@ -824,6 +791,10 @@ as $func$ begin
     left join cdm_s S
       on E.enc_id = S.enc_id and R.dataset_id = S.dataset_id
       and S.fid in ('age', 'gender')
+    left join criteria_meas M
+      on R.pat_id = M.pat_id
+      and M.tsp between E.arrival and E.departure
+      and M.fid similar to '%_order|cms_antibiotics|crystalloid_fluid|vasopressors_dose'
     ;
 end; $func$;
 
@@ -839,6 +810,8 @@ create or replace function full_compliance_report(_pat_state  integer,
                   care_unit                 text,
                   hour_of_day               integer,
                   num_patients              numeric,
+                  num_encounters            numeric,
+
                   antibiotics_met           numeric,
                   antibiotics_unmet         numeric,
                   blood_culture_met         numeric,
@@ -851,6 +824,25 @@ create or replace function full_compliance_report(_pat_state  integer,
                   repeat_lactate_unmet      numeric,
                   vasopressors_met          numeric,
                   vasopressors_unmet        numeric,
+
+                  antibiotics_any           numeric,
+                  blood_culture_any         numeric,
+                  crystalloid_fluid_any     numeric,
+                  vasopressors_any          numeric,
+
+                  antibiotics_late          numeric,
+                  blood_culture_late        numeric,
+                  crystalloid_fluid_late    numeric,
+                  vasopressors_late         numeric,
+
+                  num_lactates              numeric,
+                  num_lactates_3hr_late     numeric,
+                  num_lactates_6hr_late     numeric,
+
+                  lactates_any              numeric,
+                  lactates_any_3hr_late     numeric,
+                  lactates_any_6hr_late     numeric,
+
                   length_of_stay_hrs        numeric
   )
 language plpgsql
@@ -862,6 +854,7 @@ as $func$ begin
            ByPat.care_unit,
            ByPat.hour_of_day,
            count(*)::numeric                           as num_patients,
+           sum(ByPat.num_encounters)                   as num_encounters,
            sum(ByPat.antibiotics_met)::numeric         as antibiotics_met,
            sum(ByPat.antibiotics_unmet)::numeric       as antibiotics_unmet,
            sum(ByPat.blood_culture_met)::numeric       as blood_culture_met,
@@ -874,10 +867,31 @@ as $func$ begin
            sum(ByPat.repeat_lactate_unmet)::numeric    as repeat_lactate_unmet,
            sum(ByPat.vasopressors_met)::numeric        as vasopressors_met,
            sum(ByPat.vasopressors_unmet)::numeric      as vasopressors_unmet,
-           max(ByPat.length_of_stay_hrs)::numeric      as length_of_stay_hrs
+
+           sum(ByPat.antibiotics_any)::numeric               as antibiotics_any,
+           sum(ByPat.blood_culture_any)::numeric             as blood_culture_any,
+           sum(ByPat.crystalloid_fluid_any)::numeric         as crystalloid_fluid_any,
+           sum(ByPat.vasopressors_any)::numeric              as vasopressors_any,
+
+           sum(ByPat.antibiotics_late)::numeric              as antibiotics_late,
+           sum(ByPat.blood_culture_late)::numeric            as blood_culture_late,
+           sum(ByPat.crystalloid_fluid_late)::numeric        as crystalloid_fluid_late,
+           sum(ByPat.vasopressors_late)::numeric             as vasopressors_late,
+
+           sum(ByPat.num_lactates)::numeric                  as num_lactates,
+           sum(ByPat.num_lactates_3hr_late)::numeric         as num_lactates_3hr_late,
+           sum(ByPat.num_lactates_6hr_late)::numeric         as num_lactates_6hr_late,
+
+           sum(ByPat.lactates_any)::numeric                  as lactates_any,
+           sum(ByPat.lactates_any_3hr_late)::numeric         as lactates_any_3hr_late,
+           sum(ByPat.lactates_any_6hr_late)::numeric         as lactates_any_6hr_late,
+
+           max(ByPat.length_of_stay_hrs)::numeric            as length_of_stay_hrs
+
     from (
       select ByPatEnc.pat_worst_state,
              ByPatEnc.pat_id,
+             count(distinct ByPatEnc.enc_id)      as num_encounters,
              first(ByPatEnc.age)                   as age,
              first(ByPatEnc.gender)                as gender,
              first(ByPatEnc.care_unit)             as care_unit,
@@ -894,7 +908,29 @@ as $func$ begin
              sum(ByPatEnc.repeat_lactate_unmet)    as repeat_lactate_unmet,
              sum(ByPatEnc.vasopressors_met)        as vasopressors_met,
              sum(ByPatEnc.vasopressors_unmet)      as vasopressors_unmet,
+
+             -- Total # of encounters w/ any occurrence of the given order
+             sum(case when ByPatEnc.antibiotics_any       then 1 else 0 end) as antibiotics_any,
+             sum(case when ByPatEnc.blood_culture_any     then 1 else 0 end) as blood_culture_any,
+             sum(case when ByPatEnc.crystalloid_fluid_any then 1 else 0 end) as crystalloid_fluid_any,
+             sum(case when ByPatEnc.vasopressors_any      then 1 else 0 end) as vasopressors_any,
+
+            -- Total # of encounters where the given order was delivered late.
+             sum(case when ByPatEnc.antibiotics_late       then 1 else 0 end) as antibiotics_late,
+             sum(case when ByPatEnc.blood_culture_late     then 1 else 0 end) as blood_culture_late,
+             sum(case when ByPatEnc.crystalloid_fluid_late then 1 else 0 end) as crystalloid_fluid_late,
+             sum(case when ByPatEnc.vasopressors_late      then 1 else 0 end) as vasopressors_late,
+
+             sum(ByPatEnc.num_lactates)                                       as num_lactates,
+             sum(ByPatEnc.num_lactates_3hr_late)                              as num_lactates_3hr_late,
+             sum(ByPatEnc.num_lactates_6hr_late)                              as num_lactates_6hr_late,
+
+             sum(case when ByPatEnc.lactates_any          then 1 else 0 end)  as lactates_any,
+             sum(case when ByPatEnc.lactates_any_3hr_late then 1 else 0 end)  as lactates_any_3hr_late,
+             sum(case when ByPatEnc.lactates_any_6hr_late then 1 else 0 end)  as lactates_any_6hr_late,
+
              max(ByPatEnc.length_of_stay_hrs)      as length_of_stay_hrs
+
       from (
         select R.pat_worst_state,
                R.pat_id,
@@ -914,19 +950,38 @@ as $func$ begin
 
                first(date_part('hour', coalesce(R.severe_sepsis_onset, R.severe_sepsis_wo_infection_onset)))::int as hour_of_day,
 
-               max(R.antibiotics_met)         as antibiotics_met,
-               max(R.antibiotics_unmet)       as antibiotics_unmet,
-               max(R.blood_culture_met)       as blood_culture_met,
-               max(R.blood_culture_unmet)     as blood_culture_unmet,
-               max(R.crystalloid_fluid_met)   as crystalloid_fluid_met,
-               max(R.crystalloid_fluid_unmet) as crystalloid_fluid_unmet,
-               max(R.initial_lactate_met)     as initial_lactate_met,
-               max(R.initial_lactate_unmet)   as initial_lactate_unmet,
-               max(R.repeat_lactate_met)      as repeat_lactate_met,
-               max(R.repeat_lactate_unmet)    as repeat_lactate_unmet,
-               max(R.vasopressors_met)        as vasopressors_met,
-               max(R.vasopressors_unmet)      as vasopressors_unmet,
-               max(R.length_of_stay_hrs)      as length_of_stay_hrs
+               max(R.antibiotics_met)                      as antibiotics_met,
+               max(R.antibiotics_unmet)                    as antibiotics_unmet,
+               max(R.blood_culture_met)                    as blood_culture_met,
+               max(R.blood_culture_unmet)                  as blood_culture_unmet,
+               max(R.crystalloid_fluid_met)                as crystalloid_fluid_met,
+               max(R.crystalloid_fluid_unmet)              as crystalloid_fluid_unmet,
+               max(R.initial_lactate_met)                  as initial_lactate_met,
+               max(R.initial_lactate_unmet)                as initial_lactate_unmet,
+               max(R.repeat_lactate_met)                   as repeat_lactate_met,
+               max(R.repeat_lactate_unmet)                 as repeat_lactate_unmet,
+               max(R.vasopressors_met)                     as vasopressors_met,
+               max(R.vasopressors_unmet)                   as vasopressors_unmet,
+
+               coalesce(bool_or(meas_fid like 'cms_antibiotics%')   , false) as antibiotics_any,
+               coalesce(bool_or(meas_fid = 'blood_culture_order')   , false) as blood_culture_any,
+               coalesce(bool_or(meas_fid like 'crystalloid_fluid%') , false) as crystalloid_fluid_any,
+               coalesce(bool_or(meas_fid like 'vasopressors_dose%') , false) as vasopressors_any,
+
+               coalesce(bool_or(meas_fid like 'cms_antibiotics%'   and meas_tsp > coalesce(R.severe_sepsis_onset + interval '3 hours', 'infinity'::timestamptz)), false) as antibiotics_late,
+               coalesce(bool_or(meas_fid = 'blood_culture_order'   and meas_tsp > coalesce(R.severe_sepsis_onset + interval '3 hours', 'infinity'::timestamptz)), false) as blood_culture_late,
+               coalesce(bool_or(meas_fid like 'crystalloid_fluid%' and meas_tsp > coalesce(R.severe_sepsis_onset + interval '3 hours', 'infinity'::timestamptz)), false) as crystalloid_fluid_late,
+               coalesce(bool_or(meas_fid like 'vasopressors_dose%' and meas_tsp > coalesce(R.septic_shock_onset  + interval '6 hours', 'infinity'::timestamptz)), false) as vasopressors_late,
+
+               coalesce(sum(case when meas_fid = 'lactate_order' then 1 else 0 end), 0) as num_lactates,
+               coalesce(sum(case when meas_fid = 'lactate_order' and meas_tsp > coalesce(R.severe_sepsis_onset + interval '3 hours', 'infinity'::timestamptz) then 1 else 0 end), 0) as num_lactates_3hr_late,
+               coalesce(sum(case when meas_fid = 'lactate_order' and meas_tsp > coalesce(R.severe_sepsis_onset + interval '6 hours', 'infinity'::timestamptz) then 1 else 0 end), 0) as num_lactates_6hr_late,
+
+               coalesce(sum(case when meas_fid = 'lactate_order' then 1 else 0 end), 0) > 0 as lactates_any,
+               coalesce(sum(case when meas_fid = 'lactate_order' and meas_tsp > coalesce(R.severe_sepsis_onset + interval '3 hours', 'infinity'::timestamptz) then 1 else 0 end), 0) > 0 as lactates_any_3hr_late,
+               coalesce(sum(case when meas_fid = 'lactate_order' and meas_tsp > coalesce(R.severe_sepsis_onset + interval '6 hours', 'infinity'::timestamptz) then 1 else 0 end), 0) > 0 as lactates_any_6hr_late,
+
+               max(R.length_of_stay_hrs)                   as length_of_stay_hrs
 
         from tabulate_compliance(_pat_state, _dataset_id, _label_id) R
         group by R.pat_worst_state, R.pat_id, R.enc_id
@@ -946,6 +1001,7 @@ create or replace function unit_compliance_report(_pat_state  integer,
   returns table ( pat_worst_state           integer,
                   care_unit                 text,
                   num_patients              numeric,
+                  num_encounters            numeric,
                   antibiotics_met           numeric,
                   antibiotics_unmet         numeric,
                   blood_culture_met         numeric,
@@ -957,7 +1013,25 @@ create or replace function unit_compliance_report(_pat_state  integer,
                   repeat_lactate_met        numeric,
                   repeat_lactate_unmet      numeric,
                   vasopressors_met          numeric,
-                  vasopressors_unmet        numeric
+                  vasopressors_unmet        numeric,
+
+                  antibiotics_any           numeric,
+                  blood_culture_any         numeric,
+                  crystalloid_fluid_any     numeric,
+                  vasopressors_any          numeric,
+
+                  antibiotics_late          numeric,
+                  blood_culture_late        numeric,
+                  crystalloid_fluid_late    numeric,
+                  vasopressors_late         numeric,
+
+                  num_lactates              numeric,
+                  num_lactates_3hr_late     numeric,
+                  num_lactates_6hr_late     numeric,
+
+                  lactates_any              numeric,
+                  lactates_any_3hr_late     numeric,
+                  lactates_any_6hr_late     numeric
   )
 language plpgsql
 as $func$ begin
@@ -965,6 +1039,7 @@ as $func$ begin
     select R.pat_worst_state,
            R.care_unit,
            sum(R.num_patients)            as num_patients,
+           sum(R.num_encounters)          as num_encounters,
            sum(R.antibiotics_met)         as antibiotics_met,
            sum(R.antibiotics_unmet)       as antibiotics_unmet,
            sum(R.blood_culture_met)       as blood_culture_met,
@@ -976,7 +1051,26 @@ as $func$ begin
            sum(R.repeat_lactate_met)      as repeat_lactate_met,
            sum(R.repeat_lactate_unmet)    as repeat_lactate_unmet,
            sum(R.vasopressors_met)        as vasopressors_met,
-           sum(R.vasopressors_unmet)      as vasopressors_unmet
+           sum(R.vasopressors_unmet)      as vasopressors_unmet,
+
+           sum(R.antibiotics_any)         as antibiotics_any,
+           sum(R.blood_culture_any)       as blood_culture_any,
+           sum(R.crystalloid_fluid_any)   as crystalloid_fluid_any,
+           sum(R.vasopressors_any)        as vasopressors_any,
+
+           sum(R.antibiotics_late)        as antibiotics_late,
+           sum(R.blood_culture_late)      as blood_culture_late,
+           sum(R.crystalloid_fluid_late)  as crystalloid_fluid_late,
+           sum(R.vasopressors_late)       as vasopressors_late,
+
+           sum(R.num_lactates)            as num_lactates,
+           sum(R.num_lactates_3hr_late)   as num_lactates_3hr_late,
+           sum(R.num_lactates_6hr_late)   as num_lactates_6hr_late,
+
+           sum(R.lactates_any)            as lactates_any,
+           sum(R.lactates_any_3hr_late)   as lactates_any_3hr_late,
+           sum(R.lactates_any_6hr_late)   as lactates_any_6hr_late
+
     from full_compliance_report(_pat_state, _dataset_id, _label_id) R
     group by R.pat_worst_state, R.care_unit
     order by R.pat_worst_state desc, R.care_unit;
