@@ -37,7 +37,7 @@ async def pull_med_orders(connection, dataset_id, fids, log, is_plan, clarity_wo
   log.info(sql)
   mo = await async_read_df(sql, connection)
   if mo is None:
-      return
+      return 0
   extracted = mo.shape[0]
 
   mo = restructure.select_columns(mo, {'enc_id': 'enc_id',
@@ -86,8 +86,7 @@ async def pull_med_orders(connection, dataset_id, fids, log, is_plan, clarity_wo
   else:
     log.info('Medication Administration Upsert skipped, due to plan mode')
   loaded = mo.shape[0]
-  log_time(log, 'pull_med_orders', start, extracted, loaded)
-  return 'pull_med_orders'
+  return log_time(log, 'pull_med_orders', start, extracted, loaded)
 
 async def pull_medication_admin(connection, dataset_id, fids, log, is_plan, clarity_workspace):
   start = time.time()
@@ -106,7 +105,7 @@ async def pull_medication_admin(connection, dataset_id, fids, log, is_plan, clar
   ma = await async_read_df(sql,connection)
 
   if ma is None:
-    return
+    return 0
   extracted = ma.shape[0]
   ma = restructure.select_columns(ma, {'enc_id'           : 'enc_id',
                                       'display_name'      : 'full_name',
@@ -190,8 +189,7 @@ async def pull_medication_admin(connection, dataset_id, fids, log, is_plan, clar
   else:
     log.info('Medication Order Upsert skipped, due to plan mode')
   loaded = ma.shape[0]
-  log_time(log, 'pull_medication_admin', start, extracted, loaded)
-  return 'pull_medication_admin'
+  return log_time(log, 'pull_medication_admin', start, extracted, loaded)
 
 async def bands(connection, dataset_id, fids, log, is_plan, clarity_workspace):
   log.info("Entering bands Processing")
@@ -208,7 +206,7 @@ async def bands(connection, dataset_id, fids, log, is_plan, clarity_workspace):
   log.info(sql)
   labs = await async_read_df(sql,connection)
   if labs is None:
-    return
+    return 0
   extracted = labs.shape[0]
 
   labs = restructure.select_columns(labs, {'enc_id': 'enc_id',
@@ -229,8 +227,7 @@ async def bands(connection, dataset_id, fids, log, is_plan, clarity_workspace):
   else:
     log.info('Bands write skipped, due to plan mode')
   loaded = labs.shape[0]
-  log_time(log, 'bands', start, extracted, loaded)
-  return 'bands'
+  return log_time(log, 'bands', start, extracted, loaded)
 
 async def pull_order_procs(connection, dataset_id, fids, log, is_plan, clarity_workspace):
   log.info("Entering order procs Processing")
@@ -243,7 +240,7 @@ async def pull_order_procs(connection, dataset_id, fids, log, is_plan, clarity_w
     t_field = 'op."SPECIMN_TAKEN_TIME"'
   else:
     log.error('Invalid fid for pull_order_procs: %s' % str(fids))
-    return
+    return 0
 
   sql = """select pe.enc_id,
             op."CSN_ID",op."proc_name", {t_field} as "TSP", op."OrderStatus", op."LabStatus",
@@ -258,11 +255,11 @@ async def pull_order_procs(connection, dataset_id, fids, log, is_plan, clarity_w
   log.info(sql)
   op = await async_read_df(sql,connection)
   if op is None:
-      return
+      return 0
   lp_map = await async_read_df("""SELECT * FROM {}.lab_proc_dict;""".format(clarity_workspace), connection)
 
   if lp_map is None:
-    return
+    return 0
 
   log.info('pull_order_procs restructuring %s' % str(op.head(5)))
   op = restructure.select_columns(op, {'enc_id'           : 'enc_id',
@@ -326,8 +323,7 @@ async def pull_order_procs(connection, dataset_id, fids, log, is_plan, clarity_w
   else:
     log.info('Order Procs write skipped, due to plan mode')
   loaded = op.shape[0]
-  log_time(log, 'pull_order_procs', start, extracted, loaded)
-  return 'pull_order_procs'
+  return log_time(log, 'pull_order_procs', start, extracted, loaded)
 
 async def notes(connection, dataset_id, fids, log, is_plan, clarity_workspace):
   log.info("Entering Notes Processing")
@@ -362,5 +358,4 @@ async def notes(connection, dataset_id, fids, log, is_plan, clarity_workspace):
   else:
     log.info('Notes query skipped, due to plan mode')
 
-  log_time(log, 'note', start, '[status: %s]' % status, '[status: %s]' % status)
-  return 'note'
+  return log_time(log, 'note', start, '[status: %s]' % status, '[status: %s]' % status)
