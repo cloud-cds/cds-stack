@@ -64,6 +64,7 @@ resource "aws_lambda_function" "etl_lambda" {
         PYKUBE_KUBERNETES_SERVICE_PORT = "${var.k8s_server_port}"
 
         kube_job_name  = "epic2op-dev"
+        kube_nodegroup = "etl"
         kube_name      = "${var.k8s_name}"
         kube_server    = "${var.k8s_server}"
         kube_cert_auth = "${var.k8s_cert_auth}"
