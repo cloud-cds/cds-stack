@@ -23,9 +23,12 @@ logging.basicConfig(format='%(levelname)s|%(message)s', level=logging.INFO)
 ##############################
 # Constants.
 use_trews_lmc          = os.environ['use_trews_lmc'] if 'use_trews_lmc' in os.environ else False
+chart_sample_start_hrs = int(os.environ['chart_sample_start_hrs']) if 'chart_sample_start_hrs' in os.environ else 6
 chart_sample_start_day = int(os.environ['chart_sample_start_day']) if 'chart_sample_start_day' in os.environ else 2
 chart_sample_end_day   = int(os.environ['chart_sample_end_day']) if 'chart_sample_end_day' in os.environ else 7
+chart_sample_mins      = int(os.environ['chart_sample_mins']) if 'chart_sample_mins' in os.environ else 30
 chart_sample_hrs       = int(os.environ['chart_sample_hrs']) if 'chart_sample_hrs' in os.environ else 6
+
 
 ##############################
 # Globals: cache and monitor.
@@ -340,7 +343,7 @@ class TREWSAPI(web.View):
       # parallel query execution
       pat_values = await asyncio.gather(
                       query.get_criteria(db_pool, eid),
-                      query.get_trews_contributors(db_pool, eid, use_trews_lmc=use_trews_lmc, start_day=chart_sample_start_day, end_day=chart_sample_end_day, sample_hrs=chart_sample_hrs),
+                      query.get_trews_contributors(db_pool, eid, use_trews_lmc=use_trews_lmc, start_hrs=chart_sample_start_hrs, start_day=chart_sample_start_day, end_day=chart_sample_end_day, sample_mins=chart_sample_mins, sample_hrs=chart_sample_hrs),
                       query.get_patient_events(db_pool, eid),
                       query.get_patient_profile(db_pool, eid)
                     )
