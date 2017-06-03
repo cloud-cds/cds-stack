@@ -210,6 +210,15 @@ jobs:
       - task: api-tests
         image: trews-rest-api-docker-image
         file: dashan-etl/ci/integration_rest_api.yml
+        params:
+          db_host: {{DEV_PGHOST}}
+          db_password: {{DEV_PGPASSWORD}}
+          db_port: {{DEV_PGPORT}}
+          db_user: {{DEV_PGUSER}}
+          db_name: {{DEV_PGDATABASE}}
+          PGPASSWORD: {{DEV_PGPASSWORD}}
+          jhapi_client_id: {{jhapi_client_id}}
+          jhapi_client_secret: {{jhapi_client_secret}}
         on_success:
           put: trews-rest-api-pr
           params: {path: trews-rest-api-pr, status: success}
