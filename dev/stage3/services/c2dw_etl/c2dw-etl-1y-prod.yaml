@@ -36,11 +36,11 @@ spec:
         - name: vacuum_temp_table
           value: "True"
         - name: db_host
-          value: "dw.dev.opsdx.io"
+          value: "dw.prod.opsdx.io"
         - name: db_port
           value: "5432"
         - name: db_name
-          value: "opsdx_dev_dw"
+          value: "opsdx_prod_dw"
         - name: db_user
           valueFrom:
             secretKeyRef:
