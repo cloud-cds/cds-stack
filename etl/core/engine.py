@@ -9,6 +9,7 @@ import asyncpg
 import concurrent.futures
 import functools
 import faulthandler
+from graphviz import Digraph
 
 ENGINE_LOG_FMT = '%(asctime)s|%(name)s|%(process)s-%(thread)s|%(levelname)s|%(message)s'
 
@@ -86,7 +87,7 @@ class Engine:
   """
   An engine that runs a DAG of Python coroutines
   """
-  def __init__(self, plan, name='etl-engine', nprocs=2, loglevel=logging.INFO, with_gc=True):
+  def __init__(self, plan, name='etl-engine', nprocs=2, loglevel=logging.INFO, with_gc=True, with_graph=False):
     faulthandler.register(signal.SIGUSR1)
     # An engine identifier.
     self.name = name
@@ -111,7 +112,10 @@ class Engine:
     if type(plan) != Plan:
       raise TypeError("First argument to Engine must be a plan of type 'Plan'")
     self.tasks = plan.plan
-
+    self.with_graph = with_graph
+    if self.with_graph:
+      # init_graph
+      self.graph = Digraph('G', filename=os.environ['etl_graph'] if 'etl_graph' in os.environ else 'etl_graph')
     # Downstreams are reverse dependencies (i.e., task name => task destinations)
     # and represent parent->child task edges.
     self.downstreams = {}
@@ -124,11 +128,15 @@ class Engine:
 
     # Initialize downstreams and counters from task graph.
     for task_id, task_data in self.tasks.items():
+      if self.with_graph:
+        self.graph.node(task_id)
       dependencies, _ = task_data
       self.dep_counters[task_id] = len(dependencies)
       for d in dependencies:
         self.downstreams[d] = self.downstreams.get(d, []) + [task_id]
         self.gc_counters[d] = self.gc_counters.get(d, 0) + 1
+        if self.with_graph:
+          self.graph.edge(d, task_id)
 
     # A dictionary of task futures, mapping task names => future.
     self.task_futures = {}
@@ -179,7 +187,6 @@ class Engine:
               and self.task_futures[task_id].done() \
               and task_id in self.task_results \
               for task_id in dependencies]
-
     return all(dones)
 
   # Check if task is ready, as either task has no dependencies,
@@ -189,6 +196,9 @@ class Engine:
       dependencies, _ = self.tasks[task_id]
       if (not dependencies) or self.completed(dependencies):
         self.log.debug('Enqueueing "%s"' % task_id)
+        if self.with_graph:
+          self.log.debug('task: {}'.format(self.tasks[task_id]))
+          self.graph.node(task_id, color='yellow', style='filled')
         self.pending_queue.append(task_id)
       else:
         self.log.debug('Scheduler passing on %s (not ready)' % task_id)
@@ -303,6 +313,26 @@ class Engine:
         finished.extend([idf for idf in active if idf[1].done()])
 
       self.log.info('Engine (iter %s) completed %s' % (iteration, str([f[0] for f in finished])))
+      if self.with_graph:
+        self.log.debug('finished nodes: {}'.format(finished))
+        for idf in finished:
+          res = idf[1].result()
+          if isinstance(res, dict) and 'duration' in res:
+            node_name = '{} {:.2f} s'.format(idf[0], res['duration'])
+            self.graph.node(idf[0], label=node_name,
+                            color='green', style='filled')
+          else:
+            node_name = idf[0]
+            self.graph.node(idf[0], label=node_name, color='green', style='filled')
+          self.log.debug('res: {}'.format(res))
+          if isinstance(res, dict) and 'done' in res:
+            for nd in res['done']:
+              nd_name = '{} {:.2f} s'.format(nd[0], nd[1])
+              self.graph.node(nd[0], label=nd_name,
+                              color='green', style='filled')
+              self.graph.edge(idf[0], nd[0])
+        self.graph.render()
+
 
       for task_id, future in finished:
         self.task_results[task_id] = future.result()
@@ -327,3 +357,6 @@ class Engine:
   def shutdown(self):
     self.executor.shutdown(wait=True)
     self.log.info('Engine has been shutdown')
+    if self.with_graph:
+      self.log.info('Save task graph')
+      self.graph.render()
