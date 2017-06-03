@@ -219,8 +219,8 @@ module "analysis_publishing" {
   k8s_cert_auth = "${var.k8s_cert_auth}"
 
   analysis_publishing_timeseries_firing_rate_min = "5"
-  analysis_publishing_reports_firing_rate_min    = "5"
-  analysis_publishing_reports_firing_rate_expr   = "5 minutes"
+  analysis_publishing_reports_firing_rate_min    = "1440"
+  analysis_publishing_reports_firing_rate_expr   = "24 hours"
 
   db_host      = "db.${var.domain}"
   db_name      = "${replace(var.deploy_prefix, "-", "_")}"
@@ -262,6 +262,7 @@ module "c2dw_daily_etl" {
   k8s_user      = "${var.k8s_ml_user}"
   k8s_pass      = "${var.k8s_ml_pass}"
   k8s_image     = "${var.k8s_ml_c2dw_image}"
+
   k8s_cert_auth = "${var.k8s_ml_cert_auth}"
 
   k8s_privileged = "true"

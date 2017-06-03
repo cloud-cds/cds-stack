@@ -123,7 +123,7 @@ resource "aws_lambda_function" "analysis_publishing_reports_lambda" {
 
         # ETL Environment Variables
         k8s_job_BEHAMON_STACK                      = "${var.deploy_prefix}"
-        k8s_job_REPORT_RECEIVING_EMAIL_ADDRESS     = "peterm@opsdx.io"  #trews-jhu@opsdx.io, peterm@opsdx.io
+        k8s_job_REPORT_RECEIVING_EMAIL_ADDRESS     = "trews-jhu@opsdx.io"  #trews-jhu@opsdx.io, peterm@opsdx.io
         k8s_job_db_host                            = "${var.db_host}"
         k8s_job_db_port                            = "${var.db_port}"
         k8s_job_db_name                            = "${var.db_name}"
