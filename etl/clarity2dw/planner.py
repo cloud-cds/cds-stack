@@ -57,6 +57,7 @@ job_config = {
     and os.environ['derive'] == 'False' else \
   {
     'parallel': True,
+    # NOTE: not ready to specifies derive_fids
     'fid': os.environ['derive_fids'].split(';') \
       if 'derive_fids' in os.environ else None,
     'mode': os.environ['derive_mode'] if 'derive_mode' in os.environ else None,

@@ -814,6 +814,8 @@ class Extractor:
       fid = args[-1]
     else:
       fid = None
+    # if fid != 'cmi':
+    #   return
     if self.job.get('derive', False):
       if fid is None:
         fid = self.job.get('derive').get('fid', None)
