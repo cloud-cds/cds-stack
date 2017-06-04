@@ -226,6 +226,9 @@ def gen_subquery_upsert_query(config_entry, fid, dataset_id, derive_feature_addr
   subquery_params['with_ds_t'] = with_ds(dataset_id, table_name='cdm_t', conjunctive=True)
   subquery_params['with_ds_ttwf'] = (' AND cdm_t.dataset_id = cdm_twf.dataset_id' if dataset_id else '') + with_ds(dataset_id, table_name='cdm_twf', conjunctive=False)
   subquery_params['dataset_id_key'] = dataset_id_key('cdm_twf', dataset_id)
+  for fid_input in config_entry['fid_input_items']:
+    subquery_params['twf_table_{}'.format(fid_input)] = derive_feature_addr[fid_input]['twf_table']
+    subquery_params['twf_table_temp_{}'.format(fid_input)] = derive_feature_addr[fid_input]['twf_table_temp']
   subquery = config_entry['subquery'](subquery_params)
   upsert_clause = '''
   INSERT INTO %(twf_table_temp)s (%(dataset_id_key)s enc_id, tsp,%(fid)s, %(fid)s_c)
@@ -659,40 +662,30 @@ query_config = {
   'cmi': {
     'fid_input_items': ['severe_sepsis', 'fluid_resuscitation', 'vasopressor_resuscitation','fluids_intake_1hr'],
     'derive_type': 'subquery',
+    'clean': {'value': False, 'confidence': 0},
     'subquery': lambda para: '''
-        WITH subquery as (select %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp from %(twf_table_join)s cdm_twf
+        WITH subquery as (select %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp from %(twf_table_temp_ss)s cdm_twf
            where cdm_twf.severe_sepsis
            %(and_with_ds_twf)s)
         SELECT %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
-          bool_or(CASE
-          WHEN
-            (
-            (fluid_resuscitation is TRUE
-              or vasopressor_resuscitation is true)
-            OR fluids_intake_1hr > 250
-            )
-            AND
-            (
-              subquery.tsp is not null
-              and subquery.tsp <= cdm_twf.tsp
-              and cdm_twf.tsp - subquery.tsp < interval '6 hours'
-            )
-            THEN TRUE
-          ELSE FALSE
-          END) as cmi,
-          max(coalesce(severe_sepsis_c,0)
+          true as cmi,
+          min(coalesce(severe_sepsis_c,0)
               | coalesce(fluid_resuscitation_c,0)
               | coalesce(vasopressor_resuscitation_c,0)
               | coalesce(fluids_intake_1hr_c,0)) as cmi_c
-        FROM %(twf_table_join)s cdm_twf left join subquery
+        FROM %(twf_table_join)s cdm_twf inner join subquery
         on cdm_twf.enc_id = subquery.enc_id
-        %(dataset_id_match)s
+        and cdm_twf.tsp >= subquery.tsp and cdm_twf.tsp < subquery.tsp + interval '6 hours' %(dataset_id_match)s
+        where (fluid_resuscitation or vasopressor_resuscitation or
+          fluids_intake_1hr > 250)
+        %(and_with_ds_twf)s
         GROUP BY %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp
         ''' % {
-          'twf_table_join'  : para['twf_table_join'],
-          'dataset_id_key'  : para['dataset_id_key'],
-          'and_with_ds_twf' : dataset_id_equal(" and ", "cdm_twf", para['dataset_id']),
-          'dataset_id_match': dataset_id_match(" and ", "cdm_twf", "subquery", para['dataset_id']),
+          'twf_table_temp_ss'    : para['twf_table_temp_severe_sepsis'],
+          'twf_table_join'       : para['twf_table_join'],
+          'dataset_id_key'       : para['dataset_id_key'],
+          'and_with_ds_twf'      : dataset_id_equal(" and ", "cdm_twf", para['dataset_id']),
+          'dataset_id_match'     : dataset_id_match(" and ", "cdm_twf", "subquery", para['dataset_id'])
         },
   },
   'minutes_since_any_organ_fail': {
