@@ -27,7 +27,7 @@ spec:
         - name: clarity_workspace
           value: "clarity_3y"
         - name: etl_graph
-          value: "/mnt/c2dw/etl_graph"
+          value: "/mnt/c2dw/c2dw-etl-3y-prod"
         - name: nprocs
           value: "8"
         - name: num_derive_groups
