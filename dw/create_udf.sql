@@ -2685,7 +2685,7 @@ if _table = 'cdm_twf' then
                min('||rec.fid||') as min,
                max('||rec.fid||') as max
         from '||_table||' t
-        where t.dataset_id = '||_dataset_id||'
+        where t.dataset_id = '||_dataset_id||' and '||rec.fid||' is not null
       ),
       histogram as (
         select
@@ -2693,7 +2693,7 @@ if _table = 'cdm_twf' then
            numrange(min('||rec.fid||')::numeric, max('||rec.fid||')::numeric, ''[]'') as range,
            count(*) as freq
         from s cross join '||_table||' t
-        where t.dataset_id = '|| _dataset_id ||'
+        where t.dataset_id = '|| _dataset_id ||' and '||rec.fid||' is not null
         group by bucket
         order by bucket
       ),
