@@ -1044,10 +1044,12 @@ if __name__ == '__main__':
   dataset_id = sys.argv[2]
 
   config = dict()
-  config['db_name'] = os.environ['db_name']
+  # config['db_name'] = os.environ['db_name']
+  config['db_name'] = 'cardiac_db_small'
   config['db_user'] = os.environ['db_user']
   config['db_pass'] = os.environ['db_password']
-  config['db_host'] = os.environ['db_host']
+  # config['db_host'] = os.environ['db_host']
+  config['db_host'] = 'db.dev.opsdx.io'
   config['db_port'] = os.environ['db_port']
 
 

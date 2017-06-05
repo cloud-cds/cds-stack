@@ -35,7 +35,7 @@ job_config = {
     },
     'populate_measured_features': {
       'fid': None,
-      'nprocs': int(os.environ['nprocs']) if 'nprocs' in os.environ else 2,
+      'nprocs': int(os.environ['nprocs']) if 'nprocs' in os.environ else 1,
     },
     'min_tsp': os.environ['min_tsp'] if 'min_tsp' in os.environ else None
   },
@@ -60,7 +60,7 @@ job_config = {
   },
   'engine': {
     'name': 'engine-c2dw',
-    'nprocs': int(os.environ['nprocs']) if 'nprocs' in os.environ else 2,
+    'nprocs': int(os.environ['nprocs']) if 'nprocs' in os.environ else 1,
     'loglevel': logging.DEBUG
   },
   'planner': {
@@ -69,7 +69,8 @@ job_config = {
   },
   'extractor': {
     'name': 'extractor-c2dw',
-    'dataset_id': int(os.environ['dataset_id']),
+    # 'dataset_id': int(os.environ['dataset_id']),
+    'dataset_id': 1000,
     'loglevel': logging.DEBUG,
     'conf': CONF,
   },
@@ -82,11 +83,18 @@ class Planner():
   def __init__(self, job, config=None):
     self.job = job
 
+    # self.db_config = {
+    #   'db_name': os.environ['db_name'],
+    #   'db_user': os.environ['db_user'],
+    #   'db_pass': os.environ['db_password'],
+    #   'db_host': os.environ['db_host'],
+    #   'db_port': os.environ['db_port']
+    # }
     self.db_config = {
-      'db_name': os.environ['db_name'],
+      'db_name': 'cardiac_db_small',
       'db_user': os.environ['db_user'],
       'db_pass': os.environ['db_password'],
-      'db_host': os.environ['db_host'],
+      'db_host': 'db.dev.opsdx.io',
       'db_port': os.environ['db_port']
     }
 
