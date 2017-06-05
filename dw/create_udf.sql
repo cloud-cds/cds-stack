@@ -2587,7 +2587,7 @@ stats as (
       from day_cnt
 ),
 histogram as (
-  select width_bucket(count, min, max, 9) as bucket,
+  select width_bucket(count, min, max, 99) as bucket,
         numrange(min(count)::numeric, max(count)::numeric, ''[]'') as range,
         count(*) as freq
   from day_cnt, stats
@@ -2633,6 +2633,34 @@ on conflict(dataset_id, id, id_type, cdm_table) do update set stats = excluded.s
 end;
 $func$ LANGUAGE plpgsql;
 
+create or replace function delete_dataset(_dataset_id int)
+RETURNS void AS
+$func$
+begin
+delete from cdm_s where dataset_id = _dataset_id;
+delete from cdm_t where dataset_id = _dataset_id;
+delete from cdm_twf where dataset_id = _dataset_id;
+delete from cdm_notes where dataset_id = _dataset_id;
+delete from criteria_meas where dataset_id = _dataset_id;
+delete from trews where dataset_id = _dataset_id;
+delete from pat_enc where dataset_id = _dataset_id;
+select setval('pat_enc_enc_id_seq', 1);
+end;
+$func$ language plpgsql;
+
+create or replace function vacuum_full_cdm()
+RETURNS void AS
+$func$
+begin
+vacuum full cdm_s;
+vacuum full cdm_t;
+vacuum full cdm_twf;
+vacuum full cdm_notes;
+vacuum full criteria_meas;
+vacuum full trews;
+vacuum full pat_enc;
+end;
+$func$ language plpgsql;
 
 create or replace function run_cdm_stats_f(_dataset_id int, _table text, server text default 'dev_dw', nprocs int default 2)
 RETURNS void AS
@@ -2661,7 +2689,7 @@ if _table = 'cdm_twf' then
       ),
       histogram as (
         select
-           width_bucket('||rec.fid||', min, max, 9) as bucket,
+           width_bucket('||rec.fid||', min, max, 99) as bucket,
            numrange(min('||rec.fid||')::numeric, max('||rec.fid||')::numeric, ''[]'') as range,
            count(*) as freq
         from s cross join '||_table||' t
@@ -2759,8 +2787,8 @@ q = '
   ),
   histogram as (
     select s.fid,
-           width_bucket(value::numeric, min, max, 9) as bucket,
-           int4range(floor(min(value::numeric))::int, ceil(max(value::numeric))::int, ''[]'') as range,
+           width_bucket(value::numeric, min, max, 99) as bucket,
+           numrange(min(value::numeric)::numeric, max(value::numeric)::numeric, ''[]'') as range,
            count(*) as freq
     from s inner join '||_table||' t on s.fid = t.fid
     where t.dataset_id = '|| _dataset_id ||' and t.value <> ''nan''
@@ -2773,7 +2801,7 @@ q = '
   from histogram
   ),
   histogram_agg as(
-    select fid, jsonb_object_agg(k, v) hist from histogram_json group by fid order by fid
+    select fid, coalesce(jsonb_object_agg(k, v), ''{}''::jsonb) hist from histogram_json group by fid order by fid
   )
   insert into cdm_stats
   select M.dataset_id dataset_id,
@@ -2853,3 +2881,20 @@ end if;
 execute q;
 end;
 $func$ LANGUAGE plpgsql;
+
+
+CREATE FUNCTION rowcount_all(schema_name text default 'public')
+  RETURNS table(table_name text, cnt bigint) as
+$$
+declare
+ table_name text;
+begin
+  for table_name in SELECT c.relname FROM pg_class c
+    JOIN pg_namespace s ON (c.relnamespace=s.oid)
+    WHERE c.relkind = 'r' AND s.nspname=schema_name
+  LOOP
+    RETURN QUERY EXECUTE format('select cast(%L as text),count(*) from %I.%I',
+       table_name, schema_name, table_name);
+  END LOOP;
+end
+$$ language plpgsql;
