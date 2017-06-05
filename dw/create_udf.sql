@@ -2782,7 +2782,7 @@ q = '
     on f.dataset_id = t.dataset_id
     and t.fid = f.fid
     where t.dataset_id = '||_dataset_id||' and f.data_type ~* ''real|int''
-    and value <> ''nan''
+    and value <> ''nan'' and min(value::numeric) <> max(value::numeric)
     group by t.fid
   ),
   histogram as (
