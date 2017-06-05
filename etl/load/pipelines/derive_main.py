@@ -227,8 +227,9 @@ def gen_subquery_upsert_query(config_entry, fid, dataset_id, derive_feature_addr
   subquery_params['with_ds_ttwf'] = (' AND cdm_t.dataset_id = cdm_twf.dataset_id' if dataset_id else '') + with_ds(dataset_id, table_name='cdm_twf', conjunctive=False)
   subquery_params['dataset_id_key'] = dataset_id_key('cdm_twf', dataset_id)
   for fid_input in config_entry['fid_input_items']:
-    subquery_params['twf_table_{}'.format(fid_input)] = derive_feature_addr[fid_input]['twf_table']
-    subquery_params['twf_table_temp_{}'.format(fid_input)] = derive_feature_addr[fid_input]['twf_table_temp']
+    if fid_input in derive_feature_dict:
+      subquery_params['twf_table_{}'.format(fid_input)] = derive_feature_addr[fid_input]['twf_table']
+      subquery_params['twf_table_temp_{}'.format(fid_input)] = derive_feature_addr[fid_input]['twf_table_temp']
   subquery = config_entry['subquery'](subquery_params)
   upsert_clause = '''
   INSERT INTO %(twf_table_temp)s (%(dataset_id_key)s enc_id, tsp,%(fid)s, %(fid)s_c)
