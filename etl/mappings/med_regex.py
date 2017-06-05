@@ -65,17 +65,14 @@ med_regex = [
         'fid': 'dobutamine_dose',
         'pos': 'dobutamine',
         'neg':  'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
-        'part_of': ['vasopressors_dose'],
     }, {
         'fid': 'dopamine_dose',
         'pos': 'dopamine',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
-        'part_of': ['vasopressors_dose'],
     }, {
         'fid': 'epinephrine_dose',
         'pos': '^epinephrine',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
-        'part_of': ['vasopressors_dose'],
     }, {
         'fid': 'erythromycin_dose',
         'pos': '^erythromycin',
@@ -105,7 +102,6 @@ med_regex = [
         'fid': 'levophed_infusion_dose',
         'pos': 'levophed.+infusion|^norepinephrine',
         'neg': 'injection|gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
-        'part_of': ['vasopressors_dose'],
     }, {
         'fid': 'meropenem_dose',
         'pos': '^meropenem',
@@ -128,7 +124,6 @@ med_regex = [
         'fid': 'neosynephrine_dose',
         'pos': 'phenylephrine.*neo-synephrine',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
-        'part_of': ['vasopressors_dose'],
     }, {
         'fid': 'oxacillin_dose',
         'pos': '^oxacillin',
@@ -165,9 +160,8 @@ med_regex = [
         'part_of': ['cms_antibiotics'],
     }, {
         'fid': 'vasopressin_dose',
-        'pos': '^vasopressin',
+        'pos': '^dobutamin|^dopamine|^epinephrine infusion|^milrinone|^norepinephrine infusion|vasopressin infusion',
         'neg': '',
-        'part_of': ['vasopressors_dose'],
     },
     {
         'fid': 'fluids_intake',

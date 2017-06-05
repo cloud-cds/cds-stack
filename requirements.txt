@@ -13,3 +13,4 @@ pytest-cov==2.5.1
 ujson==1.35
 uvloop==0.8.0
 SQLAlchemy==1.1.6
+graphviz==0.7.1
