@@ -88,10 +88,9 @@ BEGIN
           done := 0 ;
   --repetatly check until one proc is finished to relaunch the next chunck
     Loop
-      for i in 1..num_procs
+      for n in 1..num_procs
       Loop
-      if array_procs[i]<>1 THEN
-        conn := 'conn_' || i;
+        conn := 'conn_' || n;
         sql := 'SELECT dblink_is_busy(' || QUOTE_LITERAL(conn) || ');';
         execute sql into status;
         if status = 0 THEN
@@ -101,7 +100,6 @@ BEGIN
           if dispatch_error <> 'OK' THEN
             RAISE '%', dispatch_error;
           end if;
-          used_procs := used_procs - 1;
 
           --terminate the connection and resect the active proc counter so that the next
           --connection is started with the correct index
