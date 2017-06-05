@@ -27,7 +27,7 @@ job_config = {
     'remove_data': os.environ['remove_data'] == 'True' \
       if 'remove_data' in os.environ else True,
     'start_enc_id': int(os.environ['start_enc_id']) \
-      if 'start_enc_id' in os.environ else 1248773491
+      if 'start_enc_id' in os.environ else 1
   },
   'transform': {
     'populate_patients': {
