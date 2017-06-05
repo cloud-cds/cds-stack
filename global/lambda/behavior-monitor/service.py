@@ -107,7 +107,7 @@ def try_to_read_from_environ(var_str, default_val):
 
 BEHAMON_MODE = try_to_read_from_environ('BEHAMON_MODE','watcher')
 BEHAMON_STACK = try_to_read_from_environ('BEHAMON_STACK','dev')
-BEHAMON_WEB_LOG_LISTEN = try_to_read_from_environ('BEHAMON_WEB_LOG_LISTEN','opsdx-web-logs-dev')
+BEHAMON_WEB_LOG_LISTEN = try_to_read_from_environ('BEHAMON_WEB_LOG_LISTEN','opsdx-web-logs-prod')
 BEHAMON_WEB_FILT_STR = try_to_read_from_environ('BEHAMON_WEB_FILT_STR','*USERID*')
 BEHAMON_WEB_LOG_STREAM_STR = try_to_read_from_environ('BEHAMON_WEB_LOG_STREAM_STR','monitoring')
 BEHAMON_TS_RULE_PERIOD_MINUTES = float(try_to_read_from_environ('BEHAMON_TS_RULE_PERIOD_MINUTES','10'))
@@ -197,6 +197,7 @@ def get_db_engine():
   db            = os.environ['db_name']
   user          = os.environ['db_user']
   pw            = os.environ['db_password']
+
   conn_str      = 'postgresql://{}:{}@{}:{}/{}'.format(user, pw, host, port, db)
 
   engine = sqlalchemy.create_engine(conn_str)
@@ -211,12 +212,12 @@ def data_2_db(sql_table_name, data_in,dtype_dict=None):
   results = datetime_2_utc_str(results)
 
   pat = re.compile('test_.*')
+
   results = results.loc[results['doc_id'].apply(lambda x: re.match(pat, x) is None)]
 
-  results['doc_id'] = results['doc_id'].apply(lambda x: x[1::])
+  results['doc_id'] = results['doc_id'].apply(lambda x: x[1::] if x[0] == '+' else x)
 
   results = results[results['pat_id'].notnull()&results['tsp'].notnull()&results['doc_id'].notnull()]
-
 
   # =============================
   # Upsert to Database
@@ -247,6 +248,7 @@ def data_2_db(sql_table_name, data_in,dtype_dict=None):
   connection.execute(insert_visit_sql)
   connection.close()
   engine.dispose()
+  print("Results Written")
   return results
 
 def getfiltLogEvent(firstTime, lasTime, client,
@@ -609,8 +611,8 @@ def get_users_in_interval(firstTime, lastTime):
 
 def batch_proc_main(firstTime, lastTime):
     get_users_in_interval(firstTime, lastTime)
-    calc_behamon_ts_metrics(firstTime, lastTime)
-    calc_behamon_report_metrics(firstTime, lastTime)
+    # calc_behamon_ts_metrics(firstTime, lastTime)
+    # calc_behamon_report_metrics(firstTime, lastTime)
 
 
 #==================================================
@@ -658,5 +660,5 @@ def handler(event, context):
 
 
 if __name__ == '__main__':
-  batch_proc_main(datetime.utcnow()-timedelta(days=1),datetime.utcnow())
+  batch_proc_main(datetime.utcnow()-timedelta(days=29),datetime.utcnow()) # maxes to 30 days
 
