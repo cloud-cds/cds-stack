@@ -93,26 +93,43 @@ users:
   if len(cmd_array) > 0:
     job_container['command'] = cmd_array
 
+  batch_job_spec = {
+    "template": {
+      "metadata": {
+        "name": job_name
+      },
+      "spec": {
+        "containers": [job_container],
+        "restartPolicy": "Never"
+      }
+    }
+  }
+
+  if "kube_nodegroup" in os.environ and os.environ['kube_nodegroup'] is not None:
+    node_group = os.environ['kube_nodegroup']
+    print('Job {} nodeGroup: {}'.format(job_name, node_group))
+    batch_job_spec['nodeSelector'] = { 'opsdx_nodegroup': node_group }
+
+  if "kube_active_deadline_seconds" in os.environ:
+    try:
+      deadline = int(os.environ['kube_active_deadline_seconds'])
+      print('Job {} activeDeadlineSeconds: {}'.format(job_name, deadline))
+      batch_job_spec['activeDeadlineSeconds'] = deadline
+    except ValueError:
+      print('Invalid kube_active_deadline_seconds environment variable, skipping deadline.')
+
   job_spec = {
     "apiVersion": "batch/v1",
     "kind": "Job",
     "metadata": {
       "name": job_name
     },
-    "spec": {
-      "template": {
-        "metadata": {
-          "name": job_name
-        },
-        "spec": {
-          "containers": [job_container],
-          "restartPolicy": "Never"
-        }
-      }
-    }
+    "spec": batch_job_spec
   }
+
   print("job spec:")
   print(job_spec)
+
   job = pykube.Job(api, job_spec)
   if job.exists():
     # Refresh the job execution metadata.

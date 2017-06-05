@@ -12,21 +12,23 @@ spec:
     spec:
       nodeSelector:
         opsdx_nodegroup: c2dw-etl
-        kubernetes.io/hostname: ip-10-0-120-206.ec2.internal
+      #   kubernetes.io/hostname: ip-10-0-120-206.ec2.internal
       containers:
       - name: c2dw-etl-1y
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-etl:1.0.84
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-etl:latest
         command:
           - "sh"
           - "-c"
           - "nice -20 python -q -X faulthandler ./etl/clarity2dw/planner.py"
+        securityContext:
+          privileged: true
         env:
+        - name: min_tsp
+          value: "2016-04-27"
         - name: dataset_id
           value: "1"
         - name: clarity_workspace
           value: "clarity_1y"
-        - name: min_tsp
-          value: "2016-04-27"
         - name: nprocs
           value: "8"
         - name: num_derive_groups
