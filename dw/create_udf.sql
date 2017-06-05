@@ -2782,7 +2782,7 @@ q = '
     on f.dataset_id = t.dataset_id
     and t.fid = f.fid
     where t.dataset_id = '||_dataset_id||' and f.data_type ~* ''real|int''
-    and value <> ''nan'' and min(value::numeric) <> max(value::numeric)
+    and value <> ''nan''
     group by t.fid
   ),
   histogram as (
@@ -2792,6 +2792,7 @@ q = '
            count(*) as freq
     from s inner join '||_table||' t on s.fid = t.fid
     where t.dataset_id = '|| _dataset_id ||' and t.value <> ''nan''
+    and min <> max
     group by s.fid, bucket
     order by s.fid, bucket
   ),
