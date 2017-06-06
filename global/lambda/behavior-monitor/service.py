@@ -257,6 +257,9 @@ def data_2_db(sql_table_name, data_in,dtype_dict=None):
   #     """.format(sql_table_name, temp_table_name)
 
   connection.execute(insert_visit_sql)
+
+  connection.execute("""DROP TABLE IF EXISTS {}""".format(temp_table_name))
+
   connection.close()
   engine.dispose()
   print("Results Written")
