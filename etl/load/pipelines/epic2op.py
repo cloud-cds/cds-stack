@@ -16,13 +16,13 @@ import json
 async def extract_non_discharged_patients(ctxt):
   '''
   Get all patient ids (EMRN) from pat_enc that don't have a discharge
-  time in cdm_s.
+  time in cdm_t.
   '''
   query_string = """
     SELECT DISTINCT pe.pat_id, pe.enc_id
-    FROM pat_enc pe INNER JOIN cdm_s cs ON (pe.enc_id = cs.enc_id)
-    WHERE cs.fid = 'admittime' AND cs.enc_id NOT IN (
-      SELECT DISTINCT enc_id FROM cdm_s WHERE fid = 'dischargetime'
+    FROM pat_enc pe INNER JOIN cdm_t ct ON (pe.enc_id = ct.enc_id)
+    WHERE ct.fid = 'admittime' AND ct.enc_id NOT IN (
+      SELECT DISTINCT enc_id FROM cdm_t WHERE fid = 'discharge'
     )
   """
   async with ctxt.db_pool.acquire() as conn:
