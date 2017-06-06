@@ -192,6 +192,8 @@ def datetime_2_utc_str(df, tz_in_str='US/Eastern', column_list=None):
   return df
 
 def get_db_engine():
+
+
   host          = os.environ['db_host']
   port          = os.environ['db_port']
   db            = os.environ['db_name']
@@ -226,24 +228,33 @@ def data_2_db(sql_table_name, data_in,dtype_dict=None):
 
   nrows = results.shape[0]
 
-  temp_table_name = 'temp' + sql_table_name
+  temp_table_name = 'temp_2_' + sql_table_name
 
   logger.debug("saving data frame to {}: nrows = {}".format(temp_table_name, nrows))
 
   connection = engine.connect()
   connection.execute("""DROP TABLE IF EXISTS {}""".format(temp_table_name))
 
-  if dtype_dict is None:
-    results.to_sql(temp_table_name, engine, if_exists='append', index=False, schema='public')
-  else:
-    results.to_sql(temp_table_name, engine, if_exists='append', index=False, schema='public', dtype=dtype_dict)
+  # if dtype_dict is None:
+  #   results.to_sql(temp_table_name, engine, if_exists='append', index=False, schema='public')
+  # else:
+
+  results.to_sql(temp_table_name, engine, if_exists='append', index=False, schema='public', dtype=dtype_dict)
 
   insert_visit_sql = """
       insert into {} (doc_id, tsp, pat_id, visit_id, loc, dep, raw_url)
-      select distinct doc_id, tsp, pat_id, visit_id, loc, dep, raw_url from {}
+      select distinct doc_id, tsp, pat_id, last(visit_id), last(loc), last(dep), last(raw_url)
+      from {}
+      group by doc_id, tsp, pat_id
+      order by tsp
       on conflict (doc_id, tsp, pat_id)
       DO UPDATE SET visit_id = EXCLUDED.visit_id, loc = EXCLUDED.loc, dep = EXCLUDED.dep, raw_url = EXCLUDED.raw_url;
       """.format(sql_table_name, temp_table_name)
+
+  # insert_visit_sql = """
+  #     insert into {} (doc_id, tsp, pat_id, visit_id, loc, dep, raw_url)
+  #     select distinct doc_id, tsp, pat_id, visit_id, loc, dep, raw_url from {}
+  #     """.format(sql_table_name, temp_table_name)
 
   connection.execute(insert_visit_sql)
   connection.close()
