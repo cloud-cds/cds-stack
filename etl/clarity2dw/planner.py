@@ -11,7 +11,7 @@ from etl.core.engine import Engine
 from etl.core.task import Task
 from etl.core.plan import Plan
 from etl.clarity2dw.extractor import Extractor
-from etl.load.pipelines.derive_main import get_derive_seq
+from etl.load.pipelines.derive_main import get_derive_seq, get_dependent_features
 
 CONF = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'conf')
 
@@ -189,9 +189,10 @@ class Planner():
       partition_mode = self.job.get('derive').get('partition_mode', 1)
       parallel = self.job.get('derive').get('parallel')
       vacuum_temp_table = self.job.get('derive').get('vacuum_temp_table', False)
+      derive_features, cdm_feature_dict = get_derive_features(self.db_config, self.extractor.dataset_id, self.job)
       self.extractor.derive_feature_addr = get_derive_feature_addr(\
         self.db_config, self.extractor.dataset_id, num_derive_groups,
-        partition_mode, 'cdm_twf', self.job.get('clarity_workspace'))
+        partition_mode, 'cdm_twf', self.job, derive_features)
       self.log.info("derive_feature_addr: {}".format(\
           self.extractor.derive_feature_addr))
       all_tasks = self.plan.get_all_task_names()
@@ -200,8 +201,7 @@ class Planner():
           deps=['vacuum'] if 'vacuum' in all_tasks else all_tasks, \
           coro=self.extractor.derive_init))
       if parallel:
-        for task in get_derive_tasks(self.db_config, self.extractor.dataset_id, \
-          num_derive_groups > 0):
+        for task in get_derive_tasks(self.db_config, self.extractor.dataset_id, num_derive_groups > 0, derive_features, cdm_feature_dict):
           self.plan.add(Task(task['name'], deps=task['dependencies'], \
             coro=self.extractor.run_derive, args=[task['fid']]))
       else:
@@ -274,37 +274,14 @@ class Planner():
       loop.close()
 
 
-def get_derive_tasks(config, dataset_id, is_grouped):
-  async def _run_get_derive_tasks(config):
-    conn = await asyncpg.connect(database=config['db_name'], \
-                                 user=config['db_user'], \
-                                 password=config['db_pass'], \
-                                 host=config['db_host'], \
-                                 port=config['db_port'])
-    derive_features = await conn.fetch('''
-        SELECT fid, derive_func_input from cdm_feature
-        where not is_measured and not is_deprecated %s
-    ''' % ('and dataset_id = {}'.format(dataset_id) \
-      if dataset_id is not None else ''))
-    sql = "select * from cdm_feature %s" % \
-      ('where dataset_id = {}'.format(dataset_id) \
-            if dataset_id is not None else '')
-    cdm_feature = await conn.fetch(sql)
-    cdm_feature_dict = {f['fid']:f for f in cdm_feature}
-    await conn.close()
-    return [derive_features, cdm_feature_dict]
-
-  loop = asyncio.new_event_loop()
-  derive_features, cdm_feature_dict = \
-    loop.run_until_complete(_run_get_derive_tasks(config))
-  loop.close()
-
+def get_derive_tasks(config, dataset_id, is_grouped, derive_features, cdm_feature_dict):
   derive_tasks = []
+  derive_feature_dict = {f['fid']:f for f in derive_features}
   for feature in derive_features:
     fid = feature['fid']
     inputs =[fid.strip() for fid in feature['derive_func_input'].split(',')]
     dependencies = ['derive_{}'.format(fid) for fid in inputs \
-      if not cdm_feature_dict[fid]['is_measured']]
+      if not cdm_feature_dict[fid]['is_measured'] and fid in derive_feature_dict]
     if len(dependencies) == 0:
       dependencies.append('fillin' if not is_grouped else 'derive_init')
     name = 'derive_{}'.format(fid)
@@ -317,8 +294,8 @@ def get_derive_tasks(config, dataset_id, is_grouped):
     )
   return derive_tasks
 
-def get_derive_feature_addr(config, dataset_id, num_derive_groups,
-                            partition_mode, twf_table, workspace):
+
+def get_derive_features(config, dataset_id, job):
   async def _get_derive_features(config):
     conn = await asyncpg.connect(database=config['db_name'], \
                                  user=config['db_user'],     \
@@ -330,35 +307,60 @@ def get_derive_feature_addr(config, dataset_id, num_derive_groups,
       ('and dataset_id = {}'.format(dataset_id) \
         if dataset_id is not None else '')
     derive_features = await conn.fetch(sql)
+    sql = "select * from cdm_feature %s" % \
+      ('where dataset_id = {}'.format(dataset_id) \
+            if dataset_id is not None else '')
+    cdm_feature = await conn.fetch(sql)
+    cdm_feature_dict = {f['fid']:f for f in cdm_feature}
     await conn.close()
-    return derive_features
-
-  def partition(lst, n, partition_mode):
-    if partition_mode == 1:
-      division = len(lst) / n
-      return [lst[round(division) * i:round(division) * (i + 1)] \
-        for i in range(n)]
-    elif partition_mode == 2: # this is not efficient
-      return [lst[i::n] for i in range(n)]
-    else:
-      raise Exception('Unknown partition mode {}'.format(partition_mode))
-
+    return derive_features, cdm_feature_dict
   loop = asyncio.new_event_loop()
-  derive_features = loop.run_until_complete(_get_derive_features(config))
+  derive_features, cdm_feature_dict = loop.run_until_complete(_get_derive_features(config))
   loop.close()
   # get derive_features order based on dependencies
   derive_feature_dict = {
    feature['fid']:feature for feature in derive_features
   }
-  derive_feature_order = get_derive_seq(derive_feature_dict)
+  # specifies a subset of derive features if derive_fids exists
+  derive_fids = job.get('derive').get('fid', None)
+  if derive_fids:
+    mode = job.get('derive').get('mode', None)
+    if mode is None:
+      derive_feature_dict = {f:derive_feature_dict[f] for f in derive_feature_dict if f in derive_fids}
+      derive_feature_order = get_derive_seq(derive_feature_dict)
+    if mode == 'dependent':
+      derive_feature_order = get_dependent_features(derive_fids, cdm_feature_dict)
+      for fid in derive_fids:
+        if not cdm_feature_dict[fid]['is_measured']:
+          derive_feature_order = [fid] + derive_feature_order
+  else:
+    derive_feature_order = get_derive_seq(derive_feature_dict)
   derive_features = [derive_feature_dict[fid] for fid in derive_feature_order]
+  print("derive_features: {}".format(derive_features))
+  return derive_features, cdm_feature_dict
+
+def get_derive_feature_addr(config, dataset_id, num_derive_groups,
+                            partition_mode, twf_table, job, derive_features):
+
+  def partition(lst, n, partition_mode):
+    if partition_mode == 1:
+      if n > len(lst):
+        n = len(lst)
+      division = round(len(lst) / n)
+      res = [lst[i:i + division] for i in range(0, len(lst), division)]
+      return [l for l in res if l]
+    elif partition_mode == 2: # NOTE this is not efficient
+      return [lst[i::n] for i in range(n)]
+    else:
+      raise Exception('Unknown partition mode {}'.format(partition_mode))
+
+  workspace = job.get('clarity_workspace')
   if num_derive_groups > 1:
     derive_feature_groups = partition(derive_features, num_derive_groups,
                                       partition_mode)
   else:
     derive_feature_groups = [derive_features]
-  print(derive_features)
-  print(derive_feature_groups)
+  print("derive_feature_groups: {}".format(derive_feature_groups))
   derive_feature_addr = {}
   for i, group in enumerate(derive_feature_groups):
     for feature in group:

@@ -874,12 +874,12 @@ class Extractor:
     # update the updated column for this dataset
     postprocessing_sql += 'UPDATE dw_version SET updated = Now()' \
       + ' WHERE dataset_id = %s;' % self.dataset_id
-    # run stats
-    postprocessing_sql += "select * from run_cdm_stats({},'{}',{})".format(\
-        self.dataset_id,
-        'dev_dw' if 'dev' in ctxt.config['db_host'] else 'prod_dw',
-        int(os.environ['nprocs']) if 'nprocs' in os.environ else 2
-      )
+    # NOTE: comment out run stats, decide to run it manually
+    # postprocessing_sql += "select * from run_cdm_stats({},'{}',{})".format(\
+    #     self.dataset_id,
+    #     'dev_dw' if 'dev' in ctxt.config['db_host'] else 'prod_dw',
+    #     int(os.environ['nprocs']) if 'nprocs' in os.environ else 2
+    #   )
     async with ctxt.db_pool.acquire() as conn:
       ctxt.log.info(postprocessing_sql)
       result = await conn.execute(postprocessing_sql)
