@@ -21,12 +21,14 @@ kind: Deployment
 metadata:
   name: trews-rest-api
 spec:
-  replicas: 1
+  replicas: 2
   template:
     metadata:
       labels:
         app: trews-rest-api
     spec:
+      nodeSelector:
+        opsdx_nodegroup: web
       containers:
       - name: trews-nginx
         image: nginx:alpine
@@ -36,7 +38,7 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: trews-rest-api
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.1.5
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.1.13
         ports:
         - containerPort: 8000
         command:
@@ -103,12 +105,16 @@ spec:
             secretKeyRef:
               name: rest-api-db-secrets
               key: trews-admin-key
+        - name: log_decryption
+          value: "1"
         - name: trews_open_access
-          value: "true"
+          value: "false"
         - name: epic_notifications
           value: "1"
         - name: logging
           value: "1"
+        - name: logging_period
+          value: "20"
         - name: cloudwatch_log_group
           value: "opsdx-web-logs-prod"
         - name: api_with_healthcheck
@@ -123,6 +129,16 @@ spec:
           value: "/tmp"
         - name: etl_channel
           value: "on_opsdx_prod_etl"
+        - name: chart_sample_start_hrs
+          value: "6"
+        - name: chart_sample_start_day
+          value: "2"
+        - name: chart_sample_end_day
+          value: "7"
+        - name: chart_sample_mins
+          value: "30"
+        - name: chart_sample_hrs
+          value: "6"
       volumes:
         - name: config-volume
           configMap:

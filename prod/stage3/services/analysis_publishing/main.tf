@@ -117,6 +117,7 @@ resource "aws_lambda_function" "analysis_publishing_reports_lambda" {
         kube_pass      = "${var.k8s_pass}"
         kube_image     = "${var.k8s_analysis_publishing_image}"
         kube_active_deadline_seconds = "300"
+        kube_nodegroup = "etl"
 
 
         kube_cmd_0 = "sh"

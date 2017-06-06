@@ -11,7 +11,7 @@ output "node_security_group_ids" {
 }
 
 output "node_subnet_ids" {
-  value = ["subnet-088e9941"]
+  value = ["subnet-50db4918"]
 }
 
 output "region" {
@@ -19,7 +19,7 @@ output "region" {
 }
 
 output "subnet_ids" {
-  value = ["subnet-088e9941", "subnet-0b8e9942"]
+  value = ["subnet-39de4c71", "subnet-50db4918"]
 }
 
 output "vpc_id" {
@@ -40,7 +40,7 @@ resource "aws_autoscaling_group" "c2dw-etl-ml-cluster-prod-opsdx-io" {
   launch_configuration = "${aws_launch_configuration.c2dw-etl-ml-cluster-prod-opsdx-io.id}"
   max_size             = 5
   min_size             = 0
-  vpc_zone_identifier  = ["subnet-088e9941"]
+  vpc_zone_identifier  = ["subnet-50db4918"]
 
   tag = {
     key                 = "Component"
@@ -78,7 +78,7 @@ resource "aws_autoscaling_group" "master-us-east-1d-masters-ml-cluster-prod-opsd
   launch_configuration = "${aws_launch_configuration.master-us-east-1d-masters-ml-cluster-prod-opsdx-io.id}"
   max_size             = 1
   min_size             = 1
-  vpc_zone_identifier  = ["subnet-088e9941"]
+  vpc_zone_identifier  = ["subnet-50db4918"]
 
   tag = {
     key                 = "KubernetesCluster"
@@ -104,7 +104,7 @@ resource "aws_autoscaling_group" "train-ml-cluster-prod-opsdx-io" {
   launch_configuration = "${aws_launch_configuration.train-ml-cluster-prod-opsdx-io.id}"
   max_size             = 10
   min_size             = 0
-  vpc_zone_identifier  = ["subnet-088e9941"]
+  vpc_zone_identifier  = ["subnet-50db4918"]
 
   tag = {
     key                 = "Component"
@@ -142,7 +142,7 @@ resource "aws_autoscaling_group" "utility-ml-cluster-prod-opsdx-io" {
   launch_configuration = "${aws_launch_configuration.utility-ml-cluster-prod-opsdx-io.id}"
   max_size             = 1
   min_size             = 1
-  vpc_zone_identifier  = ["subnet-088e9941"]
+  vpc_zone_identifier  = ["subnet-50db4918"]
 
   tag = {
     key                 = "Component"
@@ -214,7 +214,7 @@ resource "aws_elb" "api-ml-cluster-prod-opsdx-io" {
   }
 
   security_groups = ["${aws_security_group.api-elb-ml-cluster-prod-opsdx-io.id}"]
-  subnets         = ["subnet-0b8e9942"]
+  subnets         = ["subnet-39de4c71"]
 
   health_check = {
     target              = "TCP:443"

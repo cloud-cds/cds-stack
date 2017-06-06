@@ -93,22 +93,22 @@ users:
   if len(cmd_array) > 0:
     job_container['command'] = cmd_array
 
-  batch_job_spec = {
-    "template": {
-      "metadata": {
-        "name": job_name
-      },
-      "spec": {
-        "containers": [job_container],
-        "restartPolicy": "Never"
-      }
-    }
+  pod_spec = {
+    "containers": [job_container],
+    "restartPolicy": "Never"
   }
 
   if "kube_nodegroup" in os.environ and os.environ['kube_nodegroup'] is not None:
     node_group = os.environ['kube_nodegroup']
     print('Job {} nodeGroup: {}'.format(job_name, node_group))
-    batch_job_spec['nodeSelector'] = { 'opsdx_nodegroup': node_group }
+    pod_spec['nodeSelector'] = { 'opsdx_nodegroup': node_group }
+
+  batch_job_spec = {
+    "template": {
+      "metadata": { "name": job_name },
+      "spec": pod_spec
+    }
+  }
 
   if "kube_active_deadline_seconds" in os.environ:
     try:
@@ -121,9 +121,7 @@ users:
   job_spec = {
     "apiVersion": "batch/v1",
     "kind": "Job",
-    "metadata": {
-      "name": job_name
-    },
+    "metadata": { "name": job_name },
     "spec": batch_job_spec
   }
 
