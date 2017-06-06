@@ -27,11 +27,11 @@ After ETL
 1. Did the ETL complete successfully?
     - check the ETL log
     - view the ETL graph (all tasks should be green)
-2. run CDM statistic function
+2. Run CDM statistic function
     ```sql
     select * from run_cdm_stats(dataset_id, datalink_id, nprocs);
     ```
-3. check is any value is null from `cdm_twf` table
+3. Check is any value is null from `cdm_twf` table
     ```sql
     select * from cdm_stats where dataset_id = this_dataset_id and cdm_table = 'cdm_twf' and (stats->>'cnt_null')::int <> 0;
     ```
