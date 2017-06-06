@@ -34,7 +34,8 @@ spec:
           - name: redis
             containerPort: 6379
       - name: redash-server
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/redash:0.0.2
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/redash:0.0.3
+        imagePullPolicy: Always
         command:
         - /app/bin/docker-entrypoint
         - server
@@ -82,7 +83,8 @@ spec:
         - name: REDASH_HOST
           value: "https://redash.dev.opsdx.io"
       - name: redash-worker
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/redash:0.0.2
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/redash:0.0.3
+        imagePullPolicy: Always
         command:
         - /app/bin/docker-entrypoint
         - scheduler
