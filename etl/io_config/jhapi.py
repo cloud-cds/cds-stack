@@ -26,6 +26,9 @@ class JHAPIConfig:
     self.lookback_hours = int(lookback_hours)
     self.lookback_days = int(lookback_days) if lookback_days else int(int(lookback_hours)/24.0 + 1)
     self.from_date = (dt.datetime.now() + dt.timedelta(days=1)).strftime('%Y-%m-%d')
+    tomorrow = dt.datetime.now() + dt.timedelta(days=1)
+    self.dateFrom = (tomorrow - dt.timedelta(days=self.lookback_days)).strftime('%Y-%m-%d')
+    self.dateTo = tomorrow.strftime('%Y-%m-%d')
     self.headers = {
       'client_id': jhapi_id,
       'client_secret': jhapi_secret,
@@ -207,13 +210,10 @@ class JHAPIConfig:
 
   def extract_notes(self, ctxt, bedded_patients):
     resource = '/patients/documents/list'
-    tomorrow = dt.datetime.now() + dt.timedelta(days=1)
-    dateFrom = (tomorrow - dt.timedelta(days=self.lookback_days)).strftime('%Y-%m-%d')
-    dateTo = tomorrow.strftime('%Y-%m-%d')
     payloads = [{
       'id'       : pat['pat_id'],
-      'dateFrom' : dateFrom,
-      'dateTo'   : dateTo
+      'dateFrom' : self.dateFrom,
+      'dateTo'   : self.dateTo
     } for _, pat in bedded_patients.iterrows()]
     responses = self.make_requests(ctxt, resource, payloads, 'GET')
     logging.info('#NOTES PAYLOADS: %s' % len(payloads))
@@ -232,6 +232,22 @@ class JHAPIConfig:
       dfs = [pd.DataFrame([{'DocumentText': r['DocumentText']}] if r else None) for r in responses]
       return self.combine(dfs, notes[['Key']])
     return pd.DataFrame()
+
+
+  def extract_contacts(self, ctxt, pat_id_list):
+    if not pat_id_list:
+      return pd.DataFrame()
+    resource = '/patients/contacts'
+    dateTo = dt.datetime.now() + dt.timedelta(days=1000)
+    payloads = [{
+      'id'       : pat['pat_id'],
+      'idtype'   : 'patient',
+      'dateFrom' : self.dateFrom,
+      'dateTo'   : dateTo.strftime('%Y-%m-%d'),
+    } for pat in pat_id_list if pat['pat_id'][0] == 'E']
+    responses = self.make_requests(ctxt, resource, payloads, 'GET')
+    dfs = [pd.DataFrame(r['Contacts'] if r else None) for r in responses]
+    return self.combine(dfs, pd.DataFrame(pat_id_list))
 
 
   def push_notifications(self, ctxt, notifications):

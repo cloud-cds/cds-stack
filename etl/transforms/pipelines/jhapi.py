@@ -306,3 +306,16 @@ note_texts_transforms = [
     }),
     lambda nt: format_data.base64_safe_decode(nt, 'note_body'),
 ]
+
+contacts_transforms = [
+    lambda c: restructure.select_columns(c, {
+        'CSN'           : 'visit_id',
+        'enc_id'        : 'enc_id',
+        'ContactDate'   : 'encounter_date',
+        'DischargeDate' : 'discharge_date',
+        'DischargeDisposition': 'discharge_disposition',
+        'DepartmentName': 'department',
+        'EncounterType' : 'encounter_type',
+    }),
+    lambda c: format_data.format_tsp(c, 'discharge_date', no_NaT=True),
+]
