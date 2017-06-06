@@ -110,13 +110,49 @@ resource "aws_cloudwatch_metric_alarm" "nodes_inservice" {
   namespace                 = "AWS/AutoScaling"
   period                    = "60"
   statistic                 = "Minimum"
-  threshold                 = "5"
+  threshold                 = "0"
   alarm_description         = "Prod nodes in service for the last minute"
   alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
 
   dimensions {
     AutoScalingGroupName = "nodes.cluster.prod.opsdx.io"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "web_nodes_inservice" {
+  alarm_name                = "${var.deploy_prefix}-web-nodes-inservice"
+  comparison_operator       = "LessThanThreshold"
+  evaluation_periods        = "1"
+  metric_name               = "GroupInServiceInstances"
+  namespace                 = "AWS/AutoScaling"
+  period                    = "60"
+  statistic                 = "Minimum"
+  threshold                 = "2"
+  alarm_description         = "Webservers in service for the last minute"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    AutoScalingGroupName = "web.cluster.prod.opsdx.io"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "etl_nodes_inservice" {
+  alarm_name                = "${var.deploy_prefix}-etl-nodes-inservice"
+  comparison_operator       = "LessThanThreshold"
+  evaluation_periods        = "1"
+  metric_name               = "GroupInServiceInstances"
+  namespace                 = "AWS/AutoScaling"
+  period                    = "60"
+  statistic                 = "Minimum"
+  threshold                 = "1"
+  alarm_description         = "ETL nodes in service for the last minute"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    AutoScalingGroupName = "etl.cluster.prod.opsdx.io"
   }
 }
 

@@ -17,7 +17,7 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-NODEUP_URL=https://kubeupv2.s3.amazonaws.com/kops/1.5.0-alpha3/linux/amd64/nodeup
+NODEUP_URL=https://kubeupv2.s3.amazonaws.com/kops/1.5.3/linux/amd64/nodeup
 NODEUP_HASH=
 
 function ensure-install-dir() {
@@ -102,14 +102,9 @@ function download-release() {
     echo "Couldn't download release. Retrying..."
   done
 
-  echo "Running release install script"
-  # We run in the background to work around https://github.com/docker/docker/issues/23793
-  run-nodeup &
-}
-
-function run-nodeup() {
-  sleep 1
-  ( cd ${INSTALL_DIR}; ./nodeup --conf=/var/cache/kubernetes-install/kube_env.yaml --v=8 )
+  echo "Running nodeup"
+  # We can't run in the foreground because of https://github.com/docker/docker/issues/23793
+  ( cd ${INSTALL_DIR}; ./nodeup --install-systemd-unit --conf=/var/cache/kubernetes-install/kube_env.yaml --v=8  )
 }
 
 ####################################################################################
@@ -124,6 +119,7 @@ Assets:
 - 5e486d4a2700a3a61c4edfd97fb088984a7f734f@https://storage.googleapis.com/kubernetes-release/release/v1.5.2/bin/linux/amd64/kubelet
 - 10e675883b167140f78ddf7ed92f936dca291647@https://storage.googleapis.com/kubernetes-release/release/v1.5.2/bin/linux/amd64/kubectl
 - 19d49f7b2b99cd2493d5ae0ace896c64e289ccbb@https://storage.googleapis.com/kubernetes-release/network-plugins/cni-07a8a28637e97b22eb8dfe710eeae1344f69d16e.tar.gz
+- 661289336f118e82194000adc63f2b72f449636e@https://kubeupv2.s3.amazonaws.com/kops/1.5.3/linux/amd64/utils.tar.gz
 ClusterName: cluster.prod.opsdx.io
 ConfigBase: s3://opsdx-kops-prod/cluster.prod.opsdx.io
 InstanceGroupName: master-us-east-1c
@@ -131,6 +127,7 @@ Tags:
 - _automatic_upgrades
 - _aws
 - _cni_bridge
+- _cni_flannel
 - _cni_host_local
 - _cni_loopback
 - _cni_ptp
@@ -141,9 +138,9 @@ Tags:
 channels:
 - s3://opsdx-kops-prod/cluster.prod.opsdx.io/addons/bootstrap-channel.yaml
 protokubeImage:
-  hash: 77375db9712e5aaf05d0bb20f8152008610afd47
-  name: protokube:1.5.0-alpha3
-  source: https://kubeupv2.s3.amazonaws.com/kops/1.5.0-alpha3/images/protokube.tar.gz
+  hash: 1d73d1816cd7492ce1e5a8eb7346a302982b0db2
+  name: protokube:1.5.3
+  source: https://kubeupv2.s3.amazonaws.com/kops/1.5.3/images/protokube.tar.gz
 
 __EOF_KUBE_ENV
 
