@@ -36,6 +36,8 @@ async def extract_non_discharged_patients(ctxt):
 
 
 async def load_discharge_times(ctxt, contacts_df):
+  if contacts_df.empty:
+    return
   discharged_df = contacts_df[contacts_df['discharge_date'] != '']
   def build_row(row):
     enc_id     = row['enc_id']

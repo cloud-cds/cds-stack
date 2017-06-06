@@ -422,7 +422,7 @@ def start_repl(task_results):
   print("\n\n\tThe dictionary 'results' holds all dataframes.")
   print("\n\n\tHere are the contents:")
   for name, df in results.items():
-    if df is None or df.empty:
+    if df is None:
       continue
     print("\t{:30} -- dataframe of size {}".format(name, len(df)))
   print("\n\n")
