@@ -162,7 +162,7 @@ async def calc_acute_heart_failure(output_fid, input_fid_string, conn, log, data
     (select {furo_dataset} coalesce(acute_df.enc_id, furo_df.enc_id) as enc_id, furo_df.fid, furo_df.value, furo_df.confidence from furo_df inner join acute_df on furo_df.enc_id = acute_df.enc_id
     order by enc_id, tsp)
     select * from final;"""
-    insert_sql = """insert into temp ({dataset_id_block} enc_id, fid, value, confidence) values ({dataset_id} {enc_id}, '{fid}', '{value}', {confidence})"""
+    insert_sql = """insert into cdm_s ({dataset_id_block} enc_id, fid, value, confidence) values ({dataset_id} {enc_id}, '{fid}', '{value}', {confidence})"""
 
     select_df = await conn.fetch(select_sql.format(dataset_id_where = 'dataset_id = {} and '.format(dataset_id) if  dataset_id is not None else '',
                                                    furo_dataset='furo_df.dataset_id,' if dataset_id is not None else ''))
@@ -198,12 +198,13 @@ async def calc_cardiogenic_shock(output_fid, input_fid_string, conn, log, datase
 
     select_sql = """with
     ino_tbl as(select * from cdm_t where {dataset_id_where} (fid = '{fid1}' or fid = '{fid2}') and value='True'),
-    sbp_tbl as(select enc_id, tsp, sbpm from cdm_twf where {dataset_id_where} {fid0}::float < 90 and enc_id in (select enc_id from cdm_t where (fid = '{fid1}' or fid = '{fid2}')and value='True'))
+    sbp_tbl as(select enc_id, tsp, sbpm from cdm_twf where {dataset_id_where} {fid0}::float < 90 and enc_id in (select enc_id from cdm_t where {dataset_id_where} (fid = '{fid1}' or fid = '{fid2}')and value='True'))
     select COALESCE(ino_tbl.enc_id, sbp_tbl.enc_id) as enc_id, COALESCE(ino_tbl.tsp, sbp_tbl.tsp) as tsp, fid, sbpm, confidence
     from ino_tbl full join sbp_tbl on ino_tbl.enc_id = sbp_tbl.enc_id and ino_tbl.tsp = sbp_tbl.tsp
     order by enc_id, tsp;"""
     insert_sql = """insert into cdm_t ({dataset_id_block} enc_id, tsp, fid, value, confidence) values ({dataset_id} {enc_id}, '{tsp}', '{fid}', '{value}', {confidence})"""
-    records = await conn.fetch(select_sql.format(dataset_id_where = 'dataset_id = {} and '.format(dataset_id) if  dataset_id is not None else '', fid0=input_fid[0], fid1=input_fid[1], fid2=input_fid[2]))
+    records = await conn.fetch(select_sql.format(dataset_id_where = 'dataset_id = {} and '.format(dataset_id) if  dataset_id is not None else '',
+                                                 fid0=input_fid[0], fid1=input_fid[1], fid2=input_fid[2]))
     enc_dict = {}
     for rec in records:
         if rec['enc_id'] not in enc_dict and (rec['fid'] == input_fid[1] or rec['fid'] == input_fid[2]):
