@@ -1,6 +1,5 @@
 """
 derive functions
-TODO: remove cdm out and use conn
 """
 import sys
 import etl.confidence as confidence

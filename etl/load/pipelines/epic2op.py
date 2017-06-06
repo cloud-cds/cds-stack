@@ -8,7 +8,48 @@ from etl.load.pipelines.derive_main import derive_feature, get_derive_seq
 import pandas as pd
 import os
 import logging
+from etl.load.primitives.row import load_row
+import json
 
+
+
+async def extract_non_discharged_patients(ctxt):
+  '''
+  Get all patient ids (EMRN) from pat_enc that don't have a discharge
+  time in cdm_t.
+  '''
+  query_string = """
+    SELECT DISTINCT pe.pat_id, pe.enc_id
+    FROM pat_enc pe INNER JOIN cdm_t ct ON (pe.enc_id = ct.enc_id)
+    WHERE ct.fid = 'admittime' AND ct.enc_id NOT IN (
+      SELECT DISTINCT enc_id FROM cdm_t WHERE fid = 'discharge'
+    )
+  """
+  async with ctxt.db_pool.acquire() as conn:
+    pats_no_discharge = await conn.fetch(query_string)
+    pat_ids = [{
+      'pat_id': str(x['pat_id']).strip(),
+      'enc_id': str(x['enc_id']).strip(),
+    } for x in pats_no_discharge]
+    return pat_ids
+
+
+
+async def load_discharge_times(ctxt, contacts_df):
+  discharged_df = contacts_df[contacts_df['discharge_date'] != '']
+  def build_row(row):
+    enc_id     = row['enc_id']
+    tsp        = row['discharge_date']
+    fid        = 'discharge'
+    value      = json.dumps({
+      'department':  row['discharge_disposition'],
+      'disposition': row['department']
+    })
+    confidence = 1
+    return [enc_id, tsp, fid, value, confidence]
+  rows = discharged_df.apply(build_row, axis=1)
+  async with ctxt.db_pool.acquire() as conn:
+    await load_row.upsert_t(conn, rows, dataset_id=None, log=ctxt.log, many=True)
 
 
 
@@ -440,5 +481,8 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
     Task(name = 'get_notifications_for_epic',
          deps = ['drop_tables'],
          coro = get_notifications_for_epic),
+    Task(name = 'load_discharge_times',
+         deps = ['contacts_transform'],
+         coro = load_discharge_times)
   ]
   return all_tasks

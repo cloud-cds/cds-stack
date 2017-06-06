@@ -7,6 +7,7 @@ from etl.core.task import Task
 from etl.core.plan import Plan
 from etl.core.engine import Engine
 from etl.io_config.jhapi import JHAPIConfig
+import etl.io_config.core as core
 import os, sys, traceback, functools
 import pandas as pd
 import datetime as dt
@@ -32,33 +33,33 @@ def main(max_pats=None, hospital=None, lookback_hours=None, db_name=None, repl=F
   # Create config objects
   config = Config(debug=True, db_name=db_name)
   config_dict = {
-    'db_name': db_name or os.environ['db_name'],
-    'db_user': os.environ['db_user'],
-    'db_pass': os.environ['db_password'],
-    'db_host': os.environ['db_host'],
-    'db_port': os.environ['db_port'],
+    'db_name': db_name or core.get_environment_var('db_name'),
+    'db_user': core.get_environment_var('db_user'),
+    'db_pass': core.get_environment_var('db_password'),
+    'db_host': core.get_environment_var('db_host'),
+    'db_port': core.get_environment_var('db_port'),
   }
 
   # Create data for loader
   job_id = "job_etl_{}".format(dt.datetime.now().strftime('%m%d%H%M%S')).lower()
-  archive = int(os.environ.get('TREWS_ETL_ARCHIVE', 0))
-  notify_epic = int(os.environ['TREWS_ETL_EPIC_NOTIFICATIONS'])
+  archive = int(core.get_environment_var('TREWS_ETL_ARCHIVE', 0))
+  notify_epic = int(core.get_environment_var('TREWS_ETL_EPIC_NOTIFICATIONS', 0))
 
   # Create jhapi_extractor
   extractor = JHAPIConfig(
-    hospital       = hospital or os.environ['TREWS_ETL_HOSPITAL'],
-    lookback_hours = lookback_hours or os.environ['TREWS_ETL_HOURS'],
-    jhapi_server   = 'prod' or os.environ['TREWS_ETL_SERVER'],
-    jhapi_id       = os.environ['jhapi_client_id'],
-    jhapi_secret   = os.environ['jhapi_client_secret'],
+    hospital       = hospital or core.get_environment_var('TREWS_ETL_HOSPITAL'),
+    lookback_hours = lookback_hours or core.get_environment_var('TREWS_ETL_HOURS'),
+    jhapi_server   = core.get_environment_var('TREWS_ETL_SERVER', 'prod'),
+    jhapi_id       = core.get_environment_var('jhapi_client_id'),
+    jhapi_secret   = core.get_environment_var('jhapi_client_secret'),
   )
 
   # Get stuff for boto client
-  aws_region = os.environ['AWS_DEFAULT_REGION']
-  prod_or_dev = os.environ['db_name']
+  aws_region = core.get_environment_var('AWS_DEFAULT_REGION')
+  prod_or_dev = core.get_environment_var('db_name')
 
   # Get mode (real, test, both)
-  mode = MODE[int(os.environ.get('TREWS_ETL_MODE', 0))]
+  mode = MODE[int(core.get_environment_var('TREWS_ETL_MODE', 0))]
 
   ########################
   # Build plan
@@ -80,7 +81,7 @@ def main(max_pats=None, hospital=None, lookback_hours=None, db_name=None, repl=F
       })
 
 
-  loading_tasks  = loader.get_tasks(job_id,  'combine_db_data', 'combine_extract_data', mode, archive, config.get_db_conn_string_sqlalchemy())
+  loading_tasks  = loader.get_tasks(job_id, 'combine_db_data', 'combine_extract_data', mode, archive, config.get_db_conn_string_sqlalchemy())
   criteria_tasks = get_criteria_tasks(dependency = 'get_notifications_for_epic')
 
   ########################
@@ -395,6 +396,20 @@ def get_extraction_tasks(extractor, max_pats=None):
       'name': 'timezone_hack_med_admin',
       'deps': ['med_admin_transform'],
       'fn':   tz_hack,
+    },
+    # Discharge time stuff
+    {
+      'name': 'non_discharged_patients_extract',
+      'coro':  loader.extract_non_discharged_patients,
+    }, {
+      'name': 'contacts_extract',
+      'deps': ['non_discharged_patients_extract'],
+      'fn':   extractor.extract_contacts,
+    }, {
+      'name': 'contacts_transform',
+      'deps': ['contacts_extract'],
+      'fn':   transform,
+      'args': ['contacts_transforms']
     }
   ]
 
@@ -407,6 +422,8 @@ def start_repl(task_results):
   print("\n\n\tThe dictionary 'results' holds all dataframes.")
   print("\n\n\tHere are the contents:")
   for name, df in results.items():
+    if df is None or df.empty:
+      continue
     print("\t{:30} -- dataframe of size {}".format(name, len(df)))
   print("\n\n")
   IPython.embed()
