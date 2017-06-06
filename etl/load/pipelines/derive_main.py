@@ -650,12 +650,12 @@ query_config = {
         min(wbc_c | coalesce(subquery.confidence, 0))
       from %(twf_table_join)s cdm_twf left join subquery
       on cdm_twf.enc_id = subquery.enc_id and cdm_twf.tsp >= subquery.tsp and cdm_twf.tsp < subquery.tsp + interval '6 hours'
-      where %(dataset_id_equal)s
+      %(dataset_id_equal)s
       group by %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp
     ''' % {
       'twf_table_join'    : para['twf_table_join'],
       'dataset_id_key'    : para['dataset_id_key'],
-      'dataset_id_equal'  : dataset_id_equal(" ", "cdm_twf", para.get("dataset_id")),
+      'dataset_id_equal'  : dataset_id_equal(" where ", "cdm_twf", para.get("dataset_id")),
       'dataset_id_equal_t': dataset_id_equal('and ', 'cdm_t', para.get("dataset_id")),
     }
 
