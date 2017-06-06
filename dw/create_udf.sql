@@ -2623,7 +2623,7 @@ from
     ''tsp_mean'', to_timestamp(avg(extract(''epoch'' from tsp))),
     ''tsp_25%'', percentile_disc(0.25) within group (order by tsp),
     ''tsp_50%'', percentile_disc(0.5) within group (order by tsp),
-    ''tsp_85%'', percentile_disc(0.85) within group (order by tsp),
+    ''tsp_85%'', percentile_disc(0.75) within group (order by tsp),
     ''cnt_date'', count(distinct tsp::date)
   ) stats_tsp
   from ' || _table || '
@@ -2648,17 +2648,17 @@ select setval('pat_enc_enc_id_seq', 1);
 end;
 $func$ language plpgsql;
 
-create or replace function vacuum_full_cdm()
+create or replace function vacuum_full_analyze_cdm()
 RETURNS void AS
 $func$
 begin
-vacuum full cdm_s;
-vacuum full cdm_t;
-vacuum full cdm_twf;
-vacuum full cdm_notes;
-vacuum full criteria_meas;
-vacuum full trews;
-vacuum full pat_enc;
+vacuum full analyze cdm_s;
+vacuum full analyze cdm_t;
+vacuum full analyze cdm_twf;
+vacuum full analyze cdm_notes;
+vacuum full analyze criteria_meas;
+vacuum full analyze trews;
+vacuum full analyze pat_enc;
 end;
 $func$ language plpgsql;
 
@@ -2748,7 +2748,7 @@ if _table = 'cdm_twf' then
                           filter (where f.data_type ~* ''real|int'')
               , ''50%'' , percentile_disc(0.5) within group (order by '||rec.fid||')
                           filter (where f.data_type ~* ''real|int'')
-              , ''85%'' , percentile_disc(0.85) within group (order by '||rec.fid||')
+              , ''75%'' , percentile_disc(0.75) within group (order by '||rec.fid||')
                           filter (where f.data_type ~* ''real|int'')
               ), ''{}''::jsonb)';
     elsif rec.data_type ~* 'bool' then
@@ -2774,25 +2774,31 @@ if _table = 'cdm_twf' then
   perform distribute(server, queries, nprocs);
 else
 q = '
-  with s as (
+  with v as (
     select t.fid,
-           min(value::numeric) as min,
-           max(value::numeric) as max
+    (case when f.data_type ~* ''real|int'' then t.value
+    else t.value::json->>''dose'' end) as value
     from '||_table||' t inner join cdm_feature f
     on f.dataset_id = t.dataset_id
     and t.fid = f.fid
-    where t.dataset_id = '||_dataset_id||' and f.data_type ~* ''real|int''
-    and value <> ''nan''
-    group by t.fid
+    where t.dataset_id = '||_dataset_id||' and
+    (
+      (f.data_type ~* ''real|int'' and value <> ''nan'')
+      or (f.data_type = ''JSON'' and f.fid ~* ''_dose'')
+    )
+  ),
+  s as (
+    select fid, min(value::numeric) as min, max(value::numeric) as max
+    from v
+    group by v.fid
   ),
   histogram as (
     select s.fid,
-           width_bucket(value::numeric, min, max, 99) as bucket,
-           numrange(min(value::numeric)::numeric, max(value::numeric)::numeric, ''[]'') as range,
-           count(*) as freq
-    from s inner join '||_table||' t on s.fid = t.fid
-    where t.dataset_id = '|| _dataset_id ||' and t.value <> ''nan''
-    and min <> max
+      width_bucket(value::numeric, min, max, 99) as bucket,
+      numrange(min(value::numeric)::numeric, max(value::numeric)::numeric, ''[]'') as range,
+      count(*) as freq
+    from s inner join v on s.fid = v.fid
+    where min <> max
     group by s.fid, bucket
     order by s.fid, bucket
   ),
@@ -2831,7 +2837,7 @@ q = '
                         filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
             , ''50%'' , percentile_disc(0.5) within group (order by value::numeric)
                         filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
-            , ''85%'' , percentile_disc(0.85) within group (order by value::numeric)
+            , ''75%'' , percentile_disc(0.75) within group (order by value::numeric)
                         filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
             ), ''{}''::jsonb)
         when last(f.data_type) ~* ''json'' and last(f.fid) ~* ''_dose'' then
@@ -2843,7 +2849,7 @@ q = '
                         filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
             , ''50%'' , percentile_disc(0.5) within group (order by (value::json->>''dose'')::numeric)
                         filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
-            , ''85%'' , percentile_disc(0.85) within group (order by (value::json->>''dose'')::numeric)
+            , ''75%'' , percentile_disc(0.75) within group (order by (value::json->>''dose'')::numeric)
                         filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
             ), ''{}''::jsonb)
         when last(f.data_type) ~* ''bool'' then
@@ -2863,7 +2869,7 @@ q = '
                         filter (where f.data_type ~* ''String'' and s.fid ~* ''_time'' and value <> ''nan''),
               ''50%'' , percentile_disc(0.5) within group (order by value::timestamptz)
                         filter (where f.data_type ~* ''String'' and s.fid ~* ''_time'' and value <> ''nan''),
-              ''85%'' , percentile_disc(0.85) within group (order by value::timestamptz)
+              ''75%'' , percentile_disc(0.75) within group (order by value::timestamptz)
                         filter (where f.data_type ~* ''String'' and s.fid ~* ''_time'' and value <> ''nan'')
             ), ''{}''::jsonb)
         else
@@ -2884,7 +2890,7 @@ end;
 $func$ LANGUAGE plpgsql;
 
 
-CREATE FUNCTION rowcount_all(schema_name text default 'public')
+CREATE or replace FUNCTION rowcount_all(schema_name text default 'public')
   RETURNS table(table_name text, cnt bigint) as
 $$
 declare
@@ -2897,5 +2903,72 @@ begin
     RETURN QUERY EXECUTE format('select cast(%L as text),count(*) from %I.%I',
        table_name, schema_name, table_name);
   END LOOP;
+end
+$$ language plpgsql;
+
+
+create or replace function cdm_feature_present(_dataset_id int)
+    returns table(id text, cdm_table text, count int) as
+$$
+begin
+return query
+select f.fid::text, s.cdm_table, coalesce((s.stats->>'cnt')::int, 0) from cdm_feature f inner join cdm_stats s
+    on f.fid = s.id and f.dataset_id = s.dataset_id
+where f.dataset_id = _dataset_id and
+(
+    (s.cdm_table = 'cdm_twf' and f.category = 'TWF')
+  or (s.cdm_table = 'cdm_t' and f.category = 'T')
+  or (s.cdm_table = 'cdm_s' and f.category = 'S')
+  or (s.cdm_table = 'criteria_meas')
+);
+end
+$$ language plpgsql;
+
+create or replace function cdm_feature_diff(dataset_id_left int, dataset_id_right int)
+    returns table(id text, cdm_table text, diff jsonb, left_stats jsonb, right_stats jsonb) as
+$$
+begin
+return query
+with L as
+(
+    select f.fid::text, s.cdm_table, s.stats from cdm_feature f inner join cdm_stats s
+        on f.fid = s.id and f.dataset_id = s.dataset_id
+    where f.dataset_id = dataset_id_left
+),
+R as
+(
+    select f.fid::text, s.cdm_table, s.stats from cdm_feature f inner join cdm_stats s
+        on f.fid = s.id and f.dataset_id = s.dataset_id
+    where f.dataset_id = dataset_id_right
+)
+select L.fid, L.cdm_table,
+    (
+        case when L.stats->>'data_type' = 'Boolean' then
+            jsonb_build_object(
+              'true_diff_ratio',
+              round(abs((L.stats->>'cnt_true')::numeric / (L.stats->>'cnt')::numeric)
+            - ((R.stats->>'cnt_true')::numeric / (R.stats->>'cnt')::numeric), 3)
+            )
+        when L.stats->>'data_type' ~* 'real|int' then
+            jsonb_build_object(
+              'mean_diff_ratio',
+              round(abs(((L.stats->>'mean')::numeric - (R.stats->>'mean')::numeric) / (R.stats->>'mean')::numeric), 3),
+              'min_diff_ratio',
+              round(abs(((L.stats->>'min')::numeric - (R.stats->>'min')::numeric) / (R.stats->>'mean')::numeric), 3),
+              'max_diff_ratio',
+              round(abs(((L.stats->>'max')::numeric - (R.stats->>'max')::numeric) / (R.stats->>'mean')::numeric), 3),
+              '25%_diff_ratio',
+              round(abs(((L.stats->>'25%')::numeric - (R.stats->>'25%')::numeric) / (R.stats->>'mean')::numeric), 3),
+              '50%_diff_ratio',
+              round(abs(((L.stats->>'50%')::numeric - (R.stats->>'50%')::numeric) / (R.stats->>'mean')::numeric), 3),
+              '75%_diff_ratio',
+              round(abs(((L.stats->>'75%')::numeric - (R.stats->>'75%')::numeric) / (R.stats->>'mean')::numeric), 3)
+            )
+        else
+        '{}'::jsonb
+        end
+    ) diff,
+    L.stats, R.stats from L inner join R on L.fid = R.fid and L.cdm_table = R.cdm_table
+;
 end
 $$ language plpgsql;
