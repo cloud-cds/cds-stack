@@ -80,7 +80,9 @@ note, running that file will delete all the data in CDM. The ETL will have to be
 
 
 ## Step 6:
-setup, run, and debug the ET
+setup, run, and debug the ET, see a readme on how to do that here:
+https://github.com/dashan-emr/dashan-etl/wiki/ETL-checklist-template
+
 
 # Steps to add derived features to CDM (Template Method) :
 
@@ -112,8 +114,8 @@ Run the create_c2dw.sql file located in that same directory to push your updates
 Import your extraction function into dashan-etl/etl/load/tbl/derive.py
 
 ## Step 4: ETL
-
-
+setup, run, and debug the ET, see a readme on how to do that here:
+https://github.com/dashan-emr/dashan-etl/wiki/ETL-checklist-template
 
 
 
