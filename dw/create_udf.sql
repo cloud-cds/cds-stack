@@ -2623,7 +2623,7 @@ from
     ''tsp_mean'', to_timestamp(avg(extract(''epoch'' from tsp))),
     ''tsp_25%'', percentile_disc(0.25) within group (order by tsp),
     ''tsp_50%'', percentile_disc(0.5) within group (order by tsp),
-    ''tsp_85%'', percentile_disc(0.75) within group (order by tsp),
+    ''tsp_75%'', percentile_disc(0.75) within group (order by tsp),
     ''cnt_date'', count(distinct tsp::date)
   ) stats_tsp
   from ' || _table || '
