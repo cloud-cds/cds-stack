@@ -20,8 +20,8 @@ async def extract_non_discharged_patients(ctxt):
   '''
   query_string = """
     SELECT DISTINCT pe.pat_id, pe.enc_id
-    FROM pat_enc pe INNER JOIN cdm_t ct ON (pe.enc_id = ct.enc_id)
-    WHERE ct.fid = 'admittime' AND ct.enc_id NOT IN (
+    FROM pat_enc pe INNER JOIN cdm_s cs ON (pe.enc_id = cs.enc_id)
+    WHERE cs.fid = 'admittime' AND cs.enc_id NOT IN (
       SELECT DISTINCT enc_id FROM cdm_t WHERE fid = 'discharge'
     )
   """
@@ -36,6 +36,8 @@ async def extract_non_discharged_patients(ctxt):
 
 
 async def load_discharge_times(ctxt, contacts_df):
+  if contacts_df.empty:
+    return
   discharged_df = contacts_df[contacts_df['discharge_date'] != '']
   def build_row(row):
     enc_id     = row['enc_id']
