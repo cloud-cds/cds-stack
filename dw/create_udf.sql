@@ -2491,8 +2491,7 @@ union
   (select concat_ws(', ', r.name, r.fid, r.override_value, r.category) from criteria_default r where r.dataset_id = dataset_id_right
   except
   select concat_ws(', ', l.name, l.fid, l.override_value, l.category) from criteria_default l where l.dataset_id = dataset_id_left) as right_only
-) U
-order by config_table, dataset_id, content;
+) U;
 end $func$ LANGUAGE plpgsql;
 -------------------------
 -- cdm stats functions --
@@ -2648,19 +2647,7 @@ select setval('pat_enc_enc_id_seq', 1);
 end;
 $func$ language plpgsql;
 
-create or replace function vacuum_full_analyze_cdm()
-RETURNS void AS
-$func$
-begin
-vacuum full analyze cdm_s;
-vacuum full analyze cdm_t;
-vacuum full analyze cdm_twf;
-vacuum full analyze cdm_notes;
-vacuum full analyze criteria_meas;
-vacuum full analyze trews;
-vacuum full analyze pat_enc;
-end;
-$func$ language plpgsql;
+
 
 create or replace function run_cdm_stats_f(_dataset_id int, _table text, server text default 'dev_dw', nprocs int default 2)
 RETURNS void AS

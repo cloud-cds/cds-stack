@@ -25,7 +25,7 @@ metabolic_acidosis,TWF,int,no,no,,,metabolic_acidosis_update,"arterial_ph, bicar
 troponin,TWF,Real,yes,no,last_value_in_window,28,,,Physiologic,1,ng/mL
 enalaprilat_dose,T,JSON,yes,no,,,,,Medication,1,mg
 milrinone_dose,T,JSON,yes,no,,3,,,Medication,1,mcg/kg/min
-rass,TWF,Real,yes,no,last_value_in_window,6,,,Physiologic,1,no unit
+rass,TWF,Real,yes,no,last_value_in_window,5,,,Physiologic,1,no unit
 pneumonia_sepsis_approx,T,String,yes,no,,,,,,,
 acute_kidney_failure,T,Boolean,no,no,,,acute_kidney_failure_update,"acute_kidney_failure_inhosp, creatinine, urine_output_24hr, dialysis",Diagnoses,1,
 any_antibiotics,T,Boolean,no,no,,,any_antibiotics_update,"ampicillin_dose, clindamycin_dose, erythromycin_dose , gentamicin_dose , oxacillin_dose , tobramycin_dose , vancomycin_dose , ceftazidime_dose , cefazolin_dose , penicillin_g_dose , meropenem_dose , penicillin_dose , amoxicillin_dose , piperacillin_tazbac_dose, rifampin_dose, meropenem_dose, rapamycin_dose",any antibiotic was given to the patient,1,no unit
