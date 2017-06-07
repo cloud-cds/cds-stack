@@ -2972,3 +2972,240 @@ select L.fid, L.cdm_table,
 ;
 end
 $$ language plpgsql;
+
+
+CREATE OR REPLACE FUNCTION isnumeric(text) RETURNS BOOLEAN AS $$
+DECLARE x NUMERIC;
+BEGIN
+    x = $1::NUMERIC;
+    RETURN TRUE;
+EXCEPTION WHEN others THEN
+    RETURN FALSE;
+END;
+$$
+STRICT
+LANGUAGE plpgsql IMMUTABLE;
+
+
+create or replace function run_clarity_stats(_clarity_workspace text, server text default 'dev_dw', nprocs int default 2)
+returns void as
+$$
+declare queries text[];
+begin
+  -- adt_feed
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'ADT_Feed', 'EventType', 'DEPARTMENT_NAME'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'ADT_Feed', 'DEPARTMENT_NAME', 'EventType'));
+  -- diagnoses
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Diagnoses', 'DX_ID', 'Code'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Diagnoses', 'Code', 'CSN_ID'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Diagnoses', 'ICD-9          Code    category', 'Code'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Diagnoses', 'ICD-9          Code    category', 'CSN_ID'));
+  -- flowsheet
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue', 'FLO_MEAS_NAME', 'Value'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue', 'FLO_MEAS_NAME', 'UNITS'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue', 'FLO_MEAS_ID', 'Value'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue', 'FLO_MEAS_ID', 'UNITS'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue', 'DISP_NAME', 'Value'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue', 'DISP_NAME', 'UNITS'));
+  -- flowsheet 643
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue_643', 'FLO_MEAS_NAME', 'Value'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue_643', 'FLO_MEAS_NAME', 'UNITS'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue_643', 'FLO_MEAS_ID', 'Value'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue_643', 'FLO_MEAS_ID', 'UNITS'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue_643', 'DISP_NAME', 'Value'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue_643', 'DISP_NAME', 'UNITS'));
+  perform distribute(server, queries, nprocs);
+  -- flowsheet lda
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue-LDA', 'FLO_MEAS_NAME', 'Value'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue-LDA', 'FLO_MEAS_NAME', 'UNITS'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue-LDA', 'FLO_MEAS_ID', 'Value'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue-LDA', 'FLO_MEAS_ID', 'UNITS'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue-LDA', 'DISP_NAME', 'Value'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue-LDA', 'DISP_NAME', 'UNITS'));
+  -- labs
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs', 'COMPONENT_ID', 'ResultValue'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs', 'COMPONENT_ID', 'REFERENCE_UNIT'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs', 'BASE_NAME', 'ResultValue'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs', 'BASE_NAME', 'REFERENCE_UNIT'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs', 'NAME', 'ResultValue'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs', 'NAME', 'REFERENCE_UNIT'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs', 'EXTERNAL_NAME', 'ResultValue'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs', 'EXTERNAL_NAME', 'REFERENCE_UNIT'));
+  -- labs_643
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs_643', 'COMPONENT_ID', 'ResultValue'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs_643', 'COMPONENT_ID', 'REFERENCE_UNIT'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs_643', 'BASE_NAME', 'ResultValue'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs_643', 'BASE_NAME', 'REFERENCE_UNIT'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs_643', 'NAME', 'ResultValue'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs_643', 'NAME', 'REFERENCE_UNIT'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs_643', 'EXTERNAL_NAME', 'ResultValue'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs_643', 'EXTERNAL_NAME', 'REFERENCE_UNIT'));
+  -- ldas
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'LDAs', 'FLO_MEAS_NAME', 'PAT_ID'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'LDAs', 'DISP_NAME', 'PAT_ID'));
+  -- ldas 643
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'LDAs_643', 'FLO_MEAS_NAME', 'PAT_ID'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'LDAs_643', 'DISP_NAME', 'PAT_ID'));
+  -- medicalhistory
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'MedicalHistory', 'diagName', 'CSN_ID'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'MedicalHistory', 'Code', 'CSN_ID'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'MedicalHistory', 'ICD-9          Code    category', 'Code'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'MedicalHistory', 'ICD-9          Code    category', 'CSN_ID'));
+  -- medication administration
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'MedicationAdministration', 'display_name', 'ActionTaken'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'MedicationAdministration', 'display_name', 'Dose'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'MedicationAdministration', 'display_name', 'MedUnit'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'MedicationAdministration', 'MEDICATION_ID', 'ActionTaken'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'MedicationAdministration', 'MEDICATION_ID', 'Dose'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'MedicationAdministration', 'MEDICATION_ID', 'MedUnit'));
+  -- notes
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Notes', 'AuthorType', 'NOTE_ID'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Notes', 'NoteType', 'NOTE_ID'));
+  -- order med
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'OrderMed', 'display_name', 'CSN_ID'));
+  -- order med home
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'OrderMedHome', 'display_name', 'CSN_ID'));
+  -- order procs
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'OrderProcs', 'display_name', 'OrderStatus'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'OrderProcs', 'proc_name', 'OrderStatus'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'OrderProcs', 'proc_cat_name', 'proc_name'));
+  -- order procs 643
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'OrderProcs_643', 'display_name', 'OrderStatus'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'OrderProcs_643', 'proc_name', 'OrderStatus'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'OrderProcs_643', 'proc_cat_name', 'proc_name'));
+  -- order procs image
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'OrderProcsImage', 'display_name', 'OrderStatus'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'OrderProcsImage', 'proc_name', 'OrderStatus'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'OrderProcsImage', 'proc_cat_name', 'proc_name'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'OrderProcsImage', 'display_name', 'LabStatus'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'OrderProcsImage', 'proc_name', 'LabStatus'));
+  -- problem list
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'ProblemList', 'departmentid', 'diagname'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'ProblemList', 'diagname', 'departmentid'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'ProblemList', 'departmentid', 'code'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'ProblemList', 'code', 'departmentid'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'ProblemList', 'departmentid', 'codecategory'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'ProblemList', 'codecategory', 'departmentid'));
+end
+$$ language plpgsql;
+
+create or replace function run_clarity_stats(_clarity_workspace text, _clarity_staging_table text, key text, value text)
+returns void as
+$$
+begin
+execute format(
+'with kv_cnt as(
+  select %I k, %I v, count(*) cnt from %I.%I
+  where not isnumeric(%I)
+  group by %I, %I
+  order by count(*)
+  limit 100
+),
+kv_cnt_jsonb as (
+  select k, jsonb_object_agg(v, cnt) str_cnt
+  from kv_cnt group by k
+)
+insert into clarity_stats
+  select M.id, ''%I''::text id_type, M.clarity_workspace, M.clarity_staging_table,
+    M.stats || coalesce(jsonb_build_object(''top100_str_cnt'', kv.str_cnt), ''{}''::jsonb) from
+  (select %I id,''%I''::text clarity_workspace,
+    ''%I''::text clarity_staging_table,
+    jsonb_build_object(
+      ''cnt'', count(*),
+      ''cnt_numeric'', count(*) filter (where isnumeric(%I)),
+      ''cnt_str'', count(*) filter (where not isnumeric(%I)),
+      ''cnt_distinct_str'', count(distinct %I) filter (where not isnumeric(%I)),
+      ''min'', min(%I::numeric) filter (where isnumeric(%I)),
+      ''max'', max(%I::numeric) filter (where isnumeric(%I)),
+      ''mean'', avg(%I::numeric) filter (where isnumeric(%I)),
+      ''25%%'' , percentile_disc(0.25) within group (order by %I::numeric)
+                        filter (where isnumeric(%I)),
+      ''50%%'' , percentile_disc(0.50) within group (order by %I::numeric)
+                        filter (where isnumeric(%I)),
+      ''75%%'' , percentile_disc(0.75) within group (order by %I::numeric)
+                        filter (where isnumeric(%I))
+    ) stats
+  from %I.%I group by %I) M left join kv_cnt_jsonb kv on M.id = kv.k
+on conflict(id, id_type, clarity_workspace, clarity_staging_table) do update
+set stats = excluded.stats
+', key, value, _clarity_workspace, _clarity_staging_table, value, key, value,
+   key, key, _clarity_workspace, _clarity_staging_table, value, value, value, value, value,
+   value, value, value, value, value, value, value, value, value, value,
+   value, _clarity_workspace, _clarity_staging_table, key);
+end
+$$ language plpgsql;
