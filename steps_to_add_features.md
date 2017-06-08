@@ -28,13 +28,15 @@ Using the dictionary tables below:
  - lab_proc_dict
  - flowsheet_dict
 
+ If the feature is a medication, just search MedicationAdministration directly. 
+
 Understand where the data is in clarity. Look at the data in the clarity database to get some intution about what the data looks like.
 
 There are a few versions of a couple of tables (e.g. Labs, Labs_643). In those cases both should be checked.
-Dict to table Mapping
-"lab_dict" to "Labs" and "Labs_643";
-"lab_proc_dict" to "OrderProcs" and "OrderProcs_643"
-"flowsheet_dict  to "FlowsheetValue","FlowsheetValue-LDA","FlowsheetValue_643"
+Dict to table Mapping:
+- "lab_dict" to "Labs" and "Labs_643";
+- "lab_proc_dict" to "OrderProcs" and "OrderProcs_643"
+- "flowsheet_dict  to "FlowsheetValue","FlowsheetValue-LDA","FlowsheetValue_643"
 
 In some cases the dicts may have missing or misleading entries, it's always good to check against the clarity tables 
  themselves to see themselves to see if an extry exsits;
@@ -58,7 +60,7 @@ Write sql/python function to extract measured feature(s) from clarity
 These functions can often be easily developed and intially tested offline without running the entire ETL.
 
 ## Step 3: Document the Extraction
-Select a dataset you'd like to do the extractio on.
+Select a dataset you'd like to do the extraction on.
 
 Update CDM_feature.csv file in
 dashan-db/dw/clarity2dw/datasetX/CDM_Feature.csv
@@ -79,7 +81,7 @@ note, running that file will delete all the data in CDM. The ETL will have to be
  All updates to the schema are risky. If you update the schema in any way you'll have to understand the implication across all etls, an easy ETL to forget is the op2dw
 
 
-## Step 6:
+## Step 5:
 setup, run, and debug the ET, see a readme on how to do that here:
 https://github.com/dashan-emr/dashan-etl/wiki/ETL-checklist-template
 
