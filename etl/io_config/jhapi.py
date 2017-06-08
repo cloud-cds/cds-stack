@@ -239,15 +239,17 @@ class JHAPIConfig:
       return pd.DataFrame()
     resource = '/patients/contacts'
     dateTo = dt.datetime.now() + dt.timedelta(days=1000)
+    pat_id_df = pd.DataFrame(pat_id_list)
+    pat_id_df = pat_id_df[pat_id_df['pat_id'].str.contains('E.*')]
     payloads = [{
       'id'       : pat['pat_id'],
       'idtype'   : 'patient',
       'dateFrom' : self.dateFrom,
       'dateTo'   : dateTo.strftime('%Y-%m-%d'),
-    } for pat in pat_id_list if pat['pat_id'][0] == 'E']
+    } for pat in pat_id_df.iterrows()]
     responses = self.make_requests(ctxt, resource, payloads, 'GET')
     dfs = [pd.DataFrame(r['Contacts'] if r else None) for r in responses]
-    return self.combine(dfs, pd.DataFrame(pat_id_list))
+    return self.combine(dfs, pat_id_df)
 
 
   def push_notifications(self, ctxt, notifications):
