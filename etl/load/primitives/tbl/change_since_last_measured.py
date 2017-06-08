@@ -45,7 +45,8 @@ async def change_since_last_measured(fid, fid_input, conn, log, dataset_id, deri
     update {output_tbl} o
     set {fid} = diff, {fid}_c = diff_c
     from complete_calc cal
-    where {output_where} cal.enc_id = o.enc_id and cal.tsp = o.tsp {incremental_enc_id_in}
+    where {output_where} cal.enc_id = o.enc_id and cal.tsp = o.tsp
+    {incremental_enc_id_in}
     """.format(fid= fid,
                fid_input=fid_input,
                output_tbl=destination_tbl,
@@ -57,7 +58,7 @@ async def change_since_last_measured(fid, fid_input, conn, log, dataset_id, deri
                output_where = 'cal.dataset_id = o.dataset_id and ' if dataset_id is not None else '',
                input_tbl=source_tbl,
                dataset_block = 'and f.dataset_id = %s' % dataset_id if dataset_id is not None else '',
-               incremental_enc_id_in = incremental_enc_id_in(' and ', destination_tbl, dataset_id, incremental),
+               incremental_enc_id_in = incremental_enc_id_in(' and ', 'o', dataset_id, incremental),
     )
 
     log.info("change_since_last_measured:%s" % sql)
