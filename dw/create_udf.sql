@@ -3129,11 +3129,6 @@ begin
     _clarity_workspace, 'LDAs', 'FLO_MEAS_NAME', 'PAT_ID'));
   queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
     _clarity_workspace, 'LDAs', 'DISP_NAME', 'PAT_ID'));
-  -- ldas 643
-  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
-    _clarity_workspace, 'LDAs_643', 'FLO_MEAS_NAME', 'PAT_ID'));
-  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
-    _clarity_workspace, 'LDAs_643', 'DISP_NAME', 'PAT_ID'));
   -- medicalhistory
   queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
     _clarity_workspace, 'MedicalHistory', 'diagName', 'CSN_ID'));
