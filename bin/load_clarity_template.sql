@@ -15,7 +15,7 @@ create table {workspace}."Demographics"
  "DischargeDisposition"  text,
  "CSN_ID"                text
  );
-\copy {workspace}."Demographics" from '{folder}demo.{ext}' with csv header delimiter as E'\t' QUOTE E'\b' NULL '' encoding 'windows-1251';
+\copy {workspace}."Demographics" from '{folder}demo.{ext}' with csv header delimiter as E'\t' QUOTE E'\b' NULL '' encoding 'latin1';
 
 drop table if exists {workspace}."ADT_Feed";
 create table {workspace}."ADT_Feed"
@@ -27,7 +27,7 @@ create table {workspace}."ADT_Feed"
 "DEPARTMENT_NAME"   text,
 "ROOM_NAME"    text
 );
-\copy {workspace}."ADT_Feed" from '{folder}adt.{ext}' with csv header delimiter as E'\t' QUOTE E'\b' NULL '' encoding 'windows-1251';
+\copy {workspace}."ADT_Feed" from '{folder}adt.{ext}' with csv header delimiter as E'\t' QUOTE E'\b' NULL '' encoding 'latin1';
 
 drop table if exists {workspace}."Diagnoses";
 create table {workspace}."Diagnoses"
@@ -43,7 +43,7 @@ create table {workspace}."Diagnoses"
  ,"COMMENTS"      text
  ,"DX_CHRONIC_YN" text
 );
-\copy {workspace}."Diagnoses" from '{folder}diag.{ext}' with csv header delimiter as E'\t' QUOTE E'\b' NULL '' encoding 'windows-1251';
+\copy {workspace}."Diagnoses" from '{folder}diag.{ext}' with csv header delimiter as E'\t' QUOTE E'\b' NULL '' encoding 'latin1';
 
 drop table if exists {workspace}."FlowsheetValue-LDA";
 create table {workspace}."FlowsheetValue-LDA"
@@ -68,7 +68,7 @@ create table {workspace}."FlowsheetValue-LDA"
  "LDAFLOMEASNAME"       text      ,
  "LDAGRPDISPNAME"       text
 );
-\copy {workspace}."FlowsheetValue-LDA" from '{folder}flt_lda.{ext}' with csv header delimiter as E'\t' QUOTE E'\b' NULL '' encoding 'windows-1251';
+\copy {workspace}."FlowsheetValue-LDA" from '{folder}flt_lda.{ext}' with csv header delimiter as E'\t' QUOTE E'\b' NULL '' encoding 'latin1';
 
 drop table if exists {workspace}."FlowsheetValue";
 create table {workspace}."FlowsheetValue"
@@ -88,7 +88,7 @@ create table {workspace}."FlowsheetValue"
  "TEMPLATE_NAME"        text      ,
  "TEMPLATE_DISP_NAME"   text
 );
-\copy {workspace}."FlowsheetValue" from '{folder}flt.{ext}' with csv header delimiter as E'\t' QUOTE E'\b' NULL '' encoding 'windows-1251';
+\copy {workspace}."FlowsheetValue" from '{folder}flt.{ext}' with csv header delimiter as E'\t' QUOTE E'\b' NULL '' encoding 'latin1';
 
 drop table if exists {workspace}."FlowsheetValue_643";
 create table {workspace}."FlowsheetValue_643"
@@ -108,7 +108,7 @@ create table {workspace}."FlowsheetValue_643"
  "TEMPLATE_NAME"        text      ,
  "TEMPLATE_DISP_NAME"   text
 );
-\copy {workspace}."FlowsheetValue_643" from '{folder}flt_new.{ext}' with csv header delimiter as E'\t' QUOTE E'\b' NULL '' encoding 'windows-1251';
+\copy {workspace}."FlowsheetValue_643" from '{folder}flt_new.{ext}' with csv header delimiter as E'\t' QUOTE E'\b' NULL '' encoding 'latin1';
 
 -- start to use {ext} format (i.e., delimiter is tab) because there are double quote in the data which makes the csv format hard to import to postgresql
 -- remember to remove the last two lines in {ext} files before importing to the database
@@ -127,7 +127,7 @@ create table {workspace}."Labs"
  "COMPONENT_COMMENT" text,
  "ORDER_PROC_ID"     text
 );
-\copy {workspace}."Labs" from '{folder}labs.{ext}' with NULL '' csv header delimiter as E'\t' QUOTE E'\b' encoding 'windows-1251';
+\copy {workspace}."Labs" from '{folder}labs.{ext}' with NULL '' csv header delimiter as E'\t' QUOTE E'\b' encoding 'latin1';
 
 drop table if exists {workspace}."Labs_643";
 create table {workspace}."Labs_643"
@@ -143,7 +143,7 @@ create table {workspace}."Labs_643"
  "COMPONENT_COMMENT" text,
  "ORDER_PROC_ID"     text
 );
-\copy {workspace}."Labs_643" from '{folder}labs_new.{ext}' with NULL '' csv header delimiter as E'\t' QUOTE E'\b' encoding 'windows-1251';
+\copy {workspace}."Labs_643" from '{folder}labs_new.{ext}' with NULL '' csv header delimiter as E'\t' QUOTE E'\b' encoding 'latin1';
 
 drop table if exists {workspace}."LDAs";
 create table {workspace}."LDAs"
@@ -156,7 +156,7 @@ create table {workspace}."LDAs"
  "SITE"                text,
  "REMOVAL_DTTM"        timestamp without time zone
 );
-\copy {workspace}."LDAs" from '{folder}lda.{ext}' with NULL '' csv header delimiter as E'\t' QUOTE E'\b' encoding 'windows-1251'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."LDAs" from '{folder}lda.{ext}' with NULL '' csv header delimiter as E'\t' QUOTE E'\b' encoding 'latin1'; -- a ugly but working solution to ignore quotes
 
 drop table if exists {workspace}."MedicationAdministration";
 create table {workspace}."MedicationAdministration"
@@ -182,7 +182,7 @@ create table {workspace}."MedicationAdministration"
  "MIN_DISCRETE_DOSE"  real,
  "MAX_DISCRETE_DOSE"  real
 );
-\copy {workspace}."MedicationAdministration" from '{folder}mar.{ext}' with NULL '' csv header delimiter as E'\t' QUOTE E'\b' encoding 'windows-1251'; -- a ugly but working solution to ignore quote's
+\copy {workspace}."MedicationAdministration" from '{folder}mar.{ext}' with NULL '' csv header delimiter as E'\t' QUOTE E'\b' encoding 'latin1'; -- a ugly but working solution to ignore quote's
 
 drop table if exists {workspace}."MedicalHistory";
 create table {workspace}."MedicalHistory"
@@ -197,7 +197,7 @@ create table {workspace}."MedicalHistory"
  "Medical_Hx_Date"      text,
  "ENC_Date"             timestamp without time zone
 );
-\copy {workspace}."MedicalHistory" from '{folder}hist.{ext}' with NULL '' csv header delimiter as E'\t' QUOTE E'\b' encoding 'windows-1251'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."MedicalHistory" from '{folder}hist.{ext}' with NULL '' csv header delimiter as E'\t' QUOTE E'\b' encoding 'latin1'; -- a ugly but working solution to ignore quotes
 
 drop table if exists {workspace}."Notes";
 create table {workspace}."Notes"
@@ -214,7 +214,7 @@ create table {workspace}."Notes"
  "SPEC_NOTE_TIME_DTTM"  timestamp without time zone ,
  "ENTRY_ISTANT_DTTM"    timestamp without time zone
 );
-\copy {workspace}."Notes" from '{folder}note.{ext}' with NULL '' csv header delimiter as E'\t' QUOTE E'\b' encoding 'windows-1251'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."Notes" from '{folder}note.{ext}' with NULL '' csv header delimiter as E'\t' QUOTE E'\b' encoding 'latin1'; -- a ugly but working solution to ignore quotes
 
 drop table if exists {workspace}."OrderMed";
 create table {workspace}."OrderMed"
@@ -228,7 +228,7 @@ create table {workspace}."OrderMed"
  "MIN_DISCRETE_DOSE" real                       ,
  "MAX_DISCRETE_DOSE" real
 );
-\copy {workspace}."OrderMed" from '{folder}ordermed.{ext}' with NULL '' csv header delimiter as E'\t' QUOTE E'\b' encoding 'windows-1251'; -- a ugly but working solution to ignore quote encoding 'windows-1251's
+\copy {workspace}."OrderMed" from '{folder}ordermed.{ext}' with NULL '' csv header delimiter as E'\t' QUOTE E'\b' encoding 'latin1'; -- a ugly but working solution to ignore quote encoding 'latin1's
 
 drop table if exists {workspace}."OrderMedHome";
 create table {workspace}."OrderMedHome"
@@ -242,7 +242,7 @@ create table {workspace}."OrderMedHome"
  "MIN_DISCRETE_DOSE" real                       ,
  "MAX_DISCRETE_DOSE" real
 );
-\copy {workspace}."OrderMedHome" from '{folder}ordermed_home.{ext}' with NULL '' csv header delimiter as E'\t' QUOTE E'\b' encoding 'windows-1251'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."OrderMedHome" from '{folder}ordermed_home.{ext}' with NULL '' csv header delimiter as E'\t' QUOTE E'\b' encoding 'latin1'; -- a ugly but working solution to ignore quotes
 
 drop table if exists {workspace}."OrderProcs";
 create table {workspace}."OrderProcs"
@@ -264,7 +264,7 @@ create table {workspace}."OrderProcs"
  "LabStatus"     text,
  "SPECIMN_TAKEN_TIME"  timestamp without time zone
 );
-\copy {workspace}."OrderProcs" from '{folder}orderproc.{ext}' with NULL '' csv header delimiter as E'\t' QUOTE E'\b' encoding 'windows-1251'; -- a ugly but working solution to ignore quote
+\copy {workspace}."OrderProcs" from '{folder}orderproc.{ext}' with NULL '' csv header delimiter as E'\t' QUOTE E'\b' encoding 'latin1'; -- a ugly but working solution to ignore quote
 
 drop table if exists {workspace}."OrderProcsImage";
 create table {workspace}."OrderProcsImage"
@@ -283,7 +283,7 @@ create table {workspace}."OrderProcsImage"
  "LINE"              integer                    ,
  "NOTE_TEXT"         text
 );
-\copy {workspace}."OrderProcsImage" from '{folder}orderproc_img.{ext}' with NULL '' csv header delimiter as E'\t' QUOTE E'\b' encoding 'windows-1251'; -- a ugly but working solution to ignore quote
+\copy {workspace}."OrderProcsImage" from '{folder}orderproc_img.{ext}' with NULL '' csv header delimiter as E'\t' QUOTE E'\b' encoding 'latin1'; -- a ugly but working solution to ignore quote
 
 drop table if exists {workspace}."OrderProcs_643";
 create table {workspace}."OrderProcs_643"
@@ -311,7 +311,7 @@ create table {workspace}."OrderProcs_643"
  quest_name         text,
  question       text
 );
-\copy {workspace}."OrderProcs_643" from '{folder}orderproc_new.{ext}' with NULL '' csv header delimiter as E'\t' QUOTE E'\b' encoding 'windows-1251'; -- a ugly but working solution to ignore quote
+\copy {workspace}."OrderProcs_643" from '{folder}orderproc_new.{ext}' with NULL '' csv header delimiter as E'\t' QUOTE E'\b' encoding 'latin1'; -- a ugly but working solution to ignore quote
 
 drop table if exists {workspace}."ProblemList";
 create table {workspace}."ProblemList"
@@ -328,7 +328,7 @@ create table {workspace}."ProblemList"
  diagname               text     ,
  code                   text
 );
-\copy {workspace}."ProblemList" from '{folder}prob.{ext}' with NULL '' csv header delimiter as E'\t' QUOTE E'\b' encoding 'windows-1251'; -- a ugly but working solution to ignore quote
+\copy {workspace}."ProblemList" from '{folder}prob.{ext}' with NULL '' csv header delimiter as E'\t' QUOTE E'\b' encoding 'latin1'; -- a ugly but working solution to ignore quote
 
 drop table if exists flowsheet_dict;
 create table flowsheet_dict
@@ -337,7 +337,7 @@ create table flowsheet_dict
  FLO_MEAS_NAME text,
  DISP_NAME text
  );
-\copy flowsheet_dict from '{folder}flowsheet_dict.{ext}' with csv header delimiter as E'\t' QUOTE E'\b' NULL '' encoding 'windows-1251';
+\copy flowsheet_dict from '{folder}flowsheet_dict.{ext}' with csv header delimiter as E'\t' QUOTE E'\b' NULL '' encoding 'latin1';
 
 drop table if exists lab_dict;
 create table lab_dict
@@ -347,7 +347,7 @@ create table lab_dict
  base_name text,
  external_name text
  );
-\copy lab_dict from '{folder}lab_dict.{ext}' with csv header delimiter as E'\t' QUOTE E'\b' NULL '' encoding 'windows-1251';
+\copy lab_dict from '{folder}lab_dict.{ext}' with csv header delimiter as E'\t' QUOTE E'\b' NULL '' encoding 'latin1';
 
 drop table if exists lab_proc_dict;
 create table lab_proc_dict
@@ -356,4 +356,4 @@ create table lab_proc_dict
  proc_name text,
  proc_code text
  );
-\copy lab_proc_dict from '{folder}lab_proc.{ext}' with csv header delimiter as E'\t' QUOTE E'\b' NULL '' encoding 'windows-1251';
+\copy lab_proc_dict from '{folder}lab_proc.{ext}' with csv header delimiter as E'\t' QUOTE E'\b' NULL '' encoding 'latin1';
