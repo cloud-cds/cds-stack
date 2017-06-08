@@ -254,6 +254,10 @@ def gen_subquery_upsert_query(config_entry, fid, dataset_id, derive_feature_addr
   subquery_params['with_ds_t'] = with_ds(dataset_id, table_name='cdm_t', conjunctive=True)
   subquery_params['with_ds_ttwf'] = (' AND cdm_t.dataset_id = cdm_twf.dataset_id' if dataset_id else '') + with_ds(dataset_id, table_name='cdm_twf', conjunctive=False)
   subquery_params['dataset_id_key'] = dataset_id_key('cdm_twf', dataset_id)
+  for fid_input in config_entry['fid_input_items']:
+    if fid_input in derive_feature_addr:
+      subquery_params['twf_table_{}'.format(fid_input)] = derive_feature_addr[fid_input]['twf_table']
+      subquery_params['twf_table_temp_{}'.format(fid_input)] = derive_feature_addr[fid_input]['twf_table_temp']
   subquery = config_entry['subquery'](subquery_params)
   upsert_clause = '''
   INSERT INTO %(twf_table_temp)s (%(dataset_id_key)s enc_id, tsp,%(fid)s, %(fid)s_c)
@@ -381,12 +385,6 @@ query_config = {
     'fid_update_expr': 'nbp_sys/3 + nbp_dias/3*2',
     'fid_c_update_expr': 'nbp_sys_c | nbp_dias_c',
   },
-  'sirs_wbc_oor': {
-    'fid_input_items': ['wbc'],
-    'derive_type': 'simple',
-    'fid_update_expr': '(wbc < 4 OR wbc > 12)',
-    'fid_c_update_expr': 'wbc_c',
-  },
   'obstructive_pe_shock': {
     'fid_input_items': ['lactate', 'ddimer', 'spo2', 'heart_rate'],
     'derive_type': 'simple',
@@ -406,20 +404,15 @@ query_config = {
     'fid_c_update_expr': 'heart_rate_c',
   },
   'sirs_resp_oor': {
-    'fid_input_items': ['resp_rate', 'paco2'],
+    'fid_input_items': ['resp_rate'],
     'derive_type': 'simple',
-    'fid_update_expr': '(resp_rate > 20 OR paco2 <= 32)',
-    'fid_c_update_expr': '''(case
-                      when resp_rate > 20 and cast(1-based_on_popmean(resp_rate_c) as bool) then resp_rate_c
-                      when paco2 <= 32 and cast(1-based_on_popmean(paco2_c) as bool) then paco2_c
-                      ELSE
-                      resp_rate_c | paco2_c
-                      end)''',
+    'fid_update_expr': 'resp_rate > 20',
+    'fid_c_update_expr': 'resp_rate_c',
   },
   'sirs_temperature_oor': {
     'fid_input_items': ['temperature'],
     'derive_type': 'simple',
-    'fid_update_expr': 'temperature < 96.8 or temperature > 100.4',
+    'fid_update_expr': 'temperature < 96.8 or temperature > 100.9',
     'fid_c_update_expr': 'temperature_c',
   },
   'shock_idx': {
@@ -675,43 +668,53 @@ query_config = {
                       END)
                      ''',
   },
+  'sirs_wbc_oor': {
+    'fid_input_items': ['wbc', 'bands'],
+    'derive_type': 'subquery',
+    'subquery': lambda para: '''
+      with subquery as (select enc_id, tsp, confidence from cdm_t where fid = 'bands' and value::numeric > 10 %(dataset_id_equal_t)s)
+      select %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
+        bool_or(wbc > 12 or wbc < 4 or subquery.enc_id is not null),
+        min(wbc_c | coalesce(subquery.confidence, 0))
+      from %(twf_table_join)s cdm_twf left join subquery
+      on cdm_twf.enc_id = subquery.enc_id and cdm_twf.tsp >= subquery.tsp and cdm_twf.tsp < subquery.tsp + interval '6 hours'
+      %(dataset_id_equal)s
+      group by %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp
+    ''' % {
+      'twf_table_join'    : para['twf_table_join'],
+      'dataset_id_key'    : para['dataset_id_key'],
+      'dataset_id_equal'  : dataset_id_equal(" where ", "cdm_twf", para.get("dataset_id")),
+      'dataset_id_equal_t': dataset_id_equal('and ', 'cdm_t', para.get("dataset_id")),
+    }
+
+  },
   'cmi': {
     'fid_input_items': ['severe_sepsis', 'fluid_resuscitation', 'vasopressor_resuscitation','fluids_intake_1hr'],
     'derive_type': 'subquery',
+    'clean': {'value': False, 'confidence': 0},
     'subquery': lambda para: '''
-        WITH subquery as (select %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp from %(twf_table_join)s cdm_twf
+        WITH subquery as (select %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp from %(twf_table_temp_ss)s cdm_twf
            where cdm_twf.severe_sepsis
            %(and_with_ds_twf)s)
         SELECT %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
-          bool_or(CASE
-          WHEN
-            (
-            (fluid_resuscitation is TRUE
-              or vasopressor_resuscitation is true)
-            OR fluids_intake_1hr > 250
-            )
-            AND
-            (
-              subquery.tsp is not null
-              and subquery.tsp <= cdm_twf.tsp
-              and cdm_twf.tsp - subquery.tsp < interval '6 hours'
-            )
-            THEN TRUE
-          ELSE FALSE
-          END) as cmi,
-          max(coalesce(severe_sepsis_c,0)
+          true as cmi,
+          min(coalesce(severe_sepsis_c,0)
               | coalesce(fluid_resuscitation_c,0)
               | coalesce(vasopressor_resuscitation_c,0)
               | coalesce(fluids_intake_1hr_c,0)) as cmi_c
-        FROM %(twf_table_join)s cdm_twf left join subquery
+        FROM %(twf_table_join)s cdm_twf inner join subquery
         on cdm_twf.enc_id = subquery.enc_id
-        %(dataset_id_match)s
+        and cdm_twf.tsp >= subquery.tsp and cdm_twf.tsp < subquery.tsp + interval '6 hours' %(dataset_id_match)s
+        where (fluid_resuscitation or vasopressor_resuscitation or
+          fluids_intake_1hr > 250)
+        %(and_with_ds_twf)s
         GROUP BY %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp
         ''' % {
-          'twf_table_join'  : para['twf_table_join'],
-          'dataset_id_key'  : para['dataset_id_key'],
-          'and_with_ds_twf' : dataset_id_equal(" and ", "cdm_twf", para['dataset_id']),
-          'dataset_id_match': dataset_id_match(" and ", "cdm_twf", "subquery", para['dataset_id']),
+          'twf_table_temp_ss'    : para['twf_table_temp_severe_sepsis'],
+          'twf_table_join'       : para['twf_table_join'],
+          'dataset_id_key'       : para['dataset_id_key'],
+          'and_with_ds_twf'      : dataset_id_equal(" and ", "cdm_twf", para['dataset_id']),
+          'dataset_id_match'     : dataset_id_match(" and ", "cdm_twf", "subquery", para['dataset_id'])
         },
   },
   'minutes_since_any_organ_fail': {
@@ -726,7 +729,7 @@ query_config = {
     )
     SELECT %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
     (case when cdm_twf.tsp > subquery.tsp
-        then EXTRACT(EPOCH FROM (cdm_twf.tsp - subquery.tsp))/60
+        then least(EXTRACT(EPOCH FROM (cdm_twf.tsp - subquery.tsp))/60, 14*24*60)
         else 0
      end) as minutes_since_any_organ_fail,
      subquery.c as minutes_since_any_organ_fail_c
@@ -741,7 +744,7 @@ query_config = {
       'dataset_id_equal_w': dataset_id_equal(" where ", "cdm_twf", para.get("dataset_id")),
       'dataset_id_match'  : dataset_id_match(" and ", "cdm_twf", "subquery", para.get("dataset_id")),
     },
-    'clean': {'value': 0, 'confidence': 0},
+    'clean': {'value': 14*24*60, 'confidence': 0},
   },
   'minutes_to_shock_onset': {
     'fid_input_items': ['septic_shock'],
@@ -780,7 +783,7 @@ query_config = {
     )
     SELECT %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
      (case when cdm_twf.tsp > subquery.tsp
-        then EXTRACT(EPOCH FROM (cdm_twf.tsp - subquery.tsp))/60
+        then least(EXTRACT(EPOCH FROM (cdm_twf.tsp - subquery.tsp))/60, 24*60)
         else 0
      end) as minutes_since_any_antibiotics,
      subquery.c as minutes_since_any_antibiotics_c
@@ -798,7 +801,7 @@ query_config = {
       'incremental_enc_id_join': incremental_enc_id_join('cdm_t', para.get("dataset_id"), para.get("incremental")),
       'incremental_enc_id_match': incremental_enc_id_match(' and ', para.get('incremental'))
     },
-    'clean': {'value': 0, 'confidence': 0},
+    'clean': {'value': 1*24*60, 'confidence': 0},
   },
   'treatment_within_6_hours': {
     'fid_input_items': ['any_antibiotics',
@@ -1001,6 +1004,7 @@ query_config = {
                                 WHERE fid ~ 'apixaban_dose|dabigatran_dose|rivaroxaban_dose|warfarin_dose|heparin_dose' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s %(incremental_enc_id_match)s
                                 group by %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp''',
   },
+  # NOTE: fid_input dismatch, this feature is not available
   'any_beta_blocker': {
     'fid_input_items': ['acebutolol_dose', 'atenolol_dose', 'bisoprolol_dose', 'metoprolol_dose', 'nadolol_dose', 'propanolol_dose'],
     'derive_type': 'simple',

@@ -31,6 +31,13 @@ resources:
       uri: git@github.com:dashan-emr/trews_rest_api.git
       private_key: {{github-private-key}}
 
+  - name: lmc
+    type: git
+    source:
+      branch: develop
+      uri: git@github.com:dashan-emr/LMC-Based-On-GPflow.git
+      private_key: {{github-private-key}}
+
 ###############
 # Pull requests
 #
@@ -69,6 +76,14 @@ resources:
       aws_secret_access_key: {{aws-secret-access-key}}
       tag: "latest"
 
+  - name: lmc-docker-image
+    type: docker-image
+    source:
+      repository: 359300513585.dkr.ecr.us-east-1.amazonaws.com/tensorflow
+      aws_access_key_id: {{aws-access-key-id}}
+      aws_secret_access_key: {{aws-secret-access-key}}
+      tag: "online-prediction-latest"
+
 #####################
 # Semantic versioning
 #
@@ -81,7 +96,7 @@ resources:
       branch: version
       file: version
       private_key: {{github-private-key}}
-      git_user: Concourse <ci@ci.ci>
+      git_user: CI bot <ci@ci.ci>
 
   - name: trews-rest-api-version
     type: semver
@@ -92,7 +107,18 @@ resources:
       branch: version
       file: version
       private_key: {{github-private-key}}
-      git_user: Concourse <ci@ci.ci>
+      git_user: CI bot <ci@ci.ci>
+
+  - name: lmc-version
+    type: semver
+    source:
+      driver: git
+      initial_version: 0.0.1
+      uri: git@github.com:dashan-emr/LMC-Based-On-GPflow.git
+      branch: version
+      file: version
+      private_key: {{github-private-key}}
+      git_user: CI bot <ci@ci.ci>
 
 
 
@@ -210,6 +236,15 @@ jobs:
       - task: api-tests
         image: trews-rest-api-docker-image
         file: dashan-etl/ci/integration_rest_api.yml
+        params:
+          db_host: {{DEV_PGHOST}}
+          db_password: {{DEV_PGPASSWORD}}
+          db_port: {{DEV_PGPORT}}
+          db_user: {{DEV_PGUSER}}
+          db_name: {{DEV_PGDATABASE}}
+          PGPASSWORD: {{DEV_PGPASSWORD}}
+          jhapi_client_id: {{jhapi_client_id}}
+          jhapi_client_secret: {{jhapi_client_secret}}
         on_success:
           put: trews-rest-api-pr
           params: {path: trews-rest-api-pr, status: success}
@@ -253,3 +288,22 @@ jobs:
           tag: trews-rest-api-version/number
       - put: trews-rest-api-version
         params: {file: trews-rest-api-version/version}
+
+  - name: build-lmc-docker-image
+    serial: true
+    plan:
+      - get: LMC-Based-On-GPflow
+        resource: lmc
+        trigger: true
+      - get: dashan-db
+        trigger: false
+      - get: lmc-version
+        params: {bump: patch}
+      - put: lmc-docker-image
+        params:
+          build: .
+          dockerfile: LMC-Based-On-GPflow/tools/Dockerfile
+          tag_as_latest: true
+          tag: lmc-version/number
+      - put: lmc-version
+        params: {file: lmc-version/version}

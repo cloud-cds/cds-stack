@@ -34,6 +34,7 @@ def log_time(log, name, start, extracted, loaded):
   else:
     msg += '%s valid rows loaded in CDM, duration %s s' % (loaded, duration)
   log.info(msg)
+  return duration
 
 class Extractor:
   def __init__(self, job):
@@ -68,30 +69,31 @@ class Extractor:
   async def init_dataset(self, conn, ctxt):
     ctxt.log.info("init_dataset")
     init_dataset_job = self.job.get('extract_init', {})
-    reset_sql = ''
-    if init_dataset_job.get('remove_data', False):
-      reset_sql += '''
-      delete from cdm_s where dataset_id = %(dataset_id)s;
-      delete from cdm_t where dataset_id = %(dataset_id)s;
-      delete from cdm_twf where dataset_id = %(dataset_id)s;
-      delete from cdm_notes where dataset_id = %(dataset_id)s;
-      delete from criteria_meas where dataset_id = %(dataset_id)s;
-      ''' % {'dataset_id': self.dataset_id}
-    if init_dataset_job.get('remove_pat_enc', False):
-      reset_sql += '''
-      delete from trews where dataset_id = %(dataset_id)s;
-      delete from pat_enc where dataset_id = %(dataset_id)s;
-      ''' % {'dataset_id': self.dataset_id}
-    if 'start_enc_id' in init_dataset_job and init_dataset_job.get('start_enc_id', 0) > 0:
-      reset_sql += "select setval('pat_enc_enc_id_seq', %s);" % init_dataset_job['start_enc_id']
-    if reset_sql:
-      ctxt.log.info("ETL init sql: " + reset_sql)
-      result = await conn.execute(reset_sql)
-      ctxt.log.info("ETL Init: " + result)
+    if init_dataset_job:
+      reset_sql = ''
+      if init_dataset_job.get('remove_data', False):
+        reset_sql += '''
+        delete from cdm_s where dataset_id = %(dataset_id)s;
+        delete from cdm_t where dataset_id = %(dataset_id)s;
+        delete from cdm_twf where dataset_id = %(dataset_id)s;
+        delete from cdm_notes where dataset_id = %(dataset_id)s;
+        delete from criteria_meas where dataset_id = %(dataset_id)s;
+        ''' % {'dataset_id': self.dataset_id}
+      if init_dataset_job.get('remove_pat_enc', False):
+        reset_sql += '''
+        delete from trews where dataset_id = %(dataset_id)s;
+        delete from pat_enc where dataset_id = %(dataset_id)s;
+        ''' % {'dataset_id': self.dataset_id}
+      if 'start_enc_id' in init_dataset_job and init_dataset_job.get('start_enc_id', 0) > 0:
+        reset_sql += "select setval('pat_enc_enc_id_seq', %s);" % init_dataset_job['start_enc_id']
+      if reset_sql:
+        ctxt.log.info("ETL init sql: " + reset_sql)
+        result = await conn.execute(reset_sql)
+        ctxt.log.info("ETL Init: " + result)
     return None
 
 
-  async def populate_patients(self, ctxt, _):
+  async def populate_patients(self, ctxt, *args):
     if self.job.get('transform', False):
       incremental = self.job.get('incremental', False)
       clarity_workspace = self.job.get('clarity_workspace', 'public')
@@ -124,7 +126,7 @@ class Extractor:
     else:
       ctxt.log.info("populate_patients skipped")
 
-  async def transform_init(self, ctxt, _):
+  async def transform_init(self, ctxt, *args):
     if self.job.get('transform', False):
       if self.job.get('transform').get('populate_measured_features', False):
         async with ctxt.db_pool.acquire() as conn:
@@ -214,8 +216,10 @@ class Extractor:
     # return [ [lst_bco] ]
 
   async def run_transform_task(self, ctxt, pat_mappings, task):
+    graph = None
     if self.job.get('transform', False):
       if self.job.get('transform').get('populate_measured_features', False):
+        graph = {'done': []}
         specified_fid = self.job.get('transform').get('populate_measured_features').get('fid', None)
         self.visit_id_to_enc_id = pat_mappings['visit_id_to_enc_id']
         self.pat_id_to_enc_ids = pat_mappings['pat_id_to_enc_ids']
@@ -234,11 +238,13 @@ class Extractor:
           done, pending = await asyncio.wait(futures, return_when = asyncio.FIRST_COMPLETED)
           for future in done:
             ctxt.log.info("run_transform_task completed: {}".format(future.result()))
+            res = future.result()
+            graph['done'].append((res[0]['fid(s)'], res[1]))
           futures = pending
           ctxt.log.info("remaining transform_tasks: {}".format(len(futures)))
     else:
       ctxt.log.info("transform task skipped")
-    return None
+    return graph
 
   def run_feature_mapping_row(self, ctxt, mapping_row):
     log = ctxt.log
@@ -264,7 +270,7 @@ class Extractor:
         % (",".join(fids), package, transform_func_id))
       futures.append(self.run_custom_func(package, transform_func_id, fids,
                      ctxt, self.dataset_id, log,self.plan,
-                     self.clarity_workspace))
+                     self.clarity_workspace, mapping_row))
     else:
       # if it is standard function
       # For now, use the fact that only custom functions are many to one.
@@ -275,19 +281,22 @@ class Extractor:
     return futures
 
   async def run_custom_func(self, package, transform_func_id, fids, ctxt,
-                            dataset_id, log, plan, clarity_workspace):
+                            dataset_id, log, plan, clarity_workspace, mapping_row):
     module = importlib.import_module(package)
     func = getattr(module, transform_func_id)
+    duration = 0
     try:
       conn_acquired = False
       async with ctxt.db_pool.acquire() as conn:
         conn_acquired = True
         log.info('Running custom func for %s' % str(fids))
-        await func(conn, dataset_id, fids, log, plan, clarity_workspace)
+        duration = await func(conn, dataset_id, fids, log, plan, clarity_workspace)
       if not conn_acquired:
         log.error("Error: connection is not acquired for {}".format(transform_func_id))
     except Exception as e:
       log.exception("Error: custom function error %s %s" % (transform_func_id, e))
+    finally:
+      return mapping_row, duration
 
   def populate_raw_feature_to_cdm(self, ctxt, mapping, cdm_feature_attributes):
     futures = []
@@ -380,6 +389,7 @@ class Extractor:
     category = fid_info['category']
     is_no_add = fid_info['is_no_add']
     sql = self.get_feature_sql_query(log, mapping, fid_info, orderby=orderby)
+    duration = 0
     if self.plan:
       log.info("run plan query: {}".format(sql))
       await self.run_plan_query(ctxt, sql, fid)
@@ -427,10 +437,10 @@ class Extractor:
           log.info("{} rows are going to load".format(len(rows_to_load)))
           await self.load_cdm(category, rows_to_load, conn, is_no_add, log=log)
           loaded_rows = len(rows_to_load)
-        log_time(log, fid, start, extracted_rows, loaded_rows)
+        duration = log_time(log, fid, start, extracted_rows, loaded_rows)
       if not conn_acquired:
         log.error("Error: connection is not acquireed {}".format(fid))
-      return mapping
+      return mapping, duration
 
 
   def process_med_events(self, log, enc_id, med_id, med_events,
@@ -475,6 +485,7 @@ class Extractor:
   async def populate_stateless_features(self, ctxt, mapping, fid, transform_func_id, data_type, fid_info, is_no_add, num_fetch=2000):
     # process features unrelated to med actions
     log = ctxt.log
+    duration = 0
     category = fid_info['category']
     sql = self.get_feature_sql_query(log, mapping, fid_info)
     if self.plan:
@@ -528,14 +539,15 @@ class Extractor:
               log.info("{} rows are going to load".format(len(rows_to_load)))
               await self.load_cdm(category, rows_to_load, conn, is_no_add, log=log)
           loaded_rows = len(rows_to_load)
-        log_time(log, fid, start, extracted_rows, loaded_rows)
+        duration = log_time(log, fid, start, extracted_rows, loaded_rows)
       if not conn_acquired:
         log.error("Error: connection is not acquired for {}".format(fid))
-      return mapping
+      return mapping, duration
 
   async def populate_vent(self, ctxt, mapping, fid, transform_func_id, data_type, fid_info, num_fetch=2000):
     orderby = " icustay_id, realtime"
     log = ctxt.log
+    duration = 0
     sql = self.get_feature_sql_query(log, mapping, fid_info, orderby=orderby)
     if self.plan:
       log.info("run plan query: {}".format(sql))
@@ -577,10 +589,10 @@ class Extractor:
         if rows_to_load:
           await self.load_cdm(category, rows_to_load, conn, is_no_add, log=log)
           loaded_rows = len(rows_to_load)
-        log_time(log, fid, start, extracted_rows, loaded_rows)
+        duration = log_time(log, fid, start, extracted_rows, loaded_rows)
       if not conn_acquired:
         log.error("Error: connection is not acquired for {}".format(fid))
-      return mapping
+      return mapping, duration
 
   def process_vent_events(self, log, enc_id, vent_events, fid_info, mapping):
     log.debug("\nentries from enc_id %s:" % enc_id)
@@ -666,7 +678,16 @@ class Extractor:
       '''.format(dataset_id=self.dataset_id,
                  with_enc_ids=with_enc_ids,
                  select_enc_ids=select_enc_ids)
-      fillin_sql = '''
+      fillin_sql = ''
+      if self.job.get('fillin').get('recalculate_popmean', False):
+        fillin_sql = '''
+        with twf_fids as (
+          select fid from cdm_feature where
+          dataset_id = {dataset_id} and is_measured and category = 'TWF'
+        )
+        select calculate_popmean('cdm_twf', fid, {dataset_id}) from twf_fids;
+        '''
+      fillin_sql += '''
       WITH twf_fids as (
         select array_agg(fid)::text[] as arr from cdm_feature where dataset_id = {dataset_id} and is_measured and category = 'TWF'
       ){with_enc_ids}
@@ -698,7 +719,7 @@ class Extractor:
       result = await conn.execute(vacuum_sql)
       ctxt.log.info("vacuum completed:{}".format(result))
 
-  async def derive_init(self, ctxt, _):
+  async def derive_init(self, ctxt, *args):
     ctxt.log.info('start derive_init')
     temp_table_groups = {}
     twf_table = None
@@ -791,12 +812,17 @@ class Extractor:
     ctxt.log.info("completed derive_join")
 
   async def run_derive(self, ctxt, *args):
+    start = time.time()
     log = ctxt.log
     base = 2
-    max_backoff = 3*60
+    max_backoff = 5*60
     incremental = self.job.get('incremental', False)
     if len(args) > 0:
       fid = args[-1]
+    else:
+      fid = None
+    # if fid != 'cmi':
+    #   return
     if self.job.get('derive', False):
       if fid is None:
         fid = self.job.get('derive').get('fid', None)
@@ -818,8 +844,8 @@ class Extractor:
         except Exception as e:
           attempts += 1
           log.exception("PSQL Error derive: %s %s" % (fid if fid else 'run_derive', e))
-          random_secs = random.uniform(0, 1)
-          wait_time = min(((base**attempts) + random_secs), max_backoff)
+          random_secs = random.uniform(0, 30)
+          wait_time = min(((base**attempts)*10 + random_secs), max_backoff)
           await asyncio.sleep(wait_time)
           log.info("run_derive {} attempts {}".format(fid or '', attempts))
           if fid is None:
@@ -827,8 +853,9 @@ class Extractor:
           continue
     else:
       log.info("derive skipped")
+    return {'duration': time.time() - start}
 
-  async def offline_criteria_processing(self, ctxt, _):
+  async def offline_criteria_processing(self, ctxt, *args):
     criteria_job = self.job.get('offline_criteria_processing', False)
     incremental = self.job.get('incremental', False)
     if criteria_job:
@@ -853,7 +880,13 @@ class Extractor:
       """ % self.dataset_id
     # update the updated column for this dataset
     postprocessing_sql += 'UPDATE dw_version SET updated = Now()' \
-      + ' WHERE dataset_id = %s' % self.dataset_id
+      + ' WHERE dataset_id = %s;' % self.dataset_id
+    # NOTE: comment out run stats, decide to run it manually
+    # postprocessing_sql += "select * from run_cdm_stats({},'{}',{})".format(\
+    #     self.dataset_id,
+    #     'dev_dw' if 'dev' in ctxt.config['db_host'] else 'prod_dw',
+    #     int(os.environ['nprocs']) if 'nprocs' in os.environ else 2
+    #   )
     async with ctxt.db_pool.acquire() as conn:
       ctxt.log.info(postprocessing_sql)
       result = await conn.execute(postprocessing_sql)

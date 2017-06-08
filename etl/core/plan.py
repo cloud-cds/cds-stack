@@ -36,3 +36,6 @@ class Plan:
     for t in self.tasks:
       plan[t.name] = (t.deps, {'config': self.config, **t.func, **t.args})
     return plan
+
+  def get_all_task_names(self):
+    return [t.name for t in self.tasks]
