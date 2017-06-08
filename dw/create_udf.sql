@@ -2493,39 +2493,43 @@ union
   select concat_ws(', ', l.name, l.fid, l.override_value, l.category) from criteria_default l where l.dataset_id = dataset_id_left) as right_only
 ) U;
 end $func$ LANGUAGE plpgsql;
+
+
 -------------------------
 -- cdm stats functions --
 -------------------------
-create or replace function run_cdm_stats(_dataset_id int, server text default 'dev_dw', nprocs int default 2)
+create or replace function run_cdm_stats(
+  _dataset_id int, server text default 'dev_dw', nprocs int default 2,
+  start_tsp timestamptz default '2000-01-01'::timestamptz,
+  end_tsp timestamptz default '2100-01-01'::timestamptz)
 RETURNS void AS
 $func$
 begin
-  perform run_cdm_stats_p(_dataset_id, 'pat_enc');
-  perform run_cdm_stats_p(_dataset_id, 'cdm_s');
-  perform run_cdm_stats_p(_dataset_id, 'cdm_t');
-  perform run_cdm_stats_p(_dataset_id, 'cdm_twf');
-  perform run_cdm_stats_p(_dataset_id, 'criteria_meas');
-  perform run_cdm_stats_t(_dataset_id, 'cdm_t');
-  perform run_cdm_stats_t(_dataset_id, 'cdm_twf');
-  perform run_cdm_stats_t(_dataset_id, 'criteria_meas');
-  perform run_cdm_stats_f(_dataset_id, 'cdm_s');
-  perform run_cdm_stats_f(_dataset_id, 'cdm_t');
-  perform run_cdm_stats_f(_dataset_id, 'criteria_meas');
-  perform run_cdm_stats_f(_dataset_id, 'cdm_twf', server, nprocs);
+  perform run_cdm_stats_p(_dataset_id, 'pat_enc', start_tsp, end_tsp);
+  perform run_cdm_stats_p(_dataset_id, 'cdm_s', start_tsp, end_tsp);
+  perform run_cdm_stats_p(_dataset_id, 'cdm_t', start_tsp, end_tsp);
+  perform run_cdm_stats_p(_dataset_id, 'cdm_twf', start_tsp, end_tsp);
+  perform run_cdm_stats_p(_dataset_id, 'criteria_meas', start_tsp, end_tsp);
+  perform run_cdm_stats_t(_dataset_id, 'cdm_t', start_tsp, end_tsp);
+  perform run_cdm_stats_t(_dataset_id, 'cdm_twf', start_tsp, end_tsp);
+  perform run_cdm_stats_t(_dataset_id, 'criteria_meas', start_tsp, end_tsp);
+  perform run_cdm_stats_f(_dataset_id, 'cdm_s', server, nprocs, start_tsp, end_tsp);
+  perform run_cdm_stats_f(_dataset_id, 'cdm_t', server, nprocs, start_tsp, end_tsp);
+  perform run_cdm_stats_f(_dataset_id, 'criteria_meas', server, nprocs, start_tsp, end_tsp);
+  perform run_cdm_stats_f(_dataset_id, 'cdm_twf', server, nprocs, start_tsp, end_tsp);
 end $func$ language plpgsql;
 
-
-
-
-
-
-
-create or replace function run_cdm_stats_p(_dataset_id int, _table text)
+create or replace function run_cdm_stats_p(
+  _dataset_id int, _table text,
+  start_tsp timestamptz default '2000-01-01'::timestamptz,
+  end_tsp timestamptz  default '2100-01-01'::timestamptz)
 RETURNS void AS
 $func$
 declare
   T text;
+  T2 text;
 begin
+T2 = '';
 if _table = 'pat_enc' then
   T = 'pat_enc p';
 elsif _table = 'criteria_meas' then
@@ -2534,6 +2538,10 @@ elsif _table = 'criteria_meas' then
 else
   T = _table || ' t inner join pat_enc p on t.enc_id = p.enc_id
     and t.dataset_id = p.dataset_id';
+end if;
+if _table in ('cdm_t', 'cdm_twf', 'criteria_meas') then
+  T2 = ' and t.tsp between ''' || start_tsp || '''::timestamptz and '''
+    || end_tsp || '''::timestamptz';
 end if;
 execute
   'insert into cdm_stats select ' ||
@@ -2545,14 +2553,16 @@ execute
   ''cnt_enc_id'', count(distinct p.enc_id),
   ''cnt_visit_id'', count(distinct p.visit_id),
   ''cnt_pat_id'', count(distinct p.pat_id)) stats
-  from ' || T || ' where p.dataset_id = ' || _dataset_id
-  || 'on conflict(dataset_id, id, id_type, cdm_table) do update set
+  from ' || T || ' where p.dataset_id = ' || _dataset_id || T2
+  || ' on conflict(dataset_id, id, id_type, cdm_table) do update set
     stats = excluded.stats'
   ;
 end;
 $func$ LANGUAGE plpgsql;
 
-create or replace function run_cdm_stats_t(_dataset_id int, _table text)
+create or replace function run_cdm_stats_t(_dataset_id int, _table text,
+  start_tsp timestamptz default '2000-01-01'::timestamptz,
+  end_tsp timestamptz  default '2100-01-01'::timestamptz)
 RETURNS void AS
 $func$
 declare
@@ -2563,6 +2573,8 @@ execute
   count(*)
   from '||_table||'
   where dataset_id = '|| _dataset_id ||'
+   and tsp between '''|| start_tsp ||'''::timestamptz
+   and '''||end_tsp||'''::timestamptz
   group by 1
   order by 1
 ),
@@ -2571,6 +2583,8 @@ hour_cnt as (
   count(*)
   from '||_table||'
   where dataset_id = '|| _dataset_id ||'
+    and tsp between '''|| start_tsp ||'''::timestamptz
+    and '''||end_tsp||'''::timestamptz
   group by 1
   order by 1
 ),
@@ -2627,6 +2641,8 @@ from
   ) stats_tsp
   from ' || _table || '
   where '||_table||'.dataset_id = '||_dataset_id||'
+  and tsp between '''|| start_tsp ||'''::timestamptz
+   and '''||end_tsp||'''::timestamptz
 ) t, day_row_cnt, day_rows_histogram, hour_row_cnt
 on conflict(dataset_id, id, id_type, cdm_table) do update set stats = excluded.stats';
 end;
@@ -2643,13 +2659,15 @@ delete from cdm_notes where dataset_id = _dataset_id;
 delete from criteria_meas where dataset_id = _dataset_id;
 delete from trews where dataset_id = _dataset_id;
 delete from pat_enc where dataset_id = _dataset_id;
-select setval('pat_enc_enc_id_seq', 1);
+perform setval('pat_enc_enc_id_seq', 1);
 end;
 $func$ language plpgsql;
 
-
-
-create or replace function run_cdm_stats_f(_dataset_id int, _table text, server text default 'dev_dw', nprocs int default 2)
+create or replace function run_cdm_stats_f(_dataset_id int, _table text,
+  server text default 'dev_dw', nprocs int default 2,
+  start_tsp timestamptz default '2000-01-01'::timestamptz,
+  end_tsp timestamptz  default '2100-01-01'::timestamptz
+  )
 RETURNS void AS
 $func$
 declare
@@ -2657,12 +2675,18 @@ queries text[];
 q text;
 use_hist boolean;
 rec record;
+T text;
 begin
 if _table = 'cdm_twf' then
-  for rec in select * from cdm_feature f where f.category = 'TWF' and f.dataset_id = _dataset_id
+  for rec in select * from cdm_feature f where f.category = 'TWF'
+    and f.dataset_id = _dataset_id
   loop
     if rec.data_type ~* 'real|int' then
-      execute 'select min(' || rec.fid || ') <> max(' || rec.fid || ') from cdm_twf where dataset_id = ' || _dataset_id into use_hist;
+      execute 'select min(' || rec.fid || ') <> max(' || rec.fid || ')
+        from cdm_twf where dataset_id = ' || _dataset_id || '
+        and tsp between '''|| start_tsp ||'''::timestamptz
+        and '''||end_tsp||'''::timestamptz'
+        into use_hist;
     else use_hist = false;
     end if;
     if use_hist then
@@ -2673,6 +2697,8 @@ if _table = 'cdm_twf' then
                max('||rec.fid||') as max
         from '||_table||' t
         where t.dataset_id = '||_dataset_id||' and '||rec.fid||' is not null
+          and tsp between '''|| start_tsp ||'''::timestamptz
+          and '''||end_tsp||'''::timestamptz
       ),
       histogram as (
         select
@@ -2751,6 +2777,8 @@ if _table = 'cdm_twf' then
     inner join cdm_feature f
     on s.dataset_id = f.dataset_id
     where s.dataset_id = '|| _dataset_id ||' and f.fid = '''||rec.fid||'''
+      and s.tsp between '''|| start_tsp ||'''::timestamptz
+      and '''||end_tsp||'''::timestamptz
     ) M';
     if use_hist then
       q = q || ', histogram_agg ht';
@@ -2760,6 +2788,11 @@ if _table = 'cdm_twf' then
   end loop;
   perform distribute(server, queries, nprocs);
 else
+T = '';
+if _table in ('cdm_t', 'cdm_twf', 'criteria_meas') then
+  T = ' and t.tsp between '''|| start_tsp ||'''::timestamptz
+    and '''||end_tsp||'''::timestamptz';
+end if;
 q = '
   with v as (
     select t.fid,
@@ -2772,7 +2805,7 @@ q = '
     (
       (f.data_type ~* ''real|int'' and value <> ''nan'')
       or (f.data_type = ''JSON'' and f.fid ~* ''_dose'')
-    )
+    ) '|| T ||'
   ),
   s as (
     select fid, min(value::numeric) as min, max(value::numeric) as max
@@ -2808,8 +2841,8 @@ q = '
     ''histogram'', hist
   ) stats from
   (select
-    s.dataset_id
-    , s.fid
+    t.dataset_id
+    , t.fid
     , jsonb_build_object(''cnt'', count(*)) cnt
     , last(f.is_measured) is_measured
     , last(f.data_type) data_type
@@ -2844,31 +2877,31 @@ q = '
               ''cnt_true''  , count(*) filter (where f.data_type ~* ''bool'' and value::boolean and value <> ''nan''),
               ''cnt_false'' , count(*) filter (where f.data_type ~* ''bool'' and not value::boolean and value <> ''nan'')
             ), ''{}''::jsonb)
-        when last(f.data_type) ~* ''String'' and s.fid ~* ''_time'' then
+        when last(f.data_type) ~* ''String'' and t.fid ~* ''_time'' then
           coalesce(jsonb_build_object(
               ''min'' , min(value::timestamptz)
-                        filter (where f.data_type ~* ''String'' and s.fid ~* ''_time'' and value <> ''nan''),
+                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan''),
               ''max'' , max(value::timestamptz)
-                        filter (where f.data_type ~* ''String'' and s.fid ~* ''_time'' and value <> ''nan''),
+                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan''),
               ''mean'', avg(value::timestamptz - ''2010-01-01''::timestamptz)
-                        filter (where f.data_type ~* ''String'' and s.fid ~* ''_time'' and value <> ''nan'') + ''2010-01-01''::timestamptz,
+                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan'') + ''2010-01-01''::timestamptz,
               ''25%'' , percentile_disc(0.25) within group (order by value::timestamptz)
-                        filter (where f.data_type ~* ''String'' and s.fid ~* ''_time'' and value <> ''nan''),
+                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan''),
               ''50%'' , percentile_disc(0.5) within group (order by value::timestamptz)
-                        filter (where f.data_type ~* ''String'' and s.fid ~* ''_time'' and value <> ''nan''),
+                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan''),
               ''75%'' , percentile_disc(0.75) within group (order by value::timestamptz)
-                        filter (where f.data_type ~* ''String'' and s.fid ~* ''_time'' and value <> ''nan'')
+                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan'')
             ), ''{}''::jsonb)
         else
           ''{}''::jsonb
         end
       ) stats
-  from '|| _table ||' s
+  from '|| _table ||' t
   inner join cdm_feature f
-  on s.dataset_id = f.dataset_id and s.fid = f.fid
-  where s.dataset_id = '|| _dataset_id ||'
-  group by s.dataset_id, s.fid
-  order by s.fid) M left join histogram_agg ht on ht.fid = M.fid
+  on t.dataset_id = f.dataset_id and t.fid = f.fid
+  where t.dataset_id = '|| _dataset_id || T ||'
+  group by t.dataset_id, t.fid
+  order by t.fid) M left join histogram_agg ht on ht.fid = M.fid
   order by M.fid
   on conflict(dataset_id, id, id_type, cdm_table) do update set stats = excluded.stats';
 end if;
@@ -2893,21 +2926,23 @@ begin
 end
 $$ language plpgsql;
 
-
 create or replace function cdm_feature_present(_dataset_id int)
     returns table(id text, cdm_table text, count int) as
 $$
 begin
 return query
-select f.fid::text, s.cdm_table, coalesce((s.stats->>'cnt')::int, 0) from cdm_feature f inner join cdm_stats s
+select f.fid::text, s.cdm_table, coalesce((s.stats->>'cnt')::int, 0)
+from cdm_feature f left join cdm_stats s
     on f.fid = s.id and f.dataset_id = s.dataset_id
-where f.dataset_id = _dataset_id and
+     and
 (
     (s.cdm_table = 'cdm_twf' and f.category = 'TWF')
   or (s.cdm_table = 'cdm_t' and f.category = 'T')
   or (s.cdm_table = 'cdm_s' and f.category = 'S')
   or (s.cdm_table = 'criteria_meas')
-);
+)
+where f.dataset_id = _dataset_id and f.category in ('T', 'S', 'TWF')
+order by coalesce((s.stats->>'cnt')::int, 0);
 end
 $$ language plpgsql;
 
