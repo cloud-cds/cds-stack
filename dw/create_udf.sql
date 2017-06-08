@@ -2634,9 +2634,11 @@ from
     ''tsp_max'', max(tsp),
     ''tsp_range'', age(max(tsp), min(tsp)),
     ''tsp_mean'', to_timestamp(avg(extract(''epoch'' from tsp))),
+    ''tsp_5%'', percentile_disc(0.05) within group (order by tsp),
     ''tsp_25%'', percentile_disc(0.25) within group (order by tsp),
     ''tsp_50%'', percentile_disc(0.5) within group (order by tsp),
     ''tsp_75%'', percentile_disc(0.75) within group (order by tsp),
+    ''tsp_95%'', percentile_disc(0.95) within group (order by tsp),
     ''cnt_date'', count(distinct tsp::date)
   ) stats_tsp
   from ' || _table || '
@@ -2757,11 +2759,15 @@ if _table = 'cdm_twf' then
                 ''min'' , min('||rec.fid||') filter (where f.data_type ~* ''real|int'')
               , ''max'' , max('||rec.fid||') filter (where f.data_type ~* ''real|int'')
               , ''mean'', avg('||rec.fid||') filter (where f.data_type ~* ''real|int'')
+              , ''5%'' , percentile_disc(0.05) within group (order by '||rec.fid||')
+                          filter (where f.data_type ~* ''real|int'')
               , ''25%'' , percentile_disc(0.25) within group (order by '||rec.fid||')
                           filter (where f.data_type ~* ''real|int'')
               , ''50%'' , percentile_disc(0.5) within group (order by '||rec.fid||')
                           filter (where f.data_type ~* ''real|int'')
               , ''75%'' , percentile_disc(0.75) within group (order by '||rec.fid||')
+                          filter (where f.data_type ~* ''real|int'')
+              , ''95%'' , percentile_disc(0.95) within group (order by '||rec.fid||')
                           filter (where f.data_type ~* ''real|int'')
               ), ''{}''::jsonb)';
     elsif rec.data_type ~* 'bool' then
@@ -2853,23 +2859,31 @@ q = '
               ''min'' , min(value::numeric) filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
             , ''max'' , max(value::numeric) filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
             , ''mean'', avg(value::numeric) filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
-            , ''25%'' , percentile_disc(0.25) within group (order by value::numeric)
+            , ''5%'' , percentile_disc(0.05) within group (order by value::numeric)
                         filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
+            , ''25%'' , percentile_disc(0.25) within group (order by (value::json->>''dose'')::numeric)
+                        filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
             , ''50%'' , percentile_disc(0.5) within group (order by value::numeric)
                         filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
             , ''75%'' , percentile_disc(0.75) within group (order by value::numeric)
                         filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
+            , ''95%'' , percentile_disc(0.95) within group (order by (value::json->>''dose'')::numeric)
+                        filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
             ), ''{}''::jsonb)
         when last(f.data_type) ~* ''json'' and last(f.fid) ~* ''_dose'' then
           coalesce(jsonb_build_object(
               ''min'' , min((value::json->>''dose'')::numeric) filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
             , ''max'' , max((value::json->>''dose'')::numeric) filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
             , ''mean'', avg((value::json->>''dose'')::numeric) filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
+            , ''5%'' , percentile_disc(0.05) within group (order by (value::json->>''dose'')::numeric)
+                        filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
             , ''25%'' , percentile_disc(0.25) within group (order by (value::json->>''dose'')::numeric)
                         filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
             , ''50%'' , percentile_disc(0.5) within group (order by (value::json->>''dose'')::numeric)
                         filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
             , ''75%'' , percentile_disc(0.75) within group (order by (value::json->>''dose'')::numeric)
+                        filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
+            , ''95%'' , percentile_disc(0.95) within group (order by (value::json->>''dose'')::numeric)
                         filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
             ), ''{}''::jsonb)
         when last(f.data_type) ~* ''bool'' then
@@ -2885,12 +2899,16 @@ q = '
                         filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan''),
               ''mean'', avg(value::timestamptz - ''2010-01-01''::timestamptz)
                         filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan'') + ''2010-01-01''::timestamptz,
+              ''5%'' , percentile_disc(0.05) within group (order by value::timestamptz)
+                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan''),
               ''25%'' , percentile_disc(0.25) within group (order by value::timestamptz)
                         filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan''),
               ''50%'' , percentile_disc(0.5) within group (order by value::timestamptz)
                         filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan''),
               ''75%'' , percentile_disc(0.75) within group (order by value::timestamptz)
-                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan'')
+                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan''),
+              ''95%'' , percentile_disc(0.95) within group (order by value::timestamptz)
+                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan''),
             ), ''{}''::jsonb)
         else
           ''{}''::jsonb
@@ -2979,12 +2997,16 @@ select L.fid, L.cdm_table,
               round(abs(((L.stats->>'min')::numeric - (R.stats->>'min')::numeric) / (R.stats->>'mean')::numeric), 3),
               'max_diff_ratio',
               round(abs(((L.stats->>'max')::numeric - (R.stats->>'max')::numeric) / (R.stats->>'mean')::numeric), 3),
+              '5%_diff_ratio',
+              round(abs(((L.stats->>'5%')::numeric - (R.stats->>'5%')::numeric) / (R.stats->>'mean')::numeric), 3),
               '25%_diff_ratio',
               round(abs(((L.stats->>'25%')::numeric - (R.stats->>'25%')::numeric) / (R.stats->>'mean')::numeric), 3),
               '50%_diff_ratio',
               round(abs(((L.stats->>'50%')::numeric - (R.stats->>'50%')::numeric) / (R.stats->>'mean')::numeric), 3),
               '75%_diff_ratio',
-              round(abs(((L.stats->>'75%')::numeric - (R.stats->>'75%')::numeric) / (R.stats->>'mean')::numeric), 3)
+              round(abs(((L.stats->>'75%')::numeric - (R.stats->>'75%')::numeric) / (R.stats->>'mean')::numeric), 3),
+              '95%_diff_ratio',
+              round(abs(((L.stats->>'95%')::numeric - (R.stats->>'95%')::numeric) / (R.stats->>'mean')::numeric), 3)
             )
         else
         '{}'::jsonb
@@ -3231,7 +3253,7 @@ insert into clarity_stats
 on conflict(id, id_type, clarity_workspace, clarity_staging_table) do update
 set stats = excluded.stats
 ', key, value, _clarity_workspace, _clarity_staging_table, value, key, value,
-   key, key, _clarity_workspace, _clarity_staging_table, value, value, value, value, value,
+   key, key, _clarity_workspace, _clarity_staging_table, value, value, value, value, value, value, value, value, value,
    value, value, value, value, value, value, value, value, value, value,
    value, _clarity_workspace, _clarity_staging_table, key);
 end
