@@ -81,8 +81,8 @@
         "s3:*"
       ],
       "Resource": [
-        "arn:aws:s3:::opsdx-kops-prod/cluster.prod.opsdx.io",
-        "arn:aws:s3:::opsdx-kops-prod/cluster.prod.opsdx.io/*"
+        "arn:aws:s3:::opsdx-kops-prod-ml/ml-cluster.prod.opsdx.io",
+        "arn:aws:s3:::opsdx-kops-prod-ml/ml-cluster.prod.opsdx.io/*"
       ]
     },
     {
@@ -92,7 +92,7 @@
         "s3:ListBucket"
       ],
       "Resource": [
-        "arn:aws:s3:::opsdx-kops-prod"
+        "arn:aws:s3:::opsdx-kops-prod-ml"
       ]
     }
   ]

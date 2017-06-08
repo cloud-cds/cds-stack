@@ -110,7 +110,7 @@ resource "aws_cloudwatch_metric_alarm" "nodes_inservice" {
   namespace                 = "AWS/AutoScaling"
   period                    = "60"
   statistic                 = "Minimum"
-  threshold                 = "5"
+  threshold                 = "0"
   alarm_description         = "Prod nodes in service for the last minute"
   alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
@@ -120,12 +120,48 @@ resource "aws_cloudwatch_metric_alarm" "nodes_inservice" {
   }
 }
 
+resource "aws_cloudwatch_metric_alarm" "web_nodes_inservice" {
+  alarm_name                = "${var.deploy_prefix}-web-nodes-inservice"
+  comparison_operator       = "LessThanThreshold"
+  evaluation_periods        = "1"
+  metric_name               = "GroupInServiceInstances"
+  namespace                 = "AWS/AutoScaling"
+  period                    = "60"
+  statistic                 = "Minimum"
+  threshold                 = "2"
+  alarm_description         = "Webservers in service for the last minute"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    AutoScalingGroupName = "web.cluster.prod.opsdx.io"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "etl_nodes_inservice" {
+  alarm_name                = "${var.deploy_prefix}-etl-nodes-inservice"
+  comparison_operator       = "LessThanThreshold"
+  evaluation_periods        = "1"
+  metric_name               = "GroupInServiceInstances"
+  namespace                 = "AWS/AutoScaling"
+  period                    = "60"
+  statistic                 = "Minimum"
+  threshold                 = "1"
+  alarm_description         = "ETL nodes in service for the last minute"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    AutoScalingGroupName = "etl.cluster.prod.opsdx.io"
+  }
+}
+
 # ETL failures
 resource "aws_cloudwatch_metric_alarm" "etl_up" {
   alarm_name                = "${var.deploy_prefix}-etl-up"
   comparison_operator       = "LessThanThreshold"
   evaluation_periods        = "2"
-  metric_name               = "ExTrLoTime"
+  metric_name               = "NumBeddedPatients"
   namespace                 = "OpsDX"
   period                    = "3600"
   statistic                 = "SampleCount"
@@ -154,8 +190,7 @@ resource "aws_cloudwatch_metric_alarm" "ping_up" {
   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
 
   dimensions {
-    Source = "damsl.cs.jhu.edu",
-    Stack  = "Prod"
+    PingStack  = "Prod"
   }
 }
 
@@ -196,5 +231,63 @@ resource "aws_cloudwatch_metric_alarm" "high_browser_latency" {
 
   dimensions {
     Browser = "opsdx-prod"
+  }
+}
+
+# ELB Backend connection failures per zone.
+resource "aws_cloudwatch_metric_alarm" "elb_connfail_1a" {
+  alarm_name                = "${var.deploy_prefix}-elb-connections-failed-1a"
+  comparison_operator       = "GreaterThanThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "BackendConnectionErrors"
+  namespace                 = "AWS/ELB"
+  period                    = "60"
+  statistic                 = "Sum"
+  threshold                 = "0"
+  alarm_description         = "Number of ELB connection failures in the past minute"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    LoadBalancerName = "a6559e9293af811e7b56f0ed17214100"
+    AvailabilityZone = "us-east-1a"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "elb_connfail_1c" {
+  alarm_name                = "${var.deploy_prefix}-elb-connections-failed-1c"
+  comparison_operator       = "GreaterThanThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "BackendConnectionErrors"
+  namespace                 = "AWS/ELB"
+  period                    = "60"
+  statistic                 = "Sum"
+  threshold                 = "0"
+  alarm_description         = "Number of ELB connection failures in the past minute"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    LoadBalancerName = "a6559e9293af811e7b56f0ed17214100"
+    AvailabilityZone = "us-east-1c"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "elb_connfail_1d" {
+  alarm_name                = "${var.deploy_prefix}-elb-connections-failed-1d"
+  comparison_operator       = "GreaterThanThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "BackendConnectionErrors"
+  namespace                 = "AWS/ELB"
+  period                    = "60"
+  statistic                 = "Sum"
+  threshold                 = "0"
+  alarm_description         = "Number of ELB connection failures in the past minute"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    LoadBalancerName = "a6559e9293af811e7b56f0ed17214100"
+    AvailabilityZone = "us-east-1d"
   }
 }

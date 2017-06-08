@@ -4,6 +4,15 @@
     {
       "Effect": "Allow",
       "Action": [
+        "ec2:Describe*"
+      ],
+      "Resource": [
+        "*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
         "ecr:GetAuthorizationToken",
         "ecr:BatchCheckLayerAvailability",
         "ecr:GetDownloadUrlForLayer",
@@ -11,36 +20,6 @@
         "ecr:DescribeRepositories",
         "ecr:ListImages",
         "ecr:BatchGetImage"
-      ],
-      "Resource": [
-        "*"
-      ]
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "ec2:*"
-      ],
-      "Resource": [
-        "*"
-      ]
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "elasticloadbalancing:*"
-      ],
-      "Resource": [
-        "*"
-      ]
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "autoscaling:DescribeAutoScalingGroups",
-        "autoscaling:DescribeAutoScalingInstances",
-        "autoscaling:SetDesiredCapacity",
-        "autoscaling:TerminateInstanceInAutoScalingGroup"
       ],
       "Resource": [
         "*"
@@ -81,8 +60,8 @@
         "s3:*"
       ],
       "Resource": [
-        "arn:aws:s3:::opsdx-kops-prod/cluster.prod.opsdx.io",
-        "arn:aws:s3:::opsdx-kops-prod/cluster.prod.opsdx.io/*"
+        "arn:aws:s3:::opsdx-kops-prod-ml/ml-cluster.prod.opsdx.io",
+        "arn:aws:s3:::opsdx-kops-prod-ml/ml-cluster.prod.opsdx.io/*"
       ]
     },
     {
@@ -92,7 +71,7 @@
         "s3:ListBucket"
       ],
       "Resource": [
-        "arn:aws:s3:::opsdx-kops-prod"
+        "arn:aws:s3:::opsdx-kops-prod-ml"
       ]
     }
   ]

@@ -122,7 +122,7 @@ Assets:
 - 661289336f118e82194000adc63f2b72f449636e@https://kubeupv2.s3.amazonaws.com/kops/1.5.3/linux/amd64/utils.tar.gz
 ClusterName: cluster.prod.opsdx.io
 ConfigBase: s3://opsdx-kops-prod/cluster.prod.opsdx.io
-InstanceGroupName: master-us-east-1d
+InstanceGroupName: web
 Tags:
 - _automatic_upgrades
 - _aws
@@ -131,7 +131,6 @@ Tags:
 - _cni_host_local
 - _cni_loopback
 - _cni_ptp
-- _kubernetes_master
 - _kubernetes_pool
 - _networking_cni
 - _protokube

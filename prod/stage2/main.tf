@@ -10,3 +10,7 @@ module "k8s" {
   source = "./k8s"
   dummy_file = "foo"
 }
+
+module "k8s_ml" {
+  source = "./k8s-ml"
+}

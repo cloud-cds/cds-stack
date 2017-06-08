@@ -107,7 +107,7 @@ def try_to_read_from_environ(var_str, default_val):
 
 BEHAMON_MODE = try_to_read_from_environ('BEHAMON_MODE','watcher')
 BEHAMON_STACK = try_to_read_from_environ('BEHAMON_STACK','dev')
-BEHAMON_WEB_LOG_LISTEN = try_to_read_from_environ('BEHAMON_WEB_LOG_LISTEN','opsdx-web-logs-dev')
+BEHAMON_WEB_LOG_LISTEN = try_to_read_from_environ('BEHAMON_WEB_LOG_LISTEN','opsdx-web-logs-prod')
 BEHAMON_WEB_FILT_STR = try_to_read_from_environ('BEHAMON_WEB_FILT_STR','*USERID*')
 BEHAMON_WEB_LOG_STREAM_STR = try_to_read_from_environ('BEHAMON_WEB_LOG_STREAM_STR','monitoring')
 BEHAMON_TS_RULE_PERIOD_MINUTES = float(try_to_read_from_environ('BEHAMON_TS_RULE_PERIOD_MINUTES','10'))
@@ -192,11 +192,14 @@ def datetime_2_utc_str(df, tz_in_str='US/Eastern', column_list=None):
   return df
 
 def get_db_engine():
+
+
   host          = os.environ['db_host']
   port          = os.environ['db_port']
   db            = os.environ['db_name']
   user          = os.environ['db_user']
   pw            = os.environ['db_password']
+
   conn_str      = 'postgresql://{}:{}@{}:{}/{}'.format(user, pw, host, port, db)
 
   engine = sqlalchemy.create_engine(conn_str)
@@ -211,12 +214,12 @@ def data_2_db(sql_table_name, data_in,dtype_dict=None):
   results = datetime_2_utc_str(results)
 
   pat = re.compile('test_.*')
+
   results = results.loc[results['doc_id'].apply(lambda x: re.match(pat, x) is None)]
 
-  results['doc_id'] = results['doc_id'].apply(lambda x: x[1::])
+  results['doc_id'] = results['doc_id'].apply(lambda x: x[1::] if x[0] == '+' else x)
 
   results = results[results['pat_id'].notnull()&results['tsp'].notnull()&results['doc_id'].notnull()]
-
 
   # =============================
   # Upsert to Database
@@ -225,28 +228,41 @@ def data_2_db(sql_table_name, data_in,dtype_dict=None):
 
   nrows = results.shape[0]
 
-  temp_table_name = 'temp' + sql_table_name
+  temp_table_name = 'temp_2_' + sql_table_name
 
   logger.debug("saving data frame to {}: nrows = {}".format(temp_table_name, nrows))
 
   connection = engine.connect()
   connection.execute("""DROP TABLE IF EXISTS {}""".format(temp_table_name))
 
-  if dtype_dict is None:
-    results.to_sql(temp_table_name, engine, if_exists='append', index=False, schema='public')
-  else:
-    results.to_sql(temp_table_name, engine, if_exists='append', index=False, schema='public', dtype=dtype_dict)
+  # if dtype_dict is None:
+  #   results.to_sql(temp_table_name, engine, if_exists='append', index=False, schema='public')
+  # else:
+
+  results.to_sql(temp_table_name, engine, if_exists='append', index=False, schema='public', dtype=dtype_dict)
 
   insert_visit_sql = """
       insert into {} (doc_id, tsp, pat_id, visit_id, loc, dep, raw_url)
-      select distinct doc_id, tsp, pat_id, visit_id, loc, dep, raw_url from {}
+      select distinct doc_id, tsp, pat_id, last(visit_id), last(loc), last(dep), last(raw_url)
+      from {}
+      group by doc_id, tsp, pat_id
+      order by tsp
       on conflict (doc_id, tsp, pat_id)
       DO UPDATE SET visit_id = EXCLUDED.visit_id, loc = EXCLUDED.loc, dep = EXCLUDED.dep, raw_url = EXCLUDED.raw_url;
       """.format(sql_table_name, temp_table_name)
 
+  # insert_visit_sql = """
+  #     insert into {} (doc_id, tsp, pat_id, visit_id, loc, dep, raw_url)
+  #     select distinct doc_id, tsp, pat_id, visit_id, loc, dep, raw_url from {}
+  #     """.format(sql_table_name, temp_table_name)
+
   connection.execute(insert_visit_sql)
+
+  connection.execute("""DROP TABLE IF EXISTS {}""".format(temp_table_name))
+
   connection.close()
   engine.dispose()
+  print("Results Written")
   return results
 
 def getfiltLogEvent(firstTime, lasTime, client,
@@ -609,8 +625,8 @@ def get_users_in_interval(firstTime, lastTime):
 
 def batch_proc_main(firstTime, lastTime):
     get_users_in_interval(firstTime, lastTime)
-    calc_behamon_ts_metrics(firstTime, lastTime)
-    calc_behamon_report_metrics(firstTime, lastTime)
+    # calc_behamon_ts_metrics(firstTime, lastTime)
+    # calc_behamon_report_metrics(firstTime, lastTime)
 
 
 #==================================================
@@ -658,5 +674,5 @@ def handler(event, context):
 
 
 if __name__ == '__main__':
-  batch_proc_main(datetime.utcnow()-timedelta(days=1),datetime.utcnow())
+  batch_proc_main(datetime.utcnow()-timedelta(days=29),datetime.utcnow()) # maxes to 30 days
 
