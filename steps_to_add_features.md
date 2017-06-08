@@ -58,7 +58,7 @@ Write sql/python function to extract measured feature(s) from clarity
 These functions can often be easily developed and intially tested offline without running the entire ETL.
 
 ## Step 3: Document the Extraction
-Select a dataset you'd like to do the extractio on.
+Select a dataset you'd like to do the extraction on.
 
 Update CDM_feature.csv file in
 dashan-db/dw/clarity2dw/datasetX/CDM_Feature.csv
