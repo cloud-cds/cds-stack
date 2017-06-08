@@ -3135,9 +3135,9 @@ begin
   queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
     _clarity_workspace, 'MedicalHistory', 'Code', 'CSN_ID'));
   queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
-    _clarity_workspace, 'MedicalHistory', 'ICD-9          Code    category', 'Code'));
+    _clarity_workspace, 'MedicalHistory', 'ICD-9 Code category', 'Code'));
   queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
-    _clarity_workspace, 'MedicalHistory', 'ICD-9          Code    category', 'CSN_ID'));
+    _clarity_workspace, 'MedicalHistory', 'ICD-9 Code category', 'CSN_ID'));
   -- medication administration
   queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
     _clarity_workspace, 'MedicationAdministration', 'display_name', 'ActionTaken'));

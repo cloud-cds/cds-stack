@@ -44,7 +44,7 @@ create table {workspace}."Diagnoses"
  ,"Annotation"    text
  ,"COMMENTS"      text
  ,"DX_CHRONIC_YN" text
- ,"ICD-9          Code    category" text
+ ,"ICD-9 Code category" text
 );
 \copy {workspace}."Diagnoses" from '{folder}diag.{ext}' with csv delimiter as E'\t' NULL 'NULL';
 create index diag_idx_code on {workspace}."Diagnoses" ("Code");
