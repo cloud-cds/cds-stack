@@ -2794,12 +2794,12 @@ if _table = 'cdm_twf' then
   end loop;
   perform distribute(server, queries, nprocs);
 else
-T = '';
-if _table in ('cdm_t', 'cdm_twf', 'criteria_meas') then
-  T = ' and t.tsp between '''|| start_tsp ||'''::timestamptz
-    and '''||end_tsp||'''::timestamptz';
-end if;
-q = '
+  T = '';
+  if _table in ('cdm_t', 'cdm_twf', 'criteria_meas') then
+    T = ' and t.tsp between '''|| start_tsp ||'''::timestamptz
+      and '''||end_tsp||'''::timestamptz';
+  end if;
+  q = '
   with v as (
     select t.fid,
     (case when f.data_type ~* ''real|int'' then t.value
@@ -2861,14 +2861,14 @@ q = '
             , ''mean'', avg(value::numeric) filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
             , ''5%'' , percentile_disc(0.05) within group (order by value::numeric)
                         filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
-            , ''25%'' , percentile_disc(0.25) within group (order by (value::json->>''dose'')::numeric)
-                        filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
+            , ''25%'' , percentile_disc(0.25) within group (order by value::numeric)
+                        filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
             , ''50%'' , percentile_disc(0.5) within group (order by value::numeric)
                         filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
             , ''75%'' , percentile_disc(0.75) within group (order by value::numeric)
                         filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
-            , ''95%'' , percentile_disc(0.95) within group (order by (value::json->>''dose'')::numeric)
-                        filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
+            , ''95%'' , percentile_disc(0.95) within group (order by value::numeric)
+                        filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
             ), ''{}''::jsonb)
         when last(f.data_type) ~* ''json'' and last(f.fid) ~* ''_dose'' then
           coalesce(jsonb_build_object(
