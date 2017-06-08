@@ -3183,6 +3183,7 @@ begin
     _clarity_workspace, 'ProblemList', 'departmentid', 'codecategory'));
   queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
     _clarity_workspace, 'ProblemList', 'codecategory', 'departmentid'));
+  perform distribute(server, queries, nprocs);
 end
 $$ language plpgsql;
 
@@ -3215,11 +3216,15 @@ insert into clarity_stats
       ''min'', min(%I::numeric) filter (where isnumeric(%I)),
       ''max'', max(%I::numeric) filter (where isnumeric(%I)),
       ''mean'', avg(%I::numeric) filter (where isnumeric(%I)),
+      ''5%%'' , percentile_disc(0.05) within group (order by %I::numeric)
+                        filter (where isnumeric(%I)),
       ''25%%'' , percentile_disc(0.25) within group (order by %I::numeric)
                         filter (where isnumeric(%I)),
       ''50%%'' , percentile_disc(0.50) within group (order by %I::numeric)
                         filter (where isnumeric(%I)),
       ''75%%'' , percentile_disc(0.75) within group (order by %I::numeric)
+                        filter (where isnumeric(%I)),
+      ''95%%'' , percentile_disc(0.95) within group (order by %I::numeric)
                         filter (where isnumeric(%I))
     ) stats
   from %I.%I group by %I) M left join kv_cnt_jsonb kv on M.id = kv.k
