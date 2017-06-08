@@ -31,10 +31,10 @@ Using the dictionary tables below:
 Understand where the data is in clarity. Look at the data in the clarity database to get some intution about what the data looks like.
 
 There are a few versions of a couple of tables (e.g. Labs, Labs_643). In those cases both should be checked.
-Dict to table Mapping
-"lab_dict" to "Labs" and "Labs_643";
-"lab_proc_dict" to "OrderProcs" and "OrderProcs_643"
-"flowsheet_dict  to "FlowsheetValue","FlowsheetValue-LDA","FlowsheetValue_643"
+Dict to table Mapping:
+ - "lab_dict" to "Labs" and "Labs_643";
+ - "lab_proc_dict" to "OrderProcs" and "OrderProcs_643"
+ - "flowsheet_dict  to "FlowsheetValue","FlowsheetValue-LDA","FlowsheetValue_643"
 
 In some cases the dicts may have missing or misleading entries, it's always good to check against the clarity tables 
  themselves to see themselves to see if an extry exsits;
@@ -80,7 +80,9 @@ note, running that file will delete all the data in CDM. The ETL will have to be
 
 
 ## Step 6:
-setup, run, and debug the ET
+setup, run, and debug the ET, see a readme on how to do that here:
+https://github.com/dashan-emr/dashan-etl/wiki/ETL-checklist-template
+
 
 # Steps to add derived features to CDM (Template Method) :
 
@@ -112,8 +114,8 @@ Run the create_c2dw.sql file located in that same directory to push your updates
 Import your extraction function into dashan-etl/etl/load/tbl/derive.py
 
 ## Step 4: ETL
-
-
+setup, run, and debug the ET, see a readme on how to do that here:
+https://github.com/dashan-emr/dashan-etl/wiki/ETL-checklist-template
 
 
 
