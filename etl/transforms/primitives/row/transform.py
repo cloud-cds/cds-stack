@@ -170,6 +170,19 @@ def convert_lab_value_to_real(entry, log):
         # traceback.print_exc(file=sys.stdout)
         return None
 
+def convert_lymph_abs_to_real(entry, log):
+    value = entry['ResultValue']
+    unit = entry['REFERENCE_UNIT']
+    try:
+        if unit == 'cells/uL':
+            return [float(value/1000.0), confidence.VALUE_TRANSFORMED]
+        else:
+            return [float(value), confidence.NO_TRANSFORM]
+    except:
+        log.warn("Invalid convert_lab_value_to_real entry: %s" % entry)
+        # traceback.print_exc(file=sys.stdout)
+        return None
+
 def convert_to_ngdl(entry, log):
     value = entry['ResultValue']
     unit = entry['REFERENCE_UNIT']
