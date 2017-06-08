@@ -31,10 +31,10 @@ Using the dictionary tables below:
 Understand where the data is in clarity. Look at the data in the clarity database to get some intution about what the data looks like.
 
 There are a few versions of a couple of tables (e.g. Labs, Labs_643). In those cases both should be checked.
-Dict to table Mapping
-"lab_dict" to "Labs" and "Labs_643";
-"lab_proc_dict" to "OrderProcs" and "OrderProcs_643"
-"flowsheet_dict  to "FlowsheetValue","FlowsheetValue-LDA","FlowsheetValue_643"
+Dict to table Mapping:
+ - "lab_dict" to "Labs" and "Labs_643";
+ - "lab_proc_dict" to "OrderProcs" and "OrderProcs_643"
+ - "flowsheet_dict  to "FlowsheetValue","FlowsheetValue-LDA","FlowsheetValue_643"
 
 In some cases the dicts may have missing or misleading entries, it's always good to check against the clarity tables 
  themselves to see themselves to see if an extry exsits;
