@@ -2908,7 +2908,7 @@ q = '
               ''75%'' , percentile_disc(0.75) within group (order by value::timestamptz)
                         filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan''),
               ''95%'' , percentile_disc(0.95) within group (order by value::timestamptz)
-                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan''),
+                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan'')
             ), ''{}''::jsonb)
         else
           ''{}''::jsonb
