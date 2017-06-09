@@ -246,7 +246,7 @@ class JHAPIConfig:
       'idtype'   : 'patient',
       'dateFrom' : self.dateFrom,
       'dateTo'   : dateTo.strftime('%Y-%m-%d'),
-    } for pat in pat_id_df.iterrows()]
+    } for _, pat in pat_id_df.iterrows()]
     responses = self.make_requests(ctxt, resource, payloads, 'GET')
     dfs = [pd.DataFrame(r['Contacts'] if r else None) for r in responses]
     return self.combine(dfs, pat_id_df)
