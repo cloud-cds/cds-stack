@@ -128,7 +128,7 @@ async def calc_num_administrations(output_fid, input_fid_string, conn, log, data
   select              {insert_const}    enc_id, tsp, '{output_fid}', num_administrations, confidence
   from num_administrations 
   """.format(input_fid = input_fid_string,
-             lookback = parameters['lookback_hours'] + ' hours',
+             lookback = str(parameters['lookback_hours']) + ' hours',
              output_fid = output_fid,
              dataset_id_block = 'dataset_id,' if dataset_id is not None else '',
              dataset_id_where = 'dataset_id = {} and '.format(dataset_id) if  dataset_id is not None else '',
