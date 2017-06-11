@@ -71,7 +71,7 @@ logging.info('''TREWS Security Configuration::
   ''' % ('on' if encrypted_query else 'off', \
          'on' if trews_app_key else 'off', \
          'on' if trews_admin_key else 'off', \
-         'on' if trews_open_access.lower() == 'true' else 'off')
+         'on' if trews_open_access and trews_open_access.lower() == 'true' else 'off')
   )
 
 ###################################

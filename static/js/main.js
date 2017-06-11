@@ -16,6 +16,13 @@ function isString(obj) {
   return Object.prototype.toString.call(obj) === '[object String]';
 }
 
+if (!String.prototype.startsWith) {
+    String.prototype.startsWith = function(searchString, position){
+      position = position || 0;
+      return this.substr(position, searchString.length) === searchString;
+  };
+}
+
 window.onload = function() {
   timer.init();
   endpoints.getPatientData();
@@ -192,8 +199,14 @@ var endpoints = new function() {
       this.test();
       return;
     }
+    // Location filtering: HCGH-only for now.
+    if ( postBody['loc'] == null || !postBody['loc'].startsWith('1103') ) {
+      $('#loading p').html("TREWS is in beta testing, and is only available at Howard County General Hospital.<br/>Please contact trews-jhu@opsdx.io for more information on availability at your location.<br/>");
+      return;
+    }
+    // Ensure a valid Patient ID.
     if (postBody['q'] == null) {
-      $('#loading p').html("No Patient Identifier entered. Please restart application or contact trews-jhu@opsdx.io<br />" + window.location);
+      $('#loading p').html("No Patient Identifier entered. Please restart application or contact trews-jhu@opsdx.io<br/>" + window.location);
       return;
     }
     $.ajax({
@@ -1151,11 +1164,18 @@ var deterioration = new function() {
 var dropdown = new function() {
   this.d = $('#dropdown');
   this.ctn = $("<div id='dropdown-content'></div>");
+  this.susCtn = $("<div id='dropdown-sus-content'></div>"); // Pre-materialized infection dropdown.
   this.init = function() {
+    this.initSus(); // Build, but do not append, susCtn.
     this.d.append(this.ctn);
   }
   this.reset = function() {
     $('.edit-btn').removeClass('shown');
+    if ( this.susCtn == null ) {
+      var infectionOther = $("#infection-other");
+      infectionOther.html("");
+      this.susCtn = $("#dropdown-sus-content").detach();
+    }
     this.ctn.html("");
   }
   this.getCtnElem = function(id) {
@@ -1176,27 +1196,34 @@ var dropdown = new function() {
       "criteria": criteria
     };
   }
-  this.sus = function() {
+  this.initSus = function() {
     for (var i in INFECTIONS) {
       var s = $('<h5 class="dropdown-link"></h5>').text(INFECTIONS[i]);
-      this.ctn.append(s);
+      this.susCtn.append(s);
     }
-    var otherValue = trews.data.severe_sepsis.suspicion_of_infection.other ? trews.data.severe_sepsis.suspicion_of_infection.value : ""
-    this.ctn.append("<div id='infection-other'><input placeholder='Other' value='" + otherValue + "'/><span>Submit</span></div>")
+    this.susCtn.append("<div id='infection-other'></div>")
     $('#infection-other').unbind()
     $('#infection-other').click(function(e) {
       e.stopPropagation()
     })
+    $('.dropdown-link').click(function() {
+      var action = dropdown.getAction($(this).text());
+      endpoints.getPatientData("suspicion_of_infection", action);
+    });
+  }
+  this.sus = function() {
+    var infectionOther = $("#infection-other");
+    var otherValue = "";
+    if ( trews.data && trews.data.severe_sepsis ) {
+      otherValue = trews.data.severe_sepsis.suspicion_of_infection.other ? trews.data.severe_sepsis.suspicion_of_infection.value : "";
+    }
+    infectionOther.append("<input placeholder='Other' value='" + otherValue + "'/><span>Submit</span>")
     $('#infection-other span').unbind()
     $('#infection-other span').click(function() {
       var action = {"actionName": "sus-edit", "other": $('#infection-other input').val()}
       endpoints.getPatientData("suspicion_of_infection", action);
       dropdown.d.fadeOut(300);
     })
-    $('.dropdown-link').click(function() {
-      var action = dropdown.getAction($(this).text());
-      endpoints.getPatientData("suspicion_of_infection", action);
-    });
   }
   this.editFields = function(field) {
     var allCriteria = trews.getCriteria(field);
@@ -1217,10 +1244,16 @@ var dropdown = new function() {
   }
   this.fill = function(i) {
     this.d.attr('data-trews', i);
-    if (i === 'sus-edit')
-      this.sus();
-    else
+    if (i === 'sus-edit') {
+      if ( this.susCtn != null ) {
+        this.susCtn.appendTo(this.d);
+        this.susCtn = null;
+        this.sus();
+      }
+    }
+    else {
       this.editFields(i);
+    }
   }
   this.draw = function(x, y) {
     this.d.css({
