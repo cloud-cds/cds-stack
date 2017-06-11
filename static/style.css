@@ -400,6 +400,12 @@ body.waiting {
     max-height: 350px;
     overflow-y: auto;
 }
+#dropdown-sus-content {
+    width: 100%;
+    padding: 5px;
+    max-height: 350px;
+    overflow-y: auto;
+}
 #dropdown h5 {
     font-weight: 400;
     font-size: 14px;

@@ -1,13 +1,13 @@
 var INFECTIONS = [
-"Endocarditis",
-"Meningitis",
-"Infections",
-"Bacteremia",
-"Cellulitis",
-"UTI",
-"Pneumonia",
-"No Infection",
-"Reset"
+	"Endocarditis",
+	"Meningitis",
+	"Infections",
+	"Bacteremia",
+	"Cellulitis",
+	"UTI",
+	"Pneumonia",
+	"No Infection",
+	"Reset"
 ]
 
 var DETERIORATIONS = [
