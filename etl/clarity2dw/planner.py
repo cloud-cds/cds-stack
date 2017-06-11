@@ -29,7 +29,7 @@ job_config = {
       if 'remove_pat_enc' in os.environ else True,
     'remove_data': os.environ['remove_data'] == 'True' \
       if 'remove_data' in os.environ else True,
-    'start_enc_id': int(os.environ['start_enc_id']) \
+    'start_enc_id': os.environ['start_enc_id'] \
       if 'start_enc_id' in os.environ else 1
   } ,
   'transform': False if 'transform' in os.environ \
