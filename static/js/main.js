@@ -70,6 +70,8 @@ var trews = new function() {
         return this.data['severe_sepsis']['sirs']['criteria'];
       case 'org':
         return this.data['severe_sepsis']['organ_dysfunction']['criteria'];
+      case 'organ_dysfunction':
+        return this.data['severe_sepsis']['organ_dysfunction']['criteria'];
       case 'tension':
         return this.data['septic_shock']['hypotension']['criteria'];
       case 'fusion':
@@ -1202,11 +1204,11 @@ var dropdown = new function() {
       this.susCtn.append(s);
     }
     this.susCtn.append("<div id='infection-other'></div>")
-    $('#infection-other').unbind()
-    $('#infection-other').click(function(e) {
+    this.susCtn.find('#infection-other').unbind()
+    this.susCtn.find('#infection-other').click(function(e) {
       e.stopPropagation()
     })
-    $('.dropdown-link').click(function() {
+    this.susCtn.find('.dropdown-link').click(function() {
       var action = dropdown.getAction($(this).text());
       endpoints.getPatientData("suspicion_of_infection", action);
     });
@@ -1296,7 +1298,7 @@ var overrideModal = new function() {
     return html;
   }
   this.makeSliders = function(data, index) {
-    var o = trews.data[this.card][this.slot]['criteria'][this.criteria]['override_value'];
+    var o = trews.getCriteria(this.slot)[this.criteria]['override_value'];
 
     if (data['range'] === "true") {
       $(".slider-range[data-trews='" + data['id'] + "']").slider({
