@@ -150,14 +150,16 @@ async def calc_acute_heart_failure(output_fid, input_fid_string, conn, log, data
     input_fid = [item.strip() for item in input_fid_string.split(',')]
 
     assert input_fid[0] == 'acute_heart_failure_icd9_diag' and \
-           input_fid[1] == 'acute_heart_failure_icd9_prob' and input_fid[2] == 'furosemide_IV_num_admin', \
+           input_fid[1] == 'acute_heart_failure_icd9_prob' and \
+           input_fid[2] == 'furosemide_IV_num_admin' and \
+           input_fid[3] == 'bumetanide_IV_num_admin', \
         'wrong fid_input %s' % input_fid_string
 
     select_sql = """with
     acute_df as
     (with acute_tbl as (select * from cdm_s where {dataset_id_where} fid ilike 'acute_heart_failure_icd9_diag' or fid ilike 'acute_heart_failure_icd9_prob') select distinct enc_id from acute_tbl),
     furo_df as
-    (select * from cdm_t where {dataset_id_where} fid ilike 'furosemide_IV_num_admin' and value::integer > 1),
+    (select * from cdm_t where {dataset_id_where} (fid ilike 'furosemide_IV_num_admin' or fid ilike 'bumetanide_IV_num_admin') and value::integer > 1),
     final as
     (select {furo_dataset} coalesce(acute_df.enc_id, furo_df.enc_id) as enc_id, furo_df.fid, furo_df.value, furo_df.confidence from furo_df inner join acute_df on furo_df.enc_id = acute_df.enc_id
     order by enc_id, tsp)
