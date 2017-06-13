@@ -49,7 +49,7 @@ FROM
     --no patients that are still present in hospital
     HOSP_DISCH_TIME IS NOT NULL
     --admitted between the dates in your cohort
-    AND HOSP_ADMSN_TIME BETWEEN '{start_date}' AND '{end_date}'
+    AND HOSP_ADMSN_TIME >= '{start_date}' AND HOSP_ADMSN_TIME < '{end_date}'
 ) A (csn, pat_id, pat_mrn_id);
 
 -- DO NOT RUN THIS CODE UNTIL YOU'VE ALTERED THE DATES IN THE COHORT, OTHERWISE IT WILL CREATE DUPLICATE RECORDS!!!
@@ -104,7 +104,7 @@ FROM
     --no patients that are still present in hospital
     HOSP_DISCH_TIME IS NOT NULL
     --admitted between the dates in your cohort
-    AND HOSP_ADMSN_TIME BETWEEN '{start_date}' AND '{end_date}'
+    AND HOSP_ADMSN_TIME >= '{start_date}' AND HOSP_ADMSN_TIME < '{end_date}'
 ) A (pat_id, pat_mrn_id, identity_id);
 GO
 
