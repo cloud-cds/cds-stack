@@ -18,8 +18,8 @@ med_regex = [
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
         'part_of': ['cms_antibiotics'],
     }, {
-        'fid': 'aztronam_dose',
-        'pos': '^aztronam',
+        'fid': 'aztreonam_dose',
+        'pos': '^aztreonam',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
         'part_of': ['cms_antibiotics'],
     }, {
