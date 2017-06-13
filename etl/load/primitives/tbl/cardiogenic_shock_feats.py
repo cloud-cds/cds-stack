@@ -150,14 +150,16 @@ async def calc_acute_heart_failure(output_fid, input_fid_string, conn, log, data
     input_fid = [item.strip() for item in input_fid_string.split(',')]
 
     assert input_fid[0] == 'acute_heart_failure_icd9_diag' and \
-           input_fid[1] == 'acute_heart_failure_icd9_prob' and input_fid[2] == 'furosemide_IV_num_admin', \
+           input_fid[1] == 'acute_heart_failure_icd9_prob' and \
+           input_fid[2] == 'furosemide_IV_num_admin' and \
+           input_fid[3] == 'bumetanide_IV_num_admin', \
         'wrong fid_input %s' % input_fid_string
 
     select_sql = """with
     acute_df as
     (with acute_tbl as (select * from cdm_s where {dataset_id_where} fid ilike 'acute_heart_failure_icd9_diag' or fid ilike 'acute_heart_failure_icd9_prob') select distinct enc_id from acute_tbl),
     furo_df as
-    (select * from cdm_t where {dataset_id_where} fid ilike 'furosemide_IV_num_admin' and value::integer > 1),
+    (select * from cdm_t where {dataset_id_where} (fid ilike 'furosemide_IV_num_admin' or fid ilike 'bumetanide_IV_num_admin') and value::integer > 1),
     final as
     (select {furo_dataset} coalesce(acute_df.enc_id, furo_df.enc_id) as enc_id, furo_df.fid, furo_df.value, furo_df.confidence from furo_df inner join acute_df on furo_df.enc_id = acute_df.enc_id
     order by enc_id, tsp)
@@ -247,3 +249,51 @@ async def calc_cardiogenic_shock(output_fid, input_fid_string, conn, log, datase
     log.info("fid {fid}:{sql}".format(fid=output_fid, sql=insert_sql))
 
     return output_fid
+
+
+async def code_doc_note_update(output_fid, input_fid_string, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
+
+    assert output_fid == 'code_doc_note', 'output fid should be code_doc_note'
+
+    input_fid = [item.strip() for item in input_fid_string.split(',')]
+
+    assert input_fid[0] == 'hosp_admsn_time' and input_fid[1] == 'discharge', \
+        'wrong fid_input %s' % input_fid_string
+
+    select_sql = """with tbl1 as (select pat_id, note_id, note_type, note_status, (dates::json #>>'{{create_instant_dttm}}')::timestamptz as create_tsp from cdm_notes where {dataset_id_where} note_type ilike 'code documentation' order by pat_id, note_id),
+    tbl2 as (select pat_id, enc_id from pat_enc where {dataset_id_where} pat_id in (select distinct pat_id from cdm_notes where {dataset_id_where} note_type ilike 'code documentation')),
+    tbl3 as (select enc_id, value::timestamptz as admsn_time from cdm_s where {dataset_id_where} fid ilike 'hosp_admsn_time' and enc_id in (select enc_id from pat_enc where {dataset_id_where} pat_id in (select distinct pat_id from cdm_notes where note_type ilike 'code documentation'))),
+    tbl4 as (select enc_id, tsp as discharge_time from cdm_t where {dataset_id_where} fid ilike 'discharge' and enc_id in (select enc_id from pat_enc where {dataset_id_where} pat_id in (select distinct pat_id from cdm_notes where note_type ilike 'code documentation'))),
+    tbl5 as (select coalesce(tbl3.enc_id, tbl4.enc_id) as enc_id, admsn_time, discharge_time from tbl3 join tbl4 on tbl3.enc_id = tbl4.enc_id),
+    tbl6 as (select coalesce(tbl5.enc_id, tbl2.enc_id) as enc_id, pat_id, admsn_time, discharge_time from tbl5 join tbl2 on tbl5.enc_id = tbl2.enc_id)
+    select coalesce(tbl1.pat_id, tbl6.pat_id) as pat_id, tbl6.enc_id, note_id, note_type, note_status, create_tsp, admsn_time, discharge_time from tbl1 full join tbl6 on tbl1.pat_id = tbl6.pat_id where tbl1.create_tsp between tbl6.admsn_time and tbl6.discharge_time order by note_id;"""
+    select_df = await conn.fetch(select_sql.format(dataset_id_where = 'dataset_id = {} and '.format(dataset_id) if  dataset_id is not None else ''))
+    insert_sql = """insert into cdm_t ({dataset_id_block} enc_id, tsp, fid, value, confidence) values ({dataset_id} {enc_id}, '{tsp}', '{fid}', '{value}', {confidence})"""
+    distinct = {}
+    for i in select_df:
+        enc_id = i['enc_id']
+        pat_id = i['pat_id']
+        note_type = i['note_type']
+        note_status = i['note_status']
+        tsp = i['create_tsp']
+        note_id = i['note_id']
+        if enc_id not in distinct:
+            distinct[enc_id] = [tsp]
+            value = json.dumps({'pat_id': pat_id, 'note_id': note_id, 'note_type': note_type, 'note_status': note_status})
+            await conn.execute(insert_sql.format(dataset_id='{},'.format(dataset_id) if dataset_id is not None else '',
+                                  dataset_id_block='dataset_id,' if dataset_id is not None else '',
+                                  enc_id=enc_id,
+                                  tsp=tsp,
+                                  fid=output_fid, value=value,
+                                  confidence=1))
+        else:
+            if tsp not in distinct[enc_id]:
+                distinct[enc_id].append(tsp)
+                value = json.dumps(
+                    {'pat_id': pat_id, 'note_id': note_id, 'note_type': note_type, 'note_status': note_status})
+                await conn.execute(insert_sql.format(dataset_id='{},'.format(dataset_id) if dataset_id is not None else '',
+                                      dataset_id_block='dataset_id,' if dataset_id is not None else '',
+                                      enc_id=enc_id,
+                                      tsp=tsp,
+                                      fid=output_fid, value=value,
+                                      confidence=1))
