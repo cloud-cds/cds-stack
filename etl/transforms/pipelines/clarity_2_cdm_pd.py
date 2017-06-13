@@ -59,11 +59,6 @@ async def pull_med_orders(connection, dataset_id, fids, log, is_plan, clarity_wo
                                value_col='dose', convert_func=translate.g_to_mg)
 
 
-  mo = derive.combine(mo, 'vasopressors_dose',
-                      ['vasopressin_dose', 'neosynephrine_dose', 'levophed_infusion_dose',
-                             'lactated_ringers', 'epinephrine_dose', 'dopamine_dose',
-                             'dobutamine_dose'],keep_originals=False)
-
   mo = derive.combine(mo, 'crystalloid_fluid',
                       ['lactated_ringers', 'sodium_chloride'],keep_originals=False)
 
@@ -132,15 +127,6 @@ async def pull_medication_admin(connection, dataset_id, fids, log, is_plan, clar
 
   crystalloid_fluid_fids = ['lactated_ringers', 'sodium_chloride']
 
-  vasopressors_fids = [
-        'vasopressin_dose',
-        'neosynephrine_dose',
-        'levophed_infusion_dose',
-        'epinephrine_dose',
-        'dopamine_dose',
-        'milrinone_dose'
-        'dobutamine_dose'
-    ]
 
   log.info('pull_medication_admin translate_med_name_to_fid')
   ma = translate.translate_med_name_to_fid(ma)
@@ -169,7 +155,6 @@ async def pull_medication_admin(connection, dataset_id, fids, log, is_plan, clar
 
   log.info('pull_medication_admin combining')
 
-  ma = derive.combine(ma, 'vasopressors_dose', vasopressors_fids, keep_originals=False)
   ma = derive.combine(ma, 'crystalloid_fluid', crystalloid_fluid_fids, keep_originals=False)
   ma = derive.combine(ma, 'cms_antibiotics', cms_antibiotics_fids, keep_originals=False)
 

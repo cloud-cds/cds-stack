@@ -51,7 +51,8 @@ job_config = {
   {
     'recalculate_popmean': os.environ['recalculate_popmean'] == 'True'\
                             if 'recalculate_popmean' in os.environ else False,
-    'vacuum': True,
+    'vacuum_after_fillin': os.environ['vacuum_after_fillin'] == 'True'\
+                            if 'vacuum_after_fillin' in os.environ else True,
   },
   'derive': False if 'derive' in os.environ \
     and os.environ['derive'] == 'False' else \
