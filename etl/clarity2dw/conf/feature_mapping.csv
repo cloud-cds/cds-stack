@@ -15,7 +15,7 @@ ceftazidime_dose,no,yes,"""MedicationAdministration""","""MEDICATION_ID"",""MedR
 clindamycin_dose,no,yes,"""MedicationAdministration""","""MEDICATION_ID"",""MedRoute"",""display_name"", ""TimeActionTaken"", ""ORDER_INST"", ""ActionTaken"", ""Dose"", ""MedUnit"",""INFUSION_RATE"",""MAR_INF_RATE_UNIT"",""mar_duration"",""MAR_DURATION_UNIT""","WHERE ""display_name"" ILIKE 'clindamycin%' AND NOT ""display_name"" ILIKE ANY ('{""%gel%"",""%vaginal%"",""%cream%"",""%ophthalmic%"",""%ointment%"",""%nebulizer%"",""%drop%""}')",convert_clindamycin_dose_to_mg,
 co2,yes,no,"""Labs""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue""","WHERE ""BASE_NAME"" LIKE 'CO2'",convert_co2_to_real,
 creatinine,yes,no,"""Labs""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue""","WHERE ""BASE_NAME"" LIKE 'CREATININE'",convert_creatinine_to_real,
-ddimer,yes,no,"""Labs""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue""","WHERE ""BASE_NAME"" = 'DDIMER'",cast_string_to_real,
+ddimer,yes,no,"""Labs""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue"", ""REFERENCE_UNIT""","WHERE ""BASE_NAME"" = 'DDIMER'",transform_ddimer,
 diabetes_diag,yes,no,"""Diagnoses""","""Code""","WHERE ""Code"" LIKE '250%'",,
 diabetes_hist,yes,no,"""MedicalHistory""","""Code""","WHERE ""Code"" LIKE '250%'",,
 dialysis_diag,yes,no,"""Diagnoses""","""Code""","WHERE ""Code"" LIKE 'V45.1%'",,
