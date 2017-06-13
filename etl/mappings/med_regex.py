@@ -163,9 +163,9 @@ med_regex = [
         'pos': '^dobutamin|^dopamine|^epinephrine infusion|^milrinone|^norepinephrine infusion|vasopressin infusion',
         'neg': '',
     },
-    {
-        'fid': 'fluids_intake',
-        'pos': '^albumin human \(PLASBUMIN\)|^dextrose 5% lactated ringers bolus|^hetastarch|^lactated ringers|^sodium chloride 0.9( %|%) (?!injection|flush syringe|nebulizer)',
-        'neg': '',
-    },
+    # {
+    #     'fid': 'fluids_intake',
+    #     'pos': '^albumin human \(PLASBUMIN\)|^dextrose 5% lactated ringers bolus|^hetastarch|^lactated ringers|^sodium chloride 0.9( %|%) (?!injection|flush syringe|nebulizer)',
+    #     'neg': '',
+    # },
 ]

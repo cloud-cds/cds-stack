@@ -59,11 +59,11 @@ cdm_defs = {
         'thresh':   (None, None),
         'human_readable':   'Azithromycin',
     },
-    'aztronam_dose': {
+    'aztreonam_dose': {
         'unit':     '',
         'value':    float,
         'thresh':   (None, None),
-        'human_readable':   'Aztronam',
+        'human_readable':   'Aztreonam',
     },
     'bands': {
         'unit':     '%',
