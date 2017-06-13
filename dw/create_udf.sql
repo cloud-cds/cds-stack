@@ -3046,10 +3046,6 @@ begin
     _clarity_workspace, 'Diagnoses', 'DX_ID', 'Code'));
   queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
     _clarity_workspace, 'Diagnoses', 'Code', 'CSN_ID'));
-  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
-    _clarity_workspace, 'Diagnoses', 'ICD-9          Code    category', 'Code'));
-  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
-    _clarity_workspace, 'Diagnoses', 'ICD-9          Code    category', 'CSN_ID'));
   -- flowsheet
   queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
     _clarity_workspace, 'FlowsheetValue', 'FLO_MEAS_NAME', 'Value'));
@@ -3134,10 +3130,6 @@ begin
     _clarity_workspace, 'MedicalHistory', 'diagName', 'CSN_ID'));
   queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
     _clarity_workspace, 'MedicalHistory', 'Code', 'CSN_ID'));
-  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
-    _clarity_workspace, 'MedicalHistory', 'ICD-9 Code category', 'Code'));
-  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
-    _clarity_workspace, 'MedicalHistory', 'ICD-9 Code category', 'CSN_ID'));
   -- medication administration
   queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
     _clarity_workspace, 'MedicationAdministration', 'display_name', 'ActionTaken'));
@@ -3211,18 +3203,23 @@ begin
 execute format(
 'with kv_cnt as(
   select %I k, %I v, count(*) cnt from %I.%I
-  where not isnumeric(%I)
+  where not isnumeric(%I) and %I is not null
   group by %I, %I
-  order by count(*)
-  limit 100
+),
+kv_cnt_top100 as (
+  select k, v, cnt from (
+    select *, ROW_NUMBER() OVER (PARTITION BY k order by cnt desc) as row_id
+    from kv_cnt
+  ) as A
+  where row_id <= 100 order by k
 ),
 kv_cnt_jsonb as (
   select k, jsonb_object_agg(v, cnt) str_cnt
-  from kv_cnt group by k
+  from kv_cnt_top100 group by k
 )
 insert into clarity_stats
-  select M.id, ''%I''::text id_type, M.clarity_workspace, M.clarity_staging_table,
-    M.stats || coalesce(jsonb_build_object(''top100_str_cnt'', kv.str_cnt), ''{}''::jsonb) from
+  select M.id, %L || '' <-> '' || %L id_type, M.clarity_workspace, M.clarity_staging_table,
+    M.stats || coalesce(jsonb_build_object(''distinct_str_cnt'', kv.str_cnt), ''{}''::jsonb) from
   (select %I id,''%I''::text clarity_workspace,
     ''%I''::text clarity_staging_table,
     jsonb_build_object(
@@ -3244,12 +3241,12 @@ insert into clarity_stats
       ''95%%'' , percentile_disc(0.95) within group (order by %I::numeric)
                         filter (where isnumeric(%I))
     ) stats
-  from %I.%I group by %I) M left join kv_cnt_jsonb kv on M.id = kv.k
+  from %I.%I where %I is not null group by %I) M left join kv_cnt_jsonb kv on M.id = kv.k
 on conflict(id, id_type, clarity_workspace, clarity_staging_table) do update
 set stats = excluded.stats
-', key, value, _clarity_workspace, _clarity_staging_table, value, key, value,
-   key, key, _clarity_workspace, _clarity_staging_table, value, value, value, value, value, value, value, value, value,
+', key, value, _clarity_workspace, _clarity_staging_table, value, key, key, value,
+   key, value, key, _clarity_workspace, _clarity_staging_table, value, value, value, value, value, value, value, value, value,
    value, value, value, value, value, value, value, value, value, value,
-   value, _clarity_workspace, _clarity_staging_table, key);
+   value, _clarity_workspace, _clarity_staging_table, key, key);
 end
 $$ language plpgsql;
