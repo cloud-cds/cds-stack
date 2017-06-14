@@ -10,7 +10,7 @@ import requests
 
 from jhapi_io import Loader
 
-logging.basicConfig(format='%(levelname)s|%(asctime)s.%(msecs)d|%(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
+logging.basicConfig(format='%(levelname)s|%(asctime)s.%(msecs)03d|%(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
 
 epic_notifications = os.environ['epic_notifications']
 client_id = os.environ['jhapi_client_id']

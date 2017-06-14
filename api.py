@@ -18,7 +18,7 @@ from aiocache.plugins import HitMissRatioPlugin
 from monitoring import APIMonitor
 
 
-logging.basicConfig(format='%(levelname)s|%(asctime)s.%(msecs)d|%(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
+logging.basicConfig(format='%(levelname)s|%(asctime)s.%(msecs)03d|%(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
 
 ##############################
 # Constants.
