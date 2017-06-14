@@ -57,16 +57,16 @@ async def pull_med_orders(connection, dataset_id, fids, log, is_plan, clarity_wo
                                         'ampicillin_dose'],
                                unit_col='dose_unit', from_unit='g', to_unit='mg',
                                value_col='dose', convert_func=translate.g_to_mg)
+  cms_antibiotics_fids = [ med['fid'] for med in med_regex if 'part_of' in med and 'cms_antibiotics' in med['part_of']]
+
+  crystalloid_fluid_fids = [ med['fid'] for med in med_regex if 'part_of' in med and 'crystalloid_fluid' in med['part_of']]
 
 
   mo = derive.combine(mo, 'crystalloid_fluid',
-                      ['lactated_ringers', 'sodium_chloride'],keep_originals=False)
+                      crystalloid_fluid_fids, keep_originals=False)
 
   mo = derive.combine(mo, 'cms_antibiotics',
-                      ['cefepime_dose', 'ceftriaxone_dose', 'piperacillin_tazbac_dose',
-                             'levofloxacin_dose', 'moxifloxacin_dose', 'vancomycin_dose',
-                             'metronidazole_dose', 'aztreonam_dose', 'ciprofloxacin_dose',
-                             'gentamicin_dose', 'azithromycin_dose'],keep_originals=False)
+                      cms_antibiotics_fids, keep_originals=False)
 
   mo = format_data.threshold_values(mo, 'dose')
   mo = mo.loc[mo['fid'].apply(lambda x: x in ['cms_antibiotics', 'crystalloid_fluid', 'vasopressors_dose'])]
