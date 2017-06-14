@@ -228,6 +228,10 @@ def transform_potassium(entry, log):
         if value_and_conf:
             return result
 
+def transform_ddimer(entry, log):
+    result = convert_ddimer_unit(entry, log)
+    if result:
+        return result
 
 def transform_sodium(entry, log):
     result = convert_to_mmol(entry, log)
@@ -921,6 +925,19 @@ def convert_to_mmol(entry, log):
         return [float(dose), confidence.NO_TRANSFORM]
     elif unit == 'meq/l':
         return [float(dose), confidence.UNIT_TRANSFORMED]
+
+def convert_ddimer_unit(entry, log):
+    csn_id = entry[0]
+    name = entry[1]
+    tsp = entry[2]
+    val = entry[3]
+    unit = entry[4]
+    log_assert(log, unit == "mg/L FEU" or unit == "mg/L", "Unknown unit %s for ddimer" % unit   )
+    if unit == "mg/L FEU":
+        return [float(val), confidence.NO_TRANSFORM]
+    elif unit == 'mg/L':
+        return [float(val)*2, confidence.UNIT_TRANSFORMED]
+
 
 def convert_vent_to_binary(entry, log):
     value = entry[-1]

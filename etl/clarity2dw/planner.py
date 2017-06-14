@@ -29,7 +29,7 @@ job_config = {
       if 'remove_pat_enc' in os.environ else True,
     'remove_data': os.environ['remove_data'] == 'True' \
       if 'remove_data' in os.environ else True,
-    'start_enc_id': int(os.environ['start_enc_id']) \
+    'start_enc_id': os.environ['start_enc_id'] \
       if 'start_enc_id' in os.environ else 1
   } ,
   'transform': False if 'transform' in os.environ \
@@ -51,7 +51,8 @@ job_config = {
   {
     'recalculate_popmean': os.environ['recalculate_popmean'] == 'True'\
                             if 'recalculate_popmean' in os.environ else False,
-    'vacuum': True,
+    'vacuum_after_fillin': os.environ['vacuum_after_fillin'] == 'True'\
+                            if 'vacuum_after_fillin' in os.environ else True,
   },
   'derive': False if 'derive' in os.environ \
     and os.environ['derive'] == 'False' else \

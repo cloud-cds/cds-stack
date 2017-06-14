@@ -1,4 +1,4 @@
-fid(s),is_no_add,is_med_action,dbtable,select_cols,where_conditions,transform_func_id,
+fid(s),is_no_add,is_med_action,dbtable,select_cols,where_conditions,transform_func_id,assert
 age,yes,no,"""Demographics""","""AgeDuringVisit""",,convert_age_to_int,
 gender,yes,no,"""Demographics""","""Gender""",,convert_gender_to_int,
 discharge,yes,no,"""Demographics""","cast(""HOSP_DISCH_TIME"" as timestamptz),""DischargeDepartment"",""DischargeDisposition""","WHERE ""HOSP_DISCH_TIME"" is not null",load_discharge_json,
@@ -221,7 +221,7 @@ adt_arrival_time,yes,no,"""Demographics""","""ADT_ARRIVAL_TIME""","WHERE ""ADT_A
 hosp_admsn_time,yes,no,"""Demographics""","""HOSP_ADMSN_TIME""","WHERE ""HOSP_ADMSN_TIME"" is not null",,
 bnp,yes,no,"""Labs""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue""","where ""COMPONENT_ID""  = ANY('{8100004188, 9000000516, 9700000141, 4000001279, 8100000292, 7000002083, 3000001261, 4000000283, 8200003476, 970000223, 9000000586, 4000000593, 2000001245}');",,
 labetalol,yes,no,"""FlowsheetValue""","""FLO_MEAS_NAME"", ""TimeTaken"", ""Value""","where ""FLO_MEAS_ID"" = '3040101268'",,
-height,yes,no,"""FlowsheetValue_643""","""FLO_MEAS_NAME"", ""TimeTaken"", ""Value""","where ""FLO_MEAS_NAME"" ilike 'HEIGHT' and ""Value"" is not Null and ""Value""::float between 22 and 108",,convert_to_cm
+height,yes,no,"""FlowsheetValue_643""","""FLO_MEAS_NAME"", ""TimeTaken"", ""Value""","where ""FLO_MEAS_NAME"" ilike 'HEIGHT' and ""Value"" is not Null and ""Value""::float between 22 and 108",convert_to_cm,
 bmi,yes,no,"""FlowsheetValue_643""","""FLO_MEAS_NAME"", ""TimeTaken"", ""Value""","where ""FLO_MEAS_NAME"" ilike '%BMI%'",,
 acute_heart_failure_icd9_diag,yes,no,"""Diagnoses""","""Code""","where ""Code"" like any ('{ ""402.01%"", ""402.11%"", ""402.91%"", ""425.1%"", ""425.4%"", ""425.5%"", ""425.7%"", ""425.8%"", ""425.9%"", ""428.0%"", ""428.1%"", ""428.2%"", ""428.21%"", ""428.22%"", ""428.23%"", ""428.3%"", ""428.31%"", ""428.32%"", ""428.33%"", ""428.4%"", ""428.41%"", ""428.42%"", ""428.43%"", ""428.9%""}')",,
 acute_heart_failure_icd9_hist,yes,no,"""MedicalHistory""","""Code""","where ""Code"" like any ('{ ""402.01%"", ""402.11%"", ""402.91%"", ""425.1%"", ""425.4%"", ""425.5%"", ""425.7%"", ""425.8%"", ""425.9%"", ""428.0%"", ""428.1%"", ""428.2%"", ""428.21%"", ""428.22%"", ""428.23%"", ""428.3%"", ""428.31%"", ""428.32%"", ""428.33%"", ""428.4%"", ""428.41%"", ""428.42%"", ""428.43%"", ""428.9%""}')",,

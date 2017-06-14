@@ -84,8 +84,9 @@ class Extractor:
         delete from trews where dataset_id = %(dataset_id)s;
         delete from pat_enc where dataset_id = %(dataset_id)s;
         ''' % {'dataset_id': self.dataset_id}
-      if 'start_enc_id' in init_dataset_job and init_dataset_job.get('start_enc_id', 0) > 0:
-        reset_sql += "select setval('pat_enc_enc_id_seq', %s);" % init_dataset_job['start_enc_id']
+      if 'start_enc_id' in init_dataset_job:
+        reset_sql += "select setval('pat_enc_enc_id_seq', %s);" \
+          % init_dataset_job['start_enc_id']
       if reset_sql:
         ctxt.log.info("ETL init sql: " + reset_sql)
         result = await conn.execute(reset_sql)

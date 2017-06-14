@@ -238,16 +238,18 @@ class JHAPIConfig:
     if not pat_id_list:
       return pd.DataFrame()
     resource = '/patients/contacts'
-    dateTo = dt.datetime.now() + dt.timedelta(days=1000)
+    pat_id_df = pd.DataFrame(pat_id_list)
+    pat_id_df = pat_id_df[pat_id_df['pat_id'].str.contains('E.*')]
     payloads = [{
       'id'       : pat['pat_id'],
       'idtype'   : 'patient',
-      'dateFrom' : self.dateFrom,
-      'dateTo'   : dateTo.strftime('%Y-%m-%d'),
-    } for pat in pat_id_list if pat['pat_id'][0] == 'E']
+      'dateFrom' : self.dateFrom, #(dt.datetime.now() - dt.timedelta(days=1000)).strftime('%Y-%m-%d'),
+      'dateTo'   : self.dateTo,
+    } for _, pat in pat_id_df.iterrows()]
     responses = self.make_requests(ctxt, resource, payloads, 'GET')
-    dfs = [pd.DataFrame(r['Contacts'] if r else None) for r in responses]
-    return self.combine(dfs, pd.DataFrame(pat_id_list))
+    response_dfs = [pd.DataFrame(r['Contacts'] if r else None) for r in responses]
+    dfs = pd.concat(response_dfs)
+    return pd.merge(pat_id_df, dfs, left_on='visit_id', right_on='CSN')
 
 
   def push_notifications(self, ctxt, notifications):

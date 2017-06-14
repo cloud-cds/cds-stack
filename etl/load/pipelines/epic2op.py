@@ -19,7 +19,7 @@ async def extract_non_discharged_patients(ctxt):
   time in cdm_t.
   '''
   query_string = """
-    SELECT DISTINCT pe.pat_id, pe.enc_id
+    SELECT DISTINCT pe.pat_id, pe.enc_id, pe.visit_id
     FROM pat_enc pe INNER JOIN cdm_s cs ON (pe.enc_id = cs.enc_id)
     WHERE cs.fid = 'admittime' AND cs.enc_id NOT IN (
       SELECT DISTINCT enc_id FROM cdm_t WHERE fid = 'discharge'
@@ -30,6 +30,7 @@ async def extract_non_discharged_patients(ctxt):
     pat_ids = [{
       'pat_id': str(x['pat_id']).strip(),
       'enc_id': str(x['enc_id']).strip(),
+      'visit_id': str(x['visit_id']).strip(),
     } for x in pats_no_discharge]
     return pat_ids
 
