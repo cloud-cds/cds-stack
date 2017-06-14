@@ -10,7 +10,7 @@ from etl.clarity2dw.extractor import log_time
 import time
 import os
 import asyncio
-
+from etl.mappings.med_regex import med_regex
 
 def get_min_tsp(tsp_name, tsp_with_quotes=True):
   if 'min_tsp' in os.environ:
@@ -57,16 +57,16 @@ async def pull_med_orders(connection, dataset_id, fids, log, is_plan, clarity_wo
                                         'ampicillin_dose'],
                                unit_col='dose_unit', from_unit='g', to_unit='mg',
                                value_col='dose', convert_func=translate.g_to_mg)
+  cms_antibiotics_fids = [ med['fid'] for med in med_regex if 'part_of' in med and 'cms_antibiotics' in med['part_of']]
+
+  crystalloid_fluid_fids = [ med['fid'] for med in med_regex if 'part_of' in med and 'crystalloid_fluid' in med['part_of']]
 
 
   mo = derive.combine(mo, 'crystalloid_fluid',
-                      ['lactated_ringers', 'sodium_chloride'],keep_originals=False)
+                      crystalloid_fluid_fids, keep_originals=False)
 
   mo = derive.combine(mo, 'cms_antibiotics',
-                      ['cefepime_dose', 'ceftriaxone_dose', 'piperacillin_tazbac_dose',
-                             'levofloxacin_dose', 'moxifloxacin_dose', 'vancomycin_dose',
-                             'metronidazole_dose', 'aztronam_dose', 'ciprofloxacin_dose',
-                             'gentamicin_dose', 'azithromycin_dose'],keep_originals=False)
+                      cms_antibiotics_fids, keep_originals=False)
 
   mo = format_data.threshold_values(mo, 'dose')
   mo = mo.loc[mo['fid'].apply(lambda x: x in ['cms_antibiotics', 'crystalloid_fluid', 'vasopressors_dose'])]
@@ -111,21 +111,9 @@ async def pull_medication_admin(connection, dataset_id, fids, log, is_plan, clar
                                       'TimeActionTaken'   : 'tsp',
                                       'ActionTaken'       : 'action'})
 
-  cms_antibiotics_fids = [
-        'cefepime_dose',
-        'ceftriaxone_dose',
-        'piperacillin_tazbac_dose',
-        'levofloxacin_dose',
-        'moxifloxacin_dose',
-        'vancomycin_dose',
-        'metronidazole_dose',
-        'aztronam_dose',
-        'ciprofloxacin_dose',
-        'gentamicin_dose',
-        'azithromycin_dose'
-    ]
+  cms_antibiotics_fids = [ med['fid'] for med in med_regex if 'part_of' in med and 'cms_antibiotics' in med['part_of']]
 
-  crystalloid_fluid_fids = ['lactated_ringers', 'sodium_chloride']
+  crystalloid_fluid_fids = [ med['fid'] for med in med_regex if 'part_of' in med and 'crystalloid_fluid' in med['part_of']]
 
 
   log.info('pull_medication_admin translate_med_name_to_fid')

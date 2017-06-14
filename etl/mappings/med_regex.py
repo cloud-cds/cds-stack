@@ -18,8 +18,8 @@ med_regex = [
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
         'part_of': ['cms_antibiotics'],
     }, {
-        'fid': 'aztronam_dose',
-        'pos': '^aztronam',
+        'fid': 'aztreonam_dose',
+        'pos': '^aztreonam',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
         'part_of': ['cms_antibiotics'],
     }, {
@@ -163,9 +163,9 @@ med_regex = [
         'pos': '^dobutamin|^dopamine|^epinephrine infusion|^milrinone|^norepinephrine infusion|vasopressin infusion',
         'neg': '',
     },
-    {
-        'fid': 'fluids_intake',
-        'pos': '^albumin human \(PLASBUMIN\)|^dextrose 5% lactated ringers bolus|^hetastarch|^lactated ringers|^sodium chloride 0.9( %|%) (?!injection|flush syringe|nebulizer)',
-        'neg': '',
-    },
+    # {
+    #     'fid': 'fluids_intake',
+    #     'pos': '^albumin human \(PLASBUMIN\)|^dextrose 5% lactated ringers bolus|^hetastarch|^lactated ringers|^sodium chloride 0.9( %|%) (?!injection|flush syringe|nebulizer)',
+    #     'neg': '',
+    # },
 ]
