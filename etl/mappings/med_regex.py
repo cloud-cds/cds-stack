@@ -102,9 +102,10 @@ med_regex = [
         'fid': 'levophed_infusion_dose',
         'pos': 'levophed.+infusion',
         'neg': 'injection|gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
+        'part_of': ['vasopressors_dose']
     }, {
         'fid': 'norepinephrine_dose',
-        'pos': 'norepinephrine infusion',
+        'pos': '^norepinephrine infusion',
         'part_of': ['vasopressors_dose']
     }, {
         'fid': 'meropenem_dose',
