@@ -63,15 +63,15 @@ med_regex = [
         'part_of': ['crystalloid_fluid']
     }, {
         'fid': 'dobutamine_dose',
-        'pos': '^dobutamine',
+        'pos': 'dobutamine',
         'part_of': ['vasopressors_dose']
     }, {
         'fid': 'dopamine_dose',
-        'pos': '^dopamine',
+        'pos': 'dopamine',
         'part_of': ['vasopressors_dose']
     }, {
         'fid': 'epinephrine_dose',
-        'pos': '^epinephrine infusion',
+        'pos': '^epinephrine',
         'part_of': ['vasopressors_dose']
     }, {
         'fid': 'erythromycin_dose',
@@ -105,7 +105,7 @@ med_regex = [
         'part_of': ['vasopressors_dose']
     }, {
         'fid': 'norepinephrine_dose',
-        'pos': '^norepinephrine infusion',
+        'pos': '^norepinephrine',
         'part_of': ['vasopressors_dose']
     }, {
         'fid': 'meropenem_dose',
@@ -165,7 +165,7 @@ med_regex = [
         'part_of': ['cms_antibiotics'],
     }, {
         'fid': 'vasopressin_dose',
-        'pos': '^vasopressin infusion',
+        'pos': '^vasopressin',
         'part_of': ['vasopressors_dose']
     }
     # {
