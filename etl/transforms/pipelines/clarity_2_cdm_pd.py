@@ -33,6 +33,7 @@ async def pull_med_orders(connection, dataset_id, fids, log, is_plan, clarity_wo
            inner join
            pat_enc pe
            on mo."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp}
+           where display_name is not null
           ;""".format(dataset_id=dataset_id, min_tsp=get_min_tsp("ORDER_INST"), ws=clarity_workspace)
   log.info(sql)
   mo = await async_read_df(sql, connection)
@@ -48,8 +49,8 @@ async def pull_med_orders(connection, dataset_id, fids, log, is_plan, clarity_wo
   mo = mo.dropna(subset=['full_name'])
   mo = translate.translate_med_name_to_fid(mo)
   mo = filter_rows.filter_medications(mo)
-  mo = format_data.clean_units(mo, 'fid', 'dose_unit')
-  mo = format_data.clean_values(mo, 'fid', 'dose')
+  # mo = format_data.clean_units(mo, 'fid', 'dose_unit')
+  # mo = format_data.clean_values(mo, 'fid', 'dose')
   mo = translate.convert_units(mo, fid_col='fid',
                                fids=['piperacillin_tazbac_dose', 'vancomycin_dose',
                                         'cefazolin_dose', 'cefepime_dose', 'ceftriaxone_dose',
@@ -72,7 +73,7 @@ async def pull_med_orders(connection, dataset_id, fids, log, is_plan, clarity_wo
   mo = derive.combine(mo, 'vasopressors_dose',
                       vasopressin_fids, keep_originals=False)
 
-  mo = format_data.threshold_values(mo, 'dose')
+  # mo = format_data.threshold_values(mo, 'dose')
   mo = mo.loc[mo['fid'].apply(lambda x: x in ['cms_antibiotics', 'crystalloid_fluid', 'vasopressors_dose'])]
   mo['fid'] += '_order'
   mo['confidence'] = 2
@@ -99,6 +100,7 @@ async def pull_medication_admin(connection, dataset_id, fids, log, is_plan, clar
           inner join
           pat_enc pe
           on ma."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp}
+          where display_name is not null
         """.format(dataset_id=dataset_id, min_tsp=get_min_tsp("TimeActionTaken"), ws=clarity_workspace)
   log.info(sql)
   ma = await async_read_df(sql,connection)
