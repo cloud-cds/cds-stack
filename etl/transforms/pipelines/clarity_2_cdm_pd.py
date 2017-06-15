@@ -45,7 +45,6 @@ async def pull_med_orders(connection, dataset_id, fids, log, is_plan, clarity_wo
                                        'display_name': 'full_name',
                                        'MedUnit':'dose_unit',
                                        'Dose': 'dose'})
-
   mo = mo.dropna(subset=['full_name'])
   mo = translate.translate_med_name_to_fid(mo)
   mo = filter_rows.filter_medications(mo)
@@ -61,12 +60,17 @@ async def pull_med_orders(connection, dataset_id, fids, log, is_plan, clarity_wo
 
   crystalloid_fluid_fids = [ med['fid'] for med in med_regex if 'part_of' in med and 'crystalloid_fluid' in med['part_of']]
 
+  vasopressin_fids = [ med['fid'] for med in med_regex if 'part_of' in med and 'vasopressors_dose' in med['part_of']]
+
 
   mo = derive.combine(mo, 'crystalloid_fluid',
                       crystalloid_fluid_fids, keep_originals=False)
 
   mo = derive.combine(mo, 'cms_antibiotics',
                       cms_antibiotics_fids, keep_originals=False)
+
+  mo = derive.combine(mo, 'vasopressors_dose',
+                      vasopressin_fids, keep_originals=False)
 
   mo = format_data.threshold_values(mo, 'dose')
   mo = mo.loc[mo['fid'].apply(lambda x: x in ['cms_antibiotics', 'crystalloid_fluid', 'vasopressors_dose'])]
@@ -115,6 +119,7 @@ async def pull_medication_admin(connection, dataset_id, fids, log, is_plan, clar
 
   crystalloid_fluid_fids = [ med['fid'] for med in med_regex if 'part_of' in med and 'crystalloid_fluid' in med['part_of']]
 
+  vasopressin_fids = [ med['fid'] for med in med_regex if 'part_of' in med and 'vasopressors_dose' in med['part_of']]
 
   log.info('pull_medication_admin translate_med_name_to_fid')
   ma = translate.translate_med_name_to_fid(ma)
@@ -145,6 +150,8 @@ async def pull_medication_admin(connection, dataset_id, fids, log, is_plan, clar
 
   ma = derive.combine(ma, 'crystalloid_fluid', crystalloid_fluid_fids, keep_originals=False)
   ma = derive.combine(ma, 'cms_antibiotics', cms_antibiotics_fids, keep_originals=False)
+  ma = derive.combine(ma, 'vasopressors_dose',
+                      vasopressin_fids, keep_originals=False)
 
   ma = format_data.threshold_values(ma, 'dose_value')
 

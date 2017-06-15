@@ -40,7 +40,7 @@ def translate_med_name_to_fid(med_data):
             return 'Unknown Medication'
         for med in med_regex:
             if re.search(med['pos'], med_name, flags=re.I):
-                if re.search(med['neg'], med_name, flags=re.I):
+                if 'neg' in med and len(med['neg']) > 0 and re.search(med['neg'], med_name, flags=re.I):
                     return 'Invalid Medication'
                 return med['fid']
         raise TransformError(
