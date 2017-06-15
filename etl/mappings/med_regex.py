@@ -63,16 +63,16 @@ med_regex = [
         'part_of': ['crystalloid_fluid']
     }, {
         'fid': 'dobutamine_dose',
-        'pos': 'dobutamine',
-        'neg':  'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
+        'pos': '^dobutamine',
+        'part_of': ['vasopressors_dose']
     }, {
         'fid': 'dopamine_dose',
-        'pos': 'dopamine',
-        'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
+        'pos': '^dopamine',
+        'part_of': ['vasopressors_dose']
     }, {
         'fid': 'epinephrine_dose',
-        'pos': '^epinephrine',
-        'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
+        'pos': '^epinephrine infusion',
+        'part_of': ['vasopressors_dose']
     }, {
         'fid': 'erythromycin_dose',
         'pos': '^erythromycin',
@@ -100,8 +100,12 @@ med_regex = [
         'part_of': ['cms_antibiotics'],
     }, {
         'fid': 'levophed_infusion_dose',
-        'pos': 'levophed.+infusion|^norepinephrine',
+        'pos': 'levophed.+infusion',
         'neg': 'injection|gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
+    }, {
+        'fid': 'norepinephrine_dose',
+        'pos': 'norepinephrine infusion',
+        'part_of': ['vasopressors_dose']
     }, {
         'fid': 'meropenem_dose',
         'pos': '^meropenem',
@@ -114,7 +118,7 @@ med_regex = [
     }, {
         'fid': 'milrinone_dose',
         'pos': '^milrinone',
-        'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
+        'part_of': ['vasopressors_dose']
     }, {
         'fid': 'moxifloxacin_dose',
         'pos': '^moxifloxacin',
@@ -160,12 +164,11 @@ med_regex = [
         'part_of': ['cms_antibiotics'],
     }, {
         'fid': 'vasopressin_dose',
-        'pos': '^dobutamin|^dopamine|^epinephrine infusion|^milrinone|^norepinephrine infusion|vasopressin infusion',
-        'neg': '',
-    },
+        'pos': '^vasopressin infusion',
+        'part_of': ['vasopressors_dose']
+    }
     # {
     #     'fid': 'fluids_intake',
     #     'pos': '^albumin human \(PLASBUMIN\)|^dextrose 5% lactated ringers bolus|^hetastarch|^lactated ringers|^sodium chloride 0.9( %|%) (?!injection|flush syringe|nebulizer)',
-    #     'neg': '',
     # },
 ]

@@ -239,11 +239,10 @@ class Planner():
           coro=self.extractor.run_vacuum, args=[temp_table]))
 
   def gen_offline_criteria_plan(self):
-    all_derive_tasks = [t.name for t in self.plan.tasks if t.name.startswith('derive')]
+    all_dep_tasks = [t.name for t in self.plan.tasks if t.name.startswith('derive') or t.name.startswith('transform')]
     if self.job.get('offline_criteria_processing', False):
-      num_derive_groups = self.job.get('derive').get('num_derive_groups', 0)
       self.plan.add(
-        Task('offline_criteria', deps=all_derive_tasks, \
+        Task('offline_criteria', deps=all_dep_tasks, \
           coro=self.extractor.offline_criteria_processing)
         )
 
