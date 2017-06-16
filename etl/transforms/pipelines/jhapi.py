@@ -141,6 +141,11 @@ lab_results_transforms = [
     lambda lr: format_data.clean_units(lr, 'fid', 'unit'),
     lambda lr: format_data.clean_values(lr, 'fid', 'value'),
     lambda lr: format_data.threshold_values(lr, 'value'),
+    lambda lr: translate.convert_units(lr,
+        fid_col = 'fid',
+        fids = ['ddimer'],
+        unit_col = 'unit', from_unit = 'mg/L', to_unit = 'mg/L FEU',
+        value_col = 'value', convert_func = translate.mg_per_l_to_mg_per_l_feu
     lambda lr: format_data.filter_to_final_units(lr, 'unit'),
     lambda lr: format_data.format_tsp(lr, 'tsp'),
     lambda lr: format_data.format_tsp(lr, 'res_tsp'),
