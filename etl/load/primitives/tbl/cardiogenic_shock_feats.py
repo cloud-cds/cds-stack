@@ -106,6 +106,12 @@ async def calc_num_administrations(output_fid, input_fid_string, conn, log, data
     'input fid should be X_dose, and output FID should be X_num_admin {output_fid} {input_fid_string}'.\
       format(output_fid=output_fid, input_fid_string=input_fid_string)
 
+
+  # ------------------------------------------------
+  # Remove Existing Output
+  # ------------------------------------------------
+  await conn.execute(clean_tbl.cdm_t_clean(output_fid, dataset_id=dataset_id, incremental=incremental))
+
   parameters = json.loads(cdm_feature_dict[output_fid]['function_arguments'])['derive']
 
   sql = """
@@ -155,6 +161,11 @@ async def calc_acute_heart_failure(output_fid, input_fid_string, conn, log, data
            input_fid[3] == 'bumetanide_IV_num_admin', \
         'wrong fid_input %s' % input_fid_string
 
+    # ------------------------------------------------
+    # Remove Existing Output
+    # ------------------------------------------------
+    await conn.execute(clean_tbl.cdm_t_clean(output_fid, dataset_id=dataset_id, incremental=incremental))
+
     select_sql = """with
     acute_df as
     (with acute_tbl as (select * from cdm_s where {dataset_id_where} fid ilike 'acute_heart_failure_icd9_diag' or fid ilike 'acute_heart_failure_icd9_prob') select distinct enc_id from acute_tbl),
@@ -194,6 +205,11 @@ async def calc_cardiogenic_shock(output_fid, input_fid_string, conn, log, datase
     assert input_fid[0] == 'sbpm' and input_fid[1] == 'any_inotrope' and \
            input_fid[2] == 'mech_cardiac_support_device', \
         'wrong fid_input %s' % input_fid_string
+
+    # ------------------------------------------------
+    # Remove Existing Output
+    # ------------------------------------------------
+    await conn.execute(clean_tbl.cdm_t_clean(output_fid, dataset_id=dataset_id, incremental=incremental))
 
     parameters = json.loads(cdm_feature_dict[output_fid]['function_arguments'])['derive']
     lookback = timedelta(int(parameters['lookback_hours'])/24.0)
@@ -259,6 +275,11 @@ async def code_doc_note_update(output_fid, input_fid_string, conn, log, dataset_
 
     assert input_fid[0] == 'hosp_admsn_time' and input_fid[1] == 'discharge', \
         'wrong fid_input %s' % input_fid_string
+
+    # ------------------------------------------------
+    # Remove Existing Output
+    # ------------------------------------------------
+    await conn.execute(clean_tbl.cdm_t_clean(output_fid, dataset_id=dataset_id, incremental=incremental))
 
     select_sql = """with tbl1 as (select pat_id, note_id, note_type, note_status, (dates::json #>>'{{create_instant_dttm}}')::timestamptz as create_tsp from cdm_notes where {dataset_id_where} note_type ilike 'code documentation' order by pat_id, note_id),
     tbl2 as (select pat_id, enc_id from pat_enc where {dataset_id_where} pat_id in (select distinct pat_id from cdm_notes where {dataset_id_where} note_type ilike 'code documentation')),
