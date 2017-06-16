@@ -55,4 +55,4 @@ dataset_id,fid,value,confidence
 9,temperature_popmean,98.3568872322359,24
 9,wbc_popmean,9.85360597849486,24
 9,amylase_popmean,183.791358024691,24
-9,ddimer_popmean,2.63909616089569,24
+9,ddimer_popmean,5.27819232179138,24

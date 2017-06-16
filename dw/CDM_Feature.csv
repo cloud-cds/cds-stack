@@ -94,7 +94,7 @@ heart_arrhythmias_prob,S,Boolean,yes,no,,,,,ProblemList,1,no unit
 acebutolol_dose,T,JSON,yes,no,,,,,Medication,1,
 dbpm,TWF,Real,no,no,,,dbpm_update,"abp_dias, nbp_dias","feaure based on BP dias, Diastolic blood pressure (combines invasive and noninvasive), it should not be sparse",1,mmHg
 heart_failure_hist,S,Boolean,yes,no,,,,,History,1,no unit
-ddimer,TWF,Real,yes,no,last_value_in_window,28,,,Lab,1,mg/L
+ddimer,TWF,Real,yes,no,last_value_in_window,28,,,Lab,1,mg/L REU
 ast_liver_enzymes,TWF,Real,yes,no,last_value_in_window,28,,,Physiologic,1,Units/L
 betamethasone_dose,T,JSON,yes,no,,,,,Medication,1,
 fluids_intake_24hr,TWF,Real,no,no,,,fluids_intake_24hr,fluids_intake,,1,ml
