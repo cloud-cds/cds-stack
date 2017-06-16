@@ -232,7 +232,7 @@ med_admin_transforms = [
        unit_col = 'dose_unit', from_unit = 'mL/hr', to_unit = 'mL',
        value_col = 'dose_value', convert_func = translate.ml_per_hr_to_ml_for_1hr
     ),
-    lambda ma: derive.combine(ma, 'fluids_intake', fluids_intake_fids),
+    # lambda ma: derive.combine(ma, 'fluids_intake', fluids_intake_fids),
     lambda ma: derive.combine(ma, 'vasopressors_dose', vasopressors_fids),
     lambda ma: derive.combine(ma, 'crystalloid_fluid', crystalloid_fluid_fids),
     lambda ma: derive.combine(ma, 'cms_antibiotics', cms_antibiotics_fids),
