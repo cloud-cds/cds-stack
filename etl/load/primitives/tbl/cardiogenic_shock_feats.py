@@ -164,7 +164,7 @@ async def calc_acute_heart_failure(output_fid, input_fid_string, conn, log, data
     # ------------------------------------------------
     # Remove Existing Output
     # ------------------------------------------------
-    await conn.execute(clean_tbl.cdm_t_clean(output_fid, dataset_id=dataset_id, incremental=incremental))
+    await conn.execute(clean_tbl.cdm_s_clean(output_fid, dataset_id=dataset_id, incremental=incremental))
 
     select_sql = """with
     acute_df as
