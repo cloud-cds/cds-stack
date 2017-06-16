@@ -28,12 +28,21 @@ def get_min_tsp(tsp_name, tsp_with_quotes=True):
 async def pull_med_orders(connection, dataset_id, fids, log, is_plan, clarity_workspace):
   start = time.time()
   log.info('Entered Med Orders Extraction')
+  cms_antibiotics_fids = [ med['fid'] for med in med_regex if 'part_of' in med and 'cms_antibiotics' in med['part_of']]
+
+  crystalloid_fluid_fids = [ med['fid'] for med in med_regex if 'part_of' in med and 'crystalloid_fluid' in med['part_of']]
+
+  vasopressors_fids = [ med['fid'] for med in med_regex if 'part_of' in med and 'vasopressors_dose' in med['part_of']]
+  all_fids = cms_antibiotics_fids + crystalloid_fluid_fids + vasopressors_fids
+  regex = '|'.join([med['pos'] for med in med_regex if med['fid'] in all_fids])
+
   sql = """select pe.enc_id, mo."ORDER_INST", mo."display_name", mo."MedUnit",mo."Dose"
            from {ws}."OrderMed" mo
            inner join
            pat_enc pe
            on mo."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp}
-          ;""".format(dataset_id=dataset_id, min_tsp=get_min_tsp("ORDER_INST"), ws=clarity_workspace)
+           where display_name ~* '{regex}'
+          ;""".format(dataset_id=dataset_id, min_tsp=get_min_tsp("ORDER_INST"), ws=clarity_workspace, regex=regex)
   log.info(sql)
   mo = await async_read_df(sql, connection)
   if mo is None:
@@ -45,21 +54,17 @@ async def pull_med_orders(connection, dataset_id, fids, log, is_plan, clarity_wo
                                        'display_name': 'full_name',
                                        'MedUnit':'dose_unit',
                                        'Dose': 'dose'})
-
   mo = mo.dropna(subset=['full_name'])
   mo = translate.translate_med_name_to_fid(mo)
   mo = filter_rows.filter_medications(mo)
-  mo = format_data.clean_units(mo, 'fid', 'dose_unit')
-  mo = format_data.clean_values(mo, 'fid', 'dose')
+  # mo = format_data.clean_units(mo, 'fid', 'dose_unit')
+  # mo = format_data.clean_values(mo, 'fid', 'dose')
   mo = translate.convert_units(mo, fid_col='fid',
                                fids=['piperacillin_tazbac_dose', 'vancomycin_dose',
                                         'cefazolin_dose', 'cefepime_dose', 'ceftriaxone_dose',
                                         'ampicillin_dose'],
                                unit_col='dose_unit', from_unit='g', to_unit='mg',
                                value_col='dose', convert_func=translate.g_to_mg)
-  cms_antibiotics_fids = [ med['fid'] for med in med_regex if 'part_of' in med and 'cms_antibiotics' in med['part_of']]
-
-  crystalloid_fluid_fids = [ med['fid'] for med in med_regex if 'part_of' in med and 'crystalloid_fluid' in med['part_of']]
 
 
   mo = derive.combine(mo, 'crystalloid_fluid',
@@ -68,7 +73,10 @@ async def pull_med_orders(connection, dataset_id, fids, log, is_plan, clarity_wo
   mo = derive.combine(mo, 'cms_antibiotics',
                       cms_antibiotics_fids, keep_originals=False)
 
-  mo = format_data.threshold_values(mo, 'dose')
+  mo = derive.combine(mo, 'vasopressors_dose',
+                      vasopressors_fids, keep_originals=False)
+
+  # mo = format_data.threshold_values(mo, 'dose')
   mo = mo.loc[mo['fid'].apply(lambda x: x in ['cms_antibiotics', 'crystalloid_fluid', 'vasopressors_dose'])]
   mo['fid'] += '_order'
   mo['confidence'] = 2
@@ -86,6 +94,13 @@ async def pull_med_orders(connection, dataset_id, fids, log, is_plan, clarity_wo
 async def pull_medication_admin(connection, dataset_id, fids, log, is_plan, clarity_workspace):
   start = time.time()
   log.info('Entering Medication Administration Processing')
+  cms_antibiotics_fids = [ med['fid'] for med in med_regex if 'part_of' in med and 'cms_antibiotics' in med['part_of']]
+
+  crystalloid_fluid_fids = [ med['fid'] for med in med_regex if 'part_of' in med and 'crystalloid_fluid' in med['part_of']]
+
+  vasopressors_fids = [ med['fid'] for med in med_regex if 'part_of' in med and 'vasopressors_dose' in med['part_of']]
+  all_fids = cms_antibiotics_fids + crystalloid_fluid_fids + vasopressors_fids
+  regex = '|'.join([med['pos'] for med in med_regex if med['fid'] in all_fids])
   sql = """select pe.enc_id, ma.display_name,
                   ma."Dose", ma."MedUnit",
                   ma."INFUSION_RATE", ma."MAR_INF_RATE_UNIT",
@@ -95,7 +110,8 @@ async def pull_medication_admin(connection, dataset_id, fids, log, is_plan, clar
           inner join
           pat_enc pe
           on ma."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp}
-        """.format(dataset_id=dataset_id, min_tsp=get_min_tsp("TimeActionTaken"), ws=clarity_workspace)
+          where display_name ~* '{regex}'
+        """.format(dataset_id=dataset_id, min_tsp=get_min_tsp("TimeActionTaken"), ws=clarity_workspace, regex=regex)
   log.info(sql)
   ma = await async_read_df(sql,connection)
 
@@ -110,11 +126,6 @@ async def pull_medication_admin(connection, dataset_id, fids, log, is_plan, clar
                                       'MAR_INF_RATE_UNIT' : 'rate_unit',
                                       'TimeActionTaken'   : 'tsp',
                                       'ActionTaken'       : 'action'})
-
-  cms_antibiotics_fids = [ med['fid'] for med in med_regex if 'part_of' in med and 'cms_antibiotics' in med['part_of']]
-
-  crystalloid_fluid_fids = [ med['fid'] for med in med_regex if 'part_of' in med and 'crystalloid_fluid' in med['part_of']]
-
 
   log.info('pull_medication_admin translate_med_name_to_fid')
   ma = translate.translate_med_name_to_fid(ma)
@@ -145,6 +156,8 @@ async def pull_medication_admin(connection, dataset_id, fids, log, is_plan, clar
 
   ma = derive.combine(ma, 'crystalloid_fluid', crystalloid_fluid_fids, keep_originals=False)
   ma = derive.combine(ma, 'cms_antibiotics', cms_antibiotics_fids, keep_originals=False)
+  ma = derive.combine(ma, 'vasopressors_dose',
+                      vasopressors_fids, keep_originals=False)
 
   ma = format_data.threshold_values(ma, 'dose_value')
 
