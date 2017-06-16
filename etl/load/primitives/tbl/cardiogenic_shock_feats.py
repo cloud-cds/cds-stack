@@ -158,8 +158,9 @@ async def calc_acute_heart_failure(output_fid, input_fid_string, conn, log, data
     assert input_fid[0] == 'acute_heart_failure_icd9_diag' and \
            input_fid[1] == 'acute_heart_failure_icd9_prob' and \
            input_fid[2] == 'furosemide_IV_num_admin' and \
-           input_fid[3] == 'bumetanide_IV_num_admin', \
-        'wrong fid_input %s' % input_fid_string
+           input_fid[3] == 'bumetanide_IV_num_admin'and \
+           input_fid[4] == 'hosp_admit', \
+           'wrong fid_input %s' % input_fid_string
 
     # ------------------------------------------------
     # Remove Existing Output
@@ -168,7 +169,7 @@ async def calc_acute_heart_failure(output_fid, input_fid_string, conn, log, data
 
     select_sql = """with
     acute_df as
-    (with acute_tbl as (select * from cdm_s where {dataset_id_where} fid ilike 'acute_heart_failure_icd9_diag' or fid ilike 'acute_heart_failure_icd9_prob') select distinct enc_id from acute_tbl),
+    (with acute_tbl as (select * from cdm_s where {dataset_id_where} (fid ilike 'acute_heart_failure_icd9_diag' or fid ilike 'acute_heart_failure_icd9_prob') and enc_id in (select enc_id from cdm_s where fid ilike 'hosp_admit')) select distinct enc_id from acute_tbl),
     furo_df as
     (select * from cdm_t where {dataset_id_where} (fid ilike 'furosemide_IV_num_admin' or fid ilike 'bumetanide_IV_num_admin') and value::integer > 1),
     final as
@@ -202,8 +203,8 @@ async def calc_cardiogenic_shock(output_fid, input_fid_string, conn, log, datase
 
     input_fid = [item.strip() for item in input_fid_string.split(',')]
 
-    assert input_fid[0] == 'sbpm' and input_fid[1] == 'any_inotrope' and \
-           input_fid[2] == 'mech_cardiac_support_device', \
+    assert input_fid[0] == 'sbpm' and input_fid[1] == 'any_inotrope' and input_fid[2] == 'acute_heart_failure' and \
+           input_fid[3] == 'mech_cardiac_support_device', \
         'wrong fid_input %s' % input_fid_string
 
     # ------------------------------------------------
@@ -215,14 +216,13 @@ async def calc_cardiogenic_shock(output_fid, input_fid_string, conn, log, datase
     lookback = timedelta(int(parameters['lookback_hours'])/24.0)
 
     select_sql = """with
-    ino_tbl as(select * from cdm_t where {dataset_id_where} (fid = '{fid1}' or fid = '{fid2}') and value='True'),
-    sbp_tbl as(select enc_id, tsp, sbpm from cdm_twf where {dataset_id_where} {fid0}::float < 90 and enc_id in (select enc_id from cdm_t where {dataset_id_where} (fid = '{fid1}' or fid = '{fid2}')and value='True'))
+    ino_tbl as(select * from cdm_t where {dataset_id_where} (fid = 'any_inotrope' or fid = 'mech_cardiac_support_device') and value='True' and enc_id in (select distinct enc_id from cdm_s where fid ilike 'acute_heart_failure')),
+    sbp_tbl as(select enc_id, tsp, sbpm from cdm_twf where {dataset_id_where} sbpm::float < 90 and enc_id in (select enc_id from cdm_t where {dataset_id_where} (fid = 'any_inotrope' or fid = 'mech_cardiac_support_device') and value='True') and enc_id in (select distinct enc_id from cdm_s where fid ilike 'acute_heart_failure'))
     select COALESCE(ino_tbl.enc_id, sbp_tbl.enc_id) as enc_id, COALESCE(ino_tbl.tsp, sbp_tbl.tsp) as tsp, fid, sbpm, confidence
     from ino_tbl full join sbp_tbl on ino_tbl.enc_id = sbp_tbl.enc_id and ino_tbl.tsp = sbp_tbl.tsp
     order by enc_id, tsp;"""
     insert_sql = """insert into cdm_t ({dataset_id_block} enc_id, tsp, fid, value, confidence) values ({dataset_id} {enc_id}, '{tsp}', '{fid}', '{value}', {confidence})"""
-    records = await conn.fetch(select_sql.format(dataset_id_where = 'dataset_id = {} and '.format(dataset_id) if  dataset_id is not None else '',
-                                                 fid0=input_fid[0], fid1=input_fid[1], fid2=input_fid[2]))
+    records = await conn.fetch(select_sql.format(dataset_id_where = 'dataset_id = {} and '.format(dataset_id) if  dataset_id is not None else ''))
     enc_dict = {}
     for rec in records:
         if rec['enc_id'] not in enc_dict and (rec['fid'] == input_fid[1] or rec['fid'] == input_fid[2]):
@@ -318,3 +318,29 @@ async def code_doc_note_update(output_fid, input_fid_string, conn, log, dataset_
                                       tsp=tsp,
                                       fid=output_fid, value=value,
                                       confidence=1))
+
+
+async def hosp_admit_update(output_fid, input_fid_string, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
+    assert output_fid == 'hosp_admit', 'output fid should be hosp_admit'
+
+    input_fid = [item.strip() for item in input_fid_string.split(',')]
+
+    assert input_fid[0] == 'discharge', \
+        'wrong fid_input %s' % input_fid_string
+
+    # ------------------------------------------------
+    # Remove Existing Output
+    # ------------------------------------------------
+    await conn.execute(clean_tbl.cdm_t_clean(output_fid, dataset_id=dataset_id, incremental=incremental))
+    select_sql = """select distinct enc_id from cdm_t
+    where {dataset_id_where} (fid ilike 'discharge' and value::json #>> '{{department}}' not ilike '%%emergency%%')
+    order by enc_id;"""
+    insert_sql = """insert into cdm_s ({dataset_id_block} enc_id, fid, value, confidence) values ({dataset_id} {enc_id}, '{fid}', '{value}', {confidence})"""
+    result = await conn.fetch(select_sql.format(dataset_id_where = 'dataset_id = {} and '.format(dataset_id) if  dataset_id is not None else ''))
+    for row in result:
+        await conn.execute(insert_sql.format(dataset_id='{},'.format(dataset_id) if dataset_id is not None else '',
+                                             dataset_id_block='dataset_id,' if dataset_id is not None else '',
+                                             enc_id=row['enc_id'],
+                                             fid=output_fid,
+                                             value="True",
+                                             confidence=1))
