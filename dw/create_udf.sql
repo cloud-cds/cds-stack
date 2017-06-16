@@ -2937,6 +2937,7 @@ begin
   for table_name in SELECT c.relname FROM pg_class c
     JOIN pg_namespace s ON (c.relnamespace=s.oid)
     WHERE c.relkind = 'r' AND s.nspname=schema_name
+    order by c.relname
   LOOP
     RETURN QUERY EXECUTE format('select cast(%L as text),count(*) from %I.%I',
        table_name, schema_name, table_name);
