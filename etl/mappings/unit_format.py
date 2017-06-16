@@ -41,6 +41,9 @@ translation_map = [
     ('Dose',            ['dose']),
     ('mg/kg/dose',      ['mg/kg/dose', 'mg/kg/dose of ampicillin']),
     ('tablet',          ['tablet']),
+# DDimer
+    ('mg/L',            ['mg/l']),
+    ('mg/L FEU',        ['mg/l feu'])
 ]
 
 empty_translation_map = {

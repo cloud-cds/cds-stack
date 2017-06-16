@@ -191,6 +191,12 @@ cdm_defs = {
         'thresh':   (None, None),
         'human_readable':   'Dextrose Normal Saline',
     },
+    'ddimer': {
+        'unit':     'mg/L FEU',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'D-Dimer'
+    },
     'dobutamine_dose': {
         'unit':     'mcg/kg/min',
         'value':    float,
