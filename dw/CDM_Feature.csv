@@ -283,7 +283,7 @@ cms_antibiotics,T,Real,yes,no,,,,,cms anti-biotics as used for the online sepsis
 crystalloid_fluid,T,Real,yes,no,,,,,crystaloid fluid as used for the online sepsis bundle criteria,1,mg
 vasopressors_dose,T,Real,yes,no,,,,,vasopressors dose as used in the online sepsis bundle criteria,1,mg
 cms_antibiotics_order,T,Real,yes,no,,,,,cms anti-biotics order as used for the online sepsis bundle criteria calculation,1,mg
-crystalloid_fluid_order,T,Real,yes,no,,,,,crystaloid fluid order as used for the online sepsis bundle criteria,1,mg
+crystalloid_fluid_order,T,String,yes,no,,,,,crystaloid fluid order as used for the online sepsis bundle criteria,1,mg
 vasopressors_dose_order,T,String,yes,no,,,,,vasopressors dose order as used in the online sepsis bundle criteria,1,mg
 bands,T,Real,yes,no,,,,,bands as used in the online sepsis bundle criteria calculation,1,%
 lactate_order,T,String,yes,no,,,,,lactate order as uses for the online sepsis bundle critieria calculation,1,order state
