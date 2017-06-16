@@ -2795,7 +2795,7 @@ if _table = 'cdm_twf' then
   perform distribute(server, queries, nprocs);
 else
   T = '';
-  if _table in ('cdm_t', 'cdm_twf', 'criteria_meas') then
+  if _table in ('cdm_t', 'criteria_meas') then
     T = ' and t.tsp between '''|| start_tsp ||'''::timestamptz
       and '''||end_tsp||'''::timestamptz';
   end if;
@@ -2809,7 +2809,7 @@ else
     and t.fid = f.fid
     where t.dataset_id = '||_dataset_id||' and
     (
-      (f.data_type ~* ''real|int'' and value <> ''nan'')
+      (f.data_type ~* ''real|int'' and value <> ''nan'' and value <> ''None'')
       or (f.data_type = ''JSON'' and f.fid ~* ''_dose'')
     ) '|| T ||'
   ),
@@ -2856,59 +2856,59 @@ else
         case
         when last(f.data_type) ~* ''real|int'' then
           coalesce(jsonb_build_object(
-              ''min'' , min(value::numeric) filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
-            , ''max'' , max(value::numeric) filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
-            , ''mean'', avg(value::numeric) filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
+              ''min'' , min(value::numeric) filter (where f.data_type ~* ''real|int'' and value <> ''nan'' and value <> ''None'')
+            , ''max'' , max(value::numeric) filter (where f.data_type ~* ''real|int'' and value <> ''nan'' and value <> ''None'')
+            , ''mean'', avg(value::numeric) filter (where f.data_type ~* ''real|int'' and value <> ''nan'' and value <> ''None'')
             , ''5%'' , percentile_disc(0.05) within group (order by value::numeric)
-                        filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
+                        filter (where f.data_type ~* ''real|int'' and value <> ''nan'' and value <> ''None'')
             , ''25%'' , percentile_disc(0.25) within group (order by value::numeric)
-                        filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
+                        filter (where f.data_type ~* ''real|int'' and value <> ''nan'' and value <> ''None'')
             , ''50%'' , percentile_disc(0.5) within group (order by value::numeric)
-                        filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
+                        filter (where f.data_type ~* ''real|int'' and value <> ''nan'' and value <> ''None'')
             , ''75%'' , percentile_disc(0.75) within group (order by value::numeric)
-                        filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
+                        filter (where f.data_type ~* ''real|int'' and value <> ''nan'' and value <> ''None'')
             , ''95%'' , percentile_disc(0.95) within group (order by value::numeric)
-                        filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
+                        filter (where f.data_type ~* ''real|int'' and value <> ''nan'' and value <> ''None'')
             ), ''{}''::jsonb)
         when last(f.data_type) ~* ''json'' and last(f.fid) ~* ''_dose'' then
           coalesce(jsonb_build_object(
-              ''min'' , min((value::json->>''dose'')::numeric) filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
-            , ''max'' , max((value::json->>''dose'')::numeric) filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
-            , ''mean'', avg((value::json->>''dose'')::numeric) filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
+              ''min'' , min((value::json->>''dose'')::numeric) filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'' and value <> ''None'')
+            , ''max'' , max((value::json->>''dose'')::numeric) filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'' and value <> ''None'')
+            , ''mean'', avg((value::json->>''dose'')::numeric) filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'' and value <> ''None'')
             , ''5%'' , percentile_disc(0.05) within group (order by (value::json->>''dose'')::numeric)
-                        filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
+                        filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'' and value <> ''None'')
             , ''25%'' , percentile_disc(0.25) within group (order by (value::json->>''dose'')::numeric)
-                        filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
+                        filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'' and value <> ''None'')
             , ''50%'' , percentile_disc(0.5) within group (order by (value::json->>''dose'')::numeric)
-                        filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
+                        filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'' and value <> ''None'')
             , ''75%'' , percentile_disc(0.75) within group (order by (value::json->>''dose'')::numeric)
-                        filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
+                        filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'' and value <> ''None'')
             , ''95%'' , percentile_disc(0.95) within group (order by (value::json->>''dose'')::numeric)
-                        filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
+                        filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'' and value <> ''None'')
             ), ''{}''::jsonb)
         when last(f.data_type) ~* ''bool'' then
           coalesce(jsonb_build_object(
-              ''cnt_true''  , count(*) filter (where f.data_type ~* ''bool'' and value::boolean and value <> ''nan''),
-              ''cnt_false'' , count(*) filter (where f.data_type ~* ''bool'' and not value::boolean and value <> ''nan'')
+              ''cnt_true''  , count(*) filter (where f.data_type ~* ''bool'' and value::boolean and value <> ''nan'' and value <> ''None''),
+              ''cnt_false'' , count(*) filter (where f.data_type ~* ''bool'' and not value::boolean and value <> ''nan'' and value <> ''None'')
             ), ''{}''::jsonb)
         when last(f.data_type) ~* ''String'' and t.fid ~* ''_time'' then
           coalesce(jsonb_build_object(
               ''min'' , min(value::timestamptz)
-                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan''),
+                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan'' and value <> ''None''),
               ''max'' , max(value::timestamptz)
-                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan''),
+                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan'' and value <> ''None''),
               ''mean'', avg(value::timestamptz - ''2010-01-01''::timestamptz)
-                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan'') + ''2010-01-01''::timestamptz,
+                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan'' and value <> ''None'') + ''2010-01-01''::timestamptz,
               ''5%'' , percentile_disc(0.05) within group (order by value::timestamptz)
-                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan''),
+                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan'' and value <> ''None''),
               ''25%'' , percentile_disc(0.25) within group (order by value::timestamptz)
-                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan''),
+                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan'' and value <> ''None''),
               ''50%'' , percentile_disc(0.5) within group (order by value::timestamptz)
-                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan''),
+                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan'' and value <> ''None''),
               ''75%'' , percentile_disc(0.75) within group (order by value::timestamptz)
-                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan''),
+                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan'' and value <> ''None''),
               ''95%'' , percentile_disc(0.95) within group (order by value::timestamptz)
-                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan'')
+                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan'' and value <> ''None'')
             ), ''{}''::jsonb)
         else
           ''{}''::jsonb
