@@ -682,7 +682,7 @@ query_config = {
         %(and_with_ds_twf)s
         GROUP BY %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp
         ''' % {
-          'twf_table_temp_ss'    : para['twf_table_temp_severe_sepsis'],
+          'twf_table_temp_ss'    : para['twf_table_temp_severe_sepsis'] if 'twf_table_temp_severe_sepsis' in para else para['twf_table'],
           'twf_table_join'       : para['twf_table_join'],
           'dataset_id_key'       : para['dataset_id_key'],
           'and_with_ds_twf'      : dataset_id_equal(" and ", "cdm_twf", para['dataset_id']),
