@@ -376,7 +376,7 @@ resource "aws_elb" "api-cluster-dev-opsdx-io" {
   }
 
   security_groups = ["${aws_security_group.api-elb-cluster-dev-opsdx-io.id}"]
-  subnets         = ["${aws_subnet.utility-us-east-1d-cluster-dev-opsdx-io.id}", "${aws_subnet.utility-us-east-1a-cluster-dev-opsdx-io.id}", "${aws_subnet.utility-us-east-1c-cluster-dev-opsdx-io.id}"]
+  subnets         = ["${aws_subnet.utility-us-east-1c-cluster-dev-opsdx-io.id}", "${aws_subnet.utility-us-east-1d-cluster-dev-opsdx-io.id}", "${aws_subnet.utility-us-east-1a-cluster-dev-opsdx-io.id}"]
 
   health_check = {
     target              = "TCP:443"
@@ -412,6 +412,12 @@ resource "aws_iam_role" "masters-cluster-dev-opsdx-io" {
 resource "aws_iam_role" "nodes-cluster-dev-opsdx-io" {
   name               = "nodes.cluster.dev.opsdx.io"
   assume_role_policy = "${file("${path.module}/data/aws_iam_role_nodes.cluster.dev.opsdx.io_policy")}"
+}
+
+resource "aws_iam_role_policy" "additional-nodes-cluster-dev-opsdx-io" {
+  name   = "additional.nodes.cluster.dev.opsdx.io"
+  role   = "${aws_iam_role.nodes-cluster-dev-opsdx-io.name}"
+  policy = "${file("${path.module}/data/aws_iam_role_policy_additional.nodes.cluster.dev.opsdx.io_policy")}"
 }
 
 resource "aws_iam_role_policy" "masters-cluster-dev-opsdx-io" {
