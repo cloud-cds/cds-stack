@@ -2,41 +2,32 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: c2dw-etl-daily-job
+  name: jhh2dw-etl-10d-job
 spec:
   template: # create pods using pod definition in this template
     metadata:
       # unlike pod-nginx.yaml, the name is not included in the meta data as a unique name is
       # generated from the deployment name
-      name: c2dw-etl-daily
+      name: jhh2dw-etl-10d
     spec:
       nodeSelector:
         opsdx_nodegroup: c2dw-etl
       containers:
-      - name: c2dw-etl-daily
+      - name: jhh2dw-etl-10d
         image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-etl:latest
         command:
           - "sh"
-          - "./bin/run_c2dw.sh"
+          - "-c"
+          - "service rsyslog start && sleep 5 && ./bin/goofys opsdx-clarity-etl-stage /mnt && sleep 5 && nice -20 python -q -X faulthandler ./etl/clarity2dw/planner.py"
         securityContext:
           privileged: true
         env:
-        - name: clarity_stage_mnt
-          value: "/mnt"
         - name: dataset_id
-          value: "7"
-        - name: incremental
-          value: "True"
-        - name: etl_graph
-          value: "/mnt/c2dw/c2dw-etl-daily"
-        - name: remove_pat_enc
-          value: "False"
-        - name: remove_data
-          value: "False"
-        - name: start_enc_id
-          value: "-1"
+          value: "8"
         - name: clarity_workspace
-          value: "clarity_daily"
+          value: "jhh_10d"
+        - name: etl_graph
+          value: "/mnt/c2dw/jhh2dw-etl-10d"
         - name: nprocs
           value: "8"
         - name: num_derive_groups
