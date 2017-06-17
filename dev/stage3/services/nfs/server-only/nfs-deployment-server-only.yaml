@@ -40,9 +40,15 @@ spec:
       labels:
         app: nfs-server
     spec:
+      nodeSelector:
+        opsdx_nodegroup: nodes
       containers:
         - name: nfs-server
           image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-nginx:nfs
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "250m"
           ports:
             - name: nfs
               containerPort: 2049

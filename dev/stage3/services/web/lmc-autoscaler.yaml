@@ -1,0 +1,13 @@
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: lmc-rest-api
+  namespace: default
+spec:
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 75
+  scaleTargetRef:
+    apiVersion: v1
+    kind: Deployment
+    name: lmc-rest-api

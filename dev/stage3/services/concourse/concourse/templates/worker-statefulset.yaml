@@ -35,6 +35,8 @@ spec:
           }
     spec:
       terminationGracePeriodSeconds: 60
+      nodeSelector:
+{{ toYaml .Values.worker.nodeSelector | indent 8 }}
       containers:
         - name: {{ template "worker.fullname" . }}
           image: "{{ .Values.image }}:{{ .Values.imageTag }}"

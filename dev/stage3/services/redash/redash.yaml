@@ -5,6 +5,8 @@ metadata:
   name: redash
   labels:
     app: redash
+  annotations:
+    dns.alpha.kubernetes.io/external: redash.dev.opsdx.io
 spec:
   type: LoadBalancer
   ports:
@@ -36,6 +38,10 @@ spec:
       - name: redash-server
         image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/redash:0.0.3
         imagePullPolicy: Always
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "250m"
         command:
         - /app/bin/docker-entrypoint
         - server
@@ -85,6 +91,10 @@ spec:
       - name: redash-worker
         image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/redash:0.0.3
         imagePullPolicy: Always
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
         command:
         - /app/bin/docker-entrypoint
         - scheduler
