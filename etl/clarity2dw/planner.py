@@ -193,7 +193,7 @@ class Planner():
       derive_features, cdm_feature_dict = get_derive_features(self.db_config, self.extractor.dataset_id, self.job)
       self.extractor.derive_feature_addr = get_derive_feature_addr(\
         self.db_config, self.extractor.dataset_id, num_derive_groups,
-        partition_mode, 'cdm_twf', self.job, derive_features)
+        partition_mode, 'cdm_twf', self.job, derive_features, cdm_feature_dict)
       self.log.info("derive_feature_addr: {}".format(\
           self.extractor.derive_feature_addr))
       all_tasks = self.plan.get_all_task_names()
@@ -340,7 +340,8 @@ def get_derive_features(config, dataset_id, job):
   return derive_features, cdm_feature_dict
 
 def get_derive_feature_addr(config, dataset_id, num_derive_groups,
-                            partition_mode, twf_table, job, derive_features):
+                            partition_mode, twf_table, job,
+                            derive_features, cdm_feature_dict):
 
   def partition(lst, n, partition_mode):
     if partition_mode == 1:
@@ -375,6 +376,15 @@ def get_derive_feature_addr(config, dataset_id, num_derive_groups,
         'twf_table'     : twf_table if feature['category'] == 'TWF' else None,
         'twf_table_temp': twf_table_temp,
       }
+  # for feature in derive_features:
+  #   func_inputs = feature['derive_func_input']
+  #   for fid_input in [fi.strip() for fi in func_inputs.split(',')]:
+  #     if not fid_input in derive_feature_addr:
+  #       derive_feature_addr[fid_input] = {
+  #         'category'        : cdm_feature_dict[fid_input]['category'],
+  #         'twf_table'       : twf_table if feature['category'] == 'TWF' else None,
+  #         'twf_table_temp'  : None
+  #       }
   return derive_feature_addr
 
 

@@ -10,6 +10,7 @@ import concurrent.futures
 import functools
 import faulthandler
 from graphviz import Digraph
+import time
 
 ENGINE_LOG_FMT = '%(asctime)s|%(name)s|%(process)s-%(thread)s|%(levelname)s|%(message)s'
 
@@ -107,6 +108,7 @@ class Engine:
     sh.setFormatter(formatter)
     self.log.addHandler(sh)
     self.log.propagate = False
+    self.timer = {}
 
     # Plan
     if type(plan) != Plan:
@@ -199,6 +201,7 @@ class Engine:
         if self.with_graph:
           self.log.debug('task: {}'.format(self.tasks[task_id]))
           self.graph.node(task_id, color='yellow', style='filled')
+          self.timer[task_id] = {"start": time.time()}
         self.pending_queue.append(task_id)
       else:
         self.log.debug('Scheduler passing on %s (not ready)' % task_id)
@@ -318,16 +321,19 @@ class Engine:
         for idf in finished:
           res = idf[1].result()
           if isinstance(res, dict) and 'duration' in res:
-            node_name = '{} {:.2f} s'.format(idf[0], res['duration'])
+            node_name = '{} {:.2f}s'.format(idf[0], res['duration'])
             self.graph.node(idf[0], label=node_name,
                             color='green', style='filled')
           else:
-            node_name = idf[0]
+            now = time.time()
+            task_id = idf[0]
+            duration = now - self.timer[task_id]["start"]
+            node_name = '{} {:.2f}s'.format(task_id, duration)
             self.graph.node(idf[0], label=node_name, color='green', style='filled')
           # self.log.debug('res: {}'.format(res))
           if isinstance(res, dict) and 'done' in res:
             for nd in res['done']:
-              nd_name = '{} {:.2f} s'.format(nd[0], nd[1])
+              nd_name = '{} {:.2f}s'.format(nd[0], nd[1])
               self.graph.node(nd[0], label=nd_name,
                               color='green', style='filled')
               self.graph.edge(idf[0], nd[0])
