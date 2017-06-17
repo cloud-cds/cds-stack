@@ -26,19 +26,47 @@ spec:
     metadata:
       labels:
         app: lmc-rest-api
+      annotations:
+        scheduler.alpha.kubernetes.io/affinity: >
+            {
+              "podAntiAffinity": {
+                "requiredDuringSchedulingIgnoredDuringExecution": [
+                  {
+                    "labelSelector": {
+                      "matchExpressions": [
+                        {
+                          "key": "app",
+                          "operator": "In",
+                          "values": ["lmc-rest-api"]
+                        }
+                      ]
+                    },
+                    "topologyKey": "kubernetes.io/hostname"
+                  }
+                ]
+              }
+            }
     spec:
       nodeSelector:
-        opsdx_nodegroup: nodes
+        opsdx_nodegroup: web
       containers:
       - name: lmc-nginx
         image: nginx:alpine
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
         ports:
         - containerPort: 80
         volumeMounts:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: lmc-rest-api
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.1.6
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.1.18
+        resources:
+          requests:
+            memory: "2816Mi"
+            cpu: "600m"
         command:
           - "sh"
           - "start-dev.sh"
@@ -144,6 +172,7 @@ metadata:
   labels:
     app: lmc-rest-api
   annotations:
+    dns.alpha.kubernetes.io/external: trews-lmc.dev.opsdx.io
     service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:acm:us-east-1:359300513585:certificate/e8391c84-070f-4feb-8946-27cf945840ad
     service.beta.kubernetes.io/aws-load-balancer-ssl-ports: https
     service.beta.kubernetes.io/aws-load-balancer-backend-protocol: tcp
