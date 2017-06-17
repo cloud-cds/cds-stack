@@ -359,6 +359,12 @@ cdm_defs = {
         'thresh':   (None, None),
         'human_readable':   'Neo-Synephrine',
     },
+    'norepinephrine_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Norepinephrine',
+    },
     'oxacillin_dose': {
         'unit':     'mg',
         'value':    float,
