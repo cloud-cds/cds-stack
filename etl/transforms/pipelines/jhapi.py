@@ -145,7 +145,9 @@ lab_results_transforms = [
         fid_col = 'fid',
         fids = ['ddimer'],
         unit_col = 'unit', from_unit = 'mg/L', to_unit = 'mg/L FEU',
-        value_col = 'value', convert_func = translate.mg_per_l_to_mg_per_l_feu
+        value_col = 'value',
+        convert_func = translate.mg_per_l_to_mg_per_l_feu
+    ),
     lambda lr: format_data.filter_to_final_units(lr, 'unit'),
     lambda lr: format_data.format_tsp(lr, 'tsp'),
     lambda lr: format_data.format_tsp(lr, 'res_tsp'),
@@ -187,7 +189,7 @@ med_orders_transforms = [
                 'ampicillin_dose'],
         unit_col = 'dose_unit', from_unit = 'g', to_unit = 'mg',
         value_col = 'dose', convert_func = translate.g_to_mg
-    # ),
+    ),
     # lambda mo: derive.combine(mo, 'fluids_intake', fluids_intake_fids),
     lambda mo: derive.combine(mo, 'vasopressors_dose', vasopressors_fids),
     lambda mo: derive.combine(mo, 'crystalloid_fluid', crystalloid_fluid_fids),
