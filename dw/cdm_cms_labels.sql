@@ -1107,9 +1107,10 @@ BEGIN
                       from severe_sepsis_onsets SSP
                       where SSP.pat_id = coalesce(this_pat_id, SSP.pat_id)
                     )
-                    and ( dose_order_met(CV.fid, CV.c_ovalue#>>'{0,text}', CV.value::numeric,
-                            coalesce((CV.c_ovalue#>>'{0,lower}')::numeric,
-                                     (CV.d_ovalue#>>'{lower}')::numeric)) )
+                    and ( dose_order_met(CV.fid, CV.c_ovalue#>>'{0,text}',
+                                         (case when isnumeric(CV.value) then CV.value::numeric else null::numeric end),
+                                         coalesce((CV.c_ovalue#>>'{0,lower}')::numeric,
+                                                  (CV.d_ovalue#>>'{lower}')::numeric)) )
 
                   when CV.category = 'after_septic_shock' then
                     (select coalesce(
@@ -1129,9 +1130,10 @@ BEGIN
                       from septic_shock_onsets SSH
                       where SSH.pat_id = coalesce(this_pat_id, SSH.pat_id)
                     )
-                    and ( dose_order_met(CV.fid, CV.c_ovalue#>>'{0,text}', CV.value::numeric,
-                            coalesce((CV.c_ovalue#>>'{0,lower}')::numeric,
-                                     (CV.d_ovalue#>>'{lower}')::numeric)) )
+                    and ( dose_order_met(CV.fid, CV.c_ovalue#>>'{0,text}',
+                                         (case when isnumeric(CV.value) then CV.value::numeric else null::numeric end),
+                                         coalesce((CV.c_ovalue#>>'{0,lower}')::numeric,
+                                                  (CV.d_ovalue#>>'{lower}')::numeric)) )
 
                   else criteria_value_met(CV.value, CV.c_ovalue, CV.d_ovalue)
                   end
@@ -1805,9 +1807,10 @@ BEGIN
                       from severe_sepsis_onsets SSP
                       where SSP.pat_id = coalesce(this_pat_id, SSP.pat_id)
                     )
-                    and ( dose_order_met(CV.fid, CV.c_ovalue#>>'{0,text}', CV.value::numeric,
-                            coalesce((CV.c_ovalue#>>'{0,lower}')::numeric,
-                                     (CV.d_ovalue#>>'{lower}')::numeric)) )
+                    and ( dose_order_met(CV.fid, CV.c_ovalue#>>'{0,text}',
+                                         (case when isnumeric(CV.value) then CV.value::numeric else null::numeric end),
+                                         coalesce((CV.c_ovalue#>>'{0,lower}')::numeric,
+                                                  (CV.d_ovalue#>>'{lower}')::numeric)) )
 
                   when CV.category = 'after_septic_shock' then
                     (select coalesce(
@@ -1827,9 +1830,10 @@ BEGIN
                       from septic_shock_onsets SSH
                       where SSH.pat_id = coalesce(this_pat_id, SSH.pat_id)
                     )
-                    and ( dose_order_met(CV.fid, CV.c_ovalue#>>'{0,text}', CV.value::numeric,
-                            coalesce((CV.c_ovalue#>>'{0,lower}')::numeric,
-                                     (CV.d_ovalue#>>'{lower}')::numeric)) )
+                    and ( dose_order_met(CV.fid, CV.c_ovalue#>>'{0,text}',
+                                         (case when isnumeric(CV.value) then CV.value::numeric else null::numeric end),
+                                         coalesce((CV.c_ovalue#>>'{0,lower}')::numeric,
+                                                  (CV.d_ovalue#>>'{lower}')::numeric)) )
 
                   else criteria_value_met(CV.value, CV.c_ovalue, CV.d_ovalue)
                   end
@@ -2187,17 +2191,17 @@ BEGIN
             ( order_met(CV.name, coalesce(CV.c_ovalue#>>'{0,text}', CV.value)) )
 
           when CV.category = 'after_severe_sepsis_dose' then
-            ( dose_order_met(CV.fid, CV.c_ovalue#>>'{0,text}', CV.value::numeric,
-                    coalesce((CV.c_ovalue#>>'{0,lower}')::numeric,
-                             (CV.d_ovalue#>>'{lower}')::numeric)) )
+            ( dose_order_met(CV.fid, CV.c_ovalue#>>'{0,text}',
+                             (case when isnumeric(CV.value) then CV.value::numeric else null::numeric end),
+                             coalesce((CV.c_ovalue#>>'{0,lower}')::numeric, (CV.d_ovalue#>>'{lower}')::numeric)) )
 
           when CV.category = 'after_septic_shock' then
             ( order_met(CV.name, coalesce(CV.c_ovalue#>>'{0,text}', CV.value)) )
 
           when CV.category = 'after_septic_shock_dose' then
-            ( dose_order_met(CV.fid, CV.c_ovalue#>>'{0,text}', CV.value::numeric,
-                    coalesce((CV.c_ovalue#>>'{0,lower}')::numeric,
-                             (CV.d_ovalue#>>'{lower}')::numeric)) )
+            ( dose_order_met(CV.fid, CV.c_ovalue#>>'{0,text}',
+                             (case when isnumeric(CV.value) then CV.value::numeric else null::numeric end),
+                             coalesce((CV.c_ovalue#>>'{0,lower}')::numeric, (CV.d_ovalue#>>'{lower}')::numeric)) )
 
           else criteria_value_met(CV.value, CV.c_ovalue, CV.d_ovalue)
           end
@@ -2645,9 +2649,9 @@ BEGIN
                       from severe_sepsis_onsets SSP
                       where SSP.pat_id = coalesce(this_pat_id, SSP.pat_id)
                     )
-                    and ( dose_order_met(CV.fid, CV.c_ovalue#>>'{0,text}', CV.value::numeric,
-                            coalesce((CV.c_ovalue#>>'{0,lower}')::numeric,
-                                     (CV.d_ovalue#>>'{lower}')::numeric)) )
+                    and ( dose_order_met(CV.fid, CV.c_ovalue#>>'{0,text}',
+                                         (case when isnumeric(CV.value) then CV.value::numeric else null::numeric end),
+                                         coalesce((CV.c_ovalue#>>'{0,lower}')::numeric, (CV.d_ovalue#>>'{lower}')::numeric)) )
 
                   when CV.category = 'after_septic_shock' then
                     (select coalesce(
@@ -2667,9 +2671,9 @@ BEGIN
                       from septic_shock_onsets SSH
                       where SSH.pat_id = coalesce(this_pat_id, SSH.pat_id)
                     )
-                    and ( dose_order_met(CV.fid, CV.c_ovalue#>>'{0,text}', CV.value::numeric,
-                            coalesce((CV.c_ovalue#>>'{0,lower}')::numeric,
-                                     (CV.d_ovalue#>>'{lower}')::numeric)) )
+                    and ( dose_order_met(CV.fid, CV.c_ovalue#>>'{0,text}',
+                                         (case when isnumeric(CV.value) then CV.value::numeric else null::numeric end),
+                                         coalesce((CV.c_ovalue#>>'{0,lower}')::numeric, (CV.d_ovalue#>>'{lower}')::numeric)) )
 
                   else criteria_value_met(CV.value, CV.c_ovalue, CV.d_ovalue)
                   end
@@ -3100,7 +3104,8 @@ CREATE OR REPLACE FUNCTION get_cms_label_series_for_windows_in_parallel(
         window_limit            text default 'all',
         use_app_infections      boolean default false,
         use_clarity_notes       boolean default false,
-        with_bundle_compliance  boolean default true
+        with_bundle_compliance  boolean default true,
+        output_label_series     integer default null
   )
   returns integer
   LANGUAGE plpgsql
@@ -3117,9 +3122,10 @@ DECLARE
     pat_id_str             text;
     label_id_str           text;
     window_fn              text;
+    generate_label_query   text;
+    generated_label_id     integer;
     use_app_infections_str text;
     use_clarity_notes_str  text;
-    generated_label_id     integer;
     num_windows            integer;
 BEGIN
 
@@ -3136,7 +3142,7 @@ BEGIN
                   when 0 then 'get_cms_candidates_for_window'
                   when 1 then 'get_cms_labels_for_window'
                   when 2 then 'get_cms_labels_for_window_simulated_soi'
-                  when 3 then 'get_prospective_cms_labels_for_window'
+                  else 'get_prospective_cms_labels_for_window'
                   end;
 
     use_app_infections_str = case when use_app_infections then 'True' else 'False' end;
@@ -3175,20 +3181,32 @@ BEGIN
         from generate_series(1, num_partitions) R(partition_id)
       );
 
-    -- Register a new label id and populate label series.
+    if output_label_series is not null then
+      -- Reuse existing label series.
+      generated_label_id := _label_id;
+    else
+      -- Register a new label id.
+      generate_label_query := format(
+        'insert into label_version (created, description) values (now(), ''%s'')',
+        label_description
+      );
+
+      perform distribute(parallel_dblink, ARRAY[generate_label_query]::text[], 1);
+
+      generated_label_id := max(label_id) from label_version;
+    end if;
+
+    -- Populate CMS label series.
     window_label_query := format(
-     'with new_label as (
-        insert into label_version (created, description) values (now(), ''%s'') returning label_id
-      )
-      insert into cdm_labels (dataset_id, label_id, pat_id, tsp, label_type, label)
-        select %s, (select max(label_id) from new_label), sw.pat_id, sw.ts, ''cms state'', sw.state
+     'insert into cdm_labels (dataset_id, label_id, pat_id, tsp, label_type, label)
+        select %s, %s, sw.pat_id, sw.ts, ''cms state'', sw.state
         from get_window_labels_from_criteria(''new_criteria_windows'', %s) sw
       on conflict (dataset_id, label_id, pat_id, tsp) do update
         set label_type = excluded.label_type,
             label = excluded.label;
 
       drop table new_criteria_windows;'
-      , label_description, _dataset_id, pat_id_str);
+      , _dataset_id, generated_label_id, pat_id_str);
 
     window_vacuum_query := 'vacuum analyze verbose cdm_labels;';
 
@@ -3319,6 +3337,100 @@ BEGIN
 END; $function$;
 
 
+
+CREATE OR REPLACE FUNCTION get_cms_label_series_for_windows_block_parallel(
+        label_description       text,
+        window_generator        text,
+        label_function          integer,
+        _pat_id                 text,
+        _dataset_id             integer,
+        _label_id               integer,
+        parallel_dblink         text,
+        num_partitions          integer,
+        ts_start                timestamptz,
+        ts_end                  timestamptz,
+        ts_step                 interval,
+        window_limit            text default 'all',
+        use_app_infections      boolean default false,
+        use_clarity_notes       boolean default false,
+        with_bundle_compliance  boolean default true
+  )
+  returns integer
+  LANGUAGE plpgsql
+AS $function$
+DECLARE
+  ts_block                   record;
+  ts_end_epoch               bigint;
+  ts_end_upper               timestamptz;
+  block_query                text;
+  first_iter                 boolean := true;
+  current_label_id           int := 0;
+  generated_label_id         int := 0;
+  pat_id_str                 text;
+  label_id_str               text;
+  use_app_infections_str     text;
+  use_clarity_notes_str      text;
+  with_bundle_compliance_str text;
+  output_label_series_str    text;
+BEGIN
+
+  ts_end_epoch = ceil(extract(epoch from ts_end) / extract(epoch from ts_step)) * extract(epoch from ts_step);
+  ts_end_upper = 'epoch'::timestamptz + (ts_end_epoch::text || ' sec')::interval;
+
+  pat_id_str = case when _pat_id is null then 'NULL'
+                    else format('''%s''', _pat_id) end;
+
+  label_id_str = case when _label_id is null then 'NULL'
+                      else format('%s', _label_id) end;
+
+  use_app_infections_str     = case when use_app_infections then 'True' else 'False' end;
+  use_clarity_notes_str      = case when use_clarity_notes then 'True' else 'False' end;
+  with_bundle_compliance_str = case when with_bundle_compliance then 'True' else 'False' end;
+
+  -- First block does not reuse.
+  -- Subsequent block reuses.
+  for ts_block in select * from generate_series(ts_start + ts_step, ts_end_upper, ts_step) R(ts_block_end)
+  loop
+    raise notice 'Processing block %s %s', ts_block.ts_block_end - ts_step, ts_block.ts_block_end;
+
+    output_label_series_str = case when first_iter then 'null' else format('%s', generated_label_id) end;
+
+    block_query := format(
+      'select get_cms_label_series_for_windows_in_parallel(
+      ''%s'', ''%s'', %s, %s, %s, %s, ''%s'', %s,
+      ''%s''::timestamptz, ''%s''::timestamptz,
+      ''%s'', %s, %s, %s, %s
+      )'
+      , label_description, window_generator, label_function, pat_id_str, _dataset_id, label_id_str, parallel_dblink, num_partitions
+      , ts_block.ts_block_end - ts_step, ts_block.ts_block_end
+      , window_limit, use_app_infections_str, use_clarity_notes_str, with_bundle_compliance_str, output_label_series_str
+    );
+
+    perform distribute(parallel_dblink, ARRAY[block_query]::text[], 1);
+    current_label_id := max(label_id) from label_version;
+
+    if first_iter then
+      generated_label_id := current_label_id;
+      label_id_str = format('%s', generated_label_id);
+    else
+      if current_label_id <> generated_label_id then
+        -- Clean up.
+        delete from cdm_labels where label_id = generated_label_id;
+        delete from cdm_labels where label_id = current_label_id;
+        generated_label_id := null;
+
+        -- Log an error, and break the loop.
+        raise exception 'Failed to reuse label series during get_cms_label_series_for_windows_block_parallel';
+        exit;
+      end if;
+    end if;
+
+    first_iter := false;
+  end loop;
+  return generated_label_id;
+END; $function$;
+
+
 --
 -- Populates the cdm_processed_notes table for a set of windows.
 CREATE OR REPLACE FUNCTION get_cms_note_matches_for_windows(
@@ -3331,7 +3443,8 @@ CREATE OR REPLACE FUNCTION get_cms_note_matches_for_windows(
         num_partitions          integer,
         ts_start                timestamptz default '-infinity'::timestamptz,
         ts_end                  timestamptz default 'infinity'::timestamptz,
-        window_limit            text default 'all'
+        window_limit            text default 'all',
+        clean_matches           boolean default true
   )
   returns void
   LANGUAGE plpgsql
@@ -3391,7 +3504,10 @@ BEGIN
 
     perform distribute(parallel_dblink, window_queries, num_partitions);
 
-    clean_notes_query := format('delete from cdm_processed_notes where dataset_id = %s', _dataset_id);
+    if clean_matches then
+      clean_notes_query := format('delete from cdm_processed_notes where dataset_id = %s', _dataset_id);
+      perform distribute(parallel_dblink, ARRAY[clean_notes_query], 1);
+    end if;
 
     merge_query := 'insert into cdm_processed_notes as pn'
       || '  select dataset_id, pat_id, note_id, note_type, note_status, array_agg(start_ts) as tsps, array_agg(ngram) as ngrams'
@@ -3410,9 +3526,73 @@ BEGIN
       from generate_series(1, num_partitions) R(partition_id)
     );
 
-    perform distribute(parallel_dblink, ARRAY[clean_notes_query, merge_query, clean_table_query], 1);
+    perform distribute(parallel_dblink, ARRAY[merge_query, clean_table_query], 1);
 
     return;
+END; $function$;
+
+
+
+CREATE OR REPLACE FUNCTION get_cms_note_matches_for_windows_blocked(
+        label_description       text,
+        window_generator        text,
+        _pat_id                 text,
+        _dataset_id             integer,
+        _label_id               integer,
+        parallel_dblink         text,
+        num_partitions          integer,
+        ts_start                timestamptz,
+        ts_end                  timestamptz,
+        ts_step                 interval,
+        window_limit            text
+  )
+  returns void
+  LANGUAGE plpgsql
+AS $function$
+DECLARE
+  ts_block                   record;
+  ts_end_epoch               bigint;
+  ts_end_upper               timestamptz;
+  block_query                text;
+  pat_id_str                 text;
+  label_id_str               text;
+  first_iter                 boolean := true;
+  clean_notes_str            text;
+BEGIN
+
+  ts_end_epoch = ceil(extract(epoch from ts_end) / extract(epoch from ts_step)) * extract(epoch from ts_step);
+  ts_end_upper = 'epoch'::timestamptz + (ts_end_epoch::text || ' sec')::interval;
+
+  pat_id_str = case when _pat_id is null then 'NULL'
+                    else format('''%s''', _pat_id) end;
+
+  label_id_str = case when _label_id is null then 'NULL'
+                      else format('%s', _label_id) end;
+
+  -- First block does not reuse.
+  -- Subsequent block reuses.
+  for ts_block in select * from generate_series(ts_start + ts_step, ts_end_upper, ts_step) R(ts_block_end)
+  loop
+    raise notice 'Processing block %s %s', ts_block.ts_block_end - ts_step, ts_block.ts_block_end;
+
+    clean_notes_str = case when first_iter then 'True' else 'False' end;
+
+    block_query := format(
+      'select get_cms_note_matches_for_windows(
+        ''%s'', ''%s'',
+        %s, %s, %s, ''%s'', %s,
+        ''%s''::timestamptz, ''%s''::timestamptz, ''%s'', %s
+      )
+      '
+      , label_description, window_generator
+      , pat_id_str, _dataset_id, label_id_str, parallel_dblink, num_partitions
+      , ts_block.ts_block_end - ts_step, ts_block.ts_block_end, window_limit, clean_notes_str
+    );
+
+    perform distribute(parallel_dblink, ARRAY[block_query]::text[], 1);
+    first_iter := false;
+  end loop;
+  return;
 END; $function$;
 
 
