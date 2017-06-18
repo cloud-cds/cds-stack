@@ -806,3 +806,20 @@ CREATE TABLE cdm_stats(
 DROP VIEW IF EXISTS cdm_stats_view;
 CREATE VIEW cdm_stats_view AS
     select dataset_id, id, id_type, cdm_table, jsonb_pretty(stats) from cdm_stats;
+
+--------------------------
+-- clarity stats tables --
+--------------------------
+DROP TABLE IF EXISTS clarity_stats cascade;
+CREATE TABLE clarity_stats(
+    id text,
+    id_type text,
+    clarity_workspace text,
+    clarity_staging_table text,
+    stats jsonb,
+    PRIMARY KEY (id, id_type, clarity_workspace, clarity_staging_table)
+);
+
+DROP VIEW IF EXISTS clarity_stats_view;
+CREATE VIEW clarity_stats_view AS
+    select id, id_type, clarity_workspace, clarity_staging_table, jsonb_pretty(stats) from clarity_stats;

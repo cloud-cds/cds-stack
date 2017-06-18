@@ -2492,42 +2492,45 @@ union
   (select concat_ws(', ', r.name, r.fid, r.override_value, r.category) from criteria_default r where r.dataset_id = dataset_id_right
   except
   select concat_ws(', ', l.name, l.fid, l.override_value, l.category) from criteria_default l where l.dataset_id = dataset_id_left) as right_only
-) U
-order by config_table, dataset_id, content;
+) U;
 end $func$ LANGUAGE plpgsql;
+
+
 -------------------------
 -- cdm stats functions --
 -------------------------
-create or replace function run_cdm_stats(_dataset_id int, server text default 'dev_dw', nprocs int default 2)
+create or replace function run_cdm_stats(
+  _dataset_id int, server text default 'dev_dw', nprocs int default 2,
+  start_tsp timestamptz default '2000-01-01'::timestamptz,
+  end_tsp timestamptz default '2100-01-01'::timestamptz)
 RETURNS void AS
 $func$
 begin
-  perform run_cdm_stats_p(_dataset_id, 'pat_enc');
-  perform run_cdm_stats_p(_dataset_id, 'cdm_s');
-  perform run_cdm_stats_p(_dataset_id, 'cdm_t');
-  perform run_cdm_stats_p(_dataset_id, 'cdm_twf');
-  perform run_cdm_stats_p(_dataset_id, 'criteria_meas');
-  perform run_cdm_stats_t(_dataset_id, 'cdm_t');
-  perform run_cdm_stats_t(_dataset_id, 'cdm_twf');
-  perform run_cdm_stats_t(_dataset_id, 'criteria_meas');
-  perform run_cdm_stats_f(_dataset_id, 'cdm_s');
-  perform run_cdm_stats_f(_dataset_id, 'cdm_t');
-  perform run_cdm_stats_f(_dataset_id, 'criteria_meas');
-  perform run_cdm_stats_f(_dataset_id, 'cdm_twf', server, nprocs);
+  perform run_cdm_stats_p(_dataset_id, 'pat_enc', start_tsp, end_tsp);
+  perform run_cdm_stats_p(_dataset_id, 'cdm_s', start_tsp, end_tsp);
+  perform run_cdm_stats_p(_dataset_id, 'cdm_t', start_tsp, end_tsp);
+  perform run_cdm_stats_p(_dataset_id, 'cdm_twf', start_tsp, end_tsp);
+  perform run_cdm_stats_p(_dataset_id, 'criteria_meas', start_tsp, end_tsp);
+  perform run_cdm_stats_t(_dataset_id, 'cdm_t', start_tsp, end_tsp);
+  perform run_cdm_stats_t(_dataset_id, 'cdm_twf', start_tsp, end_tsp);
+  perform run_cdm_stats_t(_dataset_id, 'criteria_meas', start_tsp, end_tsp);
+  perform run_cdm_stats_f(_dataset_id, 'cdm_s', server, nprocs, start_tsp, end_tsp);
+  perform run_cdm_stats_f(_dataset_id, 'cdm_t', server, nprocs, start_tsp, end_tsp);
+  perform run_cdm_stats_f(_dataset_id, 'criteria_meas', server, nprocs, start_tsp, end_tsp);
+  perform run_cdm_stats_f(_dataset_id, 'cdm_twf', server, nprocs, start_tsp, end_tsp);
 end $func$ language plpgsql;
 
-
-
-
-
-
-
-create or replace function run_cdm_stats_p(_dataset_id int, _table text)
+create or replace function run_cdm_stats_p(
+  _dataset_id int, _table text,
+  start_tsp timestamptz default '2000-01-01'::timestamptz,
+  end_tsp timestamptz  default '2100-01-01'::timestamptz)
 RETURNS void AS
 $func$
 declare
   T text;
+  T2 text;
 begin
+T2 = '';
 if _table = 'pat_enc' then
   T = 'pat_enc p';
 elsif _table = 'criteria_meas' then
@@ -2536,6 +2539,10 @@ elsif _table = 'criteria_meas' then
 else
   T = _table || ' t inner join pat_enc p on t.enc_id = p.enc_id
     and t.dataset_id = p.dataset_id';
+end if;
+if _table in ('cdm_t', 'cdm_twf', 'criteria_meas') then
+  T2 = ' and t.tsp between ''' || start_tsp || '''::timestamptz and '''
+    || end_tsp || '''::timestamptz';
 end if;
 execute
   'insert into cdm_stats select ' ||
@@ -2547,14 +2554,16 @@ execute
   ''cnt_enc_id'', count(distinct p.enc_id),
   ''cnt_visit_id'', count(distinct p.visit_id),
   ''cnt_pat_id'', count(distinct p.pat_id)) stats
-  from ' || T || ' where p.dataset_id = ' || _dataset_id
-  || 'on conflict(dataset_id, id, id_type, cdm_table) do update set
+  from ' || T || ' where p.dataset_id = ' || _dataset_id || T2
+  || ' on conflict(dataset_id, id, id_type, cdm_table) do update set
     stats = excluded.stats'
   ;
 end;
 $func$ LANGUAGE plpgsql;
 
-create or replace function run_cdm_stats_t(_dataset_id int, _table text)
+create or replace function run_cdm_stats_t(_dataset_id int, _table text,
+  start_tsp timestamptz default '2000-01-01'::timestamptz,
+  end_tsp timestamptz  default '2100-01-01'::timestamptz)
 RETURNS void AS
 $func$
 declare
@@ -2565,6 +2574,8 @@ execute
   count(*)
   from '||_table||'
   where dataset_id = '|| _dataset_id ||'
+   and tsp between '''|| start_tsp ||'''::timestamptz
+   and '''||end_tsp||'''::timestamptz
   group by 1
   order by 1
 ),
@@ -2573,6 +2584,8 @@ hour_cnt as (
   count(*)
   from '||_table||'
   where dataset_id = '|| _dataset_id ||'
+    and tsp between '''|| start_tsp ||'''::timestamptz
+    and '''||end_tsp||'''::timestamptz
   group by 1
   order by 1
 ),
@@ -2588,7 +2601,7 @@ stats as (
       from day_cnt
 ),
 histogram as (
-  select width_bucket(count, min, max, 9) as bucket,
+  select width_bucket(count, min, max, 99) as bucket,
         numrange(min(count)::numeric, max(count)::numeric, ''[]'') as range,
         count(*) as freq
   from day_cnt, stats
@@ -2622,20 +2635,42 @@ from
     ''tsp_max'', max(tsp),
     ''tsp_range'', age(max(tsp), min(tsp)),
     ''tsp_mean'', to_timestamp(avg(extract(''epoch'' from tsp))),
+    ''tsp_5%'', percentile_disc(0.05) within group (order by tsp),
     ''tsp_25%'', percentile_disc(0.25) within group (order by tsp),
     ''tsp_50%'', percentile_disc(0.5) within group (order by tsp),
-    ''tsp_85%'', percentile_disc(0.85) within group (order by tsp),
+    ''tsp_75%'', percentile_disc(0.75) within group (order by tsp),
+    ''tsp_95%'', percentile_disc(0.95) within group (order by tsp),
     ''cnt_date'', count(distinct tsp::date)
   ) stats_tsp
   from ' || _table || '
   where '||_table||'.dataset_id = '||_dataset_id||'
+  and tsp between '''|| start_tsp ||'''::timestamptz
+   and '''||end_tsp||'''::timestamptz
 ) t, day_row_cnt, day_rows_histogram, hour_row_cnt
 on conflict(dataset_id, id, id_type, cdm_table) do update set stats = excluded.stats';
 end;
 $func$ LANGUAGE plpgsql;
 
+create or replace function delete_dataset(_dataset_id int)
+RETURNS void AS
+$func$
+begin
+delete from cdm_s where dataset_id = _dataset_id;
+delete from cdm_t where dataset_id = _dataset_id;
+delete from cdm_twf where dataset_id = _dataset_id;
+delete from cdm_notes where dataset_id = _dataset_id;
+delete from criteria_meas where dataset_id = _dataset_id;
+delete from trews where dataset_id = _dataset_id;
+delete from pat_enc where dataset_id = _dataset_id;
+perform setval('pat_enc_enc_id_seq', 1);
+end;
+$func$ language plpgsql;
 
-create or replace function run_cdm_stats_f(_dataset_id int, _table text, server text default 'dev_dw', nprocs int default 2)
+create or replace function run_cdm_stats_f(_dataset_id int, _table text,
+  server text default 'dev_dw', nprocs int default 2,
+  start_tsp timestamptz default '2000-01-01'::timestamptz,
+  end_tsp timestamptz  default '2100-01-01'::timestamptz
+  )
 RETURNS void AS
 $func$
 declare
@@ -2643,12 +2678,18 @@ queries text[];
 q text;
 use_hist boolean;
 rec record;
+T text;
 begin
 if _table = 'cdm_twf' then
-  for rec in select * from cdm_feature f where f.category = 'TWF' and f.dataset_id = _dataset_id
+  for rec in select * from cdm_feature f where f.category = 'TWF'
+    and f.dataset_id = _dataset_id
   loop
     if rec.data_type ~* 'real|int' then
-      execute 'select min(' || rec.fid || ') <> max(' || rec.fid || ') from cdm_twf where dataset_id = ' || _dataset_id into use_hist;
+      execute 'select min(' || rec.fid || ') <> max(' || rec.fid || ')
+        from cdm_twf where dataset_id = ' || _dataset_id || '
+        and tsp between '''|| start_tsp ||'''::timestamptz
+        and '''||end_tsp||'''::timestamptz'
+        into use_hist;
     else use_hist = false;
     end if;
     if use_hist then
@@ -2658,15 +2699,17 @@ if _table = 'cdm_twf' then
                min('||rec.fid||') as min,
                max('||rec.fid||') as max
         from '||_table||' t
-        where t.dataset_id = '||_dataset_id||'
+        where t.dataset_id = '||_dataset_id||' and '||rec.fid||' is not null
+          and tsp between '''|| start_tsp ||'''::timestamptz
+          and '''||end_tsp||'''::timestamptz
       ),
       histogram as (
         select
-           width_bucket('||rec.fid||', min, max, 9) as bucket,
+           width_bucket('||rec.fid||', min, max, 99) as bucket,
            numrange(min('||rec.fid||')::numeric, max('||rec.fid||')::numeric, ''[]'') as range,
            count(*) as freq
         from s cross join '||_table||' t
-        where t.dataset_id = '|| _dataset_id ||'
+        where t.dataset_id = '|| _dataset_id ||' and '||rec.fid||' is not null
         group by bucket
         order by bucket
       ),
@@ -2717,11 +2760,15 @@ if _table = 'cdm_twf' then
                 ''min'' , min('||rec.fid||') filter (where f.data_type ~* ''real|int'')
               , ''max'' , max('||rec.fid||') filter (where f.data_type ~* ''real|int'')
               , ''mean'', avg('||rec.fid||') filter (where f.data_type ~* ''real|int'')
+              , ''5%'' , percentile_disc(0.05) within group (order by '||rec.fid||')
+                          filter (where f.data_type ~* ''real|int'')
               , ''25%'' , percentile_disc(0.25) within group (order by '||rec.fid||')
                           filter (where f.data_type ~* ''real|int'')
               , ''50%'' , percentile_disc(0.5) within group (order by '||rec.fid||')
                           filter (where f.data_type ~* ''real|int'')
-              , ''85%'' , percentile_disc(0.85) within group (order by '||rec.fid||')
+              , ''75%'' , percentile_disc(0.75) within group (order by '||rec.fid||')
+                          filter (where f.data_type ~* ''real|int'')
+              , ''95%'' , percentile_disc(0.95) within group (order by '||rec.fid||')
                           filter (where f.data_type ~* ''real|int'')
               ), ''{}''::jsonb)';
     elsif rec.data_type ~* 'bool' then
@@ -2737,6 +2784,8 @@ if _table = 'cdm_twf' then
     inner join cdm_feature f
     on s.dataset_id = f.dataset_id
     where s.dataset_id = '|| _dataset_id ||' and f.fid = '''||rec.fid||'''
+      and s.tsp between '''|| start_tsp ||'''::timestamptz
+      and '''||end_tsp||'''::timestamptz
     ) M';
     if use_hist then
       q = q || ', histogram_agg ht';
@@ -2746,25 +2795,37 @@ if _table = 'cdm_twf' then
   end loop;
   perform distribute(server, queries, nprocs);
 else
-q = '
-  with s as (
+  T = '';
+  if _table in ('cdm_t', 'criteria_meas') then
+    T = ' and t.tsp between '''|| start_tsp ||'''::timestamptz
+      and '''||end_tsp||'''::timestamptz';
+  end if;
+  q = '
+  with v as (
     select t.fid,
-           min(value::numeric) as min,
-           max(value::numeric) as max
+    (case when f.data_type ~* ''real|int'' then t.value
+    else t.value::json->>''dose'' end) as value
     from '||_table||' t inner join cdm_feature f
     on f.dataset_id = t.dataset_id
     and t.fid = f.fid
-    where t.dataset_id = '||_dataset_id||' and f.data_type ~* ''real|int''
-    and value <> ''nan''
-    group by t.fid
+    where t.dataset_id = '||_dataset_id||' and
+    (
+      (f.data_type ~* ''real|int'' and value <> ''nan'' and value <> ''None'')
+      or (f.data_type = ''JSON'' and f.fid ~* ''_dose'')
+    ) '|| T ||'
+  ),
+  s as (
+    select fid, min(value::numeric) as min, max(value::numeric) as max
+    from v
+    group by v.fid
   ),
   histogram as (
     select s.fid,
-           width_bucket(value::numeric, min, max, 9) as bucket,
-           int4range(floor(min(value::numeric))::int, ceil(max(value::numeric))::int, ''[]'') as range,
-           count(*) as freq
-    from s inner join '||_table||' t on s.fid = t.fid
-    where t.dataset_id = '|| _dataset_id ||' and t.value <> ''nan''
+      width_bucket(value::numeric, min, max, 99) as bucket,
+      numrange(min(value::numeric)::numeric, max(value::numeric)::numeric, ''[]'') as range,
+      count(*) as freq
+    from s inner join v on s.fid = v.fid
+    where min <> max
     group by s.fid, bucket
     order by s.fid, bucket
   ),
@@ -2774,7 +2835,7 @@ q = '
   from histogram
   ),
   histogram_agg as(
-    select fid, jsonb_object_agg(k, v) hist from histogram_json group by fid order by fid
+    select fid, coalesce(jsonb_object_agg(k, v), ''{}''::jsonb) hist from histogram_json group by fid order by fid
   )
   insert into cdm_stats
   select M.dataset_id dataset_id,
@@ -2787,8 +2848,8 @@ q = '
     ''histogram'', hist
   ) stats from
   (select
-    s.dataset_id
-    , s.fid
+    t.dataset_id
+    , t.fid
     , jsonb_build_object(''cnt'', count(*)) cnt
     , last(f.is_measured) is_measured
     , last(f.data_type) data_type
@@ -2796,61 +2857,398 @@ q = '
         case
         when last(f.data_type) ~* ''real|int'' then
           coalesce(jsonb_build_object(
-              ''min'' , min(value::numeric) filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
-            , ''max'' , max(value::numeric) filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
-            , ''mean'', avg(value::numeric) filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
+              ''min'' , min(value::numeric) filter (where f.data_type ~* ''real|int'' and value <> ''nan'' and value <> ''None'')
+            , ''max'' , max(value::numeric) filter (where f.data_type ~* ''real|int'' and value <> ''nan'' and value <> ''None'')
+            , ''mean'', avg(value::numeric) filter (where f.data_type ~* ''real|int'' and value <> ''nan'' and value <> ''None'')
+            , ''5%'' , percentile_disc(0.05) within group (order by value::numeric)
+                        filter (where f.data_type ~* ''real|int'' and value <> ''nan'' and value <> ''None'')
             , ''25%'' , percentile_disc(0.25) within group (order by value::numeric)
-                        filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
+                        filter (where f.data_type ~* ''real|int'' and value <> ''nan'' and value <> ''None'')
             , ''50%'' , percentile_disc(0.5) within group (order by value::numeric)
-                        filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
-            , ''85%'' , percentile_disc(0.85) within group (order by value::numeric)
-                        filter (where f.data_type ~* ''real|int'' and value <> ''nan'')
+                        filter (where f.data_type ~* ''real|int'' and value <> ''nan'' and value <> ''None'')
+            , ''75%'' , percentile_disc(0.75) within group (order by value::numeric)
+                        filter (where f.data_type ~* ''real|int'' and value <> ''nan'' and value <> ''None'')
+            , ''95%'' , percentile_disc(0.95) within group (order by value::numeric)
+                        filter (where f.data_type ~* ''real|int'' and value <> ''nan'' and value <> ''None'')
             ), ''{}''::jsonb)
         when last(f.data_type) ~* ''json'' and last(f.fid) ~* ''_dose'' then
           coalesce(jsonb_build_object(
-              ''min'' , min((value::json->>''dose'')::numeric) filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
-            , ''max'' , max((value::json->>''dose'')::numeric) filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
-            , ''mean'', avg((value::json->>''dose'')::numeric) filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
+              ''min'' , min((value::json->>''dose'')::numeric) filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'' and value <> ''None'')
+            , ''max'' , max((value::json->>''dose'')::numeric) filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'' and value <> ''None'')
+            , ''mean'', avg((value::json->>''dose'')::numeric) filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'' and value <> ''None'')
+            , ''5%'' , percentile_disc(0.05) within group (order by (value::json->>''dose'')::numeric)
+                        filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'' and value <> ''None'')
             , ''25%'' , percentile_disc(0.25) within group (order by (value::json->>''dose'')::numeric)
-                        filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
+                        filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'' and value <> ''None'')
             , ''50%'' , percentile_disc(0.5) within group (order by (value::json->>''dose'')::numeric)
-                        filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
-            , ''85%'' , percentile_disc(0.85) within group (order by (value::json->>''dose'')::numeric)
-                        filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'')
+                        filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'' and value <> ''None'')
+            , ''75%'' , percentile_disc(0.75) within group (order by (value::json->>''dose'')::numeric)
+                        filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'' and value <> ''None'')
+            , ''95%'' , percentile_disc(0.95) within group (order by (value::json->>''dose'')::numeric)
+                        filter (where f.data_type ~* ''json'' and f.fid ~* ''_dose'' and value <> ''nan'' and value <> ''None'')
             ), ''{}''::jsonb)
         when last(f.data_type) ~* ''bool'' then
           coalesce(jsonb_build_object(
-              ''cnt_true''  , count(*) filter (where f.data_type ~* ''bool'' and value::boolean and value <> ''nan''),
-              ''cnt_false'' , count(*) filter (where f.data_type ~* ''bool'' and not value::boolean and value <> ''nan'')
+              ''cnt_true''  , count(*) filter (where f.data_type ~* ''bool'' and value::boolean and value <> ''nan'' and value <> ''None''),
+              ''cnt_false'' , count(*) filter (where f.data_type ~* ''bool'' and not value::boolean and value <> ''nan'' and value <> ''None'')
             ), ''{}''::jsonb)
-        when last(f.data_type) ~* ''String'' and s.fid ~* ''_time'' then
+        when last(f.data_type) ~* ''String'' and t.fid ~* ''_time'' then
           coalesce(jsonb_build_object(
               ''min'' , min(value::timestamptz)
-                        filter (where f.data_type ~* ''String'' and s.fid ~* ''_time'' and value <> ''nan''),
+                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan'' and value <> ''None''),
               ''max'' , max(value::timestamptz)
-                        filter (where f.data_type ~* ''String'' and s.fid ~* ''_time'' and value <> ''nan''),
+                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan'' and value <> ''None''),
               ''mean'', avg(value::timestamptz - ''2010-01-01''::timestamptz)
-                        filter (where f.data_type ~* ''String'' and s.fid ~* ''_time'' and value <> ''nan'') + ''2010-01-01''::timestamptz,
+                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan'' and value <> ''None'') + ''2010-01-01''::timestamptz,
+              ''5%'' , percentile_disc(0.05) within group (order by value::timestamptz)
+                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan'' and value <> ''None''),
               ''25%'' , percentile_disc(0.25) within group (order by value::timestamptz)
-                        filter (where f.data_type ~* ''String'' and s.fid ~* ''_time'' and value <> ''nan''),
+                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan'' and value <> ''None''),
               ''50%'' , percentile_disc(0.5) within group (order by value::timestamptz)
-                        filter (where f.data_type ~* ''String'' and s.fid ~* ''_time'' and value <> ''nan''),
-              ''85%'' , percentile_disc(0.85) within group (order by value::timestamptz)
-                        filter (where f.data_type ~* ''String'' and s.fid ~* ''_time'' and value <> ''nan'')
+                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan'' and value <> ''None''),
+              ''75%'' , percentile_disc(0.75) within group (order by value::timestamptz)
+                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan'' and value <> ''None''),
+              ''95%'' , percentile_disc(0.95) within group (order by value::timestamptz)
+                        filter (where f.data_type ~* ''String'' and t.fid ~* ''_time'' and value <> ''nan'' and value <> ''None'')
             ), ''{}''::jsonb)
         else
           ''{}''::jsonb
         end
       ) stats
-  from '|| _table ||' s
+  from '|| _table ||' t
   inner join cdm_feature f
-  on s.dataset_id = f.dataset_id and s.fid = f.fid
-  where s.dataset_id = '|| _dataset_id ||'
-  group by s.dataset_id, s.fid
-  order by s.fid) M left join histogram_agg ht on ht.fid = M.fid
+  on t.dataset_id = f.dataset_id and t.fid = f.fid
+  where t.dataset_id = '|| _dataset_id || T ||'
+  group by t.dataset_id, t.fid
+  order by t.fid) M left join histogram_agg ht on ht.fid = M.fid
   order by M.fid
   on conflict(dataset_id, id, id_type, cdm_table) do update set stats = excluded.stats';
 end if;
 execute q;
 end;
 $func$ LANGUAGE plpgsql;
+
+
+CREATE or replace FUNCTION rowcount_all(schema_name text default 'public')
+  RETURNS table(table_name text, cnt bigint) as
+$$
+declare
+ table_name text;
+begin
+  for table_name in SELECT c.relname FROM pg_class c
+    JOIN pg_namespace s ON (c.relnamespace=s.oid)
+    WHERE c.relkind = 'r' AND s.nspname=schema_name
+    order by c.relname
+  LOOP
+    RETURN QUERY EXECUTE format('select cast(%L as text),count(*) from %I.%I',
+       table_name, schema_name, table_name);
+  END LOOP;
+end
+$$ language plpgsql;
+
+create or replace function cdm_feature_present(_dataset_id int)
+    returns table(id text, cdm_table text, count int) as
+$$
+begin
+return query
+select f.fid::text, s.cdm_table, coalesce((s.stats->>'cnt')::int, 0)
+from cdm_feature f left join cdm_stats s
+    on f.fid = s.id and f.dataset_id = s.dataset_id
+     and
+(
+    (s.cdm_table = 'cdm_twf' and f.category = 'TWF')
+  or (s.cdm_table = 'cdm_t' and f.category = 'T')
+  or (s.cdm_table = 'cdm_s' and f.category = 'S')
+  or (s.cdm_table = 'criteria_meas')
+)
+where f.dataset_id = _dataset_id and f.category in ('T', 'S', 'TWF')
+order by coalesce((s.stats->>'cnt')::int, 0);
+end
+$$ language plpgsql;
+
+create or replace function cdm_feature_diff(dataset_id_left int, dataset_id_right int)
+    returns table(id text, cdm_table text, diff jsonb, left_stats jsonb, right_stats jsonb) as
+$$
+begin
+return query
+with L as
+(
+    select f.fid::text, s.cdm_table, s.stats from cdm_feature f inner join cdm_stats s
+        on f.fid = s.id and f.dataset_id = s.dataset_id
+    where f.dataset_id = dataset_id_left
+),
+R as
+(
+    select f.fid::text, s.cdm_table, s.stats from cdm_feature f inner join cdm_stats s
+        on f.fid = s.id and f.dataset_id = s.dataset_id
+    where f.dataset_id = dataset_id_right
+)
+select L.fid, L.cdm_table,
+    (
+        case when L.stats->>'data_type' = 'Boolean' then
+            jsonb_build_object(
+              'true_diff_ratio',
+              round(abs((L.stats->>'cnt_true')::numeric / (L.stats->>'cnt')::numeric)
+            - ((R.stats->>'cnt_true')::numeric / (R.stats->>'cnt')::numeric), 3)
+            )
+        when L.stats->>'data_type' ~* 'real|int' then
+            jsonb_build_object(
+              'mean_diff_ratio',
+              round(abs(((L.stats->>'mean')::numeric - (R.stats->>'mean')::numeric) / (R.stats->>'mean')::numeric), 3),
+              'min_diff_ratio',
+              round(abs(((L.stats->>'min')::numeric - (R.stats->>'min')::numeric) / (R.stats->>'mean')::numeric), 3),
+              'max_diff_ratio',
+              round(abs(((L.stats->>'max')::numeric - (R.stats->>'max')::numeric) / (R.stats->>'mean')::numeric), 3),
+              '5%_diff_ratio',
+              round(abs(((L.stats->>'5%')::numeric - (R.stats->>'5%')::numeric) / (R.stats->>'mean')::numeric), 3),
+              '25%_diff_ratio',
+              round(abs(((L.stats->>'25%')::numeric - (R.stats->>'25%')::numeric) / (R.stats->>'mean')::numeric), 3),
+              '50%_diff_ratio',
+              round(abs(((L.stats->>'50%')::numeric - (R.stats->>'50%')::numeric) / (R.stats->>'mean')::numeric), 3),
+              '75%_diff_ratio',
+              round(abs(((L.stats->>'75%')::numeric - (R.stats->>'75%')::numeric) / (R.stats->>'mean')::numeric), 3),
+              '95%_diff_ratio',
+              round(abs(((L.stats->>'95%')::numeric - (R.stats->>'95%')::numeric) / (R.stats->>'mean')::numeric), 3)
+            )
+        else
+        '{}'::jsonb
+        end
+    ) diff,
+    L.stats, R.stats from L inner join R on L.fid = R.fid and L.cdm_table = R.cdm_table
+;
+end
+$$ language plpgsql;
+
+
+CREATE OR REPLACE FUNCTION isnumeric(text) RETURNS BOOLEAN AS $$
+DECLARE x NUMERIC;
+BEGIN
+    x = $1::NUMERIC;
+    RETURN TRUE;
+EXCEPTION WHEN others THEN
+    RETURN FALSE;
+END;
+$$
+STRICT
+LANGUAGE plpgsql IMMUTABLE;
+
+
+create or replace function run_clarity_stats(_clarity_workspace text, server text default 'dev_dw', nprocs int default 2)
+returns void as
+$$
+declare queries text[];
+begin
+  -- adt_feed
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'ADT_Feed', 'EventType', 'DEPARTMENT_NAME'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'ADT_Feed', 'DEPARTMENT_NAME', 'EventType'));
+  -- diagnoses
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Diagnoses', 'DX_ID', 'Code'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Diagnoses', 'Code', 'CSN_ID'));
+  -- flowsheet
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue', 'FLO_MEAS_NAME', 'Value'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue', 'FLO_MEAS_NAME', 'UNITS'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue', 'FLO_MEAS_ID', 'Value'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue', 'FLO_MEAS_ID', 'UNITS'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue', 'DISP_NAME', 'Value'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue', 'DISP_NAME', 'UNITS'));
+  -- flowsheet 643
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue_643', 'FLO_MEAS_NAME', 'Value'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue_643', 'FLO_MEAS_NAME', 'UNITS'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue_643', 'FLO_MEAS_ID', 'Value'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue_643', 'FLO_MEAS_ID', 'UNITS'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue_643', 'DISP_NAME', 'Value'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue_643', 'DISP_NAME', 'UNITS'));
+  perform distribute(server, queries, nprocs);
+  -- flowsheet lda
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue-LDA', 'FLO_MEAS_NAME', 'Value'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue-LDA', 'FLO_MEAS_NAME', 'UNITS'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue-LDA', 'FLO_MEAS_ID', 'Value'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue-LDA', 'FLO_MEAS_ID', 'UNITS'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue-LDA', 'DISP_NAME', 'Value'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'FlowsheetValue-LDA', 'DISP_NAME', 'UNITS'));
+  -- labs
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs', 'COMPONENT_ID', 'ResultValue'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs', 'COMPONENT_ID', 'REFERENCE_UNIT'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs', 'BASE_NAME', 'ResultValue'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs', 'BASE_NAME', 'REFERENCE_UNIT'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs', 'NAME', 'ResultValue'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs', 'NAME', 'REFERENCE_UNIT'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs', 'EXTERNAL_NAME', 'ResultValue'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs', 'EXTERNAL_NAME', 'REFERENCE_UNIT'));
+  -- labs_643
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs_643', 'COMPONENT_ID', 'ResultValue'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs_643', 'COMPONENT_ID', 'REFERENCE_UNIT'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs_643', 'BASE_NAME', 'ResultValue'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs_643', 'BASE_NAME', 'REFERENCE_UNIT'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs_643', 'NAME', 'ResultValue'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs_643', 'NAME', 'REFERENCE_UNIT'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs_643', 'EXTERNAL_NAME', 'ResultValue'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Labs_643', 'EXTERNAL_NAME', 'REFERENCE_UNIT'));
+  -- ldas
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'LDAs', 'FLO_MEAS_NAME', 'PAT_ID'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'LDAs', 'DISP_NAME', 'PAT_ID'));
+  -- medicalhistory
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'MedicalHistory', 'diagName', 'CSN_ID'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'MedicalHistory', 'Code', 'CSN_ID'));
+  -- medication administration
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'MedicationAdministration', 'display_name', 'ActionTaken'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'MedicationAdministration', 'display_name', 'Dose'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'MedicationAdministration', 'display_name', 'MedUnit'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'MedicationAdministration', 'MEDICATION_ID', 'ActionTaken'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'MedicationAdministration', 'MEDICATION_ID', 'Dose'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'MedicationAdministration', 'MEDICATION_ID', 'MedUnit'));
+  -- notes
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Notes', 'AuthorType', 'NOTE_ID'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'Notes', 'NoteType', 'NOTE_ID'));
+  -- order med
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'OrderMed', 'display_name', 'CSN_ID'));
+  -- order med home
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'OrderMedHome', 'display_name', 'CSN_ID'));
+  -- order procs
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'OrderProcs', 'display_name', 'OrderStatus'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'OrderProcs', 'proc_name', 'OrderStatus'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'OrderProcs', 'proc_cat_name', 'proc_name'));
+  -- order procs 643
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'OrderProcs_643', 'display_name', 'OrderStatus'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'OrderProcs_643', 'proc_name', 'OrderStatus'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'OrderProcs_643', 'proc_cat_name', 'proc_name'));
+  -- order procs image
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'OrderProcsImage', 'display_name', 'OrderStatus'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'OrderProcsImage', 'proc_name', 'OrderStatus'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'OrderProcsImage', 'proc_cat_name', 'proc_name'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'OrderProcsImage', 'display_name', 'LabStatus'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'OrderProcsImage', 'proc_name', 'LabStatus'));
+  -- problem list
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'ProblemList', 'departmentid', 'diagname'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'ProblemList', 'diagname', 'departmentid'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'ProblemList', 'departmentid', 'code'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'ProblemList', 'code', 'departmentid'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'ProblemList', 'departmentid', 'codecategory'));
+  queries = array_append(queries, format('select * from run_clarity_stats(%L, %L, %L, %L)',
+    _clarity_workspace, 'ProblemList', 'codecategory', 'departmentid'));
+  perform distribute(server, queries, nprocs);
+end
+$$ language plpgsql;
+
+create or replace function run_clarity_stats(_clarity_workspace text, _clarity_staging_table text, key text, value text)
+returns void as
+$$
+begin
+execute format(
+'with kv_cnt as(
+  select %I k, %I v, count(*) cnt from %I.%I
+  where not isnumeric(%I) and %I is not null
+  group by %I, %I
+),
+kv_cnt_top100 as (
+  select k, v, cnt from (
+    select *, ROW_NUMBER() OVER (PARTITION BY k order by cnt desc) as row_id
+    from kv_cnt
+  ) as A
+  where row_id <= 100 order by k
+),
+kv_cnt_jsonb as (
+  select k, jsonb_object_agg(v, cnt) str_cnt
+  from kv_cnt_top100 group by k
+)
+insert into clarity_stats
+  select M.id, %L || '' <-> '' || %L id_type, M.clarity_workspace, M.clarity_staging_table,
+    M.stats || coalesce(jsonb_build_object(''distinct_str_cnt'', kv.str_cnt), ''{}''::jsonb) from
+  (select %I id,''%I''::text clarity_workspace,
+    ''%I''::text clarity_staging_table,
+    jsonb_build_object(
+      ''cnt'', count(*),
+      ''cnt_numeric'', count(*) filter (where isnumeric(%I)),
+      ''cnt_str'', count(*) filter (where not isnumeric(%I)),
+      ''cnt_distinct_str'', count(distinct %I) filter (where not isnumeric(%I)),
+      ''min'', min(%I::numeric) filter (where isnumeric(%I)),
+      ''max'', max(%I::numeric) filter (where isnumeric(%I)),
+      ''mean'', avg(%I::numeric) filter (where isnumeric(%I)),
+      ''5%%'' , percentile_disc(0.05) within group (order by %I::numeric)
+                        filter (where isnumeric(%I)),
+      ''25%%'' , percentile_disc(0.25) within group (order by %I::numeric)
+                        filter (where isnumeric(%I)),
+      ''50%%'' , percentile_disc(0.50) within group (order by %I::numeric)
+                        filter (where isnumeric(%I)),
+      ''75%%'' , percentile_disc(0.75) within group (order by %I::numeric)
+                        filter (where isnumeric(%I)),
+      ''95%%'' , percentile_disc(0.95) within group (order by %I::numeric)
+                        filter (where isnumeric(%I))
+    ) stats
+  from %I.%I where %I is not null group by %I) M left join kv_cnt_jsonb kv on M.id = kv.k
+on conflict(id, id_type, clarity_workspace, clarity_staging_table) do update
+set stats = excluded.stats
+', key, value, _clarity_workspace, _clarity_staging_table, value, key, key, value,
+   key, value, key, _clarity_workspace, _clarity_staging_table, value, value, value, value, value, value, value, value, value,
+   value, value, value, value, value, value, value, value, value, value,
+   value, _clarity_workspace, _clarity_staging_table, key, key);
+end
+$$ language plpgsql;

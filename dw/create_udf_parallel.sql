@@ -88,10 +88,9 @@ BEGIN
           done := 0 ;
   --repetatly check until one proc is finished to relaunch the next chunck
     Loop
-      for i in 1..num_procs
+      for n in 1..num_procs
       Loop
-      if array_procs[i]<>1 THEN
-        conn := 'conn_' || i;
+        conn := 'conn_' || n;
         sql := 'SELECT dblink_is_busy(' || QUOTE_LITERAL(conn) || ');';
         execute sql into status;
         if status = 0 THEN
@@ -101,30 +100,70 @@ BEGIN
           if dispatch_error <> 'OK' THEN
             RAISE '%', dispatch_error;
           end if;
-          used_procs := used_procs - 1;
+
+          --terminate the connection and resect the active proc counter so that the next
+          --connection is started with the correct index
+          RAISE NOTICE 'Process done:  %, Next Chunk to be started: %',conn,i+1;
 
           --disconnect the connection
           sql := 'SELECT dblink_disconnect(' || QUOTE_LITERAL(conn) || ');';
           execute sql;
 
-          RAISE NOTICE 'Process done:  %',conn;
-          array_procs[i]=1;
+          current_proc := n - 1; --as the counter gets increased at the beginning of the other loop
+          used_procs := used_procs - 1;
+          done := 1;
+          array_procs[n]=1;
+
+          exit; --terminate the loop
         END if;
-      END if;
       end loop;
-      --if num_done >= num_procs then
-      if used_procs <= 0 then
-      exit;
+      if done = 1 then
+        exit;
       end if;
-      --pause in poling
-      sql := 'select pg_sleep(1)';
+      sql := 'select pg_sleep(0.5)';
       execute sql;
-
     END loop;
-
-
-    RETURN 'Success';
   END IF;
+end loop chunk_loop;
+-- wait until all queries are finished
+  Loop
+    for i in 1..num_procs
+    Loop
+    if array_procs[i]<>1 THEN
+      conn := 'conn_' || i;
+      sql := 'SELECT dblink_is_busy(' || QUOTE_LITERAL(conn) || ');';
+      execute sql into status;
+      if status = 0 THEN
+        -- check for error messages
+        sql := 'SELECT dblink_error_message(' || QUOTE_LITERAL(conn)  || ');';
+        execute sql into dispatch_error;
+        if dispatch_error <> 'OK' THEN
+          RAISE '%', dispatch_error;
+        end if;
+        used_procs := used_procs - 1;
+
+        --disconnect the connection
+        sql := 'SELECT dblink_disconnect(' || QUOTE_LITERAL(conn) || ');';
+        execute sql;
+
+        RAISE NOTICE 'Process done:  %',conn;
+        array_procs[i]=1;
+      END if;
+    END if;
+    end loop;
+    --if num_done >= num_procs then
+    if used_procs <= 0 then
+    exit;
+    end if;
+    --pause in poling
+    sql := 'select pg_sleep(1)';
+    execute sql;
+
+  END loop;
+
+
+  RETURN 'Success';
+
 -- error catching to disconnect dblink connections, if error occurs
 exception when others then
   BEGIN

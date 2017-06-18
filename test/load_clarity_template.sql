@@ -30,6 +30,8 @@ create table {workspace}."ADT_Feed"
 \copy {workspace}."ADT_Feed" from '{folder}adt.{ext}' with csv delimiter as E'\t' NULL 'NULL';
 
 drop table if exists {workspace}."Diagnoses";
+drop index if exists diag_idx_code;
+drop index if exists diag_idx_name;
 create table {workspace}."Diagnoses"
 (
  "CSN_ID"         text
@@ -42,10 +44,14 @@ create table {workspace}."Diagnoses"
  ,"Annotation"    text
  ,"COMMENTS"      text
  ,"DX_CHRONIC_YN" text
- ,"ICD-9          Code    category" text
+ ,"ICD-9 Code category" text
 );
 \copy {workspace}."Diagnoses" from '{folder}diag.{ext}' with csv delimiter as E'\t' NULL 'NULL';
+create index diag_idx_code on {workspace}."Diagnoses" ("Code");
+create index diag_idx_name on {workspace}."Diagnoses" ("diagName");
 
+drop index if exists flt_lda_idx_name;
+drop index if exists flt_lda_idx_id;
 drop table if exists {workspace}."FlowsheetValue-LDA";
 create table {workspace}."FlowsheetValue-LDA"
 (
@@ -71,7 +77,11 @@ create table {workspace}."FlowsheetValue-LDA"
  "LDAGRPDISPNAME"       text
 );
 \copy {workspace}."FlowsheetValue-LDA" from '{folder}flt_lda.{ext}' with csv delimiter as E'\t' NULL 'NULL';
+create index flt_lda_idx_name on {workspace}."FlowsheetValue-LDA" ("FLO_MEAS_NAME");
+create index flt_lda_idx_id on {workspace}."FlowsheetValue-LDA" ("FLO_MEAS_ID");
 
+drop index if exists flt_idx_name;
+drop index if exists flt_idx_id;
 drop table if exists {workspace}."FlowsheetValue";
 create table {workspace}."FlowsheetValue"
 (
@@ -92,7 +102,11 @@ create table {workspace}."FlowsheetValue"
  "TEMPLATE_DISP_NAME"   text
 );
 \copy {workspace}."FlowsheetValue" from '{folder}flt.{ext}' with csv delimiter as E'\t' NULL 'NULL' QUOTE E'\b';
+create index flt_idx_name on {workspace}."FlowsheetValue" ("FLO_MEAS_NAME");
+create index flt_idx_id on {workspace}."FlowsheetValue" ("FLO_MEAS_ID");
 
+drop index if exists flt_643_idx_name;
+drop index if exists flt_643_idx_id;
 drop table if exists {workspace}."FlowsheetValue_643";
 create table {workspace}."FlowsheetValue_643"
 (
@@ -113,10 +127,14 @@ create table {workspace}."FlowsheetValue_643"
  "TEMPLATE_DISP_NAME"   text
 );
 \copy {workspace}."FlowsheetValue_643" from '{folder}flt_new.{ext}' with csv delimiter as E'\t' NULL 'NULL';
+create index flt_643_idx_name on {workspace}."FlowsheetValue_643" ("FLO_MEAS_NAME");
+create index flt_643_idx_id on {workspace}."FlowsheetValue_643" ("FLO_MEAS_ID");
 
 -- start to use {ext} format (i.e., delimiter is tab) because there are double quote in the data which makes the csv format hard to import to postgresql
 -- remember to remove the last two lines in {ext} files before importing to the database
 
+drop index if exists labs_idx_name;
+drop index if exists labs_idx_id;
 drop table if exists {workspace}."Labs";
 create table {workspace}."Labs"
 (
@@ -132,7 +150,11 @@ create table {workspace}."Labs"
  "ORDER_PROC_ID"     text
 );
 \copy {workspace}."Labs" from '{folder}labs.{ext}' with NULL 'NULL' csv delimiter as E'\t';
+create index labs_idx_name on {workspace}."Labs" ("BASE_NAME");
+create index labs_idx_id on {workspace}."Labs" ("COMPONENT_ID");
 
+drop index if exists labs_643_idx_name;
+drop index if exists labs_643_idx_id;
 drop table if exists {workspace}."Labs_643";
 create table {workspace}."Labs_643"
 (
@@ -148,7 +170,10 @@ create table {workspace}."Labs_643"
  "ORDER_PROC_ID"     text
 );
 \copy {workspace}."Labs_643" from '{folder}labs_new.{ext}' with NULL 'NULL' csv delimiter as E'\t';
+create index labs_643_idx_name on {workspace}."Labs_643" ("BASE_NAME");
+create index labs_643_idx_id on {workspace}."Labs_643" ("COMPONENT_ID");
 
+drop index if exists ldas_idx_name;
 drop table if exists {workspace}."LDAs";
 create table {workspace}."LDAs"
 (
@@ -161,7 +186,10 @@ create table {workspace}."LDAs"
  "REMOVAL_DTTM"        timestamp with    time zone
 );
 \copy {workspace}."LDAs" from '{folder}lda.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+create index ldas_idx_name on {workspace}."LDAs" ("FLO_MEAS_NAME");
 
+drop index if exists mar_idx_name;
+drop index if exists mar_idx_id;
 drop table if exists {workspace}."MedicationAdministration";
 create table {workspace}."MedicationAdministration"
 (
@@ -187,7 +215,10 @@ create table {workspace}."MedicationAdministration"
  "MAX_DISCRETE_DOSE"  real
 );
 \copy {workspace}."MedicationAdministration" from '{folder}mar.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+create index mar_idx_name on {workspace}."MedicationAdministration" ("display_name");
+create index mar_idx_id on {workspace}."MedicationAdministration" ("MEDICATION_ID");
 
+drop index if exists hist_idx;
 drop table if exists {workspace}."MedicalHistory";
 create table {workspace}."MedicalHistory"
 (
@@ -203,6 +234,7 @@ create table {workspace}."MedicalHistory"
  "ENC_Date"             timestamp with time zone
 );
 \copy {workspace}."MedicalHistory" from '{folder}hist.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+create index hist_idx on {workspace}."MedicalHistory" ("Code");
 
 drop table if exists {workspace}."Notes";
 create table {workspace}."Notes"
@@ -249,6 +281,9 @@ create table {workspace}."OrderMedHome"
 );
 \copy {workspace}."OrderMedHome" from '{folder}ordermed_home.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 
+drop index if exists op_idx_name;
+drop index if exists op_idx_id;
+drop index if exists op_idx_cat;
 drop table if exists {workspace}."OrderProcs";
 create table {workspace}."OrderProcs"
 (
@@ -270,7 +305,13 @@ create table {workspace}."OrderProcs"
  "SPECIMN_TAKEN_TIME"  timestamp without time zone
 );
 \copy {workspace}."OrderProcs" from '{folder}orderproc.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+create index op_idx_name on {workspace}."OrderProcs" ("display_name");
+create index op_idx_id on {workspace}."OrderProcs" ("OrderProcId");
+create index op_idx_cat on {workspace}."OrderProcs" ("proc_cat_name");
 
+drop index if exists op_img_idx_name;
+drop index if exists op_img_idx_id;
+drop index if exists op_img_idx_cat;
 drop table if exists {workspace}."OrderProcsImage";
 create table {workspace}."OrderProcsImage"
 (
@@ -289,7 +330,13 @@ create table {workspace}."OrderProcsImage"
  "NOTE_TEXT"         text
 );
 \copy {workspace}."OrderProcsImage" from '{folder}orderproc_img.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+create index op_img_idx_name on {workspace}."OrderProcsImage" ("display_name");
+create index op_img_idx_id on {workspace}."OrderProcsImage" ("OrderProcId");
+create index op_img_idx_cat on {workspace}."OrderProcsImage" ("proc_cat_name");
 
+drop index if exists op_643_idx_name;
+drop index if exists op_643_idx_id;
+drop index if exists op_643_idx_cat;
 drop table if exists {workspace}."OrderProcs_643";
 create table {workspace}."OrderProcs_643"
 (
@@ -317,7 +364,12 @@ create table {workspace}."OrderProcs_643"
  question       text
 );
 \copy {workspace}."OrderProcs_643" from '{folder}orderproc_new.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+create index op_643_idx_name on {workspace}."OrderProcs_643" ("display_name");
+create index op_643_idx_id on {workspace}."OrderProcs_643" ("OrderProcId");
+create index op_643_idx_cat on {workspace}."OrderProcs_643" ("proc_cat_name");
 
+drop index if exists prob_idx_name;
+drop index if exists prob_idx_code;
 drop table if exists {workspace}."ProblemList";
 create table {workspace}."ProblemList"
 (
@@ -335,6 +387,9 @@ create table {workspace}."ProblemList"
  codecategory           text
 );
 \copy {workspace}."ProblemList" from '{folder}prob.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+create index prob_idx_name on {workspace}."ProblemList" ("diagname");
+create index prob_idx_code on {workspace}."ProblemList" ("code");
+
 
 drop table if exists {workspace}.flowsheet_dict;
 create table {workspace}.flowsheet_dict

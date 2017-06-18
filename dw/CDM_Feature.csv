@@ -25,7 +25,7 @@ metabolic_acidosis,TWF,int,no,no,,,metabolic_acidosis_update,"arterial_ph, bicar
 troponin,TWF,Real,yes,no,last_value_in_window,28,,,Physiologic,1,ng/mL
 enalaprilat_dose,T,JSON,yes,no,,,,,Medication,1,mg
 milrinone_dose,T,JSON,yes,no,,3,,,Medication,1,mcg/kg/min
-rass,TWF,Real,yes,no,last_value_in_window,6,,,Physiologic,1,no unit
+rass,TWF,Real,yes,no,last_value_in_window,5,,,Physiologic,1,no unit
 pneumonia_sepsis_approx,T,String,yes,no,,,,,,,
 acute_kidney_failure,T,Boolean,no,no,,,acute_kidney_failure_update,"acute_kidney_failure_inhosp, creatinine, urine_output_24hr, dialysis",Diagnoses,1,
 any_antibiotics,T,Boolean,no,no,,,any_antibiotics_update,"ampicillin_dose, clindamycin_dose, erythromycin_dose , gentamicin_dose , oxacillin_dose , tobramycin_dose , vancomycin_dose , ceftazidime_dose , cefazolin_dose , penicillin_g_dose , meropenem_dose , penicillin_dose , amoxicillin_dose , piperacillin_tazbac_dose, rifampin_dose, meropenem_dose, rapamycin_dose",any antibiotic was given to the patient,1,no unit
@@ -94,7 +94,7 @@ heart_arrhythmias_prob,S,Boolean,yes,no,,,,,ProblemList,1,no unit
 acebutolol_dose,T,JSON,yes,no,,,,,Medication,1,
 dbpm,TWF,Real,no,no,,,dbpm_update,"abp_dias, nbp_dias","feaure based on BP dias, Diastolic blood pressure (combines invasive and noninvasive), it should not be sparse",1,mmHg
 heart_failure_hist,S,Boolean,yes,no,,,,,History,1,no unit
-ddimer,TWF,Real,yes,no,last_value_in_window,28,,,Lab,1,mg/L
+ddimer,TWF,Real,yes,no,last_value_in_window,28,,,Lab,1,mg/L REU
 ast_liver_enzymes,TWF,Real,yes,no,last_value_in_window,28,,,Physiologic,1,Units/L
 betamethasone_dose,T,JSON,yes,no,,,,,Medication,1,
 fluids_intake_24hr,TWF,Real,no,no,,,fluids_intake_24hr,fluids_intake,,1,ml
@@ -283,8 +283,8 @@ cms_antibiotics,T,Real,yes,no,,,,,cms anti-biotics as used for the online sepsis
 crystalloid_fluid,T,Real,yes,no,,,,,crystaloid fluid as used for the online sepsis bundle criteria,1,mg
 vasopressors_dose,T,Real,yes,no,,,,,vasopressors dose as used in the online sepsis bundle criteria,1,mg
 cms_antibiotics_order,T,Real,yes,no,,,,,cms anti-biotics order as used for the online sepsis bundle criteria calculation,1,mg
-crystalloid_fluid_order,T,Real,yes,no,,,,,crystaloid fluid order as used for the online sepsis bundle criteria,1,mg
-vasopressors_dose_order,T,Real,yes,no,,,,,vasopressors dose order as used in the online sepsis bundle criteria,1,mg
+crystalloid_fluid_order,T,String,yes,no,,,,,crystaloid fluid order as used for the online sepsis bundle criteria,1,mg
+vasopressors_dose_order,T,String,yes,no,,,,,vasopressors dose order as used in the online sepsis bundle criteria,1,mg
 bands,T,Real,yes,no,,,,,bands as used in the online sepsis bundle criteria calculation,1,%
 lactate_order,T,String,yes,no,,,,,lactate order as uses for the online sepsis bundle critieria calculation,1,order state
 blood_culture_order,T,String,yes,no,,,,,blood culture order as used for the online sepsis bundle criteria calculation,1,order state

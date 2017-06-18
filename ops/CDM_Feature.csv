@@ -94,7 +94,7 @@ heart_arrhythmias_prob,S,Boolean,yes,no,,,,,ProblemList,1,no unit
 acebutolol_dose,T,JSON,yes,no,,,,,Medication,1,
 dbpm,TWF,Real,no,no,,,dbpm_update,"abp_dias, nbp_dias","feaure based on BP dias, Diastolic blood pressure (combines invasive and noninvasive), it should not be sparse",1,mmHg
 heart_failure_hist,S,Boolean,yes,no,,,,,History,1,no unit
-ddimer,TWF,Real,yes,no,last_value_in_window,28,,,Lab,1,mg/L
+ddimer,TWF,Real,yes,no,last_value_in_window,28,,,Lab,1,mg/L REU
 ast_liver_enzymes,TWF,Real,yes,no,last_value_in_window,28,,,Physiologic,1,Units/L
 betamethasone_dose,T,JSON,yes,no,,,,,Medication,1,
 fluids_intake_24hr,TWF,Real,no,no,,,fluids_intake_24hr,fluids_intake,,1,ml
@@ -278,7 +278,7 @@ immuno_comp_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
 phenytoin_dose,T,JSON,yes,no,,,,,Medication,1,mg
 hospital,S,String,yes,no,,,,,Demographic,1,hospital name
 admittime,S,String,yes,no,,,,,Demographic,1,timestamp time of admit time
-bipap,T,Boolean,yes,no,,,,,Order Procedure,1,
-cpap,T,Boolean,yes,no,,,,,Order Procedure,1,
+bipap,T,String,yes,no,,,,,Order Procedure,1,
+cpap,T,String,yes,no,,,,,Order Procedure,1,
 map,TWF,Real,yes,no,last_value_in_window,4,,,Phyiologic,1,mmHg
 note,N,String,yes,no,,,,,provider notes,1,no unit
