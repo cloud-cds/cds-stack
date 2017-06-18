@@ -66,7 +66,7 @@ spec:
         resources:
           requests:
             memory: "2816Mi"
-            cpu: "600m"
+            cpu: "1000m"
         command:
           - "sh"
           - "start-dev.sh"

@@ -12,7 +12,8 @@ server:
   ##
   image: "grafana/grafana:latest"
 
-  nodeSelector: {}
+  nodeSelector:
+    opsdx_nodegroup: nodes
 
   ingress:
     ## If true, Grafana Ingress will be created
@@ -89,12 +90,14 @@ server:
     #   cpu: 500m
     #   memory: 512Mi
     requests:
-      cpu: 100m
-      memory: 100Mi
+      cpu: 500m
+      memory: 1Gi
 
   ## Grafana service type
   ##
   serviceType: LoadBalancer
+  serviceAnnotations:
+      dns.alpha.kubernetes.io/external: grafana.dev.opsdx.io
 
   ## Load balancer IP address
   ## Is not required, but allows for static address with
@@ -344,4 +347,3 @@ serverConfigFile:
 ## and add it below.
 ##
 serverDashboardFiles: {}
-

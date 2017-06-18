@@ -269,6 +269,44 @@ resource "aws_autoscaling_group" "web-cluster-prod-opsdx-io" {
   }
 }
 
+resource "aws_autoscaling_group" "web2-cluster-prod-opsdx-io" {
+  name                 = "web2.cluster.prod.opsdx.io"
+  launch_configuration = "${aws_launch_configuration.web2-cluster-prod-opsdx-io.id}"
+  max_size             = 10
+  min_size             = 0
+  vpc_zone_identifier  = ["${aws_subnet.us-east-1a-cluster-prod-opsdx-io.id}", "${aws_subnet.us-east-1c-cluster-prod-opsdx-io.id}", "${aws_subnet.us-east-1d-cluster-prod-opsdx-io.id}"]
+
+  tag = {
+    key                 = "Component"
+    value               = "Webserver Node"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "KubernetesCluster"
+    value               = "cluster.prod.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Name"
+    value               = "web2.cluster.prod.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Stack"
+    value               = "Production"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "k8s.io/role/node"
+    value               = "1"
+    propagate_at_launch = true
+  }
+}
+
 resource "aws_ebs_volume" "us-east-1a-etcd-events-cluster-prod-opsdx-io" {
   availability_zone = "us-east-1a"
   size              = 20
@@ -414,6 +452,12 @@ resource "aws_iam_role" "nodes-cluster-prod-opsdx-io" {
   assume_role_policy = "${file("${path.module}/data/aws_iam_role_nodes.cluster.prod.opsdx.io_policy")}"
 }
 
+resource "aws_iam_role_policy" "additional-nodes-cluster-prod-opsdx-io" {
+  name   = "additional.nodes.cluster.prod.opsdx.io"
+  role   = "${aws_iam_role.nodes-cluster-prod-opsdx-io.name}"
+  policy = "${file("${path.module}/data/aws_iam_role_policy_additional.nodes.cluster.prod.opsdx.io_policy")}"
+}
+
 resource "aws_iam_role_policy" "masters-cluster-prod-opsdx-io" {
   name   = "masters.cluster.prod.opsdx.io"
   role   = "${aws_iam_role.masters-cluster-prod-opsdx-io.name}"
@@ -545,6 +589,27 @@ resource "aws_launch_configuration" "web-cluster-prod-opsdx-io" {
   security_groups             = ["${aws_security_group.nodes-cluster-prod-opsdx-io.id}"]
   associate_public_ip_address = false
   user_data                   = "${file("${path.module}/data/aws_launch_configuration_web.cluster.prod.opsdx.io_user_data")}"
+
+  root_block_device = {
+    volume_type           = "gp2"
+    volume_size           = 20
+    delete_on_termination = true
+  }
+
+  lifecycle = {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_launch_configuration" "web2-cluster-prod-opsdx-io" {
+  name_prefix                 = "web2.cluster.prod.opsdx.io-"
+  image_id                    = "ami-03690415"
+  instance_type               = "m4.large"
+  key_name                    = "${aws_key_pair.kubernetes-cluster-prod-opsdx-io-551d14812028ed6fac475b92d6893824.id}"
+  iam_instance_profile        = "${aws_iam_instance_profile.nodes-cluster-prod-opsdx-io.id}"
+  security_groups             = ["${aws_security_group.nodes-cluster-prod-opsdx-io.id}"]
+  associate_public_ip_address = false
+  user_data                   = "${file("${path.module}/data/aws_launch_configuration_web2.cluster.prod.opsdx.io_user_data")}"
 
   root_block_device = {
     volume_type           = "gp2"

@@ -5,8 +5,8 @@ metadata:
   namespace: default
 spec:
   minReplicas: 2
-  maxReplicas: 5
-  targetCPUUtilizationPercentage: 75
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 60
   scaleTargetRef:
     apiVersion: v1
     kind: Deployment

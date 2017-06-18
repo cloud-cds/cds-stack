@@ -26,19 +26,47 @@ spec:
     metadata:
       labels:
         app: trews-rest-api
+      annotations:
+        scheduler.alpha.kubernetes.io/affinity: >
+            {
+              "podAntiAffinity": {
+                "requiredDuringSchedulingIgnoredDuringExecution": [
+                  {
+                    "labelSelector": {
+                      "matchExpressions": [
+                        {
+                          "key": "app",
+                          "operator": "In",
+                          "values": ["trews-rest-api"]
+                        }
+                      ]
+                    },
+                    "topologyKey": "kubernetes.io/hostname"
+                  }
+                ]
+              }
+            }
     spec:
       nodeSelector:
         opsdx_nodegroup: web
       containers:
       - name: trews-nginx
         image: nginx:alpine
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
         ports:
         - containerPort: 80
         volumeMounts:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: trews-rest-api
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.1.13
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.1.18
+        resources:
+          requests:
+            memory: "2816Mi"
+            cpu: "1000m"
         ports:
         - containerPort: 8000
         command:
@@ -138,7 +166,7 @@ spec:
         - name: chart_sample_mins
           value: "30"
         - name: chart_sample_hrs
-          value: "6"
+          value: "3"
       volumes:
         - name: config-volume
           configMap:
@@ -154,6 +182,7 @@ metadata:
   labels:
     app: trews-rest-api
   annotations:
+    dns.alpha.kubernetes.io/external: trews.prod.opsdx.io
     service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:acm:us-east-1:359300513585:certificate/e8391c84-070f-4feb-8946-27cf945840ad
     service.beta.kubernetes.io/aws-load-balancer-ssl-ports: https
     service.beta.kubernetes.io/aws-load-balancer-backend-protocol: tcp

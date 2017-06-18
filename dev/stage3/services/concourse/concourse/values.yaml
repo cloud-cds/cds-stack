@@ -254,6 +254,10 @@ web:
   ##
   replicas: 1
 
+  ## Web Pods NodeSelector (customized by Yanif).
+  ##
+  nodeSelector: {}
+
   ## Configure resource requests and limits.
   ## ref: https://kubernetes.io/docs/user-guide/compute-resources/
   ##
@@ -309,6 +313,10 @@ worker:
   ## Number of replicas.
   ##
   replicas: 2
+
+  ## Worker Pods NodeSelector (customized by Yanif).
+  ##
+  nodeSelector: {}
 
   ## Minimun number of workers available after an eviction
   ## ref: https://kubernetes.io/docs/admin/disruptions/
