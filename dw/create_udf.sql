@@ -748,6 +748,7 @@ DECLARE
     order_status text := dose_order_status(order_fid, override_value_text);
 BEGIN
     return case when override_value_text = 'Not Indicated' then true
+                when order_status = 'Completed' and dose_limit = 0 then true
                 when order_status = 'Completed' then dose_value > dose_limit
                 else false
             end;
