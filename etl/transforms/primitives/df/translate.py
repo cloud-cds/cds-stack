@@ -113,6 +113,9 @@ def g_to_mg(value):
 def ml_per_hr_to_ml_for_1hr(value):
     return float(value)
 
+def mg_per_l_to_mg_per_l_feu(value):
+    return float(value)*2
+
 def rass_str_to_number(rass_str):
     rass_dict = {
         'Combative':        '4',

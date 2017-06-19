@@ -512,7 +512,7 @@ async def septic_shock_update(fid, fid_input, conn, log, dataset_id, derive_feat
     %(with_ds)s
     ;
   """
-  severe_sepsis_twf_table_temp = derive_feature_addr['severe_sepsis']['twf_table_temp']
+  severe_sepsis_twf_table_temp = derive_feature_addr['severe_sepsis']['twf_table_temp'] if 'severe_sepsis' in derive_feature_addr else get_src_twf_table(derive_feature_addr)
   twf_table_temp = derive_feature_addr['septic_shock']['twf_table_temp']
   records = \
     await conn.fetch((select_sql + ' %(incremental_enc_id_in)s') \

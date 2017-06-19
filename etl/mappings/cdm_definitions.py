@@ -191,6 +191,12 @@ cdm_defs = {
         'thresh':   (None, None),
         'human_readable':   'Dextrose Normal Saline',
     },
+    'ddimer': {
+        'unit':     'mg/L FEU',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'D-Dimer'
+    },
     'dobutamine_dose': {
         'unit':     'mcg/kg/min',
         'value':    float,
@@ -352,6 +358,12 @@ cdm_defs = {
         'value':    float,
         'thresh':   (None, None),
         'human_readable':   'Neo-Synephrine',
+    },
+    'norepinephrine_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Norepinephrine',
     },
     'oxacillin_dose': {
         'unit':     'mg',

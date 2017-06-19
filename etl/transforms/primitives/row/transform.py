@@ -1301,6 +1301,9 @@ def threshold_sodium(entry, log):
 def threshold_wbc(entry, log):
     return threshold(entry, 0.01, 70, log)
 
+def threshold_fluids_intake(entry, log):
+    return threshold(entry, 0, 500000, log)
+
 def threshold_fio2(entry, log):
     return threshold(entry, 20, 100, log)
 

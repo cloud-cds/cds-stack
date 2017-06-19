@@ -44,11 +44,11 @@ def main(max_pats=None, hospital=None, lookback_hours=None, db_name=None, repl=F
   job_id = "job_etl_{}".format(dt.datetime.now().strftime('%m%d%H%M%S')).lower()
   archive = int(core.get_environment_var('TREWS_ETL_ARCHIVE', 0))
   notify_epic = int(core.get_environment_var('TREWS_ETL_EPIC_NOTIFICATIONS', 0))
-
+  lookback_hours = lookback_hours or core.get_environment_var('TREWS_ETL_HOURS')
   # Create jhapi_extractor
   extractor = JHAPIConfig(
     hospital       = hospital or core.get_environment_var('TREWS_ETL_HOSPITAL'),
-    lookback_hours = lookback_hours or core.get_environment_var('TREWS_ETL_HOURS'),
+    lookback_hours = lookback_hours,
     jhapi_server   = core.get_environment_var('TREWS_ETL_SERVER', 'prod'),
     jhapi_id       = core.get_environment_var('jhapi_client_id'),
     jhapi_secret   = core.get_environment_var('jhapi_client_secret'),
@@ -82,7 +82,7 @@ def main(max_pats=None, hospital=None, lookback_hours=None, db_name=None, repl=F
 
 
   loading_tasks  = loader.get_tasks(job_id, 'combine_db_data', 'combine_extract_data', mode, archive, config.get_db_conn_string_sqlalchemy())
-  criteria_tasks = get_criteria_tasks(dependency = 'get_notifications_for_epic')
+  criteria_tasks = get_criteria_tasks(dependency = 'get_notifications_for_epic', lookback_hours=lookback_hours)
 
   ########################
   # Build plan for repl
@@ -107,6 +107,7 @@ def main(max_pats=None, hospital=None, lookback_hours=None, db_name=None, repl=F
     nprocs   = 2,
     loglevel = logging.DEBUG,
     with_gc  = (not repl),
+    with_graph = True
   )
   loop = asyncio.new_event_loop()
   loop.run_until_complete(engine.run())
