@@ -105,7 +105,7 @@ propranolol_dose,no,yes,"""MedicationAdministration""","""MEDICATION_ID"",""MedR
 magnesium,yes,no,"""Labs""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue"", ""REFERENCE_UNIT""","WHERE ""BASE_NAME"" = 'MG'",convert_lab_value_to_real,
 ast_liver_enzymes,yes,no,"""Labs""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue"", ""REFERENCE_UNIT""","WHERE ""BASE_NAME"" = 'AST'",convert_lab_value_to_real,
 alt_liver_enzymes,yes,no,"""Labs""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue"", ""REFERENCE_UNIT""","WHERE ""BASE_NAME"" = 'ALT'",convert_lab_value_to_real,
-troponin,yes,no,"""Labs""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue"", ""REFERENCE_UNIT""","WHERE ""BASE_NAME"" ~ 'TROPONINT'",convert_lab_value_to_real,
+troponin,yes,no,"""Labs""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue"", ""REFERENCE_UNIT""","WHERE ""BASE_NAME"" ilike '%TROPONIN%'",convert_lab_value_to_real,
 ptt,yes,no,"""Labs""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue"", ""REFERENCE_UNIT""","WHERE ""BASE_NAME"" ~ 'PTT'",convert_lab_value_to_real,
 calcium,yes,no,"""Labs""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue"", ""REFERENCE_UNIT""","WHERE ""BASE_NAME"" ~ 'CALCIUM'",convert_lab_value_to_real,
 heart_attack_inhosp,yes,no,"""ProblemList""","""csn_id"" visit_id, ""diagname"",  ""firstdocumented"",""chronic"", ""presentonadmission""","WHERE ""diagname"" ~* 'myocardial infarction'",convert_inhosp_to_json,
