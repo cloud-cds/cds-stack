@@ -84,6 +84,7 @@ async def calculate_major_blood_loss(output_fid, input_fid_string, conn, log, da
   INSERT INTO cdm_t ({insert_into} enc_id,tsp,fid,value, confidence) 
   select {insert_select} enc_id, tsp, 'major_blood_loss', True, hemoglobin_change_c
   from hemoglobin_loss
+  on conflict do NOTHING
   """.format(hemoglobin_loss_select = ' dataset_id, ' if dataset_id is not None else '',
              cdm_twf_proc = select_table_joins,
              insert_into='dataset_id, ' if dataset_id is not None else '',
@@ -331,7 +332,8 @@ async def hosp_admit_update(output_fid, input_fid_string, conn, log, dataset_id,
     # ------------------------------------------------
     # Remove Existing Output
     # ------------------------------------------------
-    await conn.execute(clean_tbl.cdm_t_clean(output_fid, dataset_id=dataset_id, incremental=incremental))
+    await conn.execute(clean_tbl.cdm_s_clean(output_fid, dataset_id=dataset_id, incremental=incremental))
+
     select_sql = """select distinct enc_id from cdm_t
     where {dataset_id_where} (fid ilike 'discharge' and value::json #>> '{{department}}' not ilike '%%emergency%%')
     order by enc_id;"""
