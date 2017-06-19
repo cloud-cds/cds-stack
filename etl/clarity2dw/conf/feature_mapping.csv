@@ -104,7 +104,7 @@ nadolol_dose,no,yes,"""MedicationAdministration""","""MEDICATION_ID"",""MedRoute
 propranolol_dose,no,yes,"""MedicationAdministration""","""MEDICATION_ID"",""MedRoute"",""display_name"", ""TimeActionTaken"", ""ORDER_INST"", ""ActionTaken"", ""Dose"", ""MedUnit"",""INFUSION_RATE"",""MAR_INF_RATE_UNIT"",""mar_duration"",""MAR_DURATION_UNIT""","WHERE ""display_name"" ~* 'propranolol'",convert_to_mg,
 magnesium,yes,no,"""Labs""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue"", ""REFERENCE_UNIT""","WHERE ""BASE_NAME"" = 'MG'",convert_lab_value_to_real,
 ast_liver_enzymes,yes,no,"""Labs""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue"", ""REFERENCE_UNIT""","WHERE ""BASE_NAME"" = 'AST'",convert_lab_value_to_real,
-alt_liver_enzymes,yes,no,"""Labs""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue"", ""REFERENCE_UNIT""","WHERE ""BASE_NAME"" ~ 'ALT'",convert_lab_value_to_real,
+alt_liver_enzymes,yes,no,"""Labs""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue"", ""REFERENCE_UNIT""","WHERE ""BASE_NAME"" = 'ALT'",convert_lab_value_to_real,
 troponin,yes,no,"""Labs""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue"", ""REFERENCE_UNIT""","WHERE ""BASE_NAME"" ~ 'TROPONINT'",convert_lab_value_to_real,
 ptt,yes,no,"""Labs""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue"", ""REFERENCE_UNIT""","WHERE ""BASE_NAME"" ~ 'PTT'",convert_lab_value_to_real,
 calcium,yes,no,"""Labs""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue"", ""REFERENCE_UNIT""","WHERE ""BASE_NAME"" ~ 'CALCIUM'",convert_lab_value_to_real,
