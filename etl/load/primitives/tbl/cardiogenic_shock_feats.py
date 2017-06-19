@@ -217,7 +217,7 @@ async def calc_cardiogenic_shock(output_fid, input_fid_string, conn, log, datase
     lookback = timedelta(int(parameters['lookback_hours'])/24.0)
 
     select_sql = """with
-    ino_tbl as(select * from cdm_t where {dataset_id_where} (fid = 'any_inotrope' or fid = 'mech_cardiac_support_device') and value='True' and enc_id in (select distinct enc_id from cdm_s where fid ilike 'acute_heart_failure')),
+    ino_tbl as(select * from cdm_t where {dataset_id_where} (fid = 'any_inotrope' or fid = 'mech_cardiac_support_device') and value='True' and enc_id in (select distinct enc_id from cdm_s where fid ilike 'acute_heart_failure') and enc_id in (select distinct enc_id from cdm_twf where sbpm::float < 90)),
     sbp_tbl as(select enc_id, tsp, sbpm from cdm_twf where {dataset_id_where} sbpm::float < 90 and enc_id in (select enc_id from cdm_t where {dataset_id_where} (fid = 'any_inotrope' or fid = 'mech_cardiac_support_device') and value='True') and enc_id in (select distinct enc_id from cdm_s where fid ilike 'acute_heart_failure'))
     select COALESCE(ino_tbl.enc_id, sbp_tbl.enc_id) as enc_id, COALESCE(ino_tbl.tsp, sbp_tbl.tsp) as tsp, fid, sbpm, confidence
     from ino_tbl full join sbp_tbl on ino_tbl.enc_id = sbp_tbl.enc_id and ino_tbl.tsp = sbp_tbl.tsp
@@ -226,16 +226,16 @@ async def calc_cardiogenic_shock(output_fid, input_fid_string, conn, log, datase
     records = await conn.fetch(select_sql.format(dataset_id_where = 'dataset_id = {} and '.format(dataset_id) if  dataset_id is not None else ''))
     enc_dict = {}
     for rec in records:
-        if rec['enc_id'] not in enc_dict and (rec['fid'] == input_fid[1] or rec['fid'] == input_fid[2]):
+        if rec['enc_id'] not in enc_dict and (rec['fid'] == input_fid[1] or rec['fid'] == input_fid[3]):
             enc_dict[int(rec['enc_id'])] = [(rec['tsp'], rec['confidence'])]
-        elif rec['fid'] == input_fid[1] or rec['fid'] == input_fid[2]:
+        elif rec['fid'] == input_fid[1] or rec['fid'] == input_fid[3]:
             enc_dict[int(rec['enc_id'])].append((rec['tsp'], rec['confidence']))
     for i in range(len(records)):
         enc_flag = 0
-        if records[i]['fid'] == input_fid[1] or records[i]['fid'] == input_fid[2]:
+        if records[i]['fid'] == input_fid[1] or records[i]['fid'] == input_fid[3]:
             temp_fid = records[i]['fid']
             temp_pos = i
-            while temp_fid == input_fid[1] or temp_fid == input_fid[2]:
+            while temp_fid == input_fid[1] or temp_fid == input_fid[3]:
                 if records[temp_pos]['enc_id'] == records[i]['enc_id']:
                     temp_pos -= 1
                     temp_fid = records[temp_pos]['fid']
@@ -320,6 +320,10 @@ async def code_doc_note_update(output_fid, input_fid_string, conn, log, dataset_
                                       fid=output_fid, value=value,
                                       confidence=1))
 
+    log.info("fid {fid}:{sql}".format(fid=output_fid, sql=insert_sql))
+
+    return output_fid
+
 
 async def hosp_admit_update(output_fid, input_fid_string, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
     assert output_fid == 'hosp_admit', 'output fid should be hosp_admit'
@@ -346,3 +350,7 @@ async def hosp_admit_update(output_fid, input_fid_string, conn, log, dataset_id,
                                              fid=output_fid,
                                              value="True",
                                              confidence=1))
+
+    log.info("fid {fid}:{sql}".format(fid=output_fid, sql=insert_sql))
+
+    return output_fid
