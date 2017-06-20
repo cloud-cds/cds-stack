@@ -1,6 +1,7 @@
 #!/bin/bash
-mkdir -p $2
-cd $1
+mkdir -p $2 # output location
+cd $1 # directory of file
+
 mv flowsheet_dict.rpt ../$2/
 mv lab_dict.rpt ../$2/
 mv lab_proc.rpt ../$2/
@@ -12,4 +13,3 @@ for filename in *; do
   else
           head -n -1 $filename >> ../$2/$(echo $filename | cut -f1,3 -d.)
   fi
-done

@@ -218,12 +218,7 @@ LEFT JOIN CLARITY.dbo.IP_FLT_DATA flt ON flt.TEMPLATE_ID = IP_FLWSHT_MEAS.FLT_ID
 LEFT JOIN CLARITY.DBO.ZC_ROW_TYP rowtype ON rowtype.ROW_TYP_C = ip_flo_gp_data.ROW_TYP_C
 LEFT JOIN CLARITY.DBO.ZC_INTAKE_TYPE_P intakeType ON intakeType.INTAKE_TYPe_P_C = ip_flo_gp_data.INTAKE_TYP_C
 LEFT JOIN CLARITY.DBO.ZC_OUTPUT_TYPE_P outputType ON outputType.OUTPUT_TYPE_P_C = ip_flo_gp_data.OUTPUT_TYP_C
-WHERE
-  (
-    IP_FLWSHT_MEAS.FLT_ID = '3040010002'
-    OR intake.[ROW MEAS ID] IS NOT NULL
-    OR fsvals.FLO_MEAS_ID IS NOT NULL
-    );
+;
 GO
 
 :OUT \\\\Client\F$\clarity\\flt_new.{idx}.rpt
@@ -271,28 +266,33 @@ LEFT JOIN CLARITY.DBO.ZC_INTAKE_TYPE_P intakeType ON intakeType.INTAKE_TYPe_P_C 
 LEFT JOIN CLARITY.DBO.ZC_OUTPUT_TYPE_P outputType ON outputType.OUTPUT_TYPE_P_C = ip_flo_gp_data.OUTPUT_TYP_C
 WHERE
   IP_FLWSHT_MEAS.FLO_MEAS_ID in
-
-(
-'16000582',
-'300220',
-'16000450606',
-'19685',
-'400636',
-'7096010',
-'1600400636',
-'11',
-'7096010',
-'301070',
-'8123',
-'8126',
-'301260',
-'301280',
-'10980',
-'6365',
-'306270', '301360', '301250', '1120100022', '111301360','212301360', '450070', -- map
+  (
+  '16000582',
+  '300220',
+  '16000450606',
+  '19685',
+  '400636',
+  '7096010',
+  '1600400636',
+  '11',
+  '7096010',
+  '301070',
+  '8123',
+  '8126',
+  '301260',
+  '301280',
+  '10980',
+  '6365',
+  '306270', '301360', '301250', '1120100022', '111301360','212301360', '450070', -- map
 '52', '55', '16304', '331268', '331317', '7071002', '7070009', '3040101336', '3040100475', '3040101332', -- fluids intake
 '304123801','304123802','3043046001','30440104362','61' -- urine output
-);
+  )
+  or lower(IP_FLO_GP_DATA.FLO_MEAS_NAME) like '%nasal cannula%'
+  or lower(IP_FLO_GP_DATA.FLO_MEAS_NAME) like '%mask%'
+  or lower(IP_FLO_GP_DATA.FLO_MEAS_NAME) like '%o2 delivery%'
+  or lower(IP_FLO_GP_DATA.FLO_MEAS_NAME) like '%o2 device%'
+  or lower(IP_FLO_GP_DATA.FLO_MEAS_NAME) like '%settings%'
+;
 GO
 
 :OUT \\\\Client\F$\clarity\\flt.{idx}.rpt
@@ -809,7 +809,8 @@ where procs.proc_id in
 '131944',
 '165547',
 '3041752',
-'22362','22364','22366','22368','22370','22372','22374','22376','66891','66895','66899','66903','66907','66911','66915','66919','66923','66927','66931','66935','66939','66943','66947','66951','66955','66959','66963','66967','291','293','295','297','301','303' -- dialysis
+'22362','22364','22366','22368','22370','22372','22374','22376','66891','66895','66899','66903','66907','66911','66915','66919','66923','66927','66931','66935','66939','66943','66947','66951','66955','66959','66963','66967','291','293','295','297','301','303', -- dialysis
+'165547', '100019', '101181', '101462', '110189', '88472', '102659', '132829', '70526', '132833', '132837', '132841', '132845', '132849', '115282', '115487', '35162', '165835', '133001', '133005', '133009', '165547', '100019', '101181', '101462', '110189', '88472', '102659', '132829', '70526', '132833', '132837', '132841', '132845', '132849', '115282', '115487', '35162', '165835', '133001', '133005', '133009' -- IABP and others
 );
 GO
 
@@ -910,6 +911,53 @@ WHERE info.DELETE_USER_ID IS NULL
     )
     and (noteEncs.NOTE_STATUS_C NOT IN (1,4,8) OR noteEncs.NOTE_STATUS_C IS NULL);
 GO
+
+:OUT \\\\Client\F$\clarity\\order_narrative.{idx}.rpt
+SET NOCOUNT ON
+select ORDER_PROC_ID, LINE, NARRATIVE, ORD_DATE_REAL, CONTACT_DATE, IS_ARCHIVED_YN
+from order_narrative
+where CONTACT_DATE >= '{start_date}' and CONTACT_DATE < '{end_date}';
+GO
+
+
+:OUT \\\\Client\F$\clarity\\surgery_info.{idx}.rpt
+SELECT
+  coalesce(hsp.PAT_ENC_CSN_ID, patadmlink.OR_LINK_CSN) as csn_id,
+  orcase.OR_CASE_ID,
+  orlog.LOG_ID,
+  -- Items assocuated with the cases
+  orcase.CASE_BEGIN_INSTANT,
+  orcase.CASE_END_INSTANT,
+  orcase.SCHED_STATUS_C,
+  -- Items assocuated with the logs
+  patinor.TRACKING_STAT_INST as enter_or_room_instant,
+  patoutor.TRACKING_STAT_INST as leave_or_room_instant,
+  CLARITY.dbo.V_LOG_PROCEDURES.SCHEDULED_YN,
+  CLARITY.dbo.V_LOG_PROCEDURES.PERFORMED_YN,
+  CLARITY.dbo.V_LOG_PROCEDURES.PROCEDURE_NM,
+  CLARITY.dbo.V_LOG_PROCEDURES.PROCEDURE_DISPLAY_NM
+FROM CLARITY.dbo.OR_CASE orcase
+   LEFT OUTER JOIN CLARITY.dbo.OR_LOG orlog ON orcase.OR_CASE_ID = orlog.CASE_ID
+
+   ---- Patient/encounter info ----
+
+   LEFT OUTER JOIN CLARITY.dbo.PAT_OR_ADM_LINK patadmlink ON orcase.OR_CASE_ID = patadmlink.CASE_ID
+   LEFT OUTER JOIN CLARITY.dbo.PAT_ENC_HSP hsp ON patadmlink.OR_LINK_CSN = hsp.PAT_ENC_CSN_ID
+   LEFT OUTER JOIN CLARITY.dbo.PATIENT pat ON patadmlink.PAT_ID = pat.PAT_ID
+   LEFT OUTER JOIN CLARITY.dbo.CLARITY_DEP hspDep ON hsp.DEPARTMENT_ID = hspDep.DEPARTMENT_ID
+   LEFT OUTER JOIN CLARITY.dbo.CLARITY_LOC hspLoc ON hspDep.REV_LOC_ID = hspLoc.LOC_ID
+   LEFT OUTER JOIN CLARITY.dbo.IDENTITY_ID patMRN ON pat.PAT_ID = patMRN.PAT_ID AND hspLoc.ID_TYPE = patMRN.IDENTITY_TYPE_ID
+
+   ------ PROCEDURE INFORMATION --------------
+
+   LEFT OUTER JOIN CLARITY.dbo.V_LOG_PROCEDURES ON orlog.LOG_ID = V_LOG_PROCEDURES.LOG_ID
+   LEFT OUTER JOIN CLARITY.dbo.OR_LOG_CASE_TIMES patinor   ON orlog.LOG_ID = patinor.LOG_ID AND patinor.TRACKING_EVENT_C = 60 AND patinor.TRACK_EVENT_TYPE_C = 2      ---- In Room
+   LEFT OUTER JOIN CLARITY.dbo.OR_LOG_CASE_TIMES patoutor  ON orlog.LOG_ID = patoutor.LOG_ID AND patoutor.TRACKING_EVENT_C = 110 AND patoutor.TRACK_EVENT_TYPE_C = 2  ---- Out Room
+   ------ Relevent CSN INFORMATION --------------
+
+    INNER JOIN Analytics.dbo.CCDA643_CSNLookupTable_cardiac csn ON coalesce(hsp.PAT_ENC_CSN_ID, patadmlink.OR_LINK_CSN) = csn.PAT_ENC_CSN_ID
+GO
+
 '''
 
 dict = '''
@@ -933,10 +981,10 @@ GO
 # 1101 jhh
 # 1102 bmc
 # 1103 hcgh
-hosp = '1102'
-start_date = (2016, 1)
-end_date = (2017, 1)
-num_months = 3
+hosp = '1101'
+start_date = (2017, 4)
+end_date = (2017, 6)
+num_months = 1 #num months per chunk
 for year in range(start_date[0], end_date[0]+1):
   for month in range(1,13,num_months):
     if year == start_date[0] and month < start_date[1]:
