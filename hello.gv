@@ -1,0 +1,6 @@
+digraph G {
+		Hello -> World
+	Hello
+	Hello [style=filled]
+	Hello [color=green style=filled]
+}

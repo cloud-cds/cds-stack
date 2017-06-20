@@ -978,7 +978,7 @@ query_config = {
   },
   # NOTE: fid_input dismatch, this feature is not available
   'any_beta_blocker': {
-    'fid_input_items': ['acebutolol_dose', 'atenolol_dose', 'bisoprolol_dose', 'metoprolol_dose', 'nadolol_dose', 'propanolol_dose'],
+    'fid_input_items': ['acebutolol_dose', 'atenolol_dose', 'bisoprolol_dose', 'metoprolol_dose', 'nadolol_dose', 'propranolol_dose'],
     'derive_type': 'simple',
     'fid_select_expr': '''
                                 SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_beta_blocker', 'True', max(cdm_t.confidence) confidence FROM cdm_t %(incremental_enc_id_join)s
