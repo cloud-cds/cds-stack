@@ -144,3 +144,4 @@ bronchitis_update,derive,1 at estimated time of bronchitis diagnosis
 threshold_bun,transform,"threshold(0.1, 180)"
 minutes_since_organ_fail_update,derive,ref Arch folder
 convert_proc_to_boolean,transform,load start and end time
+threshold_fluids_intake,transform,"threshold(0,500000)"
