@@ -774,8 +774,8 @@ var graphComponent = new function() {
   }
   window.onresize = function() {
     graphComponent.render(trews.data.chart_data,
-                          trews.data.severe_sepsis.onset_time,
-                          trews.data.septic_shock.onset_time,
+                          (trews.data.severe_sepsis != null ? trews.data.severe_sepsis.onset_time : null),
+                          (trews.data.septic_shock != null ? trews.data.septic_shock.onset_time : null),
                           graphComponent.xmin, graphComponent.xmax);
   }
 }
