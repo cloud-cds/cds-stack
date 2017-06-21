@@ -55,6 +55,67 @@ as $func$ begin
     end;
 end; $func$;
 
+---------------------------------------------
+-- Reports summaries.
+---------------------------------------------
+create or replace function report_state_summary(_label_id integer)
+    returns table (pat_state integer, count bigint)
+language plpgsql
+as $func$
+begin
+  return query
+    select R.pat_state, count(*) from (
+      select R.pat_id, decode_hosp_best_state(max(encode_hosp_best_state(R.w_max_state))) as pat_state
+      from cdm_reports R
+      where R.label_id = _label_id
+      group by R.pat_id
+    ) R group by R.pat_state order by R.pat_state desc;
+end; $func$;
+
+
+create or replace function report_state_summary_by_month(_label_id integer)
+    returns table (month date, pat_state integer, count bigint)
+language plpgsql
+as $func$
+begin
+  return query
+    select R.mon::date, R.pat_state, count(*) from (
+      select R.pat_id,
+             date_trunc('month', R.w_end) as mon,
+             decode_hosp_best_state(max(encode_hosp_best_state(R.w_max_state))) as pat_state
+      from cdm_reports R
+      where R.label_id = _label_id
+      group by R.pat_id, date_trunc('month', R.w_end)
+      order by R.pat_id, mon
+    ) R
+    group by R.mon, R.pat_state
+    order by R.mon, R.pat_state desc;
+end; $func$;
+
+
+create or replace function meas_summary_by_date(_dataset_id integer, ts_start timestamptz,
+                                                date_unit text, num_units integer, by_patients boolean)
+    returns table (t_start timestamptz, t_end timestamptz, count bigint)
+language plpgsql
+as $func$
+begin
+  return query
+    select R.st, R.en, M.c from (
+      select R.st, lead(R.st, 1) over (order by st) as en from (
+        select ts_start + ((i::text) || ' ' || date_unit)::interval as st
+        from generate_series(1, num_units) R(i)
+      ) R
+    ) R
+    inner join lateral (
+      select R.st, R.en, (case when by_patients then count(distinct pat_id) else count(*) end) c
+      from criteria_meas M
+      where M.tsp between R.st and R.en
+      and dataset_id = _dataset_id
+    ) M on R.st = M.st and R.en = M.en
+    where R.en is not null
+    order by R.st;
+end; $func$;
+
 
 ---------------------------------------------------
 -- Pat ID - Enc ID matching for labels and reports.
@@ -719,6 +780,7 @@ create or replace function tabulate_compliance(_pat_state  integer,
                   gender                           text,
                   care_unit_entry                  timestamptz,
                   care_unit                        text,
+                  discharge_disposition            text,
                   antibiotics_met                  integer,
                   antibiotics_unmet                integer,
                   blood_culture_met                integer,
@@ -758,6 +820,8 @@ as $func$ begin
             -- i) no match for this care unit (which should be ignored by later functions)
             -- ii) data delays, and no matches across all patients (which should be handled by later functions)
 
+           (T.value::json)#>>'{disposition}' as discharge_disposition,
+
            -- Metrics
            (case when (R.criteria#>>'{antibiotics_order, met}')::boolean       then 1 else 0 end) as antibiotics_met,
            (case when (R.criteria#>>'{antibiotics_order, met}')::boolean       then 0 else 1 end) as antibiotics_unmet,
@@ -791,6 +855,9 @@ as $func$ begin
     left join cdm_s S
       on E.enc_id = S.enc_id and R.dataset_id = S.dataset_id
       and S.fid in ('age', 'gender')
+    left join cdm_t T
+      on E.enc_id = T.enc_id and R.dataset_id = T.dataset_id
+      and T.fid = 'discharge'
     left join criteria_meas M
       on R.pat_id = M.pat_id
       and M.tsp between E.arrival and E.departure
@@ -808,6 +875,7 @@ create or replace function full_compliance_report(_pat_state  integer,
                   age                       text,
                   gender                    text,
                   care_unit                 text,
+                  discharge_disposition     text,
                   hour_of_day               integer,
                   num_patients              numeric,
                   num_encounters            numeric,
@@ -852,6 +920,7 @@ as $func$ begin
            ByPat.age,
            ByPat.gender,
            ByPat.care_unit,
+           ByPat.discharge_disposition,
            ByPat.hour_of_day,
            count(*)::numeric                           as num_patients,
            sum(ByPat.num_encounters)                   as num_encounters,
@@ -895,6 +964,7 @@ as $func$ begin
              first(ByPatEnc.age)                   as age,
              first(ByPatEnc.gender)                as gender,
              first(ByPatEnc.care_unit)             as care_unit,
+             first(ByPatEnc.discharge_disposition) as discharge_disposition,
              first(ByPatEnc.hour_of_day)           as hour_of_day,
              sum(ByPatEnc.antibiotics_met)         as antibiotics_met,
              sum(ByPatEnc.antibiotics_unmet)       as antibiotics_unmet,
@@ -948,6 +1018,7 @@ as $func$ begin
                     where CU.dataset_id = _dataset_id and CU.enc_id = R.enc_id)
                 ) as care_unit,
 
+               first(R.discharge_disposition) as discharge_disposition,
                first(date_part('hour', coalesce(R.severe_sepsis_onset, R.severe_sepsis_wo_infection_onset)))::int as hour_of_day,
 
                max(R.antibiotics_met)                      as antibiotics_met,
@@ -988,7 +1059,8 @@ as $func$ begin
       ) ByPatEnc
       group by ByPatEnc.pat_worst_state, ByPatEnc.pat_id
     ) ByPat
-    group by ByPat.pat_worst_state, ByPat.age, ByPat.gender, ByPat.care_unit, ByPat.hour_of_day
+    group by ByPat.pat_worst_state, ByPat.age, ByPat.gender,
+             ByPat.care_unit, ByPat.discharge_disposition, ByPat.hour_of_day
     order by ByPat.pat_worst_state desc, ByPat.care_unit, ByPat.hour_of_day;
 end; $func$;
 
@@ -1074,6 +1146,88 @@ as $func$ begin
     from full_compliance_report(_pat_state, _dataset_id, _label_id) R
     group by R.pat_worst_state, R.care_unit
     order by R.pat_worst_state desc, R.care_unit;
+end; $func$;
+
+
+create or replace function discharge_compliance_report(_pat_state  integer,
+                                                       _dataset_id integer,
+                                                       _label_id   integer)
+  returns table ( pat_worst_state           integer,
+                  discharge_disposition     text,
+                  num_patients              numeric,
+                  num_encounters            numeric,
+                  antibiotics_met           numeric,
+                  antibiotics_unmet         numeric,
+                  blood_culture_met         numeric,
+                  blood_culture_unmet       numeric,
+                  crystalloid_fluid_met     numeric,
+                  crystalloid_fluid_unmet   numeric,
+                  initial_lactate_met       numeric,
+                  initial_lactate_unmet     numeric,
+                  repeat_lactate_met        numeric,
+                  repeat_lactate_unmet      numeric,
+                  vasopressors_met          numeric,
+                  vasopressors_unmet        numeric,
+
+                  antibiotics_any           numeric,
+                  blood_culture_any         numeric,
+                  crystalloid_fluid_any     numeric,
+                  vasopressors_any          numeric,
+
+                  antibiotics_late          numeric,
+                  blood_culture_late        numeric,
+                  crystalloid_fluid_late    numeric,
+                  vasopressors_late         numeric,
+
+                  num_lactates              numeric,
+                  num_lactates_3hr_late     numeric,
+                  num_lactates_6hr_late     numeric,
+
+                  lactates_any              numeric,
+                  lactates_any_3hr_late     numeric,
+                  lactates_any_6hr_late     numeric
+  )
+language plpgsql
+as $func$ begin
+  return query
+    select R.pat_worst_state,
+           R.discharge_disposition,
+           sum(R.num_patients)            as num_patients,
+           sum(R.num_encounters)          as num_encounters,
+           sum(R.antibiotics_met)         as antibiotics_met,
+           sum(R.antibiotics_unmet)       as antibiotics_unmet,
+           sum(R.blood_culture_met)       as blood_culture_met,
+           sum(R.blood_culture_unmet)     as blood_culture_unmet,
+           sum(R.crystalloid_fluid_met)   as crystalloid_fluid_met,
+           sum(R.crystalloid_fluid_unmet) as crystalloid_fluid_unmet,
+           sum(R.initial_lactate_met)     as initial_lactate_met,
+           sum(R.initial_lactate_unmet)   as initial_lactate_unmet,
+           sum(R.repeat_lactate_met)      as repeat_lactate_met,
+           sum(R.repeat_lactate_unmet)    as repeat_lactate_unmet,
+           sum(R.vasopressors_met)        as vasopressors_met,
+           sum(R.vasopressors_unmet)      as vasopressors_unmet,
+
+           sum(R.antibiotics_any)         as antibiotics_any,
+           sum(R.blood_culture_any)       as blood_culture_any,
+           sum(R.crystalloid_fluid_any)   as crystalloid_fluid_any,
+           sum(R.vasopressors_any)        as vasopressors_any,
+
+           sum(R.antibiotics_late)        as antibiotics_late,
+           sum(R.blood_culture_late)      as blood_culture_late,
+           sum(R.crystalloid_fluid_late)  as crystalloid_fluid_late,
+           sum(R.vasopressors_late)       as vasopressors_late,
+
+           sum(R.num_lactates)            as num_lactates,
+           sum(R.num_lactates_3hr_late)   as num_lactates_3hr_late,
+           sum(R.num_lactates_6hr_late)   as num_lactates_6hr_late,
+
+           sum(R.lactates_any)            as lactates_any,
+           sum(R.lactates_any_3hr_late)   as lactates_any_3hr_late,
+           sum(R.lactates_any_6hr_late)   as lactates_any_6hr_late
+
+    from full_compliance_report(_pat_state, _dataset_id, _label_id) R
+    group by R.pat_worst_state, R.discharge_disposition
+    order by R.pat_worst_state desc, R.discharge_disposition;
 end; $func$;
 
 
