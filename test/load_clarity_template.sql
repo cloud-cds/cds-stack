@@ -204,15 +204,15 @@ create table {workspace}."MedicationAdministration"
  "MAR_ORIG_DUE_TM"    timestamp without time zone,
  "SCHEDULED_TIME"     timestamp without time zone,
  "MedRoute"           text,
- "Dose"               real,
+ "Dose"               text,
  "MedUnit"            text,
  "AdminSite"          text,
- "INFUSION_RATE"      real,
+ "INFUSION_RATE"      text,
  "MAR_INF_RATE_UNIT"  text,
- "mar_duration"       real,
+ "mar_duration"       text,
  "MAR_DURATION_UNIT"  text,
- "MIN_DISCRETE_DOSE"  real,
- "MAX_DISCRETE_DOSE"  real
+ "MIN_DISCRETE_DOSE"  text,
+ "MAX_DISCRETE_DOSE"  text
 );
 \copy {workspace}."MedicationAdministration" from '{folder}mar.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 create index mar_idx_name on {workspace}."MedicationAdministration" ("display_name");
