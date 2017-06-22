@@ -899,10 +899,11 @@ def convert_to_mmol(entry, log):
     if dose is None or dose == 'Test not performed':
         return None
     log_assert(log, unit == 'meq/l' or unit == 'mmol/l', "Unknown unit %s" % unit   )
-    if unit == 'mmol/l':
-        return [float(dose), confidence.NO_TRANSFORM]
-    elif unit == 'meq/l':
-        return [float(dose), confidence.UNIT_TRANSFORMED]
+    if not dose == 'see below':
+        if unit == 'mmol/l':
+            return [float(dose), confidence.NO_TRANSFORM]
+        elif unit == 'meq/l':
+            return [float(dose), confidence.UNIT_TRANSFORMED]
 
 def convert_ddimer_unit(entry, log):
     csn_id = entry[0]
