@@ -3,38 +3,6 @@
 -- create all user defined functions
 -- best practice: run this file every time when we deploy new version
 ----------------------------------------------------------------------------------------------
--- add_cdm_t for medication summation
-CREATE OR REPLACE FUNCTION add_cdm_t(key1 INT, key2 timestamptz, key3 TEXT, new_value TEXT, confidence_flag int) RETURNS VOID AS
-$$
-BEGIN
-    LOOP
-        -- first try to update the key
-        IF new_value ~ '^[0-9\.]+$' THEN
-            UPDATE cdm_t SET value = cast(value as numeric) + cast(new_value as numeric), confidence = confidence | confidence_flag WHERE enc_id = key1 AND tsp = key2 AND fid = key3;
-        ELSE
-
-            UPDATE cdm_t SET value = json_object_set_key(value::json, 'dose',
-                (value::json->>'dose')::numeric
-                    + (new_value::json->>'dose')::numeric)::text
-                , confidence = confidence | confidence_flag
-                WHERE enc_id = key1 AND tsp = key2 AND fid = key3;
-        END IF;
-        IF found THEN
-            RETURN;
-        END IF;
-        -- not there, so try to insert the key
-        -- if someone else inserts the same key concurrently,
-        -- we could get a unique-key failure
-        BEGIN
-            INSERT INTO cdm_t(enc_id,tsp,fid,value,confidence) VALUES (key1,key2,key3,new_value,confidence_flag);
-            RETURN;
-        EXCEPTION WHEN unique_violation THEN
-            -- do nothing, and loop to try the UPDATE again
-        END;
-    END LOOP;
-END;
-$$
-LANGUAGE plpgsql;
 
 -- add_cdm_t for medication summation
 CREATE OR REPLACE FUNCTION add_cdm_t(dsid INT, key1 INT, key2 timestamptz, key3 TEXT, new_value TEXT, confidence_flag int) RETURNS VOID AS
@@ -42,7 +10,7 @@ $$
 BEGIN
     LOOP
         -- first try to update the key
-        IF new_value ~ '^[0-9\.]+$' THEN
+        IF isnumeric(new_value) THEN
             UPDATE cdm_t SET value = cast(value as numeric) + cast(new_value as numeric), confidence = confidence | confidence_flag WHERE enc_id = key1 AND tsp = key2 AND fid = key3 AND dataset_id = dsid;
         ELSE
             UPDATE cdm_t SET value = json_object_set_key(value::json, 'dose',
