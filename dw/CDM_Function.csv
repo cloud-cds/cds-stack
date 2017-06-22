@@ -145,3 +145,4 @@ threshold_bun,transform,"threshold(0.1, 180)"
 minutes_since_organ_fail_update,derive,ref Arch folder
 convert_proc_to_boolean,transform,load start and end time
 transform_ddimer,transform,"turn unit mg/L to mg/L REU"
+threshold_fluids_intake,transform,"threshold(0,500000)"
