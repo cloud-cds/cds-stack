@@ -231,8 +231,8 @@ async def execute_load(conn, sql, log, timeout=10, backoff=2, base=2, max_timeou
       wait_time = min(((base**attempts) + random_secs), max_backoff)
       if log:
         log.warn("execute_load failed: retry %s times in %s secs with timeout %s secs" % (attempts, wait_time, timeout))
+        log.warn("exception sql {}".format(sql))
         log.exception(e)
       await asyncio.sleep(wait_time)
-        # log.info(sql)
       continue
 
