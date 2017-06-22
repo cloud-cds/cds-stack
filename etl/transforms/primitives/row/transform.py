@@ -802,7 +802,7 @@ def convert_to_mcg_min(entries, log):
     for entry in entries:
         name = entry['display_name']
         tsp = entry['TimeActionTaken']
-        dose = entry['Dose']
+        dose = float(entry['Dose'])
         unit = entry['MedUnit']
         action = entry['ActionTaken']
         order_tsp = entry['ORDER_INST']
