@@ -343,7 +343,7 @@ def convert_penicillin_dose(entries, log):
         if action in intake_actions:
             if dose:
                 if unit == 'mg':
-                    dose_mu = dose / 250 * 0.4
+                    dose_mu = float(dose) / 250 * 0.4
                     dose_json = json.dumps({'dose':dose_mu, \
                         'order_tsp':order_tsp.strftime("%Y-%m-%d %H:%M:%S"),
                         'action': entry['ActionTaken']})
@@ -1053,7 +1053,7 @@ def _calculate_volume_in_ml(volumes, entry_cur, entry_nxt, remain_vol_pre, \
     global FLUID_DUR
     global RATE_ACTIONS
     unit = entry_cur['MedUnit'] if not df else entry_cur['dose_unit']
-    dose = entry_cur['Dose'] if not df else entry_cur['dose']
+    dose = float(entry_cur['Dose']) if not df else float(entry_cur['dose'])
     tsp = entry_cur['TimeActionTaken'] if not df else entry_cur['tsp']
     med = entry_cur['display_name'] if not df else entry_cur['full_name']
     max_vol_ml = _get_max_vol_ml(med)
