@@ -231,7 +231,7 @@ $$
 BEGIN
     LOOP
         -- first try to update the key
-        IF new_value ~ '^[0-9\.]+$' THEN
+        IF isnumeric(new_value) THEN
             UPDATE cdm_t SET value = cast(value as numeric) + cast(new_value as numeric), confidence = confidence | confidence_flag WHERE enc_id = key1 AND tsp = key2 AND fid = key3;
         ELSE
 
