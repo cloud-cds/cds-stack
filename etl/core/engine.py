@@ -199,7 +199,6 @@ class Engine:
       if (not dependencies) or self.completed(dependencies):
         self.log.debug('Enqueueing "%s"' % task_id)
         if self.with_graph:
-          self.log.debug('task: {}'.format(self.tasks[task_id]))
           self.graph.node(task_id, color='yellow', style='filled')
           self.timer[task_id] = {"start": time.time()}
         self.pending_queue.append(task_id)
