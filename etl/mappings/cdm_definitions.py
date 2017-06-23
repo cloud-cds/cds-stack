@@ -389,6 +389,12 @@ cdm_defs = {
         'thresh':   (None, None),
         'human_readable':   'Penicillin',
     },
+    'penicillin_g_dose': {
+        'unit':     'Million Units',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Penicillin G',
+    },
     'piperacillin_tazbac_dose': {
         'unit':     'mg',
         'value':    float,
@@ -454,6 +460,12 @@ cdm_defs = {
         'value':    float,
         'thresh':   (0, 100),
         'human_readable':   'SpO2',
+    },
+    'tobramycin_dose': {
+        'unit':     'mg',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Tobramycin',
     },
     'temperature': {
         'unit':     'Fahrenheit',

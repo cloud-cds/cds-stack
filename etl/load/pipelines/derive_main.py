@@ -491,14 +491,14 @@ query_config = {
       | coalesce(lactate_c,0) | coalesce(pao2_to_fio2_c,0)
       | coalesce(hypotension_intp_c,0)
       | coalesce(urine_output_24hr_c,0) as acute_organ_failure_c
-      FROM %(twf_table_join)s cdm_twf inner join S on %(dataset_id_match)s
-        and cdm_twf.enc_id = S.enc_id
+      FROM %(twf_table_join)s cdm_twf inner join S on
+        cdm_twf.enc_id = S.enc_id %(dataset_id_match)s
         %(dataset_id_equal)s
     ''' % {
       'twf_table'           : para.get("twf_table"),
       'twf_table_join'      : para.get("twf_table_join"),
       'dataset_id_key'      : para.get("dataset_id_key"),
-      'dataset_id_match'    : dataset_id_match(" ", "cdm_twf", "S", para.get("dataset_id")),
+      'dataset_id_match'    : dataset_id_match(" and ", "cdm_twf", "S", para.get("dataset_id")),
       'dataset_id_equal'    : dataset_id_equal(" WHERE ", "cdm_twf", para.get("dataset_id")),
       'sub_dataset_id_equal': dataset_id_equal(" and " if para.get("incremental") else "WHERE " , "cdm_twf", para.get("dataset_id")),
       'with_ds_s'           : dataset_id_equal(" and ", "cdm_s", para.get("dataset_id")),
@@ -997,9 +997,11 @@ query_config = {
     'fid_input_items': ['ampicillin_dose', 'clindamycin_dose', 'erythromycin_dose' , 'gentamicin_dose' , 'oxacillin_dose' , 'tobramycin_dose' , 'vancomycin_dose' , 'ceftazidime_dose' , 'cefazolin_dose' , 'penicillin_g_dose' , 'meropenem_dose' , 'penicillin_dose' , 'amoxicillin_dose' , 'piperacillin_tazbac_dose', 'rifampin_dose', 'meropenem_dose', 'rapamycin_dose'],
     'derive_type': 'simple',
     'fid_select_expr': '''
-                                SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_antibiotics', 'True', max(cdm_t.confidence) confidence FROM cdm_t %(incremental_enc_id_join)s
-                                WHERE fid ~ 'ampicillin_dose|clindamycin_dose|erythromycin_dose|gentamicin_dose|oxacillin_dose|tobramycin_dose|vancomycin_dose|ceftazidime_dose|cefazolin_dose|penicillin_g_dose|meropenem_dose|penicillin_dose|amoxicillin_dose|piperacillin_tazbac_dose|rifampin_dose|meropenem_dose|rapamycin_dose' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s %(incremental_enc_id_match)s
-                                group by %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp''',
+      SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_antibiotics', 'True', max(cdm_t.confidence) confidence FROM cdm_t %(incremental_enc_id_join)s
+      WHERE fid ~ 'ampicillin_dose|clindamycin_dose|erythromycin_dose|gentamicin_dose|oxacillin_dose|tobramycin_dose|vancomycin_dose|ceftazidime_dose|cefazolin_dose|penicillin_g_dose|meropenem_dose|penicillin_dose|amoxicillin_dose|piperacillin_tazbac_dose|rifampin_dose|meropenem_dose|rapamycin_dose'
+       AND ((isnumeric(value) and value::numeric > 0) or (not isnumeric(value) and cast(value::json->>'dose' as numeric) > 0))
+       %(dataset_where_block)s %(incremental_enc_id_match)s
+      group by %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp''',
   },
 }
 
