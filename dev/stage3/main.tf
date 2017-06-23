@@ -277,9 +277,10 @@ module "c2dw_daily_etl" {
   incremental         = "True"
   remove_pat_enc      = "False"
   remove_data         = "False"
-  start_enc_id        = "-1"
+  start_enc_id        = "(select max(enc_id) from pat_enc where dataset_id = 7)"
   clarity_workspace   = "clarity_daily"
   nprocs              = "8"
   num_derive_groups   = "8"
   vacuum_temp_table   = "True"
+  etl_graph           = "/mnt/c2dw/c2dw-etl-daily"
 }

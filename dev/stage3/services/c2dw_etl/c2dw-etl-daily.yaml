@@ -34,7 +34,7 @@ spec:
         - name: remove_data
           value: "False"
         - name: start_enc_id
-          value: "-1"
+          value: "(select max(enc_id) from pat_enc where dataset_id = 7)"
         - name: clarity_workspace
           value: "clarity_daily"
         - name: nprocs
