@@ -129,7 +129,17 @@ async def workspace_to_cdm(ctxt, job_id):
 async def load_online_prediction_parameters(ctxt, job_id):
   async with ctxt.db_pool.acquire() as conn:
     ctxt.log.info("load online_prediction_features")
-
+    # Load features needed for lmc
+    query_lmc_feature = '''
+    select f.fid
+    from (
+      select column_name fid
+      from information_schema.columns
+      where table_name = 'lmcscore') f
+    inner join cdm_feature cf on f.fid = cf.fid;
+    '''
+    lmc_features = await conn.fetch(query_lmc_feature)
+    lmc_features = [f['fid'] for f in lmc_features]
     # Load features weights from database
     feature_weights = {}
     trews_feature_weights = await conn.fetch("select * from trews_feature_weights")
@@ -147,9 +157,10 @@ async def load_online_prediction_parameters(ctxt, job_id):
     # Get cdm feature dict
     cdm_feature = await conn.fetch("select * from cdm_feature")
     cdm_feature_dict = {f['fid']:dict(f) for f in cdm_feature}
-
+    required_fids = set(list(feature_weights.keys()) + lmc_features)
     # list the measured features for online prediction
-    features_with_intermediates = get_features_with_intermediates(feature_weights.keys(), cdm_feature_dict)
+    features_with_intermediates = get_features_with_intermediates(\
+      required_fids, cdm_feature_dict)
     measured_features = [fid for fid in features_with_intermediates if cdm_feature_dict[fid]["is_measured"]]
     ctxt.log.info("The measured features in online prediction: {}".format(
       _get_feature_description_report(measured_features, cdm_feature_dict)))

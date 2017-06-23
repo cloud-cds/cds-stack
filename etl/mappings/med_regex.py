@@ -138,6 +138,10 @@ med_regex = [
         'pos': '^penicillin',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
     }, {
+        'fid': 'penicillin_g_dose',
+        'pos': '^penicillin G',
+        'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
+    }, {
         'fid': 'piperacillin_tazbac_dose',
         'pos': '^piperacillin-tazobactam',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
@@ -158,6 +162,10 @@ med_regex = [
         'neg': 'syringe|nasal spray|injection|gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
         # 'part_of': ['fluids_intake', 'crystalloid_fluid'],
         'part_of': ['crystalloid_fluid'],
+    }, {
+        'fid': 'tobramycin_dose',
+        'pos': '^tobramycin',
+        'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
     }, {
         'fid': 'vancomycin_dose',
         'pos': '^vancomycin',
