@@ -239,10 +239,10 @@ class JHAPIConfig:
       return pd.DataFrame()
     resource = '/patients/contacts'
     pat_id_df = pd.DataFrame(pat_id_list)
-    pat_id_df = pat_id_df[pat_id_df['pat_id'].str.contains('E.*')]
+    pat_id_df = pat_id_df[pat_id_df['pat_id'].str.contains('E.*')] # Gets rid of fake patients
     payloads = [{
-      'id'       : pat['pat_id'],
-      'idtype'   : 'patient',
+      'id'       : pat['visit_id'],
+      'idtype'   : 'csn',
       'dateFrom' : self.dateFrom, #(dt.datetime.now() - dt.timedelta(days=1000)).strftime('%Y-%m-%d'),
       'dateTo'   : self.dateTo,
     } for _, pat in pat_id_df.iterrows()]
