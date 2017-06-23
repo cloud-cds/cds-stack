@@ -300,8 +300,8 @@ class Engine:
       if not finished:
         active.extend(self.run_block())
 
-      self.log.debug('Active Queue (iter %s) %s' % (iteration, str([idf[1] for idf in active])))
-      self.log.debug('Recently Completed (iter %s) %s' % (iteration, str([idf[1] for idf in finished])))
+      self.log.debug('Active Queue (iter %s) %s' % (iteration, str([idf[0] for idf in active])))
+      self.log.debug('Recently Completed (iter %s) %s' % (iteration, str([idf[0] for idf in finished])))
 
       if not(active or finished):
         self.log.error('Engine has no tasks to wait on (no tasks launched/active/recently finished)')
