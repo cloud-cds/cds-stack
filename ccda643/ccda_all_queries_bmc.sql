@@ -821,7 +821,8 @@ INNER JOIN CLARITY..ORDER_PROC parents on inst.ORDER_ID = parents.ORDER_PROC_ID
 left join clarity.dbo.ORD_SPEC_QUEST osq on osq.ORDER_ID = procs.ORDER_PROC_ID
 left join clarity.dbo.CL_QQUEST cq on osq.ORD_QUEST_ID = cq.QUEST_ID 
 left join clarity.dbo.CL_QQUEST_OVTM tm on tm.QUEST_ID = cq.QUEST_ID
-where procs.proc_id in
+where
+procs.proc_id in
 (
 '160318',
 '2015293',
@@ -837,7 +838,14 @@ where procs.proc_id in
 '165547',
 '3041752',
 '22362','22364','22366','22368','22370','22372','22374','22376','66891','66895','66899','66903','66907','66911','66915','66919','66923','66927','66931','66935','66939','66943','66947','66951','66955','66959','66963','66967','291','293','295','297','301','303' -- dialysis
-);
+)
+or
+eap.proc_name = 'BIPAP'
+or
+lower(eap.proc_name) like 'wall cpap - adult%' or
+lower(eap.proc_name) like 'cpap continuous%' or
+lower(eap.proc_name) like 'mechanical ventilation - adult cpap%'
+;
 GO
 
 :OUT \\Client\F$\clarity\prob.rpt
