@@ -791,9 +791,13 @@ function graph(json, severeOnset, shockOnset, xmin, xmax, ymin, ymax) {
     // update trewscore in header
     $('h1 span').text("");
     placeholder.html("");
+    placeholder.css('line-height', Number(graphWidth * .3225).toString() + 'px');
     placeholder.append("<span style='text-align: center; vertical-align: middle; color: #777;'>" +
                        "<p><b>No recent TREWScore data available for this patient.</b></p></span>");
     return;
+  }
+  else {
+    placeholder.css('line-height', "");
   }
 
   var data = [];

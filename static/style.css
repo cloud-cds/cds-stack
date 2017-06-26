@@ -786,7 +786,7 @@ body.waiting {
 /* Threshold */
 #threshold {
     position: absolute;
-    top: 50%;
+    top: 9%;
     right: 0px;
     color: #e64535;
     text-align: center;
