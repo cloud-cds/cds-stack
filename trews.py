@@ -61,18 +61,22 @@ trews_app_key = os.environ['trews_app_key'] if 'trews_app_key' in os.environ els
 trews_admin_key = os.environ['trews_admin_key'] if 'trews_admin_key' in os.environ else None
 trews_open_access = os.environ['trews_open_access'] if 'trews_open_access' in os.environ else None
 
-log_decryption = os.environ['log_decryption'] if 'log_decryption' in os.environ else None
-log_user_latency = os.environ['log_user_latency'] == 'true' if 'log_user_latency' in os.environ else False
+log_decryption = os.environ['log_decryption'].lower() == 'true' if 'log_decryption' in os.environ else False
+log_user_latency = os.environ['log_user_latency'].lower() == 'true' if 'log_user_latency' in os.environ else False
 
 logging.info('''TREWS Security Configuration::
   encrypted query: %s
   trews_app_key: %s
   trews_admin_key: %s
   trews_open_access: %s
+  log_decryption: %s
+  log_user_latency: %s
   ''' % ('on' if encrypted_query else 'off', \
          'on' if trews_app_key else 'off', \
          'on' if trews_admin_key else 'off', \
-         'on' if trews_open_access and trews_open_access.lower() == 'true' else 'off')
+         'on' if trews_open_access and trews_open_access.lower() == 'true' else 'off',
+         'on' if log_decryption else 'off',
+         'on' if log_user_latency else 'off')
   )
 
 ###################################
