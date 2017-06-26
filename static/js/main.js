@@ -784,7 +784,17 @@ function graph(json, severeOnset, shockOnset, xmin, xmax, ymin, ymax) {
   var graphWidth = Math.floor($('#graph-wrapper').width()) - 10;
   $("#graphdiv").width(graphWidth);
   $("#graphdiv").height(graphWidth * .3225);
+  $("#graphdiv").css('line-height', Number(graphWidth * .3225).toString() + 'px');
   var placeholder = $("#graphdiv");
+
+  if ( json['chart_values']['trewscore'].length == 0 || json['chart_values']['timestamp'].length == 0 ) {
+    // update trewscore in header
+    $('h1 span').text("");
+    placeholder.html("");
+    placeholder.append("<span style='text-align: center; vertical-align: middle; color: #777;'>" +
+                       "<p><b>No recent TREWScore data available for this patient.</b></p></span>");
+    return;
+  }
 
   var data = [];
   var dataLength = json['chart_values']['timestamp'].length;
