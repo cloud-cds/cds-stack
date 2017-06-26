@@ -62,6 +62,7 @@ trews_admin_key = os.environ['trews_admin_key'] if 'trews_admin_key' in os.envir
 trews_open_access = os.environ['trews_open_access'] if 'trews_open_access' in os.environ else None
 
 log_decryption = os.environ['log_decryption'] if 'log_decryption' in os.environ else None
+log_user_latency = os.environ['log_user_latency'] == 'true' if 'log_user_latency' in os.environ else False
 
 logging.info('''TREWS Security Configuration::
   encrypted query: %s
@@ -209,6 +210,8 @@ class TREWSLog(web.View):
         # TODO: separate latency by endpoint and userid (as dimensions per point).
         for req in log_entry['buffer']:
           duration_ms = req['end_time'] - req['start_time']
+          if log_user_latency:
+            logging.info('UserLatency {} {}'.format(str(duration_ms), json.dumps(req)))
           api_monitor.append_metric('UserLatency', value=duration_ms)
 
       elif 'acc' in log_entry:
