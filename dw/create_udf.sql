@@ -2577,13 +2577,13 @@ histogram as (
   order by bucket
 ),
 histogram_json as(
-  select ''bucket'' || bucket::text k,
-  jsonb_build_object(''range'', range, ''freq'', freq, ''bar'', repeat(''*'', ((freq)::float / max(freq) over() * 30)::int)
+  select
+  jsonb_build_object(''bucket'', bucket,''range'', range, ''freq'', freq, ''bar'', repeat(''*'', ((freq)::float / max(freq) over() * 30)::int)
   ) v
   from histogram
 ),
 day_rows_histogram as (
-  select jsonb_object_agg(k, v) hist
+  select jsonb_agg(v) hist
   from histogram_json
 )
 insert into cdm_stats
@@ -2682,12 +2682,12 @@ if _table = 'cdm_twf' then
         order by bucket
       ),
       histogram_json as(
-      select ''bucket'' || bucket::text k,
-      jsonb_build_object(''range'', range, ''freq'', freq) v
+      select
+      jsonb_build_object(''bucket'', bucket,''range'', range, ''freq'', freq) v
       from histogram
       ),
       histogram_agg as(
-        select jsonb_object_agg(k, v) hist from histogram_json
+        select jsonb_agg(v) hist from histogram_json
       )';
     else
       q = '';
@@ -2798,12 +2798,12 @@ else
     order by s.fid, bucket
   ),
   histogram_json as(
-  select fid, ''bucket'' || bucket::text k,
-  jsonb_build_object(''range'', range, ''freq'', freq) v
+  select fid,
+  jsonb_build_object(''bucket'', bucket, ''range'', range, ''freq'', freq) v
   from histogram
   ),
   histogram_agg as(
-    select fid, coalesce(jsonb_object_agg(k, v), ''{}''::jsonb) hist from histogram_json group by fid order by fid
+    select fid, coalesce(jsonb_agg(v), ''{}''::jsonb) hist from histogram_json group by fid order by fid
   )
   insert into cdm_stats
   select M.dataset_id dataset_id,
@@ -3000,6 +3000,9 @@ $$
 STRICT
 LANGUAGE plpgsql IMMUTABLE;
 
+#############################
+## clarity stats functions ##
+#############################
 
 create or replace function run_clarity_stats(_clarity_workspace text, server text default 'dev_dw', nprocs int default 2)
 returns void as
