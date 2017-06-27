@@ -925,21 +925,37 @@ query_config = {
     'fid_input_items': ['urine_output'],
     'derive_type': 'subquery',
     'subquery': lambda para: '''
-          SELECT %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
-          sum(coalesce(cdm_t.value::float, 0)) urine_output_6hr,
-          max(coalesce(cdm_t.confidence, 0)) urine_output_6hr_c
-          from %(twf_table_join)s cdm_twf
-          inner join cdm_t
-          on cdm_t.enc_id = cdm_twf.enc_id and cdm_t.tsp <= cdm_twf.tsp
-          and cdm_t.tsp > cdm_twf.tsp - interval '6 hours' %(dataset_id_match)s
-          where fid = 'urine_output' %(dataset_id_equal)s
-          group by %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp
+      SELECT %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
+      sum(coalesce(cdm_t.value::float, 0)) urine_output_6hr,
+      max(coalesce(cdm_t.confidence, 0)) urine_output_6hr_c
+      from %(twf_table_join)s cdm_twf
+      inner join
+      (
+        -- remove negative cases and any cases within 6 hours window of the negative cases and volumn >= 1000
+        select distinct cdm_t.*
+         from cdm_t left join
+        (
+          select * from cdm_t where fid = 'urine_output'
+          and value::numeric < 0 %(dataset_id_equal_t)s
+        ) neg on cdm_t.enc_id = neg.enc_id
+          and cdm_t.tsp - neg.tsp <= interval '6 hours'
+          and neg.tsp - cdm_t.tsp <= interval '6 hours'
+        where cdm_t.fid = 'urine_output' and cdm_t.value::numeric > 0
+        and (neg.tsp is null or cdm_t.value::numeric < 1000)
+        %(dataset_id_equal_t)s
+      )
+      cdm_t
+      on cdm_t.enc_id = cdm_twf.enc_id and cdm_t.tsp <= cdm_twf.tsp
+      and cdm_t.tsp > cdm_twf.tsp - interval '6 hours' %(dataset_id_match)s
+      where fid = 'urine_output' %(dataset_id_equal)s
+      group by %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp
     ''' % {
       'dataset_id_key': para.get("dataset_id_key"),
       'twf_table_join': para.get('twf_table_join'),
       'with_ds_ttwf': para.get('with_ds_ttwf'),
       'dataset_id_match': dataset_id_match(' and ','cdm_t', 'cdm_twf', para.get("dataset_id")),
       'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id")),
+      'dataset_id_equal_t': dataset_id_equal(" and ", "cdm_t", para.get("dataset_id")),
     },
     'clean': {'value': 0, 'confidence': 0},
   },
@@ -951,7 +967,22 @@ query_config = {
           sum(coalesce(cdm_t.value::float, 0)) urine_output_24hr,
           max(coalesce(cdm_t.confidence, 0)) urine_output_24hr_c
           from %(twf_table_join)s cdm_twf
-          left join cdm_t
+          left join
+          (
+            -- remove negative cases and any cases within 6 hours window of the negative cases and volumn >= 1000
+            select distinct cdm_t.*
+             from cdm_t left join
+            (
+              select * from cdm_t where fid = 'urine_output'
+              and value::numeric < 0 %(dataset_id_equal_t)s
+            ) neg on cdm_t.enc_id = neg.enc_id
+              and cdm_t.tsp - neg.tsp <= interval '6 hours'
+              and neg.tsp - cdm_t.tsp <= interval '6 hours'
+            where cdm_t.fid = 'urine_output' and cdm_t.value::numeric > 0
+            and (neg.tsp is null or cdm_t.value::numeric < 1000)
+            %(dataset_id_equal_t)s
+          )
+          cdm_t
           on cdm_t.enc_id = cdm_twf.enc_id and cdm_t.tsp <= cdm_twf.tsp
           and cdm_t.tsp > cdm_twf.tsp - interval '24 hours' %(dataset_id_match)s
           where fid = 'urine_output' %(dataset_id_equal)s
@@ -962,6 +993,7 @@ query_config = {
       'with_ds_ttwf': para.get('with_ds_ttwf'),
       'dataset_id_match': dataset_id_match(' and ','cdm_t', 'cdm_twf', para.get("dataset_id")),
       'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id")),
+      'dataset_id_equal_t': dataset_id_equal(" and ", "cdm_t", para.get("dataset_id")),
     },
     'clean': {'value': 0, 'confidence': 0},
   },
