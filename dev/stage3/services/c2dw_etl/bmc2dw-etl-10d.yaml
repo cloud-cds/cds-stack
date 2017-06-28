@@ -18,14 +18,14 @@ spec:
         command:
           - "sh"
           - "-c"
-          - "service rsyslog start && sleep 5 && ./bin/goofys opsdx-clarity-etl-stage /mnt && sleep 5 && nice -20 python -q -X faulthandler ./etl/clarity2dw/planner.py"
+          - "service rsyslog start && sleep 5 && ./bin/goofys opsdx-clarity-etl-stage /mnt && sleep 5 && nice -20 python -q -X faulthandler ./etl/clarity2dw/planner.py | tee /mnt/c2dw/bmc2dw-etl-10d.log"
         securityContext:
           privileged: true
         env:
         - name: dataset_id
           value: "9"
         - name: clarity_workspace
-          value: "jhh_10d"
+          value: "bmc_10d"
         - name: etl_graph
           value: "/mnt/c2dw/bmc2dw-etl-10d"
         - name: nprocs

@@ -36,6 +36,7 @@ variable "clarity_workspace" {}
 variable "nprocs"            {}
 variable "num_derive_groups" {}
 variable "vacuum_temp_table" {}
+variable "etl_graph"         {}
 
 variable "local_shell" {}
 
@@ -87,6 +88,7 @@ resource "aws_lambda_function" "c2dw_etl_lambda" {
         k8s_job_nprocs            = "${var.nprocs}"
         k8s_job_num_derive_groups = "${var.num_derive_groups}"
         k8s_job_vacuum_temp_table = "${var.vacuum_temp_table}"
+        k8s_job_etl_graph = "${var.etl_graph}"
       }
     }
 }
