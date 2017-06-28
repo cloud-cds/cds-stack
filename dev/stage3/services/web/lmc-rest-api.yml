@@ -48,7 +48,7 @@ spec:
             }
     spec:
       nodeSelector:
-        opsdx_nodegroup: web2
+        opsdx_nodegroup: web
       containers:
       - name: lmc-nginx
         image: nginx:alpine
@@ -62,11 +62,11 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: lmc-rest-api
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.1.18
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.1.21
         resources:
           requests:
-            memory: "2816Mi"
-            cpu: "1000m"
+            memory: "1024Mi"
+            cpu: "200m"
         command:
           - "sh"
           - "start-dev.sh"

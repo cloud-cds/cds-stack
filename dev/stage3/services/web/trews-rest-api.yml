@@ -62,7 +62,7 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: trews-rest-api
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.1.18
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.1.23
         resources:
           requests:
             memory: "2816Mi"
@@ -134,7 +134,9 @@ spec:
               name: rest-api-db-secrets
               key: trews-admin-key
         - name: log_decryption
-          value: "1"
+          value: "true"
+        - name: log_user_latency
+          value: "false"
         - name: trews_open_access
           value: "false"
         - name: epic_notifications
