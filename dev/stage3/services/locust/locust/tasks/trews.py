@@ -9,16 +9,16 @@ sys.path.append(os.getcwd())
 # Constants & Utilities
 
 load_test_user = 'LOADTESTUSER'
-location = os.environ['trews_location'] if 'trews_location' in os.environ else '1103701'
-adminkey = os.environ['trews_admin_key']
+location = os.environ['TREWS_LOCATION'] if 'TREWS_LOCATION' in os.environ else '1103701'
+adminkey = os.environ['TREWS_ADMIN_KEY']
 
 global_pat_ids = [
     "3121",
     "3122",
 ]
 
-if 'trews_pats' in os.environ:
-    global_pat_ids = os.environ['trews_pats'].split(',')
+if 'TREWS_PATS' in os.environ:
+    global_pat_ids = os.environ['TREWS_PATS'].split(',')
     print('Using pat_ids: {}'.format(global_pat_ids))
 
 def get_request_body(user, action_type=None, action=None):

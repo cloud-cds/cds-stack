@@ -35,7 +35,7 @@ worker:
     trews_admin_key: ""
   nodeSelector:
     opsdx_nodegroup: locust
-  replicaCount: 4
+  replicaCount: 3
   resources:
     limits:
       cpu: 100m
