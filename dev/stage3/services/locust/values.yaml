@@ -14,6 +14,9 @@ service:
 master:
   config:
     target-host: https://trews.dev.opsdx.io
+    # set secrets from helm command line
+    trews_pats: ""
+    trews_admin_key: ""
   nodeSelector:
     opsdx_nodegroup: locust
   resources:
@@ -25,9 +28,11 @@ master:
       memory: 128Mi
 worker:
   config:
-
     # all files from tasks folder are mounted under `/locust-tasks`
     locust-script: "/locust-tasks/trews.py"
+    # set secrets from helm command line
+    trews_pats: ""
+    trews_admin_key: ""
   nodeSelector:
     opsdx_nodegroup: locust
   replicaCount: 4
