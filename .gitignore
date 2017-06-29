@@ -1,3 +1,6 @@
+# Graphs
+etl_graph*
+
 # Secrets
 ci/credentials.yml
 
