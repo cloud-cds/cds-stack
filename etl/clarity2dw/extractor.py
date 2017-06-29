@@ -864,6 +864,9 @@ class Extractor:
       if criteria_job.get('calculate_historical_criteria', False):
         async with ctxt.db_pool.acquire() as conn:
           await load_table.calculate_historical_criteria(conn)
+      if criteria_job.get('gen_label_and_report', False):
+        async with ctxt.db_pool.acquire() as conn:
+          await load_table.gen_label_and_report(conn, self.dataset_id)
     else:
       ctxt.log.info("skipped offline criteria processing")
 
