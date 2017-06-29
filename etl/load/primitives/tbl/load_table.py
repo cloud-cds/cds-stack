@@ -180,10 +180,11 @@ async def workspace_flowsheets_2_cdm_t(conn, job_id):
 async def workspace_lab_results_2_cdm_t(conn, job_id):
     import_raw_features = \
     """INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
-        select pat_enc.enc_id, lr.tsp::timestamptz, lr.fid, lr.value, 0 from workspace.%(job)s_lab_results_transformed lr
+        select pat_enc.enc_id, lr.tsp::timestamptz, lr.fid, first(lr.value), 0 from workspace.%(job)s_lab_results_transformed lr
             inner join pat_enc on pat_enc.visit_id = lr.visit_id
             inner join cdm_feature on lr.fid = cdm_feature.fid and cdm_feature.category = 'T'
         where lr.tsp <> 'NaT' and lr.tsp::timestamptz < now()
+        group by pat_enc.enc_id, lr.tsp, lr.fid
     ON CONFLICT (enc_id, tsp, fid)
         DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
 
