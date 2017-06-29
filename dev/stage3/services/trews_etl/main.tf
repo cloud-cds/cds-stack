@@ -63,7 +63,7 @@ resource "aws_lambda_function" "etl_lambda_HCGH" {
         PYKUBE_KUBERNETES_SERVICE_HOST = "${var.k8s_server_host}"
         PYKUBE_KUBERNETES_SERVICE_PORT = "${var.k8s_server_port}"
 
-        kube_job_name  = "epic2op-dev-HCGH"
+        kube_job_name  = "epic2op-devHCGH"
         kube_nodegroup = "etl"
         kube_name      = "${var.k8s_name}"
         kube_server    = "${var.k8s_server}"
@@ -117,7 +117,7 @@ resource "aws_lambda_function" "etl_lambda_JHH" {
         PYKUBE_KUBERNETES_SERVICE_HOST = "${var.k8s_server_host}"
         PYKUBE_KUBERNETES_SERVICE_PORT = "${var.k8s_server_port}"
 
-        kube_job_name  = "epic2op-dev-JHH"
+        kube_job_name  = "epic2op-devJHH"
         kube_nodegroup = "etl"
         kube_name      = "${var.k8s_name}"
         kube_server    = "${var.k8s_server}"
@@ -171,7 +171,7 @@ resource "aws_lambda_function" "etl_lambda_BMC" {
         PYKUBE_KUBERNETES_SERVICE_HOST = "${var.k8s_server_host}"
         PYKUBE_KUBERNETES_SERVICE_PORT = "${var.k8s_server_port}"
 
-        kube_job_name  = "epic2op-dev-BMC"
+        kube_job_name  = "epic2op-devBMC"
         kube_nodegroup = "etl"
         kube_name      = "${var.k8s_name}"
         kube_server    = "${var.k8s_server}"
