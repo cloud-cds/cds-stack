@@ -202,8 +202,10 @@ var endpoints = new function() {
       return;
     }
     // Location filtering: HCGH-only for now.
-    if ( postBody['loc'] == null || !postBody['loc'].startsWith('1103') ) {
-      $('#loading p').html("TREWS is in beta testing, and is only available at Howard County General Hospital.<br/>Please contact trews-jhu@opsdx.io for more information on availability at your location.<br/>");
+    if ( postBody['loc'] == null || !(postBody['loc'].startsWith('1102') || postBody['loc'].startsWith('1103')) ) {
+      $('#loading p').html(
+          "TREWS is in beta testing, and is only available at Bayview and Howard County General Hospital.<br/>"
+          + "Please contact trews-jhu@opsdx.io for more information on availability at your location.<br/>");
       return;
     }
     // Ensure a valid Patient ID.
@@ -608,17 +610,17 @@ var workflowsComponent = new function() {
   this.sev3Ctn = $("[data-trews='sev3']");
   this.sev6Ctn = $("[data-trews='sev6']");
   this.sep6Ctn = $("[data-trews='sep6']");
-  this.orderBtns = $('.place-order');
+  this.orderBtns = $('.place-order-btn');
   this.notInBtns = $('.notIn');
   this.tasks = [];
 
   this.clean = function() {
     $("[data-trews='init_lactate'],\
-      [data-trews='blood_culture'],\
-      [data-trews='antibiotics'],\
-      [data-trews='fluid'],\
-      [data-trews='re_lactate'],\
-      [data-trews='vasopressors']").html(''); //TODO: add focus exam
+       [data-trews='blood_culture'],\
+       [data-trews='antibiotics'],\
+       [data-trews='fluid'],\
+       [data-trews='re_lactate'],\
+       [data-trews='vasopressors']").html(''); //TODO: add focus exam
   }
 
   this.makeButtons = function() {
@@ -1180,11 +1182,15 @@ var deterioration = new function() {
 var dropdown = new function() {
   this.d = $('#dropdown');
   this.ctn = $("<div id='dropdown-content'></div>");
-  this.susCtn = $("<div id='dropdown-sus-content'></div>"); // Pre-materialized infection dropdown.
+
+  // Pre-materialized infection dropdown.
+  this.susCtn = $("<div id='dropdown-sus-content'></div>");
+
   this.init = function() {
     this.initSus(); // Build, but do not append, susCtn.
     this.d.append(this.ctn);
   }
+
   this.reset = function() {
     $('.edit-btn').removeClass('shown');
     if ( this.susCtn == null ) {
@@ -1194,15 +1200,18 @@ var dropdown = new function() {
     }
     this.ctn.html("");
   }
+
   this.getCtnElem = function(id) {
     return $("[data-trews='" + id + "']");
   }
+
   this.getAction = function(value) {
     return {
       "actionName": this.d.attr('data-trews'),
       "value": value
     };
   }
+
   this.getLaunchAction = function(criteria) {
     var slot = this.d.attr('data-trews');
     if ( slot == 'org' ) { slot = 'organ_dysfunction'; }
@@ -1212,6 +1221,7 @@ var dropdown = new function() {
       "criteria": criteria
     };
   }
+
   this.initSus = function() {
     for (var i in INFECTIONS) {
       var s = $('<h5 class="dropdown-link"></h5>').text(INFECTIONS[i]);
@@ -1227,6 +1237,7 @@ var dropdown = new function() {
       endpoints.getPatientData("suspicion_of_infection", action);
     });
   }
+
   this.sus = function() {
     var infectionOther = $("#infection-other");
     var otherValue = "";
@@ -1241,6 +1252,7 @@ var dropdown = new function() {
       dropdown.d.fadeOut(300);
     })
   }
+
   this.editFields = function(field) {
     var allCriteria = trews.getCriteria(field);
     var editCriteriaIndices = [];
@@ -1258,6 +1270,7 @@ var dropdown = new function() {
       overrideModal.launch(launchAction);
     });
   }
+
   this.fill = function(i) {
     this.d.attr('data-trews', i);
     if (i === 'sus-edit') {
@@ -1271,26 +1284,50 @@ var dropdown = new function() {
       this.editFields(i);
     }
   }
-  this.draw = function(x, y) {
-    this.d.css({
+
+  this.draw = function(d, x, y) {
+    d.css({
       top: y + 7,
-      left: x - (this.d.width()/2)
+      left: x - (d.width()/2)
     }).fadeIn(30);
   }
+
+  // Initialization.
   $('.edit-btn').click(function(e) {
     e.stopPropagation();
     dropdown.reset();
     $(this).addClass('shown');
     dropdown.fill($(this).attr('data-trews'));
-    dropdown.draw($(this).offset().left + ($(this).width()/2),
+    dropdown.draw(dropdown.d,
+      $(this).offset().left + ($(this).width()/2),
       $(this).offset().top + $(this).height());
   });
+
+  $('.place-order-dropdown-btn').click(function(e) {
+    console.log('Clicked Order Dropdown ' + $(this).attr('data-trews'));
+    e.stopPropagation();
+    $('.order-dropdown').fadeOut(30);
+    $(this).addClass('shown');
+    var order_d = $('.order-dropdown[data-trews=' + $(this).attr('data-trews') + ']');
+    if ( order_d != null ) {
+      console.log('Found Order Dropdown Div ' + $(this).attr('data-trews') + ' ' + order_d.html().toString());
+      dropdown.draw(order_d,
+        ($(this).offset().left + $(this).width() + 5) - (order_d.width()/2),
+        $(this).offset().top + $(this).height());
+    } else {
+      console.log('Could not find Order Dropdown Div ' + $(this).attr('data-trews'));
+    }
+  });
+
   $('body').click(function() {
     $('.edit-btn').removeClass('shown');
+    $('.place-order-dropdown-btn').removeClass('shown');
     dropdown.d.fadeOut(300);
+    $('.order-dropdown').fadeOut(300);
     deterioration.sendOff();
   });
 }
+
 
 var overrideModal = new function() {
   this.om = $('#override-modal');
