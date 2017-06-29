@@ -48,9 +48,9 @@ variable "local_shell" {}
 
 # A Lambda function for periodic ETL.
 
-resource "aws_lambda_function" "etl_lambda" {
+resource "aws_lambda_function" "etl_lambda_HCGH" {
 
-    function_name    = "${var.deploy_prefix}-etl-lambda"
+    function_name    = "${var.deploy_prefix}-etl-lambda-HCGH"
     handler          = "service.handler"
     s3_bucket        = "${var.s3_opsdx_lambda}"
     s3_key           = "${var.aws_klaunch_lambda_package}"
@@ -63,7 +63,7 @@ resource "aws_lambda_function" "etl_lambda" {
         PYKUBE_KUBERNETES_SERVICE_HOST = "${var.k8s_server_host}"
         PYKUBE_KUBERNETES_SERVICE_PORT = "${var.k8s_server_port}"
 
-        kube_job_name  = "epic2op-dev"
+        kube_job_name  = "epic2op-dev-HCGH"
         kube_nodegroup = "etl"
         kube_name      = "${var.k8s_name}"
         kube_server    = "${var.k8s_server}"
@@ -74,6 +74,118 @@ resource "aws_lambda_function" "etl_lambda" {
         #kube_cert      = "${var.k8s_cert}"
         #kube_key       = "${var.k8s_key}"
         #kube_token     = "${var.k8s_token}"
+
+        kube_cmd_0 = "sh"
+        kube_cmd_1 = "-c"
+        kube_cmd_2 = "/usr/local/bin/python3 /dashan-etl/etl/epic2op/engine.py --hospital=HCGH"
+
+        k8s_job_db_host     = "${var.db_host}"
+        k8s_job_db_port     = "${var.db_port}"
+        k8s_job_db_name     = "${var.db_name}"
+        k8s_job_db_user     = "${var.db_username}"
+        k8s_job_db_password = "${var.db_password}"
+
+        k8s_job_jhapi_client_id     = "${var.jhapi_client_id}"
+        k8s_job_jhapi_client_secret = "${var.jhapi_client_secret}"
+        k8s_job_etl_channel         = "${var.etl_channel}"
+
+        k8s_job_TREWS_ETL_SERVER             = "${var.TREWS_ETL_SERVER}"
+        k8s_job_TREWS_ETL_HOSPITAL           = "${var.TREWS_ETL_HOSPITAL}"
+        k8s_job_TREWS_ETL_HOURS              = "${var.TREWS_ETL_HOURS}"
+        k8s_job_TREWS_ETL_ARCHIVE            = "${var.TREWS_ETL_ARCHIVE}"
+        k8s_job_TREWS_ETL_MODE               = "${var.TREWS_ETL_MODE}"
+        k8s_job_TREWS_ETL_STREAM_HOURS       = "${var.TREWS_ETL_STREAM_HOURS}"
+        k8s_job_TREWS_ETL_STREAM_SLICES      = "${var.TREWS_ETL_STREAM_SLICES}"
+        k8s_job_TREWS_ETL_STREAM_SLEEP_SECS  = "${var.TREWS_ETL_STREAM_SLEEP_SECS}"
+        k8s_job_TREWS_ETL_EPIC_NOTIFICATIONS = "${var.TREWS_ETL_EPIC_NOTIFICATIONS}"
+      }
+    }
+}
+
+resource "aws_lambda_function" "etl_lambda_JHH" {
+
+    function_name    = "${var.deploy_prefix}-etl-lambda-JHH"
+    handler          = "service.handler"
+    s3_bucket        = "${var.s3_opsdx_lambda}"
+    s3_key           = "${var.aws_klaunch_lambda_package}"
+    role             = "${var.aws_klaunch_lambda_role_arn}"
+    runtime          = "python2.7"
+    timeout          = 300
+
+    environment {
+      variables {
+        PYKUBE_KUBERNETES_SERVICE_HOST = "${var.k8s_server_host}"
+        PYKUBE_KUBERNETES_SERVICE_PORT = "${var.k8s_server_port}"
+
+        kube_job_name  = "epic2op-dev-JHH"
+        kube_nodegroup = "etl"
+        kube_name      = "${var.k8s_name}"
+        kube_server    = "${var.k8s_server}"
+        kube_cert_auth = "${var.k8s_cert_auth}"
+        kube_user      = "${var.k8s_user}"
+        kube_pass      = "${var.k8s_pass}"
+        kube_image     = "${var.k8s_image}"
+        #kube_cert      = "${var.k8s_cert}"
+        #kube_key       = "${var.k8s_key}"
+        #kube_token     = "${var.k8s_token}"
+
+        kube_cmd_0 = "sh"
+        kube_cmd_1 = "-c"
+        kube_cmd_2 = "/usr/local/bin/python3 /dashan-etl/etl/epic2op/engine.py --hospital=JHH"
+
+        k8s_job_db_host     = "${var.db_host}"
+        k8s_job_db_port     = "${var.db_port}"
+        k8s_job_db_name     = "${var.db_name}"
+        k8s_job_db_user     = "${var.db_username}"
+        k8s_job_db_password = "${var.db_password}"
+
+        k8s_job_jhapi_client_id     = "${var.jhapi_client_id}"
+        k8s_job_jhapi_client_secret = "${var.jhapi_client_secret}"
+        k8s_job_etl_channel         = "${var.etl_channel}"
+
+        k8s_job_TREWS_ETL_SERVER             = "${var.TREWS_ETL_SERVER}"
+        k8s_job_TREWS_ETL_HOSPITAL           = "${var.TREWS_ETL_HOSPITAL}"
+        k8s_job_TREWS_ETL_HOURS              = "${var.TREWS_ETL_HOURS}"
+        k8s_job_TREWS_ETL_ARCHIVE            = "${var.TREWS_ETL_ARCHIVE}"
+        k8s_job_TREWS_ETL_MODE               = "${var.TREWS_ETL_MODE}"
+        k8s_job_TREWS_ETL_STREAM_HOURS       = "${var.TREWS_ETL_STREAM_HOURS}"
+        k8s_job_TREWS_ETL_STREAM_SLICES      = "${var.TREWS_ETL_STREAM_SLICES}"
+        k8s_job_TREWS_ETL_STREAM_SLEEP_SECS  = "${var.TREWS_ETL_STREAM_SLEEP_SECS}"
+        k8s_job_TREWS_ETL_EPIC_NOTIFICATIONS = "${var.TREWS_ETL_EPIC_NOTIFICATIONS}"
+      }
+    }
+}
+
+resource "aws_lambda_function" "etl_lambda_BMC" {
+
+    function_name    = "${var.deploy_prefix}-etl-lambda-BMC"
+    handler          = "service.handler"
+    s3_bucket        = "${var.s3_opsdx_lambda}"
+    s3_key           = "${var.aws_klaunch_lambda_package}"
+    role             = "${var.aws_klaunch_lambda_role_arn}"
+    runtime          = "python2.7"
+    timeout          = 300
+
+    environment {
+      variables {
+        PYKUBE_KUBERNETES_SERVICE_HOST = "${var.k8s_server_host}"
+        PYKUBE_KUBERNETES_SERVICE_PORT = "${var.k8s_server_port}"
+
+        kube_job_name  = "epic2op-dev-BMC"
+        kube_nodegroup = "etl"
+        kube_name      = "${var.k8s_name}"
+        kube_server    = "${var.k8s_server}"
+        kube_cert_auth = "${var.k8s_cert_auth}"
+        kube_user      = "${var.k8s_user}"
+        kube_pass      = "${var.k8s_pass}"
+        kube_image     = "${var.k8s_image}"
+        #kube_cert      = "${var.k8s_cert}"
+        #kube_key       = "${var.k8s_key}"
+        #kube_token     = "${var.k8s_token}"
+
+        kube_cmd_0 = "sh"
+        kube_cmd_1 = "-c"
+        kube_cmd_2 = "/usr/local/bin/python3 /dashan-etl/etl/epic2op/engine.py --hospital=BMC"
 
         k8s_job_db_host     = "${var.db_host}"
         k8s_job_db_port     = "${var.db_port}"
@@ -104,16 +216,44 @@ resource "aws_cloudwatch_event_rule" "etl_schedule_rule" {
     schedule_expression = "rate(${var.etl_lambda_firing_rate_mins} minutes)"
 }
 
-resource "aws_cloudwatch_event_target" "etl_schedule_target" {
+resource "aws_cloudwatch_event_target" "etl_schedule_target_HCGH" {
     rule      = "${aws_cloudwatch_event_rule.etl_schedule_rule.name}"
-    target_id = "${replace(var.deploy_prefix, "-", "_")}_etl_lambda"
-    arn       = "${aws_lambda_function.etl_lambda.arn}"
+    target_id = "${replace(var.deploy_prefix, "-", "_")}_etl_lambda_HCGH"
+    arn       = "${aws_lambda_function.etl_lambda_HCGH.arn}"
 }
 
-resource "aws_lambda_permission" "etl_cloudwatch_permissions" {
+resource "aws_cloudwatch_event_target" "etl_schedule_target_JHH" {
+    rule      = "${aws_cloudwatch_event_rule.etl_schedule_rule.name}"
+    target_id = "${replace(var.deploy_prefix, "-", "_")}_etl_lambda_JHH"
+    arn       = "${aws_lambda_function.etl_lambda_JHH.arn}"
+}
+
+resource "aws_cloudwatch_event_target" "etl_schedule_target_BMC" {
+    rule      = "${aws_cloudwatch_event_rule.etl_schedule_rule.name}"
+    target_id = "${replace(var.deploy_prefix, "-", "_")}_etl_lambda_BMC"
+    arn       = "${aws_lambda_function.etl_lambda_BMC.arn}"
+}
+
+resource "aws_lambda_permission" "etl_cloudwatch_permissions_HCGH" {
     statement_id  = "ETLPeriodicExecution"
     action        = "lambda:InvokeFunction"
-    function_name = "${aws_lambda_function.etl_lambda.function_name}"
+    function_name = "${aws_lambda_function.etl_lambda_HCGH.function_name}"
+    principal     = "events.amazonaws.com"
+    source_arn    = "${aws_cloudwatch_event_rule.etl_schedule_rule.arn}"
+}
+
+resource "aws_lambda_permission" "etl_cloudwatch_permissions_JHH" {
+    statement_id  = "ETLPeriodicExecution"
+    action        = "lambda:InvokeFunction"
+    function_name = "${aws_lambda_function.etl_lambda_JHH.function_name}"
+    principal     = "events.amazonaws.com"
+    source_arn    = "${aws_cloudwatch_event_rule.etl_schedule_rule.arn}"
+}
+
+resource "aws_lambda_permission" "etl_cloudwatch_permissions_BMC" {
+    statement_id  = "ETLPeriodicExecution"
+    action        = "lambda:InvokeFunction"
+    function_name = "${aws_lambda_function.etl_lambda_BMC.function_name}"
     principal     = "events.amazonaws.com"
     source_arn    = "${aws_cloudwatch_event_rule.etl_schedule_rule.arn}"
 }
