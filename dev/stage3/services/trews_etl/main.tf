@@ -90,7 +90,7 @@ resource "aws_lambda_function" "etl_lambda_HCGH" {
         k8s_job_etl_channel         = "${var.etl_channel}"
 
         k8s_job_TREWS_ETL_SERVER             = "${var.TREWS_ETL_SERVER}"
-        k8s_job_TREWS_ETL_HOSPITAL           = "${var.TREWS_ETL_HOSPITAL}"
+        k8s_job_TREWS_ETL_HOSPITAL           = "HCGH"
         k8s_job_TREWS_ETL_HOURS              = "${var.TREWS_ETL_HOURS}"
         k8s_job_TREWS_ETL_ARCHIVE            = "${var.TREWS_ETL_ARCHIVE}"
         k8s_job_TREWS_ETL_MODE               = "${var.TREWS_ETL_MODE}"
@@ -144,7 +144,7 @@ resource "aws_lambda_function" "etl_lambda_JHH" {
         k8s_job_etl_channel         = "${var.etl_channel}"
 
         k8s_job_TREWS_ETL_SERVER             = "${var.TREWS_ETL_SERVER}"
-        k8s_job_TREWS_ETL_HOSPITAL           = "${var.TREWS_ETL_HOSPITAL}"
+        k8s_job_TREWS_ETL_HOSPITAL           = "JHH"
         k8s_job_TREWS_ETL_HOURS              = "${var.TREWS_ETL_HOURS}"
         k8s_job_TREWS_ETL_ARCHIVE            = "${var.TREWS_ETL_ARCHIVE}"
         k8s_job_TREWS_ETL_MODE               = "${var.TREWS_ETL_MODE}"
@@ -198,7 +198,7 @@ resource "aws_lambda_function" "etl_lambda_BMC" {
         k8s_job_etl_channel         = "${var.etl_channel}"
 
         k8s_job_TREWS_ETL_SERVER             = "${var.TREWS_ETL_SERVER}"
-        k8s_job_TREWS_ETL_HOSPITAL           = "${var.TREWS_ETL_HOSPITAL}"
+        k8s_job_TREWS_ETL_HOSPITAL           = "BMC"
         k8s_job_TREWS_ETL_HOURS              = "${var.TREWS_ETL_HOURS}"
         k8s_job_TREWS_ETL_ARCHIVE            = "${var.TREWS_ETL_ARCHIVE}"
         k8s_job_TREWS_ETL_MODE               = "${var.TREWS_ETL_MODE}"
