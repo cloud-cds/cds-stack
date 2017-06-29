@@ -17,6 +17,8 @@ from aiocache.plugins import HitMissRatioPlugin
 
 from monitoring import APIMonitor
 
+import re
+EID_REGEX = '^(E[0-9]{9}|[0-9]{,6})$' # including test ids
 
 logging.basicConfig(format='%(levelname)s|%(asctime)s.%(msecs)03d|%(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
 
@@ -347,9 +349,11 @@ class TREWSAPI(web.View):
                       query.get_patient_events(db_pool, eid),
                       query.get_patient_profile(db_pool, eid)
                     )
-
+      if pat_values[0] is None or len(pat_values[0]) == 0:
+        # cannot find data for this eid
+        data = None
+        return
       await pat_cache.set(eid, pat_values, ttl=300)
-
     else:
       api_monitor.add_metric('CacheHits')
 
@@ -421,34 +425,30 @@ class TREWSAPI(web.View):
         uid = req_body['u'] if 'u' in req_body and req_body['u'] is not None else 'user'
         data = copy.deepcopy(data_example.patient_data_example)
 
-        if eid:
-          eid_exists = await query.eid_exist(db_pool, eid)
-          if eid_exists:
-            logging.info("query for eid: " + eid)
+        if eid and re.match(EID_REGEX, eid):
+          logging.info("query for eid: " + eid)
 
-            response_body = {}
-            if 'actionType' in req_body and 'action' in req_body:
-              actionType = req_body['actionType']
-              stats_name = '%s[%s]' % (self.request.path, actionType)
+          response_body = {}
+          if 'actionType' in req_body and 'action' in req_body:
+            actionType = req_body['actionType']
+            stats_name = '%s[%s]' % (self.request.path, actionType)
 
-              with api_monitor.time(stats_name):
-                api_monitor.request(stats_name)
-                actionData = req_body['action']
+            with api_monitor.time(stats_name):
+              api_monitor.request(stats_name)
+              actionData = req_body['action']
 
-                if actionType is not None:
-                  response_body = await self.take_action(db_pool, actionType, actionData, eid, uid)
+              if actionType is not None:
+                response_body = await self.take_action(db_pool, actionType, actionData, eid, uid)
 
-                if actionType != u'pollNotifications' and actionType != u'pollAuditlist':
-                  await self.update_response_json(db_pool, data, eid)
+              if actionType != u'pollNotifications' and actionType != u'pollAuditlist':
+                await self.update_response_json(db_pool, data, eid)
+                if data is not None:
                   response_body = {'trewsData': data}
-            else:
-              response_body = {'message': 'Invalid TREWS REST API request'}
-
-            return json_response(response_body)
-
+                else:
+                  raise web.HTTPBadRequest(body=json.dumps({'message': 'No patient found'}))
           else:
-            raise web.HTTPBadRequest(body=json.dumps({'message': 'No patient found'}))
-
+            response_body = {'message': 'Invalid TREWS REST API request'}
+          return json_response(response_body)
         else:
           raise web.HTTPBadRequest(body=json.dumps({'message': 'No patient identifier supplied in request'}))
 
