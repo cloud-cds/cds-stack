@@ -201,8 +201,12 @@ var endpoints = new function() {
       this.test();
       return;
     }
-    // Location filtering: HCGH-only for now.
-    if ( postBody['loc'] == null || !(postBody['loc'].startsWith('1102') || postBody['loc'].startsWith('1103')) ) {
+    // Location filtering: JHH/BMC/HCGH only for now.
+    if ( postBody['loc'] == null ||
+          !(postBody['loc'].startsWith('1101')
+            || postBody['loc'].startsWith('1102')
+            || postBody['loc'].startsWith('1103')) )
+    {
       $('#loading p').html(
           "TREWS is in beta testing, and is only available at Bayview and Howard County General Hospital.<br/>"
           + "Please contact trews-jhu@opsdx.io for more information on availability at your location.<br/>");
@@ -1304,7 +1308,6 @@ var dropdown = new function() {
   });
 
   $('.place-order-dropdown-btn').click(function(e) {
-    console.log('Clicked Order Dropdown ' + $(this).attr('data-trews') + ' parent: ' + $(this).attr('parent-card'));
     e.stopPropagation();
     $('.order-dropdown').fadeOut(30);
     $(this).addClass('shown');
@@ -1313,12 +1316,11 @@ var dropdown = new function() {
     var parent_card = $('.card[data-trews=' + $(this).attr('parent-card') + ']');
 
     if ( !(order_d == null || parent_card == null) ) {
-      console.log('Found Order Dropdown Div ' + $(this).attr('data-trews') + ' ' + order_d.html().toString());
       dropdown.draw(order_d,
         (parent_card.offset().left + parent_card.width() + 2) - (order_d.width()/2),
         $(this).offset().top + $(this).height());
     } else {
-      console.log('Could not find Order Dropdown Div ' + $(this).attr('data-trews'));
+      throw ('Failed to place ' + ($(this).attr('data-trews')).toUpperCase() + ' order.');
     }
   });
 
