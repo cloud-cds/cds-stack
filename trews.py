@@ -140,7 +140,7 @@ class TREWSStaticResource(web.View):
 
     # TODO: order customizations for SH, SMH, KKI
 
-    logging.info("Index request, loc: {}, dep: {}, order keys: {}, orders: {}".format(loc, dep, str(KEYS), str(custom_antibiotics)))
+    logging.info("Index request for loc: {}, dep: {}".format(loc, dep))
 
     j2_env = Environment(loader=FileSystemLoader(STATIC_DIR), trim_blocks=True)
     return j2_env.get_template(INDEX_FILENAME).render(keys=KEYS, custom_antibiotics=custom_antibiotics)
