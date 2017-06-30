@@ -249,7 +249,7 @@
 			{% for disease in loc.diseases %}
 			<span class='place-order place-order-btn' data-trews='{{ custom_antibiotics.action }}'>
 				<OrderTemplate Key="{{ disease.key }}" OrderMode="IP" RemoveOriginal="True">
-					Place {{ disease.display_name|title }} Order
+					{{ disease.display_name }}
 				</OrderTemplate>
 			</span>
 			{% endfor %}
