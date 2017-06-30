@@ -2,6 +2,7 @@ import gevent.monkey
 gevent.monkey.patch_all()
 
 import os, sys, traceback
+import copy
 import logging
 import datetime
 import functools
@@ -20,6 +21,7 @@ from monitoring import TREWSPrometheusMetrics, cloudwatch_logger_middleware, cwl
 import urllib.parse
 
 import api, dashan_query
+from constants import bmc_jhh_antibiotics, bmc_jhh_ed_antibiotics, departments_by_hospital
 from api import pat_cache, api_monitor
 from encrypt import encrypt, decrypt, encrypted_query
 
@@ -41,12 +43,13 @@ INDEX_FILENAME = 'index.html'
 
 # default keys for JHH
 KEYS = {
-  'lactate': '2',
-  'blood_culture': '4',
-  'antibiotics': '5',
-  'fluid': '1',
-  "vasopressors": '7'
+  'lactate'       : '2',
+  'blood_culture' : '4',
+  'fluid'         : '1',
+  'antibiotics'   : '14',
+  'vasopressors'  : '13'
 }
+
 
 user = os.environ['db_user']
 host = os.environ['db_host']
@@ -86,34 +89,61 @@ logging.info('''TREWS Security Configuration::
 class TREWSStaticResource(web.View):
 
   def get_index_body(self, parameters):
-    # TODO: customize order keys based on LOC
-    hospital = 'JHH'
-    if 'LOC' in parameters:
+
+    if 'LOC' not in parameters:
+      logging.warning("No LOC in query string. Using JHH as default hospital.")
+      loc = 'JHH'
+    else:
       loc = parameters['LOC']
       if len(loc) == 6:
-        if loc.startswith("1101"):
-          loc = 'JHH'
-        elif loc.startswith("1102"):
-          loc = 'BMC'
-          KEYS['antibiotics'] = '6'
-          KEYS['vasopressors'] = '13'
-        elif loc.startswith("1103"):
-          loc = 'HCGH'
-          KEYS['antibiotics'] = '3'
-        elif loc.startswith("1104"):
-          loc = 'Sibley'
-        elif loc.startswith("1105"):
-          loc = 'Suburban'
-        elif loc.startswith("1107"):
-          loc = 'KKI'
-      else:
-        logging.error("LOC parsing error:" + loc)
-    else:
-      logging.warning("No LOC in query string. Use JHH as default hospital")
+        loc_prefixes = {
+          '1101': 'JHH',
+          '1102': 'BMC',
+          '1103': 'HCGH',
+          '1104': 'Sibley',
+          '1105': 'Suburban',
+          '1107': 'KKI',
+        }
 
-    logging.info("Static file request on index.html")
+        for pfx, loc_name in loc_prefixes.items():
+          if loc.startswith(pfx):
+            loc = loc_name
+
+        if loc not in loc_prefixes.values():
+          logging.error('Invalid LOC: {}. Using JHH as default hospital.'.format(str(loc)))
+
+      else:
+        logging.error('LOC parsing error: {}. Using JHH as default hospital.'.format(str(loc)))
+        loc = 'JHH'
+
+    if 'DEP' not in parameters:
+      logging.warning("No DEP in query string. Using ICU as default department.")
+      dep = 'ICU'
+    else:
+      dep = parameters['DEP']
+      if loc in departments_by_hospital:
+        if dep in departments_by_hospital[loc]:
+          dep = departments_by_hospital[loc][dep]
+        else:
+          dep = 'Non-ICU'
+      else:
+        dep = 'Non-ICU'
+
+    # Customize orders.
+    custom_antibiotics = None
+    if loc in ['JHH', 'BMC']:
+      custom_antibiotics = bmc_jhh_ed_antibiotics if dep == 'ED' else bmc_jhh_antibiotics
+
+    elif loc == 'HCGH':
+      KEYS['antibiotics'] = '3'
+      KEYS['vasopressors'] = '7'
+
+    # TODO: order customizations for SH, SMH, KKI
+
+    logging.info("Index request for loc: {}, dep: {}".format(loc, dep))
+
     j2_env = Environment(loader=FileSystemLoader(STATIC_DIR), trim_blocks=True)
-    return j2_env.get_template(INDEX_FILENAME).render(keys=KEYS)
+    return j2_env.get_template(INDEX_FILENAME).render(keys=KEYS, custom_antibiotics=custom_antibiotics)
 
   async def get(self):
     global URL_STATIC, STATIC_DIR, INDEX_FILENAME

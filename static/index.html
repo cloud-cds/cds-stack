@@ -144,7 +144,7 @@
 					<div class="slot" data-trews="init_lactate">
 						<h3></h3>
 						<div class="actions cf">
-							<span class='place-order' data-trews='initial_lactate_order'>
+							<span class='place-order place-order-btn' data-trews='initial_lactate_order'>
 								<OrderTemplate Key="{{ keys['lactate'] }}" OrderMode="IP" RemoveOriginal="True">
 									Place Order
 								</OrderTemplate>
@@ -155,7 +155,7 @@
 					<div class="slot" data-trews="blood_culture">
 						<h3></h3>
 						<div class="actions cf">
-							<span class='place-order' data-trews='blood_culture_order'>
+							<span class='place-order place-order-btn' data-trews='blood_culture_order'>
 								<OrderTemplate Key="{{ keys['blood_culture'] }}" OrderMode="IP" RemoveOriginal="True">
 									Place Order
 								</OrderTemplate>
@@ -166,18 +166,31 @@
 					<div class="slot" data-trews="antibiotics">
 						<h3></h3>
 						<div class="actions cf">
-							<span class='place-order' data-trews='antibiotics_order'>
-								<OrderTemplate Key="{{ keys['antibiotics'] }}" OrderMode="IP" RemoveOriginal="True">
-									Place Order
-								</OrderTemplate>
-							</span>
+							{% if custom_antibiotics %}
+								{% for loc in custom_antibiotics.locations %}
+								<span class='place-order place-order-dropdown-btn' data-trews="{{ loc.data_trews }}" parent-card="sev3">
+									{{ loc.name }} Order
+								</span>
+								{% endfor %}
+								<span class='place-order place-order-btn' data-trews='antibiotics_order'>
+									<OrderTemplate Key="{{ keys['antibiotics'] }}" OrderMode="IP" RemoveOriginal="True">
+										Non-ICU Order
+									</OrderTemplate>
+								</span>
+							{% else %}
+								<span class='place-order place-order-btn' data-trews='antibiotics_order'>
+									<OrderTemplate Key="{{ keys['antibiotics'] }}" OrderMode="IP" RemoveOriginal="True">
+										Place Order
+									</OrderTemplate>
+								</span>
+							{% endif %}
 							<a class='notIn' data-trews='antibiotics_order'>Not Indicated</a>
 						</div>
 					</div>
 					<div class="slot last-child" data-trews="fluid">
 						<h3></h3>
 						<div class="actions cf">
-							<span class='place-order' data-trews='crystalloid_fluid_order'>
+							<span class='place-order place-order-btn' data-trews='crystalloid_fluid_order'>
 								<OrderTemplate Key="{{ keys['fluid'] }}" OrderMode="IP" RemoveOriginal="True">
 									Place Order
 								</OrderTemplate>
@@ -193,7 +206,7 @@
 					<div class="slot last-child" data-trews="re_lactate">
 						<h3></h3>
 						<div class="actions cf">
-							<span class='place-order' data-trews='repeat_lactate_order'>
+							<span class='place-order place-order-btn' data-trews='repeat_lactate_order'>
 								<OrderTemplate Key="{{ keys['lactate'] }}" OrderMode="IP" RemoveOriginal="True">
 									Place Order
 								</OrderTemplate>
@@ -209,7 +222,7 @@
 					<div class="slot" data-trews="vasopressors">
 						<h3></h3>
 						<div class="actions cf">
-							<span class='place-order' data-trews='vasopressors_order'>
+							<span class='place-order place-order-btn' data-trews='vasopressors_order'>
 								<OrderTemplate Key="{{ keys['vasopressors'] }}" OrderMode="IP" RemoveOriginal="True">
 									Place Order
 								</OrderTemplate>
@@ -230,6 +243,19 @@
 		</div>
 	</div>
 	<div id='dropdown'></div>
+	{% if custom_antibiotics %}
+		{% for loc in custom_antibiotics.locations %}
+		<div class="order-dropdown" data-trews="{{ loc.data_trews }}">
+			{% for disease in loc.diseases %}
+			<span class='place-order place-order-btn' data-trews='{{ custom_antibiotics.action }}'>
+				<OrderTemplate Key="{{ disease.key }}" OrderMode="IP" RemoveOriginal="True">
+					Place {{ disease.display_name|title }} Order
+				</OrderTemplate>
+			</span>
+			{% endfor %}
+		</div>
+		{% endfor %}
+	{% endif %}
 	<div id='override-modal' class='cf'></div>
 	<div id="feedback" class="modal">
 		<div class="modal-content">

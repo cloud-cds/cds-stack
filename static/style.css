@@ -424,6 +424,41 @@ body.waiting {
 #dropdown h5:hover {
     background-color: #eee;
 }
+/* Order dropdowns. */
+.order-dropdown {
+    max-width: 400px;
+    position: absolute;
+    display: none;
+    z-index: 1;
+    border: 1px solid #ddd;
+    background-color: #fff;
+    box-shadow: 2px 2px 2px #ddd;
+}
+.order-dropdown .place-order {
+    position: relative;
+    width: 100%;
+    margin: 0;
+    padding: 5px 10px 5px 10px;
+    max-height: 350px;
+    overflow-y: auto;
+    text-decoration: none;
+    font-weight: 400;
+    font-size: 14px;
+    float: right;
+    background-color: #fff;
+    cursor: pointer;
+    display: block;
+    -webkit-transition: background-color .3s;
+    -moz-transition: background-color .3s;
+    transition: background-color .3s;
+    -webkit-user-select: none;  /* Chrome all / Safari all */
+    -moz-user-select: none;     /* Firefox all */
+    -ms-user-select: none;      /* IE 10+ */
+    user-select: none;
+}
+.order-dropdown .place-order:hover {
+    background-color: #eee;
+}
 /* Other Input field in Sources of Infection Dropdown */
 #infection-other {
     font-size: 0;
