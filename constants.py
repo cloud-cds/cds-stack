@@ -1,21 +1,20 @@
 # Custom antibiotics per hospital
 
 bmc_jhh_icu_disease_antibiotics = [
+  {'display_name': 'Intra-abdominal Infection',                     'key': 11 },
+  {'display_name': 'MRSA Coverage',                                 'key': 9  },
   {'display_name': 'Pneumonia - Community-Acquired/Early VAP',      'key': 6  },
   {'display_name': 'Pneumonia - Late VAP or Healthcare Associated', 'key': 8  },
-  {'display_name': 'MRSA Coverage',                                 'key': 9  },
-  {'display_name': 'Urosepsis',                                     'key': 10 },
-  {'display_name': 'Intra-abdominal Infection',                     'key': 11 },
   {'display_name': 'Sepsis of Unclear Source',                      'key': 12 },
+  {'display_name': 'Urosepsis',                                     'key': 10 },
 ]
 
 bmc_jhh_ed_disease_antibiotics = [
-  {'display_name': 'Pneumonia - Community-Acquired/Early VAP',      'key': 6  },
-  {'display_name': 'Pneumonia - Late VAP or Healthcare Associated', 'key': 8  },
-  {'display_name': 'MRSA Coverage',                                 'key': 9  },
-  {'display_name': 'Urosepsis',                                     'key': 10 },
-  {'display_name': 'Intra-abdominal Infection',                     'key': 11 },
-  {'display_name': 'Sepsis of Unclear Source',                      'key': 12 },
+  {'display_name': 'CAP/Non-MRSA Pseudomonas',                      'key': 15 },
+  {'display_name': 'HAP/VAP or CAP Pseudomonas',                    'key': 16 },
+  {'display_name': 'Intra-abdominal Infection',                     'key': 18 },
+  {'display_name': 'Unclear Source',                                'key': 19 },
+  {'display_name': 'Urosepsis',                                     'key': 17 },
 ]
 
 bmc_jhh_antibiotics = {

@@ -168,7 +168,7 @@
 						<div class="actions cf">
 							{% if custom_antibiotics %}
 								{% for loc in custom_antibiotics.locations %}
-								<span class='place-order place-order-dropdown-btn' data-trews="{{ loc.data_trews }}">
+								<span class='place-order place-order-dropdown-btn' data-trews="{{ loc.data_trews }}" parent-card="sev3">
 									{{ loc.name }} Order
 								</span>
 								{% endfor %}

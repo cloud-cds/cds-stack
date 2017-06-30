@@ -46,7 +46,7 @@ KEYS = {
   'lactate'       : '2',
   'blood_culture' : '4',
   'fluid'         : '1',
-  'antibiotics'   : '6',
+  'antibiotics'   : '14',
   'vasopressors'  : '13'
 }
 
@@ -133,12 +133,12 @@ class TREWSStaticResource(web.View):
     custom_antibiotics = None
     if loc in ['JHH', 'BMC']:
       custom_antibiotics = bmc_jhh_ed_antibiotics if dep == 'ED' else bmc_jhh_antibiotics
-      # TODO: set the default order for non-ICU units
-      # KEYS['antibiotics'] = 'XXX'
 
     elif loc == 'HCGH':
       KEYS['antibiotics'] = '3'
       KEYS['vasopressors'] = '7'
+
+    # TODO: order customizations for SH, SMH, KKI
 
     logging.info("Index request, loc: {}, dep: {}, order keys: {}, orders: {}".format(loc, dep, str(KEYS), str(custom_antibiotics)))
 
