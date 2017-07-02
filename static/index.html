@@ -144,10 +144,9 @@
 					<div class="slot" data-trews="init_lactate">
 						<h3></h3>
 						<div class="actions cf">
-							<span class='place-order place-order-btn' data-trews='initial_lactate_order'>
-								<OrderTemplate Key="{{ keys['lactate'] }}" OrderMode="IP" RemoveOriginal="True">
-									Place Order
-								</OrderTemplate>
+							<span class='place-order place-order-btn' data-trews='initial_lactate_order' order-key="{{ keys['lactate'] }}">
+								<iframe style="width:0; height:0; border:0; border:none; display: none;" src="/orders.html?key={{ keys['lactate'] }}"></iframe>
+								<p>Place Order</p>
 							</span>
 							<a class='notIn' data-trews='initial_lactate_order'>Not Indicated</a>
 						</div>
@@ -155,10 +154,9 @@
 					<div class="slot" data-trews="blood_culture">
 						<h3></h3>
 						<div class="actions cf">
-							<span class='place-order place-order-btn' data-trews='blood_culture_order'>
-								<OrderTemplate Key="{{ keys['blood_culture'] }}" OrderMode="IP" RemoveOriginal="True">
-									Place Order
-								</OrderTemplate>
+							<span class='place-order place-order-btn' data-trews='blood_culture_order' order-key="{{ keys['blood_culture'] }}">
+								<iframe style="width:0; height:0; border:0; border:none; display: none;" src="/orders.html?key={{ keys['blood_culture'] }}"></iframe>
+								<p>Place Order</p>
 							</span>
 							<a class='notIn' data-trews='blood_culture_order'>Not Indicated</a>
 						</div>
@@ -172,16 +170,14 @@
 									{{ loc.name }} Order
 								</span>
 								{% endfor %}
-								<span class='place-order place-order-btn' data-trews='antibiotics_order'>
-									<OrderTemplate Key="{{ keys['antibiotics'] }}" OrderMode="IP" RemoveOriginal="True">
-										Non-ICU Order
-									</OrderTemplate>
+								<span class='place-order place-order-btn' data-trews='antibiotics_order' order-key="{{ keys['antibiotics'] }}">
+									<iframe style="width:0; height:0; border:0; border:none; display: none;" src="/orders.html?key={{ keys['antibiotics'] }}"></iframe>
+									<p>Non-ICU Order</p>
 								</span>
 							{% else %}
-								<span class='place-order place-order-btn' data-trews='antibiotics_order'>
-									<OrderTemplate Key="{{ keys['antibiotics'] }}" OrderMode="IP" RemoveOriginal="True">
-										Place Order
-									</OrderTemplate>
+								<span class='place-order place-order-btn' data-trews='antibiotics_order' order-key="{{ keys['antibiotics'] }}">
+									<iframe style="width:0; height:0; border:0; border:none; display: none;" src="/orders.html?key={{ keys['antibiotics'] }}"></iframe>
+									<p>Place Order</p>
 								</span>
 							{% endif %}
 							<a class='notIn' data-trews='antibiotics_order'>Not Indicated</a>
@@ -190,10 +186,9 @@
 					<div class="slot last-child" data-trews="fluid">
 						<h3></h3>
 						<div class="actions cf">
-							<span class='place-order place-order-btn' data-trews='crystalloid_fluid_order'>
-								<OrderTemplate Key="{{ keys['fluid'] }}" OrderMode="IP" RemoveOriginal="True">
-									Place Order
-								</OrderTemplate>
+							<span class='place-order place-order-btn' data-trews='crystalloid_fluid_order' order-key="{{ keys['fluid'] }}">
+								<iframe style="width:0; height:0; border:0; border:none; display: none;" src="/orders.html?key={{ keys['fluid'] }}"></iframe>
+								<p>Place Order</p>
 							</span>
 							<a class='notIn' data-trews='crystalloid_fluid_order'>Not Indicated</a>
 						</div>
@@ -206,10 +201,9 @@
 					<div class="slot last-child" data-trews="re_lactate">
 						<h3></h3>
 						<div class="actions cf">
-							<span class='place-order place-order-btn' data-trews='repeat_lactate_order'>
-								<OrderTemplate Key="{{ keys['lactate'] }}" OrderMode="IP" RemoveOriginal="True">
-									Place Order
-								</OrderTemplate>
+							<span class='place-order place-order-btn' data-trews='repeat_lactate_order' order-key="{{ keys['lactate'] }}">
+								<iframe style="width:0; height:0; border:0; border:none; display: none;" src="/orders.html?key={{ keys['lactate'] }}"></iframe>
+								<p>Place Order</p>
 							</span>
 							<a class='notIn' data-trews='repeat_lactate_order'>Not Indicated</a>
 						</div>
@@ -222,10 +216,9 @@
 					<div class="slot" data-trews="vasopressors">
 						<h3></h3>
 						<div class="actions cf">
-							<span class='place-order place-order-btn' data-trews='vasopressors_order'>
-								<OrderTemplate Key="{{ keys['vasopressors'] }}" OrderMode="IP" RemoveOriginal="True">
-									Place Order
-								</OrderTemplate>
+							<span class='place-order place-order-btn' data-trews='vasopressors_order' order-key="{{ keys['vasopressors'] }}">
+								<iframe style="width:0; height:0; border:0; border:none; display: none;" src="/orders.html?key={{ keys['vasopressors'] }}"></iframe>
+								<p>Place Order</p>
 							</span>
 							<a class='notIn' data-trews='vasopressors_order'>Not Indicated</a>
 						</div>
@@ -247,10 +240,9 @@
 		{% for loc in custom_antibiotics.locations %}
 		<div class="order-dropdown" data-trews="{{ loc.data_trews }}">
 			{% for disease in loc.diseases %}
-			<span class='place-order place-order-btn' data-trews='{{ custom_antibiotics.action }}'>
-				<OrderTemplate Key="{{ disease.key }}" OrderMode="IP" RemoveOriginal="True">
-					{{ disease.display_name }}
-				</OrderTemplate>
+			<span class='place-order place-order-btn' data-trews='{{ custom_antibiotics.action }}' order-key="{{ disease.key }}">
+				<iframe style="width:0; height:0; border:0; border:none; display: none;" src="/orders.html?key={{ disease.key }}"></iframe>
+				<p>{{ disease.display_name }}</p>
 			</span>
 			{% endfor %}
 		</div>

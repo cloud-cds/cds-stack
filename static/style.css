@@ -456,6 +456,10 @@ body.waiting {
     -ms-user-select: none;      /* IE 10+ */
     user-select: none;
 }
+.order-dropdown p {
+    float: right;
+    margin: 0;
+}
 .order-dropdown .place-order:hover {
     background-color: #eee;
 }

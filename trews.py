@@ -40,6 +40,7 @@ URL_FEEDBACK = URL + "feedback"
 URL_HEALTHCHECK = URL + "healthcheck"
 URL_PROMETHEUS_METRICS = URL + "metrics"
 INDEX_FILENAME = 'index.html'
+ORDER_FILENAME = 'orders.html'
 
 # default keys for JHH
 KEYS = {
@@ -222,6 +223,15 @@ class TREWSStaticResource(web.View):
 
         else:
           self.bad_request('Unauthorized access')
+
+    elif filename.endswith(ORDER_FILENAME):
+      parameters = self.request.query
+      if 'key' in parameters:
+        j2_env = Environment(loader=FileSystemLoader(STATIC_DIR), trim_blocks=True)
+        r_body = j2_env.get_template(ORDER_FILENAME).render(key=parameters['key'])
+
+      else:
+        self.bad_request('Invalid order key')
 
     else:
       if os.path.exists(filename):

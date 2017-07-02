@@ -630,7 +630,10 @@ var workflowsComponent = new function() {
   this.makeButtons = function() {
     this.orderBtns.unbind();
     this.orderBtns.click(function() {
-      endpoints.getPatientData('place_order', {'actionName': $(this).attr('data-trews')});
+      var ordered = $(this).find('iframe').first().get()[0].contentWindow.post_order();
+      if ( ordered ) {
+        endpoints.getPatientData('place_order', {'actionName': $(this).attr('data-trews')});
+      }
     });
     // this.notInBtns.hide(); // Yanif: (RE-ENABLED; Temporarily disabling orders 'Not Indicated' buttons)
     this.notInBtns.unbind();
