@@ -3183,7 +3183,7 @@ BEGIN
 
     if output_label_series is not null then
       -- Reuse existing label series.
-      generated_label_id := _label_id;
+      generated_label_id := output_label_series;
     else
       -- Register a new label id.
       generate_label_query := format(
@@ -3203,16 +3203,12 @@ BEGIN
         from get_window_labels_from_criteria(''new_criteria_windows'', %s) sw
       on conflict (dataset_id, label_id, pat_id, tsp) do update
         set label_type = excluded.label_type,
-            label = excluded.label;
-
-      drop table new_criteria_windows;'
+            label = excluded.label;'
       , _dataset_id, generated_label_id, pat_id_str);
 
     window_vacuum_query := 'vacuum analyze verbose cdm_labels;';
 
     perform distribute(parallel_dblink, ARRAY[window_union_query, window_label_query, window_vacuum_query]::text[], 1);
-
-    generated_label_id := max(label_id) from label_version;
 
     if with_bundle_compliance then
       -- Add and process additional windows for exact bundle compliance.
@@ -3329,8 +3325,9 @@ BEGIN
     raise notice 'Cleaning criteria temporaries for dataset_id %, label_id %', _dataset_id, generated_label_id;
 
     execute (
-      select string_agg(format('drop table new_criteria_windows_%s', partition_id), ';')
-      from generate_series(1, num_partitions) R(partition_id)
+      'drop table new_criteria_windows; '
+      || ( select string_agg(format('drop table new_criteria_windows_%s', partition_id), ';')
+           from generate_series(1, num_partitions) R(partition_id) )
     );
 
     return generated_label_id;
@@ -3411,7 +3408,6 @@ BEGIN
 
     if first_iter then
       generated_label_id := current_label_id;
-      label_id_str = format('%s', generated_label_id);
     else
       if current_label_id <> generated_label_id then
         -- Clean up.
@@ -3608,6 +3604,8 @@ CREATE OR REPLACE FUNCTION get_cms_label_series(
         num_partitions          integer,
         ts_start                timestamptz DEFAULT '-infinity'::timestamptz,
         ts_end                  timestamptz DEFAULT 'infinity'::timestamptz,
+        ts_label_block_size     interval default interval '1 month',
+        ts_notes_block_size     interval default interval '1 month',
         window_limit            text default 'all',
         use_app_infections      boolean default false,
         use_clarity_notes       boolean default false,
@@ -3626,16 +3624,17 @@ BEGIN
   if label_function = 2 then
     -- Single pass for simulated suspicion of infection over all windows
     -- (since this skips notes processing, and should be efficient as-is)
-    select get_cms_label_series_for_windows_in_parallel(
+
+    select get_cms_label_series_for_windows_block_parallel(
       label_description, 'get_meas_periodic_timestamps', label_function,
-      _pat_id, _dataset_id, null, parallel_dblink, num_partitions, ts_start, ts_end, window_limit, use_app_infections, use_clarity_notes, false)
+      _pat_id, _dataset_id, null, parallel_dblink, num_partitions, ts_start, ts_end, ts_label_block_size, window_limit, use_app_infections, use_clarity_notes, false)
     into result_label_id;
   else
     -- Coarse-grained pass, calculating sirs and org df for state changes.
     if _candidate_label_id is null then
-      select get_cms_label_series_for_windows_in_parallel(
+      select get_cms_label_series_for_windows_block_parallel(
         label_description || ' (candidate series)', 'get_meas_periodic_timestamps', candidate_function,
-        _pat_id, _dataset_id, null, parallel_dblink, num_partitions, ts_start, ts_end, window_limit, use_app_infections, use_clarity_notes, false)
+        _pat_id, _dataset_id, null, parallel_dblink, num_partitions, ts_start, ts_end, ts_label_block_size, window_limit, use_app_infections, use_clarity_notes, false)
       into candidate_label_id;
 
       raise notice 'Finished first pass for get_cms_label_series on dataset_id %, label_id %', _dataset_id, candidate_label_id;
@@ -3646,18 +3645,18 @@ BEGIN
     if label_function <> 0 then
       if label_function > 0 and refresh_notes then
         -- Preprocess notes.
-        perform get_cms_note_matches_for_windows(
+        perform get_cms_note_matches_for_windows_blocked(
           label_description, 'get_hourly_active_timestamps',
-          _pat_id, _dataset_id, candidate_label_id, parallel_dblink, num_partitions, ts_start, ts_end, window_limit);
+          _pat_id, _dataset_id, candidate_label_id, parallel_dblink, num_partitions, ts_start, ts_end, ts_notes_block_size, window_limit);
 
         raise notice 'Finished notes for get_cms_label_series on dataset_id %, label_id %', _dataset_id, candidate_label_id;
       end if;
 
       -- Fine-grained pass, using windows based on state changes.
-      select get_cms_label_series_for_windows_in_parallel(
+      select get_cms_label_series_for_windows_block_parallel(
         label_description, 'get_hourly_active_timestamps', label_function,
         _pat_id, _dataset_id, candidate_label_id, parallel_dblink, num_partitions,
-        ts_start, ts_end, window_limit, use_app_infections, use_clarity_notes, with_bundle_compliance)
+        ts_start, ts_end, ts_label_block_size, window_limit, use_app_infections, use_clarity_notes, with_bundle_compliance)
       into result_label_id;
     else
       result_label_id := candidate_label_id;
