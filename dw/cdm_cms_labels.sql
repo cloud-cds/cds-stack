@@ -3158,7 +3158,14 @@ BEGIN
         )
         select partition.tsp as ts, new_criteria.*
         from
-          ( select * from window_ends where (substring(pat_id from 2)::int) %% %s = (%s - 1) ) partition
+          ( select * from window_ends
+            where
+            (case
+              when pat_id like ''JH%%''
+              then (substring(pat_id from 3)::int) %% %s = (%s - 1)
+              else (substring(pat_id from 2)::int) %% %s = (%s - 1)
+              end)
+          ) partition
           inner join lateral
           %s(coalesce(%s, partition.pat_id),
              partition.tsp - ''%s''::interval,
@@ -3167,6 +3174,7 @@ BEGIN
         on partition.pat_id = new_criteria.pat_id;'
         , partition_id, partition_id
         , window_generator, pat_id_str, _dataset_id, label_id_str, ts_start, ts_end, window_limit
+        , num_partitions, partition_id
         , num_partitions, partition_id
         , window_fn, pat_id_str, window_size, _dataset_id, use_app_infections_str, use_clarity_notes_str)
       into window_queries
@@ -3219,7 +3227,12 @@ BEGIN
         create unlogged table bundle_compliance_windows_%s as
           with onset_times as (
             select * from get_label_series_onset_timestamps(%s, %s) T
-            where (substring(T.pat_id from 2)::int) %% %s = (%s - 1)
+            where
+            (case
+              when pat_id like ''JH%%''
+              then (substring(pat_id from 3)::int) %% %s = (%s - 1)
+              else (substring(pat_id from 2)::int) %% %s = (%s - 1)
+              end)
           ),
           severe_sepsis as (
             select T.w_severe_sepsis_onset as ts, SSP.*
@@ -3283,7 +3296,7 @@ BEGIN
           from septic_shock SSH
           inner join septic_shock_6hr_bundle HB on SSH.pat_id = HB.pat_id and SSH.name = HB.name;'
         , partition_id, partition_id
-        , _dataset_id, generated_label_id, num_partitions, partition_id
+        , _dataset_id, generated_label_id, num_partitions, partition_id, num_partitions, partition_id
         , window_fn, pat_id_str, _dataset_id, use_app_infections_str, use_clarity_notes_str
         , window_fn, pat_id_str, _dataset_id, use_app_infections_str, use_clarity_notes_str
         , window_fn, pat_id_str, _dataset_id, use_app_infections_str, use_clarity_notes_str
@@ -3473,7 +3486,13 @@ BEGIN
           from %s(%s::text, %s::integer, %s::integer, ''%s''::timestamptz, ''%s''::timestamptz, ''%s''::text)
         ),
         partition as (
-          select * from window_ends where (substring(pat_id from 2)::int) %% %s = (%s - 1)
+          select * from window_ends
+          where
+            (case
+              when pat_id like ''JH%%''
+              then (substring(pat_id from 3)::int) %% %s = (%s - 1)
+              else (substring(pat_id from 2)::int) %% %s = (%s - 1)
+              end)
         )
         select distinct N.note_id
         from partition PT inner join cdm_notes N on PT.pat_id = N.pat_id
@@ -3481,6 +3500,7 @@ BEGIN
         and note_date(N.dates) between (PT.tsp - ''%s''::interval) - interval ''1 days'' and PT.tsp + interval ''1 days'';'
         , partition_id, partition_id
         , window_generator, pat_id_str, _dataset_id, label_id_str, ts_start, ts_end, window_limit
+        , num_partitions, partition_id
         , num_partitions, partition_id
         , _dataset_id, window_size)
       into notes_queries
