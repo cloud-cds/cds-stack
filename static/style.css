@@ -174,12 +174,10 @@ body.waiting {
 }
 #fake-console {
     position: absolute;
-    top: 50%;
-    left: 250px;
-    font-size: 10px;
+    font-size: 12px;
     line-height: 20px;
-    margin: -10px 0 0 0;
-    color: #bbb;
+    margin: 10px 0 0 10px;
+    color: #111;
 }
 /*End Page Structure*/
 
