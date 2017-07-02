@@ -69,6 +69,7 @@ log_decryption = os.environ['log_decryption'].lower() == 'true' if 'log_decrypti
 log_user_latency = os.environ['log_user_latency'].lower() == 'true' if 'log_user_latency' in os.environ else False
 
 ie_mode = os.environ['ie_mode'] if 'ie_mode' in os.environ else '8'
+order_link_mode = os.environ['order_link_mode'] if 'order_link_mode' in os.environ else 'frame'
 
 logging.info('''TREWS Configuration::
   encrypted query: %s
@@ -78,13 +79,14 @@ logging.info('''TREWS Configuration::
   log_decryption: %s
   log_user_latency: %s
   ie_mode: %s
+  order_link_mode: %s
   ''' % ('on' if encrypted_query else 'off', \
          'on' if trews_app_key else 'off', \
          'on' if trews_admin_key else 'off', \
          'on' if trews_open_access and trews_open_access.lower() == 'true' else 'off',
          'on' if log_decryption else 'off',
          'on' if log_user_latency else 'off',
-         ie_mode)
+         ie_mode, order_link_mode)
   )
 
 ###################################
@@ -94,6 +96,7 @@ logging.info('''TREWS Configuration::
 class TREWSStaticResource(web.View):
 
   def get_index_body(self, parameters):
+    global ie_mode, order_link_mode
 
     if 'LOC' not in parameters:
       logging.warning("No LOC in query string. Using JHH as default hospital.")
@@ -148,7 +151,7 @@ class TREWSStaticResource(web.View):
     logging.info("Index request for loc: {}, dep: {}".format(loc, dep))
 
     j2_env = Environment(loader=FileSystemLoader(STATIC_DIR), trim_blocks=True)
-    return j2_env.get_template(INDEX_FILENAME).render(ie_mode=ie_mode, keys=KEYS, custom_antibiotics=custom_antibiotics)
+    return j2_env.get_template(INDEX_FILENAME).render(ie_mode=ie_mode, order_link_mode=order_link_mode, keys=KEYS, custom_antibiotics=custom_antibiotics)
 
   async def get(self):
     global URL_STATIC, STATIC_DIR, INDEX_FILENAME

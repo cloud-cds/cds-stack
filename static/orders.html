@@ -30,6 +30,7 @@
     }
 
     function post_order() {
+      console.log('Posting order');
       var ordered = false;
       var orderElems = document.getElementById('orderparent').getElementsByTagName('a');
       if ( orderElems.length > 0 ) {
@@ -38,6 +39,12 @@
       }
       return ordered;
     }
+
+    // window.onload = function() {
+    //   if ( getQueryVariable('fire') == 'true' ) {
+    //     post_order();
+    //   }
+    // }
   </script>
 
   <p id="orderparent" style="display: none;">
@@ -45,5 +52,9 @@
       Place Order
     </OrderTemplate>
   </p>
+
+  <span onclick="post_order()">
+    Place Order
+  </span>
 </body>
 </html>
