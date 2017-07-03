@@ -71,6 +71,9 @@ log_user_latency = os.environ['log_user_latency'].lower() == 'true' if 'log_user
 ie_mode = os.environ['ie_mode'] if 'ie_mode' in os.environ else '8'
 order_link_mode = os.environ['order_link_mode'] if 'order_link_mode' in os.environ else 'frame'
 
+force_server_loc = os.environ['force_server_loc'] if 'force_server_loc' in os.environ else None
+force_server_dep = os.environ['force_server_dep'] if 'force_server_dep' in os.environ else None
+
 logging.info('''TREWS Configuration::
   encrypted query: %s
   trews_app_key: %s
@@ -80,13 +83,15 @@ logging.info('''TREWS Configuration::
   log_user_latency: %s
   ie_mode: %s
   order_link_mode: %s
+  force_server_loc: %s
+  force_server_dep: %s
   ''' % ('on' if encrypted_query else 'off', \
          'on' if trews_app_key else 'off', \
          'on' if trews_admin_key else 'off', \
          'on' if trews_open_access and trews_open_access.lower() == 'true' else 'off',
          'on' if log_decryption else 'off',
          'on' if log_user_latency else 'off',
-         ie_mode, order_link_mode)
+         ie_mode, order_link_mode, force_server_loc, force_server_dep)
   )
 
 ###################################
@@ -136,6 +141,14 @@ class TREWSStaticResource(web.View):
           dep = 'Non-ICU'
       else:
         dep = 'Non-ICU'
+
+
+    if force_server_loc:
+      loc = force_server_loc
+
+    if force_server_dep:
+      dep = force_server_dep
+
 
     # Customize orders.
     custom_antibiotics = None

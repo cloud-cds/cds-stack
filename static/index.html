@@ -160,6 +160,8 @@
 						    Place Order
 						    </OrderTemplate>
 						    </p>
+								{% elif order_link_mode == 'direct' %}
+								<A href="http://OrderTemplate?Name=Lactic+Acid%2C+Plasma|OTLID=3679441|ORXID=116652|OSQID=|ORDMODE=2|KEY=2|DEFAULTS=|">Place Order</A>
 								{% endif %}
 							</span>
 							<a class='notIn' data-trews='initial_lactate_order'>Not Indicated</a>
@@ -183,6 +185,8 @@
 						    Place Order
 						    </OrderTemplate>
 						    </p>
+								{% elif order_link_mode == 'direct' %}
+								<A href="http://OrderTemplate?Name=BLOOD+CULTURES+X2|OTLID=3679442|ORXID=367066|OSQID=201789|ORDMODE=2|KEY=4|DEFAULTS=|">Place Order</A>
 								{% endif %}
 							</span>
 							<a class='notIn' data-trews='blood_culture_order'>Not Indicated</a>
@@ -212,6 +216,8 @@
 							    Non-ICU Order
 							    </OrderTemplate>
 							    </p>
+									{% elif order_link_mode == 'direct' %}
+									<A href="http://OrderTemplate?Name=Sepsis+IV+Antibiotics|OTLID=3679463|ORXID=383234|OSQID=305114|ORDMODE=2|KEY=3|DEFAULTS=|">Non-ICU Order</A>
 									{% endif %}
 								</span>
 							{% else %}
@@ -230,6 +236,8 @@
 							    Place Order
 							    </OrderTemplate>
 							    </p>
+									{% elif order_link_mode == 'direct' %}
+									<A href="http://OrderTemplate?Name=Sepsis+IV+Antibiotics|OTLID=3679463|ORXID=383234|OSQID=305114|ORDMODE=2|KEY=3|DEFAULTS=|">Place Order</A>
 									{% endif %}
 								</span>
 							{% endif %}
@@ -250,7 +258,13 @@
 								<a href="/orders.html?key={{ keys['fluid'] }}&amp;fire=true">Place Order</a>
 								{% elif order_link_mode == 'native' %}
 								<p>
-						    <OrderTemplate Key="{{ keys['fluids'] }}" OrderMode="IP" RemoveOriginal="True">
+						    <OrderTemplate Key="{{ keys['fluid'] }}" OrderMode="IP" RemoveOriginal="True">
+						    Place Order
+						    </OrderTemplate>
+						    </p>
+								{% elif order_link_mode == 'direct' %}
+								<p>
+						    <OrderTemplate Key="{{ keys['fluid'] }}" OrderMode="IP" RemoveOriginal="True">
 						    Place Order
 						    </OrderTemplate>
 						    </p>
@@ -282,6 +296,8 @@
 						    Place Order
 						    </OrderTemplate>
 						    </p>
+								{% elif order_link_mode == 'direct' %}
+								<A href="http://OrderTemplate?Name=Lactic+Acid%2C+Plasma|OTLID=3679441|ORXID=116652|OSQID=|ORDMODE=2|KEY=2|DEFAULTS=|">
 								{% endif %}
 							</span>
 							<a class='notIn' data-trews='repeat_lactate_order'>Not Indicated</a>
@@ -305,6 +321,12 @@
 								{% elif order_link_mode == 'link' %}
 								<a href="/orders.html?key={{ keys['vasopressors'] }}&amp;fire=true">Place Order</a>
 								{% elif order_link_mode == 'native' %}
+								<p>
+						    <OrderTemplate Key="{{ keys['vasopressors'] }}" OrderMode="IP" RemoveOriginal="True">
+						    Place Order
+						    </OrderTemplate>
+						    </p>
+								{% elif order_link_mode == 'direct' %}
 								<p>
 						    <OrderTemplate Key="{{ keys['vasopressors'] }}" OrderMode="IP" RemoveOriginal="True">
 						    Place Order
@@ -347,9 +369,18 @@
 		    {{ disease.display_name }}
 		    </OrderTemplate>
 		    </p>
+				{% elif order_link_mode == 'direct' %}
+				<a href="/orders.html?key={{ disease.key }}&amp;fire=true">{{ disease.display_name }}</a>
 				{% endif %}
 			</span>
 			{% endfor %}
+			<span class='place-order place-order-btn' data-trews='vasopressors_order' order-key="{{ keys['vasopressors'] }}">
+				<p>
+		    <OrderTemplate Key="{{ keys['vasopressors'] }}" OrderMode="IP" RemoveOriginal="True">
+		    Place Order
+		    </OrderTemplate>
+		    </p>
+		   </span>
 		</div>
 		{% endfor %}
 	{% endif %}
