@@ -90,6 +90,12 @@ users:
       'privileged': bool(p_mode)
     }
 
+  if "kube_cpu_resources" in os.environ:
+    cpu_resources = os.environ['kube_cpu_resources']
+    job_container['requests'] = {
+      'cpu': str(cpu_resources)
+    }
+
   if len(cmd_array) > 0:
     job_container['command'] = cmd_array
 
