@@ -217,7 +217,7 @@
 							    </OrderTemplate>
 							    </p>
 									{% elif order_link_mode == 'direct' %}
-									  {% if key['antibiotics'] in order_key_urls %}
+									  {% if keys['antibiotics'] in order_key_urls %}
 										<a href="{{ order_key_urls[keys['antibiotics']] }}">Place Order</a>
 									  {% else %}
 										<p>
@@ -245,7 +245,7 @@
 							    </OrderTemplate>
 							    </p>
 									{% elif order_link_mode == 'direct' %}
-									  {% if key['antibiotics'] in order_key_urls %}
+									  {% if keys['antibiotics'] in order_key_urls %}
 										<a href="{{ order_key_urls[keys['antibiotics']] }}">Place Order</a>
 									  {% else %}
 										<p>
