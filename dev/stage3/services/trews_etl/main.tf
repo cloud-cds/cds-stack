@@ -65,6 +65,8 @@ resource "aws_lambda_function" "etl_lambda_HCGH" {
 
         kube_job_name  = "epic2op-hcgh-dev"
         kube_nodegroup = "etl"
+        kube_cpu_requests = "250m"
+        kube_mem_requests = "1Gi"
         kube_name      = "${var.k8s_name}"
         kube_server    = "${var.k8s_server}"
         kube_cert_auth = "${var.k8s_cert_auth}"
@@ -119,6 +121,8 @@ resource "aws_lambda_function" "etl_lambda_JHH" {
 
         kube_job_name  = "epic2op-jhh-dev"
         kube_nodegroup = "etl"
+        kube_cpu_requests = "500m"
+        kube_mem_requests = "1Gi"
         kube_name      = "${var.k8s_name}"
         kube_server    = "${var.k8s_server}"
         kube_cert_auth = "${var.k8s_cert_auth}"
@@ -173,6 +177,8 @@ resource "aws_lambda_function" "etl_lambda_BMC" {
 
         kube_job_name  = "epic2op-bmc-dev"
         kube_nodegroup = "etl"
+        kube_cpu_requests = "250m"
+        kube_mem_requests = "1Gi"
         kube_name      = "${var.k8s_name}"
         kube_server    = "${var.k8s_server}"
         kube_cert_auth = "${var.k8s_cert_auth}"

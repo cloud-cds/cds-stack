@@ -90,6 +90,19 @@ users:
       'privileged': bool(p_mode)
     }
 
+  job_requests = {}
+  if "kube_cpu_requests" in os.environ:
+    cpu_resources = os.environ['kube_cpu_requests']
+    job_requests['cpu'] = str(cpu_resources)
+
+  if "kube_mem_requests" in os.environ:
+    mem_resources = os.environ['kube_mem_requests']
+    job_requests['memory'] = str(mem_resources)
+
+  if job_requests:
+    job_container['resources'] = {'requests': job_requests}
+    print('Job {} resources: {}'.format(job_name, str(json.dumps(job_container['resources']))))
+
   if len(cmd_array) > 0:
     job_container['command'] = cmd_array
 
