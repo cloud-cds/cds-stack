@@ -634,10 +634,10 @@ var workflowsComponent = new function() {
       var fr = $(this).find('frame').first().get()[0];
       var pg = $(this).find('p').first().get()[0];
       var anc = $(this).find('a').first().get()[0];
-      if ( ifr != null ) { $('#fake-console').text('IFRAME:' + ifr.contentWindow.document.body.innerHTML); ifr.contentWindow.post_order(); }
-      if ( fr != null ) { $('#fake-console').text('FRAME:' + fr.contentWindow.document.body.innerHTML); }
       if ( pg != null ) { $('#fake-console').text('PARA:' + pg.innerHTML); }
+      if ( ifr != null ) { $('#fake-console').text('IFRAME:' + ifr.contentWindow.document.body.innerHTML); ifr.contentWindow.post_order(); }
       if ( anc != null ) { $('#fake-console').text('ANCHOR:' + anc.innerHTML); anc.click(); }
+      if ( fr != null ) { $('#fake-console').text('FRAME:' + fr.contentWindow.document.body.innerHTML); }
       //var ordered = $(this).find('iframe').first().get()[0].contentWindow.post_order();
       //if ( ordered ) {
       //endpoints.getPatientData('place_order', {'actionName': $(this).attr('data-trews')});
