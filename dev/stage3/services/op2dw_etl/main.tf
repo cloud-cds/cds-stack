@@ -49,6 +49,8 @@ resource "aws_lambda_function" "op2dw_etl_lambda" {
 
         kube_job_name  = "op2dw-dev"
         kube_nodegroup = "etl"
+        kube_cpu_requests = "1500m"
+        kube_mem_requests = "1Gi"
         kube_name      = "${var.k8s_name}"
         kube_server    = "${var.k8s_server}"
         kube_cert_auth = "${var.k8s_cert_auth}"
