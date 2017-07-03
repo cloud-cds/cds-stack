@@ -153,7 +153,7 @@ async def derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=None, deri
         await conn.execute(clean_sql + sql)
       elif fid_category == 'T':
         # Note they do not touch TWF table
-        sql = gen_cdm_t_delete_and_insert_query(config_entry, fid,
+        sql = gen_cdm_t_upsert_query(config_entry, fid,
                                                 dataset_id, incremental)
         log.debug(clean_sql + sql)
         await conn.execute(clean_sql + sql)
@@ -247,7 +247,7 @@ def gen_subquery_upsert_query(config_entry, fid, dataset_id, derive_feature_addr
   }
   return upsert_clause
 
-def gen_cdm_t_delete_and_insert_query(config_entry, fid, dataset_id, incremental):
+def gen_cdm_t_upsert_query(config_entry, fid, dataset_id, incremental):
   fid_select_expr = config_entry['fid_select_expr'] % {
     'dataset_col_block': 'cdm_t.dataset_id,' if dataset_id is not None else '',
     'dataset_where_block': (' and cdm_t.dataset_id = %s' % dataset_id) if dataset_id is not None else '',
@@ -255,10 +255,15 @@ def gen_cdm_t_delete_and_insert_query(config_entry, fid, dataset_id, incremental
     'incremental_enc_id_match': incremental_enc_id_match(' and ', incremental)
   }
   print(fid_select_expr)
-  insert_clause = """
-  DELETE FROM cdm_t where fid = '%(fid)s' %(dataset_where_block)s
-  %(incremental_enc_id_in)s;
-  INSERT INTO cdm_t (%(dataset_col_block)s enc_id,tsp,fid,value,confidence) (%(select_expr)s);
+  delete_clause = ''
+  if dataset_id and not incremental:
+    # only delete existing data in offline full load mode
+    delete_clause = "DELETE FROM cdm_t where fid = '%(fid)s' %(dataset_where_block)s;\n"
+
+  upsert_clause = delete_clause + """
+  INSERT INTO cdm_t (%(dataset_col_block)s enc_id,tsp,fid,value,confidence) (%(select_expr)s)
+  ON CONFLICT (%(dataset_col_block)s enc_id,tsp,fid) DO UPDATE SET
+  value = excluded.value, confidence = excluded.confidence;
   """ % {
     'fid':fid,
     'select_expr': fid_select_expr,
@@ -266,8 +271,8 @@ def gen_cdm_t_delete_and_insert_query(config_entry, fid, dataset_id, incremental
     'dataset_where_block': (' and dataset_id = %s' % dataset_id) if dataset_id is not None else '',
     'incremental_enc_id_in': incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental)
   }
-  print(insert_clause)
-  return insert_clause
+  print(upsert_clause)
+  return upsert_clause
 
 
 
