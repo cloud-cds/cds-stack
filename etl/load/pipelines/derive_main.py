@@ -699,21 +699,20 @@ query_config = {
     'derive_type': 'subquery',
     'subquery': lambda para: '''
     WITH subquery as (
-      select  %(dataset_id_key)s cdm_twf.enc_id, min(cdm_twf.tsp) tsp, max(cdm_twf.any_organ_failure_c) c
+      select  %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp, cdm_twf.any_organ_failure_c c
         FROM %(twf_table_join)s cdm_twf
         where cdm_twf.any_organ_failure %(dataset_id_equal)s
-      group by %(dataset_id_key)s cdm_twf.enc_id
+        order by cdm_twf.enc_id, cdm_twf.tsp desc
     )
     SELECT %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
-    (case when cdm_twf.tsp > subquery.tsp
-        then least(EXTRACT(EPOCH FROM (cdm_twf.tsp - subquery.tsp))/60, 14*24*60)
-        else 0
-     end) as minutes_since_any_organ_fail,
-     subquery.c as minutes_since_any_organ_fail_c
+    least(EXTRACT(EPOCH FROM (cdm_twf.tsp - first(subquery.tsp)))/60, 14*24*60) as minutes_since_any_organ_fail,
+     first(subquery.c) as minutes_since_any_organ_fail_c
     FROM %(twf_table_join)s cdm_twf
     inner join subquery on cdm_twf.enc_id = subquery.enc_id
+    and cdm_twf.tsp >= subquery.tsp
     %(dataset_id_match)s
     %(dataset_id_equal_w)s
+    group by %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp
     ''' % {
       'twf_table_join'    : para.get("twf_table_join"),
       'dataset_id_key'    : para.get("dataset_id_key"),
@@ -753,21 +752,19 @@ query_config = {
     'derive_type': 'subquery',
     'subquery': lambda para: '''
     WITH subquery as (
-      select %(dataset_id_key_t)s cdm_t.enc_id, min(tsp) tsp, max(confidence)::int c
+      select %(dataset_id_key_t)s cdm_t.enc_id, cdm_t.tsp, cdm_t.confidence c
         from cdm_t %(incremental_enc_id_join)s
         where cdm_t.fid = 'any_antibiotics' and cdm_t.value::boolean %(dataset_id_equal_t)s %(incremental_enc_id_match)s
-      group by %(dataset_id_key_t)s cdm_t.enc_id
+      order by cdm_t.enc_id, cdm_t.tsp desc
     )
     SELECT %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
-     (case when cdm_twf.tsp > subquery.tsp
-        then least(EXTRACT(EPOCH FROM (cdm_twf.tsp - subquery.tsp))/60, 24*60)
-        else 0
-     end) as minutes_since_any_antibiotics,
-     subquery.c as minutes_since_any_antibiotics_c
+     least(EXTRACT(EPOCH FROM (cdm_twf.tsp - first(subquery.tsp)))/60, 24*60) as minutes_since_any_antibiotics,
+     first(subquery.c) as minutes_since_any_antibiotics_c
     FROM %(twf_table_join)s cdm_twf inner join subquery on cdm_twf.enc_id = subquery.enc_id
     and cdm_twf.tsp >= subquery.tsp
     %(dataset_id_match)s
     %(dataset_id_equal)s
+    group by %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp
     ''' % {
       'dataset_id_key': para.get("dataset_id_key"),
       'dataset_id_key_t': dataset_id_key('cdm_t', para.get('dataset_id')),
