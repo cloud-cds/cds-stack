@@ -82,3 +82,18 @@ departments_by_hospital = {
     '110500014': 'ED',    # SH EMERGENCY PEDS
   }
 }
+
+order_key_urls = {
+  '2'  : '<A href="http://OrderTemplate?Name=Lactic+Acid%2C+Plasma|OTLID=3679441|ORXID=116652|OSQID=|ORDMODE=2|KEY=2|DEFAULTS=|">Place Order</A>'                                                                                          ,
+  '4'  : '<A href="http://OrderTemplate?Name=BLOOD+CULTURES+X2|OTLID=3679442|ORXID=367066|OSQID=201789|ORDMODE=2|KEY=4|DEFAULTS=|">Place Order</A>'                                                                                        ,
+  '1'  : '<A href="http://OrderTemplate?Name=Sepsis+IV+Fluids|OTLID=3679456|ORXID=383233|OSQID=211120|ORDMODE=2|KEY=1|DEFAULTS=|">Place Order</A>'                                                                                         ,
+  '3'  : '<A href="http://OrderTemplate?Name=Sepsis+IV+Antibiotics|OTLID=3679463|ORXID=383234|OSQID=305114|ORDMODE=2|KEY=3|DEFAULTS=|">Place Order</A>'                                                                                    ,
+  '7'  : '<A href="http://OrderTemplate?Name=Sepsis+Vasoactive+Medications|OTLID=3679472|ORXID=383235|OSQID=305115|ORDMODE=2|KEY=7|DEFAULTS=|">Place Order</A>'                                                                            ,
+  '13' : '<A href="http://OrderTemplate?Name=BMC+TREWS+Vasopressors|OTLID=3679535|ORXID=383242|OSQID=305122|ORDMODE=2|KEY=13|DEFAULTS=|">Place Order </A>'                                                                                 ,
+  '6'  : '<A href="http://OrderTemplate?Name=BMC+TREWS+Antibiotics+-+Pneumonia+-+Community-Acquired%2FEarly+VAP|OTLID=3679530|ORXID=383236|OSQID=305116|ORDMODE=2|KEY=6|DEFAULTS=|">Pneumonia - Community-Acquired/Early VAP </A>'         ,
+  '8'  : '<A href="http://OrderTemplate?Name=BMC+TREWS+Antibiotics+-+Pneumonia+-+Late+VAP+or+Healthcare+Associated|OTLID=2654473|ORXID=383237|OSQID=305117|ORDMODE=2|KEY=8|DEFAULTS=|">Pneumonia - Late VAP or Healthcare Associated </A>' ,
+  '9'  : '<A href="http://OrderTemplate?Name=BMC+TREWS+Antibiotics+-+MRSA+Coverage|OTLID=3679531|ORXID=383238|OSQID=305118|ORDMODE=2|KEY=9|DEFAULTS=|">MRSA Coverage </A>'                                                                 ,
+  '10' : '<A href="http://OrderTemplate?Name=BMC+TREWS+Antibiotics+-+Urosepsis|OTLID=3679532|ORXID=383239|OSQID=305119|ORDMODE=2|KEY=10|DEFAULTS=|">Urosepsis </A>'                                                                        ,
+  '11' : '<A href="http://OrderTemplate?Name=BMC+TREWS+Antibiotics+-+Intra-abdominal+Infection|OTLID=3679533|ORXID=383240|OSQID=305120|ORDMODE=2|KEY=11|DEFAULTS=|">Intra-abdominal Infection </A>'                                        ,
+  '12' : '<A href="http://OrderTemplate?Name=BMC+TREWS+Antibiotics+-+Sepsis+of+Unclear+Source|OTLID=3679534|ORXID=383241|OSQID=305121|ORDMODE=2|KEY=12|DEFAULTS=|">Sepsis of Unclear Source </A>'                                          ,
+}

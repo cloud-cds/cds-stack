@@ -21,7 +21,7 @@ from monitoring import TREWSPrometheusMetrics, cloudwatch_logger_middleware, cwl
 import urllib.parse
 
 import api, dashan_query
-from constants import bmc_jhh_antibiotics, bmc_jhh_ed_antibiotics, departments_by_hospital
+from constants import bmc_jhh_antibiotics, bmc_jhh_ed_antibiotics, departments_by_hospital, order_key_urls
 from api import pat_cache, api_monitor
 from encrypt import encrypt, decrypt, encrypted_query
 
@@ -164,7 +164,8 @@ class TREWSStaticResource(web.View):
     logging.info("Index request for loc: {}, dep: {}".format(loc, dep))
 
     j2_env = Environment(loader=FileSystemLoader(STATIC_DIR), trim_blocks=True)
-    return j2_env.get_template(INDEX_FILENAME).render(ie_mode=ie_mode, order_link_mode=order_link_mode, keys=KEYS, custom_antibiotics=custom_antibiotics)
+    return j2_env.get_template(INDEX_FILENAME).render(ie_mode=ie_mode, order_link_mode=order_link_mode, \
+                               keys=KEYS, custom_antibiotics=custom_antibiotics, order_key_urls=order_key_urls)
 
   async def get(self):
     global URL_STATIC, STATIC_DIR, INDEX_FILENAME
