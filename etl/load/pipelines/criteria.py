@@ -3,7 +3,7 @@ import asyncio
 import asyncpg
 from etl.core.task import Task
 
-def get_criteria_tasks(dependency=None, lookback_hours=24*7):
+def get_criteria_tasks(dependency=None, lookback_hours=24*7, hospital='HCGH'):
   return [
     Task(
       name = 'garbage_collection',
@@ -15,7 +15,7 @@ def get_criteria_tasks(dependency=None, lookback_hours=24*7):
       name = 'advance_criteria_snapshot',
       deps = ['garbage_collection'],
       coro = advance_criteria_snapshot,
-      args = [lookback_hours]
+      args = [lookback_hours, hospital]
     ),
     Task(
       name = 'notify_etl_listeners',
@@ -29,11 +29,18 @@ async def garbage_collection(ctxt, _):
     await conn.execute("select garbage_collection();")
 
 
-async def advance_criteria_snapshot(ctxt, _, lookback_hours):
+async def advance_criteria_snapshot(ctxt, _, lookback_hours, hospital):
   async with ctxt.db_pool.acquire() as conn:
     sql = '''
-    select advance_criteria_snapshot(pat_id) from (select distinct(pat_id) from criteria_meas where now() - tsp < interval '{} hours') P;
-    '''.format(lookback_hours)
+    select advance_criteria_snapshot(pat_id)
+    from (
+    select distinct p.pat_id from pat_enc p
+    inner join criteria_meas m on p.pat_id = m.pat_id
+    left join cdm_s s on s.enc_id = p.enc_id
+    where now() - tsp < interval '{hours} hours' and s.fid = 'hospital' and s.value = '{hospital}'
+
+    ) P;
+    '''.format(hours=lookback_hours, hospital=hospital)
     ctxt.log.info("start advance_criteria_snapshot: {}".format(sql))
     await conn.execute(sql)
 

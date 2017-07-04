@@ -86,7 +86,7 @@ def main(max_pats=None, hospital=None, lookback_hours=None, db_name=None, repl=F
 
 
   loading_tasks  = loader.get_tasks(job_id, 'combine_db_data', 'combine_extract_data', mode, archive, config.get_db_conn_string_sqlalchemy())
-  criteria_tasks = get_criteria_tasks(dependency = 'get_notifications_for_epic', lookback_hours=lookback_hours)
+  criteria_tasks = get_criteria_tasks(dependency = 'get_notifications_for_epic', lookback_hours=lookback_hours, hospital=hospital)
 
   ########################
   # Build plan for repl
