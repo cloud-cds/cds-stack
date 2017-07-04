@@ -36,7 +36,7 @@ async def advance_criteria_snapshot(ctxt, _, lookback_hours, hospital):
     from (
     select distinct p.pat_id from pat_enc p
     inner join criteria_meas m on p.pat_id = m.pat_id
-    left join cdm_s s on s.enc_id = p.enc_id
+    inner join cdm_s s on s.enc_id = p.enc_id
     where now() - tsp < interval '{hours} hours' and s.fid = 'hospital' and s.value = '{hospital}'
 
     ) P;
