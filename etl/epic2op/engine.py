@@ -43,15 +43,15 @@ def main(max_pats=None, hospital=None, lookback_hours=None, db_name=None, repl=F
     'db_host': core.get_environment_var('db_host'),
     'db_port': core.get_environment_var('db_port'),
   }
-
+  hospital = hospital or core.get_environment_var('TREWS_ETL_HOSPITAL')
   # Create data for loader
-  job_id = "job_etl_{}".format(dt.datetime.now().strftime('%m%d%H%M%S')).lower()
+  job_id = "job_etl_{}_{}".format(hospital, dt.datetime.now().strftime('%m%d%H%M%S')).lower()
   archive = int(core.get_environment_var('TREWS_ETL_ARCHIVE', 0))
   notify_epic = int(core.get_environment_var('TREWS_ETL_EPIC_NOTIFICATIONS', 0))
   lookback_hours = lookback_hours or core.get_environment_var('TREWS_ETL_HOURS')
   # Create jhapi_extractor
   extractor = JHAPIConfig(
-    hospital       = hospital or core.get_environment_var('TREWS_ETL_HOSPITAL'),
+    hospital       = hospital,
     lookback_hours = lookback_hours,
     jhapi_server   = core.get_environment_var('TREWS_ETL_SERVER', 'prod'),
     jhapi_id       = core.get_environment_var('jhapi_client_id'),
