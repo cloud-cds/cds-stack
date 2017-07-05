@@ -240,6 +240,7 @@ def push_cloudwatch_metrics(ctxt, stats, aws_region, prod_or_dev, hospital):
     { 'MetricName': 'ExtractTime', 'Value': (dt.datetime.now() - start_time).total_seconds(), 'Unit': 'Seconds'},
     { 'MetricName': 'NumBeddedPatients', 'Value': stats['bedded_pats'], 'Unit': 'Count'},
     { 'MetricName': 'NumFlowsheets', 'Value': stats['flowsheets'], 'Unit': 'Count'},
+    { 'MetricName': 'NumActiveProcedures', 'Value': stats['active_procedures'], 'Unit': 'Count'},
     { 'MetricName': 'NumLabOrders', 'Value': stats['lab_orders'], 'Unit': 'Count'},
     { 'MetricName': 'NumLabResults', 'Value': stats['lab_results'], 'Unit': 'Count'},
     { 'MetricName': 'NumLocationHistory', 'Value': stats['loc_history'], 'Unit': 'Count'},
