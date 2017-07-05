@@ -90,7 +90,8 @@ async def any_inotrope_update(fid, fid_input, conn, log, dataset_id, derive_feat
   for i in range(len(fid_input_items)):
     assert fid_input_items[i].endswith('dose'), \
       'wrong fid_input %s' % fid_input
-  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id,
+  if dataset_id and not incremental:
+    await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id,
                                            incremental=incremental))
   for dose in fid_input_items:
     await any_continuous_dose_update(fid, dose, conn, log,
@@ -176,7 +177,8 @@ async def update_continuous_dose_block(fid, block, conn, log, dataset_id):
 async def any_med_order_update(fid, fid_input, conn, log, dataset_id=None,
                                incremental=False):
   # Updated on 3/19/2016
-  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id,
+  if dataset_id and not incremental:
+    await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id,
                                            incremental=incremental))
   fid_input_items = [item.strip() for item in fid_input.split(',')]
   doses = '|'.join(fid_input_items)
@@ -210,7 +212,8 @@ async def suspicion_of_infection_update(fid, fid_input, conn, log, dataset_id, d
   assert fid_input_items[0] == 'culture_order' \
     and fid_input_items[1] == 'any_antibiotics_order', \
     'wrong fid_input %s' % fid_input
-  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
+  if dataset_id and not incremental:
+    await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
   select_sql = """
     select t1.enc_id, t1.tsp, t1.confidence|t2.confidence confidence
       from cdm_t t1
@@ -968,8 +971,9 @@ async def heart_attack_update(fid, fid_input, conn, log, dataset_id, derive_feat
     and 'ekg_proc' == fid_input_items[1] \
     and 'troponin' == fid_input_items[2], \
     "fid_input error: %s" % fid_input_items
-  # clean previous values
-  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
+  if dataset_id and not incremental:
+    # clean previous values
+    await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
   # Retrieve all records of heart_attack_inhosp
   select_sql = """
   SELECT * FROM cdm_t
@@ -1051,9 +1055,9 @@ async def stroke_update(fid, fid_input, conn, log, dataset_id, derive_feature_ad
   fid_input_items = [item.strip() for item in fid_input.split(',')]
   assert 'stroke_inhosp' == fid_input_items[0] and 'ct_proc' == fid_input_items[1] \
       and 'mri_proc' == fid_input_items[2], "fid_input error: %s" % fid_input_items
-
-  # clean previous values
-  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
+  if dataset_id and not incremental:
+    # clean previous values
+    await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
 
   # Retrieve all records of stroke_inhosp
   select_sql = """
@@ -1108,9 +1112,9 @@ async def gi_bleed_update(fid, fid_input, conn, log, dataset_id, derive_feature_
   fid_input_items = [item.strip() for item in fid_input.split(',')]
   assert 'gi_bleed_inhosp' == fid_input_items[0] and 'ct_proc' == fid_input_items[1] \
       and 'mri_proc' == fid_input_items[2], "fid_input error: %s" % fid_input_items
-
-  # clean previous values
-  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
+  if dataset_id and not incremental:
+    # clean previous values
+    await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
   # Retrieve all records of gi_bleed_inhosp
   select_sql = """
   SELECT distinct enc_id, tsp FROM cdm_t
@@ -1167,8 +1171,9 @@ async def severe_pancreatitis_update(fid, fid_input, conn, log, dataset_id, deri
   fid_input_items = [item.strip() for item in fid_input.split(',')]
   assert 'severe_pancreatitis_inhosp' == fid_input_items[0] and 'ct_proc' == fid_input_items[1] \
       and 'mri_proc' == fid_input_items[2], "fid_input error: %s" % fid_input_items
-  # clean previous values
-  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
+  if dataset_id and not incremental:
+    # clean previous values
+    await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
   # Retrieve all records of severe_pancreatitis_inhosp
   select_sql = """
   SELECT distinct enc_id, tsp FROM cdm_t
@@ -1220,8 +1225,9 @@ async def pulmonary_emboli_update(fid, fid_input, conn, log, dataset_id, derive_
   fid_input_items = [item.strip() for item in fid_input.split(',')]
   assert 'pulmonary_emboli_inhosp' == fid_input_items[0] and 'ct_proc' == fid_input_items[1] \
       and 'ekg_proc' == fid_input_items[2], "fid_input error: %s" % fid_input_items
-  # clean previous values
-  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
+  if dataset_id and not incremental:
+    # clean previous values
+    await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
   # Retrieve all records of pulmonary_emboli_inhosp
   select_sql = """
   SELECT distinct enc_id, tsp FROM cdm_t
@@ -1273,8 +1279,9 @@ async def bronchitis_update(fid, fid_input, conn, log, dataset_id, derive_featur
   fid_input_items = [item.strip() for item in fid_input.split(',')]
   assert 'bronchitis_inhosp' == fid_input_items[0] and 'chest_xray' == fid_input_items[1] \
       and 'bacterial_culture' == fid_input_items[2], "fid_input error: %s" % fid_input_items
-  # clean previous values
-  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
+  if dataset_id and not incremental:
+    # clean previous values
+    await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
   # Retrieve all records of bronchitis_inhosp
   select_sql = """
   SELECT distinct enc_id, tsp FROM cdm_t
@@ -1330,8 +1337,9 @@ async def acute_kidney_failure_update(fid, fid_input, conn, log, dataset_id, der
     and 'urine_output_24hr' == fid_input_items[2] \
     and 'dialysis' == fid_input_items[3], \
     "fid_input error: %s" % fid_input_items
-  # clean previous values
-  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
+  if dataset_id and not incremental:
+    # clean previous values
+    await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
 
   sql = """
   WITH S as (
@@ -1394,7 +1402,8 @@ async def ards_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr
     and 'pao2_to_fio2' == fid_input_items[1] \
     and 'vent' == fid_input_items[2], \
     "fid_input error: %s" % fid_input_items
-  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
+  if dataset_id and not incremental:
+    await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
   # Retrieve all records of ards_inhosp
   select_sql = """
   SELECT distinct enc_id, tsp FROM cdm_t
@@ -1461,8 +1470,9 @@ async def hepatic_failure_update(fid, fid_input, conn, log, dataset_id, derive_f
   assert 'hepatic_failure_inhosp' == fid_input_items[0] \
     and 'bilirubin' == fid_input_items[1] \
     , "fid_input error: %s" % fid_input_items
-  # clean previous values
-  await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
+  if dataset_id and not incremental:
+    # clean previous values
+    await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental))
   # Retrieve all records of hepatic_inhosp
   select_sql = """
   SELECT distinct enc_id, tsp FROM cdm_t

@@ -357,7 +357,7 @@ def convert_penicillin_dose(entries, log):
         if action in intake_actions:
             if dose:
                 if unit == 'mg':
-                    dose_mu = dose / 250 * 0.4
+                    dose_mu = float(dose) / 250 * 0.4
                     dose_json = json.dumps({'dose':dose_mu, \
                         'order_tsp':order_tsp.strftime("%Y-%m-%d %H:%M:%S"),
                         'action': entry['ActionTaken']})
@@ -486,8 +486,8 @@ def piperacillin_tazbac_dose_to_mg(entries, log):
             if entry_pre['ActionTaken'] in GIVEN_ACTIONS or \
                 entry_pre['ActionTaken'] in IV_START_ACTIONS:
                 if entry_pre['MedUnit'] == 'mg of piperacillin' and \
-                    entry_pre['Dose'] > 0:
-                    dose_json = json.dumps({'dose':entry_pre['Dose'], \
+                    float(entry_pre['Dose']) > 0:
+                    dose_json = json.dumps({'dose':float(entry_pre['Dose']), \
                         'order_tsp':entry_pre['ORDER_INST'].strftime("%Y-%m-%d %H:%M:%S"),
                         'action': entry_pre['ActionTaken']})
                     results.append([entry_pre['TimeActionTaken'], \
@@ -502,7 +502,7 @@ def piperacillin_tazbac_dose_to_mg(entries, log):
         entry_pre['ActionTaken'] in IV_START_ACTIONS:
         if entry_pre['MedUnit'] == 'mg of piperacillin' and \
             entry_pre['Dose'] > 0:
-            dose_json = json.dumps({'dose':entry_pre['Dose'], \
+            dose_json = json.dumps({'dose':float(entry_pre['Dose']), \
                 'order_tsp':entry_pre['ORDER_INST'].strftime("%Y-%m-%d %H:%M:%S"),
                 'action': entry_pre['ActionTaken']})
             results.append([entry_pre['TimeActionTaken'], dose_json, \
@@ -825,7 +825,7 @@ def convert_to_mcg_min(entries, log):
     for entry in entries:
         name = entry['display_name']
         tsp = entry['TimeActionTaken']
-        dose = entry['Dose']
+        dose = float(entry['Dose'])
         unit = entry['MedUnit']
         action = entry['ActionTaken']
         order_tsp = entry['ORDER_INST']
@@ -889,25 +889,25 @@ def _convert_to_mg(entry, log):
     log_assert(log, unit == 'kg' or unit == 'g' or unit == 'mg' or unit == 'mcg', "Unknown unit %s" % unit   )
     if unit == 'kg':
         return [tsp,
-                json.dumps({'dose': 1000*1000*dose, \
+                json.dumps({'dose': 1000*1000*float(dose), \
                     'order_tsp':order_tsp.strftime("%Y-%m-%d %H:%M:%S"),
                     'action': entry['ActionTaken']}),
                 confidence.UNIT_TRANSFORMED]
     elif unit == 'g':
         return [tsp,
-                json.dumps({'dose':1000*dose, \
+                json.dumps({'dose':1000*float(dose), \
                     'order_tsp':order_tsp.strftime("%Y-%m-%d %H:%M:%S"),
                     'action': entry['ActionTaken']}),
                 confidence.UNIT_TRANSFORMED]
     elif unit == 'mg':
         return [tsp,
-                json.dumps({'dose':dose, \
+                json.dumps({'dose':float(dose), \
                     'order_tsp': order_tsp.strftime("%Y-%m-%d %H:%M:%S"),
                     'action': entry['ActionTaken']}),
                 confidence.NO_TRANSFORM]
     elif unit == 'mcg':
         return [tsp,
-                json.dumps({'dose':0.001*dose, \
+                json.dumps({'dose':0.001*float(dose), \
                     'order_tsp': order_tsp.strftime("%Y-%m-%d %H:%M:%S"),
                     'action': entry['ActionTaken']}),
                 confidence.NO_TRANSFORM]
@@ -922,10 +922,11 @@ def convert_to_mmol(entry, log):
     if dose is None or dose == 'Test not performed':
         return None
     log_assert(log, unit == 'meq/l' or unit == 'mmol/l', "Unknown unit %s" % unit   )
-    if unit == 'mmol/l':
-        return [float(dose), confidence.NO_TRANSFORM]
-    elif unit == 'meq/l':
-        return [float(dose), confidence.UNIT_TRANSFORMED]
+    if not dose == 'see below':
+        if unit == 'mmol/l':
+            return [float(dose), confidence.NO_TRANSFORM]
+        elif unit == 'meq/l':
+            return [float(dose), confidence.UNIT_TRANSFORMED]
 
 def convert_ddimer_unit(entry, log):
     csn_id = entry[0]
@@ -1075,7 +1076,7 @@ def _calculate_volume_in_ml(volumes, entry_cur, entry_nxt, remain_vol_pre, \
     global FLUID_DUR
     global RATE_ACTIONS
     unit = entry_cur['MedUnit'] if not df else entry_cur['dose_unit']
-    dose = entry_cur['Dose'] if not df else entry_cur['dose']
+    dose = float(entry_cur['Dose']) if not df else float(entry_cur['dose'])
     tsp = entry_cur['TimeActionTaken'] if not df else entry_cur['tsp']
     med = entry_cur['display_name'] if not df else entry_cur['full_name']
     max_vol_ml = _get_max_vol_ml(med)
