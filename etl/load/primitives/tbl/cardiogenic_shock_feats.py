@@ -170,11 +170,15 @@ async def calc_acute_heart_failure(output_fid, input_fid_string, conn, log, data
 
     select_sql = """with
     acute_df as
-    (with acute_tbl as (select * from cdm_s where {dataset_id_where} (fid ilike 'acute_heart_failure_icd9_diag' or fid ilike 'acute_heart_failure_icd9_prob') and enc_id in (select enc_id from cdm_s where fid ilike 'hosp_admit')) select distinct enc_id from acute_tbl),
+    (with acute_tbl as
+    (select * from cdm_s where {dataset_id_where} (fid ilike 'acute_heart_failure_icd9_diag' or fid ilike 'acute_heart_failure_icd9_prob')
+    and enc_id in (select enc_id from cdm_s where fid ilike 'hosp_admit'))
+    select distinct enc_id from acute_tbl),
     furo_df as
     (select * from cdm_t where {dataset_id_where} (fid ilike 'furosemide_IV_num_admin' or fid ilike 'bumetanide_IV_num_admin') and value::integer > 1),
     final as
-    (select {furo_dataset} coalesce(acute_df.enc_id, furo_df.enc_id) as enc_id, furo_df.fid, furo_df.value, furo_df.confidence from furo_df inner join acute_df on furo_df.enc_id = acute_df.enc_id
+    (select {furo_dataset} coalesce(acute_df.enc_id, furo_df.enc_id) as enc_id, furo_df.fid, furo_df.value, furo_df.confidence from furo_df
+    inner join acute_df on furo_df.enc_id = acute_df.enc_id
     order by enc_id, tsp)
     select * from final;"""
     insert_sql = """insert into cdm_s ({dataset_id_block} enc_id, fid, value, confidence) values ({dataset_id} {enc_id}, '{fid}', '{value}', {confidence})"""
