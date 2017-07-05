@@ -320,9 +320,15 @@ as $func$ begin
              (case when R.care_unit = 'Arrival' then R.next_unit else R.care_unit end) as care_unit
       from (
         select R.dataset_id, R.enc_id, R.tsp, R.care_unit,
-               lead(R.tsp,1) OVER (PARTITION BY R.enc_id ORDER BY R.tsp) as next_tsp,
-               lead(R.care_unit,1) OVER (PARTITION BY R.enc_id ORDER BY R.tsp) as next_unit,
-               first_value(R.care_unit) over (PARTITION by R.enc_id order by R.tsp) as first_unit
+               lead(R.tsp,1) OVER (PARTITION BY R.enc_id ORDER BY R.tsp,
+                  (case when R.care_unit = 'Arrival' then 0 when R.care_unit = 'Discharge' then 2 else 1 end)
+               ) as next_tsp,
+               lead(R.care_unit,1) OVER (PARTITION BY R.enc_id ORDER BY R.tsp,
+                  (case when R.care_unit = 'Arrival' then 0 when R.care_unit = 'Discharge' then 2 else 1 end)
+               ) as next_unit,
+               first_value(R.care_unit) over (PARTITION by R.enc_id order by R.tsp,
+                  (case when R.care_unit = 'Arrival' then 0 when R.care_unit = 'Discharge' then 2 else 1 end)
+               ) as first_unit
         from (
           select cdm_s.dataset_id, cdm_s.enc_id, cdm_s.value::timestamptz as tsp, 'Arrival' as care_unit
           from cdm_s
@@ -334,20 +340,22 @@ as $func$ begin
           where cdm_t.fid = 'care_unit'
           and cdm_t.dataset_id = _dataset_id
         ) R
-        order by R.enc_id, R.tsp
+        order by
+          R.enc_id, R.tsp,
+          (case when R.care_unit = 'Arrival' then 0 when R.care_unit = 'Discharge' then 2 else 1 end)
       ) R
       where not (R.care_unit = 'Arrival' and R.first_unit <> 'Arrival')
       and (R.next_tsp is null or R.tsp <> R.next_tsp)
       order by R.enc_id, enter_time
     ),
-    discharge_fitered as (
+    discharge_filtered as (
       select raw_care_unit_tbl.*
       from
       raw_care_unit_tbl
       where care_unit != 'Discharge' and leave_time is not null
     )
     select dataset_id, enc_id, enter_time, leave_time, care_unit
-    from discharge_fitered;
+    from discharge_filtered;
 
   return;
 end; $func$;
