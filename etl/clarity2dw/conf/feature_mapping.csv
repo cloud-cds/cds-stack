@@ -267,3 +267,4 @@ sodium_bicarbonate_infu_dose,no,yes,"""MedicationAdministration""","""MEDICATION
 sodium_bicarbonate_injec_dose,no,yes,"""MedicationAdministration""","""MEDICATION_ID"",""MedRoute"",""display_name"", ""TimeActionTaken"", ""ORDER_INST"", ""ActionTaken"", ""Dose"", ""MedUnit"",""INFUSION_RATE"",""MAR_INF_RATE_UNIT"",""mar_duration"",""MAR_DURATION_UNIT""","where display_name ilike 'sodium bicarbonate%' and ""MedRoute"" = 'Intravenous' and ""MedUnit"" not ilike 'meq'",convert_dose_to_binary,
 troponin_i,yes,no,"""Labs""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue"", ""REFERENCE_UNIT""","WHERE ""BASE_NAME"" ilike '%TROPONINI%'",convert_lab_value_to_real,
 troponin_t,yes,no,"""Labs""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue"", ""REFERENCE_UNIT""","WHERE ""BASE_NAME"" ilike '%TROPONINT%'",convert_lab_value_to_real,
+o2_flow_rate,yes,no,"""FlowsheetValue_643""","""FLO_MEAS_NAME"", ""TimeTaken"", ""Value""","where ""FLO_MEAS_NAME"" ilike '%o2%flow%rate%'",,
