@@ -37,6 +37,7 @@ class Engine:
     self.BEHAMON_STACK = try_to_read_from_environ('BEHAMON_STACK','Test')
 
     self.receiving_email_address = try_to_read_from_environ('REPORT_RECEIVING_EMAIL_ADDRESS','trews-jhu@opsdx.io')
+    # self.receiving_email_address = try_to_read_from_environ('REPORT_RECEIVING_EMAIL_ADDRESS','peterm@opsdx.io')
 
 
   def run(self, mode):
@@ -53,7 +54,7 @@ class Engine:
         metrics.pats_seen_by_docs, 
         metrics.user_engagement,
         metrics.suspicion_of_infection_modified,
-        metrics.get_sepsis_state_stats,
+        # metrics.get_sepsis_state_stats,
         metrics.notification_stats,
         metrics.pats_with_threshold_crossings,
       ]
