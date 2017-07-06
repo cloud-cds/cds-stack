@@ -19,7 +19,7 @@ def get_criteria_tasks(dependency=None, lookback_hours=24*7, hospital='HCGH'):
     ),
     Task(
       name = 'notify_etl_listeners',
-      deps = ['advance_criteria_snapshot'],
+      deps = ['get_notifications_for_epic'],
       coro = notify_etl_listeners,
     ),
   ]

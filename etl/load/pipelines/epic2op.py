@@ -56,7 +56,7 @@ async def load_discharge_times(ctxt, contacts_df):
 
 
 
-async def get_notifications_for_epic(ctxt, job_id):
+async def get_notifications_for_epic(ctxt, job_id, _):
   ''' Get all notifications to send to epic '''
   async with ctxt.db_pool.acquire() as conn:
     ctxt.log.info("getting notifications to push to epic")
@@ -493,7 +493,7 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
          coro = drop_tables,
          args = [2]),
     Task(name = 'get_notifications_for_epic',
-         deps = ['drop_tables'],
+         deps = ['drop_tables', 'advance_criteria_snapshot'],
          coro = get_notifications_for_epic),
     Task(name = 'load_discharge_times',
          deps = ['contacts_transform'],
