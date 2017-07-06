@@ -361,8 +361,8 @@ async def calculate_historical_criteria(conn):
 
 async def gen_label_and_report(conn, dataset_id):
     sql = '''select * from run_cdm_label_and_report(
-        {dataset_id}, {label_id}, {label_des}, {server}, {nprocs})
-    '''.format(dataset_id=dataset_id, label_id=107,
+        {dataset_id}, {label_des}, {server}, {nprocs})
+    '''.format(dataset_id=dataset_id,
         label_des='labels clarity daily on D7', server='dev_dw', nprocs=12)
     logging.info("gen_label_and_report: {}".format(sql))
     await conn.execute(sql)
