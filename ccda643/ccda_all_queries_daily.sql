@@ -579,7 +579,7 @@ LEFT JOIN CLARITY..zc_lab_status labstats on labstats.LAB_STATUS_C = procs.lab_s
 INNER JOIN CLARITY..ORDER_INSTANTIATED inst ON inst.INSTNTD_ORDER_ID = PROCS.ORDER_PROC_ID
 INNER JOIN CLARITY..ORDER_PROC parents on inst.ORDER_ID = parents.ORDER_PROC_ID
 LEFT JOIN CLARITY..ORDER_PROC_2 procs2 on procs.ORDER_PROC_ID = procs2.ORDER_PROC_ID
-WHERE PROCS.RESULT_TIME >= DATEADD(day,-7, GETDATE());
+WHERE PROCS.ORDER_TIME >= DATEADD(day,-7, GETDATE());
 GO
 
 
@@ -608,7 +608,7 @@ LEFT JOIN CLARITY..zc_lab_status labstats on labstats.LAB_STATUS_C = procs.lab_s
 inner join clarity..V_IMG_STUDY img on img.order_id = procs.ORDER_PROC_ID
 inner join clarity..HNO_NOTE_TEXT hnt on hnt.NOTE_CSN_ID = img.RESULT_NOTE_CSN
 where (img.proc_name like '%MRI%' or img.proc_name like '%CT%')
- AND PROCS.RESULT_TIME >= DATEADD(day,-7, GETDATE());
+ AND PROCS.ORDER_TIME >= DATEADD(day,-7, GETDATE());
 GO
 
 :OUT \\Client\H$\Downloads\clarity\orderproc_new.rpt
@@ -647,23 +647,33 @@ INNER JOIN CLARITY..ORDER_PROC parents on inst.ORDER_ID = parents.ORDER_PROC_ID
 left join clarity.dbo.ORD_SPEC_QUEST osq on osq.ORDER_ID = procs.ORDER_PROC_ID
 left join clarity.dbo.CL_QQUEST cq on osq.ORD_QUEST_ID = cq.QUEST_ID 
 left join clarity.dbo.CL_QQUEST_OVTM tm on tm.QUEST_ID = cq.QUEST_ID
-where procs.proc_id in
+where
 (
-'160318',
-'2015293',
-'67479', '38825', '38817', '38819', '38821', '38823', '55910', '100294', '100296', '100298', '100300', '304267',
-'67413',
-'67415',
-'127058',
-'70027',
-'71988',
-'71990',
-'110189',
-'131944',
-'165547',
-'3041752',
-'22362','22364','22366','22368','22370','22372','22374','22376','66891','66895','66899','66903','66907','66911','66915','66919','66923','66927','66931','66935','66939','66943','66947','66951','66955','66959','66963','66967','291','293','295','297','301','303' -- dialysis
-)  AND PROCS.RESULT_TIME >= DATEADD(day,-7, GETDATE());
+  procs.proc_id in
+  (
+  '160318',
+  '2015293',
+  '67479', '38825', '38817', '38819', '38821', '38823', '55910', '100294', '100296', '100298', '100300', '304267',
+  '67413',
+  '67415',
+  '127058',
+  '70027',
+  '71988',
+  '71990',
+  '110189',
+  '131944',
+  '165547',
+  '3041752',
+  '22362','22364','22366','22368','22370','22372','22374','22376','66891','66895','66899','66903','66907','66911','66915','66919','66923','66927','66931','66935','66939','66943','66947','66951','66955','66959','66963','66967','291','293','295','297','301','303' -- dialysis
+  )
+  or
+  eap.proc_name = 'BIPAP'
+  or
+  lower(eap.proc_name) like 'wall cpap - adult%' or
+  lower(eap.proc_name) like 'cpap continuous%' or
+  lower(eap.proc_name) like 'mechanical ventilation - adult cpap%'
+)
+AND PROCS.ORDER_TIME >= DATEADD(day,-7, GETDATE());
 GO
 
 :OUT \\Client\H$\Downloads\clarity\prob.rpt
