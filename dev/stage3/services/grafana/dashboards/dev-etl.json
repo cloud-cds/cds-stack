@@ -6,7 +6,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "hideControls": false,
-  "id": 2,
+  "id": 3,
   "links": [],
   "rows": [
     {
@@ -60,7 +60,7 @@
               "to": "null"
             }
           ],
-          "span": 12,
+          "span": 4,
           "sparkline": {
             "fillColor": "rgba(31, 118, 189, 0.18)",
             "full": false,
@@ -76,7 +76,7 @@
               },
               "expr": "",
               "intervalFactor": 2,
-              "metricName": "ExTrLoTime",
+              "metricName": "JHH_TotalTime",
               "namespace": "OpsDX",
               "period": "3600",
               "refId": "A",
@@ -87,7 +87,8 @@
             }
           ],
           "thresholds": "",
-          "title": "ETL Jobs / Hour",
+          "title": "JHH ETL Jobs / Hour",
+          "transparent": true,
           "type": "singlestat",
           "valueFontSize": "80%",
           "valueMaps": [
@@ -97,7 +98,176 @@
               "value": "null"
             }
           ],
-          "valueName": "avg"
+          "valueName": "current"
+        },
+        {
+          "cacheTimeout": null,
+          "colorBackground": false,
+          "colorValue": false,
+          "colors": [
+            "rgba(245, 54, 54, 0.9)",
+            "rgba(237, 129, 40, 0.89)",
+            "rgba(50, 172, 45, 0.97)"
+          ],
+          "datasource": null,
+          "format": "none",
+          "gauge": {
+            "maxValue": 100,
+            "minValue": 0,
+            "show": false,
+            "thresholdLabels": false,
+            "thresholdMarkers": true
+          },
+          "height": "25px",
+          "id": 13,
+          "interval": null,
+          "links": [],
+          "mappingType": 1,
+          "mappingTypes": [
+            {
+              "name": "value to text",
+              "value": 1
+            },
+            {
+              "name": "range to text",
+              "value": 2
+            }
+          ],
+          "maxDataPoints": 100,
+          "nullPointMode": "connected",
+          "nullText": null,
+          "postfix": "",
+          "postfixFontSize": "50%",
+          "prefix": "",
+          "prefixFontSize": "50%",
+          "rangeMaps": [
+            {
+              "from": "null",
+              "text": "N/A",
+              "to": "null"
+            }
+          ],
+          "span": 4,
+          "sparkline": {
+            "fillColor": "rgba(31, 118, 189, 0.18)",
+            "full": false,
+            "lineColor": "rgb(31, 120, 193)",
+            "show": false
+          },
+          "tableColumn": "",
+          "targets": [
+            {
+              "alias": "",
+              "dimensions": {
+                "ETL": "opsdx_dev"
+              },
+              "metricName": "BMC_TotalTime",
+              "namespace": "OpsDX",
+              "period": "3600",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "SampleCount"
+              ]
+            }
+          ],
+          "thresholds": "",
+          "title": "BMC ETL Jobs / Hour",
+          "transparent": true,
+          "type": "singlestat",
+          "valueFontSize": "80%",
+          "valueMaps": [
+            {
+              "op": "=",
+              "text": "N/A",
+              "value": "null"
+            }
+          ],
+          "valueName": "current"
+        },
+        {
+          "cacheTimeout": null,
+          "colorBackground": false,
+          "colorValue": false,
+          "colors": [
+            "rgba(245, 54, 54, 0.9)",
+            "rgba(237, 129, 40, 0.89)",
+            "rgba(50, 172, 45, 0.97)"
+          ],
+          "datasource": null,
+          "format": "none",
+          "gauge": {
+            "maxValue": 100,
+            "minValue": 0,
+            "show": false,
+            "thresholdLabels": false,
+            "thresholdMarkers": true
+          },
+          "id": 14,
+          "interval": null,
+          "links": [],
+          "mappingType": 1,
+          "mappingTypes": [
+            {
+              "name": "value to text",
+              "value": 1
+            },
+            {
+              "name": "range to text",
+              "value": 2
+            }
+          ],
+          "maxDataPoints": 100,
+          "nullPointMode": "connected",
+          "nullText": null,
+          "postfix": "",
+          "postfixFontSize": "50%",
+          "prefix": "",
+          "prefixFontSize": "50%",
+          "rangeMaps": [
+            {
+              "from": "null",
+              "text": "N/A",
+              "to": "null"
+            }
+          ],
+          "span": 4,
+          "sparkline": {
+            "fillColor": "rgba(31, 118, 189, 0.18)",
+            "full": false,
+            "lineColor": "rgb(31, 120, 193)",
+            "show": false
+          },
+          "tableColumn": "",
+          "targets": [
+            {
+              "alias": "",
+              "dimensions": {
+                "ETL": "opsdx_dev"
+              },
+              "metricName": "HCGH_TotalTime",
+              "namespace": "OpsDX",
+              "period": "3600",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "SampleCount"
+              ]
+            }
+          ],
+          "thresholds": "",
+          "title": "HCGH ETL Jobs / Hour",
+          "transparent": true,
+          "type": "singlestat",
+          "valueFontSize": "80%",
+          "valueMaps": [
+            {
+              "op": "=",
+              "text": "N/A",
+              "value": "null"
+            }
+          ],
+          "valueName": "current"
         }
       ],
       "repeat": null,
@@ -116,15 +286,17 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "cloudwatch",
+          "datasource": "-- Mixed --",
           "fill": 1,
-          "id": 1,
+          "id": 12,
           "legend": {
+            "alignAsTable": true,
             "avg": false,
             "current": false,
             "max": false,
             "min": false,
-            "show": false,
+            "rightSide": true,
+            "show": true,
             "total": false,
             "values": false
           },
@@ -138,20 +310,232 @@
           "renderer": "flot",
           "seriesOverrides": [],
           "spaceLength": 10,
+          "span": 12,
+          "stack": false,
+          "steppedLine": true,
+          "targets": [
+            {
+              "alias": "db:opsdx_dev",
+              "datasource": "cloudwatch",
+              "dimensions": {
+                "DBInstanceIdentifier": "opsdx-dev"
+              },
+              "expr": "sum(label_replace(rate(container_cpu_usage_seconds_total{pod_name=~\"epic2op-[a-z]*-dev.*\", image=~\".*trews-etl.*\"}[2m]), \"pod_lbl\", \"epic2op-$1-dev\", \"pod_name\", \"epic2op-([a-z]*)-dev-(.*)\")\n) by (pod_lbl)",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 2,
+              "legendFormat": "{{ pod_lbl }}",
+              "metricName": "CPUUtilization",
+              "namespace": "AWS/RDS",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ],
+              "step": 30
+            },
+            {
+              "datasource": "prometheus",
+              "expr": "sum(label_replace(rate(container_cpu_usage_seconds_total{pod_name=~\"epic2op-[a-z]*-dev.*\", image=~\".*trews-etl.*\"}[2m]), \"pod_lbl\", \"epic2op-$1-dev\", \"pod_name\", \"epic2op-([a-z]*)-dev-(.*)\")\n) by (pod_lbl) * 100",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 2,
+              "legendFormat": "{{ pod_lbl }}",
+              "refId": "B",
+              "step": 30
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "CPU Utilization (ETL+DB)",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "percent",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ]
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "cloudwatch",
+          "fill": 0,
+          "id": 1,
+          "legend": {
+            "alignAsTable": false,
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "rightSide": true,
+            "show": true,
+            "sideWidth": 100,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 2,
+          "links": [],
+          "nullPointMode": "connected",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [
+            {
+              "alias": "JHH Total",
+              "color": "#7EB26D"
+            },
+            {
+              "alias": "JHH Extract",
+              "color": "#7EB26D",
+              "dashes": true
+            },
+            {
+              "alias": "HCGH Total",
+              "color": "#65C5DB"
+            },
+            {
+              "alias": "HCGH Extract",
+              "color": "#6ED0E0",
+              "dashes": true
+            },
+            {
+              "alias": "BMC Total",
+              "color": "#EAB839"
+            },
+            {
+              "alias": "BMC Extract",
+              "color": "#EAB839",
+              "dashes": true
+            }
+          ],
+          "spaceLength": 10,
           "span": 6,
           "stack": false,
           "steppedLine": false,
           "targets": [
             {
+              "alias": "JHH Extract",
+              "dimensions": {
+                "ETL": "opsdx_dev"
+              },
+              "expr": "",
+              "hide": false,
+              "intervalFactor": 2,
+              "metricName": "JHH_ExtractTime",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "alias": "JHH Total",
               "dimensions": {
                 "ETL": "opsdx_dev"
               },
               "expr": "",
               "intervalFactor": 2,
-              "metricName": "ExTrLoTime",
+              "metricName": "JHH_TotalTime",
               "namespace": "OpsDX",
               "period": "",
-              "refId": "A",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "alias": "BMC Extract",
+              "dimensions": {
+                "ETL": "opsdx_dev"
+              },
+              "expr": "",
+              "intervalFactor": 2,
+              "metricName": "BMC_ExtractTime",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "C",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "alias": "BMC Total",
+              "dimensions": {
+                "ETL": "opsdx_dev"
+              },
+              "expr": "",
+              "intervalFactor": 2,
+              "metricName": "BMC_TotalTime",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "D",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "alias": "HCGH Extract",
+              "dimensions": {
+                "ETL": "opsdx_dev"
+              },
+              "expr": "",
+              "intervalFactor": 2,
+              "metricName": "HCGH_ExtractTime",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "E",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "alias": "HCGH Total",
+              "dimensions": {
+                "ETL": "opsdx_dev"
+              },
+              "expr": "",
+              "intervalFactor": 2,
+              "metricName": "HCGH_TotalTime",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "F",
               "region": "us-east-1",
               "statistics": [
                 "Average"
@@ -177,7 +561,7 @@
           },
           "yaxes": [
             {
-              "format": "short",
+              "format": "s",
               "label": null,
               "logBase": 1,
               "max": null,
@@ -190,7 +574,7 @@
               "logBase": 1,
               "max": null,
               "min": null,
-              "show": true
+              "show": false
             }
           ]
         },
@@ -201,13 +585,15 @@
           "dashes": false,
           "datasource": "cloudwatch",
           "fill": 1,
-          "id": 8,
+          "id": 9,
           "legend": {
+            "alignAsTable": true,
             "avg": false,
             "current": false,
             "max": false,
             "min": false,
-            "show": false,
+            "rightSide": true,
+            "show": true,
             "total": false,
             "values": false
           },
@@ -221,96 +607,14 @@
           "renderer": "flot",
           "seriesOverrides": [],
           "spaceLength": 10,
-          "span": 3,
-          "stack": false,
+          "span": 6,
+          "stack": true,
           "steppedLine": false,
           "targets": [
             {
+              "alias": "HCGH",
               "dimensions": {
-                "ETL": "opsdx_dev"
-              },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "ExTrLoTime",
-              "namespace": "OpsDX",
-              "period": "",
-              "refId": "A",
-              "region": "us-east-1",
-              "statistics": [
-                "SampleCount"
-              ]
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeShift": null,
-          "title": "# Invocations",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ]
-        },
-        {
-          "aliasColors": {},
-          "bars": true,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "cloudwatch",
-          "fill": 1,
-          "id": 9,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "show": false,
-            "total": false,
-            "values": false
-          },
-          "lines": false,
-          "linewidth": 1,
-          "links": [],
-          "nullPointMode": "null",
-          "percentage": false,
-          "pointradius": 5,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "span": 3,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "dimensions": {
-                "FunctionName": "opsdx-dev-etl-lambda"
+                "FunctionName": "opsdx-dev-etl-lambda-HCGH"
               },
               "expr": "",
               "intervalFactor": 2,
@@ -322,12 +626,54 @@
               "statistics": [
                 "Average"
               ]
+            },
+            {
+              "alias": "BMC",
+              "dimensions": {
+                "FunctionName": "opsdx-dev-etl-lambda-BMC"
+              },
+              "metricName": "Invocations",
+              "namespace": "AWS/Lambda",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "alias": "JHH",
+              "dimensions": {
+                "FunctionName": "opsdx-dev-etl-lambda-JHH"
+              },
+              "metricName": "Invocations",
+              "namespace": "AWS/Lambda",
+              "period": "",
+              "refId": "C",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "alias": "Completions",
+              "dimensions": {
+                "ETL": "opsdx_dev"
+              },
+              "metricName": "NumBeddedPatients",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "D",
+              "region": "us-east-1",
+              "statistics": [
+                "SampleCount"
+              ]
             }
           ],
           "thresholds": [],
           "timeFrom": null,
           "timeShift": null,
-          "title": "# Lambda Calls",
+          "title": "Invocations & Completions",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -344,10 +690,10 @@
           "yaxes": [
             {
               "format": "short",
-              "label": null,
+              "label": "",
               "logBase": 1,
               "max": null,
-              "min": null,
+              "min": "0",
               "show": true
             },
             {
@@ -385,7 +731,9 @@
             "current": false,
             "max": false,
             "min": false,
-            "show": false,
+            "rightSide": true,
+            "show": true,
+            "sideWidth": 55,
             "total": false,
             "values": false
           },
@@ -404,15 +752,49 @@
           "steppedLine": false,
           "targets": [
             {
+              "alias": "JHH",
               "dimensions": {
                 "ETL": "opsdx_dev"
               },
               "expr": "",
               "intervalFactor": 2,
-              "metricName": "NumFlowsheets",
+              "metricName": "JHH_NumFlowsheets",
               "namespace": "OpsDX",
               "period": "",
               "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "alias": "BMC",
+              "dimensions": {
+                "ETL": "opsdx_dev"
+              },
+              "expr": "",
+              "hide": false,
+              "intervalFactor": 2,
+              "metricName": "BMC_NumFlowsheets",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "alias": "HCGH",
+              "dimensions": {
+                "ETL": "opsdx_dev"
+              },
+              "expr": "",
+              "intervalFactor": 2,
+              "metricName": "HCGH_NumFlowsheets",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "C",
               "region": "us-east-1",
               "statistics": [
                 "Average"
@@ -451,7 +833,7 @@
               "logBase": 1,
               "max": null,
               "min": null,
-              "show": true
+              "show": false
             }
           ]
         },
@@ -468,7 +850,9 @@
             "current": false,
             "max": false,
             "min": false,
-            "show": false,
+            "rightSide": true,
+            "show": true,
+            "sideWidth": 55,
             "total": false,
             "values": false
           },
@@ -487,15 +871,48 @@
           "steppedLine": false,
           "targets": [
             {
+              "alias": "JHH",
               "dimensions": {
                 "ETL": "opsdx_dev"
               },
               "expr": "",
               "intervalFactor": 2,
-              "metricName": "NumBeddedPatients",
+              "metricName": "JHH_NumBeddedPatients",
               "namespace": "OpsDX",
               "period": "",
               "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "alias": "BMC",
+              "dimensions": {
+                "ETL": "opsdx_dev"
+              },
+              "expr": "",
+              "intervalFactor": 2,
+              "metricName": "BMC_NumBeddedPatients",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "alias": "HCGH",
+              "dimensions": {
+                "ETL": "opsdx_dev"
+              },
+              "expr": "",
+              "intervalFactor": 2,
+              "metricName": "HCGH_NumBeddedPatients",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "C",
               "region": "us-east-1",
               "statistics": [
                 "Average"
@@ -534,7 +951,7 @@
               "logBase": 1,
               "max": null,
               "min": null,
-              "show": true
+              "show": false
             }
           ]
         },
@@ -551,7 +968,9 @@
             "current": false,
             "max": false,
             "min": false,
-            "show": false,
+            "rightSide": true,
+            "show": true,
+            "sideWidth": 55,
             "total": false,
             "values": false
           },
@@ -570,15 +989,48 @@
           "steppedLine": false,
           "targets": [
             {
+              "alias": "JHH",
               "dimensions": {
                 "ETL": "opsdx_dev"
               },
               "expr": "",
               "intervalFactor": 2,
-              "metricName": "NumLocationHistory",
+              "metricName": "JHH_NumLocationHistory",
               "namespace": "OpsDX",
               "period": "",
               "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "alias": "BMC",
+              "dimensions": {
+                "ETL": "opsdx_dev"
+              },
+              "expr": "",
+              "intervalFactor": 2,
+              "metricName": "BMC_NumLocationHistory",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "alias": "HCGH",
+              "dimensions": {
+                "ETL": "opsdx_dev"
+              },
+              "expr": "",
+              "intervalFactor": 2,
+              "metricName": "HCGH_NumLocationHistory",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "C",
               "region": "us-east-1",
               "statistics": [
                 "Average"
@@ -617,7 +1069,7 @@
               "logBase": 1,
               "max": null,
               "min": null,
-              "show": true
+              "show": false
             }
           ]
         },
@@ -634,7 +1086,9 @@
             "current": false,
             "max": false,
             "min": false,
-            "show": false,
+            "rightSide": true,
+            "show": true,
+            "sideWidth": 55,
             "total": false,
             "values": false
           },
@@ -653,15 +1107,48 @@
           "steppedLine": false,
           "targets": [
             {
+              "alias": "JHH",
               "dimensions": {
                 "ETL": "opsdx_dev"
               },
               "expr": "",
               "intervalFactor": 2,
-              "metricName": "NumLabOrders",
+              "metricName": "JHH_NumLabOrders",
               "namespace": "OpsDX",
               "period": "",
               "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "alias": "BMC",
+              "dimensions": {
+                "ETL": "opsdx_dev"
+              },
+              "expr": "",
+              "intervalFactor": 2,
+              "metricName": "BMC_NumLabOrders",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "alias": "HCGH",
+              "dimensions": {
+                "ETL": "opsdx_dev"
+              },
+              "expr": "",
+              "intervalFactor": 2,
+              "metricName": "HCGH_NumLabOrders",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "C",
               "region": "us-east-1",
               "statistics": [
                 "Average"
@@ -700,7 +1187,7 @@
               "logBase": 1,
               "max": null,
               "min": null,
-              "show": true
+              "show": false
             }
           ]
         },
@@ -717,7 +1204,9 @@
             "current": false,
             "max": false,
             "min": false,
-            "show": false,
+            "rightSide": true,
+            "show": true,
+            "sideWidth": 51,
             "total": false,
             "values": false
           },
@@ -736,15 +1225,48 @@
           "steppedLine": false,
           "targets": [
             {
+              "alias": "JHH",
               "dimensions": {
                 "ETL": "opsdx_dev"
               },
               "expr": "",
               "intervalFactor": 2,
-              "metricName": "NumLabResults",
+              "metricName": "JHH_NumLabResults",
               "namespace": "OpsDX",
               "period": "",
               "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "alias": "BMC",
+              "dimensions": {
+                "ETL": "opsdx_dev"
+              },
+              "expr": "",
+              "intervalFactor": 2,
+              "metricName": "BMC_NumLabResults",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "alias": "HCGH",
+              "dimensions": {
+                "ETL": "opsdx_dev"
+              },
+              "expr": "",
+              "intervalFactor": 2,
+              "metricName": "HCGH_NumLabResults",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "C",
               "region": "us-east-1",
               "statistics": [
                 "Average"
@@ -783,7 +1305,7 @@
               "logBase": 1,
               "max": null,
               "min": null,
-              "show": true
+              "show": false
             }
           ]
         },
@@ -800,7 +1322,9 @@
             "current": false,
             "max": false,
             "min": false,
-            "show": false,
+            "rightSide": true,
+            "show": true,
+            "sideWidth": 51,
             "total": false,
             "values": false
           },
@@ -819,15 +1343,48 @@
           "steppedLine": false,
           "targets": [
             {
+              "alias": "JHH",
               "dimensions": {
                 "ETL": "opsdx_dev"
               },
               "expr": "",
               "intervalFactor": 2,
-              "metricName": "NumMedOrders",
+              "metricName": "JHH_NumMedOrders",
               "namespace": "OpsDX",
               "period": "",
               "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "alias": "BMC",
+              "dimensions": {
+                "ETL": "opsdx_dev"
+              },
+              "expr": "",
+              "intervalFactor": 2,
+              "metricName": "BMC_NumMedOrders",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "alias": "HCGH",
+              "dimensions": {
+                "ETL": "opsdx_dev"
+              },
+              "expr": "",
+              "intervalFactor": 2,
+              "metricName": "HCGH_NumMedOrders",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "C",
               "region": "us-east-1",
               "statistics": [
                 "Average"
@@ -866,7 +1423,7 @@
               "logBase": 1,
               "max": null,
               "min": null,
-              "show": true
+              "show": false
             }
           ]
         },
@@ -883,7 +1440,9 @@
             "current": false,
             "max": false,
             "min": false,
-            "show": false,
+            "rightSide": true,
+            "show": true,
+            "sideWidth": 51,
             "total": false,
             "values": false
           },
@@ -902,15 +1461,48 @@
           "steppedLine": false,
           "targets": [
             {
+              "alias": "JHH",
               "dimensions": {
                 "ETL": "opsdx_dev"
               },
               "expr": "",
               "intervalFactor": 2,
-              "metricName": "NumMedAdmin",
+              "metricName": "JHH_NumMedAdmin",
               "namespace": "OpsDX",
               "period": "",
               "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "alias": "BMC",
+              "dimensions": {
+                "ETL": "opsdx_dev"
+              },
+              "expr": "",
+              "intervalFactor": 2,
+              "metricName": "BMC_NumMedAdmin",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "alias": "HCGH",
+              "dimensions": {
+                "ETL": "opsdx_dev"
+              },
+              "expr": "",
+              "intervalFactor": 2,
+              "metricName": "HCGH_NumMedAdmin",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "C",
               "region": "us-east-1",
               "statistics": [
                 "Average"
@@ -949,7 +1541,7 @@
               "logBase": 1,
               "max": null,
               "min": null,
-              "show": true
+              "show": false
             }
           ]
         }
@@ -1001,5 +1593,5 @@
   },
   "timezone": "browser",
   "title": "OpsDX Dev ETL",
-  "version": 0
+  "version": 11
 }

@@ -6,7 +6,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "hideControls": false,
-  "id": 3,
+  "id": 4,
   "links": [],
   "refresh": "5s",
   "rows": [
@@ -86,6 +86,7 @@
           ],
           "thresholds": "",
           "title": "# requests / m",
+          "transparent": true,
           "type": "singlestat",
           "valueFontSize": "80%",
           "valueMaps": [
@@ -95,7 +96,7 @@
               "value": "null"
             }
           ],
-          "valueName": "avg"
+          "valueName": "current"
         },
         {
           "cacheTimeout": null,
@@ -156,7 +157,7 @@
             {
               "alias": "",
               "dimensions": {
-                "LoadBalancerName": "ae341de171bd811e7bcf90e69d2ca30d"
+                "LoadBalancerName": "aa9fd46b65b7f11e7952b12a1bba98f6"
               },
               "expr": "",
               "intervalFactor": 2,
@@ -172,6 +173,7 @@
           ],
           "thresholds": "",
           "title": "# ELB requests / m",
+          "transparent": true,
           "type": "singlestat",
           "valueFontSize": "80%",
           "valueMaps": [
@@ -181,7 +183,7 @@
               "value": "null"
             }
           ],
-          "valueName": "avg"
+          "valueName": "current"
         }
       ],
       "repeat": null,
@@ -200,7 +202,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "prometheus",
+          "datasource": "-- Mixed --",
           "fill": 0,
           "id": 18,
           "legend": {
@@ -212,6 +214,8 @@
             "min": false,
             "rightSide": true,
             "show": true,
+            "sort": null,
+            "sortDesc": null,
             "total": false,
             "values": true
           },
@@ -230,25 +234,9 @@
           "steppedLine": false,
           "targets": [
             {
-              "dimensions": {},
-              "expr": "sum(rate(container_cpu_usage_seconds_total{pod_name=~\"epic2op-dev.*\", image=~\".*trews-etl.*\"}[2m])) by (pod_name)",
-              "hide": false,
-              "interval": "",
-              "intervalFactor": 2,
-              "legendFormat": "epic2op-dev",
-              "metric": "",
-              "metricName": "",
-              "namespace": "",
-              "period": "",
-              "refId": "A",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ],
-              "step": 2
-            },
-            {
-              "expr": "label_replace(sum(rate(container_cpu_usage_seconds_total{pod_name=~\".*trews.*\", image=~\".*trews-rest-api.*\"}[2m])) by (pod_name), \"pod_lbl\", \"trews-api-$1\", \"pod_name\", \"trews-rest-api-[0-9a-zA-Z]*-(.*)\")",
+              "datasource": "prometheus",
+              "expr": "label_replace(sum(rate(container_cpu_usage_seconds_total{pod_name=~\".*trews.*\", image=~\".*trews-rest-api.*\"}[2m])) by (pod_name), \"pod_lbl\", \"trews-api-$1\", \"pod_name\", \"trews-rest-api-[0-9a-zA-Z]*-(.*)\") * 100",
+              "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 2,
@@ -258,7 +246,9 @@
               "step": 2
             },
             {
-              "expr": "sum(rate(container_cpu_usage_seconds_total[2m])) / sum(machine_cpu_cores)",
+              "datasource": "prometheus",
+              "expr": "sum(rate(container_cpu_usage_seconds_total[2m])) / sum(machine_cpu_cores) * 100",
+              "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 2,
@@ -268,7 +258,9 @@
               "step": 2
             },
             {
-              "expr": "label_replace(sum(rate(container_cpu_usage_seconds_total{pod_name=~\"trews-rest-api.*\", image=~\".*nginx.*\"}[2m])) by (pod_name), \"pod_lbl\",  \"nginx-$1\", \"pod_name\", \"trews-rest-api-[0-9a-zA-Z]*-(.*)\")",
+              "datasource": "prometheus",
+              "expr": "label_replace(sum(rate(container_cpu_usage_seconds_total{pod_name=~\"trews-rest-api.*\", image=~\".*nginx.*\"}[2m])) by (pod_name), \"pod_lbl\",  \"nginx-$1\", \"pod_name\", \"trews-rest-api-[0-9a-zA-Z]*-(.*)\") * 100",
+              "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 2,
@@ -276,12 +268,27 @@
               "metric": "",
               "refId": "E",
               "step": 2
+            },
+            {
+              "alias": "DB",
+              "datasource": "cloudwatch",
+              "dimensions": {
+                "DBInstanceIdentifier": "opsdx-dev"
+              },
+              "metricName": "CPUUtilization",
+              "namespace": "AWS/RDS",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
             }
           ],
           "thresholds": [],
           "timeFrom": null,
           "timeShift": null,
-          "title": "CPU Utilization (WS, ETL, Total)",
+          "title": "CPU Utilization (WS, Total)",
           "tooltip": {
             "shared": false,
             "sort": 0,
@@ -298,7 +305,7 @@
           },
           "yaxes": [
             {
-              "format": "percentunit",
+              "format": "percent",
               "label": null,
               "logBase": 1,
               "max": null,
@@ -350,6 +357,7 @@
           "targets": [
             {
               "expr": "label_replace(sum(rate(container_cpu_usage_seconds_total{pod_name=~\".*trews.*\", image=~\".*trews-rest-api.*\"}[2m])) by (pod_name), \"pod_lbl\", \"trews-api-$1\", \"pod_name\", \"trews-rest-api-[0-9a-zA-Z]*-(.*)\")",
+              "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 2,
@@ -360,6 +368,7 @@
             },
             {
               "expr": "label_replace(sum(rate(container_cpu_usage_seconds_total{pod_name=~\"trews-rest-api.*\", image=~\".*nginx.*\"}[2m])) by (pod_name), \"pod_lbl\",  \"nginx-$1\", \"pod_name\", \"trews-rest-api-[0-9a-zA-Z]*-(.*)\")",
+              "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 2,
@@ -440,6 +449,7 @@
           "targets": [
             {
               "expr": "label_replace(sum(container_memory_working_set_bytes{pod_name=~\"trews-rest-api.*\", image=~\".*trews-rest-api.*\"}) by (pod_name), \"pod_lbl\", \"trews-api-$1\", \"pod_name\", \"trews-rest-api-[0-9a-zA-Z]*-(.*)\")",
+              "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 2,
@@ -450,6 +460,7 @@
             },
             {
               "expr": "label_replace(sum(container_memory_working_set_bytes{pod_name=~\"trews-rest-api.*\", image=~\".*nginx.*\"}) by (pod_name), \"pod_lbl\", \"nginx-$1\", \"pod_name\", \"trews-rest-api-[0-9a-zA-Z]*-(.*)\")",
+              "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
               "legendFormat": "{{ pod_lbl }}",
@@ -513,7 +524,7 @@
           "lines": true,
           "linewidth": 1,
           "links": [],
-          "nullPointMode": "null",
+          "nullPointMode": "connected",
           "percentage": false,
           "pointradius": 5,
           "points": false,
@@ -937,12 +948,14 @@
       "titleSize": "h6"
     },
     {
-      "collapse": true,
+      "collapse": false,
       "height": 250,
       "panels": [
         {
           "aliasColors": {},
           "bars": false,
+          "dashLength": 10,
+          "dashes": false,
           "datasource": "cloudwatch",
           "fill": 1,
           "id": 4,
@@ -964,13 +977,14 @@
           "points": false,
           "renderer": "flot",
           "seriesOverrides": [],
+          "spaceLength": 10,
           "span": 6,
           "stack": false,
           "steppedLine": false,
           "targets": [
             {
               "dimensions": {
-                "LoadBalancerName": "ae341de171bd811e7bcf90e69d2ca30d"
+                "LoadBalancerName": "aa9fd46b65b7f11e7952b12a1bba98f6"
               },
               "expr": "",
               "intervalFactor": 2,
@@ -985,7 +999,7 @@
             },
             {
               "dimensions": {
-                "LoadBalancerName": "ae341de171bd811e7bcf90e69d2ca30d"
+                "LoadBalancerName": "aa9fd46b65b7f11e7952b12a1bba98f6"
               },
               "metricName": "SurgeQueueLength",
               "namespace": "AWS/ELB",
@@ -1008,6 +1022,7 @@
           },
           "type": "graph",
           "xaxis": {
+            "buckets": null,
             "mode": "time",
             "name": null,
             "show": true,
@@ -1035,6 +1050,8 @@
         {
           "aliasColors": {},
           "bars": false,
+          "dashLength": 10,
+          "dashes": false,
           "datasource": "cloudwatch",
           "fill": 1,
           "id": 5,
@@ -1056,13 +1073,14 @@
           "points": false,
           "renderer": "flot",
           "seriesOverrides": [],
+          "spaceLength": 10,
           "span": 6,
           "stack": false,
           "steppedLine": false,
           "targets": [
             {
               "dimensions": {
-                "LoadBalancerName": "ae341de171bd811e7bcf90e69d2ca30d"
+                "LoadBalancerName": "aa9fd46b65b7f11e7952b12a1bba98f6"
               },
               "expr": "",
               "intervalFactor": 2,
@@ -1087,6 +1105,7 @@
           },
           "type": "graph",
           "xaxis": {
+            "buckets": null,
             "mode": "time",
             "name": null,
             "show": true,
@@ -1117,590 +1136,6 @@
       "repeatRowId": null,
       "showTitle": true,
       "title": "ELB",
-      "titleSize": "h6"
-    },
-    {
-      "collapse": false,
-      "height": 250,
-      "panels": [
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "cloudwatch",
-          "fill": 1,
-          "id": 6,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "show": false,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "links": [],
-          "nullPointMode": "null",
-          "percentage": false,
-          "pointradius": 5,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "span": 4,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "dimensions": {
-                "DBInstanceIdentifier": "opsdx-dev"
-              },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "CPUUtilization",
-              "namespace": "AWS/RDS",
-              "period": "",
-              "refId": "A",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ]
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeShift": null,
-          "title": "CPU Utilization",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ]
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "cloudwatch",
-          "fill": 1,
-          "id": 7,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "show": true,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "links": [],
-          "nullPointMode": "null",
-          "percentage": false,
-          "pointradius": 5,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "span": 4,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "alias": "Connections",
-              "dimensions": {
-                "DBInstanceIdentifier": "opsdx-dev"
-              },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "DatabaseConnections",
-              "namespace": "AWS/RDS",
-              "period": "",
-              "refId": "A",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ]
-            },
-            {
-              "alias": "Bad Login",
-              "dimensions": {
-                "DBInstanceIdentifier": "opsdx-dev"
-              },
-              "metricName": "LoginFailures",
-              "namespace": "AWS/RDS",
-              "period": "",
-              "refId": "B",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ]
-            },
-            {
-              "alias": "Bad SQL",
-              "dimensions": {
-                "DBInstanceIdentifier": "opsdx-dev"
-              },
-              "metricName": "FailedSqlStatements",
-              "namespace": "AWS/RDS",
-              "period": "",
-              "refId": "C",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ]
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeShift": null,
-          "title": "Connections",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ]
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "cloudwatch",
-          "fill": 1,
-          "id": 8,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "show": false,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "links": [],
-          "nullPointMode": "null",
-          "percentage": false,
-          "pointradius": 5,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "span": 4,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "dimensions": {
-                "DBInstanceIdentifier": "opsdx-dev"
-              },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "FreeStorageSpace",
-              "namespace": "AWS/RDS",
-              "period": "",
-              "refId": "A",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ]
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeShift": null,
-          "title": "Free Space",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "bytes",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ]
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "cloudwatch",
-          "fill": 1,
-          "id": 9,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "show": true,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "links": [],
-          "nullPointMode": "null",
-          "percentage": false,
-          "pointradius": 5,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "span": 3,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "alias": "Read",
-              "dimensions": {
-                "DBInstanceIdentifier": "opsdx-dev"
-              },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "ReadThroughput",
-              "namespace": "AWS/RDS",
-              "period": "",
-              "refId": "A",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ]
-            },
-            {
-              "alias": "Write",
-              "dimensions": {
-                "DBInstanceIdentifier": "opsdx-dev"
-              },
-              "metricName": "WriteThroughput",
-              "namespace": "AWS/RDS",
-              "period": "",
-              "refId": "B",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ]
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeShift": null,
-          "title": "Throughput",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "bytes",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ]
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "cloudwatch",
-          "fill": 1,
-          "id": 11,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "show": true,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "links": [],
-          "nullPointMode": "null",
-          "percentage": false,
-          "pointradius": 5,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "span": 3,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "alias": "Recv",
-              "dimensions": {
-                "DBInstanceIdentifier": "opsdx-dev"
-              },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "NetworkReceiveThroughput",
-              "namespace": "AWS/RDS",
-              "period": "",
-              "refId": "A",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ]
-            },
-            {
-              "alias": "Send",
-              "dimensions": {
-                "DBInstanceIdentifier": "opsdx-dev"
-              },
-              "metricName": "NetworkTransmitThroughput",
-              "namespace": "AWS/RDS",
-              "period": "",
-              "refId": "B",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ]
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeShift": null,
-          "title": "Network I/O",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "bytes",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": false
-            }
-          ]
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "cloudwatch",
-          "fill": 1,
-          "id": 10,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "show": true,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "links": [],
-          "nullPointMode": "null",
-          "percentage": false,
-          "pointradius": 5,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "span": 6,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "alias": "Read",
-              "dimensions": {
-                "DBInstanceIdentifier": "opsdx-dev"
-              },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "ReadLatency",
-              "namespace": "AWS/RDS",
-              "period": "",
-              "refId": "A",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ]
-            },
-            {
-              "alias": "Write",
-              "dimensions": {
-                "DBInstanceIdentifier": "opsdx-dev"
-              },
-              "metricName": "WriteLatency",
-              "namespace": "AWS/RDS",
-              "period": "",
-              "refId": "B",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ]
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeShift": null,
-          "title": "Latency",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ]
-        }
-      ],
-      "repeat": null,
-      "repeatIteration": null,
-      "repeatRowId": null,
-      "showTitle": true,
-      "title": "DB",
       "titleSize": "h6"
     }
   ],
@@ -1742,6 +1177,6 @@
     ]
   },
   "timezone": "browser",
-  "title": "OpsDX Dev Performance",
+  "title": "OpsDX Dev Web",
   "version": 9
 }
