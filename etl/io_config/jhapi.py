@@ -66,10 +66,10 @@ class JHAPIConfig:
         future = asyncio.ensure_future(run(request_settings, ctxt.loop), loop=ctxt.loop)
         ctxt.loop.run_until_complete(future)
         return future.result()
-      except (client_exceptions.ClientConnectorError,
-              client_exceptions.ClientOSError) as e:
+      except Exception as e:
         if attempt < attempts - 1: # need -1 because attempt is 0 indexed
           logging.error("Caught {}, retrying...".format(type(e)))
+          logging.exception(e)
           sleep(10)
           continue
         raise
