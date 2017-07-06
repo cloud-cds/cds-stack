@@ -223,12 +223,69 @@ resource "aws_cloudwatch_metric_alarm" "high_browser_latency" {
   namespace                 = "OpsDX"
   period                    = "60"
   statistic                 = "Average"
-  threshold                 = "500"
+  threshold                 = "1000"
   alarm_description         = "Average browser-side latency in the past minute"
   alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
 
   dimensions {
     Browser = "opsdx-dev"
+  }
+}
+
+
+# Real-time database overload alarms.
+resource "aws_cloudwatch_metric_alarm" "db_overload" {
+  alarm_name                = "${var.deploy_prefix}-db-overload"
+  comparison_operator       = "GreaterThanOrEqualToThreshold"
+  evaluation_periods        = "72"
+  metric_name               = "CPUUtilization"
+  namespace                 = "AWS/RDS"
+  period                    = "300"
+  statistic                 = "Average"
+  threshold                 = "85"
+  alarm_description         = "DB CPU utilization in the past 6 hours"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    DBInstanceIdentifier = "opsdx-dev"
+  }
+}
+
+# Database free space alarms.
+resource "aws_cloudwatch_metric_alarm" "db_low_space" {
+  alarm_name                = "${var.deploy_prefix}-db-low-space"
+  comparison_operator       = "LessThanOrEqualToThreshold"
+  evaluation_periods        = "1"
+  metric_name               = "FreeStorageSpace"
+  namespace                 = "AWS/RDS"
+  period                    = "60"
+  statistic                 = "Average"
+  threshold                 = "20000000000"
+  alarm_description         = "DB free space in the past minute"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    DBInstanceIdentifier = "opsdx-dev"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "dw_low_space" {
+  alarm_name                = "${var.deploy_prefix}-dw-low-space"
+  comparison_operator       = "LessThanOrEqualToThreshold"
+  evaluation_periods        = "1"
+  metric_name               = "FreeStorageSpace"
+  namespace                 = "AWS/RDS"
+  period                    = "60"
+  statistic                 = "Average"
+  threshold                 = "50000000000"
+  alarm_description         = "DW free space in the past minute"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    DBInstanceIdentifier = "opsdx-dev-dw"
   }
 }
