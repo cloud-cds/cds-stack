@@ -810,7 +810,8 @@ where procs.proc_id in
 '165547',
 '3041752',
 '22362','22364','22366','22368','22370','22372','22374','22376','66891','66895','66899','66903','66907','66911','66915','66919','66923','66927','66931','66935','66939','66943','66947','66951','66955','66959','66963','66967','291','293','295','297','301','303', -- dialysis
-'165547', '100019', '101181', '101462', '110189', '88472', '102659', '132829', '70526', '132833', '132837', '132841', '132845', '132849', '115282', '115487', '35162', '165835', '133001', '133005', '133009', '165547', '100019', '101181', '101462', '110189', '88472', '102659', '132829', '70526', '132833', '132837', '132841', '132845', '132849', '115282', '115487', '35162', '165835', '133001', '133005', '133009' -- IABP and others
+'165547', '100019', '101181', '101462', '110189', '88472', '102659', '132829', '70526', '132833', '132837', '132841', '132845', '132849', '115282', '115487', '35162', '165835', '133001', '133005', '133009', '165547', '100019', '101181', '101462', '110189', '88472', '102659', '132829', '70526', '132833', '132837', '132841', '132845', '132849', '115282', '115487', '35162', '165835', '133001', '133005', '133009', -- IABP and others
+'507' ,'501' ,'403' ,'108313' ,'497' ,'111392' ,'174117' ,'491' ,'67748' ,'2000' ,'161922' ,'34244' ,'115285' ,'144299' -- echo orders
 );
 GO
 
@@ -913,10 +914,15 @@ WHERE info.DELETE_USER_ID IS NULL
 GO
 
 :OUT \\\\Client\F$\clarity\\order_narrative.{idx}.rpt
-SET NOCOUNT ON
-select ORDER_PROC_ID, LINE, NARRATIVE, ORD_DATE_REAL, CONTACT_DATE, IS_ARCHIVED_YN
-from order_narrative
-where CONTACT_DATE >= '{start_date}' and CONTACT_DATE < '{end_date}';
+select
+	PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID,
+	op.PROC_ID OrderProcId, -- selected to be the same as OrderProcs, though this may create confusion.
+	op.display_name order_display_name,
+	order_narrative.*
+from
+	order_narrative
+	inner join clarity..order_proc op on order_narrative.ORDER_PROC_ID = op.ORDER_PROC_ID
+	INNER JOIN Analytics.dbo.CCDA643_CSNLookupTable pat_enc_hsp_1 ON pat_enc_hsp_1.pat_enc_csn_id = op.PAT_ENC_CSN_ID
 GO
 
 
