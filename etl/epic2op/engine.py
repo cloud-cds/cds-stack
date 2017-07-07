@@ -11,7 +11,6 @@ import etl.io_config.core as core
 import os, sys, traceback, functools
 import pandas as pd
 import datetime as dt
-import dateparser
 import logging
 import asyncio
 import asyncpg, aiohttp
@@ -287,10 +286,8 @@ def add_column(ctxt, df, col_name, col_data):
   return df
 
 def tz_hack(ctxt, df):
-  est_fmt = '%Y-%m-%dT%H:%M:%S-05:00'
-  five_hr = dt.timedelta(hours=5)
   if not df.empty:
-    df['tsp'] = df['tsp'].apply(lambda x: (dateparser.parse(x) - five_hr).strftime(est_fmt))
+    df['tsp'] = df['tsp'].str.replace('-04:00', '+00:00')
   return df
 
 def skip_none(df, transform_function):
