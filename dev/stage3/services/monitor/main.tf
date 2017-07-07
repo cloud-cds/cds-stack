@@ -156,16 +156,16 @@ resource "aws_cloudwatch_metric_alarm" "etl_nodes_inservice" {
 }
 
 # ETL failures
-resource "aws_cloudwatch_metric_alarm" "etl_up" {
-  alarm_name                = "${var.deploy_prefix}-etl-up"
+resource "aws_cloudwatch_metric_alarm" "hcgh_etl_up" {
+  alarm_name                = "${var.deploy_prefix}-hcgh-etl-up"
   comparison_operator       = "LessThanThreshold"
   evaluation_periods        = "2"
-  metric_name               = "NumBeddedPatients"
+  metric_name               = "HCGH_NumBeddedPatients"
   namespace                 = "OpsDX"
   period                    = "3600"
   statistic                 = "SampleCount"
   threshold                 = "3"
-  alarm_description         = "Dev ETL invocations in the past hour"
+  alarm_description         = "HCGH Dev ETL invocations in the past hour"
   alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
 
@@ -173,6 +173,43 @@ resource "aws_cloudwatch_metric_alarm" "etl_up" {
     ETL = "opsdx_dev"
   }
 }
+
+resource "aws_cloudwatch_metric_alarm" "bmc_etl_up" {
+  alarm_name                = "${var.deploy_prefix}-bmc-etl-up"
+  comparison_operator       = "LessThanThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "BMC_NumBeddedPatients"
+  namespace                 = "OpsDX"
+  period                    = "3600"
+  statistic                 = "SampleCount"
+  threshold                 = "3"
+  alarm_description         = "BMC Dev ETL invocations in the past hour"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    ETL = "opsdx_dev"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "jhh_etl_up" {
+  alarm_name                = "${var.deploy_prefix}-jhh-etl-up"
+  comparison_operator       = "LessThanThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "JHH_NumBeddedPatients"
+  namespace                 = "OpsDX"
+  period                    = "3600"
+  statistic                 = "SampleCount"
+  threshold                 = "3"
+  alarm_description         = "JHH Dev ETL invocations in the past hour"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    ETL = "opsdx_dev"
+  }
+}
+
 
 # Ping failures
 resource "aws_cloudwatch_metric_alarm" "ping_up" {
