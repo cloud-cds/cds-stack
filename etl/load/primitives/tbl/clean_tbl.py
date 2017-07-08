@@ -14,11 +14,11 @@ def cdm_twf_clean(fid, value='null', confidence='null', twf_table='cdm_twf',
             incremental_enc_id_in(' and ', twf_table, dataset_id,incremental)}
   return update_sql
 
-def cdm_t_clean(fid, dataset_id=None, incremental=False):
+def cdm_t_clean(fid, dataset_id=None, incremental=False, cdm_t_target='cdm_t'):
   delete_sql = """
-  DELETE FROM cdm_t WHERE fid = '%(fid)s' %(dataset_block)s
+  DELETE FROM %(cdm_t)s WHERE fid = '%(fid)s' %(dataset_block)s
    %(incremental_enc_id_in)s;
-  """ % {'fid':fid, 'dataset_block': ' and dataset_id = %s' % dataset_id \
+  """ % {'cdm_t': cdm_t_target, 'fid':fid, 'dataset_block': ' and dataset_id = %s' % dataset_id \
             if dataset_id is not None else '',
          'incremental_enc_id_in': \
             incremental_enc_id_in(' and ', 'cdm_t', dataset_id,incremental)}

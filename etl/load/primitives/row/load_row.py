@@ -63,7 +63,7 @@ async def add_t(conn, row, dataset_id=None, log=None, many=False):
     await execute_load(conn, sql, log)
 
 
-async def upsert_t(conn, row, dataset_id=None, log=None, many=False):
+async def upsert_t(conn, row, dataset_id=None, log=None, many=False, cdm_t_target='cdm_t'):
   def format_value(dataset_id_val, row):
     return "({dataset_id_val} {enc_id}, '{tsp}', '{fid}', '{value}', {confidence})".format(
         dataset_id_val=dataset_id_val,
@@ -75,7 +75,7 @@ async def upsert_t(conn, row, dataset_id=None, log=None, many=False):
       )
 
   sql = '''
-    INSERT into cdm_t ({dataset_id_key} enc_id, tsp, fid, value, confidence)
+    INSERT into {cdm_t} ({dataset_id_key} enc_id, tsp, fid, value, confidence)
     values {values}
     on conflict ({dataset_id_key} enc_id, tsp, fid) do update
     set value = Excluded.value, confidence = Excluded.confidence;
@@ -91,13 +91,13 @@ async def upsert_t(conn, row, dataset_id=None, log=None, many=False):
       #   ])
       for row in chuck:
         values = format_value(dataset_id_val, row)
-        sqls += sql.format(values=values, dataset_id_key=dataset_id_key)
+        sqls += sql.format(values=values, dataset_id_key=dataset_id_key, cdm_t=cdm_t_target)
       log.info("loading chuck {}".format(i))
       await execute_load(conn, sqls, log)
       log.info("loaded chuck {}".format(i))
   else:
     values = format_value(dataset_id_val, row)
-    sql = sql.format(values=values, dataset_id_key=dataset_id_key)
+    sql = sql.format(values=values, dataset_id_key=dataset_id_key, cdm_t=cdm_t_target)
     await execute_load(conn, sql, log)
 
 async def upsert_s(conn, row, dataset_id=None, log=None, many=False):

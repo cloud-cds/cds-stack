@@ -4,7 +4,7 @@ import etl.load.primitives.row.load_row as load_row
 import etl.confidence as confidence
 
 
-async def admit_weight_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
+async def admit_weight_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
   if dataset_id is None:
     sql = '''
     insert into cdm_s (enc_id, fid, value, confidence)

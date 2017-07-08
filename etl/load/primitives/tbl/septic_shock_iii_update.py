@@ -2,7 +2,7 @@ import asyncio
 import etl.load.primitives.tbl.clean_tbl as clean_tbl
 from etl.load.primitives.tbl.derive_helper import *
 
-async def septic_shock_iii_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
+async def septic_shock_iii_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
   # UPDATE 8/19/2016
   assert fid == 'septic_shock_iii', 'wrong fid %s' % fid
   twf_table_temp = derive_feature_addr[fid]['twf_table_temp']
@@ -15,7 +15,7 @@ async def septic_shock_iii_update(fid, fid_input, conn, log, dataset_id, derive_
   update %(twf_table)s set septic_shock_iii=value from
   (select c1.enc_id, c1.tsp, 1 as value from
       (%(twf_table_join)s) c1
-  join (select * from cdm_t where fid='suspicion_of_infection'
+  join (select * from %(cdm_t)s cdm_t where fid='suspicion_of_infection'
    %(dataset_block)s %(incremental_cdm_t)s) c2
   on c1.enc_id=c2.enc_id and c2.tsp <=c1.tsp and c2.tsp >= c1.tsp - interval '6 hours') c3
   where %(twf_table)s.enc_id=c3.enc_id and %(twf_table)s.tsp=c3.tsp %(dataset_block)s;
@@ -23,7 +23,8 @@ async def septic_shock_iii_update(fid, fid_input, conn, log, dataset_id, derive_
          'dataset_block': ' and dataset_id = %s' % dataset_id if dataset_id is not None else '',
          'dataset_where_block': ' where dataset_id = %s' % dataset_id if dataset_id is not None else '',
          'twf_table_join': twf_table_join,
-         'incremental_cdm_t': incremental_enc_id_in(' and ', 'cdm_t', dataset_id,incremental)}
+         'incremental_cdm_t': incremental_enc_id_in(' and ', 'cdm_t', dataset_id,incremental),
+         'cdm_t': cdm_t_target}
 
   log.info("septic_shock_iii_update step one:%s" % update_clause)
   await conn.execute(update_clause)
