@@ -15,7 +15,7 @@ async def septic_shock_iii_update(fid, fid_input, conn, log, dataset_id, derive_
   update %(twf_table)s set septic_shock_iii=value from
   (select c1.enc_id, c1.tsp, 1 as value from
       (%(twf_table_join)s) c1
-  join (select * from %(cdm_t)s cdm_t where fid='suspicion_of_infection'
+  join (select * from %(cdm_t)s as cdm_t where fid='suspicion_of_infection'
    %(dataset_block)s %(incremental_cdm_t)s) c2
   on c1.enc_id=c2.enc_id and c2.tsp <=c1.tsp and c2.tsp >= c1.tsp - interval '6 hours') c3
   where %(twf_table)s.enc_id=c3.enc_id and %(twf_table)s.tsp=c3.tsp %(dataset_block)s;
