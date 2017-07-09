@@ -103,7 +103,7 @@ async def any_continuous_dose_update(fid, dose, conn, log, dataset_id=None,
   global STOPPED_ACTIONS
   select_sql = """
     select enc_id, tsp, value::json->>'action' as action, confidence
-    from %(cdm_t)s cdm_t where fid = '%(dose)s'%(with_ds)s %(incremental_enc_id_in)s
+    from %(cdm_t)s as cdm_t where fid = '%(dose)s'%(with_ds)s %(incremental_enc_id_in)s
     order by enc_id, tsp
   """ % {'cdm_t': cdm_t_target,'dose': dose, 'with_ds': with_ds(dataset_id),
          'incremental_enc_id_in': incremental_enc_id_in(' and ', 'cdm_t', dataset_id,
@@ -591,7 +591,7 @@ async def resp_sofa_update(fid, fid_input, conn, log, dataset_id, derive_feature
   INSERT INTO %(twf_table_temp)s (%(dataset_id)s
     enc_id, tsp, resp_sofa, resp_sofa_c)
   (
-    WITH vent as (select enc_id,tsp,fid from %(cdm_t)s cdm_t where fid = 'vent'
+    WITH vent as (select enc_id,tsp,fid from %(cdm_t)s as cdm_t where fid = 'vent'
     %(with_ds)s %(incremental_enc_id_in)s)
     SELECT %(dataset_id)s source.enc_id, source.tsp,
       (CASE
@@ -988,7 +988,7 @@ async def heart_attack_update(fid, fid_input, conn, log, dataset_id, derive_feat
   # Retrieve troponin above threshold
   # and EKG procedure order times to corroborate time of diagnosis
   select_ekg = """
-  SELECT * FROM %(cdm_t)s cdm_t
+  SELECT * FROM %(cdm_t)s as cdm_t
   WHERE
     cdm_t.fid ~ 'ekg_proc'
     and cdm_t.enc_id = %(enc_id)s%(with_ds)s
@@ -1072,7 +1072,7 @@ async def stroke_update(fid, fid_input, conn, log, dataset_id, derive_feature_ad
 
   # Retrieve CT and MRI order times to corroborate time of diagnosis
   select_sql = """
-  SELECT * FROM %(cdm_t)s cdm_t
+  SELECT * FROM %(cdm_t)s as cdm_t
   WHERE
     cdm_t.fid ~ 'ct_proc|mri_proc'
     and cdm_t.enc_id = %(enc_id)s%(with_ds)s
@@ -1127,7 +1127,7 @@ async def gi_bleed_update(fid, fid_input, conn, log, dataset_id, derive_feature_
 
   # Retrieve CT and MRI order times to corroborate time of diagnosis
   select_sql = """
-  SELECT * FROM %(cdm_t)s cdm_t
+  SELECT * FROM %(cdm_t)s as cdm_t
   WHERE
     cdm_t.fid ~ 'ct_proc|mri_proc'
     and cdm_t.enc_id = %(enc_id)s %(with_ds)s
@@ -1186,7 +1186,7 @@ async def severe_pancreatitis_update(fid, fid_input, conn, log, dataset_id, deri
 
   # Retrieve CT and MRI order times to corroborate time of diagnosis
   select_sql = """
-  SELECT * FROM %(cdm_t)s cdm_t
+  SELECT * FROM %(cdm_t)s as cdm_t
   WHERE
     cdm_t.fid ~ 'ct_proc|mri_proc'
     and cdm_t.enc_id = %(enc_id)s%(with_ds)s
@@ -1240,7 +1240,7 @@ async def pulmonary_emboli_update(fid, fid_input, conn, log, dataset_id, derive_
 
   # Retrieve CT and MRI order times to corroborate time of diagnosis
   select_sql = """
-  SELECT * FROM %(cdm_t)s cdm_t
+  SELECT * FROM %(cdm_t)s as cdm_t
   WHERE
     cdm_t.fid ~ 'ct_proc|mri_proc'
     and cdm_t.enc_id = %(enc_id)s%(with_ds)s
@@ -1294,7 +1294,7 @@ async def bronchitis_update(fid, fid_input, conn, log, dataset_id, derive_featur
 
   # Retrieve chest x-ray and bacterial culture order times to corroborate time of diagnosis
   select_sql = """
-  SELECT * FROM %(cdm_t)s cdm_t
+  SELECT * FROM %(cdm_t)s as cdm_t
   WHERE
     cdm_t.fid ~ 'chest_xray|bacterial_culture'
     and cdm_t.enc_id = %(enc_id)s%(with_ds)s
@@ -1348,15 +1348,15 @@ async def acute_kidney_failure_update(fid, fid_input, conn, log, dataset_id, der
     %(dataset_id_equal)s
     group by enc_id
   )
-  INSERT INTO %(cdm_t)s cdm_t (%(dataset_id)s enc_id, tsp, fid, value, confidence)
+  INSERT INTO %(cdm_t)s as cdm_t (%(dataset_id)s enc_id, tsp, fid, value, confidence)
   SELECT %(dataset_id)s enc_id, tsp, 'acute_kidney_failure' as fid, 'True' as value, max(conf) as confidence
   FROM (
     SELECT %(dataset_id_akfi)s akfi.enc_id, coalesce(least(cr.tsp, ur24.tsp, di.tsp), akfi.tsp) as tsp, greatest(cr.creatinine_c, ur24.urine_output_24hr_c, di.confidence) as conf
-    FROM %(cdm_t)s cdm_t akfi
+    FROM %(cdm_t)s as cdm_t akfi
     LEFT JOIN %(twf_table)s cr on cr.tsp >= akfi.tsp and
       cr.tsp <= akfi.tsp + '24 hours'::interval and cr.enc_id = akfi.enc_id
     LEFT JOIN %(twf_table_ur24)s ur24 on ur24.tsp >= akfi.tsp and ur24.tsp <= akfi.tsp + '24 hours'::interval and akfi.enc_id = ur24.enc_id
-    LEFT JOIN %(cdm_t)s cdm_t di on di.tsp >= akfi.tsp and di.tsp <= akfi.tsp + '24 hours'::interval and di.enc_id = akfi.enc_id
+    LEFT JOIN %(cdm_t)s as cdm_t di on di.tsp >= akfi.tsp and di.tsp <= akfi.tsp + '24 hours'::interval and di.enc_id = akfi.enc_id
     where akfi.fid = 'acute_kidney_failure_inhosp'
       %(dataset_id_equal_akfi)s
       and cr.creatinine > 5 and cr.creatinine_c < 8 %(dataset_id_equal_cr)s

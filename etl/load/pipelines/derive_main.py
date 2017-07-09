@@ -755,7 +755,7 @@ query_config = {
     'subquery': lambda para: '''
     WITH subquery as (
       select %(dataset_id_key_t)s cdm_t.enc_id, cdm_t.tsp, cdm_t.confidence c
-        from %(cdm_t)s cdm_t %(incremental_enc_id_join)s
+        from %(cdm_t)s as cdm_t %(incremental_enc_id_join)s
         where cdm_t.fid = 'any_antibiotics' and cdm_t.value::boolean %(dataset_id_equal_t)s %(incremental_enc_id_match)s
       order by cdm_t.enc_id, cdm_t.tsp desc
     )
@@ -938,7 +938,7 @@ query_config = {
       (
         -- remove negative cases and any cases within 6 hours window of the negative cases and volumn >= 1000
         select distinct cdm_t.*
-         from %(cdm_t)s cdm_t left join
+         from %(cdm_t)s as cdm_t left join
         (
           select * from %(cdm_t)s where fid = 'urine_output'
           and value::numeric < 0 %(dataset_id_equal_t)s
@@ -977,7 +977,7 @@ query_config = {
           (
             -- remove negative cases and any cases within 6 hours window of the negative cases and volumn >= 1000
             select distinct cdm_t.*
-             from %(cdm_t)s cdm_t left join
+             from %(cdm_t)s as cdm_t left join
             (
               select * from %(cdm_t)s where fid = 'urine_output'
               and value::numeric < 0 %(dataset_id_equal_t)s
@@ -1011,7 +1011,7 @@ query_config = {
     'fid_input_items': ['apixaban_dose', 'dabigatran_dose', 'rivaroxaban_dose', 'warfarin_dose', 'heparin_dose'],
     'derive_type': 'simple',
     'fid_select_expr': '''
-                                SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_anticoagulant', 'True', max(cdm_t.confidence) confidence FROM %(cdm_t)s cdm_t %(incremental_enc_id_join)s
+                                SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_anticoagulant', 'True', max(cdm_t.confidence) confidence FROM %(cdm_t)s as cdm_t %(incremental_enc_id_join)s
                                 WHERE fid ~ 'apixaban_dose|dabigatran_dose|rivaroxaban_dose|warfarin_dose|heparin_dose' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s %(incremental_enc_id_match)s
                                 group by %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp''',
   },
@@ -1020,7 +1020,7 @@ query_config = {
     'fid_input_items': ['acebutolol_dose', 'atenolol_dose', 'bisoprolol_dose', 'metoprolol_dose', 'nadolol_dose', 'propranolol_dose'],
     'derive_type': 'simple',
     'fid_select_expr': '''
-                                SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_beta_blocker', 'True', max(cdm_t.confidence) confidence FROM %(cdm_t)s cdm_t %(incremental_enc_id_join)s
+                                SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_beta_blocker', 'True', max(cdm_t.confidence) confidence FROM %(cdm_t)s as cdm_t %(incremental_enc_id_join)s
                                 WHERE fid ~ 'acebutolol_dose|atenolol_dose|bisoprolol_dose|metoprolol_dose|nadolol_dose|propranolol_dose' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s %(incremental_enc_id_match)s
                                 group by %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp''',
   },
@@ -1028,7 +1028,7 @@ query_config = {
     'fid_input_items': ['hydrocortisone_dose', 'prednisone_dose', 'prednisolone_dose', 'methylprednisolone_dose', 'dexamethasone_dose', 'betamethasone_dose', 'fludrocortisone_dose'],
     'derive_type': 'simple',
     'fid_select_expr': '''
-                                SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_glucocorticoid', 'True', max(cdm_t.confidence) confidence FROM %(cdm_t)s cdm_t %(incremental_enc_id_join)s
+                                SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_glucocorticoid', 'True', max(cdm_t.confidence) confidence FROM %(cdm_t)s as cdm_t %(incremental_enc_id_join)s
                                 WHERE fid ~ 'hydrocortisone_dose|prednisone_dose|prednisolone_dose|methylprednisolone_dose|dexamethasone_dose|betamethasone_dose|fludrocortisone_dose' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s %(incremental_enc_id_match)s
                                 group by %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp''',
   },
@@ -1036,7 +1036,7 @@ query_config = {
     'fid_input_items': ['ampicillin_dose', 'clindamycin_dose', 'erythromycin_dose' , 'gentamicin_dose' , 'oxacillin_dose' , 'tobramycin_dose' , 'vancomycin_dose' , 'ceftazidime_dose' , 'cefazolin_dose' , 'penicillin_g_dose' , 'meropenem_dose' , 'penicillin_dose' , 'amoxicillin_dose' , 'piperacillin_tazbac_dose', 'rifampin_dose', 'meropenem_dose', 'rapamycin_dose'],
     'derive_type': 'simple',
     'fid_select_expr': '''
-      SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_antibiotics', 'True', max(cdm_t.confidence) confidence FROM %(cdm_t)s cdm_t %(incremental_enc_id_join)s
+      SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_antibiotics', 'True', max(cdm_t.confidence) confidence FROM %(cdm_t)s as cdm_t %(incremental_enc_id_join)s
       WHERE fid ~ 'ampicillin_dose|clindamycin_dose|erythromycin_dose|gentamicin_dose|oxacillin_dose|tobramycin_dose|vancomycin_dose|ceftazidime_dose|cefazolin_dose|penicillin_g_dose|meropenem_dose|penicillin_dose|amoxicillin_dose|piperacillin_tazbac_dose|rifampin_dose|meropenem_dose|rapamycin_dose'
        AND ((isnumeric(value) and value::numeric > 0) or (not isnumeric(value) and cast(value::json->>'dose' as numeric) > 0))
        %(dataset_where_block)s %(incremental_enc_id_match)s
