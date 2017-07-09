@@ -1348,11 +1348,11 @@ async def acute_kidney_failure_update(fid, fid_input, conn, log, dataset_id, der
     %(dataset_id_equal)s
     group by enc_id
   )
-  INSERT INTO %(cdm_t)s as cdm_t (%(dataset_id)s enc_id, tsp, fid, value, confidence)
+  INSERT INTO %(cdm_t)s (%(dataset_id)s enc_id, tsp, fid, value, confidence)
   SELECT %(dataset_id)s enc_id, tsp, 'acute_kidney_failure' as fid, 'True' as value, max(conf) as confidence
   FROM (
     SELECT %(dataset_id_akfi)s akfi.enc_id, coalesce(least(cr.tsp, ur24.tsp, di.tsp), akfi.tsp) as tsp, greatest(cr.creatinine_c, ur24.urine_output_24hr_c, di.confidence) as conf
-    FROM %(cdm_t)s as cdm_t akfi
+    FROM %(cdm_t)s as akfi
     LEFT JOIN %(twf_table)s cr on cr.tsp >= akfi.tsp and
       cr.tsp <= akfi.tsp + '24 hours'::interval and cr.enc_id = akfi.enc_id
     LEFT JOIN %(twf_table_ur24)s ur24 on ur24.tsp >= akfi.tsp and ur24.tsp <= akfi.tsp + '24 hours'::interval and akfi.enc_id = ur24.enc_id
