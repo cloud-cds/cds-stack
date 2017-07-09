@@ -11,7 +11,6 @@ import etl.io_config.core as core
 import os, sys, traceback, functools
 import pandas as pd
 import datetime as dt
-import dateparser
 import logging
 import asyncio
 import asyncpg, aiohttp
@@ -30,6 +29,10 @@ MODE = {
 
 
 def main(max_pats=None, hospital=None, lookback_hours=None, db_name=None, repl=False):
+  # Start
+  global start_time
+  start_time = dt.datetime.now()
+
   # Create config objects
   config = Config(debug=True, db_name=db_name)
   config_dict = {
@@ -39,15 +42,15 @@ def main(max_pats=None, hospital=None, lookback_hours=None, db_name=None, repl=F
     'db_host': core.get_environment_var('db_host'),
     'db_port': core.get_environment_var('db_port'),
   }
-
+  hospital = hospital or core.get_environment_var('TREWS_ETL_HOSPITAL')
   # Create data for loader
-  job_id = "job_etl_{}".format(dt.datetime.now().strftime('%m%d%H%M%S')).lower()
+  job_id = "job_etl_{}_{}".format(hospital, dt.datetime.now().strftime('%m%d%H%M%S')).lower()
   archive = int(core.get_environment_var('TREWS_ETL_ARCHIVE', 0))
   notify_epic = int(core.get_environment_var('TREWS_ETL_EPIC_NOTIFICATIONS', 0))
   lookback_hours = lookback_hours or core.get_environment_var('TREWS_ETL_HOURS')
   # Create jhapi_extractor
   extractor = JHAPIConfig(
-    hospital       = hospital or core.get_environment_var('TREWS_ETL_HOSPITAL'),
+    hospital       = hospital,
     lookback_hours = lookback_hours,
     jhapi_server   = core.get_environment_var('TREWS_ETL_SERVER', 'prod'),
     jhapi_id       = core.get_environment_var('jhapi_client_id'),
@@ -71,7 +74,7 @@ def main(max_pats=None, hospital=None, lookback_hours=None, db_name=None, repl=F
         'name': 'push_cloudwatch_metrics',
         'deps': ['combine_cloudwatch_data'],
         'fn':   push_cloudwatch_metrics,
-        'args': [aws_region, prod_or_dev]
+        'args': [aws_region, prod_or_dev, hospital]
       })
     if notify_epic:
       all_tasks.append({
@@ -82,7 +85,7 @@ def main(max_pats=None, hospital=None, lookback_hours=None, db_name=None, repl=F
 
 
   loading_tasks  = loader.get_tasks(job_id, 'combine_db_data', 'combine_extract_data', mode, archive, config.get_db_conn_string_sqlalchemy())
-  criteria_tasks = get_criteria_tasks(dependency = 'get_notifications_for_epic', lookback_hours=lookback_hours)
+  criteria_tasks = get_criteria_tasks(dependency = 'drop_tables', lookback_hours=lookback_hours, hospital=hospital)
 
   ########################
   # Build plan for repl
@@ -112,6 +115,12 @@ def main(max_pats=None, hospital=None, lookback_hours=None, db_name=None, repl=F
   loop = asyncio.new_event_loop()
   loop.run_until_complete(engine.run())
   loop.close()
+
+  ########################
+  # Submit total time to cloudwatch
+  if 'real' in mode:
+    submit_time_to_cloudwatch(aws_region, prod_or_dev, hospital)
+
   return engine
 
 
@@ -161,8 +170,6 @@ def combine_cloudwatch_data(ctxt, pats_t, flowsheets_t, lab_orders_t,
                             active_procedures_t, lab_results_t, med_orders_t,
                             med_admin_t, loc_history_t, notes_t, note_texts_t):
   return {
-    # 'total_time'        : (dt.datetime.now() - self.driver_start).total_seconds(),
-    # 'request_time'      : self.extract_time.total_seconds(),
     'bedded_pats'       : len(pats_t.index),
     'flowsheets'        : len(flowsheets_t.index),
     'lab_orders'        : len(lab_orders_t.index),
@@ -226,14 +233,13 @@ def get_combine_tasks():
 
 
 
-def push_cloudwatch_metrics(ctxt, stats, aws_region, prod_or_dev):
+def push_cloudwatch_metrics(ctxt, stats, aws_region, prod_or_dev, hospital):
   boto_client = boto3.client('cloudwatch', region_name=aws_region)
   metric_data = [
-    # { 'MetricName': 'ExTrLoTime', 'Value':  etl_time.total_seconds(), 'Unit': 'Seconds'},
-    # { 'MetricName': 'ExTrTime', 'Value': stats['total_time'], 'Unit': 'Seconds'},
-    # { 'MetricName': 'ExTime', 'Value': stats['request_time'], 'Unit': 'Seconds'},
+    { 'MetricName': 'ExtractTime', 'Value': (dt.datetime.now() - start_time).total_seconds(), 'Unit': 'Seconds'},
     { 'MetricName': 'NumBeddedPatients', 'Value': stats['bedded_pats'], 'Unit': 'Count'},
     { 'MetricName': 'NumFlowsheets', 'Value': stats['flowsheets'], 'Unit': 'Count'},
+    { 'MetricName': 'NumActiveProcedures', 'Value': stats['active_procedures'], 'Unit': 'Count'},
     { 'MetricName': 'NumLabOrders', 'Value': stats['lab_orders'], 'Unit': 'Count'},
     { 'MetricName': 'NumLabResults', 'Value': stats['lab_results'], 'Unit': 'Count'},
     { 'MetricName': 'NumLocationHistory', 'Value': stats['loc_history'], 'Unit': 'Count'},
@@ -241,6 +247,7 @@ def push_cloudwatch_metrics(ctxt, stats, aws_region, prod_or_dev):
     { 'MetricName': 'NumMedOrders', 'Value': stats['med_orders'], 'Unit': 'Count'},
   ]
   for md in metric_data:
+    md['MetricName'] = '{}_{}'.format(hospital, md['MetricName'])
     md['Dimensions'] = [{'Name': 'ETL', 'Value': prod_or_dev}]
     md['Timestamp'] = dt.datetime.utcnow()
   try:
@@ -250,6 +257,22 @@ def push_cloudwatch_metrics(ctxt, stats, aws_region, prod_or_dev):
     ctxt.log.error('unsuccessfully pushed cloudwatch metrics')
     ctxt.log.error(e)
 
+
+def submit_time_to_cloudwatch(aws_region, prod_or_dev, hospital):
+  boto_client = boto3.client('cloudwatch', region_name=aws_region)
+  metric_data = [{
+    'MetricName': '{}_TotalTime'.format(hospital),
+    'Value':      (dt.datetime.now() - start_time).total_seconds(),
+    'Unit':       'Seconds',
+    'Dimensions': [{'Name': 'ETL', 'Value': prod_or_dev}],
+    'Timestamp':  dt.datetime.utcnow(),
+  }]
+  try:
+    boto_client.put_metric_data(Namespace='OpsDX', MetricData=metric_data)
+    logging.info('successfully pushed total time to cloudwatch')
+  except botocore.exceptions.EndpointConnectionError as e:
+    logging.error('unsuccessfully pushed total time cloudwatch metrics')
+    logging.error(e)
 
 
 def build_med_admin_request_data(ctxt, med_orders):
@@ -263,10 +286,8 @@ def add_column(ctxt, df, col_name, col_data):
   return df
 
 def tz_hack(ctxt, df):
-  est_fmt = '%Y-%m-%dT%H:%M:%S-05:00'
-  five_hr = dt.timedelta(hours=5)
   if not df.empty:
-    df['tsp'] = df['tsp'].apply(lambda x: (dateparser.parse(x) - five_hr).strftime(est_fmt))
+    df['tsp'] = df['tsp'].str.replace('-04:00', '+00:00')
   return df
 
 def skip_none(df, transform_function):

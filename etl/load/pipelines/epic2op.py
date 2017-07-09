@@ -56,7 +56,7 @@ async def load_discharge_times(ctxt, contacts_df):
 
 
 
-async def get_notifications_for_epic(ctxt, job_id):
+async def get_notifications_for_epic(ctxt, job_id, _):
   ''' Get all notifications to send to epic '''
   async with ctxt.db_pool.acquire() as conn:
     ctxt.log.info("getting notifications to push to epic")
@@ -102,6 +102,7 @@ async def workspace_to_cdm(ctxt, job_id):
   func_list = [
     primitives.insert_new_patients,
     primitives.create_job_cdm_twf_table,
+    primitives.create_job_cdm_t_table,
     primitives.workspace_bedded_patients_2_cdm_s,
     primitives.workspace_flowsheets_2_cdm_t,
     primitives.workspace_lab_results_2_cdm_t,
@@ -112,7 +113,7 @@ async def workspace_to_cdm(ctxt, job_id):
     primitives.workspace_lab_results_2_cdm_twf,
     primitives.workspace_medication_administration_2_cdm_twf,
     primitives.workspace_notes_2_cdm_notes,
-    # TODO load lab orders and active procedures to cdm
+    # TODO load lab orders and active procedures to cdm (they have been loaded to criteria_meas already)
   ]
   async with ctxt.db_pool.acquire() as conn:
     for func in func_list:
@@ -226,11 +227,30 @@ async def workspace_derive(ctxt, prediction_params, job_id):
     }
 
 
+
   # derive the features sequentially
+  # retry parameters
+  base = 2
+  max_backoff = 60
+
   async with ctxt.db_pool.acquire() as conn:
     for fid in derive_feature_order:
-      ctxt.log.info("deriving fid {}".format(fid))
-      await derive_feature(ctxt.log, fid, cdm_feature_dict, conn, derive_feature_addr=derive_feature_addr)
+      attempts = 0
+      while True:
+        try:
+          ctxt.log.info("deriving fid {}".format(fid))
+          await derive_feature(ctxt.log, fid, cdm_feature_dict, conn, derive_feature_addr=derive_feature_addr, cdm_t_target="workspace.{}_cdm_t".format(job_id))
+          break
+        except Exception as e:
+          attempts += 1
+          ctxt.log.exception("PSQL Error derive: %s %s" % (fid if fid else 'run_derive', e))
+          random_secs = random.uniform(0, 10)
+          wait_time = min(((base**attempts) + random_secs), max_backoff)
+          await asyncio.sleep(wait_time)
+          ctxt.log.info("run_derive {} attempts {}".format(fid or '', attempts))
+          if fid is None:
+            raise Exception('batch derive stopped due to exception')
+          continue
     ctxt.log.info("derive completed")
     return job_id
 
@@ -309,6 +329,13 @@ async def workspace_submit(ctxt, job_id):
     ON conflict (enc_id, tsp) do UPDATE SET %(set_columns)s;
     SELECT drop_tables('workspace', '%(job)s_cdm_twf');
   """
+  submit_t = """
+    INSERT INTO cdm_t
+      (SELECT * FROM workspace.%(job)s_cdm_t)
+    ON conflict (enc_id, tsp, fid) do UPDATE
+    SET value = excluded.value, confidence = excluded.confidence;
+    SELECT drop_tables('workspace', '%(job)s_cdm_t');
+  """
   submit_trews = """
     CREATE TABLE if not exists trews (LIKE workspace.%(job)s_trews,
         unique (enc_id, tsp)
@@ -328,6 +355,8 @@ async def workspace_submit(ctxt, job_id):
     ])
     ctxt.log.info(submit_twf % {'job': job_id, 'set_columns': twf_set_columns} )
     await conn.execute(submit_twf % {'job': job_id, 'set_columns': twf_set_columns} )
+    ctxt.log.info(submit_t % {'job': job_id} )
+    await conn.execute(submit_t % {'job': job_id} )
     records = await conn.fetch(select_all_colnames % {'table': '%s_trews' % job_id})
     colnames = [row[0] for row in records if row[0] != 'enc_id' and row[0] != 'tsp']
     trews_set_columns = ",".join([
@@ -493,7 +522,7 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
          coro = drop_tables,
          args = [2]),
     Task(name = 'get_notifications_for_epic',
-         deps = ['drop_tables'],
+         deps = ['drop_tables', 'advance_criteria_snapshot'],
          coro = get_notifications_for_epic),
     Task(name = 'load_discharge_times',
          deps = ['contacts_transform'],

@@ -123,7 +123,7 @@ def get_dependent_features(feature_list, cdm_feature_dict):
     return get_derive_seq(input_map=dic)
 
 
-async def derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=None, derive_feature_addr=None,incremental=False):
+async def derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=None, derive_feature_addr=None,incremental=False, cdm_t_target='cdm_t'):
   ts = time.time()
   feature = cdm_feature_dict[fid]
   derive_func_id = feature['derive_func_id']
@@ -148,13 +148,13 @@ async def derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=None, deri
           sql = gen_simple_twf_query(config_entry, fid, dataset_id, \
             derive_feature_addr, cdm_feature_dict, incremental)
         elif config_entry['derive_type'] == 'subquery':
-          sql = gen_subquery_upsert_query(config_entry, fid, dataset_id, derive_feature_addr, cdm_feature_dict, incremental)
+          sql = gen_subquery_upsert_query(config_entry, fid, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target)
         log.debug(clean_sql + sql)
         await conn.execute(clean_sql + sql)
       elif fid_category == 'T':
         # Note they do not touch TWF table
-        sql = gen_cdm_t_delete_and_insert_query(config_entry, fid,
-                                                dataset_id, incremental)
+        sql = gen_cdm_t_upsert_query(config_entry, fid,
+                                                dataset_id, incremental, cdm_t_target)
         log.debug(clean_sql + sql)
         await conn.execute(clean_sql + sql)
       else:
@@ -164,7 +164,7 @@ async def derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=None, deri
   else:
     log.info("Derive function is not implemented in driver, so we use legacy derive function")
     await derive_func.derive(fid, derive_func_id, derive_func_input, conn, \
-      log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental)
+      log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target)
   te = time.time()
   log.info("derive feature %s end. (%2.2f secs)" % (fid, te-ts))
 
@@ -182,8 +182,6 @@ def gen_simple_twf_query(config_entry, fid, dataset_id, derive_feature_addr, cdm
     update_expr_params['twf_table'] = twf_table
   if '%(with_ds_s)s' in update_expr:
     update_expr_params['with_ds_s'] = with_ds(dataset_id, table_name='cdm_s')
-  if '%(with_ds_t)s' in update_expr:
-    update_expr_params['with_ds_t'] = with_ds(dataset_id, table_name='cdm_t')
   if '%(with_ds_twf)s' in update_expr:
     update_expr_params['with_ds_twf'] = with_ds(dataset_id, table_name='cdm_twf')
   if update_expr_params:
@@ -208,7 +206,7 @@ def gen_simple_twf_query(config_entry, fid, dataset_id, derive_feature_addr, cdm
   }
   return sql
 
-def gen_subquery_upsert_query(config_entry, fid, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
+def gen_subquery_upsert_query(config_entry, fid, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
   twf_table = derive_feature_addr[fid]['twf_table']
   twf_table_temp = derive_feature_addr[fid]['twf_table_temp']
   subquery_params = {}
@@ -220,10 +218,11 @@ def gen_subquery_upsert_query(config_entry, fid, dataset_id, derive_feature_addr
     get_select_table_joins(fid_input_items, derive_feature_addr, cdm_feature_dict, dataset_id, incremental) \
     + ')'
   subquery_params['twf_table'] = twf_table
+  subquery_params['cdm_t_target'] = cdm_t_target
   subquery_params['dataset_id'] = dataset_id
   subquery_params['with_ds_twf'] = with_ds(dataset_id, table_name='cdm_twf', conjunctive=False)
   subquery_params['and_with_ds_twf'] = with_ds(dataset_id, table_name='cdm_twf', conjunctive=True)
-  subquery_params['with_ds_t'] = with_ds(dataset_id, table_name='cdm_t', conjunctive=True)
+  subquery_params['with_ds_t'] = with_ds(dataset_id, table_name=cdm_t_target, conjunctive=True)
   subquery_params['with_ds_ttwf'] = (' AND cdm_t.dataset_id = cdm_twf.dataset_id' if dataset_id else '') + with_ds(dataset_id, table_name='cdm_twf', conjunctive=False)
   subquery_params['dataset_id_key'] = dataset_id_key('cdm_twf', dataset_id)
   for fid_input in config_entry['fid_input_items']:
@@ -247,27 +246,34 @@ def gen_subquery_upsert_query(config_entry, fid, dataset_id, derive_feature_addr
   }
   return upsert_clause
 
-def gen_cdm_t_delete_and_insert_query(config_entry, fid, dataset_id, incremental):
+def gen_cdm_t_upsert_query(config_entry, fid, dataset_id, incremental, cdm_t_target):
   fid_select_expr = config_entry['fid_select_expr'] % {
+    'cdm_t': cdm_t_target,
     'dataset_col_block': 'cdm_t.dataset_id,' if dataset_id is not None else '',
     'dataset_where_block': (' and cdm_t.dataset_id = %s' % dataset_id) if dataset_id is not None else '',
     'incremental_enc_id_join': incremental_enc_id_join('cdm_t', dataset_id, incremental),
     'incremental_enc_id_match': incremental_enc_id_match(' and ', incremental)
   }
   print(fid_select_expr)
-  insert_clause = """
-  DELETE FROM cdm_t where fid = '%(fid)s' %(dataset_where_block)s
-  %(incremental_enc_id_in)s;
-  INSERT INTO cdm_t (%(dataset_col_block)s enc_id,tsp,fid,value,confidence) (%(select_expr)s);
+  delete_clause = ''
+  if dataset_id and not incremental:
+    # only delete existing data in offline full load mode
+    delete_clause = "DELETE FROM cdm_t where fid = '%(fid)s' %(dataset_where_block)s;\n"
+
+  upsert_clause = delete_clause + """
+  INSERT INTO %(cdm_t)s (%(dataset_col_block)s enc_id,tsp,fid,value,confidence) (%(select_expr)s)
+  ON CONFLICT (%(dataset_col_block)s enc_id,tsp,fid) DO UPDATE SET
+  value = excluded.value, confidence = excluded.confidence;
   """ % {
+    'cdm_t': cdm_t_target,
     'fid':fid,
     'select_expr': fid_select_expr,
     'dataset_col_block': 'dataset_id,' if dataset_id is not None else '',
     'dataset_where_block': (' and dataset_id = %s' % dataset_id) if dataset_id is not None else '',
     'incremental_enc_id_in': incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental)
   }
-  print(insert_clause)
-  return insert_clause
+  print(upsert_clause)
+  return upsert_clause
 
 
 
@@ -644,7 +650,7 @@ query_config = {
     'fid_input_items': ['wbc', 'bands'],
     'derive_type': 'subquery',
     'subquery': lambda para: '''
-      with subquery as (select enc_id, tsp, confidence from cdm_t where fid = 'bands' and value::numeric > 10 %(dataset_id_equal_t)s)
+      with subquery as (select enc_id, tsp, confidence from %(cdm_t)s where fid = 'bands' and value::numeric > 10 %(dataset_id_equal_t)s)
       select %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
         bool_or(wbc > 12 or wbc < 4 or subquery.enc_id is not null),
         min(wbc_c | coalesce(subquery.confidence, 0))
@@ -653,6 +659,7 @@ query_config = {
       %(dataset_id_equal)s
       group by %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp
     ''' % {
+      'cdm_t'             : para['cdm_t_target'],
       'twf_table_join'    : para['twf_table_join'],
       'dataset_id_key'    : para['dataset_id_key'],
       'dataset_id_equal'  : dataset_id_equal(" where ", "cdm_twf", para.get("dataset_id")),
@@ -694,21 +701,20 @@ query_config = {
     'derive_type': 'subquery',
     'subquery': lambda para: '''
     WITH subquery as (
-      select  %(dataset_id_key)s cdm_twf.enc_id, min(cdm_twf.tsp) tsp, max(cdm_twf.any_organ_failure_c) c
+      select  %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp, cdm_twf.any_organ_failure_c c
         FROM %(twf_table_join)s cdm_twf
         where cdm_twf.any_organ_failure %(dataset_id_equal)s
-      group by %(dataset_id_key)s cdm_twf.enc_id
+        order by cdm_twf.enc_id, cdm_twf.tsp desc
     )
     SELECT %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
-    (case when cdm_twf.tsp > subquery.tsp
-        then least(EXTRACT(EPOCH FROM (cdm_twf.tsp - subquery.tsp))/60, 14*24*60)
-        else 0
-     end) as minutes_since_any_organ_fail,
-     subquery.c as minutes_since_any_organ_fail_c
+    least(EXTRACT(EPOCH FROM (cdm_twf.tsp - first(subquery.tsp)))/60, 14*24*60) as minutes_since_any_organ_fail,
+     first(subquery.c) as minutes_since_any_organ_fail_c
     FROM %(twf_table_join)s cdm_twf
     inner join subquery on cdm_twf.enc_id = subquery.enc_id
+    and cdm_twf.tsp >= subquery.tsp
     %(dataset_id_match)s
     %(dataset_id_equal_w)s
+    group by %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp
     ''' % {
       'twf_table_join'    : para.get("twf_table_join"),
       'dataset_id_key'    : para.get("dataset_id_key"),
@@ -748,22 +754,21 @@ query_config = {
     'derive_type': 'subquery',
     'subquery': lambda para: '''
     WITH subquery as (
-      select %(dataset_id_key_t)s cdm_t.enc_id, min(tsp) tsp, max(confidence)::int c
-        from cdm_t %(incremental_enc_id_join)s
+      select %(dataset_id_key_t)s cdm_t.enc_id, cdm_t.tsp, cdm_t.confidence c
+        from %(cdm_t)s cdm_t %(incremental_enc_id_join)s
         where cdm_t.fid = 'any_antibiotics' and cdm_t.value::boolean %(dataset_id_equal_t)s %(incremental_enc_id_match)s
-      group by %(dataset_id_key_t)s cdm_t.enc_id
+      order by cdm_t.enc_id, cdm_t.tsp desc
     )
     SELECT %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
-     (case when cdm_twf.tsp > subquery.tsp
-        then least(EXTRACT(EPOCH FROM (cdm_twf.tsp - subquery.tsp))/60, 24*60)
-        else 0
-     end) as minutes_since_any_antibiotics,
-     subquery.c as minutes_since_any_antibiotics_c
+     least(EXTRACT(EPOCH FROM (cdm_twf.tsp - first(subquery.tsp)))/60, 24*60) as minutes_since_any_antibiotics,
+     first(subquery.c) as minutes_since_any_antibiotics_c
     FROM %(twf_table_join)s cdm_twf inner join subquery on cdm_twf.enc_id = subquery.enc_id
     and cdm_twf.tsp >= subquery.tsp
     %(dataset_id_match)s
     %(dataset_id_equal)s
+    group by %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp
     ''' % {
+      'cdm_t'         : para.get('cdm_t_target'),
       'dataset_id_key': para.get("dataset_id_key"),
       'dataset_id_key_t': dataset_id_key('cdm_t', para.get('dataset_id')),
       'dataset_id_equal_t': dataset_id_equal('and ', 'cdm_t', para.get("dataset_id")),
@@ -933,9 +938,9 @@ query_config = {
       (
         -- remove negative cases and any cases within 6 hours window of the negative cases and volumn >= 1000
         select distinct cdm_t.*
-         from cdm_t left join
+         from %(cdm_t)s cdm_t left join
         (
-          select * from cdm_t where fid = 'urine_output'
+          select * from %(cdm_t)s where fid = 'urine_output'
           and value::numeric < 0 %(dataset_id_equal_t)s
         ) neg on cdm_t.enc_id = neg.enc_id
           and cdm_t.tsp - neg.tsp <= interval '6 hours'
@@ -950,6 +955,7 @@ query_config = {
       where fid = 'urine_output' %(dataset_id_equal)s
       group by %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp
     ''' % {
+      'cdm_t'         : para.get('cdm_t_target'),
       'dataset_id_key': para.get("dataset_id_key"),
       'twf_table_join': para.get('twf_table_join'),
       'with_ds_ttwf': para.get('with_ds_ttwf'),
@@ -971,9 +977,9 @@ query_config = {
           (
             -- remove negative cases and any cases within 6 hours window of the negative cases and volumn >= 1000
             select distinct cdm_t.*
-             from cdm_t left join
+             from %(cdm_t)s cdm_t left join
             (
-              select * from cdm_t where fid = 'urine_output'
+              select * from %(cdm_t)s where fid = 'urine_output'
               and value::numeric < 0 %(dataset_id_equal_t)s
             ) neg on cdm_t.enc_id = neg.enc_id
               and cdm_t.tsp - neg.tsp <= interval '6 hours'
@@ -988,6 +994,7 @@ query_config = {
           where fid = 'urine_output' %(dataset_id_equal)s
           group by %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp
     ''' % {
+      'cdm_t'         : para.get('cdm_t_target'),
       'dataset_id_key': para.get("dataset_id_key"),
       'twf_table_join': para.get('twf_table_join'),
       'with_ds_ttwf': para.get('with_ds_ttwf'),
@@ -1004,7 +1011,7 @@ query_config = {
     'fid_input_items': ['apixaban_dose', 'dabigatran_dose', 'rivaroxaban_dose', 'warfarin_dose', 'heparin_dose'],
     'derive_type': 'simple',
     'fid_select_expr': '''
-                                SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_anticoagulant', 'True', max(cdm_t.confidence) confidence FROM cdm_t %(incremental_enc_id_join)s
+                                SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_anticoagulant', 'True', max(cdm_t.confidence) confidence FROM %(cdm_t)s cdm_t %(incremental_enc_id_join)s
                                 WHERE fid ~ 'apixaban_dose|dabigatran_dose|rivaroxaban_dose|warfarin_dose|heparin_dose' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s %(incremental_enc_id_match)s
                                 group by %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp''',
   },
@@ -1013,7 +1020,7 @@ query_config = {
     'fid_input_items': ['acebutolol_dose', 'atenolol_dose', 'bisoprolol_dose', 'metoprolol_dose', 'nadolol_dose', 'propranolol_dose'],
     'derive_type': 'simple',
     'fid_select_expr': '''
-                                SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_beta_blocker', 'True', max(cdm_t.confidence) confidence FROM cdm_t %(incremental_enc_id_join)s
+                                SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_beta_blocker', 'True', max(cdm_t.confidence) confidence FROM %(cdm_t)s cdm_t %(incremental_enc_id_join)s
                                 WHERE fid ~ 'acebutolol_dose|atenolol_dose|bisoprolol_dose|metoprolol_dose|nadolol_dose|propranolol_dose' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s %(incremental_enc_id_match)s
                                 group by %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp''',
   },
@@ -1021,7 +1028,7 @@ query_config = {
     'fid_input_items': ['hydrocortisone_dose', 'prednisone_dose', 'prednisolone_dose', 'methylprednisolone_dose', 'dexamethasone_dose', 'betamethasone_dose', 'fludrocortisone_dose'],
     'derive_type': 'simple',
     'fid_select_expr': '''
-                                SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_glucocorticoid', 'True', max(cdm_t.confidence) confidence FROM cdm_t %(incremental_enc_id_join)s
+                                SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_glucocorticoid', 'True', max(cdm_t.confidence) confidence FROM %(cdm_t)s cdm_t %(incremental_enc_id_join)s
                                 WHERE fid ~ 'hydrocortisone_dose|prednisone_dose|prednisolone_dose|methylprednisolone_dose|dexamethasone_dose|betamethasone_dose|fludrocortisone_dose' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s %(incremental_enc_id_match)s
                                 group by %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp''',
   },
@@ -1029,7 +1036,7 @@ query_config = {
     'fid_input_items': ['ampicillin_dose', 'clindamycin_dose', 'erythromycin_dose' , 'gentamicin_dose' , 'oxacillin_dose' , 'tobramycin_dose' , 'vancomycin_dose' , 'ceftazidime_dose' , 'cefazolin_dose' , 'penicillin_g_dose' , 'meropenem_dose' , 'penicillin_dose' , 'amoxicillin_dose' , 'piperacillin_tazbac_dose', 'rifampin_dose', 'meropenem_dose', 'rapamycin_dose'],
     'derive_type': 'simple',
     'fid_select_expr': '''
-      SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_antibiotics', 'True', max(cdm_t.confidence) confidence FROM cdm_t %(incremental_enc_id_join)s
+      SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_antibiotics', 'True', max(cdm_t.confidence) confidence FROM %(cdm_t)s cdm_t %(incremental_enc_id_join)s
       WHERE fid ~ 'ampicillin_dose|clindamycin_dose|erythromycin_dose|gentamicin_dose|oxacillin_dose|tobramycin_dose|vancomycin_dose|ceftazidime_dose|cefazolin_dose|penicillin_g_dose|meropenem_dose|penicillin_dose|amoxicillin_dose|piperacillin_tazbac_dose|rifampin_dose|meropenem_dose|rapamycin_dose'
        AND ((isnumeric(value) and value::numeric > 0) or (not isnumeric(value) and cast(value::json->>'dose' as numeric) > 0))
        %(dataset_where_block)s %(incremental_enc_id_match)s

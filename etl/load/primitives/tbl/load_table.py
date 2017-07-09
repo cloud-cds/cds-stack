@@ -67,6 +67,19 @@ async def create_job_cdm_twf_table(conn, job_id):
     logging.info("%s: create job cdm_twf table: %s" % (job_id, create_job_cdm_twf_table))
     await conn.execute(create_job_cdm_twf_table)
 
+async def create_job_cdm_t_table(conn, job_id):
+    # create snapshot cdm_t tables for this job, i.e., all bedded patients
+    create_job_cdm_t_table = """
+    DROP TABLE IF EXISTS workspace.%(job)s_cdm_t CASCADE;
+    create table workspace.%(job)s_cdm_t as
+    select cdm_t.* from cdm_t
+    inner join pat_enc on pat_enc.enc_id = cdm_t.enc_id
+    inner join workspace.%(job)s_bedded_patients_transformed bp
+        on bp.visit_id = pat_enc.visit_id;
+    alter table workspace.%(job)s_cdm_t add primary key (enc_id, tsp, fid);
+    """ % {'job':job_id}
+    logging.info("%s: create job cdm_t table: %s" % (job_id, create_job_cdm_t_table))
+    await conn.execute(create_job_cdm_t_table)
 
 
 async def workspace_bedded_patients_2_cdm_s(conn, job_id):
@@ -162,7 +175,7 @@ async def workspace_bedded_patients_2_cdm_s(conn, job_id):
 
 async def workspace_flowsheets_2_cdm_t(conn, job_id):
     import_raw_features = \
-    """INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+    """INSERT INTO workspace.%(job)s_cdm_t (enc_id, tsp, fid, value, confidence)
             select pat_enc.enc_id, fs.tsp::timestamptz, fs.fid, last(fs.value), 0 from workspace.%(job)s_flowsheets_transformed fs
                 inner join pat_enc on pat_enc.visit_id = fs.visit_id
                 inner join cdm_feature on fs.fid = cdm_feature.fid and cdm_feature.category = 'T'
@@ -179,11 +192,12 @@ async def workspace_flowsheets_2_cdm_t(conn, job_id):
 
 async def workspace_lab_results_2_cdm_t(conn, job_id):
     import_raw_features = \
-    """INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
-        select pat_enc.enc_id, lr.tsp::timestamptz, lr.fid, lr.value, 0 from workspace.%(job)s_lab_results_transformed lr
+    """INSERT INTO workspace.%(job)s_cdm_t (enc_id, tsp, fid, value, confidence)
+        select pat_enc.enc_id, lr.tsp::timestamptz, lr.fid, first(lr.value), 0 from workspace.%(job)s_lab_results_transformed lr
             inner join pat_enc on pat_enc.visit_id = lr.visit_id
             inner join cdm_feature on lr.fid = cdm_feature.fid and cdm_feature.category = 'T'
         where lr.tsp <> 'NaT' and lr.tsp::timestamptz < now()
+        group by pat_enc.enc_id, lr.tsp, lr.fid
     ON CONFLICT (enc_id, tsp, fid)
         DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
 
@@ -195,7 +209,7 @@ async def workspace_lab_results_2_cdm_t(conn, job_id):
 
 async def workspace_location_history_2_cdm_t(conn, job_id):
     import_raw_features = \
-    """INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+    """INSERT INTO workspace.%(job)s_cdm_t (enc_id, tsp, fid, value, confidence)
         select pat_enc.enc_id, lr.tsp::timestamptz, lr.fid, lr.value, 0 from workspace.%(job)s_location_history_transformed lr
             inner join pat_enc on pat_enc.visit_id = lr.visit_id
             inner join cdm_feature on lr.fid = cdm_feature.fid and cdm_feature.category = 'T'
@@ -210,7 +224,7 @@ async def workspace_location_history_2_cdm_t(conn, job_id):
 
 async def workspace_medication_administration_2_cdm_t(conn, job_id):
     import_raw_features = \
-    """INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+    """INSERT INTO workspace.%(job)s_cdm_t (enc_id, tsp, fid, value, confidence)
         select pat_enc.enc_id, mar.tsp::timestamptz, mar.fid,
             json_build_object('dose',SUM(mar.dose_value::numeric),'action',last(mar.action))
             , 0
@@ -222,7 +236,7 @@ async def workspace_medication_administration_2_cdm_t(conn, job_id):
     ON CONFLICT (enc_id, tsp, fid)
         DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
     -- others excluded fluids
-    INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+    INSERT INTO workspace.%(job)s_cdm_t (enc_id, tsp, fid, value, confidence)
         select pat_enc.enc_id, mar.tsp::timestamptz, mar.fid,
             max(mar.dose_value::numeric), 0
         from workspace.%(job)s_med_admin_transformed mar
@@ -255,7 +269,7 @@ async def workspace_fluids_intake_2_cdm_t(conn, job_id):
                 and fs.fid = 'fluids_intake'
                 and fs.value::numeric > 0
     )
-    INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+    INSERT INTO workspace.%(job)s_cdm_t (enc_id, tsp, fid, value, confidence)
         select u.enc_id, u.tsp, u.fid,
                 sum(u.value::numeric), 0
         from u

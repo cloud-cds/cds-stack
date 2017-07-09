@@ -61,11 +61,13 @@ class suspicion_of_infection_modified(metric):
       else:
         return ''
 
+
+
     res_df = pd.read_sql(sqlalchemy.text(sus_mod_q), self.connection)
 
     res_df['overide_value'] = res_df['overide_value'].apply(remove_mess)
 
-    res_df.drop('pat_id', 1, inplace=True)
+    res_df.drop(['pat_id'], 1, inplace=True)
 
     self.data = res_df
 
@@ -136,11 +138,28 @@ class pats_seen_by_docs(metric):
 
   def calc(self):
     num_pats_seen = """
-        select doc_id, count(distinct pat_id) as num_pats_seen, min(tsp) as first_access, max(tsp) as last_access
+        select doc_id, first(loc) as hospital, count(distinct pat_id) as num_pats_seen, min(tsp) as first_access, max(tsp) as last_access
         from usr_web_log
         where tsp between \'{}\'::timestamptz and \'{}\'::timestamptz group by doc_id;""".format(self.first_time_str,
                                                                                                  self.last_time_str)
-    self.data = pd.read_sql(num_pats_seen, self.connection)
+    def loc_to_english(str_in):
+      loc_dict = {
+        '1101': 'JHH',
+        '1102': 'BMC',
+        '1103': 'HCGH',
+        '1104': 'Sibley',
+        '1105': 'Suburban',
+        '1107': 'KKI'
+      }
+
+      return loc_dict.get(str_in[0:4],'unknown(loc={})'.format(str_in))
+
+    res_df = pd.read_sql(num_pats_seen, self.connection)
+
+    res_df['hospital'] = res_df['hospital'].apply(loc_to_english)
+
+
+    self.data = res_df
 
   def to_html(self):
     return self.data.to_html()

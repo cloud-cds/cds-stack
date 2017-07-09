@@ -8,7 +8,7 @@ from etl.load.primitives.tbl.derive_helper import *
   Comments: Currently implements definition of traumatic hemorrhagic shock
   See arch file for details
 '''
-async def hemorrhagic_shock_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
+async def hemorrhagic_shock_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
     assert fid == 'hemorrhagic_shock', 'wrong fid %s' % fid
     fid_input_items = [item.strip() for item in fid_input.split(',')]
     assert fid_input_items[0] == 'transfuse_rbc' \
@@ -25,7 +25,7 @@ async def hemorrhagic_shock_update(fid, fid_input, conn, log, dataset_id, derive
         (select enc_id, tsp, lactate, lactate_c, sbpm, sbpm_c from %(twf_table)s
         where sbpm <= 90 and lactate > 2 %(dataset_block)s %(incremental_twf_table)s
         ) c1 join
-        (select * from cdm_t where fid='transfuse_rbc' %(dataset_block)s %(incremental_cdm_t)s ) c2
+        (select * from %(cdm_t)s cdm_t where fid='transfuse_rbc' %(dataset_block)s %(incremental_cdm_t)s ) c2
         on c1.enc_id=c2.enc_id and c2.tsp >= c1.tsp and c2.tsp <= c1.tsp + interval '6 hours'
         group by c1.enc_id, c1.tsp, lactate_c, sbpm_c, lactate, sbpm ) c4
       where %(twf_table)s.enc_id=c4.enc_id and %(twf_table)s.tsp=c4.tsp %(dataset_block)s;
@@ -34,7 +34,8 @@ async def hemorrhagic_shock_update(fid, fid_input, conn, log, dataset_id, derive
            'dataset_block': ' and dataset_id = %s' % dataset_id \
               if dataset_id is not None else '',
            'incremental_twf_table': incremental_enc_id_in(' and ', twf_table_src, dataset_id,incremental),
-           'incremental_cdm_t': incremental_enc_id_in(' and ', 'cdm_t', dataset_id,incremental)
+           'incremental_cdm_t': incremental_enc_id_in(' and ', 'cdm_t', dataset_id,incremental),
+           'cdm_t': cdm_t_target
            }
     log.info("hemorrhagic_shock_update:%s" % update_clause)
     await conn.execute(update_clause)
