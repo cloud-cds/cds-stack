@@ -1,25 +1,16 @@
 import etl.core.config
 import logging
+import asyncpg
 
-# TODO: make async / use COPY
-def data_2_workspace(logger, engine, job_id, df_name, df, dtypes=None, if_exists='replace'):
-    if df is not None:
-        nrows = df.shape[0]
-        table_name = "{}_{}".format(job_id, df_name)
-        logger.info("saving data frame to %s: nrows = %s" % (table_name, nrows))
-        if dtypes is not None:
-            df = df.astype(dtypes)
-        df.to_sql(table_name, engine, if_exists=if_exists, index=False, schema='workspace')
-        logger.info('Successfully saved dataframe to {}, using engine {}'.format(table_name, engine))
-    else:
-        logger.error('Failed to load table %s (invalid dataframe)' % df_name)
-    '''
-    buf = StringIO()
-    # saving a data frame to a buffer (same as with a regular file):
-    df.to_csv(buf, index=False, sep='\t', header=False, \
-        quoting=csv.QUOTE_NONE, date_format="ISO", escapechar=" ")
+async def data_2_workspace(logger, conn, job_id, df_name, df, dtypes=None, if_exists='replace'):
+    if df is None or df.empty or len(df) == 0:
+        logger.error('Failed to load table {} (invalid dataframe)'.format(df_name))
+        return
+
+    nrows = len(df)
+    table_name = "{}_{}".format(job_id, df_name)
+
     cols = ",".join([ "{} text".format(col) for col in df.columns.values.tolist()])
-    buf.seek(0)
     prepare_table = \
     """DROP table if exists %(tab)s;
     create table %(tab)s (
@@ -28,13 +19,9 @@ def data_2_workspace(logger, engine, job_id, df_name, df, dtypes=None, if_exists
     """ % {'tab': table_name, 'cols': cols}
     logging.info("create table: {}".format(prepare_table))
     await conn.execute(prepare_table)
-
-    if nrows > 0 and not df.empty:
-        cur.copy_from(buf, table_name)
-        logging.info(table_name + " saved: nrows = {}".format(nrows))
-    else:
-        logging.warn("zero rows in the data frame:{}".format(table_name))
-    '''
+    tuples = [tuple([str(y) for y in x]) for x in df.values]
+    await conn.copy_records_to_table(table_name, records=tuples)
+    logging.info(table_name + " saved: nrows = {}".format(nrows))
 
 
 
