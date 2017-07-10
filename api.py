@@ -374,6 +374,7 @@ class TREWSAPI(web.View):
     # update chart data
     data['chart_data']['patient_arrival']['timestamp'] = patient_scalars['admit_time']
     data['chart_data']['trewscore_threshold']          = patient_scalars['trews_threshold']
+    data['chart_data']['patient_age']                  = patient_scalars['age']
     data['chart_data']['chart_values']                 = chart_values
 
     # update_notifications and history
