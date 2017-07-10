@@ -12,15 +12,15 @@ async def data_2_workspace(logger, conn, job_id, df_name, df, dtypes=None, if_ex
 
     cols = ",".join([ "{} text".format(col) for col in df.columns.values.tolist()])
     prepare_table = \
-    """DROP table if exists %(tab)s;
-    create table %(tab)s (
+    """DROP table if exists workspace.%(tab)s;
+    create table workspace.%(tab)s (
         %(cols)s
     );
     """ % {'tab': table_name, 'cols': cols}
     logging.info("create table: {}".format(prepare_table))
     await conn.execute(prepare_table)
     tuples = [tuple([str(y) for y in x]) for x in df.values]
-    await conn.copy_records_to_table(table_name, records=tuples)
+    await conn.copy_records_to_table(table_name, records=tuples, schema_name="workspace")
     logging.info(table_name + " saved: nrows = {}".format(nrows))
 
 
