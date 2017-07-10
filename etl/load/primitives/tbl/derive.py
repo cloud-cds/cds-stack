@@ -77,7 +77,7 @@ async def any_pressor_update(fid, fid_input, conn, log, dataset_id, derive_featu
     assert fid_input_items[i].endswith('dose'), \
       'wrong fid_input %s' % fid_input
   for dose in fid_input_items:
-    await any_continuous_dose_update(fid, dose, conn, log, dataset_id=dataset_id, incremental=incremental)
+    await any_continuous_dose_update(fid, dose, conn, log, dataset_id=dataset_id, incremental=incremental, cdm_t_target)
 
 async def any_inotrope_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
   """
@@ -95,11 +95,11 @@ async def any_inotrope_update(fid, fid_input, conn, log, dataset_id, derive_feat
   for dose in fid_input_items:
     await any_continuous_dose_update(fid, dose, conn, log,
                                      dataset_id=dataset_id,
-                                     incremental=incremental)
+                                     incremental=incremental, cdm_t_target=cdm_t_target)
 
 # Special case
 async def any_continuous_dose_update(fid, dose, conn, log, dataset_id=None,
-                                     incremental=False):
+                                     incremental=False, cdm_t_target='cdm_t'):
   global STOPPED_ACTIONS
   select_sql = """
     select enc_id, tsp, value::json->>'action' as action, confidence
