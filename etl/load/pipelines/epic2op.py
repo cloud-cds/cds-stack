@@ -70,15 +70,12 @@ async def get_notifications_for_epic(ctxt, job_id, _):
 
 
 
-def epic_2_workspace(ctxt, db_data, sqlalchemy_str, job_id, dtypes=None):
+async def epic_2_workspace(ctxt, db_data, sqlalchemy_str, job_id, dtypes=None):
   ''' Push all the dataframes to a workspace table '''
-  engine = create_engine(sqlalchemy_str)
-  for df_name, df in db_data.items():
-    if df is None or df.empty:
-      ctxt.log.warning("Skipping table load for {} (invalid datafame)".format(df_name))
-      continue
-    primitives.data_2_workspace(ctxt.log, engine, job_id, df_name, df, dtypes=dtypes)
-  return job_id
+  async with ctxt.db_pool.acquire() as conn:
+    for df_name, df in db_data.items():
+      await primitives.data_2_workspace(ctxt.log, conn, job_id, df_name, df, dtypes=dtypes)
+    return job_id
 
 
 
@@ -482,7 +479,7 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
     all_tasks.append(Task(
       name = 'epic_2_workspace_archive',
       deps = [db_raw_data_task],
-      fn   = epic_2_workspace,
+      coro = epic_2_workspace,
       args = [sqlalchemy_str, job_id, 'unicode'],
     ))
   if 'test' in mode:
@@ -494,7 +491,7 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
   all_tasks += [
     Task(name = 'epic_2_workspace',
          deps = [db_data_task],
-         fn   = epic_2_workspace,
+         coro = epic_2_workspace,
          args = [sqlalchemy_str, job_id, None]),
     Task(name = 'workspace_to_cdm',
          deps = ['epic_2_workspace'],

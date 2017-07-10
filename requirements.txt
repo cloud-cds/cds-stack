@@ -1,6 +1,6 @@
 aiohttp==2.0.3
 argparse==1.4.0
-asyncpg==0.9.0
+asyncpg==0.12.0
 boto3==1.4.4
 botocore==1.5.33
 ipython==6.0.0
