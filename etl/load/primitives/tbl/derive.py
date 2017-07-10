@@ -1356,7 +1356,7 @@ async def acute_kidney_failure_update(fid, fid_input, conn, log, dataset_id, der
     LEFT JOIN %(twf_table)s cr on cr.tsp >= akfi.tsp and
       cr.tsp <= akfi.tsp + '24 hours'::interval and cr.enc_id = akfi.enc_id
     LEFT JOIN %(twf_table_ur24)s ur24 on ur24.tsp >= akfi.tsp and ur24.tsp <= akfi.tsp + '24 hours'::interval and akfi.enc_id = ur24.enc_id
-    LEFT JOIN %(cdm_t)s as cdm_t di on di.tsp >= akfi.tsp and di.tsp <= akfi.tsp + '24 hours'::interval and di.enc_id = akfi.enc_id
+    LEFT JOIN %(cdm_t)s as di on di.tsp >= akfi.tsp and di.tsp <= akfi.tsp + '24 hours'::interval and di.enc_id = akfi.enc_id
     where akfi.fid = 'acute_kidney_failure_inhosp'
       %(dataset_id_equal_akfi)s
       and cr.creatinine > 5 and cr.creatinine_c < 8 %(dataset_id_equal_cr)s
