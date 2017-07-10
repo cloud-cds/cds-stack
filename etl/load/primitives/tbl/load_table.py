@@ -83,7 +83,7 @@ async def workspace_bedded_patients_2_cdm_s(conn, job_id):
     import_raw_features = """
     -- gender
     INSERT INTO cdm_s (enc_id, fid, value, confidence)
-    select pe.enc_id, 'gender', bp.gender::int, 1 as c from workspace.%(job)s_bedded_patients_transformed bp
+    select pe.enc_id, 'gender', bp.gender::numeric::int, 1 as c from workspace.%(job)s_bedded_patients_transformed bp
         inner join pat_enc pe on pe.visit_id = bp.visit_id
     ON CONFLICT (enc_id, fid)
     DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
