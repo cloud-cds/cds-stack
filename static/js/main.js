@@ -810,7 +810,15 @@ function graph(json, severeOnset, shockOnset, xmin, xmax, ymin, ymax) {
   $("#graphdiv").css('line-height', Number(graphWidth * .3225).toString() + 'px');
   var placeholder = $("#graphdiv");
 
-  if ( json['chart_values']['trewscore'].length == 0 || json['chart_values']['timestamp'].length == 0 ) {
+  if (json['patient_age'] < 18 ) {
+    $('h1 span').text("");
+    placeholder.html("");
+    placeholder.css('line-height', Number(graphWidth * .3225).toString() + 'px');
+    placeholder.append("<span style='text-align: center; vertical-align: middle; color: #777;'>" +
+                       "<p><b>Unable to display chart data: this patient meets the TREWS exclusion criteria.</b></p></span>");
+    return;
+  }
+  else if ( json['chart_values']['trewscore'].length == 0 || json['chart_values']['timestamp'].length == 0 ) {
     // update trewscore in header
     $('h1 span').text("");
     placeholder.html("");

@@ -220,6 +220,12 @@ async def get_patient_profile(db_pool, pat_id):
       select date_part('epoch', tsp) detf_tsp, deterioration, uid as detf_uid
       from deterioration_feedback where pat_id = '%(pid)s' limit 1
   ) DETF on true
+  full outer join
+  (
+      select value as age
+      from cdm_s inner join pat_enc on pat_enc.enc_id = cdm_s.enc_id
+      where pat_id = '%(pid)s' and fid = 'age'
+  ) AGE on true
   ''' % { 'pid': pat_id }
 
   async with db_pool.acquire() as conn:
@@ -241,6 +247,7 @@ async def get_patient_profile(db_pool, pat_id):
       profile['detf_tsp']        = result[0][3]
       profile['deterioration']   = json.loads(result[0][4]) if result[0][4] is not None else None
       profile['detf_uid']        = result[0][5]
+      profile['age']             = result[0][6]
 
     return profile
 
