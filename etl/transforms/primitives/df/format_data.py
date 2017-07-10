@@ -18,8 +18,8 @@ def format_numeric(df, column):
     df[column] = pd.to_numeric(df[column])
     return df
 
-def format_gender_to_int(df, column):
-    gender_map = {'Female': 0, 'Male': 1}
+def format_gender_to_string(df, column):
+    gender_map = {'Female': '0', 'Male': '1'}
     df[column] = df[column].map(lambda g: gender_map.get(g) if g in gender_map else None)
     return df
 
