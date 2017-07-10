@@ -302,6 +302,28 @@ async def get_notifications(db_pool, eid):
     return notifications
 
 
+async def get_order_detail(db_pool, eid):
+  # NOTE: currently, we only query all cms_antibiotics
+  get_order_detail_sql = \
+  '''
+  select tsp timestamp, fid, value from criteria_meas
+  where pat_id = '%s' and
+  fid in (
+    'azithromycin_dose','aztreonam_dose','cefepime_dose','ceftriaxone_dose','ciprofloxacin_dose','gentamicin_dose','levofloxacin_dose','metronidazole_dose','moxifloxacin_dose','vancomycin_dose'
+  )
+  and now() - tsp < (select value::interval from parameters where name = 'lookbackhours');
+  ''' % eid
+
+  async with db_pool.acquire() as conn:
+    result = await conn.fetch(get_order_detail_sql)
+
+    order_details = []
+    for row in result:
+        order_detail['timestamp'] = int(order_detail['timestamp'])
+        order_details.append(order_detail)
+
+    return order_details
+
 async def toggle_notification_read(db_pool, eid, notification_id, as_read):
   toggle_notifications_sql = \
   '''
