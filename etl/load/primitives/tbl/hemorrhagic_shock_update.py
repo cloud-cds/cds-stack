@@ -25,7 +25,7 @@ async def hemorrhagic_shock_update(fid, fid_input, conn, log, dataset_id, derive
         (select enc_id, tsp, lactate, lactate_c, sbpm, sbpm_c from %(twf_table)s
         where sbpm <= 90 and lactate > 2 %(dataset_block)s %(incremental_twf_table)s
         ) c1 join
-        (select * from %(cdm_t)s cdm_t where fid='transfuse_rbc' %(dataset_block)s %(incremental_cdm_t)s ) c2
+        (select * from %(cdm_t)s as cdm_t where fid='transfuse_rbc' %(dataset_block)s %(incremental_cdm_t)s ) c2
         on c1.enc_id=c2.enc_id and c2.tsp >= c1.tsp and c2.tsp <= c1.tsp + interval '6 hours'
         group by c1.enc_id, c1.tsp, lactate_c, sbpm_c, lactate, sbpm ) c4
       where %(twf_table)s.enc_id=c4.enc_id and %(twf_table)s.tsp=c4.tsp %(dataset_block)s;

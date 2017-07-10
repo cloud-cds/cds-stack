@@ -73,7 +73,8 @@ job_config = {
   in os.environ and os.environ['offline_criteria_processing'] == 'False' else \
   {
     'load_cdm_to_criteria_meas':True,
-    # 'calculate_historical_criteria':False
+    'gen_label_and_report': True if 'gen_label_and_report' in os.environ and \
+      os.environ['gen_label_and_report'] else False
   },
   'engine': {
     'name': 'engine-c2dw',

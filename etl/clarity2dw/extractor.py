@@ -864,6 +864,9 @@ class Extractor:
       if criteria_job.get('calculate_historical_criteria', False):
         async with ctxt.db_pool.acquire() as conn:
           await load_table.calculate_historical_criteria(conn)
+      if criteria_job.get('gen_label_and_report', False):
+        async with ctxt.db_pool.acquire() as conn:
+          await load_table.gen_label_and_report(conn, self.dataset_id)
     else:
       ctxt.log.info("skipped offline criteria processing")
 
@@ -880,12 +883,14 @@ class Extractor:
     # update the updated column for this dataset
     postprocessing_sql += 'UPDATE dw_version SET updated = Now()' \
       + ' WHERE dataset_id = %s;' % self.dataset_id
-    # NOTE: comment out run stats, decide to run it manually
-    # postprocessing_sql += "select * from run_cdm_stats({},'{}',{})".format(\
-    #     self.dataset_id,
-    #     'dev_dw' if 'dev' in ctxt.config['db_host'] else 'prod_dw',
-    #     int(os.environ['nprocs']) if 'nprocs' in os.environ else 2
-    #   )
+    # NOTE: only used for daily ETL on dev dw
+    if self.dataset_id == 7:
+      postprocessing_sql += \
+      "select * from run_cdm_label_and_report({},'{}',{});".format(\
+          self.dataset_id,
+          'labels #zad.test daily ETL',
+          12
+        )
     async with ctxt.db_pool.acquire() as conn:
       ctxt.log.info(postprocessing_sql)
       result = await conn.execute(postprocessing_sql)
