@@ -13,7 +13,8 @@ async def hemorrhage_update(fid, fid_input, conn, log , dataset_id, derive_featu
     fid_input_items = [item.strip() for item in fid_input.split(',')]
     assert fid_input_items[0] == 'transfuse_rbc', \
         'wrong fid_input %s' % fid_input
-    await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id))
+    if dataset_id and not incremental: # offline dataset
+        await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id))
     select_sql = """
         select rbc_2.enc_id, rbc_2.tsp, 1 confidence,
             prior_events, future_events

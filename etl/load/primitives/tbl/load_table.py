@@ -146,6 +146,17 @@ async def workspace_bedded_patients_2_cdm_s(conn, job_id):
     """ % {'job': job_id}
     logging.info("%s: import_raw_features: %s" % (job_id, import_raw_features))
     await conn.execute(import_raw_features)
+    import_raw_features = """
+    -- patient class
+    INSERT INTO cdm_s (enc_id, fid, value, confidence)
+    select pe.enc_id, 'patient_class', patient_class, 1
+    from workspace.%(job)s_bedded_patients_transformed bp
+        inner join pat_enc pe on pe.visit_id = bp.visit_id
+    ON CONFLICT (enc_id, fid)
+    DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+    """ % {'job': job_id}
+    logging.info("%s: import_raw_features: %s" % (job_id, import_raw_features))
+    await conn.execute(import_raw_features)
 
 
 
@@ -169,10 +180,11 @@ async def workspace_flowsheets_2_cdm_t(conn, job_id):
 async def workspace_lab_results_2_cdm_t(conn, job_id):
     import_raw_features = \
     """INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
-        select pat_enc.enc_id, lr.tsp::timestamptz, lr.fid, lr.value, 0 from workspace.%(job)s_lab_results_transformed lr
+        select pat_enc.enc_id, lr.tsp::timestamptz, lr.fid, first(lr.value), 0 from workspace.%(job)s_lab_results_transformed lr
             inner join pat_enc on pat_enc.visit_id = lr.visit_id
             inner join cdm_feature on lr.fid = cdm_feature.fid and cdm_feature.category = 'T'
         where lr.tsp <> 'NaT' and lr.tsp::timestamptz < now()
+        group by pat_enc.enc_id, lr.tsp, lr.fid
     ON CONFLICT (enc_id, tsp, fid)
         DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
 

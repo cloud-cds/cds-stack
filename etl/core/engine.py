@@ -199,7 +199,6 @@ class Engine:
       if (not dependencies) or self.completed(dependencies):
         self.log.debug('Enqueueing "%s"' % task_id)
         if self.with_graph:
-          self.log.debug('task: {}'.format(self.tasks[task_id]))
           self.graph.node(task_id, color='yellow', style='filled')
           self.timer[task_id] = {"start": time.time()}
         self.pending_queue.append(task_id)
@@ -300,8 +299,8 @@ class Engine:
       if not finished:
         active.extend(self.run_block())
 
-      self.log.debug('Active Queue (iter %s) %s' % (iteration, str([idf[1] for idf in active])))
-      self.log.debug('Recently Completed (iter %s) %s' % (iteration, str([idf[1] for idf in finished])))
+      self.log.debug('Active Queue (iter %s) %s' % (iteration, str([idf[0] for idf in active])))
+      self.log.debug('Recently Completed (iter %s) %s' % (iteration, str([idf[0] for idf in finished])))
 
       if not(active or finished):
         self.log.error('Engine has no tasks to wait on (no tasks launched/active/recently finished)')

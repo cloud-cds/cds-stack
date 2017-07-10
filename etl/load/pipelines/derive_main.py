@@ -171,7 +171,7 @@ async def derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=None, deri
 
       elif fid_category == 'T':
         # Note they do not touch TWF table
-        sql = gen_cdm_t_delete_and_insert_query(config_entry, fid,
+        sql = gen_cdm_t_upsert_query(config_entry, fid,
                                                 dataset_id, incremental)
         log.debug(clean_sql + sql)
 
@@ -275,7 +275,7 @@ def gen_subquery_upsert_query(config_entry, fid, dataset_id, derive_feature_addr
   }
   return upsert_clause
 
-def gen_cdm_t_delete_and_insert_query(config_entry, fid, dataset_id, incremental):
+def gen_cdm_t_upsert_query(config_entry, fid, dataset_id, incremental):
   fid_select_expr = config_entry['fid_select_expr'] % {
     'dataset_col_block': 'cdm_t.dataset_id,' if dataset_id is not None else '',
     'dataset_where_block': (' and cdm_t.dataset_id = %s' % dataset_id) if dataset_id is not None else '',
@@ -283,10 +283,15 @@ def gen_cdm_t_delete_and_insert_query(config_entry, fid, dataset_id, incremental
     'incremental_enc_id_match': incremental_enc_id_match(' and ', incremental)
   }
   print(fid_select_expr)
-  insert_clause = """
-  DELETE FROM cdm_t where fid = '%(fid)s' %(dataset_where_block)s
-  %(incremental_enc_id_in)s;
-  INSERT INTO cdm_t (%(dataset_col_block)s enc_id,tsp,fid,value,confidence) (%(select_expr)s);
+  delete_clause = ''
+  if dataset_id and not incremental:
+    # only delete existing data in offline full load mode
+    delete_clause = "DELETE FROM cdm_t where fid = '%(fid)s' %(dataset_where_block)s;\n"
+
+  upsert_clause = delete_clause + """
+  INSERT INTO cdm_t (%(dataset_col_block)s enc_id,tsp,fid,value,confidence) (%(select_expr)s)
+  ON CONFLICT (%(dataset_col_block)s enc_id,tsp,fid) DO UPDATE SET
+  value = excluded.value, confidence = excluded.confidence;
   """ % {
     'fid':fid,
     'select_expr': fid_select_expr,
@@ -294,8 +299,8 @@ def gen_cdm_t_delete_and_insert_query(config_entry, fid, dataset_id, incremental
     'dataset_where_block': (' and dataset_id = %s' % dataset_id) if dataset_id is not None else '',
     'incremental_enc_id_in': incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental)
   }
-  print(insert_clause)
-  return insert_clause
+  print(upsert_clause)
+  return upsert_clause
 
 
 
@@ -519,14 +524,14 @@ query_config = {
       | coalesce(lactate_c,0) | coalesce(pao2_to_fio2_c,0)
       | coalesce(hypotension_intp_c,0)
       | coalesce(urine_output_24hr_c,0) as acute_organ_failure_c
-      FROM %(twf_table_join)s cdm_twf inner join S on %(dataset_id_match)s
-        and cdm_twf.enc_id = S.enc_id
+      FROM %(twf_table_join)s cdm_twf inner join S on
+        cdm_twf.enc_id = S.enc_id %(dataset_id_match)s
         %(dataset_id_equal)s
     ''' % {
       'twf_table'           : para.get("twf_table"),
       'twf_table_join'      : para.get("twf_table_join"),
       'dataset_id_key'      : para.get("dataset_id_key"),
-      'dataset_id_match'    : dataset_id_match(" ", "cdm_twf", "S", para.get("dataset_id")),
+      'dataset_id_match'    : dataset_id_match(" and ", "cdm_twf", "S", para.get("dataset_id")),
       'dataset_id_equal'    : dataset_id_equal(" WHERE ", "cdm_twf", para.get("dataset_id")),
       'sub_dataset_id_equal': dataset_id_equal(" and " if para.get("incremental") else "WHERE " , "cdm_twf", para.get("dataset_id")),
       'with_ds_s'           : dataset_id_equal(" and ", "cdm_s", para.get("dataset_id")),
@@ -722,21 +727,20 @@ query_config = {
     'derive_type': 'subquery',
     'subquery': lambda para: '''
     WITH subquery as (
-      select  %(dataset_id_key)s cdm_twf.enc_id, min(cdm_twf.tsp) tsp, max(cdm_twf.any_organ_failure_c) c
+      select  %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp, cdm_twf.any_organ_failure_c c
         FROM %(twf_table_join)s cdm_twf
         where cdm_twf.any_organ_failure %(dataset_id_equal)s
-      group by %(dataset_id_key)s cdm_twf.enc_id
+        order by cdm_twf.enc_id, cdm_twf.tsp desc
     )
     SELECT %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
-    (case when cdm_twf.tsp > subquery.tsp
-        then least(EXTRACT(EPOCH FROM (cdm_twf.tsp - subquery.tsp))/60, 14*24*60)
-        else 0
-     end) as minutes_since_any_organ_fail,
-     subquery.c as minutes_since_any_organ_fail_c
+    least(EXTRACT(EPOCH FROM (cdm_twf.tsp - first(subquery.tsp)))/60, 14*24*60) as minutes_since_any_organ_fail,
+     first(subquery.c) as minutes_since_any_organ_fail_c
     FROM %(twf_table_join)s cdm_twf
     inner join subquery on cdm_twf.enc_id = subquery.enc_id
+    and cdm_twf.tsp >= subquery.tsp
     %(dataset_id_match)s
     %(dataset_id_equal_w)s
+    group by %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp
     ''' % {
       'twf_table_join'    : para.get("twf_table_join"),
       'dataset_id_key'    : para.get("dataset_id_key"),
@@ -776,21 +780,19 @@ query_config = {
     'derive_type': 'subquery',
     'subquery': lambda para: '''
     WITH subquery as (
-      select %(dataset_id_key_t)s cdm_t.enc_id, min(tsp) tsp, max(confidence)::int c
+      select %(dataset_id_key_t)s cdm_t.enc_id, cdm_t.tsp, cdm_t.confidence c
         from cdm_t %(incremental_enc_id_join)s
         where cdm_t.fid = 'any_antibiotics' and cdm_t.value::boolean %(dataset_id_equal_t)s %(incremental_enc_id_match)s
-      group by %(dataset_id_key_t)s cdm_t.enc_id
+      order by cdm_t.enc_id, cdm_t.tsp desc
     )
     SELECT %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
-     (case when cdm_twf.tsp > subquery.tsp
-        then least(EXTRACT(EPOCH FROM (cdm_twf.tsp - subquery.tsp))/60, 24*60)
-        else 0
-     end) as minutes_since_any_antibiotics,
-     subquery.c as minutes_since_any_antibiotics_c
+     least(EXTRACT(EPOCH FROM (cdm_twf.tsp - first(subquery.tsp)))/60, 24*60) as minutes_since_any_antibiotics,
+     first(subquery.c) as minutes_since_any_antibiotics_c
     FROM %(twf_table_join)s cdm_twf inner join subquery on cdm_twf.enc_id = subquery.enc_id
     and cdm_twf.tsp >= subquery.tsp
     %(dataset_id_match)s
     %(dataset_id_equal)s
+    group by %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp
     ''' % {
       'dataset_id_key': para.get("dataset_id_key"),
       'dataset_id_key_t': dataset_id_key('cdm_t', para.get('dataset_id')),
@@ -953,21 +955,37 @@ query_config = {
     'fid_input_items': ['urine_output'],
     'derive_type': 'subquery',
     'subquery': lambda para: '''
-          SELECT %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
-          sum(coalesce(cdm_t.value::float, 0)) urine_output_6hr,
-          max(coalesce(cdm_t.confidence, 0)) urine_output_6hr_c
-          from %(twf_table_join)s cdm_twf
-          inner join cdm_t
-          on cdm_t.enc_id = cdm_twf.enc_id and cdm_t.tsp <= cdm_twf.tsp
-          and cdm_t.tsp > cdm_twf.tsp - interval '6 hours' %(dataset_id_match)s
-          where fid = 'urine_output' %(dataset_id_equal)s
-          group by %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp
+      SELECT %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
+      sum(coalesce(cdm_t.value::float, 0)) urine_output_6hr,
+      max(coalesce(cdm_t.confidence, 0)) urine_output_6hr_c
+      from %(twf_table_join)s cdm_twf
+      inner join
+      (
+        -- remove negative cases and any cases within 6 hours window of the negative cases and volumn >= 1000
+        select distinct cdm_t.*
+         from cdm_t left join
+        (
+          select * from cdm_t where fid = 'urine_output'
+          and value::numeric < 0 %(dataset_id_equal_t)s
+        ) neg on cdm_t.enc_id = neg.enc_id
+          and cdm_t.tsp - neg.tsp <= interval '6 hours'
+          and neg.tsp - cdm_t.tsp <= interval '6 hours'
+        where cdm_t.fid = 'urine_output' and cdm_t.value::numeric > 0
+        and (neg.tsp is null or cdm_t.value::numeric < 1000)
+        %(dataset_id_equal_t)s
+      )
+      cdm_t
+      on cdm_t.enc_id = cdm_twf.enc_id and cdm_t.tsp <= cdm_twf.tsp
+      and cdm_t.tsp > cdm_twf.tsp - interval '6 hours' %(dataset_id_match)s
+      where fid = 'urine_output' %(dataset_id_equal)s
+      group by %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp
     ''' % {
       'dataset_id_key': para.get("dataset_id_key"),
       'twf_table_join': para.get('twf_table_join'),
       'with_ds_ttwf': para.get('with_ds_ttwf'),
       'dataset_id_match': dataset_id_match(' and ','cdm_t', 'cdm_twf', para.get("dataset_id")),
       'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id")),
+      'dataset_id_equal_t': dataset_id_equal(" and ", "cdm_t", para.get("dataset_id")),
     },
     'clean': {'value': 0, 'confidence': 0},
   },
@@ -979,7 +997,22 @@ query_config = {
           sum(coalesce(cdm_t.value::float, 0)) urine_output_24hr,
           max(coalesce(cdm_t.confidence, 0)) urine_output_24hr_c
           from %(twf_table_join)s cdm_twf
-          left join cdm_t
+          left join
+          (
+            -- remove negative cases and any cases within 6 hours window of the negative cases and volumn >= 1000
+            select distinct cdm_t.*
+             from cdm_t left join
+            (
+              select * from cdm_t where fid = 'urine_output'
+              and value::numeric < 0 %(dataset_id_equal_t)s
+            ) neg on cdm_t.enc_id = neg.enc_id
+              and cdm_t.tsp - neg.tsp <= interval '6 hours'
+              and neg.tsp - cdm_t.tsp <= interval '6 hours'
+            where cdm_t.fid = 'urine_output' and cdm_t.value::numeric > 0
+            and (neg.tsp is null or cdm_t.value::numeric < 1000)
+            %(dataset_id_equal_t)s
+          )
+          cdm_t
           on cdm_t.enc_id = cdm_twf.enc_id and cdm_t.tsp <= cdm_twf.tsp
           and cdm_t.tsp > cdm_twf.tsp - interval '24 hours' %(dataset_id_match)s
           where fid = 'urine_output' %(dataset_id_equal)s
@@ -990,6 +1023,7 @@ query_config = {
       'with_ds_ttwf': para.get('with_ds_ttwf'),
       'dataset_id_match': dataset_id_match(' and ','cdm_t', 'cdm_twf', para.get("dataset_id")),
       'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id")),
+      'dataset_id_equal_t': dataset_id_equal(" and ", "cdm_t", para.get("dataset_id")),
     },
     'clean': {'value': 0, 'confidence': 0},
   },
@@ -1006,11 +1040,11 @@ query_config = {
   },
   # NOTE: fid_input dismatch, this feature is not available
   'any_beta_blocker': {
-    'fid_input_items': ['acebutolol_dose', 'atenolol_dose', 'bisoprolol_dose', 'metoprolol_dose', 'nadolol_dose', 'propanolol_dose'],
+    'fid_input_items': ['acebutolol_dose', 'atenolol_dose', 'bisoprolol_dose', 'metoprolol_dose', 'nadolol_dose', 'propranolol_dose'],
     'derive_type': 'simple',
     'fid_select_expr': '''
                                 SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_beta_blocker', 'True', max(cdm_t.confidence) confidence FROM cdm_t %(incremental_enc_id_join)s
-                                WHERE fid ~ 'acebutolol_dose|atenolol_dose|bisoprolol_dose|metoprolol_dose|nadolol_dose|propanolol_dose' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s %(incremental_enc_id_match)s
+                                WHERE fid ~ 'acebutolol_dose|atenolol_dose|bisoprolol_dose|metoprolol_dose|nadolol_dose|propranolol_dose' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s %(incremental_enc_id_match)s
                                 group by %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp''',
   },
   'any_glucocorticoid': {
@@ -1025,9 +1059,11 @@ query_config = {
     'fid_input_items': ['ampicillin_dose', 'clindamycin_dose', 'erythromycin_dose' , 'gentamicin_dose' , 'oxacillin_dose' , 'tobramycin_dose' , 'vancomycin_dose' , 'ceftazidime_dose' , 'cefazolin_dose' , 'penicillin_g_dose' , 'meropenem_dose' , 'penicillin_dose' , 'amoxicillin_dose' , 'piperacillin_tazbac_dose', 'rifampin_dose', 'meropenem_dose', 'rapamycin_dose'],
     'derive_type': 'simple',
     'fid_select_expr': '''
-                                SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_antibiotics', 'True', max(cdm_t.confidence) confidence FROM cdm_t %(incremental_enc_id_join)s
-                                WHERE fid ~ 'ampicillin_dose|clindamycin_dose|erythromycin_dose|gentamicin_dose|oxacillin_dose|tobramycin_dose|vancomycin_dose|ceftazidime_dose|cefazolin_dose|penicillin_g_dose|meropenem_dose|penicillin_dose|amoxicillin_dose|piperacillin_tazbac_dose|rifampin_dose|meropenem_dose|rapamycin_dose' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s %(incremental_enc_id_match)s
-                                group by %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp''',
+      SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_antibiotics', 'True', max(cdm_t.confidence) confidence FROM cdm_t %(incremental_enc_id_join)s
+      WHERE fid ~ 'ampicillin_dose|clindamycin_dose|erythromycin_dose|gentamicin_dose|oxacillin_dose|tobramycin_dose|vancomycin_dose|ceftazidime_dose|cefazolin_dose|penicillin_g_dose|meropenem_dose|penicillin_dose|amoxicillin_dose|piperacillin_tazbac_dose|rifampin_dose|meropenem_dose|rapamycin_dose'
+       AND ((isnumeric(value) and value::numeric > 0) or (not isnumeric(value) and cast(value::json->>'dose' as numeric) > 0))
+       %(dataset_where_block)s %(incremental_enc_id_match)s
+      group by %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp''',
   },
 }
 

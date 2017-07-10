@@ -12,6 +12,7 @@ bedded_patients_transforms = [
     lambda bp: restructure.select_columns(bp, {
         'PatientIDs':       'pat_id',
         'AdmitDateTime':    'admittime',
+        'PatientClass':     'patient_class',
         'CSN':              'visit_id',
         'Age':              'age',
         'Gender':           'gender',
