@@ -122,6 +122,10 @@ class TREWSAPI(web.View):
       deterioration = {"value": actionData['value'], "other": actionData["other"]}
       await query.set_deterioration_feedback(db_pool, eid, deterioration, uid)
 
+    elif actionType == u'poll_order_detail':
+      order_detail = await query.get_order_detail(db_pool, eid)
+      return {'order_detail': order_detail}
+
     else:
       msg = 'Invalid action type: ' + actionType
       logging.error(msg)
