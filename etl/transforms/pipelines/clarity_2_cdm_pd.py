@@ -26,6 +26,15 @@ def get_min_tsp(tsp_name, tsp_with_quotes=True):
 # Utilities
 #============================
 async def pull_med_orders(connection, dataset_id, fids, log, is_plan, clarity_workspace):
+  """
+  :param connection: database connection
+  :param dataset_id: dataset_id
+  :param fids: fids that are going to be written by this code
+  :param log: instantited logging object
+  :param is_plan: If is_plan is True, don't write, otherwise write
+  :param clarity_workspace: database schema to write to within a database
+  """
+
   start = time.time()
   log.info('Entered Med Orders Extraction')
   cms_antibiotics_fids = [ med['fid'] for med in med_regex if 'part_of' in med and 'cms_antibiotics' in med['part_of']]
