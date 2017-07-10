@@ -17,11 +17,11 @@ async def data_2_workspace(logger, conn, job_id, df_name, df, dtypes=None, if_ex
         %(cols)s
     );
     """ % {'tab': table_name, 'cols': cols}
-    logging.info("create table: {}".format(prepare_table))
+    logger.info("create table: {}".format(prepare_table))
     await conn.execute(prepare_table)
     tuples = [tuple([str(y) for y in x]) for x in df.values]
     await conn.copy_records_to_table(table_name, records=tuples, schema_name="workspace")
-    logging.info(table_name + " saved: nrows = {}".format(nrows))
+    logger.info(table_name + " saved: nrows = {}".format(nrows))
 
 
 
@@ -83,7 +83,7 @@ async def workspace_bedded_patients_2_cdm_s(conn, job_id):
     import_raw_features = """
     -- gender
     INSERT INTO cdm_s (enc_id, fid, value, confidence)
-    select pe.enc_id, 'gender', bp.gender, 1 as c from workspace.%(job)s_bedded_patients_transformed bp
+    select pe.enc_id, 'gender', bp.gender::int, 1 as c from workspace.%(job)s_bedded_patients_transformed bp
         inner join pat_enc pe on pe.visit_id = bp.visit_id
     ON CONFLICT (enc_id, fid)
     DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
