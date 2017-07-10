@@ -254,17 +254,17 @@ def gen_cdm_t_upsert_query(config_entry, fid, dataset_id, incremental, cdm_t_tar
     'incremental_enc_id_join': incremental_enc_id_join('cdm_t', dataset_id, incremental),
     'incremental_enc_id_match': incremental_enc_id_match(' and ', incremental)
   }
-  print(fid_select_expr)
+  # print(fid_select_expr)
   delete_clause = ''
   if dataset_id and not incremental:
     # only delete existing data in offline full load mode
     delete_clause = "DELETE FROM cdm_t where fid = '%(fid)s' %(dataset_where_block)s;\n"
 
-  upsert_clause = delete_clause + """
+  upsert_clause = (delete_clause + """
   INSERT INTO %(cdm_t)s (%(dataset_col_block)s enc_id,tsp,fid,value,confidence) (%(select_expr)s)
   ON CONFLICT (%(dataset_col_block)s enc_id,tsp,fid) DO UPDATE SET
   value = excluded.value, confidence = excluded.confidence;
-  """ % {
+  """) % {
     'cdm_t': cdm_t_target,
     'fid':fid,
     'select_expr': fid_select_expr,
@@ -272,7 +272,7 @@ def gen_cdm_t_upsert_query(config_entry, fid, dataset_id, incremental, cdm_t_tar
     'dataset_where_block': (' and dataset_id = %s' % dataset_id) if dataset_id is not None else '',
     'incremental_enc_id_in': incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental)
   }
-  print(upsert_clause)
+  # print(upsert_clause)
   return upsert_clause
 
 
