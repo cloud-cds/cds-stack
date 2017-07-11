@@ -4,6 +4,47 @@
 -- best practice: run this file every time when we deploy new version
 ----------------------------------------------------------------------------------------------
 
+create or replace function ol_pat_enc(_dataset_id integer)
+RETURNS
+table(enc_id integer,
+      pat_id varchar(50),
+      visit_id varchar(50))
+AS $func$ BEGIN RETURN QUERY
+select p.enc_id, p.pat_id, p.visit_id
+FROM pat_enc p
+WHERE p.dataset_id = _dataset_id and p.pat_id ~ '^E'
+  AND p.enc_id NOT IN
+    ( SELECT distinct cdm_t.enc_id
+     FROM cdm_t
+     WHERE dataset_id = _dataset_id
+       AND fid = 'discharge' )
+AND p.enc_id NOT IN
+    ( SELECT distinct cdm_t.enc_id
+     FROM cdm_t
+     WHERE dataset_id = _dataset_id
+       AND fid = 'care_unit' and value = 'Discharge')
+; END $func$ LANGUAGE plpgsql;
+
+
+create or replace function enc_hosp(_dataset_id integer)
+RETURNS
+table(enc_id integer, hospital text)
+AS $func$ BEGIN RETURN QUERY
+SELECT u.enc_id, (CASE WHEN unit ~* 'hc' THEN 'HCGH' WHEN unit ~* 'jh' THEN 'JHH' WHEN unit ~* 'bmc|bv' THEN 'BMC' WHEN unit ~* 'smh' THEN 'SMH' WHEN unit ~* 'sh' THEN 'SH' ELSE unit END) hospital
+   FROM
+     (SELECT c.enc_id,
+             first(value) unit
+      FROM
+        (SELECT p.enc_id, t.tsp, t.value
+         FROM pat_enc p
+         INNER JOIN cdm_t t ON t.enc_id = p.enc_id and p.dataset_id = t.dataset_id
+         WHERE t.dataset_id = _dataset_id
+           AND fid = 'care_unit' and value <> 'Discharge'
+      ORDER BY p.enc_id,
+               t.tsp DESC) c
+   GROUP BY c.enc_id) u
+; END $func$ LANGUAGE plpgsql;
+
 -- add_cdm_t for medication summation
 CREATE OR REPLACE FUNCTION add_cdm_t(dsid INT, key1 INT, key2 timestamptz, key3 TEXT, new_value TEXT, confidence_flag int) RETURNS VOID AS
 $$
@@ -2463,6 +2504,21 @@ union
 ) U;
 end $func$ LANGUAGE plpgsql;
 
+create or replace function run_cdm_label_and_report(_dataset_id int, _label_des text, server text, nprocs int)
+returns void as
+$func$
+declare
+  _label_id int;
+begin
+  -- TODO: delete previous labels
+  select * from get_cms_label_series(
+      _label_des, 1, null, _dataset_id, server, nprocs,
+      now() - interval '1 week', now(), interval '1 week',
+      interval '1 week', 'all', false, false, true, true) into _label_id;
+  perform create_care_unit(_dataset_id);
+  perform create_criteria_report(null, _dataset_id, _label_id);
+end
+$func$ language plpgsql;
 
 -------------------------
 -- cdm stats functions --
