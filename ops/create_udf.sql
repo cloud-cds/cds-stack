@@ -3,7 +3,24 @@
 -- create all user defined functions
 -- best practice: run this file every time when we deploy new version
 ----------------------------------------------------------------------------------------------
-
+create or replace function ol_pat_enc()
+RETURNS
+table(enc_id integer,
+      pat_id varchar(50),
+      visit_id varchar(50))
+AS $func$ BEGIN RETURN QUERY
+select p.enc_id, p.pat_id, p.visit_id
+FROM pat_enc p
+WHERE p.pat_id ~ '^E'
+  AND p.enc_id NOT IN
+    ( SELECT distinct cdm_t.enc_id
+     FROM cdm_t
+     WHERE fid = 'discharge' )
+AND p.enc_id NOT IN
+    ( SELECT distinct cdm_t.enc_id
+     FROM cdm_t
+     WHERE fid = 'care_unit' and value = 'Discharge')
+; END $func$ LANGUAGE plpgsql;
 /*
  * UDF used in CDM
  * predefined functions
@@ -2726,4 +2743,21 @@ begin
     (select count(*) from ' || _table || ' where dataset_id = '|| _dataset_id ||')::text)' into result;
 return result;
 end; $$;
+
+create or replace function distribute_advance_criteria_snapshot(server text, lookback_hours int, hospital text, nprocs int default 2)
+returns void language plpgsql as $$
+declare
+begin
+  execute 'with pats as
+  (select distinct p.pat_id from pat_enc p
+    inner join criteria_meas m on p.pat_id = m.pat_id
+    inner join cdm_s s on s.enc_id = p.enc_id
+    where now() - tsp < interval ''' || lookback_hours || ' hours'' and s.fid = ''hospital'' and s.value = '''||hospital||'''),
+  queries as (
+    select array_agg((''select advance_criteria_snapshot(''''''||pat_id||'''''')'')::text) q from pats
+  )
+  select distribute('''||server||''', q, '|| nprocs ||') from queries';
+end;
+$$;
+
 
