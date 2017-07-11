@@ -1,11 +1,12 @@
 var INFECTIONS = [
 	"Endocarditis",
 	"Meningitis",
-	"Infections",
 	"Bacteremia",
 	"Cellulitis",
 	"UTI",
 	"Pneumonia",
+	"Multiple Sources of Infection",
+	"Unknown",
 	"No Infection",
 	"Reset"
 ]
@@ -531,17 +532,17 @@ var septic_shock = {
 
 workflows = {
 	"sev3": {
-		"display_name": "Severe Sepsis 3hr Workflow",
+		"display_name": "Severe Sepsis 3hr Interventions",
 		"instruction": "Begins after onset of severe sepsis",
 		"not_yet": "No severe sepsis, no action required."
 	},
 	"sev6": {
-		"display_name": "Severe Sepsis 6hr Workflow",
+		"display_name": "Severe Sepsis 6hr Interventions",
 		"instruction": "Begins after initial lactate measurement",
 		"not_yet": "No severe sepsis, no action required."
 	},
 	"sep6": {
-		"display_name": "Septic Shock 6hr Workflow",
+		"display_name": "Septic Shock 6hr Interventions",
 		"instruction": "Begins after onset of septic shock",
 		"not_yet": "No septic shock, no action required."
 	},
