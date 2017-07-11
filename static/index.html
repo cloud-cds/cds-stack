@@ -379,7 +379,7 @@
 		    </p>
 				{% elif order_link_mode == 'direct' %}
 				  {% if disease.key in order_key_urls %}
-					<a href="{{ order_key_urls[disease.key] }}">Place Order</a>
+					<a href="{{ order_key_urls[disease.key] }}">{{ disease.display_name }}</a>
 				  {% else %}
 					<p>
 			    <OrderTemplate Key="{{ disease.key }}" OrderMode="IP" RemoveOriginal="True">

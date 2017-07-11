@@ -454,6 +454,13 @@ body.waiting {
     -ms-user-select: none;      /* IE 10+ */
     user-select: none;
 }
+.order-dropdown a,
+.order-dropdown a:link,
+.order-dropdown a:visited {
+    text-decoration: none;
+    float: right;
+    color: #10b66d;
+}
 .order-dropdown p {
     float: right;
     margin: 0;
