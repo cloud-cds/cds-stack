@@ -886,7 +886,7 @@ class Extractor:
     # NOTE: only used for daily ETL on dev dw
     if self.dataset_id == 7:
       postprocessing_sql += \
-      "select * from run_cdm_label_and_report({},'{}',{});".format(\
+      "select * from run_cdm_label_and_report({},'{}', 'dev_dw',{});".format(\
           self.dataset_id,
           'labels #zad.test daily ETL',
           12
