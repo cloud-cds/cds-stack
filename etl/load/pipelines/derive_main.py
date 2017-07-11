@@ -864,7 +864,9 @@ query_config = {
             else 0 end
           ) as renal_sofa,
           (
-            creatinine_c | urine_output_24hr_c
+            case when creatinine >= 1.2 or (urine_output_24hr < 500 and tsp - min_tsp >= '24 hours'::interval)
+              then creatinine_c | urine_output_24hr_c
+            else 0 end
           ) as renal_sofa_c
           FROM %(twf_table_join)s cdm_twf
           inner join S on cdm_twf.enc_id = S.enc_id
@@ -879,7 +881,6 @@ query_config = {
       'incremental_enc_id_join': incremental_enc_id_join('cdm_twf', para.get("dataset_id"), para.get("incremental")),
       'incremental_enc_id_match': incremental_enc_id_match(' and ', para.get('incremental'))
     },
-    'clean': {'value': 0, 'confidence': 0},
   },
   'fluids_intake_1hr': {
     'fid_input_items': ['fluids_intake'],
