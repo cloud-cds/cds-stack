@@ -55,6 +55,9 @@ var trews = new function() {
   this.data = {};
   this.isTest = false;
   this.setData = function(data) {
+    if (this.data != null) {
+      data['antibiotics_details'] = this.data['antibiotics_details'];
+    }
     this.data = data;
   }
   this.setNotifications = function(notifications) {
@@ -62,6 +65,13 @@ var trews = new function() {
       this.data['notifications'] = notifications;
     } else {
       this.data = {'notifications': notifications}
+    }
+  }
+  this.setAntibiotics = function(antibiotics) {
+    if (this.data) {
+      this.data['antibiotics_details'] = antibiotics;
+    } else {
+      this.data = {'antibiotics_details': antibiotics}
     }
   }
   this.getCriteria = function(slot) {
@@ -235,6 +245,11 @@ var endpoints = new function() {
       } else if ( result.hasOwnProperty('notifications') ) {
         trews.setNotifications(result.notifications);
         controller.refreshNotifications();
+      } else if ( result.hasOwnProperty('getAntibioticsResult') ) {
+        console.log('getAntibioticsResult');
+        console.log(result);
+        trews.setAntibiotics(result.getAntibioticsResult);
+        controller.refreshAntibiotics();
       }
       timer.log(this.url, this.start_time, new Date().getTime(), 'success')
     }).fail(function(result) {
@@ -314,6 +329,28 @@ var controller = new function() {
   this.refreshNotifications = function() {
     var globalJson = trews.data;
     notifications.render(globalJson['notifications']);
+  }
+  this.refreshAntibiotics = function() {
+    var detailsSpan = $("span[data-trews='antibiotics-details']");
+    var antibioticsPanel = $('#antibiotics-details-dropdown');
+
+    if (trews.data.antibiotics_details != null) {
+      var unique_order_elems = [];
+      antibioticsPanel.html('');
+      for (var i in trews.data.antibiotics_details) {
+        var order_elem = trews.data.antibiotics_details[i].order_name;
+        if (unique_order_elems.indexOf(order_elem) === -1) {
+          unique_order_elems.push(order_elem);
+          antibioticsPanel.prepend("<span class='order-info'>" + order_elem + "</span>");
+        }
+      }
+      antibioticsPanel.fadeOut(30);
+      antibioticsPanel.addClass('shown');
+      antibioticsPanel.css({
+        top: detailsSpan.offset().top + detailsSpan.height() + 7,
+        left: detailsSpan.offset().left
+      }).fadeIn(30);
+    }
   }
   this.displayJSError = function() {
     dataRefresher.terminate();
@@ -1112,27 +1149,29 @@ var criteriaComponent = function(c, constants, key, hidden) {
  * @return {String} html for a specific task
  */
 var taskComponent = function(json, elem, constants, doseLimit) {
-  elem.find('h3').text(constants['display_name']);
+  if ( constants['display_name'] == 'Antibiotics' ) {
+    elem.find(".order-details[data-trews='antibiotics-details']").html(constants['display_name'] + '<span class="inspect"></span>');
+  } else {
+    elem.find('h3').html(constants['display_name']);
+  }
   elem.removeClass('in-progress');
   elem.removeClass('complete');
-  /*
-  if ( constants['as_dose'] ) {
-    if ( Number(json['status']) > doseLimit ) {
-      elem.addClass('complete');
-    }
-  }
-  else if ( json['status'] == 'Ordered' ) {
-    elem.addClass('in-progress');
-  }
-  else if ( json['status'] == 'Completed' || json['status'] == 'Not Indicated' ) {
-    elem.addClass('complete');
-  }
-  */
   if ( json['status'] == 'Ordered' ) {
     elem.addClass('in-progress');
   }
   else if ( json['status'] == 'Completed' || json['status'] == 'Not Indicated' ) {
     elem.addClass('complete');
+  }
+
+  // Add custom antibiotics dropdown.
+  if (constants['display_name'] == 'Antibiotics') {
+    var expander = elem.find('.inspect');
+    expander.text('+');
+    expander.unbind();
+    expander.click(function(e) {
+      e.stopPropagation();
+      endpoints.getPatientData('getAntibiotics');
+    })
   }
 }
 
@@ -1353,8 +1392,9 @@ var dropdown = new function() {
     $('.edit-btn').removeClass('shown');
     $('.place-order-dropdown-btn').removeClass('shown');
     dropdown.d.fadeOut(300);
-    $('.order-dropdown').fadeOut(300);
     deterioration.sendOff();
+    $('.order-dropdown').fadeOut(300);
+    $('#antibiotics-details-dropdown').fadeOut(300);
   });
 }
 

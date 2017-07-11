@@ -237,7 +237,8 @@ async def get_patient_profile(db_pool, pat_id):
         'deactivated'     : None,
         'detf_tsp'        : None,
         'deterioration'   : None,
-        'detf_uid'        : None
+        'detf_uid'        : None,
+        'age'             : None
     }
 
     if len(result) == 1:
@@ -306,7 +307,7 @@ async def get_order_detail(db_pool, eid):
   # NOTE: currently, we only query all cms_antibiotics
   get_order_detail_sql = \
   '''
-  select tsp timestamp, fid, value from criteria_meas
+  select tsp, initcap(regexp_replace(fid, '_dose', '')) as fid, value from criteria_meas
   where pat_id = '%s' and
   fid in (
     'azithromycin_dose','aztreonam_dose','cefepime_dose','ceftriaxone_dose','ciprofloxacin_dose','gentamicin_dose','levofloxacin_dose','metronidazole_dose','moxifloxacin_dose','vancomycin_dose'
@@ -317,9 +318,15 @@ async def get_order_detail(db_pool, eid):
   async with db_pool.acquire() as conn:
     result = await conn.fetch(get_order_detail_sql)
 
+    epoch = datetime.datetime.utcfromtimestamp(0).replace(tzinfo=pytz.UTC)
+
     order_details = []
     for row in result:
-        order_detail['timestamp'] = int(order_detail['timestamp'])
+        order_detail = {
+            'timestamp' : int((row['tsp'] - epoch).total_seconds()),
+            'order_name': row['fid'],
+            'dose'      : row['value']
+        }
         order_details.append(order_detail)
 
     return order_details

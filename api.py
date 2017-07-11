@@ -74,6 +74,10 @@ class TREWSAPI(web.View):
       auditlist = await query.get_criteria_log(db_pool, eid)
       return {'auditlist': auditlist}
 
+    elif actionType == u'getAntibiotics':
+      antibiotics = await query.get_order_detail(db_pool, eid)
+      return {'getAntibioticsResult': antibiotics}
+
     elif actionType == u'override':
       action_is_clear = 'clear' in actionData and actionData['clear']
       logging.info('override_criteria action %(clear)s: %(v)s' % {'v': json.dumps(actionData), 'clear': action_is_clear})
@@ -121,10 +125,6 @@ class TREWSAPI(web.View):
     elif actionType == u'set_deterioration_feedback':
       deterioration = {"value": actionData['value'], "other": actionData["other"]}
       await query.set_deterioration_feedback(db_pool, eid, deterioration, uid)
-
-    elif actionType == u'poll_order_detail':
-      order_detail = await query.get_order_detail(db_pool, eid)
-      return {'order_detail': order_detail}
 
     else:
       msg = 'Invalid action type: ' + actionType
@@ -375,24 +375,30 @@ class TREWSAPI(web.View):
 
     self.update_criteria(criteria_result_set, data)
 
-    # update chart data
-    data['chart_data']['patient_arrival']['timestamp'] = patient_scalars['admit_time']
-    data['chart_data']['trewscore_threshold']          = patient_scalars['trews_threshold']
-    data['chart_data']['patient_age']                  = patient_scalars['age']
-    data['chart_data']['chart_values']                 = chart_values
+    try:
+      # update chart data
+      data['chart_data']['patient_arrival']['timestamp'] = patient_scalars['admit_time']
+      data['chart_data']['trewscore_threshold']          = patient_scalars['trews_threshold']
+      data['chart_data']['patient_age']                  = patient_scalars['age']
+      data['chart_data']['chart_values']                 = chart_values
 
-    # update_notifications and history
-    data['notifications'] = notifications
-    data['auditlist']     = history
+      # update profile components
+      data['deactivated'] = patient_scalars['deactivated']
 
-    # update profile components
-    data['deactivated'] = patient_scalars['deactivated']
+      data['deterioration_feedback'] = {
+          "tsp"           : patient_scalars['detf_tsp'],
+          "deterioration" : patient_scalars['deterioration'],
+          "uid"           : patient_scalars['detf_uid']
+      }
 
-    data['deterioration_feedback'] = {
-        "tsp"           : patient_scalars['detf_tsp'],
-        "deterioration" : patient_scalars['deterioration'],
-        "uid"           : patient_scalars['detf_uid']
-    }
+      # update_notifications and history
+      data['notifications'] = notifications
+      data['auditlist']     = history
+
+    except KeyError as ex:
+      traceback.print_exc()
+      logging.warning(str(patient_scalars))
+      raise
 
 
   async def post(self):
@@ -445,7 +451,7 @@ class TREWSAPI(web.View):
               if actionType is not None:
                 response_body = await self.take_action(db_pool, actionType, actionData, eid, uid)
 
-              if actionType != u'pollNotifications' and actionType != u'pollAuditlist':
+              if not actionType in [u'pollNotifications', u'pollAuditlist', u'getAntibiotics']:
                 await self.update_response_json(db_pool, data, eid)
                 if data is not None:
                   response_body = {'trewsData': data}

@@ -193,7 +193,7 @@
 						</div>
 					</div>
 					<div class="slot" data-trews="antibiotics">
-						<h3></h3>
+						<span class="order-details" data-trews="antibiotics-details"></span>
 						<div class="actions cf">
 							{% if custom_antibiotics %}
 								{% for loc in custom_antibiotics.locations %}
@@ -393,6 +393,7 @@
 		</div>
 		{% endfor %}
 	{% endif %}
+	<div id='antibiotics-details-dropdown'></div>
 	<div id='override-modal' class='cf'></div>
 	<div id="feedback" class="modal">
 		<div class="modal-content">

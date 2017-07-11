@@ -468,6 +468,53 @@ body.waiting {
 .order-dropdown .place-order:hover {
     background-color: #eee;
 }
+/* Order details */
+.order-details {
+    text-decoration: none;
+    display: block;
+    margin: 0 0 10px;
+    color: #777;
+    font-size: 14px;
+    font-weight: bold;
+    -webkit-user-select: none;  /* Chrome all / Safari all */
+    -moz-user-select: none;     /* Firefox all */
+    -ms-user-select: none;      /* IE 10+ */
+    user-select: none;
+}
+.order-details .inspect {
+    color: #10b66d;
+    cursor: pointer;
+    margin: 0 0 10px 5px;
+}
+#antibiotics-details-dropdown {
+    max-width: 400px;
+    position: absolute;
+    display: none;
+    z-index: 1;
+    border: 1px solid #ddd;
+    background-color: #fff;
+    box-shadow: 2px 2px 2px #ddd;
+    font-weight: 400;
+    font-size: 14px;
+}
+#antibiotics-details-dropdown .order-info {
+    position: relative;
+    width: 100%;
+    padding: 5px 10px 5px 10px;
+    max-height: 350px;
+    overflow-y: auto;
+    text-decoration: none;
+    float: right;
+    -webkit-transition: background-color .3s;
+    -moz-transition: background-color .3s;
+    transition: background-color .3s;
+}
+#antibiotics-details-dropdown .order-info.overridden {
+    background-color: #b3e8d1;
+}
+#antibiotics-details-dropdown .order-info:hover {
+    background-color: #eee;
+}
 /* Other Input field in Sources of Infection Dropdown */
 #infection-other {
     font-size: 0;
