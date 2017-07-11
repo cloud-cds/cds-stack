@@ -320,9 +320,15 @@ as $func$ begin
              (case when R.care_unit = 'Arrival' then R.next_unit else R.care_unit end) as care_unit
       from (
         select R.dataset_id, R.enc_id, R.tsp, R.care_unit,
-               lead(R.tsp,1) OVER (PARTITION BY R.enc_id ORDER BY R.tsp) as next_tsp,
-               lead(R.care_unit,1) OVER (PARTITION BY R.enc_id ORDER BY R.tsp) as next_unit,
-               first_value(R.care_unit) over (PARTITION by R.enc_id order by R.tsp) as first_unit
+               lead(R.tsp,1) OVER (PARTITION BY R.enc_id ORDER BY R.tsp,
+                  (case when R.care_unit = 'Arrival' then 0 when R.care_unit = 'Discharge' then 2 else 1 end)
+               ) as next_tsp,
+               lead(R.care_unit,1) OVER (PARTITION BY R.enc_id ORDER BY R.tsp,
+                  (case when R.care_unit = 'Arrival' then 0 when R.care_unit = 'Discharge' then 2 else 1 end)
+               ) as next_unit,
+               first_value(R.care_unit) over (PARTITION by R.enc_id order by R.tsp,
+                  (case when R.care_unit = 'Arrival' then 0 when R.care_unit = 'Discharge' then 2 else 1 end)
+               ) as first_unit
         from (
           select cdm_s.dataset_id, cdm_s.enc_id, cdm_s.value::timestamptz as tsp, 'Arrival' as care_unit
           from cdm_s
@@ -334,20 +340,22 @@ as $func$ begin
           where cdm_t.fid = 'care_unit'
           and cdm_t.dataset_id = _dataset_id
         ) R
-        order by R.enc_id, R.tsp
+        order by
+          R.enc_id, R.tsp,
+          (case when R.care_unit = 'Arrival' then 0 when R.care_unit = 'Discharge' then 2 else 1 end)
       ) R
       where not (R.care_unit = 'Arrival' and R.first_unit <> 'Arrival')
       and (R.next_tsp is null or R.tsp <> R.next_tsp)
       order by R.enc_id, enter_time
     ),
-    discharge_fitered as (
+    discharge_filtered as (
       select raw_care_unit_tbl.*
       from
       raw_care_unit_tbl
       where care_unit != 'Discharge' and leave_time is not null
     )
     select dataset_id, enc_id, enter_time, leave_time, care_unit
-    from discharge_fitered;
+    from discharge_filtered;
 
   return;
 end; $func$;
@@ -820,6 +828,7 @@ as $func$ begin
             -- i) no match for this care unit (which should be ignored by later functions)
             -- ii) data delays, and no matches across all patients (which should be handled by later functions)
 
+           -- cdm_t values
            (T.value::json)#>>'{disposition}' as discharge_disposition,
 
            -- Metrics
@@ -960,7 +969,7 @@ as $func$ begin
     from (
       select ByPatEnc.pat_worst_state,
              ByPatEnc.pat_id,
-             count(distinct ByPatEnc.enc_id)      as num_encounters,
+             count(distinct ByPatEnc.enc_id)       as num_encounters,
              first(ByPatEnc.age)                   as age,
              first(ByPatEnc.gender)                as gender,
              first(ByPatEnc.care_unit)             as care_unit,
@@ -1018,7 +1027,7 @@ as $func$ begin
                     where CU.dataset_id = _dataset_id and CU.enc_id = R.enc_id)
                 ) as care_unit,
 
-               first(R.discharge_disposition) as discharge_disposition,
+               first(R.discharge_disposition)                                                                     as discharge_disposition,
                first(date_part('hour', coalesce(R.severe_sepsis_onset, R.severe_sepsis_wo_infection_onset)))::int as hour_of_day,
 
                max(R.antibiotics_met)                      as antibiotics_met,
@@ -1064,6 +1073,10 @@ as $func$ begin
     order by ByPat.pat_worst_state desc, ByPat.care_unit, ByPat.hour_of_day;
 end; $func$;
 
+
+------------------------------------------
+-- Unit-based reports
+------------------------------------------
 
 --
 -- Returns compliance statistics by state and time period across dataset.
@@ -1149,6 +1162,111 @@ as $func$ begin
 end; $func$;
 
 
+create or replace function unit_discharge_report(_pat_state  integer,
+                                                 _dataset_id integer,
+                                                 _label_id   integer)
+  returns table ( pat_worst_state           integer,
+                  care_unit                 text,
+                  discharge_disposition     text,
+                  num_patients              numeric,
+                  num_encounters            numeric
+  )
+language plpgsql
+as $func$ begin
+  return query
+    select R.pat_worst_state,
+           R.care_unit,
+           R.discharge_disposition,
+           sum(R.num_patients)            as num_patients,
+           sum(R.num_encounters)          as num_encounters
+    from full_compliance_report(_pat_state, _dataset_id, _label_id) R
+    group by R.pat_worst_state, R.care_unit, R.discharge_disposition
+    order by R.pat_worst_state desc, R.care_unit, R.discharge_disposition;
+end; $func$;
+
+
+create or replace function unit_los_report(_pat_state  integer,
+                                           _dataset_id integer,
+                                           _label_id   integer)
+  returns table ( pat_worst_state           integer,
+                  care_unit                 text,
+                  los_days                  numeric,
+                  num_patients              numeric,
+                  num_encounters            numeric
+  )
+language plpgsql
+as $func$ begin
+  return query
+    select R.pat_worst_state,
+           R.care_unit,
+           floor(R.length_of_stay_hrs / 24)        as los_days,
+           sum(R.num_patients)                     as num_patients,
+           sum(R.num_encounters)                   as num_encounters
+    from full_compliance_report(_pat_state, _dataset_id, _label_id) R
+    group by R.pat_worst_state, R.care_unit, floor(R.length_of_stay_hrs / 24)
+    order by R.pat_worst_state desc, R.care_unit, floor(R.length_of_stay_hrs / 24);
+end; $func$;
+
+
+create or replace function unit_progression_report(_pat_state  integer,
+                                                   _dataset_id integer,
+                                                   _label_id   integer)
+  returns table ( pat_worst_state           integer,
+                  care_unit                 text,
+                  worst_sofa                integer,
+                  num_patients              numeric,
+                  num_encounters            numeric
+  )
+language plpgsql
+as $func$ begin
+  return query
+    select ByPat.pat_worst_state,
+           ByPat.care_unit,
+           ByPat.worst_sofa,
+           count(*)::numeric          as num_patients,
+           sum(ByPat.num_encounters)  as num_encounters
+    from (
+      select ByPatEnc.pat_worst_state,
+             ByPatEnc.pat_id,
+             count(distinct ByPatEnc.enc_id)       as num_encounters,
+             first(ByPatEnc.care_unit)             as care_unit,
+             max(TWF.worst_sofa)                   as worst_sofa
+      from (
+          select R.pat_worst_state,
+                 R.pat_id,
+                 R.enc_id,
+                 R.severe_sepsis_onset,
+                 R.severe_sepsis_wo_infection_onset,
+
+                 -- Handle when an encounter's ssp/sspwoi onset is outside any care unit.
+                 -- This occurs when data arrives after discharge, and currently we attribute
+                 -- the event to the last care unit.
+                 coalesce(
+                    first(R.care_unit order by R.care_unit_entry desc),
+                    (select first(CU.care_unit order by CU.enter_time desc)
+                      from care_unit CU
+                      where CU.dataset_id = _dataset_id and CU.enc_id = R.enc_id)
+                  ) as care_unit
+
+          from tabulate_compliance(_pat_state, _dataset_id, _label_id) R
+          group by R.pat_worst_state, R.pat_id, R.enc_id, R.severe_sepsis_onset, R.severe_sepsis_wo_infection_onset
+      ) ByPatEnc
+      left join cdm_twf TWF
+        on ByPatEnc.enc_id = TWF.enc_id
+        and TWF.dataset_id = coalesce(_dataset_id, TWF.dataset_id)
+        and TWF.tsp >= coalesce(ByPatEnc.severe_sepsis_onset, ByPatEnc.severe_sepsis_wo_infection_onset)
+      group by ByPatEnc.pat_worst_state, ByPatEnc.pat_id
+    ) ByPat
+    group by ByPat.pat_worst_state, ByPat.care_unit, ByPat.worst_sofa
+    order by ByPat.pat_worst_state desc, ByPat.care_unit, ByPat.worst_sofa;
+end; $func$;
+
+
+
+------------------------------------------
+-- Discharge-based reports
+------------------------------------------
+
 create or replace function discharge_compliance_report(_pat_state  integer,
                                                        _dataset_id integer,
                                                        _label_id   integer)
@@ -1230,6 +1348,10 @@ as $func$ begin
     order by R.pat_worst_state desc, R.discharge_disposition;
 end; $func$;
 
+
+------------------------------------------------
+-- Misc. compliance reports
+------------------------------------------------
 
 --
 -- Returns compliance statistics by state and time period across dataset.

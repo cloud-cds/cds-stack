@@ -672,13 +672,18 @@ USING this_pat_id
 create or replace function criteria_value_met(m_value text, c_ovalue json, d_ovalue json)
     returns boolean language plpgsql as $func$
 BEGIN
-    return coalesce(
-        (c_ovalue is not null and c_ovalue#>>'{0,text}' = 'Not Indicated')
-        or not (
-            m_value::numeric
-                between coalesce((c_ovalue#>>'{0,lower}')::numeric, (d_ovalue#>>'{lower}')::numeric, m_value::numeric)
-                and coalesce((c_ovalue#>>'{0,upper}')::numeric, (d_ovalue#>>'{upper}')::numeric, m_value::numeric)
-        ), false);
+  return (case
+    when isnumeric(m_value)
+    then coalesce(
+          (c_ovalue is not null and c_ovalue#>>'{0,text}' = 'Not Indicated')
+          or not (
+              m_value::numeric
+                  between coalesce((c_ovalue#>>'{0,lower}')::numeric, (d_ovalue#>>'{lower}')::numeric, m_value::numeric)
+                  and coalesce((c_ovalue#>>'{0,upper}')::numeric, (d_ovalue#>>'{upper}')::numeric, m_value::numeric)
+          ), false)
+    else false
+    end
+  );
 END; $func$;
 
 create or replace function decrease_in_sbp_met(pat_sbp numeric, m_value text, c_ovalue json, d_ovalue json)
