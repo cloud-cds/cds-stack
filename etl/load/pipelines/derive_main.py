@@ -856,7 +856,7 @@ query_config = {
           FROM %(twf_table_uo)s cdm_twf %(incremental_enc_id_join)s
           %(where_dataset_id_equal)s %(incremental_enc_id_match)s
           group by %(dataset_id_key)s cdm_twf.enc_id)
-          select U.dataset_id, U.enc_id, U.tsp, max(U.renal_sofa) renal_sofa, max(U.renal_sofa_c) renal_sofa_c from
+          select %(dataset_id_key_U)s U.enc_id, U.tsp, max(U.renal_sofa) renal_sofa, max(U.renal_sofa_c) renal_sofa_c from
           (select
             %(dataset_id_key)s enc_id, tsp,
             (
