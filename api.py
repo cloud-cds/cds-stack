@@ -225,22 +225,18 @@ class TREWSAPI(web.View):
       if criterion["name"] in SIRS:
         sirs_idx = SIRS.index(criterion["name"])
         data['severe_sepsis']['sirs']['criteria'][sirs_idx] = criterion
-        if criterion["is_met"]:
+        criterion_ts = criterion['override_time'] if criterion['override_user'] else criterion['measurement_time']
+        if criterion["is_met"] and criterion_ts is not None:
           sirs_cnt += 1
-          if criterion['override_user']:
-            sirs_onsets.append(criterion['override_time'])
-          else:
-            sirs_onsets.append(criterion['measurement_time'])
+          sirs_onsets.append(criterion_ts)
 
       if criterion["name"] in ORGAN_DYSFUNCTION:
         od_idx = ORGAN_DYSFUNCTION.index(criterion["name"])
         data['severe_sepsis']['organ_dysfunction']['criteria'][od_idx] = criterion
+        criterion_ts = criterion['override_time'] if criterion['override_user'] else criterion['measurement_time']
         if criterion["is_met"]:
           od_cnt += 1
-          if criterion['override_user']:
-            od_onsets.append(criterion['override_time'])
-          else:
-            od_onsets.append(criterion['measurement_time'])
+          od_onsets.append(criterion_ts)
 
 
       # septic shock
@@ -248,23 +244,20 @@ class TREWSAPI(web.View):
       if criterion["name"] in HYPOTENSION:
         hp_idx = HYPOTENSION.index(criterion["name"])
         data['septic_shock']['hypotension']['criteria'][hp_idx] = criterion
+        criterion_ts = criterion['override_time'] if criterion['override_user'] else criterion['measurement_time']
         if criterion["is_met"]:
           hp_cnt += 1
-          if criterion['override_user']:
-            shock_onsets_hypotension.append(criterion['override_time'])
-          else:
-            shock_onsets_hypotension.append(criterion['measurement_time'])
+          shock_onsets_hypotension.append(criterion_ts)
 
 
       if criterion["name"] in HYPOPERFUSION:
         hpf_idx = HYPOPERFUSION.index(criterion["name"])
         data['septic_shock']['hypoperfusion']['criteria'][hpf_idx] = criterion
+        criterion_ts = criterion['override_time'] if criterion['override_user'] else criterion['measurement_time']
         if criterion["is_met"]:
           hpf_cnt += 1
-          if criterion['override_user']:
-            shock_onsets_hypoperfusion.append(criterion['override_time'])
-          else:
-            shock_onsets_hypoperfusion.append(criterion['measurement_time'])
+          shock_onsets_hypoperfusion.append(criterion_ts)
+
 
       if criterion["name"] == 'crystalloid_fluid':
         data['septic_shock']['crystalloid_fluid'] = criterion

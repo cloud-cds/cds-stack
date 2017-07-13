@@ -222,9 +222,9 @@ async def get_patient_profile(db_pool, pat_id):
   ) DETF on true
   full outer join
   (
-      select value as age
+      select max(value) as age
       from cdm_s inner join pat_enc on pat_enc.enc_id = cdm_s.enc_id
-      where pat_id = '%(pid)s' and fid = 'age'
+      where pat_id = '%(pid)s' and fid = 'age' order
   ) AGE on true
   ''' % { 'pid': pat_id }
 
@@ -296,9 +296,10 @@ async def get_notifications(db_pool, eid):
     notifications = []
     for row in result:
         notification = json.loads(row['message']) if row['message'] is not None else {}
-        notification['timestamp'] = int(notification['timestamp'])
-        notification['id'] = row['notification_id']
-        notifications.append(notification)
+        if notification['timestamp'] is not None:
+          notification['timestamp'] = int(notification['timestamp'])
+          notification['id'] = row['notification_id']
+          notifications.append(notification)
 
     return notifications
 
