@@ -2,7 +2,7 @@ import asyncio
 import aiomas
 
 async def test_client(message, loop):
-  reader, writer = await asyncio.open_connection('127.0.0.1', 45000, loop=loop)
+  reader, writer = await asyncio.open_connection('alerts.default.svc.cluster.local', 31000, loop=loop)
 
   print('Send: %r' % message)
   writer.write(message.encode())
@@ -19,7 +19,7 @@ loop.run_until_complete(test_client(message, loop))
 loop.close()
 
 async def client():
-  channel = await aiomas.channel.open_connection(('127.0.0.1', 45000))
+  channel = await aiomas.channel.open_connection(('alerts.default.svc.cluster.local', 31000))
   rep = await channel.send('ohai')
   print(rep)
   await channel.close()

@@ -61,7 +61,7 @@ async def notification_loop(reader, writer):
 
 
 loop = asyncio.get_event_loop()
-coro = asyncio.start_server(notification_loop, '0.0.0.0', 45000, loop=loop)
+coro = asyncio.start_server(notification_loop, '0.0.0.0', 31000, loop=loop)
 server = loop.run_until_complete(coro)
 
 # Serve requests until Ctrl+C is pressed
