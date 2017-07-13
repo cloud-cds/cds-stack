@@ -246,10 +246,8 @@ var endpoints = new function() {
         trews.setNotifications(result.notifications);
         controller.refreshNotifications();
       } else if ( result.hasOwnProperty('getAntibioticsResult') ) {
-        console.log('getAntibioticsResult');
-        console.log(result);
         trews.setAntibiotics(result.getAntibioticsResult);
-        controller.refreshAntibiotics();
+        controller.refreshOrderDetails('antibiotics-details');
       }
       timer.log(this.url, this.start_time, new Date().getTime(), 'success')
     }).fail(function(result) {
@@ -330,26 +328,25 @@ var controller = new function() {
     var globalJson = trews.data;
     notifications.render(globalJson['notifications']);
   }
-  this.refreshAntibiotics = function() {
-    var detailsSpan = $("span[data-trews='antibiotics-details']");
-    var antibioticsPanel = $('#antibiotics-details-dropdown');
-
+  this.refreshOrderDetails = function(order_details_type) {
     if (trews.data.antibiotics_details != null) {
       var unique_order_elems = [];
-      antibioticsPanel.html('');
       for (var i in trews.data.antibiotics_details) {
         var order_elem = trews.data.antibiotics_details[i].order_name;
         if (unique_order_elems.indexOf(order_elem) === -1) {
           unique_order_elems.push(order_elem);
-          antibioticsPanel.prepend("<span class='order-info'>" + order_elem + "</span>");
         }
       }
-      antibioticsPanel.fadeOut(30);
-      antibioticsPanel.addClass('shown');
-      antibioticsPanel.css({
-        top: detailsSpan.offset().top + detailsSpan.height() + 7,
-        left: detailsSpan.offset().left
-      }).fadeIn(30);
+
+      var detailsLink = $("span[data-trews='" + order_details_type + "']").find('.inspect');
+      var detailsCtn = $(".order-details-content[data-trews='" + order_details_type + "']").find(".status");
+      detailsComponent = new orderDetailsComponent(unique_order_elems);
+      if ( detailsLink.hasClass('unhidden') ) {
+        detailsCtn.removeClass('unhidden').addClass('hidden');
+      } else {
+        detailsCtn.removeClass('hidden').addClass('unhidden');
+      }
+      detailsCtn.html(detailsComponent.r());
     }
   }
   this.displayJSError = function() {
@@ -1149,8 +1146,9 @@ var criteriaComponent = function(c, constants, key, hidden) {
  * @return {String} html for a specific task
  */
 var taskComponent = function(json, elem, constants, doseLimit) {
-  if ( constants['display_name'] == 'Antibiotics' ) {
-    elem.find(".order-details[data-trews='antibiotics-details']").html(constants['display_name'] + '<span class="inspect"></span>');
+  var header = elem.find(".order-details-header");
+  if ( header.length ) {
+    header.html(constants['display_name'] + '<a class="inspect hidden">(see all)</a>');
   } else {
     elem.find('h3').html(constants['display_name']);
   }
@@ -1166,12 +1164,37 @@ var taskComponent = function(json, elem, constants, doseLimit) {
   // Add custom antibiotics dropdown.
   if (constants['display_name'] == 'Antibiotics') {
     var expander = elem.find('.inspect');
-    expander.text('+');
     expander.unbind();
     expander.click(function(e) {
       e.stopPropagation();
-      endpoints.getPatientData('getAntibiotics');
+      if ( $(this).hasClass('hidden') ) {
+        $(this).text('(minimize)').removeClass('hidden');
+        endpoints.getPatientData('getAntibiotics');
+      } else {
+        var detailsCtn = $(".order-details-content[data-trews='antibiotics-details']");
+        detailsCtn.find('.status.unhidden').removeClass('unhidden').addClass('hidden');
+        $(this).text('(see all)').addClass('hidden');
+      }
     })
+  }
+}
+
+/**
+ * Order details component, displaying value/status/timestamps
+ * of 3hr/6hr interventions.
+ */
+var orderDetailsComponent = function(order_statuses) {
+  this.html = '';
+  if ( order_statuses.length === 0 ) {
+    this.html += "<h4>No interventions found.</h4>"
+  } else {
+    for (var i in order_statuses) {
+      this.html += "<h4>" + order_statuses[i] + "</h4>"
+    }
+  }
+
+  this.r = function() {
+    return this.html;
   }
 }
 

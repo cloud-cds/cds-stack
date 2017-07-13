@@ -469,7 +469,7 @@ body.waiting {
     background-color: #eee;
 }
 /* Order details */
-.order-details {
+.order-details-header {
     text-decoration: none;
     display: block;
     margin: 0 0 10px;
@@ -481,10 +481,14 @@ body.waiting {
     -ms-user-select: none;      /* IE 10+ */
     user-select: none;
 }
-.order-details .inspect {
-    color: #10b66d;
+.order-details-header .inspect {
+    text-decoration: underline;
     cursor: pointer;
     margin: 0 0 10px 5px;
+    font-size: 12px;
+}
+.order-details-content {
+    margin: 0 0 10px 0;
 }
 #antibiotics-details-dropdown {
     max-width: 400px;

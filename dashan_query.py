@@ -224,7 +224,7 @@ async def get_patient_profile(db_pool, pat_id):
   (
       select max(value) as age
       from cdm_s inner join pat_enc on pat_enc.enc_id = cdm_s.enc_id
-      where pat_id = '%(pid)s' and fid = 'age' order
+      where pat_id = '%(pid)s' and fid = 'age'
   ) AGE on true
   ''' % { 'pid': pat_id }
 
