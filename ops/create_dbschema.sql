@@ -189,6 +189,7 @@ CREATE TABLE criteria_events
     flag           int,
     primary key (event_id, pat_id, name)
 );
+CREATE UNIQUE INDEX criteria_events_idx ON criteria_events (pat_id, event_id, name, flag);
 
 DO $$
 BEGIN
