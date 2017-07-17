@@ -57,7 +57,7 @@ class JHAPIConfig:
           if i < request_attempts - 1:
             logging.error("Caught {}, retrying...".format(type(e)))
             logging.exception(e)
-            sleep(2)
+            sleep(10)
           else:
             raise
 
