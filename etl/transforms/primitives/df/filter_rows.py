@@ -36,7 +36,7 @@ def filter_invalid_patient_classes(df, col):
         'Outpatient',
         'Hospital Outpatient Surgery',
         'Newborn',
-    ])]
+    ])].reset_index(drop=True)
 
 def filter_medications(med_data):
     med_data = med_data[med_data['fid'] != 'Unknown Medication']
