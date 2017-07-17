@@ -55,6 +55,92 @@ as $func$ begin
     end;
 end; $func$;
 
+create or replace function simple_pat_state(state integer)
+  returns integer
+language plpgsql
+as $func$ begin
+  return
+    case when state >= 30 then 30
+         when state between 20 and 29 then 20
+         when state between 10 and 19 then 10
+         else 0
+    end;
+end; $func$;
+
+create or replace function simple_strict_compliance_state(state integer)
+  returns text
+language plpgsql
+as $func$ begin
+  return
+    case when state = 35 or state = 23 then 'Compliant'
+    else 'Non-compliant'
+    end;
+end; $func$;
+
+create or replace function simple_any_compliance_state(state integer)
+  returns integer
+language plpgsql
+as $func$ begin
+  return
+    case when state in (31, 33, 35)
+         or   state in (21, 23)
+    then 'Compliant'
+    else 'Non-compliant'
+    end;
+end; $func$;
+
+create or replace function simple_discharge(discharge_disposition text)
+  returns text
+language plpgsql
+as $func$ begin
+  return
+    case when discharge_disposition in ('Expired', 'Home or Self Care')
+         then discharge_disposition
+    else 'Other'
+    end;
+end; $func$;
+
+create or replace function simple_care_unit(unit text)
+  returns text
+language plpgsql
+as $func$ begin
+  return case
+    when unit = 'BMC NICU'                 then 'ICU'
+    when unit = 'BMC BURN ICU'             then 'ICU'
+    when unit = 'BMC CARDIAC ICU'          then 'ICU'
+    when unit = 'BMC MEDICAL ICU'          then 'ICU'
+    when unit = 'BMC NEUROSCIENCE CCU'     then 'ICU'
+    when unit = 'BMC SURGICAL ICU'         then 'ICU'
+    when unit = 'BMC PEDS EMERGENCY DT'    then 'ED'
+    when unit = 'BMC EMERGENCY SERVICES'   then 'ED'
+    when unit = 'JHH WEINBERG 3A'          then 'ICU'
+    when unit = 'JHH WEINBERG 5C'          then 'ICU'
+    when unit = 'JHH ZAYED 3W'             then 'ICU'
+    when unit = 'JHH BLOOMBERG 4S'         then 'ICU'
+    when unit = 'JHH ZAYED 5E'             then 'ICU'
+    when unit = 'JHH ZAYED 5W'             then 'ICU'
+    when unit = 'JHH ZAYED 9E'             then 'ICU'
+    when unit = 'JHH ZAYED 10E'            then 'ICU'
+    when unit = 'JHH BLOOMBERG 8N'         then 'ICU'
+    when unit = 'JHH EMERGENCY MEDICINE'   then 'ED'
+    when unit = 'JHH PEDS ED'              then 'ED'
+    when unit = 'HCGH 3C ICU'              then 'ICU'
+    when unit = 'HCGH 2C NICU'             then 'ICU'
+    when unit = 'HCGH EMERGENCY-ADULTS'    then 'ED'
+    when unit = 'HCGH EMERGENCY-PEDS'      then 'ED'
+    when unit = 'SMH 3B SCN'               then 'ICU'
+    when unit = 'SMH INTENSIVE CARE'       then 'ICU'
+    when unit = 'SMH EMERGENCY DEPARTMENT' then 'ED'
+    when unit = 'SH INTENSIVE CARE 3100'   then 'ICU'
+    when unit = 'SH INTENSIVE CARE 3400'   then 'ICU'
+    when unit = 'SH CLIN DECISION 6400'    then 'ED'
+    when unit = 'SH EMERGENCY MAIN'        then 'ED'
+    when unit = 'SH EMERGENCY PEDS'        then 'ED'
+    else 'Non-ICU'
+  end;
+end; $func$;
+
+
 ---------------------------------------------
 -- Reports summaries.
 ---------------------------------------------
