@@ -43,13 +43,23 @@ class JHAPIConfig:
     request_settings = self.generate_request_settings(http_method, url, payloads)
 
     async def fetch(session, sem, setting):
-      async with sem:
-        async with session.request(**setting) as response:
-          if response.status != 200:
-            body = await response.text()
-            logging.error("  Status={}\tMessage={}".format(response.status, body))
-            return None
-          return await response.json()
+      request_attempts = 5
+      for i in range(request_attempts):
+        try:
+          async with sem:
+            async with session.request(**setting) as response:
+              if response.status != 200:
+                body = await response.text()
+                logging.error("  Status={}\tMessage={}".format(response.status, body))
+                return None
+              return await response.json()
+        except Exception as e:
+          if i < request_attempts - 1:
+            logging.error("Caught {}, retrying...".format(type(e)))
+            logging.exception(e)
+            sleep(2)
+          else:
+            raise
 
     async def run(request_settings, loop):
       tasks = []
@@ -71,8 +81,8 @@ class JHAPIConfig:
           logging.error("Caught {}, retrying...".format(type(e)))
           logging.exception(e)
           sleep(10)
-          continue
-        raise
+        else:
+          raise
 
   def generate_request_settings(self, http_method, url, payloads=None):
     request_settings = []
