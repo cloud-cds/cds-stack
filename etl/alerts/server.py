@@ -9,6 +9,11 @@ from etl.io_config.database import Database
 import datetime as dt
 import pytz
 import socket
+import random, string
+
+def randomword(length):
+   return ''.join(random.choice(string.ascii_uppercase) for i in range(length))
+
 
 start_timeout = 15 #seconds
 
@@ -25,6 +30,8 @@ class AlertServer:
     self.alert_server_port = alert_server_port
     self.alert_dns         = alert_dns
     self.predictor_port    = predictor_port
+    self.predictor_start_task = {}
+    self.last_etl_msg      = {}
 
 
   async def async_init(self):
@@ -84,6 +91,7 @@ class AlertServer:
         writer.write_eof()
         writer.close()
         # Wait to be popped off the queue
+        logging.info("start queue_watcher {}".format(id))
         response = await self.queue_watcher(id, predictor_type, message)
         if response == "SUCCESS":
           return
@@ -119,8 +127,8 @@ class AlertServer:
 
       elif message.get('type') == 'ETL':
         # Received ETL Done from ETL
+        self.last_etl_msg[message['hosp']] = message
         logging.info("{} ETL is finished".format(message['hosp']))
-
         # Forward message to all predictors
         predictors = await self.get_predictors()
         for idx, row in predictors.iterrows():
@@ -144,13 +152,21 @@ class AlertServer:
           # Received connection closed
           new_type = 'backup' if message['predictor_type'] == 'active' else 'active'
           logging.info("{} connection broken, trying {}".format(predictor_str, new_type))
-          self.loop.create_task(self.start_predictor(message['predictor_id'], message, new_type))
+          if message['hosp'] in self.last_etl_msg:
+            task_msg = self.last_etl_msg[message['hosp']]
+            task = self.loop.create_task(self.start_predictor(message['predictor_id'], task_msg, new_type))
+            if message['predictor_id'] in self.predictor_start_task:
+              self.predictor_start_task[message['predictor_id']].cancel()
+              logging.info("cancel existing predictor_start_task {}".format(message['predictor_id']))
+            self.predictor_start_task[message['predictor_id']] = task
+          else:
+            logging.warn("No existing ETL message for {}".format(message['hosp']))
 
         elif message2.get('type') == 'FIN':
           # Received FIN
-          logging.info("{} said they are finished".format(predictor_str))
+          logging.info("{} said they are finished: {}".format(predictor_str, message2))
           # TODO - Wait for Advance Criteria Snapshot to finish and then start generating notifications
-
+          await wait_for_criteria_ready()
         else:
           logging.error("UNKNOWN MESSAGE TYPE - Looking for FIN or Connection closed")
 
@@ -158,25 +174,26 @@ class AlertServer:
 
     writer.close()
 
-
+  # async def wait_for_criteria_ready(self, )
 
   async def queue_watcher(self, partition_id, predictor_type, message):
     ''' Watches the predictor queue to generate timeouts '''
-    logging.info("Starting queue watcher for {}".format(partition_id))
+    wid = 'queue_watcher_' + randomword(6)
+    logging.info("{}: Starting queue watcher for {}".format(wid, partition_id))
     while True:
       await asyncio.sleep(2)
-      logging.info("Checking {}'s queue".format(partition_id))
+      logging.info("{} Checking {}'s queue".format(wid, partition_id))
       predictor_df = await self.get_predictors()
       row = predictor_df.sort_index().iloc[partition_id]
       if row['queue_machine'] is None:
-        logging.error("Predictior {} ({}) removed from queue. Exiting queue watcher".format(
-          partition_id, predictor_type
+        logging.error("{}: Predictior {} ({}) removed from queue. Exiting queue watcher".format(
+          wid, partition_id, predictor_type
         ))
         return "SUCCESS"
       time_diff = dt.datetime.now(pytz.utc) - row['queue_tsp'].to_pydatetime()
       if time_diff > dt.timedelta(seconds=start_timeout):
-        logging.error("Predictor {} ({}) timeout. Exiting queue watcher".format(
-          partition_id, predictor_type
+        logging.error("{}: Predictor {} ({}) timeout. Exiting queue watcher".format(
+          wid, partition_id, predictor_type
         ))
         return "TIMEOUT"
 

@@ -28,7 +28,12 @@ async def start_predicting(writer, job_tsp):
   await asyncio.sleep(6)
 
   protocol.write_message(writer,
-    {'type': 'FIN', 'time': job_tsp, 'hosp': 'HCGH', 'predictor_id': 0}
+    {'type': 'FIN',
+     'time': job_tsp,
+     'hosp': 'HCGH',
+     'predictor_id': 0,
+     'enc_ids': [37261, 38746, 37279]
+    }
   )
   writer.close()
 
@@ -48,7 +53,7 @@ async def notification_loop(reader, writer):
 
   while not reader.at_eof():
     message = await protocol.read_message(reader, writer)
-
+    logging.info("recv: msg {}".format(message))
     if message == protocol.CONNECTION_CLOSED:
       break
     elif message.get('type') == 'ETL':
