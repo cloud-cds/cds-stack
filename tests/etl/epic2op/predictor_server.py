@@ -19,13 +19,17 @@ async def start_predicting(writer, job_tsp):
     'type': 'START',
     'time': job_tsp,
     'hosp': 'HCGH',
-    'dns':  predictor_dns
+    'dns':  predictor_dns,
+    'predictor_id': 0,
+    'predictor_type': 'active',
   })
 
   logging.info("Predicting on patients")
   await asyncio.sleep(6)
 
-  protocol.write_message(writer, {'type': 'FIN', 'time': job_tsp, 'hosp': 'HCGH'})
+  protocol.write_message(writer,
+    {'type': 'FIN', 'time': job_tsp, 'hosp': 'HCGH', 'predictor_id': 0}
+  )
   writer.close()
 
 
