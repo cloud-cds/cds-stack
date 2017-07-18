@@ -54,7 +54,7 @@ async def load_discharge_times(ctxt, contacts_df):
   async with ctxt.db_pool.acquire() as conn:
     await load_row.upsert_t(conn, rows, dataset_id=None, log=ctxt.log, many=True)
 
-async def notify_alert_server(ctxt, job_id, _):
+async def notify_data_ready_to_alert_server(ctxt, job_id, _):
   message = {
     'type': 'ETL',
     'time': str(dt.datetime.utcnow()),
@@ -538,8 +538,8 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
     Task(name = 'load_discharge_times',
          deps = ['contacts_transform'],
          coro = load_discharge_times),
-    Task(name = 'notify_alert_server',
+    Task(name = 'notify_data_ready_to_alert_server',
          deps = ['workspace_to_criteria_meas'],
-         coro = notify_alert_server)
+         coro = notify_data_ready_to_alert_server)
   ]
   return all_tasks
