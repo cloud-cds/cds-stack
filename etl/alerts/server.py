@@ -166,7 +166,9 @@ class AlertServer:
           # Received FIN
           logging.info("{} said they are finished: {}".format(predictor_str, message2))
           # TODO - Wait for Advance Criteria Snapshot to finish and then start generating notifications
-          await wait_for_criteria_ready()
+          pat_ids = await convert_enc_ids_to_pat_ids(message2['enc_ids'])
+          for pat_id in pat_ids:
+            self.loop.create_task(self.supression(pat_id), message2['time'])
         else:
           logging.error("UNKNOWN MESSAGE TYPE - Looking for FIN or Connection closed")
 
@@ -174,7 +176,29 @@ class AlertServer:
 
     writer.close()
 
-  # async def wait_for_criteria_ready(self, )
+  async def convert_enc_ids_to_pat_ids(enc_ids):
+    async with self.db_pool.acquire() as conn:
+      sql = '''
+      SELECT distinct pat_id FROM pat_enc where enc_id
+      in ({})
+      '''.format(','.join(enc_ids))
+      pat_ids = await conn.fetch(sql)
+      return pat_ids
+
+  async def supression(self, pat_id, tsp):
+    async def criteria_ready(pat_id, tsp):
+      async with self.db_pool.acquire() as conn:
+        sql = '''
+        SELECT count(*) FROM criteria where pat_id = {}
+        and tsp > '{}'::timestamptz
+        '''.format(pat_id, tsp)
+        cnt = await conn.fetch(sql)
+        return cnt > 0
+    while not criteria_ready(pat_id, tsp):
+      await asyncio.sleep(10)
+    async with self.db_pool.acquire() as conn:
+      sql = '''select supression_alert('{}')'''.format(pat_id)
+      await conn.fetch(sql)
 
   async def queue_watcher(self, partition_id, predictor_type, message):
     ''' Watches the predictor queue to generate timeouts '''
