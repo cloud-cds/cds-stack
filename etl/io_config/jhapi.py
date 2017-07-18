@@ -43,7 +43,7 @@ class JHAPIConfig:
     request_settings = self.generate_request_settings(http_method, url, payloads)
 
     async def fetch(session, sem, setting):
-      request_attempts = 5
+      request_attempts = 3
       for i in range(request_attempts):
         try:
           async with sem:
@@ -55,9 +55,9 @@ class JHAPIConfig:
               return await response.json()
         except Exception as e:
           if i < request_attempts - 1:
-            logging.error("Caught {}, retrying... {} times".format(type(e)), i)
+            logging.error("Request Error Caught {}, retrying... {} times".format(type(e)), i)
             logging.exception(e)
-            sleep(10)
+            sleep(3)
           else:
             raise
 
@@ -70,6 +70,7 @@ class JHAPIConfig:
           tasks.append(task)
         return await asyncio.gather(*tasks)
 
+
     attempts = 5
     for attempt in range(attempts):
       try:
@@ -78,9 +79,9 @@ class JHAPIConfig:
         return future.result()
       except Exception as e:
         if attempt < attempts - 1: # need -1 because attempt is 0 indexed
-          logging.error("Caught {}, retrying...".format(type(e)))
+          logging.error("Session Error Caught {}, retrying... {} times".format(type(e), attempt))
           logging.exception(e)
-          sleep(10)
+          sleep(5)
         else:
           raise
 
