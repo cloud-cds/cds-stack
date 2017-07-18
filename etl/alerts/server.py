@@ -50,7 +50,7 @@ class AlertServer:
 
 
 
-  async def add_to_queue(self, predictor_number, predictor_type):
+  async def add_predictor_to_queue(self, predictor_number, predictor_type):
     ''' Add predictor to the queue and return dns '''
     logging.info("Adding {} to queue".format(predictor_number))
     qry = '''
@@ -63,7 +63,7 @@ class AlertServer:
 
 
 
-  async def pop_from_queue(self, predictor_number):
+  async def pop_predictor_from_queue(self, predictor_number):
     ''' Remove a predictor from the queue '''
     logging.info("Popping {} from queue".format(predictor_number))
     qry = '''
@@ -84,7 +84,7 @@ class AlertServer:
     while True:
       try:
         # Add to queue
-        dns_on_queue = await self.add_to_queue(id, predictor_type)
+        dns_on_queue = await self.add_predictor_to_queue(id, predictor_type)
         # Forward ETL message
         reader, writer = await asyncio.open_connection(dns_on_queue, self.predictor_port)
         protocol.write_message(writer, message)
@@ -99,7 +99,7 @@ class AlertServer:
         logging.error("Error connecting to predictor {} ({}) at '{}'".format(
           id, predictor_type, dns_on_queue
         ))
-        await self.pop_from_queue(id)
+        await self.pop_predictor_from_queue(id)
         backoff = backoff * 2 if backoff < 30 else 30
         predictor_type = 'active' if predictor_type == 'backup' else 'backup'
         await asyncio.sleep(backoff)
@@ -127,46 +127,61 @@ class AlertServer:
 
       elif message.get('type') == 'ETL':
         # Received ETL Done from ETL
-        self.last_etl_msg[message['hosp']] = message
-        logging.info("{} ETL is finished".format(message['hosp']))
-        # Forward message to all predictors
-        predictors = await self.get_predictors()
-        for idx, row in predictors.iterrows():
-          self.loop.create_task(self.start_predictor(row['partition_id'], message))
+        # TODO: sender should periodically push ETL done messages as soft state.
+        hosp = message['hosp']
+        ts = message['time']
+        logging.info("{} ETL is finished".format(hosp))
+
+
+        # Forward message to all predictors if this is a new ETL job.
+        # Since 'ETL Done' messages are soft state, we will consider this a new message on crash recovery.
+        if (hosp not in self.last_etl_msg) or (hosp in self.last_etl_msg and self.last_etl_msg[hosp]['time'] < ts):
+          self.last_etl_msg[hosp] = message
+
+          predictors = await self.get_predictors()
+          for idx, row in predictors.iterrows():
+            self.loop.create_task(self.start_predictor(row['partition_id'], message))
 
       elif message.get('type') == 'START':
-         # Received START from predictor
-        predictor_str = "Predictor {} ({})".format(message['predictor_id'], message['predictor_type'])
+        # Received START from predictor
+        hosp = message['hosp']
+        predictor_id = message['predictor_id']
+        predictor_type = message['predictor_type']
+
+        predictor_str = "Predictor {} ({})".format(predictor_id, predictor_type)
         logging.info("{} said they are starting".format(predictor_str))
 
         # Cancel queue watcher - pop from queue
         logging.info("Popping from queue and cancelling queue watcher")
-        await self.pop_from_queue(message['predictor_id'])
+        await self.pop_predictor_from_queue(predictor_id)
 
         # Keep connection open and wait for next message
-        logging.info("Waiting for message")
+        logging.info("{} waiting for message".format(predictor_str))
         message2 = await protocol.read_message(reader, writer)
-        logging.info("Got message")
+        logging.info("{} got message".format(predictor_str))
 
         if message2 == protocol.CONNECTION_CLOSED:
           # Received connection closed
-          new_type = 'backup' if message['predictor_type'] == 'active' else 'active'
+          new_type = 'backup' if predictor_type == 'active' else 'active'
           logging.info("{} connection broken, trying {}".format(predictor_str, new_type))
-          if message['hosp'] in self.last_etl_msg:
-            task_msg = self.last_etl_msg[message['hosp']]
-            task = self.loop.create_task(self.start_predictor(message['predictor_id'], task_msg, new_type))
-            if message['predictor_id'] in self.predictor_start_task:
-              self.predictor_start_task[message['predictor_id']].cancel()
-              logging.info("cancel existing predictor_start_task {}".format(message['predictor_id']))
-            self.predictor_start_task[message['predictor_id']] = task
+          if hosp in self.last_etl_msg:
+            if predictor_id in self.predictor_start_task:
+              self.predictor_start_task[predictor_id].cancel()
+              logging.info("{} cancelling existing predictor_start_task".format(predictor_str))
+
+            task_msg = self.last_etl_msg[hosp]
+            task = self.loop.create_task(self.start_predictor(predictor_id, task_msg, new_type))
+            self.predictor_start_task[predictor_id] = task
           else:
-            logging.warn("No existing ETL message for {}".format(message['hosp']))
+            logging.warn("{} has no existing ETL message for {}".format(predictor_str, hosp))
+            # TODO: wait for the ETL message to be resent.
 
         elif message2.get('type') == 'FIN':
           # Received FIN
           logging.info("{} said they are finished: {}".format(predictor_str, message2))
           # TODO - Wait for Advance Criteria Snapshot to finish and then start generating notifications
           await wait_for_criteria_ready()
+
         else:
           logging.error("UNKNOWN MESSAGE TYPE - Looking for FIN or Connection closed")
 
