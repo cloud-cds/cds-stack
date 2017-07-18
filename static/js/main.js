@@ -675,13 +675,17 @@ var workflowsComponent = new function() {
       if ( fr != null ) { txt += '\nFRAME:' + fr.contentWindow.document.body.innerHTML; }
       $('#fake-console').text(txt);
 
-      if ( ifr != null ) { ifr.contentWindow.post_order(); }
-      else if ( anc != null ) { anc.click(); }
+      var ordered = false;
+      if ( ifr != null ) {
+        ordered = ifr.contentWindow.post_order();
+      } else if ( anc != null ) {
+        anc.click();
+        ordered = true;
+      }
 
-      //var ordered = $(this).find('iframe').first().get()[0].contentWindow.post_order();
-      //if ( ordered ) {
-      //endpoints.getPatientData('place_order', {'actionName': $(this).attr('data-trews')});
-      //}
+      if ( ordered ) {
+        endpoints.getPatientData('place_order', {'actionName': $(this).attr('data-trews')});
+      }
     });
     // this.notInBtns.hide(); // Yanif: (RE-ENABLED; Temporarily disabling orders 'Not Indicated' buttons)
     this.notInBtns.unbind();
