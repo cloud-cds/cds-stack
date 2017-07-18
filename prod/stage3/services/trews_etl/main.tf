@@ -155,7 +155,7 @@ resource "aws_lambda_function" "etl_lambda_JHH" {
         k8s_job_TREWS_ETL_STREAM_HOURS       = "${var.TREWS_ETL_STREAM_HOURS}"
         k8s_job_TREWS_ETL_STREAM_SLICES      = "${var.TREWS_ETL_STREAM_SLICES}"
         k8s_job_TREWS_ETL_STREAM_SLEEP_SECS  = "${var.TREWS_ETL_STREAM_SLEEP_SECS}"
-        k8s_job_TREWS_ETL_EPIC_NOTIFICATIONS = "${var.TREWS_ETL_EPIC_NOTIFICATIONS}"
+        k8s_job_TREWS_ETL_EPIC_NOTIFICATIONS = "0"
       }
     }
 }
@@ -211,7 +211,7 @@ resource "aws_lambda_function" "etl_lambda_BMC" {
         k8s_job_TREWS_ETL_STREAM_HOURS       = "${var.TREWS_ETL_STREAM_HOURS}"
         k8s_job_TREWS_ETL_STREAM_SLICES      = "${var.TREWS_ETL_STREAM_SLICES}"
         k8s_job_TREWS_ETL_STREAM_SLEEP_SECS  = "${var.TREWS_ETL_STREAM_SLEEP_SECS}"
-        k8s_job_TREWS_ETL_EPIC_NOTIFICATIONS = "${var.TREWS_ETL_EPIC_NOTIFICATIONS}"
+        k8s_job_TREWS_ETL_EPIC_NOTIFICATIONS = "0"
       }
     }
 }
