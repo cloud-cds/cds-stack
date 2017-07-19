@@ -222,14 +222,18 @@ class AlertServer:
         cnt = await conn.fetch(sql)
         return cnt[0]['count'] > 0
     n = 0
+    N = 60
     while not await criteria_ready(pat_id, tsp):
       await asyncio.sleep(10)
       n += 1
-      logging.info("retry criteria_ready {} times".format(n))
-    logging.info("criteria is ready for {}".format(pat_id))
-    async with self.db_pool.acquire() as conn:
-      sql = '''select supression_alert('{}')'''.format(pat_id)
-      await conn.fetch(sql)
+      logging.info("retry criteria_ready {} times for {}".format(n, pat_id))
+      if n >= 60:
+        break
+    if n < 60:
+      logging.info("criteria is ready for {}".format(pat_id))
+      async with self.db_pool.acquire() as conn:
+        sql = '''select supression_alert('{}')'''.format(pat_id)
+        await conn.fetch(sql)
 
   async def queue_watcher(self, partition_id, predictor_type, message):
     ''' Watches the predictor queue to generate timeouts '''
