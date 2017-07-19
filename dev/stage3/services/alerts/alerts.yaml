@@ -19,7 +19,7 @@ kind: Deployment
 metadata:
   name: alerts
 spec:
-  replicas: 2
+  replicas: 1
   template:
     metadata:
       labels:
@@ -58,3 +58,20 @@ spec:
         ports:
           - name: alerts
             containerPort: 31000
+        env:
+        - name: db_host
+          value: "db.dev.opsdx.io"
+        - name: db_port
+          value: "5432"
+        - name: db_name
+          value: "opsdx_dev"
+        - name: db_user
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: db-username
+        - name: db_password
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: db-password
