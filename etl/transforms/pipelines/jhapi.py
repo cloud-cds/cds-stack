@@ -24,6 +24,7 @@ bedded_patients_transforms = [
     }),
     lambda bp: restructure.extract_id_from_list(bp, 'pat_id', 'EMRN'),
     lambda bp: filter_rows.filter_on_icd9(bp),
+    lambda bp: filter_rows.filter_invalid_patient_classes(bp, 'patient_class'),
     lambda bp: format_data.format_numeric(bp, 'age'),
     lambda bp: format_data.format_gender_to_string(bp, 'gender'),
 ]

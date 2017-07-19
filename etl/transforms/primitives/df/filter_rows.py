@@ -31,6 +31,13 @@ def build_filter_icd9_function(icd9_codes):
     return drop_unused_codes
 
 
+def filter_invalid_patient_classes(df, col):
+    return df[~df[col].isin([
+        'Outpatient',
+        'Hospital Outpatient Surgery',
+        'Newborn',
+    ])].reset_index(drop=True)
+
 def filter_medications(med_data):
     med_data = med_data[med_data['fid'] != 'Unknown Medication']
     med_data = med_data[med_data['fid'] != 'Invalid Medication']

@@ -460,8 +460,9 @@ async def workspace_to_criteria_meas(ctxt, job_id):
 async def drop_tables(ctxt, job_id, days_offset=2):
   async with ctxt.db_pool.acquire() as conn:
     day = (dt.datetime.now() - dt.timedelta(days=days_offset)).strftime('%m%d')
+    prefix = '_'.join(job_id.split('_')[:-1])
     ctxt.log.info("cleaning data in workspace for day:%s" % day)
-    await conn.execute("select drop_tables_pattern('workspace', '%%_%s');" % day)
+    await conn.execute("select drop_tables_pattern('workspace', '%%_%s_%s');" % (prefix, day))
     ctxt.log.info("cleaned data in workspace for day:%s" % day)
     return job_id
 
