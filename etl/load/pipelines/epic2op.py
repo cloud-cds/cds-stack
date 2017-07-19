@@ -70,20 +70,20 @@ async def notify_data_ready_to_alert_server(ctxt, job_id, _):
     ctxt.log.error("Fail to notify alert server")
 
 
-async def notify_criteria_ready_to_alert_server(ctxt, job_id, _):
-  message = {
-    'type': 'ETL', # change type
-    'time': str(dt.datetime.utcnow()),
-    'hosp': job_id.split('_')[-2].upper()
-  }
-  try:
-    reader, writer = await asyncio.open_connection(protocol.ALERT_SERVER_IP, protocol.ALERT_SERVER_PORT, loop=ctxt.loop)
-    protocol.write_message(writer, message)
-    logging.info('Closing the socket')
-    writer.close()
-  except Exception as e:
-    ctxt.log.exception(e)
-    ctxt.log.error("Fail to notify alert server")
+# async def notify_criteria_ready_to_alert_server(ctxt, job_id, _):
+#   message = {
+#     'type': 'ETL', # change type
+#     'time': str(dt.datetime.utcnow()),
+#     'hosp': job_id.split('_')[-2].upper()
+#   }
+#   try:
+#     reader, writer = await asyncio.open_connection(protocol.ALERT_SERVER_IP, protocol.ALERT_SERVER_PORT, loop=ctxt.loop)
+#     protocol.write_message(writer, message)
+#     logging.info('Closing the socket')
+#     writer.close()
+#   except Exception as e:
+#     ctxt.log.exception(e)
+#     ctxt.log.error("Fail to notify alert server")
 
 
 async def get_notifications_for_epic(ctxt, job_id, _):
@@ -558,8 +558,8 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
     Task(name = 'notify_data_ready_to_alert_server',
          deps = ['workspace_to_criteria_meas'],
          coro = notify_data_ready_to_alert_server),
-    Task(name = 'notify_criteria_ready_to_alert_server',
-         deps = ['drop_tables', 'advance_criteria_snapshot'],
-         coro = notify_data_ready_to_alert_server)
+    # Task(name = 'notify_criteria_ready_to_alert_server',
+    #      deps = ['drop_tables', 'advance_criteria_snapshot'],
+    #      coro = notify_data_ready_to_alert_server)
   ]
   return all_tasks

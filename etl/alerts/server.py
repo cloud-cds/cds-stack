@@ -213,14 +213,20 @@ class AlertServer:
         SELECT count(*) FROM criteria where pat_id = '{}'
         and update_date > '{}'::timestamptz
         '''.format(pat_id, tsp)
-        print(sql)
         cnt = await conn.fetch(sql)
         return cnt[0]['count'] > 0
-    while not await criteria_ready(pat_id, tsp):
+    N = 3
+    n = 0
+    while not await criteria_ready(pat_id, tsp) and n<N:
       await asyncio.sleep(10)
-    async with self.db_pool.acquire() as conn:
-      sql = '''select supression_alert('{}')'''.format(pat_id)
-      await conn.fetch(sql)
+      n += 1
+      logging.info("retry criteria_ready {} times".format(n))
+    if n < N:
+      async with self.db_pool.acquire() as conn:
+        sql = '''select supression_alert('{}')'''.format(pat_id)
+        await conn.fetch(sql)
+    else:
+      logging.warn("criteria is not ready for {}".format(pat_id))
 
   async def queue_watcher(self, partition_id, predictor_type, message):
     ''' Watches the predictor queue to generate timeouts '''
