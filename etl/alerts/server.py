@@ -23,8 +23,8 @@ logging.basicConfig(level=logging.INFO, format=SRV_LOG_FMT)
 
 class AlertServer:
   def __init__(self, event_loop, alert_server_port=31000,
-               alert_dns='alerts.default.svc.cluster.local',
-               predictor_port=8181):
+               alert_dns='0.0.0.0',
+               predictor_port=31001):
     self.db                = Database()
     self.loop              = event_loop
     self.alert_server_port = alert_server_port
