@@ -54,7 +54,7 @@ async def load_discharge_times(ctxt, contacts_df):
   async with ctxt.db_pool.acquire() as conn:
     await load_row.upsert_t(conn, rows, dataset_id=None, log=ctxt.log, many=True)
 
-async def notify_data_ready_to_alert_server(ctxt, job_id, _):
+async def notify_data_ready_to_alert_server(ctxt, job_id):
   message = {
     'type': 'ETL',
     'time': str(dt.datetime.utcnow()),
@@ -63,7 +63,7 @@ async def notify_data_ready_to_alert_server(ctxt, job_id, _):
   try:
     reader, writer = await asyncio.open_connection(protocol.ALERT_SERVER_IP, protocol.ALERT_SERVER_PORT, loop=ctxt.loop)
     protocol.write_message(writer, message)
-    logging.info('Closing the socket')
+    logging.info('Notified alert server that the ETL is done')
     writer.close()
   except Exception as e:
     ctxt.log.exception(e)
