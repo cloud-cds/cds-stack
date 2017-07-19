@@ -24,14 +24,14 @@ logging.basicConfig(level=logging.INFO, format=SRV_LOG_FMT)
 class AlertServer:
   def __init__(self, event_loop, alert_server_port=31000,
                alert_dns='0.0.0.0',
-               predictor_port=31001):
-    self.db                = Database()
-    self.loop              = event_loop
-    self.alert_server_port = alert_server_port
-    self.alert_dns         = alert_dns
-    self.predictor_port    = predictor_port
+               predictor_ports=[8181, 8182]):
+    self.db                   = Database()
+    self.loop                 = event_loop
+    self.alert_server_port    = alert_server_port
+    self.alert_dns            = alert_dns
+    self.predictor_ports      = predictor_ports
     self.predictor_start_task = {}
-    self.last_etl_msg      = {}
+    self.last_etl_msg         = {}
 
 
   async def async_init(self):
@@ -75,7 +75,7 @@ class AlertServer:
 
 
 
-  async def start_predictor(self, id, message, predictor_type='active'):
+  async def start_predictor(self, id, message, port, predictor_type='active'):
     '''
     Puts dns on the queue and then sends a message to that dns.
     Cycles between active and backup until it succeeds
@@ -86,18 +86,18 @@ class AlertServer:
         # Add to queue
         dns_on_queue = await self.add_predictor_to_queue(id, predictor_type)
         # Forward ETL message
-        reader, writer = await asyncio.open_connection(dns_on_queue, self.predictor_port)
+        reader, writer = await asyncio.open_connection(dns_on_queue, port)
         protocol.write_message(writer, message)
         writer.write_eof()
         writer.close()
         # Wait to be popped off the queue
-        logging.info("start queue_watcher {}".format(id))
+        logging.info("start queue_watcher {} {}".format(id, port))
         response = await self.queue_watcher(id, predictor_type, message)
         if response == "SUCCESS":
           return
       except (socket.gaierror, ConnectionRefusedError):
-        logging.error("Error connecting to predictor {} ({}) at '{}'".format(
-          id, predictor_type, dns_on_queue
+        logging.error("Error connecting to predictor {} ({}) at '{}:{}'".format(
+          id, predictor_type, dns_on_queue, port
         ))
         await self.pop_predictor_from_queue(id)
         backoff = backoff * 2 if backoff < 30 else 30
@@ -140,15 +140,16 @@ class AlertServer:
 
           predictors = await self.get_predictors()
           for idx, row in predictors.iterrows():
-            self.loop.create_task(self.start_predictor(row['partition_id'], message))
+            self.loop.create_task(self.start_predictor(row['partition_id'], message, self.predictor_ports[0]))
+            self.loop.create_task(self.start_predictor(row['partition_id'], message, self.predictor_ports[1]))
 
       elif message.get('type') == 'START':
         # Received START from predictor
         hosp = message['hosp']
         predictor_id = message['predictor_id']
         predictor_type = message['predictor_type']
-
-        predictor_str = "Predictor {} ({})".format(predictor_id, predictor_type)
+        predictor_model = message['predictor_model']
+        predictor_str = "Predictor {} ({} {})".format(predictor_id, predictor_type, predictor_model)
         logging.info("{} said they are starting".format(predictor_str))
 
         # Cancel queue watcher - pop from queue
@@ -170,7 +171,13 @@ class AlertServer:
               logging.info("{} cancelling existing predictor_start_task".format(predictor_str))
 
             task_msg = self.last_etl_msg[hosp]
-            task = self.loop.create_task(self.start_predictor(predictor_id, task_msg, new_type))
+            if predictor_model == 'short':
+              port = self.predictor_ports[0]
+            elif predictor_model == 'long':
+              port = self.predictor_ports[1]
+            else:
+              logging.error("UNKNOWN MODEL {}".format(predictor_model))
+            task = self.loop.create_task(self.start_predictor(predictor_id, task_msg, port, new_type))
             self.predictor_start_task[predictor_id] = task
           else:
             logging.warn("{} has no existing ETL message for {}".format(predictor_str, hosp))
@@ -179,10 +186,10 @@ class AlertServer:
         elif message2.get('type') == 'FIN':
           # Received FIN
           logging.info("{} said they are finished: {}".format(predictor_str, message2))
-          # TODO - Wait for Advance Criteria Snapshot to finish and then start generating notifications
-          pat_ids = await convert_enc_ids_to_pat_ids(message2['enc_ids'])
+          # Wait for Advance Criteria Snapshot to finish and then start generating notifications
+          pat_ids = await self.convert_enc_ids_to_pat_ids(message2['enc_ids'])
           for pat_id in pat_ids:
-            self.loop.create_task(self.supression(pat_id), message2['time'])
+            self.loop.create_task(self.supression(pat_id['pat_id'], message2['time']))
         else:
           logging.error("UNKNOWN MESSAGE TYPE - Looking for FIN or Connection closed")
 
@@ -190,12 +197,12 @@ class AlertServer:
 
     writer.close()
 
-  async def convert_enc_ids_to_pat_ids(enc_ids):
+  async def convert_enc_ids_to_pat_ids(self, enc_ids):
     async with self.db_pool.acquire() as conn:
       sql = '''
       SELECT distinct pat_id FROM pat_enc where enc_id
       in ({})
-      '''.format(','.join(enc_ids))
+      '''.format(','.join([str(i) for i in enc_ids]))
       pat_ids = await conn.fetch(sql)
       return pat_ids
 
@@ -203,12 +210,13 @@ class AlertServer:
     async def criteria_ready(pat_id, tsp):
       async with self.db_pool.acquire() as conn:
         sql = '''
-        SELECT count(*) FROM criteria where pat_id = {}
-        and tsp > '{}'::timestamptz
+        SELECT count(*) FROM criteria where pat_id = '{}'
+        and update_date > '{}'::timestamptz
         '''.format(pat_id, tsp)
+        print(sql)
         cnt = await conn.fetch(sql)
-        return cnt > 0
-    while not criteria_ready(pat_id, tsp):
+        return cnt[0]['count'] > 0
+    while not await criteria_ready(pat_id, tsp):
       await asyncio.sleep(10)
     async with self.db_pool.acquire() as conn:
       sql = '''select supression_alert('{}')'''.format(pat_id)

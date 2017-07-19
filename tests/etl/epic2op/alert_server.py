@@ -4,12 +4,12 @@ from etl.alerts.server import AlertServer
 alert_dns = '127.0.0.1'
 predictor_dns = '0.0.0.0'
 alert_server_port = 31000
-predictor_port = 31001
+predictor_ports = [8181, 8182]
 
 def main():
   # Create alert server class
   loop = asyncio.get_event_loop()
-  server = AlertServer(loop, alert_server_port, alert_dns, predictor_port)
+  server = AlertServer(loop, alert_server_port, alert_dns, predictor_ports)
   loop.run_until_complete(server.async_init())
 
   # Start listening server
