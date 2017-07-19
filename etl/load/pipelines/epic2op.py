@@ -10,7 +10,7 @@ import os
 import logging
 from etl.load.primitives.row import load_row
 import json
-
+from etl.io_config import server_protocol as protocol
 
 
 async def extract_non_discharged_patients(ctxt):
@@ -54,6 +54,36 @@ async def load_discharge_times(ctxt, contacts_df):
   async with ctxt.db_pool.acquire() as conn:
     await load_row.upsert_t(conn, rows, dataset_id=None, log=ctxt.log, many=True)
 
+async def notify_data_ready_to_alert_server(ctxt, job_id, _):
+  message = {
+    'type': 'ETL',
+    'time': str(dt.datetime.utcnow()),
+    'hosp': job_id.split('_')[-2].upper()
+  }
+  try:
+    reader, writer = await asyncio.open_connection(protocol.ALERT_SERVER_IP, protocol.ALERT_SERVER_PORT, loop=ctxt.loop)
+    protocol.write_message(writer, message)
+    logging.info('Closing the socket')
+    writer.close()
+  except Exception as e:
+    ctxt.log.exception(e)
+    ctxt.log.error("Fail to notify alert server")
+
+
+async def notify_criteria_ready_to_alert_server(ctxt, job_id, _):
+  message = {
+    'type': 'ETL', # change type
+    'time': str(dt.datetime.utcnow()),
+    'hosp': job_id.split('_')[-2].upper()
+  }
+  try:
+    reader, writer = await asyncio.open_connection(protocol.ALERT_SERVER_IP, protocol.ALERT_SERVER_PORT, loop=ctxt.loop)
+    protocol.write_message(writer, message)
+    logging.info('Closing the socket')
+    writer.close()
+  except Exception as e:
+    ctxt.log.exception(e)
+    ctxt.log.error("Fail to notify alert server")
 
 
 async def get_notifications_for_epic(ctxt, job_id, _):
@@ -519,11 +549,17 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
          deps = ['workspace_to_criteria_meas'],
          coro = drop_tables,
          args = [2]),
-    Task(name = 'get_notifications_for_epic',
-         deps = ['drop_tables', 'advance_criteria_snapshot'],
-         coro = get_notifications_for_epic),
+    # Task(name = 'get_notifications_for_epic',
+    #      deps = ['drop_tables', 'advance_criteria_snapshot'],
+    #      coro = get_notifications_for_epic),
     Task(name = 'load_discharge_times',
          deps = ['contacts_transform'],
-         coro = load_discharge_times)
+         coro = load_discharge_times),
+    Task(name = 'notify_data_ready_to_alert_server',
+         deps = ['workspace_to_criteria_meas'],
+         coro = notify_data_ready_to_alert_server),
+    Task(name = 'notify_criteria_ready_to_alert_server',
+         deps = ['drop_tables', 'advance_criteria_snapshot'],
+         coro = notify_data_ready_to_alert_server)
   ]
   return all_tasks
