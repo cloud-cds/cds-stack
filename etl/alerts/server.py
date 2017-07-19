@@ -32,6 +32,7 @@ class AlertServer:
     self.predictor_ports      = predictor_ports
     self.predictor_start_task = {}
     self.last_etl_msg         = {}
+    self.existing_supression_tasks = []
 
 
   async def async_init(self):
@@ -127,7 +128,11 @@ class AlertServer:
 
       elif message.get('type') == 'ETL':
         # Received ETL Done from ETL
-        # TODO: sender should periodically push ETL done messages as soft state.
+        # sender should periodically push ETL done messages as soft state.
+        # remove existing supression tasks
+        for task in self.existing_supression_tasks:
+          task.cancel()
+        self.existing_supression_tasks = []
         hosp = message['hosp']
         ts = message['time']
         logging.info("{} ETL is finished".format(hosp))
@@ -189,7 +194,8 @@ class AlertServer:
           # Wait for Advance Criteria Snapshot to finish and then start generating notifications
           pat_ids = await self.convert_enc_ids_to_pat_ids(message2['enc_ids'])
           for pat_id in pat_ids:
-            self.loop.create_task(self.supression(pat_id['pat_id'], message2['time']))
+            supression_task = self.loop.create_task(self.supression(pat_id['pat_id'], message2['time']))
+            self.existing_supression_tasks.append(supression_task)
         else:
           logging.error("UNKNOWN MESSAGE TYPE - Looking for FIN or Connection closed")
 
@@ -215,18 +221,15 @@ class AlertServer:
         '''.format(pat_id, tsp)
         cnt = await conn.fetch(sql)
         return cnt[0]['count'] > 0
-    N = 3
     n = 0
-    while not await criteria_ready(pat_id, tsp) and n<N:
+    while not await criteria_ready(pat_id, tsp):
       await asyncio.sleep(10)
       n += 1
       logging.info("retry criteria_ready {} times".format(n))
-    if n < N:
-      async with self.db_pool.acquire() as conn:
-        sql = '''select supression_alert('{}')'''.format(pat_id)
-        await conn.fetch(sql)
-    else:
-      logging.warn("criteria is not ready for {}".format(pat_id))
+    logging.info("criteria is ready for {}".format(pat_id))
+    async with self.db_pool.acquire() as conn:
+      sql = '''select supression_alert('{}')'''.format(pat_id)
+      await conn.fetch(sql)
 
   async def queue_watcher(self, partition_id, predictor_type, message):
     ''' Watches the predictor queue to generate timeouts '''
