@@ -22,6 +22,7 @@ async def start_predicting(writer, job_tsp):
     'dns':  predictor_dns,
     'predictor_id': 0,
     'predictor_type': 'active',
+    'predictor_model': 'short'
   })
 
   logging.info("Predicting on patients")
@@ -32,7 +33,8 @@ async def start_predicting(writer, job_tsp):
      'time': job_tsp,
      'hosp': 'HCGH',
      'predictor_id': 0,
-     'enc_ids': [37261, 38746, 37279]
+     'enc_ids': [37279],
+     'predictor_model': 'short'
     }
   )
   writer.close()
@@ -63,7 +65,7 @@ async def notification_loop(reader, writer):
   writer.close()
 
 loop = asyncio.get_event_loop()
-coro = asyncio.start_server(notification_loop, predictor_dns, 31001, loop=loop)
+coro = asyncio.start_server(notification_loop, predictor_dns, 8181, loop=loop)
 server = loop.run_until_complete(coro)
 
 # Serve requests until Ctrl+C is pressed
