@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.INFO, format=SRV_LOG_FMT)
 MAGIC_NUMBER = b'trews_magic_number'
 CONNECTION_CLOSED = 'Connection Closed'
 
-ALERT_SERVER_IP = '127.0.0.1'
+ALERT_SERVER_IP = 'alerts.default.svc.cluster.local'
 ALERT_SERVER_PORT = 31000
 
 async def read_message(reader, writer):
