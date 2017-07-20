@@ -17,6 +17,8 @@ def randomword(length):
 
 start_timeout = 15 #seconds
 
+HB_TIMEOUT = 5
+
 SRV_LOG_FMT = '%(asctime)s|%(name)s|%(process)s-%(thread)s|%(levelname)s|%(message)s'
 logging.basicConfig(level=logging.INFO, format=SRV_LOG_FMT)
 
@@ -163,44 +165,57 @@ class AlertServer:
 
         # Keep connection open and wait for next message
         logging.info("{} waiting for message".format(predictor_str))
-        message2 = await protocol.read_message(reader, writer)
-        logging.info("{} got message".format(predictor_str))
+        predictor_status = 'pending'
+        while predictor_status == 'pending':
+          listener = protocol.read_message(reader, writer)
+          try:
+            message2 = await asyncio.wait_for(listener, timeout=HB_TIMEOUT)
+          except asyncio.TimeoutError:
+            print("Predictor {} {} Timeout".format(predictor_id, predictor_model))
+            predictor_status = 'timeout'
+            break
+          # message2 = await protocol.read_message(reader, writer)
+          logging.info("{} got message {}".format(predictor_str, message2))
 
-        if message2 == protocol.CONNECTION_CLOSED:
-          # Received connection closed
-          new_type = 'backup' if predictor_type == 'active' else 'active'
-          logging.info("{} connection broken, trying {}".format(predictor_str, new_type))
-          if hosp in self.last_etl_msg:
-            if predictor_id in self.predictor_start_task:
-              self.predictor_start_task[predictor_id].cancel()
-              logging.info("{} cancelling existing predictor_start_task".format(predictor_str))
+          if message2 == protocol.CONNECTION_CLOSED:
+            # Received connection closed
+            new_type = 'backup' if predictor_type == 'active' else 'active'
+            logging.info("{} connection broken, trying {}".format(predictor_str, new_type))
+            if hosp in self.last_etl_msg:
+              if predictor_id in self.predictor_start_task:
+                self.predictor_start_task[predictor_id].cancel()
+                logging.info("{} cancelling existing predictor_start_task".format(predictor_str))
 
-            task_msg = self.last_etl_msg[hosp]
-            if predictor_model == 'short':
-              port = self.predictor_ports[0]
-            elif predictor_model == 'long':
-              port = self.predictor_ports[1]
+              task_msg = self.last_etl_msg[hosp]
+              if predictor_model == 'short':
+                port = self.predictor_ports[0]
+              elif predictor_model == 'long':
+                port = self.predictor_ports[1]
+              else:
+                logging.error("UNKNOWN MODEL {}".format(predictor_model))
+              task = self.loop.create_task(self.start_predictor(predictor_id, task_msg, port, new_type))
+              self.predictor_start_task[predictor_id] = task
             else:
-              logging.error("UNKNOWN MODEL {}".format(predictor_model))
-            task = self.loop.create_task(self.start_predictor(predictor_id, task_msg, port, new_type))
-            self.predictor_start_task[predictor_id] = task
+              logging.warn("{} has no existing ETL message for {}".format(predictor_str, hosp))
+              # TODO: wait for the ETL message to be resent.
+            predictor_status = 'closed'
+          elif message2.get('type') == 'FIN':
+            # Received FIN
+            logging.info("{} said they are finished: {}".format(predictor_str, message2))
+            # Wait for Advance Criteria Snapshot to finish and then start generating notifications
+            pat_ids = await self.convert_enc_ids_to_pat_ids(message2['enc_ids'])
+            for pat_id in pat_ids:
+              supression_task = self.loop.create_task(self.supression(pat_id['pat_id'], message2['time']))
+              self.existing_supression_tasks.append(supression_task)
+            predictor_status = 'fin'
+          elif message2.get('type') == 'HB':
+            logging.info("Predictor {} {} heart beats".format(predictor_id, predictor_model))
+            predictor_status = 'pending'
           else:
-            logging.warn("{} has no existing ETL message for {}".format(predictor_str, hosp))
-            # TODO: wait for the ETL message to be resent.
-
-        elif message2.get('type') == 'FIN':
-          # Received FIN
-          logging.info("{} said they are finished: {}".format(predictor_str, message2))
-          # Wait for Advance Criteria Snapshot to finish and then start generating notifications
-          pat_ids = await self.convert_enc_ids_to_pat_ids(message2['enc_ids'])
-          for pat_id in pat_ids:
-            supression_task = self.loop.create_task(self.supression(pat_id['pat_id'], message2['time']))
-            self.existing_supression_tasks.append(supression_task)
-        else:
-          logging.error("UNKNOWN MESSAGE TYPE - Looking for FIN or Connection closed")
-
+            logging.error("UNKNOWN MESSAGE TYPE - Looking for FIN or Connection closed")
+            predictor_status = 'unknown msg'
+        logging.info("Close predictor {} {}: {}".format(predictor_id, predictor_model, predictor_status))
         break
-
     writer.close()
 
   async def convert_enc_ids_to_pat_ids(self, enc_ids):

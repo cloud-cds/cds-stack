@@ -25,8 +25,19 @@ async def start_predicting(writer, job_tsp):
     'predictor_model': 'short'
   })
 
-  logging.info("Predicting on patients")
-  await asyncio.sleep(6)
+  logging.info("Predicting on patients and sending heart beats")
+  for i in range(10):
+    protocol.write_message(writer, {
+      'type': 'HB',
+      'time': job_tsp,
+      'hosp': 'HCGH',
+      'dns':  predictor_dns,
+      'predictor_id': 0,
+      'predictor_type': 'active',
+      'predictor_model': 'short'
+    })
+    logging.info("heart beats")
+    await asyncio.sleep(1)
 
   protocol.write_message(writer,
     {'type': 'FIN',
