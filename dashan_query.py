@@ -196,13 +196,14 @@ async def get_patient_events(db_pool, pat_id):
 # - activated/deactivated status
 # - deterioration feedback timestamp, statuses and uid
 #
-async def get_patient_profile(db_pool, pat_id):
+async def get_patient_profile(db_pool, pat_id, use_trews_lmc=False):
+  threshold_param_key = 'lmc_threshold' if use_trews_lmc else 'trews_threshold'
   get_patient_profile_sql = \
   '''
   select * from
   (
       select value as trews_threshold
-      from trews_parameters where name = 'trews_threshold' limit 1
+      from trews_parameters where name = '%(threshold_param_key)s' limit 1
   ) TT
   full outer join
   (
@@ -226,7 +227,7 @@ async def get_patient_profile(db_pool, pat_id):
       from cdm_s inner join pat_enc on pat_enc.enc_id = cdm_s.enc_id
       where pat_id = '%(pid)s' and fid = 'age'
   ) AGE on true
-  ''' % { 'pid': pat_id }
+  ''' % { 'pid': pat_id, 'threshold_param_key': threshold_param_key }
 
   async with db_pool.acquire() as conn:
     result = await conn.fetch(get_patient_profile_sql)
