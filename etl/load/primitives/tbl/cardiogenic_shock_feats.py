@@ -220,21 +220,26 @@ async def calc_cardiogenic_shock(output_fid, input_fid_string, conn, log, datase
 
     parameters = json.loads(cdm_feature_dict[output_fid]['function_arguments'])['derive']
     lookback = timedelta(int(parameters['lookback_hours'])/24.0)
-
+    twf_table_ptf = derive_feature_addr['sbpm']['twf_table_temp']
     select_sql = """with
-    ino_tbl as(select * from cdm_t where {dataset_id_where} (fid = 'any_inotrope' or fid = 'mech_cardiac_support_device') and value='True' and enc_id in (select distinct enc_id from cdm_s where fid ilike 'acute_heart_failure') and enc_id in (select distinct enc_id from cdm_twf where sbpm::float < 90)),
-    sbp_tbl as(select enc_id, tsp, sbpm from cdm_twf where {dataset_id_where} sbpm::float < 90 and enc_id in (select enc_id from cdm_t where {dataset_id_where} (fid = 'any_inotrope' or fid = 'mech_cardiac_support_device') and value='True') and enc_id in (select distinct enc_id from cdm_s where fid ilike 'acute_heart_failure'))
+    ino_tbl as(select * from cdm_t where {dataset_id_where} (fid = 'any_inotrope' or fid = 'mech_cardiac_support_device') and value='True' and enc_id in (select distinct enc_id from cdm_s where fid ilike 'acute_heart_failure') and enc_id in (select distinct enc_id from {twf_table_ptf} where sbpm::float < 90)),
+    sbp_tbl as(select enc_id, tsp, sbpm from {twf_table_ptf} where {dataset_id_where} sbpm::float < 90 and enc_id in (select enc_id from cdm_t where {dataset_id_where} (fid = 'any_inotrope' or fid = 'mech_cardiac_support_device') and value='True') and enc_id in (select distinct enc_id from cdm_s where fid ilike 'acute_heart_failure'))
     select COALESCE(ino_tbl.enc_id, sbp_tbl.enc_id) as enc_id, COALESCE(ino_tbl.tsp, sbp_tbl.tsp) as tsp, fid, sbpm, confidence
     from ino_tbl full join sbp_tbl on ino_tbl.enc_id = sbp_tbl.enc_id and ino_tbl.tsp = sbp_tbl.tsp
     order by enc_id, tsp;"""
     insert_sql = """insert into cdm_t ({dataset_id_block} enc_id, tsp, fid, value, confidence) values ({dataset_id} {enc_id}, '{tsp}', '{fid}', '{value}', {confidence})"""
-    records = await conn.fetch(select_sql.format(dataset_id_where = 'dataset_id = {} and '.format(dataset_id) if  dataset_id is not None else ''))
+    log.info(select_sql.format(dataset_id_where = 'dataset_id = {} and '.format(dataset_id) if  dataset_id is not None else '', twf_table_ptf = twf_table_ptf))
+    records = await conn.fetch(select_sql.format(dataset_id_where = 'dataset_id = {} and '.format(dataset_id) if  dataset_id is not None else '', twf_table_ptf = twf_table_ptf))
     enc_dict = {}
+    temp_rec = []
     for rec in records:
+        temp_dict = {'enc_id': rec['enc_id'], 'tsp': rec['tsp'], 'confidence': rec['confidence'], 'fid': rec['fid'], 'sbpm': rec['sbpm']}
+        temp_rec.append(temp_dict)
         if rec['enc_id'] not in enc_dict and (rec['fid'] == input_fid[1] or rec['fid'] == input_fid[3]):
             enc_dict[int(rec['enc_id'])] = [(rec['tsp'], rec['confidence'])]
         elif rec['fid'] == input_fid[1] or rec['fid'] == input_fid[3]:
             enc_dict[int(rec['enc_id'])].append((rec['tsp'], rec['confidence']))
+    records = temp_rec
     for i in range(len(records)):
         enc_flag = 0
         if records[i]['fid'] == input_fid[1] or records[i]['fid'] == input_fid[3]:

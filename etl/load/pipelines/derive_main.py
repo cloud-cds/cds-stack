@@ -288,18 +288,17 @@ def gen_cdm_t_upsert_query(config_entry, fid, dataset_id, incremental):
     # only delete existing data in offline full load mode
     delete_clause = "DELETE FROM cdm_t where fid = '%(fid)s' %(dataset_where_block)s;\n"
 
-  upsert_clause = delete_clause + """
+  upsert_clause = (delete_clause + """
   INSERT INTO cdm_t (%(dataset_col_block)s enc_id,tsp,fid,value,confidence) (%(select_expr)s)
   ON CONFLICT (%(dataset_col_block)s enc_id,tsp,fid) DO UPDATE SET
   value = excluded.value, confidence = excluded.confidence;
-  """ % {
+  """) % {
     'fid':fid,
     'select_expr': fid_select_expr,
     'dataset_col_block': 'dataset_id,' if dataset_id is not None else '',
     'dataset_where_block': (' and dataset_id = %s' % dataset_id) if dataset_id is not None else '',
     'incremental_enc_id_in': incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental)
   }
-  print(upsert_clause)
   return upsert_clause
 
 

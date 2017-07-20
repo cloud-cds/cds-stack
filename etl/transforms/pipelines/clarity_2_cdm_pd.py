@@ -374,7 +374,7 @@ async def pull_rvf(connection, dataset_id, fids, log, is_plan, clarity_workspace
                                 string = imd[string_start: string_end]
                                 target = re.findall(r'low normal|hyperdynamic|reduce|diminish|decrease|depress', string,
                                                     re.I)
-                            if len(target[0]) > 0:
+                            if target:
                                 index = 'lower limits of normal'
                                 break
                             match = re.finditer(r'right\s+(ventricle|ventricular)(\s+\w*){0,5}\s+function', imd, re.I)
@@ -384,7 +384,7 @@ async def pull_rvf(connection, dataset_id, fids, log, is_plan, clarity_workspace
                                 string = imd[string_start: string_end]
                                 target = re.findall(r'low normal|hyperdynamic|normal|reduce|diminish|decrease|depress',
                                                     string, re.I)
-                            if len(target[0]) > 0:
+                            if target:
                                 index = 'rvf'
                                 break
                             match = re.finditer(r'right\s+(ventricle|ventricular)(\s+\w*){0,5}\s+function\s+is', imd,
@@ -395,7 +395,7 @@ async def pull_rvf(connection, dataset_id, fids, log, is_plan, clarity_workspace
                                 string = imd[string_start: string_end]
                                 target = re.findall(r'low normal|hyperdynamic|normal|reduce|diminish|decrease', string,
                                                     re.I)
-                            if len(target[0]) > 0:
+                            if target:
                                 index = 'right ventricular function is'
                                 break
             if k == len(j[1]) - 1:
