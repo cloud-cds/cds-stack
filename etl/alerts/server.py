@@ -35,6 +35,7 @@ class AlertServer:
     self.predictor_start_task = {}
     self.last_etl_msg         = {}
     self.existing_supression_tasks = []
+    self.active_connections   = []
 
 
   async def async_init(self):
@@ -121,17 +122,20 @@ class AlertServer:
     else:
       logging.debug('Connection from %s (Timeout %s)' % (str(addr), str(sock.gettimeout())))
 
+    # Connection loop
     while True:
+
+      # Get the message that started this callback function
       message = await protocol.read_message(reader, writer)
 
+      # Connection ended
       if message == protocol.CONNECTION_CLOSED:
-        # Connection ended
         break
 
+      # Received ETL Done from ETL
+      # sender should periodically push ETL done messages as soft state.
+      # remove existing supression tasks
       elif message.get('type') == 'ETL':
-        # Received ETL Done from ETL
-        # sender should periodically push ETL done messages as soft state.
-        # remove existing supression tasks
         for task in self.existing_supression_tasks:
           task.cancel()
         self.existing_supression_tasks = []
@@ -150,14 +154,20 @@ class AlertServer:
             self.loop.create_task(self.start_predictor(row['partition_id'], message, self.predictor_ports[0]))
             self.loop.create_task(self.start_predictor(row['partition_id'], message, self.predictor_ports[1]))
 
+      # Received START from predictor
       elif message.get('type') == 'START':
-        # Received START from predictor
+        # Get info from message
         hosp = message['hosp']
-        predictor_id = message['predictor_id']
+        msg_time = message['time']
+        predictor_id = int(message['predictor_id'])
         predictor_type = message['predictor_type']
         predictor_model = message['predictor_model']
         predictor_str = "Predictor {} ({} {})".format(predictor_id, predictor_type, predictor_model)
         logging.info("{} said they are starting".format(predictor_str))
+
+        # Put connection in active connections list
+        conn_id = "{}{}".format(hosp, msg_time)
+        self.active_connections.append(conn_id)
 
         # Cancel queue watcher - pop from queue
         logging.info("Popping from queue and cancelling queue watcher")
@@ -167,40 +177,42 @@ class AlertServer:
         logging.info("{} waiting for message".format(predictor_str))
         predictor_status = 'pending'
         while predictor_status == 'pending':
-          listener = protocol.read_message(reader, writer)
+
+          # Wait for message (with a timeout)
           try:
+            listener = protocol.read_message(reader, writer)
             message2 = await asyncio.wait_for(listener, timeout=HB_TIMEOUT)
+            logging.info("{} got message {}".format(predictor_str, message2))
           except asyncio.TimeoutError:
             print("Predictor {} {} Timeout".format(predictor_id, predictor_model))
             predictor_status = 'timeout'
             break
-          # message2 = await protocol.read_message(reader, writer)
-          logging.info("{} got message {}".format(predictor_str, message2))
 
+          # Got a connection closed message
           if message2 == protocol.CONNECTION_CLOSED:
-            # Received connection closed
-            new_type = 'backup' if predictor_type == 'active' else 'active'
-            logging.info("{} connection broken, trying {}".format(predictor_str, new_type))
-            if hosp in self.last_etl_msg:
-              if predictor_id in self.predictor_start_task:
-                self.predictor_start_task[predictor_id].cancel()
-                logging.info("{} cancelling existing predictor_start_task".format(predictor_str))
+            logging.error("Connection closed, remove from active_connections and " +\
+              "wait for a new connection (tcp error) or a timeout (predictor error)")
+            self.active_connections.remove(conn_id)
+            start_time = dt.datetime.now()
+            while True:
+              await asyncio.sleep(0.2)
+              if conn_id in self.active_connections:
+                logging.info("Reconnected in another thread, exiting")
+                predictor_status = 'reconnected'
+                break
+              elif (dt.datetime.now() - start_time) > dt.timedelta(seconds=HB_TIMEOUT):
+                logging.info("Predictor {} {} Timeout".format(predictor_id, predictor_model))
+                predictor_status = 'timeout'
+                break
+            break
 
-              task_msg = self.last_etl_msg[hosp]
-              if predictor_model == 'short':
-                port = self.predictor_ports[0]
-              elif predictor_model == 'long':
-                port = self.predictor_ports[1]
-              else:
-                logging.error("UNKNOWN MODEL {}".format(predictor_model))
-              task = self.loop.create_task(self.start_predictor(predictor_id, task_msg, port, new_type))
-              self.predictor_start_task[predictor_id] = task
-            else:
-              logging.warn("{} has no existing ETL message for {}".format(predictor_str, hosp))
-              # TODO: wait for the ETL message to be resent.
-            predictor_status = 'closed'
+          # Got a heartbeat message
+          elif message2.get('type') == 'HB':
+            logging.info("Predictor {} {} heart beats".format(predictor_id, predictor_model))
+            predictor_status = 'pending'
+
+          # Got the FIN
           elif message2.get('type') == 'FIN':
-            # Received FIN
             logging.info("{} said they are finished: {}".format(predictor_str, message2))
             # Wait for Advance Criteria Snapshot to finish and then start generating notifications
             pat_ids = await self.convert_enc_ids_to_pat_ids(message2['enc_ids'])
@@ -208,14 +220,41 @@ class AlertServer:
               supression_task = self.loop.create_task(self.supression(pat_id['pat_id'], message2['time']))
               self.existing_supression_tasks.append(supression_task)
             predictor_status = 'fin'
-          elif message2.get('type') == 'HB':
-            logging.info("Predictor {} {} heart beats".format(predictor_id, predictor_model))
-            predictor_status = 'pending'
+
+          # Got an unknown message
           else:
             logging.error("UNKNOWN MESSAGE TYPE - Looking for FIN or Connection closed")
             predictor_status = 'unknown msg'
+
+        # Predictor timed out (assuming a crash)
+        if predictor_status == 'timeout':
+          # Resend ETL-done to backup
+          new_type = 'backup' if predictor_type == 'active' else 'active'
+          logging.info("{} connection broken, trying {}".format(predictor_str, new_type))
+          if hosp in self.last_etl_msg:
+            if predictor_id in self.predictor_start_task:
+              self.predictor_start_task[predictor_id].cancel()
+              logging.info("{} cancelling existing predictor_start_task".format(predictor_str))
+
+            task_msg = self.last_etl_msg[hosp]
+            if predictor_model == 'short':
+              port = self.predictor_ports[0]
+            elif predictor_model == 'long':
+              port = self.predictor_ports[1]
+            else:
+              logging.error("UNKNOWN MODEL {}".format(predictor_model))
+            task = self.loop.create_task(self.start_predictor(predictor_id, task_msg, port, new_type))
+            self.predictor_start_task[predictor_id] = task
+          else:
+            logging.warn("{} has no existing ETL message for {}".format(predictor_str, hosp))
+          predictor_status = 'closed'
+
         logging.info("Close predictor {} {}: {}".format(predictor_id, predictor_model, predictor_status))
         break
+
+      else:
+        logging.error("Don't know how to handle this message: {}".format(message))
+
     writer.close()
 
   async def convert_enc_ids_to_pat_ids(self, enc_ids):
