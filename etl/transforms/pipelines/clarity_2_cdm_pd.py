@@ -469,7 +469,7 @@ async def pull_lvef(connection, dataset_id, fids, log, is_plan, clarity_workspac
     data as
     (select * from order_narrative where order_proc_id in (select distinct order_proc_id from ids) order by order_proc_id, line)
     select csn_id, enc_id, order_display_name, order_proc_id, line, narrative, contact_date from data inner join pat_enc on data.csn_id = pat_enc.visit_id
-    """
+    order by order_proc_id, line"""
     lvef_df = await async_read_df(lvef_sql, connection)
     extracted = lvef_df.shape[0]
     order_proc_id = lvef_df.loc[0]['order_proc_id']
@@ -553,7 +553,7 @@ async def pull_rvf(connection, dataset_id, fids, log, is_plan, clarity_workspace
     data as
     (select * from order_narrative where order_proc_id in (select distinct order_proc_id from ids) order by order_proc_id, line)
     select csn_id, enc_id, order_display_name, order_proc_id, line, narrative, contact_date from data inner join pat_enc on data.csn_id = pat_enc.visit_id
-    """
+    order by order_proc_id, line"""
     rvf_df = await async_read_df(rvf_sql, connection)
     extracted = rvf_df.shape[0]
     order_proc_id = rvf_df.loc[0]['order_proc_id']
