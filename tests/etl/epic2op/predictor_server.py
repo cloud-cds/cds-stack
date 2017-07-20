@@ -22,30 +22,17 @@ async def start_predicting(writer, job_tsp):
     'dns':  predictor_dns,
     'predictor_id': 0,
     'predictor_type': 'active',
-    'predictor_model': 'long'
   })
 
-  logging.info("Predicting on patients and sending heart beats")
-  for i in range(10):
-    protocol.write_message(writer, {
-      'type': 'HB',
-      'time': job_tsp,
-      'hosp': 'HCGH',
-      'dns':  predictor_dns,
-      'predictor_id': 0,
-      'predictor_type': 'active',
-      'predictor_model': 'short'
-    })
-    await asyncio.sleep(1)
-    logging.info("heart beats")
+  logging.info("Predicting on patients")
+  await asyncio.sleep(6)
 
   protocol.write_message(writer,
     {'type': 'FIN',
      'time': job_tsp,
      'hosp': 'HCGH',
      'predictor_id': 0,
-     'enc_ids': [37261, 38746],
-     'predictor_model': 'long'
+     'enc_ids': [37261, 38746, 37279]
     }
   )
   writer.close()
@@ -76,7 +63,7 @@ async def notification_loop(reader, writer):
   writer.close()
 
 loop = asyncio.get_event_loop()
-coro = asyncio.start_server(notification_loop, predictor_dns, 8182, loop=loop)
+coro = asyncio.start_server(notification_loop, predictor_dns, 31001, loop=loop)
 server = loop.run_until_complete(coro)
 
 # Serve requests until Ctrl+C is pressed
