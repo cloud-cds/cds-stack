@@ -6,6 +6,7 @@ import logging
 import json
 import etl.io_config.server_protocol as protocol
 from etl.io_config.database import Database
+from etl.alerts.predictor_manager import PredictorManager
 import datetime as dt
 import pytz
 import socket
@@ -29,17 +30,35 @@ class AlertServer:
                predictor_ports=[8181, 8182]):
     self.db                   = Database()
     self.loop                 = event_loop
+    self.alert_message_queue  = asyncio.Queue(loop=event_loop)
+    self.predictor_manager    = PredictorManager(self.alert_message_queue)
     self.alert_server_port    = alert_server_port
     self.alert_dns            = alert_dns
     self.predictor_ports      = predictor_ports
-    self.predictor_start_task = {}
     self.last_etl_msg         = {}
-    self.existing_supression_tasks = []
     self.active_connections   = []
+    self.suppression_tasks     = {}
+    self.start_predictor_tasks = {}
 
 
   async def async_init(self):
     self.db_pool = await self.db.get_connection_pool()
+
+
+
+  def create_new_task(self, type, unique_id, task_dict, coro):
+    ''' Schedule a new task to run '''
+    logging.info("Starting {} task: {}".format(type, unize_id))
+    new_task = self.loop.create_task(coro)
+    task_dict[unique_id] = new_task
+
+
+
+  def cancel_task(self, type, unique_id, task_dict):
+    ''' Cancel any currently running tasks in task_dict '''
+    if unique_id in task_dict:
+      logging.info("Cancelling {} task: {}".format(type, unique_id))
+      task_dict[unique_id].cancel()
 
 
 
@@ -56,7 +75,7 @@ class AlertServer:
 
   async def add_predictor_to_queue(self, predictor_number, predictor_type):
     ''' Add predictor to the queue and return dns '''
-    logging.info("Adding {} to queue".format(predictor_number))
+    logging.debug("Adding {} to queue".format(predictor_number))
     qry = '''
       UPDATE lmc_predictors SET (queue_machine, queue_tsp) = ({0}_dns, '{1}')
       WHERE partition_id = {2}
@@ -69,7 +88,7 @@ class AlertServer:
 
   async def pop_predictor_from_queue(self, predictor_number):
     ''' Remove a predictor from the queue '''
-    logging.info("Popping {} from queue".format(predictor_number))
+    logging.debug("Popping {} from queue".format(predictor_number))
     qry = '''
       UPDATE lmc_predictors SET (queue_machine, queue_tsp) = (NULL, NULL)
       WHERE partition_id = {};
@@ -128,21 +147,19 @@ class AlertServer:
       # Get the message that started this callback function
       message = await protocol.read_message(reader, writer)
 
-      # Connection ended
+      # Message = Connection ended
       if message == protocol.CONNECTION_CLOSED:
         break
 
-      # Received ETL Done from ETL
+      # Message = ETL Done (from ETL)
       # sender should periodically push ETL done messages as soft state.
-      # remove existing supression tasks
       elif message.get('type') == 'ETL':
-        for task in self.existing_supression_tasks:
-          task.cancel()
-        self.existing_supression_tasks = []
         hosp = message['hosp']
         ts = message['time']
         logging.info("{} ETL is finished".format(hosp))
 
+        # Cancel existing suppression task
+        self.cancel_task('suppression', hosp, self.suppression_tasks)
 
         # Forward message to all predictors if this is a new ETL job.
         # Since 'ETL Done' messages are soft state, we will consider this a new message on crash recovery.
@@ -151,10 +168,15 @@ class AlertServer:
 
           predictors = await self.get_predictors()
           for idx, row in predictors.iterrows():
-            self.loop.create_task(self.start_predictor(row['partition_id'], message, self.predictor_ports[0]))
-            self.loop.create_task(self.start_predictor(row['partition_id'], message, self.predictor_ports[1]))
+            for port in self.predictor_ports:
+              self.create_new_task(
+                type      = 'start predictor',
+                unique_id = "{}_{}_{}".format(hosp, row['partition_id'], port),
+                task_dict = self.start_predictor_tasks,
+                coro      = self.start_predictor(row['partition_id'], message, port)
+              )
 
-      # Received START from predictor
+      # Message = START (from predictor)
       elif message.get('type') == 'START':
         # Get info from message
         hosp = message['hosp']
@@ -217,8 +239,8 @@ class AlertServer:
             # Wait for Advance Criteria Snapshot to finish and then start generating notifications
             pat_ids = await self.convert_enc_ids_to_pat_ids(message2['enc_ids'])
             for pat_id in pat_ids:
-              supression_task = self.loop.create_task(self.supression(pat_id['pat_id'], message2['time']))
-              self.existing_supression_tasks.append(supression_task)
+              suppression_task = self.loop.create_task(self.suppression(pat_id['pat_id'], message2['time']))
+              self.existing_suppression_tasks.append(suppression_task)
             predictor_status = 'fin'
 
           # Got an unknown message
@@ -226,38 +248,44 @@ class AlertServer:
             logging.error("UNKNOWN MESSAGE TYPE - Looking for FIN or Connection closed")
             predictor_status = 'unknown msg'
 
-        # Predictor timed out (assuming a crash)
+        # Predictor timed out (assume a crash)
         if predictor_status == 'timeout':
           # Resend ETL-done to backup
           new_type = 'backup' if predictor_type == 'active' else 'active'
           logging.info("{} connection broken, trying {}".format(predictor_str, new_type))
           if hosp in self.last_etl_msg:
-            if predictor_id in self.predictor_start_task:
-              self.predictor_start_task[predictor_id].cancel()
-              logging.info("{} cancelling existing predictor_start_task".format(predictor_str))
+            port = self.predictor_ports[0 if predictor_model == 'short' else 1]
+            unique_identifier = "{}_{}_{}".format(hosp, predictor_id, port)
 
-            task_msg = self.last_etl_msg[hosp]
-            if predictor_model == 'short':
-              port = self.predictor_ports[0]
-            elif predictor_model == 'long':
-              port = self.predictor_ports[1]
-            else:
-              logging.error("UNKNOWN MODEL {}".format(predictor_model))
-            task = self.loop.create_task(self.start_predictor(predictor_id, task_msg, port, new_type))
-            self.predictor_start_task[predictor_id] = task
+            # Cancel old task
+            self.cancel_task('start predictor', unique_identifier, self.start_predictor_tasks)
+
+            # Start new task
+            self.create_new_task(
+              type      = 'start predictor',
+              unique_id = unique_identifier,
+              task_dict = self.start_predictor_tasks,
+              coro      = self.start_predictor(predictor_id, self.last_etl_msg[hosp], port, new_type)
+            )
+
           else:
             logging.warn("{} has no existing ETL message for {}".format(predictor_str, hosp))
+
           predictor_status = 'closed'
 
         logging.info("Close predictor {} {}: {}".format(predictor_id, predictor_model, predictor_status))
         break
 
+      # Message = Unknown
       else:
         logging.error("Don't know how to handle this message: {}".format(message))
 
     writer.close()
 
+
+
   async def convert_enc_ids_to_pat_ids(self, enc_ids):
+    ''' Return a list of pat_ids from their corresponding enc_ids '''
     async with self.db_pool.acquire() as conn:
       sql = '''
       SELECT distinct pat_id FROM pat_enc where enc_id
@@ -266,7 +294,10 @@ class AlertServer:
       pat_ids = await conn.fetch(sql)
       return pat_ids
 
-  async def supression(self, pat_id, tsp):
+
+
+  async def suppression(self, pat_id, tsp):
+    ''' Alert suppression task '''
     async def criteria_ready(pat_id, tsp):
       async with self.db_pool.acquire() as conn:
         sql = '''
@@ -286,8 +317,10 @@ class AlertServer:
     if n < 60:
       logging.info("criteria is ready for {}".format(pat_id))
       async with self.db_pool.acquire() as conn:
-        sql = '''select supression_alert('{}')'''.format(pat_id)
+        sql = '''select suppression_alert('{}')'''.format(pat_id)
         await conn.fetch(sql)
+
+
 
   async def queue_watcher(self, partition_id, predictor_type, message):
     ''' Watches the predictor queue to generate timeouts '''
@@ -311,7 +344,38 @@ class AlertServer:
         return "TIMEOUT"
 
 
+  async def alert_queue_consumer(self):
+    while True:
+      # Check message queue
+      logging.info("Checking message queue")
+      await asyncio.sleep(5)
+      pass
 
+
+  async def connection_handler(self, reader, writer):
+    ''' Alert server connection handler '''
+    addr = writer.transport.get_extra_info('peername')
+    sock = writer.transport.get_extra_info('socket')
+
+    if not addr:
+      logging.error('Connection made without a valid remote address, (Timeout %s)' % str(sock.gettimeout()))
+      return
+    else:
+      logging.debug('Connection from %s (Timeout %s)' % (str(addr), str(sock.gettimeout())))
+
+    # Get the message that started this callback function
+    message = await protocol.read_message(reader, writer)
+
+    if message.get('type') == 'predictor':
+      return await self.predictor_manager.register(reader, writer, message)
+
+    elif message.get('type') == 'ETL':
+      pass # TODO: add task to work queue to forward to all predictor managers
+
+    else:
+      logging.error("Don't know how to process this message")
+
+    return
 
 def main():
   # Create alert server class
@@ -319,21 +383,21 @@ def main():
   server = AlertServer(loop)
   loop.run_until_complete(server.async_init())
 
-  # Start listening server
-  server_future = loop.run_until_complete(asyncio.start_server(
-    server.alert_server, server.alert_dns, server.alert_server_port, loop=loop
-  ))
-  logging.info('Serving on {}'.format(server_future.sockets[0].getsockname()))
+  # Start coroutines
+  server_coro = asyncio.start_server(
+    server.connection_handler, server.alert_dns, server.alert_server_port, loop=loop
+  )
+  consumer_coro = server.alert_queue_consumer()
+  gathered_tasks = asyncio.gather(server_coro, consumer_coro, loop=loop)
 
   # Run server until Ctrl+C is pressed
   try:
-    loop.run_forever()
+    loop.run_until_complete(gathered_tasks)
   except KeyboardInterrupt:
     pass
 
-  # Close everything
-  server_future.close()
-  loop.run_until_complete(server_future.wait_closed())
+  # Close loop
+  gathered_tasks.cancel()
   loop.close()
 
 

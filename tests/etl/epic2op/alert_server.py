@@ -12,21 +12,20 @@ def main():
   server = AlertServer(loop, alert_server_port, alert_dns, predictor_ports)
   loop.run_until_complete(server.async_init())
 
-  # Start listening server
-  server_future = loop.run_until_complete(asyncio.start_server(
-    server.alert_server, server.alert_dns, server.alert_server_port, loop=loop
-  ))
-  logging.info('Serving on {}'.format(server_future.sockets[0].getsockname()))
+  # Start coroutines
+  server_coro = asyncio.start_server(
+    server.connection_handler, server.alert_dns, server.alert_server_port, loop=loop
+  )
+  consumer_coro = server.alert_queue_consumer()
+  gathered_tasks = asyncio.gather(server_coro, consumer_coro, loop=loop)
 
   # Run server until Ctrl+C is pressed
   try:
-    loop.run_forever()
+    loop.run_until_complete(gathered_tasks)
   except KeyboardInterrupt:
     pass
 
   # Close everything
-  server_future.close()
-  loop.run_until_complete(server_future.wait_closed())
   loop.close()
 
 
