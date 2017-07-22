@@ -2118,7 +2118,6 @@ END; $$;
 -- pull out columns in the 'trews' table for array unnesting.
 -----------------------------------------------------------------------
 
--- TODO: remove when LMC is deployed.
 create or replace function calculate_trews_contributors(this_pat_id text, rank_limit int)
 returns table(enc_id int, tsp timestamptz, trewscore numeric, fid text, trews_value double precision, cdm_value text, rnk bigint)
 as $func$
@@ -2280,14 +2279,12 @@ begin
 end $func$ LANGUAGE plpgsql;
 
 
---
--- Generalized function to compute score contributors for both TREWS and LMC.
-create or replace function calculate_score_contributors(score_table text, score_attr text, this_pat_id text, rank_limit int, add_tz boolean default false)
+create or replace function calculate_lmc_contributors(this_pat_id text, rank_limit int, add_tz boolean default false)
   returns table(enc_id      int,
                 tsp         timestamptz,
-                score       numeric,
+                trewscore   numeric,
                 fid         text,
-                score_part  double precision,
+                trews_value double precision,
                 cdm_value   text,
                 rnk         bigint)
 as $func$
@@ -2296,253 +2293,83 @@ declare
     twf_fid_exprs text[];
     fid_query text;
 begin
-    execute format ('
     create temporary table twf_rank as
     select *
     from
     (
         select KV.*,
-                rank() over ( partition by KV.enc_id, KV.tsp order by KV.score_part desc nulls last ) as rnk
+                rank() over ( partition by KV.enc_id, KV.tsp order by KV.model_id, KV.score_part desc nulls last ) as rnk
         from (
-            select R.enc_id, R.tsp, R.score, S.* from (
-                select SCORE.enc_id,
-                       (case when $3 then SCORE.tsp at time zone ''UTC'' else SCORE.tsp end) as tsp,
-                       (SCORE.%I)::numeric as score,
+            select R.model_id, R.enc_id, R.tsp, R.score, S.fid, S.score_part
+            from (
+                select SCORE.model_id,
+                       SCORE.enc_id,
+                       (case when add_tz then SCORE.tsp at time zone 'UTC' else SCORE.tsp end) as tsp,
+                       (((SCORE.mean + 0.5 * SCORE.var) + 14.53) / (14.53 - 10.51))::numeric as score,
                 ARRAY[
-                 ''shock_idx'',
-                 ''hemoglobin'',
-                 ''spo2'',
-                 ''platelets'',
-                 ''sodium'',
-                 ''fluids_intake_24hr'',
-                 ''rass'',
-                 ''urine_output_6hr'',
-                 ''neurologic_sofa'',
-                 ''bun_to_cr'',
-                 ''heart_rate'',
-                 ''lactate'',
-                 ''minutes_since_any_organ_fail'',
-                 ''sirs_raw'',
-                 ''sirs_temperature_oor'',
-                 ''sirs_resp_oor'',
-                 ''hypotension_raw'',
-                 ''hypotension_intp'',
-                 ''age'',
-                 ''chronic_pulmonary_hist'',
-                 ''chronic_bronchitis_diag'',
-                 ''esrd_diag'',
-                 ''heart_arrhythmias_diag'',
-                 ''heart_failure_diag'',
-                 ''bun'',
-                 ''cardio_sofa'',
-                 ''creatinine'',
-                 ''emphysema_hist'',
-                 ''esrd_prob'',
-                 ''gcs'',
-                 ''gender'',
-                 ''heart_arrhythmias_prob'',
-                 ''heart_failure_hist'',
-                 ''hematologic_sofa'',
-                 ''lipase'',
-                 ''mapm'',
-                 ''paco2'',
-                 ''resp_rate'',
-                 ''resp_sofa'',
-                 ''sirs_hr_oor'',
-                 ''sirs_wbc_oor'',
-                 ''temperature'',
-                 ''wbc'',
-                 ''amylase'',
-                 ''nbp_dias'',
-                 ''renal_sofa'',
-                 ''urine_output_24hr'',
-                 ''worst_sofa'',
-                 ''pao2''
-                ]::text[] as names,
-                ARRAY[
-                    SCORE.shock_idx,
-                    SCORE.hemoglobin,
-                    SCORE.spo2,
-                    SCORE.platelets,
-                    SCORE.sodium,
-                    SCORE.fluids_intake_24hr,
-                    SCORE.rass,
-                    SCORE.urine_output_6hr,
-                    SCORE.neurologic_sofa,
-                    SCORE.bun_to_cr,
-                    SCORE.heart_rate,
-                    SCORE.lactate,
-                    SCORE.minutes_since_any_organ_fail,
-                    SCORE.sirs_raw,
-                    SCORE.sirs_temperature_oor,
-                    SCORE.sirs_resp_oor,
-                    SCORE.hypotension_raw,
-                    SCORE.hypotension_intp,
-                    SCORE.age,
-                    SCORE.chronic_pulmonary_hist,
-                    SCORE.chronic_bronchitis_diag,
-                    SCORE.esrd_diag,
-                    SCORE.heart_arrhythmias_diag,
-                    SCORE.heart_failure_diag,
-                    SCORE.bun,
-                    SCORE.cardio_sofa,
-                    SCORE.creatinine,
-                    SCORE.emphysema_hist,
-                    SCORE.esrd_prob,
-                    SCORE.gcs,
-                    SCORE.gender,
-                    SCORE.heart_arrhythmias_prob,
-                    SCORE.heart_failure_hist,
-                    SCORE.hematologic_sofa,
-                    SCORE.lipase,
-                    SCORE.mapm,
-                    SCORE.paco2,
-                    SCORE.resp_rate,
-                    SCORE.resp_sofa,
-                    SCORE.sirs_hr_oor,
-                    SCORE.sirs_wbc_oor,
-                    SCORE.temperature,
-                    SCORE.wbc,
-                    SCORE.amylase,
-                    SCORE.nbp_dias,
-                    SCORE.renal_sofa,
-                    SCORE.urine_output_24hr,
-                    SCORE.worst_sofa,
-                    SCORE.pao2
-                ]::double precision[] as score_parts
-                from pat_enc
-                inner join %I SCORE on pat_enc.enc_id = SCORE.enc_id
-                where pat_enc.pat_id = coalesce($1, pat_enc.pat_id)
-            ) R, lateral unnest(R.names, R.score_parts) S(fid, score_part)
-        ) KV
-    ) RKV
-    where RKV.rnk <= $2'
-    , score_attr, score_table)
-    using this_pat_id, rank_limit, add_tz;
-
-    select array_agg(distinct 'TWF.' || twf_rank.fid), array_agg(distinct quote_literal(twf_rank.fid))
-            into twf_fid_exprs, twf_fid_names
-    from twf_rank
-    where twf_rank.fid not in (
-        'age', 'chronic_bronchitis_diag', 'chronic_pulmonary_hist', 'emphysema_hist',
-        'esrd_diag', 'esrd_prob', 'gender', 'heart_arrhythmias_diag', 'heart_arrhythmias_prob', 'heart_failure_diag', 'heart_failure_hist'
-    );
-
-    fid_query := format(
-        'select R.enc_id, R.tsp, R.score, R.fid, R.score_part, S.cdm_value, R.rnk'
-        || ' from ('
-        || ' select T.enc_id, T.tsp, T.score, T.fid, T.score_part, T.rnk,'
-        || ' array_cat(T.cdm_s_names, ARRAY[%s]::text[]) as cdm_names,'
-        || ' array_cat(T.cdm_s_values, ARRAY[%s]::text[]) as cdm_values'
-        || ' from ('
-        ||   ' select T1.enc_id, T1.tsp, T1.score, T1.fid, T1.score_part, T1.rnk,'
-        ||          ' array_agg(S.fid)::text[] as cdm_s_names,'
-        ||          ' array_agg(S.value)::text[] as cdm_s_values'
-        ||   ' from twf_rank T1 inner join cdm_s S on T1.enc_id = S.enc_id'
-        ||   ' group by T1.enc_id, T1.tsp, T1.score, T1.fid, T1.score_part, T1.rnk'
-        || ') T'
-        || ' inner join cdm_twf TWF on T.enc_id = TWF.enc_id and T.tsp = TWF.tsp'
-        || ') R'
-        || ' inner join lateral unnest(R.cdm_names, R.cdm_values) as S(fid, cdm_value)'
-        || ' on R.fid = S.fid'
-        , array_to_string(twf_fid_names, ','), array_to_string(twf_fid_exprs, ',') );
-
-    return query execute fid_query;
-
-    drop table twf_rank;
-    return;
-end $func$ LANGUAGE plpgsql;
-
-create or replace function calculate_lmcscore_contributors(score_table text, score_attr text, this_pat_id text, rank_limit int, add_tz boolean default false)
-  returns table(enc_id      int,
-                tsp         timestamptz,
-                score       numeric,
-                fid         text,
-                score_part  double precision,
-                cdm_value   text,
-                rnk         bigint)
-as $func$
-declare
-    twf_fid_names text[];
-    twf_fid_exprs text[];
-    fid_query text;
-begin
-    execute format ('
-    create temporary table twf_rank as
-    select *
-    from
-    (
-        select KV.*,
-                rank() over ( partition by KV.enc_id, KV.tsp order by KV.score_part desc nulls last ) as rnk
-        from (
-            select R.enc_id, R.tsp, R.score, S.* from (
-                select SCORE.enc_id,
-                       (case when $3 then SCORE.tsp at time zone ''UTC'' else SCORE.tsp end) as tsp,
-                       (SCORE.%I)::numeric as score,
-                ARRAY[
-                 ''shock_idx'',
-                 ''hemoglobin'',
-                 ''spo2'',
-                 ''sodium'',
-                 ''fluids_intake_24hr'',
-                 ''rass'',
-                 ''urine_output_6hr'',
-                 ''neurologic_sofa'',
-                 ''bun_to_cr'',
-                 ''heart_rate'',
-                 ''minutes_since_any_organ_fail'',
-                 ''sirs_raw'',
-                 ''sirs_temperature_oor'',
-                 ''sirs_resp_oor'',
-                 ''hypotension_raw'',
-                 ''age'',
-                 ''chronic_pulmonary_hist'',
-                 ''chronic_bronchitis_diag'',
-                 ''esrd_diag'',
-                 ''heart_arrhythmias_diag'',
-                 ''heart_failure_diag'',
-                 ''bun'',
-                 ''cardio_sofa'',
-                 ''creatinine'',
-                 ''emphysema_hist'',
-                 ''esrd_prob'',
-                 ''gcs'',
-                 ''gender'',
-                 ''heart_arrhythmias_prob'',
-                 ''heart_failure_hist'',
-                 ''hematologic_sofa'',
-                 ''lipase'',
-                 ''mapm'',
-                 ''paco2'',
-                 ''resp_rate'',
-                 ''resp_sofa'',
-                 ''sirs_hr_oor'',
-                 ''sirs_wbc_oor'',
-                 ''temperature'',
-                 ''wbc'',
-                 ''amylase'',
-                 ''nbp_dias'',
-                 ''renal_sofa'',
-                 ''urine_output_24hr'',
-                 ''worst_sofa'',
-                 ''pao2'',
-                 ''fluids_intake_1hr'',
-                 ''arterial_ph'',
-                 ''qsofa'',
-                 ''organ_insufficiency_hist'',
-                 ''organ_insufficiency_diag'',
-                 ''chronic_kidney_hist'',
-                 ''liver_disease_hist'',
-                 ''diabetes_hist'',
-                 ''renal_insufficiency_diag'',
-                 ''diabetes_diag'',
-                 ''liver_disease_diag'',
-                 ''renal_insufficiency_hist'',
-                 ''minutes_since_any_antibiotics'',
-                 ''acute_liver_failure'',
-                 ''acute_organ_failure'',
-                 ''any_organ_failure'',
-                 ''weight''
+                 'shock_idx',
+                 'hemoglobin',
+                 'spo2',
+                 'sodium',
+                 'fluids_intake_24hr',
+                 'rass',
+                 'urine_output_6hr',
+                 'neurologic_sofa',
+                 'bun_to_cr',
+                 'heart_rate',
+                 'minutes_since_any_organ_fail',
+                 'sirs_raw',
+                 'sirs_temperature_oor',
+                 'sirs_resp_oor',
+                 'hypotension_raw',
+                 'age',
+                 'chronic_pulmonary_hist',
+                 'chronic_bronchitis_diag',
+                 'esrd_diag',
+                 'heart_arrhythmias_diag',
+                 'heart_failure_diag',
+                 'bun',
+                 'cardio_sofa',
+                 'creatinine',
+                 'emphysema_hist',
+                 'esrd_prob',
+                 'gcs',
+                 'gender',
+                 'heart_arrhythmias_prob',
+                 'heart_failure_hist',
+                 'hematologic_sofa',
+                 'lipase',
+                 'mapm',
+                 'paco2',
+                 'resp_rate',
+                 'resp_sofa',
+                 'sirs_hr_oor',
+                 'sirs_wbc_oor',
+                 'temperature',
+                 'wbc',
+                 'amylase',
+                 'nbp_dias',
+                 'renal_sofa',
+                 'urine_output_24hr',
+                 'worst_sofa',
+                 'pao2',
+                 'fluids_intake_1hr',
+                 'arterial_ph',
+                 'qsofa',
+                 'organ_insufficiency_hist',
+                 'organ_insufficiency_diag',
+                 'chronic_kidney_hist',
+                 'liver_disease_hist',
+                 'diabetes_hist',
+                 'renal_insufficiency_diag',
+                 'diabetes_diag',
+                 'liver_disease_diag',
+                 'renal_insufficiency_hist',
+                 'minutes_since_any_antibiotics',
+                 'acute_liver_failure',
+                 'acute_organ_failure',
+                 'any_organ_failure',
+                 'weight'
                 ]::text[] as names,
                 ARRAY[
                     SCORE.shock_idx,
@@ -2610,21 +2437,36 @@ begin
                     SCORE.weight
                 ]::double precision[] as score_parts
                 from pat_enc
-                inner join %I SCORE on pat_enc.enc_id = SCORE.enc_id
-                where pat_enc.pat_id = coalesce($1, pat_enc.pat_id)
+                inner join lmcscore SCORE on pat_enc.enc_id = SCORE.enc_id
+                where pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id)
             ) R, lateral unnest(R.names, R.score_parts) S(fid, score_part)
         ) KV
     ) RKV
-    where RKV.rnk <= $2'
-    , score_attr, score_table)
-    using this_pat_id, rank_limit, add_tz;
+    where RKV.rnk <= rank_limit;
 
     select array_agg(distinct 'TWF.' || twf_rank.fid), array_agg(distinct quote_literal(twf_rank.fid))
             into twf_fid_exprs, twf_fid_names
     from twf_rank
     where twf_rank.fid not in (
-        'age', 'chronic_bronchitis_diag', 'chronic_pulmonary_hist', 'emphysema_hist',
-        'esrd_diag', 'esrd_prob', 'gender', 'heart_arrhythmias_diag', 'heart_arrhythmias_prob', 'heart_failure_diag', 'heart_failure_hist'
+        'age', 'gender',
+        'chronic_pulmonary_hist',
+        'emphysema_hist',
+        'heart_failure_hist',
+        'organ_insufficiency_hist',
+        'chronic_kidney_hist',
+        'liver_disease_hist',
+        'diabetes_hist',
+        'renal_insufficiency_hist',
+        'chronic_bronchitis_diag',
+        'esrd_diag',
+        'heart_arrhythmias_diag',
+        'heart_failure_diag',
+        'organ_insufficiency_diag',
+        'renal_insufficiency_diag',
+        'diabetes_diag',
+        'liver_disease_diag',
+        'esrd_prob',
+        'heart_arrhythmias_prob'
     );
 
     fid_query := format(
@@ -2652,20 +2494,51 @@ begin
     return;
 end $func$ LANGUAGE plpgsql;
 
--- TODO: replace calculate_trews_contributors
-create or replace function calculate_trews_contributors_v2(this_pat_id text, rank_limit int)
-returns table(enc_id int, tsp timestamptz, trewscore numeric, fid text, trews_value double precision, cdm_value text, rnk bigint)
+
+------------------------------
+-- LMCScore analysis.
+--
+create or replace function get_short_long_lmcscore_jump_distribution(bucket_size numeric, short_model_id int default 2408)
+returns table(bucket_id bigint, freq bigint)
 as $func$
 begin
-  return query select * from calculate_score_contributors('trews', 'trewscore', this_pat_id, rank_limit);
+  -- Return a histogram of score difference buckets.
+  return query
+    select R.bucket, count(distinct R.enc_id)
+    from (
+      -- Join for pairs of short and long model scores, where the long model score is
+      -- the first one after the last short model score.
+      -- Then, compute buckets for score differences.
+      select R.enc_id,
+             floor(abs(min(R.score) - first(S.score order by S.tsp)) / bucket_size)::bigint as bucket
+      from
+      (
+        -- Find the last short model timestamp and score
+        select S.enc_id, max(S.tsp) as tsp, last(S.score order by S.tsp) as score
+        from (
+          -- Find enc_ids with multiple models
+          select enc_id, count(*) as c
+          from (select distinct enc_id, model_id from lmcscore) R
+          group by enc_id having count(*) > 1
+        ) R
+        inner join (
+          -- Compute transformed scores
+          select enc_id, tsp, model_id,
+                 ((mean + 0.5 * var) + 14.53) / (14.53 - 10.51) as score
+          from lmcscore
+        ) S
+        on R.enc_id = S.enc_id
+        where S.model_id = short_model_id
+        group by S.enc_id
+      ) R
+      left join lmcscore S
+        on R.enc_id = S.enc_id and R.tsp < S.tsp
+      group by R.enc_id
+      having min(S.tsp) is not null
+    ) R
+    group by R.bucket;
 end $func$ LANGUAGE plpgsql;
 
-create or replace function calculate_lmc_contributors(this_pat_id text, rank_limit int)
-returns table(enc_id int, tsp timestamptz, trewscore numeric, fid text, trews_value double precision, cdm_value text, rnk bigint)
-as $func$
-begin
-  return query select * from calculate_lmcscore_contributors('lmcscore', 'score', this_pat_id, rank_limit, true);
-end $func$ LANGUAGE plpgsql;
 
 ----------------------------------------
 -- Utility methods.
@@ -2805,5 +2678,6 @@ begin
   select distribute('''||server||''', arr, '|| nprocs ||') from query_arrays';
 end;
 $$;
+
 
 
