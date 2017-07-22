@@ -13,3 +13,4 @@ for filename in *; do
   else
           head -n -1 $filename >> ../$2/$(echo $filename | cut -f1,3 -d.)
   fi
+done

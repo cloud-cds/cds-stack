@@ -988,8 +988,8 @@ GO
 # 1102 bmc
 # 1103 hcgh
 hosp = '1101'
-start_date = (2017, 4)
-end_date = (2017, 6)
+start_date = (2016, 3)
+end_date = (2017, 7)
 num_months = 1 #num months per chunk
 for year in range(start_date[0], end_date[0]+1):
   for month in range(1,13,num_months):

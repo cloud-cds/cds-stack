@@ -56,7 +56,7 @@ FROM
   LEFT JOIN CLARITY.dbo.CLARITY_ADT Medicalxferout ON Medicalxferin.EVENT_ID = Medicalxferout.LAST_IN_EVENT_ID
   LEFT JOIN CLARITY.dbo.CLARITY_ADT discharge ON Medicalxferin.DIS_EVENT_ID = discharge.EVENT_ID
   WHERE
-      IDENTITY_ID.line = 1
+      IDENTITY_ID.IDENTITY_ID like 'E%'
   -- Age is greater than 15 at hospital admission
   AND datediff(year, patient.birth_date, PAT_ENC_HSP_1.HOSP_ADMSN_TIME) + CASE
       WHEN MONTH(PAT_ENC_HSP_1.HOSP_ADMSN_TIME) < month(patient.birth_date)
@@ -942,9 +942,9 @@ GO
 # 1101 jhh
 # 1102 bmc
 # 1103 hcgh
-hosp = '1102'
-start_date = (2016, 1)
-end_date = (2017, 1)
+hosp = '1101'
+start_date = (2017, 1)
+end_date = (2017, 7)
 num_months = 3
 for year in range(start_date[0], end_date[0]+1):
   for month in range(1,13,num_months):
