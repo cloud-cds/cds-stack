@@ -19,6 +19,16 @@ class Predictor:
     def recv(self):
         pass
 
+    def print(self):
+        logging.info('''
+            Predictor:
+                id: {}
+                index: {}
+                status: {}
+                is_active: {}
+                last_updated: {}
+            '''.format(self.id, self.index, self.status, self.is_active, self.last_updated)
+            )
 
 
 class PredictorManager:
@@ -55,6 +65,9 @@ class PredictorManager:
                 return
 
             print(message)
+            pred.status = message.get('status')
+            pred.last_updated = dt.datetime.now()
+            pred.print()
 
             if message.get('status') == 'IDLE':
                 pass
@@ -71,7 +84,9 @@ class PredictorManager:
             else:
                 logging.error("Can't process this message")
 
-
+    async def handle_etl_done(self):
+        # TODO: remove running tasks for last etl round
+        # TODO: enqueue new tasks for this etl round
 
     # def send_to_predictors(self):
     #     for predictor_list in self.predictors:

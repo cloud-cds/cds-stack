@@ -370,8 +370,8 @@ class AlertServer:
       return await self.predictor_manager.register(reader, writer, message)
 
     elif message.get('type') == 'ETL':
-      pass # TODO: add task to work queue to forward to all predictor managers
-
+      # TODO: add task to work queue to forward to all predictor managers
+      return await self.predictor_manager.task_enqueue(message)
     else:
       logging.error("Don't know how to process this message")
 
