@@ -1858,6 +1858,48 @@ END; $function$;
 -----------------------------------------------
 -- Notification management
 -----------------------------------------------
+CREATE OR REPLACE FUNCTION lmcscore_alert_on(this_pat_id text)
+RETURNS boolean AS $$
+declare
+    alert_on boolean;
+    threshold numeric;
+begin
+    threshold = 0.0;
+    select score > threshold
+    from lmcscore s inner join pat_enc p on s.enc_id = p.enc_id
+    where p.pat_id = this_pat_id and now() - tsp < interval '15 minutes'
+    order by tsp desc limit 1 into alert_on;
+    return coalesce(alert_on, false);
+end;
+$$ LANGUAGE PLPGSQL;
+
+CREATE OR REPLACE FUNCTION suppression_alert(this_pat_id text)
+RETURNS void AS $$
+DECLARE
+    lmc_alert_on boolean;
+    curr_state int;
+    tsp timestamptz;
+BEGIN
+    select lmcscore_alert_on(this_pat_id) into lmc_alert_on;
+    select state, severe_sepsis_wo_infection_onset from get_states_snapshot(this_pat_id) into curr_state, tsp;
+    if curr_state = 10 then
+        delete from notifications where pat_id = this_pat_id
+        and notifications.message#>>'{alert_code}' ~ '205|300';
+        if lmc_alert_on then
+            insert into notifications (pat_id, message) values
+            (
+                this_pat_id,
+                json_build_object('alert_code', '205', 'read', false, 'timestamp', tsp)
+            ),
+            (
+                this_pat_id,
+                json_build_object('alert_code', '300', 'read', false, 'timestamp', tsp)
+            );
+        end if;
+    end if;
+    RETURN;
+END;
+$$ LANGUAGE PLPGSQL;
 
 -- '200','201','202','203','204','300','301','302','303','304','305','306'
 CREATE OR REPLACE FUNCTION update_notifications(this_pat_id text, alert_codes text[],
@@ -1873,7 +1915,6 @@ BEGIN
     delete from notifications
         where notifications.pat_id = this_pat_id
         and notifications.message#>>'{alert_code}' <> any(alert_codes);
-
     -- add new notifications
     return query
     insert into notifications (pat_id, message)
@@ -1882,8 +1923,8 @@ BEGIN
         json_build_object('alert_code', code, 'read', false,'timestamp',
             date_part('epoch',
                 (case when code in ('201','204','303','306') then septic_shock_onset
-                      when code in ('205', '300') then sirs_plus_organ_onset
-                      else severe_sepsis_onset
+                      --when code in ('205', '300') then sirs_plus_organ_onset
+                      --else severe_sepsis_onset
                       end)::timestamptz
                 +
                 (case
@@ -1909,7 +1950,7 @@ $$ LANGUAGE PLPGSQL;
 CREATE OR REPLACE FUNCTION flag_to_alert_codes(flag int) RETURNS text[] AS $$ DECLARE ret text[]; -- complete all mappings
 BEGIN -- Note the CASTING being done for the 2nd and 3rd elements of the array
  CASE
-     WHEN flag = 10 THEN ret := array['205', '300'];
+     --WHEN flag = 10 THEN ret := array['205', '300'];
      WHEN flag = 20 THEN ret := array['200',
                                 '202',
                                 '203',
@@ -2753,10 +2794,15 @@ begin
     inner join criteria_meas m on p.pat_id = m.pat_id
     inner join cdm_s s on s.enc_id = p.enc_id
     where now() - tsp < interval ''' || lookback_hours || ' hours'' and s.fid = ''hospital'' and s.value = '''||hospital||'''),
+  pats_group as
+  (select pats.*, row_number() over () % ' || nprocs || ' g from pats),
   queries as (
-    select array_agg((''select advance_criteria_snapshot(''''''||pat_id||'''''')'')::text) q from pats
+    select string_agg((''select advance_criteria_snapshot(''''''||pat_id||'''''')'')::text, '';'') q from pats_group group by g
+  ),
+  query_arrays as (
+    select array_agg(q) arr from queries
   )
-  select distribute('''||server||''', q, '|| nprocs ||') from queries';
+  select distribute('''||server||''', arr, '|| nprocs ||') from query_arrays';
 end;
 $$;
 
