@@ -11,6 +11,7 @@ import datetime as dt
 import pytz
 import socket
 import random, string
+import functools
 
 def randomword(length):
    return ''.join(random.choice(string.ascii_uppercase) for i in range(length))
@@ -371,10 +372,17 @@ class AlertServer:
 
     elif message.get('type') == 'ETL':
       # TODO: add task to work queue to forward to all predictor managers
-      return await self.predictor_manager.task_enqueue(message)
+      return await self.handle_etl_done(message)
     else:
       logging.error("Don't know how to process this message")
 
+  async def handle_etl_done(self, message):
+    hosp = message['hosp']
+    tsp = message['time']
+    # TODO: remove running tasks for last etl round
+    self.predictor_manager.cancel_predict_tasks(self.loop, hosp)
+    # TODO: enqueue new tasks for this etl round
+    self.predictor_manager.create_predict_tasks(self.loop, hosp)
 
 def main():
   # Create alert server class
