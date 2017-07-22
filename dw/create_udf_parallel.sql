@@ -16,7 +16,6 @@
 -- create a test table: create unlogged table if not exists pat_enc_test as select * from pat_enc;
 -- select * from distribute('dblink_dist', array['update pat_enc_test set dept_id = ''d1'' where dataset_id = 1;', 'update pat_enc_test set dept_id = ''d2'' where dataset_id = 2;', 'update pat_enc_test set dept_id = ''d3'' where dataset_id = 3;', 'update pat_enc_test set dept_id = ''d4'' where dataset_id = 4;', 'update pat_enc_test set dept_id = ''d5'' where dataset_id = 5;', 'update pat_enc_test set dept_id = ''d6'' where dataset_id = 6;', 'update pat_enc_test set dept_id = ''d7'' where dataset_id = 7;'],7);
 
-
 CREATE OR REPLACE FUNCTION distribute(db text, query_array text[], num_procs integer default 2)
   RETURNS text language plpgsql
   stable
@@ -36,7 +35,7 @@ DECLARE
   array_procs int[];
   current_proc int;
   used_procs int;
-
+  now_t timestamptz;
   done int;
 
 BEGIN
@@ -103,7 +102,7 @@ BEGIN
 
           --terminate the connection and resect the active proc counter so that the next
           --connection is started with the correct index
-          RAISE NOTICE 'Process done:  %, Next Chunk to be started: %',conn,i+1;
+          RAISE NOTICE 'Process done:  % at %, Next Chunk to be started: %',conn, timeofday(), i+1;
 
           --disconnect the connection
           sql := 'SELECT dblink_disconnect(' || QUOTE_LITERAL(conn) || ');';
@@ -145,8 +144,7 @@ end loop chunk_loop;
         --disconnect the connection
         sql := 'SELECT dblink_disconnect(' || QUOTE_LITERAL(conn) || ');';
         execute sql;
-
-        RAISE NOTICE 'Process done:  %',conn;
+        RAISE NOTICE 'Process done:  % at %',conn, timeofday();
         array_procs[i]=1;
       END if;
     END if;
