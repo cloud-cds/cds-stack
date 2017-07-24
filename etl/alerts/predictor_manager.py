@@ -3,50 +3,67 @@ import datetime as dt
 import etl.io_config.server_protocol as protocol
 import logging
 import functools
+import humanize
+
+def predictor_str(partition_index, model_type, is_active):
+  return "Predictor {}-{}-{}".format(partition_index,
+                                     model_type,
+                                     'active' if is_active else 'backup')
 
 class Predictor:
-  def __init__(self, reader, writer, status, index, is_active):
-    self.id = "predictor {}-{}".format(index, 'active' if is_active else 'backup')
+  def __init__(self, reader, writer, status, node_index, partition_index,
+               model_type, is_active):
     self.reader = reader
     self.writer = writer
-    self.status = status        # The last status message from the predictor
-    self.index = index          # The partition index
+    self.status = status # The last status message from the predictor
+    self.model_type = model_type # Long or short
+    self.node_index = node_index # The k8s node index
+    self.partition_index = partition_index # The partition index
     self.is_active = is_active  # active or backup (boolean)
     self.last_updated = dt.datetime.now()
 
-  def send(self):
-    pass
+  def __str__(self):
+    return predictor_str(self.partition_index, self.model_type, self.is_active)
 
-  def recv(self):
-    pass
+  def __repr__(self):
+    return str(self)
+
+  def start_predictor(self, hosp, time):
+    protocol.write_message(self.writer, {
+      'type': 'ETL',
+      'hosp': hosp,
+      'time': time
+    })
 
   def print(self):
-    logging.info('''
-        Predictor:
-            id: {}
-            index: {}
-            status: {}
-            is_active: {}
-            last_updated: {}
-        '''.format(self.id, self.index, self.status, self.is_active, self.last_updated)
-        )
+    logging.info('{} {} (updated {})'.format(
+      str(self),
+      self.status,
+      humanize.naturaltime(dt.datetime.now() - self.last_updated)
+    ))
 
 
 class PredictorManager:
-  def __init__(self, alert_message_queue):
+  def __init__(self, alert_message_queue, event_loop):
     self.predictors = {}
     self.alert_message_queue = alert_message_queue
     self.predict_task_futures = {}
+    self.loop = event_loop
 
 
   async def register(self, reader, writer, msg):
     ''' Register connection from a predictor '''
 
     # Create predictor object
-    pred = Predictor(reader, writer, msg['status'], msg['index'], msg['is_active'])
+    pred = Predictor(reader, writer, msg['status'], msg['node_index'],
+                     msg['partition_index'], msg['model_type'], msg['is_active'])
+
 
     # Save predictor in data structure
-    self.predictors[pred.id] = pred
+    self.predictors[(pred.partition_index,
+                     pred.model_type,
+                     pred.is_active)] = pred
+    logging.info("Registered {}".format(pred))
 
     # Start listener loop
     return await self.listen(pred)
@@ -62,14 +79,12 @@ class PredictorManager:
         return
 
       if message == protocol.CONNECTION_CLOSED:
-        logging.error('Connection to {} closed'.format(pred.id))
-        # TODO: change status in data structure
+        logging.error('Connection to {} closed'.format(pred))
+        pred.status = 'DEAD'
         return
 
-      print(message)
       pred.status = message.get('status')
       pred.last_updated = dt.datetime.now()
-      pred.print()
 
       if message.get('status') == 'IDLE':
         pass
@@ -81,41 +96,108 @@ class PredictorManager:
         pass
 
       elif message.get('status') == 'FIN':
-        pass
+        self.alert_message_queue.put({
+          'type': 'FIN',
+          'time': message['time'],
+          'hosp': message['hosp'],
+          'enc_ids': message['enc_ids'],
+        })
 
       else:
         logging.error("Can't process this message")
 
-  def get_partition_ids(self):
-    partition_ids = set()
-    for pred_id in self.predictors:
-      pred = self.predictors[pred_id]
-      partition_ids.add(pred.index)
-    return partition_ids
 
-  def cancel_predict_tasks(self, loop, hosp):
-    ''' TODO cancel the existing tasks for previous ETL '''
+  def get_partition_ids(self):
+    return set([p.partition_index for p in self.predictors.values()])
+
+  def get_model_types(self):
+    return set([p.model_type for p in self.predictors.values()])
+
+
+  def cancel_predict_tasks(self, hosp):
+    ''' Cancel the existing tasks for previous ETL '''
     logging.info("cancel the existing tasks for previous ETL")
     for future in self.predict_task_futures.get(hosp, []):
       future.cancel()
       logging.info("{} cancelled".format(future))
 
-  def create_predict_tasks(self, loop, hosp):
+
+  def create_predict_tasks(self, hosp, time):
+    ''' Start all predictors '''
+    logging.info("Starting all predictors for ETL {} {}".format(hosp, time))
     self.predict_task_futures[hosp] = []
-    for partition_id in self.get_partition_ids():
-      future = asyncio.ensure_future(self.run_predict(partition_id=partition_id, hosp=hosp), loop=loop)
-      logging.info("create new predict task {} {}".format(partition_id, hosp))
-      self.predict_task_futures[hosp].append(future)
+    for pid in self.get_partition_ids():
+      for model in self.get_model_types():
+        future = asyncio.ensure_future(self.run_predict(pid, model, hosp, time),
+                                       loop=self.loop)
+        self.predict_task_futures[hosp].append(future)
+    logging.info("Started {} predictors".format(len(self.predict_task_futures[hosp])))
 
 
-  async def run_predict(self, partition_id, hosp):
-    # TODO: implement predict logic
-    logging.info("start run_predict {} {}".format(partition_id, hosp))
-    asyncio.sleep(10)
-    # TODO: decide to run active or backup node
-    # TODO: monitor both short and long models
-    # TODO: communicate the lmc clients if something failed
-    logging.info("end run_predict {}".format(partition_id, hosp))
-  # def send_to_predictors(self):
-  #     for predictor_list in self.predictors:
-  #         for predictor in predictor_list:
+
+
+  async def run_predict(self, partition_id, model_type, hosp, time, active=True):
+    ''' Start a predictor for a given partition id and model '''
+    backoff = 1
+
+    # Start the predictor
+    while True:
+      pred = self.predictors.get((partition_id, model_type, active))
+      if pred and pred.status != 'DEAD':
+        try:
+          pred.start_predictor(hosp, time)
+          logging.info("Started {}".format(pred))
+          break
+        except (ConnectionRefusedError) as e:
+          err = e
+      else:
+        err = '{} dead'.format(predictor_str(partition_id, model_type, active))
+
+      # Log reason for error
+      logging.error("{} -- trying {} predictor {}".format(
+        err, 'backup' if active else 'active',
+        humanize.naturaltime(dt.datetime.now() + dt.timedelta(seconds=backoff))
+      ))
+
+      # Switch to backup if active (and vice versa)
+      active = not active
+      await asyncio.sleep(backoff)
+      backoff = backoff * 2 if backoff < 64 else backoff
+
+
+    # Monitor predictor
+    start_time = dt.datetime.now()
+    timeout = dt.timedelta(seconds = 10)
+    while True:
+      # TIMEOUT - predictor not getting updated
+      if pred.last_updated - start_time > timeout:
+        logging.error("{} not getting updated - timeout".format(pred))
+        self.loop.create_task(self.run_predict(partition_id, model_type, hosp,
+                                               time, not active))
+        return
+
+      # IDLE - restart run_predict on timeout
+      elif pred.status == 'IDLE' and (dt.datetime.now() - start_time) > timeout:
+        logging.error("{} is in IDLE state after 10 seconds - timeout".format(pred))
+        self.loop.create_task(self.run_predict(partition_id, model_type, hosp,
+                                               time, not active))
+        return
+
+      # BUSY - all ok, keep monitoring
+      elif pred.status == 'BUSY':
+        pred.print()
+        pass
+
+      # DEAD - predictor failed, restart run_predict
+      elif pred.status == 'DEAD':
+        logging.error("{} died, trying again".format(pred))
+        self.loop.create_task(self.run_predict(partition_id, model_type, hosp,
+                                               time, not active))
+        return
+
+      # FIN - return
+      elif pred.status == 'FIN':
+        logging.info("{} finished task, returning".format(pred))
+        return
+
+      await asyncio.sleep(1)
