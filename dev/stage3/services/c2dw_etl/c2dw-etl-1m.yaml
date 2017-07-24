@@ -23,7 +23,7 @@ spec:
           privileged: true
         env:
         - name: dataset_id
-          value: "6"
+          value: "4"
         - name: clarity_workspace
           value: "clarity_1m"
         - name: etl_graph
