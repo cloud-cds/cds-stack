@@ -1,7 +1,7 @@
 import asyncio
 import json
 import logging
-from core import get_environment_var
+from etl.io_config.core import get_environment_var
 
 SRV_LOG_FMT = '%(asctime)s|%(name)s|%(process)s-%(thread)s|%(levelname)s|%(message)s'
 logging.basicConfig(level=logging.INFO, format=SRV_LOG_FMT)
