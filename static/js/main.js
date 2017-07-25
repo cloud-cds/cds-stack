@@ -183,6 +183,21 @@ var notificationRefresher = new function() {
 }
 
 
+// Suspicion debugging helper.
+function logSuspicion(tag) {
+  var consoleText = $('#fake-console').html();
+  if ( consoleText.length > 16384 ) { consoleText = ''; }
+  var logDate = new Date();
+  if ( trews.data != null && trews.data.severe_sepsis != null && trews.data.severe_sepsis.suspicion_of_infection != null ) {
+    var fieldDate = new Date(trews.data.severe_sepsis.suspicion_of_infection.update_time*1000);
+    consoleText += '<br>' + tag + ' ' + trews.data.severe_sepsis.suspicion_of_infection.name + ' ' + fieldDate.toISOString() + ' ' + logDate.toISOString();
+  } else {
+    consoleText += '<br>' + tag + ' null null ' + logDate.toISOString();
+  }
+  $('#fake-console').html(consoleText);
+}
+
+
 /**
  * Endpoints Object handles sending and receing post requests to server.
  * Handles different connectivity states Inlcuding normal use, testing
@@ -239,8 +254,9 @@ var endpoints = new function() {
       if ( toolbarButton ) { toolbarButton.removeClass('loading'); }
       if ( result.hasOwnProperty('trewsData') ) {
         trews.setData(result.trewsData);
+        // Suspicion debugging.
+        logSuspicion('set');
         controller.refresh();
-        // $('#fake-console').text(result);
         deterioration.dirty = false
       } else if ( result.hasOwnProperty('notifications') ) {
         trews.setNotifications(result.notifications);
@@ -325,16 +341,7 @@ var controller = new function() {
     deterioration.render(globalJson['deterioration_feedback']);
 
     // Suspicion debugging.
-    var consoleText = $('#fake-console').html();
-    if ( consoleText.length > 16384 ) { consoleText = ''; }
-    var logDate = new Date();
-    if ( trews.data != null && trews.data.severe_sepsis != null && trews.data.severe_sepsis.suspicion_of_infection != null ) {
-      var fieldDate = new Date(trews.data.severe_sepsis.suspicion_of_infection.update_time*1000);
-      consoleText += '<br>' + trews.data.severe_sepsis.suspicion_of_infection.name + ' ' + fieldDate.toISOString() + ' ' + logDate.toISOString();
-    } else {
-      consoleText += '<br>null null ' + logDate.toISOString();
-    }
-    $('#fake-console').html(consoleText);
+    logSuspicion('rfs');
   }
   this.refreshNotifications = function() {
     var globalJson = trews.data;

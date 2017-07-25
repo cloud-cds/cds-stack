@@ -448,6 +448,7 @@ class TREWSAPI(web.View):
                 await self.update_response_json(db_pool, data, eid)
                 if data is not None:
                   response_body = {'trewsData': data}
+                  logging.info('trewsData response {}'.format(str(data['severe_sepsis']['suspicion_of_infection'])))
                 else:
                   raise web.HTTPBadRequest(body=json.dumps({'message': 'No patient found'}))
           else:
