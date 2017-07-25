@@ -1882,9 +1882,9 @@ DECLARE
 BEGIN
     select lmcscore_alert_on(this_pat_id) into lmc_alert_on;
     select state, severe_sepsis_wo_infection_onset from get_states_snapshot(this_pat_id) into curr_state, tsp;
+    delete from notifications where pat_id = this_pat_id
+        and notifications.message#>>'{alert_code}' ~ '205|300|206|307';
     if curr_state = 10 then
-        delete from notifications where pat_id = this_pat_id
-        and notifications.message#>>'{alert_code}' ~ '205|300';
         if lmc_alert_on then
             insert into notifications (pat_id, message) values
             (
@@ -1894,6 +1894,16 @@ BEGIN
             (
                 this_pat_id,
                 json_build_object('alert_code', '300', 'read', false, 'timestamp', tsp, 'suppression', 'true')
+            );
+        else
+            insert into notifications (pat_id, message) values
+            (
+                this_pat_id,
+                json_build_object('alert_code', '206', 'read', false, 'timestamp', tsp, 'suppression', 'true')
+            ),
+            (
+                this_pat_id,
+                json_build_object('alert_code', '307', 'read', false, 'timestamp', tsp, 'suppression', 'true')
             );
         end if;
     end if;
