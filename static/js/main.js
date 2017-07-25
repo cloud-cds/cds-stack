@@ -253,6 +253,7 @@ var endpoints = new function() {
       $('#loading').addClass('done');
       if ( toolbarButton ) { toolbarButton.removeClass('loading'); }
       if ( result.hasOwnProperty('trewsData') ) {
+        $('#page').removeClass('waiting').spin(false); // Remove any spinner from the page
         trews.setData(result.trewsData);
         // Suspicion debugging.
         logSuspicion('set');
@@ -1347,6 +1348,7 @@ var dropdown = new function() {
       e.stopPropagation()
     })
     this.susCtn.find('.dropdown-link').click(function() {
+      $('#page').addClass('waiting').spin(); // Add spinner to page
       var action = dropdown.getAction($(this).text());
       endpoints.getPatientData("suspicion_of_infection", action);
     });
@@ -1361,6 +1363,7 @@ var dropdown = new function() {
     infectionOther.append("<input placeholder='Other' value='" + otherValue + "'/><span>Submit</span>")
     $('#infection-other span').unbind()
     $('#infection-other span').click(function() {
+      $('#page').addClass('waiting').spin(); // Add spinner to page
       var action = {"actionName": "sus-edit", "other": $('#infection-other input').val()}
       endpoints.getPatientData("suspicion_of_infection", action);
       dropdown.d.fadeOut(300);
@@ -1883,6 +1886,7 @@ var toolbar = new function() {
     // 'Reset patient' button initialization.
     this.resetNav.unbind();
     this.resetNav.click(function(e) {
+      $('#page').addClass('waiting').spin(); // Add spinner to page
       toolbar.resetNav.addClass('loading'); // Toggle button as loading
       var action = trews.data['event_id'] == undefined ? null : { "value": trews.data['event_id'] };
       endpoints.getPatientData('reset_patient', action, toolbar.resetNav);
@@ -1892,6 +1896,7 @@ var toolbar = new function() {
     this.deactivateState = true; // Initially set to deactivate.
     this.activateNav.unbind();
     this.activateNav.click(function(e) {
+      $('#page').addClass('waiting').spin(); // Add spinner to page
       toolbar.activateNav.addClass('loading');
       endpoints.getPatientData('deactivate', {'value': !trews.data['deactivated']}, toolbar.activateNav);
     });
