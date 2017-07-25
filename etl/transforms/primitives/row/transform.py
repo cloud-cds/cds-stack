@@ -98,7 +98,8 @@ def log_assert(log, _bool, message):
     try:
         assert _bool, message
     except:
-        log.exception("AssertError: " + message)
+        return 0
+        # log.exception("AssertError: " + message)
 
 def get_diastolic(entry, log):
     if entry is None:

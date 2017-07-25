@@ -173,7 +173,7 @@ async def calc_acute_heart_failure(output_fid, input_fid_string, conn, log, data
     acute_df as
     (with acute_tbl as
     (select * from cdm_s where {dataset_id_where} (fid ilike 'acute_heart_failure_icd9_diag' or fid ilike 'acute_heart_failure_icd9_prob')
-    and enc_id in (select enc_id from cdm_s where fid ilike 'hosp_admit'))
+    and enc_id in (select enc_id from cdm_s where {dataset_id_where} fid ilike 'hosp_admit'))
     select distinct enc_id from acute_tbl),
     furo_df as
     (select * from cdm_t where {dataset_id_where} (fid ilike 'furosemide_IV_num_admin' or fid ilike 'bumetanide_IV_num_admin') and value::integer > 1),
@@ -222,8 +222,8 @@ async def calc_cardiogenic_shock(output_fid, input_fid_string, conn, log, datase
     lookback = timedelta(int(parameters['lookback_hours'])/24.0)
     twf_table_ptf = derive_feature_addr['sbpm']['twf_table_temp']
     select_sql = """with
-    ino_tbl as(select * from cdm_t where {dataset_id_where} (fid = 'any_inotrope' or fid = 'mech_cardiac_support_device') and value='True' and enc_id in (select distinct enc_id from cdm_s where fid ilike 'acute_heart_failure') and enc_id in (select distinct enc_id from {twf_table_ptf} where sbpm::float < 90)),
-    sbp_tbl as(select enc_id, tsp, sbpm from {twf_table_ptf} where {dataset_id_where} sbpm::float < 90 and enc_id in (select enc_id from cdm_t where {dataset_id_where} (fid = 'any_inotrope' or fid = 'mech_cardiac_support_device') and value='True') and enc_id in (select distinct enc_id from cdm_s where fid ilike 'acute_heart_failure'))
+    ino_tbl as(select * from cdm_t where {dataset_id_where} (fid = 'any_inotrope' or fid = 'mech_cardiac_support_device') and value='True' and enc_id in (select distinct enc_id from cdm_s where {dataset_id_where} fid ilike 'acute_heart_failure') and enc_id in (select distinct enc_id from {twf_table_ptf} where {dataset_id_where} sbpm::float < 90)),
+    sbp_tbl as(select enc_id, tsp, sbpm from {twf_table_ptf} where {dataset_id_where} sbpm::float < 90 and enc_id in (select enc_id from cdm_t where {dataset_id_where} (fid = 'any_inotrope' or fid = 'mech_cardiac_support_device') and value='True') and enc_id in (select distinct enc_id from cdm_s where {dataset_id_where} fid ilike 'acute_heart_failure'))
     select COALESCE(ino_tbl.enc_id, sbp_tbl.enc_id) as enc_id, COALESCE(ino_tbl.tsp, sbp_tbl.tsp) as tsp, fid, sbpm, confidence
     from ino_tbl full join sbp_tbl on ino_tbl.enc_id = sbp_tbl.enc_id and ino_tbl.tsp = sbp_tbl.tsp
     order by enc_id, tsp;"""
