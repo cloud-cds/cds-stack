@@ -528,12 +528,3 @@ CREATE TABLE lmcscore (
     any_organ_failure double precision,
     weight double precision
 );
-
-
-DROP TABLE IF EXISTS lmc_predictors;
-CREATE TABLE lmc_predictors (
-    partition_id      int,
-    active_dns        text,
-    backup_dns        text,
-    PRIMARY KEY (partition_id)
-);

@@ -1889,11 +1889,11 @@ BEGIN
             insert into notifications (pat_id, message) values
             (
                 this_pat_id,
-                json_build_object('alert_code', '205', 'read', false, 'timestamp', tsp)
+                json_build_object('alert_code', '205', 'read', false, 'timestamp', tsp, 'suppression', 'true')
             ),
             (
                 this_pat_id,
-                json_build_object('alert_code', '300', 'read', false, 'timestamp', tsp)
+                json_build_object('alert_code', '300', 'read', false, 'timestamp', tsp, 'suppression', 'true')
             );
         end if;
     end if;
