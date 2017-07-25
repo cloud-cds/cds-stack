@@ -323,6 +323,18 @@ var controller = new function() {
     activity.render(globalJson['auditlist']);
     toolbar.render(globalJson["severe_sepsis"]);
     deterioration.render(globalJson['deterioration_feedback']);
+
+    // Suspicion debugging.
+    var consoleText = $('#fake-console').html();
+    if ( consoleText.length > 16384 ) { consoleText = ''; }
+    var logDate = new Date();
+    if ( trews.data != null && trews.data.severe_sepsis != null && trews.data.severe_sepsis.suspicion_of_infection != null ) {
+      var fieldDate = new Date(trews.data.severe_sepsis.suspicion_of_infection.update_time*1000);
+      consoleText += '<br>' + trews.data.severe_sepsis.suspicion_of_infection.name + ' ' + fieldDate.toISOString() + ' ' + logDate.toISOString();
+    } else {
+      consoleText += '<br>null null ' + logDate.toISOString();
+    }
+    $('#fake-console').html(consoleText);
   }
   this.refreshNotifications = function() {
     var globalJson = trews.data;
