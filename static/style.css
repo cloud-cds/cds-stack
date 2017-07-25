@@ -9,6 +9,7 @@ html, body {
     width: 100%;
     height: 100%;
     background-color: #fff;
+    overflow-y: hidden; /* No overflow on the page body, since each column has its own scrollbars. */
 }
 h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li {
     font-family: Helvetica, Arial, sans-serif;
