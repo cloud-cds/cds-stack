@@ -533,12 +533,12 @@ async def pull_rvf(connection, dataset_id, fids, log, is_plan, clarity_workspace
 
     def rvf_find(dt):
         # Check one pattern by one pattern
-        result = find_text(dt, r'(\w+\s+){1,2}right\s*ventricular\s*(global)?\s*systolic\s*function', 'da', 0, 20)
+        result = find_text(dt, r'(\w+\s+){1,2}right\s*ventricular\s*(global)?\s*systolic\s*function', 'RV', 0, 20)
         if result:
             return result
         else:
             result = find_text(dt, r'([,\.]?RV[,\.]?|right\s+(ventricle|ventricular))(\s+\w*){0,5}\s+function(\s+is)?',
-                               'di', 10, 25)
+                               'RV is', 10, 25)
             if result:
                 return result
             else:
