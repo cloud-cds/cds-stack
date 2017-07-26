@@ -119,11 +119,12 @@ class AlertServer:
     # Get the message that started this callback function
     message = await protocol.read_message(reader, writer)
 
-    if message.get('type') == 'predictor':
+    if message.get('from') == 'predictor':
       return await self.predictor_manager.register(reader, writer, message)
 
     elif message.get('type') == 'ETL':
       self.garbage_collect_suppression_tasks(message['hosp'])
+      self.predictor_manager.cancel_predict_tasks(hosp=message['hosp'])
       self.predictor_manager.create_predict_tasks(hosp=message['hosp'],
                                                   time=message['time'])
 

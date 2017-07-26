@@ -15,7 +15,7 @@ async def start_predicting(writer, job_tsp):
   logging.info("Connecting to server")
   reader, writer = await asyncio.open_connection(alert_dns, 31000)
 
-  protocol.write_message(writer, {
+  await protocol.write_message(writer, {
     'type': 'START',
     'time': job_tsp,
     'hosp': 'HCGH',
@@ -27,7 +27,7 @@ async def start_predicting(writer, job_tsp):
   logging.info("Predicting on patients")
   await asyncio.sleep(6)
 
-  protocol.write_message(writer,
+  await protocol.write_message(writer,
     {'type': 'FIN',
      'time': job_tsp,
      'hosp': 'HCGH',

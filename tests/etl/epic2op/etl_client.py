@@ -9,7 +9,7 @@ alert_server_port = protocol.ALERT_SERVER_PORT
 
 async def etl_client(message, loop):
   reader, writer = await asyncio.open_connection(alert_dns, alert_server_port, loop=loop)
-  protocol.write_message(writer, message)
+  await protocol.write_message(writer, message)
   logging.info('Closing the socket')
   writer.close()
 
