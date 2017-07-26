@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import socket, errno
 from etl.io_config.core import get_environment_var
 
 SRV_LOG_FMT = '%(asctime)s|%(name)s|%(process)s-%(thread)s|%(levelname)s|%(message)s'
@@ -27,8 +28,18 @@ async def read_message(reader, writer):
 
 
 
-def write_message(writer, message):
+async def write_message(writer, message):
   logging.debug('Sending to {}:  {}'.format(writer.get_extra_info('sockname'), message))
   if type(message) != dict:
     raise ValueError('write_message takes a dictionary as the second argument')
-  writer.write(json.dumps(message).encode() + MAGIC_NUMBER)
+  try:
+    writer.write(json.dumps(message).encode() + MAGIC_NUMBER)
+    await writer.drain()
+    return True
+  except (socket.error, IOError) as e:
+    if e.errno == errno.EPIPE:
+      logging.error(e)
+    else:
+      logging.error("Other error: {}".format(e))
+  writer.close()
+  return False

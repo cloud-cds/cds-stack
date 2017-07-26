@@ -13,6 +13,7 @@ def predictor_str(partition_index, model_type, is_active):
 class Predictor:
   def __init__(self, reader, writer, status, node_index, partition_index,
                model_type, is_active):
+    self.id = (partition_index, model_type, is_active)
     self.reader = reader
     self.writer = writer
     self.status = status # The last status message from the predictor
@@ -21,6 +22,7 @@ class Predictor:
     self.partition_index = partition_index # The partition index
     self.is_active = is_active  # active or backup (boolean)
     self.last_updated = dt.datetime.now()
+    self.shutdown = False
 
   def __str__(self):
     return predictor_str(self.partition_index, self.model_type, self.is_active)
@@ -28,19 +30,67 @@ class Predictor:
   def __repr__(self):
     return str(self)
 
-  def start_predictor(self, hosp, time):
-    protocol.write_message(self.writer, {
+  def display(self):
+    return '{} {} (updated {})'.format(
+      str(self),
+      self.status,
+      humanize.naturaltime(dt.datetime.now() - self.last_updated)
+    )
+
+  def stop(self):
+    self.shutdown = True
+
+  async def listen(self, queue):
+    ''' Listen for messages from worker '''
+    self.shutdown = False
+    while self.shutdown == False:
+      try:
+        message = await protocol.read_message(self.reader, self.writer)
+      except Exception as e:
+        print(e)
+        return
+
+      if message == protocol.CONNECTION_CLOSED:
+        logging.error('Connection to {} closed'.format(self))
+        self.status = 'DEAD'
+        return
+
+      self.status = message.get('status')
+      self.last_updated = dt.datetime.now()
+
+      if message.get('type') == 'HEARTBEAT':
+        logging.info(self.display())
+        pass
+
+      elif message.get('type') == 'FIN':
+        queue.put({
+          'type': 'FIN',
+          'time': message['time'],
+          'hosp': message['hosp'],
+          'enc_ids': message['enc_ids'],
+        })
+
+      else:
+        logging.error("Can't process this message")
+
+
+  async def start_predictor(self, hosp, time):
+    ''' Start the predictor '''
+
+    # Don't send messages when predictor is catching up
+    if self.status == 'CATCHUP':
+      logging.info("{} in CATCHUP -- skipping start_predictor".format(self))
+      return False
+
+    # Send message
+    logging.info("Starting {}".format(self))
+    write_status = await protocol.write_message(self.writer, {
       'type': 'ETL',
       'hosp': hosp,
       'time': time
     })
+    return write_status
 
-  def print(self):
-    logging.info('{} {} (updated {})'.format(
-      str(self),
-      self.status,
-      humanize.naturaltime(dt.datetime.now() - self.last_updated)
-    ))
 
 
 class PredictorManager:
@@ -58,53 +108,16 @@ class PredictorManager:
     pred = Predictor(reader, writer, msg['status'], msg['node_index'],
                      msg['partition_index'], msg['model_type'], msg['is_active'])
 
+    # Cancel any existing predictor with same id
+    if pred.id in self.predictors:
+      self.predictors[pred.id].shutdown = True
 
     # Save predictor in data structure
-    self.predictors[(pred.partition_index,
-                     pred.model_type,
-                     pred.is_active)] = pred
+    self.predictors[pred.id] = pred
     logging.info("Registered {}".format(pred))
 
     # Start listener loop
-    return await self.listen(pred)
-
-
-  async def listen(self, pred):
-    ''' Listen for messages from predictor '''
-    while True:
-      try:
-        message = await protocol.read_message(pred.reader, pred.writer)
-      except Exception as e:
-        print(e)
-        return
-
-      if message == protocol.CONNECTION_CLOSED:
-        logging.error('Connection to {} closed'.format(pred))
-        pred.status = 'DEAD'
-        return
-
-      pred.status = message.get('status')
-      pred.last_updated = dt.datetime.now()
-
-      if message.get('status') == 'IDLE':
-        pass
-
-      elif message.get('status') == 'BUSY':
-        pass
-
-      elif message.get('status') == 'DEAD':
-        pass
-
-      elif message.get('status') == 'FIN':
-        self.alert_message_queue.put({
-          'type': 'FIN',
-          'time': message['time'],
-          'hosp': message['hosp'],
-          'enc_ids': message['enc_ids'],
-        })
-
-      else:
-        logging.error("Can't process this message")
+    return await pred.listen(self.alert_message_queue)
 
 
   def get_partition_ids(self):
@@ -145,8 +158,7 @@ class PredictorManager:
       pred = self.predictors.get((partition_id, model_type, active))
       if pred and pred.status != 'DEAD':
         try:
-          pred.start_predictor(hosp, time)
-          logging.info("Started {}".format(pred))
+          predictor_started = await pred.start_predictor(hosp, time)
           break
         except (ConnectionRefusedError) as e:
           err = e
@@ -164,6 +176,9 @@ class PredictorManager:
       await asyncio.sleep(backoff)
       backoff = backoff * 2 if backoff < 64 else backoff
 
+    # Check status
+    if predictor_started == False:
+      return None
 
     # Monitor predictor
     start_time = dt.datetime.now()
@@ -174,6 +189,7 @@ class PredictorManager:
         logging.error("{} not getting updated - timeout".format(pred))
         self.loop.create_task(self.run_predict(partition_id, model_type, hosp,
                                                time, not active))
+        pred.stop()
         return
 
       # IDLE - restart run_predict on timeout
@@ -181,11 +197,12 @@ class PredictorManager:
         logging.error("{} is in IDLE state after 10 seconds - timeout".format(pred))
         self.loop.create_task(self.run_predict(partition_id, model_type, hosp,
                                                time, not active))
+        pred.stop()
         return
 
       # BUSY - all ok, keep monitoring
       elif pred.status == 'BUSY':
-        pred.print()
+        logging.info(pred.display())
         pass
 
       # DEAD - predictor failed, restart run_predict
@@ -193,6 +210,7 @@ class PredictorManager:
         logging.error("{} died, trying again".format(pred))
         self.loop.create_task(self.run_predict(partition_id, model_type, hosp,
                                                time, not active))
+        pred.stop()
         return
 
       # FIN - return

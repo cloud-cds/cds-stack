@@ -62,7 +62,7 @@ async def notify_data_ready_to_alert_server(ctxt, job_id):
   }
   try:
     reader, writer = await asyncio.open_connection(protocol.ALERT_SERVER_IP, protocol.ALERT_SERVER_PORT, loop=ctxt.loop)
-    protocol.write_message(writer, message)
+    await protocol.write_message(writer, message)
     logging.info('Notified alert server that the ETL is done')
     writer.close()
   except Exception as e:
@@ -78,7 +78,7 @@ async def notify_data_ready_to_alert_server(ctxt, job_id):
 #   }
 #   try:
 #     reader, writer = await asyncio.open_connection(protocol.ALERT_SERVER_IP, protocol.ALERT_SERVER_PORT, loop=ctxt.loop)
-#     protocol.write_message(writer, message)
+#     await protocol.write_message(writer, message)
 #     logging.info('Closing the socket')
 #     writer.close()
 #   except Exception as e:
