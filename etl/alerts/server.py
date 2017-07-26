@@ -55,7 +55,8 @@ class AlertServer:
 
 
   async def suppression(self, pat_id, tsp):
-    ''' Alert suppression task for a single patient '''
+    ''' Alert suppression task for a single patient
+        and notify frontend that the patient has updated'''
     async def criteria_ready(pat_id, tsp):
       async with self.db_pool.acquire() as conn:
         sql = '''
@@ -75,7 +76,10 @@ class AlertServer:
     if n < 60:
       logging.info("criteria is ready for {}".format(pat_id))
       async with self.db_pool.acquire() as conn:
-        sql = '''select suppression_alert('{}')'''.format(pat_id)
+        sql = '''
+        select suppression_alert('{pat_id}');
+        notify {channel}, '{pat_id}';
+        '''.format(pat_id=pat_id, channel=os.environ['etl_channel'])
         await conn.fetch(sql)
 
 
