@@ -137,7 +137,8 @@ class TREWSAPI(web.View):
     # thus we must ensure we query the database again.
     logging.info("Invalidating cache for %s" % eid)
     await pat_cache.delete(eid)
-
+    channel = os.environ['etl_channel']
+    await query.notify_pat_update(db_pool, channel, eid)
     return {'result': 'OK'}
 
 
