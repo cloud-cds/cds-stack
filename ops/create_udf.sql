@@ -1933,8 +1933,8 @@ BEGIN
         json_build_object('alert_code', code, 'read', false,'timestamp',
             date_part('epoch',
                 (case when code in ('201','204','303','306') then septic_shock_onset
-                      --when code in ('205', '300') then sirs_plus_organ_onset
-                      --else severe_sepsis_onset
+                      when code in ('205', '300') then sirs_plus_organ_onset
+                      else severe_sepsis_onset
                       end)::timestamptz
                 +
                 (case
@@ -1951,6 +1951,7 @@ BEGIN
         on n2.pat_id = pat_enc.pat_id and n2.message#>>'{alert_code}' = code
     where pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id)
     and n2.message is null and code <> '0'
+        and ((select value::boolean from parameters where name = 'suppression') and not code in ('205', '300'))
     returning notifications.pat_id, message#>>'{alert_code}';
 
 END;
@@ -1960,7 +1961,7 @@ $$ LANGUAGE PLPGSQL;
 CREATE OR REPLACE FUNCTION flag_to_alert_codes(flag int) RETURNS text[] AS $$ DECLARE ret text[]; -- complete all mappings
 BEGIN -- Note the CASTING being done for the 2nd and 3rd elements of the array
  CASE
-     --WHEN flag = 10 THEN ret := array['205', '300'];
+     WHEN flag = 10 THEN ret := array['205', '300'];
      WHEN flag = 20 THEN ret := array['200',
                                 '202',
                                 '203',
