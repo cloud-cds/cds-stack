@@ -44,7 +44,8 @@ job_config = {
         if 'transform_fids' in os.environ else None,
       'nprocs': int(os.environ['nprocs']) if 'nprocs' in os.environ else 2,
     },
-    'min_tsp': os.environ['min_tsp'] if 'min_tsp' in os.environ else None
+    'min_tsp': os.environ['min_tsp'] if 'min_tsp' in os.environ else None,
+    'feature_mapping': os.environ['feature_mapping'] if 'feature_mapping' in os.environ else 'feature_mapping.csv'
   },
   'fillin': False if 'fillin' in os.environ \
     and os.environ['fillin'] == 'False' else \

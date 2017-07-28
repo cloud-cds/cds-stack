@@ -1442,6 +1442,11 @@ def convert_dialysis_to_binary(entry, log):
     except TypeError as te:
         log.warn('convert_dialysis_to_binary typeError: ' + str(type(entry['Value'])))
 
+def convert_dialysis_to_json(entry, log):
+    proc_str = json.dumps({"name":entry['DISP_NAME'], "Value":entry['Value']})
+    return [proc_str, confidence.NO_TRANSFORM]
+
+
 def convert_inhosp_to_json(entry, log):
     inhosp_str = json.dumps({"diagname":entry['diagname'],
                             "ischronic":entry['chronic'],
@@ -1485,3 +1490,212 @@ def convert_surgery_to_json(entry, log):
 
     surgery_str = json.dumps(surgery_dict)
     return [surgery_str, confidence.NO_TRANSFORM]
+
+def convert_lda_to_binary(entry, log):
+    place_tsp = entry['PLACEMENT_INSTANT']
+    rm_tsp = entry['REMOVAL_DTTM']
+    results = []
+    if place_tsp:
+        results.append([place_tsp, True, confidence.NO_TRANSFORM])
+    if rm_tsp:
+        results.append([rm_tsp, False, confidence.NO_TRANSFORM])
+    if len(results) == 0:
+        return None
+    else:
+        return results
+
+def convert_order_question_to_json(entry, log):
+    question = entry['quest_name']
+    response = entry['ord_quest_resp']
+    quest_str = json.dumps({"question":question, "response":response})
+    return [quest_str, confidence.NO_TRANSFORM]
+
+def extract_fluids_intake_json(entries, log):
+    global STOPPED_ACTIONS
+    global GIVEN_ACTIONS
+    global IV_START_ACTIONS
+    global RATE_ACTIONS
+    # print "extract_fluids_intake"
+    on_actions = GIVEN_ACTIONS + IV_START_ACTIONS + RATE_ACTIONS
+    volumes = []
+    entry_pre = None
+    remain_vol = None
+    recent_dose = None
+    recent_unit = None
+    recent_type = None
+    for entry in entries:
+        if entry_pre:
+            if entry_pre['ActionTaken'] in on_actions:
+                if remain_vol:
+                    remain_vol = _calculate_volume_in_ml_json(volumes, entry_pre, \
+                        entry, remain_vol, recent_dose, recent_unit, log)
+                else:
+                    remain_vol = _calculate_volume_in_ml_json(volumes, entry_pre, \
+                        entry, None, recent_dose, recent_unit, log)
+        entry_pre = entry
+        if entry['ActionTaken'] in on_actions and entry['Dose'] is not None and \
+            float(entry['Dose']) > 0:
+            recent_dose = float(entry['Dose'])
+            recent_unit = entry['MedUnit']
+            recent_type = entry['display_name']
+    # last one
+    if entry_pre['ActionTaken'] in on_actions:
+        if remain_vol:
+            _calculate_volume_in_ml_json(volumes, entry_pre, None, remain_vol, \
+                recent_dose, recent_unit, log)
+        else:
+            _calculate_volume_in_ml_json(volumes, entry_pre, None, None, \
+                recent_dose, recent_unit, log)
+    return volumes
+
+def _calculate_volume_in_ml_json(volumes, entry_cur, entry_nxt, remain_vol_pre, \
+    recent_dose, recent_unit, log):
+    # print "_calculate_volume_in_ml"
+    global FLUID_DUR
+    global RATE_ACTIONS
+    unit = entry_cur['MedUnit']
+    dose = entry_cur['Dose']
+    tsp = entry_cur['TimeActionTaken']
+    med = entry_cur['display_name']
+    max_vol_ml = _get_max_vol_ml(med)
+    infusion_rate = entry_cur['INFUSION_RATE']
+    infusion_rate_unit = entry_cur['MAR_INF_RATE_UNIT']
+
+    if med.startswith('albumin human') and unit == 'g':
+        unit = 'mL'
+
+    if med.startswith('sodium chloride 0.9') and unit == 'mg':
+        unit = 'mL'
+
+    if unit is None and infusion_rate is not None \
+        and infusion_rate_unit == 'mL/hr':
+        # case when display name is
+        # sodium bicarbonate 150 mEq in sodium chloride 0.9 % 1,000 mL infusion
+        unit = infusion_rate_unit
+        dose = infusion_rate
+
+    if unit == 'mg' and infusion_rate is not None \
+        and infusion_rate_unit == 'mL/hr':
+        # vancomycin (VANCOCIN) 1,250 mg in sodium chloride 0.9 % 250 mL IVPB
+        unit = infusion_rate_unit
+        dose = infusion_rate
+
+
+
+    if unit is None and recent_unit is not None:
+        unit = recent_unit
+        dose = recent_dose
+        if unit == 'mL' and max_vol_ml and max_vol_ml != dose:
+            dose = max_vol_ml
+
+    if dose is None and infusion_rate is None and max_vol_ml is not None:
+        dose = max_vol_ml
+        unit = 'mL'
+
+    if unit == "mL/kg/hr" and infusion_rate is not None:
+        dose = infusion_rate
+        unit = infusion_rate_unit
+
+    if unit == 'mL':
+        duration = entry_cur['mar_duration']
+        duration_unit = entry_cur['MAR_DURATION_UNIT']
+        if duration is None and infusion_rate is not None and infusion_rate > 0:
+            log_assert(log, infusion_rate_unit == 'mL/hr', \
+                "Invalid infusion rate unit %s" % infusion_rate_unit)
+            duration = dose / infusion_rate
+            duration_unit = 'HOURS'
+        if duration and duration_unit == 'HOURS':
+            dose_per_hour = dose/duration
+            add_hour = 0
+            remain_vol = dose
+            while add_hour < duration:
+                if remain_vol > dose_per_hour:
+                    volumes.append([tsp + timedelta(hours = add_hour), \
+                        json.dumps({'dose':dose_per_hour, \
+                        'type': med}), confidence.NO_TRANSFORM])
+                    remain_vol -= dose_per_hour
+                else:
+                    volumes.append([tsp + timedelta(hours = add_hour), \
+                        json.dumps({'dose':remain_vol, \
+                        'type': med}), confidence.NO_TRANSFORM])
+                add_hour += 1
+        elif duration and duration_unit == 'minutes':
+            log_assert(log, duration <= 60, "Invalid duration in minutes %s" % duration )
+            volumes.append([tsp, json.dumps({'dose':dose, \
+                        'type': med}), confidence.NO_TRANSFORM])
+        else:
+            volumes.append([tsp, json.dumps({'dose':dose, \
+                        'type': med}), confidence.NO_TRANSFORM])
+    elif unit == 'mL/hr':
+        if entry_cur['ActionTaken'] in RATE_ACTIONS and remain_vol_pre:
+            log_assert(log, remain_vol_pre > 0, "Invalid remain_vol_pre")
+            max_vol_ml = remain_vol_pre
+        else:
+            max_vol_ml =  _get_max_vol_ml(med)
+        # print "max_vol_ml", max_vol_ml
+        if entry_nxt:
+            # entry is not None
+            duration_secs = (entry_nxt['TimeActionTaken'] - tsp).total_seconds()
+            if duration_secs < FLUID_DUR:
+                # less than the max interval
+                dose_ml = duration_secs / 3600 * dose
+                if max_vol_ml and dose_ml > max_vol_ml:
+                    dose_ml = max_vol_ml
+                volumes.append([tsp, json.dumps({'dose':dose_ml, \
+                        'type': med}), confidence.UNIT_TRANSFORMED])
+                if max_vol_ml:
+                    return max_vol_ml - dose_ml
+            else:
+                int_start = tsp
+                int_end = int_start + timedelta(hours=1)
+                sum_vol_ml = 0
+                while int_start < entry_nxt['TimeActionTaken']:
+                    dose_ml = (int_end - int_start).total_seconds()/3600*dose
+                    if max_vol_ml and dose_ml + sum_vol_ml > max_vol_ml:
+                        dose_ml = max_vol_ml - sum_vol_ml
+                    sum_vol_ml += dose_ml
+                    if dose_ml > 0:
+                        volumes.append([int_start, json.dumps({'dose':dose_ml, \
+                        'type': med}), confidence.UNIT_TRANSFORMED])
+                    int_start = int_end
+                    int_end = int_start + timedelta(hours=1)
+                    if int_end > entry_nxt['TimeActionTaken']:
+                        int_end = entry_nxt['TimeActionTaken']
+                if max_vol_ml:
+                    return max_vol_ml - sum_vol_ml
+        else:
+            # no entry exists
+            if max_vol_ml:
+                # if we know the max volume
+                int_start = tsp
+                int_end = int_start + timedelta(hours=1)
+                sum_vol_ml = 0
+                while sum_vol_ml < max_vol_ml:
+                    dose_ml = (int_end - int_start).total_seconds()/3600 * dose
+                    sum_vol_ml += dose_ml
+                    if sum_vol_ml > max_vol_ml:
+                        dose_ml -= (sum_vol_ml - max_vol_ml)
+                    if dose_ml > 0:
+                        volumes.append([int_start, json.dumps({'dose':dose_ml, \
+                        'type': med}),  confidence.UNIT_TRANSFORMED])
+                    int_start = int_end
+                    int_end = int_start + timedelta(hours=1)
+            else:
+                # if we don't know the max volume
+                duration = entry_cur['mar_duration']
+                duration_unit = entry_cur['MAR_DURATION_UNIT']
+                if duration:
+                    if duration_unit == 'HOURS':
+                        volumes.append([tsp, json.dumps({'dose':dose*duration, \
+                        'type': med}),confidence.UNIT_TRANSFORMED])
+                    elif duration_unit == 'minutes':
+                        volumes.append([tsp, json.dumps({'dose':dose*duration*60, \
+                        'type': med}), confidence.UNIT_TRANSFORMED])
+                    else:
+                        log.warn("Invalid Duration Unit {}".format(duration_unit))
+                else:
+                    volumes.append([tsp, json.dumps({'dose':dose*FLUID_DUR/3600, \
+                        'type': med}), confidence.UNIT_TRANSFORMED])
+    else:
+        log.warn("Invalid unit: %s" % unit)
+

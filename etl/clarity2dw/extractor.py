@@ -41,16 +41,16 @@ class Extractor:
     self.job = job
     self.dataset_id = job['extractor'].get('dataset_id')
     self.plan = job['plan']
-    CONF = os.path.dirname(os.path.abspath(__file__))
-    CONF = os.path.join(CONF, 'conf')
     if self.job.get('transform'):
       feature_mapping_files = self.job.get('transform').get('feature_mapping', None)
       if feature_mapping_files:
         self.load_feature_mapping_files(feature_mapping_files)
 
 
-  def load_feature_mapping_files(feature_mapping_files):
+  def load_feature_mapping_files(self, feature_mapping_files):
     self.feature_mapping = None
+    CONF = os.path.dirname(os.path.abspath(__file__))
+    CONF = os.path.join(CONF, 'conf')
     for feature_mapping_file in feature_mapping_files.split(','):
       feature_mapping_csv = os.path.join(CONF, feature_mapping_file)
       feature_mapping = pd.read_csv(feature_mapping_csv)
