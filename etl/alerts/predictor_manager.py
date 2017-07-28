@@ -41,7 +41,7 @@ class Predictor:
     self.shutdown = True
 
   async def listen(self, queue):
-    ''' Listen for messages from worker '''
+    ''' Listen for messages from worker - waits until message then processes it '''
     self.shutdown = False
     while self.shutdown == False:
       try:
@@ -76,20 +76,13 @@ class Predictor:
 
   async def start_predictor(self, hosp, time):
     ''' Start the predictor '''
-
-    # Don't send messages when predictor is catching up
-    if self.status == 'CATCHUP':
-      logging.info("{} in CATCHUP -- skipping start_predictor".format(self))
-      return False
-
-    # Send message
     logging.info("Starting {}".format(self))
-    write_status = await protocol.write_message(self.writer, {
+    return await protocol.write_message(self.writer, {
       'type': 'ETL',
       'hosp': hosp,
       'time': time
     })
-    return write_status
+
 
 
 
@@ -202,7 +195,6 @@ class PredictorManager:
 
       # BUSY - all ok, keep monitoring
       elif pred.status == 'BUSY':
-        logging.info(pred.display())
         pass
 
       # DEAD - predictor failed, restart run_predict
