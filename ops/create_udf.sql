@@ -1951,7 +1951,7 @@ BEGIN
         on n2.pat_id = pat_enc.pat_id and n2.message#>>'{alert_code}' = code
     where pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id)
     and n2.message is null and code <> '0'
-        and ((select value::boolean from parameters where name = 'suppression') and not code in ('205', '300'))
+        and ((select not value::boolean from parameters where name = 'suppression') or not code in ('205', '300'))
     returning notifications.pat_id, message#>>'{alert_code}';
 
 END;
