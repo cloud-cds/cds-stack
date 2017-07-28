@@ -288,6 +288,8 @@ vasopressors_dose_order,T,String,yes,no,,,,,vasopressors dose order as used in t
 bands,T,Real,yes,no,,,,,bands as used in the online sepsis bundle criteria calculation,1,%
 lactate_order,T,String,yes,no,,,,,lactate order as uses for the online sepsis bundle critieria calculation,1,order state
 blood_culture_order,T,String,yes,no,,,,,blood culture order as used for the online sepsis bundle criteria calculation,1,order state
+cbc_order,T,String,yes,no,,,,,complete blood count order,1,no unit
+metabolic_panel_order,T,String,yes,no,,,,,basic or comprehensive metabolic panel order,1,no unit
 bipap,T,Boolean,yes,no,,,,,Order Procedure,1,
 cpap,T,Boolean,yes,no,,,,,Order Procedure,1,
 note,N,String,yes,no,,,,,provider notes,1,no unit
