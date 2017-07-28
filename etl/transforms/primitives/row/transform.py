@@ -1442,6 +1442,11 @@ def convert_dialysis_to_binary(entry, log):
     except TypeError as te:
         log.warn('convert_dialysis_to_binary typeError: ' + str(type(entry['Value'])))
 
+def convert_dialysis_to_json(entry, log):
+    proc_str = json.dumps({"name":entry['DISP_NAME'], "Value":entry['Value']})
+    return [proc_str, confidence.NO_TRANSFORM]
+
+
 def convert_inhosp_to_json(entry, log):
     inhosp_str = json.dumps({"diagname":entry['diagname'],
                             "ischronic":entry['chronic'],
@@ -1485,3 +1490,60 @@ def convert_surgery_to_json(entry, log):
 
     surgery_str = json.dumps(surgery_dict)
     return [surgery_str, confidence.NO_TRANSFORM]
+
+def convert_lda_to_binary(entry, log):
+    place_tsp = entry['PLACEMENT_INSTANT']
+    rm_tsp = entry['REMOVAL_DTTM']
+    results = []
+    if place_tsp:
+        results.append([place_tsp, True, confidence.NO_TRANSFORM])
+    if rm_tsp:
+        results.append([rm_tsp, False, confidence.NO_TRANSFORM])
+    if len(results) == 0:
+        return None
+    else:
+        return results
+
+def convert_order_question_to_json(entry, log):
+    question = entry['quest_name']
+    response = entry['ord_quest_resp']
+    quest_str = json.dumps({"question":question, "response":response})
+    return [quest_str, confidence.NO_TRANSFORM]
+
+def extract_fluids_intake_json(entries, log):
+    global STOPPED_ACTIONS
+    global GIVEN_ACTIONS
+    global IV_START_ACTIONS
+    global RATE_ACTIONS
+    # print "extract_fluids_intake"
+    on_actions = GIVEN_ACTIONS + IV_START_ACTIONS + RATE_ACTIONS
+    volumes = []
+    entry_pre = None
+    remain_vol = None
+    recent_dose = None
+    recent_unit = None
+    recent_type = None
+    for entry in entries:
+        if entry_pre:
+            if entry_pre['ActionTaken'] in on_actions:
+                if remain_vol:
+                    remain_vol = _calculate_volume_in_ml_json(volumes, entry_pre, \
+                        entry, remain_vol, recent_dose, recent_unit, log)
+                else:
+                    remain_vol = _calculate_volume_in_ml_json(volumes, entry_pre, \
+                        entry, None, recent_dose, recent_unit, log)
+        entry_pre = entry
+        if entry['ActionTaken'] in on_actions and entry['Dose'] is not None and \
+            entry['Dose'] > 0:
+            recent_dose = entry['Dose']
+            recent_unit = entry['MedUnit']
+            recent_type = entry['display_name']
+    # last one
+    if entry_pre['ActionTaken'] in on_actions:
+        if remain_vol:
+            _calculate_volume_in_ml_json(volumes, entry_pre, None, remain_vol, \
+                recent_dose, recent_unit, log)
+        else:
+            _calculate_volume_in_ml_json(volumes, entry_pre, None, None, \
+                recent_dose, recent_unit, log)
+    return volumes
