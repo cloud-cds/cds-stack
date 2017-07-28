@@ -2,9 +2,6 @@
 list all transform functions
 """
 
-######################################################
-## TODO: lift tbl->tbl functions into tbl/ directory
-######################################################
 import json, sys, traceback
 import etl.confidence as confidence
 from datetime import datetime, timedelta
@@ -12,6 +9,7 @@ from etl.transforms.primitives.row.load_discharge_json import *
 from etl.transforms.primitives.row.convert_gender_to_int import *
 from etl.transforms.primitives.row.convert_proc_to_boolean import *
 from collections import OrderedDict
+from datetime import datetime as dt
 import pandas as pd
 
 MED_ROUTE_CONTINUOUS = ['Intravenous']
@@ -163,6 +161,19 @@ def convert_lab_value_to_real(entry, log):
     try:
         if value.startswith('<') or value.startswith('>'):
             return [float(value[1:]), confidence.VALUE_TRANSFORMED]
+        else:
+            return [float(value), confidence.NO_TRANSFORM]
+    except:
+        log.warn("Invalid convert_lab_value_to_real entry: %s" % entry)
+        # traceback.print_exc(file=sys.stdout)
+        return None
+
+def convert_lymph_abs_to_real(entry, log):
+    value = entry['ResultValue']
+    unit = entry['REFERENCE_UNIT']
+    try:
+        if unit == 'cells/uL':
+            return [float(value/1000.0), confidence.VALUE_TRANSFORMED]
         else:
             return [float(value), confidence.NO_TRANSFORM]
     except:
@@ -562,6 +573,15 @@ def convert_to_mg(entries, log):
                 results.append(result)
         else:
             log.warn("convert_to_mg: non given action: %s" % action)
+    return results
+
+def convert_inch_to_cm(entry, log):
+    results = []
+    value=entry['Value']
+    height_cm = float(value) * 2.54
+    tsp = entry['TimeTaken']
+    results.append([tsp, height_cm,confidence.UNIT_TRANSFORMED])
+
     return results
 
 def convert_gentamicin_dose_to_mg(entries, log):
@@ -1433,3 +1453,35 @@ def convert_proc_to_json(entry, log):
     if status != 'Canceled':
         proc_str = json.dumps({"name":entry['display_name'], "status":status})
         return [proc_str, confidence.NO_TRANSFORM]
+
+def convert_surgery_to_json(entry, log):
+
+    sched_status_dict = {
+        1: 'Scheduled',
+        2: 'Canceled',
+        3: 'Not Scheduled',
+        4: 'Missing Information',
+        5: 'Voided',
+        6: 'Pending',
+        7: 'Arrived',
+        8: 'Completed',
+        9: 'No Show',
+        10: 'Pending Unscheduled',
+    } # from the clarity data dictionary
+
+    entry_dict = dict(entry)
+    surgery_dict = {}
+    time_cols = ['case_begin_instant','case_end_instant','enter_or_room_instant','leave_or_room_instant']
+
+    for col in time_cols:
+        surgery_dict[col] = str(entry_dict[col])
+
+    cols_2_add = ['preformed_yn','scheduled_yn','procedure_display_name','procedure_name']
+
+    for col in cols_2_add:
+        surgery_dict[col] = entry_dict[col]
+
+    surgery_dict['sched_status_c'] = sched_status_dict[entry_dict['sched_status_c']]
+
+    surgery_str = json.dumps(surgery_dict)
+    return [surgery_str, confidence.NO_TRANSFORM]
