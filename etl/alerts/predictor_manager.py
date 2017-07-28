@@ -43,6 +43,7 @@ class Predictor:
   async def listen(self, queue):
     ''' Listen for messages from worker - waits until message then processes it '''
     self.shutdown = False
+    heartbeats = 0
     while self.shutdown == False:
       try:
         message = await protocol.read_message(self.reader, self.writer)
@@ -59,10 +60,14 @@ class Predictor:
       self.last_updated = dt.datetime.now()
 
       if message.get('type') == 'HEARTBEAT':
-        logging.info(self.display())
+        heartbeats += 1
+        if heartbeats % 30 == 0:
+          logging.info(self.display())
+          heartbeats = 0
         pass
 
       elif message.get('type') == 'FIN':
+        logging.info("{} - received FIN".format(self))
         queue.put({
           'type': 'FIN',
           'time': message['time'],
