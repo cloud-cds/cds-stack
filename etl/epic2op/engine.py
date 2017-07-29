@@ -65,7 +65,7 @@ def main(max_pats=None, hospital=None, lookback_hours=None, db_name=None, repl=F
   mode = MODE[int(core.get_environment_var('TREWS_ETL_MODE', 0))]
 
   # Switch to turn on/off suppression alerts
-  suppression = int(core.get_environment_var('TREWS_SUPPRESSION', 0))
+  suppression = int(core.get_environment_var('TREWS_ETL_SUPPRESSION', 0))
 
   ########################
   # Build plan
