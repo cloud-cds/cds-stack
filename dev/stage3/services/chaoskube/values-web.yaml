@@ -23,7 +23,7 @@ annotations:
 namespaces:
 
 # don't kill pods, only log what would have been done
-dryRun: true
+dryRun: false
 
 # resource requests and limits
 resources:
