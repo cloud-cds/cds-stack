@@ -504,7 +504,7 @@ def _get_feature_description_report(features, dictionary):
 
 
 
-def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_str, deps=[]):
+def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_str, deps=[], suppression=0):
   all_tasks = []
   if archive == 1:
     all_tasks.append(Task(
@@ -548,18 +548,20 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
     Task(name = 'drop_tables',
          deps = ['workspace_to_criteria_meas'],
          coro = drop_tables,
-         args = [2]),
-    # Task(name = 'get_notifications_for_epic',
-    #      deps = ['drop_tables', 'advance_criteria_snapshot'],
-    #      coro = get_notifications_for_epic),
-    Task(name = 'load_discharge_times',
-         deps = ['contacts_transform'],
-         coro = load_discharge_times),
-    Task(name = 'notify_data_ready_to_alert_server',
-         deps = ['workspace_to_criteria_meas'],
-         coro = notify_data_ready_to_alert_server),
-    # Task(name = 'notify_criteria_ready_to_alert_server',
-    #      deps = ['drop_tables', 'advance_criteria_snapshot'],
-    #      coro = notify_data_ready_to_alert_server)
-  ]
+         args = [2])]
+  if not suppression:
+    all_tasks += [
+                  Task(name = 'get_notifications_for_epic',
+                       deps = ['drop_tables', 'advance_criteria_snapshot'],
+                       coro = get_notifications_for_epic),
+                  ]
+  else:
+    all_tasks += [
+                  Task(name = 'load_discharge_times',
+                       deps = ['contacts_transform'],
+                       coro = load_discharge_times),
+                  Task(name = 'notify_data_ready_to_alert_server',
+                       deps = ['workspace_to_criteria_meas'],
+                       coro = notify_data_ready_to_alert_server)
+                  ]
   return all_tasks
