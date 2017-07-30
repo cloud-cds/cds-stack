@@ -228,6 +228,7 @@ variable "TREWS_ETL_STREAM_HOURS" {}
 variable "TREWS_ETL_STREAM_SLICES" {}
 variable "TREWS_ETL_STREAM_SLEEP_SECS" {}
 variable "TREWS_ETL_EPIC_NOTIFICATIONS" {}
+variable "TREWS_ETL_SUPPRESSION" {}
 
 ######################################
 # Alarm2Slack

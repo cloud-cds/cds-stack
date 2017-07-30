@@ -94,6 +94,7 @@ module "trews_etl" {
   TREWS_ETL_STREAM_SLICES      = "${var.TREWS_ETL_STREAM_SLICES}"
   TREWS_ETL_STREAM_SLEEP_SECS  = "${var.TREWS_ETL_STREAM_SLEEP_SECS}"
   TREWS_ETL_EPIC_NOTIFICATIONS = "${var.TREWS_ETL_EPIC_NOTIFICATIONS}"
+  TREWS_ETL_SUPPRESSION        = "${var.TREWS_ETL_SUPPRESSION}"
 }
 
 module "trews_etl_replay" {
@@ -252,7 +253,7 @@ module "c2dw_daily_etl" {
   aws_klaunch_lambda_package = "${var.aws_klaunch_lambda_package}"
   aws_klaunch_lambda_role_arn = "${var.aws_klaunch_lambda_role_arn}"
 
-  c2dw_etl_lambda_cron = "30 12 * * ? *"
+  c2dw_etl_lambda_cron = "00 13 * * ? *"
 
   k8s_server_host = "${var.k8s_ml_server_host}"
   k8s_server_port = "${var.k8s_ml_server_port}"
