@@ -295,3 +295,12 @@ cpap,T,Boolean,yes,no,,,,,Order Procedure,1,
 note,N,String,yes,no,,,,,provider notes,1,no unit
 adt_arrival_time,S,String,yes,no,,,,,Demographic,1,timestamp time of arrival time
 hosp_admsn_time,S,String,yes,no,,,,,Demographic,1,timestamp time of hosptial admission
+dialysis_ihd,T,JSON,yes,no,,,,,,1,
+dialysis_access,T,JSON,yes,no,,,,,,1,
+dialysis_output,T,JSON,yes,no,,,,,,1,
+intubation_lda,T,JSON,yes,no,,,,,,1,
+dialysis_crrt,T,JSON,yes,no,,,,,,1,
+dialysis_crrt_ultrafiltration,T,JSON,yes,no,,,,,,1,
+dialysis_crrt_initial_blood_flow_rate,T,JSON,yes,no,,,,,,1,
+dialysis_crrt_titrate_blood_flow_rate,T,JSON,yes,no,,,,,,1,
+dialysis_pd,T,JSON,yes,no,,,,,Peritoneal dialysis,1,
