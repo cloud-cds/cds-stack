@@ -352,13 +352,17 @@ async def workspace_submit(ctxt, job_id):
   """
   submit_twf = """
     INSERT INTO cdm_twf
-      (SELECT * FROM workspace.%(job)s_cdm_twf)
+      (SELECT * FROM workspace.%(job)s_cdm_twf
+       where now() - tsp < (select value::interval from parameters where name = 'etl_workspace_submit_hours')
+      )
     ON conflict (enc_id, tsp) do UPDATE SET %(set_columns)s;
     SELECT drop_tables('workspace', '%(job)s_cdm_twf');
   """
   submit_t = """
     INSERT INTO cdm_t
-      (SELECT * FROM workspace.%(job)s_cdm_t)
+      (SELECT * FROM workspace.%(job)s_cdm_t
+       where now() - tsp < (select value::interval from parameters where name = 'etl_workspace_submit_hours')
+       )
     ON conflict (enc_id, tsp, fid) do UPDATE
     SET value = excluded.value, confidence = excluded.confidence;
     SELECT drop_tables('workspace', '%(job)s_cdm_t');
@@ -369,6 +373,7 @@ async def workspace_submit(ctxt, job_id):
         );
     INSERT into trews (enc_id, tsp, %(columns)s) (
         SELECT enc_id, tsp, %(columns)s FROM workspace.%(job)s_trews
+        where now() - tsp < (select value::interval from parameters where name = 'etl_workspace_submit_hours')
         )
     ON conflict (enc_id, tsp)
         do UPDATE SET %(set_columns)s;
