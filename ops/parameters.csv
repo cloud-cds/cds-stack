@@ -3,3 +3,4 @@ lookbackhours,6 hours
 deactivate_hours,8 hours
 deactivate_expire_hours,72 hours
 suppression,true
+etl_workspace_lookbackhours,1 week
