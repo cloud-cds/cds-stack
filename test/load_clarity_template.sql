@@ -342,6 +342,9 @@ create table {workspace}."OrderProcs_643"
 (
  "CSN_ID"          text                        ,
  "OrderProcId"     text                        ,
+ "INSTNTD_ORDER_ID" text,
+ "parent_order_id" text,
+ "chng_order_Proc_id" text,
  "display_name"    text      ,
  "proc_name"       text      ,
  "proc_cat_name"   text      ,
@@ -361,7 +364,8 @@ create table {workspace}."OrderProcs_643"
  IS_ANSWR_BYPROC_YN         boolean,
  ord_quest_resp     text,
  quest_name         text,
- question       text
+ question       text,
+ comment        text
 );
 \copy {workspace}."OrderProcs_643" from '{folder}orderproc_new.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 create index op_643_idx_name on {workspace}."OrderProcs_643" ("display_name");
