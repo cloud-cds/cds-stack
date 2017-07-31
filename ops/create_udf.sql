@@ -999,18 +999,19 @@ END; $func$;
 
 
 CREATE OR REPLACE FUNCTION calculate_criteria(this_pat_id text, ts_start timestamptz, ts_end timestamptz)
- RETURNS table(pat_id                           varchar(50),
-               name                             varchar(50),
-               measurement_time                 timestamptz,
-               value                            text,
-               override_time                    timestamptz,
-               override_user                    text,
-               override_value                   json,
-               is_met                           boolean,
-               update_date                      timestamptz,
-               severe_sepsis_onset              timestamptz,
-               severe_sepsis_wo_infection_onset timestamptz,
-               septic_shock_onset               timestamptz
+ RETURNS table(pat_id                               varchar(50),
+               name                                 varchar(50),
+               measurement_time                     timestamptz,
+               value                                text,
+               override_time                        timestamptz,
+               override_user                        text,
+               override_value                       json,
+               is_met                               boolean,
+               update_date                          timestamptz,
+               severe_sepsis_onset                  timestamptz,
+               severe_sepsis_wo_infection_onset     timestamptz,
+               severe_sepsis_wo_infection_initial   timestamptz,
+               septic_shock_onset                   timestamptz
                )
  LANGUAGE plpgsql
 AS $function$
@@ -1204,6 +1205,7 @@ return query
                sum(OC.cnt) as org_df_cnt,
                max(IC.onset) as inf_onset,
                max(SC.onset) as sirs_onset,
+               min(SC.onset) as sirs_initial,
                max(OC.onset) as org_df_onset
         from
         (
@@ -1242,6 +1244,7 @@ return query
                    then sspm.severe_sepsis_wo_infection_onset
                    else null end
              ) as severe_sepsis_wo_infection_onset,
+             sspm.severe_sepsis_wo_infection_initial,
              sspm.severe_sepsis_lead_time
       from (
         select stats.pat_id,
@@ -1259,7 +1262,8 @@ return query
                max(greatest(coalesce(stats.sirs_onset, 'infinity'::timestamptz),
                             coalesce(stats.org_df_onset, 'infinity'::timestamptz))
                    ) as severe_sepsis_wo_infection_onset,
-
+               min(least(stats.sirs_initial, stats.org_df_onset)
+                   ) as severe_sepsis_wo_infection_initial,
                min(least(stats.inf_onset, stats.sirs_onset, stats.org_df_onset))
                   as severe_sepsis_lead_time
 
@@ -1625,6 +1629,7 @@ return query
     select new_criteria.*,
            severe_sepsis_now.severe_sepsis_onset,
            severe_sepsis_now.severe_sepsis_wo_infection_onset,
+           severe_sepsis_now.severe_sepsis_wo_infection_initial,
            septic_shock_now.septic_shock_onset
     from (
         select * from severe_sepsis
@@ -1730,11 +1735,14 @@ BEGIN
     ),
     state_change as
     (
-        select snapshot.pat_id, snapshot.event_id as from_event_id,
-               snapshot.state as state_from, live.state as state_to
+        select coalesce(snapshot.pat_id, live.pat_id) as pat_id,
+               coalesce(snapshot.event_id, 0) as from_event_id,
+               coalesce(snapshot.state, 0) as state_from,
+               live.state as state_to
         from get_states('new_criteria', this_pat_id) live
         left join get_states_snapshot(this_pat_id) snapshot on snapshot.pat_id = live.pat_id
-        where snapshot.state < live.state
+        where snapshot.state is null
+        or snapshot.state < live.state
         or ( snapshot.state = 10 and snapshot.severe_sepsis_wo_infection_onset < now() - window_size)
     ),
     deactivate_old_snapshot as
@@ -1752,14 +1760,16 @@ BEGIN
             select  new_criteria.pat_id,
                     first(new_criteria.severe_sepsis_onset) severe_sepsis_onset,
                     first(new_criteria.septic_shock_onset) septic_shock_onset,
-                    first(new_criteria.severe_sepsis_wo_infection_onset) severe_sepsis_wo_infection_onset
+                    first(new_criteria.severe_sepsis_wo_infection_onset) severe_sepsis_wo_infection_onset,
+                    first(new_criteria.severe_sepsis_wo_infection_initial) severe_sepsis_wo_infection_initial
             from new_criteria
             group by new_criteria.pat_id
         ) nc on si.pat_id = nc.pat_id
         left join lateral update_notifications(si.pat_id, flag_to_alert_codes(si.state_to),
                                                nc.severe_sepsis_onset,
                                                nc.septic_shock_onset,
-                                               nc.severe_sepsis_wo_infection_onset
+                                               nc.severe_sepsis_wo_infection_onset,
+                                               nc.severe_sepsis_wo_infection_initial
                                                ) n
         on si.pat_id = n.pat_id
     )
@@ -1775,7 +1785,6 @@ BEGIN
     inner join new_criteria c on s.pat_id = c.pat_id
     left join notified_patients as np on s.pat_id = np.pat_id
     where not c.name like '%_order';
-
     drop table new_criteria;
     RETURN;
 END;
@@ -1831,12 +1840,13 @@ BEGIN
             select  new_criteria.pat_id,
                     first(new_criteria.severe_sepsis_onset) severe_sepsis_onset,
                     first(new_criteria.septic_shock_onset) septic_shock_onset,
-                    first(new_criteria.severe_sepsis_wo_infection_onset) severe_sepsis_wo_infection_onset
+                    first(new_criteria.severe_sepsis_wo_infection_onset) severe_sepsis_wo_infection_onset,
+                    first(new_criteria.severe_sepsis_wo_infection_initial) severe_sepsis_wo_infection_initial
             from new_criteria
             group by new_criteria.pat_id
         ) nc on pat_states.pat_id = nc.pat_id
         left join lateral update_notifications(pat_states.pat_id, flag_to_alert_codes(pat_states.state),
-            nc.severe_sepsis_onset, nc.septic_shock_onset, nc.severe_sepsis_wo_infection_onset) n
+            nc.severe_sepsis_onset, nc.septic_shock_onset, nc.severe_sepsis_wo_infection_onset, nc.severe_sepsis_wo_infection_initial) n
         on pat_states.pat_id = n.pat_id
     )
     insert into criteria_events (event_id, pat_id, name, measurement_time, value,
@@ -1915,16 +1925,14 @@ $$ LANGUAGE PLPGSQL;
 CREATE OR REPLACE FUNCTION update_notifications(this_pat_id text, alert_codes text[],
                                                 severe_sepsis_onset timestamptz,
                                                 septic_shock_onset timestamptz,
-                                                sirs_plus_organ_onset timestamptz)
+                                                sirs_plus_organ_onset timestamptz,
+                                                sirs_plus_organ_initial timestamptz)
 RETURNS table(pat_id varchar(50), alert_code text) AS $$
 BEGIN
     -- clean notifications
-    -- REVIEW: (Yanif)->(Andong): any(alert_codes) does not make sense here, e.g.,
-    -- select 1 <> any(array[1,2]::int[]) yields 't'
-    -- (and will always yield 't' with alert_codes > 1 distinct values)
     delete from notifications
         where notifications.pat_id = this_pat_id
-        and notifications.message#>>'{alert_code}' <> any(alert_codes);
+        and not notifications.message#>>'{alert_code}' = any(alert_codes);
     -- add new notifications
     return query
     insert into notifications (pat_id, message)
@@ -1933,7 +1941,8 @@ BEGIN
         json_build_object('alert_code', code, 'read', false,'timestamp',
             date_part('epoch',
                 (case when code in ('201','204','303','306') then septic_shock_onset
-                      when code in ('205', '300') then sirs_plus_organ_onset
+                      when code = '205' then sirs_plus_organ_initial
+                      when code = '300' then sirs_plus_organ_onset
                       else severe_sepsis_onset
                       end)::timestamptz
                 +
@@ -2061,15 +2070,13 @@ CREATE OR REPLACE FUNCTION auto_deactivate(pid text DEFAULT NULL) RETURNS void L
 AS $$ BEGIN
     -- if criteria_events has been in an event for longer than deactivate_hours,
     -- then this patient should be deactivated automatically
-    --
-    -- REVIEW: (Yanif)->(Andong): why is this only for state >= 20? What about state >= 10?
     perform deactivate(pat_id, TRUE)
     from
     (
       select distinct snapshot.pat_id
       from get_states_snapshot(pid) snapshot
       left join pat_status s on s.pat_id = snapshot.pat_id
-      where state >= 20
+      where state > 0
       and now() - severe_sepsis_onset > get_parameter('deactivate_hours')::interval
       and (s.pat_id IS NULL or not s.deactivated)
     ) AS sub;
