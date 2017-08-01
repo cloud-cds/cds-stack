@@ -2043,7 +2043,23 @@ RETURNS table(
   where pat_enc.pat_id like 'E%' and pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id);
 END $func$ LANGUAGE plpgsql;
 
-
+CREATE OR REPLACE FUNCTION notify_future_notification(channel text, this_pat_id text default null)
+RETURNS void AS $func$
+declare
+  payload text;
+BEGIN
+  select 'future_epic_sync:' || string_agg(pat_tsp, '|') from
+  (select pat_id, pat_id || ',' || string_agg(tsp, ',') pat_tsp from
+      (select pat_id, (message#>>'{timestamp}') tsp
+      from notifications
+      where (message#>>'{alert_code}')::text in ('202','203','204','205')
+      and (message#>>'{timestamp}')::numeric > date_part('epoch', now())
+      and pat_id like 'E%' and pat_id = coalesce(this_pat_id, pat_id)
+      order by pat_id, tsp) O
+  group by pat_id) G group by pat_id into payload;
+  raise notice '%', payload;
+  perform pg_notify(channel, payload);
+END $func$ LANGUAGE plpgsql;
 ----------------------------------------------------
 --  deactivate functionality for patients
 ----------------------------------------------------
