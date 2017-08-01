@@ -244,7 +244,7 @@ async def get_patient_profile(db_pool, pat_id, use_trews_lmc=False):
 
     if len(result) == 1:
       profile['trews_threshold'] = float("{:.2f}".format(float(result[0][0])))
-      profile['admit_time']      = (result[0][1] - datetime.datetime.utcfromtimestamp(0).replace(tzinfo=pytz.UTC)).total_seconds()
+      profile['admit_time']      = (result[0][1] - datetime.datetime.utcfromtimestamp(0).replace(tzinfo=pytz.UTC)).total_seconds() if result[0][1] is not None else None
       profile['deactivated']     = result[0][2]
       profile['detf_tsp']        = result[0][3]
       profile['deterioration']   = json.loads(result[0][4]) if result[0][4] is not None else None
@@ -473,11 +473,11 @@ async def get_deterioration_feedback(db_pool, eid):
 
 async def push_notifications_to_epic(db_pool, eid):
   if epic_notifications is not None and int(epic_notifications):
-    notifications_sql = \
-    '''
-    select * from get_notifications_for_epic('%s');
-    ''' % eid
     async with db_pool.acquire() as conn:
+      notifications_sql = \
+      '''
+      select * from get_notifications_for_epic('%s');
+      ''' % eid
       notifications = await conn.fetch(notifications_sql)
       if notifications:
         patients = [{
@@ -493,7 +493,11 @@ async def push_notifications_to_epic(db_pool, eid):
             logging.error('Failed to push notifications: %s %s %s' % (pt['pat_id'], pt['visit_id'], pt['notifications']))
           elif response.status_code != requests.codes.ok:
             logging.error('Failed to push notifications: %s %s %s HTTP %s' % (pt['pat_id'], pt['visit_id'], pt['notifications'], response.status_code))
-
+        notify_future_notification = \
+        '''
+        select * from notify_future_notification('%s', '%s');
+        ''' % (os.environ['etl_channel'], eid)
+        await conn.fetch(etl_channel, notify_future_notification)
       else:
         logging.info("no notifications")
 
