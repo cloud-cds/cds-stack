@@ -24,7 +24,7 @@ import api, dashan_query
 from constants import bmc_jhh_antibiotics, bmc_jhh_ed_antibiotics, departments_by_hospital, order_key_urls
 from api import pat_cache, api_monitor
 from encrypt import encrypt, decrypt, encrypted_query
-
+import time
 
 #################################
 # Constants
