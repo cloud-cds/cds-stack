@@ -51,12 +51,14 @@ KEYS = {
   'vasopressors'  : '13'
 }
 
+release = os.environ['release'] if 'release' in os.environ else 'development'
 
 user = os.environ['db_user']
 host = os.environ['db_host']
 db   = os.environ['db_name']
 port = os.environ['db_port']
 pw   = os.environ['db_password']
+
 etl_channel = os.environ['etl_channel'] if 'etl_channel' in os.environ else None
 
 # Security configuration.
@@ -75,6 +77,7 @@ force_server_loc = os.environ['force_server_loc'] if 'force_server_loc' in os.en
 force_server_dep = os.environ['force_server_dep'] if 'force_server_dep' in os.environ else None
 
 logging.info('''TREWS Configuration::
+  release: %s
   encrypted query: %s
   trews_app_key: %s
   trews_admin_key: %s
@@ -85,7 +88,8 @@ logging.info('''TREWS Configuration::
   order_link_mode: %s
   force_server_loc: %s
   force_server_dep: %s
-  ''' % ('on' if encrypted_query else 'off', \
+  ''' % (release,
+         'on' if encrypted_query else 'off', \
          'on' if trews_app_key else 'off', \
          'on' if trews_admin_key else 'off', \
          'on' if trews_open_access and trews_open_access.lower() == 'true' else 'off',
@@ -164,8 +168,10 @@ class TREWSStaticResource(web.View):
     logging.info("Index request for loc: {}, dep: {}".format(loc, dep))
 
     j2_env = Environment(loader=FileSystemLoader(STATIC_DIR), trim_blocks=True)
-    return j2_env.get_template(INDEX_FILENAME).render(ie_mode=ie_mode, order_link_mode=order_link_mode, \
-                               keys=KEYS, custom_antibiotics=custom_antibiotics, order_key_urls=order_key_urls)
+    return j2_env.get_template(INDEX_FILENAME) \
+                 .render(release=release, ie_mode=ie_mode, order_link_mode=order_link_mode, \
+                         keys=KEYS, custom_antibiotics=custom_antibiotics, order_key_urls=order_key_urls)
+
 
   async def get(self):
     global URL_STATIC, STATIC_DIR, INDEX_FILENAME
