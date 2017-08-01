@@ -3,7 +3,7 @@ from etl.transforms.primitives.df import format_data
 from etl.transforms.primitives.df import restructure
 from etl.transforms.primitives.df import translate
 from etl.transforms.primitives.df.pandas_utils import async_read_df
-from etl.mappings import lab_procedures as lp_config
+from etl.mappings import lab_procedures_clarity as lp_config
 from etl.load.primitives.row import load_row
 import etl.transforms.primitives.df.filter_rows as filter_rows
 from etl.clarity2dw.extractor import log_time
@@ -276,6 +276,7 @@ async def pull_order_procs(connection, dataset_id, fids, log, is_plan, clarity_w
 
   log.info('pull_order_procs calling get_fid_name_mapping with fids: %s' % str(fids))
   fid_map = get_fid_name_mapping(fids, lp_map)
+  op['name'] = op.fid
   for fid, names in fid_map.items():
     for name in names:
       op.loc[op['fid'] == name, 'fid'] = fid
@@ -294,6 +295,7 @@ async def pull_order_procs(connection, dataset_id, fids, log, is_plan, clarity_w
     for idx, row in op.iterrows():
       if row['tsp'] and not str(row['tsp']) == 'NaT':
         value = {
+          'name'          : row['name'],
           'status'        : row['status'],
           'order_tsp'     : str(row['tsp']),
           'release_tsp'   : str(row['release_tsp']),
