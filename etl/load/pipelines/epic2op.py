@@ -97,8 +97,12 @@ async def get_notifications_for_epic(ctxt, job_id, _):
       """.format(job_id))
     return list(dict(x) for x in result)
 
-
-
+async def notify_future_notification(ctxt, _):
+  if 'etl_channel' in os.environ:
+    async with ctxt.db_pool.acquire() as conn:
+      await conn.execute("select * from notify_future_notification('%s');" % os.environ['etl_channel'])
+  else:
+    ctxt.log.info("no etl channel found in the environment, skipping etl notifications")
 
 async def epic_2_workspace(ctxt, db_data, sqlalchemy_str, job_id, dtypes=None):
   ''' Push all the dataframes to a workspace table '''
