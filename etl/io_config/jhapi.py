@@ -13,6 +13,7 @@ import pandas as pd
 import datetime as dt
 import itertools
 import logging
+import pytz
 
 class JHAPIConfig:
   def __init__(self, hospital, lookback_hours, jhapi_server, jhapi_id,
@@ -265,13 +266,16 @@ class JHAPIConfig:
 
   def push_notifications(self, ctxt, notifications):
     resource = '/patients/addflowsheetvalue'
+    load_tz='US/Eastern'
+    t_utc = dt.datetime.utcnow().replace(tzinfo=pytz.utc)
+    current_time = str(t_utc.astimezone(pytz.timezone(load_tz)))
     payloads = [{
       'PatientID':            n['pat_id'],
       'ContactID':            n['visit_id'],
       'UserID':               'WSEPSIS',
       'FlowsheetID':          '9490',
       'Value':                n['count'],
-      'InstantValueTaken':    str(dt.datetime.utcnow()),
+      'InstantValueTaken':    current_time,
       'FlowsheetTemplateID':  '304700006',
     } for n in notifications]
     for payload in payloads:

@@ -48,7 +48,8 @@ async def create_job_cdm_twf_table(conn, job_id):
     select cdm_twf.* from cdm_twf
     inner join pat_enc on pat_enc.enc_id = cdm_twf.enc_id
     inner join workspace.%(job)s_bedded_patients_transformed bp
-        on bp.visit_id = pat_enc.visit_id;
+        on bp.visit_id = pat_enc.visit_id
+    where now() - tsp < (select value::interval from parameters where name = 'etl_workspace_lookbackhours');
     alter table workspace.%(job)s_cdm_twf add primary key (enc_id, tsp);
     """ % {'job':job_id}
     logging.info("%s: create job cdm_twf table: %s" % (job_id, create_job_cdm_twf_table))
@@ -62,7 +63,8 @@ async def create_job_cdm_t_table(conn, job_id):
     select cdm_t.* from cdm_t
     inner join pat_enc on pat_enc.enc_id = cdm_t.enc_id
     inner join workspace.%(job)s_bedded_patients_transformed bp
-        on bp.visit_id = pat_enc.visit_id;
+        on bp.visit_id = pat_enc.visit_id
+    where now() - tsp < (select value::interval from parameters where name = 'etl_workspace_lookbackhours');
     alter table workspace.%(job)s_cdm_t add primary key (enc_id, tsp, fid);
     """ % {'job':job_id}
     logging.info("%s: create job cdm_t table: %s" % (job_id, create_job_cdm_t_table))

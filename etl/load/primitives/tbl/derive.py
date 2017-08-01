@@ -16,6 +16,7 @@ from etl.load.primitives.tbl.time_since_last_measured import *
 from etl.load.primitives.row import load_row
 from etl.load.primitives.tbl import clean_tbl
 from etl.load.primitives.tbl.derive_helper import *
+from etl.load.primitives.tbl.cardiogenic_shock_feats import *
 
 
 def derive(fid, func_id, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):

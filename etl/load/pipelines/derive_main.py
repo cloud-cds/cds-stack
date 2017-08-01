@@ -132,6 +132,10 @@ async def derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=None, deri
   log.info("derive feature %s, function %s, inputs (%s) %s" \
   % (fid, derive_func_id, derive_func_input, 'dataset_id %s' % dataset_id if dataset_id is not None else ''))
   if fid in query_config:
+    # =================================
+    # Query Coinfiguration Path
+    # =================================
+    log.info("Derive Function found in Driver")
     config_entry = query_config[fid]
     fid_input_items = [item.strip() for item in derive_func_input.split(',')]
     clean_sql = ''
@@ -160,8 +164,13 @@ async def derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=None, deri
       else:
         log.error("Invalid derive fid category: {}".format(fid_category))
     else:
-      log.error("fid_input dismatch")
+      log.error("Inputs in cdm_feature {} does not equal what's in the query config {}".format(fid_input_items, config_entry['fid_input_items']) )
+
+
   else:
+    # =================================
+    # Custom Derive Function
+    # =================================
     log.info("Derive function is not implemented in driver, so we use legacy derive function")
     await derive_func.derive(fid, derive_func_id, derive_func_input, conn, \
       log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target)
@@ -273,7 +282,6 @@ def gen_cdm_t_upsert_query(config_entry, fid, dataset_id, incremental, cdm_t_tar
     'dataset_where_block': (' and dataset_id = %s' % dataset_id) if dataset_id is not None else '',
     'incremental_enc_id_in': incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental)
   }
-  # print(upsert_clause)
   return upsert_clause
 
 
@@ -1056,4 +1064,3 @@ query_config = {
       group by %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp''',
   },
 }
-

@@ -4,6 +4,10 @@ from etl.clarity2dw.conf.derived_tables import standard_event_list
 
 def populate(connection, dataset_id):
 
+
+  # TODO call the create_care_unit  udf when that's all checkin
+  # TODO collapse adjacent repeated care units (caused by room changes)
+
   connection.execute(text("""delete from care_unit where dataset_id = {ds}""".format(ds=dataset_id)))
 
   care_unit = """

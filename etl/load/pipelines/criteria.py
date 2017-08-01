@@ -4,8 +4,9 @@ import asyncpg
 from etl.core.task import Task
 import etl.io_config.core as core
 
-def get_criteria_tasks(dependency=None, lookback_hours=24*7, hospital='HCGH'):
-  return [
+def get_criteria_tasks(dependency=None, lookback_hours=24*7,
+                       hospital='HCGH', suppression=0):
+  criteria_tasks = [
     Task(
       name = 'garbage_collection',
       deps = [dependency] if dependency else [],
@@ -17,19 +18,16 @@ def get_criteria_tasks(dependency=None, lookback_hours=24*7, hospital='HCGH'):
       deps = ['garbage_collection'],
       coro = advance_criteria_snapshot,
       args = [lookback_hours, hospital]
-    ),
-    # Task(
-    #   name = 'notify_etl_listeners',
-    #   deps = ['get_notifications_for_epic'],
-    #   coro = notify_etl_listeners,
-    # ),
-    # Task(
-    #   name = 'notify_lmc',
-    #   deps = ['advance_criteria_snapshot'],
-    #   coro = notify_lmc,
-    #   args = [hospital]
-    # ),
-  ]
+    )]
+  if not suppression:
+    criteria_tasks += [
+      Task(
+        name = 'notify_etl_listeners',
+        deps = ['get_notifications_for_epic'],
+        coro = notify_etl_listeners,
+      )
+    ]
+  return criteria_tasks
 
 async def garbage_collection(ctxt, _):
   async with ctxt.db_pool.acquire() as conn:
@@ -57,27 +55,3 @@ async def notify_etl_listeners(ctxt, _):
       await conn.execute("notify %s;" % os.environ['etl_channel'])
   else:
     ctxt.log.info("no etl channel found in the environment, skipping etl notifications")
-
-# async def notify_lmc(ctxt, _, hospital):
-#   attempts = 0
-#   while attempts < 3:
-#     try:
-#       reader, writer = await asyncio.open_connection('127.0.0.1', 40000, loop=ctxt.loop)
-#       message = hospital
-#       print('notify_lmc send: %r' % message)
-#       writer.write(message.encode())
-
-#       data = await reader.read(100)
-#       print('notify_lmc received: %r' % data.decode())
-
-#       print('Close the socket')
-#       writer.close()
-#     except Exception as e:
-#       attempts += 1
-#       ctxt.log.exception("notify_lmc Error: %s" % e)
-#       random_secs = random.uniform(0, 1)
-#       wait_time = min(((1**attempts) + random_secs), 10)
-#       await asyncio.sleep(wait_time)
-#       ctxt.log.info("notify_lmc {} attempts {}".format(fid or '', attempts))
-#       continue
-
