@@ -94,6 +94,9 @@ logging.info('''TREWS Configuration::
          ie_mode, order_link_mode, force_server_loc, force_server_dep)
   )
 
+# global
+epic_sync_tasks = {}
+
 ###################################
 # Handlers
 
@@ -356,10 +359,70 @@ class TREWSEchoHealthcheck(web.View):
 
 listener_conn = None
 
-def invalidate_cache(conn, pid, channel, payload):
+def etl_channel_recv(conn, proc_id, channel, payload):
+  if payload is None or len(payload) == 0:
+    # the original mode without suppression alert
+    invalidate_cache(conn, proc_id, channel, payload)
+  else:
+    # TODO new version of invalidate_cache and notification
+    # the simple payload format is <header>:<body>
+    header, body = payload.split(":")
+    if header == 'invalidate_cache':
+      invalidate_cache(conn, proc_id, channel, body.split(","))
+    elif header == 'future_epic_sync':
+      pat_id, tsp = body.split(",")
+      add_future_epic_sync(conn, proc_id, channel, body)
+    else:
+      logging.error("ETL Channel Error: Unknown payload header {}".format(header))
+
+
+def invalidate_cache(conn, pid, channel, pat_ids):
   global pat_cache
   logging.info('Invalidating patient cache... (via channel %s)' % channel)
-  asyncio.ensure_future(pat_cache.clear())
+  if pat_ids is None or len(pat_ids) == 0:
+    asyncio.ensure_future(pat_cache.clear())
+  else:
+    for pat_id in pat_ids:
+      logging.info("Invalidating cache for %s" % eid)
+      asyncio.ensure_future(pat_cache.delete(eid))
+
+def add_future_epic_sync(conn, proc_id, channel, body):
+  global epic_sync_tasks
+
+  def run_future_epic_sync(pat_id, tsp):
+    if 'pool' in app:
+      event_loop.ensure_future(\
+        dashan_query.push_notifications_to_epic(app['pool'], pat_id))
+      for i in range(len(epic_sync_tasks[pat_id])):
+        if tsp == epic_sync_tasks[pat_id][i][0]:
+          del epic_sync_tasks[pat_id][i]
+          return
+    else:
+      logging.error("DB POOL does not exist ERROR!")
+
+  event_loop = asyncio.get_event_loop()
+  delay = 1
+  for pat_tsp in body.split('|'):
+    pat = pat_tsp.split(",")
+    pat_id = pat[0]
+    tsps = pat[1:]
+    for task in epic_sync_tasks[pat_id]:
+      task.cancel()
+    epic_sync_tasks[pat_id] = []
+    for tsp in tsps:
+      later = int(tsp) - time.time() + delay
+      new_task = event_loop.call_later(later, run_future_epic_sync, pat_id, tsp)
+      epic_sync_tasks[pat_id].append(tsp, new_task)
+
+
+async def init_epic_sync_loop(app):
+  event_loop = asyncio.get_event_loop()
+  try:
+      print('entering event loop')
+      event_loop.run_forever()
+  finally:
+      print('closing event loop')
+      event_loop.close()
 
 async def init_db_pool(app):
   global listener_conn
@@ -376,7 +439,7 @@ async def cleanup_db_pool(app):
     # Remove the ETL listener.
     if etl_channel is not None and listener_conn is not None:
       logging.info('Removing listener on %s' % etl_channel)
-      await listener_conn.remove_listener(etl_channel, invalidate_cache)
+      await listener_conn.remove_listener(etl_channel, etl_channel_recv)
 
     await app['db_pool'].close()
 
@@ -393,6 +456,11 @@ app = web.Application(middlewares=mware)
 
 app.on_startup.append(init_db_pool)
 app.on_cleanup.append(cleanup_db_pool)
+
+epic_notifications = os.environ['epic_notifications']
+
+if epic_notifications is not None and int(epic_notifications):
+  app.on_startup.append(init_epic_sync_loop)
 
 # Background tasks.
 if api_monitor.enabled:
