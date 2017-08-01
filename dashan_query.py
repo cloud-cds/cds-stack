@@ -244,7 +244,7 @@ async def get_patient_profile(db_pool, pat_id, use_trews_lmc=False):
 
     if len(result) == 1:
       profile['trews_threshold'] = float("{:.2f}".format(float(result[0][0])))
-      profile['admit_time']      = (result[0][1] - datetime.datetime.utcfromtimestamp(0).replace(tzinfo=pytz.UTC)).total_seconds() if result[0][1] is not None
+      profile['admit_time']      = (result[0][1] - datetime.datetime.utcfromtimestamp(0).replace(tzinfo=pytz.UTC)).total_seconds() if result[0][1] is not None else None
       profile['deactivated']     = result[0][2]
       profile['detf_tsp']        = result[0][3]
       profile['deterioration']   = json.loads(result[0][4]) if result[0][4] is not None else None
