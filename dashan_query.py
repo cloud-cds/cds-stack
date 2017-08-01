@@ -312,7 +312,8 @@ async def get_order_detail(db_pool, eid):
   select tsp, initcap(regexp_replace(fid, '_dose', '')) as fid, value from criteria_meas
   where pat_id = '%s' and
   fid in (
-    'azithromycin_dose','aztreonam_dose','cefepime_dose','ceftriaxone_dose','ciprofloxacin_dose','gentamicin_dose','levofloxacin_dose','metronidazole_dose','moxifloxacin_dose','vancomycin_dose'
+    'azithromycin_dose','aztreonam_dose','cefepime_dose','ceftriaxone_dose','ciprofloxacin_dose','gentamicin_dose','levofloxacin_dose',
+    'metronidazole_dose','moxifloxacin_dose','piperacillin_tazbac_dose','vancomycin_dose'
   )
   and now() - tsp < (select value::interval from parameters where name = 'lookbackhours');
   ''' % eid
