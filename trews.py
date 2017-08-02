@@ -399,10 +399,11 @@ def add_future_epic_sync(conn, proc_id, channel, body):
     if 'pool' in app:
       event_loop.ensure_future(\
         dashan_query.push_notifications_to_epic(app['pool'], pat_id))
-      for i in range(len(epic_sync_tasks[pat_id])):
-        if tsp == epic_sync_tasks[pat_id][i][0]:
-          del epic_sync_tasks[pat_id][i]
-          return
+      for i in range(len(epic_sync_tasks.get(pat_id, []))):
+        if epic_sync_tasks[pat_id][i]:
+          if tsp == epic_sync_tasks[pat_id][i][0]:
+            del epic_sync_tasks[pat_id][i]
+            return
     else:
       logging.error("DB POOL does not exist ERROR!")
 
@@ -413,7 +414,7 @@ def add_future_epic_sync(conn, proc_id, channel, body):
     pat = pat_tsp.split(",")
     pat_id = pat[0]
     tsps = pat[1:]
-    for task in epic_sync_tasks[pat_id]:
+    for task in epic_sync_tasks.get(pat_id, []):
       task.cancel()
     epic_sync_tasks[pat_id] = []
     for tsp in tsps:
