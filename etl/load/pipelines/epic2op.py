@@ -62,7 +62,7 @@ async def notify_data_ready_to_alert_server(ctxt, job_id):
   }
   try:
     reader, writer = await asyncio.open_connection(protocol.ALERT_SERVER_IP, protocol.ALERT_SERVER_PORT, loop=ctxt.loop)
-    protocol.write_message(writer, message)
+    await protocol.write_message(writer, message)
     logging.info('Notified alert server that the ETL is done')
     writer.close()
   except Exception as e:
@@ -78,7 +78,7 @@ async def notify_data_ready_to_alert_server(ctxt, job_id):
 #   }
 #   try:
 #     reader, writer = await asyncio.open_connection(protocol.ALERT_SERVER_IP, protocol.ALERT_SERVER_PORT, loop=ctxt.loop)
-#     protocol.write_message(writer, message)
+#     await protocol.write_message(writer, message)
 #     logging.info('Closing the socket')
 #     writer.close()
 #   except Exception as e:
@@ -352,13 +352,17 @@ async def workspace_submit(ctxt, job_id):
   """
   submit_twf = """
     INSERT INTO cdm_twf
-      (SELECT * FROM workspace.%(job)s_cdm_twf)
+      (SELECT * FROM workspace.%(job)s_cdm_twf
+       where now() - tsp < (select value::interval from parameters where name = 'etl_workspace_submit_hours')
+      )
     ON conflict (enc_id, tsp) do UPDATE SET %(set_columns)s;
     SELECT drop_tables('workspace', '%(job)s_cdm_twf');
   """
   submit_t = """
     INSERT INTO cdm_t
-      (SELECT * FROM workspace.%(job)s_cdm_t)
+      (SELECT * FROM workspace.%(job)s_cdm_t
+       where now() - tsp < (select value::interval from parameters where name = 'etl_workspace_submit_hours')
+       )
     ON conflict (enc_id, tsp, fid) do UPDATE
     SET value = excluded.value, confidence = excluded.confidence;
     SELECT drop_tables('workspace', '%(job)s_cdm_t');
@@ -369,6 +373,7 @@ async def workspace_submit(ctxt, job_id):
         );
     INSERT into trews (enc_id, tsp, %(columns)s) (
         SELECT enc_id, tsp, %(columns)s FROM workspace.%(job)s_trews
+        where now() - tsp < (select value::interval from parameters where name = 'etl_workspace_submit_hours')
         )
     ON conflict (enc_id, tsp)
         do UPDATE SET %(set_columns)s;
@@ -504,7 +509,7 @@ def _get_feature_description_report(features, dictionary):
 
 
 
-def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_str, deps=[]):
+def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_str, deps=[], suppression=0):
   all_tasks = []
   if archive == 1:
     all_tasks.append(Task(
@@ -548,18 +553,20 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
     Task(name = 'drop_tables',
          deps = ['workspace_to_criteria_meas'],
          coro = drop_tables,
-         args = [2]),
-    # Task(name = 'get_notifications_for_epic',
-    #      deps = ['drop_tables', 'advance_criteria_snapshot'],
-    #      coro = get_notifications_for_epic),
-    Task(name = 'load_discharge_times',
-         deps = ['contacts_transform'],
-         coro = load_discharge_times),
-    Task(name = 'notify_data_ready_to_alert_server',
-         deps = ['workspace_to_criteria_meas'],
-         coro = notify_data_ready_to_alert_server),
-    # Task(name = 'notify_criteria_ready_to_alert_server',
-    #      deps = ['drop_tables', 'advance_criteria_snapshot'],
-    #      coro = notify_data_ready_to_alert_server)
-  ]
+         args = [2])]
+  if not suppression:
+    all_tasks += [
+                  Task(name = 'get_notifications_for_epic',
+                       deps = ['drop_tables', 'advance_criteria_snapshot'],
+                       coro = get_notifications_for_epic),
+                  ]
+  else:
+    all_tasks += [
+                  Task(name = 'load_discharge_times',
+                       deps = ['contacts_transform'],
+                       coro = load_discharge_times),
+                  Task(name = 'notify_data_ready_to_alert_server',
+                       deps = ['workspace_to_criteria_meas'],
+                       coro = notify_data_ready_to_alert_server)
+                  ]
   return all_tasks

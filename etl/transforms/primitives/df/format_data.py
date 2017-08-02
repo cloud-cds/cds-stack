@@ -24,7 +24,7 @@ def format_gender_to_string(df, column):
     return df
 
 def format_tsp(df, column, no_NaT=False):
-    df[column] = pd.to_datetime(df[column])
+    df[column] = pd.to_datetime(df[column], errors='coerce')
     df[column] = df[column].dt.tz_localize(app_config.TIMEZONE).dt.strftime(app_config.tsp_fmt)
     if no_NaT:
         df[column] = df[column].apply(lambda x: '' if x == 'NaT' else x)
