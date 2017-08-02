@@ -424,12 +424,13 @@ def add_future_epic_sync(conn, proc_id, channel, body):
 
 async def init_epic_sync_loop(app):
   event_loop = asyncio.get_event_loop()
-  try:
-      print('entering event loop')
-      event_loop.run_forever()
-  finally:
-      print('closing event loop')
-      event_loop.close()
+  if not event_loop.is_running():
+    try:
+        print('entering event loop')
+        event_loop.run_forever()
+    finally:
+        print('closing event loop')
+        event_loop.close()
 
 async def init_db_pool(app):
   global listener_conn
