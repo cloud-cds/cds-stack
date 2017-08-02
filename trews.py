@@ -366,6 +366,7 @@ class TREWSEchoHealthcheck(web.View):
 listener_conn = None
 
 def etl_channel_recv(conn, proc_id, channel, payload):
+  logging.info("etl_channel_recv: payload: {}".format(payload))
   if payload is None or len(payload) == 0:
     # the original mode without suppression alert
     invalidate_cache(conn, proc_id, channel, payload)
@@ -407,6 +408,7 @@ def add_future_epic_sync(conn, proc_id, channel, body):
 
   event_loop = asyncio.get_event_loop()
   delay = 1
+  logging.info("add_future_epic_sync: {}".format(body))
   for pat_tsp in body.split('|'):
     pat = pat_tsp.split(",")
     pat_id = pat[0]
@@ -464,8 +466,7 @@ app.on_cleanup.append(cleanup_db_pool)
 
 epic_notifications = os.environ['epic_notifications']
 
-if epic_notifications is not None and int(epic_notifications):
-  app.on_startup.append(init_epic_sync_loop)
+app.on_startup.append(init_epic_sync_loop)
 
 # Background tasks.
 if api_monitor.enabled:
