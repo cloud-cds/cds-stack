@@ -389,9 +389,9 @@ def add_future_epic_sync(conn, proc_id, channel, body):
   global epic_sync_tasks
 
   def run_future_epic_sync(pat_id, tsp):
-    if 'pool' in app:
+    if 'db_pool' in app:
       event_loop.ensure_future(\
-        dashan_query.push_notifications_to_epic(app['pool'], pat_id, notify_future_notification=False))
+        dashan_query.push_notifications_to_epic(app['db_pool'], pat_id, notify_future_notification=False))
       for i in range(len(epic_sync_tasks.get(pat_id, []))):
         if epic_sync_tasks[pat_id][i]:
           if tsp == epic_sync_tasks[pat_id][i][0]:
