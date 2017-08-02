@@ -9,7 +9,7 @@ SERVERS = {
     'prod': 'https://api.jh.edu/internal/v2/clinical',
 }
 
-class Loader:
+class JHAPI:
     def __init__(self, server, client_id, client_secret):
         if server not in SERVERS:
             raise ValueError('Invalid server name provided. Must be one of: {}.'
@@ -43,3 +43,18 @@ class Loader:
         reqs = [grequests.post(url, json=payload, timeout=10.0, headers=self.headers) for payload in payloads]
         responses = grequests.map(reqs)
         return responses
+
+
+    def extract_orders(self, pat_id, csn, hospital):
+        lab_url = '{}/facilities/hospital/{}/orders/activeprocedures'.format(self.server, hospital)
+        lab_params = {'csn': csn, 'ordermode': 2}
+        med_url = '{}/patients/medications'.format(self.server)
+        med_params = {'id': pat_id, 'searchtype': 'IP', 'dayslookback': '3'}
+        reqs = [grequests.get(lab_url, params=lab_params, timeout=10, headers=self.headers),
+                grequests.get(med_url, params=med_params, timeout=10, headers=self.headers)]
+        responses = grequests.map(reqs)
+        logging.info("Got responses: {}".format(responses))
+        lab_orders = responses[0].json() if responses[0] else []
+        med_orders = responses[1].json() if responses[1] else {}
+        return lab_orders, med_orders
+

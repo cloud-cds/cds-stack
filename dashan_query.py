@@ -8,7 +8,8 @@ import logging
 import pytz
 import requests
 
-from jhapi_io import Loader
+from jhapi_io import JHAPI
+import dashan_universe.transforms as transforms
 
 logging.basicConfig(format='%(levelname)s|%(asctime)s.%(msecs)03d|%(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
 
@@ -334,6 +335,56 @@ async def get_order_detail(db_pool, eid):
 
     return order_details
 
+
+async def is_order_placed(db_pool, eid, order_type, order_time):
+  ''' See if an order for 'order_type' has been placed after 'order_time' '''
+
+  # Check order_type value
+  if order_type not in ['antibiotics_order', 'blood_culture_order',
+                        'crystalloid_fluid_order', 'initial_lactate_order',
+                        'repeat_lactate_order', 'vasopressors_order']:
+    logging.error("Can't handle this order type: {}".format(order_type))
+    await asyncio.sleep(1)
+    return False
+  logging.info("Checking if order has been placed for '{}'".format(order_type))
+
+  # Get patient info needed for extract
+  async with db_pool.acquire() as conn:
+    row = await conn.fetchrow("SELECT * FROM pat_enc WHERE pat_id = '{}';".format(eid))
+    csn = row['visit_id']
+    hospital = await conn.fetchval("SELECT value FROM cdm_s WHERE enc_id = '{}' AND fid = 'hospital';".format(row['enc_id']))
+  logging.info("Patient csn='{}', hosp='{}'".format(csn, hospital))
+
+  # Extract and transform orders
+  jhapi_loader = JHAPI('prod', client_id, client_secret)
+  lab_orders, med_orders = jhapi_loader.extract_orders(eid, csn, hospital)
+  lab_orders = transforms.transform_lab_orders(lab_orders)
+  med_orders = transforms.transform_med_orders(med_orders)
+  logging.info("Patients lab_orders: {}".format(lab_orders))
+  logging.info("Patients med_orders: {}".format(med_orders))
+
+  # Get all the timestamps for the correct order
+  order_to_check = order_type.replace('_order', '').replace('repeat_', '').replace('initial_', '')
+  all_orders = {**lab_orders, **med_orders}
+  for order in all_orders:
+    if order == order_to_check:
+      tsps_to_check = all_orders[order]
+  logging.info("Checking these {} orders: {}".format(order_to_check, tsps_to_check))
+
+  # Parse the time stamps and compare to 'order_time'
+  for tsp in tsps_to_check:
+    tsp = tsp[:-3]+tsp[-2:] if ":" == tsp[-3:-2] else tsp # Format tz for parsing
+    tsp = dt.datetime.strptime(tsp, '%Y-%m-%dT%H:%M:%S%z')
+    if tsp > order_time:
+      logging.info("{} is past the order time of {}".format(tsp, order_time))
+      return True
+
+  # Couldn't find an order after 'order_time'
+  logging.info("No timestamp past {}".format(order_time))
+  return False
+
+
+
 async def toggle_notification_read(db_pool, eid, notification_id, as_read):
   toggle_notifications_sql = \
   '''
@@ -486,8 +537,8 @@ async def push_notifications_to_epic(db_pool, eid, notify_future_notification=Tr
             'visit_id': n['visit_id'],
             'notifications': n['count']
         } for n in notifications]
-        loader = Loader('prod', client_id, client_secret)
-        responses = loader.load_notifications(patients)
+        jhapi_loader = JHAPI('prod', client_id, client_secret)
+        responses = jhapi_loader.load_notifications(patients)
 
         for pt, response in zip(patients, responses):
           if response is None:

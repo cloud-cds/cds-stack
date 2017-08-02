@@ -46,6 +46,19 @@ window.onerror = function(error, url, line) {
     controller.sendLog({acc:'error', data:'ERR:'+error+' URL:'+url+' L:'+line}, true);
 };
 
+checkIfOrdered = null; // Global bool to flip when clicking "place order"
+window.onresize = function() {
+  graphComponent.render(trews.data.chart_data,
+                        (trews.data.severe_sepsis != null ? trews.data.severe_sepsis.onset_time : null),
+                        (trews.data.septic_shock != null ? trews.data.septic_shock.onset_time : null),
+                        graphComponent.xmin, graphComponent.xmax);
+
+  if ( checkIfOrdered != null) {
+    endpoints.getPatientData('place_order', {'actionName': checkIfOrdered});
+    checkIfOrdered = null;
+  }
+}
+
 
 /**
  * State Tree, Maintains most up to date app information
@@ -209,7 +222,6 @@ var endpoints = new function() {
     window.location.protocol + "//" + window.location.hostname + "/api";
   this.numTries = 1;
   this.getPatientData = function(actionType, actionData, toolbarButton) {
-    $('body').addClass('waiting');
     postBody = {
       q: (getQueryVariable('PATID') === false) ? null : getQueryVariable('PATID'),
       u: (getQueryVariable('USERID') === false) ? null : cleanUserId(getQueryVariable('USERID')),
@@ -250,10 +262,11 @@ var endpoints = new function() {
       start_time: new Date().getTime()
     }).done(function(result) {
       $('body').removeClass('waiting');
+      $('#loading').html('');
       $('#loading').addClass('done');
       if ( toolbarButton ) { toolbarButton.removeClass('loading'); }
       if ( result.hasOwnProperty('trewsData') ) {
-        $('#page').removeClass('waiting').spin(false); // Remove any spinner from the page
+        $('#loading').removeClass('waiting').spin(false); // Remove any spinner from the page
         trews.setData(result.trewsData);
         // Suspicion debugging.
         logSuspicion('set');
@@ -269,6 +282,7 @@ var endpoints = new function() {
       timer.log(this.url, this.start_time, new Date().getTime(), 'success')
     }).fail(function(result) {
       $('body').removeClass('waiting');
+      $('#loading').removeClass('waiting').spin(false); // Remove any spinner from the page
       if ( toolbarButton ) { toolbarButton.removeClass('loading'); }
       if (result.status == 400) {
         $('#loading p').html(result.responseJSON['message'] + ".<br/>  Connection Failed<span id='test-data'>.</span> Please rest<span id='see-blank'>a</span>rt application or contact trews-jhu@opsdx.io");
@@ -284,6 +298,7 @@ var endpoints = new function() {
           endpoints.test();
         });
         $('#see-blank').click(function() {
+          $('#loading').html('');
           $('#loading').addClass('done');
         });
       } else {
@@ -303,6 +318,7 @@ var endpoints = new function() {
         withCredentials: false
       },
       success: function(result) {
+        $('#loading').html('');
         $('#loading').addClass('done');
         trews.setData(result.trewsData);
         controller.refresh();
@@ -378,6 +394,7 @@ var controller = new function() {
       endpoints.test();
     });
     $('#see-blank').click(function() {
+      $('#loading').html('');
       $('#loading').addClass('done');
     });
   }
@@ -695,16 +712,12 @@ var workflowsComponent = new function() {
       if ( fr != null ) { txt += '\nFRAME:' + fr.contentWindow.document.body.innerHTML; }
       $('#fake-console').text(txt);
 
-      var ordered = false;
-      if ( ifr != null ) {
-        ordered = ifr.contentWindow.post_order();
+      checkIfOrdered = null;
+      if ( pg != null || (ifr != null && ifr.contentWindow.post_order()) ) {
+        checkIfOrdered = $(this).attr('data-trews');
       } else if ( anc != null ) {
         anc.click();
-        ordered = true;
-      }
-
-      if ( ordered ) {
-        endpoints.getPatientData('place_order', {'actionName': $(this).attr('data-trews')});
+        checkIfOrdered = $(this).attr('data-trews');
       }
     });
     // this.notInBtns.hide(); // Yanif: (RE-ENABLED; Temporarily disabling orders 'Not Indicated' buttons)
@@ -852,12 +865,6 @@ var graphComponent = new function() {
     this.ymin = 0;
     this.ymax = 1;
     graph(json, severeOnset, shockOnset, this.xmin, this.xmax, this.ymin, this.ymax);
-  }
-  window.onresize = function() {
-    graphComponent.render(trews.data.chart_data,
-                          (trews.data.severe_sepsis != null ? trews.data.severe_sepsis.onset_time : null),
-                          (trews.data.septic_shock != null ? trews.data.septic_shock.onset_time : null),
-                          graphComponent.xmin, graphComponent.xmax);
   }
 }
 
@@ -1348,7 +1355,7 @@ var dropdown = new function() {
       e.stopPropagation()
     })
     this.susCtn.find('.dropdown-link').click(function() {
-      $('#page').addClass('waiting').spin(); // Add spinner to page
+      $('#loading').addClass('waiting').spin(); // Add spinner to page
       var action = dropdown.getAction($(this).text());
       endpoints.getPatientData("suspicion_of_infection", action);
     });
@@ -1363,7 +1370,7 @@ var dropdown = new function() {
     infectionOther.append("<input placeholder='Other' value='" + otherValue + "'/><span>Submit</span>")
     $('#infection-other span').unbind()
     $('#infection-other span').click(function() {
-      $('#page').addClass('waiting').spin(); // Add spinner to page
+      $('#loading').addClass('waiting').spin(); // Add spinner to page
       var action = {"actionName": "sus-edit", "other": $('#infection-other input').val()}
       endpoints.getPatientData("suspicion_of_infection", action);
       dropdown.d.fadeOut(300);
@@ -1886,7 +1893,7 @@ var toolbar = new function() {
     // 'Reset patient' button initialization.
     this.resetNav.unbind();
     this.resetNav.click(function(e) {
-      $('#page').addClass('waiting').spin(); // Add spinner to page
+      $('#loading').addClass('waiting').spin(); // Add spinner to page
       toolbar.resetNav.addClass('loading'); // Toggle button as loading
       var action = trews.data['event_id'] == undefined ? null : { "value": trews.data['event_id'] };
       endpoints.getPatientData('reset_patient', action, toolbar.resetNav);
@@ -1896,7 +1903,7 @@ var toolbar = new function() {
     this.deactivateState = true; // Initially set to deactivate.
     this.activateNav.unbind();
     this.activateNav.click(function(e) {
-      $('#page').addClass('waiting').spin(); // Add spinner to page
+      $('#loading').addClass('waiting').spin(); // Add spinner to page
       toolbar.activateNav.addClass('loading');
       endpoints.getPatientData('deactivate', {'value': !trews.data['deactivated']}, toolbar.activateNav);
     });

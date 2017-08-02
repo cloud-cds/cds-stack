@@ -23,7 +23,7 @@ if r.status_code != 200:
 
 # Test getting /api
 post_body = json.dumps({
-    "q":            "3132",
+    "q":            "E100023030",
     "u":            None,
     "depid":        None,
     "csn":          None,

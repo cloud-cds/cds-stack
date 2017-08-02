@@ -107,7 +107,17 @@ class TREWSAPI(web.View):
         return {'message': msg}
 
     elif actionType == u'place_order':
-      await query.override_criteria(db_pool, eid, actionData['actionName'], value='[{ "text": "Ordered" }]', user=uid)
+      ''' Check if order placed for 30 seconds '''
+      start_time = datetime.datetime.now()
+      while start_time + datetime.timedelta(seconds=30) > datetime.datetime.now():
+        order_placed = await query.is_order_placed(db_pool    = db_pool,
+                                                   eid        = eid,
+                                                   order_type = actionData['actionName'],
+                                                   order_time = (start_time - datetime.timedelta(seconds=5)))
+        if order_placed:
+          await query.override_criteria(db_pool, eid, actionData['actionName'], value='[{ "text": "Ordered" }]', user=uid)
+          return
+        await asyncio.sleep(1)
 
     elif actionType == u'complete_order':
       await query.override_criteria(db_pool, eid, actionData['actionName'], value='[{ "text": "Completed" }]', user=uid)

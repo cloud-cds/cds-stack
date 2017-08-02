@@ -27,10 +27,6 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li {
     clear: both;
 }
 
-body.waiting {
-    cursor: wait;
-}
-
 /* Loading Page */
 #loading {
     position: absolute;
@@ -47,6 +43,12 @@ body.waiting {
 #loading.done {
     opacity: 0;
     visibility: hidden;
+}
+#loading.waiting {
+    background-color: rgb(238,238,238);
+    z-index: 999;
+    opacity: 0.8;
+    visibility: visible;
 }
 #loading p {
     width: 100%;
@@ -75,9 +77,6 @@ body.waiting {
     -moz-transition: background-color .2s;
     transition: background-color .2s;
 }
-#page.waiting {
-    background-color: rgb(238,238,238);
-}
 /* Header */
 #header {
     width: 100%;
@@ -88,6 +87,11 @@ body.waiting {
     background-color: #eee;
     z-index: 1;
     border-bottom: 1px solid #ddd;
+    -webkit-user-select: none;  /* Chrome all / Safari all */
+    -moz-user-select: none;     /* Firefox all */
+    -ms-user-select: none;      /* IE 10+ */
+    user-select: none;
+    cursor: default;
 }
 #header h1 {
     line-height: 30px;
@@ -200,6 +204,11 @@ body.waiting {
     padding: 5px;
     /*background-color: #f9f9f9;*/
     /*border: 1px solid #ccc;*/
+    -webkit-user-select: none;  /* Chrome all / Safari all */
+    -moz-user-select: none;     /* Firefox all */
+    -ms-user-select: none;      /* IE 10+ */
+    user-select: none;
+    cursor: default;
 }
 .card.complete {
     background-color: #eee;
@@ -281,11 +290,6 @@ body.waiting {
 }
 .slot p.num a {
     text-decoration: underline;
-    -webkit-user-select: none;  /* Chrome all / Safari all */
-    -moz-user-select: none;     /* Firefox all */
-    -ms-user-select: none;      /* IE 10+ */
-    user-select: none;
-    cursor: pointer;
 }
 .actions {
     font-size: 12px;
@@ -297,13 +301,9 @@ body.waiting {
     text-decoration: none;
     float: right;
     color: #10b66d;
-    cursor: pointer;
     margin-left: 10px;
     display: block;
-    -webkit-user-select: none;  /* Chrome all / Safari all */
-    -moz-user-select: none;     /* Firefox all */
-    -ms-user-select: none;      /* IE 10+ */
-    user-select: none;
+    cursor: pointer;
 }
 .actions a.hidden {
     display: none;
@@ -404,6 +404,10 @@ body.waiting {
     border: 1px solid #ddd;
     background-color: #fff;
     box-shadow: 2px 2px 2px #ddd;
+    -webkit-user-select: none;  /* Chrome all / Safari all */
+    -moz-user-select: none;     /* Firefox all */
+    -ms-user-select: none;      /* IE 10+ */
+    user-select: none;
 }
 #dropdown-content {
     width: 100%;
@@ -423,17 +427,24 @@ body.waiting {
     margin: 0;
     background-color: #fff;
     padding: 5px;
-    cursor: pointer;
     -webkit-transition: background-color .3s;
     -moz-transition: background-color .3s;
     transition: background-color .3s;
     position: relative;
+    cursor: pointer;
 }
 #dropdown h5.overridden {
     background-color: #b3e8d1;
 }
 #dropdown h5:hover {
     background-color: #eee;
+}
+#dropdown input {
+    -webkit-user-select: text;  /* Chrome all / Safari all */
+    -moz-user-select: text;     /* Firefox all */
+    -ms-user-select: text;      /* IE 10+ */
+    user-select: text;
+    cursor: text;
 }
 /* Order dropdowns. */
 .order-dropdown {
@@ -444,6 +455,10 @@ body.waiting {
     border: 1px solid #ddd;
     background-color: #fff;
     box-shadow: 2px 2px 2px #ddd;
+    -webkit-user-select: none;  /* Chrome all / Safari all */
+    -moz-user-select: none;     /* Firefox all */
+    -ms-user-select: none;      /* IE 10+ */
+    user-select: none;
 }
 .order-dropdown .place-order {
     position: relative;
@@ -462,10 +477,6 @@ body.waiting {
     -webkit-transition: background-color .3s;
     -moz-transition: background-color .3s;
     transition: background-color .3s;
-    -webkit-user-select: none;  /* Chrome all / Safari all */
-    -moz-user-select: none;     /* Firefox all */
-    -ms-user-select: none;      /* IE 10+ */
-    user-select: none;
 }
 .order-dropdown a,
 .order-dropdown a:link,
