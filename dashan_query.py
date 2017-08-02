@@ -501,7 +501,7 @@ async def push_notifications_to_epic(db_pool, eid):
         '''
         select * from notify_future_notification('%s', '%s');
         ''' % (etl_channel, eid)
-        await conn.fetch(etl_channel, notify_future_notification)
+        await conn.fetch(notify_future_notification)
       else:
         logging.error("Unknown environ Error: etl_channel")
     else:
