@@ -390,7 +390,7 @@ def add_future_epic_sync(conn, proc_id, channel, body):
 
   def run_future_epic_sync(pat_id, tsp):
     if 'db_pool' in app:
-      event_loop.ensure_future(\
+      asyncio.ensure_future(\
         dashan_query.push_notifications_to_epic(app['db_pool'], pat_id, notify_future_notification=False))
       for i in range(len(epic_sync_tasks.get(pat_id, []))):
         if epic_sync_tasks[pat_id][i]:
