@@ -5,7 +5,7 @@ from etl.mappings.lab_procedures import procedure_ids
 
 import sys
 import asyncio
-
+import etl.io_config.core as core
 from aiohttp import ClientSession
 from aiohttp import client_exceptions
 from time import sleep
@@ -265,20 +265,23 @@ class JHAPIConfig:
 
 
   def push_notifications(self, ctxt, notifications):
-    resource = '/patients/addflowsheetvalue'
-    load_tz='US/Eastern'
-    t_utc = dt.datetime.utcnow().replace(tzinfo=pytz.utc)
-    current_time = str(t_utc.astimezone(pytz.timezone(load_tz)))
-    payloads = [{
-      'PatientID':            n['pat_id'],
-      'ContactID':            n['visit_id'],
-      'UserID':               'WSEPSIS',
-      'FlowsheetID':          '9490',
-      'Value':                n['count'],
-      'InstantValueTaken':    current_time,
-      'FlowsheetTemplateID':  '304700006',
-    } for n in notifications]
-    for payload in payloads:
-      logging.info('%s NOTIFY %s %s %s' % (payload['InstantValueTaken'], payload['PatientID'], payload['ContactID'], payload['Value']))
-    self.make_requests(ctxt, resource, payloads, 'POST')
+    notify_epic = int(core.get_environment_var('TREWS_ETL_EPIC_NOTIFICATIONS', 0))
+    logging.info("pushing notifications to epic ({})".format(notify_epic))
+    if notify_epic:
+      resource = '/patients/addflowsheetvalue'
+      load_tz='US/Eastern'
+      t_utc = dt.datetime.utcnow().replace(tzinfo=pytz.utc)
+      current_time = str(t_utc.astimezone(pytz.timezone(load_tz)))
+      payloads = [{
+        'PatientID':            n['pat_id'],
+        'ContactID':            n['visit_id'],
+        'UserID':               'WSEPSIS',
+        'FlowsheetID':          '9490',
+        'Value':                n['count'],
+        'InstantValueTaken':    current_time,
+        'FlowsheetTemplateID':  '304700006',
+      } for n in notifications]
+      for payload in payloads:
+        logging.info('%s NOTIFY %s %s %s' % (payload['InstantValueTaken'], payload['PatientID'], payload['ContactID'], payload['Value']))
+      self.make_requests(ctxt, resource, payloads, 'POST')
     logging.info("pushed notifications to epic")
