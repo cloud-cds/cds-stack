@@ -78,7 +78,7 @@ class AlertServer:
       async with self.db_pool.acquire() as conn:
         sql = '''
         select suppression_alert('{pat_id}');
-        notify {channel}, '{pat_id}';
+        notify {channel}, 'invalidate_cache:{pat_id}';
         '''.format(pat_id=pat_id, channel=os.environ['etl_channel'])
         await conn.fetch(sql)
 
