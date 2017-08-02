@@ -433,7 +433,7 @@ async def init_db_pool(app):
   if etl_channel is not None:
     listener_conn = await app['db_pool'].acquire()
     logging.info('Added listener on %s' % etl_channel)
-    await listener_conn.add_listener(etl_channel, invalidate_cache)
+    await listener_conn.add_listener(etl_channel, etl_channel_recv)
 
 async def cleanup_db_pool(app):
   global listener_conn
