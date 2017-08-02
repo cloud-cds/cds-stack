@@ -415,11 +415,13 @@ def add_future_epic_sync(conn, proc_id, channel, body):
     tsps = pat[1:]
     for task in epic_sync_tasks.get(pat_id, []):
       task[1].cancel()
+      logging.info("cancel future_epic_sync {},{}".format(pat_id, task[0]))
     epic_sync_tasks[pat_id] = []
     for tsp in tsps:
       later = int(tsp) - time.time() + delay
       new_task = event_loop.call_later(later, run_future_epic_sync, pat_id, tsp)
       epic_sync_tasks[pat_id].append((tsp, new_task))
+      logging.info("add future_epic_sync {},{}".format(pat_id, tsp))
 
 
 async def init_epic_sync_loop(app):
