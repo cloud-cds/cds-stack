@@ -370,7 +370,6 @@ def etl_channel_recv(conn, proc_id, channel, payload):
     # the original mode without suppression alert
     invalidate_cache(conn, proc_id, channel, payload)
   else:
-    # TODO new version of invalidate_cache and notification
     # the simple payload format is <header>:<body>
     header, body = payload.split(":")
     if header == 'invalidate_cache':

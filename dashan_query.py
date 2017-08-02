@@ -472,14 +472,15 @@ async def get_deterioration_feedback(db_pool, eid):
 
 
 async def push_notifications_to_epic(db_pool, eid):
-  if epic_notifications is not None and int(epic_notifications):
-    async with db_pool.acquire() as conn:
-      notifications_sql = \
-      '''
-      select * from get_notifications_for_epic('%s');
-      ''' % eid
-      notifications = await conn.fetch(notifications_sql)
-      if notifications:
+  async with db_pool.acquire() as conn:
+    notifications_sql = \
+    '''
+    select * from get_notifications_for_epic('%s');
+    ''' % eid
+    notifications = await conn.fetch(notifications_sql)
+    if notifications:
+      logging.info("push notifications to epic ({})".format(epic_notifications))
+      if epic_notifications is not None and int(epic_notifications):
         patients = [{
             'pat_id': n['pat_id'],
             'visit_id': n['visit_id'],
@@ -493,13 +494,14 @@ async def push_notifications_to_epic(db_pool, eid):
             logging.error('Failed to push notifications: %s %s %s' % (pt['pat_id'], pt['visit_id'], pt['notifications']))
           elif response.status_code != requests.codes.ok:
             logging.error('Failed to push notifications: %s %s %s HTTP %s' % (pt['pat_id'], pt['visit_id'], pt['notifications'], response.status_code))
-        notify_future_notification = \
-        '''
-        select * from notify_future_notification('%s', '%s');
-        ''' % (os.environ['etl_channel'], eid)
-        await conn.fetch(etl_channel, notify_future_notification)
-      else:
-        logging.info("no notifications")
+      logging.info("notify future notification")
+      notify_future_notification = \
+      '''
+      select * from notify_future_notification('%s', '%s');
+      ''' % (os.environ['etl_channel'], eid)
+      await conn.fetch(etl_channel, notify_future_notification)
+    else:
+      logging.info("no notifications")
 
 async def eid_exist(db_pool, eid):
   async with db_pool.acquire() as conn:
