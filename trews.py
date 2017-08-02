@@ -389,7 +389,7 @@ def invalidate_cache(conn, pid, channel, pat_ids):
     asyncio.ensure_future(pat_cache.clear())
   else:
     for pat_id in pat_ids:
-      logging.info("Invalidating cache for %s" % eid)
+      logging.info("Invalidating cache for %s" % pat_id)
       asyncio.ensure_future(pat_cache.delete(eid))
 
 def add_future_epic_sync(conn, proc_id, channel, body):
