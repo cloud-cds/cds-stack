@@ -370,7 +370,6 @@ def etl_channel_recv(conn, proc_id, channel, payload):
     if header == 'invalidate_cache':
       invalidate_cache(conn, proc_id, channel, body.split(","))
     elif header == 'future_epic_sync':
-      pat_id, tsp = body.split(",")
       add_future_epic_sync(conn, proc_id, channel, body)
     else:
       logging.error("ETL Channel Error: Unknown payload header {}".format(header))
