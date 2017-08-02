@@ -14,6 +14,7 @@ import pandas as pd
 import json
 import asyncio
 from etl.mappings.med_regex import med_regex
+import json
 
 
 def get_min_tsp(tsp_name, tsp_with_quotes=True):
@@ -396,25 +397,14 @@ async def pull_order_procs(connection, dataset_id, fids, log, is_plan, clarity_w
   log.info("Entering order procs Processing")
   start = time.time()
   extracted = 0
-  t_field = ''
-  if 'lactate_order' in fids:
-    t_field = 'op."RESULT_TIME"'
-  elif 'blood_culture_order' in fids:
-    t_field = 'op."SPECIMN_TAKEN_TIME"'
-  else:
-    log.error('Invalid fid for pull_order_procs: %s' % str(fids))
-    return 0
-
-  sql = """select pe.enc_id,
-      op."CSN_ID",op."proc_name", {t_field} as "TSP", op."OrderStatus", op."LabStatus",
-      op."PROC_START_TIME",op."PROC_ENDING_TIME"
-      from
-        {ws}."OrderProcs"  op
-      inner join
-        pat_enc pe
-      on op."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp};
-    """.format(dataset_id=dataset_id, min_tsp=get_min_tsp(t_field, tsp_with_quotes=False), ws=clarity_workspace,
-           t_field=t_field)
+  t_field = 'ParentStartTime'
+  sql = """select pe.enc_id, op.*
+            from
+              {ws}."OrderProcs"  op
+            inner join
+              pat_enc pe
+            on op."CSN_ID"::text=pe.visit_id and pe.dataset_id = {dataset_id} {min_tsp};
+        """.format(dataset_id=dataset_id, min_tsp=get_min_tsp(t_field, tsp_with_quotes=True), ws=clarity_workspace, t_field=t_field)
 
   log.info(sql)
   op = await async_read_df(sql, connection)
@@ -426,16 +416,19 @@ async def pull_order_procs(connection, dataset_id, fids, log, is_plan, clarity_w
     return 0
 
   log.info('pull_order_procs restructuring %s' % str(op.head(5)))
-  op = restructure.select_columns(op, {'enc_id': 'enc_id',
-                                       'proc_name': 'fid',
-                                       'TSP': 'tsp',
-                                       'OrderStatus': 'order_status',
-                                       'LabStatus': 'proc_status',
-                                       'PROC_START_TIME': 'proc_start_tsp',
-                                       'PROC_ENDING_TIME': 'proc_end_tsp'})
+  op = restructure.select_columns(op, {'enc_id'             : 'enc_id',
+                                       'proc_name'          : 'fid',
+                                       'ParentStartTime'    : 'tsp',
+                                       'OrderStatus'        : 'order_status',
+                                       'LabStatus'          : 'proc_status',
+                                       'ORDER_TIME'         : 'release_tsp',
+                                       'RESULT_TIME'        : 'result_tsp',
+                                       'SPECIMN_TAKEN_TIME' : 'collect_tsp',
+                                       })
 
   log.info('pull_order_procs derive_lab_status_clarity %s' % str(op.head(5)))
   op = derive.derive_lab_status_clarity(op)
+  log.info('pull_order_procs op after derive_lab_status_clarity: %s' % str(op))
 
   log.info('pull_order_procs declaring get_fid_name_mapping')
 
@@ -472,7 +465,8 @@ async def pull_order_procs(connection, dataset_id, fids, log, is_plan, clarity_w
   log.info('pull_order_procs creating op')
 
   op = op[[x in fid_map.keys() for x in op['fid']]]
-  op = op.loc[op['fid'].apply(lambda x: x in ['blood_culture', 'lactate'])]
+  log.info('op debug: {}'.format(op))
+  # op = op.loc[op['fid'].apply(lambda x: x in fids)]
   op['fid'] += '_order'
   op['confidence'] = 2
 
@@ -480,11 +474,15 @@ async def pull_order_procs(connection, dataset_id, fids, log, is_plan, clarity_w
 
   if not is_plan:
     for idx, row in op.iterrows():
-      # TODO need to make sure the data is valid
       if row['tsp'] and not str(row['tsp']) == 'NaT':
-        await load_row.upsert_t(connection,
-                                [row['enc_id'], row['tsp'], row['fid'], str(row['status']), row['confidence']],
-                                log=log, dataset_id=dataset_id)
+        value = {
+          'status'        : row['status'],
+          'order_tsp'     : str(row['tsp']),
+          'release_tsp'   : str(row['release_tsp']),
+          'result_tsp'    : str(row['result_tsp']),
+          'collect_tsp'   : str(row['collect_tsp'])
+        }
+        await load_row.upsert_t(connection, [row['enc_id'], row['tsp'], row['fid'], json.dumps(value), row['confidence']], log=log, dataset_id=dataset_id)
     log.info('Order Procs Write complete')
   else:
     log.info('Order Procs write skipped, due to plan mode')
