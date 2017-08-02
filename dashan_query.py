@@ -495,11 +495,15 @@ async def push_notifications_to_epic(db_pool, eid):
           elif response.status_code != requests.codes.ok:
             logging.error('Failed to push notifications: %s %s %s HTTP %s' % (pt['pat_id'], pt['visit_id'], pt['notifications'], response.status_code))
       logging.info("notify future notification")
-      notify_future_notification = \
-      '''
-      select * from notify_future_notification('%s', '%s');
-      ''' % (os.environ['etl_channel'], eid)
-      await conn.fetch(etl_channel, notify_future_notification)
+      etl_channel = os.environ['etl_channel'] if 'etl_channel' in os.environ else None
+      if etl_channel:
+        notify_future_notification = \
+        '''
+        select * from notify_future_notification('%s', '%s');
+        ''' % (etl_channel, eid)
+        await conn.fetch(etl_channel, notify_future_notification)
+      else:
+        logging.error("Unknown environ Error: etl_channel")
     else:
       logging.info("no notifications")
 
