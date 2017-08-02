@@ -471,7 +471,7 @@ async def get_deterioration_feedback(db_pool, eid):
       }
 
 
-async def push_notifications_to_epic(db_pool, eid):
+async def push_notifications_to_epic(db_pool, eid, notify_future_notification=True):
   async with db_pool.acquire() as conn:
     notifications_sql = \
     '''
@@ -479,7 +479,7 @@ async def push_notifications_to_epic(db_pool, eid):
     ''' % eid
     notifications = await conn.fetch(notifications_sql)
     if notifications:
-      logging.info("push notifications to epic ({})".format(epic_notifications))
+      logging.info("push notifications to epic ({}) for {}".format(epic_notifications, eid))
       if epic_notifications is not None and int(epic_notifications):
         patients = [{
             'pat_id': n['pat_id'],
@@ -496,12 +496,12 @@ async def push_notifications_to_epic(db_pool, eid):
             logging.error('Failed to push notifications: %s %s %s HTTP %s' % (pt['pat_id'], pt['visit_id'], pt['notifications'], response.status_code))
       logging.info("notify future notification")
       etl_channel = os.environ['etl_channel'] if 'etl_channel' in os.environ else None
-      if etl_channel:
-        notify_future_notification = \
+      if etl_channel and notify_future_notification:
+        notify_future_notification_sql = \
         '''
         select * from notify_future_notification('%s', '%s');
         ''' % (etl_channel, eid)
-        await conn.fetch(notify_future_notification)
+        await conn.fetch(notify_future_notification_sql)
       else:
         logging.error("Unknown environ Error: etl_channel")
     else:
