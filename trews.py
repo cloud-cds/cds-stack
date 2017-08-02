@@ -401,7 +401,7 @@ def add_future_epic_sync(conn, proc_id, channel, body):
       for i in range(len(epic_sync_tasks.get(pat_id, []))):
         if epic_sync_tasks[pat_id][i]:
           if tsp == epic_sync_tasks[pat_id][i][0]:
-            del epic_sync_tasks[pat_id][i][1]
+            del epic_sync_tasks[pat_id][i]
             return
     else:
       logging.error("DB POOL does not exist ERROR!")
