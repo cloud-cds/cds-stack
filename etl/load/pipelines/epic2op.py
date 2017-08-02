@@ -11,7 +11,7 @@ import logging
 from etl.load.primitives.row import load_row
 import json
 from etl.io_config import server_protocol as protocol
-
+import etl.io_config.core as core
 
 async def extract_non_discharged_patients(ctxt):
   '''
@@ -99,6 +99,7 @@ async def get_notifications_for_epic(ctxt, job_id, _):
 
 async def notify_future_notification(ctxt, _):
   if 'etl_channel' in os.environ:
+    ctxt.log.info("notify future notification")
     async with ctxt.db_pool.acquire() as conn:
       await conn.execute("select * from notify_future_notification('%s');" % os.environ['etl_channel'])
   else:

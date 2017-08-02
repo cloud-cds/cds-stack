@@ -46,7 +46,6 @@ def main(max_pats=None, hospital=None, lookback_hours=None, db_name=None, repl=F
   # Create data for loader
   job_id = "job_etl_{}_{}".format(hospital, dt.datetime.now().strftime('%m%d%H%M%S')).lower()
   archive = int(core.get_environment_var('TREWS_ETL_ARCHIVE', 0))
-  notify_epic = int(core.get_environment_var('TREWS_ETL_EPIC_NOTIFICATIONS', 0))
   lookback_hours = lookback_hours or core.get_environment_var('TREWS_ETL_HOURS')
   # Create jhapi_extractor
   extractor = JHAPIConfig(
@@ -79,12 +78,17 @@ def main(max_pats=None, hospital=None, lookback_hours=None, db_name=None, repl=F
         'fn':   push_cloudwatch_metrics,
         'args': [aws_region, prod_or_dev, hospital]
       })
-    if not suppression and notify_epic:
+    if not suppression:
       # if suppression is 0, notify_epic will be done in suppression alert server
       all_tasks.append({
         'name': 'push_notifications',
         'deps': ['get_notifications_for_epic'],
         'fn': extractor.push_notifications
+      })
+      all_tasks.append({
+        'name': 'notify_future_notification',
+        'deps': ['get_notifications_for_epic'],
+        'coro': loader.notify_future_notification
       })
 
 
