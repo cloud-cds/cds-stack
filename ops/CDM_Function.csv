@@ -109,7 +109,7 @@ fillin,fillin,Fills the missing data in a TWF feature by copying the latest vali
 sirs_resp_oor_update,derive,ref Arch folder
 convert_penicillin_dose,transform,convert to million unit
 convert_ounces_to_kg,transform,Convet Onces (weight) to Kgs
-piperacillin_tazbac_dose_to_mg,transform,"if unit == 'mg of piperacillin', then return the value in mg; else return convert_to_mg"
+piperacillin_tazobac_dose_to_mg,transform,"if unit == 'mg of piperacillin', then return the value in mg; else return convert_to_mg"
 threshold_abp_sys,transform,"threshold(30 , 300)"
 load_discharge_json,transform,load discharge into json format including department and disposition
 convert_amoxicillin_dose_to_mg,transform,if MedUnit=='tablet' then Dose = Dose*medication_unit

@@ -28,7 +28,7 @@ milrinone_dose,T,JSON,yes,no,,3,,,Medication,1,mcg/kg/min
 rass,TWF,Real,yes,no,last_value_in_window,5,,,Physiologic,1,no unit
 pneumonia_sepsis_approx,T,String,yes,no,,,,,,,
 acute_kidney_failure,T,Boolean,no,no,,,acute_kidney_failure_update,"acute_kidney_failure_inhosp, creatinine, urine_output_24hr, dialysis",Diagnoses,1,
-any_antibiotics,T,Boolean,no,no,,,any_antibiotics_update,"ampicillin_dose, clindamycin_dose, erythromycin_dose , gentamicin_dose , oxacillin_dose , tobramycin_dose , vancomycin_dose , ceftazidime_dose , cefazolin_dose , penicillin_g_dose , meropenem_dose , penicillin_dose , amoxicillin_dose , piperacillin_tazbac_dose, rifampin_dose, meropenem_dose, rapamycin_dose",any antibiotic was given to the patient,1,no unit
+any_antibiotics,T,Boolean,no,no,,,any_antibiotics_update,"ampicillin_dose, clindamycin_dose, erythromycin_dose , gentamicin_dose , oxacillin_dose , tobramycin_dose , vancomycin_dose , ceftazidime_dose , cefazolin_dose , penicillin_g_dose , meropenem_dose , penicillin_dose , amoxicillin_dose , piperacillin_tazobac_dose, rifampin_dose, meropenem_dose, rapamycin_dose",any antibiotic was given to the patient,1,no unit
 sirs_raw,TWF,Boolean,no,no,,,sirs_raw_update,"sirs_temperature_oor, sirs_hr_oor, sirs_resp_oor, sirs_wbc_oor","mix of lab and vital signs, it should not be sparse",1,no unit
 chronic_bronchitis_hist,S,Boolean,yes,no,,,,,History,1,no unit
 pao2_to_fio2,TWF,Real,no,no,,,pao2_to_fio2_update,"pao2, fio2","vital sign based, it should not be sparse",1,mmHg
@@ -115,7 +115,7 @@ emphysema_prob,S,Boolean,yes,no,,,,,ProblemList,1,no unit
 heart_attack_inhosp,T,String,yes,no,,,,,"Diagnoses, t if patient diagnosed with heart attack during hospital stay",1,
 ekg_proc,T,Boolean,yes,no,,,,,Procedure,1,
 severe_pancreatitis,T,Boolean,no,no,,,severe_pancreatitis_update,"severe_pancreatitis_inhosp, ct_proc, mri_proc",Diagnoses,1,
-any_antibiotics_order,T,Boolean,no,no,,,any_antibiotics_order_update,"ampicillin_dose, clindamycin_dose, erythromycin_dose , gentamicin_dose , oxacillin_dose , tobramycin_dose , vancomycin_dose , ceftazidime_dose , cefazolin_dose , penicillin_g_dose , meropenem_dose , penicillin_dose , amoxicillin_dose , piperacillin_tazbac_dose, rifampin_dose, meropenem_dose, rapamycin_dose",any antibiotics was ordered for the patient,1,no unit
+any_antibiotics_order,T,Boolean,no,no,,,any_antibiotics_order_update,"ampicillin_dose, clindamycin_dose, erythromycin_dose , gentamicin_dose , oxacillin_dose , tobramycin_dose , vancomycin_dose , ceftazidime_dose , cefazolin_dose , penicillin_g_dose , meropenem_dose , penicillin_dose , amoxicillin_dose , piperacillin_tazobac_dose, rifampin_dose, meropenem_dose, rapamycin_dose",any antibiotics was ordered for the patient,1,no unit
 pancreatitis_chronic_prob,S,Boolean,yes,no,,,,,ProblemList,1,no unit
 liver_disease_hist,S,Boolean,yes,no,,,,,history,1,no unit
 dialysis_hist,S,Boolean,yes,no,,,,,History,1,no unit
@@ -245,7 +245,7 @@ fluids_intake,T,Real,yes,no,,,,,all fluids intake,1,ml
 any_inotrope,T,Boolean,no,no,,,any_inotrope_update,"dobutamine_dose, milrinone_dose",any antibiotic was given to the patient,1,no unit
 peritonitis_approx,T,String,yes,no,,,,,,,
 urosepsis_approx,T,String,yes,no,,,,,,,
-piperacillin_tazbac_dose,T,JSON,yes,no,,3,,,Medication,1,mg
+piperacillin_tazobac_dose,T,JSON,yes,no,,3,,,Medication,1,mg
 aids_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
 urine_output,T,Real,yes,no,,,,,Phyiologic,1,ml
 carvedilol_dose,T,JSON,yes,no,,,,,Medication,1,mg
