@@ -72,7 +72,7 @@ async def pull_med_orders(connection, dataset_id, fids, log, is_plan, clarity_wo
   # mo = format_data.clean_units(mo, 'fid', 'dose_unit')
   # mo = format_data.clean_values(mo, 'fid', 'dose')
   mo = translate.convert_units(mo, fid_col='fid',
-                               fids=['piperacillin_tazbac_dose', 'vancomycin_dose',
+                               fids=['piperacillin_tazobac_dose', 'vancomycin_dose',
                                         'cefazolin_dose', 'cefepime_dose', 'ceftriaxone_dose',
                                         'ampicillin_dose'],
                                unit_col='dose_unit', from_unit='g', to_unit='mg',
@@ -149,7 +149,7 @@ async def pull_medication_admin(connection, dataset_id, fids, log, is_plan, clar
   log.info('pull_medication_admin converting g to mg')
   ma = translate.convert_units(ma,
                                fid_col='fid',
-                               fids=['piperacillin_tazbac_dose', 'vancomycin_dose',
+                               fids=['piperacillin_tazobac_dose', 'vancomycin_dose',
                                    'cefazolin_dose', 'cefepime_dose', 'ceftriaxone_dose',
                                    'ampicillin_dose'],
                                unit_col='dose_unit', from_unit='g', to_unit='mg',

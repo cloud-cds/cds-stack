@@ -466,7 +466,7 @@ def convert_vancomycin_dose_to_mg(entries, log):
             results.append(result)
     return results
 
-def piperacillin_tazbac_dose_to_mg(entries, log):
+def piperacillin_tazobac_dose_to_mg(entries, log):
     global STOPPED_ACTIONS
     global GIVEN_ACTIONS
     global IV_START_ACTIONS
