@@ -67,6 +67,8 @@ spec:
           requests:
             memory: "2816Mi"
             cpu: "1000m"
+        ports:
+        - containerPort: 8000
         command:
           - "sh"
           - "start-dev.sh"
@@ -74,9 +76,9 @@ spec:
           capabilities:
             add:
             - "SYS_PTRACE"
-        ports:
-        - containerPort: 8000
         env:
+        - name: release
+          value: "epic2017"
         - name: db_host
           value: "db.dev.opsdx.io"
         - name: db_port
@@ -136,7 +138,9 @@ spec:
         - name: ie_mode
           value: "edge"
         - name: order_link_mode
-          value: "native"
+          value: "direct"
+        - name: no_check_for_orders
+          value: "True"
         - name: log_decryption
           value: "true"
         - name: log_user_latency
@@ -187,16 +191,31 @@ metadata:
   name: trews-rest-svc
   labels:
     app: trews-rest-api
-  annotations:
-    dns.alpha.kubernetes.io/external: trews.dev.opsdx.io
-    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:acm:us-east-1:359300513585:certificate/e8391c84-070f-4feb-8946-27cf945840ad
-    service.beta.kubernetes.io/aws-load-balancer-ssl-ports: https
-    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: tcp
 spec:
-  type: LoadBalancer
+  type: NodePort
   ports:
-  - port: 443
-    name: https
+  - port: 80
+    name: http
     targetPort: 80
   selector:
     app: trews-rest-api
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: trews-rest-ingress
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    ingress.kubernetes.io/affinity: "cookie"
+    ingress.kubernetes.io/session-cookie-name: "route"
+    ingress.kubernetes.io/session-cookie-hash: "sha1"
+    ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  rules:
+  - host: trews.dev.opsdx.io
+    http:
+      paths:
+      - backend:
+          serviceName: trews-rest-svc
+          servicePort: 80
+        path: /
