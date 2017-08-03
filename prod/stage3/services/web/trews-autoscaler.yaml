@@ -4,7 +4,7 @@ metadata:
   name: trews-rest-api
   namespace: default
 spec:
-  minReplicas: 1
+  minReplicas: 2
   maxReplicas: 10
   targetCPUUtilizationPercentage: 60
   scaleTargetRef:

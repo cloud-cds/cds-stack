@@ -62,11 +62,13 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: trews-rest-api
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.1.76
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.1.78
         resources:
           requests:
             memory: "2816Mi"
             cpu: "1000m"
+        ports:
+        - containerPort: 8000
         command:
           - "sh"
           - "start-dev.sh"
@@ -74,8 +76,6 @@ spec:
           capabilities:
             add:
             - "SYS_PTRACE"
-        ports:
-        - containerPort: 8000
         env:
         - name: release
           value: "epic2017"
