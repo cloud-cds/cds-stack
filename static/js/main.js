@@ -82,7 +82,7 @@ function Listener(event) {
         break;
 
       case "state":
-        appendToConsole('state: ' + payload.toString());
+        appendToConsole('state: ' + JSON.stringify(payload));
         break;
 
       case "actionExecuted":
@@ -91,7 +91,7 @@ function Listener(event) {
         break;
 
       default:
-        appendToConsole('unhandled event: ' + event.toString());
+        appendToConsole('unhandled event: ' + JSON.stringify(event));
         break;
     }
   }
@@ -806,14 +806,18 @@ var workflowsComponent = new function() {
       lastAction = order;
       checkIfOrdered = order;
 
-      if ( release == 'epic2107' ) {
+      if ( release == 'epic2017' ) {
         // TODO: should we remove specific orders before posting, to implement replacement order semantics?
         appendToConsole('EPIC 2017 ORDER: ' + order + ' KEY: ' + key);
-        window.parent.postMessage({
-          'token': epicToken,
-          'action': 'Epic.Clinical.Informatics.Web.PostOrder',
-          'args': { 'OrderKey': key }
-        });
+        if ( window.parent != null ) {
+          window.parent.postMessage({
+            'token': epicToken,
+            'action': 'Epic.Clinical.Informatics.Web.PostOrder',
+            'args': { 'OrderKey': key }
+          }, '*');
+        } else {
+          appendToConsole('Skipping order (null parent)');
+        }
       }
       else {
         var txt = $(this).get()[0].innerHTML;
