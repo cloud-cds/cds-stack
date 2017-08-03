@@ -142,7 +142,7 @@ med_regex = [
         'pos': '^penicillin G',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
     }, {
-        'fid': 'piperacillin_tazbac_dose',
+        'fid': 'piperacillin_tazobac_dose',
         'pos': '^piperacillin-tazobactam',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
         'part_of': ['cms_antibiotics'],

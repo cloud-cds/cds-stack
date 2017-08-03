@@ -395,7 +395,7 @@ cdm_defs = {
         'thresh':   (None, None),
         'human_readable':   'Penicillin G',
     },
-    'piperacillin_tazbac_dose': {
+    'piperacillin_tazobac_dose': {
         'unit':     'mg',
         'value':    float,
         'thresh':   (None, None),
