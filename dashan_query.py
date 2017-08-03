@@ -8,7 +8,8 @@ import logging
 import pytz
 import requests
 
-from jhapi_io import Loader
+from jhapi_io import JHAPI
+import dashan_universe.transforms as transforms
 
 logging.basicConfig(format='%(levelname)s|%(asctime)s.%(msecs)03d|%(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
 
@@ -244,7 +245,7 @@ async def get_patient_profile(db_pool, pat_id, use_trews_lmc=False):
 
     if len(result) == 1:
       profile['trews_threshold'] = float("{:.2f}".format(float(result[0][0])))
-      profile['admit_time']      = (result[0][1] - datetime.datetime.utcfromtimestamp(0).replace(tzinfo=pytz.UTC)).total_seconds()
+      profile['admit_time']      = (result[0][1] - datetime.datetime.utcfromtimestamp(0).replace(tzinfo=pytz.UTC)).total_seconds() if result[0][1] is not None else None
       profile['deactivated']     = result[0][2]
       profile['detf_tsp']        = result[0][3]
       profile['deterioration']   = json.loads(result[0][4]) if result[0][4] is not None else None
@@ -312,7 +313,8 @@ async def get_order_detail(db_pool, eid):
   select tsp, initcap(regexp_replace(fid, '_dose', '')) as fid, value from criteria_meas
   where pat_id = '%s' and
   fid in (
-    'azithromycin_dose','aztreonam_dose','cefepime_dose','ceftriaxone_dose','ciprofloxacin_dose','gentamicin_dose','levofloxacin_dose','metronidazole_dose','moxifloxacin_dose','vancomycin_dose'
+    'azithromycin_dose','aztreonam_dose','cefepime_dose','ceftriaxone_dose','ciprofloxacin_dose','gentamicin_dose','levofloxacin_dose',
+    'metronidazole_dose','moxifloxacin_dose','piperacillin_tazbac_dose','vancomycin_dose'
   )
   and now() - tsp < (select value::interval from parameters where name = 'lookbackhours');
   ''' % eid
@@ -332,6 +334,56 @@ async def get_order_detail(db_pool, eid):
         order_details.append(order_detail)
 
     return order_details
+
+
+async def is_order_placed(db_pool, eid, order_type, order_time):
+  ''' See if an order for 'order_type' has been placed after 'order_time' '''
+
+  # Check order_type value
+  if order_type not in ['antibiotics_order', 'blood_culture_order',
+                        'crystalloid_fluid_order', 'initial_lactate_order',
+                        'repeat_lactate_order', 'vasopressors_order']:
+    logging.error("Can't handle this order type: {}".format(order_type))
+    await asyncio.sleep(1)
+    return False
+  logging.info("Checking if order has been placed for '{}'".format(order_type))
+
+  # Get patient info needed for extract
+  async with db_pool.acquire() as conn:
+    row = await conn.fetchrow("SELECT * FROM pat_enc WHERE pat_id = '{}';".format(eid))
+    csn = row['visit_id']
+    hospital = await conn.fetchval("SELECT value FROM cdm_s WHERE enc_id = '{}' AND fid = 'hospital';".format(row['enc_id']))
+  logging.info("Patient csn='{}', hosp='{}'".format(csn, hospital))
+
+  # Extract and transform orders
+  jhapi_loader = JHAPI('prod', client_id, client_secret)
+  lab_orders, med_orders = jhapi_loader.extract_orders(eid, csn, hospital)
+  lab_orders = transforms.transform_lab_orders(lab_orders)
+  med_orders = transforms.transform_med_orders(med_orders)
+  logging.info("Patients lab_orders: {}".format(lab_orders))
+  logging.info("Patients med_orders: {}".format(med_orders))
+
+  # Get all the timestamps for the correct order
+  order_to_check = order_type.replace('_order', '').replace('repeat_', '').replace('initial_', '')
+  all_orders = {**lab_orders, **med_orders}
+  for order in all_orders:
+    if order == order_to_check:
+      tsps_to_check = all_orders[order]
+  logging.info("Checking these {} orders: {}".format(order_to_check, tsps_to_check))
+
+  # Parse the time stamps and compare to 'order_time'
+  for tsp in tsps_to_check:
+    tsp = tsp[:-3]+tsp[-2:] if ":" == tsp[-3:-2] else tsp # Format tz for parsing
+    tsp = dt.datetime.strptime(tsp, '%Y-%m-%dT%H:%M:%S%z')
+    if tsp > order_time:
+      logging.info("{} is past the order time of {}".format(tsp, order_time))
+      return True
+
+  # Couldn't find an order after 'order_time'
+  logging.info("No timestamp past {}".format(order_time))
+  return False
+
+
 
 async def toggle_notification_read(db_pool, eid, notification_id, as_read):
   toggle_notifications_sql = \
@@ -470,31 +522,41 @@ async def get_deterioration_feedback(db_pool, eid):
       }
 
 
-async def push_notifications_to_epic(db_pool, eid):
-  if epic_notifications is not None and int(epic_notifications):
+async def push_notifications_to_epic(db_pool, eid, notify_future_notification=True):
+  async with db_pool.acquire() as conn:
     notifications_sql = \
     '''
     select * from get_notifications_for_epic('%s');
     ''' % eid
-    async with db_pool.acquire() as conn:
-      notifications = await conn.fetch(notifications_sql)
-      if notifications:
+    notifications = await conn.fetch(notifications_sql)
+    if notifications:
+      logging.info("push notifications to epic ({}) for {}".format(epic_notifications, eid))
+      if epic_notifications is not None and int(epic_notifications):
         patients = [{
             'pat_id': n['pat_id'],
             'visit_id': n['visit_id'],
             'notifications': n['count']
         } for n in notifications]
-        loader = Loader('prod', client_id, client_secret)
-        responses = loader.load_notifications(patients)
+        jhapi_loader = JHAPI('prod', client_id, client_secret)
+        responses = jhapi_loader.load_notifications(patients)
 
         for pt, response in zip(patients, responses):
           if response is None:
             logging.error('Failed to push notifications: %s %s %s' % (pt['pat_id'], pt['visit_id'], pt['notifications']))
           elif response.status_code != requests.codes.ok:
             logging.error('Failed to push notifications: %s %s %s HTTP %s' % (pt['pat_id'], pt['visit_id'], pt['notifications'], response.status_code))
-
+      logging.info("notify future notification")
+      etl_channel = os.environ['etl_channel'] if 'etl_channel' in os.environ else None
+      if etl_channel and notify_future_notification:
+        notify_future_notification_sql = \
+        '''
+        select * from notify_future_notification('%s', '%s');
+        ''' % (etl_channel, eid)
+        await conn.fetch(notify_future_notification_sql)
       else:
-        logging.info("no notifications")
+        logging.error("Unknown environ Error: etl_channel")
+    else:
+      logging.info("no notifications")
 
 async def eid_exist(db_pool, eid):
   async with db_pool.acquire() as conn:
@@ -510,3 +572,10 @@ async def save_feedback(db_pool, doc_id, pat_id, dep_id, feedback):
 
   async with db_pool.acquire() as conn:
     await conn.execute(feedback_sql)
+
+
+async def notify_pat_update(db_pool, channel, pat_id):
+  notify_sql = "notify {}, 'invalidate_cache:{}'".format(channel, pat_id)
+  logging.info("notify_sql: " + notify_sql)
+  async with db_pool.acquire() as conn:
+    await conn.execute(notify_sql)

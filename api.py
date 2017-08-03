@@ -107,7 +107,17 @@ class TREWSAPI(web.View):
         return {'message': msg}
 
     elif actionType == u'place_order':
-      await query.override_criteria(db_pool, eid, actionData['actionName'], value='[{ "text": "Ordered" }]', user=uid)
+      ''' Check if order placed for 30 seconds '''
+      start_time = datetime.datetime.now()
+      while start_time + datetime.timedelta(seconds=30) > datetime.datetime.now():
+        order_placed = await query.is_order_placed(db_pool    = db_pool,
+                                                   eid        = eid,
+                                                   order_type = actionData['actionName'],
+                                                   order_time = (start_time - datetime.timedelta(seconds=5)))
+        if order_placed:
+          await query.override_criteria(db_pool, eid, actionData['actionName'], value='[{ "text": "Ordered" }]', user=uid)
+          return
+        await asyncio.sleep(1)
 
     elif actionType == u'complete_order':
       await query.override_criteria(db_pool, eid, actionData['actionName'], value='[{ "text": "Completed" }]', user=uid)
@@ -137,7 +147,8 @@ class TREWSAPI(web.View):
     # thus we must ensure we query the database again.
     logging.info("Invalidating cache for %s" % eid)
     await pat_cache.delete(eid)
-
+    channel = os.environ['etl_channel']
+    await query.notify_pat_update(db_pool, channel, eid)
     return {'result': 'OK'}
 
 
@@ -349,7 +360,7 @@ class TREWSAPI(web.View):
       if pat_values[0] is None or len(pat_values[0]) == 0:
         # cannot find data for this eid
         data = None
-        return
+        return data
       await pat_cache.set(eid, pat_values, ttl=300)
     else:
       api_monitor.add_metric('CacheHits')
@@ -387,6 +398,7 @@ class TREWSAPI(web.View):
       # update_notifications and history
       data['notifications'] = notifications
       data['auditlist']     = history
+      return data
 
     except KeyError as ex:
       traceback.print_exc()
@@ -445,7 +457,7 @@ class TREWSAPI(web.View):
                 response_body = await self.take_action(db_pool, actionType, actionData, eid, uid)
 
               if not actionType in [u'pollNotifications', u'pollAuditlist', u'getAntibiotics']:
-                await self.update_response_json(db_pool, data, eid)
+                data = await self.update_response_json(db_pool, data, eid)
                 if data is not None:
                   response_body = {'trewsData': data}
                   logging.info('trewsData response {}'.format(str(data['severe_sepsis']['suspicion_of_infection'])))

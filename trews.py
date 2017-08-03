@@ -24,7 +24,7 @@ import api, dashan_query
 from constants import bmc_jhh_antibiotics, bmc_jhh_ed_antibiotics, departments_by_hospital, order_key_urls
 from api import pat_cache, api_monitor
 from encrypt import encrypt, decrypt, encrypted_query
-
+import time
 
 #################################
 # Constants
@@ -51,12 +51,14 @@ KEYS = {
   'vasopressors'  : '13'
 }
 
+release = os.environ['release'] if 'release' in os.environ else 'development'
 
 user = os.environ['db_user']
 host = os.environ['db_host']
 db   = os.environ['db_name']
 port = os.environ['db_port']
 pw   = os.environ['db_password']
+
 etl_channel = os.environ['etl_channel'] if 'etl_channel' in os.environ else None
 
 # Security configuration.
@@ -75,6 +77,7 @@ force_server_loc = os.environ['force_server_loc'] if 'force_server_loc' in os.en
 force_server_dep = os.environ['force_server_dep'] if 'force_server_dep' in os.environ else None
 
 logging.info('''TREWS Configuration::
+  release: %s
   encrypted query: %s
   trews_app_key: %s
   trews_admin_key: %s
@@ -85,7 +88,8 @@ logging.info('''TREWS Configuration::
   order_link_mode: %s
   force_server_loc: %s
   force_server_dep: %s
-  ''' % ('on' if encrypted_query else 'off', \
+  ''' % (release,
+         'on' if encrypted_query else 'off', \
          'on' if trews_app_key else 'off', \
          'on' if trews_admin_key else 'off', \
          'on' if trews_open_access and trews_open_access.lower() == 'true' else 'off',
@@ -93,6 +97,9 @@ logging.info('''TREWS Configuration::
          'on' if log_user_latency else 'off',
          ie_mode, order_link_mode, force_server_loc, force_server_dep)
   )
+
+# global
+epic_sync_tasks = {}
 
 ###################################
 # Handlers
@@ -164,8 +171,10 @@ class TREWSStaticResource(web.View):
     logging.info("Index request for loc: {}, dep: {}".format(loc, dep))
 
     j2_env = Environment(loader=FileSystemLoader(STATIC_DIR), trim_blocks=True)
-    return j2_env.get_template(INDEX_FILENAME).render(ie_mode=ie_mode, order_link_mode=order_link_mode, \
-                               keys=KEYS, custom_antibiotics=custom_antibiotics, order_key_urls=order_key_urls)
+    return j2_env.get_template(INDEX_FILENAME) \
+                 .render(release=release, ie_mode=ie_mode, order_link_mode=order_link_mode, \
+                         keys=KEYS, custom_antibiotics=custom_antibiotics, order_key_urls=order_key_urls)
+
 
   async def get(self):
     global URL_STATIC, STATIC_DIR, INDEX_FILENAME
@@ -356,10 +365,74 @@ class TREWSEchoHealthcheck(web.View):
 
 listener_conn = None
 
-def invalidate_cache(conn, pid, channel, payload):
+def etl_channel_recv(conn, proc_id, channel, payload):
+  logging.info("etl_channel_recv: payload: {}".format(payload))
+  if payload is None or len(payload) == 0:
+    # the original mode without suppression alert
+    invalidate_cache(conn, proc_id, channel, payload)
+  else:
+    # the simple payload format is <header>:<body>
+    header, body = payload.split(":")
+    if header == 'invalidate_cache':
+      invalidate_cache(conn, proc_id, channel, body.split(","))
+    elif header == 'future_epic_sync':
+      add_future_epic_sync(conn, proc_id, channel, body)
+    else:
+      logging.error("ETL Channel Error: Unknown payload header {}".format(header))
+
+
+def invalidate_cache(conn, pid, channel, pat_ids):
   global pat_cache
   logging.info('Invalidating patient cache... (via channel %s)' % channel)
-  asyncio.ensure_future(pat_cache.clear())
+  if pat_ids is None or len(pat_ids) == 0:
+    asyncio.ensure_future(pat_cache.clear())
+  else:
+    for pat_id in pat_ids:
+      logging.info("Invalidating cache for %s" % pat_id)
+      asyncio.ensure_future(pat_cache.delete(pat_id))
+
+def add_future_epic_sync(conn, proc_id, channel, body):
+  global epic_sync_tasks
+
+  def run_future_epic_sync(pat_id, tsp):
+    if 'db_pool' in app:
+      asyncio.ensure_future(\
+        dashan_query.push_notifications_to_epic(app['db_pool'], pat_id, notify_future_notification=False))
+      for i in range(len(epic_sync_tasks.get(pat_id, []))):
+        if epic_sync_tasks[pat_id][i]:
+          if tsp == epic_sync_tasks[pat_id][i][0]:
+            del epic_sync_tasks[pat_id][i]
+            return
+    else:
+      logging.error("DB POOL does not exist ERROR!")
+
+  event_loop = asyncio.get_event_loop()
+  delay = 1
+  logging.info("add_future_epic_sync: {}".format(body))
+  for pat_tsp in body.split('|'):
+    pat = pat_tsp.split(",")
+    pat_id = pat[0]
+    tsps = pat[1:]
+    for task in epic_sync_tasks.get(pat_id, []):
+      task[1].cancel()
+      logging.info("cancel future_epic_sync {},{}".format(pat_id, task[0]))
+    epic_sync_tasks[pat_id] = []
+    for tsp in tsps:
+      later = int(tsp) - time.time() + delay
+      new_task = event_loop.call_later(later, run_future_epic_sync, pat_id, tsp)
+      epic_sync_tasks[pat_id].append((tsp, new_task))
+      logging.info("add future_epic_sync {},{}".format(pat_id, tsp))
+
+
+async def init_epic_sync_loop(app):
+  event_loop = asyncio.get_event_loop()
+  if not event_loop.is_running():
+    try:
+        print('entering event loop')
+        event_loop.run_forever()
+    finally:
+        print('closing event loop')
+        event_loop.close()
 
 async def init_db_pool(app):
   global listener_conn
@@ -368,7 +441,7 @@ async def init_db_pool(app):
   if etl_channel is not None:
     listener_conn = await app['db_pool'].acquire()
     logging.info('Added listener on %s' % etl_channel)
-    await listener_conn.add_listener(etl_channel, invalidate_cache)
+    await listener_conn.add_listener(etl_channel, etl_channel_recv)
 
 async def cleanup_db_pool(app):
   global listener_conn
@@ -376,7 +449,7 @@ async def cleanup_db_pool(app):
     # Remove the ETL listener.
     if etl_channel is not None and listener_conn is not None:
       logging.info('Removing listener on %s' % etl_channel)
-      await listener_conn.remove_listener(etl_channel, invalidate_cache)
+      await listener_conn.remove_listener(etl_channel, etl_channel_recv)
 
     await app['db_pool'].close()
 
@@ -393,6 +466,10 @@ app = web.Application(middlewares=mware)
 
 app.on_startup.append(init_db_pool)
 app.on_cleanup.append(cleanup_db_pool)
+
+epic_notifications = os.environ['epic_notifications']
+
+app.on_startup.append(init_epic_sync_loop)
 
 # Background tasks.
 if api_monitor.enabled:
