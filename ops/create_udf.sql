@@ -1205,7 +1205,7 @@ return query
                sum(OC.cnt) as org_df_cnt,
                max(IC.onset) as inf_onset,
                max(SC.onset) as sirs_onset,
-               min(SC.onset) as sirs_initial,
+               min(SC.initial) as sirs_initial,
                max(OC.onset) as org_df_onset
         from
         (
@@ -1219,7 +1219,8 @@ return query
         (
           select sirs.pat_id,
                  sum(case when sirs.is_met then 1 else 0 end) as cnt,
-                 (array_agg(sirs.measurement_time order by sirs.measurement_time))[2] as onset
+                 (array_agg(sirs.measurement_time order by sirs.measurement_time))[2] as onset,
+                 (array_agg(sirs.measurement_time order by sirs.measurement_time))[1] as initial
           from sirs
           group by sirs.pat_id
         ) SC on IC.pat_id = SC.pat_id
