@@ -25,7 +25,7 @@
 	<!-- <script src="//d2wy8f7a9ursnm.cloudfront.net/bugsnag-3.min.js" data-apikey="da82367e84aaf2247b676b5ea4d265d0"></script> -->
 </head>
 
-<body>
+<body release="{{ release }}">
 	<div id="loading">
 		<p>Loading.. please wait.</p>
 	</div>
@@ -57,7 +57,7 @@
 						</div>
 					</div>
 					<div class="slot" data-trews="sir">
-						{% if release == 'development' %}
+						{% if release != 'production' %}
 						<div class="actions">
 							<a data-trews="sirs" class="edit-btn">Edit</a>
 						</div>
@@ -69,7 +69,7 @@
 						<div class="criteria-overridden"></div>
 					</div>
 					<div class="slot last-child" data-trews="org">
-						{% if release == 'development' %}
+						{% if release != 'production' %}
 						<div class="actions">
 							<a data-trews="org" class="edit-btn">Edit</a>
 						</div>
@@ -96,7 +96,7 @@
 							<p class="num">30 ml/kg fluid must have been administered</p>
 						</div>
 						<div class="slot last-child" data-trews="tension">
-							{% if release == 'development' %}
+							{% if release != 'production' %}
 							<div class="actions">
 								<a data-trews="tension" class="edit-btn">Edit</a>
 							</div>
@@ -110,7 +110,7 @@
 					</div>
 					<h5>OR</h5>
 					<div class="slot last-child" data-trews="fusion">
-						{% if release == 'development' %}
+						{% if release != 'production' %}
 						<div class="actions">
 							<a data-trews="fusion" class="edit-btn">Edit</a>
 						</div>
@@ -154,25 +154,19 @@
 						<h3></h3>
 						<div class="actions cf">
 							<span class='place-order place-order-btn' data-trews='initial_lactate_order' order-key="{{ keys['lactate'] }}">
-								{% if order_link_mode == 'iframe' %}
-								<iframe style="width:0; height:0; border:0; border:none; display: none;" src="/orders.html?key={{ keys['lactate'] }}"></iframe>
-								<p>Place Order</p>
-								{% elif order_link_mode == 'frame' %}
-								<frame style="width:0; height:0; border:0; border:none; display: none;" src="/orders.html?key={{ keys['lactate'] }}"></frame>
-								<p>Place Order</p>
-								{% elif order_link_mode == 'link' %}
-								<a href="/orders.html?key={{ keys['lactate'] }}&amp;fire=true">Place Order</a>
-								{% elif order_link_mode == 'native' %}
+								{% if release == 'epic2017' %}
+								Place Order
+								{% elif release != 'production' %}
 								<p>
 						    <OrderTemplate Key="{{ keys['lactate'] }}" OrderMode="IP" RemoveOriginal="True">
 						    Place Order
 						    </OrderTemplate>
 						    </p>
-								{% elif order_link_mode == 'direct' %}
+								{% else %}
 								<a href="{{ order_key_urls[keys['lactate']] }}">Place Order</a>
 								{% endif %}
 							</span>
-							{% if release == 'development' %}
+							{% if release != 'production' %}
 							<a class='notIn' data-trews='initial_lactate_order'>Not Indicated</a>
 							{% endif %}
 						</div>
@@ -181,25 +175,19 @@
 						<h3></h3>
 						<div class="actions cf">
 							<span class='place-order place-order-btn' data-trews='blood_culture_order' order-key="{{ keys['blood_culture'] }}">
-								{% if order_link_mode == 'iframe' %}
-								<iframe style="width:0; height:0; border:0; border:none; display: none;" src="/orders.html?key={{ keys['blood_culture'] }}"></iframe>
-								<p>Place Order</p>
-								{% elif order_link_mode == 'frame' %}
-								<frame style="width:0; height:0; border:0; border:none; display: none;" src="/orders.html?key={{ keys['blood_culture'] }}"></frame>
-								<p>Place Order</p>
-								{% elif order_link_mode == 'link' %}
-								<a href="/orders.html?key={{ keys['blood_culture'] }}&amp;fire=true">Place Order</a>
-								{% elif order_link_mode == 'native' %}
+								{% if release == 'epic2017' %}
+								Place Order
+								{% elif release != 'production' %}
 								<p>
 						    <OrderTemplate Key="{{ keys['blood_culture'] }}" OrderMode="IP" RemoveOriginal="True">
 						    Place Order
 						    </OrderTemplate>
 						    </p>
-								{% elif order_link_mode == 'direct' %}
+								{% else %}
 								<a href="{{ order_key_urls[keys['blood_culture']] }}">Place Order</a>
 								{% endif %}
 							</span>
-							{% if release == 'development' %}
+							{% if release != 'production' %}
 							<a class='notIn' data-trews='blood_culture_order'>Not Indicated</a>
 							{% endif %}
 						</div>
@@ -215,23 +203,11 @@
 								</span>
 								{% endfor %}
 								<span class='place-order place-order-btn' data-trews='antibiotics_order' order-key="{{ keys['antibiotics'] }}">
-									{% if order_link_mode == 'iframe' %}
-									<iframe style="width:0; height:0; border:0; border:none; display: none;" src="/orders.html?key={{ keys['antibiotics'] }}"></iframe>
-									<p>Non-ICU Order</p>
-									{% elif order_link_mode == 'frame' %}
-									<frame style="width:0; height:0; border:0; border:none; display: none;" src="/orders.html?key={{ keys['antibiotics'] }}"></frame>
-									<p>Non-ICU Order</p>
-									{% elif order_link_mode == 'link' %}
-									<a href="/orders.html?key={{ keys['antibiotics'] }}&amp;fire=true">Non-ICU Order</a>
-									{% elif order_link_mode == 'native' %}
-									<p>
-							    <OrderTemplate Key="{{ keys['antibiotics'] }}" OrderMode="IP" RemoveOriginal="True">
-							    Non-ICU Order
-							    </OrderTemplate>
-							    </p>
-									{% elif order_link_mode == 'direct' %}
-									  {% if keys['antibiotics'] in order_key_urls %}
-										<a href="{{ order_key_urls[keys['antibiotics']] }}">Place Order</a>
+									{% if release == 'epic2017' %}
+										Non-ICU Order
+									{% else %}
+										{% if keys['antibiotics'] in order_key_urls and release == 'production' %}
+										<a href="{{ order_key_urls[keys['antibiotics']] }}">Non-ICU Order</a>
 									  {% else %}
 										<p>
 								    <OrderTemplate Key="{{ keys['antibiotics'] }}" OrderMode="IP" RemoveOriginal="True">
@@ -243,22 +219,10 @@
 								</span>
 							{% else %}
 								<span class='place-order place-order-btn' data-trews='antibiotics_order' order-key="{{ keys['antibiotics'] }}">
-									{% if order_link_mode == 'iframe' %}
-									<iframe style="width:0; height:0; border:0; border:none; display: none;" src="/orders.html?key={{ keys['antibiotics'] }}"></iframe>
-									<p>Place Order</p>
-									{% elif order_link_mode == 'frame' %}
-									<frame style="width:0; height:0; border:0; border:none; display: none;" src="/orders.html?key={{ keys['antibiotics'] }}"></frame>
-									<p>Place Order</p>
-									{% elif order_link_mode == 'link' %}
-									<a href="/orders.html?key={{ keys['antibiotics'] }}&amp;fire=true">Place Order</a>
-									{% elif order_link_mode == 'native' %}
-									<p>
-							    <OrderTemplate Key="{{ keys['antibiotics'] }}" OrderMode="IP" RemoveOriginal="True">
-							    Place Order
-							    </OrderTemplate>
-							    </p>
-									{% elif order_link_mode == 'direct' %}
-									  {% if keys['antibiotics'] in order_key_urls %}
+									{% if release == 'epic2017' %}
+										Place Order
+									{% else %}
+										{% if keys['antibiotics'] in order_key_urls and release == 'production' %}
 										<a href="{{ order_key_urls[keys['antibiotics']] }}">Place Order</a>
 									  {% else %}
 										<p>
@@ -270,7 +234,7 @@
 									{% endif %}
 								</span>
 							{% endif %}
-							{% if release == 'development' %}
+							{% if release != 'production' %}
 							<a class='notIn' data-trews='antibiotics_order'>Not Indicated</a>
 							{% endif %}
 						</div>
@@ -279,25 +243,19 @@
 						<h3></h3>
 						<div class="actions cf">
 							<span class='place-order place-order-btn' data-trews='crystalloid_fluid_order' order-key="{{ keys['fluid'] }}">
-								{% if order_link_mode == 'iframe' %}
-								<iframe style="width:0; height:0; border:0; border:none; display: none;" src="/orders.html?key={{ keys['fluid'] }}"></iframe>
-								<p>Place Order</p>
-								{% elif order_link_mode == 'frame' %}
-								<frame style="width:0; height:0; border:0; border:none; display: none;" src="/orders.html?key={{ keys['fluid'] }}"></frame>
-								<p>Place Order</p>
-								{% elif order_link_mode == 'link' %}
-								<a href="/orders.html?key={{ keys['fluid'] }}&amp;fire=true">Place Order</a>
-								{% elif order_link_mode == 'native' %}
+								{% if release == 'epic2017' %}
+								Place Order
+								{% elif release != 'production' %}
 								<p>
 						    <OrderTemplate Key="{{ keys['fluid'] }}" OrderMode="IP" RemoveOriginal="True">
 						    Place Order
 						    </OrderTemplate>
 						    </p>
-								{% elif order_link_mode == 'direct' %}
+								{% else %}
 								<a href="{{ order_key_urls[keys['fluid']] }}">Place Order</a>
 								{% endif %}
 							</span>
-							{% if release == 'development' %}
+							{% if release != 'production' %}
 							<a class='notIn' data-trews='crystalloid_fluid_order'>Not Indicated</a>
 							{% endif %}
 						</div>
@@ -311,25 +269,19 @@
 						<h3></h3>
 						<div class="actions cf">
 							<span class='place-order place-order-btn' data-trews='repeat_lactate_order' order-key="{{ keys['lactate'] }}">
-								{% if order_link_mode == 'iframe' %}
-								<iframe style="width:0; height:0; border:0; border:none; display: none;" src="/orders.html?key={{ keys['lactate'] }}"></iframe>
-								<p>Place Order</p>
-								{% elif order_link_mode == 'frame' %}
-								<frame style="width:0; height:0; border:0; border:none; display: none;" src="/orders.html?key={{ keys['lactate'] }}"></frame>
-								<p>Place Order</p>
-								{% elif order_link_mode == 'link' %}
-								<a href="/orders.html?key={{ keys['lactate'] }}&amp;fire=true">Place Order</a>
-								{% elif order_link_mode == 'native' %}
+								{% if release == 'epic2017' %}
+								Place Order
+								{% elif release != 'production' %}
 								<p>
 						    <OrderTemplate Key="{{ keys['lactate'] }}" OrderMode="IP" RemoveOriginal="True">
 						    Place Order
 						    </OrderTemplate>
 						    </p>
-								{% elif order_link_mode == 'direct' %}
+								{% else %}
 								<a href="{{ order_key_urls[keys['lactate']] }}">Place Order</a>
 								{% endif %}
 							</span>
-							{% if release == 'development' %}
+							{% if release != 'production' %}
 							<a class='notIn' data-trews='repeat_lactate_order'>Not Indicated</a>
 							{% endif %}
 						</div>
@@ -343,25 +295,19 @@
 						<h3></h3>
 						<div class="actions cf">
 							<span class='place-order place-order-btn' data-trews='vasopressors_order' order-key="{{ keys['vasopressors'] }}">
-								{% if order_link_mode == 'iframe' %}
-								<iframe style="width:0; height:0; border:0; border:none; display: none;" src="/orders.html?key={{ keys['vasopressors'] }}"></iframe>
-								<p>Place Order</p>
-								{% elif order_link_mode == 'frame' %}
-								<frame style="width:0; height:0; border:0; border:none; display: none;" src="/orders.html?key={{ keys['vasopressors'] }}"></frame>
-								<p>Place Order</p>
-								{% elif order_link_mode == 'link' %}
-								<a href="/orders.html?key={{ keys['vasopressors'] }}&amp;fire=true">Place Order</a>
-								{% elif order_link_mode == 'native' %}
+								{% if release == 'epic2017' %}
+								Place Order
+								{% elif release != 'production' %}
 								<p>
 						    <OrderTemplate Key="{{ keys['vasopressors'] }}" OrderMode="IP" RemoveOriginal="True">
 						    Place Order
 						    </OrderTemplate>
 						    </p>
-								{% elif order_link_mode == 'direct' %}
-								<a href="{{ order_key_urls[keys['vasopressors']] }}">Place Order</a>
+								{% else %}
+								<a class='notIn' data-trews='vasopressors_order'>Not Indicated</a>
 								{% endif %}
 							</span>
-							{% if release == 'development' %}
+							{% if release != 'production' %}
 							<a class='notIn' data-trews='vasopressors_order'>Not Indicated</a>
 							{% endif %}
 						</div>
@@ -384,22 +330,10 @@
 		<div class="order-dropdown" data-trews="{{ loc.data_trews }}">
 			{% for disease in loc.diseases %}
 			<span class='place-order place-order-btn' data-trews='{{ custom_antibiotics.action }}' order-key="{{ disease.key }}">
-				{% if order_link_mode == 'iframe' %}
-				<iframe style="width:0; height:0; border:0; border:none; display: none;" src="/orders.html?key={{ disease.key }}"></iframe>
-				<p>{{ disease.display_name }}</p>
-				{% elif order_link_mode == 'frame' %}
-				<frame style="width:0; height:0; border:0; border:none; display: none;" src="/orders.html?key={{ disease.key }}"></frame>
-				<p>{{ disease.display_name }}</p>
-				{% elif order_link_mode == 'link' %}
-				<a href="/orders.html?key={{ disease.key }}&amp;fire=true">{{ disease.display_name }}</a>
-				{% elif order_link_mode == 'native' %}
-				<p>
-		    <OrderTemplate Key="{{ disease.key }}" OrderMode="IP" RemoveOriginal="True">
-		    {{ disease.display_name }}
-		    </OrderTemplate>
-		    </p>
-				{% elif order_link_mode == 'direct' %}
-				  {% if disease.key in order_key_urls %}
+				{% if release == 'epic2017' %}
+				{{ disease.display_name }}
+				{% else %}
+					{% if disease.key in order_key_urls and release == 'production' %}
 					<a href="{{ order_key_urls[disease.key] }}">{{ disease.display_name }}</a>
 				  {% else %}
 					<p>

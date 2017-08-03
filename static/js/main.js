@@ -23,7 +23,89 @@ if (!String.prototype.startsWith) {
   };
 }
 
+/**
+ * Logging helpers.
+ */
+function appendToConsole(txt) {
+  var consoleText = $('#fake-console').html();
+  if ( consoleText.length > 16384 ) { consoleText = ''; }
+  consoleText += '<br>' + txt;
+  $('#fake-console').html(consoleText);
+}
+
+function logSuspicion(tag) {
+  var txt = '';
+  var logDate = new Date();
+  if ( trews.data != null && trews.data.severe_sepsis != null && trews.data.severe_sepsis.suspicion_of_infection != null ) {
+    var fieldDate = new Date(trews.data.severe_sepsis.suspicion_of_infection.update_time*1000);
+    txt = tag + ' ' + trews.data.severe_sepsis.suspicion_of_infection.name + ' ' + fieldDate.toISOString() + ' ' + logDate.toISOString();
+  } else {
+    txt = tag + ' null null ' + logDate.toISOString();
+  }
+  appendToConsole(txt);
+}
+
+
+/**
+ * Globals.
+ */
+var release = $('body').attr('release');
+
+/**
+ * Epic 2017 AGL Listener.
+ */
+var epicToken = null;
+var lastAction = null;
+
+function Listener(event) {
+  for (var type in event.data) {
+    var payload = event.data[type]
+    switch(type) {
+      case "token":
+        epicToken = payload;
+        break;
+
+      case "error":
+        var url = (window.location.hostname.indexOf("localhost") > -1) ?
+                    "http://localhost:8000/api" :
+                    window.location.protocol + "//" + window.location.hostname + "/api";
+        var ts = new Date();
+        timer.log(url, ts, ts, 'error: ' + payload);
+        appendToConsole(payload);
+        break;
+
+      case "features":
+        appendToConsole('features:');
+        for (var feature in payload) {
+          appendToConsole('  ' + feature);
+        }
+        break;
+
+      case "state":
+        appendToConsole('state: ' + payload.toString());
+        break;
+
+      case "actionExecuted":
+        var actionTxt = lastAction == null ? '<unknown>' : lastAction;
+        appendToConsole('actionExecuted: ' + actionTxt + ' ' + payload.toString());
+        break;
+
+      default:
+        appendToConsole('unhandled event: ' + event.toString());
+        break;
+    }
+  }
+}
+
+/**
+ * Window callbacks.
+ */
 window.onload = function() {
+  // Handshake with Epic 2017 AGL.
+  lastAction = 'handshake';
+  window.addEventListener("message", Listener, false);
+  window.parent.postMessage({'action': 'Epic.Clinical.Informatics.Web.InitiateHandshake'}, '*');
+
   timer.init();
   endpoints.getPatientData();
   dropdown.init();
@@ -43,7 +125,7 @@ window.onload = function() {
 };
 
 window.onerror = function(error, url, line) {
-    controller.sendLog({acc:'error', data:'ERR:'+error+' URL:'+url+' L:'+line}, true);
+  controller.sendLog({acc:'error', data:'ERR:'+error+' URL:'+url+' L:'+line}, true);
 };
 
 checkIfOrdered = null; // Global bool to flip when clicking "place order"
@@ -196,26 +278,6 @@ var notificationRefresher = new function() {
 }
 
 
-// Suspicion debugging helpers.
-function appendToConsole(txt) {
-  var consoleText = $('#fake-console').html();
-  if ( consoleText.length > 16384 ) { consoleText = ''; }
-  consoleText += '<br>' + txt;
-  $('#fake-console').html(consoleText);
-}
-
-function logSuspicion(tag) {
-  var txt = '';
-  var logDate = new Date();
-  if ( trews.data != null && trews.data.severe_sepsis != null && trews.data.severe_sepsis.suspicion_of_infection != null ) {
-    var fieldDate = new Date(trews.data.severe_sepsis.suspicion_of_infection.update_time*1000);
-    txt = tag + ' ' + trews.data.severe_sepsis.suspicion_of_infection.name + ' ' + fieldDate.toISOString() + ' ' + logDate.toISOString();
-  } else {
-    txt = tag + ' null null ' + logDate.toISOString();
-  }
-  appendToConsole(txt);
-}
-
 
 /**
  * Endpoints Object handles sending and receing post requests to server.
@@ -251,7 +313,7 @@ var endpoints = new function() {
             || postBody['loc'].startsWith('1103')) )
     {
       $('#loading p').html(
-          "TREWS is in beta testing, and is only available at Bayview and Howard County General Hospital.<br/>"
+          "TREWS is in beta testing, and is only available at the Johns Hopkins Hopsital, Bayview Medical Center and Howard County General Hospital.<br/>"
           + "Please contact trews-jhu@opsdx.io for more information on availability at your location.<br/>");
       return;
     }
@@ -737,23 +799,33 @@ var workflowsComponent = new function() {
   this.makeButtons = function() {
     this.orderBtns.unbind();
     this.orderBtns.click(function() {
-      var txt = $(this).get()[0].innerHTML;
-      var ifr = $(this).find('iframe').first().get()[0];
-      var fr = $(this).find('frame').first().get()[0];
-      var pg = $(this).find('p').first().get()[0];
-      var anc = $(this).find('a').first().get()[0];
-      if ( pg != null ) { txt += '\nPARA:' + pg.innerHTML; }
-      if ( ifr != null ) { txt += '\nIFRAME:' + ifr.contentWindow.document.body.innerHTML; }
-      if ( anc != null ) { txt += '\nANCHOR:' + anc.innerHTML; anc.click(); }
-      if ( fr != null ) { txt += '\nFRAME:' + fr.contentWindow.document.body.innerHTML; }
-      $('#fake-console').text(txt);
+      var order = $(this).attr('data-trews');
+      var key = $(this).attr('order-key');
 
-      checkIfOrdered = null;
-      if ( pg != null || (ifr != null && ifr.contentWindow.post_order()) ) {
-        checkIfOrdered = $(this).attr('data-trews');
-      } else if ( anc != null ) {
-        anc.click();
-        checkIfOrdered = $(this).attr('data-trews');
+      // Track order placed action.
+      lastAction = order;
+      checkIfOrdered = order;
+
+      if ( release == 'epic2107' ) {
+        // TODO: should we remove specific orders before posting, to implement replacement order semantics?
+        appendToConsole('EPIC 2017 ORDER: ' + order + ' KEY: ' + key);
+        window.parent.postMessage({
+          'token': epicToken,
+          'action': 'Epic.Clinical.Informatics.Web.PostOrder',
+          'args': { 'OrderKey': key }
+        });
+      }
+      else {
+        var txt = $(this).get()[0].innerHTML;
+        var anc = $(this).find('a').first().get()[0];
+        if ( anc != null ) { txt += '\nANCHOR:' + anc.innerHTML; }
+        appendToConsole(txt);
+
+        checkIfOrdered = null;
+        if ( anc != null ) {
+          anc.click();
+          checkIfOrdered = $(this).attr('data-trews');
+        }
       }
     });
     // this.notInBtns.hide(); // Yanif: (RE-ENABLED; Temporarily disabling orders 'Not Indicated' buttons)
