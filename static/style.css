@@ -274,6 +274,9 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li {
 #right-column .slot.complete:before {
     content: 'complete';
 }
+.slot.process-next {
+    outline: 2px solid #10b66d;
+}
 .slot.complete {
     background-color: #eee;
     border-left: 5px solid #aaa;
