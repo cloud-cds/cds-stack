@@ -2050,7 +2050,7 @@ declare
 BEGIN
   select 'future_epic_sync:' || string_agg(pat_tsp, '|') from
   (select pat_id, pat_id || ',' || string_agg(tsp, ',') pat_tsp from
-      (select pat_id, (message#>>'{timestamp}') tsp
+      (select pat_id, ((message#>>'{timestamp}')::numeric::int)::text tsp
       from notifications
       where (message#>>'{alert_code}')::text in ('202','203','204','205')
       and (message#>>'{timestamp}')::numeric > date_part('epoch', now())
