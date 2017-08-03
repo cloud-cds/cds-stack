@@ -56,7 +56,7 @@ class JHAPIConfig:
               return await response.json()
         except Exception as e:
           if i < request_attempts - 1:
-            logging.error("Request Error Caught {}, retrying... {} times".format(type(e)), i)
+            logging.error("Request Error Caught, retrying... {} times".format(i))
             logging.exception(e)
             sleep(3)
           else:
