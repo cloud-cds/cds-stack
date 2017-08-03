@@ -2037,12 +2037,16 @@ BEGIN
     pat_enc
     on cdm_t.enc_id = pat_enc.enc_id
     and cdm_t.dataset_id = pat_enc.dataset_id
-    inner JOIN
-    criteria_default
-    on cdm_t.fid = criteria_default.fid
-    and cdm_t.dataset_id = criteria_default.dataset_id
     where cdm_t.dataset_id = _dataset_id and not(cdm_t.fid = 'suspicion_of_infection')
     and (not incremental or (pat_enc.meta_data->>'pending')::boolean)
+    and (
+            cdm_t.fid in (
+                select distinct fid from criteria_default
+                where dataset_id = _dataset_id
+            ) or cdm_t.fid in (
+                'culture_order','cbc_order','metabolic_panel_order'
+            )
+        )
     group by cdm_t.dataset_id, pat_enc.pat_id, cdm_t.tsp, cdm_t.fid
     ON CONFLICT (dataset_id, pat_id, tsp, fid) DO UPDATE SET value = excluded.value, update_date=excluded.update_date;
     -- ================================================

@@ -131,7 +131,7 @@ insulin_dose,T,JSON,yes,no,,,,,Medication,1,
 immunodeficiency_prob,S,Boolean,yes,no,,,,,ProblemList,1,no unit
 sbpm,TWF,Real,no,no,,,sbpm_update,"abp_sys, nbp_sys","Systolic blood pressure,  it should not be sparse",1,mmHg
 bronchitis,T,Boolean,no,no,,,bronchitis_update,"bronchitis_inhosp, chest_xray, bacterial_culture",Diagnoses,1,
-culture_order,T,String,yes,no,,,,,Procedure,1,
+culture_order,T,JSON,yes,no,,,,,Procedure,1,
 dialysis_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
 heart_rate,TWF,Real,yes,no,last_value_in_window,4,,,Physiologic,1,beats per min
 nbp_mean,TWF,Real,no,no,,,nbp_mean_update,"nbp_dias, nbp_sys","Physiologic, mean of NonInvasive blood pressure",1,mmHg
