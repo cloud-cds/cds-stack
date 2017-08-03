@@ -610,6 +610,7 @@ var severeSepsisComponent = new function() {
         this.susCtn.removeClass('process-next');
         this.susCtn.find('.status').hide();
       }
+      this.susCtn.find('.status h5').html('');
     } else {
       this.susCtn.removeClass('process-next');
       if (this.sus['value'] != 'No Infection') {
