@@ -71,8 +71,8 @@ function Listener(event) {
                     "http://localhost:8000/api" :
                     window.location.protocol + "//" + window.location.hostname + "/api";
         var ts = new Date();
-        timer.log(url, ts, ts, 'error: ' + payload);
-        appendToConsole(payload);
+        timer.log(url, ts, ts, 'Epic error: ' + JSON.stringify(payload));
+        appendToConsole('Epic error: ' + JSON.stringify(payload));
         break;
 
       case "features":
