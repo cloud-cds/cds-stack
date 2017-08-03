@@ -310,7 +310,7 @@ async def get_order_detail(db_pool, eid):
   # NOTE: currently, we only query all cms_antibiotics
   get_order_detail_sql = \
   '''
-  select tsp, initcap(regexp_replace(fid, '_dose', '')) as fid, value from criteria_meas
+  select tsp, initcap(regexp_replace(regexp_replace(fid, '_dose', ''), '_', ' ')) as fid, value from criteria_meas
   where pat_id = '%s' and
   fid in (
     'azithromycin_dose','aztreonam_dose','cefepime_dose','ceftriaxone_dose','ciprofloxacin_dose','gentamicin_dose','levofloxacin_dose',
