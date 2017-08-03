@@ -63,6 +63,7 @@ function Listener(event) {
     switch(type) {
       case "token":
         epicToken = payload;
+        appendToConsole('Epic handshake done: ' + encodeURI(epicToken));
         break;
 
       case "error":
