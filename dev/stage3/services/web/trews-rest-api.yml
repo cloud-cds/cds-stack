@@ -62,7 +62,7 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: trews-rest-api
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.1.71
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.1.76
         resources:
           requests:
             memory: "2816Mi"
@@ -78,7 +78,7 @@ spec:
         - containerPort: 8000
         env:
         - name: release
-          value: "development"
+          value: "epic2017"
         - name: db_host
           value: "db.dev.opsdx.io"
         - name: db_port
@@ -139,6 +139,8 @@ spec:
           value: "edge"
         - name: order_link_mode
           value: "direct"
+        - name: no_check_for_orders
+          value: "True"
         - name: log_decryption
           value: "true"
         - name: log_user_latency
