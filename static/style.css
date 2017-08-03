@@ -274,8 +274,11 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li {
 #right-column .slot.complete:before {
     content: 'complete';
 }
-.slot.process-next {
+.slot.highlight-unexpired {
     outline: 2px solid #10b66d;
+}
+.slot.highlight-expired {
+    outline: 2px solid #ca011a;
 }
 .slot.complete {
     background-color: #eee;

@@ -640,10 +640,10 @@ var severeSepsisComponent = new function() {
     $('#expand-org'),
     severe_sepsis['organ_dysfunction']);
 
-  this.highlightSuspicion = function() {
-    // Highlight whether to enter suspicion of infection.
+  // Returns the class to attach to the SOI slot (to highlight it).
+  // Returns null if no highlighting is to be performed.
+  this.highlightSuspicionClass = function() {
     var renderTs = Date.now();
-
     var active205 = false;
     var active300 = false;
 
@@ -657,25 +657,29 @@ var severeSepsisComponent = new function() {
       }
     }
 
-    appendToConsole('sus-process-next ' + active205.toString() + ' ' + active300.toString());
-    return active300 && !active205;
+    appendToConsole('soi-highlight 205:' + active205.toString() + ' 300:' + active300.toString());
+    if ( active300 ) {
+      return active205 ? 'highlight-expired' : 'highlight-unexpired';
+    }
+    return null;
   }
 
   this.suspicion = function(json) {
     this.susCtn.find('h3').text(json['display_name']);
     this.susCtn.removeClass('complete');
     if (this.sus['value'] == null) {
-      if ( this.highlightSuspicion() ) {
-        this.susCtn.addClass('process-next');
+      var highlightCls = this.highlightSuspicionClass();
+      if ( highlightCls != null ) {
+        this.susCtn.addClass(highlightCls);
         this.susCtn.find('.status').show();
         this.susCtn.find('.status h4').text('Please enter a suspicion of infection');
       } else {
-        this.susCtn.removeClass('process-next');
+        this.susCtn.removeClass('highlight-expired highlight-unexpired');
         this.susCtn.find('.status').hide();
       }
       this.susCtn.find('.status h5').html('');
     } else {
-      this.susCtn.removeClass('process-next');
+      this.susCtn.removeClass('highlight-expired highlight-unexpired');
       if (this.sus['value'] != 'No Infection') {
         this.susCtn.addClass('complete');
       }
@@ -1817,15 +1821,16 @@ var notifications = new function() {
     // Highlight next step if we have a code 300, and code 205 has not passed.
     var susCtn = $("[data-trews='sus']");
     if ( !susCtn.hasClass('complete') ) {
-      if ( severeSepsisComponent.highlightSuspicion() ) {
-        susCtn.addClass('process-next');
+      var highlightCls = severeSepsisComponent.highlightSuspicionClass();
+      if ( highlightCls != null ) {
+        susCtn.addClass(highlightCls);
         susCtn.find('.status').show();
         susCtn.find('.status h4').text('Please enter a suspicion of infection');
       } else {
-        susCtn.removeClass('process-next');
+        susCtn.removeClass('highlight-expired highlight-unexpired');
       }
     } else {
-      susCtn.removeClass('process-next');
+      susCtn.removeClass('highlight-expired highlight-unexpired');
     }
 
     if ( trews.data['deactivated'] ) {
