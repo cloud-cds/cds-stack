@@ -108,6 +108,9 @@ class TREWSAPI(web.View):
 
     elif actionType == u'place_order':
       ''' Check if order placed for 30 seconds '''
+      if os.environ.get("no_check_for_orders", False):
+        await query.override_criteria(db_pool, eid, actionData['actionName'], value='[{ "text": "Ordered" }]', user=uid)
+        return
       start_time = datetime.datetime.now()
       while start_time + datetime.timedelta(seconds=30) > datetime.datetime.now():
         order_placed = await query.is_order_placed(db_pool    = db_pool,
