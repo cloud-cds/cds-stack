@@ -196,18 +196,24 @@ var notificationRefresher = new function() {
 }
 
 
-// Suspicion debugging helper.
-function logSuspicion(tag) {
+// Suspicion debugging helpers.
+function appendToConsole(txt) {
   var consoleText = $('#fake-console').html();
   if ( consoleText.length > 16384 ) { consoleText = ''; }
+  consoleText += '<br>' + txt;
+  $('#fake-console').html(consoleText);
+}
+
+function logSuspicion(tag) {
+  var txt = '';
   var logDate = new Date();
   if ( trews.data != null && trews.data.severe_sepsis != null && trews.data.severe_sepsis.suspicion_of_infection != null ) {
     var fieldDate = new Date(trews.data.severe_sepsis.suspicion_of_infection.update_time*1000);
-    consoleText += '<br>' + tag + ' ' + trews.data.severe_sepsis.suspicion_of_infection.name + ' ' + fieldDate.toISOString() + ' ' + logDate.toISOString();
+    txt = tag + ' ' + trews.data.severe_sepsis.suspicion_of_infection.name + ' ' + fieldDate.toISOString() + ' ' + logDate.toISOString();
   } else {
-    consoleText += '<br>' + tag + ' null null ' + logDate.toISOString();
+    txt = tag + ' null null ' + logDate.toISOString();
   }
-  $('#fake-console').html(consoleText);
+  appendToConsole(txt);
 }
 
 
@@ -571,12 +577,42 @@ var severeSepsisComponent = new function() {
     $('#expand-org'),
     severe_sepsis['organ_dysfunction']);
 
+  this.highlightSuspicion = function() {
+    // Highlight whether to enter suspicion of infection.
+    var renderTs = Date.now();
+
+    var active205 = false;
+    var active300 = false;
+
+    if ( trews.data != null && trews.data.notifications != null ) {
+      for (var i = 0; i < trews.data.notifications.length; i++) {
+        // Skip notifications scheduled in the future, as part of the Dashan event queue.
+        var notifTs = new Date(trews.data.notifications[i]['timestamp'] * 1000);
+        if (notifTs > renderTs) { continue; }
+        if ( trews.data.notifications[i]['alert_code'] == '205' ) { active205 = true; }
+        if ( trews.data.notifications[i]['alert_code'] == '300' ) { active300 = true; }
+      }
+    }
+
+    appendToConsole('sus-process-next ' + active205.toString() + ' ' + active300.toString());
+    return active300 && !active205;
+  }
+
   this.suspicion = function(json) {
     this.susCtn.find('h3').text(json['display_name']);
     this.susCtn.removeClass('complete');
     if (this.sus['value'] == null) {
-      this.susCtn.find('.status').hide();
+      if ( this.highlightSuspicion() ) {
+        this.susCtn.addClass('process-next');
+        this.susCtn.find('.status').show();
+        this.susCtn.find('.status h4').text('Please enter a suspicion of infection');
+      } else {
+        this.susCtn.removeClass('process-next');
+        this.susCtn.find('.status').hide();
+      }
+      this.susCtn.find('.status h5').html('');
     } else {
+      this.susCtn.removeClass('process-next');
       if (this.sus['value'] != 'No Infection') {
         this.susCtn.addClass('complete');
       }
@@ -1658,6 +1694,7 @@ var notifications = new function() {
 
     var numUnread = 0;
     var renderTs = Date.now();
+
     for (var i = 0; i < data.length; i++) {
       // Skip notifications scheduled in the future, as part of the Dashan event queue.
       var notifTs = new Date(data[i]['timestamp'] * 1000);
@@ -1698,6 +1735,20 @@ var notifications = new function() {
       subtext.append(readLink);
       notif.append(subtext);
       this.n.prepend(notif);
+    }
+
+    // Highlight next step if we have a code 300, and code 205 has not passed.
+    var susCtn = $("[data-trews='sus']");
+    if ( !susCtn.hasClass('complete') ) {
+      if ( severeSepsisComponent.highlightSuspicion() ) {
+        susCtn.addClass('process-next');
+        susCtn.find('.status').show();
+        susCtn.find('.status h4').text('Please enter a suspicion of infection');
+      } else {
+        susCtn.removeClass('process-next');
+      }
+    } else {
+      susCtn.removeClass('process-next');
     }
 
     if ( trews.data['deactivated'] ) {
