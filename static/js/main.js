@@ -595,7 +595,7 @@ var severeSepsisComponent = new function() {
     }
 
     appendToConsole('sus-process-next ' + active205.toString() + ' ' + active300.toString());
-    return active300 && active205;
+    return active300 && !active205;
   }
 
   this.suspicion = function(json) {
