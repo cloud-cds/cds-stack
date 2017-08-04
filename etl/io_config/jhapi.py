@@ -55,7 +55,7 @@ class JHAPIConfig:
                 return None
               return await response.json()
         except Exception as e:
-          if i < request_attempts:
+          if i < request_attempts - 1:
             logging.error("Request Error Caught for URL {}, setting {}, retrying... {} times".format(url, setting,i+1))
             logging.exception(e)
             sleep(3)
@@ -77,7 +77,7 @@ class JHAPIConfig:
       ctxt.loop.run_until_complete(future)
       if future.result() == False:
         # retrying
-        if attempt < attempts:
+        if attempt < attempts - 1:
           logging.error("Session Error Caught for URL {}, setting {}, retrying... {} times".format(url, request_settings, attempt+1))
           sleep(5)
         else:
