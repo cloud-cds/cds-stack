@@ -2075,7 +2075,7 @@ as $$ begin
     on conflict (pat_id) do update
     set deactivated = excluded.deactivated, deactivated_tsp = now();
 
-    -- if false then reset patient
+    -- if false then reset patient automatically
     if not deactivated then
         update criteria_events set flag = flag - 1000
         where pat_id = pid and flag > 0;
@@ -2085,6 +2085,7 @@ as $$ begin
 end; $$;
 
 CREATE OR REPLACE FUNCTION auto_deactivate(pid text DEFAULT NULL) RETURNS void LANGUAGE plpgsql
+-- deactivate patients who is active and had severe sepsis onset more than deactivate_hours
 AS $$ BEGIN
     -- if criteria_events has been in an event for longer than deactivate_hours,
     -- then this patient should be deactivated automatically
@@ -2106,11 +2107,14 @@ END; $$;
 ------------------------------
 
 -- REVIEW: (Yanif)->(Andong): refactor. Having both garbage_collection *and* reactivate is unnecessary.
+-- Andong: We may need more functions in the future
 create or replace function garbage_collection() returns void language plpgsql as $$ begin
     perform reactivate();
+    -- other garbage collection functions
 end; $$;
 
 create or replace function reactivate(this_pat_id text default null) returns void language plpgsql
+-- turn deactivated patients longer than deactivate_expire_hours to active
 as $$ begin
     perform deactivate(pat_id, false) from (
         select pat_id from pat_status
