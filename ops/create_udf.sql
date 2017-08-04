@@ -1923,6 +1923,7 @@ END;
 $$ LANGUAGE PLPGSQL;
 
 -- '200','201','202','203','204','300','301','302','303','304','305','306'
+-- update notifications when state changed
 CREATE OR REPLACE FUNCTION update_notifications(this_pat_id text, alert_codes text[],
                                                 severe_sepsis_onset timestamptz,
                                                 septic_shock_onset timestamptz,
@@ -2053,7 +2054,7 @@ BEGIN
   (select pat_id, pat_id || ',' || string_agg(tsp, ',') pat_tsp from
       (select pat_id, ((message#>>'{timestamp}')::numeric::int)::text tsp
       from notifications
-      where (message#>>'{alert_code}')::text in ('202','203','204','205')
+      where (message#>>'{alert_code}')::text in ('202','203','204','205','206')
       and (message#>>'{timestamp}')::numeric > date_part('epoch', now())
       and pat_id like 'E%' and pat_id = coalesce(this_pat_id, pat_id)
       order by pat_id, tsp) O
