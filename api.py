@@ -127,8 +127,8 @@ class TREWSAPI(web.View):
       await query.override_criteria(db_pool, eid, actionData['actionName'], value='[{ "text": "Completed" }]', user=uid)
 
     elif actionType == u'order_inappropriate':
-      reason = (':' + json.dumps(actionData['reason'])) if 'reason' in actionData else ''
-      value = '[{ "text": "Clinically Inappropriate{}" }]'.format(reason)
+      reason = (':' + actionData['reason']) if 'reason' in actionData and actionData['reason'] else ''
+      value = json.dumps([{ 'text': 'Clinically Inappropriate{}'.format(reason)}])
       await query.override_criteria(db_pool, eid, actionData['actionName'], value=value, user=uid)
 
     elif actionType == u'reset_patient':
@@ -394,6 +394,7 @@ class TREWSAPI(web.View):
 
       # update profile components
       data['deactivated'] = patient_scalars['deactivated']
+      data['refresh_time'] = patient_scalars['refresh_time']
 
       data['deterioration_feedback'] = {
           "tsp"           : patient_scalars['detf_tsp'],

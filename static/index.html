@@ -31,7 +31,7 @@
 	</div>
 	<div id="page">
 		<div id="header">
-			<h1><span data-toggle="tooltip" title="Current TREWScore">0.78</span><div>TREWS v0.1</div><i id="show-console">.</i><div>1 (BETA)</div></h1>
+			<h1><span id="header-trewscore"data-toggle="tooltip" title="Current TREWScore">0.78</span><div>TREWS v0.1.1 (BETA)</div><i id="show-console">.</i><span id="header-refresh-time"></span></h1>
 			<div id="header-nav">
 				<li id="header-feedback" data-toggle="tooltip" title="Please submit your feedback here to help us improve TREWS"><span class="text tooltip">Issues/Feedback</span></li>
 				<li id="header-activate-button" data-toggle="tooltip" title="Turn on/off the TREWS dashboard"><span class="text">Deactivate</span></li>
@@ -152,6 +152,10 @@
 					<h5 class="card-subtitle"></h5>
 					<div class="slot" data-trews="init_lactate">
 						<h3></h3>
+						<div class="status">
+							<h4></h4>
+							<h5></h5>
+						</div>
 						<div class="actions cf">
 							<span class='place-order place-order-btn' data-trews='initial_lactate_order' order-key="{{ keys['lactate'] }}">
 								{% if release == 'epic2017' %}
@@ -173,6 +177,10 @@
 					</div>
 					<div class="slot" data-trews="blood_culture">
 						<h3></h3>
+						<div class="status">
+							<h4></h4>
+							<h5></h5>
+						</div>
 						<div class="actions cf">
 							<span class='place-order place-order-btn' data-trews='blood_culture_order' order-key="{{ keys['blood_culture'] }}">
 								{% if release == 'epic2017' %}
@@ -195,6 +203,11 @@
 					<div class="slot" data-trews="antibiotics">
 						<span class="order-details-header" data-trews="antibiotics-details"></span>
 						<div class="order-details-content" data-trews="antibiotics-details"><div class="status"></div></div>
+						<h3></h3>
+						<div class="status">
+							<h4></h4>
+							<h5></h5>
+						</div>
 						<div class="actions cf">
 							{% if custom_antibiotics %}
 								{% for loc in custom_antibiotics.locations %}
@@ -241,6 +254,10 @@
 					</div>
 					<div class="slot last-child" data-trews="fluid">
 						<h3></h3>
+						<div class="status">
+							<h4></h4>
+							<h5></h5>
+						</div>
 						<div class="actions cf">
 							<span class='place-order place-order-btn' data-trews='crystalloid_fluid_order' order-key="{{ keys['fluid'] }}">
 								{% if release == 'epic2017' %}
@@ -267,6 +284,10 @@
 					<h5 class="card-subtitle"></h5>
 					<div class="slot last-child" data-trews="re_lactate">
 						<h3></h3>
+						<div class="status">
+							<h4></h4>
+							<h5></h5>
+						</div>
 						<div class="actions cf">
 							<span class='place-order place-order-btn' data-trews='repeat_lactate_order' order-key="{{ keys['lactate'] }}">
 								{% if release == 'epic2017' %}
@@ -293,6 +314,10 @@
 					<h5 class="card-subtitle"></h5>
 					<div class="slot" data-trews="vasopressors">
 						<h3></h3>
+						<div class="status">
+							<h4></h4>
+							<h5></h5>
+						</div>
 						<div class="actions cf">
 							<span class='place-order place-order-btn' data-trews='vasopressors_order' order-key="{{ keys['vasopressors'] }}">
 								{% if release == 'epic2017' %}
@@ -349,7 +374,9 @@
 		{% endfor %}
 	{% endif %}
 	<div id='order-inappropriate-dropdown'>
-		<input placeholder='Enter a brief description'/><span>Submit</span>
+		<input placeholder="Enter a brief description" value="" maxlength="140"/><!--
+		--><span data-action="submit">Submit</span><!--
+		--><span data-action="reset">Reset</span>
 	</div>
 	<div id='override-modal' class='cf'></div>
 	<div id="feedback" class="modal">

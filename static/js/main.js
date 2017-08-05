@@ -46,9 +46,12 @@ function logSuspicion(tag) {
 }
 
 function orderStatusCompleted(objWithStatus) {
+  var orderNA = objWithStatus['status'] == null ?
+                  false : objWithStatus['status'].startsWith('Clinically Inappropriate');
+
   return objWithStatus['status'] == 'Completed'
           || objWithStatus['status'] == 'Not Indicated'
-          || objWithStatus['status'].startsWith('Clinically Inappropriate');
+          || orderNA;
 }
 
 
@@ -342,8 +345,11 @@ var endpoints = new function() {
       if ( result.hasOwnProperty('trewsData') ) {
         $('#loading').removeClass('waiting').spin(false); // Remove any spinner from the page
         trews.setData(result.trewsData);
-        // Suspicion debugging.
-        logSuspicion('set');
+        if ( trews.data && trews.data['refresh_time'] != null ) { // Update the Epic refresh time.
+          var refreshMsg = 'Last refreshed from Epic at ' + strToTime(new Date(trews.data['refresh_time']*1000), true);
+          $('h1 #header-refresh-time').text(refreshMsg);
+        }
+        logSuspicion('set'); // Suspicion debugging.
         controller.refresh();
         deterioration.dirty = false
       } else if ( result.hasOwnProperty('notifications') ) {
@@ -846,11 +852,18 @@ var workflowsComponent = new function() {
     this.orderNABtns.unbind();
     this.orderNABtns.click(function(e) {
       e.stopPropagation();
-      var dropdown = $('#order-inappropriate-dropdown');
+      var naDropdown = $('#order-inappropriate-dropdown');
       var orderType = $(this).attr('data-trews');
 
+      // Hide everything else.
+      notifications.n.fadeOut(300);
+      activity.a.fadeOut(300);
+      dropdown.d.fadeOut(300);
+      deterioration.sendOff();
+      $('.order-dropdown').fadeOut(300);
+
       // Set the active order.
-      dropdown.attr('data-trews', orderType);
+      naDropdown.find('span').attr('data-trews', orderType);
 
       // Retrieve and set any existing reason.
       var orderNAPrefix = 'Clinically Inappropriate:';
@@ -864,9 +877,9 @@ var workflowsComponent = new function() {
 
       var parent_card = $(this).closest('.card');
       if ( parent_card != null ) {
-        dropdown.css({
+        naDropdown.css({
           top: $(this).offset().top + $(this).height() + 7,
-          left: parent_card.offset().left
+          left: parent_card.offset().left + parseInt(parent_card.css('padding-left'), 10)
         }).fadeIn(30);
       } else {
         throw ('Failed to place ' + orderType.toUpperCase() + ' order.');
@@ -953,17 +966,37 @@ var workflowsComponent = new function() {
   }
 
   // Initialize order inappropriate dropdown.
-  $('#order-inappropriate-dropdown').click(function(e) {
+  $('#order-inappropriate-dropdown input').click(function(e) {
+    e.stopPropagation();
+  });
+
+  $('#order-inappropriate-dropdown span[data-action="submit"]').click(function(e) {
     e.stopPropagation();
     var orderType = $(this).attr('data-trews');
     if ( orderType != null ) {
       $('#loading').addClass('waiting').spin(); // Add spinner to page
       endpoints.getPatientData('order_inappropriate', {
-        'actionName': $(this).attr('data-trews'),
+        'actionName': orderType,
         'reason': $('#order-inappropriate-dropdown input').val()
       });
     }
-    $(this).fadeOut(300);
+    $('#order-inappropriate-dropdown').fadeOut(300);
+  });
+
+  $('#order-inappropriate-dropdown span[data-action="reset"]').click(function(e) {
+    e.stopPropagation();
+    var orderType = $(this).attr('data-trews')
+    var orderNAPrefix = 'Clinically Inappropriate';
+
+    // Check that the current status is clinically inappropriate,
+    // to ensure that we do not override an Ordered/Completed status.
+    if ( trews.data && trews.data[orderType] && trews.data[orderType].status ) {
+      if ( trews.data[orderType].status.startsWith(orderNAPrefix) ) {
+        $('#loading').addClass('waiting').spin(); // Add spinner to page
+        endpoints.getPatientData('override', {'actionName': orderType, 'clear': true});
+      }
+    }
+    $('#order-inappropriate-dropdown').fadeOut(300);
   });
 }
 
@@ -1037,7 +1070,7 @@ function graph(json, severeOnset, shockOnset, xmin, xmax, ymin, ymax) {
   var placeholder = $("#graphdiv");
 
   if (json['patient_age'] < 18 ) {
-    $('h1 span').text("");
+    $('h1 #header-trewscore').text("");
     placeholder.html("");
     placeholder.css('line-height', Number(graphWidth * .3225).toString() + 'px');
     placeholder.append("<span style='text-align: center; vertical-align: middle; color: #777;'>" +
@@ -1046,7 +1079,7 @@ function graph(json, severeOnset, shockOnset, xmin, xmax, ymin, ymax) {
   }
   else if ( json['chart_values']['trewscore'].length == 0 || json['chart_values']['timestamp'].length == 0 ) {
     // update trewscore in header
-    $('h1 span').text("");
+    $('h1 #header-trewscore').text("");
     placeholder.html("");
     placeholder.css('line-height', Number(graphWidth * .3225).toString() + 'px');
     placeholder.append("<span style='text-align: center; vertical-align: middle; color: #777;'>" +
@@ -1069,7 +1102,7 @@ function graph(json, severeOnset, shockOnset, xmin, xmax, ymin, ymax) {
   var ylast = json['chart_values']['trewscore'][dataLength - 1];
 
   // update trewscore in header
-  $('h1 span').text(Number(ylast).toFixed(2));
+  $('h1 #header-trewscore').text(Number(ylast).toFixed(2));
 
   var verticalMarkings = [
     {color: "#555",lineWidth: 1,xaxis: {from: xlast,to: xlast}},
@@ -1353,6 +1386,17 @@ var taskComponent = function(json, elem, constants, doseLimit) {
     elem.addClass('complete');
   }
 
+  // Add clinically inappropriate reason.
+  var naMsg = '';
+  var naPrefix = 'Clinically Inappropriate';
+  if ( json['status'] != null && json['status'].startsWith(naPrefix) ) {
+    naMsg = naPrefix;
+    if (json['status'].length > naPrefix.length + 1) {
+      naMsg += ': ' + json['status'].substr(naPrefix.length + 1);
+    }
+  }
+  elem.find('.status h4').text(naMsg);
+
   // Add custom antibiotics dropdown.
   if (constants['display_name'] == 'Antibiotics') {
     var expander = elem.find('.inspect');
@@ -1578,8 +1622,27 @@ var dropdown = new function() {
   }
 
   // Initialization.
+  $('body').click(function() {
+    $('.edit-btn').removeClass('shown');
+    $('.place-order-dropdown-btn').removeClass('shown');
+    notifications.n.fadeOut(300);
+    activity.a.fadeOut(300);
+    dropdown.d.fadeOut(300);
+    deterioration.sendOff();
+    $('.order-dropdown').fadeOut(300);
+    $('#order-inappropriate-dropdown').fadeOut(300);
+  });
+
   $('.edit-btn').click(function(e) {
     e.stopPropagation();
+
+    // Hide everything else.
+    notifications.n.fadeOut(300);
+    activity.a.fadeOut(300);
+    deterioration.sendOff();
+    $('.order-dropdown').fadeOut(300);
+    $('#order-inappropriate-dropdown').fadeOut(300);
+
     dropdown.reset();
     $(this).addClass('shown');
     dropdown.fill($(this).attr('data-trews'));
@@ -1590,7 +1653,15 @@ var dropdown = new function() {
 
   $('.place-order-dropdown-btn').click(function(e) {
     e.stopPropagation();
-    $('.order-dropdown').fadeOut(30);
+
+    // Hide everything else
+    notifications.n.fadeOut(300);
+    activity.a.fadeOut(300);
+    dropdown.d.fadeOut(300);
+    deterioration.sendOff();
+    $('.order-dropdown').fadeOut(300);
+    $('#order-inappropriate-dropdown').fadeOut(300);
+
     $(this).addClass('shown');
 
     var order_d = $('.order-dropdown[data-trews=' + $(this).attr('data-trews') + ']');
@@ -1603,15 +1674,6 @@ var dropdown = new function() {
     } else {
       throw ('Failed to place ' + ($(this).attr('data-trews')).toUpperCase() + ' order.');
     }
-  });
-
-  $('body').click(function() {
-    $('.edit-btn').removeClass('shown');
-    $('.place-order-dropdown-btn').removeClass('shown');
-    dropdown.d.fadeOut(300);
-    deterioration.sendOff();
-    $('.order-dropdown').fadeOut(300);
-    $('#order-inappropriate-dropdown').fadeOut(300);
   });
 }
 
@@ -1775,10 +1837,15 @@ var notifications = new function() {
     this.nav.unbind();
     this.nav.click(function(e) {
       e.stopPropagation();
+
+      // Hide everything else.
+      activity.a.fadeOut(300);
+      dropdown.d.fadeOut(300);
+      deterioration.sendOff();
+      $('.order-dropdown').fadeOut(300);
+      $('#order-inappropriate-dropdown').fadeOut(300);
+
       notifications.n.toggle();
-    });
-    $('body, #header-activity').click(function() {
-      notifications.n.fadeOut(30);
     });
     this.n.unbind();
     this.n.click(function(e) {
@@ -1906,10 +1973,15 @@ var activity = new function() {
     this.nav.unbind();
     this.nav.click(function(e) {
       e.stopPropagation();
+
+      // Hide everything else.
+      notifications.n.fadeOut(300);
+      dropdown.d.fadeOut(300);
+      deterioration.sendOff();
+      $('.order-dropdown').fadeOut(300);
+      $('#order-inappropriate-dropdown').fadeOut(300);
+
       activity.a.toggle();
-    });
-    $('body, #header-notifications').click(function() {
-      activity.a.fadeOut(30);
     });
     this.a.unbind();
     this.a.click(function(e) {
