@@ -24,7 +24,7 @@ if (!String.prototype.startsWith) {
 }
 
 /**
- * Logging helpers.
+ * Helpers.
  */
 function appendToConsole(txt) {
   var consoleText = $('#fake-console').html();
@@ -43,6 +43,12 @@ function logSuspicion(tag) {
     txt = tag + ' null null ' + logDate.toISOString();
   }
   appendToConsole(txt);
+}
+
+function orderStatusCompleted(objWithStatus) {
+  return objWithStatus['status'] == 'Completed'
+          || objWithStatus['status'] == 'Not Indicated'
+          || objWithStatus['status'].startsWith('Clinically Inappropriate');
 }
 
 
@@ -215,8 +221,7 @@ var trews = new function() {
   }
   this.orderIsDone = function(order_name) {
     if (this.data[order_name]) {
-      return this.data[order_name]['status'] == 'Completed'
-              || this.data[order_name]['status'] == 'Not Indicated';
+      return orderStatusCompleted(this.data[order_name]);
     }
     return false;
   }
@@ -789,7 +794,7 @@ var workflowsComponent = new function() {
   this.sev6Ctn = $("[data-trews='sev6']");
   this.sep6Ctn = $("[data-trews='sep6']");
   this.orderBtns = $('.place-order-btn');
-  this.notInBtns = $('.notIn');
+  this.orderNABtns = $('.orderNA');
   this.tasks = [];
 
   this.clean = function() {
@@ -837,10 +842,35 @@ var workflowsComponent = new function() {
         }
       }
     });
-    // this.notInBtns.hide(); // Yanif: (RE-ENABLED; Temporarily disabling orders 'Not Indicated' buttons)
-    this.notInBtns.unbind();
-    this.notInBtns.click(function() {
-      endpoints.getPatientData('order_not_indicated', {'actionName': $(this).attr('data-trews')});
+
+    this.orderNABtns.unbind();
+    this.orderNABtns.click(function(e) {
+      e.stopPropagation();
+      var dropdown = $('#order-inappropriate-dropdown');
+      var orderType = $(this).attr('data-trews');
+
+      // Set the active order.
+      dropdown.attr('data-trews', orderType);
+
+      // Retrieve and set any existing reason.
+      var orderNAPrefix = 'Clinically Inappropriate:';
+      var orderNAValue = '';
+      if ( trews.data && trews.data[orderType] && trews.data[orderType].status) {
+        if ( trews.data[orderType].status.startsWith(orderNAPrefix) ) {
+          orderNAValue = trews.data[orderType].status.substr(orderNAPrefix.length);
+        }
+      }
+      $('#order-inappropriate-dropdown input').val(orderNAValue);
+
+      var parent_card = $(this).closest('.card');
+      if ( parent_card != null ) {
+        dropdown.css({
+          top: $(this).offset().top + $(this).height() + 7,
+          left: parent_card.offset().left
+        }).fadeIn(30);
+      } else {
+        throw ('Failed to place ' + orderType.toUpperCase() + ' order.');
+      }
     });
   }
 
@@ -895,16 +925,16 @@ var workflowsComponent = new function() {
     }
 
     var sev3LastOrder = Math.max(iJSON['time'], bJSON['time'], aJSON['time'], fJSON['time']);
-    var sev3Complete = ( iJSON['status'] == 'Completed' || iJSON['status'] == 'Not Indicated' ) &&
-               ( bJSON['status'] == 'Completed' || bJSON['status'] == 'Not Indicated' ) &&
-               ( aJSON['status'] == 'Completed' || aJSON['status'] == 'Not Indicated' ) /*( Number(aJSON['status'] ? aJSON['status'] : '0') > doseLimits['antibiotics'] )*/ &&
-               ( fJSON['status'] == 'Completed' || fJSON['status'] == 'Not Indicated' ) /*( Number(fJSON['status'] ? fJSON['status'] : '0') > doseLimits['fluid'] )*/;
+    var sev3Complete = orderStatusCompleted(iJSON) &&
+                       orderStatusCompleted(bJSON) &&
+                       orderStatusCompleted(aJSON) &&
+                       orderStatusCompleted(fJSON);
 
     var sev6LastOrder = Math.max(sev3LastOrder, rJSON['time'])
-    var sev6Complete = sev3Complete && ( rJSON['status'] == 'Completed' || rJSON['status'] == 'Not Indicated' );
+    var sev6Complete = sev3Complete && orderStatusCompleted(rJSON);
 
     var shk6LastOrder = Math.max(sev6LastOrder, vJSON['time'])
-    var shk6Complete = sev6Complete && ( vJSON['status'] == 'Completed' || vJSON['status'] == 'Not Indicated' ) /*Number(vJSON['status'] ? vJSON['status'] : '0') > doseLimits['vasopressors']*/;
+    var shk6Complete = sev6Complete && orderStatusCompleted(vJSON);
 
     this.sev3Ctn.find('.card-subtitle').html(this.workflowStatus('sev3', severeOnset, sev3LastOrder, sev3Complete));
     this.sev6Ctn.find('.card-subtitle').html(this.workflowStatus('sev6', severeOnset, sev6LastOrder, sev6Complete));
@@ -921,6 +951,20 @@ var workflowsComponent = new function() {
 
     this.makeButtons();
   }
+
+  // Initialize order inappropriate dropdown.
+  $('#order-inappropriate-dropdown').click(function(e) {
+    e.stopPropagation();
+    var orderType = $(this).attr('data-trews');
+    if ( orderType != null ) {
+      $('#loading').addClass('waiting').spin(); // Add spinner to page
+      endpoints.getPatientData('order_inappropriate', {
+        'actionName': $(this).attr('data-trews'),
+        'reason': $('#order-inappropriate-dropdown input').val()
+      });
+    }
+    $(this).fadeOut(300);
+  });
 }
 
 /**
@@ -1305,7 +1349,7 @@ var taskComponent = function(json, elem, constants, doseLimit) {
   if ( json['status'] == 'Ordered' ) {
     elem.addClass('in-progress');
   }
-  else if ( json['status'] == 'Completed' || json['status'] == 'Not Indicated' ) {
+  else if ( orderStatusCompleted(json) ) {
     elem.addClass('complete');
   }
 
@@ -1567,7 +1611,7 @@ var dropdown = new function() {
     dropdown.d.fadeOut(300);
     deterioration.sendOff();
     $('.order-dropdown').fadeOut(300);
-    $('#antibiotics-details-dropdown').fadeOut(300);
+    $('#order-inappropriate-dropdown').fadeOut(300);
   });
 }
 
