@@ -97,6 +97,7 @@ class AlertServer:
     '''
     Check message queue and process messages
     '''
+    logging.info("alert_queue_consumer started")
     while True:
       msg = await self.alert_message_queue.get()
       logging.info("alert_message_queue recv msg: {}".format(msg))
