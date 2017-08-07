@@ -104,6 +104,7 @@ class AlertServer:
       if msg.get('type') == 'FIN':
         # Wait for Advance Criteria Snapshot to finish and then start generating notifications
         pat_ids = await self.convert_enc_ids_to_pat_ids(msg['enc_ids'])
+        logging.info("received FIN for pat_ids: {}".format(pat_ids))
         for pat_id in pat_ids:
           suppression_task = self.loop.create_task(self.suppression(pat_id['pat_id'], msg['time']))
           self.suppression_tasks[msg['hosp']].append(suppression_task)
