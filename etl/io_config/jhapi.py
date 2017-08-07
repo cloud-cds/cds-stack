@@ -60,7 +60,7 @@ class JHAPIConfig:
             logging.exception(e)
             sleep(3)
           else:
-            return False
+            raise Exception, "Fail to request URL {}, setting {}".format(url, setting)
 
     async def run(request_settings, loop):
       tasks = []
@@ -71,19 +71,19 @@ class JHAPIConfig:
           tasks.append(task)
         return await asyncio.gather(*tasks)
 
-    attempts = 5
+    attempts = 3
     for attempt in range(attempts):
-      future = asyncio.ensure_future(run(request_settings, ctxt.loop), loop=ctxt.loop)
-      ctxt.loop.run_until_complete(future)
-      if future.result() == False:
+      try:
+        future = asyncio.ensure_future(run(request_settings, ctxt.loop), loop=ctxt.loop)
+        ctxt.loop.run_until_complete(future)
+        return future.result()
+      except Exception as e:
         # retrying
         if attempt < attempts - 1:
           logging.error("Session Error Caught for URL {}, setting {}, retrying... {} times".format(url, request_settings, attempt+1))
           sleep(5)
         else:
-          raise
-      else:
-        return future.result()
+          raise Exception, "Session failed for URL {}, setting {}".format(url, request_settings)
 
   def generate_request_settings(self, http_method, url, payloads=None):
     request_settings = []
