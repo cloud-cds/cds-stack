@@ -351,6 +351,7 @@ var endpoints = new function() {
         }
         logSuspicion('set'); // Suspicion debugging.
         controller.refresh();
+        controller.refreshOrderDetails('antibiotics-details'); // Refresh order details due to clinically inappropriate updates.
         deterioration.dirty = false
       } else if ( result.hasOwnProperty('notifications') ) {
         trews.setNotifications(result.notifications);
@@ -444,27 +445,54 @@ var controller = new function() {
     var globalJson = trews.data;
     notifications.render(globalJson['notifications']);
   }
+
+  // TODO: handle details for every order type.
   this.refreshOrderDetails = function(order_details_type) {
+    var orderType = order_details_type == 'antibiotics-details' ? 'antibiotics_order' : null;
+    if ( order_details_type == null || orderType == null ) {
+      throw ('Failed to refresh order details');
+    }
+
+    var unique_order_elems = [];
+
+    // Add clincially inappropriate as a status.
+    var naMsg = '';
+    var naPrefix = 'Clinically Inappropriate';
+    if ( trews.data && trews.data[orderType]
+          && trews.data[orderType]['status'] != null
+          && trews.data[orderType]['status'].startsWith(naPrefix)
+        )
+    {
+      naMsg = naPrefix;
+      if (trews.data[orderType]['status'].length > naPrefix.length + 1) {
+        naMsg += ': ' + trews.data[orderType]['status'].substr(naPrefix.length + 1);
+      }
+      unique_order_elems.push(naMsg)
+    }
+
+    // Add individual antibiotics as a status.
     if (trews.data.antibiotics_details != null) {
-      var unique_order_elems = [];
       for (var i in trews.data.antibiotics_details) {
         var order_elem = trews.data.antibiotics_details[i].order_name;
         if (unique_order_elems.indexOf(order_elem) === -1) {
           unique_order_elems.push(order_elem);
         }
       }
-
-      var detailsLink = $("span[data-trews='" + order_details_type + "']").find('.inspect');
-      var detailsCtn = $(".order-details-content[data-trews='" + order_details_type + "']").find(".status");
-      detailsComponent = new orderDetailsComponent(unique_order_elems);
-      if ( detailsLink.hasClass('unhidden') ) {
-        detailsCtn.removeClass('unhidden').addClass('hidden');
-      } else {
-        detailsCtn.removeClass('hidden').addClass('unhidden');
-      }
-      detailsCtn.html(detailsComponent.r());
     }
+
+    var detailsLink = $("span[data-trews='" + order_details_type + "']").find('.inspect');
+    var detailsCtn = $(".order-details-content[data-trews='" + order_details_type + "']").find(".status");
+    detailsComponent = new orderDetailsComponent(unique_order_elems);
+
+    // Sync content state with link state.
+    if ( detailsLink.hasClass('unhidden') ) {
+      detailsCtn.removeClass('hidden').addClass('unhidden');
+    } else {
+      detailsCtn.removeClass('unhidden').addClass('hidden');
+    }
+    detailsCtn.html(detailsComponent.r());
   }
+
   this.displayJSError = function() {
     dataRefresher.terminate();
     notificationRefresher.terminate();
@@ -1373,7 +1401,14 @@ var criteriaComponent = function(c, constants, key, hidden) {
 var taskComponent = function(json, elem, constants, doseLimit) {
   var header = elem.find(".order-details-header");
   if ( header.length ) {
-    header.html(constants['display_name'] + '<a class="inspect hidden">(see all)</a>');
+    var link = header.find('.inspect');
+    var initialCls = 'hidden';
+    var initialMsg = '(see all)';
+    if ( link.length ) {
+      initialCls = link.hasClass('unhidden') ? 'unhidden' : 'hidden';
+      initialMsg = link.hasClass('unhidden') ? '(minimize)' : '(see all)';
+    }
+    header.html(constants['display_name'] + '<a class="inspect ' + initialCls + '">' + initialMsg + '</a>');
   } else {
     elem.find('h3').html(constants['display_name']);
   }
@@ -1395,23 +1430,31 @@ var taskComponent = function(json, elem, constants, doseLimit) {
       naMsg += ': ' + json['status'].substr(naPrefix.length + 1);
     }
   }
-  elem.find('.status h4').text(naMsg);
 
   // Add custom antibiotics dropdown.
   if (constants['display_name'] == 'Antibiotics') {
+    // For tasks with details, override the details if the task is not appropriate.
     var expander = elem.find('.inspect');
     expander.unbind();
     expander.click(function(e) {
       e.stopPropagation();
       if ( $(this).hasClass('hidden') ) {
-        $(this).text('(minimize)').removeClass('hidden');
-        endpoints.getPatientData('getAntibiotics');
+        $(this).text('(minimize)').removeClass('hidden').addClass('unhidden');
+        if ( naMsg != '' ) {
+          controller.refreshOrderDetails('antibiotics-details');
+        } else {
+          endpoints.getPatientData('getAntibiotics');
+        }
       } else {
         var detailsCtn = $(".order-details-content[data-trews='antibiotics-details']");
         detailsCtn.find('.status.unhidden').removeClass('unhidden').addClass('hidden');
-        $(this).text('(see all)').addClass('hidden');
+        $(this).text('(see all)').removeClass('unhidden').addClass('hidden');
       }
     })
+  }
+  else {
+    // For every other type of task, set the status.
+    elem.find('.status h4').text(naMsg);
   }
 }
 
