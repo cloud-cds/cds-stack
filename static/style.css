@@ -108,6 +108,11 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li {
     display: inline-block;
     vertical-align: middle;
 }
+#header h1 #header-refresh-time {
+    font-size: x-small;
+    margin: 0 0 0 5px;
+    vertical-align: baseline;
+}
 #header h1 span {
     font-size: 18px;
     margin-right: 3px;
@@ -226,7 +231,7 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li {
 }
 .card.inactive a.edit-btn,
 .card.inactive .place-order,
-.card.inactive a.notIn {
+.card.inactive a.orderNA {
     display: none;
 }
 .card h2 {
@@ -244,6 +249,9 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li {
     margin: 5px 0 5px 5px;
     font-size: 12px;
     text-align: left;
+}
+.card h5.card-subtitle .workflow-expired {
+    color: #ca011a;
 }
 /*SLots*/
 .slot {
@@ -347,6 +355,11 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li {
 }
 .status h4 {
     margin: 0 0 0 5px;
+    font-weight: 400;
+    font-size: 12px;
+}
+.card[data-trews="sev3"] .status h4 {
+    margin: 0 0 5px 5px;
     font-weight: 400;
     font-size: 12px;
 }
@@ -520,33 +533,43 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li {
 .order-details-content {
     margin: 0 0 10px 0;
 }
-#antibiotics-details-dropdown {
+/* Clinically inappropriate dropdown */
+#order-inappropriate-dropdown {
     max-width: 400px;
+    width: 100%;
     position: absolute;
     display: none;
     z-index: 1;
     border: 1px solid #ddd;
     background-color: #fff;
-    box-shadow: 2px 2px 2px #ddd;
-    font-weight: 400;
-    font-size: 14px;
+    outline: 2px skyblue solid;
+    font-size: 12px;
+    padding: 5px 0;
+    -webkit-user-select: none;  /* Chrome all / Safari all */
+    -moz-user-select: none;     /* Firefox all */
+    -ms-user-select: none;      /* IE 10+ */
+    user-select: none;
 }
-#antibiotics-details-dropdown .order-info {
-    position: relative;
-    width: 100%;
-    padding: 5px 10px 5px 10px;
-    max-height: 350px;
-    overflow-y: auto;
-    text-decoration: none;
-    float: right;
-    -webkit-transition: background-color .3s;
-    -moz-transition: background-color .3s;
+#order-inappropriate-dropdown input {
+    margin: 0 -5px 0 5px;
+    border: 1px solid #eee;
+    padding: 5px;
+    outline: none;
+    width: 70%;
+    display: inline-block;
+}
+#order-inappropriate-dropdown span {
+    cursor: pointer;
+    text-align: center;
+    display: inline-block;
+    background-color: #fff;
+    margin: 0;
+    padding: 5px 0;
+    width: 15%;
+    color: #555;
     transition: background-color .3s;
 }
-#antibiotics-details-dropdown .order-info.overridden {
-    background-color: #b3e8d1;
-}
-#antibiotics-details-dropdown .order-info:hover {
+#order-inappropriate-dropdown span:hover {
     background-color: #eee;
 }
 /* Other Input field in Sources of Infection Dropdown */

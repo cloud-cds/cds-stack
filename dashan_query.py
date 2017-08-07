@@ -228,6 +228,10 @@ async def get_patient_profile(db_pool, pat_id, use_trews_lmc=False):
       from cdm_s inner join pat_enc on pat_enc.enc_id = cdm_s.enc_id
       where pat_id = '%(pid)s' and fid = 'age'
   ) AGE on true
+  full outer join
+  (
+    select min(update_date) from criteria where pat_id = '%(pid)s'
+  ) REFRESH on true
   ''' % { 'pid': pat_id, 'threshold_param_key': threshold_param_key }
 
   async with db_pool.acquire() as conn:
@@ -240,7 +244,8 @@ async def get_patient_profile(db_pool, pat_id, use_trews_lmc=False):
         'detf_tsp'        : None,
         'deterioration'   : None,
         'detf_uid'        : None,
-        'age'             : None
+        'age'             : None,
+        'refresh_time'    : None
     }
 
     if len(result) == 1:
@@ -251,6 +256,7 @@ async def get_patient_profile(db_pool, pat_id, use_trews_lmc=False):
       profile['deterioration']   = json.loads(result[0][4]) if result[0][4] is not None else None
       profile['detf_uid']        = result[0][5]
       profile['age']             = result[0][6]
+      profile['refresh_time']    = (result[0][7] - datetime.datetime.utcfromtimestamp(0).replace(tzinfo=pytz.UTC)).total_seconds() if result[0][7] is not None else None
 
     return profile
 
