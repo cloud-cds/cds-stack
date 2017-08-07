@@ -99,7 +99,7 @@ class AlertServer:
     '''
     while True:
       msg = await self.alert_message_queue.get()
-
+      logging.info("alert_message_queue recv msg: {}".format(msg))
       # Predictor finished
       if msg.get('type') == 'FIN':
         # Wait for Advance Criteria Snapshot to finish and then start generating notifications
