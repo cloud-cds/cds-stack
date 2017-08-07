@@ -82,7 +82,9 @@ class AlertServer:
         select * from notify_future_notification({channel}, '{pat_id}');
         '''.format(pat_id=pat_id, channel=os.environ['etl_channel'])
         await conn.fetch(sql)
-
+      logging.info("generate suppression alert for {}".format(pat_id))
+    else:
+      logging.info("criteria is not ready for {}".format(pat_id))
 
 
 
@@ -109,6 +111,7 @@ class AlertServer:
         for pat_id in pat_ids:
           suppression_task = self.loop.create_task(self.suppression(pat_id['pat_id'], msg['time']))
           self.suppression_tasks[msg['hosp']].append(suppression_task)
+          logging.info("created suppression task for {}".format(pat_id['pat_id']))
     logging.info("alert_queue_consumer quit")
 
 
