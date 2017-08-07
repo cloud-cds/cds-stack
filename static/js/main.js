@@ -346,7 +346,7 @@ var endpoints = new function() {
         $('#loading').removeClass('waiting').spin(false); // Remove any spinner from the page
         trews.setData(result.trewsData);
         if ( trews.data && trews.data['refresh_time'] != null ) { // Update the Epic refresh time.
-          var refreshMsg = 'Last refreshed from Epic at ' + strToTime(new Date(trews.data['refresh_time']*1000), true);
+          var refreshMsg = 'Last refreshed from Epic at ' + strToTime(new Date(trews.data['refresh_time']*1000), true, true) + '.';
           $('h1 #header-refresh-time').text(refreshMsg);
         }
         logSuspicion('set'); // Suspicion debugging.
@@ -909,7 +909,7 @@ var workflowsComponent = new function() {
     var shiftedTime = (time * 1000) + offset;
     var wfDate = new Date(shiftedTime);
     if (shiftedTime < Date.now()) {
-      status = "Workflow window expired <span title='" + strToTime(wfDate) + "'>" + timeLapsed(wfDate) + "</span>";
+      status = "<span class='workflow-expired'>Workflow window expired <span title='" + strToTime(wfDate) + "'>" + timeLapsed(wfDate) + "</span></span>";
     } else {
       status = "<span title='" + strToTime(wfDate) + "'>" + timeRemaining(wfDate) + "</span>";
     }
@@ -2242,14 +2242,17 @@ function timeRemaining(d) {
  * Takes a string converts it to a Date object and outputs date/time
  * as such: m/d/y h:m
 */
-function strToTime(str, timeFirst) {
+function strToTime(str, timeFirst, timestampOnly) {
   var date = new Date(Number(str));
   var y = date.getFullYear();
   var m = date.getMonth() + 1;
   var d = date.getDate();
   var h = date.getHours() < 10 ? "0" + date.getHours() : date.getHours();
   var min = date.getMinutes() < 10 ? "0" + date.getMinutes() : date.getMinutes();
-  if (timeFirst) {
+  if (timestampOnly !== undefined && timestampOnly) {
+    return h + ":" + min;
+  }
+  else if (timeFirst) {
     return h + ":" + min + " " + m + "/" + d + "/" + y;
   } else {
     return m + "/" + d + "/" + y + " " + h + ":" + min;

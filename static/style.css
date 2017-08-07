@@ -250,6 +250,9 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li {
     font-size: 12px;
     text-align: left;
 }
+.card h5.card-subtitle .workflow-expired {
+    color: #ca011a;
+}
 /*SLots*/
 .slot {
     padding: 10px;
