@@ -60,7 +60,7 @@ class JHAPIConfig:
             logging.exception(e)
             sleep(3)
           else:
-            raise Exception, "Fail to request URL {}, setting {}".format(url, setting)
+            raise Exception("Fail to request URL {}, setting {}".format(url, setting))
 
     async def run(request_settings, loop):
       tasks = []
@@ -83,7 +83,7 @@ class JHAPIConfig:
           logging.error("Session Error Caught for URL {}, setting {}, retrying... {} times".format(url, request_settings, attempt+1))
           sleep(5)
         else:
-          raise Exception, "Session failed for URL {}, setting {}".format(url, request_settings)
+          raise Exception("Session failed for URL {}, setting {}".format(url, request_settings))
 
   def generate_request_settings(self, http_method, url, payloads=None):
     request_settings = []
