@@ -109,7 +109,7 @@ class AlertServer:
         for pat_id in pat_ids:
           suppression_task = self.loop.create_task(self.suppression(pat_id['pat_id'], msg['time']))
           self.suppression_tasks[msg['hosp']].append(suppression_task)
-
+    logging.info("alert_queue_consumer quit")
 
 
   async def connection_handler(self, reader, writer):

@@ -68,7 +68,7 @@ class Predictor:
 
       elif message.get('type') == 'FIN':
         logging.info("{} - received FIN: {}".format(self, message))
-        queue.put({
+        await queue.put({
           'type': 'FIN',
           'time': message['time'],
           'hosp': message['hosp'],
