@@ -291,6 +291,7 @@ async def cloudwatch_logger_middleware(app, handler):
     if cwlog_enabled:
       cwlog.info(json.dumps({ 'req': pre_log_object(request) }))
 
+    request.app['body'] = None
     response = await handler(request)
 
     # Post-logging
