@@ -47,6 +47,7 @@ class Predictor:
     while self.shutdown == False:
       try:
         message = await protocol.read_message(self.reader, self.writer)
+        logging.info("recv msg: {}".format(message))
       except Exception as e:
         print(e)
         return
