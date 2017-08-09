@@ -153,6 +153,7 @@ class PredictorManager:
     backoff = 1
 
     # Start the predictor
+    logging.info("start the predictors for {} at {}: partition_id {} model_type {}".format(hosp, time, partition_id, model_type))
     while True:
       pred = self.predictors.get((partition_id, model_type, active))
       if pred and pred.status != 'DEAD':
@@ -180,6 +181,8 @@ class PredictorManager:
       return None
 
     # Monitor predictor
+    logging.info("start monitoring the predictors for {} at {}: partition_id {} model_type {}".format(hosp, time, partition_id, model_type))
+
     start_time = dt.datetime.now()
     timeout = dt.timedelta(seconds = 10)
     while True:
@@ -201,7 +204,7 @@ class PredictorManager:
 
       # BUSY - all ok, keep monitoring
       elif pred.status == 'BUSY':
-        pass
+        logging.info("{} is busy now".format(pred))
 
       # DEAD - predictor failed, restart run_predict
       elif pred.status == 'DEAD':
