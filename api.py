@@ -430,7 +430,7 @@ class TREWSAPI(web.View):
                   'method'       : self.request.method,
                   'host'         : self.request.host,
                   'headers'      : dict(self.request.headers.items()),
-                  'body'         : json.dumps(req_body) })
+                  'body'         : req_body })
 
         except ValueError as ex:
           logging.warning(str(ex))
