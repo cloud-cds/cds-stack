@@ -362,9 +362,9 @@ def sepsis_stats(connection, first_time_str, last_time_str):
   tmp_ds_id = -1
 
   get_hist_states = """
-    create temporary table {tmp_tbl} as 
-    select pat_id, {ds_id} as dataset_id, 
-      case when last(flag) >= 0 then last(flag) else last(flag) + 1000 END as pat_state, 
+    create temporary table {tmp_tbl} as
+    select pat_id, {ds_id} as dataset_id,
+      case when last(flag) >= 0 then last(flag) else last(flag) + 1000 END as pat_state,
       last(update_date) as window_ts
     from
     criteria_events
