@@ -183,23 +183,30 @@ class PredictorManager:
     # Monitor predictor
     logging.info("start monitoring the predictors for {} at {}: partition_id {} model_type {}".format(hosp, time, partition_id, model_type))
 
-    start_time = dt.datetime.now()
+    # start_time = dt.datetime.now()
     timeout = dt.timedelta(seconds = 10)
     while True:
-      # TIMEOUT - predictor not getting updated
-      if pred.last_updated - start_time > timeout:
-        logging.error("{} not getting updated - timeout".format(pred))
-        self.loop.create_task(self.run_predict(partition_id, model_type, hosp,
-                                               time, not active))
-        pred.stop()
-        return
+      # # TIMEOUT - predictor not getting updated
+      # if pred.last_updated - start_time > timeout:
+      #   logging.error("{} not getting updated - timeout".format(pred))
+      #   self.loop.create_task(self.run_predict(partition_id, model_type, hosp,
+      #                                          time, not active))
+      #   pred.stop()
+      #   return
 
-      # IDLE - restart run_predict on timeout
-      elif pred.status == 'IDLE' and (dt.datetime.now() - start_time) > timeout:
-        logging.error("{} is in IDLE state after 10 seconds - timeout".format(pred))
+      # # IDLE - restart run_predict on timeout
+      # elif pred.status == 'IDLE' and (dt.datetime.now() - start_time) > timeout:
+      #   logging.error("{} is in IDLE state after 10 seconds - timeout".format(pred))
+      #   self.loop.create_task(self.run_predict(partition_id, model_type, hosp,
+      #                                          time, not active))
+      #   pred.stop()
+      #   return
+
+      if pred.last_updated - dt.datetime.now() > timeout:
+        logging.error("{} not getting updated - timeout - restart run_predict".format(pred))
+        pred.stop()
         self.loop.create_task(self.run_predict(partition_id, model_type, hosp,
                                                time, not active))
-        pred.stop()
         return
 
       # BUSY - all ok, keep monitoring
