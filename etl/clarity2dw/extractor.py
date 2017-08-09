@@ -55,9 +55,9 @@ class Extractor:
       feature_mapping_csv = os.path.join(CONF, feature_mapping_file)
       feature_mapping = pd.read_csv(feature_mapping_csv)
       if self.feature_mapping is None:
-        self.feature_mapping = self.feature_mapping.append(feature_mapping)
-      else:
         self.feature_mapping = feature_mapping
+      else:
+        self.feature_mapping = self.feature_mapping.append(feature_mapping)
 
 
   async def extract_init(self, ctxt):
