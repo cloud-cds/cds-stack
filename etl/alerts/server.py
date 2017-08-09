@@ -67,7 +67,7 @@ class AlertServer:
         return cnt[0]['count'] > 0
     n = 0
     N = 60
-    logging.info("enter suppression task for {}".format(pat_id))
+    logging.info("enter suppression task for {} - {}".format(pat_id, tsp))
     while not await criteria_ready(pat_id, tsp):
       await asyncio.sleep(10)
       n += 1
@@ -82,6 +82,7 @@ class AlertServer:
         select pg_notify('{channel}', 'invalidate_cache:{pat_id}');
         select * from notify_future_notification('{channel}', '{pat_id}');
         '''.format(pat_id=pat_id, channel=os.environ['etl_channel'])
+        logging.info("suppression sql: {}".format(sql))
         await conn.fetch(sql)
       logging.info("generate suppression alert for {}".format(pat_id))
     else:

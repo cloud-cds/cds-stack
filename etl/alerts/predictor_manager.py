@@ -67,7 +67,8 @@ class Predictor:
           heartbeats = 0
         pass
 
-      elif message.get('type') == 'FIN':
+      elif message.get("status") == 'BUSY' and message.get('type') == 'FIN':
+        # NOTE (andong): we do not handle catchup fin message here
         logging.info("{} - received FIN: {}".format(self, message))
         await queue.put({
           'type': 'FIN',
