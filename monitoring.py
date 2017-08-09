@@ -252,7 +252,7 @@ if 'logging' in os.environ and int(os.environ['logging']) == 1 and 'cloudwatch_l
   cwlog.addHandler(cwlog_handler)
   cwlog.setLevel(logging.INFO)
 
-def log_object(request):
+def pre_log_object(request):
   srvnow = datetime.datetime.utcnow().isoformat()
   return {
     'date'         : srvnow,
@@ -260,6 +260,21 @@ def log_object(request):
     'url'          : request.path_qs,
     'headers'      : dict(request.headers.items())
   }
+
+def post_log_object(request, response):
+  srvnow = datetime.datetime.utcnow().isoformat()
+  result = {
+    'date'         : srvnow,
+    'method'       : request.method,
+    'url'          : request.path_qs,
+    'headers'      : dict(request.headers.items())
+  }
+
+  result['status'] = response.status
+  if 'body' in request.app:
+    result['body'] = request.app['body']
+
+  return result
 
 
 last_log_flush = datetime.datetime.utcnow()
@@ -274,21 +289,13 @@ async def cloudwatch_logger_middleware(app, handler):
 
     # Pre-logging
     if cwlog_enabled:
-      log_entry = log_object(request)
-      cwlog.info(json.dumps({ 'req': log_entry }))
+      cwlog.info(json.dumps({ 'req': pre_log_object(request) }))
 
     response = await handler(request)
 
     # Post-logging
     if cwlog_enabled:
-      actionType = None
-      if 'body' in request.app and 'actionType' in request.app['body']:
-        actionType = request.app['body']['actionType']
-
-      log_entry = log_object(request)
-      log_entry['actionType'] = actionType
-      log_entry['status'] = response.status
-      cwlog.info(json.dumps({ 'resp': log_entry }))
+      cwlog.info(json.dumps({ 'resp': post_log_object(request, response) }))
 
       # Time-based manual flush
       # TODO: exponential backoff on flush failures.

@@ -425,12 +425,12 @@ class TREWSAPI(web.View):
           # Make available to the CW log middleware
           self.request.app['body'] = req_body
 
-          logging.info('%(date)s %(method)s %(host)s %(headers)s %(body)s'
+          logging.info('%(date)s %(method)s %(host)s HDR %(headers)s BODY %(body)s'
               % { 'date'         : srvnow,
                   'method'       : self.request.method,
                   'host'         : self.request.host,
                   'headers'      : dict(self.request.headers.items()),
-                  'body'         : json.dumps(req_body, indent=4) })
+                  'body'         : json.dumps(req_body) })
 
         except ValueError as ex:
           logging.warning(str(ex))
