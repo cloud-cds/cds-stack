@@ -79,8 +79,8 @@ class AlertServer:
       async with self.db_pool.acquire() as conn:
         sql = '''
         select suppression_alert('{pat_id}');
-        select pg_notify({channel}, 'invalidate_cache:{pat_id}');
-        select * from notify_future_notification({channel}, '{pat_id}');
+        select pg_notify('{channel}', 'invalidate_cache:{pat_id}');
+        select * from notify_future_notification('{channel}', '{pat_id}');
         '''.format(pat_id=pat_id, channel=os.environ['etl_channel'])
         await conn.fetch(sql)
       logging.info("generate suppression alert for {}".format(pat_id))
