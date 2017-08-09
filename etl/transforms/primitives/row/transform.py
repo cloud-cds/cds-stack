@@ -1218,7 +1218,7 @@ def _calculate_volume_in_ml(volumes, entry_cur, entry_nxt, remain_vol_pre, \
 def threshold(entry, lower, upper, log):
     try:
         if entry is not None:
-            if str(type(entry)) == "<class 'Record'>" or isinstance(entry, list):
+            if 'Record' in str(type(entry)) or isinstance(entry, list):
                 # entry is a list
                 entry = entry[-1] # last item is the value
             # entry is a number item
