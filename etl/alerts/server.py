@@ -12,6 +12,7 @@ import pytz
 import socket
 import random, string
 import functools
+import os
 
 def randomword(length):
    return ''.join(random.choice(string.ascii_uppercase) for i in range(length))
@@ -57,36 +58,38 @@ class AlertServer:
   async def suppression(self, pat_id, tsp):
     ''' Alert suppression task for a single patient
         and notify frontend that the patient has updated'''
-    async def criteria_ready(pat_id, tsp):
-      async with self.db_pool.acquire() as conn:
-        sql = '''
-        SELECT count(*) FROM criteria where pat_id = '{}'
-        and update_date > '{}'::timestamptz
-        '''.format(pat_id, tsp)
-        cnt = await conn.fetch(sql)
-        return cnt[0]['count'] > 0
-    n = 0
-    N = 60
-    logging.info("enter suppression task for {} - {}".format(pat_id, tsp))
-    while not await criteria_ready(pat_id, tsp):
-      await asyncio.sleep(10)
-      n += 1
-      logging.info("retry criteria_ready {} times for {}".format(n, pat_id))
-      if n >= 60:
-        break
-    if n < 60:
-      logging.info("criteria is ready for {}".format(pat_id))
-      async with self.db_pool.acquire() as conn:
+
+    async def criteria_ready(conn, pat_id, tsp):
+      sql = '''
+      SELECT count(*) FROM criteria where pat_id = '{}'
+      and update_date > '{}'::timestamptz
+      '''.format(pat_id, tsp)
+      cnt = await conn.fetch(sql)
+      return cnt[0]['count'] > 0
+
+    async with self.db_pool.acquire() as conn:
+      n = 0
+      N = 60
+      channel = os.getenv('etl_channel', 'on_opsdx_dev_etl')
+      logging.info("enter suppression task for {} - {}".format(pat_id, tsp))
+      while not await criteria_ready(conn, pat_id, tsp):
+        await asyncio.sleep(10)
+        n += 1
+        logging.info("retry criteria_ready {} times for {}".format(n, pat_id))
+        if n >= 60:
+          break
+      if n < 60:
+        logging.info("criteria is ready for {}".format(pat_id))
         sql = '''
         select suppression_alert('{pat_id}');
         select pg_notify('{channel}', 'invalidate_cache:{pat_id}');
         select * from notify_future_notification('{channel}', '{pat_id}');
-        '''.format(pat_id=pat_id, channel=os.environ['etl_channel'])
+        '''.format(pat_id=pat_id, channel=channel)
         logging.info("suppression sql: {}".format(sql))
         await conn.fetch(sql)
-      logging.info("generate suppression alert for {}".format(pat_id))
-    else:
-      logging.info("criteria is not ready for {}".format(pat_id))
+        logging.info("generate suppression alert for {}".format(pat_id))
+      else:
+        logging.info("criteria is not ready for {}".format(pat_id))
 
 
 
