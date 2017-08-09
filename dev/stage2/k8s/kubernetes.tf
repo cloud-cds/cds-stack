@@ -307,6 +307,44 @@ resource "aws_autoscaling_group" "predictor-cluster-dev-opsdx-io" {
   }
 }
 
+resource "aws_autoscaling_group" "predictor-spot-cluster-dev-opsdx-io" {
+  name                 = "predictor-spot.cluster.dev.opsdx.io"
+  launch_configuration = "${aws_launch_configuration.predictor-spot-cluster-dev-opsdx-io.id}"
+  max_size             = 64
+  min_size             = 0
+  vpc_zone_identifier  = ["${aws_subnet.us-east-1a-cluster-dev-opsdx-io.id}", "${aws_subnet.us-east-1c-cluster-dev-opsdx-io.id}", "${aws_subnet.us-east-1d-cluster-dev-opsdx-io.id}"]
+
+  tag = {
+    key                 = "Component"
+    value               = "Predictor Spot Node"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "KubernetesCluster"
+    value               = "cluster.dev.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Name"
+    value               = "predictor-spot.cluster.dev.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Stack"
+    value               = "Development"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "k8s.io/role/node"
+    value               = "1"
+    propagate_at_launch = true
+  }
+}
+
 resource "aws_autoscaling_group" "web-cluster-dev-opsdx-io" {
   name                 = "web.cluster.dev.opsdx.io"
   launch_configuration = "${aws_launch_configuration.web-cluster-dev-opsdx-io.id}"
@@ -602,7 +640,7 @@ resource "aws_launch_configuration" "locust-cluster-dev-opsdx-io" {
 
 resource "aws_launch_configuration" "master-us-east-1a-masters-cluster-dev-opsdx-io" {
   name_prefix                 = "master-us-east-1a.masters.cluster.dev.opsdx.io-"
-  image_id                    = "ami-5f1afc49"
+  image_id                    = "ami-03690415"
   instance_type               = "t2.large"
   key_name                    = "${aws_key_pair.kubernetes-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
   iam_instance_profile        = "${aws_iam_instance_profile.masters-cluster-dev-opsdx-io.id}"
@@ -623,7 +661,7 @@ resource "aws_launch_configuration" "master-us-east-1a-masters-cluster-dev-opsdx
 
 resource "aws_launch_configuration" "master-us-east-1c-masters-cluster-dev-opsdx-io" {
   name_prefix                 = "master-us-east-1c.masters.cluster.dev.opsdx.io-"
-  image_id                    = "ami-5f1afc49"
+  image_id                    = "ami-03690415"
   instance_type               = "t2.large"
   key_name                    = "${aws_key_pair.kubernetes-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
   iam_instance_profile        = "${aws_iam_instance_profile.masters-cluster-dev-opsdx-io.id}"
@@ -644,7 +682,7 @@ resource "aws_launch_configuration" "master-us-east-1c-masters-cluster-dev-opsdx
 
 resource "aws_launch_configuration" "master-us-east-1d-masters-cluster-dev-opsdx-io" {
   name_prefix                 = "master-us-east-1d.masters.cluster.dev.opsdx.io-"
-  image_id                    = "ami-5f1afc49"
+  image_id                    = "ami-03690415"
   instance_type               = "t2.large"
   key_name                    = "${aws_key_pair.kubernetes-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
   iam_instance_profile        = "${aws_iam_instance_profile.masters-cluster-dev-opsdx-io.id}"
@@ -665,7 +703,7 @@ resource "aws_launch_configuration" "master-us-east-1d-masters-cluster-dev-opsdx
 
 resource "aws_launch_configuration" "nodes-cluster-dev-opsdx-io" {
   name_prefix                 = "nodes.cluster.dev.opsdx.io-"
-  image_id                    = "ami-5f1afc49"
+  image_id                    = "ami-03690415"
   instance_type               = "t2.large"
   key_name                    = "${aws_key_pair.kubernetes-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
   iam_instance_profile        = "${aws_iam_instance_profile.nodes-cluster-dev-opsdx-io.id}"
@@ -703,6 +741,29 @@ resource "aws_launch_configuration" "predictor-cluster-dev-opsdx-io" {
   lifecycle = {
     create_before_destroy = true
   }
+}
+
+resource "aws_launch_configuration" "predictor-spot-cluster-dev-opsdx-io" {
+  name_prefix                 = "predictor-spot.cluster.dev.opsdx.io-"
+  image_id                    = "ami-03690415"
+  instance_type               = "c4.2xlarge"
+  key_name                    = "${aws_key_pair.kubernetes-cluster-dev-opsdx-io-94a22f95b3ccfd3f4da6d21522592b23.id}"
+  iam_instance_profile        = "${aws_iam_instance_profile.nodes-cluster-dev-opsdx-io.id}"
+  security_groups             = ["${aws_security_group.nodes-cluster-dev-opsdx-io.id}"]
+  associate_public_ip_address = false
+  user_data                   = "${file("${path.module}/data/aws_launch_configuration_predictor-spot.cluster.dev.opsdx.io_user_data")}"
+
+  root_block_device = {
+    volume_type           = "gp2"
+    volume_size           = 20
+    delete_on_termination = true
+  }
+
+  lifecycle = {
+    create_before_destroy = true
+  }
+
+  spot_price = "0.097"
 }
 
 resource "aws_launch_configuration" "web-cluster-dev-opsdx-io" {
