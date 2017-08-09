@@ -79,7 +79,7 @@ class AlertServer:
       async with self.db_pool.acquire() as conn:
         sql = '''
         select suppression_alert('{pat_id}');
-        notify {channel}, 'invalidate_cache:{pat_id}';
+        select pg_notify({channel}, 'invalidate_cache:{pat_id}');
         select * from notify_future_notification({channel}, '{pat_id}');
         '''.format(pat_id=pat_id, channel=os.environ['etl_channel'])
         await conn.fetch(sql)
@@ -110,8 +110,8 @@ class AlertServer:
         pat_ids = await self.convert_enc_ids_to_pat_ids(msg['enc_ids'])
         logging.info("received FIN for pat_ids: {}".format(pat_ids))
         for pat_id in pat_ids:
-          suppression_task = self.loop.create_task(self.suppression(pat_id['pat_id'], msg['time']))
-          self.suppression_tasks[msg['hosp']].append(suppression_task)
+          suppression_future = asyncio.ensure_future(self.suppression(pat_id['pat_id'], msg['time']), loop=self.loop)
+          self.suppression_tasks[msg['hosp']].append(suppression_future)
           logging.info("created suppression task for {}".format(pat_id['pat_id']))
     logging.info("alert_queue_consumer quit")
 
