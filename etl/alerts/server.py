@@ -129,7 +129,7 @@ class AlertServer:
 
     # Get the message that started this callback function
     message = await protocol.read_message(reader, writer)
-
+    logging.info("connection_handler: recv msg from {} type {}".format(message.get('from'), message.get('type')))
     if message.get('from') == 'predictor':
       return await self.predictor_manager.register(reader, writer, message)
 
