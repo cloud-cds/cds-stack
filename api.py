@@ -475,9 +475,9 @@ class TREWSAPI(web.View):
                     'deactivated'             : data['deactivated'],
                     'refresh_time'            : data['refresh_time'],
                     'severe_sepsis'           : { 'is_met'                 : data['severe_sepsis']['is_met'],
-                                                  'suspicion_of_infection' : data['severe_sepsis']['suspicion_of_infection']
+                                                  'suspicion_of_infection' : data['severe_sepsis']['suspicion_of_infection'],
                                                   'sirs'                   : { 'is_met': data['severe_sepsis']['sirs']['is_met'] },
-                                                  'organ_dysfunction'      : { 'is_met': data['severe_sepsis']['organ_dysfunction']['is_met'] },
+                                                  'organ_dysfunction'      : { 'is_met': data['severe_sepsis']['organ_dysfunction']['is_met'] }
                                                 },
                     'septic_shock'            : { 'is_met'            : data['septic_shock']['is_met'],
                                                   'crystalloid_fluid' : { 'is_met': data['septic_shock']['crystalloid_fluid']['is_met'] },
