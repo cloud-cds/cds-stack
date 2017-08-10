@@ -58,9 +58,9 @@ class JHAPIConfig:
           if i < request_attempts - 1 and str(e) != 'Session is closed' and not e.errno in (104,):
             logging.error("Request Error Caught for URL {}, retrying... {} times".format(url,i+1))
             logging.exception(e)
-            sleep(0.5)
+            sleep(5)
           else:
-            raise Exception("Fail to request URL {}, setting {}".format(url, setting))
+            raise Exception("Fail to request URL {}".format(url))
 
     async def run(request_settings, loop):
       tasks = []
@@ -82,9 +82,9 @@ class JHAPIConfig:
         if attempt < attempts - 1:
           logging.error("Session Error Caught for URL {}, retrying... {} times".format(url, attempt+1))
           logging.exception(e)
-          sleep(5)
+          sleep(3)
         else:
-          raise Exception("Session failed for URL {}, setting {}".format(url, request_settings))
+          raise Exception("Session failed for URL {}".format(url))
 
   def generate_request_settings(self, http_method, url, payloads=None):
     request_settings = []
