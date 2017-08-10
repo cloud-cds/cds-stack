@@ -620,13 +620,14 @@ LANGUAGE plpgsql;
 
 
 CREATE OR REPLACE FUNCTION get_states_snapshot(this_pat_id text)
-RETURNS table( pat_id                           varchar(50),
-               event_id                         int,
-               state                            int,
-               severe_sepsis_onset              timestamptz,
-               septic_shock_onset               timestamptz,
-               severe_sepsis_wo_infection_onset timestamptz,
-               severe_sepsis_lead_time          timestamptz
+RETURNS table( pat_id                               varchar(50),
+               event_id                             int,
+               state                                int,
+               severe_sepsis_onset                  timestamptz,
+               septic_shock_onset                   timestamptz,
+               severe_sepsis_wo_infection_onset     timestamptz,
+               severe_sepsis_wo_infection_initial   timestamptz,
+               severe_sepsis_lead_time              timestamptz
              )
 AS $func$ BEGIN
 
@@ -665,6 +666,11 @@ AS $func$ BEGIN
           (array_agg(measurement_time order by measurement_time)  filter (where name in ('sirs_temp','heart_rate','respiratory_rate','wbc') and is_met ) )[2],
           min(measurement_time) filter (where name in ('blood_pressure','mean_arterial_pressure','decrease_in_sbp','respiratory_failure','creatinine','bilirubin','platelet','inr','lactate') and is_met ))
       as severe_sepsis_wo_infection_onset,
+
+      LEAST(
+          (array_agg(measurement_time order by measurement_time)  filter (where name in ('sirs_temp','heart_rate','respiratory_rate','wbc') and is_met ) )[1],
+          min(measurement_time) filter (where name in ('blood_pressure','mean_arterial_pressure','decrease_in_sbp','respiratory_failure','creatinine','bilirubin','platelet','inr','lactate') and is_met ))
+      as severe_sepsis_wo_infection_initial,
 
       LEAST( max(case when name = 'suspicion_of_infection' then override_time else null end),
              (array_agg(measurement_time order by measurement_time)  filter (where name in ('sirs_temp','heart_rate','respiratory_rate','wbc') and is_met ) )[2],
@@ -1875,12 +1881,26 @@ declare
     alert_on boolean;
     threshold numeric;
 begin
-    threshold = 0.0;
+    select value::numeric from trews_parameters where name = 'lmc_threshold' into threshold;
     select score > threshold
     from lmcscore s inner join pat_enc p on s.enc_id = p.enc_id
     where p.pat_id = this_pat_id and now() - tsp < interval '15 minutes'
     order by tsp desc limit 1 into alert_on;
     return coalesce(alert_on, false);
+end;
+$$ LANGUAGE PLPGSQL;
+
+
+
+CREATE OR REPLACE FUNCTION pat_lmcscore_timeout(this_pat_id text)
+RETURNS boolean as $$
+declare
+    last_tsp timestamptz;
+    timeout  interval;
+begin
+    select coalesce(value::interval, '6 hours'::interval) from parameters where name = 'suppression_timeout' into timeout;
+    select max(tsp) from lmcscore s inner join pat_enc p on s.enc_id = p.enc_id where p.pat_id = this_pat_id into last_tsp;
+ return now() - last_tsp > timeout;
 end;
 $$ LANGUAGE PLPGSQL;
 
@@ -1892,7 +1912,7 @@ DECLARE
     tsp timestamptz;
 BEGIN
     select lmcscore_alert_on(this_pat_id) into lmc_alert_on;
-    select state, severe_sepsis_wo_infection_onset from get_states_snapshot(this_pat_id) into curr_state, tsp;
+    select state, severe_sepsis_wo_infection_initial from get_states_snapshot(this_pat_id) into curr_state, tsp;
     delete from notifications where pat_id = this_pat_id
         and notifications.message#>>'{alert_code}' ~ '205|300|206|307';
     if curr_state = 10 then
@@ -1900,7 +1920,7 @@ BEGIN
             insert into notifications (pat_id, message) values
             (
                 this_pat_id,
-                json_build_object('alert_code', '205', 'read', false, 'timestamp', tsp, 'suppression', 'true')
+                json_build_object('alert_code', '205', 'read', false, 'timestamp', tsp + '6 hours'::interval, 'suppression', 'true')
             ),
             (
                 this_pat_id,
@@ -1910,7 +1930,7 @@ BEGIN
             insert into notifications (pat_id, message) values
             (
                 this_pat_id,
-                json_build_object('alert_code', '206', 'read', false, 'timestamp', tsp, 'suppression', 'true')
+                json_build_object('alert_code', '206', 'read', false, 'timestamp', tsp+ '6 hours'::interval, 'suppression', 'true')
             ),
             (
                 this_pat_id,
@@ -1962,7 +1982,13 @@ BEGIN
         on n2.pat_id = pat_enc.pat_id and n2.message#>>'{alert_code}' = code
     where pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id)
     and n2.message is null and code <> '0'
-        and ((select not value::boolean from parameters where name = 'suppression') or not code in ('205', '300'))
+    and
+    (
+        -- only for suppression is ON
+        (select not value::boolean from parameters where name = 'suppression')
+        or not code in ('205', '300', '206', '307')
+        or pat_lmcscore_timeout(pat_enc.pat_id)
+    )
     returning notifications.pat_id, message#>>'{alert_code}';
 
 END;
@@ -1972,7 +1998,7 @@ $$ LANGUAGE PLPGSQL;
 CREATE OR REPLACE FUNCTION flag_to_alert_codes(flag int) RETURNS text[] AS $$ DECLARE ret text[]; -- complete all mappings
 BEGIN -- Note the CASTING being done for the 2nd and 3rd elements of the array
  CASE
-     WHEN flag = 10 THEN ret := array['205', '300'];
+     WHEN flag = 10 THEN ret := array['205', '300', '206', '307'];
      WHEN flag = 20 THEN ret := array['200',
                                 '202',
                                 '203',
@@ -2085,20 +2111,27 @@ as $$ begin
 end; $$;
 
 CREATE OR REPLACE FUNCTION auto_deactivate(pid text DEFAULT NULL) RETURNS void LANGUAGE plpgsql
--- deactivate patients who is active and had severe sepsis onset more than deactivate_hours
+-- deactivate patients who is active and had positive state for more than deactivate_hours
 AS $$ BEGIN
     -- if criteria_events has been in an event for longer than deactivate_hours,
     -- then this patient should be deactivated automatically
-    perform deactivate(pat_id, TRUE)
-    from
-    (
+    with sub as (
       select distinct snapshot.pat_id
       from get_states_snapshot(pid) snapshot
       left join pat_status s on s.pat_id = snapshot.pat_id
       where state > 0
       and now() - severe_sepsis_onset > get_parameter('deactivate_hours')::interval
       and (s.pat_id IS NULL or not s.deactivated)
-    ) AS sub;
+    ),
+    perform_deactivate as (
+        select deactivate(pat_id, TRUE) from sub
+    )
+    insert into criteria_log (pat_id, tsp, event, update_date)
+    select pat_id,
+        now(),
+        json_build_object('event_type', 'auto_deactivate', 'uid', pat_id, 'deactivated', true),
+        now()
+        from sub;
 END; $$;
 
 
@@ -2116,12 +2149,21 @@ end; $$;
 create or replace function reactivate(this_pat_id text default null) returns void language plpgsql
 -- turn deactivated patients longer than deactivate_expire_hours to active
 as $$ begin
-    perform deactivate(pat_id, false) from (
+    with sub as (
         select pat_id from pat_status
         where deactivated
         and now() - deactivated_tsp > get_parameter('deactivate_expire_hours')::interval
         and pat_id = coalesce(this_pat_id, pat_id)
-    ) as sub;
+    ),
+    perform_reactivate as (
+        select deactivate(pat_id, false) from sub
+    )
+    insert into criteria_log (pat_id, tsp, event, update_date)
+    select pat_id,
+        now(),
+        json_build_object('event_type', 'auto_deactivate', 'uid', pat_id, 'deactivated', false),
+        now()
+        from sub;
 end; $$;
 
 
