@@ -63,6 +63,7 @@ def extract_user_interactions(events):
         url = urllib.parse.urlparse(evt_msg['resp']['url'])
         query_dict = urllib.parse.parse_qs(url.query)
         query_params = { dst : query_dict[src][0] if src in query_dict and len(query_dict[src]) > 0 else None for src, dst in qs_mapping.items() }
+        query_params['url'] = evt_msg['resp']['url']
         query_params['action'] = 'page-get'
         for i in ['action_data', 'render_data']:
           query_params[i] = None
@@ -122,12 +123,13 @@ def extract_user_interactions(events):
 #   await conn.close()
 
 def execute_with_backoff(sql, params_list, timeout=10, backoff=2, base=2, max_timeout=10*60, max_backoff=3*60):
-  engine = get_db_engine()
-  conn = engine.connect()
-  for params in params_list:
-    conn.execute(text(sql), params)
-  conn.close()
-  engine.dispose()
+  if params_list:
+    engine = get_db_engine()
+    conn = engine.connect()
+    for params in params_list:
+      conn.execute(text(sql), params)
+    conn.close()
+    engine.dispose()
 
 ##
 # Inserts log events into the user_interactions table.
@@ -146,6 +148,10 @@ def insert_interactions(interactions):
   params = ','.join([':' + i for i in attr_order])
   sql = 'insert into user_interactions ({}) values ({})'.format(attrs, params)
   execute_with_backoff(sql, interactions)
+
+  # Add to legacy table to support email report until this is migrated.
+  old_sql = 'insert into usr_web_log (doc_id, tsp, pat_id, visit_id, loc, dep, raw_url) values (:uid, :tsp, :pat_id, :csn, :loc, :dep, :url)'
+  execute_with_backoff(old_sql, filter(lambda x: 'url' in x, interactions))
 
 def log_entry(event):
   encoded_entry = base64.b64decode(event['awslogs']['data'])
