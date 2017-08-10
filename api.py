@@ -469,7 +469,7 @@ class TREWSAPI(web.View):
                   response_body = {'trewsData': data}
 
                   # Track summary object for user interaction logs.
-                  self.request_app['render_data'] = {
+                  self.request.app['render_data'] = {
                     'notifications'           : data['notifications'],
                     'trewscore'               : data['chart_data']['chart_values']['trewscore'][-1],
                     'deactivated'             : data['deactivated'],
