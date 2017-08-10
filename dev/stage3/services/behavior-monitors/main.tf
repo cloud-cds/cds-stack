@@ -73,6 +73,6 @@ resource "aws_cloudwatch_log_subscription_filter" "behamon_log_extractor_filter"
   depends_on      = ["aws_lambda_permission.behamon_log_extractor_permissions"]
   name            = "${var.deploy_prefix}-behamon_log_extractor_filter"
   log_group_name  = "${var.behamon_log_group_name}"
-  filter_pattern  = "{ $.resp.body.q != \"null\" || $.resp.url = \"*PATID*\" }"
+  filter_pattern  = "{ $.resp.body.q != \"null\" || ($.resp.url = \"*PATID*\" && $.resp.url != \"*PINGUSER*\") }"
   destination_arn = "${aws_lambda_function.behamon_log_extractor.arn}"
 }
