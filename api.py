@@ -32,6 +32,14 @@ chart_sample_end_day   = int(os.environ['chart_sample_end_day']) if 'chart_sampl
 chart_sample_mins      = int(os.environ['chart_sample_mins']) if 'chart_sample_mins' in os.environ else 30
 chart_sample_hrs       = int(os.environ['chart_sample_hrs']) if 'chart_sample_hrs' in os.environ else 6
 
+# Deactivated sites.
+location_blacklist = os.environ['location_blacklist'] if 'location_blacklist' in os.environ else None
+locations = {
+  '1101' : 'Johns Hopkins Hospital',
+  '1102' : 'Bayview Medical Center',
+  '1103' : 'Howard County General Hospital'
+}
+
 
 ##############################
 # Globals: cache and monitor.
@@ -446,6 +454,22 @@ class TREWSAPI(web.View):
 
         eid = req_body['q']
         uid = req_body['u'] if 'u' in req_body and req_body['u'] is not None else 'user'
+        loc = req_body['loc'] if 'loc' in req_body and req_body['loc'] is not None else ''
+
+        # Server-side location-based access control.
+        loc_matched = any(map(lambda x: re.match('{}.*'.format(x), loc) is not None, locations))
+
+        deactivated_locs = location_blacklist.split(',') if location_blacklist else []
+        deactivated_loc_matched = any(map(lambda x: re.match('{}.*'.format(x), loc) is not None, deactivated_locs)) \
+                                    if location_blacklist and loc else False
+
+        if (not loc_matched) or deactivated_loc_matched:
+          active_locs = [locations[k] for k in locations if k not in deactivated_locs]
+          msg = 'TREWS is in beta testing, and is only available at {}.<br/>'.format(', '.join(active_locs)) \
+                + 'Please contact trews-jhu@opsdx.io for more information on availability at your location.'
+          raise web.HTTPBadRequest(body=json.dumps({'message': msg, 'standalone': True}))
+
+        # Start of request handling.
         data = copy.deepcopy(data_example.patient_data_example)
 
         if eid and re.match(EID_REGEX, eid):

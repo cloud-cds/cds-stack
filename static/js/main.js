@@ -325,17 +325,6 @@ var endpoints = new function() {
       this.test();
       return;
     }
-    // Location filtering: JHH/BMC/HCGH only for now.
-    if ( postBody['loc'] == null ||
-          !(postBody['loc'].startsWith('1101')
-            || postBody['loc'].startsWith('1102')
-            || postBody['loc'].startsWith('1103')) )
-    {
-      $('#loading p').html(
-          "TREWS is in beta testing, and is only available at the Johns Hopkins Hopsital, Bayview Medical Center and Howard County General Hospital.<br/>"
-          + "Please contact trews-jhu@opsdx.io for more information on availability at your location.<br/>");
-      return;
-    }
     // Ensure a valid Patient ID.
     if (postBody['q'] == null) {
       $('#loading p').html("No Patient Identifier entered. Please restart application or contact trews-jhu@opsdx.io<br/>" + window.location);
@@ -376,7 +365,11 @@ var endpoints = new function() {
       $('#loading').removeClass('waiting').spin(false); // Remove any spinner from the page
       if ( toolbarButton ) { toolbarButton.removeClass('loading'); }
       if (result.status == 400) {
-        $('#loading p').html(result.responseJSON['message'] + ".<br/>  Connection Failed<span id='test-data'>.</span> Please rest<span id='see-blank'>a</span>rt application or contact trews-jhu@opsdx.io");
+        var msg = result.responseJSON['message'];
+        if ( result.responseJSON['standalone'] == null || !result.responseJSON['standalone'] ) {
+          msg += ".<br/>  Connection Failed<span id='test-data'>.</span> Please rest<span id='see-blank'>a</span>rt application or contact trews-jhu@opsdx.io";
+        }
+        $('#loading p').html(msg);
         $('#test-data').click(function() {
           endpoints.test();
         });

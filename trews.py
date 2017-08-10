@@ -261,10 +261,13 @@ class TREWSStaticResource(web.View):
 
     else:
       if os.path.exists(filename):
-        with open(filename, 'rb' if f_binary else 'r') as f:
-            r_body = f.read()
+        try:
+          with open(filename, 'rb' if f_binary else 'r') as f:
+              r_body = f.read()
+        except:
+          raise web.HTTPBadRequest(body=json.dumps({'message': 'Failed to open static file: %s' % filename}))
       else:
-        raise web.HTTPNotFound(body=json.dumps({'message': 'Invalid file: %s' % filename}))
+        raise web.HTTPNotFound(body=json.dumps({'message': 'Invalid static  file: %s' % filename}))
 
     return Response(content_type=r_content_type, body=r_body)
 
