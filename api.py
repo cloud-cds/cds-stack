@@ -471,7 +471,7 @@ class TREWSAPI(web.View):
                   # Track summary object for user interaction logs.
                   self.request.app['render_data'] = {
                     'notifications'           : data['notifications'],
-                    'trewscore'               : data['chart_data']['chart_values']['trewscore'][-1],
+                    'trewscore'               : data['chart_data']['chart_values']['trewscore'][-1] if data['chart_data']['chart_values']['trewscore'] else None,
                     'deactivated'             : data['deactivated'],
                     'refresh_time'            : data['refresh_time'],
                     'severe_sepsis'           : { 'is_met'                 : data['severe_sepsis']['is_met'],
