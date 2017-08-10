@@ -467,13 +467,38 @@ class TREWSAPI(web.View):
                 data = await self.update_response_json(db_pool, data, eid)
                 if data is not None:
                   response_body = {'trewsData': data}
-                  self.request.app['notifications'] = len(data['notifications'])
-                  self.request.app['trewscore'] = data['chart_data']['chart_values']['trewscore'][-1]
+
+                  # Track summary object for user interaction logs.
+                  self.request_app['render_data'] = {
+                    'notifications'           : data['notifications'],
+                    'trewscore'               : data['chart_data']['chart_values']['trewscore'][-1],
+                    'deactivated'             : data['deactivated'],
+                    'refresh_time'            : data['refresh_time'],
+                    'severe_sepsis'           : { 'is_met'                 : data['severe_sepsis']['is_met'],
+                                                  'suspicion_of_infection' : data['severe_sepsis']['suspicion_of_infection']
+                                                  'sirs'                   : { 'is_met': data['severe_sepsis']['sirs']['is_met'] },
+                                                  'organ_dysfunction'      : { 'is_met': data['severe_sepsis']['organ_dysfunction']['is_met'] },
+                                                },
+                    'septic_shock'            : { 'is_met'            : data['septic_shock']['is_met'],
+                                                  'crystalloid_fluid' : { 'is_met': data['septic_shock']['crystalloid_fluid']['is_met'] },
+                                                  'hypoperfusion'     : { 'is_met': data['septic_shock']['hypoperfusion']['is_met'] },
+                                                  'hypotension'       : { 'is_met': data['septic_shock']['hypotension']['is_met'] }
+                                                },
+                    'initial_lactate_order'   : { k: data['initial_lactate_order'][k]   for k in ['status', 'time', 'user'] },
+                    'antibiotics_order'       : { k: data['antibiotics_order'][k]       for k in ['status', 'time', 'user'] },
+                    'blood_culture_order'     : { k: data['blood_culture_order'][k]     for k in ['status', 'time', 'user'] },
+                    'crystalloid_fluid_order' : { k: data['crystalloid_fluid_order'][k] for k in ['status', 'time', 'user'] },
+                    'repeat_lactate_order'    : { k: data['repeat_lactate_order'][k]    for k in ['status', 'time', 'user'] },
+                    'vasopressors_order'      : { k: data['vasopressors_order'][k]      for k in ['status', 'time', 'user'] }
+                  }
+
                 else:
                   raise web.HTTPBadRequest(body=json.dumps({'message': 'No patient found'}))
 
+              # Track summary object for user interaction logs.
               elif actionType == u'pollNotifications':
-                self.request.app['notifications'] = len(response_body['notifications'])
+                self.request.app['render_data'] = { 'notifications': response_body['notifications'] }
+
           else:
             response_body = {'message': 'Invalid TREWS REST API request'}
 
