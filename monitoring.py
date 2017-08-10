@@ -271,8 +271,8 @@ def post_log_object(request, response):
   }
 
   result['status'] = response.status
-  if 'body' in request.app:
-    result['body'] = request.app['body']
+  for i in ['body', 'notifications', 'trewscore']:
+    result[i] = request.app[i] if i in request.app else None
 
   return result
 
@@ -292,6 +292,8 @@ async def cloudwatch_logger_middleware(app, handler):
       cwlog.info(json.dumps({ 'req': pre_log_object(request) }))
 
     request.app['body'] = None
+    request.app['notifications'] = None
+    request.app['trewscore'] = None
     response = await handler(request)
 
     # Post-logging

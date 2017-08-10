@@ -467,12 +467,18 @@ class TREWSAPI(web.View):
                 data = await self.update_response_json(db_pool, data, eid)
                 if data is not None:
                   response_body = {'trewsData': data}
-                  logging.info('trewsData response {}'.format(str(data['severe_sepsis']['suspicion_of_infection'])))
+                  self.request.app['notifications'] = len(data['notifications'])
+                  self.request.app['trewscore'] = data['chart_data']['chart_values']['trewscore'][-1]
                 else:
                   raise web.HTTPBadRequest(body=json.dumps({'message': 'No patient found'}))
+
+              elif actionType == u'pollNotifications':
+                self.request.app['notifications'] = len(response_body['notifications'])
           else:
             response_body = {'message': 'Invalid TREWS REST API request'}
+
           return json_response(response_body)
+
         else:
           raise web.HTTPBadRequest(body=json.dumps({'message': 'No patient identifier supplied in request'}))
 
