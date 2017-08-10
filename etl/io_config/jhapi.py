@@ -55,7 +55,7 @@ class JHAPIConfig:
                 return None
               return await response.json()
         except Exception as e:
-          if i < request_attempts - 1 and str(e) != 'Session is closed' and not e.errno in (104):
+          if i < request_attempts - 1 and str(e) != 'Session is closed' and not e.errno in (104,):
             logging.error("Request Error Caught for URL {}, retrying... {} times".format(url,i+1))
             logging.exception(e)
             sleep(0.5)
