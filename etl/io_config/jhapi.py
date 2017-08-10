@@ -80,7 +80,7 @@ class JHAPIConfig:
       except Exception as e:
         # retrying
         if attempt < attempts - 1:
-          logging.error("Session Error Caught for URL {}, setting {}, retrying... {} times".format(url, request_settings, attempt+1))
+          logging.error("Session Error Caught for URL {}, retrying... {} times".format(url, attempt+1))
           sleep(5)
         else:
           raise Exception("Session failed for URL {}, setting {}".format(url, request_settings))
