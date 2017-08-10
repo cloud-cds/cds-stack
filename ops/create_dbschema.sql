@@ -454,6 +454,22 @@ CREATE TABLE usr_web_log (
     PRIMARY KEY (doc_id, tsp, pat_id)
 );
 
+DROP TABLE IF EXISTS user_interactions;
+CREATE TABLE user_interactions (
+    tsp             timestamptz,
+    addr            cidr,
+    session         char(40),
+    uid             varchar(16),
+    action          text,
+    pat_id          varchar(50),
+    csn             varchar(50),
+    loc             varchar(16),
+    dep             varchar(16),
+    action_data     jsonb,
+    render_data     jsonb,
+    log_entry       text
+);
+
 
 DROP TABLE IF EXISTS lmcscore;
 CREATE TABLE lmcscore (
