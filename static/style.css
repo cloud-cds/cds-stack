@@ -319,6 +319,14 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li {
     display: block;
     cursor: pointer;
 }
+.actions .place-order-disabled {
+    text-decoration: line-through;
+    float: right;
+    color: #10b66d;
+    margin-left: 10px;
+    display: block;
+    cursor: no-drop;
+}
 .actions a.hidden {
     display: none;
 }

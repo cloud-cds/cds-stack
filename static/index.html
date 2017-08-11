@@ -157,6 +157,11 @@
 							<h5></h5>
 						</div>
 						<div class="actions cf">
+							{% if release == 'production' and loc != 'HCGH' %}
+							<span class='place-order-disabled' data-trews='initial_lactate_order' order-key="{{ keys['lactate'] }}">
+							Place Order
+							</span>
+							{% else %}
 							<span class='place-order place-order-btn' data-trews='initial_lactate_order' order-key="{{ keys['lactate'] }}">
 								{% if release == 'epic2017' %}
 								Place Order
@@ -170,6 +175,7 @@
 								<a href="{{ order_key_urls[keys['lactate']] }}">Place Order</a>
 								{% endif %}
 							</span>
+							{% endif %}
 							<a class='orderNA' data-trews='initial_lactate_order'>Clinically Inappropriate</a>
 						</div>
 					</div>
@@ -180,6 +186,11 @@
 							<h5></h5>
 						</div>
 						<div class="actions cf">
+							{% if release == 'production' and loc != 'HCGH' %}
+							<span class='place-order-disabled' data-trews='blood_culture_order' order-key="{{ keys['blood_culture'] }}">
+							Place Order
+							</span>
+							{% else %}
 							<span class='place-order place-order-btn' data-trews='blood_culture_order' order-key="{{ keys['blood_culture'] }}">
 								{% if release == 'epic2017' %}
 								Place Order
@@ -193,6 +204,7 @@
 								<a href="{{ order_key_urls[keys['blood_culture']] }}">Place Order</a>
 								{% endif %}
 							</span>
+							{% endif %}
 							<a class='orderNA' data-trews='blood_culture_order'>Clinically Inappropriate</a>
 						</div>
 					</div>
@@ -205,43 +217,49 @@
 							<h5></h5>
 						</div>
 						<div class="actions cf">
-							{% if custom_antibiotics %}
-								{% for loc in custom_antibiotics.locations %}
-								<span class='place-order place-order-dropdown-btn' data-trews="{{ loc.data_trews }}" parent-card="sev3">
-									{{ loc.name }} Order
-								</span>
-								{% endfor %}
-								<span class='place-order place-order-btn' data-trews='antibiotics_order' order-key="{{ keys['antibiotics'] }}">
-									{% if release == 'epic2017' %}
-										Non-ICU Order
-									{% else %}
-										{% if keys['antibiotics'] in order_key_urls and release == 'production' %}
-										<a href="{{ order_key_urls[keys['antibiotics']] }}">Non-ICU Order</a>
-									  {% else %}
-										<p>
-								    <OrderTemplate Key="{{ keys['antibiotics'] }}" OrderMode="IP" RemoveOriginal="True">
-								    Non-ICU Order
-								    </OrderTemplate>
-								    </p>
-									  {% endif %}
-									{% endif %}
-								</span>
+							{% if release == 'production' and loc != 'HCGH' %}
+							<span class='place-order-disabled' data-trews='antibiotics_order' order-key="{{ keys['antibiotics'] }}">
+							Place Order
+							</span>
 							{% else %}
-								<span class='place-order place-order-btn' data-trews='antibiotics_order' order-key="{{ keys['antibiotics'] }}">
-									{% if release == 'epic2017' %}
-										Place Order
-									{% else %}
-										{% if keys['antibiotics'] in order_key_urls and release == 'production' %}
-										<a href="{{ order_key_urls[keys['antibiotics']] }}">Place Order</a>
-									  {% else %}
-										<p>
-								    <OrderTemplate Key="{{ keys['antibiotics'] }}" OrderMode="IP" RemoveOriginal="True">
-								    Place Order
-								    </OrderTemplate>
-								    </p>
-									  {% endif %}
-									{% endif %}
-								</span>
+								{% if custom_antibiotics %}
+									{% for loc in custom_antibiotics.locations %}
+									<span class='place-order place-order-dropdown-btn' data-trews="{{ loc.data_trews }}" parent-card="sev3">
+										{{ loc.name }} Order
+									</span>
+									{% endfor %}
+									<span class='place-order place-order-btn' data-trews='antibiotics_order' order-key="{{ keys['antibiotics'] }}">
+										{% if release == 'epic2017' %}
+											Non-ICU Order
+										{% else %}
+											{% if keys['antibiotics'] in order_key_urls and release == 'production' %}
+											<a href="{{ order_key_urls[keys['antibiotics']] }}">Non-ICU Order</a>
+										  {% else %}
+											<p>
+									    <OrderTemplate Key="{{ keys['antibiotics'] }}" OrderMode="IP" RemoveOriginal="True">
+									    Non-ICU Order
+									    </OrderTemplate>
+									    </p>
+										  {% endif %}
+										{% endif %}
+									</span>
+								{% else %}
+									<span class='place-order place-order-btn' data-trews='antibiotics_order' order-key="{{ keys['antibiotics'] }}">
+										{% if release == 'epic2017' %}
+											Place Order
+										{% else %}
+											{% if keys['antibiotics'] in order_key_urls and release == 'production' %}
+											<a href="{{ order_key_urls[keys['antibiotics']] }}">Place Order</a>
+										  {% else %}
+											<p>
+									    <OrderTemplate Key="{{ keys['antibiotics'] }}" OrderMode="IP" RemoveOriginal="True">
+									    Place Order
+									    </OrderTemplate>
+									    </p>
+										  {% endif %}
+										{% endif %}
+									</span>
+								{% endif %}
 							{% endif %}
 							<a class='orderNA' data-trews='antibiotics_order'>Clinically Inappropriate</a>
 						</div>
@@ -253,6 +271,11 @@
 							<h5></h5>
 						</div>
 						<div class="actions cf">
+							{% if release == 'production' and loc != 'HCGH' %}
+							<span class='place-order-disabled' data-trews='crystalloid_fluid_order' order-key="{{ keys['fluid'] }}">
+							Place Order
+							</span>
+							{% else %}
 							<span class='place-order place-order-btn' data-trews='crystalloid_fluid_order' order-key="{{ keys['fluid'] }}">
 								{% if release == 'epic2017' %}
 								Place Order
@@ -266,6 +289,7 @@
 								<a href="{{ order_key_urls[keys['fluid']] }}">Place Order</a>
 								{% endif %}
 							</span>
+							{% endif %}
 							<a class='orderNA' data-trews='crystalloid_fluid_order'>Clinically Inappropriate</a>
 						</div>
 					</div>
@@ -281,6 +305,11 @@
 							<h5></h5>
 						</div>
 						<div class="actions cf">
+							{% if release == 'production' and loc != 'HCGH' %}
+							<span class='place-order-disabled' data-trews='repeat_lactate_order' order-key="{{ keys['lactate'] }}">
+							Place Order
+							</span>
+							{% else %}
 							<span class='place-order place-order-btn' data-trews='repeat_lactate_order' order-key="{{ keys['lactate'] }}">
 								{% if release == 'epic2017' %}
 								Place Order
@@ -294,6 +323,7 @@
 								<a href="{{ order_key_urls[keys['lactate']] }}">Place Order</a>
 								{% endif %}
 							</span>
+							{% endif %}
 							<a class='orderNA' data-trews='repeat_lactate_order'>Clinically Inappropriate</a>
 						</div>
 					</div>
@@ -309,6 +339,11 @@
 							<h5></h5>
 						</div>
 						<div class="actions cf">
+							{% if release == 'production' and loc != 'HCGH' %}
+							<span class='place-order-disabled' data-trews='vasopressors_order' order-key="{{ keys['vasopressors'] }}">
+							Place Order
+							</span>
+							{% else %}
 							<span class='place-order place-order-btn' data-trews='vasopressors_order' order-key="{{ keys['vasopressors'] }}">
 								{% if release == 'epic2017' %}
 								Place Order
@@ -322,6 +357,7 @@
 								<a href="{{ order_key_urls[keys['vasopressors']] }}">Place Order</a>
 								{% endif %}
 							</span>
+							{% endif %}
 							<a class='orderNA' data-trews='vasopressors_order'>Clinically Inappropriate</a>
 						</div>
 					</div>
@@ -338,28 +374,31 @@
 		</div>
 	</div>
 	<div id='dropdown'></div>
-	{% if custom_antibiotics %}
-		{% for loc in custom_antibiotics.locations %}
-		<div class="order-dropdown" data-trews="{{ loc.data_trews }}">
-			{% for disease in loc.diseases %}
-			<span class='place-order place-order-btn' data-trews='{{ custom_antibiotics.action }}' order-key="{{ disease.key }}">
-				{% if release == 'epic2017' %}
-				{{ disease.display_name }}
-				{% else %}
-					{% if disease.key in order_key_urls and release == 'production' %}
-					<a href="{{ order_key_urls[disease.key] }}">{{ disease.display_name }}</a>
-				  {% else %}
-					<p>
-			    <OrderTemplate Key="{{ disease.key }}" OrderMode="IP" RemoveOriginal="True">
-			    {{ disease.display_name }}
-			    </OrderTemplate>
-			    </p>
-				  {% endif %}
-				{% endif %}
-			</span>
+	{% if release == 'production' and loc != 'HCGH' %}
+	{% else %}
+		{% if custom_antibiotics %}
+			{% for loc in custom_antibiotics.locations %}
+			<div class="order-dropdown" data-trews="{{ loc.data_trews }}">
+				{% for disease in loc.diseases %}
+				<span class='place-order place-order-btn' data-trews='{{ custom_antibiotics.action }}' order-key="{{ disease.key }}">
+					{% if release == 'epic2017' %}
+					{{ disease.display_name }}
+					{% else %}
+						{% if disease.key in order_key_urls and release == 'production' %}
+						<a href="{{ order_key_urls[disease.key] }}">{{ disease.display_name }}</a>
+					  {% else %}
+						<p>
+				    <OrderTemplate Key="{{ disease.key }}" OrderMode="IP" RemoveOriginal="True">
+				    {{ disease.display_name }}
+				    </OrderTemplate>
+				    </p>
+					  {% endif %}
+					{% endif %}
+				</span>
+				{% endfor %}
+			</div>
 			{% endfor %}
-		</div>
-		{% endfor %}
+		{% endif %}
 	{% endif %}
 	<div id='order-inappropriate-dropdown'>
 		<input placeholder="Briefly explain why" value="" maxlength="140"/><!--

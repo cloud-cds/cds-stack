@@ -172,7 +172,7 @@ class TREWSStaticResource(web.View):
 
     j2_env = Environment(loader=FileSystemLoader(STATIC_DIR), trim_blocks=True)
     return j2_env.get_template(INDEX_FILENAME) \
-                 .render(release=release, ie_mode=ie_mode, order_link_mode=order_link_mode, \
+                 .render(release=release, loc=loc, ie_mode=ie_mode, order_link_mode=order_link_mode, \
                          keys=KEYS, custom_antibiotics=custom_antibiotics, order_key_urls=order_key_urls)
 
 
