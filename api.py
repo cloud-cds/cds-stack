@@ -33,6 +33,7 @@ chart_sample_mins      = int(os.environ['chart_sample_mins']) if 'chart_sample_m
 chart_sample_hrs       = int(os.environ['chart_sample_hrs']) if 'chart_sample_hrs' in os.environ else 6
 
 # Deactivated sites.
+disabled_msg = os.environ['disabled_msg'] if 'disabled_msg' in os.environ else None
 location_blacklist = os.environ['location_blacklist'] if 'location_blacklist' in os.environ else None
 locations = {
   '1101' : 'Johns Hopkins Hospital',
@@ -455,6 +456,10 @@ class TREWSAPI(web.View):
         eid = req_body['q']
         uid = req_body['u'] if 'u' in req_body and req_body['u'] is not None else 'user'
         loc = req_body['loc'] if 'loc' in req_body and req_body['loc'] is not None else ''
+
+        # Full-site disabling.
+        if disabled_msg is not None:
+          raise web.HTTPBadRequest(body=json.dumps({'message': disabled_msg, 'standalone': True}))
 
         # Server-side location-based access control.
         loc_matched = any(map(lambda x: re.match('{}.*'.format(x), loc) is not None, locations))
