@@ -20,3 +20,12 @@ module "k8s_ml" {
 module "k8s_ml_tf" {
   source = "./k8s-ml-tf"
 }
+
+module "notes_emr" {
+  source = "./aws-emr"
+  vpc_id = "vpc-6fd4b409"
+}
+
+output "notes_emr_master_dns" {
+  value = "${module.notes_emr.notes_emr_master_dns}"
+}
