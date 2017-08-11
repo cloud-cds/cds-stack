@@ -646,6 +646,7 @@ AS $func$ BEGIN
          CE.severe_sepsis_onset,
          CE.septic_shock_onset,
          CE.severe_sepsis_wo_infection_onset,
+         CE.severe_sepsis_wo_infection_initial,
          CE.severe_sepsis_lead_time
   from max_events_by_pat MEV
   left join lateral (
@@ -2166,6 +2167,21 @@ as $$ begin
         from sub;
 end; $$;
 
+create or replace function reset_patient(this_pat_id text)
+returns void language plpgsql as $$
+begin
+    update criteria_events set flag = -1
+    where pat_id = this_pat_id;
+    insert into criteria_log (pat_id, tsp, event, update_date)
+    values (
+          this_pat_id,
+          now(),
+          '{"event_type": "reset", "uid":"dba"}',
+          now()
+      );
+    delete from notifications where pat_id = this_pat_id;
+    select advance_criteria_snapshot(this_pat_id);
+end; $$;
 
 ----------------------------------------------------
 -- deterioration feedback functions
