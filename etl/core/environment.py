@@ -3,7 +3,9 @@ All environment variables should be loaded from here.
 This makes it easy to manage state.
 """
 import os
+from etl.core.singleton import Singleton
 
+@Singleton
 class Environment:
   def __init__(self):
     '''
@@ -26,6 +28,10 @@ class Environment:
       # Epic2op flags
       ("etl_graph",     "string",  "etl_graph", "Filename to save the etl time graph as."),
 
+      # AWS flags
+      ("AWS_ACCESS_KEY_ID",     "string", None,         "Access key for AWS account"),
+      ("AWS_SECRET_ACCESS_KEY", "string", None,         "Secret key for AWS account"),
+      ("AWS_DEFAULT_REGION",    "string", "us-east-1",  "AWS region"),
     ]
     self.set_vars(self.all_vars)
 
