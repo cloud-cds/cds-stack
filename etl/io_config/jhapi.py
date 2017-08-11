@@ -64,14 +64,14 @@ class JHAPIConfig:
             logging.error("Request Error Caught for URL {}, retrying... {} times".format(url,i+1))
             logging.exception(e)
             random_secs = random.uniform(0, 1)
-            wait_time = min(((base**attempts) + random_secs), max_backoff)
+            wait_time = min(((base**i) + random_secs), max_backoff)
             sleep(wait_time)
           else:
             raise Exception("Fail to request URL {}".format(url))
 
     async def run(request_settings, loop):
       tasks = []
-      sem = asyncio.Semaphore(200)
+      sem = asyncio.Semaphore(50)
       async with ClientSession(headers=self.headers, loop=loop) as session:
         for setting in request_settings:
           task = asyncio.ensure_future(fetch(session, sem, setting), loop=loop)
@@ -94,7 +94,7 @@ class JHAPIConfig:
           logging.error("Session Error Caught for URL {}, retrying... {} times".format(url, attempt+1))
           logging.exception(e)
           random_secs = random.uniform(0, 1)
-          wait_time = min(((base**attempts) + random_secs), max_backoff)
+          wait_time = min(((base**attempt) + random_secs), max_backoff)
           sleep(wait_time)
         else:
           raise Exception("Session failed for URL {}".format(url))
