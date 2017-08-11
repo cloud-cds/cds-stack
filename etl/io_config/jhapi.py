@@ -49,7 +49,7 @@ class JHAPIConfig:
       base = 2
       max_backoff = 60
 
-      request_attempts = 10
+      request_attempts = 5
       for i in range(request_attempts):
         try:
           async with sem:
@@ -82,7 +82,7 @@ class JHAPIConfig:
     base = 2
     max_backoff = 60
 
-    attempts = 100
+    attempts = 5
     for attempt in range(attempts):
       try:
         future = asyncio.ensure_future(run(request_settings, ctxt.loop), loop=ctxt.loop)
