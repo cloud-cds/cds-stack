@@ -14,6 +14,7 @@ import datetime as dt
 import itertools
 import logging
 import pytz
+import random
 
 class JHAPIConfig:
   def __init__(self, hospital, lookback_hours, jhapi_server, jhapi_id,
@@ -44,7 +45,11 @@ class JHAPIConfig:
     request_settings = self.generate_request_settings(http_method, url, payloads)
 
     async def fetch(session, sem, setting):
-      request_attempts = 3
+      backoff = 2
+      base = 2
+      max_backoff = 60
+
+      request_attempts = 10
       for i in range(request_attempts):
         try:
           async with sem:
@@ -55,10 +60,12 @@ class JHAPIConfig:
                 return None
               return await response.json()
         except Exception as e:
-          if i < request_attempts - 1 and str(e) != 'Session is closed' and not e.errno in (104,):
+          if i < request_attempts - 1 and str(e) != 'Session is closed':
             logging.error("Request Error Caught for URL {}, retrying... {} times".format(url,i+1))
             logging.exception(e)
-            sleep(5)
+            random_secs = random.uniform(0, 1)
+            wait_time = min(((base**attempts) + random_secs), max_backoff)
+            sleep(wait_time)
           else:
             raise Exception("Fail to request URL {}".format(url))
 
@@ -71,7 +78,11 @@ class JHAPIConfig:
           tasks.append(task)
         return await asyncio.gather(*tasks)
 
-    attempts = 3
+    backoff = 2
+    base = 2
+    max_backoff = 60
+
+    attempts = 100
     for attempt in range(attempts):
       try:
         future = asyncio.ensure_future(run(request_settings, ctxt.loop), loop=ctxt.loop)
@@ -82,7 +93,9 @@ class JHAPIConfig:
         if attempt < attempts - 1:
           logging.error("Session Error Caught for URL {}, retrying... {} times".format(url, attempt+1))
           logging.exception(e)
-          sleep(3)
+          random_secs = random.uniform(0, 1)
+          wait_time = min(((base**attempts) + random_secs), max_backoff)
+          sleep(wait_time)
         else:
           raise Exception("Session failed for URL {}".format(url))
 
