@@ -74,9 +74,7 @@ resource "aws_lambda_function" "etl_lambda_HCGH" {
         kube_user      = "${var.k8s_user}"
         kube_pass      = "${var.k8s_pass}"
         kube_image     = "${var.k8s_image}"
-        #kube_cert      = "${var.k8s_cert}"
-        #kube_key       = "${var.k8s_key}"
-        #kube_token     = "${var.k8s_token}"
+        kube_active_deadline_seconds = "600"
 
         kube_cmd_0 = "sh"
         kube_cmd_1 = "-c"
@@ -100,7 +98,7 @@ resource "aws_lambda_function" "etl_lambda_HCGH" {
         k8s_job_TREWS_ETL_STREAM_HOURS       = "${var.TREWS_ETL_STREAM_HOURS}"
         k8s_job_TREWS_ETL_STREAM_SLICES      = "${var.TREWS_ETL_STREAM_SLICES}"
         k8s_job_TREWS_ETL_STREAM_SLEEP_SECS  = "${var.TREWS_ETL_STREAM_SLEEP_SECS}"
-        k8s_job_TREWS_ETL_EPIC_NOTIFICATIONS = "${var.TREWS_ETL_EPIC_NOTIFICATIONS}"
+        k8s_job_TREWS_ETL_EPIC_NOTIFICATIONS = "0"
         k8s_job_TREWS_ETL_SUPPRESSION = "0"
       }
     }
@@ -131,9 +129,7 @@ resource "aws_lambda_function" "etl_lambda_JHH" {
         kube_user      = "${var.k8s_user}"
         kube_pass      = "${var.k8s_pass}"
         kube_image     = "${var.k8s_image}"
-        #kube_cert      = "${var.k8s_cert}"
-        #kube_key       = "${var.k8s_key}"
-        #kube_token     = "${var.k8s_token}"
+        kube_active_deadline_seconds = "900"
 
         kube_cmd_0 = "sh"
         kube_cmd_1 = "-c"
@@ -188,9 +184,7 @@ resource "aws_lambda_function" "etl_lambda_BMC" {
         kube_user      = "${var.k8s_user}"
         kube_pass      = "${var.k8s_pass}"
         kube_image     = "${var.k8s_image}"
-        #kube_cert      = "${var.k8s_cert}"
-        #kube_key       = "${var.k8s_key}"
-        #kube_token     = "${var.k8s_token}"
+        kube_active_deadline_seconds = "600"
 
         kube_cmd_0 = "sh"
         kube_cmd_1 = "-c"

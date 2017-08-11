@@ -59,6 +59,8 @@ spec:
           - name: alerts
             containerPort: 31000
         env:
+        - name: etl_channel
+          value: "on_opsdx_dev_etl"
         - name: db_host
           value: "db.dev.opsdx.io"
         - name: db_port
