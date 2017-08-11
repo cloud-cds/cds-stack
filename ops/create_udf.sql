@@ -2180,7 +2180,7 @@ begin
           now()
       );
     delete from notifications where pat_id = this_pat_id;
-    select advance_criteria_snapshot(this_pat_id);
+    perform advance_criteria_snapshot(this_pat_id);
 end; $$;
 
 ----------------------------------------------------
