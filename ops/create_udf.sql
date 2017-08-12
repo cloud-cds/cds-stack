@@ -2056,6 +2056,7 @@ RETURNS table(
         end)
   from pat_enc
   left join pat_status on pat_enc.pat_id = pat_status.pat_id
+
   left join
   (
       select notifications.pat_id,
@@ -2068,9 +2069,21 @@ RETURNS table(
       where not (message#>>'{read}')::bool
       and (message#>>'{timestamp}')::numeric < date_part('epoch', now())
       group by notifications.pat_id
-  ) as counts on counts.pat_id = pat_enc.pat_id
-  where pat_enc.pat_id like 'E%' and pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id);
+  )
+  counts on counts.pat_id = pat_enc.pat_id
+
+  left join (
+    select cdm_t.enc_id, last(cdm_t.value order by cdm_t.tsp) as unit
+    from cdm_t
+    where cdm_t.fid = 'care_unit'
+    group by cdm_t.enc_id
+  ) pat_unit on pat_enc.enc_id = pat_unit.enc_id
+
+  where pat_enc.pat_id like 'E%'
+  and   pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id)
+  and   pat_unit.unit similar to (select min(p.value) from parameters p where p.name = 'notifications_whitelist');
 END $func$ LANGUAGE plpgsql;
+
 
 CREATE OR REPLACE FUNCTION notify_future_notification(channel text, this_pat_id text default null)
 RETURNS void AS $func$
