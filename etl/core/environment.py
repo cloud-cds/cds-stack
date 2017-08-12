@@ -37,7 +37,7 @@ class Environment:
 
       # JHAPI flags
       ("TREWS_ETL_EPIC_NOTIFICATIONS", "integer",  0,   "Whether to send notifications to Epic."),
-      ("JHAPI_SEMAPHORE",              "integer",  10,  "Number of simultaneous connections allowed to jhapi.")
+      ("JHAPI_SEMAPHORE",              "integer",  50,  "Number of simultaneous connections allowed to jhapi.")
     ]
     self.set_vars(self.all_vars)
 
