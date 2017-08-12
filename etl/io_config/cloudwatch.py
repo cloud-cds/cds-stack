@@ -2,15 +2,28 @@ import boto3, botocore
 from etl.core.environment import Environment
 import datetime as dt
 import logging
+logging.getLogger('boto').setLevel(logging.CRITICAL)
+logging.getLogger('boto3').setLevel(logging.CRITICAL)
+logging.getLogger('botocore').setLevel(logging.CRITICAL)
 
 class Cloudwatch:
   def __init__(self):
-    flags = Environment()
-    self.client = boto3.client('cloudwatch',
-      region_name           = flags.AWS_DEFAULT_REGION,
-      aws_access_key_id     = flags.AWS_ACCESS_KEY_ID,
-      aws_secret_access_key = flags.AWS_SECRET_ACCESS_KEY,)
-    self.prod_or_dev = flags.db_name.split('_')[1]
+    self.prod_or_dev = Environment().db_name.split('_')[1]
+    self.client = None
+
+
+
+  def get_client(self):
+    if not self.client:
+      flags = Environment()
+      self.client = boto3.client('cloudwatch',
+        region_name           = flags.AWS_DEFAULT_REGION,
+        aws_access_key_id     = flags.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key = flags.AWS_SECRET_ACCESS_KEY,
+      )
+    return self.client
+
+
 
 
   def build_metric_data(self, dimension_name, metric_name, value, unit='None'):
@@ -25,17 +38,20 @@ class Cloudwatch:
     return metric_data
 
 
+
+
   def push(self, dimension_name, metric_name, value, unit='None'):
     ''' Push a metric to cloudwatch '''
 
-    metric_data = [build_metric_data(dimension_name, metric_name, value, unit)]
+    metric_data = [self.build_metric_data(dimension_name, metric_name, value, unit)]
 
     try:
-      self.client.put_metric_data(Namespace='OpsDX', MetricData=metric_data)
+      self.get_client().put_metric_data(Namespace='OpsDX', MetricData=metric_data)
       logging.info('Successfully pushed {} to cloudwatch'.format(metric_name))
     except botocore.exceptions.EndpointConnectionError as e:
       logging.error('Unsuccessfully pushed {} to cloudwatch'.format(metric_name))
       logging.error(e)
+
 
 
 
@@ -51,13 +67,12 @@ class Cloudwatch:
     # Build metric data
     metric_data = []
     for idx, metric in enumerate(metric_names):
-      metric_data.append(
-        build_metric_data(dimension_name, metric, values[idx], units[idx])
-      )
+      metric_data.append(self.build_metric_data(dimension_name, metric,
+                                                values[idx], units[idx]))
 
     # Push to cloudwatch
     try:
-      self.client.put_metric_data(Namespace='OpsDX', MetricData=metric_data)
+      client.put_metric_data(Namespace='OpsDX', MetricData=metric_data)
       logging.info('Successfully pushed to cloudwatch')
     except botocore.exceptions.EndpointConnectionError as e:
       logging.error('Unsuccessfully pushed to cloudwatch')
