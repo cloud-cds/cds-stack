@@ -69,6 +69,7 @@ class JHAPIConfig:
                 response = None
               else:
                 response = await response.json()
+              break
         except IOError as e:
           if i < request_attempts - 1 and not e.errno in (104): # Connection reset by peer
             logging.error(e)
