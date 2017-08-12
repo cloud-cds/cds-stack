@@ -12,7 +12,9 @@ class Environment:
     All flags will be named the same as the environment variable unless specified.
 
     Tuple format:
-      ENVIRONMENT VAR NAME,   TYPE,   DEFAULT,   DESCRIPTION,   NEW NAME (optional)
+    ============================================================================
+    | ENVIRONMENT VAR  |  TYPE  |  DEFAULT  |  DESCRIP  |  NEW NAME (optional) |
+    ============================================================================
 
     Possible types: {string, integer, float, boolean}
     '''
@@ -32,6 +34,10 @@ class Environment:
       ("AWS_ACCESS_KEY_ID",     "string", None,         "Access key for AWS account"),
       ("AWS_SECRET_ACCESS_KEY", "string", None,         "Secret key for AWS account"),
       ("AWS_DEFAULT_REGION",    "string", "us-east-1",  "AWS region"),
+
+      # JHAPI flags
+      ("TREWS_ETL_EPIC_NOTIFICATIONS", "integer",  0,   "Whether to send notifications to Epic."),
+      ("JHAPI_SEMAPHORE",              "integer",  10,  "Number of simultaneous connections allowed to jhapi.")
     ]
     self.set_vars(self.all_vars)
 
