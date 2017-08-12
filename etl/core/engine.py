@@ -1,4 +1,5 @@
 from etl.core.plan import Plan
+from etl.core.environment import Environment
 
 import os, logging
 from collections import deque
@@ -46,6 +47,7 @@ class TaskContext:
     sh.setFormatter(formatter)
     self.log.addHandler(sh)
     self.log.propagate = False
+    self.flags = Environment()
 
   async def async_init(self, loop=None):
     if loop:
