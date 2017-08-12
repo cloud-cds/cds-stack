@@ -3,9 +3,11 @@ from etl.mappings.flowsheet_ids import flowsheet_ids
 from etl.mappings.component_ids import component_ids
 from etl.mappings.lab_procedures import procedure_ids
 
+from etl.core.environment import Environment
+from etl.io_config.cloudwatch import Cloudwatch
+
 import sys
 import asyncio
-import etl.io_config.core as core
 from aiohttp import ClientSession
 from aiohttp import client_exceptions
 from time import sleep
@@ -36,20 +38,27 @@ class JHAPIConfig:
       'client_secret': jhapi_secret,
       'User-Agent': ''
     }
+    self.cloudwatch_logger = Cloudwatch()
+
+
 
   def make_requests(self, ctxt, endpoint, payloads, http_method='GET'):
+    # Check inputs
     if type(payloads) != list:
       raise TypeError("Must pass in a list of payloads")
 
+    # Define variables
     url = "{}{}".format(self.server, endpoint)
     request_settings = self.generate_request_settings(http_method, url, payloads)
+    semaphore = asyncio.Semaphore(ctxt.flags.JHAPI_SEMAPHORE, loop=ctxt.loop)
+    backoff = 2
+    base = 2
+    max_backoff = 60
+    session_attempts = 5
+    request_attempts = 5
 
+    # Asyncronous task to make a request
     async def fetch(session, sem, setting):
-      backoff = 2
-      base = 2
-      max_backoff = 60
-
-      request_attempts = 5
       for i in range(request_attempts):
         try:
           async with sem:
@@ -57,47 +66,63 @@ class JHAPIConfig:
               if response.status != 200:
                 body = await response.text()
                 logging.error("  Status={}\tMessage={}".format(response.status, body))
-                return None
-              return await response.json()
+                response = None
+              else:
+                response = await response.json()
+        except IOError as e:
+          if i < request_attempts - 1 and not e.errno in (104): # Connection reset by peer
+            logging.error(e)
+            wait_time = min(((base**i) + random.uniform(0, 1)), max_backoff)
+            sleep(wait_time)
+          else:
+            raise Exception("Fail to request URL {}".format(url))
         except Exception as e:
           if i < request_attempts - 1 and str(e) != 'Session is closed':
-            logging.error("Request Error Caught for URL {}, retrying... {} times".format(url,i+1))
-            logging.exception(e)
-            random_secs = random.uniform(0, 1)
-            wait_time = min(((base**i) + random_secs), max_backoff)
+            logging.error(e)
+            wait_time = min(((base**i) + random.uniform(0, 1)), max_backoff)
             sleep(wait_time)
           else:
             raise Exception("Fail to request URL {}".format(url))
 
-    async def run(request_settings, loop):
-      tasks = []
-      sem = asyncio.Semaphore(50)
-      async with ClientSession(headers=self.headers, loop=loop) as session:
-        for setting in request_settings:
-          task = asyncio.ensure_future(fetch(session, sem, setting), loop=loop)
-          tasks.append(task)
+      return response, i+1
+
+
+    # Get the client session and create a task for each request
+    async def run(request_settings, semaphore, loop):
+      async with ClientSession(headers=self.headers, loop=ctxt.loop) as session:
+        tasks = [asyncio.ensure_future(fetch(session, semaphore, setting),
+                                       loop=loop) for setting in request_settings]
         return await asyncio.gather(*tasks)
 
-    backoff = 2
-    base = 2
-    max_backoff = 60
-
-    attempts = 5
-    for attempt in range(attempts):
+    # Start the run task to make all requests
+    for attempt in range(session_attempts):
       try:
-        future = asyncio.ensure_future(run(request_settings, ctxt.loop), loop=ctxt.loop)
+        task = run(request_settings, semaphore, ctxt.loop)
+        future = asyncio.ensure_future(task, loop=ctxt.loop)
         ctxt.loop.run_until_complete(future)
-        return future.result()
+        break
       except Exception as e:
-        # retrying
-        if attempt < attempts - 1:
+        if attempt < session_attempts - 1:
           logging.error("Session Error Caught for URL {}, retrying... {} times".format(url, attempt+1))
           logging.exception(e)
-          random_secs = random.uniform(0, 1)
-          wait_time = min(((base**attempt) + random_secs), max_backoff)
+          wait_time = min(((base**attempt) + random.uniform(0, 1)), max_backoff)
           sleep(wait_time)
         else:
           raise Exception("Session failed for URL {}".format(url))
+
+    # Push number of requests to cloudwatch
+    logging.info("Made {} requests".format(sum(x[1] for x in future.result())))
+    self.cloudwatch_logger.push(
+      dimension_name = 'ETL',
+      metric_name    = 'requests_made',
+      value          = sum(x[1] for x in future.result()),
+      unit           = 'Count',
+    )
+
+    # Return responses
+    return [x[0] for x in future.result()]
+
+
 
   def generate_request_settings(self, http_method, url, payloads=None):
     request_settings = []
@@ -202,7 +227,10 @@ class JHAPIConfig:
 
   def extract_loc_history(self, ctxt, bedded_patients):
     resource = '/patients/adtlocationhistory'
-    payloads = [{'id': pat['visit_id'], 'type': 'CSN'} for _, pat in bedded_patients.iterrows()]
+    payloads = [{
+      'id': pat['visit_id'],
+      'type': 'CSN'
+    } for _, pat in bedded_patients.iterrows()]
     responses = self.make_requests(ctxt, resource, payloads, 'GET')
     dfs = [pd.DataFrame(r) for r in responses]
     return self.combine(dfs, bedded_patients[['pat_id', 'visit_id']])
@@ -254,7 +282,10 @@ class JHAPIConfig:
       responses = self.make_requests(ctxt, resource, payloads, 'GET')
       logging.info('#NOTE TEXTS PAYLOADS: %s' % len(payloads))
       logging.info('#NOTE TEXTS RESPONSES: %s' % len(responses))
-      dfs = [pd.DataFrame([{'DocumentText': r['DocumentText']}] if r else None) for r in responses]
+      dfs = [
+        pd.DataFrame([{'DocumentText': r['DocumentText']}] if r else None)
+        for r in responses
+      ]
       return self.combine(dfs, notes[['Key']])
     return pd.DataFrame()
 
@@ -264,11 +295,12 @@ class JHAPIConfig:
       return pd.DataFrame()
     resource = '/patients/contacts'
     pat_id_df = pd.DataFrame(pat_id_list)
-    pat_id_df = pat_id_df[pat_id_df['pat_id'].str.contains('E.*')] # Gets rid of fake patients
+    # Get rid of fake patients by filtering out incorrect pat_ids
+    pat_id_df = pat_id_df[pat_id_df['pat_id'].str.contains('E.*')]
     payloads = [{
       'id'       : pat['visit_id'],
       'idtype'   : 'csn',
-      'dateFrom' : self.dateFrom, #(dt.datetime.now() - dt.timedelta(days=1000)).strftime('%Y-%m-%d'),
+      'dateFrom' : self.dateFrom,
       'dateTo'   : self.dateTo,
     } for _, pat in pat_id_df.iterrows()]
     responses = self.make_requests(ctxt, resource, payloads, 'GET')
@@ -278,9 +310,8 @@ class JHAPIConfig:
 
 
   def push_notifications(self, ctxt, notifications):
-    notify_epic = int(core.get_environment_var('TREWS_ETL_EPIC_NOTIFICATIONS', 0))
-    logging.info("pushing notifications to epic ({})".format(notify_epic))
-    if notify_epic:
+    if ctxt.flags.TREWS_ETL_EPIC_NOTIFICATIONS:
+      logging.info("pushing notifications to epic")
       resource = '/patients/addflowsheetvalue'
       load_tz='US/Eastern'
       t_utc = dt.datetime.utcnow().replace(tzinfo=pytz.utc)
@@ -295,6 +326,11 @@ class JHAPIConfig:
         'FlowsheetTemplateID':  '304700006',
       } for n in notifications]
       for payload in payloads:
-        logging.info('%s NOTIFY %s %s %s' % (payload['InstantValueTaken'], payload['PatientID'], payload['ContactID'], payload['Value']))
+        logging.info('%s NOTIFY %s %s %s' % (payload['InstantValueTaken'],
+                                             payload['PatientID'],
+                                             payload['ContactID'],
+                                             payload['Value']))
       self.make_requests(ctxt, resource, payloads, 'POST')
-    logging.info("pushed notifications to epic")
+      logging.info("pushed notifications to epic")
+    else:
+      logging.info("not pushing notifications to epic")
