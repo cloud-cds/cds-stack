@@ -14,6 +14,7 @@ import datetime as dt
 import itertools
 import logging
 import pytz
+import random
 
 class JHAPIConfig:
   def __init__(self, hospital, lookback_hours, jhapi_server, jhapi_id,
@@ -44,7 +45,11 @@ class JHAPIConfig:
     request_settings = self.generate_request_settings(http_method, url, payloads)
 
     async def fetch(session, sem, setting):
-      request_attempts = 3
+      backoff = 2
+      base = 2
+      max_backoff = 60
+
+      request_attempts = 5
       for i in range(request_attempts):
         try:
           async with sem:
@@ -55,23 +60,29 @@ class JHAPIConfig:
                 return None
               return await response.json()
         except Exception as e:
-          if i < request_attempts - 1 and str(e) != 'Session is closed' and not e.errno in (104):
-            logging.error("Request Error Caught for URL {}, setting {}, retrying... {} times".format(url, setting,i+1))
+          if i < request_attempts - 1 and str(e) != 'Session is closed':
+            logging.error("Request Error Caught for URL {}, retrying... {} times".format(url,i+1))
             logging.exception(e)
-            sleep(0.5)
+            random_secs = random.uniform(0, 1)
+            wait_time = min(((base**i) + random_secs), max_backoff)
+            sleep(wait_time)
           else:
-            raise Exception("Fail to request URL {}, setting {}".format(url, setting))
+            raise Exception("Fail to request URL {}".format(url))
 
     async def run(request_settings, loop):
       tasks = []
-      sem = asyncio.Semaphore(200)
+      sem = asyncio.Semaphore(50)
       async with ClientSession(headers=self.headers, loop=loop) as session:
         for setting in request_settings:
           task = asyncio.ensure_future(fetch(session, sem, setting), loop=loop)
           tasks.append(task)
         return await asyncio.gather(*tasks)
 
-    attempts = 3
+    backoff = 2
+    base = 2
+    max_backoff = 60
+
+    attempts = 5
     for attempt in range(attempts):
       try:
         future = asyncio.ensure_future(run(request_settings, ctxt.loop), loop=ctxt.loop)
@@ -80,10 +91,13 @@ class JHAPIConfig:
       except Exception as e:
         # retrying
         if attempt < attempts - 1:
-          logging.error("Session Error Caught for URL {}, setting {}, retrying... {} times".format(url, request_settings, attempt+1))
-          sleep(5)
+          logging.error("Session Error Caught for URL {}, retrying... {} times".format(url, attempt+1))
+          logging.exception(e)
+          random_secs = random.uniform(0, 1)
+          wait_time = min(((base**attempt) + random_secs), max_backoff)
+          sleep(wait_time)
         else:
-          raise Exception("Session failed for URL {}, setting {}".format(url, request_settings))
+          raise Exception("Session failed for URL {}".format(url))
 
   def generate_request_settings(self, http_method, url, payloads=None):
     request_settings = []
