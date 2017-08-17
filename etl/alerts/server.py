@@ -71,7 +71,7 @@ class AlertServer:
             where m.pat_id = '{pat_id}' and now() - tsp < (select value::interval from parameters where name = 'lookbackhours')) ready
        FROM criteria where pat_id = '{pat_id}'
       and update_date > '{tsp}'::timestamptz
-      '''.format(pat_id, tsp)
+      '''.format(pat_id=pat_id, tsp=tsp)
       cnt = await conn.fetch(sql)
 
       return cnt[0][ready]
