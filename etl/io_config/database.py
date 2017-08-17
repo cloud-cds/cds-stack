@@ -20,7 +20,7 @@ class Database:
 
   async def get_connection_pool(self):
     try:
-      return await asyncpg.create_pool(dsn=self.dsn, timeout=2)
+      return await asyncpg.create_pool(dsn=self.dsn)
     except Exception:
       traceback.print_exc()
       print("Could not connect to database.")
