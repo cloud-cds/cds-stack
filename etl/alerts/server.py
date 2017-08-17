@@ -74,7 +74,7 @@ class AlertServer:
       '''.format(pat_id=pat_id, tsp=tsp)
       cnt = await conn.fetch(sql)
 
-      return cnt[0][ready]
+      return cnt[0]['ready']
 
     async with self.db_pool.acquire() as conn:
       n = 0
