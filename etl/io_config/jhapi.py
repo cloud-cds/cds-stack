@@ -51,11 +51,10 @@ class JHAPIConfig:
     url = "{}{}".format(self.server, endpoint)
     request_settings = self.generate_request_settings(http_method, url, payloads)
     semaphore = asyncio.Semaphore(ctxt.flags.JHAPI_SEMAPHORE, loop=ctxt.loop)
-    backoff = 2
-    base = 2
-    max_backoff = 60
-    session_attempts = 5
-    request_attempts = 5
+    base = ctxt.flags.JHAPI_BACKOFF_BASE
+    max_backoff = ctxt.flags.JHAPI_BACKOFF_MAX
+    session_attempts = ctxt.flags.JHAPI_ATTEMPTS_SESSION
+    request_attempts = ctxt.flags.JHAPI_ATTEMPTS_REQUEST
 
     # Asyncronous task to make a request
     async def fetch(session, sem, setting):
