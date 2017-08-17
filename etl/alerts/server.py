@@ -60,12 +60,21 @@ class AlertServer:
         and notify frontend that the patient has updated'''
 
     async def criteria_ready(conn, pat_id, tsp):
+      '''
+      criteria is ready when
+      1. criteria is updated after tsp
+      2. no new data in criteria_meas within lookbackhours (ETL will not update criteria)
+      '''
       sql = '''
-      SELECT count(*) FROM criteria where pat_id = '{}'
-      and update_date > '{}'::timestamptz
+      SELECT count(*) > 0
+        or (select count(*) = 0 from criteria_meas m
+            where m.pat_id = '{pat_id}' and now() - tsp < (select value::interval from parameters where name = 'lookbackhours')) ready
+       FROM criteria where pat_id = '{pat_id}'
+      and update_date > '{tsp}'::timestamptz
       '''.format(pat_id, tsp)
       cnt = await conn.fetch(sql)
-      return cnt[0]['count'] > 0
+
+      return cnt[0][ready]
 
     async with self.db_pool.acquire() as conn:
       n = 0
