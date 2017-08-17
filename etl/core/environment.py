@@ -37,7 +37,11 @@ class Environment:
 
       # JHAPI flags
       ("TREWS_ETL_EPIC_NOTIFICATIONS", "integer",  0,   "Whether to send notifications to Epic."),
-      ("JHAPI_SEMAPHORE",              "integer",  50,  "Number of simultaneous connections allowed to jhapi.")
+      ("JHAPI_SEMAPHORE",              "integer",  50,  "Number of simultaneous connections allowed to jhapi."),
+      ("JHAPI_BACKOFF_BASE",           "integer",  2,   "The base of backoff function"),
+      ("JHAPI_BACKOFF_MAX",            "integer",  60,  "The maximum backoff seconds"),
+      ("JHAPI_ATTEMPTS_SESSION",       "integer",  5,   "The number of retry attempts for a session"),
+      ("JHAPI_ATTEMPTS_REQUEST",       "integer",  5,   "The number of retry attempts for a URL request"),
     ]
     self.set_vars(self.all_vars)
 
