@@ -764,6 +764,12 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li {
     padding: 10px;
     border-bottom: 1px solid #ddd;
 }
+.notification.suppressed {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+    background-color: #ccc;
+    color: #777;
+}
 .notification:last-child,
 .log-item:last-child {
     border-bottom: none;

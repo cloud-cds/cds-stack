@@ -1912,6 +1912,7 @@ var notifications = new function() {
   }
   this.getAlertMsg = function(data) {
     var alertMsg = ALERT_CODES[data['alert_code']];
+    var suppressed = false;
 
     if ( data['alert_code'] == '301' || data['alert_code'] == '304' ) {
       var n = trews.getIncompleteSevereSepsis3hr();
@@ -1925,7 +1926,11 @@ var notifications = new function() {
       var n = trews.getIncompleteSepticShock();
       if ( n > 0 ) { alertMsg = String(n) + ' ' + alertMsg; } else { return null; }
     }
-    return alertMsg;
+
+    if ( data['alert_code'] == '206' || data['alert_code'] == '307' ) {
+      suppressed = true;
+    }
+    return {'msg': alertMsg, 'suppressed': suppressed};
   }
   this.render = function(data) {
     this.n.html('');
@@ -1951,7 +1956,9 @@ var notifications = new function() {
       if (notifTs > renderTs) { continue; }
 
       // Skip messages if there is no content (used to short-circuit empty interventions).
-      var notifMsg = this.getAlertMsg(data[i]);
+      var notifResult = this.getAlertMsg(data[i]);
+      var notifMsg = notifResult['msg'];
+      var notifSuppressed = notifResult['suppressed'];
       if ( notifMsg == undefined ) { continue; }
 
       // Display the notification.
@@ -1959,30 +1966,36 @@ var notifications = new function() {
       notif.append('<h3>' + notifMsg + '</h3>')
       var subtext = $('<div class="subtext cf"></div>');
       subtext.append('<p>' + timeLapsed(new Date(data[i]['timestamp']*1000)) + '</p>');
-      var readLink = $("<a data-trews='" + data[i]['id'] + "'></a>");
-      readLink.unbind();
-      if (data[i]['read']) {
-        notif.addClass('read');
-        readLink.text('Mark as unread');
-        readLink.click(function() {
-          var data = {
-            "id":$(this).attr('data-trews'),
-            "read":false
-          }
-          endpoints.getPatientData("notification", data);
-        })
-      } else {
-        numUnread++;
-        readLink.text('Mark as read');
-        readLink.click(function() {
-          var data = {
-            "id":$(this).attr('data-trews'),
-            "read":true
-          }
-          endpoints.getPatientData("notification", data);
-        })
+
+      if ( notifSuppressed ) {
+        notif.addClass('suppressed');
       }
-      subtext.append(readLink);
+      else {
+        var readLink = $("<a data-trews='" + data[i]['id'] + "'></a>");
+        readLink.unbind();
+        if (data[i]['read']) {
+          notif.addClass('read');
+          readLink.text('Mark as unread');
+          readLink.click(function() {
+            var data = {
+              "id":$(this).attr('data-trews'),
+              "read":false
+            }
+            endpoints.getPatientData("notification", data);
+          })
+        } else {
+          numUnread++;
+          readLink.text('Mark as read');
+          readLink.click(function() {
+            var data = {
+              "id":$(this).attr('data-trews'),
+              "read":true
+            }
+            endpoints.getPatientData("notification", data);
+          })
+        }
+        subtext.append(readLink);
+      }
       notif.append(subtext);
       this.n.prepend(notif);
     }

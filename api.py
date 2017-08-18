@@ -35,10 +35,21 @@ chart_sample_hrs       = int(os.environ['chart_sample_hrs']) if 'chart_sample_hr
 # Deactivated sites.
 disabled_msg = os.environ['disabled_msg'] if 'disabled_msg' in os.environ else None
 location_blacklist = os.environ['location_blacklist'] if 'location_blacklist' in os.environ else None
+
+# Location constants.
+loc_prefixes = {
+  '1101': 'JHH',
+  '1102': 'BMC',
+  '1103': 'HCGH',
+  '1104': 'Sibley',
+  '1105': 'Suburban',
+  '1107': 'KKI',
+}
+
 locations = {
-  '1101' : 'Johns Hopkins Hospital',
-  '1102' : 'Bayview Medical Center',
-  '1103' : 'Howard County General Hospital'
+  'JHH' : 'Johns Hopkins Hospital',
+  'BMC' : 'Bayview Medical Center',
+  'HCGH' : 'Howard County General Hospital'
 }
 
 
@@ -57,6 +68,18 @@ if api_monitor.enabled:
 
 def temp_f_to_c(f):
     return (f - 32) * .5556
+
+def get_readable_loc(loc):
+  global loc_prefixes
+
+  # Convert loc to a human-readable name.
+  result = None
+  for pfx, loc_name in loc_prefixes.items():
+    if loc.startswith(pfx):
+      result = loc_name
+
+  return result
+
 
 class TREWSAPI(web.View):
 
@@ -462,11 +485,11 @@ class TREWSAPI(web.View):
           raise web.HTTPBadRequest(body=json.dumps({'message': disabled_msg, 'standalone': True}))
 
         # Server-side location-based access control.
-        loc_matched = any(map(lambda x: re.match('{}.*'.format(x), loc) is not None, locations))
+        readable_loc = get_readable_loc(loc)
+        loc_matched = readable_loc is not None
 
         deactivated_locs = location_blacklist.split(',') if location_blacklist else []
-        deactivated_loc_matched = any(map(lambda x: re.match('{}.*'.format(x), loc) is not None, deactivated_locs)) \
-                                    if location_blacklist and loc else False
+        deactivated_loc_matched = readable_loc in deactivated_locs
 
         if (not loc_matched) or deactivated_loc_matched:
           active_locs = [locations[k] for k in locations if k not in deactivated_locs]

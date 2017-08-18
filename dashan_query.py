@@ -470,7 +470,7 @@ async def reset_patient(db_pool, eid, uid='user', event_id=None):
           now()
       );
   delete from notifications where pat_id = '%(pid)s';
-  select advance_criteria_snapshot('%(pid)s');
+  select override_criteria_snapshot('%(pid)s');
   """ % {'pid': eid, 'where_clause': event_where_clause, 'uid': uid}
   logging.info("reset_patient:" + reset_sql)
 
@@ -551,6 +551,7 @@ async def push_notifications_to_epic(db_pool, eid, notify_future_notification=Tr
             logging.error('Failed to push notifications: %s %s %s' % (pt['pat_id'], pt['visit_id'], pt['notifications']))
           elif response.status_code != requests.codes.ok:
             logging.error('Failed to push notifications: %s %s %s HTTP %s' % (pt['pat_id'], pt['visit_id'], pt['notifications'], response.status_code))
+
       logging.info("notify future notification")
       etl_channel = os.environ['etl_channel'] if 'etl_channel' in os.environ else None
       if etl_channel and notify_future_notification:
