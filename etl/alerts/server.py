@@ -90,7 +90,7 @@ class AlertServer:
       if n < 60:
         logging.info("criteria is ready for {}".format(pat_id))
         sql = '''
-        select suppression_alert('{pat_id}', '{channel}');
+        select update_suppression_alert('{pat_id}', '{channel}');
         '''.format(pat_id=pat_id, channel=channel)
         logging.info("suppression sql: {}".format(sql))
         await conn.fetch(sql)
