@@ -149,7 +149,16 @@ window.onerror = function(error, url, line) {
 };
 
 checkIfOrdered = null; // Global bool to flip when clicking "place order"
+
 window.onresize = function() {
+  // Configure column positioning.
+  var newTop = $('#header').css('height');
+  $('#left-column').css('top', newTop);
+  $('#right-column').css('top', newTop);
+  $('#notifications').css('top', newTop);
+  $('#activity').css('top', newTop);
+
+  // Re-render chart.
   graphComponent.render(trews.data.chart_data,
                         (trews.data.severe_sepsis != null ? trews.data.severe_sepsis.onset_time : null),
                         (trews.data.septic_shock != null ? trews.data.septic_shock.onset_time : null),
@@ -2171,7 +2180,7 @@ var activity = new function() {
   this.render = function(data) {
     this.a.html('');
     if (data == undefined) {
-      this.a.append('<p class="none">Can\'t retrieve actviity log at this time.  <br />Activity Log may be under construction.</p>')
+      this.a.append('<p class="none">Can\'t retrieve activity log at this time.  <br />Activity Log may be under construction.</p>')
       return;
     }
     if (data.length == 0) {
