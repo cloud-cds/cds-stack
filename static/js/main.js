@@ -437,6 +437,14 @@ var controller = new function() {
   }
   this.refresh = function() {
     this.clean();
+
+    // Adjust column components as necessary.
+    var hdrHeight = parseInt($('#header').css('height'), 10);
+    var lcolTop = parseInt($('#left-column').css('top'), 10);
+    if ( hdrHeight > lcolTop ) {
+      refreshHeaderHeight('onrefresh');
+    }
+
     var globalJson = trews.data;
     severeSepsisComponent.render(globalJson["severe_sepsis"]);
     septicShockComponent.render(globalJson["septic_shock"], globalJson['severe_sepsis']['is_met']);
