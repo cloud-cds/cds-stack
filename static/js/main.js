@@ -64,6 +64,14 @@ function orderStatusCompleted(objWithStatus) {
           || orderNA;
 }
 
+function refreshHeaderHeight() {
+  // Configure column positioning.
+  var newTop = $('#header').css('height');
+  $('#left-column').css('top', newTop);
+  $('#right-column').css('top', newTop);
+  $('#notifications').css('top', newTop);
+  $('#activity').css('top', newTop);
+}
 
 /**
  * Globals.
@@ -141,7 +149,8 @@ window.onload = function() {
   $('#show-console').click(function() {
     $('#fake-console').toggle();
   })
-  // Bugsnag.notify("ErrorName", "Test Error");
+
+  refreshHeaderHeight();
 };
 
 window.onerror = function(error, url, line) {
@@ -151,12 +160,7 @@ window.onerror = function(error, url, line) {
 checkIfOrdered = null; // Global bool to flip when clicking "place order"
 
 window.onresize = function() {
-  // Configure column positioning.
-  var newTop = $('#header').css('height');
-  $('#left-column').css('top', newTop);
-  $('#right-column').css('top', newTop);
-  $('#notifications').css('top', newTop);
-  $('#activity').css('top', newTop);
+  refreshHeaderHeight();
 
   // Re-render chart.
   graphComponent.render(trews.data.chart_data,
