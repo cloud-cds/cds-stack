@@ -64,14 +64,21 @@ function orderStatusCompleted(objWithStatus) {
           || orderNA;
 }
 
+function getHeaderHeight() {
+  var hdrHeight = parseInt($('#header').css('height'), 10);
+  var stsHeight = parseInt($('#status-header').css('height'), 10);
+  return {'status': hdrHeight + 'px', 'total': (hdrHeight + stsHeight) + 'px'};
+}
+
 function refreshHeaderHeight(tag) {
   // Configure column positioning.
-  var newTop = $('#header').css('height');
-  $('#left-column').css('top', newTop);
-  $('#right-column').css('top', newTop);
-  $('#notifications').css('top', newTop);
-  $('#activity').css('top', newTop);
-  appendToConsole('New column top on ' + tag + ': ' + newTop);
+  var newTop = getHeaderHeight();
+  $('#status-header').css('top', newTop['status']);
+  $('#left-column').css('top', newTop['total']);
+  $('#right-column').css('top', newTop['total']);
+  $('#notifications').css('top', newTop['total']);
+  $('#activity').css('top', newTop['total']);
+  appendToConsole('New column top on ' + tag + ': ' + newTop['total']);
 }
 
 /**
@@ -438,13 +445,6 @@ var controller = new function() {
   this.refresh = function() {
     this.clean();
 
-    // Adjust column components as necessary.
-    var hdrHeight = parseInt($('#header').css('height'), 10);
-    var lcolTop = parseInt($('#left-column').css('top'), 10);
-    if ( hdrHeight > lcolTop ) {
-      refreshHeaderHeight('onrefresh');
-    }
-
     var globalJson = trews.data;
     severeSepsisComponent.render(globalJson["severe_sepsis"]);
     septicShockComponent.render(globalJson["septic_shock"], globalJson['severe_sepsis']['is_met']);
@@ -462,6 +462,13 @@ var controller = new function() {
     activity.render(globalJson['auditlist']);
     toolbar.render(globalJson["severe_sepsis"]);
     deterioration.render(globalJson['deterioration_feedback']);
+
+    // Adjust column components as necessary.
+    var hdrHeight = getHeaderHeight()['total'];
+    var lcolTop = parseInt($('#left-column').css('top'), 10);
+    if ( hdrHeight != lcolTop ) {
+      refreshHeaderHeight('onrefresh');
+    }
 
     // Suspicion debugging.
     logSuspicion('rfs');
@@ -1913,6 +1920,11 @@ var overrideModal = new function() {
 var notifications = new function() {
   this.n = $('#notifications');
   this.nav = $('#header-notifications');
+
+  // Suppressions.
+  this.suppressions = null;
+  this.suppressionExpanded = false;
+
   this.init = function() {
     this.nav.unbind();
     this.nav.click(function(e) {
@@ -1932,6 +1944,7 @@ var notifications = new function() {
       e.stopPropagation();
     });
   }
+
   this.getAlertMsg = function(data) {
     var alertMsg = ALERT_CODES[data['alert_code']];
     var suppressed = false;
@@ -1954,6 +1967,7 @@ var notifications = new function() {
     }
     return {'msg': alertMsg, 'suppressed': suppressed};
   }
+
   this.render = function(data) {
     this.n.html('');
     if (data == undefined) {
@@ -1970,7 +1984,10 @@ var notifications = new function() {
     }
 
     var numUnread = 0;
+    var numSuppressed = 0;
     var renderTs = Date.now();
+
+    var suppressions = $('<div class="suppressions"></div>');
 
     for (var i = 0; i < data.length; i++) {
       // Skip notifications scheduled in the future, as part of the Dashan event queue.
@@ -1990,7 +2007,10 @@ var notifications = new function() {
       subtext.append('<p>' + timeLapsed(new Date(data[i]['timestamp']*1000)) + '</p>');
 
       if ( notifSuppressed ) {
+        numSuppressed++;
         notif.addClass('suppressed');
+        notif.append(subtext);
+        suppressions.prepend(notif);
       }
       else {
         var readLink = $("<a data-trews='" + data[i]['id'] + "'></a>");
@@ -2017,9 +2037,44 @@ var notifications = new function() {
           })
         }
         subtext.append(readLink);
+        notif.append(subtext);
+        this.n.prepend(notif);
       }
-      notif.append(subtext);
-      this.n.prepend(notif);
+    }
+
+    if ( numSuppressed > 0 ) {
+      // Since we have rebuilt the suppression items, remove any existing
+      // items from the DOM and set the object variable in preparation for syncing.
+      $('.suppressions').remove();
+      this.suppressions = suppressions;
+
+      // Add suppression summary link.
+      var suppressionSummary = $('<div class="suppression-summary"></div>');
+      var descPluralized = numSuppressed == 1 ? 'suppressed message' : 'suppressed messages';
+      var expanderMsg = this.suppressionExpanded ? '(minimize)' : '(see all)';
+      var expanderCls = this.suppressionExpanded ? 'unhidden' : 'hidden';
+      var expanderHtml = '<span class="expander ' + expanderCls + '">' + expanderMsg + '</span>';
+      suppressionSummary.append('<h3>' + numSuppressed + ' ' + descPluralized + ' ' + expanderHtml + '</h3>');
+
+      // Add expander handler.
+      var expander = suppressionSummary.find('.expander');
+      expander.unbind();
+      expander.click(function(e) {
+        e.stopPropagation();
+        if ( $(this).hasClass('hidden') ) {
+          $(this).text('(minimize)').removeClass('hidden').addClass('unhidden');
+          $('#notifications').append(notifications.suppressions);
+          notifications.suppressionExpanded = true;
+        } else {
+          notifications.suppressionExpanded = false;
+          $('#notifications .suppressions').remove();
+          $(this).text('(see all)').removeClass('unhidden').addClass('hidden');
+        }
+      });
+
+      // Add the summary and if necessary, suppression items.
+      this.n.append(suppressionSummary);
+      if ( this.suppressionExpanded ) { this.n.append(this.suppressions); }
     }
 
     // Highlight next step if we have a code 300, and code 205 has not passed.
@@ -2222,7 +2277,8 @@ var activity = new function() {
 
 /**
  * Toolbar.
- * This component manages all buttons on the toolbar other than the notifications badge.
+ * This component manages all buttons on the toolbar (other than the notifications badge),
+ * as well as the status header bar.
  */
 
 var toolbar = new function() {
@@ -2230,6 +2286,7 @@ var toolbar = new function() {
   this.activateNav = $('#header-activate-button');
   this.feedback = $('#feedback');
   this.feedbackSuccessHideDelay = 3500;
+  this.statusBar = $('#status-header');
 
   this.init = function() {
     // 'Reset patient' button initialization.
@@ -2292,6 +2349,50 @@ var toolbar = new function() {
       this.activateNav.find('span').text('Deactivate');
     }
     this.activateNav.show()
+
+    // Render status bar.
+    var sev3 = $("[data-trews='sev3'] .card-subtitle").html();
+    var sev6 = $("[data-trews='sev6'] .card-subtitle").html();
+    var sep6 = $("[data-trews='sep6'] .card-subtitle").html();
+
+    var sev6Completed = sev6.indexOf('completed') >= 0;
+    var sep6Completed = sep6.indexOf('completed') >= 0;
+
+    var sev3Expired = sev3.indexOf('expired') >= 0;
+    var sev6Expired = sev6.indexOf('expired') >= 0;
+    var sep6Expired = sep6.indexOf('expired') >= 0;
+
+    var careStatus = null;
+    if ( trews.data['deactivated'] ) {
+      var careCompleted = sev6Completed || sep6Completed;
+      var careExpired = sev3Expired || sev6Expired || sep6Expired;
+
+      if ( careCompleted || careExpired ) {
+        var autoResetDate = new Date((trews.data['deactivated_tsp'] + 72*60*60)*1000);
+        var remaining = new Date(autoResetDate - Date.now());
+        var minutes = (remaining.getUTCMinutes() < 10) ? "0" + remaining.getUTCMinutes() : remaining.getUTCMinutes();
+        var hours = remaining.getUTCHours();
+        var days = remaining.getUTCDay() - 4;
+
+        careStatus = 'Patient care ';
+        careStatus += (careCompleted ? 'complete' : 'incomplete') + '.';
+        if ( days >= 0 && hours >= 0 && minutes >= 0 ) {
+          careStatus += ' TREWS will reset in ' + days + ' days ' + hours + ' hours ' + minutes + ' minutes.';
+        }
+      }
+
+    } else if ( trews.data['first_sirs_orgdf_tsp'] != null ) {
+      var firstSirsOrgDF = strToTime(new Date(trews.data['first_sirs_orgdf_tsp'] * 1000), true, false);
+      careStatus = 'SIRS and Organ Dysfunction first met at ' + firstSirsOrgDF + '.';
+    }
+
+    if ( careStatus ){
+      this.statusBar.html('<h5>' + careStatus + '</h5>');
+      this.statusBar.show();
+    } else {
+      this.statusBar.html('');
+      this.statusBar.hide();
+    }
   }
 }
 
