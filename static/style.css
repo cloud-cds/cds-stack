@@ -165,6 +165,20 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li {
     left: 0;
     position: absolute;
 }
+#status-header {
+    position: absolute;
+    width: 100%;
+    top: 30px;
+    background-color: #ca011a;
+    color: #fff;
+    display: none;
+}
+#status-header h5 {
+    margin: 0;
+    font-size: 14px;
+    line-height: 20px;
+    text-align: center;
+}
 /* End Header */
 #left-column {
     position: absolute;

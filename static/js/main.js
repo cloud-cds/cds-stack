@@ -64,14 +64,21 @@ function orderStatusCompleted(objWithStatus) {
           || orderNA;
 }
 
+function getHeaderHeight() {
+  var hdrHeight = parseInt($('#header').css('height'), 10);
+  var stsHeight = parseInt($('#status-header').css('height'), 10);
+  return {'status': hdrHeight + 'px', 'total': (hdrHeight + stsHeight) + 'px'};
+}
+
 function refreshHeaderHeight(tag) {
   // Configure column positioning.
-  var newTop = $('#header').css('height');
-  $('#left-column').css('top', newTop);
-  $('#right-column').css('top', newTop);
-  $('#notifications').css('top', newTop);
-  $('#activity').css('top', newTop);
-  appendToConsole('New column top on ' + tag + ': ' + newTop);
+  var newTop = getHeaderHeight();
+  $('#status-header').css('top', newTop['status']);
+  $('#left-column').css('top', newTop['total']);
+  $('#right-column').css('top', newTop['total']);
+  $('#notifications').css('top', newTop['total']);
+  $('#activity').css('top', newTop['total']);
+  appendToConsole('New column top on ' + tag + ': ' + newTop['total']);
 }
 
 /**
@@ -438,13 +445,6 @@ var controller = new function() {
   this.refresh = function() {
     this.clean();
 
-    // Adjust column components as necessary.
-    var hdrHeight = parseInt($('#header').css('height'), 10);
-    var lcolTop = parseInt($('#left-column').css('top'), 10);
-    if ( hdrHeight > lcolTop ) {
-      refreshHeaderHeight('onrefresh');
-    }
-
     var globalJson = trews.data;
     severeSepsisComponent.render(globalJson["severe_sepsis"]);
     septicShockComponent.render(globalJson["septic_shock"], globalJson['severe_sepsis']['is_met']);
@@ -462,6 +462,13 @@ var controller = new function() {
     activity.render(globalJson['auditlist']);
     toolbar.render(globalJson["severe_sepsis"]);
     deterioration.render(globalJson['deterioration_feedback']);
+
+    // Adjust column components as necessary.
+    var hdrHeight = getHeaderHeight()['total'];
+    var lcolTop = parseInt($('#left-column').css('top'), 10);
+    if ( hdrHeight != lcolTop ) {
+      refreshHeaderHeight('onrefresh');
+    }
 
     // Suspicion debugging.
     logSuspicion('rfs');
@@ -2222,7 +2229,8 @@ var activity = new function() {
 
 /**
  * Toolbar.
- * This component manages all buttons on the toolbar other than the notifications badge.
+ * This component manages all buttons on the toolbar (other than the notifications badge),
+ * as well as the status header bar.
  */
 
 var toolbar = new function() {
@@ -2230,6 +2238,7 @@ var toolbar = new function() {
   this.activateNav = $('#header-activate-button');
   this.feedback = $('#feedback');
   this.feedbackSuccessHideDelay = 3500;
+  this.statusBar = $('#status-header');
 
   this.init = function() {
     // 'Reset patient' button initialization.
@@ -2292,6 +2301,17 @@ var toolbar = new function() {
       this.activateNav.find('span').text('Deactivate');
     }
     this.activateNav.show()
+
+    // TODO: render status bar.
+    /*
+    if ( trews.data['deactivated'] ) {
+      this.statusBar.html('<h5>Patient active</h5>');
+      this.statusBar.show();
+    } else {
+      this.statusBar.html('');
+      this.statusBar.hide();
+    }
+    */
   }
 }
 
