@@ -1118,18 +1118,22 @@ var graphComponent = new function() {
         this.xmax = (Date.now() * 1000) + (6 * 60 * 60 * 1000)
       }
     }
-    // this.ymin = 0;//json['chart_values']['trewscore'][0];
-    // max = json['chart_values']['trewscore'][json['chart_values']['trewscore'].length - 1];
-    // this.ymax = 1; //((max - this.ymin) / 6) + max;
+    // Fixed range.
+    // this.ymin = 0;
+    // this.ymax = 1;
 
-    // Note: Yanif commenting out in favor of clamping to 0-1 range.
+    // Two-sided dynamic range to fit data.
     // this.ymin = Math.min.apply(null, json['chart_values']['trewscore']);
     // this.ymin = this.ymin - (this.ymin * .03);
     // this.ymin = (this.ymin > json.trewscore_threshold) ? json.trewscore_threshold - 0.1 : this.ymin;
     // this.ymax = Math.max.apply(null, json['chart_values']['trewscore']) * 1.03;
     // this.ymax = (this.ymax < json.trewscore_threshold) ? json.trewscore_threshold + 0.1 : this.ymax;
+
+    // One-sided dynamic range (upper) to fit data.
     this.ymin = 0;
-    this.ymax = 1;
+    this.ymax = Math.max.apply(null, json['chart_values']['trewscore']) * 1.03;
+    this.ymax = (this.ymax < json.trewscore_threshold) ? json.trewscore_threshold + 0.1 : this.ymax;
+
     graph(json, severeOnset, shockOnset, this.xmin, this.xmax, this.ymin, this.ymax);
   }
 }
@@ -1177,8 +1181,8 @@ function graph(json, severeOnset, shockOnset, xmin, xmax, ymin, ymax) {
   $('h1 #header-trewscore').text(Number(ylast).toFixed(2));
 
   var verticalMarkings = [
-    {color: "#555",lineWidth: 1,xaxis: {from: xlast,to: xlast}},
-    {color: "#e64535",lineWidth: 1,yaxis: {from: json['trewscore_threshold'],to: json['trewscore_threshold']}}
+    {color: "#ccc", lineWidth: 1, xaxis: {from: xlast,to: xlast}},
+    {color: "#e64535", lineWidth: 1, yaxis: {from: json['trewscore_threshold'],to: json['trewscore_threshold']}}
   ]
 
   var arrivalx = (json['patient_arrival']['timestamp'] != undefined) ? json['patient_arrival']['timestamp'] * 1000 : null;
@@ -1189,23 +1193,25 @@ function graph(json, severeOnset, shockOnset, xmin, xmax, ymin, ymax) {
   var shockOnsety = null;
 
   if (json['patient_arrival']['timestamp'] != undefined) {
-    var arrivalMark = {color: "#ccc",lineWidth: 1,xaxis: {from: arrivalx,to: arrivalx}};
+    var arrivalMark = {color: "#ccc", lineWidth: 1, xaxis: {from: arrivalx,to: arrivalx}};
     //var arrivaly = json['chart_values']['trewscore'].indexOf(arrivalx);
     var arrivaly = jQuery.inArray(arrivalx, json['chart_values']['trewscore'])
     verticalMarkings.push(arrivalMark);
   }
   if (severeOnset != undefined) {
-    var severeMark = {color: "#ccc",lineWidth: 1,xaxis: {from: severeOnsetx,to: severeOnsetx}};
+    var severeMark = {color: "#ccc", lineWidth: 1, xaxis: {from: severeOnsetx,to: severeOnsetx}};
     //severeOnsety = json['chart_values']['trewscore'].indexOf(severeOnsetx);
     severeOnsety = jQuery.inArray(severeOnsetx, json['chart_values']['trewscore'])
     verticalMarkings.push(severeMark);
   }
   if (shockOnset != undefined) {
-    var shockMark = {color: "#ccc",lineWidth: 1,xaxis: {from: shockOnsetx,to: shockOnsetx}};
+    var shockMark = {color: "#ccc", lineWidth: 1, xaxis: {from: shockOnsetx,to: shockOnsetx}};
     //shockOnsety = json['chart_values']['trewscore'].indexOf(shockOnsetx);
     shockOnsety = jQuery.inArray(shockOnsetx, json['chart_values']['trewscore'])
     verticalMarkings.push(shockMark);
   }
+
+  var maxYTick = (Math.floor(ymax / 0.05) * 0.05).toFixed(2);
 
   var plot = $.plot(placeholder, [
     { data: data, label: "Trewscore", color: "#ca011a"}
@@ -1227,7 +1233,7 @@ function graph(json, severeOnset, shockOnset, xmin, xmax, ymin, ymax) {
     yaxis: {
       min: ymin, // should be 0.0
       max: ymax, // sould be 1.0
-      ticks: [[0, "0"], [json['trewscore_threshold'], json['trewscore_threshold']], [1, "1"]],
+      ticks: [[0, "0"], [json['trewscore_threshold'], json['trewscore_threshold']], [maxYTick, maxYTick]],
       tickColor: "#e64535",
       tickLength: 5,
       font: {
@@ -1311,9 +1317,18 @@ function graph(json, severeOnset, shockOnset, xmin, xmax, ymin, ymax) {
   if (shockOnsetx && shockOnsety) {
     graphTag(plot, shockOnsetx, shockOnsety, "Onset of<br/>Septic Shock", "septic-shock-graph-tag");
   }
-  placeholder.append("<div id='threshold' style='left:" + o.left + "px;'>\
+
+  // Add deterioration risk label.
+  var lo = plot.pointOffset({ x: xlast, y: json['trewscore_threshold']});
+  placeholder.append("<div id='threshold' style='left:" + lo.left + "px; top: " + lo.top + "px;'>\
       <h3>High Risk<br/>for Deterioration</h3>\
       </div>");
+
+  // Align to label bottom.
+  var lbl = placeholder.find('#threshold');
+  var lblTop = parseInt(lbl.css('top'), 10);
+  var lblHeight = parseInt(lbl.css('height'), 10);
+  lbl.css('top', (lblTop - lblHeight - 10) + 'px');
 }
 
 function graphTag(plot, x, y, text, id) {
@@ -1325,6 +1340,10 @@ function graphTag(plot, x, y, text, id) {
       <h3>" + text + "</h3>\
       <h6>" + xLastTime.getHours() + ":" + minutes + "</h6>\
     </div>");
+
+  // Align left boundary of placeholders.
+  var placeholderLeft = parseInt($('#' + id).css('width'), 10) / 2;
+  placeholder.find('#' + id + '.graph-tag').css('left', (placeholderLeft + o.left) + 'px');
 }
 
 
