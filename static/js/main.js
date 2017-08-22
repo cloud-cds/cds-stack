@@ -1920,6 +1920,11 @@ var overrideModal = new function() {
 var notifications = new function() {
   this.n = $('#notifications');
   this.nav = $('#header-notifications');
+
+  // Suppressions.
+  this.suppressions = null;
+  this.suppressionExpanded = false;
+
   this.init = function() {
     this.nav.unbind();
     this.nav.click(function(e) {
@@ -1939,6 +1944,7 @@ var notifications = new function() {
       e.stopPropagation();
     });
   }
+
   this.getAlertMsg = function(data) {
     var alertMsg = ALERT_CODES[data['alert_code']];
     var suppressed = false;
@@ -1961,6 +1967,7 @@ var notifications = new function() {
     }
     return {'msg': alertMsg, 'suppressed': suppressed};
   }
+
   this.render = function(data) {
     this.n.html('');
     if (data == undefined) {
@@ -1977,7 +1984,10 @@ var notifications = new function() {
     }
 
     var numUnread = 0;
+    var numSuppressed = 0;
     var renderTs = Date.now();
+
+    var suppressions = $('<div class="suppressions"></div>');
 
     for (var i = 0; i < data.length; i++) {
       // Skip notifications scheduled in the future, as part of the Dashan event queue.
@@ -1997,7 +2007,10 @@ var notifications = new function() {
       subtext.append('<p>' + timeLapsed(new Date(data[i]['timestamp']*1000)) + '</p>');
 
       if ( notifSuppressed ) {
+        numSuppressed++;
         notif.addClass('suppressed');
+        notif.append(subtext);
+        suppressions.prepend(notif);
       }
       else {
         var readLink = $("<a data-trews='" + data[i]['id'] + "'></a>");
@@ -2024,9 +2037,44 @@ var notifications = new function() {
           })
         }
         subtext.append(readLink);
+        notif.append(subtext);
+        this.n.prepend(notif);
       }
-      notif.append(subtext);
-      this.n.prepend(notif);
+    }
+
+    if ( numSuppressed > 0 ) {
+      // Since we have rebuilt the suppression items, remove any existing
+      // items from the DOM and set the object variable in preparation for syncing.
+      $('.suppressions').remove();
+      this.suppressions = suppressions;
+
+      // Add suppression summary link.
+      var suppressionSummary = $('<div class="suppression-summary"></div>');
+      var descPluralized = numSuppressed == 1 ? 'suppressed message' : 'suppressed messages';
+      var expanderMsg = this.suppressionExpanded ? '(minimize)' : '(see all)';
+      var expanderCls = this.suppressionExpanded ? 'unhidden' : 'hidden';
+      var expanderHtml = '<span class="expander ' + expanderCls + '">' + expanderMsg + '</span>';
+      suppressionSummary.append('<h3>' + numSuppressed + ' ' + descPluralized + ' ' + expanderHtml + '</h3>');
+
+      // Add expander handler.
+      var expander = suppressionSummary.find('.expander');
+      expander.unbind();
+      expander.click(function(e) {
+        e.stopPropagation();
+        if ( $(this).hasClass('hidden') ) {
+          $(this).text('(minimize)').removeClass('hidden').addClass('unhidden');
+          $('#notifications').append(notifications.suppressions);
+          notifications.suppressionExpanded = true;
+        } else {
+          notifications.suppressionExpanded = false;
+          $('#notifications .suppressions').remove();
+          $(this).text('(see all)').removeClass('unhidden').addClass('hidden');
+        }
+      });
+
+      // Add the summary and if necessary, suppression items.
+      this.n.append(suppressionSummary);
+      if ( this.suppressionExpanded ) { this.n.append(this.suppressions); }
     }
 
     // Highlight next step if we have a code 300, and code 205 has not passed.
@@ -2302,16 +2350,46 @@ var toolbar = new function() {
     }
     this.activateNav.show()
 
-    // TODO: render status bar.
-    /*
+    // Render status bar.
+    // TODO: get deactivate and deactivate_expire timestamps.
+    // TODO: get first state 10 timestamp.
+    var state_10 = trews.data != null && trews.data.severe_sepsis != null
+                    && trews.data.severe_sepsis.sirs.is_met
+                    && trews.data.severe_sepsis.organ_dysfunction.is_met;
+
+    var sev3 = $("[data-trews='sev3'] .card-subtitle").html();
+    var sev6 = $("[data-trews='sev6'] .card-subtitle").html();
+    var sep6 = $("[data-trews='sep6'] .card-subtitle").html();
+
+    var sev6Completed = sev6.indexOf('completed') >= 0;
+    var sep6Completed = sep6.indexOf('completed') >= 0;
+
+    var sev3Expired = sev3.indexOf('expired') >= 0;
+    var sev6Expired = sev6.indexOf('expired') >= 0;
+    var sep6Expired = sep6.indexOf('expired') >= 0;
+
+    var careStatus = null;
     if ( trews.data['deactivated'] ) {
-      this.statusBar.html('<h5>Patient active</h5>');
+      var careCompleted = sev6Completed || sep6Completed;
+      var careExpired = sev3Expired || sev6Expired || sep6Expired;
+
+      if ( careCompleted || careExpired ) {
+        careStatus = 'Patient care ';
+        careStatus += careCompleted ? 'complete' : 'incomplete';
+        careStatus += '. TREWS will reset in HH:MM hours'; // TODO
+      }
+
+    } else if ( state_10 ) {
+      careStatus = 'First SIRS and Organ Dysfunction occurred at HH:MM DD-MM-YY.'; // TODO
+    }
+
+    if ( careStatus ){
+      this.statusBar.html('<h5>' + careStatus + '</h5>');
       this.statusBar.show();
     } else {
       this.statusBar.html('');
       this.statusBar.hide();
     }
-    */
   }
 }
 
