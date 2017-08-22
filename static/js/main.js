@@ -2351,12 +2351,6 @@ var toolbar = new function() {
     this.activateNav.show()
 
     // Render status bar.
-    // TODO: get deactivate and deactivate_expire timestamps.
-    // TODO: get first state 10 timestamp.
-    var state_10 = trews.data != null && trews.data.severe_sepsis != null
-                    && trews.data.severe_sepsis.sirs.is_met
-                    && trews.data.severe_sepsis.organ_dysfunction.is_met;
-
     var sev3 = $("[data-trews='sev3'] .card-subtitle").html();
     var sev6 = $("[data-trews='sev6'] .card-subtitle").html();
     var sep6 = $("[data-trews='sep6'] .card-subtitle").html();
@@ -2374,13 +2368,22 @@ var toolbar = new function() {
       var careExpired = sev3Expired || sev6Expired || sep6Expired;
 
       if ( careCompleted || careExpired ) {
+        var autoResetDate = new Date((trews.data['deactivated_tsp'] + 72*60*60)*1000);
+        var remaining = new Date(autoResetDate - Date.now());
+        var minutes = (remaining.getUTCMinutes() < 10) ? "0" + remaining.getUTCMinutes() : remaining.getUTCMinutes();
+        var hours = remaining.getUTCHours();
+        var days = remaining.getUTCDay() - 4;
+
         careStatus = 'Patient care ';
-        careStatus += careCompleted ? 'complete' : 'incomplete';
-        careStatus += '. TREWS will reset in HH:MM hours'; // TODO
+        careStatus += (careCompleted ? 'complete' : 'incomplete') + '.';
+        if ( days >= 0 && hours >= 0 && minutes >= 0 ) {
+          careStatus += ' TREWS will reset in ' + days + ' days ' + hours + ' hours ' + minutes + ' minutes.';
+        }
       }
 
-    } else if ( state_10 ) {
-      careStatus = 'First SIRS and Organ Dysfunction occurred at HH:MM DD-MM-YY.'; // TODO
+    } else if ( trews.data['first_sirs_orgdf_tsp'] != null ) {
+      var firstSirsOrgDF = strToTime(new Date(trews.data['first_sirs_orgdf_tsp'] * 1000), true, false);
+      careStatus = 'SIRS and Organ Dysfunction first met at ' + firstSirsOrgDF + '.';
     }
 
     if ( careStatus ){

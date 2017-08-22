@@ -215,7 +215,7 @@ async def get_patient_profile(db_pool, pat_id, use_trews_lmc=False):
   ) ADT on true
   full outer join
   (
-      select deactivated from pat_status where pat_id = '%(pid)s' limit 1
+      select deactivated, deactivated_tsp from pat_status where pat_id = '%(pid)s' limit 1
   ) DEACT on true
   full outer join
   (
@@ -230,33 +230,43 @@ async def get_patient_profile(db_pool, pat_id, use_trews_lmc=False):
   ) AGE on true
   full outer join
   (
-    select min(update_date) from criteria where pat_id = '%(pid)s'
+    select min(update_date) as refresh_time from criteria where pat_id = '%(pid)s'
   ) REFRESH on true
+  full outer join
+  (
+    select min(update_date) as first_sirs_orgdf_tsp from criteria_events where pat_id = '%(pid)s' and flag in (-990, 10)
+  ) FIRST_SIRS_ORGDF on true
   ''' % { 'pid': pat_id, 'threshold_param_key': threshold_param_key }
 
   async with db_pool.acquire() as conn:
     result = await conn.fetch(get_patient_profile_sql)
 
     profile = {
-        'trews_threshold' : None,
-        'admit_time'      : None,
-        'deactivated'     : None,
-        'detf_tsp'        : None,
-        'deterioration'   : None,
-        'detf_uid'        : None,
-        'age'             : None,
-        'refresh_time'    : None
+        'trews_threshold'      : None,
+        'admit_time'           : None,
+        'deactivated'          : None,
+        'deactivated_tsp'      : None,
+        'detf_tsp'             : None,
+        'deterioration'        : None,
+        'detf_uid'             : None,
+        'age'                  : None,
+        'refresh_time'         : None,
+        'first_sirs_orgdf_tsp' : None
     }
 
     if len(result) == 1:
-      profile['trews_threshold'] = float("{:.2f}".format(float(result[0][0])))
-      profile['admit_time']      = (result[0][1] - datetime.datetime.utcfromtimestamp(0).replace(tzinfo=pytz.UTC)).total_seconds() if result[0][1] is not None else None
-      profile['deactivated']     = result[0][2]
-      profile['detf_tsp']        = result[0][3]
-      profile['deterioration']   = json.loads(result[0][4]) if result[0][4] is not None else None
-      profile['detf_uid']        = result[0][5]
-      profile['age']             = result[0][6]
-      profile['refresh_time']    = (result[0][7] - datetime.datetime.utcfromtimestamp(0).replace(tzinfo=pytz.UTC)).total_seconds() if result[0][7] is not None else None
+      epoch = datetime.datetime.utcfromtimestamp(0).replace(tzinfo=pytz.UTC)
+
+      profile['trews_threshold']      = float("{:.2f}".format(float(result[0][0])))
+      profile['admit_time']           = (result[0][1] - epoch).total_seconds() if result[0][1] is not None else None
+      profile['deactivated']          = result[0][2]
+      profile['deactivated_tsp']      = (result[0][3] - epoch).total_seconds() if result[0][3] is not None else None
+      profile['detf_tsp']             = result[0][4]
+      profile['deterioration']        = json.loads(result[0][5]) if result[0][5] is not None else None
+      profile['detf_uid']             = result[0][6]
+      profile['age']                  = result[0][7]
+      profile['refresh_time']         = (result[0][8] - epoch).total_seconds() if result[0][8] is not None else None
+      profile['first_sirs_orgdf_tsp'] = (result[0][9] - epoch).total_seconds() if result[0][9] is not None else None
 
     return profile
 

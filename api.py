@@ -425,8 +425,10 @@ class TREWSAPI(web.View):
       data['chart_data']['chart_values']                 = chart_values
 
       # update profile components
-      data['deactivated'] = patient_scalars['deactivated']
-      data['refresh_time'] = patient_scalars['refresh_time']
+      data['deactivated']          = patient_scalars['deactivated']
+      data['deactivated_tsp']      = patient_scalars['deactivated_tsp']
+      data['refresh_time']         = patient_scalars['refresh_time']
+      data['first_sirs_orgdf_tsp'] = patient_scalars['first_sirs_orgdf_tsp']
 
       data['deterioration_feedback'] = {
           "tsp"           : patient_scalars['detf_tsp'],
