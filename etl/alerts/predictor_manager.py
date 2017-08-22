@@ -1,6 +1,7 @@
 import asyncio
 import datetime as dt
 import etl.io_config.server_protocol as protocol
+from etl.io_config.cloudwatch import Cloudwatch
 import logging
 import functools
 import humanize
@@ -12,17 +13,24 @@ def predictor_str(partition_index, model_type, is_active):
 
 class Predictor:
   def __init__(self, reader, writer, status, node_index, partition_index,
-               model_type, is_active):
+               model_type, is_active, ip_address):
     self.id = (partition_index, model_type, is_active)
     self.reader = reader
     self.writer = writer
-    self.status = status # The last status message from the predictor
-    self.model_type = model_type # Long or short
-    self.node_index = node_index # The k8s node index
-    self.partition_index = partition_index # The partition index
-    self.is_active = is_active  # active or backup (boolean)
-    self.last_updated = dt.datetime.now()
     self.shutdown = False
+
+    # Predictor information
+    self.status = status                     # The last status message from the predictor
+    self.model_type = model_type             # Long or short
+    self.node_index = node_index             # The k8s node index
+    self.partition_index = partition_index   # The patient partition index
+    self.is_active = is_active               # active or backup (boolean)
+    self.last_updated = dt.datetime.now()    # Time of last update message
+    self.ip_address = ip_address             # IP address of the node the predictor is running on
+
+    # LMC information
+    self.avg_total_time = 0
+    self.avg_prediction_time = 0
 
   def __str__(self):
     return predictor_str(self.partition_index, self.model_type, self.is_active)
@@ -70,6 +78,8 @@ class Predictor:
       elif message.get("status") == 'BUSY' and message.get('type') == 'FIN':
         # NOTE (andong): we do not handle catchup fin message here
         logging.info("{} - received FIN: {}".format(self, message))
+        self.avg_total_time = message['total_time'].total_seconds()
+        self.avg_prediction_time = message['prediction_time'].total_seconds()
         await queue.put({
           'type': 'FIN',
           'time': message['time'],
@@ -99,6 +109,41 @@ class PredictorManager:
     self.alert_message_queue = alert_message_queue
     self.predict_task_futures = {}
     self.loop = event_loop
+    self.cloudwatch_logger = Cloudwatch()
+
+    # Start monitoring task
+    self.loop.create_task(self.monitor_predictors())
+
+
+
+  async def monitor_predictors(self):
+    ''' Monitor predictors and log current status in cloudwatch every 30 seconds '''
+
+    while True:
+      # Build list of tuples of cloudwatch info (name, value, unit)
+      metric_tuples = []
+
+      # Get overall predictor info
+      metric_tuples.append(('num_predictors', len(self.predictors), 'Count'))
+
+      # Send individual predictor info to cloudwatch
+      for pred_id, pred in self.predictors.items():
+        metric_tuples += [
+          ('predictor_{}_{}_{}_status'.format(*pred_id), pred.status, 'None'),
+          ('avg_total_time', pred.avg_total_time, 'Seconds'),
+          ('avg_prediction_time', pred.avg_prediction_time, 'Seconds'),
+        ]
+
+      # Send all info to cloudwatch
+      self.cloudwatch_logger.push_many(
+        dimension_name = 'LMC Predictors',
+        metric_names   = [metric[0] for metric in metric_tuples],
+        metric_values  = [metric[1] for metric in metric_tuples],
+        metric_units   = [metric[2] for metric in metric_tuples]
+      )
+
+      await asyncio.sleep(30)
+
 
 
   async def register(self, reader, writer, msg):
@@ -106,7 +151,8 @@ class PredictorManager:
 
     # Create predictor object
     pred = Predictor(reader, writer, msg['status'], msg['node_index'],
-                     msg['partition_index'], msg['model_type'], msg['is_active'])
+                     msg['partition_index'], msg['model_type'],
+                     msg['is_active'], msg['ip_address'])
 
     # Cancel any existing predictor with same id
     if pred.id in self.predictors:
