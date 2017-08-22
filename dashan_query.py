@@ -470,7 +470,7 @@ async def override_criteria(db_pool, eid, name, value='[{}]', user='user', clear
 async def reset_patient(db_pool, eid, uid='user', event_id=None):
   event_where_clause = '' if event_id is None or event_id == 'None' else 'and event_id = %(evid)s' % {'evid' : event_id }
   reset_sql = """
-  update criteria_events set flag = -1
+  update criteria_events set flag = flag - 1000
   where pat_id = '%(pid)s' %(where_clause)s;
   insert into criteria_log (pat_id, tsp, event, update_date)
   values (
