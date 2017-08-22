@@ -1889,7 +1889,10 @@ declare
     threshold numeric;
 begin
     select value::numeric from trews_parameters where name = 'lmc_threshold' into threshold;
-    return query select coalesce(score > threshold, false), tsp::timestamptz, score::real
+    return query
+    select coalesce(s.score::numeric > threshold, false),
+           s.tsp::timestamptz,
+           s.score::real
     from lmcscore s inner join pat_enc p on s.enc_id = p.enc_id
     where p.pat_id = this_pat_id and now() - tsp < timeout::interval
     order by tsp desc limit 1;
@@ -2467,7 +2470,7 @@ begin
                 select SCORE.model_id,
                        SCORE.enc_id,
                        (case when add_tz then SCORE.tsp at time zone 'UTC' else SCORE.tsp end) as tsp,
-                       (((SCORE.mean + 0.5 * SCORE.var) + 14.53) / (14.53 - 10.51))::numeric as score,
+                       SCORE.score::numeric as score,
                 ARRAY[
                  'shock_idx',
                  'hemoglobin',
@@ -2685,9 +2688,7 @@ begin
         ) R
         inner join (
           -- Compute transformed scores
-          select enc_id, tsp, model_id,
-                 ((mean + 0.5 * var) + 14.53) / (14.53 - 10.51) as score
-          from lmcscore
+          select enc_id, tsp, model_id, score from lmcscore
         ) S
         on R.enc_id = S.enc_id
         where S.model_id = short_model_id
