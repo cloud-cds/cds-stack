@@ -30,7 +30,7 @@ class Predictor:
 
     # LMC information
     self.avg_total_time = 0
-    self.avg_prediction_time = 0
+    self.avg_optimization_time = 0
 
   def __str__(self):
     return predictor_str(self.partition_index, self.model_type, self.is_active)
@@ -78,8 +78,9 @@ class Predictor:
       elif message.get("status") == 'BUSY' and message.get('type') == 'FIN':
         # NOTE (andong): we do not handle catchup fin message here
         logging.info("{} - received FIN: {}".format(self, message))
-        self.avg_total_time = message['total_time'].total_seconds()
-        self.avg_prediction_time = message['prediction_time'].total_seconds()
+        num_pats = len(message['enc_ids'])
+        self.avg_total_time = int(message['total_time'].total_seconds() / num_pats)
+        self.avg_optimization_time = int(message['optimization_time'].total_seconds() / num_pats)
         await queue.put({
           'type': 'FIN',
           'time': message['time'],
@@ -131,7 +132,7 @@ class PredictorManager:
         metric_tuples += [
           ('predictor_{}_{}_{}_status'.format(*pred_id), pred.status, 'None'),
           ('avg_total_time', pred.avg_total_time, 'Seconds'),
-          ('avg_prediction_time', pred.avg_prediction_time, 'Seconds'),
+          ('avg_optimization_time', pred.avg_optimization_time, 'Seconds'),
         ]
 
       # Send all info to cloudwatch
