@@ -1,0 +1,20 @@
+---
+platform: linux
+
+params:
+  api_with_healthcheck: 0
+  cloudwatch_log_group: opsdx-web-logs-dev
+  epic_notifications: 0
+  logging: 0
+  api_monitor: 0
+  api_monitor_prometheus: 0
+  api_monitor_cw_push_period: 10000
+  log_decryption: 0
+  trews_open_access: true
+
+inputs:
+- name: dashan-etl
+- name: trews-rest-api-pr
+
+run:
+  path: dashan-etl/tests/api_tests.sh

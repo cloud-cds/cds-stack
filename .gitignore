@@ -1,9 +1,16 @@
+<<<<<<< HEAD
 # R/ML stuff
 *.Rout
 /ml/ml/input/*
 
 # FDW Secrets
 etl/op2dw/fdw/deploy*.sql
+
+# Graphs
+etl_graph*
+
+# Secrets
+ci/credentials.yml
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -93,17 +100,16 @@ venv/
 ENV/
 .venv
 
+
 # Spyder project settings
 .spyderproject
 
 # Rope project settings
 .ropeproject
 
-# MAC
-.DS_Store
-
 # SFTP
 sftp-config.json
+
 
 # Sublime
 *.sublime*
@@ -113,3 +119,6 @@ sftp-config.json
 
 # specific files
 .syncrconf
+
+# FDW Secrets
+etl/op2dw/fdw/deploy*.sql

@@ -1,0 +1,46 @@
+import etl.transforms.primitives.df.pandas_utils as pandas_utils
+import pandas as pd
+import numpy as np
+import logging
+
+def select_columns(df, selection_dict):
+    df = df[list(selection_dict.keys())]\
+        .rename(index=str, columns=selection_dict)\
+        .reset_index(drop=True)
+    return df
+
+def unlist(df, unlist_col):
+    return pandas_utils.unlistify_pandas_column(df, unlist_col)
+
+def extract(df, dict_column, selection_dict):
+    def fill_none(val):
+        if val is None:
+            return {}
+        return val
+    df[dict_column] = df[dict_column].apply(fill_none)
+    new_cols = pd.DataFrame(df[dict_column].tolist())
+    new_cols = select_columns(new_cols, selection_dict)
+    old_cols = df.drop(dict_column, axis=1)
+    return pd.concat([old_cols, new_cols], axis=1)
+
+def concat_str(df, new_col, col_1, col_2, drop_original=True):
+    df[new_col] = df[col_1].str.cat(df[col_2], sep=' ')
+    if drop_original:
+        df.drop([col_1, col_2], axis=1, inplace=True)
+    return df
+
+import random
+def make_null_time_midnight(df):
+    df['time'] = df['time'].apply(lambda x: '12:00 AM' if x is None else x)
+    return df
+
+def extract_id_from_list(df, id_column, id_type):
+    def get_id(id_list):
+        for x in id_list:
+            if x.get('Type') == id_type:
+                return str(x['ID'])
+        logging.error('Could not find an ID. Throwing away row.')
+        return 'Invalid ID'
+
+    df[id_column] = df[id_column].apply(get_id)
+    return df[~(df[id_column] == 'Invalid ID')]
