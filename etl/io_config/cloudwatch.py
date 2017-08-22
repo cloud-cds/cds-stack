@@ -59,16 +59,20 @@ class Cloudwatch:
     ''' Push a list of metrics to cloudwatch '''
 
     # Check all inputs
-    if type(metric_names) != list or type(values) != list or type(units) != list:
+    if type(metric_names) != list or type(metric_values) != list or \
+        type(metric_units) != list:
       raise TypeError('metric_names, values, and units must be of type list')
-    if len(metric_names) != len(values) or len(values) != len(units):
+    if len(metric_names) != len(metric_values) or \
+        len(metric_values) != len(metric_units):
       raise ValueError('lists must be of same length')
 
     # Build metric data
     metric_data = []
     for idx, metric in enumerate(metric_names):
-      metric_data.append(self.build_metric_data(dimension_name, metric,
-                                                values[idx], units[idx]))
+      metric_data.append(self.build_metric_data(dimension_name, 
+                                                metric,
+                                                metric_values[idx], 
+                                                metric_units[idx]))
 
     # Push to cloudwatch
     try:
