@@ -24,8 +24,8 @@ logging.basicConfig(format='%(levelname)s|%(asctime)s.%(msecs)03d|%(message)s', 
 
 ##############################
 # Constants.
-use_trews_lmc          = os.environ['use_trews_lmc'] if 'use_trews_lmc' in os.environ else False
-no_check_for_orders    = str(os.environ.get('no_check_for_orders', '')) == 'True'
+use_trews_lmc          = os.environ['use_trews_lmc'].lower() == 'true' if 'use_trews_lmc' in os.environ else False
+no_check_for_orders    = str(os.environ.get('no_check_for_orders', '')).lower() == 'true'
 chart_sample_start_hrs = int(os.environ['chart_sample_start_hrs']) if 'chart_sample_start_hrs' in os.environ else 6
 chart_sample_start_day = int(os.environ['chart_sample_start_day']) if 'chart_sample_start_day' in os.environ else 2
 chart_sample_end_day   = int(os.environ['chart_sample_end_day']) if 'chart_sample_end_day' in os.environ else 7
