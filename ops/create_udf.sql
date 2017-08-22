@@ -2162,34 +2162,39 @@ end; $$;
 -- else if patient was in state 10 and expired, then we reset the patient
 
 CREATE OR REPLACE FUNCTION auto_deactivate(pid text DEFAULT NULL) RETURNS void LANGUAGE plpgsql
--- deactivate patients who is active and had positive state for more than deactivate_hours
-AS $$ BEGIN
+-- deactivate patients who is active and had positive state for more than deactivate_hours'
+AS $func$
+declare
+    res text;
+BEGIN
     -- check if current snapshot (20 or 30) was expired or complished
     with snapshot as (
-        select * from get_states_snapshot(pid)
-        left join pat_status s on s.pat_id = snapshot.pat_id
+        select gss.* from get_states_snapshot(pid) gss
+        left join pat_status s on s.pat_id = gss.pat_id
         where state >= 20
         and (s.pat_id IS NULL or not s.deactivated)
     ),
     expired_or_complished as (
-        select distinct pat_id, s2.state from snapshot s1
-        inner join lateral get_states('criteria_events', s1.pat_id, 'and flag >= 0') s2
-        where (s1.state = 20 and s2.state > 20)
-            or (s1.state = 30 and s2.state > 30)
+        select distinct s1.pat_id, s1.state old_state, s2.state new_state from snapshot s1
+        inner join lateral get_states('criteria_events', s1.pat_id, 'and flag >= 0') s2 on s1.pat_id = s2.pat_id
+        where s2.state > s1.state
     ),
-    update_states as (
-        update criteria_events set flag = state, update_date = now()
-        from expired_or_complished eoc
-        where criteria_events.pat_id = eoc.pat_id
-    )
+    insert_states as (
+        insert into criteria_events (event_id, pat_id, name, is_met, measurement_time, override_time, override_user, override_value, value, update_date, flag)
+        select ssid.event_id, ce.pat_id, ce.name, ce.is_met, ce.measurement_time, ce.override_time, ce.override_user, ce.override_value, ce.value, now(), eoc.new_state from expired_or_complished eoc inner join
+            criteria_events ce on ce.pat_id = eoc.pat_id and ce.flag = eoc.old_state
+            cross join (select nextval('criteria_event_ids') event_id) ssid
+    ),
+    pats as (
+        (select distinct pat_id
+    from snapshot where state in (23,33,35))
+    union all (select distinct pat_id from expired_or_complished where new_state in (23,33,35))
+        )
     -- if criteria_events has been in an event for longer than deactivate_hours,
     -- then this patient should be deactivated automatically
-    perform deactivate(pat_id, TRUE, 'auto_deactivate') from (
-      select distinct snapshot.pat_id
-      from (select distinct pat_id from snapshot where ((state between 31 and 36) or (state between 21 and 24))
-        union select distinct pat_id from expired_or_complished)
-    ) sub;
-END; $$;
+    select into res deactivate(pat_id, TRUE, 'auto_deactivate') from pats;
+    return;
+END; $func$;
 
 
 ------------------------------
