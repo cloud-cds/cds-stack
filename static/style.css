@@ -234,7 +234,7 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li {
 }
 .card.inactive {
     -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=20)";
-    opacity: .2;
+    opacity: 0.2;
 }
 .card.inactive a {
     pointer-events: none;
@@ -245,6 +245,21 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li {
 .card.inactive a.edit-btn,
 .card.inactive .place-order,
 .card.inactive a.orderNA {
+    display: none;
+}
+.card.deactivated {
+    -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=60)";
+    opacity: 0.6;
+}
+.card.deactivated a {
+    pointer-events: none;
+}
+.card.deactivated a[disabled] {
+    pointer-events: none;
+}
+.card.deactivated a.edit-btn,
+.card.deactivated .place-order,
+.card.deactivated a.orderNA {
     display: none;
 }
 .card h2 {
