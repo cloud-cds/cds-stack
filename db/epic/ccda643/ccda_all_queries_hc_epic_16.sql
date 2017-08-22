@@ -48,7 +48,7 @@ FROM
     --no patients that are still present in hospital
     HOSP_DISCH_TIME IS NOT NULL
     --admitted between the dates in your cohort
-    AND HOSP_ADMSN_TIME BETWEEN '2017-04-10' AND  '2017-05-10'
+    AND HOSP_ADMSN_TIME BETWEEN '2016-04-01' AND  '2017-05-01'
 ) A (csn, pat_id, pat_mrn_id);
 
 -- DO NOT RUN THIS CODE UNTIL YOU'VE ALTERED THE DATES IN THE COHORT, OTHERWISE IT WILL CREATE DUPLICATE RECORDS!!!
@@ -787,6 +787,9 @@ USE Analytics;
 SET NOCOUNT ON
 SELECT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
   ,procs.proc_id OrderProcId
+  ,inst.INSTNTD_ORDER_ID
+  ,inst.order_id as parent_order_id
+  ,procs.chng_order_Proc_id
   ,procs.display_name
   ,eap.proc_name
   ,proccat.proc_cat_name
@@ -807,6 +810,7 @@ SELECT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
   , osq.ord_quest_resp
   , cq.quest_name
   , tm.question
+  , osq.ORD_QUEST_CMT comment
 FROM CLARITY..ORDER_PROC procs
 INNER JOIN CLARITY..CLARITY_EAP eap ON procs.proc_id = eap.PROC_ID
 LEFT JOIN CLARITY..IP_FREQUENCY freq on freq.FREQ_ID = eap.DFLT_INTER_ID
@@ -836,13 +840,16 @@ procs.proc_id in
 '165547',
 '3041752',
 '22362','22364','22366','22368','22370','22372','22374','22376','66891','66895','66899','66903','66907','66911','66915','66919','66923','66927','66931','66935','66939','66943','66947','66951','66955','66959','66963','66967','291','293','295','297','301','303' -- dialysis
+  , '211374','177692','160318','210948','2015293' -- dialysis supplement
 )
 or
 eap.proc_name = 'BIPAP'
 or
 lower(eap.proc_name) like 'wall cpap - adult%' or
 lower(eap.proc_name) like 'cpap continuous%' or
-lower(eap.proc_name) like 'mechanical ventilation - adult cpap%'
+lower(eap.proc_name) like 'mechanical ventilation - adult cpap%' or
+eap.proc_name = 'ULTRAFILTRATION' or
+eap.proc_name in ('CONTINUOUS VENOVENOUS HEMODIALYSIS', 'HC INPATIENT HEMODIALYSIS', 'HEMODIALYSIS', 'HEMODIALYSIS INPATIENT', 'HEMODIALYSIS OUTPATIENT', 'HEMODIALYSIS INPATIENT - ACADEMIC')
 ;
 GO
 
