@@ -234,7 +234,11 @@ async def get_patient_profile(db_pool, pat_id, use_trews_lmc=False):
   ) REFRESH on true
   full outer join
   (
-    select min(update_date) as first_sirs_orgdf_tsp from criteria_events where pat_id = '%(pid)s' and flag in (-990, 10)
+    select GREATEST(
+                (array_agg(measurement_time order by measurement_time)  filter (where name in ('sirs_temp','heart_rate','respiratory_rate','wbc') and is_met ) )[2],
+                min(measurement_time) filter (where name in ('blood_pressure','mean_arterial_pressure','decrease_in_sbp','respiratory_failure','creatinine','bilirubin','platelet','inr','lactate') and is_met ))
+            as first_sirs_orgdf_tsp
+    from criteria_events where pat_id = '%(pid)s' and flag in (-990, 10)
   ) FIRST_SIRS_ORGDF on true
   ''' % { 'pid': pat_id, 'threshold_param_key': threshold_param_key }
 
