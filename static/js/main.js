@@ -780,9 +780,9 @@ var severeSepsisComponent = new function() {
     this.orgSlot.r(json['organ_dysfunction']);
 
     if (trews.data['deactivated']) {
-      this.ctn.addClass('deactivated');
+      this.ctn.addClass('inactive');
     } else {
-      this.ctn.removeClass('deactivated');
+      this.ctn.removeClass('inactive');
     }
   }
 }
@@ -847,12 +847,10 @@ var septicShockComponent = new function() {
       this.fnoteBtn.hide();
     }
 
-    if ( !severeSepsis ) {
-      this.ctn.removeClass('deactivated').addClass('inactive');
-    } else if ( trews.data['deactivated'] ) {
-      this.ctn.removeClass('inactive').addClass('deactivated');
+    if ( trews.data['deactivated'] || !severeSepsis ) {
+      this.ctn.addClass('inactive');
     } else {
-      this.ctn.removeClass('inactive deactivated');
+      this.ctn.removeClass('inactive');
     }
   }
 }
@@ -985,23 +983,18 @@ var workflowsComponent = new function() {
     this.sev6Ctn.find('h2').text(workflows['sev6']['display_name']);
     this.sep6Ctn.find('h2').text(workflows['sep6']['display_name']);
 
-    if ( severeOnset == null ) {
-      this.sev3Ctn.removeClass('deactivated').addClass('inactive');
-      this.sev6Ctn.removeClass('deactivated').addClass('inactive');
-    } else if ( trews.data['deactivated'] ) {
-      this.sev3Ctn.removeClass('inactive').addClass('deactivated');
-      this.sev6Ctn.removeClass('inactive').addClass('deactivated');
+    if ( trews.data['deactivated'] || severeOnset == null ) {
+      this.sev3Ctn.addClass('inactive');
+      this.sev6Ctn.addClass('inactive');
     } else {
-      this.sev3Ctn.removeClass('inactive deactivated');
-      this.sev6Ctn.removeClass('inactive deactivated');
+      this.sev3Ctn.removeClass('inactive');
+      this.sev6Ctn.removeClass('inactive');
     }
 
-    if ( shockOnset == null ) {
-      this.sep6Ctn.removeClass('deactivated').addClass('inactive');
-    } else if ( trews.data['deactivated'] ) {
-      this.sep6Ctn.removeClass('inactive').addClass('deactivated');
+    if ( trews.data['deactivated'] || shockOnset == null ) {
+      this.sep6Ctn.addClass('inactive');
     } else {
-      this.sep6Ctn.removeClass('inactive deactivated');
+      this.sep6Ctn.removeClass('inactive');
     }
 
     var sev3LastOrder = Math.max(iJSON['time'], bJSON['time'], aJSON['time'], fJSON['time']);

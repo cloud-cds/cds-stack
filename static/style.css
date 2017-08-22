@@ -233,8 +233,8 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li {
     border-left: 5px solid #aaa;
 }
 .card.inactive {
-    -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=20)";
-    opacity: 0.2;
+    -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=45)";
+    opacity: 0.45;
 }
 .card.inactive a {
     pointer-events: none;
@@ -247,20 +247,11 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li {
 .card.inactive a.orderNA {
     display: none;
 }
-.card.deactivated {
-    -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=60)";
-    opacity: 0.6;
+.card.inactive .status h5 {
+    color: #000;
 }
-.card.deactivated a {
-    pointer-events: none;
-}
-.card.deactivated a[disabled] {
-    pointer-events: none;
-}
-.card.deactivated a.edit-btn,
-.card.deactivated .place-order,
-.card.deactivated a.orderNA {
-    display: none;
+.card.inactive .status h5 .value {
+    font-weight: 600;
 }
 .card h2 {
     margin: 6px;
@@ -304,6 +295,7 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li {
     top: 10px;
     font-size: 12px;
     font-style: italic;
+    font-weight: bold;
     font-family: Helvetica, Arial, sans-serif;
     color: #aaa;
 }
@@ -407,7 +399,7 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li {
     color: #999;
 }
 .status h5 .value {
-    font-weight: 800;
+    font-weight: 600;
 }
 .num-overridden.hidden,
 .criteria-overridden.hidden {
