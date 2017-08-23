@@ -603,6 +603,162 @@ as $func$ begin
 end; $func$;
 
 
+-- Variant of create_criteria_report for complex orders
+create or replace function create_criteria_report_with_complex_orders(_pat_state  integer,
+                                                                      _dataset_id integer,
+                                                                      _label_id   integer)
+  returns void
+language plpgsql
+as $func$ begin
+    insert into cdm_reports (
+        dataset_id,
+        label_id,
+        w_max_state,
+        w_start,
+        w_end,
+        pat_id,
+        name,
+        measurement_time,
+        value,
+        override_time,
+        override_user,
+        override_value,
+        is_met,
+        update_date,
+        severe_sepsis_onset,
+        severe_sepsis_wo_infection_onset,
+        septic_shock_onset,
+        w_severe_sepsis_onset,
+        w_severe_sepsis_wo_infection_onset,
+        w_septic_shock_onset
+      )
+      select WS.dataset_id                            as dataset_id,
+             WS.label_id                              as label_id,
+             WS.max_state                             as w_max_state,
+             (case when WS.max_state >= 20 and WS.max_state < 30 then coalesce(S.w_severe_sepsis_onset, WS.window_ts)
+                   when WS.max_state >= 30 then coalesce(S.w_septic_shock_onset, WS.window_ts)
+                   else WS.window_ts end
+               ) - interval '6 hours'
+              as w_start,
+             (case when WS.max_state >= 20 and WS.max_state < 30 then coalesce(S.w_severe_sepsis_onset, WS.window_ts)
+                   when WS.max_state >= 30 then coalesce(S.w_septic_shock_onset, WS.window_ts)
+                   else WS.window_ts end)
+              as w_end,
+             CWindow.pat_id                           as pat_id,
+             CWindow.name                             as name,
+             CWindow.measurement_time                 as measurement_time,
+             CWindow.value                            as value,
+             CWindow.override_time                    as override_time,
+             CWindow.override_user                    as override_user,
+             CWindow.override_value                   as override_value,
+             CWindow.is_met                           as is_met,
+             CWindow.update_date                      as update_date,
+             S.severe_sepsis_onset                    as severe_sepsis_onset,
+             S.severe_sepsis_wo_infection_onset       as severe_sepsis_wo_infection_onset,
+             S.septic_shock_onset                     as septic_shock_onset,
+             CWindow.severe_sepsis_onset              as w_severe_sepsis_onset,
+             CWindow.severe_sepsis_wo_infection_onset as w_severe_sepsis_wo_infection_onset,
+             CWindow.septic_shock_onset               as w_septic_shock_onset
+      from (
+        -- Earliest occurrence of the bundle compliance or worst cms state.
+        select L2.pat_id, L2.dataset_id, L2.label_id,
+               (case when bool_or(L1.bundle) then max(L2.tsp) else min(L2.tsp) end) as window_ts,
+               max(L2.label) as max_state,
+               bool_or(L1.bundle) as bundle
+        from (
+          -- Most important bundle compliance state, or best hospital care state, for each patient.
+          select L.pat_id,
+                 coalesce(bool_or(L.label_type like '%bundle%'), false) as bundle,
+                 decode_hosp_best_state(
+                  coalesce(
+                    max(case when L.label_type like '%bundle%' then encode_hosp_best_state(L.label) else null end),
+                    max(encode_hosp_best_state(L.label))
+                  )) as label
+          from cdm_labels L
+          where L.dataset_id = coalesce(_dataset_id, L.dataset_id)
+          and   L.label_id   = coalesce(_label_id, L.label_id)
+          group by L.pat_id
+        ) L1
+        inner join cdm_labels L2
+            on L1.pat_id = L2.pat_id
+            and L1.label = L2.label
+            and L1.bundle = (L2.label_type like '%bundle%')
+        where L1.label    = coalesce(_pat_state, L1.label)
+        and L2.dataset_id = coalesce(_dataset_id, L2.dataset_id)
+        and L2.label_id   = coalesce(_label_id, L2.label_id)
+        group by L2.pat_id, L2.dataset_id, L2.label_id
+      ) WS
+
+      left join get_label_series_onset_timestamps(_dataset_id, _label_id) S
+        on WS.dataset_id = S.dataset_id
+        and WS.label_id = S.label_id
+        and WS.pat_id = S.pat_id
+
+      left join lateral (
+        ( with at_onset as (
+            select * from get_cms_labels_for_window_with_complex_orders(
+              WS.pat_id,
+              (case when WS.max_state >= 20 and WS.max_state < 30 then coalesce(S.w_severe_sepsis_onset, WS.window_ts)
+                    when WS.max_state >= 30 then coalesce(S.w_septic_shock_onset, WS.window_ts)
+                    else WS.window_ts end
+                ) - interval '6 hours',
+              (case when WS.max_state >= 20 and WS.max_state < 30 then coalesce(S.w_severe_sepsis_onset, WS.window_ts)
+                    when WS.max_state >= 30 then coalesce(S.w_septic_shock_onset, WS.window_ts)
+                    else WS.window_ts end),
+              WS.dataset_id
+            )
+            where WS.bundle
+          ),
+          at_bundle as (
+            select * from get_cms_labels_for_window_with_complex_orders(
+              WS.pat_id, WS.window_ts - interval '6 hours', WS.window_ts, WS.dataset_id
+            )
+            where WS.bundle
+          )
+          select O.pat_id,
+                 O.name,
+                 (case when O.name like '%_order' then B.measurement_time else O.measurement_time end) as measurement_time,
+                 (case when O.name like '%_order' then B.value            else O.value            end) as value,
+                 (case when O.name like '%_order' then B.override_time    else O.override_time    end) as override_time,
+                 (case when O.name like '%_order' then B.override_user    else O.override_user    end) as override_user,
+                 (case when O.name like '%_order' then B.override_value   else O.override_value   end) as override_value,
+                 (case when O.name like '%_order' then B.is_met           else O.is_met           end) as is_met,
+                 (case when O.name like '%_order' then B.update_date      else O.update_date      end) as update_date,
+                 O.severe_sepsis_onset,
+                 O.severe_sepsis_wo_infection_onset,
+                 O.septic_shock_onset
+          from at_onset O inner join at_bundle B on O.pat_id = B.pat_id and O.name = B.name
+          where WS.bundle
+        )
+        union all
+        select * from get_cms_labels_for_window_with_complex_orders(
+          WS.pat_id, WS.window_ts - interval '6 hours', WS.window_ts, WS.dataset_id
+        ) C
+        where not WS.bundle
+      ) CWindow
+        on WS.pat_id = CWindow.pat_id
+
+      order by WS.max_state desc, CWindow.pat_id
+
+    on conflict(dataset_id, label_id, w_max_state, w_start, w_end, pat_id, name)
+      do update
+        set measurement_time                   = excluded.measurement_time,
+            value                              = excluded.value,
+            override_time                      = excluded.override_time,
+            override_user                      = excluded.override_user,
+            override_value                     = excluded.override_value,
+            is_met                             = excluded.is_met,
+            update_date                        = excluded.update_date,
+            severe_sepsis_onset                = excluded.severe_sepsis_onset,
+            severe_sepsis_wo_infection_onset   = excluded.severe_sepsis_wo_infection_onset,
+            septic_shock_onset                 = excluded.septic_shock_onset,
+            w_severe_sepsis_onset              = excluded.w_severe_sepsis_onset,
+            w_severe_sepsis_wo_infection_onset = excluded.w_severe_sepsis_wo_infection_onset,
+            w_septic_shock_onset               = excluded.w_septic_shock_onset;
+end; $func$;
+
+
+
 ----------------------------------------------------------------------
 -- Per-patient criteria object construction.
 
