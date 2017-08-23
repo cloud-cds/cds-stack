@@ -706,7 +706,7 @@ format('select stats.pat_id,
                     when now() - GREATEST(sus_onset, sirs_onset, organ_onset)  > ''6 hours''::interval and sev_sep_6hr_count = 0 then 34 -- sev_sep_6hr_exp
                     when now() - LEAST(hypotension_onset, hypoperfusion_onset) > ''6 hours''::interval and sep_sho_6hr_count = 0 then 36 -- sep_sho_6hr_exp
                     when sep_sho_6hr_count = 1 then 35 -- sep_sho_6hr_com
-                    when sev_sep_6hr_count = 1 then 33 -- sev_sep_6hr_com
+                    when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 33 -- sev_sep_6hr_com
                     when sev_sep_3hr_count = 4 then 31 -- sev_sep_3hr_com
                     else
                     30 end)
@@ -717,7 +717,7 @@ format('select stats.pat_id,
                     when now() - GREATEST(sus_onset, sirs_onset, organ_onset) > ''6 hours''::interval and sev_sep_6hr_count = 0 then 34 -- sev_sep_6hr_exp
                     when now() - hypotension_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 36 -- sep_sho_6hr_exp
                     when sep_sho_6hr_count = 1 then 35 -- sep_sho_6hr_com
-                    when sev_sep_6hr_count = 1 then 33 -- sev_sep_6hr_com
+                    when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 33 -- sev_sep_6hr_com
                     when sev_sep_3hr_count = 4 then 31 -- sev_sep_3hr_com
                     else
                     30 end)
@@ -728,13 +728,13 @@ format('select stats.pat_id,
                     when now() - GREATEST(sus_onset, sirs_onset, organ_onset) > ''6 hours''::interval and sev_sep_6hr_count = 0 then 34 -- sev_sep_6hr_exp
                     when now() - hypoperfusion_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 36 -- sep_sho_6hr_exp
                     when sep_sho_6hr_count = 1 then 35 -- sep_sho_6hr_com
-                    when sev_sep_6hr_count = 1 then 33 -- sev_sep_6hr_com
+                    when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 33 -- sev_sep_6hr_com
                     when sev_sep_3hr_count = 4 then 31 -- sev_sep_3hr_com
                     else
                     30 end)
             when now() - GREATEST(sus_onset, sirs_onset, organ_onset) > ''3 hours''::interval and sev_sep_3hr_count < 4 then 22 -- sev_sep_3hr_exp
             when now() - GREATEST(sus_onset, sirs_onset, organ_onset) > ''6 hours''::interval and sev_sep_6hr_count = 0 then 24 -- sev_sep_6hr_exp
-            when sev_sep_6hr_count = 1 then 23 -- sev_sep_6hr_com
+            when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 23 -- sev_sep_6hr_com
             when sev_sep_3hr_count = 4 then 21 -- sev_sep_3hr_com
             else
             -- severe sepsis
@@ -2193,8 +2193,8 @@ BEGIN
     ),
     pats as (
         (select distinct pat_id
-    from snapshot where state in (23,33,35))
-    union all (select distinct pat_id from expired_or_complished where new_state in (23,33,35))
+    from snapshot where state in (23,35))
+    union all (select distinct pat_id from expired_or_complished where new_state in (23,35))
         )
     -- if criteria_events has been in an event for longer than deactivate_hours,
     -- then this patient should be deactivated automatically
