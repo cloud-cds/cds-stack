@@ -2386,28 +2386,45 @@ var toolbar = new function() {
     var sev6Expired = sev6.indexOf('expired') >= 0;
     var sep6Expired = sep6.indexOf('expired') >= 0;
 
+    var careCompleted = sev6Completed || sep6Completed;
+    var careExpired = sev3Expired || sev6Expired || sep6Expired;
+
     var careStatus = null;
-    if ( trews.data['deactivated'] ) {
-      var careCompleted = sev6Completed || sep6Completed;
-      var careExpired = sev3Expired || sev6Expired || sep6Expired;
+    var autoResetDate = null;
 
-      if ( careCompleted || careExpired ) {
-        var autoResetDate = new Date((trews.data['deactivated_tsp'] + 72*60*60)*1000);
-        var remaining = new Date(autoResetDate - Date.now());
-        var minutes = (remaining.getUTCMinutes() < 10) ? "0" + remaining.getUTCMinutes() : remaining.getUTCMinutes();
-        var hours = remaining.getUTCHours();
-        var days = remaining.getUTCDay() - 4;
-
-        careStatus = 'Patient care ';
-        careStatus += (careCompleted ? 'complete' : 'incomplete') + '.';
-        if ( days >= 0 && hours >= 0 && minutes >= 0 ) {
-          careStatus += ' TREWS will reset in ' + days + ' days ' + hours + ' hours ' + minutes + ' minutes.';
-        }
+    if ( careCompleted ) {
+      careStatus = 'Patient care complete.';
+      if ( trews.data['deactivated'] ) {
+        autoResetDate = new Date((trews.data['deactivated_tsp'] + 72*60*60)*1000);
       }
+    }
+    else if ( careExpired ) {
+      careStatus = 'Patient care incomplete.';
 
-    } else if ( trews.data['first_sirs_orgdf_tsp'] != null ) {
+      var sepsisOnset = (trews.data != null && trews.data['severe_sepsis'] != null) ? trews.data['severe_sepsis']['onset_time'] : null;
+      var shockOnset = (trews.data != null && trews.data['septic_shock'] != null) ? trews.data['septic_shock']['onset_time'] : null;
+
+      var expiredOffset = ((sev3Expired ? 3 * 60 * 60 : 6 * 60 * 60) + (72 * 60 * 60)) * 1000;
+      var expiredDate = ((sev3Expired || sev6Expired ? sepsisOnset : shockOnset) * 1000) + expiredOffset;
+
+      if ( expiredDate != null ) {
+        autoResetDate = new Date(expiredDate);
+      }
+    }
+
+    if ( autoResetDate != null ) {
+      var remaining = new Date(autoResetDate - Date.now());
+      var minutes = (remaining.getUTCMinutes() < 10) ? "0" + remaining.getUTCMinutes() : remaining.getUTCMinutes();
+      var hours = remaining.getUTCHours();
+      var days = remaining.getUTCDay() - 4;
+
+      if ( days >= 0 && hours >= 0 && minutes >= 0 ) {
+        careStatus += ' TREWS will reset in ' + days + ' days ' + hours + ' hours ' + minutes + ' minutes.';
+      }
+    }
+    else if ( autoResetDate == null && trews.data['first_sirs_orgdf_tsp'] != null ) {
       var firstSirsOrgDF = strToTime(new Date(trews.data['first_sirs_orgdf_tsp'] * 1000), true, false);
-      careStatus = 'SIRS and Organ Dysfunction first met at ' + firstSirsOrgDF + '.';
+      careStatus += 'SIRS and Organ Dysfunction first met at ' + firstSirsOrgDF + '.';
     }
 
     if ( careStatus ){
