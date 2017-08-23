@@ -926,6 +926,7 @@ create or replace function criteria_value_met(m_value text, c_ovalue json, d_ova
 BEGIN
     return coalesce(
         (c_ovalue is not null and c_ovalue#>>'{0,text}' = 'Not Indicated')
+        or (c_ovalue is not null and c_ovalue#>>'{0,text}' ~* 'Clinically Inappropriate')
         or not (
             m_value::numeric
                 between coalesce((c_ovalue#>>'{0,lower}')::numeric, (d_ovalue#>>'{lower}')::numeric, m_value::numeric)
@@ -958,11 +959,11 @@ create or replace function order_met(order_name text, order_value text)
     returns boolean language plpgsql as $func$
 BEGIN
     return case when order_name = 'blood_culture_order'
-                    then order_value in ('In  process', 'Preliminary', 'Final', 'Completed', 'Not Indicated')
+                    then order_value in ('In  process', 'Preliminary', 'Final', 'Completed', 'Not Indicated') or order_value ~* 'Clinically Inappropriate'
 
                 -- REVIEW: (Yanif)->(Andong): why is there no 'In  process' below analogously to order_status?
                 when order_name = 'initial_lactate_order' or order_name = 'repeat_lactate_order'
-                    then order_value in ('Preliminary', 'Sent', 'Final', 'Completed', 'Not Indicated')
+                    then order_value in ('Preliminary', 'Sent', 'Final', 'Completed', 'Not Indicated') or order_value ~* 'Clinically Inappropriate'
                 else false
             end;
 END; $func$;
@@ -971,6 +972,7 @@ create or replace function dose_order_status(order_fid text, override_value_text
     returns text language plpgsql as $func$
 BEGIN
     return case when override_value_text = 'Not Indicated' then 'Completed'
+                when override_value_text ~* 'Clinically Inappropriate' then 'Completed'
                 when order_fid in ('cms_antibiotics_order', 'crystalloid_fluid_order', 'vasopressors_dose_order') then 'Ordered'
                 when order_fid in ('cms_antibiotics', 'crystalloid_fluid', 'vasopressors_dose') then 'Completed'
                 else null
@@ -985,9 +987,10 @@ create or replace function order_status(order_fid text, value_text text, overrid
     returns text language plpgsql as $func$
 BEGIN
     return case when override_value_text = 'Not Indicated' then 'Completed'
-                when order_fid = 'lactate_order' and value_text in ('In  process', 'Sent', 'Preliminary', 'Final', 'Completed', 'Corrected', 'Not Indicated') then 'Completed'
+                when override_value_text = 'Clinically Inappropriate' then 'Completed'
+                when order_fid = 'lactate_order' and (value_text in ('In  process', 'Sent', 'Preliminary', 'Final', 'Completed', 'Corrected', 'Not Indicated') or value_text ~* 'Clinically Inappropriate') then 'Completed'
                 when order_fid = 'lactate_order' and value_text = 'Signed' then 'Ordered'
-                when order_fid = 'blood_culture_order' and value_text in ('In  process', 'Sent', 'Preliminary', 'Final', 'Completed', 'Corrected', 'Not Indicated') then 'Completed'
+                when order_fid = 'blood_culture_order' and (value_text in ('In  process', 'Sent', 'Preliminary', 'Final', 'Completed', 'Corrected', 'Not Indicated') or value_text ~* 'Clinically Inappropriate') then 'Completed'
                 when order_fid = 'blood_culture_order' and value_text = 'Signed' then 'Ordered'
                 else null
             end;
@@ -998,7 +1001,7 @@ create or replace function dose_order_met(order_fid text, override_value_text te
 DECLARE
     order_status text := dose_order_status(order_fid, override_value_text);
 BEGIN
-    return case when override_value_text = 'Not Indicated' then true
+    return case when override_value_text = 'Not Indicated' or override_value_text ~* 'Clinically Inappropriate' then true
                 when order_status = 'Completed' then dose_value > dose_limit
                 else false
             end;
@@ -1300,7 +1303,7 @@ return query
                     pat_cvalues.c_otime,
                     pat_cvalues.c_ouser,
                     pat_cvalues.c_ovalue,
-                    (case when coalesce(pat_cvalues.c_ovalue#>>'{0,text}' = 'Not Indicated', false)
+                    (case when coalesce(pat_cvalues.c_ovalue#>>'{0,text}' = 'Not Indicated' or pat_cvalues.c_ovalue#>>'{0,text}' ~* 'Clinically Inappropriate', false)
                           then criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
                           else pat_cvalues.fid = 'crystalloid_fluid'
                                 and criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
@@ -1329,7 +1332,7 @@ return query
         from
         (
             with pat_fluid_overrides as (
-              select CFL.pat_id, coalesce(bool_or(CFL.override_value#>>'{0,text}' = 'Not Indicated'), false) as override
+              select CFL.pat_id, coalesce(bool_or(CFL.override_value#>>'{0,text}' = 'Not Indicated' or CFL.override_value#>>'{0,text}' ~* 'Clinically Inappropriate'), false) as override
               from crystalloid_fluid CFL
               group by CFL.pat_id
             ),
