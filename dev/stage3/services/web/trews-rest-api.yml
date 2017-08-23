@@ -62,7 +62,7 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: trews-rest-api
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.1.90
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.1.104
         resources:
           requests:
             memory: "2816Mi"
@@ -79,6 +79,8 @@ spec:
         env:
         - name: release
           value: "epic2017"
+        - name: use_trews_lmc
+          value: "true"
         - name: db_host
           value: "db.dev.opsdx.io"
         - name: db_port
