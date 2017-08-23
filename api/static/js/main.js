@@ -2015,6 +2015,11 @@ var notifications = new function() {
 
       // Skip messages if there is no content (used to short-circuit empty interventions).
       var notifResult = this.getAlertMsg(data[i]);
+      if(notifResult == null)
+      {
+        // bundle has been completed so we can skip the alerts
+        continue;
+      }
       var notifMsg = notifResult['msg'];
       var notifSuppressed = notifResult['suppressed'];
       if ( notifMsg == undefined ) { continue; }
