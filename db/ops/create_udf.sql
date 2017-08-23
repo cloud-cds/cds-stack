@@ -2212,6 +2212,7 @@ END; $func$;
 create or replace function garbage_collection() returns void language plpgsql as $$ begin
     perform reactivate();
     perform reset_soi_pats();
+    perform reset_bundle_expired_pats();
     -- other garbage collection functions
 end; $$;
 
@@ -2234,6 +2235,19 @@ begin
     inner join criteria_meas m on e.pat_id = m.pat_id
     inner join lateral get_states_snapshot(e.pat_id) SNP on e.pat_id = SNP.pat_id
     where flag = 10 and now() - SNP.severe_sepsis_wo_infection_initial > (select value from parameters where name = 'lookbackhours')::interval
+    and e.pat_id = coalesce(this_pat_id, e.pat_id)) p;
+end; $$;
+
+
+create or replace function reset_bundle_expired_pats(this_pat_id text default null)
+returns void language plpgsql as $$
+-- reset patients who are in state 10 and expired for lookbackhours
+begin
+    perform reset_patient(pat_id) from
+    (select distinct e.pat_id
+    from criteria_events e
+    inner join lateral get_states_snapshot(e.pat_id) SNP on e.pat_id = SNP.pat_id
+    where flag in (22,24,32,34,36) and now() - SNP.severe_sepsis_wo_infection_initial > get_parameter('deactivate_expire_hours')::interval
     and e.pat_id = coalesce(this_pat_id, e.pat_id)) p;
 end; $$;
 
