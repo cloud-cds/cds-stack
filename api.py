@@ -314,6 +314,7 @@ class TREWSAPI(web.View):
       # update orders
       if criterion["name"] in ORDERS:
         value = criterion['value']
+        is_met = criterion['is_met']
         if ('override_value' in criterion) and (criterion['override_value'] is not None) and ('text' in criterion['override_value'][0]):
             value = criterion['override_value'][0]['text']
 
@@ -325,7 +326,8 @@ class TREWSAPI(web.View):
           "status": value,
           "time": order_ts,
           "user": criterion['override_user'],
-          "note": "note"
+          "note": "note",
+          "is_met": is_met
         }
 
     # update sirs
