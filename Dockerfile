@@ -1,20 +1,18 @@
 FROM python:3.6.1-slim
 
 # Copy the main code base folder inside the container
-COPY ./dashan-etl /dashan-etl
-COPY ./dashan-db /dashan-db
+COPY ./etl /etl
+COPY ./api /api
+COPY ./db /db
 
 # Get pip to download and install requirements:
 RUN apt-get update \
-    && apt-get install -y g++ libpq-dev rsyslog fuse postgresql-client graphviz\
+    && apt-get install -y build-essential libpq-dev rsyslog fuse postgresql-client graphviz \
+        autoconf automake autotools-dev libtool pkg-config sudo strace git \
+        # Install pyflame
+    && git clone https://github.com/uber/pyflame.git && cd pyflame && ./autogen.sh && ./configure && make && make install && cd \
     && pip install --upgrade pip \
     && pip install --no-cache-dir setuptools \
-    && pip install -r /dashan-etl/requirements.txt \
-    && pip install /dashan-etl
-
-# Set the default directory where CMD will execute
-WORKDIR /dashan-etl
-
-# Set the default command to execute
-# when creating a new container
-CMD ["python", "./etl/epic2op/engine.py"]
+    && pip install -r /etl/requirements.txt \
+    && pip install /etl \
+    && pip install -r /api/requirements.txt
