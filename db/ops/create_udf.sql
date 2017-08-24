@@ -1896,7 +1896,7 @@ begin
     select coalesce(s.score::numeric > threshold, false),
            s.tsp::timestamptz,
            s.score::real
-    from (select tsp, score, rank() over (partition by enc_id, tsp order by model_id desc) from lmcscore)
+    from (select enc_id, tsp, score, rank() over (partition by enc_id, tsp order by model_id desc) from lmcscore)
      s inner join pat_enc p on s.enc_id = p.enc_id
     where p.pat_id = this_pat_id and now() - tsp < timeout::interval and s.rank = 1
     order by tsp desc limit 1;
