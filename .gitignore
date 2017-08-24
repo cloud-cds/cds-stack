@@ -10,3 +10,4 @@ concourse-keys
 .idea/
 *.pyc
 aws-*env.sh
+global/lambda/*/dist
