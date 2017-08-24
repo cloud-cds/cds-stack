@@ -1987,7 +1987,7 @@ BEGIN
         json_build_object('alert_code',
             (case when mode = 'override'
                 and code = '300'
-                and not lmc_alert_on
+                and not lmc_alert_on and lmc_tsp is not null
                 then '307'
                 else code
             end)
