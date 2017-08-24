@@ -1,0 +1,5 @@
+---
+hosts       : QPDOCKER3 
+master      : QPDOCKER3[0]
+workers     : QPDOCKER3[1-21] 
+cname       : yanif-locust

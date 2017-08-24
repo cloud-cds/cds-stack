@@ -1,0 +1,10 @@
+{
+  "kind": "Namespace",
+  "apiVersion": "v1",
+  "metadata": {
+    "name": "c2dw-etl",
+    "labels": {
+      "name": "c2dw-etl"
+    }
+  }
+}

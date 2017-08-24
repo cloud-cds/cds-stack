@@ -127,3 +127,15 @@ temp.js
 tmp.bundle.js
 env.sh
 
+# cloud
+.terraform
+*tfstate*
+cloud/keys/
+secrets.tfvars
+secrets.yaml
+concourse-keys
+*.zip
+.idea/
+*.pyc
+aws-*env.sh
+cloud/global/lambda/*/dist
