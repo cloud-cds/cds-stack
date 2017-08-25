@@ -305,3 +305,9 @@ dialysis_crrt_initial_blood_flow_rate,T,JSON,yes,no,,,,,,1,
 dialysis_crrt_titrate_blood_flow_rate,T,JSON,yes,no,,,,,,1,
 dialysis_pd,T,JSON,yes,no,,,,,Peritoneal dialysis,1,
 unmeasured_urine_output,T,Real,yes,no,,,,,Phyiologic,1,ml
+sepsis_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
+septic_shock_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
+sepsis_hist,S,Boolean,yes,no,,,,,Medical history,1,no unit
+septic_shock_hist,S,Boolean,yes,no,,,,,Medical history,1,no unit
+sepsis_prob,S,Boolean,yes,no,,,,,Problem list,1,no unit
+septic_shock_prob,S,Boolean,yes,no,,,,,Problem list,1,no unit
