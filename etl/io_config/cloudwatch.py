@@ -71,7 +71,7 @@ class Cloudwatch:
     while iter*20 < len(metric_names):
       # Build metric data
       metric_data = []
-      for i in range(iter*20, (iter+1)*20):
+      for i in range(iter*20, min((iter+1)*20, len(metric_names))):
         metric_data.append(self.build_metric_data(dimension_name,
                                                   metric_names[i],
                                                   metric_values[i],

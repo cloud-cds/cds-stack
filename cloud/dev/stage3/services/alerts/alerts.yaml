@@ -46,7 +46,7 @@ spec:
         opsdx_nodegroup: nodes
       containers:
       - name: alerts
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-etl:latest
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:latest
         imagePullPolicy: Always
         resources:
           requests:
@@ -54,7 +54,7 @@ spec:
             cpu: "250m"
         command:
         - /usr/local/bin/python3
-        - /dashan-etl/etl/alerts/server.py
+        - /etl/alerts/server.py
         ports:
           - name: alerts
             containerPort: 31000
