@@ -13,6 +13,5 @@ RUN apt-get update \
     && git clone https://github.com/uber/pyflame.git && cd pyflame && ./autogen.sh && ./configure && make && make install && cd \
     && pip install --upgrade pip \
     && pip install --no-cache-dir setuptools \
-    && pip install -r /etl/requirements.txt \
-    && pip install /etl \
-    && pip install -r /api/requirements.txt
+    && pip install -r requirements.txt \
+    && pip install /etl
