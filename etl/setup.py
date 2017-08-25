@@ -1,8 +1,9 @@
-from setuptools import setup, find_packages
+from distutils.core import setup
 
 setup(
     name='etl',
-    version='0.0.1',
-    packages=find_packages(),
+    version='1.0',
+    package_dir={'etl': ''},
+    packages=['etl'],
     package_data={'': ['*.csv', '*.conf']},
 )
