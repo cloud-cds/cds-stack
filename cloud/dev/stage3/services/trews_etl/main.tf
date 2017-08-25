@@ -76,7 +76,7 @@ resource "aws_lambda_function" "etl_lambda_HCGH" {
 
         kube_cmd_0 = "sh"
         kube_cmd_1 = "-c"
-        kube_cmd_2 = "/usr/local/bin/python3 /dashan-etl/etl/epic2op/engine.py --hospital=HCGH"
+        kube_cmd_2 = "/usr/local/bin/python3 /etl/epic2op/engine.py --hospital=HCGH"
 
         k8s_job_db_host     = "${var.db_host}"
         k8s_job_db_port     = "${var.db_port}"
@@ -131,7 +131,7 @@ resource "aws_lambda_function" "etl_lambda_JHH" {
 
         kube_cmd_0 = "sh"
         kube_cmd_1 = "-c"
-        kube_cmd_2 = "/usr/local/bin/python3 /dashan-etl/etl/epic2op/engine.py --hospital=JHH"
+        kube_cmd_2 = "/usr/local/bin/python3 /etl/epic2op/engine.py --hospital=JHH"
 
         k8s_job_db_host     = "${var.db_host}"
         k8s_job_db_port     = "${var.db_port}"
@@ -186,7 +186,7 @@ resource "aws_lambda_function" "etl_lambda_BMC" {
 
         kube_cmd_0 = "sh"
         kube_cmd_1 = "-c"
-        kube_cmd_2 = "/usr/local/bin/python3 /dashan-etl/etl/epic2op/engine.py --hospital=BMC"
+        kube_cmd_2 = "/usr/local/bin/python3 /etl/epic2op/engine.py --hospital=BMC"
 
         k8s_job_db_host     = "${var.db_host}"
         k8s_job_db_port     = "${var.db_port}"
