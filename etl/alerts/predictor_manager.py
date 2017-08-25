@@ -6,6 +6,13 @@ import logging
 import functools
 import humanize
 
+STATUS_DICT = {
+  'IDLE': 1,
+  'BUSY': 2,
+  'CATCHUP': 3,
+  'DEAD': 4,
+}
+
 def predictor_str(partition_index, model_type, is_active):
   return "Predictor {}-{}-{}".format(partition_index,
                                      model_type,
@@ -20,13 +27,13 @@ class Predictor:
     self.shutdown = False
 
     # Predictor information
-    self.status = status                     # The last status message from the predictor
     self.model_type = model_type             # Long or short
     self.node_index = node_index             # The k8s node index
     self.partition_index = partition_index   # The patient partition index
     self.is_active = is_active               # active or backup (boolean)
     self.last_updated = dt.datetime.now()    # Time of last update message
     self.ip_address = ip_address             # IP address of the node the predictor is running on
+    self.set_status(status)                  # The last status message from the predictor
 
     # LMC information
     self.avg_total_time = 0
@@ -45,6 +52,19 @@ class Predictor:
       humanize.naturaltime(dt.datetime.now() - self.last_updated)
     )
 
+
+  def set_status(self, new_status):
+    cur_status = self.status if hasattr(self, 'status') else 'None'
+    if cur_status == new_status:
+      return
+    accepted_statuses = list(STATUS_DICT.keys())
+    if not new_status in accepted_statuses:
+      logging.error("{} not in {}".format(new_status, accepted_statuses))
+      raise ValueError("Predictor status must be in {}".format(accepted_statuses))
+    logging.info("{} status change: {} -> {}".format(self, cur_status, new_status))
+    self.status = new_status
+
+
   def stop(self):
     self.shutdown = True
 
@@ -62,10 +82,10 @@ class Predictor:
 
       if message == protocol.CONNECTION_CLOSED:
         logging.error('Connection to {} closed'.format(self))
-        self.status = 'DEAD'
+        self.set_status('DEAD')
         return
 
-      self.status = message.get('status')
+      self.set_status(message.get('status'))
       self.last_updated = dt.datetime.now()
 
       if message.get('type') == 'HEARTBEAT':
@@ -76,11 +96,11 @@ class Predictor:
         pass
 
       elif message.get('type') == 'FIN':
-        # NOTE (andong): we do not handle catchup fin message here
+        # NOTE (andong): we also handle catchup fin message here
         logging.info("{} - received FIN: {}".format(self, message))
         num_pats = len(message['enc_ids'])
-        self.avg_total_time = int(message['total_time'].total_seconds() / num_pats)
-        self.avg_optimization_time = int(message['optimization_time'].total_seconds() / num_pats)
+        self.avg_total_time = int(message['total_time'] / num_pats)
+        self.avg_optimization_time = int(message['optimization_time'] / num_pats)
         await queue.put({
           'type': 'FIN',
           'time': message['time'],
@@ -125,12 +145,12 @@ class PredictorManager:
       metric_tuples = []
 
       # Get overall predictor info
-      metric_tuples.append(('num_predictors', len(self.predictors), 'Count'))
+      metric_tuples.append(('num_predictors', int(len(self.predictors)), 'Count'))
 
       # Send individual predictor info to cloudwatch
       for pred_id, pred in self.predictors.items():
         metric_tuples += [
-          ('predictor_{}_{}_{}_status'.format(*pred_id), pred.status, 'None'),
+          ('predictor_{}_{}_{}_status'.format(*pred_id), STATUS_DICT[pred.status], 'None'),
           ('avg_total_time', pred.avg_total_time, 'Seconds'),
           ('avg_optimization_time', pred.avg_optimization_time, 'Seconds'),
         ]
