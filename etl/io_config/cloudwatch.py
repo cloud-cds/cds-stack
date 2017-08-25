@@ -66,19 +66,24 @@ class Cloudwatch:
         len(metric_values) != len(metric_units):
       raise ValueError('lists must be of same length')
 
-    # Build metric data
-    metric_data = []
-    for idx, metric in enumerate(metric_names):
-      metric_data.append(self.build_metric_data(dimension_name, 
-                                                metric,
-                                                metric_values[idx], 
-                                                metric_units[idx]))
+    # Can only push 20 metrics at a time
+    iter = 0
+    while iter*20 < len(metric_names):
+      # Build metric data
+      metric_data = []
+      for i in range(iter*20, (iter+1)*20):
+        metric_data.append(self.build_metric_data(dimension_name,
+                                                  metric_names[i],
+                                                  metric_values[i],
+                                                  metric_units[i]))
 
-    # Push to cloudwatch
-    try:
-      self.get_client().put_metric_data(Namespace='OpsDX', MetricData=metric_data)
-      logging.info('Successfully pushed to cloudwatch')
-    except botocore.exceptions.EndpointConnectionError as e:
-      logging.error('Unsuccessfully pushed to cloudwatch')
-      logging.error(e)
+      # Push to cloudwatch
+      try:
+        self.get_client().put_metric_data(Namespace='OpsDX', MetricData=metric_data)
+        logging.info('Successfully pushed to cloudwatch')
+      except botocore.exceptions.EndpointConnectionError as e:
+        logging.error('Unsuccessfully pushed to cloudwatch')
+        logging.error(e)
+
+      iter += 1
 
