@@ -10,25 +10,11 @@ resources:
 ##############
 # Repositories
 #
-  - name: dashan-etl
+  - name: dashan-universe
     type: git
     source:
       branch: master
-      uri: git@github.com:dashan-emr/dashan-etl.git
-      private_key: {{github-private-key}}
-
-  - name: dashan-db
-    type: git
-    source:
-      branch: master
-      uri: git@github.com:dashan-emr/dashan-db.git
-      private_key: {{github-private-key}}
-
-  - name: trews-rest-api
-    type: git
-    source:
-      branch: master
-      uri: git@github.com:dashan-emr/trews_rest_api.git
+      uri: git@github.com:dashan-emr/dashan-universe.git
       private_key: {{github-private-key}}
 
   - name: lmc
@@ -41,19 +27,11 @@ resources:
 ###############
 # Pull requests
 #
-  - name: dashan-etl-pr
+  - name: dashan-universe-pr
     type: pull-request
     source:
-      repo: dashan-emr/dashan-etl
-      uri: git@github.com:dashan-emr/dashan-etl.git
-      access_token: {{github-access-token}}
-      private_key: {{github-private-key}}
-
-  - name: trews-rest-api-pr
-    type: pull-request
-    source:
-      repo: dashan-emr/trews_rest_api
-      uri: git@github.com:dashan-emr/trews_rest_api.git
+      repo: dashan-emr/dashan-universe
+      uri: git@github.com:dashan-emr/dashan-universe.git
       access_token: {{github-access-token}}
       private_key: {{github-private-key}}
 
@@ -63,15 +41,7 @@ resources:
   - name: dashan-docker-image
     type: docker-image
     source:
-      repository: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-etl
-      aws_access_key_id: {{aws-access-key-id}}
-      aws_secret_access_key: {{aws-secret-access-key}}
-      tag: "latest"
-
-  - name: trews-rest-api-docker-image
-    type: docker-image
-    source:
-      repository: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api
+      repository: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe
       aws_access_key_id: {{aws-access-key-id}}
       aws_secret_access_key: {{aws-secret-access-key}}
       tag: "latest"
@@ -87,23 +57,12 @@ resources:
 #####################
 # Semantic versioning
 #
-  - name: dashan-etl-version
-    type: semver
-    source:
-      driver: git
-      initial_version: 0.0.1
-      uri: git@github.com:dashan-emr/dashan-etl.git
-      branch: version
-      file: version
-      private_key: {{github-private-key}}
-      git_user: CI bot <ci@ci.ci>
-
-  - name: trews-rest-api-version
+  - name: dashan-universe-version
     type: semver
     source:
       driver: git
       initial_version: 1.0.0
-      uri: git@github.com:dashan-emr/trews_rest_api.git
+      uri: git@github.com:dashan-emr/dashan-universe.git
       branch: version
       file: version
       private_key: {{github-private-key}}
@@ -127,31 +86,30 @@ jobs:
 #######
 # Tests
 #
-  - name: unit-tests
+  - name: etl-unit-tests
     build_logs_to_retain: 50
     plan:
       - get: dashan-docker-image
-      - get: dashan-etl
+      - get: dashan-universe
         trigger: true
       - task: unit
         image: dashan-docker-image
-        file: dashan-etl/ci/unit.yml
+        file: dashan-universe/ci/unit.yml
       - task: measure-coverage
         image: dashan-docker-image
-        file: dashan-etl/ci/coverage.yml
+        file: dashan-universe/ci/coverage.yml
 
-  - name: integration-tests
+  - name: etl-integration-tests
     build_logs_to_retain: 50
     plan:
       - get: dashan-docker-image
-        passed: [unit-tests]
-      - get: dashan-db
-      - get: dashan-etl
+        passed: [etl-unit-tests]
+      - get: dashan-universe
         trigger: true
-        passed: [unit-tests]
+        passed: [etl-unit-tests]
       - task: integration-tests
         image: dashan-docker-image
-        file: dashan-etl/ci/integration.yml
+        file: dashan-universe/ci/integration.yml
         params:
           db_host: {{DEV_PGHOST}}
           db_password: {{DEV_PGPASSWORD}}
@@ -179,19 +137,18 @@ jobs:
 
 
 
-  - name: test-dashan-etl-pull-request
+  - name: test-dashan-universe-pull-request
     public: false
     serial: true
     plan:
-      - get: dashan-etl-pr
+      - get: dashan-universe-pr
         trigger: true
+      - put: dashan-universe-pr
+        params: {path: dashan-universe-pr, status: pending}
       - get: dashan-docker-image
-      - get: dashan-db
-      - put: dashan-etl-pr
-        params: {path: dashan-etl-pr, status: pending}
       - task: run-tests
         image: dashan-docker-image
-        file: dashan-etl-pr/ci/integration_lite.yml
+        file: dashan-universe-pr/ci/integration_lite.yml
         params:
           db_host: {{DEV_PGHOST}}
           db_password: {{DEV_PGPASSWORD}}
@@ -217,77 +174,31 @@ jobs:
           dataset_id: {{dataset_id}}
           nproc: {{nproc}}
         on_success:
-          put: dashan-etl-pr
-          params: {path: dashan-etl-pr, status: success}
+          put: dashan-universe-pr
+          params: {path: dashan-universe-pr, status: success}
         on_failure:
-          put: dashan-etl-pr
-          params: {path: dashan-etl-pr, status: failure}
-
-  - name: test-trews-rest-api-pull-request
-    public: false
-    serial: true
-    plan:
-      - get: trews-rest-api-pr
-        trigger: true
-      - get: trews-rest-api-docker-image
-      - get: dashan-etl
-      - put: trews-rest-api-pr
-        params: {path: trews-rest-api-pr, status: pending}
-      - task: api-tests
-        image: trews-rest-api-docker-image
-        file: dashan-etl/ci/integration_rest_api.yml
-        params:
-          db_host: {{DEV_PGHOST}}
-          db_password: {{DEV_PGPASSWORD}}
-          db_port: {{DEV_PGPORT}}
-          db_user: {{DEV_PGUSER}}
-          db_name: {{DEV_PGDATABASE}}
-          PGPASSWORD: {{DEV_PGPASSWORD}}
-          jhapi_client_id: {{jhapi_client_id}}
-          jhapi_client_secret: {{jhapi_client_secret}}
-        on_success:
-          put: trews-rest-api-pr
-          params: {path: trews-rest-api-pr, status: success}
-        on_failure:
-          put: trews-rest-api-pr
-          params: {path: trews-rest-api-pr, status: failure}
+          put: dashan-universe-pr
+          params: {path: dashan-universe-pr, status: failure}
 
 ########################
 # Building docker images
 #
-  - name: build-dashan-docker-image
+  - name: build-universe-docker-image
     serial: true
     plan:
-      - get: dashan-etl
+      - get: dashan-universe
         trigger: true
-        passed: ['integration-tests']
-      - get: dashan-db
-        trigger: false
-      - get: dashan-etl-version
+        passed: ['etl-integration-tests']
+      - get: dashan-universe-version
         params: {bump: patch}
       - put: dashan-docker-image
         params:
           build: .
-          dockerfile: dashan-etl/Dockerfile
+          dockerfile: dashan-universe/Dockerfile
           tag_as_latest: true
-          tag: dashan-etl-version/number
-      - put: dashan-etl-version
-        params: {file: dashan-etl-version/version}
-
-  - name: build-trews-rest-api-docker-image
-    public: false
-    serial: true
-    plan:
-      - get: trews-rest-api
-      - get: trews-rest-api-version
-        params: {bump: patch}
-      - put: trews-rest-api-docker-image
-        params:
-          build: trews-rest-api
-          tag_as_latest: true
-          tag: trews-rest-api-version/number
-      - put: trews-rest-api-version
-        params: {file: trews-rest-api-version/version}
+          tag: dashan-universe-version/number
+      - put: dashan-universe-version
+        params: {file: dashan-universe-version/version}
 
   - name: build-lmc-docker-image
     serial: true
@@ -295,7 +206,7 @@ jobs:
       - get: LMC-Based-On-GPflow
         resource: lmc
         trigger: true
-      - get: dashan-db
+      - get: dashan-universe
         trigger: false
       - get: lmc-version
         params: {bump: patch}
