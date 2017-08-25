@@ -2255,7 +2255,7 @@ end; $$;
 create or replace function reset_patient(this_pat_id text)
 returns void language plpgsql as $$
 begin
-    update criteria_events set flag = 1000 - flag
+    update criteria_events set flag = flag - 1000
     where pat_id = this_pat_id and flag > 0;
     insert into criteria_log (pat_id, tsp, event, update_date)
     values (
