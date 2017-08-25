@@ -1,3 +1,4 @@
 #!/bin/bash
-echo "Running unit tests"
-pytest ./dashan-etl
+
+echo "Running etl unit tests"
+pytest ./dashan-universe/etl

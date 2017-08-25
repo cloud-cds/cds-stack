@@ -28,8 +28,7 @@ params:
   nproc:
 
 inputs:
-- name: dashan-db
-- name: dashan-etl-pr
+- name: dashan-universe-pr
 
 run:
-  path: dashan-etl-pr/tests/lite_tests.sh
+  path: dashan-universe-pr/tests/lite_tests.sh

@@ -28,8 +28,7 @@ params:
   nproc:
 
 inputs:
-- name: dashan-db
-- name: dashan-etl
+- name: dashan-universe
 
 run:
-  path: dashan-etl/tests/integration_tests.sh
+  path: dashan-universe/tests/integration_tests.sh

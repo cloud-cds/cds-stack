@@ -12,7 +12,7 @@ cwd = os.path.dirname(os.path.realpath(__file__))
 work_dir = cwd.replace("/test", "/")
 os.chdir(work_dir)
 os.system("gunicorn -b 0.0.0.0:8000 trews:app --worker-class aiohttp.GunicornUVLoopWebWorker -c gunicorn_conf.py &")
-time.sleep(5)
+time.sleep(3)
 
 # Test getting index.html
 r = requests.get('http://0.0.0.0:8000')
@@ -31,6 +31,7 @@ post_body = json.dumps({
     "actionType":   None,
     "action":       None
 })
+time.sleep(3)
 r = requests.post('http://0.0.0.0:8000/api', data=post_body)
 if r.status_code != 200:
     print("\n\n\tFAILED getting response from /api")
@@ -38,10 +39,8 @@ if r.status_code != 200:
     passed_tests = False
 
 # Kill the server
-for p in psutil.process_iter():
-    pinfo = p.as_dict(attrs=['pid', 'name'])
-    if pinfo['name'] == 'gunicorn':
-        p.kill()
+time.sleep(5)
+os.system("pkill gunicorn")
 
 # Return correct status code
 if passed_tests:

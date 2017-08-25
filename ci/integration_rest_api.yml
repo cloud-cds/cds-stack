@@ -13,8 +13,7 @@ params:
   trews_open_access: true
 
 inputs:
-- name: dashan-etl
-- name: trews-rest-api-pr
+- name: dashan-universe-pr
 
 run:
-  path: dashan-etl/tests/api_tests.sh
+  path: dashan-universe-pr/tests/api_tests.sh

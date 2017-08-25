@@ -2,7 +2,7 @@
 platform: linux
 
 inputs:
-- name: dashan-etl
+- name: dashan-universe
 
 run:
-  path: dashan-etl/tests/coverage_tests.sh
+  path: dashan-universe/tests/coverage_tests.sh

@@ -1,3 +1,4 @@
 #!/bin/bash
 echo "Running tests"
-python trews-rest-api-pr/test/test_server_alive.py
+export trews_open_access=True
+python dashan-universe-pr/test/test_server_alive.py
