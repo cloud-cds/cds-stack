@@ -1883,9 +1883,9 @@ END; $function$;
 -----------------------------------------------
 CREATE OR REPLACE FUNCTION lmcscore_alert_on(this_pat_id text, timeout text default '15 minutes')
 RETURNS table(
-    lmc_alert_on boolean,
-    lmc_tsp timestamptz,
-    lmc_score real
+    alert_on boolean,
+    tsp timestamptz,
+    score real
     )
 AS $$
 declare
@@ -1903,7 +1903,33 @@ begin
 end;
 $$ LANGUAGE PLPGSQL;
 
+CREATE OR REPLACE FUNCTION trewscore_alert_on(this_pat_id text, timeout text default '15 minutes')
+RETURNS table(
+    alert_on boolean,
+    tsp timestamptz,
+    score real,
+    mode text
+    )
+AS $$
+declare
+    threshold numeric;
+begin
+    select value from parameters where name = 'suppression_mode' into mode:
+    if mode = 'trews' then
+        select value::numeric from trews_parameters where name = 'trews_threshold' into threshold;
+        return query
+            select coalesce(s.score::numeric > threshold, false),
+                   s.tsp::timestamptz,
+                   s.score::real
+            from trews s inner join pat_enc p on s.enc_id = p.enc_id
+            where p.pat_id = this_pat_id and now() - tsp < timeout::interval and s.rank = 1
+            order by tsp desc limit 1;
+    else
+        return lmcscore_alert_on(this_pat_id, timeout);
+    end if;
 
+end;
+$$ LANGUAGE PLPGSQL;
 
 CREATE OR REPLACE FUNCTION pat_lmcscore_timeout(this_pat_id text)
 RETURNS boolean as $$
@@ -1933,28 +1959,28 @@ $$ LANGUAGE PLPGSQL;
 CREATE OR REPLACE FUNCTION update_suppression_alert(this_pat_id text, channel text, notify boolean default false)
 RETURNS void AS $$
 DECLARE
-    lmc_alert_on boolean;
-    lmc_tsp timestamptz;
-    lmc_score real;
+    trews_alert_on boolean;
+    trews_tsp timestamptz;
+    trewsscore real;
     curr_state int;
     tsp timestamptz;
 BEGIN
-    select * from lmcscore_alert_on(this_pat_id, (select coalesce(value, '6 hours') from parameters where name = 'suppression_timeout')) into lmc_alert_on, lmc_tsp, lmc_score;
+    select * from trewscore_alert_on(this_pat_id, (select coalesce(value, '6 hours') from parameters where name = 'suppression_timeout')) into trews_alert_on, trews_tsp, trewsscore;
     select state, severe_sepsis_wo_infection_initial from get_states_snapshot(this_pat_id) into curr_state, tsp;
     delete from notifications where pat_id = this_pat_id
         and notifications.message#>>'{alert_code}' ~ '205|300|206|307';
     if curr_state = 10 then
-        if coalesce(lmc_alert_on, false) then
+        if coalesce(trews_alert_on, false) then
             insert into notifications (pat_id, message) values
             (
                 this_pat_id,
-                json_build_object('alert_code', '300', 'read', false, 'timestamp', date_part('epoch',tsp), 'suppression', 'true', 'lmc_tsp', date_part('epoch', lmc_tsp), 'lmc_score', lmc_score)
+                json_build_object('alert_code', '300', 'read', false, 'timestamp', date_part('epoch',tsp), 'suppression', 'true', 'trews_tsp', date_part('epoch', trews_tsp), 'trewsscore', trewsscore)
             );
         else
             insert into notifications (pat_id, message) values
             (
                 this_pat_id,
-                json_build_object('alert_code', '307', 'read', false, 'timestamp', date_part('epoch',tsp), 'suppression', 'true', 'lmc_tsp', date_part('epoch', lmc_tsp), 'lmc_score', lmc_score)
+                json_build_object('alert_code', '307', 'read', false, 'timestamp', date_part('epoch',tsp), 'suppression', 'true', 'trews_tsp', date_part('epoch', trews_tsp), 'trewsscore', trewsscore)
             );
         end if;
     end if;
@@ -1987,7 +2013,7 @@ BEGIN
         json_build_object('alert_code',
             (case when mode = 'override'
                 and code = '300'
-                and not lmc_alert_on and lmc_tsp is not null
+                and not trews_alert_on and trews_tsp is not null
                 then '307'
                 else code
             end)
@@ -2006,14 +2032,14 @@ BEGIN
                     else '0 hours'
                     end)::interval),
             'suppression', suppression_on(this_pat_id),
-            'lmc_tsp', (case when suppression_on(this_pat_id) then lmc_tsp else null end),
-            'lmc_score', (case when suppression_on(this_pat_id) then lmc_score else null end)
+            'trews_tsp', (case when suppression_on(this_pat_id) then trews_tsp else null end),
+            'trewscore', (case when suppression_on(this_pat_id) then trewscore else null end)
         ) message
     from (select distinct pat_enc.pat_id from pat_enc) as pat_enc
     cross join unnest(alert_codes) as code
     left join notifications n2
         on n2.pat_id = pat_enc.pat_id and n2.message#>>'{alert_code}' = code
-    left join lmcscore_alert_on(pat_enc.pat_id,(select coalesce(value, '6 hours') from parameters where name = 'suppression_timeout')) lmc on mode = 'override' and code = '300'
+    left join trewscore_alert_on(pat_enc.pat_id,(select coalesce(value, '6 hours') from parameters where name = 'suppression_timeout')) trews on mode = 'override' and code = '300'
     where pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id)
     and n2.message is null and code <> '0'
     and
