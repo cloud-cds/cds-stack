@@ -4,7 +4,7 @@ FROM python:3.6.1-slim
 COPY dashan-universe/etl /etl
 COPY dashan-universe/api /api
 COPY dashan-universe/db /db
-COPY dashan-universe/requirements.txt requirements.txt
+ADD dashan-universe/requirements.txt /
 
 # Get pip to download and install requirements:
 RUN apt-get update \
