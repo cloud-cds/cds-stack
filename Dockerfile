@@ -1,9 +1,9 @@
 FROM python:3.6.1-slim
 
 # Copy the main code base folder inside the container
-COPY ./etl /etl
-COPY ./api /api
-COPY ./db /db
+COPY dashan-universe/etl /etl
+COPY dashan-universe/api /api
+COPY dashan-universe/db /db
 
 # Get pip to download and install requirements:
 RUN apt-get update \
