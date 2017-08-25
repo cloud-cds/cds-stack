@@ -1,4 +1,4 @@
-import etl.confidence as confidence
+import etl.mappings.confidence as confidence
 
 def convert_gender_to_int(entry, log):
     value = entry[-1]

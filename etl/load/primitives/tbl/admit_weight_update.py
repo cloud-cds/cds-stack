@@ -1,7 +1,7 @@
 import asyncio
 import etl.load.primitives.tbl.clean_tbl as clean_tbl
 import etl.load.primitives.row.load_row as load_row
-import etl.confidence as confidence
+import etl.mappings.confidence as confidence
 
 
 async def admit_weight_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):

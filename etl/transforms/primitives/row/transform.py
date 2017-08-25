@@ -3,7 +3,7 @@ list all transform functions
 """
 
 import json, sys, traceback
-import etl.confidence as confidence
+import etl.mappings.confidence as confidence
 from datetime import datetime, timedelta
 from etl.transforms.primitives.row.load_discharge_json import *
 from etl.transforms.primitives.row.convert_gender_to_int import *

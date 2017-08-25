@@ -1,4 +1,4 @@
-import etl.confidence as confidence
+import etl.mappings.confidence as confidence
 
 def convert_proc_to_boolean(entry, log):
     start_time = entry['PROC_START_TIME']

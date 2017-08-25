@@ -2,7 +2,7 @@
 derive functions
 """
 import sys
-import etl.confidence as confidence
+import etl.mappings.confidence as confidence
 import datetime
 from etl.transforms.primitives.row.transform import STOPPED_ACTIONS
 # from etl.load.primitives.tbl.acute_liver_failure_update import *
