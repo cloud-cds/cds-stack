@@ -99,8 +99,8 @@ class Predictor:
         # NOTE (andong): we also handle catchup fin message here
         logging.info("{} - received FIN: {}".format(self, message))
         num_pats = len(message['enc_ids'])
-        self.avg_total_time = int(message['total_time'] / num_pats)
-        self.avg_optimization_time = int(message['optimization_time'] / num_pats)
+        self.avg_total_time = message['total_time'] / num_pats
+        self.avg_optimization_time = message['optimization_time'] / num_pats
         await queue.put({
           'type': 'FIN',
           'time': message['time'],
