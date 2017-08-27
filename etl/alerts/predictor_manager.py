@@ -151,8 +151,8 @@ class PredictorManager:
       for pred_id, pred in self.predictors.items():
         metric_tuples += [
           ('predictor_{}_{}_{}_status'.format(*pred_id), STATUS_DICT[pred.status], 'None'),
-          ('avg_total_time', pred.avg_total_time, 'Seconds'),
-          ('avg_optimization_time', pred.avg_optimization_time, 'Seconds'),
+          ('avg_total_time_{}'.format(prod.model_type), pred.avg_total_time, 'Seconds'),
+          ('avg_optimization_time_{}'.format(prod.model_type), pred.avg_optimization_time, 'Seconds'),
         ]
 
       # Send all info to cloudwatch
