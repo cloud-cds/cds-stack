@@ -11,7 +11,7 @@ class Cloudwatch:
     FLAGS = Environment()
     self.prod_or_dev = FLAGS.db_name.split('_')[1]
     self.client = None
-    self.suppress_logging = FLAGS.SUPPRESS_CLOUDWATCH
+    self.suppress_logging = True if FLAGS.SUPPRESS_CLOUDWATCH == '1' or FLAGS.SUPPRESS_CLOUDWATCH.lower() == 'true' else False
 
 
 
