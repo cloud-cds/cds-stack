@@ -1903,7 +1903,7 @@ begin
 end;
 $$ LANGUAGE PLPGSQL;
 
-CREATE OR REPLACE FUNCTION trewscore_alert_on(this_pat_id text, timeout text default '15 minutes')
+CREATE OR REPLACE FUNCTION trewscore_alert_on(this_pat_id text, timeout text, model text)
 RETURNS table(
     alert_on boolean,
     tsp timestamptz,
@@ -1914,8 +1914,7 @@ AS $$
 declare
     threshold numeric;
 begin
-    select value from parameters where name = 'suppression_mode' into mode:
-    if mode = 'trews' then
+    if model = 'trews' then
         select value::numeric from trews_parameters where name = 'trews_threshold' into threshold;
         return query
             select coalesce(s.score::numeric > threshold, false),
@@ -1956,16 +1955,16 @@ begin
 end;
 $$ LANGUAGE PLPGSQL;
 
-CREATE OR REPLACE FUNCTION update_suppression_alert(this_pat_id text, channel text, notify boolean default false)
+CREATE OR REPLACE FUNCTION update_suppression_alert(this_pat_id text, channel text, model text, notify boolean default false)
 RETURNS void AS $$
 DECLARE
     trews_alert_on boolean;
     trews_tsp timestamptz;
-    trewsscore real;
+    trewscore real;
     curr_state int;
     tsp timestamptz;
 BEGIN
-    select * from trewscore_alert_on(this_pat_id, (select coalesce(value, '6 hours') from parameters where name = 'suppression_timeout')) into trews_alert_on, trews_tsp, trewsscore;
+    select * from trewscore_alert_on(this_pat_id, (select coalesce(value, '6 hours') from parameters where name = 'suppression_timeout'), model) into trews_alert_on, trews_tsp, trewscore;
     select state, severe_sepsis_wo_infection_initial from get_states_snapshot(this_pat_id) into curr_state, tsp;
     delete from notifications where pat_id = this_pat_id
         and notifications.message#>>'{alert_code}' ~ '205|300|206|307';
@@ -1974,13 +1973,13 @@ BEGIN
             insert into notifications (pat_id, message) values
             (
                 this_pat_id,
-                json_build_object('alert_code', '300', 'read', false, 'timestamp', date_part('epoch',tsp), 'suppression', 'true', 'trews_tsp', date_part('epoch', trews_tsp), 'trewsscore', trewsscore)
+                json_build_object('alert_code', '300', 'read', false, 'timestamp', date_part('epoch',tsp), 'suppression', 'true', 'trews_tsp', date_part('epoch', trews_tsp), 'trewscore', trewscore, 'model', model)
             );
         else
             insert into notifications (pat_id, message) values
             (
                 this_pat_id,
-                json_build_object('alert_code', '307', 'read', false, 'timestamp', date_part('epoch',tsp), 'suppression', 'true', 'trews_tsp', date_part('epoch', trews_tsp), 'trewsscore', trewsscore)
+                json_build_object('alert_code', '307', 'read', false, 'timestamp', date_part('epoch',tsp), 'suppression', 'true', 'trews_tsp', date_part('epoch', trews_tsp), 'trewscore', trewscore, 'model', model)
             );
         end if;
     end if;
@@ -2005,52 +2004,106 @@ BEGIN
     -- clean notifications
     delete from notifications
         where notifications.pat_id = this_pat_id;
-    -- add new notifications
-    return query
-    insert into notifications (pat_id, message)
-    select
-        pat_enc.pat_id,
-        json_build_object('alert_code',
-            (case when mode = 'override'
-                and code = '300'
-                and not trews_alert_on and trews_tsp is not null
-                then '307'
-                else code
-            end)
-            , 'read', false,'timestamp',
-            date_part('epoch',
-                (case when code in ('201','204','303','306') then septic_shock_onset
-                      when code = '300' then sirs_plus_organ_onset
-                      else severe_sepsis_onset
-                      end)::timestamptz
-                +
-                (case
-                    when code = '202' then '3 hours'
-                    when code in ('203','204') then '6 hours'
-                    when code = '304' then '2 hours'
-                    when code in ('305','306') then '5 hours'
-                    else '0 hours'
-                    end)::interval),
-            'suppression', suppression_on(this_pat_id),
-            'trews_tsp', (case when suppression_on(this_pat_id) then trews_tsp else null end),
-            'trewscore', (case when suppression_on(this_pat_id) then trewscore else null end)
-        ) message
-    from (select distinct pat_enc.pat_id from pat_enc) as pat_enc
-    cross join unnest(alert_codes) as code
-    left join notifications n2
-        on n2.pat_id = pat_enc.pat_id and n2.message#>>'{alert_code}' = code
-    left join trewscore_alert_on(pat_enc.pat_id,(select coalesce(value, '6 hours') from parameters where name = 'suppression_timeout')) trews on mode = 'override' and code = '300'
-    where pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id)
-    and n2.message is null and code <> '0'
-    and
-    (
-        -- only for suppression is ON
-        not suppression_on(this_pat_id)
-        or
-        (not code = '300' or mode = 'override')
-    )
-    returning notifications.pat_id, message#>>'{alert_code}';
-
+    if suppression_on(this_pat_id) then
+        -- suppression alerts
+        if mode = 'override' then
+            insert into notifications (pat_id, message)
+            select
+                pat_enc.pat_id,
+                json_build_object('alert_code',
+                    (case when mode = 'override'
+                        and not trews_alert_on and trews_tsp is not null
+                        then '307'
+                        else code
+                    end)
+                    , 'read', false,'timestamp',
+                    date_part('epoch', sirs_plus_organ_onset::timestamptz),
+                    'suppression', 'true',
+                    'model', 'trews',
+                    'trews_tsp', trews_tsp,
+                    'trewscore', trewscore)
+                ) message
+            from (select distinct pat_enc.pat_id from pat_enc) as pat_enc
+            cross join unnest(alert_codes) as code
+            left join trewscore_alert_on(pat_enc.pat_id,(select coalesce(value, '6 hours') from parameters where name = 'suppression_timeout'), 'trews') trews on mode = 'override'
+            where pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id)
+                and code = '300';
+            insert into notifications (pat_id, message)
+            select
+                pat_enc.pat_id,
+                json_build_object('alert_code',
+                    (case when mode = 'override'
+                        and not trews_alert_on and trews_tsp is not null
+                        then '307'
+                        else code
+                    end)
+                    , 'read', false,'timestamp',
+                    date_part('epoch', sirs_plus_organ_onset::timestamptz),
+                    'suppression', 'true',
+                    'model', 'lmc',
+                    'trews_tsp', trews_tsp,
+                    'trewscore', trewscore)
+                ) message
+            from (select distinct pat_enc.pat_id from pat_enc) as pat_enc
+            cross join unnest(alert_codes) as code
+            left join trewscore_alert_on(pat_enc.pat_id,(select coalesce(value, '6 hours', 'lmc') from parameters where name = 'suppression_timeout')) trews on mode = 'override'
+            where pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id)
+                and code = '300';
+        end if;
+        -- normal notifications
+        return query
+        insert into notifications (pat_id, message)
+        select
+            pat_enc.pat_id,
+            json_build_object('alert_code', code, 'read', false,'timestamp',
+                date_part('epoch',
+                    (case when code in ('201','204','303','306') then septic_shock_onset
+                          when code = '300' then sirs_plus_organ_onset
+                          else severe_sepsis_onset
+                          end)::timestamptz
+                    +
+                    (case
+                        when code = '202' then '3 hours'
+                        when code in ('203','204') then '6 hours'
+                        when code = '304' then '2 hours'
+                        when code in ('305','306') then '5 hours'
+                        else '0 hours'
+                        end)::interval),
+                'suppression', 'true'
+            ) message
+        from (select distinct pat_enc.pat_id from pat_enc) as pat_enc
+        cross join unnest(alert_codes) as code
+        where pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id)
+        and code <> '0' and code <> '300'
+        returning notifications.pat_id, message#>>'{alert_code}';
+    else
+        -- normal notifications
+        return query
+        insert into notifications (pat_id, message)
+        select
+            pat_enc.pat_id,
+            json_build_object('alert_code', code, 'read', false,'timestamp',
+                date_part('epoch',
+                    (case when code in ('201','204','303','306') then septic_shock_onset
+                          when code = '300' then sirs_plus_organ_onset
+                          else severe_sepsis_onset
+                          end)::timestamptz
+                    +
+                    (case
+                        when code = '202' then '3 hours'
+                        when code in ('203','204') then '6 hours'
+                        when code = '304' then '2 hours'
+                        when code in ('305','306') then '5 hours'
+                        else '0 hours'
+                        end)::interval),
+                'suppression', 'false'
+            ) message
+        from (select distinct pat_enc.pat_id from pat_enc) as pat_enc
+        cross join unnest(alert_codes) as code
+        where pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id)
+        and code <> '0'
+        returning notifications.pat_id, message#>>'{alert_code}';
+    end if;
 END;
 $$ LANGUAGE PLPGSQL;
 

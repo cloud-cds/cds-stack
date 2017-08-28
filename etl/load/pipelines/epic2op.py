@@ -63,11 +63,19 @@ async def notify_data_ready_to_alert_server(ctxt, job_id):
   try:
     reader, writer = await asyncio.open_connection(protocol.ALERT_SERVER_IP, protocol.ALERT_SERVER_PORT, loop=ctxt.loop)
     await protocol.write_message(writer, message)
-    logging.info('Notified alert server that the ETL is done')
+    logging.info('Notified lmc alert server that the ETL is done')
     writer.close()
   except Exception as e:
     ctxt.log.exception(e)
-    ctxt.log.error("Fail to notify alert server")
+    ctxt.log.error("Fail to notify lmc alert server")
+  try:
+    reader, writer = await asyncio.open_connection(protocol.TREWS_ALERT_SERVER_IP, protocol.TREWS_ALERT_SERVER_PORT, loop=ctxt.loop)
+    await protocol.write_message(writer, message)
+    logging.info('Notified trews alert server that the ETL is done')
+    writer.close()
+  except Exception as e:
+    ctxt.log.exception(e)
+    ctxt.log.error("Fail to notify trews alert server")
 
 
 # async def notify_criteria_ready_to_alert_server(ctxt, job_id, _):
