@@ -38,7 +38,7 @@ class AlertServer:
     self.channel              = os.getenv('etl_channel', 'on_opsdx_dev_etl')
     self.suppression_tasks    = {}
     self.model                = os.getenv('suppression_model', 'trews')
-    self.notify               = os.getenv('notify_web', 0)
+    self.notify_web            = os.getenv('notify_web', 0)
 
 
   async def async_init(self):
@@ -94,7 +94,7 @@ class AlertServer:
         logging.info("criteria is ready for {}".format(pat_id))
         sql = '''
         select update_suppression_alert('{pat_id}', '{channel}', '{model}', '{notify}');
-        '''.format(pat_id=pat_id, channel=self.channel, model=self.model, notify=self.is_notify)
+        '''.format(pat_id=pat_id, channel=self.channel, model=self.model, notify=self.notify_web)
         logging.info("suppression sql: {}".format(sql))
         await conn.fetch(sql)
         logging.info("generate suppression alert for {}".format(pat_id))
@@ -136,7 +136,7 @@ class AlertServer:
       (select distinct m.pat_id from criteria_meas m
       inner join pat_hosp() h on h.pat_id = m.pat_id
       where now() - tsp < (select value::interval from parameters where name = 'lookbackhours') and h.hospital = '{hospital}');
-        '''.format(channel=self.channel, model=self.model, notify=self.is_notify, hospital=hospital)
+        '''.format(channel=self.channel, model=self.model, notify=self.notify_web, hospital=hospital)
       logging.info("suppression sql: {}".format(sql))
       await conn.fetch(sql)
       logging.info("generate trews suppression alert for {}".format(hospital))
