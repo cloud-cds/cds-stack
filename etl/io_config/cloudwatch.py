@@ -8,8 +8,10 @@ logging.getLogger('botocore').setLevel(logging.CRITICAL)
 
 class Cloudwatch:
   def __init__(self):
-    self.prod_or_dev = Environment().db_name.split('_')[1]
+    FLAGS = Environment()
+    self.prod_or_dev = FLAGS.db_name.split('_')[1]
     self.client = None
+    self.suppress_logging = FLAGS.SUPPRESS_CLOUDWATCH
 
 
 
@@ -43,6 +45,10 @@ class Cloudwatch:
   def push(self, dimension_name, metric_name, value, unit='None'):
     ''' Push a metric to cloudwatch '''
 
+    if self.suppress_logging:
+      logging.info("Cloudwatch suppression is turned on - not pushing stats")
+      return
+
     metric_data = [self.build_metric_data(dimension_name, metric_name, value, unit)]
 
     try:
@@ -57,6 +63,10 @@ class Cloudwatch:
 
   def push_many(self, dimension_name, metric_names, metric_values, metric_units):
     ''' Push a list of metrics to cloudwatch '''
+
+    if self.suppress_logging:
+      logging.info("Cloudwatch suppression is turned on - not pushing stats")
+      return
 
     # Check all inputs
     if type(metric_names) != list or type(metric_values) != list or \
