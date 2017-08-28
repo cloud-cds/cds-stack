@@ -11,7 +11,7 @@ def get_criteria_tasks(dependency=None, lookback_hours=24*7,
       name = 'garbage_collection',
       deps = [dependency] if dependency else [],
       coro = garbage_collection,
-      args = None if dependency else [None]
+      args = [hospital]
     ),
     Task(
       name = 'advance_criteria_snapshot',
@@ -29,9 +29,9 @@ def get_criteria_tasks(dependency=None, lookback_hours=24*7,
     ]
   return criteria_tasks
 
-async def garbage_collection(ctxt, _):
+async def garbage_collection(ctxt, _, hospital):
   async with ctxt.db_pool.acquire() as conn:
-    await conn.execute("select garbage_collection();")
+    await conn.execute("select garbage_collection(pat_id) from (select distinct pat_id from pat_hosp() where hospital = '{}') s;".format(hospital))
 
 
 async def advance_criteria_snapshot(ctxt, _, lookback_hours, hospital):
