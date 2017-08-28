@@ -1896,10 +1896,10 @@ begin
     select coalesce(s.score::numeric > threshold, false),
            s.tsp::timestamptz,
            s.score::real
-    from (select enc_id, tsp, score, rank() over (partition by enc_id, tsp order by model_id desc) from lmcscore)
+    from (select enc_id, lmcscore.tsp, lmcscore.score, rank() over (partition by enc_id, lmcscore.tsp order by model_id desc) from lmcscore)
      s inner join pat_enc p on s.enc_id = p.enc_id
-    where p.pat_id = this_pat_id and now() - tsp < timeout::interval and s.rank = 1
-    order by tsp desc limit 1;
+    where p.pat_id = this_pat_id and now() - s.tsp < timeout::interval and s.rank = 1
+    order by s.tsp desc limit 1;
 end;
 $$ LANGUAGE PLPGSQL;
 
@@ -1907,8 +1907,7 @@ CREATE OR REPLACE FUNCTION trewscore_alert_on(this_pat_id text, timeout text, mo
 RETURNS table(
     alert_on boolean,
     tsp timestamptz,
-    score real,
-    mode text
+    score real
     )
 AS $$
 declare
@@ -1917,14 +1916,14 @@ begin
     if model = 'trews' then
         select value::numeric from trews_parameters where name = 'trews_threshold' into threshold;
         return query
-            select coalesce(s.score::numeric > threshold, false),
+            select coalesce(s.trewscore::numeric > threshold, false),
                    s.tsp::timestamptz,
-                   s.score::real
+                   s.trewscore::real
             from trews s inner join pat_enc p on s.enc_id = p.enc_id
-            where p.pat_id = this_pat_id and now() - tsp < timeout::interval and s.rank = 1
-            order by tsp desc limit 1;
+            where p.pat_id = this_pat_id and now() - s.tsp < timeout::interval
+            order by s.tsp desc limit 1;
     else
-        return lmcscore_alert_on(this_pat_id, timeout);
+        return query select * from lmcscore_alert_on(this_pat_id, timeout);
     end if;
 
 end;
@@ -1967,7 +1966,8 @@ BEGIN
     select * from trewscore_alert_on(this_pat_id, (select coalesce(value, '6 hours') from parameters where name = 'suppression_timeout'), model) into trews_alert_on, trews_tsp, trewscore;
     select state, severe_sepsis_wo_infection_initial from get_states_snapshot(this_pat_id) into curr_state, tsp;
     delete from notifications where pat_id = this_pat_id
-        and notifications.message#>>'{alert_code}' ~ '205|300|206|307';
+        and notifications.message#>>'{alert_code}' ~ '205|300|206|307'
+        and (notifications.message#>>'{model}' = model or not notifications.message::jsonb ? 'model');
     if curr_state = 10 then
         if coalesce(trews_alert_on, false) then
             insert into notifications (pat_id, message) values
@@ -2004,52 +2004,46 @@ BEGIN
     -- clean notifications
     delete from notifications
         where notifications.pat_id = this_pat_id;
-    if suppression_on(this_pat_id) then
+    if suppression_on(this_pat_id) and mode = 'override' then
         -- suppression alerts
-        if mode = 'override' then
-            insert into notifications (pat_id, message)
-            select
-                pat_enc.pat_id,
-                json_build_object('alert_code',
-                    (case when mode = 'override'
-                        and not trews_alert_on and trews_tsp is not null
-                        then '307'
-                        else code
-                    end)
-                    , 'read', false,'timestamp',
-                    date_part('epoch', sirs_plus_organ_onset::timestamptz),
-                    'suppression', 'true',
-                    'model', 'trews',
-                    'trews_tsp', trews_tsp,
-                    'trewscore', trewscore)
-                ) message
-            from (select distinct pat_enc.pat_id from pat_enc) as pat_enc
-            cross join unnest(alert_codes) as code
-            left join trewscore_alert_on(pat_enc.pat_id,(select coalesce(value, '6 hours') from parameters where name = 'suppression_timeout'), 'trews') trews on mode = 'override'
-            where pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id)
-                and code = '300';
-            insert into notifications (pat_id, message)
-            select
-                pat_enc.pat_id,
-                json_build_object('alert_code',
-                    (case when mode = 'override'
-                        and not trews_alert_on and trews_tsp is not null
-                        then '307'
-                        else code
-                    end)
-                    , 'read', false,'timestamp',
-                    date_part('epoch', sirs_plus_organ_onset::timestamptz),
-                    'suppression', 'true',
-                    'model', 'lmc',
-                    'trews_tsp', trews_tsp,
-                    'trewscore', trewscore)
-                ) message
-            from (select distinct pat_enc.pat_id from pat_enc) as pat_enc
-            cross join unnest(alert_codes) as code
-            left join trewscore_alert_on(pat_enc.pat_id,(select coalesce(value, '6 hours', 'lmc') from parameters where name = 'suppression_timeout')) trews on mode = 'override'
-            where pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id)
-                and code = '300';
-        end if;
+        insert into notifications (pat_id, message)
+        select
+            pat_enc.pat_id,
+            json_build_object('alert_code',
+                (case when not alert_on and tsp is not null
+                    then '307'
+                    else code
+                end)
+                , 'read', false,'timestamp',
+                date_part('epoch', sirs_plus_organ_onset::timestamptz),
+                'suppression', 'true',
+                'model', 'trews',
+                'trews_tsp', tsp,
+                'trewscore', score) message
+        from (select distinct pat_enc.pat_id from pat_enc) as pat_enc
+        cross join unnest(alert_codes) as code
+        cross join trewscore_alert_on(pat_enc.pat_id,(select coalesce(value, '6 hours') from parameters where name = 'suppression_timeout'), 'trews') as trews
+        where pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id)
+            and code = '300';
+        insert into notifications (pat_id, message)
+        select
+            pat_enc.pat_id,
+            json_build_object('alert_code',
+                (case when not alert_on and tsp is not null
+                    then '307'
+                    else code
+                end)
+                , 'read', false,'timestamp',
+                date_part('epoch', sirs_plus_organ_onset::timestamptz),
+                'suppression', 'true',
+                'model', 'lmc',
+                'trews_tsp', tsp,
+                'trewscore', score) message
+        from (select distinct pat_enc.pat_id from pat_enc) as pat_enc
+        cross join unnest(alert_codes) as code
+        cross join trewscore_alert_on(pat_enc.pat_id,(select coalesce(value, '6 hours') from parameters where name = 'suppression_timeout'),  'lmc') as trews
+        where pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id)
+            and code = '300';
         -- normal notifications
         return query
         insert into notifications (pat_id, message)
@@ -2289,10 +2283,10 @@ END; $func$;
 
 -- REVIEW: (Yanif)->(Andong): refactor. Having both garbage_collection *and* reactivate is unnecessary.
 -- Andong: We may need more functions in the future
-create or replace function garbage_collection() returns void language plpgsql as $$ begin
-    perform reactivate();
-    perform reset_soi_pats();
-    perform reset_bundle_expired_pats();
+create or replace function garbage_collection(this_pat_id text default null) returns void language plpgsql as $$ begin
+    perform reactivate(this_pat_id);
+    perform reset_soi_pats(this_pat_id);
+    perform reset_bundle_expired_pats(this_pat_id);
     -- other garbage collection functions
 end; $$;
 
