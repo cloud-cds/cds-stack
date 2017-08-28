@@ -1966,7 +1966,8 @@ BEGIN
     select * from trewscore_alert_on(this_pat_id, (select coalesce(value, '6 hours') from parameters where name = 'suppression_timeout'), model) into trews_alert_on, trews_tsp, trewscore;
     select state, severe_sepsis_wo_infection_initial from get_states_snapshot(this_pat_id) into curr_state, tsp;
     delete from notifications where pat_id = this_pat_id
-        and notifications.message#>>'{alert_code}' ~ '205|300|206|307';
+        and notifications.message#>>'{alert_code}' ~ '205|300|206|307'
+        and (notifications.message#>>'{model}' = model or not notifications.message::jsonb ? 'model');
     if curr_state = 10 then
         if coalesce(trews_alert_on, false) then
             insert into notifications (pat_id, message) values
