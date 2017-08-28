@@ -59,8 +59,6 @@ spec:
           - name: alerts
             containerPort: 31000
         env:
-        - name: SUPPRESS_CLOUDWATCH
-          value: "0"
         - name: etl_channel
           value: "on_opsdx_dev_etl"
         - name: suppression_model
