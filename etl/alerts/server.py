@@ -135,7 +135,7 @@ class AlertServer:
       select update_suppression_alert(pat_id, '{channel}', '{model}', '{notify}') from
       (select distinct m.pat_id from criteria_meas m
       inner join pat_hosp() h on h.pat_id = m.pat_id
-      where now() - tsp < (select value::interval from parameters where name = 'lookbackhours') and h.hospital = '{hospital}');
+      where now() - tsp < (select value::interval from parameters where name = 'lookbackhours') and h.hospital = '{hospital}') sub;
         '''.format(channel=self.channel, model=self.model, notify=self.notify_web, hospital=hospital)
       logging.info("suppression sql: {}".format(sql))
       await conn.fetch(sql)
