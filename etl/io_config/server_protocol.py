@@ -14,6 +14,10 @@ ALERT_SERVER_IP = get_environment_var('ALERT_SERVER_IP',
                                       'alerts.default.svc.cluster.local')
 ALERT_SERVER_PORT = 31000
 
+TREWS_ALERT_SERVER_IP = get_environment_var('ALERT_SERVER_IP',
+                                      'trews-alerts.default.svc.cluster.local')
+TREWS_ALERT_SERVER_PORT = 31000
+
 async def read_message(reader, writer):
   try:
     data = await reader.readuntil(MAGIC_NUMBER)

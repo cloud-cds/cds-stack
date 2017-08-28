@@ -59,8 +59,14 @@ spec:
           - name: alerts
             containerPort: 31000
         env:
+        - name: SUPPRESS_CLOUDWATCH
+          value: "1"
         - name: etl_channel
           value: "on_opsdx_dev_etl"
+        - name: suppression_model
+          value: "lmc"
+        - name: notify_web
+          value: "1"
         - name: db_host
           value: "db.dev.opsdx.io"
         - name: db_port

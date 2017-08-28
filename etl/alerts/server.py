@@ -35,7 +35,10 @@ class AlertServer:
     self.predictor_manager    = PredictorManager(self.alert_message_queue, self.loop)
     self.alert_server_port    = alert_server_port
     self.alert_dns            = alert_dns
+    self.channel              = os.getenv('etl_channel', 'on_opsdx_dev_etl')
     self.suppression_tasks    = {}
+    self.model                = os.getenv('suppression_model', 'trews')
+    self.notify               = os.getenv('notify_web', 0)
 
 
   async def async_init(self):
@@ -79,7 +82,7 @@ class AlertServer:
     async with self.db_pool.acquire() as conn:
       n = 0
       N = 60
-      channel = os.getenv('etl_channel', 'on_opsdx_dev_etl')
+
       logging.info("enter suppression task for {} - {}".format(pat_id, tsp))
       while not await criteria_ready(conn, pat_id, tsp):
         await asyncio.sleep(10)
@@ -90,8 +93,8 @@ class AlertServer:
       if n < 60:
         logging.info("criteria is ready for {}".format(pat_id))
         sql = '''
-        select update_suppression_alert('{pat_id}', '{channel}');
-        '''.format(pat_id=pat_id, channel=channel)
+        select update_suppression_alert('{pat_id}', '{channel}', '{model}', '{notify}');
+        '''.format(pat_id=pat_id, channel=self.channel, model=self.model, notify=self.is_notify)
         logging.info("suppression sql: {}".format(sql))
         await conn.fetch(sql)
         logging.info("generate suppression alert for {}".format(pat_id))
@@ -123,9 +126,20 @@ class AlertServer:
         for pat_id in pat_ids:
           suppression_future = asyncio.ensure_future(self.suppression(pat_id['pat_id'], msg['time']), loop=self.loop)
           self.suppression_tasks[msg['hosp']].append(suppression_future)
-          logging.info("created suppression task for {}".format(pat_id['pat_id']))
+          logging.info("created lmc suppression task for {}".format(pat_id['pat_id']))
     logging.info("alert_queue_consumer quit")
 
+  async def run_trews_suppression(self, hospital):
+    async with self.db_pool.acquire() as conn:
+      sql = '''
+      select update_suppression_alert(pat_id, '{channel}', '{model}', '{notify}') from
+      (select distinct m.pat_id from criteria_meas m
+      inner join pat_hosp() h on h.pat_id = m.pat_id
+      where now() - tsp < (select value::interval from parameters where name = 'lookbackhours') and h.hospital = '{hospital}');
+        '''.format(channel=self.channel, model=self.model, notify=self.is_notify, hospital=hospital)
+      logging.info("suppression sql: {}".format(sql))
+      await conn.fetch(sql)
+      logging.info("generate trews suppression alert for {}".format(hospital))
 
   async def connection_handler(self, reader, writer):
     ''' Alert server connection handler '''
@@ -145,10 +159,15 @@ class AlertServer:
       return await self.predictor_manager.register(reader, writer, message)
 
     elif message.get('type') == 'ETL':
-      self.garbage_collect_suppression_tasks(message['hosp'])
-      self.predictor_manager.cancel_predict_tasks(hosp=message['hosp'])
-      self.predictor_manager.create_predict_tasks(hosp=message['hosp'],
-                                                  time=message['time'])
+      if self.model == 'lmc':
+        self.garbage_collect_suppression_tasks(message['hosp'])
+        self.predictor_manager.cancel_predict_tasks(hosp=message['hosp'])
+        self.predictor_manager.create_predict_tasks(hosp=message['hosp'],
+                                                    time=message['time'])
+      elif self.model == 'trews':
+        await self.run_trews_suppression(message['hosp'])
+      else:
+        logging.error("Unknown suppression model {}".format(self.model))
 
     else:
       logging.error("Don't know how to process this message")
