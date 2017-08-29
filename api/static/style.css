@@ -11,7 +11,7 @@ html, body {
     background-color: #fff;
     overflow-y: hidden; /* No overflow on the page body, since each column has its own scrollbars. */
 }
-h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li {
+h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li, .vis-inner {
     font-family: Helvetica, Arial, sans-serif;
 }
 .cf:before,
@@ -850,7 +850,7 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li {
 /* End Suppressions */
 /*End Components*/
 
-/* Grpahs */
+/* Graphs */
 #graphdiv {
     width: 100%;
     min-height: 300px;
@@ -862,6 +862,25 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li {
 #graph-wrapper h2 {
     vertical-align: middle;
     display: inline-block;
+}
+/* Timeline */
+#timeline-div {
+    width: 100%;
+    min-height: 300px;
+    margin: 10px 0 0 0;
+    font-size: 12px;
+}
+#timeline-wrapper {
+    padding-bottom: 50px;
+}
+#timeline-wrapper h2 {
+    vertical-align: middle;
+    display: inline-block;
+}
+.timeline-zoom-btn {
+    cursor: pointer;
+    margin: 0 0 0 10px ;
+    font-size: 14px;
 }
 /* Other sources of deterioration */
 #other-deter {
