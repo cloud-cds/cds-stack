@@ -2150,7 +2150,7 @@ BEGIN -- Note the CASTING being done for the 2nd and 3rd elements of the array
 END;$$ LANGUAGE plpgsql;
 
 
-CREATE OR REPLACE FUNCTION get_notifications_for_epic(this_pat_id text default null)
+CREATE OR REPLACE FUNCTION get_notifications_for_epic(this_pat_id text default null, model text default 'trews')
 RETURNS table(
     pat_id              varchar(50),
     visit_id            varchar(50),
@@ -2174,6 +2174,7 @@ RETURNS table(
       notifications
       where not (message#>>'{read}')::bool
       and (message#>>'{timestamp}')::numeric < date_part('epoch', now())
+      and (not message::jsonb ? 'model' or message#>>'{model}' = model)
       group by notifications.pat_id
   )
   counts on counts.pat_id = pat_enc.pat_id
