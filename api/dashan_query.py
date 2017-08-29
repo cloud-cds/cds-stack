@@ -11,12 +11,13 @@ import requests
 from jhapi_io import JHAPI
 import dashan_universe.transforms as transforms
 
+
 logging.basicConfig(format='%(levelname)s|%(asctime)s.%(msecs)03d|%(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
 
 epic_notifications = os.environ['epic_notifications']
 client_id = os.environ['jhapi_client_id']
 client_secret = os.environ['jhapi_client_secret']
-
+use_trews_lmc          = os.environ['use_trews_lmc'].lower() == 'true' if 'use_trews_lmc' in os.environ else False
 
 ##########################################
 # Compact query implementations.
@@ -158,13 +159,14 @@ async def get_patient_events(db_pool, pat_id):
          null as tsp,
          message as payload
   from notifications where pat_id = '%(pat_id)s'
+    and (message#>>'{model}' = '%(model)s' or not message::jsonb ? 'model')
   union all
   select 1 as event_type,
          log_id as evt_id,
          date_part('epoch', tsp) as tsp,
          event as payload
   from criteria_log where pat_id = '%(pat_id)s'
-  ''' % { 'pat_id': pat_id }
+  ''' % { 'pat_id': pat_id, 'model': 'lmc' if use_trews_lmc else 'trews' }
 
   async with db_pool.acquire() as conn:
     result = await conn.fetch(get_events_sql)
@@ -310,7 +312,8 @@ async def get_notifications(db_pool, eid):
   '''
   select * from notifications
   where pat_id = '%s'
-  ''' % eid
+  and (message#>>'{model}' = '%s' or not message::jsonb ? 'model')
+  ''' % (eid, 'lmc' if use_trews_lmc else 'trews')
 
   async with db_pool.acquire() as conn:
     result = await conn.fetch(get_notifications_sql)
@@ -426,7 +429,7 @@ async def toggle_notification_read(db_pool, eid, notification_id, as_read):
 
   async with db_pool.acquire() as conn:
     await conn.execute(toggle_notifications_sql)
-    await push_notifications_to_epic(db_pool, eid)
+    await push_notifications_to_epic(db_pool, eid, use_trews_lmc)
 
 
 def temp_c_to_f(c):
@@ -468,7 +471,7 @@ async def override_criteria(db_pool, eid, name, value='[{}]', user='user', clear
 
   async with db_pool.acquire() as conn:
     await conn.execute(override_sql)
-    await push_notifications_to_epic(db_pool, eid)
+    await push_notifications_to_epic(db_pool, eid, use_trews_lmc)
 
 
 async def reset_patient(db_pool, eid, uid='user', event_id=None):
@@ -490,7 +493,7 @@ async def reset_patient(db_pool, eid, uid='user', event_id=None):
 
   async with db_pool.acquire() as conn:
     await conn.execute(reset_sql)
-    await push_notifications_to_epic(db_pool, eid)
+    await push_notifications_to_epic(db_pool, eid, use_trews_lmc)
 
 
 async def deactivate(db_pool, eid, uid, deactivated):
@@ -508,7 +511,7 @@ async def deactivate(db_pool, eid, uid, deactivated):
 
   async with db_pool.acquire() as conn:
     await conn.execute(deactivate_sql)
-    await push_notifications_to_epic(db_pool, eid)
+    await push_notifications_to_epic(db_pool, eid, use_trews_lmc)
 
 
 async def get_deactivated(db_pool, eid):
@@ -542,12 +545,13 @@ async def get_deterioration_feedback(db_pool, eid):
       }
 
 
-async def push_notifications_to_epic(db_pool, eid, notify_future_notification=True):
+async def push_notifications_to_epic(db_pool, eid, use_trews_lmc, notify_future_notification=True):
   async with db_pool.acquire() as conn:
+    model = 'lmc' if use_trews_lmc else 'trews'
     notifications_sql = \
     '''
-    select * from get_notifications_for_epic('%s');
-    ''' % eid
+    select * from get_notifications_for_epic('%s', '%s');
+    ''' % (eid, model)
     notifications = await conn.fetch(notifications_sql)
     if notifications:
       logging.info("push notifications to epic ({}) for {}".format(epic_notifications, eid))
