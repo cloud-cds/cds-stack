@@ -62,16 +62,15 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: trews-rest-api
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.1.104
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.21
         resources:
           requests:
             memory: "2816Mi"
             cpu: "1000m"
         ports:
         - containerPort: 8000
-        command:
-          - "sh"
-          - "start-dev.sh"
+        command: ["/bin/sh","-c"]
+        args: ["cd api;sh start-dev.sh"]
         securityContext:
           capabilities:
             add:
