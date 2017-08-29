@@ -324,14 +324,32 @@ create database redash;
 
 ***
 
-## TODO: TensorFlow (Lead: Ben Ring)
+## TensorFlow 
+(Lead: Mike & Ben Ring)
+
 #### Launch, Shutdown, Status
-* Command: **kubectl**
+- Modify aws console to bring up an auto-scaling group
+  - Wait for node to come up
+- Modify yaml file (`LMC-Based-On-GPflow/yaml/online_predict.yaml`)
+  - *replicas* = number of nodes
+  - *NUM_WORKERS* = number of active predictors (1/2 of *replicas* for active + backup, same as *replicas* for just active)
+- Bring down existing predictors
+  - `kubectl delete statefulset tflmc1`
+- Wait for all predictor pods to come down (`watch -n 1 "kubectl get pods"`)
+- Launch statefulset
+  - `kubectl apply -f ./yaml/online_predict.yaml -f secrets.yaml`
 
 #### Logging & Analysis
+- `kubectl logs tflmc1-0 -c tensorflow-long`
+- `kubectl logs tflmc1-0 -c tensorflow-short`
 
 #### Metrics & Instrumentation
+- In cloudwatch & grafana
+- Sent from predictor_manager in `dashan-universe/etl/alerts/`
 
+#### Other stuff
+- May be starting from the time in `predictor_times` table in db rather than `SIMULATED_TIME`
+- Can run locally from the docker-compose files: `docker-compose -f yaml/docker-compose-short.yml run predict`
 
 ***
 
