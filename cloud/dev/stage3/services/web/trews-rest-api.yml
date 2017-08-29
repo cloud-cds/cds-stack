@@ -79,7 +79,7 @@ spec:
         - name: release
           value: "epic2017"
         - name: use_trews_lmc
-          value: "true"
+          value: "false"
         - name: db_host
           value: "db.dev.opsdx.io"
         - name: db_port
