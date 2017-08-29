@@ -31,8 +31,7 @@ def get_criteria_tasks(dependency=None, lookback_hours=24*7,
 
 async def garbage_collection(ctxt, _, hospital):
   async with ctxt.db_pool.acquire() as conn:
-    await conn.execute("select garbage_collection(pat_id) from (select distinct pat_id from pat_hosp() where hospital = '{}') s;".format(hospital))
-
+    await conn.execute("select garbage_collection();")
 
 async def advance_criteria_snapshot(ctxt, _, lookback_hours, hospital):
   prod_or_dev = core.get_environment_var('db_name')
