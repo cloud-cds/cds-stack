@@ -1719,7 +1719,7 @@ END; $function$;
 -- Criteria snapshot utilities.
 --------------------------------------------
 
-CREATE OR REPLACE FUNCTION advance_criteria_snapshot(this_pat_id text default null)
+CREATE OR REPLACE FUNCTION advance_criteria_snapshot(this_pat_id text default null, func_mode text default 'advance')
 RETURNS void AS $$
 DECLARE
     ts_end timestamptz := now();
@@ -1782,7 +1782,7 @@ BEGIN
                                                nc.septic_shock_onset,
                                                nc.severe_sepsis_wo_infection_onset,
                                                nc.severe_sepsis_wo_infection_initial,
-                                               'advance'
+                                               func_mode
                                                ) n
         on si.pat_id = n.pat_id
     )
@@ -2004,7 +2004,7 @@ BEGIN
     -- clean notifications
     delete from notifications
         where notifications.pat_id = this_pat_id;
-    if suppression_on(this_pat_id) and mode = 'override' then
+    if suppression_on(this_pat_id) and mode in ('override', 'reset') then
         -- suppression alerts
         insert into notifications (pat_id, message)
         select
@@ -2339,7 +2339,7 @@ begin
           now()
       );
     delete from notifications where pat_id = this_pat_id;
-    perform override_criteria_snapshot(this_pat_id);
+    perform advance_criteria_snapshot(this_pat_id, 'reset');
 end; $$;
 
 ----------------------------------------------------

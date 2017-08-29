@@ -487,7 +487,7 @@ async def reset_patient(db_pool, eid, uid='user', event_id=None):
           now()
       );
   delete from notifications where pat_id = '%(pid)s';
-  select override_criteria_snapshot('%(pid)s');
+  select advance_criteria_snapshot('%(pid)s', 'reset');
   """ % {'pid': eid, 'where_clause': event_where_clause, 'uid': uid}
   logging.info("reset_patient:" + reset_sql)
 
