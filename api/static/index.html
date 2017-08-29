@@ -22,6 +22,8 @@
 	<link rel="stylesheet" href="bower_components/jquery-ui/themes/base/jquery-ui.css">
 	-->
 	<link rel="stylesheet" type="text/css" href="style.css">
+	<link rel="stylesheet" type="text/css" href="vis.min.css">
+
 	<!-- <script src="//d2wy8f7a9ursnm.cloudfront.net/bugsnag-3.min.js" data-apikey="da82367e84aaf2247b676b5ea4d265d0"></script> -->
 </head>
 
@@ -141,6 +143,21 @@
 						</div>
 					</div>
 					<div id="graphdiv"></div>
+				</div>
+			</div>
+
+			<div id="timeline-wrapper" class="col-1-1">
+				<div class="card">
+					<h2>Clinical Timeline</h2>
+					<div id="timeline-zoom-div">
+						Zoom To:
+						<span class="timeline-zoom-btn" data-zoom-days="fit">Fit</span>
+						<span class="timeline-zoom-btn" data-zoom-days="1">1d</span>
+						<span class="timeline-zoom-btn" data-zoom-days="2">2d</span>
+						<span class="timeline-zoom-btn" data-zoom-days="4">4d</span>
+						<span class="timeline-zoom-btn" data-zoom-days="7">1w</span>
+					</div>
+					<div id="timeline-div"></div>
 					<div id="fake-console"></div>
 				</div>
 			</div>
@@ -441,6 +458,9 @@
 	<script type="text/javascript" src="bower_components/Flot/jquery.flot.threshold.js"></script>
 	<script type="text/javascript" src="bower_components/Flot/jquery.flot.crosshair.js"></script>
 	<script type="text/javascript" src="bower_components/Flot/jquery.flot.navigate.js"></script>
+
+	<script type="text/javascript" src="js/vis.trews.min.js"></script>
+
 	<script type="text/javascript" src="js/modernizr.js"></script>
 	<script type="text/javascript" src="js/constants.js"></script>
 	<script type="text/javascript" src="js/main.js"></script>
