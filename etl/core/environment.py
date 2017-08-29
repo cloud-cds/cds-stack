@@ -60,7 +60,7 @@ class Environment:
       elif var_type == "float":
         setattr(self, var_name, float(value))
       elif var_type == "boolean":
-        setattr(self, var_name, bool(value))
+        setattr(self, var_name, value in ["True", "T", "true", "t", "1", "Yes", "Y", "yes", "y", 1])
       else:
         raise ValueError("Type {} not supported".format(v[1]))
 
