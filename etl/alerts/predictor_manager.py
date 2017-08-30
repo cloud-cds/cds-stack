@@ -101,6 +101,7 @@ class Predictor:
         num_pats = len(message['enc_ids'])
         self.avg_total_time = message['total_time'] / num_pats
         self.avg_optimization_time = message['optimization_time'] / num_pats
+        logging.info("avg_total_time: {}, avg_optimization_time: {}".format(self.avg_total_time, self.avg_optimization_time))
         await queue.put({
           'type': 'FIN',
           'time': message['time'],
@@ -156,7 +157,7 @@ class PredictorManager:
             ('avg_optimization_time_{}'.format(pred.model_type), pred.avg_optimization_time, 'Seconds'),
           ]
           pred.avg_total_time = 0
-
+      logging.info("cloudwatch metrics: {}".format(metric_tuples))
       # Send all info to cloudwatch
       self.cloudwatch_logger.push_many(
         dimension_name = 'LMC Predictors',
