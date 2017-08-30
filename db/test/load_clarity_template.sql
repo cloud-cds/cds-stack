@@ -429,9 +429,9 @@ create table {workspace}."EdEvents"
  ,EVENT_RECORD_TIME    timestamp without time zone
 );
 \copy {workspace}."EdEvents" from '{folder}ed_events.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
-create index ede_idx_id on {workspace}."EdEvents" ("CSN_ID");
-create index ede_idx_event_id on {workspace}."EdEvents" ("EVENT_ID");
-create index ede_idx_event_disp_name on {workspace}."EdEvents" ("EVENT_DISPLAY_NAME");
+create index ede_idx_id on {workspace}."EdEvents" ("csn_id");
+create index ede_idx_event_id on {workspace}."EdEvents" ("event_id");
+create index ede_idx_event_disp_name on {workspace}."EdEvents" ("event_display_name");
 
 
 
