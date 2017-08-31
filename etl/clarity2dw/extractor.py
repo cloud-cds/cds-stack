@@ -17,6 +17,7 @@ import logging
 from etl.core.config import Config
 import sys
 import random
+import yaml
 
 
 TRANSACTION_RETRY = 10
@@ -52,12 +53,31 @@ class Extractor:
     CONF = os.path.dirname(os.path.abspath(__file__))
     CONF = os.path.join(CONF, 'conf')
     for feature_mapping_file in feature_mapping_files.split(','):
-      feature_mapping_csv = os.path.join(CONF, feature_mapping_file)
-      feature_mapping = pd.read_csv(feature_mapping_csv)
+      if feature_mapping_file.endswith('.csv'):
+        feature_mapping_csv = os.path.join(CONF, feature_mapping_file)
+        feature_mapping = pd.read_csv(feature_mapping_csv).to_dict('records')
+      elif feature_mapping_file.endswith('.yaml'):
+        feature_mapping_yaml = os.path.join(CONF, feature_mapping_file)
+        with open(feature_mapping_yaml, 'r') as f:
+          doc = yaml.load(f)
+          feature_mapping = doc['mappings']
+          # add default attributes
+          for m in feature_mapping:
+            if not 'is_no_add' in m:
+              m['is_no_add'] = 'yes'
+            if not 'is_med_action' in m:
+              m['is_med_action'] = 'no'
+            if not 'where_conditions' in m:
+              m['where_conditions'] = ''
+            if not 'transform_func_id' in m:
+              m['transform_func_id'] = ''
+      else:
+        print("Unknown feature_mapping_file: {}".format(feature_mapping_file))
+        exit(1)
       if self.feature_mapping is None:
         self.feature_mapping = feature_mapping
       else:
-        self.feature_mapping = self.feature_mapping.append(feature_mapping)
+        self.feature_mapping += feature_mapping
 
 
   async def extract_init(self, ctxt):
@@ -170,19 +190,18 @@ class Extractor:
     }
 
   def get_transform_tasks(self):
-    mapping_list = self.feature_mapping.to_dict('records')
     nprocs = 1
     shuffle = False
     if self.job.get('transform', False):
       nprocs = int(self.job.get('transform').get('populate_measured_features').get('nprocs', nprocs))
       shuffle = self.job.get('transform').get('populate_measured_features').get('shuffle', False)
-    transform_tasks = self.partition(mapping_list,  nprocs, random_shuffle=shuffle)
+    transform_tasks = self.partition(self.feature_mapping,  nprocs, random_shuffle=shuffle)
     return transform_tasks
 
   def partition(self, lst, n, random_shuffle=False):
     if random_shuffle:
       random.shuffle(lst)
-    division = round(len(lst) / n)
+    division = max(1, round(len(lst) / n))
     return [lst[i:i + division] for i in range(0, len(lst), division)]
 
     # # TEST CASE B
@@ -316,7 +335,7 @@ class Extractor:
     is_med_action = bool(mapping['is_med_action'] == "yes")
     log.info('loading feature value fid %s, transform func: %s, is_no_add: %s, is_med_action: %s' \
       % (fid, transform_func_id, is_no_add, is_med_action))
-    if str(transform_func_id) == 'nan':
+    if str(transform_func_id) in ('nan', '', 'None'):
       transform_func_id = None
     fid_info = {'fid':fid, 'category':category, 'is_no_add':is_no_add,
           'data_type':data_type}
