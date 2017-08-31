@@ -546,8 +546,6 @@ class Extractor:
                           log.error(row)
                           raise(e)
                     rows_to_load.append(row_to_load)
-            elif enc_ids is None or len(enc_ids) == 0:
-              log.warn("No enc_id matched for this extract")
           if rows_to_load:
               log.info("{} rows are going to load".format(len(rows_to_load)))
               await self.load_cdm(category, rows_to_load, conn, is_no_add, log=log)
