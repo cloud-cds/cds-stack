@@ -2483,9 +2483,18 @@ var toolbar = new function() {
   this.chartMin = null;
   this.chartMax = null;
   this.chartInitialized = false;
+  this.chartHasSepsisMarker = false;
   this.groups = {};
   this.groupDataSet = new vis.DataSet();
   this.clsSegments = {};
+
+  this.startOfHour = function(d) {
+    dStart = new Date(d);
+    dStart.setUTCMinutes(0);
+    dStart.setUTCSeconds(0);
+    dStart.setUTCMilliseconds(0);
+    return dStart.getTime();
+  }
 
   this.startOfDay = function(d) {
     dStart = new Date(d);
@@ -2548,7 +2557,7 @@ var toolbar = new function() {
     }
 
     groupId = 1;
-    this.groups['trewscore'] = { id: groupId++, content: 'TREWScore' };
+    this.groups['trewscore'] = { id: groupId++, content: 'TREWS Acuity Score' };
 
     var sepsisGroupId = groupId++;
     var shockGroupId = groupId++;
@@ -2593,12 +2602,12 @@ var toolbar = new function() {
     };
 
     // Leaves for orders group.
-    this.groups['blood_culture']     = { id: 100, content: 'Blood Culture'   };
-    this.groups['initial_lactate']   = { id: 101, content: 'Initial Lactate' };
-    this.groups['crystalloid_fluid'] = { id: 102, content: 'Fluid'           };
-    this.groups['antibiotics']       = { id: 103, content: 'Antibiotics'     };
-    this.groups['repeat_lactate']    = { id: 104, content: 'Repeat Lactate'  };
-    this.groups['vasopressors']      = { id: 105, content: 'Vasopressors'    };
+    this.groups['blood_culture']     = { id: 100, className: 'vis_g_blood_culture',     content: 'Blood Culture'   };
+    this.groups['initial_lactate']   = { id: 101, className: 'vis_g_initial_lactate',   content: 'Initial Lactate' };
+    this.groups['crystalloid_fluid'] = { id: 102, className: 'vis_g_crystalloid_fluid', content: 'Fluid'           };
+    this.groups['antibiotics']       = { id: 103, className: 'vis_g_antibiotics',       content: 'Antibiotics'     };
+    this.groups['repeat_lactate']    = { id: 104, className: 'vis_g_repeat_lactate',    content: 'Repeat Lactate'  };
+    this.groups['vasopressors']      = { id: 105, className: 'vis_g_vasopressors',      content: 'Vasopressors'    };
 
     var orderGroupIds = [100,101,102,103,104,105];
 
@@ -2624,14 +2633,16 @@ var toolbar = new function() {
     // create visualization
     var container = document.getElementById('timeline-div');
     this.chartMin = today - 7 * day;
-    this.chartMax = today + 4 * day;
+    this.chartMax = today + 1.5 * day;
     this.chartOptions = {
       align: 'left',
       min: this.chartMin,
       max: this.chartMax,
       rollingMode: { follow: false, offset: 0.75 },
-      zoomMin: 60 * 1000,
-      zoomMax: 8 * 24 * 3600 * 1000,
+      stack: false,
+      zoomable: false,
+      //zoomMin: 60 * 1000,
+      //zoomMax: 8 * 24 * 3600 * 1000,
       groupOrder: function (a, b) {
         return a.id - b.id;
       },
@@ -2640,13 +2651,14 @@ var toolbar = new function() {
 
     $('.timeline-zoom-btn').click(function(e) {
       e.stopPropagation();
-      var day = 24 * 3600 * 1000;
-      if ( $(this).attr('data-zoom-days').toLowerCase() == 'fit' ) {
+      var hour = 3600 * 1000;
+      if ( $(this).attr('data-zoom-hours').toLowerCase() == 'fit' ) {
         timeline.zoomToFit();
       } else {
-        var today = timeline.startOfDay(timeline.chart.getCurrentTime());
-        var lookback = parseInt($(this).attr('data-zoom-days'), 10)
-        timeline.chart.setWindow(new Date(today - (lookback - 1) * day), new Date(today + 1.5 * day));
+        var now = timeline.chart.getCurrentTime();
+        var lastHour = timeline.startOfHour(now);
+        var lookback = parseInt($(this).attr('data-zoom-hours'), 10)
+        timeline.chart.setWindow(new Date(lastHour - lookback * hour), new Date(lastHour + 5 * hour));
       }
     })
   }
@@ -2739,7 +2751,43 @@ var toolbar = new function() {
 
   this.render = function(json) {
 
+    var now = this.chart.getCurrentTime();
+
+    // Compute onset and reset times for rendering.
+    var range_as_point_duration = 10 * 60 * 1000;
+    var deadline3_duration = 3  * 3600 * 1000;
+    var deadline6_duration = 6  * 3600 * 1000;
+    var reset_duration = (6+72) * 3600 * 1000;
+
+    var severe_sepsis_start =
+      ( json['severe_sepsis']['onset_time'] != null ) ?
+        new Date(json['severe_sepsis']['onset_time'] * 1000) : null;
+
+    var septic_shock_start =
+      ( json['septic_shock']['onset_time'] != null ) ?
+        new Date(json['septic_shock']['onset_time'] * 1000) : null;
+
+    var severe_sepsis_deadline3 =
+      severe_sepsis_start == null ? null : new Date(severe_sepsis_start.getTime() + deadline3_duration);
+
+    var severe_sepsis_deadline6 =
+      severe_sepsis_start == null ? null : new Date(severe_sepsis_start.getTime() + deadline6_duration);
+
+    var septic_shock_deadline =
+      septic_shock_start == null ? null : new Date(septic_shock_start.getTime() + deadline6_duration);
+
+    var severe_sepsis_reset =
+      severe_sepsis_start == null ? null : new Date(severe_sepsis_start.getTime() + reset_duration);
+
+    var septic_shock_reset =
+      septic_shock_start == null ? null : new Date(septic_shock_start.getTime() + reset_duration);
+
+    var severe_sepsis_completed = { status: true, t: null };
+    var septic_shock_completed = { status: true, t: null };
+
+
     // Calculate and save showNested state before reassignment.
+    var allGroups = this.groupDataSet.get();
     var visibleGroups = this.groupDataSet.get({filter: function(g) { return g.visible; }});
     var visibleIds = $.map(visibleGroups, function(g) { return g.id; });
     var expandedParents = $.map(visibleGroups, function(g) { return g.nestedInGroup; });
@@ -2749,14 +2797,20 @@ var toolbar = new function() {
     this.groupDataSet.add(this.groups['suspicion_of_infection']);
 
     // Add cms_severe_sepsis and its leaves.
+    this.groupDataSet.add($.extend({}, this.groups['cms_org'],  { visible: visibleIds.indexOf(this.groups['cms_org']['id'])  >= 0 } ));
     this.groupDataSet.add($.extend({}, this.groups['cms_soi'],  { visible: visibleIds.indexOf(this.groups['cms_soi']['id'])  >= 0 } ));
     this.groupDataSet.add($.extend({}, this.groups['cms_sirs'], { visible: visibleIds.indexOf(this.groups['cms_sirs']['id']) >= 0 } ));
-    this.groupDataSet.add($.extend({}, this.groups['cms_org'],  { visible: visibleIds.indexOf(this.groups['cms_org']['id'])  >= 0 } ));
-    this.groupDataSet.add($.extend({}, this.groups['cms_severe_sepsis'], { showNested: expandedParents.indexOf(this.groups['cms_severe_sepsis']['id']) >= 0 }));
 
-    this.groupDataSet.add($.extend({}, this.groups['cms_hypotension'],  { visible: visibleIds.indexOf(this.groups['cms_hypotension']['id'])  >= 0 } ));
+    var severe_sepsis_extension = { showNested: expandedParents.indexOf(this.groups['cms_severe_sepsis']['id']) >= 0 };
+    if ( severe_sepsis_start != null ) { severe_sepsis_extension['className'] = 'vis_g_severe_sepsis_active'; }
+    this.groupDataSet.add($.extend({}, this.groups['cms_severe_sepsis'], severe_sepsis_extension));
+
+    this.groupDataSet.add($.extend({}, this.groups['cms_hypotension'],   { visible: visibleIds.indexOf(this.groups['cms_hypotension']['id'])  >= 0 } ));
     this.groupDataSet.add($.extend({}, this.groups['cms_hypoperfusion'], { visible: visibleIds.indexOf(this.groups['cms_hypoperfusion']['id']) >= 0 } ));
-    this.groupDataSet.add($.extend({}, this.groups['cms_septic_shock'], { showNested: expandedParents.indexOf(this.groups['cms_septic_shock']['id']) >= 0 }));
+
+    var septic_shock_extension = { showNested: expandedParents.indexOf(this.groups['cms_septic_shock']['id']) >= 0 };
+    if ( septic_shock_start != null ) { septic_shock_extension['className'] = 'vis_g_septic_shock_active'; }
+    this.groupDataSet.add($.extend({}, this.groups['cms_septic_shock'], septic_shock_extension));
 
     // create a data set with items
     var items = new vis.DataSet();
@@ -2769,13 +2823,14 @@ var toolbar = new function() {
       {'cls': 'hypoperfusion'     , 'pcls' : 'septic_shock'},
     ];
 
-    var lightGreyItemStyle = 'background-color: #6d7275; color: #fff; border-color: #6d7275;';
-    var greyItemStyle      = 'background-color: #424b54; color: #fff; border-color: #424b54;';
-    var orangeItemStyle    = 'background-color: #db5a42; color: #fff; border-color: #db5a42;';
-    var redItemStyle       = 'background-color: #ca011a; color: #fff; border-color: #ca011a;';
+    var greyItemStyle      = 'background-color: #555; color: #fff; border-color: #555;';
+    var redItemStyle       = 'background-color: #BF0F00; color: #fff; border-color: #BF0F00;';
+    var lightRedItemStyle  = 'background-color: #F48B8B; color: #1a1a1a; border-color: #F44444;';
     var blueItemStyle      = 'background-color: #3e92cc; color: #fff; border-color: #3e92cc;';
-    var greenItemStyle     = 'background-color: #10b66d; color: #fff; border-color: #10b66d;';
+    var greenItemStyle     = 'background-color: #30A00E; color: #fff; border-color: #30A00E;';
     var lavenderItemStyle  = 'background-color: #7871aa; color: #fff; border-color: #7871aa;';
+    var defaultItemStyle   = 'background-color: #d5ddf6; color: #1a1a1a; border-color: #97b0f8;';
+
 
     // Overlap calculation data structures.
     var aggregateItems = {
@@ -2796,6 +2851,22 @@ var toolbar = new function() {
     };
 
     var orderGroupIds = [];
+
+
+    // Add a custom time bar for severe sepsis start.
+    if ( severe_sepsis_start != null ) {
+      if ( this.chartHasSepsisMarker ) {
+        this.chart.setCustomTime(severe_sepsis_start, 'v_cms_severe_sepsis');
+
+      } else {
+        this.chart.addCustomTime(severe_sepsis_start, 'v_cms_severe_sepsis');
+        this.chartHasSepsisMarker = true;
+      }
+    } else {
+      if ( this.chartHasSepsisMarker ) {
+        this.chart.removeCustomTime('v_cms_severe_sepsis');
+      }
+    }
 
     // Add criteria items.
     for (var cls_i in criteriaClasses) {
@@ -2820,6 +2891,7 @@ var toolbar = new function() {
 
           aggregateItems[cls].push({start: start, end: end});
 
+          // Show active criteria initially.
           if ( this.groupDataSet.get(g['id']) == null ) {
             criteriaGroupIds[cls].push(g['id']);
             this.groupDataSet.add($.extend({}, g, { visible: visibleIds.indexOf(g['id']) >= 0 }))
@@ -2841,50 +2913,187 @@ var toolbar = new function() {
     for (var i in order_keys) {
       var k = order_keys[i];
       var k2 = k + '_order';
+      var g = this.groups[k];
+      var g_class = null;
+
+      var deadline_exceeded = false;
+
+      var t_condition = k == 'vasopressors' ? septic_shock_start : severe_sepsis_start;
+      var t_deadline = k == 'vasopressors' ? septic_shock_deadline :
+                        (k == 'repeat_lactate' ? severe_sepsis_deadline6 : severe_sepsis_deadline3);
+
       if ( json[k2]['status'] != null ) {
-        var tsp = new Date(json[k2]['time'] * 1000);
-        var g = this.groups[k];
-        items.add({
+
+        var t_action = new Date(json[k2]['time'] * 1000);
+
+        // Care completed maintenance.
+        var order_complete = orderStatusCompleted(json[k2]) && t_deadline != null && t_action <= t_deadline;
+
+        if ( k != 'vasopressors' ) {
+          severe_sepsis_completed['status'] = severe_sepsis_completed['status'] && order_complete;
+          severe_sepsis_completed['t'] = Math.max(severe_sepsis_completed['t'], t_action)
+        }
+
+        septic_shock_completed['status'] = septic_shock_completed['status'] && order_complete;
+        septic_shock_completed['t'] = Math.max(septic_shock_completed['t'], t_action)
+
+        // Tooltip.
+        var tipPrefix = json[k2]['status'] + ' at ' + strToTime(t_action, true, true);
+        var tipPreDeadline = 'Need to complete by ' + strToTime(t_deadline, true, true);
+        var tipPostDeadline = 'Deadline passed at ' + strToTime(t_deadline, true, true);
+
+        var tooltip = tipPrefix;
+
+        if ( json[k2]['status'] == 'Ordered' && t_deadline != null && t_action <= t_deadline ) {
+          tooltip = tipPrefix +  ' but not completed. ' +  tipPreDeadline;
+        }
+        else if ( json[k2]['status'] == 'Ordered' && t_deadline != null && t_action > t_deadline ) {
+          tooltip = 'Order must be completed. ' + tipPostDeadline;
+        }
+        else if ( t_deadline != null && t_action > t_deadline ) {
+          tooltip = tipPrefix + '. ' + tipPostDeadline;
+        }
+
+        var itemBase = {
           id: json[k2]['name'],
           group: g['id'],
-          content: json[k2]['status'] + ' @ ' + strToTime(tsp, true, true),
-          start: tsp,
-          type: 'box'
-        });
+          content: ' ',
+          title: tooltip,
+          type: 'range',
+          style: greenItemStyle
+        };
 
-        aggregateItems[json[k2]['status'] == 'Ordered' ? 'Ordered' : 'Completed'].push(tsp);
-
-        if ( this.groupDataSet.get(g['id']) == null ) {
-          orderGroupIds.push(g['id']);
-          this.groupDataSet.add($.extend({}, g, { visible: visibleIds.indexOf(g['id']) >= 0 }))
+        if ( !orderStatusCompleted(json[k2]) ) {
+          itemBase = $.extend({}, itemBase, { className: 'vis_item_order_incomplete' });
         }
+
+        if ( t_condition != null ) {
+          g_class = json[k2]['status'] == 'Ordered' ? 'vis_g_' + k + '_incomplete' : null;
+
+          // Action range.
+          if ( t_action < t_condition ) {
+            // Order status before onset.
+            items.add($.extend({}, itemBase, {
+              start: t_action,
+              end: new Date(t_action.getTime() + range_as_point_duration)
+            }));
+          } else {
+            // Order status after onset.
+            items.add($.extend({}, itemBase, {
+              start: t_condition,
+              end: Math.min(Math.max(t_condition.getTime() + range_as_point_duration, t_action), t_deadline)
+            }));
+          }
+
+          if ( t_action > t_deadline ) {
+            // Warning range.
+            // Order status after deadline.
+            deadline_exceeded = true;
+
+            items.add({
+              id: json[k2]['name'] + '_warning',
+              group: g['id'],
+              content: ' ',
+              title: tooltip,
+              start: t_deadline,
+              end: t_action,
+              type: 'range',
+              style: redItemStyle
+            });
+          }
+        }
+        else {
+          // No onset.
+          items.add($.extend({}, itemBase, {
+            start: t_action,
+            end: new Date(t_action.getTime() + range_as_point_duration),
+          }));
+        }
+
+        aggregateItems[json[k2]['status'] == 'Ordered' ? 'Ordered' : 'Completed'].push({
+          t_action: t_action,
+          t_condition: t_condition,
+          t_deadline: t_deadline
+        });
+      } else if ( t_deadline != null ) {
+        // Not yet ordered.
+        g_class = 'vis_g_' + k + '_incomplete';
+      }
+
+      if ( !deadline_exceeded && t_deadline != null ) {
+        // Deadline range.
+        items.add({
+          id: json[k2]['name'] + '_deadline',
+          group: g['id'],
+          content: ' ',
+          title: 'Deadline passed at ' + strToTime(t_deadline, true, true),
+          start: t_deadline,
+          end: new Date(t_deadline.getTime() + range_as_point_duration),
+          type: 'range',
+          style: redItemStyle
+        });
+      }
+
+      // Always include leaf order groups, and show them initially.
+      if ( this.groupDataSet.get(g['id']) == null ) {
+        orderGroupIds.push(g['id']);
+        var extension = { visible: !this.chartInitialized || visibleIds.indexOf(g['id']) >= 0 };
+        if ( g_class != null ) { extension['className'] = g_class; }
+        this.groupDataSet.add($.extend({}, g, extension))
       }
     }
 
+    // Severe sepsis and septic shock end times.
+    severe_sepsis_completed['t'] = severe_sepsis_completed['status'] ? severe_sepsis_completed['t'] : null;
+    septic_shock_completed['t'] = septic_shock_completed['status'] ? septic_shock_completed['t'] : null;
+
+    var severe_sepsis_end = severe_sepsis_start == null ? null : now;
+    severe_sepsis_end = severe_sepsis_reset == null ? severe_sepsis_end : Math.min(severe_sepsis_end, severe_sepsis_reset);
+    severe_sepsis_end = severe_sepsis_completed['t'] == null ? severe_sepsis_end : Math.min(severe_sepsis_end, severe_sepsis_completed['t']);
+
+    var septic_shock_end = septic_shock_start == null ? null : now;
+    septic_shock_end = septic_shock_reset == null ? septic_shock_end : Math.min(septic_shock_end, septic_shock_reset);
+    septic_shock_end = septic_shock_completed['t'] == null ? septic_shock_end : Math.min(septic_shock_end, septic_shock_completed['t']);
+
+
+
     // Compute aggregate groups.
 
-    var reset_duration = (6+72) * 3600 * 1000;
-
-    var severe_sepsis_start =
-      ( json['severe_sepsis']['onset_time'] != null ) ?
-        new Date(json['severe_sepsis']['onset_time'] * 1000) : null;
-
-    var septic_shock_start =
-      ( json['septic_shock']['onset_time'] != null ) ?
-        new Date(json['septic_shock']['onset_time'] * 1000) : null;
-
-    var severe_sepsis_end =
-      ( json['severe_sepsis']['onset_time'] != null ) ?
-        new Date(json['severe_sepsis']['onset_time'] * 1000 + reset_duration) : null;
-
-    var septic_shock_end =
-      ( json['septic_shock']['onset_time'] != null ) ?
-        new Date(json['septic_shock']['onset_time'] * 1000 + reset_duration) : null;
-
-
+    /*
     var orderedSegment = null;
     var completedSegment = null;
 
+    // Show points before sepsis onset
+    if ( aggregateItems['Ordered'].length > 0 ) {
+      orderedSegment = {
+        data: $.map(aggregateItems['Ordered'], function(t) {
+          return {start: t.t_action, end: new Date(t.t_action.getTime() + range_as_point_duration) };
+        }),
+        group_id: 'orders',
+        subgroup_id: 'orders',
+        group_ctn: ' ',
+        group_title: 'Ordered',
+        skip_ctn_time: true,
+        sty: greenItemStyle
+      };
+    }
+
+    if ( aggregateItems['Completed'].length > 0 ) {
+      completedSegment = {
+        data: $.map(aggregateItems['Completed'], function(t) {
+          return {start: t.t_action, end: new Date(t.t_action.getTime() + range_as_point_duration) };
+        }),
+        group_id: 'orders',
+        subgroup_id: 'orders',
+        group_ctn: ' ',
+        group_title: 'Completed',
+        skip_ctn_time: true,
+        sty: greenItemStyle
+      };
+    }
+    */
+
+    /*
     if ( aggregateItems['Ordered'].length > 0 ) {
       var st = new Date(Math.min.apply(null, aggregateItems['Ordered']));
       var en = null;
@@ -2932,36 +3141,42 @@ var toolbar = new function() {
         sty: greenItemStyle
       };
     }
+    */
 
     var segments = {
       sirs: {
         data: this.pairwiseOverlapUnion('sirs', aggregateItems, false, this.intersectOverlap),
         group_id: 'sirs',
         group_ctn: 'SIRS',
-        parent: 'cms_sirs'
+        parent: 'cms_sirs',
+        sty: lightRedItemStyle
       },
       organ_dysfunction: {
         data: this.pairwiseOverlapUnion('organ_dysfunction', aggregateItems, true, this.unionOverlap),
         group_id: 'org',
         group_ctn: 'Organ DF',
-        parent: 'cms_org'
+        parent: 'cms_org',
+        sty: lightRedItemStyle
       },
       hypotension: {
         data: this.pairwiseOverlapUnion('hypotension', aggregateItems, true, this.unionOverlap),
         group_id: 'tension',
         group_ctn: 'Hypotension',
-        parent: 'cms_hypotension'
+        parent: 'cms_hypotension',
+        sty: lightRedItemStyle
       },
       hypoperfusion: {
         data: this.pairwiseOverlapUnion('hypoperfusion', aggregateItems, true, this.unionOverlap),
         group_id: 'fusion',
         group_ctn: 'Hypoperfusion',
-        parent: 'cms_hypoperfusion'
+        parent: 'cms_hypoperfusion',
+        sty: lightRedItemStyle
       }
     };
 
     var segmentIndexes = $.map(criteriaClasses, function(i) { return i['cls']; });
 
+    /*
     if ( orderedSegment != null ) {
       segments = $.extend({}, segments, {ordered: orderedSegment});
       segmentIndexes.push('ordered');
@@ -2971,8 +3186,10 @@ var toolbar = new function() {
       segments = $.extend({}, segments, {completed: completedSegment});
       segmentIndexes.push('completed');
     }
+    */
 
-    if ( severe_sepsis_end != null ) {
+    /*
+    if ( severe_sepsis_reset != null ) {
       segments = $.extend({}, segments, {
         sepsis3: {
           data: [{ start: severe_sepsis_start, end: new Date(severe_sepsis_start.getTime() + 3 * 3600 * 1000), }],
@@ -2992,7 +3209,7 @@ var toolbar = new function() {
       segmentIndexes.push('sepsis3', 'sepsis6');
     }
 
-    if ( septic_shock_end != null ) {
+    if ( septic_shock_reset != null ) {
       segments = $.extend({}, segments, {
         shock6: {
           data: [{ start: septic_shock_start, end: new Date(septic_shock_start.getTime() + 6 * 3600 * 1000), }],
@@ -3004,6 +3221,7 @@ var toolbar = new function() {
       });
       segmentIndexes.push('shock6');
     }
+    */
 
 
     this.clsSegments = segments;
@@ -3026,6 +3244,7 @@ var toolbar = new function() {
       for (var i = 0; i < segments[cls]['data'].length; i++) {
         var itemBase = {
           content: gCtn + (skipTime ? '' : ' @ ' + strToTime(segments[cls]['data'][i].start, true, true)),
+          title: gCtn + (skipTime ? '' : ' @ ' + strToTime(segments[cls]['data'][i].start, true, true)),
           start: segments[cls]['data'][i].start,
         };
 
@@ -3043,19 +3262,28 @@ var toolbar = new function() {
           itemBase = $.extend({}, itemBase, { title: segments[cls]['group_title'] });
         }
 
+        if ( segments[cls]['subgroup_id'] != null ) {
+          itemBase = $.extend({}, itemBase, { subgroup: segments[cls]['subgroup_id'] });
+        }
+
         items.add($.extend({}, itemBase, {
           id: gId + '_' + (segmentIdsByGroup[gId] + i).toString(),
           group: this.groups[gId]['id'],
-          style: segments[cls]['sty'] != null ? segments[cls]['sty'] : orangeItemStyle
+          style: segments[cls]['sty'] != null ? segments[cls]['sty'] : defaultItemStyle
         }));
 
         // Duplicate to parent.
         if ( pgId != null ) {
-          items.add($.extend({}, itemBase, {
+          var item = $.extend({}, itemBase, {
             id: pgId + '_' + gId + '_' + (segmentIdsByGroup[gId] + i).toString(),
-            group: this.groups[pgId]['id'],
-            style: segments[cls]['sty'] != null ? segments[cls]['sty'] : lightGreyItemStyle
-          }));
+            group: this.groups[pgId]['id']
+          });
+
+          if ( segments[cls]['psty'] != null ) {
+            item = $.extend({}, item, { style: segments[cls]['psty'] });
+          }
+
+          items.add(item);
         }
       }
 
@@ -3126,6 +3354,14 @@ var toolbar = new function() {
     }
 
     // Add point items.
+    var severe_sepsis_treatment_lbl =
+      'Treatment ' + (severe_sepsis_completed['t'] == null ?
+        'incomplete' : 'completed at ' + strToTime(severe_sepsis_completed['t'], true, false));
+
+    var septic_shock_treatment_lbl =
+      'Treatment ' + (septic_shock_completed['t'] == null ?
+        'incomplete' : 'completed at ' + strToTime(septic_shock_completed['t'], true, false));
+
     var sepsis_events = [
       { grp:  'suspicion_of_infection',
         pgrp: 'cms_soi',
@@ -3133,27 +3369,34 @@ var toolbar = new function() {
         ev:   'suspicion_of_infection',
         t:    'update_time',
         n:    'Note',
+        tip:  'Suspected Source of Infection entered by ' +
+                (json['severe_sepsis']['suspicion_of_infection'] != null ?
+                  json['severe_sepsis']['suspicion_of_infection']['update_user'] : 'user'),
         end:  severe_sepsis_end,
-        sty:  orangeItemStyle,
-        psty: lightGreyItemStyle,
+        sty:  lightRedItemStyle,
+        psty: defaultItemStyle
       },
       { grp: 'cms_severe_sepsis',
         pgrp: null,
         ob:   json,
         ev:   'severe_sepsis',
         t:    'onset_time',
-        n:    'Severe Sepsis',
+        n:    'Severe Sepsis onset',
         end:  severe_sepsis_end,
-        sty:  greyItemStyle
+        sty:  redItemStyle,
+        extend_now: true,
+        extend_lbl: severe_sepsis_treatment_lbl
       },
       { grp: 'cms_septic_shock',
         pgrp: null,
         ob:   json,
         ev:   'septic_shock',
         t:    'onset_time',
-        n:    'Septic Shock',
+        n:    'Septic Shock onset',
         end:  septic_shock_end,
-        sty:  greyItemStyle
+        sty:  redItemStyle,
+        extend_now: true,
+        extend_lbl: septic_shock_treatment_lbl
       }
     ];
 
@@ -3163,19 +3406,23 @@ var toolbar = new function() {
       var tsp_field = sepsis_events[i]['t'];
 
       var lbl = null;
+      var tip = null;
       var tsp = new Date(obj[evt][tsp_field]*1000);
       var g = this.groups[sepsis_events[i]['grp']];
 
       if ( evt == 'suspicion_of_infection' && obj[evt][tsp_field] != null && obj[evt]['value'] != null ) {
         lbl = sepsis_events[i]['n'] + '(' + obj[evt]['value'] + ')';
+        tip = sepsis_events[i]['tip'];
       }
       else if ( obj[evt]['is_met'] && obj[evt][tsp_field] != null ) {
         lbl = sepsis_events[i]['n'];
+        tip = sepsis_events[i]['n'];
       }
 
       if ( lbl != null ) {
         var itemBase =  {
           content: lbl + ' @ ' + strToTime(tsp, true, true),
+          title: tip + ' at ' + strToTime(tsp, true, true),
           start: tsp,
         };
 
@@ -3185,19 +3432,45 @@ var toolbar = new function() {
           itemBase = $.extend({}, itemBase, { type: 'box', });
         }
 
+        if ( sepsis_events[i]['sty'] != null ) {
+          itemBase = $.extend({}, itemBase, { style: sepsis_events[i]['sty'] });
+        }
+
         items.add($.extend({}, itemBase, {
           id: evt,
           group: g['id'],
           style: sepsis_events[i]['sty']
         }));
 
+        // Add a second bar extending to present time.
+        if ( sepsis_events[i]['extend_now'] != null && sepsis_events[i]['extend_now']
+              && sepsis_events[i]['extend_lbl'] != null
+              && sepsis_events[i]['end'] != null && sepsis_events[i]['end'] < now )
+        {
+          items.add({
+            id: evt + '_to_now',
+            group: g['id'],
+            content: ' ',
+            title: lbl + ' at ' + strToTime(tsp, true, true) + '. ' + sepsis_events[i]['extend_lbl'] ,
+            start: sepsis_events[i]['end'],
+            end: now,
+            style: greyItemStyle
+          });
+        }
+
+        // Add to parent group if available.
         if ( sepsis_events[i]['pgrp'] != null ) {
           var pg = this.groups[sepsis_events[i]['pgrp']];
-          items.add($.extend({}, itemBase, {
+          var item = $.extend({}, itemBase, {
             id: sepsis_events[i]['pgrp'] + '_' + evt,
-            group: pg['id'],
-            style: sepsis_events[i]['psty']
-          }));
+            group: pg['id']
+          });
+
+          if ( sepsis_events[i]['psty'] != null ) {
+            item = $.extend({}, item, { style: sepsis_events[i]['psty'] });
+          }
+
+          items.add(item);
         }
       }
     }
@@ -3227,7 +3500,7 @@ var toolbar = new function() {
       { id           : this.groups['orders']['id'],
         content      : "Orders",
         nestedGroups : orderGroupIds,
-        showNested   : expandedParents.indexOf(this.groups['orders']['id']) >= 0
+        showNested   : !this.chartInitialized || expandedParents.indexOf(this.groups['orders']['id']) >= 0
       }
     ]);
 
