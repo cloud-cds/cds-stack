@@ -6,5 +6,5 @@ setup(
     version='1.0',
     package_dir={'etl': ''},
     packages=["etl." + package for package in find_packages()],
-    package_data={'': ['*.csv', '*.conf']},
+    package_data={'': ['*.csv', '*.conf', '*.yaml']},
 )
