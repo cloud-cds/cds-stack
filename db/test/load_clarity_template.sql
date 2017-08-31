@@ -395,6 +395,46 @@ create index prob_idx_name on {workspace}."ProblemList" ("diagname");
 create index prob_idx_code on {workspace}."ProblemList" ("code");
 
 
+drop index if exists cc_idx_id;
+drop index if exists cc_idx_name;
+drop index if exists cc_idx_display;
+drop table if exists {workspace}."ChiefComplaint";
+create table {workspace}."ChiefComplaint"
+(
+ csn_id              text
+ ,LINE               int
+ ,CONTACT_DATE       date
+ ,ENC_REASON_ID      int
+ ,ENC_REASON_NAME    text
+ ,DISPLAY_TEXT       text
+ ,COMMENTS           text
+);
+\copy {workspace}."ChiefComplaint" from '{folder}chief_complaint.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+create index cc_idx_id on {workspace}."ChiefComplaint" ("enc_reason_id");
+create index cc_idx_name on {workspace}."ChiefComplaint" ("enc_reason_name");
+create index cc_idx_display on {workspace}."ChiefComplaint" ("display_text");
+
+
+drop index if exists ede_idx_id;
+drop index if exists ede_idx_event_id;
+drop index if exists ede_idx_event_disp_name;
+drop table if exists {workspace}."EdEvents";
+create table {workspace}."EdEvents"
+(
+ CSN_ID                text
+ ,EVENT_ID             bigint
+ ,LINE                 int
+ ,EVENT_DISPLAY_NAME   text
+ ,EVENT_TIME           timestamp without time zone
+ ,EVENT_RECORD_TIME    timestamp without time zone
+);
+\copy {workspace}."EdEvents" from '{folder}ed_events.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+create index ede_idx_id on {workspace}."EdEvents" ("CSN_ID");
+create index ede_idx_event_id on {workspace}."EdEvents" ("EVENT_ID");
+create index ede_idx_event_disp_name on {workspace}."EdEvents" ("EVENT_DISPLAY_NAME");
+
+
+
 drop table if exists {workspace}.flowsheet_dict;
 create table {workspace}.flowsheet_dict
 (

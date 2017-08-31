@@ -951,6 +951,34 @@ WHERE info.DELETE_USER_ID IS NULL
     and (noteEncs.NOTE_STATUS_C NOT IN (1,4,8) OR noteEncs.NOTE_STATUS_C IS NULL);
 GO
 
+:OUT \\Client\F$\clarity\chief_complaint.rpt
+SET NOCOUNT ON
+SELECT DISTINCT CSN.EXTERNAL_ID CSN_ID
+  ,LINE
+  ,CONTACT_DATE
+  ,ENC_REASON_ID
+  ,ENC_REASON_NAME
+  ,DISPLAY_TEXT
+  ,COMMENTS
+FROM Analytics.dbo.CCDA643_CSNLookupTable csn
+inner join clarity.dbo.PAT_ENC_RSN_VISIT rv on csn.PAT_ENC_CSN_ID = rv.PAT_ENC_CSN_ID
+inner join CL_RSN_FOR_VISIT v2 on rv.ENC_REASON_ID = v2.REASON_VISIT_ID ;
+GO
+
+:OUT \\Client\F$\clarity\ed_events.rpt
+SET NOCOUNT ON
+SELECT DISTINCT CSN.EXTERNAL_ID CSN_ID
+  ,ein.EVENT_ID
+  ,LINE
+  ,EVENT_DISPLAY_NAME
+  ,EVENT_TIME
+  ,EVENT_RECORD_TIME
+FROM Analytics.dbo.CCDA643_CSNLookupTable csn
+inner join Clarity.dbo.ED_IEV_PAT_INFO pin on csn.PAT_ENC_CSN_ID = pin.PAT_ENC_CSN_ID
+inner join Clarity.dbo.ED_IEV_EVENT_INFO ein on ein.EVENT_ID = pin.EVENT_ID
+where EVENT_RECORD_TIME is not null;
+GO
+
 -- need to turn sqlcmd mode on
 :OUT \\Client\F$\clarity\flowsheet_dict.rpt
 SET NOCOUNT ON
