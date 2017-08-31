@@ -1718,6 +1718,59 @@ END; $function$;
 --------------------------------------------
 -- Criteria snapshot utilities.
 --------------------------------------------
+CREATE OR REPLACE FUNCTION order_event_update(this_pat_id text)
+RETURNS void AS $$
+begin
+    insert into criteria_events
+    select gss.event_id,
+           gss.pat_id,
+           c.name,
+           c.is_met,
+           c.measurement_time,
+           c.override_time,
+           c.override_user,
+           c.override_value,
+           c.value,
+           c.update_date,
+           gss.state
+    from get_states_snapshot(this_pat_id) gss
+    inner join criteria c on gss.pat_id = c.pat_id and c.name ~ '_order'
+    --left join criteria_events e on e.pat_id = gss.pat_id and e.event_id = gss.event_id and e.name = c.name
+    where gss.state in (23,35)
+        or (gss.state in (24,36) and c.is_met and not coalesce(e.is_met, false)
+            )
+    -- (
+    --     -- (
+    --     --     -- normal sepsis states: update met orders from criteria
+    --     --     gss.state in (20,30) and c.is_met and not coalesce(e.is_met, false)
+    --     --     )
+    --     -- or
+    --     (
+    --         -- expired sepsis states: fixed unmet orders in criteria_events
+    --         gss.states in (24,36) --and not coalesce(e.is_met, false)
+    --         )
+    --     or
+    --     (
+    --         -- completed sepsis states: fix all met orders from criteria
+    --         gss.states in (23,35) --and c.is_met and not coalesce(e.is_met, false)
+    --         )
+    --     -- or
+    --     -- (
+    --     --     -- 3hr completed or expired
+    --     --     gss.states in (21,22,31,32) and c.is_met and not coalesce(e.is_met, false)
+    --     --     )
+    -- )
+    on conflict (event_id, pat_id, name) do update
+    set is_met              = excluded.is_met,
+        measurement_time    = excluded.measurement_time,
+        override_time       = excluded.override_time,
+        override_user       = excluded.override_user,
+        override_value      = excluded.override_value,
+        value               = excluded.value,
+        update_date         = excluded.update_date,
+        flag                = excluded.flag;
+end;
+$$ LANGUAGE PLPGSQL;
 
 CREATE OR REPLACE FUNCTION advance_criteria_snapshot(this_pat_id text default null, func_mode text default 'advance')
 RETURNS void AS $$
@@ -1799,6 +1852,7 @@ BEGIN
     left join notified_patients as np on s.pat_id = np.pat_id
     where not c.name like '%_order';
     drop table new_criteria;
+    perform order_event_update(this_pat_id);
     RETURN;
 END;
 $$ LANGUAGE PLPGSQL;
@@ -1872,8 +1926,8 @@ BEGIN
     inner join pat_states on NC.pat_id = pat_states.pat_id
     left join notified_patients np on NC.pat_id = np.pat_id
     where not NC.name like '%_order';
-
     drop table new_criteria;
+    perform order_event_update(this_pat_id);
     return;
 END; $function$;
 
@@ -2249,28 +2303,12 @@ declare
     res text;
 BEGIN
     -- check if current snapshot (20 or 30) was expired or complished
-    with snapshot as (
-        select gss.* from get_states_snapshot(pid) gss
+    with pats as (
+        select gss.pat_id from get_states_snapshot(pid) gss
         left join pat_status s on s.pat_id = gss.pat_id
-        where state >= 20
+        where (state = 23 or state = 35)
         and (s.pat_id IS NULL or not s.deactivated)
-    ),
-    expired_or_complished as (
-        select distinct s1.pat_id, s1.state old_state, s2.state new_state from snapshot s1
-        inner join lateral get_states('criteria_events', s1.pat_id, 'and flag >= 0') s2 on s1.pat_id = s2.pat_id
-        where s2.state > s1.state
-    ),
-    insert_states as (
-        insert into criteria_events (event_id, pat_id, name, is_met, measurement_time, override_time, override_user, override_value, value, update_date, flag)
-        select ssid.event_id, ce.pat_id, ce.name, ce.is_met, ce.measurement_time, ce.override_time, ce.override_user, ce.override_value, ce.value, now(), eoc.new_state from expired_or_complished eoc inner join
-            criteria_events ce on ce.pat_id = eoc.pat_id and ce.flag = eoc.old_state
-            cross join (select nextval('criteria_event_ids') event_id) ssid
-    ),
-    pats as (
-        (select distinct pat_id
-    from snapshot where state in (23,35))
-    union all (select distinct pat_id from expired_or_complished where new_state in (23,35))
-        )
+    )
     -- if criteria_events has been in an event for longer than deactivate_hours,
     -- then this patient should be deactivated automatically
     select into res deactivate(pat_id, TRUE, 'auto_deactivate') from pats;
