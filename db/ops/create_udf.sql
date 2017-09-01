@@ -1735,10 +1735,8 @@ begin
            gss.state
     from get_states_snapshot(this_pat_id) gss
     inner join criteria c on gss.pat_id = c.pat_id and c.name ~ '_order'
-    --left join criteria_events e on e.pat_id = gss.pat_id and e.event_id = gss.event_id and e.name = c.name
-    where gss.state in (23,35)
-        or (gss.state in (24,36) and c.is_met and not coalesce(e.is_met, false)
-            )
+    left join criteria_events e on e.pat_id = gss.pat_id and e.event_id = gss.event_id and e.name = c.name
+    where gss.state in (23,24,35,36) and c.is_met and not coalesce(e.is_met, false)
     -- (
     --     -- (
     --     --     -- normal sepsis states: update met orders from criteria
