@@ -1,4 +1,5 @@
 fid,category,data_type,is_measured,is_deprecated,fillin_func_id,window_size_in_hours,derive_func_id,derive_func_input,description,version,unit
+chief_complaint,T,JSON,yes,no,,,,,chief complaint,1,no unit
 furosemide_dose,T,JSON,yes,no,,,,,Medication,1,mg
 pao2,TWF,Real,yes,no,last_value_in_window,28,,,Labs,1,mmHg
 suspicion_of_infection,T,Boolean,no,no,,,suspicion_of_infection_update,"culture_order, any_antibiotics_order",return True if suspicion_of_infection criteria satisfy,1,no unit

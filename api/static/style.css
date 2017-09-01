@@ -877,10 +877,34 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li, .vis-inner {
     vertical-align: middle;
     display: inline-block;
 }
+.vis-custom-time.v_cms_severe_sepsis {
+    color: #555;
+    background-color: #555;
+}
+.vis-label.vis-nesting-group.vis_g_severe_sepsis_active,
+.vis-label.vis-nesting-group.vis_g_septic_shock_active,
+.vis-label.vis-nested-group.vis_g_blood_culture_incomplete,
+.vis-label.vis-nested-group.vis_g_initial_lactate_incomplete,
+.vis-label.vis-nested-group.vis_g_crystalloid_fluid_incomplete,
+.vis-label.vis-nested-group.vis_g_antibiotics_incomplete,
+.vis-label.vis-nested-group.vis_g_repeat_lactate_incomplete,
+.vis-label.vis-nested-group.vis_g_vasopressors_incomplete {
+    color: #fff;
+    background-color: #BF0F00;
+}
 .timeline-zoom-btn {
     cursor: pointer;
     margin: 0 0 0 10px ;
     font-size: 14px;
+}
+.vis_item_order_incomplete {
+    background: repeating-linear-gradient(
+      135deg,
+      #A0D391,
+      #A0D391 5px,
+      #30A00E 5px,
+      #30A00E 10px
+    );
 }
 /* Other sources of deterioration */
 #other-deter {
