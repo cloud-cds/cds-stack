@@ -14,10 +14,6 @@ provider "aws" {
   profile    = "opsdx"
 }
 
-variable "deploy_name" {}
-variable "deploy_stack" {}
-variable "deploy_prefix" {}
-
 module "stage1" {
   source = "./stage1"
 

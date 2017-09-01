@@ -1,3 +1,18 @@
+##################################
+# AWS account
+
+variable "aws_id" {
+  description = "AWS account ID"
+}
+
+variable "access_key" {
+  description = "AWS access key ID"
+}
+
+variable "secret_key" {
+  description = "AWS secret key"
+}
+
 ######################################
 # Deployment
 

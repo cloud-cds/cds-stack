@@ -49,11 +49,10 @@ variable "db_storage" {
   default = "132"
 }
 
-variable "db_storage" {
+variable "db_storage_type" {
   description = "RDS Storage type (e.g., SSD, magnetic)"
   default = "gp2"
 }
-
 
 variable "db_engine" {
   description = "Postgres-backed DB Engine"
@@ -136,6 +135,11 @@ variable "dw_password" {
 variable "dw_storage" {
   description = "Storage size in GB"
   default = "132"
+}
+
+variable "dw_storage_type" {
+  description = "RDS Storage type (e.g., SSD, magnetic)"
+  default = "gp2"
 }
 
 variable "dw_engine" {
