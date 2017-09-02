@@ -491,6 +491,8 @@ github:yanif/opsdx-cloud
 ## Controllers
 (Lead: Andong)
 #### Launch
+1. use terraform to apply the controller to aws
+2. run `bin/controller_setup.sh`
 
 #### Shutdown
 
