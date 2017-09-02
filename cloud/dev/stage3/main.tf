@@ -73,7 +73,7 @@ module "trews_etl" {
   k8s_key       = "${var.k8s_key}"
   k8s_token     = "${var.k8s_token}"
 
-  etl_lambda_firing_rate_mins = "15"
+  etl_lambda_firing_rate_mins = "45"
 
   db_host             = "db.${var.domain}"
   db_name             = "${replace(var.deploy_prefix, "-", "_")}"
