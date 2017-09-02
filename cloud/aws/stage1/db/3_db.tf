@@ -19,6 +19,8 @@ resource "aws_db_instance" "dev_db" {
   multi_az                = false
   publicly_accessible     = false
   storage_encrypted       = true
+  #skip_final_snapshot     = true
+  snapshot_identifier     = "opsdx-dev-backup"
   tags {
     Name = "${var.deploy_name}"
     Stack = "${var.deploy_stack}"
@@ -52,6 +54,9 @@ resource "aws_db_instance" "prod_db" {
   multi_az                = true
   publicly_accessible     = false
   storage_encrypted       = true
+  #skip_final_snapshot     = true
+  snapshot_identifier     = "opsdx-prod-backup"
+
   tags {
     Name = "${var.deploy_name}"
     Stack = "${var.deploy_stack}"
