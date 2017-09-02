@@ -58,20 +58,25 @@ module "db" {
   vpc_id                = "${module.core.vpc_id}"
 
   dev_db_identifier     = "${var.deploy_prefix}-dev"
-  dev_db_name           = "${replace(var.deploy_prefix, "-", "_")}_dev"
+  dev_db_name           = "${var.dev_db_snapshot_dbname != "" ? var.dev_db_snapshot_dbname : "${replace(var.deploy_prefix, "-", "_")}_dev"}"
   dev_db_username       = "${var.dev_db_username}"
   dev_db_password       = "${var.dev_db_password}"
+  dev_db_snapshot_id    = "${var.dev_db_snapshot_id}"
 
   prod_db_identifier    = "${var.deploy_prefix}-prod"
-  prod_db_name          = "${replace(var.deploy_prefix, "-", "_")}_prod"
+  prod_db_name          = "${var.prod_db_snapshot_dbname != "" ? var.prod_db_snapshot_dbname : "${replace(var.deploy_prefix, "-", "_")}_prod"}"
   prod_db_username      = "${var.prod_db_username}"
   prod_db_password      = "${var.prod_db_password}"
+  prod_db_snapshot_id   = "${var.prod_db_snapshot_id}"
 
   dw_identifier         = "${var.deploy_prefix}-dw"
-  dw_name               = "${replace(var.deploy_prefix, "-", "_")}_dw"
+  dw_name               = "${var.dw_snapshot_dbname != "" ? var.dw_snapshot_dbname : "${replace(var.deploy_prefix, "-", "_")}_dw"}"
   dw_username           = "${var.dw_username}"
   dw_password           = "${var.dw_password}"
+  dw_snapshot_id        = "${var.dw_snapshot_id}"
 
+  db_parameter_group    = "${var.deploy_prefix}-pgstats96"
+  dw_parameter_group    = "${var.deploy_prefix}-pgetl96"
   db_subnet1_cidr       = "${var.db_subnet1_cidr}"
   db_availability_zone1 = "${var.db_availability_zone1}"
   db_subnet2_cidr       = "${var.db_subnet2_cidr}"

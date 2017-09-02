@@ -38,6 +38,14 @@ module "stage1" {
   prod_db_password   = "${var.prod_db_password}"
   dw_username        = "${var.dw_username}"
   dw_password        = "${var.dw_password}"
+
+  dev_db_snapshot_id      = "${var.dev_db_snapshot_id}"
+  dev_db_snapshot_dbname  = "${var.dev_db_snapshot_dbname}"
+  prod_db_snapshot_id     = "${var.prod_db_snapshot_id}"
+  prod_db_snapshot_dbname = "${var.prod_db_snapshot_dbname}"
+  dw_snapshot_id          = "${var.dw_snapshot_id}"
+  dw_snapshot_dbname      = "${var.dw_snapshot_dbname}"
+
 }
 
 # module "stage2" {

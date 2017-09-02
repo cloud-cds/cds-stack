@@ -96,3 +96,35 @@ variable "dw_username" {
 variable "dw_password" {
   description = "DW Password"
 }
+
+# Restoring from backups.
+variable "dev_db_snapshot_id" {
+  description = "RDS Snapshot Identifier for Restoration"
+  default = ""
+}
+
+variable "dev_db_snapshot_dbname" {
+  description = "Database name in the snapshot"
+  default = ""
+}
+
+# Restoring from backups.
+variable "prod_db_snapshot_id" {
+  description = "RDS Snapshot Identifier for Restoration"
+  default = ""
+}
+
+variable "prod_db_snapshot_dbname" {
+  description = "Database name in the snapshot"
+  default = ""
+}
+
+variable "dw_snapshot_id" {
+  description = "DW Snapshot Identifier for Restoration"
+  default = ""
+}
+
+variable "dw_snapshot_dbname" {
+  description = "Database name in the snapshot"
+  default = ""
+}

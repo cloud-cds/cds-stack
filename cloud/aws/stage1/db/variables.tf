@@ -71,6 +71,9 @@ variable "db_instance_class" {
   description = "Instance class"
 }
 
+variable "db_parameter_group" {
+  description = "Postgres Parameter Group"
+}
 
 #############################################
 # Dev-specific DB parameters
@@ -89,6 +92,12 @@ variable "dev_db_username" {
 
 variable "dev_db_password" {
   description = "Password"
+}
+
+# Restoring from backups.
+variable "dev_db_snapshot_id" {
+  description = "RDS Snapshot Identifier for Restoration"
+  default = ""
 }
 
 
@@ -111,6 +120,11 @@ variable "prod_db_password" {
   description = "Password"
 }
 
+# Restoring from backups.
+variable "prod_db_snapshot_id" {
+  description = "RDS Snapshot Identifier for Restoration"
+  default = ""
+}
 
 
 ######################################
@@ -134,7 +148,7 @@ variable "dw_password" {
 
 variable "dw_storage" {
   description = "Storage size in GB"
-  default = "132"
+  default = "900"
 }
 
 variable "dw_storage_type" {
@@ -159,3 +173,11 @@ variable "dw_instance_class" {
   description = "Instance class"
 }
 
+variable "dw_parameter_group" {
+  description = "DW Parameter Group"
+}
+
+variable "dw_snapshot_id" {
+  description = "DW Snapshot Identifier for Restoration"
+  default = ""
+}
