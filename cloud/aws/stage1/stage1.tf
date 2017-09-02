@@ -58,12 +58,12 @@ module "db" {
   vpc_id                = "${module.core.vpc_id}"
 
   dev_db_identifier     = "${var.deploy_prefix}-dev"
-  dev_db_name           = "${replace(var.deploy_prefix, "-", "_")}"
+  dev_db_name           = "${replace(var.deploy_prefix, "-", "_")}_dev"
   dev_db_username       = "${var.dev_db_username}"
   dev_db_password       = "${var.dev_db_password}"
 
   prod_db_identifier    = "${var.deploy_prefix}-prod"
-  prod_db_name          = "${replace(var.deploy_prefix, "-", "_")}"
+  prod_db_name          = "${replace(var.deploy_prefix, "-", "_")}_prod"
   prod_db_username      = "${var.prod_db_username}"
   prod_db_password      = "${var.prod_db_password}"
 
