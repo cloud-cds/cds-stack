@@ -19,7 +19,7 @@ resource "aws_db_instance" "dw" {
   publicly_accessible     = false
   storage_encrypted       = true
   skip_final_snapshot     = true
-  #snapshot_identifier     = "opsdx-dev-backup"
+  snapshot_identifier     = "opsdx-dev-dw-backup"
 
   tags {
     Name = "${var.deploy_name}"
