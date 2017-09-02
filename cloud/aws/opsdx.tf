@@ -53,3 +53,55 @@ module "stage1" {
 #   deploy_stack  = "${var.deploy_stack}"
 #   deploy_prefix = "${var.deploy_prefix}"
 # }
+
+
+
+##############################
+# Outputs
+
+# For shared VPC/Subnets/NAT GW in kops.
+
+output "vpc_id" {
+  value = "${module.stage1.vpc_id}"
+}
+
+output "vpc_cidr" {
+  value = "${module.stage1.vpc_cidr}"
+}
+
+output "natgw1_id" {
+  value = "${module.stage1.natgw1_id}"
+}
+
+output "natgw2_id" {
+  value = "${module.stage1.natgw2_id}"
+}
+
+output "natgw3_id" {
+  value = "${module.stage1.natgw3_id}"
+}
+
+output "utility1_subnet_id" {
+  value = "${module.stage1.utility1_subnet_id}"
+}
+
+output "utility2_subnet_id" {
+  value = "${module.stage1.utility2_subnet_id}"
+}
+
+output "utility3_subnet_id" {
+  value = "${module.stage1.utility3_subnet_id}"
+}
+
+output "k8s1_subnet_id" {
+  value = "${module.stage1.k8s1_subnet_id}"
+}
+
+output "k8s2_subnet_id" {
+  value = "${module.stage1.k8s2_subnet_id}"
+}
+
+output "k8s3_subnet_id" {
+  value = "${module.stage1.k8s3_subnet_id}"
+}
+

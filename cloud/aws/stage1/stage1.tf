@@ -17,6 +17,10 @@ module "core" {
   deploy_stack    = "${var.deploy_stack}"
   deploy_prefix   = "${var.deploy_prefix}"
 
+  az1 = "us-east-1a"
+  az2 = "us-east-1c"
+  az3 = "us-east-1d"
+
   public_key_path   = "${var.public_key_path}"
   private_key_path  = "${var.private_key_path}"
 
@@ -77,4 +81,73 @@ module "db" {
   dev_db_dns_name     = "dev.db.${var.domain}"
   prod_db_dns_name    = "prod.db.${var.domain}"
   dw_dns_name         = "dw.${var.domain}"
+}
+
+module "storage" {
+  source = "./storage"
+
+  deploy_name     = "${var.deploy_name}"
+  deploy_stack    = "${var.deploy_stack}"
+  deploy_prefix   = "${var.deploy_prefix}"
+}
+
+
+##############################
+# Outputs
+
+# For shared VPC/Subnets/NAT GW in kops.
+
+output "vpc_id" {
+  value = "${module.core.vpc_id}"
+}
+
+output "vpc_cidr" {
+  value = "${module.core.vpc_cidr}"
+}
+
+output "natgw1_id" {
+  value = "${module.core.natgw1_id}"
+}
+
+output "natgw2_id" {
+  value = "${module.core.natgw2_id}"
+}
+
+output "natgw3_id" {
+  value = "${module.core.natgw3_id}"
+}
+
+output "utility1_subnet_id" {
+  value = "${module.core.utility1_subnet_id}"
+}
+
+output "utility2_subnet_id" {
+  value = "${module.core.utility2_subnet_id}"
+}
+
+output "utility3_subnet_id" {
+  value = "${module.core.utility3_subnet_id}"
+}
+
+output "k8s1_subnet_id" {
+  value = "${module.core.k8s1_subnet_id}"
+}
+
+output "k8s2_subnet_id" {
+  value = "${module.core.k8s2_subnet_id}"
+}
+
+output "k8s3_subnet_id" {
+  value = "${module.core.k8s3_subnet_id}"
+}
+
+
+# DB
+
+output "dev_db_ip" {
+  value = "${module.db.dev_db_ip}"
+}
+
+output "prod_db_ip" {
+  value = "${module.db.prod_db_ip}"
 }

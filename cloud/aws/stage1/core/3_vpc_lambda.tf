@@ -1,31 +1,11 @@
 ##################################################
 # AWS Lambda support inside a VPC.
 #
-# Create an elastic IP for the NAT gateway.
-resource "aws_eip" "natgw" {
-  vpc = true
-}
-
-# Create a NAT gateway for AWS Lambda functions in the private VPC
-resource "aws_nat_gateway" "lambda" {
-  allocation_id = "${aws_eip.natgw.id}"
-  subnet_id     = "${aws_subnet.utility.id}"
-
-  depends_on = ["aws_internet_gateway.main"]
-}
-
-# Create a route to the NAT gateway in the lambda subnet
-resource "aws_route_table" "lambda" {
-  vpc_id = "${aws_vpc.main.id}"
-  route {
-    cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = "${aws_nat_gateway.lambda.id}"
-  }
-}
 
 resource "aws_subnet" "lambda_subnet1" {
-  vpc_id     = "${aws_vpc.main.id}"
-  cidr_block = "10.0.251.0/24"
+  availability_zone = "${var.az1}"
+  vpc_id            = "${aws_vpc.main.id}"
+  cidr_block        = "10.0.246.0/24"
   tags {
     Name = "${var.deploy_name}"
     Stack = "${var.deploy_stack}"
@@ -34,8 +14,9 @@ resource "aws_subnet" "lambda_subnet1" {
 }
 
 resource "aws_subnet" "lambda_subnet2" {
-  vpc_id     = "${aws_vpc.main.id}"
-  cidr_block = "10.0.252.0/24"
+  availability_zone = "${var.az2}"
+  vpc_id            = "${aws_vpc.main.id}"
+  cidr_block        = "10.0.247.0/24"
   tags {
     Name = "${var.deploy_name}"
     Stack = "${var.deploy_stack}"
@@ -43,14 +24,30 @@ resource "aws_subnet" "lambda_subnet2" {
   }
 }
 
+resource "aws_subnet" "lambda_subnet3" {
+  availability_zone = "${var.az3}"
+  vpc_id            = "${aws_vpc.main.id}"
+  cidr_block        = "10.0.248.0/24"
+  tags {
+    Name = "${var.deploy_name}"
+    Stack = "${var.deploy_stack}"
+    Component = "Lambda Subnet 3"
+  }
+}
+
 resource "aws_route_table_association" "lambda_subnet1" {
   subnet_id      = "${aws_subnet.lambda_subnet1.id}"
-  route_table_id = "${aws_route_table.lambda.id}"
+  route_table_id = "${aws_route_table.natgw1.id}"
 }
 
 resource "aws_route_table_association" "lambda_subnet2" {
   subnet_id      = "${aws_subnet.lambda_subnet2.id}"
-  route_table_id = "${aws_route_table.lambda.id}"
+  route_table_id = "${aws_route_table.natgw2.id}"
+}
+
+resource "aws_route_table_association" "lambda_subnet3" {
+  subnet_id      = "${aws_subnet.lambda_subnet3.id}"
+  route_table_id = "${aws_route_table.natgw3.id}"
 }
 
 # A lambda security group with only (unrestricted) outbound access.
@@ -83,6 +80,10 @@ output "lambda_subnet1_id" {
 
 output "lambda_subnet2_id" {
   value = "${aws_subnet.lambda_subnet2.id}"
+}
+
+output "lambda_subnet3_id" {
+  value = "${aws_subnet.lambda_subnet3.id}"
 }
 
 output "lambda_sg_id" {

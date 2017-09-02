@@ -10,6 +10,11 @@ variable "aws_region" {
   default = "us-east-1"
 }
 
+variable "az1" {}
+variable "az2" {}
+variable "az3" {}
+
+
 # Official Ubuntu 14.04 AMI, from which we make encrypted copies.
 variable "aws_base_ami" {
   default = {
