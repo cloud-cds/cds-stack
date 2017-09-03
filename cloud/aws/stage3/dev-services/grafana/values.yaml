@@ -4,10 +4,6 @@ server:
   # annotations:
   #   iam.amazonaws.com/role: grafana
 
-  ## Grafana service port
-  ##
-  httpPort: 80
-
   ## Grafana Docker image
   ##
   image: "grafana/grafana:latest"
@@ -24,7 +20,7 @@ server:
     ##
     annotations:
       kubernetes.io/ingress.class: nginx
-    #   kubernetes.io/tls-acme: 'true'
+      ingress.kubernetes.io/ssl-redirect: "true"
 
     ## Grafana Ingress hostnames
     ## Must be provided if Ingress is enabled
@@ -93,27 +89,44 @@ server:
       cpu: 500m
       memory: 1Gi
 
-  ## Grafana service type
-  ##
-  serviceType: NodePort
-  # serviceAnnotations:
-  #     dns.alpha.kubernetes.io/external: grafana.dev.opsdx.io
+  ## Grafana service
+  service:
+    ## Grafana service annotations
+    ##
+    annotations: {}
+    #  dns.alpha.kubernetes.io/external: grafana.dev.opsdx.io
 
-  ## Load balancer IP address
-  ## Is not required, but allows for static address with
-  ## serviceType LoadBalancer.
-  ## If not supported by cloud provider, this field is ignored.
-  ## Default: nil
-  ##
-  # loadBalancerIP: 130.211.x.x
+    ## Grafana service type
+    ##
+    type: ClusterIP
 
-  ## This will restrict traffic through the cloud-provider load-balancer
-  ## to the specified client IPs.
-  ## If not supported by cloud provider, this field is ignored.
-  ## Default: nil
-  ##
-  # loadBalancerSourceRanges:
-  #   - 0.0.0.0/0
+
+    ## Grafana service port
+    ##
+    httpPort: 80
+
+    ## Load balancer IP address
+    ## Is not required, but allows for static address with
+    ## serviceType LoadBalancer.
+    ## If not supported by cloud provider, this field is ignored.
+    ## Default: nil
+    ##
+    # loadBalancerIP: 130.211.x.x
+
+    ## This will restrict traffic through the cloud-provider load-balancer
+    ## to the specified client IPs.
+    ## If not supported by cloud provider, this field is ignored.
+    ## Default: nil
+    ##
+    # loadBalancerSourceRanges:
+    #   - 0.0.0.0/0
+
+    ## nodePort port number
+    ## Is not required, but allows for static port assignment with
+    ## serviceType NodePort.
+    ## Default: nil
+    # nodePort: 30000
+
 
   ## Grafana local config path
   ## Default '/etc/grafana'
@@ -145,7 +158,7 @@ server:
     ## How long should it take to commit failure
     ## Default: 300
     ##
-    activeDeadlineSeconds: 30
+    activeDeadlineSeconds: 300
 
     ## Curl Docker image
     ## Default: appropriate/curl:latest
