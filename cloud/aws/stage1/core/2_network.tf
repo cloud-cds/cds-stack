@@ -55,6 +55,8 @@ resource "aws_subnet" "utility1" {
     Name = "${var.deploy_name}"
     Stack = "${var.deploy_stack}"
     Component = "Private Utility Subnet1"
+    "kubernetes.io/cluster/cluster-dev.jh.opsdx.io" = "shared"
+    "kubernetes.io/cluster/cluster-prod.jh.opsdx.io" = "shared"
   }
 }
 
@@ -66,6 +68,8 @@ resource "aws_subnet" "utility2" {
     Name = "${var.deploy_name}"
     Stack = "${var.deploy_stack}"
     Component = "Private Utility Subnet2"
+    "kubernetes.io/cluster/cluster-dev.jh.opsdx.io" = "shared"
+    "kubernetes.io/cluster/cluster-prod.jh.opsdx.io" = "shared"
   }
 }
 
@@ -77,6 +81,8 @@ resource "aws_subnet" "utility3" {
     Name = "${var.deploy_name}"
     Stack = "${var.deploy_stack}"
     Component = "Private Utility Subnet3"
+    "kubernetes.io/cluster/cluster-dev.jh.opsdx.io" = "shared"
+    "kubernetes.io/cluster/cluster-prod.jh.opsdx.io" = "shared"
   }
 }
 

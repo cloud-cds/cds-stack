@@ -48,12 +48,9 @@ module "stage1" {
 
 }
 
-# module "stage2" {
-#   source = "./stage2"
-#   deploy_name   = "${var.deploy_name}"
-#   deploy_stack  = "${var.deploy_stack}"
-#   deploy_prefix = "${var.deploy_prefix}"
-# }
+module "stage2" {
+  source = "./stage2"
+}
 
 # module "stage3" {
 #   source = "./stage3"
