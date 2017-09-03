@@ -138,6 +138,13 @@ resource "aws_security_group" "controller_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    from_port   = "0"
+    to_port     = "0"
+    protocol    = "-1"
+    security_groups = ["sg-7e246a01"]
+  }
+
   # Unrestricted outbound internet access
   egress {
     from_port   = 0

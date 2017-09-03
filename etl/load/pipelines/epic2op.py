@@ -532,11 +532,11 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
       args = [sqlalchemy_str, job_id, 'unicode'],
     ))
   if 'test' in mode:
-    all_tasks += Task(
+    all_tasks += [Task(
       name = 'test_data_2_workspace',
       fn   = test_data_2_workspace,
       args = [sqlalchemy_str, mode, job_id],
-    )
+    )]
   all_tasks += [
     Task(name = 'epic_2_workspace',
          deps = [db_data_task],
