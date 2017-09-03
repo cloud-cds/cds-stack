@@ -1,3 +1,18 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  labels:
+    app: redash
+  name: redash
+spec:
+  rules:
+    - host: redash-dev.jh.opsdx.io
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: redash
+              servicePort: 80
 ---
 apiVersion: v1
 kind: Service
@@ -5,10 +20,8 @@ metadata:
   name: redash
   labels:
     app: redash
-  annotations:
-    dns.alpha.kubernetes.io/external: redash.dev.opsdx.io
 spec:
-  type: LoadBalancer
+  type: NodePort
   ports:
     - protocol: TCP
       port: 80
@@ -28,7 +41,7 @@ spec:
         app: redash
     spec:
       nodeSelector:
-        opsdx_nodegroup: nodes
+        opsdx_nodegroup: spot-nodes
       containers:
       - name: redash-redis
         image: redis:2.8
@@ -54,7 +67,10 @@ spec:
         - name: REDASH_LOG_LEVEL
           value: "INFO"
         - name: REDASH_COOKIE_SECRET
-          value: veryverysecret
+          valueFrom:
+            secretKeyRef:
+              name: redash-secrets
+              key: redash-cookie-secret
         - name: REDASH_DATABASE_URL
           valueFrom:
             secretKeyRef:
