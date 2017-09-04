@@ -26,10 +26,10 @@ module "dev_etl" {
   dev_db_name             = "${var.dev_db_name}"
   dev_db_username         = "${var.dev_db_username}"
   dev_db_password         = "${var.dev_db_password}"
+  dev_etl_channel         = "${var.dev_etl_channel}"
 
   jhapi_client_id     = "${var.jhapi_client_id}"
   jhapi_client_secret = "${var.jhapi_client_secret}"
-  dev_etl_channel         = "${var.dev_etl_channel}"
 
   DEV_ETL_SERVER             = "${var.DEV_ETL_SERVER}"
   DEV_ETL_HOSPITAL           = "${var.DEV_ETL_HOSPITAL}"
@@ -41,4 +41,75 @@ module "dev_etl" {
   DEV_ETL_STREAM_SLICES      = "${var.DEV_ETL_STREAM_SLICES}"
   DEV_ETL_STREAM_SLEEP_SECS  = "${var.DEV_ETL_STREAM_SLEEP_SECS}"
   DEV_ETL_EPIC_NOTIFICATIONS = "${var.DEV_ETL_EPIC_NOTIFICATIONS}"
+}
+
+module "dev_monitor" {
+  source = "./dev-services/monitor"
+  deploy_prefix = "${var.deploy_prefix}"
+
+  s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
+  aws_alarm2slack_package = "${var.aws_alarm2slack_package}"
+  alarm2slack_kms_key_arn = "${var.alarm2slack_kms_key_arn}"
+
+  slack_hook     = "${var.slack_hook}"
+  slack_channel  = "${var.slack_channel}"
+  slack_watchers = "${var.slack_watchers}"
+}
+
+
+module "prod_monitor" {
+  source = "./prod-services/monitor"
+  deploy_prefix = "${var.deploy_prefix}"
+
+  s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
+  aws_alarm2slack_package = "${var.aws_alarm2slack_package}"
+  alarm2slack_kms_key_arn = "${var.alarm2slack_kms_key_arn}"
+
+  slack_hook     = "${var.slack_hook}"
+  slack_channel  = "${var.slack_channel}"
+  slack_watchers = "${var.slack_watchers}"
+}
+
+module "dev_behavior_monitors" {
+  source = "./dev-services/behavior-monitors"
+  aws_region = "${var.aws_region}"
+  deploy_prefix = "${var.deploy_prefix}"
+
+  s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
+  aws_behamon_lambda_package  = "${var.aws_behamon_lambda_package}"
+  aws_behamon_lambda_role_arn = "${var.aws_behamon_lambda_role_arn}"
+
+  db_host     = "${var.dev_db_host}"
+  db_name     = "${var.dev_db_name}"
+  db_username = "${var.dev_db_username}"
+  db_password = "${var.dev_db_password}"
+
+  lambda_subnet1_id = "${var.lambda_subnet1_id}"
+  lambda_subnet2_id = "${var.lambda_subnet2_id}"
+  lambda_sg_id      = "${var.lambda_sg_id}"
+
+  behamon_log_group_name = "${var.dev_behamon_log_group_name}"
+  behamon_log_group_arn  = "${var.dev_behamon_log_group_arn}"
+}
+
+module "prod_behavior_monitors" {
+  source = "./prod-services/behavior-monitors"
+  aws_region = "${var.aws_region}"
+  deploy_prefix = "${var.deploy_prefix}"
+
+  s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
+  aws_behamon_lambda_package  = "${var.aws_behamon_lambda_package}"
+  aws_behamon_lambda_role_arn = "${var.aws_behamon_lambda_role_arn}"
+
+  db_host     = "${var.prod_db_host}"
+  db_name     = "${var.prod_db_name}"
+  db_username = "${var.prod_db_username}"
+  db_password = "${var.prod_db_password}"
+
+  lambda_subnet1_id = "${var.lambda_subnet1_id}"
+  lambda_subnet2_id = "${var.lambda_subnet2_id}"
+  lambda_sg_id      = "${var.lambda_sg_id}"
+
+  behamon_log_group_name = "${var.prod_behamon_log_group_name}"
+  behamon_log_group_arn  = "${var.prod_behamon_log_group_arn}"
 }
