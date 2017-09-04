@@ -207,16 +207,37 @@ variable "k8s_dev_image" {}
 variable "dev_etl_channel" {}
 variable "dev_etl_lambda_firing_rate_mins" {}
 
+#variable "prod_db_name" {}
+variable "prod_etl_channel" {}
+variable "prod_etl_lambda_firing_rate_mins" {}
+
 
 ####################################
 # Lambda packages
 
 variable "s3_opsdx_lambda" {}
 
+variable "lambda_subnet1_id" {}
+variable "lambda_subnet2_id" {}
+variable "lambda_sg_id" {}
+
 variable "aws_klaunch_lambda_role_arn" {}
 variable "aws_klaunch_lambda_package" {}
 
 variable "aws_alarm2slack_package" {}
+
+variable "aws_behamon_lambda_package" {}
+variable "aws_behamon_lambda_role_arn" {}
+
+
+######################################
+# Behavior monitors
+
+variable "dev_behamon_log_group_name" {}
+variable "dev_behamon_log_group_arn" {}
+
+variable "prod_behamon_log_group_name" {}
+variable "prod_behamon_log_group_arn" {}
 
 
 ######################################

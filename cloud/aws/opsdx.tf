@@ -54,12 +54,19 @@ module "stage2" {
 
 module "stage3" {
   source = "./stage3"
+
+  aws_region    = "${var.aws_region}"
+  domain        = "${var.domain}"
   deploy_prefix = "${var.deploy_prefix}"
   local_shell   = "${var.local_shell}"
 
-  domain = "${var.domain}"
 
   s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
+
+  lambda_subnet1_id = "${var.lambda_subnet1_id}"
+  lambda_subnet2_id = "${var.lambda_subnet2_id}"
+  lambda_sg_id      = "${var.lambda_sg_id}"
+
   aws_klaunch_lambda_package = "${var.aws_klaunch_lambda_package}"
   aws_klaunch_lambda_role_arn = "${var.aws_klaunch_lambda_role_arn}"
 
@@ -75,13 +82,20 @@ module "stage3" {
   k8s_dev_cert      = "${var.k8s_dev_cert}"
   k8s_dev_key       = "${var.k8s_dev_key}"
 
-  dev_etl_lambda_firing_rate_mins = "${var.dev_etl_lambda_firing_rate_mins}"
-
   dev_db_host             = "dev.db.${var.domain}"
   dev_db_name             = "opsdx_dev"
   dev_db_username         = "${var.dev_db_username}"
   dev_db_password         = "${var.dev_db_password}"
   dev_etl_channel         = "${var.dev_etl_channel}"
+
+  prod_db_host             = "prod.db.${var.domain}"
+  prod_db_name             = "opsdx_prod"
+  prod_db_username         = "${var.prod_db_username}"
+  prod_db_password         = "${var.prod_db_password}"
+  prod_etl_channel         = "${var.prod_etl_channel}"
+
+  dev_etl_lambda_firing_rate_mins  = "${var.dev_etl_lambda_firing_rate_mins}"
+  prod_etl_lambda_firing_rate_mins = "${var.prod_etl_lambda_firing_rate_mins}"
 
   jhapi_client_id     = "${var.jhapi_client_id}"
   jhapi_client_secret = "${var.jhapi_client_secret}"
@@ -97,8 +111,26 @@ module "stage3" {
   DEV_ETL_STREAM_SLEEP_SECS  = "${var.DEV_ETL_STREAM_SLEEP_SECS}"
   DEV_ETL_EPIC_NOTIFICATIONS = "${var.DEV_ETL_EPIC_NOTIFICATIONS}"
 
+
+  ######################################
+  # Behavior monitors
+
+  aws_behamon_lambda_package  = "${var.aws_behamon_lambda_package}"
+  aws_behamon_lambda_role_arn = "${var.aws_behamon_lambda_role_arn}"
+
+  dev_behamon_log_group_name  = "${var.dev_behamon_log_group_name}"
+  dev_behamon_log_group_arn   = "${var.dev_behamon_log_group_arn}"
+
+  prod_behamon_log_group_name = "${var.prod_behamon_log_group_name}"
+  prod_behamon_log_group_arn  = "${var.prod_behamon_log_group_arn}"
+
+
+  ######################################
+  # Alarm2slack
+
   aws_alarm2slack_package = "${var.aws_alarm2slack_package}"
   alarm2slack_kms_key_arn = "${var.alarm2slack_kms_key_arn}"
+
   slack_hook              = "${var.slack_hook}"
   slack_channel           = "${var.slack_channel}"
   slack_watchers          = "${var.slack_watchers}"

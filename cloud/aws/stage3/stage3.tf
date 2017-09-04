@@ -69,3 +69,47 @@ module "prod_monitor" {
   slack_channel  = "${var.slack_channel}"
   slack_watchers = "${var.slack_watchers}"
 }
+
+module "dev_behavior_monitors" {
+  source = "./dev-services/behavior-monitors"
+  aws_region = "${var.aws_region}"
+  deploy_prefix = "${var.deploy_prefix}"
+
+  s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
+  aws_behamon_lambda_package  = "${var.aws_behamon_lambda_package}"
+  aws_behamon_lambda_role_arn = "${var.aws_behamon_lambda_role_arn}"
+
+  db_host     = "${var.dev_db_host}"
+  db_name     = "${var.dev_db_name}"
+  db_username = "${var.dev_db_username}"
+  db_password = "${var.dev_db_password}"
+
+  lambda_subnet1_id = "${var.lambda_subnet1_id}"
+  lambda_subnet2_id = "${var.lambda_subnet2_id}"
+  lambda_sg_id      = "${var.lambda_sg_id}"
+
+  behamon_log_group_name = "${var.dev_behamon_log_group_name}"
+  behamon_log_group_arn  = "${var.dev_behamon_log_group_arn}"
+}
+
+module "prod_behavior_monitors" {
+  source = "./prod-services/behavior-monitors"
+  aws_region = "${var.aws_region}"
+  deploy_prefix = "${var.deploy_prefix}"
+
+  s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
+  aws_behamon_lambda_package  = "${var.aws_behamon_lambda_package}"
+  aws_behamon_lambda_role_arn = "${var.aws_behamon_lambda_role_arn}"
+
+  db_host     = "${var.prod_db_host}"
+  db_name     = "${var.prod_db_name}"
+  db_username = "${var.prod_db_username}"
+  db_password = "${var.prod_db_password}"
+
+  lambda_subnet1_id = "${var.lambda_subnet1_id}"
+  lambda_subnet2_id = "${var.lambda_subnet2_id}"
+  lambda_sg_id      = "${var.lambda_sg_id}"
+
+  behamon_log_group_name = "${var.prod_behamon_log_group_name}"
+  behamon_log_group_arn  = "${var.prod_behamon_log_group_arn}"
+}
