@@ -41,7 +41,43 @@ variable "k8s_dev_key" {
 
 variable "k8s_dev_image" {}
 
+variable "k8s_prod_server_host" {
+  description = "Kubernetes master host"
+}
 
+variable "k8s_prod_server_port" {
+  description = "Kubernetes master port"
+}
+
+variable "k8s_prod_name" {
+  description = "Kubernetes context name"
+}
+
+variable "k8s_prod_server" {
+  description = "Kubernetes master dns name"
+}
+
+variable "k8s_prod_user" {
+  description = "Kubernetes username"
+}
+
+variable "k8s_prod_pass" {
+  description = "Kubernetes password"
+}
+
+variable "k8s_prod_cert_auth" {
+  description = "Kubernetes certificate auth data"
+}
+
+variable "k8s_prod_cert" {
+  description = "Kubernetes client certificate data"
+}
+
+variable "k8s_prod_key" {
+  description = "Kubernetes client key data"
+}
+
+variable "k8s_prod_image" {}
 ####################################
 # JH API
 
@@ -76,6 +112,16 @@ variable "DEV_ETL_STREAM_HOURS" {}
 variable "DEV_ETL_STREAM_SLICES" {}
 variable "DEV_ETL_STREAM_SLEEP_SECS" {}
 variable "DEV_ETL_EPIC_NOTIFICATIONS" {}
+
+variable "PROD_ETL_SERVER" {}
+variable "PROD_ETL_HOSPITAL" {}
+variable "PROD_ETL_HOURS" {}
+variable "PROD_ETL_ARCHIVE" {}
+variable "PROD_ETL_MODE" {}
+variable "PROD_ETL_DEMO_MODE" {}
+variable "PROD_ETL_STREAM_HOURS" {}
+variable "PROD_ETL_STREAM_SLICES" {}
+variable "PROD_ETL_STREAM_SLEEP_SECS" {}
 
 # dev db
 variable "dev_db_username" {}

@@ -43,6 +43,50 @@ module "dev_etl" {
   DEV_ETL_EPIC_NOTIFICATIONS = "${var.DEV_ETL_EPIC_NOTIFICATIONS}"
 }
 
+module "prod_etl" {
+  source = "./prod-services/prod_etl"
+
+  deploy_prefix = "${var.deploy_prefix}"
+  local_shell   = "${var.local_shell}"
+
+  s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
+  aws_klaunch_lambda_package = "${var.aws_klaunch_lambda_package}"
+  aws_klaunch_lambda_role_arn = "${var.aws_klaunch_lambda_role_arn}"
+
+  k8s_prod_server_host = "${var.k8s_prod_server_host}"
+  k8s_prod_server_port = "${var.k8s_prod_server_port}"
+
+  k8s_prod_name      = "${var.k8s_prod_name}"
+  k8s_prod_server    = "${var.k8s_prod_server}"
+  k8s_prod_user      = "${var.k8s_prod_user}"
+  k8s_prod_pass      = "${var.k8s_prod_pass}"
+  k8s_prod_image     = "${var.k8s_prod_image}"
+  k8s_prod_cert_auth = "${var.k8s_prod_cert_auth}"
+  k8s_prod_cert      = "${var.k8s_prod_cert}"
+  k8s_prod_key       = "${var.k8s_prod_key}"
+
+  prod_etl_lambda_firing_rate_mins = "${var.prod_etl_lambda_firing_rate_mins}"
+
+  prod_db_host             = "${var.prod_db_host}"
+  prod_db_name             = "${var.prod_db_name}"
+  prod_db_username         = "${var.prod_db_username}"
+  prod_db_password         = "${var.prod_db_password}"
+  prod_etl_channel         = "${var.prod_etl_channel}"
+
+  jhapi_client_id     = "${var.jhapi_client_id}"
+  jhapi_client_secret = "${var.jhapi_client_secret}"
+
+  PROD_ETL_SERVER             = "${var.PROD_ETL_SERVER}"
+  PROD_ETL_HOSPITAL           = "${var.PROD_ETL_HOSPITAL}"
+  PROD_ETL_HOURS              = "${var.PROD_ETL_HOURS}"
+  PROD_ETL_ARCHIVE            = "${var.PROD_ETL_ARCHIVE}"
+  PROD_ETL_MODE               = "${var.PROD_ETL_MODE}"
+  PROD_ETL_DEMO_MODE          = "${var.PROD_ETL_DEMO_MODE}"
+  PROD_ETL_STREAM_HOURS       = "${var.PROD_ETL_STREAM_HOURS}"
+  PROD_ETL_STREAM_SLICES      = "${var.PROD_ETL_STREAM_SLICES}"
+  PROD_ETL_STREAM_SLEEP_SECS  = "${var.PROD_ETL_STREAM_SLEEP_SECS}"
+}
+
 module "dev_monitor" {
   source = "./dev-services/monitor"
   deploy_prefix = "${var.deploy_prefix}"
