@@ -75,7 +75,7 @@ spec:
           valueFrom:
             secretKeyRef:
               name: rest-api-db-secrets
-              key: dev-db-username
+              key: db-username
         - name: db_password
           valueFrom:
             secretKeyRef:
