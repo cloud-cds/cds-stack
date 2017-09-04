@@ -12,6 +12,6 @@ module "k8s_prod" {
 
 module "k8s_dev_ml" {
   source = "./k8s-dev-ml"
-  #node_sg_id = "sg-f7bb9587"
-  #controller_sg_id = "sg-6592cb15"
+  node_sg_id = "sg-c4c4efb4"
+  controller_sg_id = "sg-6592cb15"
 }
