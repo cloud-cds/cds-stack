@@ -148,18 +148,18 @@ variable "local_shell" {
 }
 
 ####################################
-# dev_ops_etl parameters
+# dev_etl parameters
 
-variable "DEV_OPS_ETL_SERVER" {}
-variable "DEV_OPS_ETL_HOSPITAL" {}
-variable "DEV_OPS_ETL_HOURS" {}
-variable "DEV_OPS_ETL_ARCHIVE" {}
-variable "DEV_OPS_ETL_MODE" {}
-variable "DEV_OPS_ETL_DEMO_MODE" {}
-variable "DEV_OPS_ETL_STREAM_HOURS" {}
-variable "DEV_OPS_ETL_STREAM_SLICES" {}
-variable "DEV_OPS_ETL_STREAM_SLEEP_SECS" {}
-variable "DEV_OPS_ETL_EPIC_NOTIFICATIONS" {}
+variable "DEV_ETL_SERVER" {}
+variable "DEV_ETL_HOSPITAL" {}
+variable "DEV_ETL_HOURS" {}
+variable "DEV_ETL_ARCHIVE" {}
+variable "DEV_ETL_MODE" {}
+variable "DEV_ETL_DEMO_MODE" {}
+variable "DEV_ETL_STREAM_HOURS" {}
+variable "DEV_ETL_STREAM_SLICES" {}
+variable "DEV_ETL_STREAM_SLEEP_SECS" {}
+variable "DEV_ETL_EPIC_NOTIFICATIONS" {}
 
 ###################################
 # K8s
@@ -208,3 +208,4 @@ variable "s3_opsdx_lambda" {}
 
 #variable "dev_db_name" {}
 variable "dev_etl_channel" {}
+variable "dev_etl_lambda_firing_rate_mins" {}

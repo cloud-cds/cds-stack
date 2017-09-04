@@ -1,5 +1,5 @@
-module "dev_ops_etl" {
-  source = "./dev-services/dev_ops_etl"
+module "dev_etl" {
+  source = "./dev-services/dev_etl"
 
   deploy_prefix = "${var.deploy_prefix}"
   local_shell   = "${var.local_shell}"
@@ -20,7 +20,7 @@ module "dev_ops_etl" {
   k8s_dev_cert      = "${var.k8s_dev_cert}"
   k8s_dev_key       = "${var.k8s_dev_key}"
 
-  dev_ops_etl_lambda_firing_rate_mins = "${var.dev_ops_etl_lambda_firing_rate_mins}"
+  dev_etl_lambda_firing_rate_mins = "${var.dev_etl_lambda_firing_rate_mins}"
 
   dev_db_host             = "${var.dev_db_host}"
   dev_db_name             = "${var.dev_db_name}"
@@ -31,14 +31,14 @@ module "dev_ops_etl" {
   jhapi_client_secret = "${var.jhapi_client_secret}"
   dev_etl_channel         = "${var.dev_etl_channel}"
 
-  DEV_OPS_ETL_SERVER             = "${var.DEV_OPS_ETL_SERVER}"
-  DEV_OPS_ETL_HOSPITAL           = "${var.DEV_OPS_ETL_HOSPITAL}"
-  DEV_OPS_ETL_HOURS              = "${var.DEV_OPS_ETL_HOURS}"
-  DEV_OPS_ETL_ARCHIVE            = "${var.DEV_OPS_ETL_ARCHIVE}"
-  DEV_OPS_ETL_MODE               = "${var.DEV_OPS_ETL_MODE}"
-  DEV_OPS_ETL_DEMO_MODE          = "${var.DEV_OPS_ETL_DEMO_MODE}"
-  DEV_OPS_ETL_STREAM_HOURS       = "${var.DEV_OPS_ETL_STREAM_HOURS}"
-  DEV_OPS_ETL_STREAM_SLICES      = "${var.DEV_OPS_ETL_STREAM_SLICES}"
-  DEV_OPS_ETL_STREAM_SLEEP_SECS  = "${var.DEV_OPS_ETL_STREAM_SLEEP_SECS}"
-  DEV_OPS_ETL_EPIC_NOTIFICATIONS = "${var.DEV_OPS_ETL_EPIC_NOTIFICATIONS}"
+  DEV_ETL_SERVER             = "${var.DEV_ETL_SERVER}"
+  DEV_ETL_HOSPITAL           = "${var.DEV_ETL_HOSPITAL}"
+  DEV_ETL_HOURS              = "${var.DEV_ETL_HOURS}"
+  DEV_ETL_ARCHIVE            = "${var.DEV_ETL_ARCHIVE}"
+  DEV_ETL_MODE               = "${var.DEV_ETL_MODE}"
+  DEV_ETL_DEMO_MODE          = "${var.DEV_ETL_DEMO_MODE}"
+  DEV_ETL_STREAM_HOURS       = "${var.DEV_ETL_STREAM_HOURS}"
+  DEV_ETL_STREAM_SLICES      = "${var.DEV_ETL_STREAM_SLICES}"
+  DEV_ETL_STREAM_SLEEP_SECS  = "${var.DEV_ETL_STREAM_SLEEP_SECS}"
+  DEV_ETL_EPIC_NOTIFICATIONS = "${var.DEV_ETL_EPIC_NOTIFICATIONS}"
 }

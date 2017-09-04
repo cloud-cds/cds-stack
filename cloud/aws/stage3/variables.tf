@@ -63,16 +63,16 @@ variable "deploy_prefix" {}
 ####################################
 # Trews ETL parameters
 
-variable "DEV_OPS_ETL_SERVER" {}
-variable "DEV_OPS_ETL_HOSPITAL" {}
-variable "DEV_OPS_ETL_HOURS" {}
-variable "DEV_OPS_ETL_ARCHIVE" {}
-variable "DEV_OPS_ETL_MODE" {}
-variable "DEV_OPS_ETL_DEMO_MODE" {}
-variable "DEV_OPS_ETL_STREAM_HOURS" {}
-variable "DEV_OPS_ETL_STREAM_SLICES" {}
-variable "DEV_OPS_ETL_STREAM_SLEEP_SECS" {}
-variable "DEV_OPS_ETL_EPIC_NOTIFICATIONS" {}
+variable "DEV_ETL_SERVER" {}
+variable "DEV_ETL_HOSPITAL" {}
+variable "DEV_ETL_HOURS" {}
+variable "DEV_ETL_ARCHIVE" {}
+variable "DEV_ETL_MODE" {}
+variable "DEV_ETL_DEMO_MODE" {}
+variable "DEV_ETL_STREAM_HOURS" {}
+variable "DEV_ETL_STREAM_SLICES" {}
+variable "DEV_ETL_STREAM_SLEEP_SECS" {}
+variable "DEV_ETL_EPIC_NOTIFICATIONS" {}
 
 # dev db
 variable "dev_db_username" {}
@@ -83,6 +83,6 @@ variable "s3_opsdx_lambda" {}
 variable "aws_klaunch_lambda_role_arn" {}
 variable "aws_klaunch_lambda_package" {}
 variable "dev_etl_channel" {}
-variable "dev_ops_etl_lambda_firing_rate_mins" {}
+variable "dev_etl_lambda_firing_rate_mins" {}
 variable "dev_db_host" {}
 variable "dev_db_name" {}
