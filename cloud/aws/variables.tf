@@ -202,10 +202,27 @@ variable "k8s_dev_key" {
 
 variable "k8s_dev_image" {}
 
-variable "aws_klaunch_lambda_role_arn" {}
-variable "aws_klaunch_lambda_package" {}
-variable "s3_opsdx_lambda" {}
 
 #variable "dev_db_name" {}
 variable "dev_etl_channel" {}
 variable "dev_etl_lambda_firing_rate_mins" {}
+
+
+####################################
+# Lambda packages
+
+variable "s3_opsdx_lambda" {}
+
+variable "aws_klaunch_lambda_role_arn" {}
+variable "aws_klaunch_lambda_package" {}
+
+variable "aws_alarm2slack_package" {}
+
+
+######################################
+# Alarm2Slack
+
+variable "alarm2slack_kms_key_arn" {}
+variable "slack_hook" {}
+variable "slack_channel" {}
+variable "slack_watchers" {}

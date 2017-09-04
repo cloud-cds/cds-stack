@@ -56,7 +56,9 @@ module "stage3" {
   source = "./stage3"
   deploy_prefix = "${var.deploy_prefix}"
   local_shell   = "${var.local_shell}"
+
   domain = "${var.domain}"
+
   s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
   aws_klaunch_lambda_package = "${var.aws_klaunch_lambda_package}"
   aws_klaunch_lambda_role_arn = "${var.aws_klaunch_lambda_role_arn}"
@@ -79,10 +81,10 @@ module "stage3" {
   dev_db_name             = "opsdx_dev"
   dev_db_username         = "${var.dev_db_username}"
   dev_db_password         = "${var.dev_db_password}"
+  dev_etl_channel         = "${var.dev_etl_channel}"
 
   jhapi_client_id     = "${var.jhapi_client_id}"
   jhapi_client_secret = "${var.jhapi_client_secret}"
-  dev_etl_channel     = "${var.dev_etl_channel}"
 
   DEV_ETL_SERVER             = "${var.DEV_ETL_SERVER}"
   DEV_ETL_HOSPITAL           = "${var.DEV_ETL_HOSPITAL}"
@@ -94,6 +96,12 @@ module "stage3" {
   DEV_ETL_STREAM_SLICES      = "${var.DEV_ETL_STREAM_SLICES}"
   DEV_ETL_STREAM_SLEEP_SECS  = "${var.DEV_ETL_STREAM_SLEEP_SECS}"
   DEV_ETL_EPIC_NOTIFICATIONS = "${var.DEV_ETL_EPIC_NOTIFICATIONS}"
+
+  aws_alarm2slack_package = "${var.aws_alarm2slack_package}"
+  alarm2slack_kms_key_arn = "${var.alarm2slack_kms_key_arn}"
+  slack_hook              = "${var.slack_hook}"
+  slack_channel           = "${var.slack_channel}"
+  slack_watchers          = "${var.slack_watchers}"
 }
 
 

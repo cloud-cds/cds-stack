@@ -1,5 +1,5 @@
 module "dev_etl" {
-  source = "./dev-services/dev_etl"
+  source = "./dev_etl"
 
   deploy_prefix = "${var.deploy_prefix}"
   local_shell   = "${var.local_shell}"
@@ -41,4 +41,18 @@ module "dev_etl" {
   DEV_ETL_STREAM_SLICES      = "${var.DEV_ETL_STREAM_SLICES}"
   DEV_ETL_STREAM_SLEEP_SECS  = "${var.DEV_ETL_STREAM_SLEEP_SECS}"
   DEV_ETL_EPIC_NOTIFICATIONS = "${var.DEV_ETL_EPIC_NOTIFICATIONS}"
+}
+
+
+module "monitor" {
+  source = "./monitor"
+  deploy_prefix = "${var.deploy_prefix}"
+
+  s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
+  aws_alarm2slack_package = "${var.aws_alarm2slack_package}"
+  alarm2slack_kms_key_arn = "${var.alarm2slack_kms_key_arn}"
+
+  slack_hook     = "${var.slack_hook}"
+  slack_channel  = "${var.slack_channel}"
+  slack_watchers = "${var.slack_watchers}"
 }
