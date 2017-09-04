@@ -64,6 +64,7 @@ resource "aws_autoscaling_attachment" "master-us-east-1d-masters-cluster-prod-jh
 resource "aws_autoscaling_group" "etl-cluster-prod-jh-opsdx-io" {
   name                 = "etl.cluster-prod.jh.opsdx.io"
   launch_configuration = "${aws_launch_configuration.etl-cluster-prod-jh-opsdx-io.id}"
+  desired_capacity     = 1
   max_size             = 10
   min_size             = 0
   vpc_zone_identifier  = ["subnet-b8b3e1e2", "subnet-89c49da5", "subnet-52acb31a"]
@@ -355,6 +356,7 @@ resource "aws_autoscaling_group" "predictor-cluster-prod-jh-opsdx-io" {
 resource "aws_autoscaling_group" "web-cluster-prod-jh-opsdx-io" {
   name                 = "web.cluster-prod.jh.opsdx.io"
   launch_configuration = "${aws_launch_configuration.web-cluster-prod-jh-opsdx-io.id}"
+  desired_capacity     = 2
   max_size             = 10
   min_size             = 0
   vpc_zone_identifier  = ["subnet-b8b3e1e2", "subnet-89c49da5", "subnet-52acb31a"]
