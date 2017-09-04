@@ -43,8 +43,22 @@ module "dev_etl" {
   DEV_ETL_EPIC_NOTIFICATIONS = "${var.DEV_ETL_EPIC_NOTIFICATIONS}"
 }
 
-module "monitor" {
+module "dev_monitor" {
   source = "./dev-services/monitor"
+  deploy_prefix = "${var.deploy_prefix}"
+
+  s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
+  aws_alarm2slack_package = "${var.aws_alarm2slack_package}"
+  alarm2slack_kms_key_arn = "${var.alarm2slack_kms_key_arn}"
+
+  slack_hook     = "${var.slack_hook}"
+  slack_channel  = "${var.slack_channel}"
+  slack_watchers = "${var.slack_watchers}"
+}
+
+
+module "prod_monitor" {
+  source = "./prod-services/monitor"
   deploy_prefix = "${var.deploy_prefix}"
 
   s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
