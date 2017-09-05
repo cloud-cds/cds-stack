@@ -13,18 +13,19 @@ import json
 from etl.io_config import server_protocol as protocol
 import etl.io_config.core as core
 
-async def extract_non_discharged_patients(ctxt):
+async def extract_non_discharged_patients(ctxt, hospital):
   '''
   Get all patient ids (EMRN) from pat_enc that don't have a discharge
   time in cdm_t.
   '''
   query_string = """
     SELECT DISTINCT pe.pat_id, pe.enc_id, pe.visit_id
-    FROM pat_enc pe INNER JOIN cdm_s cs ON (pe.enc_id = cs.enc_id)
+    FROM pat_enc pe INNER JOIN cdm_s cs ON pe.enc_id = cs.enc_id
+    inner join pat_hosp() h on pe.pat_id = h.pat_id
     WHERE cs.fid = 'admittime' AND cs.enc_id NOT IN (
       SELECT DISTINCT enc_id FROM cdm_t WHERE fid = 'discharge'
-    )
-  """
+    ) and h.hospital = '{}'
+  """.format(hospital)
   async with ctxt.db_pool.acquire() as conn:
     pats_no_discharge = await conn.fetch(query_string)
     pat_ids = [{
@@ -566,7 +567,11 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
     Task(name = 'drop_tables',
          deps = ['workspace_to_criteria_meas'],
          coro = drop_tables,
-         args = [2])]
+         args = [2]),
+    Task(name = 'load_discharge_times',
+         deps = ['contacts_transform'],
+         coro = load_discharge_times),
+        ]
   if not suppression:
     all_tasks += [
                   Task(name = 'get_notifications_for_epic',
@@ -575,9 +580,6 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
                   ]
   else:
     all_tasks += [
-                  Task(name = 'load_discharge_times',
-                       deps = ['contacts_transform'],
-                       coro = load_discharge_times),
                   Task(name = 'notify_data_ready_to_alert_server',
                        deps = ['workspace_to_criteria_meas'],
                        coro = notify_data_ready_to_alert_server)

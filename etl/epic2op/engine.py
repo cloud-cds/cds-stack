@@ -431,6 +431,7 @@ def get_extraction_tasks(extractor, max_pats=None):
     {
       'name': 'non_discharged_patients_extract',
       'coro':  loader.extract_non_discharged_patients,
+      'args': [extractor.hospital]
     }, {
       'name': 'contacts_extract',
       'deps': ['non_discharged_patients_extract'],
