@@ -1,0 +1,293 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tensorflow-svc
+  labels:
+    app: tensorflow-svc
+spec:
+  ports:
+  - port: 2222
+    name: server
+  clusterIP: None
+  selector:
+    app: tensorflow
+---
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  name: tflmc1
+spec:
+  serviceName: tensorflow-svc
+  replicas: 1 # Needs to be twice 'NUM_WORKERS' for an active and backup pod (actual number of pods)
+  template:
+    metadata:
+      labels:
+        app: tensorflow
+      annotations:
+        pod.alpha.kubernetes.io/initialized: "true"
+        scheduler.alpha.kubernetes.io/affinity: >
+            {
+              "podAntiAffinity": {
+                "requiredDuringSchedulingIgnoredDuringExecution": [{
+                  "labelSelector": {
+                    "matchExpressions": [{
+                      "key": "app",
+                      "operator": "In",
+                      "values": ["tensorflow"]
+                    }]
+                  },
+                  "topologyKey": "kubernetes.io/hostname"
+                }]
+              }
+            }
+    spec:
+      containers:
+      - name: tensorflow-long
+        imagePullPolicy: Always
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/tensorflow:0.0.85
+        ports:
+        - containerPort: 2222
+          name: server
+        env:
+        - name : K8S_DEPLOYMENT
+          value: 'True'
+        - name : NUM_WORKERS
+          value: '1'
+        - name : COMMO_PORT
+          value: '8181'
+        - name : ACTIVE_PREDICTOR
+          value: 'True'
+        - name : HOSPITAL_REGEX
+          value: 'HCGH'
+        - name : LMCHOME
+          value: /lmc/LMC-Based-On-GPflow/
+        - name : DESCRIP
+          value: 'predict'
+        - name : TEST_ONLY
+          value: 'True'
+        - name : TRAIN_EID
+          value: '2436'
+        - name : MODEL_DATA_DIR
+          value: '/bucket/lmc/model'
+        - name : MODEL_TYPE
+          value: 'long'
+        - name : OVERLAP_TIME
+          value: '12'
+        - name : TIME_INTERVAL
+          value: '-1'
+        - name : ALL_TEST
+          value: 'True'
+        - name : NUM_WINDOWS
+          value: '-1'
+        - name : NUM_TEST_WINDOWS
+          value: '-1'
+        - name : SIMULATED_TIME
+          value: '1 hour ago'
+        - name : THROTTLE_TIME
+          value: '0'
+        - name : SOLVER
+          value: 'adagrad'
+        - name : NUM_LOCAL_ADAGRAD
+          value: '30'
+        - name : LOCAL_ADAGRAD_RATE
+          value: '0.05'
+        - name : SOLVER_MAX_ITERS
+          value: '50'
+        - name: GLOBAL_OPT_METHOD
+          value: 'adam'
+        - name : MAX_SVI_ITERS
+          value: '1500'
+        - name : LEARN_RATE
+          value: '0.001'
+        - name : ADAM_B1
+          value: '0.5'
+        - name : ADAM_B2
+          value: '0.999'
+        - name : PRED_DELTA
+          value: '7'
+        - name : BATCH_SIZE
+          value: '1'
+        - name : MIN_NUM_SAMPLES
+          value: '3'
+        - name : NUM_MC_SAMPLES
+          value: '500'
+        - name : INTEGRAL_FEATURES
+          value: 'True'
+        - name : LKH_TYPE
+          value: 'StudentT'
+        - name : PRED_LABEL
+          value: 'severe_sepsis'
+        - name : NUM_SHRD_KERNS
+          value: '2'
+        - name : KERN_EPSILON
+          value: 'False'
+        - name : KERN_EPS_REG
+          value: '100.0'
+        - name : ALPHA_REG
+          value: '0'
+        - name : GAMMA_REG
+          value: '0'
+        - name : MU_REG
+          value: '0'
+        - name : FEAT_SIZE
+          value: '5'
+        - name : TOTAL_NUM_PATIENTS
+          value: '-1'
+        - name : DATASOURCE
+          value: 'SQL'
+        - name : POPSTATS_FILE
+          value: '/bucket/lmc/data/cdm6_popstats.pkl'
+        - name : LABEL_ID
+          value: '30'
+        - name : DATASET
+          value: '1'
+        - name : DATABASE
+          value: 'dev'
+        - name: DB_PASS
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: db-password
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-secret-access-key
+        command:
+        - sh
+        - -c
+        - cd /lmc/LMC-Based-On-GPflow && ./predict_k8s.sh
+        securityContext:
+          privileged: true
+
+      # - name: tensorflow-short
+      #   imagePullPolicy: Always
+      #   image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/tensorflow:latest
+      #   ports:
+      #   - containerPort: 2222
+      #     name: server
+      #   env:
+      #   - name : K8S_DEPLOYMENT
+      #     value: 'True'
+      #   - name : NUM_WORKERS
+      #     value: '4'
+      #   - name : COMMO_PORT
+      #     value: '8182'
+      #   - name : ACTIVE_PREDICTOR
+      #     value: 'True'
+      #   - name : HOSPITAL_REGEX
+      #     value: 'HCGH'
+      #   - name : LMCHOME
+      #     value: /lmc/LMC-Based-On-GPflow/
+      #   - name : DESCRIP
+      #     value: 'predict'
+      #   - name : TEST_ONLY
+      #     value: 'True'
+      #   - name : TRAIN_EID
+      #     value: '2408'
+      #   - name : MODEL_DATA_DIR
+      #     value: '/bucket/lmc/model'
+      #   - name : MODEL_TYPE
+      #     value: 'short'
+      #   - name : OVERLAP_TIME
+      #     value: '12'
+      #   - name : TIME_INTERVAL
+      #     value: '-1'
+      #   - name : ALL_TEST
+      #     value: 'True'
+      #   - name : NUM_WINDOWS
+      #     value: '-1'
+      #   - name : NUM_TEST_WINDOWS
+      #     value: '-1'
+      #   - name : SIMULATED_TIME
+      #     value: '1 hour ago'
+      #   - name : THROTTLE_TIME
+      #     value: '0'
+      #   - name : SOLVER
+      #     value: 'scipy'
+      #   - name : NUM_LOCAL_ADAGRAD
+      #     value: '20'
+      #   - name : LOCAL_ADAGRAD_RATE
+      #     value: '0.05'
+      #   - name : SOLVER_MAX_ITERS
+      #     value: '500'
+      #   - name: GLOBAL_OPT_METHOD
+      #     value: 'adam'
+      #   - name : MAX_SVI_ITERS
+      #     value: '1500'
+      #   - name : LEARN_RATE
+      #     value: '0.001'
+      #   - name : ADAM_B1
+      #     value: '0.5'
+      #   - name : ADAM_B2
+      #     value: '0.999'
+      #   - name : PRED_DELTA
+      #     value: '7'
+      #   - name : BATCH_SIZE
+      #     value: '1'
+      #   - name : MIN_NUM_SAMPLES
+      #     value: '1'
+      #   - name : NUM_MC_SAMPLES
+      #     value: '500'
+      #   - name : INTEGRAL_FEATURES
+      #     value: 'True'
+      #   - name : LKH_TYPE
+      #     value: 'StudentT'
+      #   - name : PRED_LABEL
+      #     value: 'severe_sepsis'
+      #   - name : NUM_SHRD_KERNS
+      #     value: '1'
+      #   - name : KERN_EPSILON
+      #     value: 'False'
+      #   - name : KERN_EPS_REG
+      #     value: '100.0'
+      #   - name : ALPHA_REG
+      #     value: '0'
+      #   - name : GAMMA_REG
+      #     value: '0'
+      #   - name : MU_REG
+      #     value: '0'
+      #   - name : FEAT_SIZE
+      #     value: '5'
+      #   - name : TOTAL_NUM_PATIENTS
+      #     value: '-1'
+      #   - name : DATASOURCE
+      #     value: 'SQL'
+      #   - name : POPSTATS_FILE
+      #     value: '/bucket/lmc/data/cdm6_popstats.pkl'
+      #   - name : LABEL_ID
+      #     value: '30'
+      #   - name : DATASET
+      #     value: '1'
+      #   - name : DATABASE
+      #     value: 'dev'
+      #   - name : DB_PASS
+      #     valueFrom:
+      #       secretKeyRef:
+      #         name: dbpass
+      #         key : dbpass_dev
+      #   - name : AWS_ACCESS_KEY_ID
+      #     valueFrom:
+      #       secretKeyRef:
+      #         name: aws
+      #         key : key_id
+      #   - name : AWS_SECRET_ACCESS_KEY
+      #     valueFrom:
+      #       secretKeyRef:
+      #         name: aws
+      #         key : access_key
+      #   command:
+      #   - sh
+      #   - -c
+      #   - cd /lmc/LMC-Based-On-GPflow && ./predict_k8s.sh
+      #   securityContext:
+      #     privileged: true
+
+      nodeSelector:
+        opsdx_nodegroup: predictor4
