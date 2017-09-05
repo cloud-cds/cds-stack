@@ -82,6 +82,19 @@ module "stage3" {
   k8s_dev_cert      = "${var.k8s_dev_cert}"
   k8s_dev_key       = "${var.k8s_dev_key}"
 
+  k8s_prod_server_host = "${var.k8s_prod_server_host}"
+  k8s_prod_server_port = "${var.k8s_prod_server_port}"
+
+  k8s_prod_name      = "${var.k8s_prod_name}"
+  k8s_prod_server    = "${var.k8s_prod_server}"
+  k8s_prod_user      = "${var.k8s_prod_user}"
+  k8s_prod_pass      = "${var.k8s_prod_pass}"
+  k8s_prod_image     = "${var.k8s_prod_image}"
+  k8s_prod_cert_auth = "${var.k8s_prod_cert_auth}"
+  k8s_prod_cert      = "${var.k8s_prod_cert}"
+  k8s_prod_key       = "${var.k8s_prod_key}"
+
+
   dev_db_host             = "dev.db.${var.domain}"
   dev_db_name             = "opsdx_dev"
   dev_db_username         = "${var.dev_db_username}"
@@ -111,6 +124,15 @@ module "stage3" {
   DEV_ETL_STREAM_SLEEP_SECS  = "${var.DEV_ETL_STREAM_SLEEP_SECS}"
   DEV_ETL_EPIC_NOTIFICATIONS = "${var.DEV_ETL_EPIC_NOTIFICATIONS}"
 
+  PROD_ETL_SERVER             = "${var.PROD_ETL_SERVER}"
+  PROD_ETL_HOSPITAL           = "${var.PROD_ETL_HOSPITAL}"
+  PROD_ETL_HOURS              = "${var.PROD_ETL_HOURS}"
+  PROD_ETL_ARCHIVE            = "${var.PROD_ETL_ARCHIVE}"
+  PROD_ETL_MODE               = "${var.PROD_ETL_MODE}"
+  PROD_ETL_DEMO_MODE          = "${var.PROD_ETL_DEMO_MODE}"
+  PROD_ETL_STREAM_HOURS       = "${var.PROD_ETL_STREAM_HOURS}"
+  PROD_ETL_STREAM_SLICES      = "${var.PROD_ETL_STREAM_SLICES}"
+  PROD_ETL_STREAM_SLEEP_SECS  = "${var.PROD_ETL_STREAM_SLEEP_SECS}"
 
   ######################################
   # Behavior monitors
