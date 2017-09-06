@@ -2388,7 +2388,7 @@ begin
     (select distinct e.pat_id
     from criteria_events e
     inner join lateral get_states_snapshot(e.pat_id) SNP on e.pat_id = SNP.pat_id
-    where flag in (22,24,32,34,36) and now() - SNP.severe_sepsis_wo_infection_initial > get_parameter('deactivate_expire_hours')::interval
+    where flag in (22,24,32,34,36) and now() - SNP.severe_sepsis_onset > get_parameter('deactivate_expire_hours')::interval
     and e.pat_id = coalesce(this_pat_id, e.pat_id)) p;
 end; $$;
 
