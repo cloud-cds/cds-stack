@@ -2509,7 +2509,9 @@ var toolbar = new function() {
     var hour = 3600 * 1000;
     var now = timeline.chart.getCurrentTime();
     var itemRange = timeline.chart.getItemRange();
-    timeline.chart.setWindow(new Date(itemRange.min.getTime() - 2 * hour), new Date(now.getTime() + 2 * hour));
+    var minTime = itemRange.min == null ? now.getTime() - 6 * hour : itemRange.min.getTime();
+    var maxTime = now.getTime();
+    timeline.chart.setWindow(new Date(minTime - 2 * hour), new Date(maxTime + 2 * hour));
   }
 
   this.init = function() {
