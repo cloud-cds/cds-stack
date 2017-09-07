@@ -475,20 +475,9 @@ async def override_criteria(db_pool, eid, name, value='[{}]', user='user', clear
 
 
 async def reset_patient(db_pool, eid, uid='user', event_id=None):
-  event_where_clause = '' if event_id is None or event_id == 'None' else 'and event_id = %(evid)s' % {'evid' : event_id }
   reset_sql = """
-  update criteria_events set flag = flag - 1000
-  where pat_id = '%(pid)s' %(where_clause)s;
-  insert into criteria_log (pat_id, tsp, event, update_date)
-  values (
-          '%(pid)s',
-          now(),
-          '{"event_type": "reset", "uid":"%(uid)s"}',
-          now()
-      );
-  delete from notifications where pat_id = '%(pid)s';
-  select advance_criteria_snapshot('%(pid)s', 'reset');
-  """ % {'pid': eid, 'where_clause': event_where_clause, 'uid': uid}
+  select * from reset_patient({}{});
+  """.format(eid, ',{}'.format(event_id) if event_id is not None else '')
   logging.info("reset_patient:" + reset_sql)
 
   async with db_pool.acquire() as conn:
