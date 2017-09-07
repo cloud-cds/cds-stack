@@ -374,9 +374,7 @@ async def workspace_submit(ctxt, job_id):
   """
   submit_t = """
     INSERT INTO cdm_t
-      (SELECT * FROM workspace.%(job)s_cdm_t
-       where now() - tsp < (select value::interval from parameters where name = 'etl_workspace_submit_hours')
-       )
+    SELECT * FROM workspace.%(job)s_cdm_t
     ON conflict (enc_id, tsp, fid) do UPDATE
     SET value = excluded.value, confidence = excluded.confidence;
     SELECT drop_tables('workspace', '%(job)s_cdm_t');
