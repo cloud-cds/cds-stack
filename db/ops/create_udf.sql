@@ -2360,7 +2360,7 @@ as $$ begin
     inner join lateral get_states_snapshot(s.pat_id) SNP on s.pat_id = SNP.pat_id
     where deactivated
     and now() - SNP.severe_sepsis_onset > get_parameter('deactivate_expire_hours')::interval
-    and pat_id = coalesce(this_pat_id, pat_id);
+    and s.pat_id = coalesce(this_pat_id, s.pat_id);
 end; $$;
 
 create or replace function reset_soi_pats(this_pat_id text default null)
