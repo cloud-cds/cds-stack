@@ -591,7 +591,7 @@ async def save_feedback(db_pool, doc_id, pat_id, dep_id, feedback):
 
 
 async def notify_pat_update(db_pool, channel, pat_id):
-  notify_sql = "notify {}, 'invalidate_cache:{}'".format(channel, pat_id)
+  notify_sql = "notify {}, 'invalidate_cache:{}:{}'".format(channel, pat_id,'lmc' if use_trews_lmc else 'trews')
   logging.info("notify_sql: " + notify_sql)
   async with db_pool.acquire() as conn:
     await conn.execute(notify_sql)

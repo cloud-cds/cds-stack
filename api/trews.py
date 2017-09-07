@@ -76,6 +76,8 @@ order_link_mode = os.environ['order_link_mode'] if 'order_link_mode' in os.envir
 force_server_loc = os.environ['force_server_loc'] if 'force_server_loc' in os.environ else None
 force_server_dep = os.environ['force_server_dep'] if 'force_server_dep' in os.environ else None
 
+use_trews_lmc = os.environ['use_trews_lmc'].lower() == 'true' if 'use_trews_lmc' in os.environ else False
+
 logging.info('''TREWS Configuration::
   release: %s
   encrypted query: %s
@@ -374,14 +376,16 @@ def etl_channel_recv(conn, proc_id, channel, payload):
     # the original mode without suppression alert
     invalidate_cache(conn, proc_id, channel, payload)
   else:
-    # the simple payload format is <header>:<body>
-    header, body = payload.split(":")
-    if header == 'invalidate_cache':
-      invalidate_cache(conn, proc_id, channel, body.split(","))
-    elif header == 'future_epic_sync':
-      add_future_epic_sync(conn, proc_id, channel, body)
+    # the simple payload format is <header>:<body>:<model>
+    if payload.startswith('invalidate_cache'):
+      header, body, model = payload.split(":")
+      if (use_trews_lmc and model == 'lmc') or (not use_trews_lmc and model == 'trews'):
+        invalidate_cache(conn, proc_id, channel, body.split(","))
+      elif payload.startswith('future_epic_sync'):
+        header, body = payload.split(":")
+        add_future_epic_sync(conn, proc_id, channel, body)
     else:
-      logging.error("ETL Channel Error: Unknown payload header {}".format(header))
+      logging.error("ETL Channel Error: Unknown payload {}".format(payload))
 
 
 def invalidate_cache(conn, pid, channel, pat_ids):
@@ -393,6 +397,11 @@ def invalidate_cache(conn, pid, channel, pat_ids):
     for pat_id in pat_ids:
       logging.info("Invalidating cache for %s" % pat_id)
       asyncio.ensure_future(pat_cache.delete(pat_id))
+      if 'db_pool' in app:
+        asyncio.ensure_future(\
+          dashan_query.push_notifications_to_epic(app['db_pool'], pat_id,
+            notify_future_notification=False))
+
 
 def add_future_epic_sync(conn, proc_id, channel, body):
   global epic_sync_tasks
