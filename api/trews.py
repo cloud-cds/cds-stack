@@ -378,12 +378,15 @@ def etl_channel_recv(conn, proc_id, channel, payload):
   else:
     # the simple payload format is <header>:<body>:<model>
     if payload.startswith('invalidate_cache'):
-      header, body, model = payload.split(":")
-      if (use_trews_lmc and model == 'lmc') or (not use_trews_lmc and model == 'trews'):
-        invalidate_cache(conn, proc_id, channel, body.split(","))
-      elif payload.startswith('future_epic_sync'):
-        header, body = payload.split(":")
-        add_future_epic_sync(conn, proc_id, channel, body)
+      if payload.count(':') == 2:
+        header, body, model = payload.split(":")
+        if (use_trews_lmc and model == 'lmc') or (not use_trews_lmc and model == 'trews'):
+          invalidate_cache(conn, proc_id, channel, body.split(","))
+        elif payload.startswith('future_epic_sync'):
+          header, body = payload.split(":")
+          add_future_epic_sync(conn, proc_id, channel, body)
+      else:
+        logging.error("invalidate_cache payload error: {}".format(payload))
     else:
       logging.error("ETL Channel Error: Unknown payload {}".format(payload))
 
