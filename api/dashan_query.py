@@ -476,7 +476,7 @@ async def override_criteria(db_pool, eid, name, value='[{}]', user='user', clear
 
 async def reset_patient(db_pool, eid, uid='user', event_id=None):
   reset_sql = """
-  select * from reset_patient({}{});
+  select * from reset_patient('{}'{});
   """.format(eid, ',{}'.format(event_id) if event_id is not None else '')
   logging.info("reset_patient:" + reset_sql)
 

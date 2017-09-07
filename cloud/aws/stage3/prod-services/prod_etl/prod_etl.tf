@@ -75,7 +75,7 @@ resource "aws_lambda_function" "prod_etl_lambda_HCGH" {
 
         kube_cmd_0 = "sh"
         kube_cmd_1 = "-c"
-        kube_cmd_2 = "/usr/local/bin/python3 /dashan-etl/etl/epic2op/engine.py --hospital=HCGH"
+        kube_cmd_2 = "/usr/local/bin/python3 /etl/epic2op/engine.py --hospital=HCGH"
 
         k8s_job_db_host     = "${var.prod_db_host}"
         k8s_job_db_port     = "${var.prod_db_port}"
@@ -102,7 +102,6 @@ resource "aws_lambda_function" "prod_etl_lambda_HCGH" {
 }
 
 resource "aws_lambda_function" "prod_etl_lambda_JHH" {
-
     function_name    = "${var.deploy_prefix}-prod-etl-lambda-JHH"
     handler          = "service.handler"
     s3_bucket        = "${var.s3_opsdx_lambda}"
@@ -110,12 +109,10 @@ resource "aws_lambda_function" "prod_etl_lambda_JHH" {
     role             = "${var.aws_klaunch_lambda_role_arn}"
     runtime          = "python2.7"
     timeout          = 300
-
     environment {
       variables {
         PYKUBE_KUBERNETES_SERVICE_HOST = "${var.k8s_prod_server_host}"
         PYKUBE_KUBERNETES_SERVICE_PORT = "${var.k8s_prod_server_port}"
-
         kube_job_name  = "epic2op-jhh-prod"
         kube_nodegroup = "etl"
         kube_cpu_requests = "500m"
@@ -127,21 +124,17 @@ resource "aws_lambda_function" "prod_etl_lambda_JHH" {
         kube_pass      = "${var.k8s_prod_pass}"
         kube_image     = "${var.k8s_prod_image}"
         kube_active_deadline_seconds = "300"
-
         kube_cmd_0 = "sh"
         kube_cmd_1 = "-c"
-        kube_cmd_2 = "/usr/local/bin/python3 /dashan-etl/etl/epic2op/engine.py --hospital=JHH"
-
+        kube_cmd_2 = "/usr/local/bin/python3 /etl/epic2op/engine.py --hospital=JHH"
         k8s_job_db_host     = "${var.prod_db_host}"
         k8s_job_db_port     = "${var.prod_db_port}"
         k8s_job_db_name     = "${var.prod_db_name}"
         k8s_job_db_user     = "${var.prod_db_username}"
         k8s_job_db_password = "${var.prod_db_password}"
-
         k8s_job_jhapi_client_id     = "${var.jhapi_client_id}"
         k8s_job_jhapi_client_secret = "${var.jhapi_client_secret}"
         k8s_job_etl_channel         = "${var.prod_etl_channel}"
-
         k8s_job_TREWS_ETL_SERVER             = "${var.PROD_ETL_SERVER}"
         k8s_job_TREWS_ETL_HOSPITAL           = "JHH"
         k8s_job_TREWS_ETL_HOURS              = "${var.PROD_ETL_HOURS}"
@@ -157,7 +150,6 @@ resource "aws_lambda_function" "prod_etl_lambda_JHH" {
 }
 
 resource "aws_lambda_function" "prod_etl_lambda_BMC" {
-
     function_name    = "${var.deploy_prefix}-prod-etl-lambda-BMC"
     handler          = "service.handler"
     s3_bucket        = "${var.s3_opsdx_lambda}"
@@ -165,12 +157,10 @@ resource "aws_lambda_function" "prod_etl_lambda_BMC" {
     role             = "${var.aws_klaunch_lambda_role_arn}"
     runtime          = "python2.7"
     timeout          = 300
-
     environment {
       variables {
         PYKUBE_KUBERNETES_SERVICE_HOST = "${var.k8s_prod_server_host}"
         PYKUBE_KUBERNETES_SERVICE_PORT = "${var.k8s_prod_server_port}"
-
         kube_job_name  = "epic2op-bmc-prod"
         kube_nodegroup = "etl"
         kube_cpu_requests = "250m"
@@ -182,21 +172,17 @@ resource "aws_lambda_function" "prod_etl_lambda_BMC" {
         kube_pass      = "${var.k8s_prod_pass}"
         kube_image     = "${var.k8s_prod_image}"
         kube_active_deadline_seconds = "300"
-
         kube_cmd_0 = "sh"
         kube_cmd_1 = "-c"
-        kube_cmd_2 = "/usr/local/bin/python3 /dashan-etl/etl/epic2op/engine.py --hospital=BMC"
-
+        kube_cmd_2 = "/usr/local/bin/python3 /etl/epic2op/engine.py --hospital=BMC"
         k8s_job_db_host     = "${var.prod_db_host}"
         k8s_job_db_port     = "${var.prod_db_port}"
         k8s_job_db_name     = "${var.prod_db_name}"
         k8s_job_db_user     = "${var.prod_db_username}"
         k8s_job_db_password = "${var.prod_db_password}"
-
         k8s_job_jhapi_client_id     = "${var.jhapi_client_id}"
         k8s_job_jhapi_client_secret = "${var.jhapi_client_secret}"
         k8s_job_etl_channel         = "${var.prod_etl_channel}"
-
         k8s_job_TREWS_ETL_SERVER             = "${var.PROD_ETL_SERVER}"
         k8s_job_TREWS_ETL_HOSPITAL           = "BMC"
         k8s_job_TREWS_ETL_HOURS              = "${var.PROD_ETL_HOURS}"
