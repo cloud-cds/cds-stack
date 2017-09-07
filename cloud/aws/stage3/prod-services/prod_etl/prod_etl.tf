@@ -95,7 +95,7 @@ resource "aws_lambda_function" "prod_etl_lambda_HCGH" {
         k8s_job_TREWS_ETL_STREAM_HOURS       = "${var.PROD_ETL_STREAM_HOURS}"
         k8s_job_TREWS_ETL_STREAM_SLICES      = "${var.PROD_ETL_STREAM_SLICES}"
         k8s_job_TREWS_ETL_STREAM_SLEEP_SECS  = "${var.PROD_ETL_STREAM_SLEEP_SECS}"
-        k8s_job_TREWS_ETL_EPIC_NOTIFICATIONS = "0"
+        k8s_job_TREWS_ETL_EPIC_NOTIFICATIONS = "1"
         k8s_job_TREWS_ETL_SUPPRESSION = "0"
       }
     }
