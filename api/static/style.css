@@ -169,9 +169,15 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li, .vis-inner {
     position: absolute;
     width: 100%;
     top: 30px;
-    background-color: #ca011a;
+    background-color: #fff;
     color: #fff;
     display: none;
+}
+#status-header.high-priority {
+    background-color: #ca011a;
+}
+#status-header.low-priority {
+    background-color: #eca72c;
 }
 #status-header h5 {
     margin: 0;
@@ -227,6 +233,18 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li, .vis-inner {
     -ms-user-select: none;      /* IE 10+ */
     user-select: none;
     cursor: default;
+}
+.card.card-header {
+    padding: 10px;
+    border: 1px solid #ddd;
+    text-align: center;
+}
+.card.card-header h4 {
+    font-size: 16px;
+    font-weight: normal;
+}
+.card.card-header.high-priority {
+    outline: 2px solid #ca011a;
 }
 .card.complete {
     background-color: #eee;

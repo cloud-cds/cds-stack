@@ -36,8 +36,8 @@
 			<h1><span id="header-trewscore"data-toggle="tooltip" title="Current TREWScore">0.78</span><div>TREWS v0.1.1 (BETA)</div><i id="show-console">.</i><span id="header-refresh-time"></span></h1>
 			<div id="header-nav">
 				<li id="header-feedback" data-toggle="tooltip" title="Please submit your feedback here to help us improve TREWS"><span class="text tooltip">Issues/Feedback</span></li>
-				<li id="header-activate-button" data-toggle="tooltip" title="Turn on/off the TREWS dashboard"><span class="text">Deactivate</span></li>
-				<li id="header-reset-patient" data-toggle="tooltip" title="Reset the highlighted criteria"><span class="text">Reset Patient</span></li>
+				<li id="header-activate-button" data-toggle="tooltip" title="Deactivate TREWS alerts for this patient for 72 hours"><span class="text">Deactivate</span></li>
+				<li id="header-reset-patient" data-toggle="tooltip" title="Recalculate SIRS and organ dysfunction trigger windows from most recent Epic data and refresh completed interventions list"><span class="text">Reset Patient</span></li>
 				<li id="header-activity" data-toggle="tooltip" title="See list of actions taken on this page"><span class="text">Activity Log</span></li>
 				<li id="header-notifications" data-toggle="tooltip" title="Notifications"><b><img src="img/circle.png"><span class="num">1</span></b><span class="text">Notification</span></li>
 			</div>
@@ -45,11 +45,15 @@
 		<div id="status-header">
 		</div>
 		<div id="left-column">
-
+			<!-- TREW Score slot -->
+			<div class="card card-header" data-trews="trewscore">
+				<h4></h4>
+			</div>
 			<!-- Severe Sepsis Card -->
 			<div class="col-1-2">
 				<div class="card" data-trews="severeSepsis">
 					<h2></h2>
+					<h5 class="card-subtitle"></h5>
 					<div class="slot" data-trews="sus">
 						<div class="actions">
 							<a data-trews="sus-edit" class="edit-btn">Edit</a>
@@ -91,6 +95,7 @@
 			<div class="col-1-2">
 				<div class="card" data-trews="septicShock">
 					<h2></h2>
+					<h5 class="card-subtitle"></h5>
 					<div>
 						<div class="slot" id="fluid-note">
 							<div class="actions">
@@ -130,7 +135,7 @@
 
 			<div id="graph-wrapper" class="col-1-1">
 				<div class="card">
-					<h2>TREWScore</h2>
+					<h2>TREWS Acuity Score</h2>
 					<div id="other-deter">
 						<span id="other-deter-launcher">
 							<p data-toggle="tooltip" title="Entering this information allows the machine to learn and become smarter for this population over time">Are there other conditions driving deterioration?</p>

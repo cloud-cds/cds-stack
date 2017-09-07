@@ -152,7 +152,7 @@ resource "aws_lambda_function" "etl_lambda_JHH" {
         k8s_job_TREWS_ETL_STREAM_SLICES      = "${var.TREWS_ETL_STREAM_SLICES}"
         k8s_job_TREWS_ETL_STREAM_SLEEP_SECS  = "${var.TREWS_ETL_STREAM_SLEEP_SECS}"
         k8s_job_TREWS_ETL_EPIC_NOTIFICATIONS = "${var.TREWS_ETL_EPIC_NOTIFICATIONS}"
-        k8s_job_TREWS_ETL_SUPPRESSION = "0"
+        k8s_job_TREWS_ETL_SUPPRESSION = "1"
       }
     }
 }

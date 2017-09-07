@@ -3,6 +3,36 @@
 -- create all user defined functions
 -- best practice: run this file every time when we deploy new version
 ----------------------------------------------------------------------------------------------
+
+CREATE or replace FUNCTION _final_median(anyarray) RETURNS float8 AS $$
+  WITH q AS
+  (
+     SELECT val
+     FROM unnest($1) val
+     WHERE VAL IS NOT NULL
+     ORDER BY 1
+  ),
+  cnt AS
+  (
+    SELECT COUNT(*) AS c FROM q
+  )
+  SELECT AVG(val)::float8
+  FROM
+  (
+    SELECT val FROM q
+    LIMIT  2 - MOD((SELECT c FROM cnt), 2)
+    OFFSET GREATEST(CEIL((SELECT c FROM cnt) / 2.0) - 1,0)
+  ) q2;
+$$ LANGUAGE SQL IMMUTABLE;
+
+DROP AGGREGATE median(anyelement);
+CREATE AGGREGATE median(anyelement) (
+  SFUNC=array_append,
+  STYPE=anyarray,
+  FINALFUNC=_final_median,
+  INITCOND='{}'
+);
+
 create or replace function ol_pat_enc()
 RETURNS
 table(enc_id integer,
@@ -2358,7 +2388,7 @@ begin
     (select distinct e.pat_id
     from criteria_events e
     inner join lateral get_states_snapshot(e.pat_id) SNP on e.pat_id = SNP.pat_id
-    where flag in (22,24,32,34,36) and now() - SNP.severe_sepsis_wo_infection_initial > get_parameter('deactivate_expire_hours')::interval
+    where flag in (22,24,32,34,36) and now() - SNP.severe_sepsis_onset > get_parameter('deactivate_expire_hours')::interval
     and e.pat_id = coalesce(this_pat_id, e.pat_id)) p;
 end; $$;
 

@@ -1,0 +1,22 @@
+autoscalingGroups:
+  - name: web.cluster-dev.jh.opsdx.io
+    minSize: 0
+    maxSize: 10
+  - name: etl.cluster-dev.jh.opsdx.io
+    minSize: 0
+    maxSize: 10
+  - name: spot-nodes.cluster-dev.jh.opsdx.io
+    minSize: 6
+    maxSize: 10
+nodeSelector:
+  opsdx_nodegroup: spot-nodes
+replicaCount: 2
+resources:
+  limits:
+    cpu: 100m
+    memory: 300Mi
+  requests:
+    cpu: 100m
+    memory: 300Mi
+skipNodes:
+  withSystemPods: false

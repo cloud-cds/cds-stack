@@ -485,30 +485,28 @@ class TREWSAPI(web.View):
         loc = req_body['loc'] if 'loc' in req_body and req_body['loc'] is not None else ''
 
         # Full-site disabling.
-        logging.info("1")
         if disabled_msg is not None:
           logging.info("DISABLED")
           raise web.HTTPBadRequest(body=json.dumps({'message': disabled_msg, 'standalone': True}))
-        logging.info("1.1")
+
         # Server-side location-based access control.
         readable_loc = get_readable_loc(loc)
         loc_matched = readable_loc is not None
 
         deactivated_locs = location_blacklist.split(',') if location_blacklist else []
         deactivated_loc_matched = readable_loc in deactivated_locs
-        logging.info("2")
+
         if (not loc_matched) or deactivated_loc_matched:
           active_locs = [locations[k] for k in locations if k not in deactivated_locs]
           msg = 'TREWS is in beta testing, and is only available at {}.<br/>'.format(', '.join(active_locs)) \
                 + 'Please contact trews-jhu@opsdx.io for more information on availability at your location.'
           raise web.HTTPBadRequest(body=json.dumps({'message': msg, 'standalone': True}))
-        logging.info("3")
+
         # Start of request handling.
         data = copy.deepcopy(data_example.patient_data_example)
 
         if eid and re.match(EID_REGEX, eid):
           logging.info("query for eid: " + eid)
-          logging.info("4")
           response_body = {}
           if 'actionType' in req_body and 'action' in req_body:
             actionType = req_body['actionType']
