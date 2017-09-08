@@ -70,7 +70,7 @@ async def notify_data_ready_to_lmc_alert_server(ctxt, job_id):
     ctxt.log.exception(e)
     ctxt.log.error("Fail to notify lmc alert server")
 
-async def notify_data_ready_to_trews_alert_server(ctxt, job_id):
+async def notify_data_ready_to_trews_alert_server(ctxt, job_id, _):
   message = {
     'type': 'ETL',
     'time': str(dt.datetime.utcnow()),
