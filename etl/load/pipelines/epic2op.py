@@ -589,7 +589,7 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
                        deps = ['workspace_to_criteria_meas'],
                        coro = notify_data_ready_to_lmc_alert_server),
                   Task(name = 'notify_data_ready_to_trews_alert_server',
-                       deps = ['advance_criteria_snapshot'],
+                       deps = ['workspace_to_criteria_meas', 'advance_criteria_snapshot'],
                        coro = notify_data_ready_to_trews_alert_server)
                   ]
   return all_tasks
