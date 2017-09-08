@@ -28,7 +28,7 @@ use_trews_lmc          = os.environ['use_trews_lmc'].lower() == 'true' if 'use_t
 # For a patient, returns time series of:
 # - trews scores
 # - top 3 features that contributed to the each time point
-async def get_trews_contributors(db_pool, pat_id, use_trews_lmc=False, start_hrs=6, start_day=2, end_day=7, sample_mins=30, sample_hrs=12):
+async def get_trews_contributors(db_pool, pat_id, start_hrs=6, start_day=2, end_day=7, sample_mins=30, sample_hrs=12):
   contributor_fn = 'calculate_lmc_contributors' if use_trews_lmc else 'calculate_trews_contributors'
 
   rank_limit = 3
@@ -199,7 +199,7 @@ async def get_patient_events(db_pool, pat_id):
 # - activated/deactivated status
 # - deterioration feedback timestamp, statuses and uid
 #
-async def get_patient_profile(db_pool, pat_id, use_trews_lmc=False):
+async def get_patient_profile(db_pool, pat_id):
   threshold_param_key = 'lmc_threshold' if use_trews_lmc else 'trews_threshold'
   get_patient_profile_sql = \
   '''
@@ -429,7 +429,7 @@ async def toggle_notification_read(db_pool, eid, notification_id, as_read):
 
   async with db_pool.acquire() as conn:
     await conn.execute(toggle_notifications_sql)
-    await push_notifications_to_epic(db_pool, eid, use_trews_lmc)
+    await push_notifications_to_epic(db_pool, eid)
 
 
 def temp_c_to_f(c):
@@ -471,7 +471,7 @@ async def override_criteria(db_pool, eid, name, value='[{}]', user='user', clear
 
   async with db_pool.acquire() as conn:
     await conn.execute(override_sql)
-    await push_notifications_to_epic(db_pool, eid, use_trews_lmc)
+    await push_notifications_to_epic(db_pool, eid)
 
 
 async def reset_patient(db_pool, eid, uid='user', event_id=None):
@@ -482,7 +482,7 @@ async def reset_patient(db_pool, eid, uid='user', event_id=None):
 
   async with db_pool.acquire() as conn:
     await conn.execute(reset_sql)
-    await push_notifications_to_epic(db_pool, eid, use_trews_lmc)
+    await push_notifications_to_epic(db_pool, eid)
 
 
 async def deactivate(db_pool, eid, uid, deactivated):
@@ -500,7 +500,7 @@ async def deactivate(db_pool, eid, uid, deactivated):
 
   async with db_pool.acquire() as conn:
     await conn.execute(deactivate_sql)
-    await push_notifications_to_epic(db_pool, eid, use_trews_lmc)
+    await push_notifications_to_epic(db_pool, eid)
 
 
 async def get_deactivated(db_pool, eid):
@@ -534,7 +534,7 @@ async def get_deterioration_feedback(db_pool, eid):
       }
 
 
-async def push_notifications_to_epic(db_pool, eid, use_trews_lmc, notify_future_notification=True):
+async def push_notifications_to_epic(db_pool, eid, notify_future_notification=True):
   async with db_pool.acquire() as conn:
     model = 'lmc' if use_trews_lmc else 'trews'
     notifications_sql = \
