@@ -64,7 +64,7 @@ spec:
         - name: suppression_model
           value: "lmc"
         - name: notify_web
-          value: "1"
+          value: "0"
         - name: db_host
           value: "dev.db.jh.opsdx.io"
         - name: db_port
