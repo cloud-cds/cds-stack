@@ -7,7 +7,7 @@ variable "dkim" {}
 variable "dkim_selector" {}
 
 resource "aws_route53_zone" "main" {
-   name = "${var.domain}"
+   name = "${var.domain}."
    comment = "DNS Zone for OpsDX"
 }
 
