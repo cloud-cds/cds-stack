@@ -66,9 +66,9 @@ spec:
         - name: suppression_model
           value: "trews"
         - name: notify_web
-          value: "0"
+          value: "1"
         - name: db_host
-          value: "db.dev.jh.opsdx.io"
+          value: "dev.db.jh.opsdx.io"
         - name: db_port
           value: "5432"
         - name: db_name

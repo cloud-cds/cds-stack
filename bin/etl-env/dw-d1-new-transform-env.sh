@@ -1,0 +1,11 @@
+export min_tsp=2016-04-27
+export extract_init=False
+export populate_patients=False
+export transform_fids="admission_dx"
+export fillin=False
+export derive=False
+export dataset_id=1
+export clarity_workspace=clarity_1y
+export nprocs=2
+export num_derive_groups=8
+export vacuum_temp_table=True

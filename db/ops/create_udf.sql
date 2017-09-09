@@ -2066,7 +2066,7 @@ BEGIN
         end if;
     end if;
     if notify then
-        perform pg_notify(channel, 'invalidate_cache:' || this_pat_id);
+        perform pg_notify(channel, 'invalidate_cache:' || this_pat_id || ':' || model);
         perform * from notify_future_notification(channel, this_pat_id);
     end if;
     RETURN;

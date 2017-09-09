@@ -3,7 +3,6 @@ lookbackhours,6 hours
 deactivate_hours,8 hours
 deactivate_expire_hours,72 hours
 suppression,HCGH
-suppression_model,trews
 suppression_timeout,1 hour
 etl_workspace_submit_hours,8 hours
 etl_workspace_lookbackhours,32 hours

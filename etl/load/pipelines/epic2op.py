@@ -55,7 +55,7 @@ async def load_discharge_times(ctxt, contacts_df):
   async with ctxt.db_pool.acquire() as conn:
     await load_row.upsert_t(conn, rows, dataset_id=None, log=ctxt.log, many=True)
 
-async def notify_data_ready_to_alert_server(ctxt, job_id):
+async def notify_data_ready_to_lmc_alert_server(ctxt, job_id):
   message = {
     'type': 'ETL',
     'time': str(dt.datetime.utcnow()),
@@ -69,6 +69,13 @@ async def notify_data_ready_to_alert_server(ctxt, job_id):
   except Exception as e:
     ctxt.log.exception(e)
     ctxt.log.error("Fail to notify lmc alert server")
+
+async def notify_data_ready_to_trews_alert_server(ctxt, job_id, _):
+  message = {
+    'type': 'ETL',
+    'time': str(dt.datetime.utcnow()),
+    'hosp': job_id.split('_')[-2].upper()
+  }
   try:
     reader, writer = await asyncio.open_connection(protocol.TREWS_ALERT_SERVER_IP, protocol.TREWS_ALERT_SERVER_PORT, loop=ctxt.loop)
     await protocol.write_message(writer, message)
@@ -374,9 +381,7 @@ async def workspace_submit(ctxt, job_id):
   """
   submit_t = """
     INSERT INTO cdm_t
-      (SELECT * FROM workspace.%(job)s_cdm_t
-       where now() - tsp < (select value::interval from parameters where name = 'etl_workspace_submit_hours')
-       )
+    SELECT * FROM workspace.%(job)s_cdm_t
     ON conflict (enc_id, tsp, fid) do UPDATE
     SET value = excluded.value, confidence = excluded.confidence;
     SELECT drop_tables('workspace', '%(job)s_cdm_t');
@@ -580,8 +585,11 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
                   ]
   else:
     all_tasks += [
-                  Task(name = 'notify_data_ready_to_alert_server',
+                  Task(name = 'notify_data_ready_to_lmc_alert_server',
                        deps = ['workspace_to_criteria_meas'],
-                       coro = notify_data_ready_to_alert_server)
+                       coro = notify_data_ready_to_lmc_alert_server),
+                  Task(name = 'notify_data_ready_to_trews_alert_server',
+                       deps = ['workspace_to_criteria_meas', 'advance_criteria_snapshot'],
+                       coro = notify_data_ready_to_trews_alert_server)
                   ]
   return all_tasks
