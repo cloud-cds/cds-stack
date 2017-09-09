@@ -1,8 +1,8 @@
 ############################
 # k8s job launcher via AWS Lambda
 
-resource "aws_iam_role" "clarity_etl_lambda_role" {
-    name = "clarity-etl-lambda-role"
+resource "aws_iam_role" "weave_cleaner_lambda_role" {
+    name = "weave-cleaner-lambda-role"
     assume_role_policy = <<POLICY
 {
   "Version": "2012-10-17",
@@ -20,9 +20,9 @@ resource "aws_iam_role" "clarity_etl_lambda_role" {
 POLICY
 }
 
-resource "aws_iam_role_policy" "clarity_etl_lambda_policy" {
-  name = "clarity-etl-lambda-policy"
-  role = "${aws_iam_role.clarity_etl_lambda_role.id}"
+resource "aws_iam_role_policy" "weave_cleaner_lambda_policy" {
+  name = "weave-cleaner-lambda-policy"
+  role = "${aws_iam_role.weave_cleaner_lambda_role.id}"
   policy = <<POLICY
 {
   "Version": "2012-10-17",
@@ -38,8 +38,7 @@ resource "aws_iam_role_policy" "clarity_etl_lambda_policy" {
                   "ec2:DeleteNetworkInterface",
                   "kms:Decrypt",
                   "kms:DescribeKey",
-                  "kms:GetKeyPolicy",
-                  "s3:*"
+                  "kms:GetKeyPolicy"
                   ],
       "Resource": [
         "*"
@@ -50,6 +49,6 @@ resource "aws_iam_role_policy" "clarity_etl_lambda_policy" {
 POLICY
 }
 
-output "clarity_etl_lambda_role_arn" {
-  value = "${aws_iam_role.clarity_etl_lambda_role.arn}"
+output "weave_cleaner_lambda_role_arn" {
+  value = "${aws_iam_role.weave_cleaner_lambda_role.arn}"
 }

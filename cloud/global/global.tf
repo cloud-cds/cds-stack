@@ -27,3 +27,20 @@ module "storage" {
   source = "./storage"
   aws_id = "${var.aws_id}"
 }
+
+# Lambda roles and policies.
+module "behavior_monitor" {
+  source = "./lambda/behavior-monitor"
+}
+
+module "clarity_etl_launcher" {
+  source = "./lambda/clarity-etl-launcher"
+}
+
+module "k8s_launcher" {
+  source = "./lambda/k8s-job-launcher"
+}
+
+module "k8s_weave_cleaner" {
+  source = "./lambda/k8s-weave-cleaner"
+}

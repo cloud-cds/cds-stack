@@ -157,3 +157,22 @@ module "prod_behavior_monitors" {
   behamon_log_group_name = "${var.prod_behamon_log_group_name}"
   behamon_log_group_arn  = "${var.prod_behamon_log_group_arn}"
 }
+
+
+module "dev_ml_weave_cleaner" {
+  source = "./dev-ml-services/k8s-weave-cleaner"
+
+  deploy_prefix = "${var.deploy_prefix}"
+
+  s3_opsdx_lambda     = "${var.s3_opsdx_lambda}"
+  aws_lambda_package  = "${var.aws_weave_cleaner_lambda_package}"
+  aws_lambda_role_arn = "${var.aws_weave_cleaner_lambda_role_arn}"
+
+  firing_rate_mins = "${var.weave_cleaner_firing_rate_mins}"
+
+  k8s_dev_ml_name      = "${var.k8s_dev_ml_name}"
+  k8s_dev_ml_server    = "${var.k8s_dev_ml_server}"
+  k8s_dev_ml_user      = "${var.k8s_dev_ml_user}"
+  k8s_dev_ml_pass      = "${var.k8s_dev_ml_pass}"
+  k8s_dev_ml_cert_auth = "${var.k8s_dev_ml_cert_auth}"
+}
