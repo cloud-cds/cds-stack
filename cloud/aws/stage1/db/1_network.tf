@@ -49,6 +49,14 @@ resource "aws_security_group" "db_sg" {
     cidr_blocks = ["10.0.0.0/16"]
   }
 
+  # Redshift access from within the VPC.
+  ingress {
+    from_port   = 5439
+    to_port     = 5439
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/16"]
+  }
+
   # Unrestricted outbound internet access
   egress {
     from_port   = 0
@@ -61,6 +69,17 @@ resource "aws_security_group" "db_sg" {
     Name = "${var.deploy_name}"
     Stack = "${var.deploy_stack}"
     Component = "DB SG"
+  }
+}
+
+resource "aws_redshift_subnet_group" "dw_subnet_group" {
+  name       = "${var.deploy_prefix}-dw-subnet-group"
+  description = "${var.deploy_name} ${var.deploy_stack} DW SNG"
+  subnet_ids  = ["${aws_subnet.db_subnet1.id}", "${aws_subnet.db_subnet2.id}"]
+  tags {
+    Name = "${var.deploy_name}"
+    Stack = "${var.deploy_stack}"
+    Component = "DW SNG"
   }
 }
 

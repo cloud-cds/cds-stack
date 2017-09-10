@@ -1,0 +1,97 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sql-files
+data:
+  sql1: |-
+    create table yanif_test1 as select * from pat_enc;
+    create table yanif_test2 as select * from criteria_default;
+  sql2: |-
+    create table yanif_test3 as select * from pat_enc;
+    create table yanif_test4 as select * from criteria_default;
+  cleanup: |-
+    drop table yanif_test1;
+    drop table yanif_test2;
+    drop table yanif_test3;
+    drop table yanif_test4;
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dw-sql-to-s3
+spec:
+  template: # create pods using pod definition in this template
+    metadata:
+      name: dw-sql-to-s3
+      namespace: default
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        opsdx_nodegroup: spot-nodes
+      containers:
+      - name: universe
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.94
+        imagePullPolicy: IfNotPresent
+        command:
+          - sh
+          - -c
+          - "aws s3 cp s3://opsdx-deployment/scripts/dw-sql-to-s3.sh /tmp && chmod 755 /tmp/dw-sql-to-s3.sh && /tmp/dw-sql-to-s3.sh"
+        env:
+        - name: sql_files
+          value: "/opt/sql1 /opt/sql2"
+        - name: result_tables
+          value: "yanif_test1 yanif_test2 yanif_test3 yanif_test4"
+        - name: cleanup_file
+          value: "/opt/cleanup"
+        - name: output_bucket
+          value: "opsdx-clarity-etl-stage"
+        - name: output_dir
+          value: "dw-sql-to-s3"
+        - name: db_host
+          value: "dw.jh.opsdx.io"
+        - name: db_port
+          value: "5432"
+        - name: db_name
+          value: "opsdx_dev_dw"
+        - name: db_user
+          valueFrom:
+            secretKeyRef:
+              name: dw-sql-to-s3-secrets
+              key: db-username
+        - name: db_password
+          valueFrom:
+            secretKeyRef:
+              name: dw-sql-to-s3-secrets
+              key: db-password
+        - name: AWS_DEFAULT_REGION
+          valueFrom:
+            secretKeyRef:
+              name: dw-sql-to-s3-secrets
+              key: aws-region
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: dw-sql-to-s3-secrets
+              key: aws-access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: dw-sql-to-s3-secrets
+              key: aws-secret-access-key
+        securityContext:
+          privileged: true
+        volumeMounts:
+          - name: sql-volume
+            mountPath: "/opt/"
+      volumes:
+        - name: sql-volume
+          configMap:
+            name: sql-files
+            items:
+              - key: sql1
+                path: sql1
+              - key: sql2
+                path: sql2
+              - key: cleanup
+                path: cleanup
