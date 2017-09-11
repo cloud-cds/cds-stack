@@ -212,115 +212,122 @@ resource "aws_cloudwatch_metric_alarm" "jhh_etl_up" {
 }
 
 # Ping failures
-# resource "aws_cloudwatch_metric_alarm" "ping_up" {
-#   alarm_name                = "${var.deploy_prefix}-prod-ping-up"
-#   comparison_operator       = "LessThanThreshold"
-#   evaluation_periods        = "1"
-#   metric_name               = "ExternalLatency"
-#   namespace                 = "OpsDX"
-#   period                    = "300"
-#   statistic                 = "SampleCount"
-#   threshold                 = "45"
-#   alarm_description         = "Ping throughput in the past 5 minutes"
-#   alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
-#   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
-#   dimensions {
-#     PingStack  = "Prod"
-#   }
-# }
+resource "aws_cloudwatch_metric_alarm" "ping_up" {
+  alarm_name                = "${var.deploy_prefix}-prod-ping-up"
+  comparison_operator       = "LessThanThreshold"
+  evaluation_periods        = "1"
+  metric_name               = "ExternalLatency"
+  namespace                 = "OpsDX"
+  period                    = "300"
+  statistic                 = "SampleCount"
+  threshold                 = "45"
+  treat_missing_data        = "breaching"
+  alarm_description         = "Ping throughput in the past 5 minutes"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+  dimensions {
+    PingStack  = "Prod"
+  }
+}
 
 # # High webservice latency
-# resource "aws_cloudwatch_metric_alarm" "high_webservice_latency" {
-#   alarm_name                = "${var.deploy_prefix}-prod-high-webservice-latency"
-#   comparison_operator       = "GreaterThanThreshold"
-#   evaluation_periods        = "2"
-#   metric_name               = "LatencyAvg"
-#   namespace                 = "OpsDX"
-#   period                    = "60"
-#   statistic                 = "Average"
-#   threshold                 = "300"
-#   alarm_description         = "Average webservice latency in the past minute"
-#   alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
-#   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
-#   dimensions {
-#     Route = "/api"
-#     API   = "opsdx-prod"
-#     MetricStreamId = "0d249909-8586-45d2-9920-85338b93aa10"
-#   }
-# }
+resource "aws_cloudwatch_metric_alarm" "high_webservice_latency" {
+  alarm_name                = "${var.deploy_prefix}-prod-high-webservice-latency"
+  comparison_operator       = "GreaterThanThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "LatencyAvg"
+  namespace                 = "OpsDX"
+  period                    = "60"
+  statistic                 = "Average"
+  threshold                 = "300"
+  treat_missing_data        = "notBreaching"
+  alarm_description         = "Average webservice latency in the past minute"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+  dimensions {
+    API   = "opsdx-prod"
+  }
+}
 
 # High browser latency
-# resource "aws_cloudwatch_metric_alarm" "high_browser_latency" {
-#   alarm_name                = "${var.deploy_prefix}-prod-high-browser-latency"
-#   comparison_operator       = "GreaterThanThreshold"
-#   evaluation_periods        = "2"
-#   metric_name               = "UserLatencyAvg"
-#   namespace                 = "OpsDX"
-#   period                    = "60"
-#   statistic                 = "Average"
-#   threshold                 = "1000"
-#   alarm_description         = "Average browser-side latency in the past minute"
-#   alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
-#   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
-#   dimensions {
-#     Browser = "opsdx-prod"
-#   }
-# }
+resource "aws_cloudwatch_metric_alarm" "high_browser_latency" {
+  alarm_name                = "${var.deploy_prefix}-prod-high-browser-latency"
+  comparison_operator       = "GreaterThanThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "UserLatencyAvg"
+  namespace                 = "OpsDX"
+  period                    = "60"
+  statistic                 = "Average"
+  threshold                 = "1000"
+  treat_missing_data        = "notBreaching"
+  alarm_description         = "Average browser-side latency in the past minute"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+  dimensions {
+    Browser = "opsdx-prod"
+  }
+}
 
-# # ELB Backend connection failures per zone.
-# resource "aws_cloudwatch_metric_alarm" "elb_connfail_1a" {
-#   alarm_name                = "${var.deploy_prefix}-prod-elb-connections-failed-1a"
-#   comparison_operator       = "GreaterThanThreshold"
-#   evaluation_periods        = "2"
-#   metric_name               = "BackendConnectionErrors"
-#   namespace                 = "AWS/ELB"
-#   period                    = "60"
-#   statistic                 = "Sum"
-#   threshold                 = "0"
-#   alarm_description         = "Number of ELB connection failures in the past minute"
-#   alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
-#   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
-#   dimensions {
-#     LoadBalancerName = "a6559e9293af811e7b56f0ed17214100"
-#     AvailabilityZone = "us-east-1a"
-#   }
-# }
+# ELB Backend connection failures per zone.
+resource "aws_cloudwatch_metric_alarm" "elb_connfail_1a" {
+  alarm_name                = "${var.deploy_prefix}-prod-elb-connections-failed-1a"
+  comparison_operator       = "GreaterThanThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "BackendConnectionErrors"
+  namespace                 = "AWS/ELB"
+  period                    = "60"
+  statistic                 = "Sum"
+  threshold                 = "0"
+  treat_missing_data        = "notBreaching"
+  alarm_description         = "Number of ELB connection failures in the past minute"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
 
-# resource "aws_cloudwatch_metric_alarm" "elb_connfail_1c" {
-#   alarm_name                = "${var.deploy_prefix}-prod-elb-connections-failed-1c"
-#   comparison_operator       = "GreaterThanThreshold"
-#   evaluation_periods        = "2"
-#   metric_name               = "BackendConnectionErrors"
-#   namespace                 = "AWS/ELB"
-#   period                    = "60"
-#   statistic                 = "Sum"
-#   threshold                 = "0"
-#   alarm_description         = "Number of ELB connection failures in the past minute"
-#   alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
-#   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
-#   dimensions {
-#     LoadBalancerName = "a6559e9293af811e7b56f0ed17214100"
-#     AvailabilityZone = "us-east-1c"
-#   }
-# }
+  dimensions {
+    LoadBalancerName = "a1dd29d6490c511e7ac9d0aea3e03fc4"
+    AvailabilityZone = "us-east-1a"
+  }
+}
 
-# resource "aws_cloudwatch_metric_alarm" "elb_connfail_1d" {
-#   alarm_name                = "${var.deploy_prefix}-prod-elb-connections-failed-1d"
-#   comparison_operator       = "GreaterThanThreshold"
-#   evaluation_periods        = "2"
-#   metric_name               = "BackendConnectionErrors"
-#   namespace                 = "AWS/ELB"
-#   period                    = "60"
-#   statistic                 = "Sum"
-#   threshold                 = "0"
-#   alarm_description         = "Number of ELB connection failures in the past minute"
-#   alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
-#   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
-#   dimensions {
-#     LoadBalancerName = "a6559e9293af811e7b56f0ed17214100"
-#     AvailabilityZone = "us-east-1d"
-#   }
-# }
+resource "aws_cloudwatch_metric_alarm" "elb_connfail_1c" {
+  alarm_name                = "${var.deploy_prefix}-prod-elb-connections-failed-1c"
+  comparison_operator       = "GreaterThanThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "BackendConnectionErrors"
+  namespace                 = "AWS/ELB"
+  period                    = "60"
+  statistic                 = "Sum"
+  threshold                 = "0"
+  treat_missing_data        = "notBreaching"
+  alarm_description         = "Number of ELB connection failures in the past minute"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    LoadBalancerName = "a1dd29d6490c511e7ac9d0aea3e03fc4"
+    AvailabilityZone = "us-east-1c"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "elb_connfail_1d" {
+  alarm_name                = "${var.deploy_prefix}-prod-elb-connections-failed-1d"
+  comparison_operator       = "GreaterThanThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "BackendConnectionErrors"
+  namespace                 = "AWS/ELB"
+  period                    = "60"
+  statistic                 = "Sum"
+  threshold                 = "0"
+  treat_missing_data        = "notBreaching"
+  alarm_description         = "Number of ELB connection failures in the past minute"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    LoadBalancerName = "a1dd29d6490c511e7ac9d0aea3e03fc4"
+    AvailabilityZone = "us-east-1d"
+  }
+}
 
 # Real-time database overload alarms.
 resource "aws_cloudwatch_metric_alarm" "db_overload" {
@@ -337,7 +344,7 @@ resource "aws_cloudwatch_metric_alarm" "db_overload" {
   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
 
   dimensions {
-    DBInstanceIdentifier = "opsdx-prod"
+    DBInstanceIdentifier = "${var.deploy_prefix}-prod"
   }
 }
 
@@ -356,7 +363,7 @@ resource "aws_cloudwatch_metric_alarm" "db_low_space" {
   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
 
   dimensions {
-    DBInstanceIdentifier = "opsdx-prod"
+    DBInstanceIdentifier = "${var.deploy_prefix}-prod"
   }
 }
 

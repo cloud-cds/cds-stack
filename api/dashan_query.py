@@ -28,7 +28,7 @@ use_trews_lmc          = os.environ['use_trews_lmc'].lower() == 'true' if 'use_t
 # For a patient, returns time series of:
 # - trews scores
 # - top 3 features that contributed to the each time point
-async def get_trews_contributors(db_pool, pat_id, use_trews_lmc=False, start_hrs=6, start_day=2, end_day=7, sample_mins=30, sample_hrs=12):
+async def get_trews_contributors(db_pool, pat_id, start_hrs=6, start_day=2, end_day=7, sample_mins=30, sample_hrs=12):
   contributor_fn = 'calculate_lmc_contributors' if use_trews_lmc else 'calculate_trews_contributors'
 
   rank_limit = 3
@@ -199,7 +199,7 @@ async def get_patient_events(db_pool, pat_id):
 # - activated/deactivated status
 # - deterioration feedback timestamp, statuses and uid
 #
-async def get_patient_profile(db_pool, pat_id, use_trews_lmc=False):
+async def get_patient_profile(db_pool, pat_id):
   threshold_param_key = 'lmc_threshold' if use_trews_lmc else 'trews_threshold'
   get_patient_profile_sql = \
   '''
@@ -429,7 +429,7 @@ async def toggle_notification_read(db_pool, eid, notification_id, as_read):
 
   async with db_pool.acquire() as conn:
     await conn.execute(toggle_notifications_sql)
-    await push_notifications_to_epic(db_pool, eid, use_trews_lmc)
+    await push_notifications_to_epic(db_pool, eid)
 
 
 def temp_c_to_f(c):
@@ -471,29 +471,18 @@ async def override_criteria(db_pool, eid, name, value='[{}]', user='user', clear
 
   async with db_pool.acquire() as conn:
     await conn.execute(override_sql)
-    await push_notifications_to_epic(db_pool, eid, use_trews_lmc)
+    await push_notifications_to_epic(db_pool, eid)
 
 
 async def reset_patient(db_pool, eid, uid='user', event_id=None):
-  event_where_clause = '' if event_id is None or event_id == 'None' else 'and event_id = %(evid)s' % {'evid' : event_id }
   reset_sql = """
-  update criteria_events set flag = flag - 1000
-  where pat_id = '%(pid)s' %(where_clause)s;
-  insert into criteria_log (pat_id, tsp, event, update_date)
-  values (
-          '%(pid)s',
-          now(),
-          '{"event_type": "reset", "uid":"%(uid)s"}',
-          now()
-      );
-  delete from notifications where pat_id = '%(pid)s';
-  select advance_criteria_snapshot('%(pid)s', 'reset');
-  """ % {'pid': eid, 'where_clause': event_where_clause, 'uid': uid}
+  select * from reset_patient('{}'{});
+  """.format(eid, ',{}'.format(event_id) if event_id is not None else '')
   logging.info("reset_patient:" + reset_sql)
 
   async with db_pool.acquire() as conn:
     await conn.execute(reset_sql)
-    await push_notifications_to_epic(db_pool, eid, use_trews_lmc)
+    await push_notifications_to_epic(db_pool, eid)
 
 
 async def deactivate(db_pool, eid, uid, deactivated):
@@ -511,7 +500,7 @@ async def deactivate(db_pool, eid, uid, deactivated):
 
   async with db_pool.acquire() as conn:
     await conn.execute(deactivate_sql)
-    await push_notifications_to_epic(db_pool, eid, use_trews_lmc)
+    await push_notifications_to_epic(db_pool, eid)
 
 
 async def get_deactivated(db_pool, eid):
@@ -545,7 +534,7 @@ async def get_deterioration_feedback(db_pool, eid):
       }
 
 
-async def push_notifications_to_epic(db_pool, eid, use_trews_lmc, notify_future_notification=True):
+async def push_notifications_to_epic(db_pool, eid, notify_future_notification=True):
   async with db_pool.acquire() as conn:
     model = 'lmc' if use_trews_lmc else 'trews'
     notifications_sql = \
@@ -570,20 +559,20 @@ async def push_notifications_to_epic(db_pool, eid, use_trews_lmc, notify_future_
           elif response.status_code != requests.codes.ok:
             logging.error('Failed to push notifications: %s %s %s HTTP %s' % (pt['pat_id'], pt['visit_id'], pt['notifications'], response.status_code))
 
-      logging.info("notify future notification")
       etl_channel = os.environ['etl_channel'] if 'etl_channel' in os.environ else None
       if etl_channel and notify_future_notification:
         notify_future_notification_sql = \
         '''
         select * from notify_future_notification('%s', '%s');
         ''' % (etl_channel, eid)
+        logging.info("notify future notification: {}".format(notify_future_notification_sql))
         await conn.fetch(notify_future_notification_sql)
       elif etl_channel is None:
         logging.error("Unknown environ Error: etl_channel")
       else:
         logging.info("skipping notify_future_notification")
     else:
-      logging.info("no notifications")
+      logging.info("skipping notifications (e.g., not in notifications_whitelist)")
 
 async def eid_exist(db_pool, eid):
   async with db_pool.acquire() as conn:
@@ -602,7 +591,7 @@ async def save_feedback(db_pool, doc_id, pat_id, dep_id, feedback):
 
 
 async def notify_pat_update(db_pool, channel, pat_id):
-  notify_sql = "notify {}, 'invalidate_cache:{}'".format(channel, pat_id)
+  notify_sql = "notify {}, 'invalidate_cache:{}:{}'".format(channel, pat_id,'lmc' if use_trews_lmc else 'trews')
   logging.info("notify_sql: " + notify_sql)
   async with db_pool.acquire() as conn:
     await conn.execute(notify_sql)

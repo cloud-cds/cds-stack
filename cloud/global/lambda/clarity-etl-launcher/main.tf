@@ -38,7 +38,7 @@ resource "aws_iam_role_policy" "clarity_etl_lambda_policy" {
                   "ec2:DeleteNetworkInterface",
                   "kms:Decrypt",
                   "kms:DescribeKey",
-                  "kms:GetKeyPolicy"
+                  "kms:GetKeyPolicy",
                   "s3:*"
                   ],
       "Resource": [

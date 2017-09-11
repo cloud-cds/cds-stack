@@ -6,7 +6,7 @@ metadata:
   namespace: kube-system
 data:
   aws_region: us-east-1
-  log_group: opsdx-ml-prod-k8s-logs
+  log_group: opsdx-dev-ml-k8s-logs
 ---
 apiVersion: extensions/v1beta1
 kind: DaemonSet

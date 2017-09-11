@@ -733,9 +733,9 @@ var trewscoreComponent = new function() {
     if ( numPoints > 0 ) {
       var currentScore = json['chart_values']['trewscore'][numPoints - 1];
       var aboveThresholdNow = currentScore > json['trewscore_threshold'];
-      var currentScoreAsPct = Number(currentScore *  100).toFixed(2);
+      var currentScoreAsPct = Number(currentScore *  100).toFixed(1);
       this.ctn.show();
-      this.ctn.find('h4').html('<b>TREWS Acuity Score</b> indicates an <b>' + currentScoreAsPct + '%</b> chance that this patient has / will have sepsis.');
+      this.ctn.find('h4').html('<b>TREWS Acuity Score</b> indicates an <b>' + currentScoreAsPct + '%</b> chance that this has or will have sepsis.');
       this.ctn.removeClass('high-priority');
       if ( aboveThresholdNow ) { this.ctn.addClass('high-priority'); }
     } else {

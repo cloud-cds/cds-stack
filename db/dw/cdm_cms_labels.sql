@@ -3717,6 +3717,36 @@ END $func$ LANGUAGE plpgsql;
 ----------------------------------------------------------
 -- Top-level series labeling functions
 
+-- Returns every measurement as a window candidate.
+CREATE OR REPLACE FUNCTION get_all_meas_timestamps(
+        _pat_id                 text,
+        _dataset_id             integer,
+        _label_id               integer default 0,
+        ts_start                timestamptz DEFAULT '-infinity'::timestamptz,
+        ts_end                  timestamptz DEFAULT 'infinity'::timestamptz,
+        window_limit            text default 'all'
+  )
+  returns table(pat_id varchar(50), tsp timestamptz)
+  LANGUAGE plpgsql
+AS $function$
+DECLARE
+    pat_id_str text;
+BEGIN
+  pat_id_str = case when _pat_id is null then 'NULL'
+                    else format('''%s''', _pat_id) end;
+
+  return query execute format('
+    select pat_id, tsp
+      from criteria_meas meas
+    where
+      meas.pat_id = coalesce(%s, meas.pat_id) and
+      meas.dataset_id = %s and
+      meas.tsp between ''%s''::timestamptz and ''%s''::timestamptz'
+    , pat_id_str, _dataset_id, ts_start, ts_end
+    );
+END; $function$;
+
+
 -- Returns binned timestamps for window boundaries
 -- based on timestamps at which measurements are available.
 CREATE OR REPLACE FUNCTION get_meas_periodic_timestamps(
@@ -3762,6 +3792,66 @@ BEGIN
     order by pat_id, tsp
     limit %s'
     , _dataset_id,  pat_id_str, _dataset_id, ts_start, ts_end, window_limit
+    );
+END; $function$;
+
+
+-- Returns every 15 min interval within a +/- 6-hr window of
+-- every measurement that meets either a SIRS or OrgDF criteria
+-- as a window candidate.
+CREATE OR REPLACE FUNCTION get_meas_timestamps_for_bpas(
+        _pat_id                 text,
+        _dataset_id             integer,
+        _label_id               integer default 0,
+        ts_start                timestamptz DEFAULT '-infinity'::timestamptz,
+        ts_end                  timestamptz DEFAULT 'infinity'::timestamptz,
+        window_limit            text default 'all'
+  )
+  returns table(pat_id varchar(50), tsp timestamptz)
+  LANGUAGE plpgsql
+AS $function$
+DECLARE
+    pat_id_str text;
+BEGIN
+  pat_id_str = case when _pat_id is null then 'NULL'
+                    else format('''%s''', _pat_id) end;
+
+  return query execute format('
+    select distinct meas.pat_id, W.tsp
+    from criteria_meas meas
+    inner join criteria_default cd on meas.fid = cd.fid
+    cross join lateral
+      generate_series(
+        date_trunc(''hour'', meas.tsp - interval ''6 hours''),
+        date_trunc(''hour'', meas.tsp + interval ''6 hours'') + interval ''1 hour'',
+        interval ''15 minutes'') W(tsp)
+    where
+      cd.dataset_id = %s and
+      meas.dataset_id = %s and
+      meas.pat_id = coalesce(%s, meas.pat_id) and
+      meas.tsp between ''%s''::timestamptz and ''%s''::timestamptz
+      and cd.name in (
+          ''sirs_temp'', ''heart_rate'', ''respiratory_rate'', ''wbc'',
+          ''respiratory_failure'',
+          ''blood_pressure'', ''mean_arterial_pressure'', ''decrease_in_sbp'', ''creatinine'', ''bilirubin'', ''platelet'', ''inr'', ''lactate''
+        )
+      and
+      (case
+        when cd.name = ''respiratory_failure'' then meas.value is not null
+
+        when cd.name in (''sirs_temp'', ''heart_rate'', ''respiratory_rate'', ''wbc'')
+        then criteria_value_met(meas.value, null, cd.override_value)
+
+        else
+        (case
+            when cd.category = ''decrease_in_sbp'' or cd.category = ''urine_output'' then true
+            else criteria_value_met(meas.value, null, cd.override_value)
+            end
+          )
+       end)
+    order by meas.pat_id, W.tsp
+    limit %s'
+    , _dataset_id, _dataset_id, pat_id_str, ts_start, ts_end, window_limit
     );
 END; $function$;
 

@@ -2066,7 +2066,7 @@ BEGIN
         end if;
     end if;
     if notify then
-        perform pg_notify(channel, 'invalidate_cache:' || this_pat_id);
+        perform pg_notify(channel, 'invalidate_cache:' || this_pat_id || ':' || model);
         perform * from notify_future_notification(channel, this_pat_id);
     end if;
     RETURN;
@@ -2303,14 +2303,6 @@ as $$ begin
         )
     on conflict (pat_id) do update
     set deactivated = excluded.deactivated, deactivated_tsp = now();
-
-    -- if false then reset patient automatically
-    if not deactivated then
-        update criteria_events set flag = flag - 1000
-        where pat_id = pid and flag > 0;
-        delete from notifications where pat_id = pid;
-        perform advance_criteria_snapshot(pid);
-    end IF;
     if event_type is not null then
         insert into criteria_log (pat_id, tsp, event, update_date)
         values (pid,
@@ -2319,6 +2311,10 @@ as $$ begin
                 now()
                );
     end if;
+    -- if false then reset patient automatically
+    if not deactivated then
+        perform reset_patient(pid);
+    end IF;
 end; $$;
 
 -- if care is completed (severe sepsis/septic shock bundle completed or expired), then deactivate the patient; after 72 hours, the patient will be reactivate
@@ -2360,10 +2356,11 @@ end; $$;
 create or replace function reactivate(this_pat_id text default null) returns void language plpgsql
 -- turn deactivated patients longer than deactivate_expire_hours to active
 as $$ begin
-    perform deactivate(pat_id, false, 'auto_deactivate') from pat_status
+    perform deactivate(s.pat_id, false, 'auto_deactivate') from pat_status s
+    inner join lateral get_states_snapshot(s.pat_id) SNP on s.pat_id = SNP.pat_id
     where deactivated
-    and now() - deactivated_tsp > get_parameter('deactivate_expire_hours')::interval
-    and pat_id = coalesce(this_pat_id, pat_id);
+    and now() - SNP.severe_sepsis_onset > get_parameter('deactivate_expire_hours')::interval
+    and s.pat_id = coalesce(this_pat_id, s.pat_id);
 end; $$;
 
 create or replace function reset_soi_pats(this_pat_id text default null)
@@ -2382,21 +2379,41 @@ end; $$;
 
 create or replace function reset_bundle_expired_pats(this_pat_id text default null)
 returns void language plpgsql as $$
+declare res text;
 -- reset patients who are in state 10 and expired for lookbackhours
 begin
-    perform reset_patient(pat_id) from
-    (select distinct e.pat_id
-    from criteria_events e
-    inner join lateral get_states_snapshot(e.pat_id) SNP on e.pat_id = SNP.pat_id
-    where flag in (22,24,32,34,36) and now() - SNP.severe_sepsis_onset > get_parameter('deactivate_expire_hours')::interval
-    and e.pat_id = coalesce(this_pat_id, e.pat_id)) p;
+    with pats as (
+    select distinct e.pat_id
+        from criteria_events e
+        inner join lateral get_states_snapshot(e.pat_id) SNP on e.pat_id = SNP.pat_id
+        where flag in (22,24,32,34,36) and now() - SNP.severe_sepsis_onset > get_parameter('deactivate_expire_hours')::interval
+        and e.pat_id = coalesce(this_pat_id, e.pat_id)
+    ),
+    logging as (
+        insert into criteria_log (pat_id, tsp, event, update_date)
+        values (
+              this_pat_id,
+              now(),
+              '{"event_type": "reset_bundle_expired_pats", "uid":"dba"}',
+              now()
+          )
+    )
+    select reset_patient(pat_id) from pats into res;
+    return;
 end; $$;
 
-create or replace function reset_patient(this_pat_id text)
+create or replace function reset_patient(this_pat_id text, _event_id int default null)
 returns void language plpgsql as $$
 begin
-    update criteria_events set flag = flag - 1000
-    where pat_id = this_pat_id and flag > 0;
+    -- reset user input
+    delete from criteria where pat_id = this_pat_id and override_value is not null;
+    if _event_id is null then
+        update criteria_events set flag = flag - 1000
+        where pat_id = this_pat_id and flag > 0;
+    else
+        update criteria_events set flag = flag - 1000
+        where pat_id = this_pat_id and event_id = _event_id;
+    end if;
     insert into criteria_log (pat_id, tsp, event, update_date)
     values (
           this_pat_id,
