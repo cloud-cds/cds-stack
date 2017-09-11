@@ -46,6 +46,10 @@ module "stage1" {
   dw_snapshot_id          = "${var.dw_snapshot_id}"
   dw_snapshot_dbname      = "${var.dw_snapshot_dbname}"
 
+  dw2_username        = "${var.dw2_username}"
+  dw2_password        = "${var.dw2_password}"
+  dw2_snapshot_id          = "${var.dw2_snapshot_id}"
+  dw2_snapshot_dbname      = "${var.dw2_snapshot_dbname}"
 }
 
 module "stage2" {

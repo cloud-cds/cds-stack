@@ -41,6 +41,7 @@ variable "dev_db_dns_name" {}
 variable "prod_db_dns_name" {}
 variable "dw_dns_name" {}
 variable "dwa_dns_name" {}
+variable "dw2_dns_name" {}
 
 ######################################
 # Common DB parameters
@@ -183,7 +184,60 @@ variable "dw_snapshot_id" {
   default = ""
 }
 
+######################################
+# RDS DW2
 
+variable "dw2_identifier" {
+  description = "RDS DW2 Resource Identifier"
+}
+
+variable "dw2_name" {
+  description = "DW2 name"
+}
+
+variable "dw2_username" {
+  description = "DW2 Username"
+}
+
+variable "dw2_password" {
+  description = "DW2 Password"
+}
+
+variable "dw2_storage" {
+  description = "Storage size in GB"
+  default = "900"
+}
+
+variable "dw2_storage_type" {
+  description = "RDS Storage type (e.g., SSD, magnetic)"
+  default = "gp2"
+}
+
+variable "dw2_engine" {
+  description = "Postgres-backed DB Engine"
+  default = "postgres"
+}
+
+variable "dw2_engine_version" {
+  description = "Engine version"
+  default = {
+    postgres = "9.6.2"
+  }
+}
+
+variable "dw2_instance_class" {
+  default = "db.m4.2xlarge"
+  description = "Instance class"
+}
+
+variable "dw2_parameter_group" {
+  description = "DW2 Parameter Group"
+}
+
+variable "dw2_snapshot_id" {
+  description = "DW2 Snapshot Identifier for Restoration"
+  default = ""
+}
 ######################################
 # Redshift DW
 

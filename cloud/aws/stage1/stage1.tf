@@ -87,6 +87,14 @@ module "db" {
   prod_db_dns_name    = "prod.db.${var.domain}"
   dw_dns_name         = "dw.${var.domain}"
   dwa_dns_name        = "redshift.dw.${var.domain}"
+
+  dw2_identifier         = "${var.deploy_prefix}-dw2"
+  dw2_name               = "${var.dw2_snapshot_dbname != "" ? var.dw2_snapshot_dbname : "${replace(var.deploy_prefix, "-", "_")}_dw2"}"
+  dw2_username           = "${var.dw2_username}"
+  dw2_password           = "${var.dw2_password}"
+  dw2_snapshot_id        = "${var.dw2_snapshot_id}"
+  dw2_parameter_group    = "${var.deploy_prefix}-pgetl96"
+  dw2_dns_name         = "dw2.${var.domain}"
 }
 
 module "storage" {

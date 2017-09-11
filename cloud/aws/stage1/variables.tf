@@ -89,6 +89,14 @@ variable "dw_password" {
   description = "DW Password"
 }
 
+variable "dw2_username" {
+  description = "DW admin account"
+}
+
+variable "dw2_password" {
+  description = "DW Password"
+}
+
 variable "dev_db_snapshot_id" {
   description = "RDS Snapshot Identifier for Restoration"
   default = ""
@@ -115,6 +123,16 @@ variable "dw_snapshot_id" {
 }
 
 variable "dw_snapshot_dbname" {
+  description = "Database name in the snapshot"
+  default = ""
+}
+
+variable "dw2_snapshot_id" {
+  description = "DW Snapshot Identifier for Restoration"
+  default = ""
+}
+
+variable "dw2_snapshot_dbname" {
   description = "Database name in the snapshot"
   default = ""
 }

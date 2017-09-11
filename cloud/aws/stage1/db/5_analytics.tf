@@ -80,7 +80,7 @@ resource "aws_route53_record" "dwa" {
    zone_id = "${var.domain_zone_id}"
    name    = "${var.dwa_dns_name}"
    type    = "CNAME"
-   ttl     = "300"
+   ttl     = "60"
    records = ["${aws_redshift_cluster.default.endpoint}"]
 }
 
