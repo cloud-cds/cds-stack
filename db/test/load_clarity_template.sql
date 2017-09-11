@@ -395,6 +395,22 @@ create index prob_idx_name on {workspace}."ProblemList" ("diagname");
 create index prob_idx_code on {workspace}."ProblemList" ("code");
 
 
+drop index if exists adx_idx_dx_name;
+drop table if exists {workspace}."AdmissionDx";
+create table {workspace}."AdmissionDx"
+(
+ csn_id              text
+ ,LINE               int
+ ,DX_NAME            text
+ ,DX_ID              numeric
+ ,ADMIT_DIAG_TEXT    text
+ ,"Code"              text
+ ,"ICD-9 Code category"  text
+);
+\copy {workspace}."AdmissionDx" from '{folder}adm_dx.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b';
+create index adx_idx_dx_name on {workspace}."AdmissionDx" ("DX_NAME");
+
+
 drop index if exists cc_idx_id;
 drop index if exists cc_idx_name;
 drop index if exists cc_idx_display;

@@ -200,6 +200,25 @@ INNER JOIN Analytics.dbo.CCDA264_ICD9Codes icdIndex ON ISNUMERIC(icd9.Code) = 1
   AND icd9.Code < icdIndex."High Cutoff";
 GO
 
+
+:OUT \\Client\F$\clarity\adm_dx.rpt
+SET NOCOUNT ON
+SELECT CSN.PAT_ENC_CSN_ID
+  ,dx.LINE
+  ,edg.DX_NAME
+  ,edg.DX_ID
+  ,dx.ADMIT_DIAG_TEXT
+  ,icd9.Code
+  ,icdIndex."ICD-9 Code category"
+FROM Analytics.dbo.CCDA643_CSNLookupTable CSN
+INNER JOIN  CLARITY.dbo.HSP_ADMIT_DIAG dx ON dx.PAT_ENC_CSN_ID = CSN.PAT_ENC_CSN_ID
+INNER JOIN CLARITY.dbo.CLARITY_EDG  edg on edg.DX_ID = dx.DX_ID
+INNER JOIN CLARITY.DBO.EDG_CURRENT_ICD9 icd9 ON dx.DX_ID = icd9.DX_ID
+INNER JOIN Analytics.dbo.CCDA264_ICD9Codes icdIndex ON ISNUMERIC(icd9.Code) = 1
+  AND icd9.Code >= icdIndex."Low Range"
+  AND icd9.Code < icdIndex."High Cutoff";
+GO
+
 :OUT \\Client\F$\clarity\flt_lda.rpt
 SET NOCOUNT ON
 SELECT DISTINCT csn.EXTERNAL_ID CSN_ID

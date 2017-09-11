@@ -4,3 +4,8 @@ mappings:
     dbtable: |
       (select cc.csn_id, ee.event_record_time tsp, json_agg(json_build_object('reason', cc.display_text,'comments', cc.comments)) as value from $clarity_workspace."ChiefComplaint" cc inner join $clarity_workspace."EdEvents" ee on cc.csn_id = ee.csn_id where ee.event_display_name = 'Chief Complaint Filed' group by cc.csn_id, ee.event_record_time) as sub
     select_cols: csn_id as visit_id, tsp, value
+  - mapping:
+    fid(s): admission_dx
+    dbtable : |
+      (select dx.csn_id, json_agg(json_build_object('reason', dx.dx_name, 'comments', dx.admit_diag_text, 'icd9_code', dx."Code", 'icd9_code_category', dx."ICD-9 Code category")) as value from $clarity_workspace."AdmissionDx" dx group by dx.csn_id )
+    select_cols: csn_id as visit_id, value
