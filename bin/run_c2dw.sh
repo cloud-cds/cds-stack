@@ -61,7 +61,7 @@ else
 fi
 
 echo "Starting C2DW ETL into the data warehouse"
-cd ../../dashan-etl
+cd /
 nice -20 python ./etl/clarity2dw/planner.py
 status=$?
 

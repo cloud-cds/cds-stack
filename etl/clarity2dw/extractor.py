@@ -164,6 +164,13 @@ class Extractor:
     if self.job.get('transform', False):
       if self.job.get('transform').get('populate_measured_features', False):
         async with ctxt.db_pool.acquire() as conn:
+          await self.query_cdm_feature_dict(conn)
+          for fm in self.feature_mapping:
+            fids = fm['fid(s)']
+            if not self.fid_valid(fids):
+              raise Exception("Unknown fid from [{}]".format(mapping_row['fid(s)']))
+              return
+        async with ctxt.db_pool.acquire() as conn:
           ctxt.log.info("Using Feature Mapping:")
           pat_mappings = await self.get_pat_mapping(conn)
           self.visit_id_to_enc_id = pat_mappings['visit_id_to_enc_id']
@@ -241,6 +248,13 @@ class Extractor:
     # # return [ [lst[0], lst[2]], [lst_med, lst_bands]]
     # return [ [lst_bco] ]
 
+  def fid_valid(self, fids):
+    for fid in fids.split(','):
+      fid = fid.strip()
+      if not self.cdm_feature_dict.get(fid, False):
+        return False
+    return True
+
   async def run_transform_task(self, ctxt, pat_mappings, task):
     graph = None
     if self.job.get('transform', False):
@@ -251,8 +265,6 @@ class Extractor:
         self.pat_id_to_enc_ids = pat_mappings['pat_id_to_enc_ids']
         self.min_tsp = self.job.get('transform').get('min_tsp')
         futures = []
-        async with ctxt.db_pool.acquire() as conn:
-            await self.query_cdm_feature_dict(conn)
         for mapping_row in task:
           if specified_fid is None or mapping_row['fid(s)'] in specified_fid:
             futures.extend(self.run_feature_mapping_row(ctxt, mapping_row))
