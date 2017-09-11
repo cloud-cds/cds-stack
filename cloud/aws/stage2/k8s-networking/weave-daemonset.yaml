@@ -1,0 +1,175 @@
+apiVersion: v1
+kind: List
+items:
+  - apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: weave-net
+      labels:
+        name: weave-net
+      namespace: kube-system
+  - apiVersion: rbac.authorization.k8s.io/v1beta1
+    kind: ClusterRole
+    metadata:
+      name: weave-net
+      labels:
+        name: weave-net
+    rules:
+      - apiGroups:
+          - ''
+        resources:
+          - pods
+          - namespaces
+          - nodes
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - extensions
+        resources:
+          - networkpolicies
+        verbs:
+          - get
+          - list
+          - watch
+  - apiVersion: rbac.authorization.k8s.io/v1beta1
+    kind: ClusterRoleBinding
+    metadata:
+      name: weave-net
+      labels:
+        name: weave-net
+    roleRef:
+      kind: ClusterRole
+      name: weave-net
+      apiGroup: rbac.authorization.k8s.io
+    subjects:
+      - kind: ServiceAccount
+        name: weave-net
+        namespace: kube-system
+  - apiVersion: extensions/v1beta1
+    kind: DaemonSet
+    metadata:
+      name: weave-net
+      labels:
+        name: weave-net
+        role.kubernetes.io/networking: "1"
+      namespace: kube-system
+    spec:
+      selector:
+        matchLabels:
+          name: weave-net
+          role.kubernetes.io/networking: "1"
+      template:
+        metadata:
+          labels:
+            name: weave-net
+            role.kubernetes.io/networking: "1"
+        spec:
+          containers:
+            - name: weave
+              command:
+                - /home/weave/launch.sh
+              env:
+                - name: HOSTNAME
+                  valueFrom:
+                    fieldRef:
+                      apiVersion: v1
+                      fieldPath: spec.nodeName
+                - name: IPALLOC_RANGE
+                  value: 100.96.0.0/11
+                - name: WEAVE_MTU
+                  value: "8912"
+                - name: CONN_LIMIT
+                  value: "512"
+              image: 'weaveworks/weave-kube:2.0.4'
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                httpGet:
+                  host: 127.0.0.1
+                  path: /status
+                  port: 6784
+                initialDelaySeconds: 45
+                periodSeconds: 15
+                successThreshold: 1
+                timeoutSeconds: 5
+              resources:
+                limits:
+                  cpu: 100m
+                  memory: 200Mi
+                requests:
+                  cpu: 100m
+                  memory: 200Mi
+              securityContext:
+                privileged: true
+              terminationMessagePath: /dev/termination-log
+              terminationMessagePolicy: File
+              volumeMounts:
+                - name: weavedb
+                  mountPath: /weavedb
+                - name: cni-bin
+                  mountPath: /host/opt
+                - name: cni-bin2
+                  mountPath: /host/home
+                - name: cni-conf
+                  mountPath: /host/etc
+                - name: dbus
+                  mountPath: /host/var/lib/dbus
+                - name: lib-modules
+                  mountPath: /lib/modules
+            - name: weave-npc
+              env:
+                - name: HOSTNAME
+                  valueFrom:
+                    fieldRef:
+                      apiVersion: v1
+                      fieldPath: spec.nodeName
+              image: 'weaveworks/weave-npc:2.0.4'
+              imagePullPolicy: IfNotPresent
+              resources:
+                limits:
+                  cpu: 100m
+                  memory: 200Mi
+                requests:
+                  cpu: 100m
+                  memory: 200Mi
+              securityContext:
+                privileged: true
+              terminationMessagePath: /dev/termination-log
+              terminationMessagePolicy: File
+          dnsPolicy: ClusterFirst
+          hostNetwork: true
+          hostPID: true
+          restartPolicy: Always
+          schedulerName: default-scheduler
+          securityContext:
+            seLinuxOptions: {}
+          serviceAccount: weave-net
+          serviceAccountName: weave-net
+          terminationGracePeriodSeconds: 30
+          tolerations:
+            - effect: NoSchedule
+              operator: Exists
+          volumes:
+            - name: weavedb
+              hostPath:
+                path: /var/lib/weave
+            - name: cni-bin
+              hostPath:
+                path: /opt
+            - name: cni-bin2
+              hostPath:
+                path: /home
+            - name: cni-conf
+              hostPath:
+                path: /etc
+            - name: dbus
+              hostPath:
+                path: /var/lib/dbus
+            - name: lib-modules
+              hostPath:
+                path: /lib/modules
+      updateStrategy:
+        rollingUpdate:
+          maxUnavailable: 1
+        type: RollingUpdate

@@ -40,6 +40,7 @@ variable "domain_zone_id" {}
 variable "dev_db_dns_name" {}
 variable "prod_db_dns_name" {}
 variable "dw_dns_name" {}
+variable "dwa_dns_name" {}
 
 ######################################
 # Common DB parameters
@@ -181,3 +182,9 @@ variable "dw_snapshot_id" {
   description = "DW Snapshot Identifier for Restoration"
   default = ""
 }
+
+
+######################################
+# Redshift DW
+
+variable "dwa_node_type" { default = "dc1.large" }

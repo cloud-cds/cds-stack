@@ -195,60 +195,61 @@ resource "aws_cloudwatch_metric_alarm" "jhh_etl_up" {
 
 
 # Ping failures
-# resource "aws_cloudwatch_metric_alarm" "ping_up" {
-#   alarm_name                = "${var.deploy_prefix}-dev-ping-up"
-#   comparison_operator       = "LessThanThreshold"
-#   evaluation_periods        = "1"
-#   metric_name               = "ExternalLatency"
-#   namespace                 = "OpsDX"
-#   period                    = "300"
-#   statistic                 = "SampleCount"
-#   threshold                 = "45"
-#   alarm_description         = "Ping throughput in the past 5 minutes"
-#   alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
-#   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
-#   dimensions {
-#     PingStack  = "Dev"
-#   }
-# }
+resource "aws_cloudwatch_metric_alarm" "ping_up" {
+  alarm_name                = "${var.deploy_prefix}-dev-ping-up"
+  comparison_operator       = "LessThanThreshold"
+  evaluation_periods        = "1"
+  metric_name               = "ExternalLatency"
+  namespace                 = "OpsDX"
+  period                    = "300"
+  statistic                 = "SampleCount"
+  threshold                 = "45"
+  treat_missing_data        = "breaching"
+  alarm_description         = "Ping throughput in the past 5 minutes"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+  dimensions {
+    PingStack  = "Dev"
+  }
+}
 
 # High webservice latency
-# resource "aws_cloudwatch_metric_alarm" "high_webservice_latency" {
-#   alarm_name                = "${var.deploy_prefix}-dev-high-webservice-latency"
-#   comparison_operator       = "GreaterThanThreshold"
-#   evaluation_periods        = "2"
-#   metric_name               = "LatencyAvg"
-#   namespace                 = "OpsDX"
-#   period                    = "60"
-#   statistic                 = "Average"
-#   threshold                 = "300"
-#   alarm_description         = "Average webservice latency in the past minute"
-#   alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
-#   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
-#   dimensions {
-#     Route = "/api"
-#     API   = "opsdx-dev"
-#     MetricStreamId = "0d249909-8586-45d2-9920-85338b93aa10"
-#   }
-# }
+resource "aws_cloudwatch_metric_alarm" "high_webservice_latency" {
+  alarm_name                = "${var.deploy_prefix}-dev-high-webservice-latency"
+  comparison_operator       = "GreaterThanThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "LatencyAvg"
+  namespace                 = "OpsDX"
+  period                    = "60"
+  statistic                 = "Average"
+  threshold                 = "300"
+  treat_missing_data        = "notBreaching"
+  alarm_description         = "Average webservice latency in the past minute"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+  dimensions {
+    API   = "opsdx-dev"
+  }
+}
 
 # High browser latency
-# resource "aws_cloudwatch_metric_alarm" "high_browser_latency" {
-#   alarm_name                = "${var.deploy_prefix}-dev-high-browser-latency"
-#   comparison_operator       = "GreaterThanThreshold"
-#   evaluation_periods        = "2"
-#   metric_name               = "UserLatencyAvg"
-#   namespace                 = "OpsDX"
-#   period                    = "60"
-#   statistic                 = "Average"
-#   threshold                 = "1000"
-#   alarm_description         = "Average browser-side latency in the past minute"
-#   alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
-#   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
-#   dimensions {
-#     Browser = "opsdx-dev"
-#   }
-# }
+resource "aws_cloudwatch_metric_alarm" "high_browser_latency" {
+  alarm_name                = "${var.deploy_prefix}-dev-high-browser-latency"
+  comparison_operator       = "GreaterThanThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "UserLatencyAvg"
+  namespace                 = "OpsDX"
+  period                    = "60"
+  statistic                 = "Average"
+  threshold                 = "1000"
+  treat_missing_data        = "notBreaching"
+  alarm_description         = "Average browser-side latency in the past minute"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+  dimensions {
+    Browser = "opsdx-dev"
+  }
+}
 
 
 # Real-time database overload alarms.

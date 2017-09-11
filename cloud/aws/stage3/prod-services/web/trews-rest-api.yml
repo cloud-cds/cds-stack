@@ -209,7 +209,7 @@ spec:
           serviceName: trews-rest-svc
           servicePort: 80
         path: /
-  - host: trews-test.prod.opsdx.io
+  - host: trews.prod.opsdx.io
     http:
       paths:
       - backend:

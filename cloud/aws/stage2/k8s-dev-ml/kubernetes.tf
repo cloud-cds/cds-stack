@@ -165,6 +165,138 @@ resource "aws_autoscaling_group" "tf1-cluster-dev-ml-jh-opsdx-io" {
   }
 }
 
+resource "aws_autoscaling_group" "tf10-cluster-dev-ml-jh-opsdx-io" {
+  name                 = "tf10.cluster-dev-ml.jh.opsdx.io"
+  launch_configuration = "${aws_launch_configuration.tf10-cluster-dev-ml-jh-opsdx-io.id}"
+  max_size             = 65
+  min_size             = 0
+  vpc_zone_identifier  = ["subnet-52acb31a"]
+
+  tag = {
+    key                 = "Component"
+    value               = "Tensorflow Node"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "KubernetesCluster"
+    value               = "cluster-dev-ml.jh.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Name"
+    value               = "tf10.cluster-dev-ml.jh.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Stack"
+    value               = "Dev-ML"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "k8s.io/cluster-autoscaler/node-template/label/opsdx_nodegroup"
+    value               = "tf10"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "k8s.io/role/node"
+    value               = "1"
+    propagate_at_launch = true
+  }
+}
+
+resource "aws_autoscaling_group" "tf11-cluster-dev-ml-jh-opsdx-io" {
+  name                 = "tf11.cluster-dev-ml.jh.opsdx.io"
+  launch_configuration = "${aws_launch_configuration.tf11-cluster-dev-ml-jh-opsdx-io.id}"
+  max_size             = 65
+  min_size             = 0
+  vpc_zone_identifier  = ["subnet-52acb31a"]
+
+  tag = {
+    key                 = "Component"
+    value               = "Tensorflow Node"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "KubernetesCluster"
+    value               = "cluster-dev-ml.jh.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Name"
+    value               = "tf11.cluster-dev-ml.jh.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Stack"
+    value               = "Dev-ML"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "k8s.io/cluster-autoscaler/node-template/label/opsdx_nodegroup"
+    value               = "tf11"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "k8s.io/role/node"
+    value               = "1"
+    propagate_at_launch = true
+  }
+}
+
+resource "aws_autoscaling_group" "tf12-cluster-dev-ml-jh-opsdx-io" {
+  name                 = "tf12.cluster-dev-ml.jh.opsdx.io"
+  launch_configuration = "${aws_launch_configuration.tf12-cluster-dev-ml-jh-opsdx-io.id}"
+  max_size             = 65
+  min_size             = 0
+  vpc_zone_identifier  = ["subnet-52acb31a"]
+
+  tag = {
+    key                 = "Component"
+    value               = "Tensorflow Node"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "KubernetesCluster"
+    value               = "cluster-dev-ml.jh.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Name"
+    value               = "tf12.cluster-dev-ml.jh.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Stack"
+    value               = "Dev-ML"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "k8s.io/cluster-autoscaler/node-template/label/opsdx_nodegroup"
+    value               = "tf12"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "k8s.io/role/node"
+    value               = "1"
+    propagate_at_launch = true
+  }
+}
+
 resource "aws_autoscaling_group" "tf2-cluster-dev-ml-jh-opsdx-io" {
   name                 = "tf2.cluster-dev-ml.jh.opsdx.io"
   launch_configuration = "${aws_launch_configuration.tf2-cluster-dev-ml-jh-opsdx-io.id}"
@@ -331,6 +463,182 @@ resource "aws_autoscaling_group" "tf5-cluster-dev-ml-jh-opsdx-io" {
   tag = {
     key                 = "k8s.io/cluster-autoscaler/node-template/label/opsdx_nodegroup"
     value               = "tf5"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "k8s.io/role/node"
+    value               = "1"
+    propagate_at_launch = true
+  }
+}
+
+resource "aws_autoscaling_group" "tf6-cluster-dev-ml-jh-opsdx-io" {
+  name                 = "tf6.cluster-dev-ml.jh.opsdx.io"
+  launch_configuration = "${aws_launch_configuration.tf6-cluster-dev-ml-jh-opsdx-io.id}"
+  max_size             = 65
+  min_size             = 0
+  vpc_zone_identifier  = ["subnet-52acb31a"]
+
+  tag = {
+    key                 = "Component"
+    value               = "Tensorflow Node"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "KubernetesCluster"
+    value               = "cluster-dev-ml.jh.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Name"
+    value               = "tf6.cluster-dev-ml.jh.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Stack"
+    value               = "Dev-ML"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "k8s.io/cluster-autoscaler/node-template/label/opsdx_nodegroup"
+    value               = "tf6"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "k8s.io/role/node"
+    value               = "1"
+    propagate_at_launch = true
+  }
+}
+
+resource "aws_autoscaling_group" "tf7-cluster-dev-ml-jh-opsdx-io" {
+  name                 = "tf7.cluster-dev-ml.jh.opsdx.io"
+  launch_configuration = "${aws_launch_configuration.tf7-cluster-dev-ml-jh-opsdx-io.id}"
+  max_size             = 65
+  min_size             = 0
+  vpc_zone_identifier  = ["subnet-52acb31a"]
+
+  tag = {
+    key                 = "Component"
+    value               = "Tensorflow Node"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "KubernetesCluster"
+    value               = "cluster-dev-ml.jh.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Name"
+    value               = "tf7.cluster-dev-ml.jh.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Stack"
+    value               = "Dev-ML"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "k8s.io/cluster-autoscaler/node-template/label/opsdx_nodegroup"
+    value               = "tf7"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "k8s.io/role/node"
+    value               = "1"
+    propagate_at_launch = true
+  }
+}
+
+resource "aws_autoscaling_group" "tf8-cluster-dev-ml-jh-opsdx-io" {
+  name                 = "tf8.cluster-dev-ml.jh.opsdx.io"
+  launch_configuration = "${aws_launch_configuration.tf8-cluster-dev-ml-jh-opsdx-io.id}"
+  max_size             = 65
+  min_size             = 0
+  vpc_zone_identifier  = ["subnet-52acb31a"]
+
+  tag = {
+    key                 = "Component"
+    value               = "Tensorflow Node"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "KubernetesCluster"
+    value               = "cluster-dev-ml.jh.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Name"
+    value               = "tf8.cluster-dev-ml.jh.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Stack"
+    value               = "Dev-ML"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "k8s.io/cluster-autoscaler/node-template/label/opsdx_nodegroup"
+    value               = "tf8"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "k8s.io/role/node"
+    value               = "1"
+    propagate_at_launch = true
+  }
+}
+
+resource "aws_autoscaling_group" "tf9-cluster-dev-ml-jh-opsdx-io" {
+  name                 = "tf9.cluster-dev-ml.jh.opsdx.io"
+  launch_configuration = "${aws_launch_configuration.tf9-cluster-dev-ml-jh-opsdx-io.id}"
+  max_size             = 65
+  min_size             = 0
+  vpc_zone_identifier  = ["subnet-52acb31a"]
+
+  tag = {
+    key                 = "Component"
+    value               = "Tensorflow Node"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "KubernetesCluster"
+    value               = "cluster-dev-ml.jh.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Name"
+    value               = "tf9.cluster-dev-ml.jh.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Stack"
+    value               = "Dev-ML"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "k8s.io/cluster-autoscaler/node-template/label/opsdx_nodegroup"
+    value               = "tf9"
     propagate_at_launch = true
   }
 
@@ -552,6 +860,75 @@ resource "aws_launch_configuration" "tf1-cluster-dev-ml-jh-opsdx-io" {
   spot_price = "0.2"
 }
 
+resource "aws_launch_configuration" "tf10-cluster-dev-ml-jh-opsdx-io" {
+  name_prefix                 = "tf10.cluster-dev-ml.jh.opsdx.io-"
+  image_id                    = "ami-08431d73"
+  instance_type               = "c4.4xlarge"
+  key_name                    = "${aws_key_pair.kubernetes-cluster-dev-ml-jh-opsdx-io-551d14812028ed6fac475b92d6893824.id}"
+  iam_instance_profile        = "${aws_iam_instance_profile.nodes-cluster-dev-ml-jh-opsdx-io.id}"
+  security_groups             = ["${aws_security_group.nodes-cluster-dev-ml-jh-opsdx-io.id}"]
+  associate_public_ip_address = false
+  user_data                   = "${file("${path.module}/data/aws_launch_configuration_tf10.cluster-dev-ml.jh.opsdx.io_user_data")}"
+
+  root_block_device = {
+    volume_type           = "gp2"
+    volume_size           = 128
+    delete_on_termination = true
+  }
+
+  lifecycle = {
+    create_before_destroy = true
+  }
+
+  spot_price = "0.2"
+}
+
+resource "aws_launch_configuration" "tf11-cluster-dev-ml-jh-opsdx-io" {
+  name_prefix                 = "tf11.cluster-dev-ml.jh.opsdx.io-"
+  image_id                    = "ami-08431d73"
+  instance_type               = "c4.4xlarge"
+  key_name                    = "${aws_key_pair.kubernetes-cluster-dev-ml-jh-opsdx-io-551d14812028ed6fac475b92d6893824.id}"
+  iam_instance_profile        = "${aws_iam_instance_profile.nodes-cluster-dev-ml-jh-opsdx-io.id}"
+  security_groups             = ["${aws_security_group.nodes-cluster-dev-ml-jh-opsdx-io.id}"]
+  associate_public_ip_address = false
+  user_data                   = "${file("${path.module}/data/aws_launch_configuration_tf11.cluster-dev-ml.jh.opsdx.io_user_data")}"
+
+  root_block_device = {
+    volume_type           = "gp2"
+    volume_size           = 128
+    delete_on_termination = true
+  }
+
+  lifecycle = {
+    create_before_destroy = true
+  }
+
+  spot_price = "0.2"
+}
+
+resource "aws_launch_configuration" "tf12-cluster-dev-ml-jh-opsdx-io" {
+  name_prefix                 = "tf12.cluster-dev-ml.jh.opsdx.io-"
+  image_id                    = "ami-08431d73"
+  instance_type               = "c4.4xlarge"
+  key_name                    = "${aws_key_pair.kubernetes-cluster-dev-ml-jh-opsdx-io-551d14812028ed6fac475b92d6893824.id}"
+  iam_instance_profile        = "${aws_iam_instance_profile.nodes-cluster-dev-ml-jh-opsdx-io.id}"
+  security_groups             = ["${aws_security_group.nodes-cluster-dev-ml-jh-opsdx-io.id}"]
+  associate_public_ip_address = false
+  user_data                   = "${file("${path.module}/data/aws_launch_configuration_tf12.cluster-dev-ml.jh.opsdx.io_user_data")}"
+
+  root_block_device = {
+    volume_type           = "gp2"
+    volume_size           = 128
+    delete_on_termination = true
+  }
+
+  lifecycle = {
+    create_before_destroy = true
+  }
+
+  spot_price = "0.2"
+}
+
 resource "aws_launch_configuration" "tf2-cluster-dev-ml-jh-opsdx-io" {
   name_prefix                 = "tf2.cluster-dev-ml.jh.opsdx.io-"
   image_id                    = "ami-08431d73"
@@ -630,6 +1007,98 @@ resource "aws_launch_configuration" "tf5-cluster-dev-ml-jh-opsdx-io" {
   security_groups             = ["${aws_security_group.nodes-cluster-dev-ml-jh-opsdx-io.id}"]
   associate_public_ip_address = false
   user_data                   = "${file("${path.module}/data/aws_launch_configuration_tf5.cluster-dev-ml.jh.opsdx.io_user_data")}"
+
+  root_block_device = {
+    volume_type           = "gp2"
+    volume_size           = 128
+    delete_on_termination = true
+  }
+
+  lifecycle = {
+    create_before_destroy = true
+  }
+
+  spot_price = "0.2"
+}
+
+resource "aws_launch_configuration" "tf6-cluster-dev-ml-jh-opsdx-io" {
+  name_prefix                 = "tf6.cluster-dev-ml.jh.opsdx.io-"
+  image_id                    = "ami-08431d73"
+  instance_type               = "c4.4xlarge"
+  key_name                    = "${aws_key_pair.kubernetes-cluster-dev-ml-jh-opsdx-io-551d14812028ed6fac475b92d6893824.id}"
+  iam_instance_profile        = "${aws_iam_instance_profile.nodes-cluster-dev-ml-jh-opsdx-io.id}"
+  security_groups             = ["${aws_security_group.nodes-cluster-dev-ml-jh-opsdx-io.id}"]
+  associate_public_ip_address = false
+  user_data                   = "${file("${path.module}/data/aws_launch_configuration_tf6.cluster-dev-ml.jh.opsdx.io_user_data")}"
+
+  root_block_device = {
+    volume_type           = "gp2"
+    volume_size           = 128
+    delete_on_termination = true
+  }
+
+  lifecycle = {
+    create_before_destroy = true
+  }
+
+  spot_price = "0.2"
+}
+
+resource "aws_launch_configuration" "tf7-cluster-dev-ml-jh-opsdx-io" {
+  name_prefix                 = "tf7.cluster-dev-ml.jh.opsdx.io-"
+  image_id                    = "ami-08431d73"
+  instance_type               = "c4.4xlarge"
+  key_name                    = "${aws_key_pair.kubernetes-cluster-dev-ml-jh-opsdx-io-551d14812028ed6fac475b92d6893824.id}"
+  iam_instance_profile        = "${aws_iam_instance_profile.nodes-cluster-dev-ml-jh-opsdx-io.id}"
+  security_groups             = ["${aws_security_group.nodes-cluster-dev-ml-jh-opsdx-io.id}"]
+  associate_public_ip_address = false
+  user_data                   = "${file("${path.module}/data/aws_launch_configuration_tf7.cluster-dev-ml.jh.opsdx.io_user_data")}"
+
+  root_block_device = {
+    volume_type           = "gp2"
+    volume_size           = 128
+    delete_on_termination = true
+  }
+
+  lifecycle = {
+    create_before_destroy = true
+  }
+
+  spot_price = "0.2"
+}
+
+resource "aws_launch_configuration" "tf8-cluster-dev-ml-jh-opsdx-io" {
+  name_prefix                 = "tf8.cluster-dev-ml.jh.opsdx.io-"
+  image_id                    = "ami-08431d73"
+  instance_type               = "c4.4xlarge"
+  key_name                    = "${aws_key_pair.kubernetes-cluster-dev-ml-jh-opsdx-io-551d14812028ed6fac475b92d6893824.id}"
+  iam_instance_profile        = "${aws_iam_instance_profile.nodes-cluster-dev-ml-jh-opsdx-io.id}"
+  security_groups             = ["${aws_security_group.nodes-cluster-dev-ml-jh-opsdx-io.id}"]
+  associate_public_ip_address = false
+  user_data                   = "${file("${path.module}/data/aws_launch_configuration_tf8.cluster-dev-ml.jh.opsdx.io_user_data")}"
+
+  root_block_device = {
+    volume_type           = "gp2"
+    volume_size           = 128
+    delete_on_termination = true
+  }
+
+  lifecycle = {
+    create_before_destroy = true
+  }
+
+  spot_price = "0.2"
+}
+
+resource "aws_launch_configuration" "tf9-cluster-dev-ml-jh-opsdx-io" {
+  name_prefix                 = "tf9.cluster-dev-ml.jh.opsdx.io-"
+  image_id                    = "ami-08431d73"
+  instance_type               = "c4.4xlarge"
+  key_name                    = "${aws_key_pair.kubernetes-cluster-dev-ml-jh-opsdx-io-551d14812028ed6fac475b92d6893824.id}"
+  iam_instance_profile        = "${aws_iam_instance_profile.nodes-cluster-dev-ml-jh-opsdx-io.id}"
+  security_groups             = ["${aws_security_group.nodes-cluster-dev-ml-jh-opsdx-io.id}"]
+  associate_public_ip_address = false
+  user_data                   = "${file("${path.module}/data/aws_launch_configuration_tf9.cluster-dev-ml.jh.opsdx.io_user_data")}"
 
   root_block_device = {
     volume_type           = "gp2"

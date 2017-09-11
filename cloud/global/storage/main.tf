@@ -3,51 +3,6 @@ variable "aws_id" {}
 #####################################
 # S3 buckets
 
-resource "aws_s3_bucket" "kops-dev" {
-    bucket = "opsdx-kops-dev"
-    acl = "private"
-
-    versioning {
-        enabled = true
-    }
-}
-
-resource "aws_s3_bucket" "kops-prod" {
-    bucket = "opsdx-kops-prod"
-    acl = "private"
-
-    versioning {
-        enabled = true
-    }
-}
-
-resource "aws_s3_bucket" "kops-ml" {
-    bucket = "opsdx-kops-ml"
-    acl = "private"
-
-    versioning {
-        enabled = true
-    }
-}
-
-resource "aws_s3_bucket" "kops-ml-tf" {
-    bucket = "opsdx-kops-ml-tf"
-    acl = "private"
-
-    versioning {
-        enabled = true
-    }
-}
-
-resource "aws_s3_bucket" "kops-prod-ml" {
-    bucket = "opsdx-kops-prod-ml"
-    acl = "private"
-
-    versioning {
-        enabled = true
-    }
-}
-
 resource "aws_s3_bucket" "lambda-repo" {
     bucket = "opsdx-lambda-repo"
     acl = "private"

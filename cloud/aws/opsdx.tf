@@ -60,16 +60,7 @@ module "stage3" {
   deploy_prefix = "${var.deploy_prefix}"
   local_shell   = "${var.local_shell}"
 
-
-  s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
-
-  lambda_subnet1_id = "${var.lambda_subnet1_id}"
-  lambda_subnet2_id = "${var.lambda_subnet2_id}"
-  lambda_sg_id      = "${var.lambda_sg_id}"
-
-  aws_klaunch_lambda_package = "${var.aws_klaunch_lambda_package}"
-  aws_klaunch_lambda_role_arn = "${var.aws_klaunch_lambda_role_arn}"
-
+  # k8s clusters
   k8s_dev_server_host = "${var.k8s_dev_server_host}"
   k8s_dev_server_port = "${var.k8s_dev_server_port}"
 
@@ -94,7 +85,13 @@ module "stage3" {
   k8s_prod_cert      = "${var.k8s_prod_cert}"
   k8s_prod_key       = "${var.k8s_prod_key}"
 
+  k8s_dev_ml_name      = "${var.k8s_dev_ml_name}"
+  k8s_dev_ml_server    = "${var.k8s_dev_ml_server}"
+  k8s_dev_ml_user      = "${var.k8s_dev_ml_user}"
+  k8s_dev_ml_pass      = "${var.k8s_dev_ml_pass}"
+  k8s_dev_ml_cert_auth = "${var.k8s_dev_ml_cert_auth}"
 
+  # databases
   dev_db_host             = "dev.db.${var.domain}"
   dev_db_name             = "opsdx_dev"
   dev_db_username         = "${var.dev_db_username}"
@@ -135,6 +132,30 @@ module "stage3" {
   PROD_ETL_STREAM_SLEEP_SECS  = "${var.PROD_ETL_STREAM_SLEEP_SECS}"
 
   ######################################
+  # Lambda functions.
+
+  s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
+
+  lambda_subnet1_id = "${var.lambda_subnet1_id}"
+  lambda_subnet2_id = "${var.lambda_subnet2_id}"
+  lambda_sg_id      = "${var.lambda_sg_id}"
+
+
+  ######################################
+  # k8s job launcher
+
+  aws_klaunch_lambda_package = "${var.aws_klaunch_lambda_package}"
+  aws_klaunch_lambda_role_arn = "${var.aws_klaunch_lambda_role_arn}"
+
+  ######################################
+  # k8s weave cleaner
+
+  aws_weave_cleaner_lambda_package = "${var.aws_weave_cleaner_lambda_package}"
+  aws_weave_cleaner_lambda_role_arn = "${var.aws_weave_cleaner_lambda_role_arn}"
+
+  weave_cleaner_firing_rate_mins = "${var.weave_cleaner_firing_rate_mins}"
+
+  ######################################
   # Behavior monitors
 
   aws_behamon_lambda_package  = "${var.aws_behamon_lambda_package}"
@@ -145,7 +166,6 @@ module "stage3" {
 
   prod_behamon_log_group_name = "${var.prod_behamon_log_group_name}"
   prod_behamon_log_group_arn  = "${var.prod_behamon_log_group_arn}"
-
 
   ######################################
   # Alarm2slack

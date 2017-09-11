@@ -210,3 +210,10 @@ spec:
           serviceName: trews-rest-svc
           servicePort: 80
         path: /
+  - host: trews.dev.opsdx.io
+    http:
+      paths:
+      - backend:
+          serviceName: trews-rest-svc
+          servicePort: 80
+        path: /

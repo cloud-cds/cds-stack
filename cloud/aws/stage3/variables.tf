@@ -78,6 +78,15 @@ variable "k8s_prod_key" {
 }
 
 variable "k8s_prod_image" {}
+
+
+variable "k8s_dev_ml_name" {}
+variable "k8s_dev_ml_server" {}
+variable "k8s_dev_ml_user" {}
+variable "k8s_dev_ml_pass" {}
+variable "k8s_dev_ml_cert_auth" {}
+
+
 ####################################
 # JH API
 
@@ -160,6 +169,8 @@ variable "aws_alarm2slack_package" {}
 variable "aws_behamon_lambda_package" {}
 variable "aws_behamon_lambda_role_arn" {}
 
+variable "aws_weave_cleaner_lambda_package" {}
+variable "aws_weave_cleaner_lambda_role_arn" {}
 
 ######################################
 # Behavior monitors
@@ -178,3 +189,9 @@ variable "alarm2slack_kms_key_arn" {}
 variable "slack_hook" {}
 variable "slack_channel" {}
 variable "slack_watchers" {}
+
+
+######################################
+# Weave Cleaner firing rate
+
+variable "weave_cleaner_firing_rate_mins" {}

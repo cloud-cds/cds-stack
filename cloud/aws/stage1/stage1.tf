@@ -86,6 +86,7 @@ module "db" {
   dev_db_dns_name     = "dev.db.${var.domain}"
   prod_db_dns_name    = "prod.db.${var.domain}"
   dw_dns_name         = "dw.${var.domain}"
+  dwa_dns_name        = "redshift.dw.${var.domain}"
 }
 
 module "storage" {
