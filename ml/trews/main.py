@@ -209,7 +209,7 @@ c = read.csv("{c_matrix}")
 yy = Surv(as.numeric(y[,1]), as.numeric(c[,1]))
 fit=glmnet(as.matrix(x[-1,]),yy,family="cox", thresh=1e-3, maxit=1000, nlambda=20)
 write.table(as.matrix(fit$beta), file='{coefs}', sep=",")
-'''.format(x_matrix=x_matrix, y=y_matrix, c=c_matrix, coefs=COEFS)
+'''.format(x_matrix=x_matrix, y_matrix=y_matrix, c_matrix=c_matrix, coefs=COEFS)
 logging.info("r code: {}".format(r_code))
 robjects.r(r_code)
 
@@ -231,10 +231,12 @@ for i in range(num_lambdas):
     precision, recall, _ = precision_recall_curve(c_data_mat[val_inds], pred_matrix[:,i])
     val_ppv[i] = metrics.auc(recall, precision)
 
+fig = plt.figure()
 plt.plot(val_auc)
-plt.savefig(FIG_AUC)
+fig.savefig(FIG_AUC)
+fig = plt.figure()
 plt.plot(val_ppv)
-plt.savefig(FIG_PPV)
+fig.savefig(FIG_PPV)
 
 best_ind = np.argmax(val_auc)
 logging.info("Saving best coefs")
