@@ -733,7 +733,7 @@ class Extractor:
       WITH twf_fids as (
         select array_agg(fid)::text[] as arr from cdm_feature where dataset_id = {dataset_id} and is_measured and category = 'TWF'
       ){with_enc_ids}
-      SELECT * from last_value_in_window(
+      SELECT * from last_value(
         (select arr from twf_fids), 'cdm_twf'::text,
         {dataset_id}{select_enc_ids});
       '''.format(dataset_id=self.dataset_id,
