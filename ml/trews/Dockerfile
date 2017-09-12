@@ -23,5 +23,3 @@ RUN pip install --upgrade pip \
 
 RUN R CMD BATCH /trews/install-packages.R
 RUN chmod +x /trews/run_ml.sh
-# Set the default directory where CMD will execute
-WORKDIR /trews
