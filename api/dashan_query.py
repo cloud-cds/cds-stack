@@ -608,6 +608,5 @@ async def invalidate_cache_hospital(db_pool, pid, channel, hospital, pat_cache):
   for pat_id in pat_ids:
     logging.info("Invalidating cache for %s" % pat_id)
     await pat_cache.delete(pat_id)
-    asyncio.ensure_future(\
-        dashan_query.push_notifications_to_epic(db_pool, pat_id,
-          notify_future_notification=False))
+    await push_notifications_to_epic(db_pool, pat_id,
+          notify_future_notification=False)
