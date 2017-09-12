@@ -207,7 +207,7 @@ x = read.csv("{x_matrix}", header = TRUE)
 y = read.csv("{y_matrix}")
 c = read.csv("{c_matrix}")
 yy = Surv(as.numeric(y[,1]), as.numeric(c[,1]))
-fit=glmnet(as.matrix(x[-1,]),yy,family="cox", thresh=1e-3, maxit=1000, nlambda=20)
+fit=glmnet(as.matrix(x[-1,]),yy,family="cox", thresh=1e-3, maxit=1000, nlambda=50)
 write.table(as.matrix(fit$beta), file='{coefs}', sep=",")
 '''.format(x_matrix=x_matrix, y_matrix=y_matrix, c_matrix=c_matrix, coefs=COEFS)
 logging.info("r code: {}".format(r_code))
@@ -240,5 +240,5 @@ fig.savefig(FIG_PPV)
 
 best_ind = np.argmax(val_auc)
 logging.info("Saving best coefs")
-final_coefs = weights_df.loc[:, ['X', 's'+str(best_ind-1)]]
+final_coefs = weights_df.loc[:, ['s0', 's'+str(best_ind)]]
 final_coefs.to_csv(FINAL_COEFS, index=False)

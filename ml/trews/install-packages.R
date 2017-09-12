@@ -3,7 +3,7 @@ dir.create(Sys.getenv("R_LIBS_USER"), showWarnings = FALSE, recursive = TRUE)
 ## Install one package.
 install.packages("doMC", Sys.getenv("R_LIBS_USER"), repos = "http://cran.case.edu" )
 install.packages("RColorBrewer", Sys.getenv("R_LIBS_USER"), repos = "http://cran.case.edu" )
-install.packages("https://cran.r-project.org/src/contrib/Archive/glmnet/glmnet_2.0-2.tar.gz", Sys.getenv("R_LIBS_USER"), repos = NULL, type="source" )
+install.packages("https://cran.r-project.org/src/contrib/Archive/glmnet/glmnet_2.0-5.tar.gz", Sys.getenv("R_LIBS_USER"), repos = NULL, type="source" )
 install.packages("plyr", Sys.getenv("R_LIBS_USER"), repos = "http://cran.case.edu" )
 install.packages("https://cran.r-project.org/src/contrib/Archive/pROC/pROC_1.8.tar.gz", Sys.getenv("R_LIBS_USER"), repos = NULL, type="source" )
 
