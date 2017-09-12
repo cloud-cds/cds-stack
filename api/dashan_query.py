@@ -601,3 +601,13 @@ async def get_pats_from_hosp(db_pool, hosp):
   async with db_pool.acquire() as conn:
     res = await conn.fetch(sql)
     return [row['pat_id'] for row in res]
+
+async def invalidate_cache_hospital(db_pool, pid, channel, hospital, pat_cache):
+  logging.info('Invalidating patient cache hospital %s (via channel %s)' % (hospital, channel))
+  pat_ids = await get_pats_from_hosp(db_pool, hospital)
+  for pat_id in pat_ids:
+    logging.info("Invalidating cache for %s" % pat_id)
+    await pat_cache.delete(pat_id)
+    asyncio.ensure_future(\
+        dashan_query.push_notifications_to_epic(db_pool, pat_id,
+          notify_future_notification=False))
