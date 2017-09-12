@@ -131,12 +131,23 @@ class AlertServer:
 
   async def run_trews_suppression(self, hospital):
     async with self.db_pool.acquire() as conn:
-      sql = '''
-      select update_suppression_alert(pat_id, '{channel}', '{model}', '{notify}') from
-      (select distinct m.pat_id from criteria_meas m
-      inner join pat_hosp() h on h.pat_id = m.pat_id
-      where now() - tsp < (select value::interval from parameters where name = 'lookbackhours') and h.hospital = '{hospital}') sub;
-        '''.format(channel=self.channel, model=self.model, notify=self.notify_web, hospital=hospital)
+      if self.notify_web:
+        sql = '''
+        with pats as (
+          select distinct m.pat_id from criteria_meas m
+          inner join pat_hosp() h on h.pat_id = m.pat_id
+          where now() - tsp < (select value::interval from parameters where name = 'lookbackhours') and h.hospital = '{hospital}'),
+        alerts as (
+          select update_suppression_alert(pat_id, '{channel}', '{model}', 'false') from pats)
+        select pg_notify('{channel}', 'invalidate_cache:' || string_agg(pat_id, ',') || ':' || '{model}') from pats;
+          '''.format(channel=self.channel, model=self.model, hospital=hospital)
+      else:
+        sql = '''
+        select update_suppression_alert(pat_id, '{channel}', '{model}', 'false') from
+        (select distinct m.pat_id from criteria_meas m
+        inner join pat_hosp() h on h.pat_id = m.pat_id
+        where now() - tsp < (select value::interval from parameters where name = 'lookbackhours') and h.hospital = '{hospital}') sub;
+          '''.format(channel=self.channel, model=self.model, hospital=hospital)
       logging.info("suppression sql: {}".format(sql))
       await conn.fetch(sql)
       logging.info("generate trews suppression alert for {}".format(hospital))
