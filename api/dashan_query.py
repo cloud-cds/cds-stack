@@ -597,7 +597,7 @@ async def notify_pat_update(db_pool, channel, pat_id):
     await conn.execute(notify_sql)
 
 async def get_pats_from_hosp(db_pool, hosp):
-  sql = "select pat_id from pat_hosp() where hospital = '{}')".format(hosp)
+  sql = "select pat_id from pat_hosp() where hospital = '{}'".format(hosp)
   async with db_pool.acquire() as conn:
     res = await conn.fetch(sql)
     return [row['pat_id'] for row in res]
