@@ -139,7 +139,7 @@ class AlertServer:
           where now() - tsp < (select value::interval from parameters where name = 'lookbackhours') and h.hospital = '{hospital}'),
         alerts as (
           select update_suppression_alert(pat_id, '{channel}', '{model}', 'false') from pats)
-        select pg_notify('{channel}', 'invalidate_cache:H{hospital}: || '{model}') from pats;
+        select pg_notify('{channel}', 'invalidate_cache:H{hospital}:' || '{model}') from pats;
           '''.format(channel=self.channel, model=self.model, hospital=hospital)
       else:
         sql = '''
