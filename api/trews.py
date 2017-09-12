@@ -384,8 +384,8 @@ def etl_channel_recv(conn, proc_id, channel, payload):
           if body.startswith('H'):
             hosp = body[1:]
             if 'db_pool' in app:
-              pats = dashan_query.get_pats_from_hosp(app['db_pool'], hosp)
-              invalidate_cache(conn, proc_id, channel, pats)
+              global pat_cache
+              asyncio.ensure_future(dashan_query.invalidate_cache_hospital(app['db_pool'], proc_id, channel, hosp, pat_cache))
           else:
             invalidate_cache(conn, proc_id, channel, body.split(","))
         elif payload.startswith('future_epic_sync'):
@@ -410,6 +410,8 @@ def invalidate_cache(conn, pid, channel, pat_ids):
         asyncio.ensure_future(\
           dashan_query.push_notifications_to_epic(app['db_pool'], pat_id,
             notify_future_notification=False))
+
+
 
 
 def add_future_epic_sync(conn, proc_id, channel, body):
