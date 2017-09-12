@@ -15,9 +15,9 @@ import dashan_universe.transforms as transforms
 logging.basicConfig(format='%(levelname)s|%(asctime)s.%(msecs)03d|%(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
 
 epic_notifications = os.environ['epic_notifications']
-client_id = os.environ['jhapi_client_id']
-client_secret = os.environ['jhapi_client_secret']
-use_trews_lmc          = os.environ['use_trews_lmc'].lower() == 'true' if 'use_trews_lmc' in os.environ else False
+client_id          = os.environ['jhapi_client_id']
+client_secret      = os.environ['jhapi_client_secret']
+use_trews_lmc      = os.environ['use_trews_lmc'].lower() == 'true' if 'use_trews_lmc' in os.environ else False
 
 ##########################################
 # Compact query implementations.

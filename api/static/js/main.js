@@ -748,6 +748,7 @@ var severeSepsisComponent = new function() {
   this.sus = {};
   this.ctn = $("[data-trews='severeSepsis']");
   this.susCtn = $("[data-trews='sus']");
+  this.noInfectionBtn = $('.no-infection-btn');
 
   for (var i in INFECTIONS) {
     var s = $('<option></option>').text(INFECTIONS[i]);
@@ -831,6 +832,17 @@ var severeSepsisComponent = new function() {
     this.suspicion(severe_sepsis['suspicion_of_infection']);
     this.sirSlot.r(json['sirs']);
     this.orgSlot.r(json['organ_dysfunction']);
+
+    // Bind no-infection button.
+    this.noInfectionBtn.unbind();
+    this.noInfectionBtn.click(function() {
+      $('#loading').addClass('waiting').spin(); // Add spinner to page
+      var action = {
+        "actionName": $(this).attr('data-trews'),
+        "value": $(this).text()
+      };
+      endpoints.getPatientData("suspicion_of_infection", action);
+    });
 
     // Render card subtitle.
     if ( !(trews.data == null || trews.data['severe_sepsis'] == null) ) {

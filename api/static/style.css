@@ -261,8 +261,9 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li, .vis-inner {
     pointer-events: none;
 }
 .card.inactive a.edit-btn,
+.card.inactive a.orderNA,
 .card.inactive .place-order,
-.card.inactive a.orderNA {
+.card.inactive .no-infection {
     display: none;
 }
 .card.inactive .status h5 {
@@ -349,7 +350,8 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li, .vis-inner {
 .actions a,
 .actions a:link,
 .actions a:visited,
-.actions .place-order {
+.actions .place-order,
+.actions .no-infection {
     text-decoration: none;
     float: right;
     color: #10b66d;

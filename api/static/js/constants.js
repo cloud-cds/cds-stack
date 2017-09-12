@@ -7,7 +7,6 @@ var INFECTIONS = [
 	"Pneumonia",
 	"Multiple Sources of Infection",
 	"Unknown",
-	"No Infection",
 	"Reset"
 ]
 

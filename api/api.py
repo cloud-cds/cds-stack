@@ -24,7 +24,6 @@ logging.basicConfig(format='%(levelname)s|%(asctime)s.%(msecs)03d|%(message)s', 
 
 ##############################
 # Constants.
-use_trews_lmc          = os.environ['use_trews_lmc'].lower() == 'true' if 'use_trews_lmc' in os.environ else False
 no_check_for_orders    = str(os.environ.get('no_check_for_orders', '')).lower() == 'true'
 chart_sample_start_hrs = int(os.environ['chart_sample_start_hrs']) if 'chart_sample_start_hrs' in os.environ else 6
 chart_sample_start_day = int(os.environ['chart_sample_start_day']) if 'chart_sample_start_day' in os.environ else 2
@@ -393,9 +392,9 @@ class TREWSAPI(web.View):
       # parallel query execution
       pat_values = await asyncio.gather(
                       query.get_criteria(db_pool, eid),
-                      query.get_trews_contributors(db_pool, eid, use_trews_lmc=use_trews_lmc, start_hrs=chart_sample_start_hrs, start_day=chart_sample_start_day, end_day=chart_sample_end_day, sample_mins=chart_sample_mins, sample_hrs=chart_sample_hrs),
+                      query.get_trews_contributors(db_pool, eid, start_hrs=chart_sample_start_hrs, start_day=chart_sample_start_day, end_day=chart_sample_end_day, sample_mins=chart_sample_mins, sample_hrs=chart_sample_hrs),
                       query.get_patient_events(db_pool, eid),
-                      query.get_patient_profile(db_pool, eid, use_trews_lmc=use_trews_lmc)
+                      query.get_patient_profile(db_pool, eid)
                     )
       if pat_values[0] is None or len(pat_values[0]) == 0:
         # cannot find data for this eid
