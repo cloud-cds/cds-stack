@@ -381,7 +381,13 @@ def etl_channel_recv(conn, proc_id, channel, payload):
       if payload.count(':') == 2:
         header, body, model = payload.split(":")
         if (use_trews_lmc and model == 'lmc') or (not use_trews_lmc and model == 'trews'):
-          invalidate_cache(conn, proc_id, channel, body.split(","))
+          if body.startswith('H'):
+            hosp = body[1:]
+            if 'db_pool' in app:
+              pats = dashan_query.get_pats_from_hosp(app['db_pool'], hosp)
+              invalidate_cache(conn, proc_id, channel, pats)
+          else:
+            invalidate_cache(conn, proc_id, channel, body.split(","))
         elif payload.startswith('future_epic_sync'):
           header, body = payload.split(":")
           add_future_epic_sync(conn, proc_id, channel, body)
