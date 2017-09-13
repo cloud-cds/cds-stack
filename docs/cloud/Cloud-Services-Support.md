@@ -324,20 +324,20 @@ create database redash;
 
 ***
 
-## TensorFlow 
-(Lead: Mike & Ben Ring)
+## TensorFlow
+(Lead: Andong)
 
 #### Launch, Shutdown, Status
 - Modify aws console to bring up an auto-scaling group
   - Wait for node to come up
-- Modify yaml file (`LMC-Based-On-GPflow/yaml/online_predict.yaml`)
+- Modify yaml file (`dashan-universe/cloud/aws/stage3/lmc_predictor/online_predict.yaml`)
   - *replicas* = number of nodes
   - *NUM_WORKERS* = number of active predictors (1/2 of *replicas* for active + backup, same as *replicas* for just active)
 - Bring down existing predictors
   - `kubectl delete statefulset tflmc1`
 - Wait for all predictor pods to come down (`watch -n 1 "kubectl get pods"`)
 - Launch statefulset
-  - `kubectl apply -f ./yaml/online_predict.yaml -f secrets.yaml`
+  - `kubectl apply -f online_predict.yaml`
 
 #### Logging & Analysis
 - `kubectl logs tflmc1-0 -c tensorflow-long`

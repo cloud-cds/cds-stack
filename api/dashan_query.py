@@ -611,21 +611,20 @@ async def get_recent_pats_from_hosp(db_pool, hosp, model):
     res = await conn.fetch(sql)
     return [row['pat_id'] for row in res]
 
-async def invalidate_cache_hospital(db_pool, pid, channel, hospital, pat_cache):
+async def invalidate_cache_batch(db_pool, pid, channel, serial_id, pat_cache):
   # run push_notifications_to_epic in a batch way
-  logging.info('Invalidating patient cache hospital %s (via channel %s)' % (hospital, channel))
+  logging.info('Invalidating patient cache serial_id %s (via channel %s)' % (serial_id, channel))
   model = 'lmc' if use_trews_lmc else 'trews'
   sql = '''with notifications as (
-  select n.* from pat_hosp() h
-    inner join criteria_meas m on m.pat_id = h.pat_id
-    inner join (select * from get_notifications_for_epic(null, '{model}')) n on n.pat_id = h.pat_id
-    where hospital = '{hosp}' and now() - tsp < (select value::interval from parameters where name = 'lookbackhours')
+    select n.* from
+    (select jsonb_array_elements_text(pats) pat_id from refreshed_pats where id = {serial_id}) p
+    inner join (select * from get_notifications_for_epic(null, '{model}')) n on n.pat_id = p.pat_id
   ),
   notify_future as (
     select notify_future_notification('{channel}', pat_id) from notifications
   )
-  select * from notifications;
-  '''.format(hosp=hospital, model=model, channel=channel)
+  select n.* from notifications n cross join notify_future;
+  '''.format(serial_id=serial_id, model=model, channel=channel)
   async with db_pool.acquire() as conn:
     notifications = await conn.fetch(sql)
     await load_epic_notifications(notifications)
