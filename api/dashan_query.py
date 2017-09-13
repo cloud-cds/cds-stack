@@ -625,6 +625,11 @@ async def invalidate_cache_batch(db_pool, pid, channel, serial_id, pat_cache):
   )
   select n.* from notifications n cross join notify_future;
   '''.format(serial_id=serial_id, model=model, channel=channel)
+  pat_sql = 'select jsonb_array_elements_text(pats) pat_id from refreshed_pats where id = {}'.format(serial_id)
   async with db_pool.acquire() as conn:
     notifications = await conn.fetch(sql)
     await load_epic_notifications(notifications)
+    pats = await conn.fetch(pat_sql)
+    for pat_id in pats:
+      logging.info("Invalidating cache for %s" % pat_id['pat_id'])
+      asyncio.ensure_future(pat_cache.delete(pat_id['pat_id']))
