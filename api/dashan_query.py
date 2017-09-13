@@ -596,15 +596,18 @@ async def notify_pat_update(db_pool, channel, pat_id):
   async with db_pool.acquire() as conn:
     await conn.execute(notify_sql)
 
-async def get_pats_from_hosp(db_pool, hosp):
-  sql = "select pat_id from pat_hosp() where hospital = '{}'".format(hosp)
+async def get_recent_pats_from_hosp(db_pool, hosp):
+  sql = '''select distinct h.pat_id from pat_hosp() h
+  inner join criteria_meas m on m.pat_id = h.pat_id
+  where hospital = '{}' and now() - tsp < (select value::interval from parameters where name = 'lookbackhours')
+  '''.format(hosp)
   async with db_pool.acquire() as conn:
     res = await conn.fetch(sql)
     return [row['pat_id'] for row in res]
 
 async def invalidate_cache_hospital(db_pool, pid, channel, hospital, pat_cache):
   logging.info('Invalidating patient cache hospital %s (via channel %s)' % (hospital, channel))
-  pat_ids = await get_pats_from_hosp(db_pool, hospital)
+  pat_ids = await get_recent_pats_from_hosp(db_pool, hospital)
   for pat_id in pat_ids:
     logging.info("Invalidating cache for %s" % pat_id)
     await pat_cache.delete(pat_id)
