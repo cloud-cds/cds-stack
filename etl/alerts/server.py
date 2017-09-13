@@ -125,14 +125,78 @@ class AlertServer:
         logging.info("create lmc suppression task for {}".format(msg['hosp']))
     logging.info("alert_queue_consumer quit")
 
+  async def suppression(self, pat_id, tsp):
+    ''' Alert suppression task for a single patient
+        and notify frontend that the patient has updated'''
+
   async def run_lmc_suppression(self, msg):
     # TODO Wait for Advance Criteria Snapshot to finish and then start generating notifications
+    tsp = msg['time']
     pat_ids = await self.convert_enc_ids_to_pat_ids(msg['enc_ids'])
-    logging.info("received FIN for pat_ids: {}".format(pat_ids))
-    for pat_id in pat_ids:
-      suppression_future = asyncio.ensure_future(self.suppression(pat_id['pat_id'], msg['time']), loop=self.loop)
-      self.suppression_tasks[msg['hosp']].append(suppression_future)
-      logging.info("created lmc suppression task for {}".format(pat_id['pat_id']))
+    pats_str = ','.join("'{}'".format(p['pat_id']) for p in pats)
+    hospital = msg['hosp']
+    logging.info("received FIN for pat_ids: {}".format(pats_str))
+    async def criteria_ready(conn, pats, tsp):
+      '''
+      criteria is ready when
+      1. criteria is updated after tsp
+      2. no new data in criteria_meas within lookbackhours (ETL will not update criteria)
+      '''
+      sql = '''
+      with pats as (
+        select distinct pat_id from criteria where pat_id in ({pat_ids})
+      ),
+      updated_pats as (
+        select distinct pat_id from criteria where pat_id in ({pat_ids}) and update_date >= '{tsp}'::timestamptz
+      )
+      SELECT * from pats except select * from updated_pats
+      '''.format(pat_ids=pats, tsp=tsp)
+      cnt = await conn.fetch(sql)
+      if cnt is None or len(cnt) == 0:
+        logging.info("criteria is ready")
+        return True
+      else:
+        logging.info("criteria is not ready ({})".format(len(cnt)))
+        return False
+
+    async with self.db_pool.acquire() as conn:
+      n = 0
+      N = 60
+
+      logging.info("enter suppression task for {}".format(msg))
+      while not await criteria_ready(conn, pats_str, tsp):
+        await asyncio.sleep(10)
+        n += 1
+        logging.info("retry criteria_ready {} times for {}".format(n, pat_id))
+        if n >= 60:
+          break
+      if n < 60:
+        if self.notify_web:
+          sql = '''
+          with pats as (
+            select pat_id from pat_enc where pat_id in ({pats})
+          ),
+          alerts as (
+            select update_suppression_alert(pat_id, '{channel}', '{model}', 'false') from pats),
+          refreshed as (
+            insert into refreshed_pats (refreshed_tsp, pats)
+            select now(), jsonb_agg(pat_id) from pats
+            returning id
+          )
+          select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
+          '''.format(channel=self.channel, model=self.model, pats=pats_str)
+        else:
+          sql = '''
+          with pats as (
+            select pat_id from pat_enc where pat_id in ({pats})
+          )
+          select update_suppression_alert(pat_id, '{channel}', '{model}', 'false') from pats)
+          '''.format(channel=self.channel, model=self.model, pats=pats_str)
+          logging.info("suppression sql: {}".format(sql))
+          await conn.fetch(sql)
+          logging.info("generate suppression alert for {}".format(hospital))
+      else:
+        logging.info("criteria is not ready for {}".format(pat_id))
 
   async def run_trews_suppression(self, hospital):
     async with self.db_pool.acquire() as conn:
