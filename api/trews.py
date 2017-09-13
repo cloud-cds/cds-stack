@@ -378,7 +378,7 @@ def etl_channel_recv(conn, proc_id, channel, payload):
   else:
     # the simple payload format is <header>:<body>:<model>
     if payload.count(':') == 2:
-      if payload.startswith('invalidate_cache'):
+      if payload.startswith('invalidate_cache:'):
         header, body, model = payload.split(":")
         if (use_trews_lmc and model == 'lmc') or (not use_trews_lmc and model == 'trews'):
           # if body.startswith('H'):
@@ -388,12 +388,12 @@ def etl_channel_recv(conn, proc_id, channel, payload):
           #     asyncio.ensure_future(dashan_query.invalidate_cache_hospital(app['db_pool'], proc_id, channel, hosp, pat_cache))
           # else:
           invalidate_cache(conn, proc_id, channel, body.split(","))
-      elif payload.startswith('invalidate_cache_batch'):
+      elif payload.startswith('invalidate_cache_batch:'):
         header, serial_id, model = payload.split(":")
         if (use_trews_lmc and model == 'lmc') or (not use_trews_lmc and model == 'trews'):
           global pat_cache
           asyncio.ensure_future(dashan_query.invalidate_cache_batch(app['db_pool'], proc_id, channel, serial_id, pat_cache))
-      elif payload.startswith('future_epic_sync'):
+      elif payload.startswith('future_epic_sync:'):
         header, body = payload.split(":")
         add_future_epic_sync(conn, proc_id, channel, body)
       else:
