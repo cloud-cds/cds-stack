@@ -606,6 +606,7 @@ async def get_recent_pats_from_hosp(db_pool, hosp):
     return [row['pat_id'] for row in res]
 
 async def invalidate_cache_hospital(db_pool, pid, channel, hospital, pat_cache):
+  # TODO: run push_notifications_to_epic in a batch way
   logging.info('Invalidating patient cache hospital %s (via channel %s)' % (hospital, channel))
   pat_ids = await get_recent_pats_from_hosp(db_pool, hospital)
   for pat_id in pat_ids:
