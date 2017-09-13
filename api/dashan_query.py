@@ -544,21 +544,7 @@ async def push_notifications_to_epic(db_pool, eid, notify_future_notification=Tr
     notifications = await conn.fetch(notifications_sql)
     if notifications:
       logging.info("push notifications to epic ({}) for {}".format(epic_notifications, eid))
-      if epic_notifications is not None and int(epic_notifications):
-        patients = [{
-            'pat_id': n['pat_id'],
-            'visit_id': n['visit_id'],
-            'notifications': n['count']
-        } for n in notifications]
-        jhapi_loader = JHAPI('prod', client_id, client_secret)
-        responses = jhapi_loader.load_notifications(patients)
-
-        for pt, response in zip(patients, responses):
-          if response is None:
-            logging.error('Failed to push notifications: %s %s %s' % (pt['pat_id'], pt['visit_id'], pt['notifications']))
-          elif response.status_code != requests.codes.ok:
-            logging.error('Failed to push notifications: %s %s %s HTTP %s' % (pt['pat_id'], pt['visit_id'], pt['notifications'], response.status_code))
-
+      load_epic_notifications(notifications)
       etl_channel = os.environ['etl_channel'] if 'etl_channel' in os.environ else None
       if etl_channel and notify_future_notification:
         notify_future_notification_sql = \
@@ -573,6 +559,26 @@ async def push_notifications_to_epic(db_pool, eid, notify_future_notification=Tr
         logging.info("skipping notify_future_notification")
     else:
       logging.info("skipping notifications (e.g., not in notifications_whitelist)")
+
+
+async def load_epic_notifications(notifications):
+  if epic_notifications is not None and int(epic_notifications):
+    patients = [{
+        'pat_id': n['pat_id'],
+        'visit_id': n['visit_id'],
+        'notifications': n['count']
+    } for n in notifications]
+    jhapi_loader = JHAPI('prod', client_id, client_secret)
+    responses = jhapi_loader.load_notifications(patients)
+
+    for pt, response in zip(patients, responses):
+      if response is None:
+        logging.error('Failed to push notifications: %s %s %s' % (pt['pat_id'], pt['visit_id'], pt['notifications']))
+      elif response.status_code != requests.codes.ok:
+        logging.error('Failed to push notifications: %s %s %s HTTP %s' % (pt['pat_id'], pt['visit_id'], pt['notifications'], response.status_code))
+  else:
+    logging.info("skip loading epic notifications")
+
 
 async def eid_exist(db_pool, eid):
   async with db_pool.acquire() as conn:
@@ -596,7 +602,7 @@ async def notify_pat_update(db_pool, channel, pat_id):
   async with db_pool.acquire() as conn:
     await conn.execute(notify_sql)
 
-async def get_recent_pats_from_hosp(db_pool, hosp):
+async def get_recent_pats_from_hosp(db_pool, hosp, model):
   sql = '''select distinct h.pat_id from pat_hosp() h
   inner join criteria_meas m on m.pat_id = h.pat_id
   where hospital = '{}' and now() - tsp < (select value::interval from parameters where name = 'lookbackhours')
@@ -606,10 +612,20 @@ async def get_recent_pats_from_hosp(db_pool, hosp):
     return [row['pat_id'] for row in res]
 
 async def invalidate_cache_hospital(db_pool, pid, channel, hospital, pat_cache):
+  # run push_notifications_to_epic in a batch way
   logging.info('Invalidating patient cache hospital %s (via channel %s)' % (hospital, channel))
-  pat_ids = await get_recent_pats_from_hosp(db_pool, hospital)
-  for pat_id in pat_ids:
-    logging.info("Invalidating cache for %s" % pat_id)
-    await pat_cache.delete(pat_id)
-    await push_notifications_to_epic(db_pool, pat_id,
-          notify_future_notification=False)
+  model = 'lmc' if use_trews_lmc else 'trews'
+  sql = '''with notifications as (
+  select n.* from pat_hosp() h
+    inner join criteria_meas m on m.pat_id = h.pat_id
+    inner join (select * from get_notifications_for_epic(null, '{model}')) n on n.pat_id = h.pat_id
+    where hospital = '{hosp}' and now() - tsp < (select value::interval from parameters where name = 'lookbackhours')
+  ),
+  notify_future as (
+    select notify_future_notification('{channel}', pat_id) from notifications
+  )
+  select * from notifications;
+  '''.format(hosp=hospital, model=model, channel=channel)
+  async with db_pool.acquire() as conn:
+    notifications = await conn.fetch(sql)
+    load_epic_notifications(notifications)
