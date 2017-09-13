@@ -2288,8 +2288,10 @@ BEGIN
       and pat_id like 'E%' and pat_id = coalesce(this_pat_id, pat_id)
       order by pat_id, tsp) O
   group by pat_id) G group by pat_id into payload;
-  raise notice '%', payload;
-  perform pg_notify(channel, payload);
+  if payload is not null then
+      raise notice '%', payload;
+      perform pg_notify(channel, payload);
+  end if;
 END $func$ LANGUAGE plpgsql;
 ----------------------------------------------------
 --  deactivate functionality for patients

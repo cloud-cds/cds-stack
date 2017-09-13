@@ -260,6 +260,14 @@ CREATE  TABLE notifications
     message     json
 );
 
+DROP TABLE IF EXISTS refreshed_pats;
+CREATE TABLE refreshed_pats
+(
+    id serial PRIMARY KEY,
+    refreshed_tsp timestamptz,
+    pats jsonb
+);
+
 DROP TABLE IF EXISTS parameters;
 CREATE  TABLE parameters
 (
