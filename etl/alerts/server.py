@@ -120,14 +120,19 @@ class AlertServer:
       logging.info("alert_message_queue recv msg: {}".format(msg))
       # Predictor finished
       if msg.get('type') == 'FIN':
-        # Wait for Advance Criteria Snapshot to finish and then start generating notifications
-        pat_ids = await self.convert_enc_ids_to_pat_ids(msg['enc_ids'])
-        logging.info("received FIN for pat_ids: {}".format(pat_ids))
-        for pat_id in pat_ids:
-          suppression_future = asyncio.ensure_future(self.suppression(pat_id['pat_id'], msg['time']), loop=self.loop)
-          self.suppression_tasks[msg['hosp']].append(suppression_future)
-          logging.info("created lmc suppression task for {}".format(pat_id['pat_id']))
+        suppression_future = asyncio.ensure_future(self.run_lmc_suppression(msg), loop=self.loop)
+        self.suppression_tasks[msg['hosp']].append(suppression_future)
+        logging.info("create lmc suppression task for {}".format(msg['hosp']))
     logging.info("alert_queue_consumer quit")
+
+  async def run_lmc_suppression(self, msg):
+    # TODO Wait for Advance Criteria Snapshot to finish and then start generating notifications
+    pat_ids = await self.convert_enc_ids_to_pat_ids(msg['enc_ids'])
+    logging.info("received FIN for pat_ids: {}".format(pat_ids))
+    for pat_id in pat_ids:
+      suppression_future = asyncio.ensure_future(self.suppression(pat_id['pat_id'], msg['time']), loop=self.loop)
+      self.suppression_tasks[msg['hosp']].append(suppression_future)
+      logging.info("created lmc suppression task for {}".format(pat_id['pat_id']))
 
   async def run_trews_suppression(self, hospital):
     async with self.db_pool.acquire() as conn:
