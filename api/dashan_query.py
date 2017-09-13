@@ -628,4 +628,4 @@ async def invalidate_cache_hospital(db_pool, pid, channel, hospital, pat_cache):
   '''.format(hosp=hospital, model=model, channel=channel)
   async with db_pool.acquire() as conn:
     notifications = await conn.fetch(sql)
-    load_epic_notifications(notifications)
+    await load_epic_notifications(notifications)
