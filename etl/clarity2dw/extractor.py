@@ -264,6 +264,8 @@ class Extractor:
         self.visit_id_to_enc_id = pat_mappings['visit_id_to_enc_id']
         self.pat_id_to_enc_ids = pat_mappings['pat_id_to_enc_ids']
         self.min_tsp = self.job.get('transform').get('min_tsp')
+        async with ctxt.db_pool.acquire() as conn:
+          await self.query_cdm_feature_dict(conn)
         futures = []
         for mapping_row in task:
           if specified_fid is None or mapping_row['fid(s)'] in specified_fid:
