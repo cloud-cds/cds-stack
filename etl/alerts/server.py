@@ -167,7 +167,7 @@ class AlertServer:
       while not await criteria_ready(conn, pats_str, tsp):
         await asyncio.sleep(10)
         n += 1
-        logging.info("retry criteria_ready {} times for {}".format(n, pat_id))
+        logging.info("retry criteria_ready {} times for {}".format(n, pats_str))
         if n >= 60:
           break
       if n < 60:
@@ -196,7 +196,7 @@ class AlertServer:
           await conn.fetch(sql)
           logging.info("generate suppression alert for {}".format(hospital))
       else:
-        logging.info("criteria is not ready for {}".format(pat_id))
+        logging.info("criteria is not ready for {}".format(pats_str))
 
   async def run_trews_suppression(self, hospital):
     async with self.db_pool.acquire() as conn:
