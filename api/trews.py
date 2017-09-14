@@ -393,11 +393,11 @@ def etl_channel_recv(conn, proc_id, channel, payload):
         if (use_trews_lmc and model == 'lmc') or (not use_trews_lmc and model == 'trews'):
           global pat_cache
           asyncio.ensure_future(dashan_query.invalidate_cache_batch(app['db_pool'], proc_id, channel, serial_id, pat_cache))
-      elif payload.startswith('future_epic_sync:'):
-        header, body = payload.split(":")
-        add_future_epic_sync(conn, proc_id, channel, body)
       else:
         logging.error("ETL Channel Error: Unknown payload {}".format(payload))
+    elif payload.startswith('future_epic_sync:'):
+      header, body = payload.split(":")
+      add_future_epic_sync(conn, proc_id, channel, body)
     else:
       logging.error("invalidate_cache payload error: {}".format(payload))
 
