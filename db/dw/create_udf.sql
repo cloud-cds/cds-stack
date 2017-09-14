@@ -2079,7 +2079,7 @@ BEGIN
     group by cdm_t.dataset_id, pat_enc.pat_id, cdm_t.tsp, cdm_t.fid
     ON CONFLICT (dataset_id, pat_id, tsp, fid) DO UPDATE SET value = excluded.value, update_date=excluded.update_date;
     -- ================================================
-    -- Upsert cdm_twf
+    -- Upsert cdm_twf derived features
     -- ================================================
     FOR _fid in
       select cd.fid
@@ -2089,6 +2089,7 @@ BEGIN
       cdm_feature f
       on cd.fid = f.fid and cd.dataset_id = f.dataset_id
       where f.category = 'TWF' and f.dataset_id = _dataset_id
+      and not f.is_measured
       group by cd.fid
     LOOP
       PERFORM load_cdm_twf_to_criteria_meas(_fid,_dataset_id, incremental);
@@ -2097,34 +2098,21 @@ BEGIN
     -- Handle bp_sys as a special case
     -- ================================================
     raise notice 'handling bp_sys as a special case';
-
-    insert into criteria_meas (dataset_id,         pat_id,         tsp,               fid,               value,    update_date)
-    select            cdm_twf.dataset_id, pat_enc.pat_id, cdm_twf.tsp,         'bp_sys'::text,  last(cdm_twf.nbp_sys),      now()
+    insert into criteria_meas (dataset_id, pat_id, tsp, fid, value, update_date)
+    select cdm_t.dataset_id, pat_enc.pat_id, cdm_t.tsp, 'bp_sys', first(cdm_t.value), now()
     FROM
-    cdm_twf
+    cdm_t
     inner join
     pat_enc
-    on cdm_twf.enc_id = pat_enc.enc_id
-    and cdm_twf.dataset_id = pat_enc.dataset_id
-    where cdm_twf.nbp_sys_c <8 and cdm_twf.dataset_id = _dataset_id
+    on cdm_t.enc_id = pat_enc.enc_id
+    and cdm_t.dataset_id = pat_enc.dataset_id
+    where cdm_t.dataset_id = _dataset_id
     and (not incremental or (pat_enc.meta_data->>'pending')::boolean)
-    group by cdm_twf.dataset_id, pat_enc.pat_id, cdm_twf.tsp
-    ON CONFLICT (dataset_id,   pat_id,               tsp, fid) DO UPDATE SET value = excluded.value, update_date=excluded.update_date;
-
-    insert into criteria_meas (dataset_id,         pat_id,         tsp,               fid,               value,    update_date)
-    select            cdm_twf.dataset_id, pat_enc.pat_id, cdm_twf.tsp,         'bp_sys'::text,  last(cdm_twf.abp_sys),      now()
-    FROM
-    cdm_twf
-    inner join
-    pat_enc
-    on cdm_twf.enc_id = pat_enc.enc_id
-    and cdm_twf.dataset_id = pat_enc.dataset_id
-    where cdm_twf.abp_sys_c <8 and cdm_twf.dataset_id = _dataset_id
-    and (not incremental or (pat_enc.meta_data->>'pending')::boolean)
-    group by cdm_twf.dataset_id, pat_enc.pat_id, cdm_twf.tsp
-    ON CONFLICT (dataset_id,   pat_id,               tsp, fid) DO UPDATE SET value = excluded.value, update_date=excluded.update_date;
-
-
+    and (
+            cdm_t.fid in ('nbp_sys', 'abp_sys')
+        )
+    group by cdm_t.dataset_id, pat_enc.pat_id, cdm_t.tsp, cdm_t.fid
+    ON CONFLICT (dataset_id, pat_id, tsp, fid) DO UPDATE SET value = excluded.value, update_date=excluded.update_date;
 END; $function$;
 
 
