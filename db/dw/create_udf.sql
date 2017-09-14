@@ -2109,9 +2109,9 @@ BEGIN
     where cdm_t.dataset_id = _dataset_id
     and (not incremental or (pat_enc.meta_data->>'pending')::boolean)
     and (
-            cdm_t.fid in ('nbp_sys', 'abp_sys')
+            cdm_t.fid in ('abp_sys', 'nbp_sys')
         )
-    group by cdm_t.dataset_id, pat_enc.pat_id, cdm_t.tsp, cdm_t.fid
+    group by cdm_t.dataset_id, pat_enc.pat_id, cdm_t.tsp
     ON CONFLICT (dataset_id, pat_id, tsp, fid) DO UPDATE SET value = excluded.value, update_date=excluded.update_date;
 END; $function$;
 
