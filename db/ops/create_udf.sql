@@ -2352,7 +2352,13 @@ create or replace function garbage_collection(this_pat_id text default null) ret
     perform reactivate(this_pat_id);
     perform reset_soi_pats(this_pat_id);
     perform reset_bundle_expired_pats(this_pat_id);
-    -- other garbage collection functions
+    perform del_old_refreshed_pats();
+end; $$;
+
+create or replace function del_old_refreshed_pats() returns void language plpgsql
+-- turn deactivated patients longer than deactivate_expire_hours to active
+as $$ begin
+    delete from refreshed_pats where now() - refreshed_tsp > '24 hours';
 end; $$;
 
 create or replace function reactivate(this_pat_id text default null) returns void language plpgsql

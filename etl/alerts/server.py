@@ -133,7 +133,7 @@ class AlertServer:
     # TODO Wait for Advance Criteria Snapshot to finish and then start generating notifications
     tsp = msg['time']
     pat_ids = await self.convert_enc_ids_to_pat_ids(msg['enc_ids'])
-    pats_str = ','.join("'{}'".format(p['pat_id']) for p in pats)
+    pats_str = ','.join("'{}'".format(p['pat_id']) for p in pat_ids)
     hospital = msg['hosp']
     logging.info("received FIN for pat_ids: {}".format(pats_str))
     async def criteria_ready(conn, pats, tsp):
