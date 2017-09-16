@@ -46,7 +46,7 @@ spec:
         opsdx_nodegroup: spot-nodes
       containers:
       - name: alerts
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.124
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.128
         imagePullPolicy: Always
         resources:
           requests:
