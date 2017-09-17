@@ -20,10 +20,12 @@ import json
 def get_min_tsp(tsp_name, tsp_with_quotes=True):
   if 'min_tsp' in os.environ:
     min_tsp = os.environ['min_tsp']
-  if tsp_with_quotes:
-    return ''' and "{tsp}"::timestamptz > '{min_tsp}'::timestamptz'''.format(tsp=tsp_name, min_tsp=min_tsp)
+    if tsp_with_quotes:
+      return ''' and "{tsp}"::timestamptz > '{min_tsp}'::timestamptz'''.format(tsp=tsp_name, min_tsp=min_tsp)
+    else:
+      return ''' and {tsp}::timestamptz > '{min_tsp}'::timestamptz'''.format(tsp=tsp_name, min_tsp=min_tsp)
   else:
-    return ''' and {tsp}::timestamptz > '{min_tsp}'::timestamptz'''.format(tsp=tsp_name, min_tsp=min_tsp)
+    return ''
 
 
 # ============================
