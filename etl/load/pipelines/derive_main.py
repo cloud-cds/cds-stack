@@ -914,7 +914,6 @@ query_config = {
   #     'incremental_enc_id_join': incremental_enc_id_join('cdm_twf', para.get("dataset_id"), para.get("incremental")),
   #     'incremental_enc_id_match': incremental_enc_id_match(' and ', para.get('incremental'))
   #   },
-  },
   'fluids_intake_1hr': {
     'fid_input_items': ['fluids_intake'],
     'derive_type': 'subquery',
