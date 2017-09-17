@@ -4,7 +4,9 @@ sudo apt-get update
 sudo apt-get install -y postgresql-client \
   python3.6 python3.6-dev python3-pip git gcc-4.9 g++-4.9 \
   build-essential libpq-dev rsyslog fuse postgresql-client graphviz \
-  autoconf automake autotools-dev libtool pkg-config strace
+  autoconf automake autotools-dev libtool pkg-config strace docker.io \
+  unzip
+
 # install pyframe
 git clone https://github.com/uber/pyflame.git && cd pyflame && ./autogen.sh && ./configure \
   && make && sudo make install && cd
