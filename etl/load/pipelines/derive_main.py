@@ -857,50 +857,63 @@ query_config = {
     'clean': {'value': 0, 'confidence': 0},
   },
   'renal_sofa': {
-    'fid_input_items': ['creatinine', 'urine_output_24hr'],
-    'derive_type': 'subquery',
-    'subquery': lambda para: '''
-          WITH S as (SELECT %(dataset_id_key)s cdm_twf.enc_id, min(cdm_twf.tsp) min_tsp
-          FROM %(twf_table_uo)s cdm_twf %(incremental_enc_id_join)s
-          %(where_dataset_id_equal)s %(incremental_enc_id_match)s
-          group by %(dataset_id_key)s cdm_twf.enc_id)
-          select %(dataset_id_key_U)s U.enc_id, U.tsp, max(U.renal_sofa) renal_sofa, max(U.renal_sofa_c) renal_sofa_c from
-          (select
-            %(dataset_id_key)s enc_id, tsp,
-            (
-              case when creatinine > 5.0 then 4
-               when creatinine >= 3.5 then 3
-               when creatinine >= 2.0 then 2
-               when creatinine >= 1.2 then 1
-               else 0 end
-            ) as renal_sofa,
-            coalesce(creatinine_c, 0) as renal_sofa_c
-            from %(twf_table)s cdm_twf %(incremental_enc_id_join)s
-            %(where_dataset_id_equal)s %(incremental_enc_id_match)s
-          union
-          select
-            %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
-            (
-              case when urine_output_24hr < 200 then 4
-               else 3
-              end
-            ) as renal_sofa,
-            coalesce(urine_output_24hr_c, 0) as renal_sofa_c
-            from %(twf_table_uo)s cdm_twf inner join S on cdm_twf.enc_id = S.enc_id %(dataset_id_match)s %(incremental_enc_id_join)s
-            where urine_output_24hr < 500 and tsp - min_tsp >= '24 hours'::interval %(dataset_id_equal)s %(incremental_enc_id_match)s
-          ) U
-          group by %(dataset_id_key_U)s enc_id, tsp
-    ''' % {
-      'dataset_id_key': para.get("dataset_id_key"),
-      'dataset_id_key_U': "dataset_id," if para.get("dataset_id") else '',
-      'twf_table': para.get('twf_table'),
-      'twf_table_uo': para.get('derive_feature_addr')['urine_output_24hr']['twf_table_temp'] if 'urine_output_24hr' in para.get('derive_feature_addr') else para.get('twf_table'),
-      'dataset_id_match': dataset_id_match(' and ','S', 'cdm_twf', para.get("dataset_id")),
-      'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id")),
-      'where_dataset_id_equal': dataset_id_equal(" where ", "cdm_twf", para.get("dataset_id")),
-      'incremental_enc_id_join': incremental_enc_id_join('cdm_twf', para.get("dataset_id"), para.get("incremental")),
-      'incremental_enc_id_match': incremental_enc_id_match(' and ', para.get('incremental'))
-    },
+    'fid_input_items': ['creatinine'],
+    'derive_type': 'simple',
+    'fid_update_expr': '''(
+               case when creatinine > 5.0 then 4
+                when creatinine >= 3.5 then 3
+                when creatinine >= 2.0 then 2
+                when creatinine >= 1.2 then 1
+                else 0 end
+            )''',
+    'fid_c_update_expr': 'creatinine_c'
+  },
+  # renal_sofa: with urine_output_24hr version
+  # 'renal_sofa': {
+  #   'fid_input_items': ['creatinine', 'urine_output_24hr'],
+  #   'derive_type': 'subquery',
+  #   'subquery': lambda para: '''
+  #         WITH S as (SELECT %(dataset_id_key)s cdm_twf.enc_id, min(cdm_twf.tsp) min_tsp
+  #         FROM %(twf_table_uo)s cdm_twf %(incremental_enc_id_join)s
+  #         %(where_dataset_id_equal)s %(incremental_enc_id_match)s
+  #         group by %(dataset_id_key)s cdm_twf.enc_id)
+  #         select %(dataset_id_key_U)s U.enc_id, U.tsp, max(U.renal_sofa) renal_sofa, max(U.renal_sofa_c) renal_sofa_c from
+  #         (select
+  #           %(dataset_id_key)s enc_id, tsp,
+  #           (
+  #             case when creatinine > 5.0 then 4
+  #              when creatinine >= 3.5 then 3
+  #              when creatinine >= 2.0 then 2
+  #              when creatinine >= 1.2 then 1
+  #              else 0 end
+  #           ) as renal_sofa,
+  #           coalesce(creatinine_c, 0) as renal_sofa_c
+  #           from %(twf_table)s cdm_twf %(incremental_enc_id_join)s
+  #           %(where_dataset_id_equal)s %(incremental_enc_id_match)s
+  #         union
+  #         select
+  #           %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
+  #           (
+  #             case when urine_output_24hr < 200 then 4
+  #              else 3
+  #             end
+  #           ) as renal_sofa,
+  #           coalesce(urine_output_24hr_c, 0) as renal_sofa_c
+  #           from %(twf_table_uo)s cdm_twf inner join S on cdm_twf.enc_id = S.enc_id %(dataset_id_match)s %(incremental_enc_id_join)s
+  #           where urine_output_24hr < 500 and tsp - min_tsp >= '24 hours'::interval %(dataset_id_equal)s %(incremental_enc_id_match)s
+  #         ) U
+  #         group by %(dataset_id_key_U)s enc_id, tsp
+  #   ''' % {
+  #     'dataset_id_key': para.get("dataset_id_key"),
+  #     'dataset_id_key_U': "dataset_id," if para.get("dataset_id") else '',
+  #     'twf_table': para.get('twf_table'),
+  #     'twf_table_uo': para.get('derive_feature_addr')['urine_output_24hr']['twf_table_temp'] if 'urine_output_24hr' in para.get('derive_feature_addr') else para.get('twf_table'),
+  #     'dataset_id_match': dataset_id_match(' and ','S', 'cdm_twf', para.get("dataset_id")),
+  #     'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id")),
+  #     'where_dataset_id_equal': dataset_id_equal(" where ", "cdm_twf", para.get("dataset_id")),
+  #     'incremental_enc_id_join': incremental_enc_id_join('cdm_twf', para.get("dataset_id"), para.get("incremental")),
+  #     'incremental_enc_id_match': incremental_enc_id_match(' and ', para.get('incremental'))
+  #   },
   },
   'fluids_intake_1hr': {
     'fid_input_items': ['fluids_intake'],
