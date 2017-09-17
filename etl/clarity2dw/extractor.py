@@ -163,13 +163,15 @@ class Extractor:
   async def transform_init(self, ctxt, *args):
     if self.job.get('transform', False):
       if self.job.get('transform').get('populate_measured_features', False):
+        specified_fid = self.job.get('transform').get('populate_measured_features').get('fid', None)
         async with ctxt.db_pool.acquire() as conn:
           await self.query_cdm_feature_dict(conn)
           for fm in self.feature_mapping:
-            fids = fm['fid(s)']
-            if not self.fid_valid(fids):
-              raise Exception("Unknown fid from [{}]".format(mapping_row['fid(s)']))
-              return
+            if specified_fid is None or fm in specified_fid:
+              fids = fm['fid(s)']
+              if not self.fid_valid(ctxt, fids):
+                raise Exception("Unknown fid from [{}]".format(fids))
+                return
         async with ctxt.db_pool.acquire() as conn:
           ctxt.log.info("Using Feature Mapping:")
           pat_mappings = await self.get_pat_mapping(conn)
@@ -248,10 +250,11 @@ class Extractor:
     # # return [ [lst[0], lst[2]], [lst_med, lst_bands]]
     # return [ [lst_bco] ]
 
-  def fid_valid(self, fids):
+  def fid_valid(self, ctxt, fids):
     for fid in fids.split(','):
       fid = fid.strip()
       if not self.cdm_feature_dict.get(fid, False):
+        ctxt.log.error("fid: {} does not exist".format(fid))
         return False
     return True
 
