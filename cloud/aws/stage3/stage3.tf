@@ -1,5 +1,5 @@
 module "dev_etl" {
-  source = "./dev-services/dev_etl"
+  source = "./dev-services/dev-etl"
 
   deploy_prefix = "${var.deploy_prefix}"
   local_shell   = "${var.local_shell}"
