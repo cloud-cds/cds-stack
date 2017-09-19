@@ -1041,7 +1041,7 @@ query_config = {
     'clean': {'value': 0, 'confidence': 0},
   },
   'organ_dysfunction': {
-    'fid_input_items': ['cardio_sofa', 'resp_sofa', 'vent', 'renal_sofa', 'creatinine', 'hepatic_sofa', 'bilirubin', 'hematologic_sofa', 'platelets', 'neurologic_sofa', 'gcs', 'warfarin_dose', 'inr', 'dopamine_dose', 'vasopressin_dose', 'epinephrine_dose', 'levophed_infusion_dose', 'neosynephrine_dose'],
+    'fid_input_items': ['resp_sofa', 'renal_sofa', 'hepatic_sofa', 'hematologic_sofa', 'neurologic_sofa', 'inr'],
     'derive_type': 'subquery',
     'subquery': lambda para: '''
     with S as (
