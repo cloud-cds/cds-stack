@@ -54,6 +54,9 @@ bun_to_cr,TWF,Real,yes,no,last_value_in_window,28,,,Lab,1,no unit
 hypersensitivity_pneumonitis_hist,S,Boolean,yes,no,,,,,History,1,no unit
 prednisone_dose,T,JSON,yes,no,,,,,Medication,1,
 chronic_kidney_hist,S,Boolean,yes,no,,,,,History,1,no unit
+chronic_kidney_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
+chronic_kidney_prob,S,Boolean,yes,no,,,,,Problem List,1,no unit
+chronic_kidney_final_diag,S,Boolean,yes,no,,,,,Final Diagnoses,1,no unit
 vasopressin_dose,T,JSON,yes,no,,3,,,Medication,1,unit
 cmi,TWF,Boolean,no,no,,,cmi_update,"severe_sepsis, fluid_resuscitation, vasopressor_resuscitation, fluids_intake_1hr","label, it should not be sparse",1,no unit
 heart_attack,T,Boolean,no,no,,,heart_attack_update,"heart_attack_inhosp, ekg_proc, troponin","Diagnoses, t at time of heart attack",1,
@@ -283,3 +286,4 @@ cpap,T,String,yes,no,,,,,Order Procedure,1,
 map,TWF,Real,yes,no,last_value_in_window,4,,,Phyiologic,1,mmHg
 note,N,String,yes,no,,,,,provider notes,1,no unit
 patient_class,S,String,yes,no,,,,,patient class,1,no unit
+organ_dysfunction,TWF,Integer,no,no,,,organ_dysfunction_update, resp_sofa, renal_sofa, hepatic_sofa, hematologic_sofa, neurologic_sofa, inr","new defined sepsis 3 based organ dysfunction",1,no

@@ -29,6 +29,7 @@ milrinone_dose,T,JSON,yes,no,,3,,,Medication,1,mcg/kg/min
 rass,TWF,Real,yes,no,last_value_in_window,5,,,Physiologic,1,no unit
 pneumonia_sepsis_approx,T,String,yes,no,,,,,,,
 acute_kidney_failure,T,Boolean,no,no,,,acute_kidney_failure_update,"acute_kidney_failure_inhosp, creatinine, urine_output_24hr, dialysis",Diagnoses,1,
+organ_dysfunction,TWF,Integer,no,no,,,organ_dysfunction_update, resp_sofa, renal_sofa, hepatic_sofa, hematologic_sofa, neurologic_sofa, inr","new defined sepsis 3 based organ dysfunction",1,no
 any_antibiotics,T,Boolean,no,no,,,any_antibiotics_update,"ampicillin_dose, clindamycin_dose, erythromycin_dose , gentamicin_dose , oxacillin_dose , tobramycin_dose , vancomycin_dose , ceftazidime_dose , cefazolin_dose , penicillin_g_dose , meropenem_dose , penicillin_dose , amoxicillin_dose , piperacillin_tazobac_dose, rifampin_dose, meropenem_dose, rapamycin_dose",any antibiotic was given to the patient,1,no unit
 sirs_raw,TWF,Boolean,no,no,,,sirs_raw_update,"sirs_temperature_oor, sirs_hr_oor, sirs_resp_oor, sirs_wbc_oor","mix of lab and vital signs, it should not be sparse",1,no unit
 chronic_bronchitis_hist,S,Boolean,yes,no,,,,,History,1,no unit

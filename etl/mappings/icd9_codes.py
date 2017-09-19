@@ -15,6 +15,7 @@ DX_ICD9_MAPPING = [
     ('immuno_comp_diag', '^V58\.65|^V58\.0|^V58\.1|^042|^208\.0|^202\.'),
     ('pancreatitis_chronic_diag', '^V58\.65|^V58\.0|^V58\.1|^042|^208\.0|^202\.'),
     ('organ_insufficiency_diag', '^571|^585\.6|^428\.22|^428\.32|^428\.42|^518\.83'),
+    ('chronic_kidney_diag', '^585\.')
 ]
 
 HX_ICD9_MAPPING = [
@@ -28,7 +29,7 @@ HX_ICD9_MAPPING = [
     ('chronic_bronchitis_hist', '^49(0|1)'),
     ('renal_insufficiency_hist', '^585\.9'),
     ('diabetes_hist', '^250'),
-    ('chronic_kidney_hist', '^585\.(6|9)')
+    ('chronic_kidney_hist', '^585\.')
 ]
 
 PL_ICD9_MAPPING = [
@@ -36,4 +37,5 @@ PL_ICD9_MAPPING = [
     ('heart_arrhythmias_prob', '^427'),
     ('chronic_airway_obstruction_prob', '^496'),
     ('esrd_prob', '^585\.6'),
+    ('chronic_kidney_prob', '^585\.')
 ]
