@@ -109,7 +109,7 @@ dataset_id,FUNC_ID,FUNC_TYPE,DESCRIPTION
 1001,sirs_resp_oor_update,derive,ref Arch folder
 1001,convert_penicillin_dose,transform,convert to million unit
 1001,convert_ounces_to_kg,transform,Convet Onces (weight) to Kgs
-1001,piperacillin_tazbac_dose_to_mg,transform,"if unit == 'mg of piperacillin', then return the value in mg; else return convert_to_mg"
+1001,piperacillin_tazobac_dose_to_mg,transform,"if unit == 'mg of piperacillin', then return the value in mg; else return convert_to_mg"
 1001,threshold_abp_sys,transform,"threshold(30 , 300)"
 1001,load_discharge_json,transform,load discharge into json format including department and disposition
 1001,convert_amoxicillin_dose_to_mg,transform,if MedUnit=='tablet' then Dose = Dose*medication_unit
