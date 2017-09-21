@@ -246,7 +246,7 @@ dataset_id,fid,category,data_type,is_measured,is_deprecated,fillin_func_id,windo
 1001,any_inotrope,T,Boolean,no,no,,,any_inotrope_update,"dobutamine_dose, milrinone_dose, dopamine_dose, norepinephrine_dose",any antibiotic was given to the patient,1,no unit,
 1001,peritonitis_approx,T,String,yes,no,,,,,,,,
 1001,urosepsis_approx,T,String,yes,no,,,,,,,,
-1001,piperacillin_tazbac_dose,T,JSON,yes,no,,3,,,Medication,1,mg,
+1001,piperacillin_tazobac_dose,T,JSON,yes,no,,3,,,Medication,1,mg,
 1001,aids_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit,
 1001,urine_output,T,Real,yes,no,,,,,Phyiologic,1,ml,
 1001,carvedilol_dose,T,JSON,yes,no,,,,,Medication,1,mg,
