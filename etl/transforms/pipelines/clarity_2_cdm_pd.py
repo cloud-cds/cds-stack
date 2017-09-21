@@ -231,166 +231,201 @@ async def bands(connection, dataset_id, fids, log, is_plan, clarity_workspace):
   return log_time(log, 'bands', start, extracted, loaded)
 
 async def pull_lvef(connection, dataset_id, fids, log, is_plan, clarity_workspace):
-  log.info("Entering LVEF Processing")
-  start = time.time()
+    log.info("Entering LVEF Processing")
+    start = time.time()
 
-  def find_text(dt, pattern, index=None, start_adjust=0, end_adjust=50):
-    for k in range(0, len(dt['narrative'])):
-      imd = ' '.join(filter(None, dt[1][k: k + 2]))  # combine mutiple lines
-      if re.search(pattern, imd, re.I):  # if combined line is not null
-        match = re.finditer(pattern, imd, re.I)  # find all matched patterns
-        for x in match:
-          start = x.start() + start_adjust  # adjust starting point
-          end = x.end() + end_adjust  # adjust ending point
-          string = imd[start: end]  # extract target sentence
-          result = re.findall(r'(?=>)?\d\d\s*\.?\s*\d*(?=(?:%|percent))?', string)
-          if len(result) > 0:
-            result = "".join(result[0].split())  # taking care of split numbers
-            return [dt['enc_id'], dt['tsp'], dt['order_proc_id'], k + 1, imd, result, index, dt['order_name']]
-    return None
+    def find_text(dt, pattern, index=None, start_adjust = 0, end_adjust = 50):
+        for k in range(0, len(dt['narrative'])):
+            imd = ' '.join(filter(None, dt[1][k: k + 2]))    # combine mutiple lines
+            if re.search(pattern, imd, re.I):                # if combined line is not null
+                match = re.finditer(pattern, imd, re.I)      # find all matched patterns
+                for x in match:
+                    start = x.start() + start_adjust         # adjust starting point
+                    end = x.end() + end_adjust               # adjust ending point
+                    string = imd[start: end]                 # extract target sentence
+                    result = re.findall(r'(?=>)?\d\d\s*\.?\s*\d*(?=(?:%|percent))?', string)
+                    if len(result) > 0:
+                        result = "".join(result[0].split())  # taking care of split numbers
+                        return [dt['enc_id'], dt['tsp'], dt['order_proc_id'], k + 1, imd, result, string, dt['order_name']]
+        return False
 
-  def lvef_find(dt):
-    # Check one pattern by one pattern
-    result = find_text(dt, r'LV EF \(biplane\):|EF(\s*\w+\s*)?estimated|EF(\w*\s*)?estimated', 'LVEF')
-    if result:
-      return result
-    else:
-      result = find_text(dt, r' EF |LVEF:?| LV(\s*\w+\s*)?EF ', 'EF')
-      if result:
-        return result
-      else:
-        result = find_text(dt, r' ejection fraction.*%*', 'Ejection Fraction')
+    dict_adj = {"Mildly" : 40, "mildly" : 40, "Moderately" : 30, "moderately" : 30, "Severely" : 20, "severely" : 20,
+                "Hyperdynamic" : 70, "hyperdynamic" : 70, "Normal" : 55, "normal" : 55, "Low normal" : 50, "low normal" : 50}
+
+    def find_num(dt, pattern, index = None, start_adjust = 0, end_adjust = 50):
+        for k in range(0, len(dt['narrative'])):
+            imd = ' '.join(filter(None, dt[1][k: k + 2]))   # combine mutiple lines 
+            if re.search(pattern, imd, re.I):               # if combined line is not null
+                match = re.finditer(pattern, imd, re.I)     # find all matched patterns
+                for x in match:
+                    start = x.start() + start_adjust        # adjust starting point
+                    end = x.end() + end_adjust              # adjust ending point
+                    string = imd[start : end]               # extract target sentence
+                    result = re.findall(r'(?=>)?\d\d\s*\.?\s*\d*(?=(?:%|percent))?', string)
+                    if len(result) > 0:
+                        result = "".join(result[0].split()) # taking care of split numbers
+                        return [dt['enc_id'], dt['tsp'], dt['order_proc_id'], k + 1, imd, result, index, dt['order_name']]
+        return False
+
+    def lvef_find(dt):        
+        text = ' '.join(filter(None, dt['narrative']))
+        nuclear_stress_test = re.search(r'perfusion\s*imag.*', text, re.I)
+        if nuclear_stress_test: return [dt['enc_id'], dt['tsp'], dt['order_proc_id'], None, None, None, None, dt['order_name']]        
+        # Find EF first by number
+        result = find_num(dt, r'LV EF \(biplane\):|EF(\s*\w+\s*)?estimated|EF(\w*\s*)?estimated', 'da')
         if result:
-          return result
+            return result
+        result = find_num(dt, r' EF |LVEF:?| LV(\s*\w+\s*)?EF ', 'di')        
+        if result:
+            return result
+        result = find_num(dt, r' ejection fraction.*%*', 'la')
+        if result:
+            return result
+        # EF is not explicitly written down, search for systolic function
+        result = find_text(dt, r'left\s*ventricular\s*(ejection|systolic)?\s*(fraction|function)', 'ta', 20, 20)  
+        if result:
+            return result
+        result = find_text(dt, r'left\s+(ventricle|ventricular)(\s+\w*){0,5}\s+function(\s+is)?', 'tb', 20, 35)
+        if result:
+            return result
+        return [dt['enc_id'], dt['tsp'], dt['order_proc_id'], None, None, None, None, dt['order_name']]
+
+    lvef_sql = """with ids as
+    (select distinct order_proc_id from {ws}.order_narrative where narrative ilike '%%echo%%'
+    and order_proc_id in (select distinct order_proc_id from {ws}.order_narrative
+    where (narrative ilike '%%ventricular%%function%%' or narrative ilike '%%ventricular%%fraction%%'
+    or narrative ilike '%%ejection%%fraction%%' or narrative ilike '%%lvef%%'
+    or narrative ilike '%%right%%ventricular%%function%%'))),
+    data as
+    (select * from {ws}.order_narrative where order_proc_id in (select distinct order_proc_id from ids) order by order_proc_id, line)
+    select csn_id, enc_id, order_display_name, order_proc_id, line, narrative, contact_date from data inner join pat_enc on data.csn_id = pat_enc.visit_id
+    where pat_enc.dataset_id = {dataset} order by order_proc_id, line"""
+    lvef_df = await async_read_df(lvef_sql.format(ws=clarity_workspace, dataset = dataset_id), connection)
+    extracted = lvef_df.shape[0]
+    order_proc_id = lvef_df.loc[0]['order_proc_id']
+    date = lvef_df.loc[0]['contact_date']
+    enc_id = lvef_df.loc[0]['enc_id']
+    order_name = lvef_df.loc[0]['order_display_name']
+    para = []
+    count = 0
+    lvef_final = pd.DataFrame(columns=['order_proc_id', 'narrative', 'enc_id', 'tsp', 'order_name'])
+    for i, j in lvef_df.iterrows():
+        if j[3] == order_proc_id:
+            para.append(j[5])
         else:
-          return [dt['enc_id'], dt['tsp'], dt['order_proc_id'], None, None, None, None, dt['order_name']]
+            lvef_final.loc[count] = [order_proc_id, para, enc_id, str(date), order_name]
+            # log.info(type(lvef_final.loc[count]['tsp']))
+            count += 1
+            order_proc_id = j[3]
+            para = [j[5]]
+            date = j[6]
+            enc_id = j[1]
+            order_name = j[2]
 
-  lvef_sql = """with ids as
-  (select distinct order_proc_id from order_narrative where narrative ilike '%%echo%%'
-  and order_proc_id in (select distinct order_proc_id from order_narrative
-  where (narrative ilike '%%ventricular%%function%%' or narrative ilike '%%ventricular%%fraction%%'
-  or narrative ilike '%%ejection%%fraction%%' or narrative ilike '%%lvef%%'
-  or narrative ilike '%%right%%ventricular%%function%%'))),
-  data as
-  (select * from order_narrative where order_proc_id in (select distinct order_proc_id from ids) order by order_proc_id, line)
-  select csn_id, enc_id, order_display_name, order_proc_id, line, narrative, contact_date from data inner join pat_enc on data.csn_id = pat_enc.visit_id
-  order by order_proc_id, line"""
-  lvef_df = await async_read_df(lvef_sql, connection)
-  extracted = lvef_df.shape[0]
-  order_proc_id = lvef_df.loc[0]['order_proc_id']
-  date = lvef_df.loc[0]['contact_date']
-  enc_id = lvef_df.loc[0]['enc_id']
-  order_name = lvef_df.loc[0]['order_display_name']
-  para = []
-  count = 0
-  lvef_final = pd.DataFrame(columns=['order_proc_id', 'narrative', 'enc_id', 'tsp', 'order_name'])
-  for i, j in lvef_df.iterrows():
-    if j[3] == order_proc_id:
-      para.append(j[5])
+    lvef_dt = lvef_final.apply(lvef_find, axis=1)
+
+    if not is_plan:
+        for i in lvef_dt:
+            json_dump = json.dumps(
+                {'order_proc_id': i[2], 'line_number': i[3], 'text': i[4], 'value': i[5], 'index': i[6],
+                 'proc_name': i[7]})
+            await load_row.upsert_t(connection,
+                                    [i[0], pd.to_datetime(i[1]), 'lvef', json_dump, 2],
+                                    dataset_id=dataset_id, log=log)
+        log.info('LVEF write complete')
     else:
-      lvef_final.loc[count] = [order_proc_id, para, enc_id, str(date), order_name]
-      # log.info(type(lvef_final.loc[count]['tsp']))
-      count += 1
-      order_proc_id = j[3]
-      para = [j[5]]
-      date = j[6]
-      enc_id = j[1]
-      order_name = j[2]
-
-  lvef_dt = lvef_final.apply(lvef_find, axis=1)
-
-  if not is_plan:
-    for i in lvef_dt:
-      json_dump = json.dumps(
-        {'order_proc_id': i[2], 'line_number': i[3], 'text': i[4], 'value': i[5], 'index': i[6],
-         'proc_name': i[7]})
-      await load_row.upsert_t(connection,
-                  [i[0], pd.to_datetime(i[1]), 'lvef', json_dump, 2],
-                  dataset_id=dataset_id)
-    log.info('LVEF write complete')
-  else:
-    log.info('LVEF write skipped, due to plan mode')
-  loaded = len(lvef_dt)
-  return log_time(log, 'lvef', start, extracted, loaded)
+        log.info('LVEF write skipped, due to plan mode')
+    loaded = len(lvef_dt)
+    return log_time(log, 'lvef', start, extracted, loaded)
 
 
 async def pull_rvf(connection, dataset_id, fids, log, is_plan, clarity_workspace):
-  log.info("Entering RVF Processing")
-  start = time.time()
+    log.info("Entering RVF Processing")
+    start = time.time()
 
-  def find_text(dt, pattern, index=None, start_adjust=0, end_adjust=50):
-    for k in range(0, len(dt['narrative'])):
-      imd = ' '.join(filter(None, dt[1][k - 1: k + 4]))  # combine mutiple lines
-      if imd and re.search(r'([,\.]?RV[,\.]?|right ventri[a-z]*) .* function', imd,
-                 re.I):  # if combined line is not null
-        match = re.finditer(pattern, imd, re.I)  # find all matched patterns
-        for x in match:
-          start = (x.start() - start_adjust) if (
-                              x.start() - start_adjust) >= 0 else 0  # adjust starting point
-          end = x.end() + end_adjust  # adjust ending point
-          string = imd[start: end]  # extract target sentence
-          result = re.findall(r'low normal|normal|hyperdynamic|reduce|diminish|decrease|depress', string,
-                    re.I)
-          if len(result) > 0:
-            result = result[0]
-            return [dt['enc_id'], dt['tsp'], dt['order_proc_id'], k + 1, imd, result, index, dt['order_name']]
-    return None
+    def find_text(dt, pattern, index=None, start_adjust=10, end_adjust=50):
+        for k in range(0, len(dt['narrative'])):
+            imd = ' '.join(filter(None, dt[1][k - 1: k + 4]))  # combine mutiple lines
+            if imd and re.search(r'([,\.]?RV[,\.]?|right ventri[a-z]*) .* function', imd,
+                                re.I):  # if combined line is not null
+                match = re.finditer(pattern, imd, re.I)  # find all matched patterns
+                for x in match:                    
+                    start = (x.start() - start_adjust) if (x.start() - start_adjust) >= 0 else 0  # adjust starting point
+                    end = x.end() + end_adjust  # adjust ending point
+                    string = imd[start: end]  # extract target sentence
+                    results = re.findall(r'(mildly|severely|moderately)?(?:\s)*(hyperdynamic|reduced|diminished|decreased|depressed|low normal|normal)', string, re.I)
+                    if len(results) > 0:
+                        result = " ".join(results[0]).lower().strip()
+                        return [dt['enc_id'], dt['tsp'], dt['order_proc_id'], k + 1, imd, result, string, dt['order_name'], mapping_fun.get(result)]
+        return None
 
-  def rvf_find(dt):
-    # Check one pattern by one pattern
-    result = find_text(dt, r'(\w+\s+){1,2}right\s*ventricular\s*(global)?\s*systolic\s*function', 'RV', 0, 20)
-    if result:
-      return result
+    
+    mapping_fun = {"hyperdynamic" : 0, "normal" : 1, "low normal" : 2,
+                "mildly reduced" : 3, "mildly diminished" : 3, "mildly decreased" : 3,
+                "reduced" : 4, "depressed" : 4, "decreased" : 4,
+                "moderately decreased" : 5,"moderately diminished" : 5, "moderately reduced" : 5,
+                "severely decreased" : 5,"severely diminished" : 5, "severely reduced" : 5}
+
+    def rvf_find(dt):
+        # Exclude nuclear stress test
+        text = ' '.join(filter(None, dt['narrative']))
+        nuclear_stress_test = re.search(r'perfusion\s*imag.*', text, re.I)
+        if nuclear_stress_test:
+            return [dt['enc_id'], dt['tsp'], dt['order_proc_id'], None, None, None, None, dt['order_name'], None]
+
+        # Check one pattern by one pattern
+        result = find_text(dt, r'(\w+\s+){1,2}right\s*ventricular\s*(global)?\s*systolic\s*function', 'RV', 0, 20)
+        if result:
+            return result
+        result = find_text(dt, r'([,\.]?RV[,\.]?|right\s+(ventricle|ventricular))(\s+\w*){0,5}\s+function(\s+is)?', 'RV is', 10, 25)
+        if result:
+            return result
+        return [dt['enc_id'], dt['tsp'], dt['order_proc_id'], None, None, None, None, dt['order_name'], None]
+
+    rvf_sql = """with ids as
+    (select distinct order_proc_id from {ws}.order_narrative where narrative ilike '%%echo%%'
+    and order_proc_id in (select distinct order_proc_id from {ws}.order_narrative
+    where (narrative ilike '%%ventricular%%function%%' or narrative ilike '%%ventricular%%fraction%%'
+    or narrative ilike '%%ejection%%fraction%%' or narrative ilike '%%lvef%%'
+    or narrative ilike '%%right%%ventricular%%function%%'))),
+    data as
+    (select * from {ws}.order_narrative where order_proc_id in (select distinct order_proc_id from ids) order by order_proc_id, line)
+    select csn_id, enc_id, order_display_name, order_proc_id, line, narrative, contact_date from data inner join pat_enc on data.csn_id = pat_enc.visit_id
+    where pat_enc.dataset_id = {dataset} order by order_proc_id, line"""    
+    rvf_df = await async_read_df(rvf_sql.format(ws=clarity_workspace, dataset = dataset_id), connection)
+    log.info("Finished reading RVF data from clarity")
+    extracted = rvf_df.shape[0]
+    order_proc_id = rvf_df.loc[0]['order_proc_id']
+    date = rvf_df.loc[0]['contact_date']
+    enc_id = rvf_df.loc[0]['enc_id']
+    order_name = rvf_df.loc[0]['order_display_name']
+    para = []
+    count = 0
+    rvf_final = pd.DataFrame(columns=['order_proc_id', 'narrative', 'enc_id', 'tsp', 'order_name'])
+    for i, j in rvf_df.iterrows():
+        if j[3] == order_proc_id:
+            para.append(j[5])
+        else:
+            rvf_final.loc[count] = [order_proc_id, para, enc_id, str(date), order_name]
+            count += 1
+            order_proc_id = j[3]
+            para = [j[5]]
+            date = j[6]
+            enc_id = j[1]
+            order_name = j[2]
+    log.info("Finished preprocessing RVF data")
+    
+    rvf_dt = rvf_final.apply(rvf_find, axis=1)    
+    if not is_plan:
+        log.info("Finished processing RVF data, dumping into JSON")
+        for i in rvf_dt:            
+            json_dump = json.dumps({'order_proc_id': i[2], 'line_number': i[3], 'text': i[4], 'textvalue': i[5], 'proc_name': i[7], 'value': i[8]})
+            await load_row.upsert_t(connection,[i[0], pd.to_datetime(i[1]), 'rvf', json_dump, 2], dataset_id = dataset_id, log=log)
+        log.info('RVF write complete')
     else:
-      result = find_text(dt, r'([,\.]?RV[,\.]?|right\s+(ventricle|ventricular))(\s+\w*){0,5}\s+function(\s+is)?',
-                 'RV is', 10, 25)
-      if result:
-        return result
-      else:
-        return [dt['enc_id'], dt['tsp'], dt['order_proc_id'], None, None, None, None, dt['order_name']]
-
-  rvf_sql = """with ids as
-  (select distinct order_proc_id from order_narrative where narrative ilike '%%echo%%'
-  and order_proc_id in (select distinct order_proc_id from order_narrative
-  where (narrative ilike '%%ventricular%%function%%' or narrative ilike '%%ventricular%%fraction%%'
-  or narrative ilike '%%ejection%%fraction%%' or narrative ilike '%%lvef%%'
-  or narrative ilike '%%right%%ventricular%%function%%'))),
-  data as
-  (select * from order_narrative where order_proc_id in (select distinct order_proc_id from ids) order by order_proc_id, line)
-  select csn_id, enc_id, order_display_name, order_proc_id, line, narrative, contact_date from data inner join pat_enc on data.csn_id = pat_enc.visit_id
-  order by order_proc_id, line"""
-  rvf_df = await async_read_df(rvf_sql, connection)
-  extracted = rvf_df.shape[0]
-  order_proc_id = rvf_df.loc[0]['order_proc_id']
-  date = rvf_df.loc[0]['contact_date']
-  enc_id = rvf_df.loc[0]['enc_id']
-  order_name = rvf_df.loc[0]['order_display_name']
-  para = []
-  count = 0
-  rvf_final = pd.DataFrame(columns=['order_proc_id', 'narrative', 'enc_id', 'tsp', 'order_name'])
-  for i, j in rvf_df.iterrows():
-    if j[3] == order_proc_id:
-      para.append(j[5])
-    else:
-      rvf_final.loc[count] = [order_proc_id, para, enc_id, str(date), order_name]
-      count += 1
-      order_proc_id = j[3]
-      para = [j[5]]
-      date = j[6]
-      enc_id = j[1]
-      order_name = j[2]
-
-  rvf_dt = rvf_final.apply(rvf_find, axis=1)
-
-  if not is_plan:
-    for i in rvf_dt:
-      json_dump = json.dumps({'order_proc_id': i[2], 'line_number': i[3], 'text': i[4], 'value': i[5], 'proc_name': i[7]})
-      await load_row.upsert_t(connection,[i[0], pd.to_datetime(i[1]), 'rvf', json_dump, 2],dataset_id = dataset_id)
-    log.info('RVF write complete')
-  else:
-    log.info('RVF write skipped, due to plan mode')
-  loaded = len(rvf_dt)
-  return log_time(log, 'rvf', start, extracted, loaded)
+        log.info('RVF write skipped, due to plan mode')
+    loaded = len(rvf_dt)
+    return log_time(log, 'rvf', start, extracted, loaded)
 
 
 async def pull_order_procs(connection, dataset_id, fids, log, is_plan, clarity_workspace):
