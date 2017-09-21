@@ -2352,6 +2352,7 @@ create or replace function garbage_collection(this_pat_id text default null) ret
     perform reactivate(this_pat_id);
     perform reset_soi_pats(this_pat_id);
     perform reset_bundle_expired_pats(this_pat_id);
+    perform reset_noinf_expired_pats(this_pat_id);
     perform del_old_refreshed_pats();
 end; $$;
 
@@ -2410,6 +2411,34 @@ begin
     return;
 end; $$;
 
+create or replace function reset_noinf_expired_pats(this_pat_id text default null)
+returns void language plpgsql as $$
+declare res text;
+-- reset patients who are in state 10 and expired for lookbackhours
+begin
+    with pats as (
+    select distinct e.pat_id
+        from criteria_events e
+        inner join criteria c on e.pat_id = c.pat_id
+        where flag = 12 and c.name = 'suspicion_of_infection'
+        and now() - c.override_time::timestamptz
+            > get_parameter('deactivate_expire_hours')::interval
+        and e.pat_id = coalesce(this_pat_id, e.pat_id)
+    ),
+    logging as (
+        insert into criteria_log (pat_id, tsp, event, update_date)
+        values (
+              this_pat_id,
+              now(),
+              '{"event_type": "reset_noinf_expired_pats", "uid":"dba"}',
+              now()
+          )
+    )
+    select reset_patient(pat_id) from pats into res;
+    return;
+end; $$;
+
+
 create or replace function reset_patient(this_pat_id text, _event_id int default null)
 returns void language plpgsql as $$
 begin
@@ -2417,7 +2446,7 @@ begin
     delete from criteria where pat_id = this_pat_id and override_value is not null;
     if _event_id is null then
         update criteria_events set flag = flag - 1000
-        where pat_id = this_pat_id and flag > 0;
+        where pat_id = this_pat_id and flag >= 0;
     else
         update criteria_events set flag = flag - 1000
         where pat_id = this_pat_id and event_id = _event_id;
@@ -3043,4 +3072,16 @@ SELECT u.pat_id::text, (CASE WHEN unit ~* 'hc' THEN 'HCGH' WHEN unit ~* 'jh' THE
    GROUP BY c.pat_id) u
 ; END $func$ LANGUAGE plpgsql;
 
+create or replace function get_recent_admit_pats(max_duration text)
+RETURNS
+table(pat_id varchar(50), LOS text)
+AS $func$ BEGIN RETURN QUERY
+SELECT p.pat_id,
+       (now() - value::timestamptz)::interval::text LOS
+FROM cdm_s s
+INNER JOIN pat_enc p ON s.enc_id = p.enc_id
+WHERE fid = 'admittime'
+  AND now() - value::timestamptz < max_duration::interval
+ORDER BY now() - value::timestamptz
+; END $func$ LANGUAGE plpgsql;
 
