@@ -73,7 +73,6 @@ job_config = {
   'offline_criteria_processing': False if 'offline_criteria_processing' \
   in os.environ and os.environ['offline_criteria_processing'] == 'False' else \
   {
-    'load_cdm_to_criteria_meas':True,
     'gen_label_and_report': True if 'gen_label_and_report' in os.environ and \
       os.environ['gen_label_and_report'] else False
   },

@@ -911,9 +911,6 @@ class Extractor:
     criteria_job = self.job.get('offline_criteria_processing', False)
     incremental = self.job.get('incremental', False)
     if criteria_job:
-      if criteria_job.get('load_cdm_to_criteria_meas', False):
-        async with ctxt.db_pool.acquire() as conn:
-          await load_table.load_cdm_to_criteria_meas(conn, self.dataset_id, incremental)
       if criteria_job.get('calculate_historical_criteria', False):
         async with ctxt.db_pool.acquire() as conn:
           await load_table.calculate_historical_criteria(conn)

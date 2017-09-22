@@ -4,7 +4,7 @@ import asyncpg
 from etl.core.task import Task
 import etl.io_config.core as core
 
-def get_criteria_tasks(dependency=None, lookback_hours=24*7,
+def get_criteria_tasks(job_id, dependency=None, lookback_hours=24*7,
                        hospital='HCGH', suppression=0):
   criteria_tasks = [
     Task(
@@ -17,7 +17,7 @@ def get_criteria_tasks(dependency=None, lookback_hours=24*7,
       name = 'advance_criteria_snapshot',
       deps = ['garbage_collection'],
       coro = advance_criteria_snapshot,
-      args = [lookback_hours, hospital]
+      args = [lookback_hours, job_id]
     )]
   if not suppression:
     criteria_tasks += [
@@ -33,16 +33,16 @@ async def garbage_collection(ctxt, _, hospital):
   async with ctxt.db_pool.acquire() as conn:
     await conn.execute("select garbage_collection();")
 
-async def advance_criteria_snapshot(ctxt, _, lookback_hours, hospital):
+async def advance_criteria_snapshot(ctxt, _, lookback_hours, job_id):
   prod_or_dev = core.get_environment_var('db_name')
   nprocs = core.get_environment_var('TREWS_DB_NPROCS', 4)
   server = 'dev_db' if 'dev' in prod_or_dev else 'prod_db'
   async with ctxt.db_pool.acquire() as conn:
     sql = '''
-    select distribute_advance_criteria_snapshot('{server}', {hours}, '{hospital}', {nprocs});
+    select distribute_advance_criteria_snapshot_for_job('{server}', {hours}, '{job_id}', {nprocs});
     '''.format(server=server,
                hours=lookback_hours,
-               hospital=hospital,
+               job_id=job_id,
                nprocs=nprocs)
     ctxt.log.info("start advance_criteria_snapshot: {}".format(sql))
     await conn.execute(sql)
