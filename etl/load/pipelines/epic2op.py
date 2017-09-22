@@ -12,6 +12,7 @@ from etl.load.primitives.row import load_row
 import json
 from etl.io_config import server_protocol as protocol
 import etl.io_config.core as core
+import random
 
 async def extract_non_discharged_patients(ctxt, hospital):
   '''
@@ -147,29 +148,12 @@ def test_data_2_workspace(ctxt, sqlalchemy_str, mode, job_id):
 
 
 async def workspace_to_cdm(ctxt, job_id):
-  func_list = [
-    primitives.insert_new_patients,
-    primitives.create_job_cdm_twf_table,
-    primitives.create_job_cdm_t_table,
-    primitives.workspace_bedded_patients_2_cdm_s,
-    primitives.workspace_flowsheets_2_cdm_t,
-    primitives.workspace_lab_results_2_cdm_t,
-    primitives.workspace_location_history_2_cdm_t,
-    primitives.workspace_medication_administration_2_cdm_t,
-    primitives.workspace_fluids_intake_2_cdm_t,
-    primitives.workspace_flowsheets_2_cdm_twf,
-    primitives.workspace_lab_results_2_cdm_twf,
-    primitives.workspace_medication_administration_2_cdm_twf,
-    primitives.workspace_notes_2_cdm_notes,
-    # TODO load lab orders and active procedures to cdm (they have been loaded to criteria_meas already)
-  ]
+  query = "select * from workspace_to_cdm('{}');".format(job_id)
   async with ctxt.db_pool.acquire() as conn:
-    for func in func_list:
-      try:
-        await func(conn, job_id)
-      except asyncpg.exceptions.UndefinedTableError:
-        logging.error("Workspace table does exist for {}".format(func))
-        continue
+    try:
+      await conn.fetch(query)
+    except asyncpg.exceptions.UndefinedTableError:
+      logging.error("Workspace table does exist for {}".format(func))
     return job_id
 
 
@@ -239,10 +223,11 @@ async def workspace_fillin(ctxt, prediction_params, job_id):
   ctxt.log.info("start fillin pipeline")
   # we run the optimized fillin in one run, e.g., update set all columns
   fillin_sql = '''
-    SELECT * from last_value_in_window({fillin_fids}, {twf_table});
+    SELECT * from workspace_fillin({fillin_fids}, {twf_table}, 'cdm_t', '{job_id}');
     '''.format(
       fillin_fids = 'array[{}]'.format(','.join(["'{}'".format(x) for x in prediction_params['fillin_features']])),
-      twf_table   = "'workspace.{}_cdm_twf'".format(job_id)
+      twf_table   = "'workspace.{}_cdm_twf'".format(job_id),
+      job_id      = job_id
     )
   async with ctxt.db_pool.acquire() as conn:
     ctxt.log.info("start fillin: {}".format(fillin_sql))
@@ -287,7 +272,7 @@ async def workspace_derive(ctxt, prediction_params, job_id):
       while True:
         try:
           ctxt.log.info("deriving fid {}".format(fid))
-          await derive_feature(ctxt.log, fid, cdm_feature_dict, conn, derive_feature_addr=derive_feature_addr, cdm_t_target="workspace.{}_cdm_t".format(job_id))
+          await derive_feature(ctxt.log, fid, cdm_feature_dict, conn, derive_feature_addr=derive_feature_addr)
           break
         except Exception as e:
           attempts += 1
@@ -371,20 +356,13 @@ async def workspace_submit(ctxt, job_id):
     FROM information_schema.columns
     WHERE table_name = '%(table)s';
   """
-  submit_twf = """
+  submit_cdm = """
     INSERT INTO cdm_twf
       (SELECT * FROM workspace.%(job)s_cdm_twf
        where now() - tsp < (select value::interval from parameters where name = 'etl_workspace_submit_hours')
       )
     ON conflict (enc_id, tsp) do UPDATE SET %(set_columns)s;
     SELECT drop_tables('workspace', '%(job)s_cdm_twf');
-  """
-  submit_t = """
-    INSERT INTO cdm_t
-    SELECT * FROM workspace.%(job)s_cdm_t
-    ON conflict (enc_id, tsp, fid) do UPDATE
-    SET value = excluded.value, confidence = excluded.confidence;
-    SELECT drop_tables('workspace', '%(job)s_cdm_t');
   """
   submit_trews = """
     CREATE TABLE if not exists trews (LIKE workspace.%(job)s_trews,
@@ -404,10 +382,8 @@ async def workspace_submit(ctxt, job_id):
     twf_set_columns = ",".join([
         "%(col)s = excluded.%(col)s" % {'col': colname} for colname in colnames
     ])
-    ctxt.log.info(submit_twf % {'job': job_id, 'set_columns': twf_set_columns} )
-    await conn.execute(submit_twf % {'job': job_id, 'set_columns': twf_set_columns} )
-    ctxt.log.info(submit_t % {'job': job_id} )
-    await conn.execute(submit_t % {'job': job_id} )
+    ctxt.log.info(submit_cdm % {'job': job_id, 'set_columns': twf_set_columns} )
+    await conn.execute(submit_cdm % {'job': job_id, 'set_columns': twf_set_columns} )
     records = await conn.fetch(select_all_colnames % {'table': '%s_trews' % job_id})
     colnames = [row[0] for row in records if row[0] != 'enc_id' and row[0] != 'tsp']
     trews_set_columns = ",".join([
@@ -420,78 +396,6 @@ async def workspace_submit(ctxt, job_id):
     ctxt.log.info("{}: results submitted".format(job_id))
     ctxt.log.info("submit completed")
     return job_id
-
-
-
-
-
-# TODO: Make sure the table exists before insert
-async def workspace_to_criteria_meas(ctxt, job_id):
-  # insert all results to the measurement table
-  upsert_meas_sql = \
-  """INSERT INTO criteria_meas (pat_id, tsp, fid, value, update_date)
-                  select pat_id, tsp::timestamptz, fid, last(fs.value), last(NOW() )
-                  from workspace.%(job)s_flowsheets_transformed fs
-                  where tsp <> 'NaT' and tsp::timestamptz < now()
-                  group by pat_id, tsp, fid
-      ON CONFLICT (pat_id, tsp, fid)
-          DO UPDATE SET value = EXCLUDED.value, update_date = NOW();
-      INSERT INTO criteria_meas (pat_id, tsp, fid, value, update_date)
-                  select pat_id, tsp::timestamptz, fid, last(lr.value), last(NOW() )
-                  from workspace.%(job)s_lab_results_transformed lr
-                  where tsp <> 'NaT' and tsp::timestamptz < now()
-                  group by pat_id, tsp, fid
-      ON CONFLICT (pat_id, tsp, fid)
-          DO UPDATE SET value = EXCLUDED.value, update_date = NOW();
-      INSERT INTO criteria_meas (pat_id, tsp, fid, value, update_date)
-                  select pat_id, tsp::timestamptz, fid, last(lo.status), last(NOW() )
-                  from workspace.%(job)s_lab_orders_transformed lo
-                  where tsp <> 'NaT' and tsp::timestamptz < now()
-                  group by pat_id, tsp, fid
-      ON CONFLICT (pat_id, tsp, fid)
-          DO UPDATE SET value = EXCLUDED.value, update_date = NOW();
-      INSERT INTO criteria_meas (pat_id, tsp, fid, value, update_date)
-                  select pat_id, tsp::timestamptz, fid, last(lo.status), last(NOW() )
-                  from workspace.%(job)s_active_procedures_transformed lo
-                  where tsp <> 'NaT' and tsp::timestamptz < now()
-                  group by pat_id, tsp, fid
-      ON CONFLICT (pat_id, tsp, fid)
-          DO UPDATE SET value = EXCLUDED.value, update_date = NOW();
-      INSERT INTO criteria_meas (pat_id, tsp, fid, value, update_date)
-                  select pat_id, tsp::timestamptz, fid, last(mar.dose_value), last(NOW() )
-                  from workspace.%(job)s_med_admin_transformed mar
-                  where tsp <> 'NaT' and tsp::timestamptz < now()
-                  group by pat_id, tsp, fid
-      ON CONFLICT (pat_id, tsp, fid)
-          DO UPDATE SET value = EXCLUDED.value, update_date = NOW();
-      INSERT INTO criteria_meas (pat_id, tsp, fid, value, update_date)
-                  select pat_id, tsp::timestamptz, fid, last(mo.dose), last(NOW() )
-                  from workspace.%(job)s_med_orders_transformed mo
-                  where tsp <> 'NaT' and tsp::timestamptz < now()
-                  group by pat_id, tsp, fid
-      ON CONFLICT (pat_id, tsp, fid)
-          DO UPDATE SET value = EXCLUDED.value, update_date = NOW();
-      delete from criteria_meas where value = '';
-  """ % {'job': job_id}
-  async with ctxt.db_pool.acquire() as conn:
-    await conn.execute(upsert_meas_sql)
-    return job_id
-
-
-
-
-
-async def drop_tables(ctxt, job_id, days_offset=2):
-  async with ctxt.db_pool.acquire() as conn:
-    day = (dt.datetime.now() - dt.timedelta(days=days_offset)).strftime('%m%d')
-    prefix = '_'.join(job_id.split('_')[:-1])
-    ctxt.log.info("cleaning data in workspace for pattern:%%_%s_%s" % (prefix, day))
-    await conn.execute("select drop_tables_pattern('workspace', '%%_%s_%s');" % (prefix, day))
-    ctxt.log.info("cleaned data in workspace for pattern:%%_%s_%s" % (prefix, day))
-    return job_id
-
-
-
 
 def get_features_with_intermediates(features, dictionary):
   output = set()
@@ -566,13 +470,6 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
     Task(name = 'workspace_submit',
          deps = ['workspace_predict'],
          coro = workspace_submit),
-    Task(name = 'workspace_to_criteria_meas',
-         deps = ['workspace_submit'],
-         coro = workspace_to_criteria_meas),
-    Task(name = 'drop_tables',
-         deps = ['workspace_to_criteria_meas'],
-         coro = drop_tables,
-         args = [2]),
     Task(name = 'load_discharge_times',
          deps = ['contacts_transform'],
          coro = load_discharge_times),
@@ -580,16 +477,16 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
   if not suppression:
     all_tasks += [
                   Task(name = 'get_notifications_for_epic',
-                       deps = ['drop_tables', 'advance_criteria_snapshot'],
+                       deps = ['workspace_submit', 'advance_criteria_snapshot'],
                        coro = get_notifications_for_epic),
                   ]
   else:
     all_tasks += [
                   Task(name = 'notify_data_ready_to_lmc_alert_server',
-                       deps = ['workspace_to_criteria_meas'],
+                       deps = ['workspace_submit'],
                        coro = notify_data_ready_to_lmc_alert_server),
                   Task(name = 'notify_data_ready_to_trews_alert_server',
-                       deps = ['workspace_to_criteria_meas', 'advance_criteria_snapshot'],
+                       deps = ['workspace_submit', 'advance_criteria_snapshot'],
                        coro = notify_data_ready_to_trews_alert_server)
                   ]
   return all_tasks

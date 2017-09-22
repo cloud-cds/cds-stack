@@ -130,13 +130,13 @@ class AlertServer:
         and notify frontend that the patient has updated'''
 
   async def run_lmc_suppression(self, msg):
-    # TODO Wait for Advance Criteria Snapshot to finish and then start generating notifications
+    # Wait for Advance Criteria Snapshot to finish and then start generating notifications
     tsp = msg['time']
     pat_ids = await self.convert_enc_ids_to_pat_ids(msg['enc_ids'])
-    pats_str = ','.join("'{}'".format(p['pat_id']) for p in pat_ids)
+    pats_str = ','.join([str(i) for i in enc_ids])
     hospital = msg['hosp']
-    logging.info("received FIN for pat_ids: {}".format(pats_str))
-    async def criteria_ready(conn, pats, tsp):
+    logging.info("received FIN for enc_ids: {}".format(pats_str))
+    async def criteria_ready(conn, enc_ids, tsp):
       '''
       criteria is ready when
       1. criteria is updated after tsp
@@ -144,13 +144,13 @@ class AlertServer:
       '''
       sql = '''
       with pats as (
-        select distinct pat_id from criteria where pat_id in ({pat_ids})
+        select distinct enc_id from criteria where enc_id in ({enc_ids})
       ),
       updated_pats as (
-        select distinct pat_id from criteria where pat_id in ({pat_ids}) and update_date >= '{tsp}'::timestamptz
+        select distinct enc_id from criteria where enc_id in ({enc_ids}) and update_date >= '{tsp}'::timestamptz
       )
       SELECT * from pats except select * from updated_pats
-      '''.format(pat_ids=pats, tsp=tsp)
+      '''.format(enc_ids=enc_ids, tsp=tsp)
       cnt = await conn.fetch(sql)
       if cnt is None or len(cnt) == 0:
         logging.info("criteria is ready")
@@ -174,13 +174,13 @@ class AlertServer:
         if self.notify_web:
           sql = '''
           with pats as (
-            select pat_id from pat_enc where pat_id in ({pats})
+            select enc_id from pat_enc where enc_id in ({pats})
           ),
           alerts as (
-            select update_suppression_alert(pat_id, '{channel}', '{model}', 'false') from pats),
+            select update_suppression_alert(enc_id, '{channel}', '{model}', 'false') from pats),
           refreshed as (
             insert into refreshed_pats (refreshed_tsp, pats)
-            select now(), jsonb_agg(pat_id) from pats
+            select now(), jsonb_agg(enc_id) from pats
             returning id
           )
           select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
@@ -188,9 +188,9 @@ class AlertServer:
         else:
           sql = '''
           with pats as (
-            select pat_id from pat_enc where pat_id in ({pats})
+            select enc_id from pat_enc where enc_id in ({pats})
           )
-          select update_suppression_alert(pat_id, '{channel}', '{model}', 'false') from pats)
+          select update_suppression_alert(enc_id, '{channel}', '{model}', 'false') from pats)
           '''.format(channel=self.channel, model=self.model, pats=pats_str)
           logging.info("suppression sql: {}".format(sql))
           await conn.fetch(sql)
@@ -203,14 +203,13 @@ class AlertServer:
       if self.notify_web:
         sql = '''
         with pats as (
-          select distinct m.pat_id from criteria_meas m
-          inner join pat_hosp() h on h.pat_id = m.pat_id
-          where now() - tsp < (select value::interval from parameters where name = 'lookbackhours') and h.hospital = '{hospital}'),
+          select * from get_latest_enc_ids('{hospital}')
+        ),
         alerts as (
-          select update_suppression_alert(pat_id, '{channel}', '{model}', 'false') from pats),
+          select update_suppression_alert(enc_id, '{channel}', '{model}', 'false') from pats),
         refreshed as (
           insert into refreshed_pats (refreshed_tsp, pats)
-          select now(), jsonb_agg(pat_id) from pats
+          select now(), jsonb_agg(enc_id) from pats
           returning id
         )
         select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
@@ -218,9 +217,9 @@ class AlertServer:
       else:
         sql = '''
         select update_suppression_alert(pat_id, '{channel}', '{model}', 'false') from
-        (select distinct m.pat_id from criteria_meas m
-        inner join pat_hosp() h on h.pat_id = m.pat_id
-        where now() - tsp < (select value::interval from parameters where name = 'lookbackhours') and h.hospital = '{hospital}') sub;
+        (select distinct t.enc_id from cdm_t t
+        inner join get_latest_enc_ids('{hospital}') h on h.enc_id = t.enc_id
+        where now() - tsp < (select value::interval from parameters where name = 'lookbackhours')) sub;
           '''.format(channel=self.channel, model=self.model, hospital=hospital)
       logging.info("suppression sql: {}".format(sql))
       await conn.fetch(sql)

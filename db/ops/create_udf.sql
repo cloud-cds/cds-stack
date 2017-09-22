@@ -398,6 +398,162 @@ END
 $BODY$
 LANGUAGE plpgsql;
 
+
+create or replace function workspace_fillin(twf_fids text[], twf_table text, t_table text, job_id text)
+returns void
+as $BODY$
+declare
+    enc_ids int[];
+begin
+    execute 'select array_agg(enc_id) from pat_enc p
+    inner join workspace.' || job_id || '_bedded_patients_transformed bp
+    on p.visit_id = bp.visit_id' into enc_ids;
+    execute '
+    --create_job_cdm_twf_table
+    create table IF NOT EXISTS workspace.' || job_id || '_cdm_twf as
+    select * from cdm_twf with no data;
+    alter table workspace.' || job_id || '_cdm_twf add primary key (enc_id, tsp);
+    ';
+    perform load_cdm_twf_from_cdm_t(twf_fids, twf_table, t_table, enc_ids, now() - (select value::interval from parameters where name = 'etl_workspace_lookbackhours'));
+    perform last_value(twf_fids, twf_table);
+end
+$BODY$
+LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION load_cdm_twf_from_cdm_t(twf_fids TEXT[], twf_table TEXT, t_table TEXT, enc_ids int[] default null, start_tsp timestamptz default null, end_tsp timestamptz default null, is_exec boolean default true)
+RETURNS VOID
+AS $BODY$
+DECLARE
+    query_str text;
+BEGIN
+    with fid_date_type as (
+        select fid, data_type from unnest(twf_fids) inner join cdm_feature on unnest = fid where category = 'TWF' and is_measured
+        ),
+    select_fid_array as (
+        select '(' || string_agg('''' || fid || '''' , ', ') || ')' as fid_array from fid_date_type
+        ),
+    select_enc_id_array as (
+        select '(' || string_agg(enc_id::text, ', ') || ')' as enc_id_array from unnest(enc_ids) as enc_id
+        ),
+    select_insert_cols as (
+        select string_agg(fid || ', ' || fid || '_c' , ', ') as insert_cols from fid_date_type
+        ),
+    select_from_cols as (
+        select string_agg(
+                '((rec->>''' || fid || ''')::json->>''value'')::' || data_type || ' as ' || fid ||
+                ', ((rec->>''' || fid || ''')::json->>''confidence'')::int as ' || fid || '_c'
+            , ',') from_cols from fid_date_type
+        ) ,
+    select_set_cols as (
+        select string_agg(
+            fid || ' = excluded.' || fid || ', ' || fid || '_c = excluded.' || fid || '_c', ', '
+            ) as set_cols from fid_date_type
+        )
+    select
+        'insert into cdm_twf (enc_id, tsp, ' || insert_cols || ')
+        (
+          select enc_id, tsp, ' || from_cols || '
+          from
+          (
+            select enc_id, tsp, json_object_agg(fid, json_build_object(''value'', value, ''confidence'', confidence)) as rec
+            from ' || t_table || ' where fid in ' || fid_array || (case when enc_ids is not null then ' and enc_id in ' ||enc_id_array else '' end) || ' ' ||
+            (case
+                    when start_tsp is not null
+                        then ' and tsp >= ''' || start_tsp || '''::timestamptz'
+                    else '' end) ||
+                (case
+                    when end_tsp is not null
+                        then ' and tsp <= ''' || end_tsp || '''::timestamptz'
+                    else '' end)
+            || '
+            group by enc_id, tsp
+          ) as T
+        ) on conflict (enc_id, tsp) do update set ' || set_cols
+    into query_str
+    from select_insert_cols cross join select_from_cols cross join select_set_cols cross join select_fid_array cross join select_enc_id_array;
+    raise notice '%', query_str;
+    IF is_exec THEN
+        execute query_str;
+    END IF;
+END
+$BODY$
+LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION last_value(twf_fids TEXT[], twf_table TEXT, enc_ids int[] default null, start_tsp timestamptz default null, end_tsp timestamptz default null, is_exec boolean default true)
+RETURNS VOID
+AS $BODY$
+DECLARE
+    query_str text;
+BEGIN
+    raise notice 'Fillin table % for fids: %', twf_table, twf_fids;
+    with fid_win as (
+        select fid, window_size_in_hours from unnest(twf_fids) inner join cdm_feature on unnest = fid where category = 'TWF' and is_measured
+    ),
+    select_enc_id_array as (
+        select '(' || string_agg(enc_id::text, ', ') || ')' as enc_id_array from unnest(enc_ids) as enc_id
+        ),
+    select_insert_col as (
+        select
+            string_agg(fid || ', ' || fid || '_c', ',' || E'\n') as insert_col from fid_win
+    ),
+    select_u_col as (
+        select
+            string_agg(fid || ' = excluded.' || fid || ', ' || fid || '_c = excluded.' || fid || '_c', ',' || E'\n') as u_col from fid_win
+    ),
+    select_r_col as (
+        select
+            string_agg('(case when ' || fid || '_c < 8 then ' || fid || ' else null end) as ' || fid || ', (case when ' || fid || '_c < 8 then ' || fid || '_c else null end) as ' || fid || '_c', ',' || E'\n') as r_col from fid_win
+    ),
+    select_s_col as(
+        SELECT
+            string_agg(fid || ', ' || fid || '_c, last(case when ' || fid || ' is null then null else json_build_object(''val'', ' || fid || ', ''ts'', tsp,  ''conf'', '|| fid || '_c) end) over (partition by enc_id order by tsp rows between unbounded preceding and current row) as prev_' || fid || ', (select value::numeric from cdm_g where fid = ''' || fid || '_popmean'' ) as ' || fid || '_popmean', ',' || E'\n') as s_col
+                    from fid_win
+    ),
+    select_col as (
+        select string_agg('(case when ' || fid || ' is not null then ' || fid || ' when prev_' || fid || ' is not null then (prev_' || fid || '->>''val'')::numeric else ' || fid || '_popmean end ) as ' || fid || ',' || E'\n' || '(case when ' || fid || ' is not null then ' || fid || '_c when prev_' || fid || ' is not null then ((prev_' || fid || '->>''conf'')::int | 8) else 24 end ) as ' || fid || '_c', ',' || E'\n') as col
+            from fid_win
+    )
+    select
+    'INSERT INTO ' || twf_table || '(
+    enc_id, tsp, ' || insert_col || '
+    )
+    (
+        select enc_id, tsp,
+           ' || col || '
+        from (
+            select enc_id, tsp,
+            ' || s_col || '
+            from (
+                select enc_id, tsp,
+                ' || r_col || '
+                from ' || twf_table ||
+                (case when start_tsp is not null or end_tsp is not null or enc_ids is not null then ' where ' else '' end) ||
+                (case
+                    when start_tsp is not null
+                        then ' and tsp >= ''' || start_tsp || '''::timestamptz'
+                    else '' end) ||
+                (case
+                    when end_tsp is not null
+                        then ' and tsp <= ''' || end_tsp || '''::timestamptz'
+                    else '' end) ||
+                (case
+                    when enc_ids is not null
+                        then ' and enc_id in ' || enc_id_array
+                    else '' end) || '
+                order by enc_id, tsp
+            ) R
+        ) S
+    ) ON CONFLICT (enc_id, tsp) DO UPDATE SET
+    ' || u_col || ';'
+        into query_str from select_r_col cross join select_s_col cross join select_col cross join select_u_col cross join select_enc_id_array cross join select_insert_col;
+    raise notice '%', query_str;
+    IF is_exec THEN
+        execute query_str;
+    END IF;
+END
+$BODY$
+LANGUAGE plpgsql;
+
 CREATE OR REPLACE FUNCTION last_value_in_window(twf_fids TEXT[], twf_table TEXT, enc_ids int[] default null, start_tsp timestamptz default null, end_tsp timestamptz default null, is_exec boolean default true)
 RETURNS VOID
 AS $BODY$
@@ -649,8 +805,8 @@ $$
 LANGUAGE plpgsql;
 
 
-CREATE OR REPLACE FUNCTION get_states_snapshot(this_pat_id text)
-RETURNS table( pat_id                               varchar(50),
+CREATE OR REPLACE FUNCTION get_states_snapshot(this_enc_id int)
+RETURNS table( enc_id                               int,
                event_id                             int,
                state                                int,
                severe_sepsis_onset                  timestamptz,
@@ -663,14 +819,14 @@ AS $func$ BEGIN
 
   RETURN QUERY
   with max_events_by_pat as (
-    select    PE.pat_id, max(CE.event_id) as event_id
+    select    PE.enc_id, max(CE.event_id) as event_id
     from      pat_enc PE
-    left join criteria_events CE on PE.pat_id = CE.pat_id
-    where     PE.pat_id = coalesce(this_pat_id, PE.pat_id)
+    left join criteria_events CE on PE.enc_id = CE.enc_id
+    where     PE.enc_id = coalesce(this_enc_id, PE.enc_id)
     and       ( CE.flag is null or CE.flag >= 0 )
-    group by  PE.pat_id
+    group by  PE.enc_id
   )
-  select MEV.pat_id,
+  select MEV.enc_id,
          MEV.event_id,
          coalesce(CE.flag, 0) as state,
          CE.severe_sepsis_onset,
@@ -681,7 +837,7 @@ AS $func$ BEGIN
   from max_events_by_pat MEV
   left join lateral (
     select
-      ICE.pat_id,
+      ICE.enc_id,
       max(flag) flag,
       GREATEST( max(case when name = 'suspicion_of_infection' then override_time else null end),
                 (array_agg(measurement_time order by measurement_time)  filter (where name in ('sirs_temp','heart_rate','respiratory_rate','wbc') and is_met ) )[2],
@@ -709,19 +865,19 @@ AS $func$ BEGIN
       as severe_sepsis_lead_time
     from
     criteria_events ICE
-    where ICE.pat_id   = MEV.pat_id
+    where ICE.enc_id   = MEV.enc_id
     and   ICE.event_id = MEV.event_id
     and   ICE.flag >= 0
-    group by ICE.pat_id
+    group by ICE.enc_id
   )
-  as CE on MEV.pat_id = CE.pat_id;
+  as CE on MEV.enc_id = CE.enc_id;
 
 END $func$ LANGUAGE plpgsql;
 
 
-CREATE OR REPLACE FUNCTION get_states(table_name text, this_pat_id text, where_clause text default '')
-RETURNS table( pat_id varchar(50), state int) AS $func$ BEGIN RETURN QUERY EXECUTE
-format('select stats.pat_id,
+CREATE OR REPLACE FUNCTION get_states(table_name text, this_enc_id int, where_clause text default '')
+RETURNS table( enc_id int, state int) AS $func$ BEGIN RETURN QUERY EXECUTE
+format('select stats.enc_id,
     (
     case
     when sus_count = 1 then
@@ -783,7 +939,7 @@ format('select stats.pat_id,
     end) as state
 from
 (
-select %I.pat_id,
+select %I.enc_id,
     count(*) filter (where name = ''suspicion_of_infection'' and is_met) as sus_count,
     count(*) filter (where name = ''suspicion_of_infection'' and (not is_met) and override_value#>>''{0,text}'' = ''No Infection'') as sus_noinf_count,
     count(*) filter (where name = ''suspicion_of_infection'' and (not is_met) and override_value is null) as sus_null_count,
@@ -801,11 +957,11 @@ select %I.pat_id,
     min(measurement_time) filter (where name in (''systolic_bp'',''hypotension_map'',''hypotension_dsbp'') and is_met ) as hypotension_onset,
     min(measurement_time) filter (where name = ''initial_lactate'' and is_met) as hypoperfusion_onset
 from %I
-where %I.pat_id = coalesce($1, %I.pat_id)
+where %I.enc_id = coalesce($1, %I.enc_id)
 %s
-group by %I.pat_id
+group by %I.enc_id
 ) stats', table_name, table_name, table_name, table_name, where_clause, table_name)
-USING this_pat_id
+USING this_enc_id
 ; END $func$ LANGUAGE plpgsql;
 
 
@@ -1039,8 +1195,8 @@ END; $func$;
 
 
 
-CREATE OR REPLACE FUNCTION calculate_criteria(this_pat_id text, ts_start timestamptz, ts_end timestamptz)
- RETURNS table(pat_id                               varchar(50),
+CREATE OR REPLACE FUNCTION calculate_criteria(this_enc_id int, ts_start timestamptz, ts_end timestamptz)
+ RETURNS table(enc_id                               int,
                name                                 varchar(50),
                measurement_time                     timestamptz,
                value                                text,
@@ -1060,58 +1216,58 @@ DECLARE
   orders_lookback interval := interval '6 hours';
 BEGIN
 return query
-    with pat_ids as (
-        select distinct pat_enc.pat_id from pat_enc
-        where pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id)
+    with enc_ids as (
+        select distinct pat_enc.enc_id from pat_enc
+        where pat_enc.enc_id = coalesce(this_enc_id, pat_enc.enc_id)
     ),
     pat_urine_output as (
-        select pat_ids.pat_id, sum(uo.value::numeric) as value
-        from pat_ids
-        inner join criteria_meas uo on pat_ids.pat_id = uo.pat_id
+        select enc_ids.enc_id, sum(uo.value::numeric) as value
+        from enc_ids
+        inner join cdm_t uo on enc_ids.enc_id = uo.enc_id
         where uo.fid = 'urine_output'
         and isnumeric(uo.value)
         and ts_end - uo.tsp < interval '2 hours'
-        group by pat_ids.pat_id
+        group by enc_ids.enc_id
     ),
     pat_weights as (
-        select ordered.pat_id, first(ordered.value) as value
+        select ordered.enc_id, first(ordered.value) as value
         from (
-            select pat_ids.pat_id, weights.value::numeric as value
-            from pat_ids
-            inner join criteria_meas weights on pat_ids.pat_id = weights.pat_id
+            select enc_ids.enc_id, weights.value::numeric as value
+            from enc_ids
+            inner join cdm_t weights on enc_ids.enc_id = weights.enc_id
             where weights.fid = 'weight'
             order by weights.tsp
         ) as ordered
-        group by ordered.pat_id
+        group by ordered.enc_id
     ),
     pat_bp_sys as (
-        select pat_ids.pat_id, avg(sbp_meas.value::numeric) as value
-        from pat_ids
-        inner join criteria_meas sbp_meas on pat_ids.pat_id = sbp_meas.pat_id
-        where isnumeric(sbp_meas.value) and sbp_meas.fid = 'bp_sys'
-        group by pat_ids.pat_id
+        select enc_ids.enc_id, avg(t.value::numeric) as value
+        from enc_ids
+        inner join cdm_t t on enc_ids.enc_id = t.enc_id
+        where isnumeric(t.value) and (t.fid = 'abp_sys' or t.fid = 'nbp_sys')
+        group by enc_ids.enc_id
     ),
     pat_cvalues as (
-        select pat_ids.pat_id,
+        select enc_ids.enc_id,
                cd.name,
-               meas.fid,
+               t.fid,
                cd.category,
-               meas.tsp,
-               meas.value,
+               t.tsp,
+               t.value,
                c.override_time as c_otime,
                c.override_user as c_ouser,
                c.override_value as c_ovalue,
                cd.override_value as d_ovalue
-        from pat_ids
+        from enc_ids
         cross join criteria_default as cd
-        left join criteria c on pat_ids.pat_id = c.pat_id and cd.name = c.name
-        left join criteria_meas meas
-            on pat_ids.pat_id = meas.pat_id and meas.fid = cd.fid
-            and (meas.tsp is null or meas.tsp between ts_start and ts_end)
+        left join criteria c on enc_ids.enc_id = c.enc_id and cd.name = c.name
+        left join cdm_t t
+            on enc_ids.enc_id = t.enc_id and (t.fid = cd.fid or (cd.name = 'bp_sys' and t.fid in ('nbp_sys', 'abp_sys')))
+            and (t.tsp is null or t.tsp between ts_start and ts_end)
     ),
     infection as (
         select
-            ordered.pat_id,
+            ordered.enc_id,
             ordered.name,
             first(ordered.measurement_time) as measurement_time,
             first(ordered.value)::text as value,
@@ -1121,7 +1277,7 @@ return query
             coalesce(bool_or(ordered.is_met), false) as is_met,
             now() as update_date
         from (
-            select  pat_cvalues.pat_id,
+            select  pat_cvalues.enc_id,
                     pat_cvalues.name,
                     pat_cvalues.tsp as measurement_time,
                     pat_cvalues.value as value,
@@ -1133,11 +1289,11 @@ return query
             where pat_cvalues.name = 'suspicion_of_infection'
             order by pat_cvalues.tsp
         ) as ordered
-        group by ordered.pat_id, ordered.name
+        group by ordered.enc_id, ordered.name
     ),
     sirs as (
         select
-            ordered.pat_id,
+            ordered.enc_id,
             ordered.name,
             first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
             first(case when ordered.is_met then ordered.value else null end)::text as value,
@@ -1147,7 +1303,7 @@ return query
             coalesce(bool_or(ordered.is_met), false) as is_met,
             now() as update_date
         from (
-            select  pat_cvalues.pat_id,
+            select  pat_cvalues.enc_id,
                     pat_cvalues.name,
                     pat_cvalues.tsp as measurement_time,
                     pat_cvalues.value as value,
@@ -1159,11 +1315,11 @@ return query
             where pat_cvalues.name in ('sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc')
             order by pat_cvalues.tsp
         ) as ordered
-        group by ordered.pat_id, ordered.name
+        group by ordered.enc_id, ordered.name
     ),
     respiratory_failures as (
         select
-            ordered.pat_id,
+            ordered.enc_id,
             ordered.name,
             first(case when ordered.is_met then ordered.tsp else null end) as measurement_time,
             first(case when ordered.is_met then ordered.value else null end)::text as value,
@@ -1174,7 +1330,7 @@ return query
             now() as update_date
         from (
             select
-                pat_cvalues.pat_id,
+                pat_cvalues.enc_id,
                 pat_cvalues.name,
                 pat_cvalues.tsp,
                 (coalesce(pat_cvalues.c_ovalue#>>'{0,text}', (pat_cvalues.fid ||': '|| pat_cvalues.value))) as value,
@@ -1183,15 +1339,15 @@ return query
                 pat_cvalues.c_ovalue,
                 (coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value) is not null) as is_met
             from pat_cvalues
-            inner join pat_enc on pat_cvalues.pat_id = pat_enc.pat_id
+            inner join pat_enc on pat_cvalues.enc_id = pat_enc.enc_id
             where pat_cvalues.category = 'respiratory_failure'
             order by pat_cvalues.tsp
         ) as ordered
-        group by ordered.pat_id, ordered.name
+        group by ordered.enc_id, ordered.name
     ),
     organ_dysfunction_except_rf as (
         select
-            ordered.pat_id,
+            ordered.enc_id,
             ordered.name,
             first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
             first(case when ordered.is_met then ordered.value else null end)::text as value,
@@ -1201,7 +1357,7 @@ return query
             coalesce(bool_or(ordered.is_met), false) as is_met,
             now() as update_date
         from (
-            select  pat_cvalues.pat_id,
+            select  pat_cvalues.enc_id,
                     pat_cvalues.name,
                     pat_cvalues.tsp as measurement_time,
                     pat_cvalues.value as value,
@@ -1211,13 +1367,13 @@ return query
                     (case
                         when pat_cvalues.category = 'decrease_in_sbp' then
                             decrease_in_sbp_met(
-                                (select max(pat_bp_sys.value) from pat_bp_sys where pat_bp_sys.pat_id = pat_cvalues.pat_id),
+                                (select max(pat_bp_sys.value) from pat_bp_sys where pat_bp_sys.enc_id = pat_cvalues.enc_id),
                                 pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
 
                         when pat_cvalues.category = 'urine_output' then
                             urine_output_met(
-                                (select max(pat_urine_output.value) from pat_urine_output where pat_urine_output.pat_id = pat_cvalues.pat_id),
-                                (select max(pat_weights.value) from pat_weights where pat_weights.pat_id = pat_cvalues.pat_id)
+                                (select max(pat_urine_output.value) from pat_urine_output where pat_urine_output.enc_id = pat_cvalues.enc_id),
+                                (select max(pat_weights.value) from pat_weights where pat_weights.enc_id = pat_cvalues.enc_id)
                             )
 
                         else criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
@@ -1227,7 +1383,7 @@ return query
             where pat_cvalues.name in ('blood_pressure', 'mean_arterial_pressure', 'decrease_in_sbp', 'creatinine', 'bilirubin', 'platelet', 'inr', 'lactate')
             order by pat_cvalues.tsp
         ) as ordered
-        group by ordered.pat_id, ordered.name
+        group by ordered.enc_id, ordered.name
     ),
     severe_sepsis as (
         select * from infection
@@ -1240,7 +1396,7 @@ return query
             select * from respiratory_failures
             union all select * from organ_dysfunction_except_rf
         )
-        select IC.pat_id,
+        select IC.enc_id,
                sum(IC.cnt) > 0 as suspicion_of_infection,
                sum(SC.cnt) as sirs_cnt,
                sum(OC.cnt) as org_df_cnt,
@@ -1250,33 +1406,33 @@ return query
                max(OC.onset) as org_df_onset
         from
         (
-          select infection.pat_id,
+          select infection.enc_id,
                  sum(case when infection.is_met then 1 else 0 end) as cnt,
                  max(infection.override_time) as onset
           from infection
-          group by infection.pat_id
+          group by infection.enc_id
         ) IC
         left join
         (
-          select sirs.pat_id,
+          select sirs.enc_id,
                  sum(case when sirs.is_met then 1 else 0 end) as cnt,
                  (array_agg(sirs.measurement_time order by sirs.measurement_time))[2] as onset,
                  (array_agg(sirs.measurement_time order by sirs.measurement_time))[1] as initial
           from sirs
-          group by sirs.pat_id
-        ) SC on IC.pat_id = SC.pat_id
+          group by sirs.enc_id
+        ) SC on IC.enc_id = SC.enc_id
         left join
         (
-          select organ_dysfunction.pat_id,
+          select organ_dysfunction.enc_id,
                  sum(case when organ_dysfunction.is_met then 1 else 0 end) as cnt,
                  min(organ_dysfunction.measurement_time) as onset
           from organ_dysfunction
-          group by organ_dysfunction.pat_id
-        ) OC on IC.pat_id = OC.pat_id
-        group by IC.pat_id
+          group by organ_dysfunction.enc_id
+        ) OC on IC.enc_id = OC.enc_id
+        group by IC.enc_id
     ),
     severe_sepsis_now as (
-      select sspm.pat_id,
+      select sspm.enc_id,
              sspm.severe_sepsis_is_met,
              (case when sspm.severe_sepsis_onset <> 'infinity'::timestamptz
                    then sspm.severe_sepsis_onset
@@ -1289,7 +1445,7 @@ return query
              sspm.severe_sepsis_wo_infection_initial,
              sspm.severe_sepsis_lead_time
       from (
-        select stats.pat_id,
+        select stats.enc_id,
                coalesce(bool_or(stats.suspicion_of_infection
                                   and stats.sirs_cnt > 1
                                   and stats.org_df_cnt > 0)
@@ -1310,12 +1466,12 @@ return query
                   as severe_sepsis_lead_time
 
         from severe_sepsis_criteria stats
-        group by stats.pat_id
+        group by stats.enc_id
       ) sspm
     ),
     crystalloid_fluid as (
         select
-            ordered.pat_id,
+            ordered.enc_id,
             ordered.name,
             first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
             first(case when ordered.is_met then ordered.value else null end)::text as value,
@@ -1326,7 +1482,7 @@ return query
             now() as update_date
         from
         (
-            select  pat_cvalues.pat_id,
+            select  pat_cvalues.enc_id,
                     pat_cvalues.name,
                     pat_cvalues.tsp as measurement_time,
                     pat_cvalues.value as value,
@@ -1342,15 +1498,15 @@ return query
                             and coalesce(pat_cvalues.c_otime, pat_cvalues.tsp) >= ssn.severe_sepsis_onset)
                     as is_met
             from pat_cvalues
-            left join severe_sepsis_now ssn on pat_cvalues.pat_id = ssn.pat_id
+            left join severe_sepsis_now ssn on pat_cvalues.enc_id = ssn.enc_id
             where pat_cvalues.name = 'crystalloid_fluid'
             order by pat_cvalues.tsp
         ) as ordered
-        group by ordered.pat_id, ordered.name
+        group by ordered.enc_id, ordered.name
     ),
     hypotension as (
         select
-            ordered.pat_id,
+            ordered.enc_id,
             ordered.name,
             first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
             first(case when ordered.is_met then ordered.value else null end)::text as value,
@@ -1362,12 +1518,12 @@ return query
         from
         (
             with pat_fluid_overrides as (
-              select CFL.pat_id, coalesce(bool_or(CFL.override_value#>>'{0,text}' = 'Not Indicated' or CFL.override_value#>>'{0,text}' ~* 'Clinically Inappropriate'), false) as override
+              select CFL.enc_id, coalesce(bool_or(CFL.override_value#>>'{0,text}' = 'Not Indicated' or CFL.override_value#>>'{0,text}' ~* 'Clinically Inappropriate'), false) as override
               from crystalloid_fluid CFL
-              group by CFL.pat_id
+              group by CFL.enc_id
             ),
             pats_fluid_after_severe_sepsis as (
-              select  MFL.pat_id,
+              select  MFL.enc_id,
                       MFL.tsp,
                       sum(MFL.value::numeric) as total_fluid,
                       -- Fluids are met if they are overriden or if we have more than
@@ -1375,17 +1531,17 @@ return query
                       (coalesce(bool_or(OV.override), false)
                           or coalesce(sum(MFL.value::numeric), 0) > least(1200, 30 * max(PW.value))
                       ) as is_met
-              from criteria_meas MFL
-              left join pat_weights PW on MFL.pat_id = PW.pat_id
-              left join severe_sepsis_now SSPN on MFL.pat_id = SSPN.pat_id
-              left join pat_fluid_overrides OV on MFL.pat_id = OV.pat_id
+              from cdm_t MFL
+              left join pat_weights PW on MFL.enc_id = PW.enc_id
+              left join severe_sepsis_now SSPN on MFL.enc_id = SSPN.enc_id
+              left join pat_fluid_overrides OV on MFL.enc_id = OV.enc_id
               where isnumeric(MFL.value)
               and SSPN.severe_sepsis_is_met
               and MFL.tsp >= (SSPN.severe_sepsis_onset - orders_lookback)
               and (MFL.fid = 'crystalloid_fluid' or coalesce(OV.override, false))
-              group by MFL.pat_id, MFL.tsp
+              group by MFL.enc_id, MFL.tsp
             )
-            select PC.pat_id,
+            select PC.enc_id,
                    PC.name,
                    PC.tsp as measurement_time,
                    PC.value as value,
@@ -1407,33 +1563,33 @@ return query
                         else false
                     end) as is_met
             from pat_cvalues PC
-            left join severe_sepsis_now SSPN on PC.pat_id = SSPN.pat_id
+            left join severe_sepsis_now SSPN on PC.enc_id = SSPN.enc_id
 
             left join pats_fluid_after_severe_sepsis PFL
-              on PC.pat_id = PFL.pat_id
+              on PC.enc_id = PFL.enc_id
 
             left join lateral (
-              select meas.pat_id, meas.fid, meas.tsp, meas.value
-              from criteria_meas meas
-              where PC.pat_id = meas.pat_id and PC.fid = meas.fid and PC.tsp < meas.tsp
-              order by meas.tsp
+              select t.enc_id, t.fid, t.tsp, t.value
+              from cdm_t t
+              where PC.enc_id = t.enc_id and PC.fid = t.fid and PC.tsp < t.tsp
+              order by t.tsp
               limit 1
-            ) NEXT on PC.pat_id = NEXT.pat_id and PC.fid = NEXT.fid
+            ) NEXT on PC.enc_id = NEXT.enc_id and PC.fid = NEXT.fid
 
             left join lateral (
-              select BP.pat_id, max(BP.value) as value
-              from pat_bp_sys BP where PC.pat_id = BP.pat_id
-              group by BP.pat_id
-            ) PBPSYS on PC.pat_id = PBPSYS.pat_id
+              select BP.enc_id, max(BP.value) as value
+              from pat_bp_sys BP where PC.enc_id = BP.enc_id
+              group by BP.enc_id
+            ) PBPSYS on PC.enc_id = PBPSYS.enc_id
 
             where PC.name in ('systolic_bp', 'hypotension_map', 'hypotension_dsbp')
             order by PC.tsp
         ) as ordered
-        group by ordered.pat_id, ordered.name
+        group by ordered.enc_id, ordered.name
     ),
     hypoperfusion as (
         select
-            ordered.pat_id,
+            ordered.enc_id,
             ordered.name,
             first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
             first(case when ordered.is_met then ordered.value else null end)::text as value,
@@ -1444,7 +1600,7 @@ return query
             now() as update_date
         from
         (
-            select  pat_cvalues.pat_id,
+            select  pat_cvalues.enc_id,
                     pat_cvalues.name,
                     pat_cvalues.tsp as measurement_time,
                     pat_cvalues.value as value,
@@ -1456,11 +1612,11 @@ return query
                                 and coalesce(pat_cvalues.c_otime, pat_cvalues.tsp) >= ssn.severe_sepsis_onset)
                         as is_met
             from pat_cvalues
-            left join severe_sepsis_now ssn on pat_cvalues.pat_id = ssn.pat_id
+            left join severe_sepsis_now ssn on pat_cvalues.enc_id = ssn.enc_id
             where pat_cvalues.name = 'initial_lactate'
             order by pat_cvalues.tsp
         ) as ordered
-        group by ordered.pat_id, ordered.name
+        group by ordered.enc_id, ordered.name
     ),
     septic_shock as (
         select * from crystalloid_fluid
@@ -1468,27 +1624,27 @@ return query
         union all select * from hypoperfusion
     ),
     septic_shock_now as (
-        select stats.pat_id,
+        select stats.enc_id,
                bool_or(stats.cnt > 0) as septic_shock_is_met,
                greatest(min(stats.onset), max(ssn.severe_sepsis_onset)) as septic_shock_onset
         from (
-            (select hypotension.pat_id,
+            (select hypotension.enc_id,
                     sum(case when hypotension.is_met then 1 else 0 end) as cnt,
                     min(hypotension.measurement_time) as onset
              from hypotension
-             group by hypotension.pat_id)
+             group by hypotension.enc_id)
             union
-            (select hypoperfusion.pat_id,
+            (select hypoperfusion.enc_id,
                     sum(case when hypoperfusion.is_met then 1 else 0 end) as cnt,
                     min(hypoperfusion.measurement_time) as onset
              from hypoperfusion
-             group by hypoperfusion.pat_id)
+             group by hypoperfusion.enc_id)
         ) stats
-        left join severe_sepsis_now ssn on stats.pat_id = ssn.pat_id
-        group by stats.pat_id
+        left join severe_sepsis_now ssn on stats.enc_id = ssn.enc_id
+        group by stats.enc_id
     ),
     pats_that_have_orders as (
-        select distinct pat_cvalues.pat_id
+        select distinct pat_cvalues.enc_id
         from pat_cvalues
         where pat_cvalues.name in (
             'initial_lactate_order',
@@ -1500,7 +1656,7 @@ return query
     ),
     orders_criteria as (
         select
-            ordered.pat_id,
+            ordered.enc_id,
             ordered.name,
             coalesce(   first(case when ordered.is_met then ordered.measurement_time else null end),
                         last(ordered.measurement_time)
@@ -1523,47 +1679,47 @@ return query
         from
         (
             with past_criteria as (
-                select  PO.pat_id, SNP.state,
+                select  PO.enc_id, SNP.state,
                         min(SNP.severe_sepsis_lead_time) as severe_sepsis_lead_time,
                         min(SNP.septic_shock_onset) as septic_shock_onset
                 from pats_that_have_orders PO
-                inner join lateral get_states_snapshot(PO.pat_id) SNP on PO.pat_id = SNP.pat_id
+                inner join lateral get_states_snapshot(PO.enc_id) SNP on PO.enc_id = SNP.enc_id
                 where SNP.state >= 20
-                group by PO.pat_id, SNP.state
+                group by PO.enc_id, SNP.state
             ),
             orders_severe_sepsis_lead_times as (
-                select LT.pat_id, min(LT.severe_sepsis_lead_time) - orders_lookback as severe_sepsis_lead_time
+                select LT.enc_id, min(LT.severe_sepsis_lead_time) - orders_lookback as severe_sepsis_lead_time
                 from (
-                    select  SSPN.pat_id,
+                    select  SSPN.enc_id,
                             min(case when SSPN.severe_sepsis_is_met then SSPN.severe_sepsis_lead_time else null end)
                                 as severe_sepsis_lead_time
                         from severe_sepsis_now SSPN
-                        group by SSPN.pat_id
+                        group by SSPN.enc_id
                     union all
-                    select PC.pat_id, min(PC.severe_sepsis_lead_time) as severe_sepsis_lead_time
+                    select PC.enc_id, min(PC.severe_sepsis_lead_time) as severe_sepsis_lead_time
                         from past_criteria PC
                         where PC.state >= 20
-                        group by PC.pat_id
+                        group by PC.enc_id
                 ) LT
-                group by LT.pat_id
+                group by LT.enc_id
             ),
             orders_septic_shock_onsets as (
-                select ONST.pat_id, min(ONST.septic_shock_onset) as septic_shock_onset
+                select ONST.enc_id, min(ONST.septic_shock_onset) as septic_shock_onset
                 from (
-                    select  SSHN.pat_id,
+                    select  SSHN.enc_id,
                             min(case when SSHN.septic_shock_is_met then SSHN.septic_shock_onset else null end)
                                 as septic_shock_onset
                         from septic_shock_now SSHN
-                        group by SSHN.pat_id
+                        group by SSHN.enc_id
                     union all
-                    select PC.pat_id, min(PC.septic_shock_onset) as septic_shock_onset
+                    select PC.enc_id, min(PC.septic_shock_onset) as septic_shock_onset
                         from past_criteria PC
                         where PC.state >= 30
-                        group by PC.pat_id
+                        group by PC.enc_id
                 ) ONST
-                group by ONST.pat_id
+                group by ONST.enc_id
             )
-            select  pat_cvalues.pat_id,
+            select  pat_cvalues.enc_id,
                     pat_cvalues.name,
                     pat_cvalues.tsp as measurement_time,
                     (case when pat_cvalues.category in ('after_severe_sepsis_dose', 'after_septic_shock_dose')
@@ -1599,9 +1755,9 @@ return query
                     ) as is_met
             from pat_cvalues
               left join orders_severe_sepsis_lead_times OLT
-                on pat_cvalues.pat_id = OLT.pat_id
+                on pat_cvalues.enc_id = OLT.enc_id
               left join orders_septic_shock_onsets OST
-                on pat_cvalues.pat_id = OST.pat_id
+                on pat_cvalues.enc_id = OST.enc_id
             where pat_cvalues.name in (
                 'initial_lactate_order',
                 'blood_culture_order',
@@ -1611,11 +1767,11 @@ return query
             )
             order by pat_cvalues.tsp
         ) as ordered
-        group by ordered.pat_id, ordered.name
+        group by ordered.enc_id, ordered.name
     ),
     repeat_lactate as (
         select
-            ordered.pat_id,
+            ordered.enc_id,
             ordered.name,
             first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
             first(case when ordered.is_met then ordered.value else null end)::text as value,
@@ -1626,7 +1782,7 @@ return query
             now() as update_date
         from
         (
-            select  pat_cvalues.pat_id,
+            select  pat_cvalues.enc_id,
                     pat_cvalues.name,
                     pat_cvalues.tsp as measurement_time,
                     order_status(pat_cvalues.fid, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}') as value,
@@ -1646,27 +1802,27 @@ return query
                     )) is_met
             from pat_cvalues
             left join (
-                select oc.pat_id,
+                select oc.enc_id,
                        max(case when oc.is_met then oc.measurement_time else null end) as tsp,
                        bool_or(oc.is_met) as is_met,
                        coalesce(min(oc.value) = 'Completed', false) as is_completed
                 from orders_criteria oc
                 where oc.name = 'initial_lactate_order'
-                group by oc.pat_id
-            ) initial_lactate_order on pat_cvalues.pat_id = initial_lactate_order.pat_id
+                group by oc.enc_id
+            ) initial_lactate_order on pat_cvalues.enc_id = initial_lactate_order.enc_id
             left join (
-                select p3.pat_id,
+                select p3.enc_id,
                        max(case when p3.value::numeric > 2.0 then p3.tsp else null end) tsp,
                        coalesce(bool_or(p3.value::numeric > 2.0), false) is_met
                 from pat_cvalues p3
                 where p3.name = 'initial_lactate'
-                group by p3.pat_id
-            ) lactate_results on pat_cvalues.pat_id = lactate_results.pat_id
+                group by p3.enc_id
+            ) lactate_results on pat_cvalues.enc_id = lactate_results.enc_id
             where pat_cvalues.name = 'repeat_lactate_order'
             order by pat_cvalues.tsp
         )
         as ordered
-        group by ordered.pat_id, ordered.name
+        group by ordered.enc_id, ordered.name
     )
     select new_criteria.*,
            severe_sepsis_now.severe_sepsis_onset,
@@ -1679,8 +1835,8 @@ return query
         union all select * from orders_criteria
         union all select * from repeat_lactate
     ) new_criteria
-    left join severe_sepsis_now on new_criteria.pat_id = severe_sepsis_now.pat_id
-    left join septic_shock_now on new_criteria.pat_id = septic_shock_now.pat_id;
+    left join severe_sepsis_now on new_criteria.enc_id = severe_sepsis_now.enc_id
+    left join septic_shock_now on new_criteria.enc_id = septic_shock_now.enc_id;
 
 return;
 END; $function$;
@@ -1689,7 +1845,7 @@ END; $function$;
 -- Calculates criteria over windows, with each window based on the timestamps
 -- at which a measurement is available. This could be replaced by regularly-spaced
 -- window endpoints from a generated series.
---
+-- DEPRECATED
 CREATE OR REPLACE FUNCTION calculate_max_criteria(this_pat_id text)
  RETURNS table(window_ts                        timestamptz,
                pat_id                           varchar(50),
@@ -1748,12 +1904,12 @@ END; $function$;
 --------------------------------------------
 -- Criteria snapshot utilities.
 --------------------------------------------
-CREATE OR REPLACE FUNCTION order_event_update(this_pat_id text)
+CREATE OR REPLACE FUNCTION order_event_update(this_enc_id int)
 RETURNS void AS $$
 begin
     insert into criteria_events
     select gss.event_id,
-           gss.pat_id,
+           gss.enc_id,
            c.name,
            c.is_met,
            c.measurement_time,
@@ -1763,9 +1919,9 @@ begin
            c.value,
            c.update_date,
            gss.state
-    from get_states_snapshot(this_pat_id) gss
-    inner join criteria c on gss.pat_id = c.pat_id and c.name ~ '_order'
-    left join criteria_events e on e.pat_id = gss.pat_id and e.event_id = gss.event_id and e.name = c.name
+    from get_states_snapshot(this_enc_id) gss
+    inner join criteria c on gss.enc_id = c.enc_id and c.name ~ '_order'
+    left join criteria_events e on e.enc_id = gss.enc_id and e.event_id = gss.event_id and e.name = c.name
     where gss.state in (23,24,35,36) and c.is_met and not coalesce(e.is_met, false)
     -- (
     --     -- (
@@ -1788,7 +1944,7 @@ begin
     --     --     gss.states in (21,22,31,32) and c.is_met and not coalesce(e.is_met, false)
     --     --     )
     -- )
-    on conflict (event_id, pat_id, name) do update
+    on conflict (event_id, enc_id, name) do update
     set is_met              = excluded.is_met,
         measurement_time    = excluded.measurement_time,
         override_time       = excluded.override_time,
@@ -1800,23 +1956,23 @@ begin
 end;
 $$ LANGUAGE PLPGSQL;
 
-CREATE OR REPLACE FUNCTION advance_criteria_snapshot(this_pat_id text default null, func_mode text default 'advance')
+CREATE OR REPLACE FUNCTION advance_criteria_snapshot(this_enc_id int default null, func_mode text default 'advance')
 RETURNS void AS $$
 DECLARE
     ts_end timestamptz := now();
     window_size interval := get_parameter('lookbackhours')::interval;
 BEGIN
-    perform auto_deactivate(this_pat_id);
+    perform auto_deactivate(this_enc_id);
 
     create temporary table new_criteria as
-        select * from calculate_criteria(this_pat_id, ts_end - window_size, ts_end);
+        select * from calculate_criteria(this_enc_id, ts_end - window_size, ts_end);
 
     with criteria_inserts as
     (
-        insert into criteria (pat_id, name, measurement_time, value, override_time, override_user, override_value, is_met, update_date)
-        select pat_id, name, measurement_time, value, override_time, override_user, override_value, is_met, update_date
+        insert into criteria (enc_id, name, measurement_time, value, override_time, override_user, override_value, is_met, update_date)
+        select enc_id, name, measurement_time, value, override_time, override_user, override_value, is_met, update_date
         from new_criteria
-        on conflict (pat_id, name) do update
+        on conflict (enc_id, name) do update
         set is_met              = excluded.is_met,
             measurement_time    = excluded.measurement_time,
             value               = excluded.value,
@@ -1828,12 +1984,12 @@ BEGIN
     ),
     state_change as
     (
-        select coalesce(snapshot.pat_id, live.pat_id) as pat_id,
+        select coalesce(snapshot.enc_id, live.enc_id) as enc_id,
                coalesce(snapshot.event_id, 0) as from_event_id,
                coalesce(snapshot.state, 0) as state_from,
                live.state as state_to
-        from get_states('new_criteria', this_pat_id) live
-        left join get_states_snapshot(this_pat_id) snapshot on snapshot.pat_id = live.pat_id
+        from get_states('new_criteria', this_enc_id) live
+        left join get_states_snapshot(this_enc_id) snapshot on snapshot.enc_id = live.enc_id
         where snapshot.state is null
         or snapshot.state < live.state
         or ( snapshot.state = 10 and snapshot.severe_sepsis_wo_infection_onset < now() - window_size)
@@ -1844,71 +2000,67 @@ BEGIN
         set flag = flag - 1000
         from state_change
         where criteria_events.event_id = state_change.from_event_id
-        and criteria_events.pat_id = state_change.pat_id
+        and criteria_events.enc_id = state_change.enc_id
     ),
     notified_patients as (
-        select distinct si.pat_id
+        select distinct si.enc_id
         from state_change si
         inner join (
-            select  new_criteria.pat_id,
+            select  new_criteria.enc_id,
                     first(new_criteria.severe_sepsis_onset) severe_sepsis_onset,
                     first(new_criteria.septic_shock_onset) septic_shock_onset,
                     first(new_criteria.severe_sepsis_wo_infection_onset) severe_sepsis_wo_infection_onset,
                     first(new_criteria.severe_sepsis_wo_infection_initial) severe_sepsis_wo_infection_initial
             from new_criteria
-            group by new_criteria.pat_id
-        ) nc on si.pat_id = nc.pat_id
-        left join lateral update_notifications(si.pat_id, flag_to_alert_codes(si.state_to),
+            group by new_criteria.enc_id
+        ) nc on si.enc_id = nc.enc_id
+        left join lateral update_notifications(si.enc_id, flag_to_alert_codes(si.state_to),
                                                nc.severe_sepsis_onset,
                                                nc.septic_shock_onset,
                                                nc.severe_sepsis_wo_infection_onset,
                                                nc.severe_sepsis_wo_infection_initial,
                                                func_mode
                                                ) n
-        on si.pat_id = n.pat_id
+        on si.enc_id = n.enc_id
     )
-    insert into criteria_events (event_id, pat_id, name, measurement_time, value,
+    insert into criteria_events (event_id, enc_id, name, measurement_time, value,
                                  override_time, override_user, override_value, is_met, update_date, flag)
-    select s.event_id, c.pat_id, c.name, c.measurement_time, c.value,
+    select s.event_id, c.enc_id, c.name, c.measurement_time, c.value,
            c.override_time, c.override_user, c.override_value, c.is_met, c.update_date,
            s.state_to as flag
-    from ( select ssid.event_id, si.pat_id, si.state_to
+    from ( select ssid.event_id, si.enc_id, si.state_to
            from state_change si
            cross join (select nextval('criteria_event_ids') event_id) ssid
     ) as s
-    inner join new_criteria c on s.pat_id = c.pat_id
-    left join notified_patients as np on s.pat_id = np.pat_id
+    inner join new_criteria c on s.enc_id = c.enc_id
+    left join notified_patients as np on s.enc_id = np.enc_id
     where not c.name like '%_order';
     drop table new_criteria;
-    perform order_event_update(this_pat_id);
+    perform order_event_update(this_enc_id);
     RETURN;
 END;
 $$ LANGUAGE PLPGSQL;
 
 
-CREATE OR REPLACE FUNCTION override_criteria_snapshot(this_pat_id text default null)
+CREATE OR REPLACE FUNCTION override_criteria_snapshot(this_enc_id int default null)
     RETURNS void LANGUAGE plpgsql AS $function$
 DECLARE
     ts_end timestamptz := now();
     window_size interval := get_parameter('lookbackhours')::interval;
 BEGIN
     create temporary table new_criteria as
-    select * from calculate_criteria(this_pat_id, ts_end - window_size, ts_end);
-
-    -- TODO: test search over windows for worst patient state.
-    -- create temporary table new_criteria as
-    -- select * from calculate_max_criteria(this_pat_id);
+    select * from calculate_criteria(this_enc_id, ts_end - window_size, ts_end);
 
     -- Deactivate old snapshots, and add a new snapshot.
     with pat_states as (
-        select * from get_states('new_criteria', this_pat_id)
+        select * from get_states('new_criteria', this_enc_id)
     ),
     criteria_inserts as (
-        insert into criteria (pat_id, name, override_time, override_user, override_value, is_met, update_date)
-        select pat_id, name, override_time, override_user, override_value, is_met, update_date
+        insert into criteria (enc_id, name, override_time, override_user, override_value, is_met, update_date)
+        select enc_id, name, override_time, override_user, override_value, is_met, update_date
         from new_criteria
         where name in ( 'suspicion_of_infection', 'crystalloid_fluid' )
-        on conflict (pat_id, name) do update
+        on conflict (enc_id, name) do update
         set is_met              = excluded.is_met,
             measurement_time    = excluded.measurement_time,
             value               = excluded.value,
@@ -1924,38 +2076,38 @@ BEGIN
         from new_criteria
         where criteria_events.event_id = (
             select max(event_id) from criteria_events ce
-            where ce.pat_id = new_criteria.pat_id and ce.flag > 0
+            where ce.enc_id = new_criteria.enc_id and ce.flag > 0
         )
-        and criteria_events.pat_id = new_criteria.pat_id
+        and criteria_events.enc_id = new_criteria.enc_id
     ),
     notified_patients as (
-        select distinct pat_states.pat_id
+        select distinct pat_states.enc_id
         from pat_states
         inner join (
-            select  new_criteria.pat_id,
+            select  new_criteria.enc_id,
                     first(new_criteria.severe_sepsis_onset) severe_sepsis_onset,
                     first(new_criteria.septic_shock_onset) septic_shock_onset,
                     first(new_criteria.severe_sepsis_wo_infection_onset) severe_sepsis_wo_infection_onset,
                     first(new_criteria.severe_sepsis_wo_infection_initial) severe_sepsis_wo_infection_initial
             from new_criteria
-            group by new_criteria.pat_id
-        ) nc on pat_states.pat_id = nc.pat_id
-        left join lateral update_notifications(pat_states.pat_id, flag_to_alert_codes(pat_states.state),
+            group by new_criteria.enc_id
+        ) nc on pat_states.enc_id = nc.enc_id
+        left join lateral update_notifications(pat_states.enc_id, flag_to_alert_codes(pat_states.state),
             nc.severe_sepsis_onset, nc.septic_shock_onset, nc.severe_sepsis_wo_infection_onset, nc.severe_sepsis_wo_infection_initial, 'override') n
-        on pat_states.pat_id = n.pat_id
+        on pat_states.enc_id = n.enc_id
     )
-    insert into criteria_events (event_id, pat_id, name, measurement_time, value,
+    insert into criteria_events (event_id, enc_id, name, measurement_time, value,
                                  override_time, override_user, override_value, is_met, update_date, flag)
-    select ssid.event_id, NC.pat_id, NC.name, NC.measurement_time, NC.value,
+    select ssid.event_id, NC.enc_id, NC.name, NC.measurement_time, NC.value,
            NC.override_time, NC.override_user, NC.override_value, NC.is_met, NC.update_date,
            pat_states.state as flag
     from new_criteria NC
     cross join (select nextval('criteria_event_ids') event_id) ssid
-    inner join pat_states on NC.pat_id = pat_states.pat_id
-    left join notified_patients np on NC.pat_id = np.pat_id
+    inner join pat_states on NC.enc_id = pat_states.enc_id
+    left join notified_patients np on NC.enc_id = np.enc_id
     where not NC.name like '%_order';
     drop table new_criteria;
-    perform order_event_update(this_pat_id);
+    perform order_event_update(this_enc_id);
     return;
 END; $function$;
 
@@ -1963,7 +2115,7 @@ END; $function$;
 -----------------------------------------------
 -- Notification management
 -----------------------------------------------
-CREATE OR REPLACE FUNCTION lmcscore_alert_on(this_pat_id text, timeout text default '15 minutes')
+CREATE OR REPLACE FUNCTION lmcscore_alert_on(this_enc_id text, timeout text default '15 minutes')
 RETURNS table(
     alert_on boolean,
     tsp timestamptz,
@@ -1979,13 +2131,12 @@ begin
            s.tsp::timestamptz,
            s.score::real
     from (select enc_id, lmcscore.tsp, lmcscore.score, rank() over (partition by enc_id, lmcscore.tsp order by model_id desc) from lmcscore)
-     s inner join pat_enc p on s.enc_id = p.enc_id
-    where p.pat_id = this_pat_id and now() - s.tsp < timeout::interval and s.rank = 1
+     s where s.enc_id = this_enc_id and now() - s.tsp < timeout::interval and s.rank = 1
     order by s.tsp desc limit 1;
 end;
 $$ LANGUAGE PLPGSQL;
 
-CREATE OR REPLACE FUNCTION trewscore_alert_on(this_pat_id text, timeout text, model text)
+CREATE OR REPLACE FUNCTION trewscore_alert_on(this_enc_id int, timeout text, model text)
 RETURNS table(
     alert_on boolean,
     tsp timestamptz,
@@ -2001,11 +2152,11 @@ begin
             select coalesce(s.trewscore::numeric > threshold, false),
                    s.tsp::timestamptz,
                    s.trewscore::real
-            from trews s inner join pat_enc p on s.enc_id = p.enc_id
-            where p.pat_id = this_pat_id and now() - s.tsp < timeout::interval
+            from trews s
+            where s.enc_id = this_enc_id and now() - s.tsp < timeout::interval
             order by s.tsp desc limit 1;
     else
-        return query select * from lmcscore_alert_on(this_pat_id, timeout);
+        return query select * from lmcscore_alert_on(this_enc_id, timeout);
     end if;
 
 end;
@@ -2036,7 +2187,7 @@ begin
 end;
 $$ LANGUAGE PLPGSQL;
 
-CREATE OR REPLACE FUNCTION update_suppression_alert(this_pat_id text, channel text, model text, notify boolean default false)
+CREATE OR REPLACE FUNCTION update_suppression_alert(this_enc_id int, channel text, model text, notify boolean default false)
 RETURNS void AS $$
 DECLARE
     trews_alert_on boolean;
@@ -2045,29 +2196,29 @@ DECLARE
     curr_state int;
     tsp timestamptz;
 BEGIN
-    select * from trewscore_alert_on(this_pat_id, (select coalesce(value, '6 hours') from parameters where name = 'suppression_timeout'), model) into trews_alert_on, trews_tsp, trewscore;
-    select state, severe_sepsis_wo_infection_initial from get_states_snapshot(this_pat_id) into curr_state, tsp;
-    delete from notifications where pat_id = this_pat_id
+    select * from trewscore_alert_on(this_enc_id, (select coalesce(value, '6 hours') from parameters where name = 'suppression_timeout'), model) into trews_alert_on, trews_tsp, trewscore;
+    select state, severe_sepsis_wo_infection_initial from get_states_snapshot(this_enc_id) into curr_state, tsp;
+    delete from notifications where enc_id = this_enc_id
         and notifications.message#>>'{alert_code}' ~ '205|300|206|307'
         and (notifications.message#>>'{model}' = model or not notifications.message::jsonb ? 'model');
     if curr_state = 10 then
         if coalesce(trews_alert_on, false) then
-            insert into notifications (pat_id, message) values
+            insert into notifications (enc_id, message) values
             (
-                this_pat_id,
+                this_enc_id,
                 json_build_object('alert_code', '300', 'read', false, 'timestamp', date_part('epoch',tsp), 'suppression', 'true', 'trews_tsp', date_part('epoch', trews_tsp), 'trewscore', trewscore, 'model', model)
             );
         else
-            insert into notifications (pat_id, message) values
+            insert into notifications (enc_id, message) values
             (
-                this_pat_id,
+                this_enc_id,
                 json_build_object('alert_code', '307', 'read', false, 'timestamp', date_part('epoch',tsp), 'suppression', 'true', 'trews_tsp', date_part('epoch', trews_tsp), 'trewscore', trewscore, 'model', model)
             );
         end if;
     end if;
     if notify then
-        perform pg_notify(channel, 'invalidate_cache:' || this_pat_id || ':' || model);
-        perform * from notify_future_notification(channel, this_pat_id);
+        perform pg_notify(channel, 'invalidate_cache:' || this_enc_id || ':' || model);
+        perform * from notify_future_notification(channel, this_enc_id);
     end if;
     RETURN;
 END;
@@ -2075,22 +2226,22 @@ $$ LANGUAGE PLPGSQL;
 
 -- '200','201','202','203','204','300','301','302','303','304','305','306'
 -- update notifications when state changed
-CREATE OR REPLACE FUNCTION update_notifications(this_pat_id text, alert_codes text[],
+CREATE OR REPLACE FUNCTION update_notifications(this_enc_id int, alert_codes text[],
                                                 severe_sepsis_onset timestamptz,
                                                 septic_shock_onset timestamptz,
                                                 sirs_plus_organ_onset timestamptz,
                                                 sirs_plus_organ_initial timestamptz,
                                                 mode text)
-RETURNS table(pat_id varchar(50), alert_code text) AS $$
+RETURNS table(enc_id int, alert_code text) AS $$
 BEGIN
     -- clean notifications
     delete from notifications
-        where notifications.pat_id = this_pat_id;
-    if suppression_on(this_pat_id) and mode in ('override', 'reset') then
+        where notifications.enc_id = this_enc_id;
+    if suppression_on(this_enc_id) and mode in ('override', 'reset') then
         -- suppression alerts
-        insert into notifications (pat_id, message)
+        insert into notifications (enc_id, message)
         select
-            pat_enc.pat_id,
+            pat_enc.enc_id,
             json_build_object('alert_code',
                 (case when not alert_on and tsp is not null
                     then '307'
@@ -2102,14 +2253,14 @@ BEGIN
                 'model', 'trews',
                 'trews_tsp', tsp,
                 'trewscore', score) message
-        from (select distinct pat_enc.pat_id from pat_enc) as pat_enc
+        from (select distinct pat_enc.enc_id from pat_enc) as pat_enc
         cross join unnest(alert_codes) as code
-        cross join trewscore_alert_on(pat_enc.pat_id,(select coalesce(value, '6 hours') from parameters where name = 'suppression_timeout'), 'trews') as trews
-        where pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id)
+        cross join trewscore_alert_on(pat_enc.enc_id,(select coalesce(value, '6 hours') from parameters where name = 'suppression_timeout'), 'trews') as trews
+        where pat_enc.enc_id = coalesce(this_enc_id, pat_enc.enc_id)
             and code = '300';
-        insert into notifications (pat_id, message)
+        insert into notifications (enc_id, message)
         select
-            pat_enc.pat_id,
+            pat_enc.enc_id,
             json_build_object('alert_code',
                 (case when not alert_on and tsp is not null
                     then '307'
@@ -2121,16 +2272,16 @@ BEGIN
                 'model', 'lmc',
                 'trews_tsp', tsp,
                 'trewscore', score) message
-        from (select distinct pat_enc.pat_id from pat_enc) as pat_enc
+        from (select distinct pat_enc.enc_id from pat_enc) as pat_enc
         cross join unnest(alert_codes) as code
-        cross join trewscore_alert_on(pat_enc.pat_id,(select coalesce(value, '6 hours') from parameters where name = 'suppression_timeout'),  'lmc') as trews
-        where pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id)
+        cross join trewscore_alert_on(pat_enc.enc_id,(select coalesce(value, '6 hours') from parameters where name = 'suppression_timeout'),  'lmc') as trews
+        where pat_enc.enc_id = coalesce(this_enc_id, pat_enc.enc_id)
             and code = '300';
         -- normal notifications
         return query
-        insert into notifications (pat_id, message)
+        insert into notifications (enc_id, message)
         select
-            pat_enc.pat_id,
+            pat_enc.enc_id,
             json_build_object('alert_code', code, 'read', false,'timestamp',
                 date_part('epoch',
                     (case when code in ('201','204','303','306') then septic_shock_onset
@@ -2147,17 +2298,17 @@ BEGIN
                         end)::interval),
                 'suppression', 'true'
             ) message
-        from (select distinct pat_enc.pat_id from pat_enc) as pat_enc
+        from (select distinct pat_enc.enc_id from pat_enc) as pat_enc
         cross join unnest(alert_codes) as code
-        where pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id)
+        where pat_enc.enc_id = coalesce(this_enc_id, pat_enc.enc_id)
         and code <> '0' and code <> '300'
-        returning notifications.pat_id, message#>>'{alert_code}';
+        returning notifications.enc_id, message#>>'{alert_code}';
     else
         -- normal notifications
         return query
-        insert into notifications (pat_id, message)
+        insert into notifications (enc_id, message)
         select
-            pat_enc.pat_id,
+            pat_enc.enc_id,
             json_build_object('alert_code', code, 'read', false,'timestamp',
                 date_part('epoch',
                     (case when code in ('201','204','303','306') then septic_shock_onset
@@ -2174,11 +2325,11 @@ BEGIN
                         end)::interval),
                 'suppression', 'false'
             ) message
-        from (select distinct pat_enc.pat_id from pat_enc) as pat_enc
+        from (select distinct pat_enc.enc_id from pat_enc) as pat_enc
         cross join unnest(alert_codes) as code
-        where pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id)
+        where pat_enc.enc_id = coalesce(this_enc_id, pat_enc.enc_id)
         and code <> '0'
-        returning notifications.pat_id, message#>>'{alert_code}';
+        returning notifications.enc_id, message#>>'{alert_code}';
     end if;
 END;
 $$ LANGUAGE PLPGSQL;
@@ -2274,20 +2425,20 @@ RETURNS table(
 END $func$ LANGUAGE plpgsql;
 
 
-CREATE OR REPLACE FUNCTION notify_future_notification(channel text, this_pat_id text default null)
+CREATE OR REPLACE FUNCTION notify_future_notification(channel text, this_enc_id int default null)
 RETURNS void AS $func$
 declare
   payload text;
 BEGIN
   select 'future_epic_sync:' || string_agg(pat_tsp, '|') from
-  (select pat_id, pat_id || ',' || string_agg(tsp, ',') pat_tsp from
-      (select pat_id, ((message#>>'{timestamp}')::numeric::int)::text tsp
+  (select enc_id, enc_id || ',' || string_agg(tsp, ',') pat_tsp from
+      (select enc_id, ((message#>>'{timestamp}')::numeric::int)::text tsp
       from notifications
       where (message#>>'{alert_code}')::text in ('202','203','204','205','206')
       and (message#>>'{timestamp}')::numeric > date_part('epoch', now())
-      and pat_id like 'E%' and pat_id = coalesce(this_pat_id, pat_id)
-      order by pat_id, tsp) O
-  group by pat_id) G group by pat_id into payload;
+      and enc_id = coalesce(this_enc_id, enc_id)
+      order by enc_id, tsp) O
+  group by enc_id) G into payload;
   if payload is not null then
       raise notice '%', payload;
       perform pg_notify(channel, payload);
@@ -2297,17 +2448,17 @@ END $func$ LANGUAGE plpgsql;
 --  deactivate functionality for patients
 ----------------------------------------------------
 
-create or replace function deactivate(pid text, deactivated boolean, event_type text default null) returns void language plpgsql
+create or replace function deactivate(enc_id int, deactivated boolean, event_type text default null) returns void language plpgsql
 as $$ begin
-    insert into pat_status (pat_id, deactivated, deactivated_tsp)
+    insert into pat_status (enc_id, deactivated, deactivated_tsp)
         values (
-            pid, deactivated, now()
+            enc_id, deactivated, now()
         )
-    on conflict (pat_id) do update
+    on conflict (enc_id) do update
     set deactivated = excluded.deactivated, deactivated_tsp = now();
     if event_type is not null then
-        insert into criteria_log (pat_id, tsp, event, update_date)
-        values (pid,
+        insert into criteria_log (enc_id, tsp, event, update_date)
+        values (enc_id,
                 now(),
                 json_build_object('event_type', event_type, 'uid', 'dba', 'deactivated', deactivated),
                 now()
@@ -2315,14 +2466,14 @@ as $$ begin
     end if;
     -- if false then reset patient automatically
     if not deactivated then
-        perform reset_patient(pid);
+        perform reset_patient(enc_id);
     end IF;
 end; $$;
 
 -- if care is completed (severe sepsis/septic shock bundle completed or expired), then deactivate the patient; after 72 hours, the patient will be reactivate
 -- else if patient was in state 10 and expired, then we reset the patient
 
-CREATE OR REPLACE FUNCTION auto_deactivate(pid text DEFAULT NULL) RETURNS void LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION auto_deactivate(this_enc_id int DEFAULT NULL) RETURNS void LANGUAGE plpgsql
 -- deactivate patients who is active and had positive state for more than deactivate_hours'
 AS $func$
 declare
@@ -2330,14 +2481,14 @@ declare
 BEGIN
     -- check if current snapshot (20 or 30) was expired or complished
     with pats as (
-        select gss.pat_id from get_states_snapshot(pid) gss
-        left join pat_status s on s.pat_id = gss.pat_id
+        select gss.enc_id from get_states_snapshot(this_enc_id) gss
+        left join pat_status s on s.enc_id = gss.enc_id
         where (state = 23 or state = 35)
-        and (s.pat_id IS NULL or not s.deactivated)
+        and (s.enc_id IS NULL or not s.deactivated)
     )
     -- if criteria_events has been in an event for longer than deactivate_hours,
     -- then this patient should be deactivated automatically
-    select into res deactivate(pat_id, TRUE, 'auto_deactivate') from pats;
+    select into res deactivate(enc_id, TRUE, 'auto_deactivate') from pats;
     return;
 END; $func$;
 
@@ -2348,12 +2499,13 @@ END; $func$;
 
 -- REVIEW: (Yanif)->(Andong): refactor. Having both garbage_collection *and* reactivate is unnecessary.
 -- Andong: We may need more functions in the future
-create or replace function garbage_collection(this_pat_id text default null) returns void language plpgsql as $$ begin
-    perform reactivate(this_pat_id);
-    perform reset_soi_pats(this_pat_id);
-    perform reset_bundle_expired_pats(this_pat_id);
-    perform reset_noinf_expired_pats(this_pat_id);
+create or replace function garbage_collection(this_enc_id int default null) returns void language plpgsql as $$ begin
+    perform reactivate(this_enc_id);
+    perform reset_soi_pats(this_enc_id);
+    perform reset_bundle_expired_pats(this_enc_id);
+    perform reset_noinf_expired_pats(this_enc_id);
     perform del_old_refreshed_pats();
+    perform drop_tables_pattern('workspace', '_' || to_char((now() - interval '2 days')::date, 'MMDD'));
 end; $$;
 
 create or replace function del_old_refreshed_pats() returns void language plpgsql
@@ -2362,123 +2514,122 @@ as $$ begin
     delete from refreshed_pats where now() - refreshed_tsp > '24 hours';
 end; $$;
 
-create or replace function reactivate(this_pat_id text default null) returns void language plpgsql
+create or replace function reactivate(this_enc_id int default null) returns void language plpgsql
 -- turn deactivated patients longer than deactivate_expire_hours to active
 as $$ begin
-    perform deactivate(s.pat_id, false, 'auto_deactivate') from pat_status s
-    inner join lateral get_states_snapshot(s.pat_id) SNP on s.pat_id = SNP.pat_id
+    perform deactivate(s.enc_id, false, 'auto_deactivate') from pat_status s
+    inner join lateral get_states_snapshot(s.enc_id) SNP on s.enc_id = SNP.enc_id
     where deactivated
     and now() - SNP.severe_sepsis_onset > get_parameter('deactivate_expire_hours')::interval
-    and s.pat_id = coalesce(this_pat_id, s.pat_id);
+    and s.enc_id = coalesce(this_enc_id, s.enc_id);
 end; $$;
 
-create or replace function reset_soi_pats(this_pat_id text default null)
+create or replace function reset_soi_pats(this_enc_id int default null)
 returns void language plpgsql as $$
 -- reset patients who are in state 10 and expired for lookbackhours
 begin
-    perform reset_patient(pat_id) from
-    (select distinct e.pat_id
+    perform reset_patient(enc_id) from
+    (select distinct e.enc_id
     from criteria_events e
-    inner join criteria_meas m on e.pat_id = m.pat_id
-    inner join lateral get_states_snapshot(e.pat_id) SNP on e.pat_id = SNP.pat_id
+    inner join lateral get_states_snapshot(e.enc_id) SNP on e.enc_id = SNP.enc_id
     where flag = 10 and now() - SNP.severe_sepsis_wo_infection_initial > (select value from parameters where name = 'lookbackhours')::interval
-    and e.pat_id = coalesce(this_pat_id, e.pat_id)) p;
+    and e.enc_id = coalesce(this_enc_id, e.enc_id)) p;
 end; $$;
 
 
-create or replace function reset_bundle_expired_pats(this_pat_id text default null)
+create or replace function reset_bundle_expired_pats(this_enc_id int default null)
 returns void language plpgsql as $$
 declare res text;
 -- reset patients who are in state 10 and expired for lookbackhours
 begin
     with pats as (
-    select distinct e.pat_id
+    select distinct e.enc_id
         from criteria_events e
-        inner join lateral get_states_snapshot(e.pat_id) SNP on e.pat_id = SNP.pat_id
+        inner join lateral get_states_snapshot(e.enc_id) SNP on e.enc_id = SNP.enc_id
         where flag in (22,24,32,34,36) and now() - SNP.severe_sepsis_onset > get_parameter('deactivate_expire_hours')::interval
-        and e.pat_id = coalesce(this_pat_id, e.pat_id)
+        and e.enc_id = coalesce(this_enc_id, e.enc_id)
     ),
     logging as (
-        insert into criteria_log (pat_id, tsp, event, update_date)
+        insert into criteria_log (enc_id, tsp, event, update_date)
         values (
-              this_pat_id,
+              this_enc_id,
               now(),
               '{"event_type": "reset_bundle_expired_pats", "uid":"dba"}',
               now()
           )
     )
-    select reset_patient(pat_id) from pats into res;
+    select reset_patient(enc_id) from pats into res;
     return;
 end; $$;
 
-create or replace function reset_noinf_expired_pats(this_pat_id text default null)
+create or replace function reset_noinf_expired_pats(this_enc_id int default null)
 returns void language plpgsql as $$
 declare res text;
 -- reset patients who are in state 10 and expired for lookbackhours
 begin
     with pats as (
-    select distinct e.pat_id
+    select distinct e.enc_id
         from criteria_events e
-        inner join criteria c on e.pat_id = c.pat_id
+        inner join criteria c on e.enc_id = c.enc_id
         where flag = 12 and c.name = 'suspicion_of_infection'
         and now() - c.override_time::timestamptz
             > get_parameter('deactivate_expire_hours')::interval
-        and e.pat_id = coalesce(this_pat_id, e.pat_id)
+        and e.enc_id = coalesce(this_enc_id, e.enc_id)
     ),
     logging as (
-        insert into criteria_log (pat_id, tsp, event, update_date)
+        insert into criteria_log (enc_id, tsp, event, update_date)
         values (
-              this_pat_id,
+              this_enc_id,
               now(),
               '{"event_type": "reset_noinf_expired_pats", "uid":"dba"}',
               now()
           )
     )
-    select reset_patient(pat_id) from pats into res;
+    select reset_patient(enc_id) from pats into res;
     return;
 end; $$;
 
 
-create or replace function reset_patient(this_pat_id text, _event_id int default null)
+create or replace function reset_patient(this_enc_id int, _event_id int default null)
 returns void language plpgsql as $$
 begin
     -- reset user input
-    delete from criteria where pat_id = this_pat_id and override_value is not null;
+    delete from criteria where enc_id = this_enc_id and override_value is not null;
     if _event_id is null then
         update criteria_events set flag = flag - 1000
-        where pat_id = this_pat_id and flag >= 0;
+        where enc_id = this_enc_id and flag >= 0;
     else
         update criteria_events set flag = flag - 1000
-        where pat_id = this_pat_id and event_id = _event_id;
+        where enc_id = this_enc_id and event_id = _event_id;
     end if;
-    insert into criteria_log (pat_id, tsp, event, update_date)
+    insert into criteria_log (enc_id, tsp, event, update_date)
     values (
-          this_pat_id,
+          this_enc_id,
           now(),
           '{"event_type": "reset", "uid":"dba"}',
           now()
       );
-    delete from notifications where pat_id = this_pat_id;
-    perform advance_criteria_snapshot(this_pat_id, 'reset');
+    delete from notifications where enc_id = this_enc_id;
+    perform advance_criteria_snapshot(this_enc_id, 'reset');
 end; $$;
 
 ----------------------------------------------------
 -- deterioration feedback functions
 ----------------------------------------------------
-CREATE OR REPLACE FUNCTION set_deterioration_feedback(pid text, tsp timestamptz, deterioration json, uid text)
+CREATE OR REPLACE FUNCTION set_deterioration_feedback(this_enc_id int, tsp timestamptz, deterioration json, uid text)
     RETURNS void LANGUAGE plpgsql
 AS $$ BEGIN
-    INSERT INTO deterioration_feedback (pat_id, tsp, deterioration, uid)
-    VALUES (pid,
+    INSERT INTO deterioration_feedback (enc_id, tsp, deterioration, uid)
+    VALUES (this_enc_id,
             tsp,
             deterioration,
             uid)
-    ON conflict (pat_id) DO UPDATE
+    ON conflict (enc_id) DO UPDATE
     SET tsp = Excluded.tsp,
         deterioration = Excluded.deterioration,
         uid = Excluded.uid;
-    INSERT INTO criteria_log (pat_id, tsp, event, update_date)
-    VALUES ( pid,
+    INSERT INTO criteria_log (enc_id, tsp, event, update_date)
+    VALUES ( this_enc_id,
              now(),
              json_build_object('event_type', 'set_deterioration_feedback', 'uid', uid, 'value', deterioration),
              now() );
@@ -2992,6 +3143,20 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION get_latest_enc_ids(hospital text)
+RETURNS table (enc_id int)
+LANGUAGE plpgsql
+AS
+$$
+DECLARE
+    bedded_patients     text;
+begin
+select table_name from information_schema.tables where table_type = 'BASE TABLE' and table_schema = 'workspace' and table_name ilike 'job_etl_' || hospital || '%bedded_patients_transformed' order by table_name desc limit 1 into bedded_patients;
+return query
+execute 'select enc_id from pat_enc p inner join workspace.' || bedded_patients || ' bp on bp.visit_id = p.visit_id';
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION del_pat(this_pat_id text) RETURNS void LANGUAGE plpgsql AS $$ BEGIN
 DELETE
 FROM cdm_twf
@@ -3024,27 +3189,48 @@ create or replace function delete_test_scenarios() returns void language plpgsql
     delete from notifications where pat_id ~ E'^\\d+$' and pat_id::integer between 3000 and 3200;
 end; $$;
 
-create or replace function cdm_stats_count(_dataset_id int, _table text) returns jsonb language plpgsql as $$
+create or replace function cdm_stats_count(_table text) returns jsonb language plpgsql as $$
 declare
 result jsonb;
 begin
   execute 'select jsonb_build_object(''count'',
-    (select count(*) from ' || _table || ' where dataset_id = '|| _dataset_id ||')::text)' into result;
+    (select count(*) from ' || _table into result;
 return result;
 end; $$;
 
-create or replace function distribute_advance_criteria_snapshot(server text, lookback_hours int, hospital text, nprocs int default 2)
+create or replace function distribute_advance_criteria_snapshot_for_hospital(server text, lookback_hours int, hospital text, nprocs int default 2)
 returns void language plpgsql as $$
 declare
 begin
   execute 'with pats as
-  (select distinct m.pat_id from criteria_meas m
-    inner join pat_hosp() h on h.pat_id = m.pat_id
+  (select distinct m.enc_id from cdm_t t
+    inner join pat_hosp() h on h.pat_id = t.pat_id
     where now() - tsp < interval ''' || lookback_hours || ' hours'' and h.hospital = '''||hospital||'''),
   pats_group as
   (select pats.*, row_number() over () % ' || nprocs || ' g from pats),
   queries as (
-    select string_agg((''select advance_criteria_snapshot(''''''||pat_id||'''''')'')::text, '';'') q from pats_group group by g
+    select string_agg((''select advance_criteria_snapshot(''||enc_id||'')'')::text, '';'') q from pats_group group by g
+  ),
+  query_arrays as (
+    select array_agg(q) arr from queries
+  )
+  select distribute('''||server||''', arr, '|| nprocs ||') from query_arrays';
+end;
+$$;
+
+create or replace function distribute_advance_criteria_snapshot_for_job(server text, lookback_hours int, job_id text, nprocs int default 2)
+returns void language plpgsql as $$
+declare
+begin
+  execute 'with pats as
+  (select distinct t.enc_id from cdm_t t
+    inner join pat_enc p on t.enc_id = p.enc_id
+    inner join workspace.' || job_id || '_bedded_patients_transformed bp on p.visit_id = bp.visit_id
+    where now() - tsp < interval ''' || lookback_hours || ' hours''),
+  pats_group as
+  (select pats.*, row_number() over () % ' || nprocs || ' g from pats),
+  queries as (
+    select string_agg((''select advance_criteria_snapshot(''||enc_id||'')'')::text, '';'') q from pats_group group by g
   ),
   query_arrays as (
     select array_agg(q) arr from queries
@@ -3085,3 +3271,192 @@ WHERE fid = 'admittime'
 ORDER BY now() - value::timestamptz
 ; END $func$ LANGUAGE plpgsql;
 
+create or replace function workspace_to_cdm(job_id text)
+returns void as $func$ BEGIN
+execute
+'--insert_new_patients
+insert into pat_enc (pat_id, visit_id)
+select bp.pat_id, bp.visit_id
+from workspace.' || job_id || '_bedded_patients_transformed bp
+left join pat_enc pe on bp.visit_id = pe.visit_id
+where pe.enc_id is null;
+
+-- age
+INSERT INTO cdm_s (enc_id, fid, value, confidence)
+select pe.enc_id, ''age'', bp.age, 1 as c from workspace.' || job_id || '_bedded_patients_transformed bp
+    inner join pat_enc pe on pe.visit_id = bp.visit_id
+ON CONFLICT (enc_id, fid)
+DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+
+-- gender
+INSERT INTO cdm_s (enc_id, fid, value, confidence)
+select pe.enc_id, ''gender'', bp.gender::numeric::int, 1 as c from workspace.' || job_id || '_bedded_patients_transformed bp
+    inner join pat_enc pe on pe.visit_id = bp.visit_id
+    where isnumeric(bp.gender) and lower(bp.gender) <> ''nan''
+ON CONFLICT (enc_id, fid)
+DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+
+-- diagnosis
+INSERT INTO cdm_s (enc_id, fid, value, confidence)
+select pe.enc_id, json_object_keys(diagnosis::json), ''True'', 1
+from workspace.' || job_id || '_bedded_patients_transformed bp
+    inner join pat_enc pe on pe.visit_id = bp.visit_id
+ON CONFLICT (enc_id, fid)
+DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+
+-- problem
+INSERT INTO cdm_s (enc_id, fid, value, confidence)
+select pe.enc_id, json_object_keys(problem::json), ''True'', 1
+from workspace.' || job_id || '_bedded_patients_transformed bp
+    inner join pat_enc pe on pe.visit_id = bp.visit_id
+ON CONFLICT (enc_id, fid)
+DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+
+-- history
+INSERT INTO cdm_s (enc_id, fid, value, confidence)
+select pe.enc_id, json_object_keys(history::json), ''True'', 1
+from workspace.' || job_id || '_bedded_patients_transformed bp
+    inner join pat_enc pe on pe.visit_id = bp.visit_id
+ON CONFLICT (enc_id, fid)
+DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+
+-- hospital
+INSERT INTO cdm_s (enc_id, fid, value, confidence)
+select pe.enc_id, ''hospital'', hospital, 1
+from workspace.' || job_id || '_bedded_patients_transformed bp
+    inner join pat_enc pe on pe.visit_id = bp.visit_id
+ON CONFLICT (enc_id, fid)
+DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+
+-- admittime
+INSERT INTO cdm_s (enc_id, fid, value, confidence)
+select pe.enc_id, ''admittime'', admittime, 1
+from workspace.' || job_id || '_bedded_patients_transformed bp
+    inner join pat_enc pe on pe.visit_id = bp.visit_id
+ON CONFLICT (enc_id, fid)
+DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+
+-- patient class
+INSERT INTO cdm_s (enc_id, fid, value, confidence)
+select pe.enc_id, ''patient_class'', patient_class, 1
+from workspace.' || job_id || '_bedded_patients_transformed bp
+    inner join pat_enc pe on pe.visit_id = bp.visit_id
+ON CONFLICT (enc_id, fid)
+DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+
+-- workspace_flowsheets_2_cdm_t
+INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+select pat_enc.enc_id, fs.tsp::timestamptz, fs.fid, last(fs.value), 0 from workspace.' || job_id || '_flowsheets_transformed fs
+    inner join pat_enc on pat_enc.visit_id = fs.visit_id
+    where fs.tsp <> ''NaT'' and fs.tsp::timestamptz < now()
+    and fs.fid <> ''fluids_intake''
+group by pat_enc.enc_id, tsp, fs.fid
+ON CONFLICT (enc_id, tsp, fid)
+DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+
+-- workspace_lab_results_2_cdm_t
+INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+select pat_enc.enc_id, lr.tsp::timestamptz, lr.fid, first(lr.value), 0 from workspace.' || job_id || '_lab_results_transformed lr
+    inner join pat_enc on pat_enc.visit_id = lr.visit_id
+where lr.tsp <> ''NaT'' and lr.tsp::timestamptz < now()
+group by pat_enc.enc_id, lr.tsp, lr.fid
+ON CONFLICT (enc_id, tsp, fid)
+DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+
+-- workspace_location_history_2_cdm_t
+INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+select pat_enc.enc_id, lr.tsp::timestamptz, lr.fid, lr.value, 0 from workspace.' || job_id || '_location_history_transformed lr
+    inner join pat_enc on pat_enc.visit_id = lr.visit_id
+where lr.tsp <> ''NaT'' and lr.tsp::timestamptz < now()
+ON CONFLICT (enc_id, tsp, fid)
+   DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+
+-- workspace_medication_administration_2_cdm_t
+INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+select pat_enc.enc_id, mar.tsp::timestamptz, mar.fid,
+    json_build_object(''dose'',SUM(mar.dose_value::numeric),''action'',last(mar.action))
+    , 0
+from workspace.' || job_id || '_med_admin_transformed mar
+    inner join pat_enc on pat_enc.visit_id = mar.visit_id
+where isnumeric(mar.dose_value) and mar.tsp <> ''NaT'' and mar.tsp::timestamptz < now() and mar.fid ~ ''dose''
+group by pat_enc.enc_id, tsp, mar.fid
+ON CONFLICT (enc_id, tsp, fid)
+DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+-- others excluded fluids
+INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+select pat_enc.enc_id, mar.tsp::timestamptz, mar.fid,
+    max(mar.dose_value::numeric), 0
+from workspace.' || job_id || '_med_admin_transformed mar
+    inner join pat_enc on pat_enc.visit_id = mar.visit_id
+where isnumeric(mar.dose_value) and mar.tsp <> ''NaT'' and mar.tsp::timestamptz < now() and mar.fid not ilike ''dose'' and mar.fid <> ''fluids_intake''
+group by pat_enc.enc_id, tsp, mar.fid
+ON CONFLICT (enc_id, tsp, fid)
+DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+
+-- workspace_fluids_intake_2_cdm_t
+with u as (
+select pat_enc.enc_id, mar.tsp::timestamptz, mar.fid, mar.dose_value as value
+    from workspace.' || job_id || '_med_admin_transformed mar
+        inner join pat_enc on pat_enc.visit_id = mar.visit_id
+    where isnumeric(mar.dose_value) and mar.tsp <> ''NaT'' and mar.tsp::timestamptz < now() and mar.fid = ''fluids_intake''
+                and mar.dose_value::numeric > 0
+    UNION
+    select pat_enc.enc_id, fs.tsp::timestamptz, fs.fid, fs.value::text
+    from workspace.' || job_id || '_flowsheets_transformed fs
+        inner join pat_enc on pat_enc.visit_id = fs.visit_id
+        where fs.tsp <> ''NaT'' and fs.tsp::timestamptz < now()
+        and fs.fid = ''fluids_intake''
+        and fs.value::numeric > 0
+)
+INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+select u.enc_id, u.tsp, u.fid,
+        sum(u.value::numeric), 0
+from u
+group by u.enc_id, u.tsp, u.fid
+ON CONFLICT (enc_id, tsp, fid)
+DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+
+-- lab_orders
+INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+select enc_id, tsp::timestamptz, fid, last(lo.status), 0
+from workspace.' || job_id || '_lab_orders_transformed lo
+inner join pat_enc p on lo.visit_id = p.visit_id
+where tsp <> ''NaT'' and tsp::timestamptz < now()
+group by enc_id, tsp, fid
+ON CONFLICT (enc_id, tsp, fid)
+DO UPDATE SET value = EXCLUDED.value, confidence=0;
+
+-- active_procedures
+INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+select enc_id, tsp::timestamptz, fid, last(lo.status), 0
+from workspace.' || job_id || '_active_procedures_transformed lo
+inner join pat_enc p on lo.visit_id = p.visit_id
+where tsp <> ''NaT'' and tsp::timestamptz < now()
+group by enc_id, tsp, fid
+ON CONFLICT (enc_id, tsp, fid)
+DO UPDATE SET value = EXCLUDED.value, confidence=0;
+
+-- med_orders
+INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+select enc_id, tsp::timestamptz, fid, last(mo.dose), 0
+from workspace.' || job_id || '_med_orders_transformed mo
+inner join pat_enc p on mo.visit_id = p.visit_id
+where tsp <> ''NaT'' and tsp::timestamptz < now() and mo.dose is not null and mo.dose <> ''''
+group by enc_id, tsp, fid
+ON CONFLICT (enc_id, tsp, fid)
+DO UPDATE SET value = EXCLUDED.value, confidence=0;
+';
+-- workspace_notes_2_cdm_notes
+if to_regclass('workspace.' || job_id || '_notes_transformed') is not null then
+    execute
+    'insert into cdm_notes
+    select enc_id, N.note_id, N.note_type, N.note_status, NT.note_body, N.dates::json, N.providers::json
+    from workspace.' || job_id || '_notes_transformed N
+    inner join pat_enc p on p.visit_id = N.visit_id
+    left join workspace.' || job_id || '_note_texts_transformed NT on N.note_id = NT.note_id
+    on conflict (enc_id, note_id, note_type, note_status) do update
+    set note_body = excluded.note_body,
+        dates = excluded.dates,
+        providers = excluded.providers;';
+end if;
+END $func$ LANGUAGE plpgsql;

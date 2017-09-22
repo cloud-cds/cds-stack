@@ -261,6 +261,7 @@ loc_history_transforms = [
 
 notes_transforms = [
     lambda n: restructure.select_columns(n, {
+        'CSN'       : 'visit_id',
         'pat_id'    : 'pat_id',
         'Key'       : 'note_id',
         'NoteType'  : 'note_type',
