@@ -1317,6 +1317,115 @@ end; $func$;
 
 
 ------------------------------------------
+-- Patient-based reports
+------------------------------------------
+create or replace function patient_compliance_report(_pat_state  integer,
+                                                     _dataset_id integer,
+                                                     _label_id   integer)
+  returns table ( pat_worst_state           integer,
+                  pat_id                    varchar(50),
+                  enc_id                    integer,
+                  age                       text,
+                  gender                    text,
+                  care_unit                 text,
+                  discharge_disposition     text,
+                  hour_of_day               integer,
+
+                  antibiotics_met           numeric,
+                  antibiotics_unmet         numeric,
+                  blood_culture_met         numeric,
+                  blood_culture_unmet       numeric,
+                  crystalloid_fluid_met     numeric,
+                  crystalloid_fluid_unmet   numeric,
+                  initial_lactate_met       numeric,
+                  initial_lactate_unmet     numeric,
+                  repeat_lactate_met        numeric,
+                  repeat_lactate_unmet      numeric,
+                  vasopressors_met          numeric,
+                  vasopressors_unmet        numeric,
+
+                  antibiotics_any           numeric,
+                  blood_culture_any         numeric,
+                  crystalloid_fluid_any     numeric,
+                  vasopressors_any          numeric,
+
+                  antibiotics_late          numeric,
+                  blood_culture_late        numeric,
+                  crystalloid_fluid_late    numeric,
+                  vasopressors_late         numeric,
+
+                  num_lactates              numeric,
+                  num_lactates_3hr_late     numeric,
+                  num_lactates_6hr_late     numeric,
+
+                  lactates_any              numeric,
+                  lactates_any_3hr_late     numeric,
+                  lactates_any_6hr_late     numeric,
+
+                  length_of_stay_hrs        numeric
+  )
+language plpgsql
+as $func$ begin
+  return query
+    select R.pat_worst_state,
+           R.pat_id,
+           R.enc_id,
+           first(R.age) as age,
+           first(R.gender) as gender,
+
+           -- Handle when an encounter's ssp/sspwoi onset is outside any care unit.
+           -- This occurs when data arrives after discharge, and currently we attribute
+           -- the event to the last care unit.
+           coalesce(
+              first(R.care_unit order by R.care_unit_entry desc),
+              (select first(CU.care_unit order by CU.enter_time desc)
+                from care_unit CU
+                where CU.dataset_id = _dataset_id and CU.enc_id = R.enc_id)
+            ) as care_unit,
+
+           first(R.discharge_disposition)                                                                     as discharge_disposition,
+           first(date_part('hour', coalesce(R.severe_sepsis_onset, R.severe_sepsis_wo_infection_onset)))::int as hour_of_day,
+
+           max(R.antibiotics_met)::numeric                      as antibiotics_met,
+           max(R.antibiotics_unmet)::numeric                    as antibiotics_unmet,
+           max(R.blood_culture_met)::numeric                    as blood_culture_met,
+           max(R.blood_culture_unmet)::numeric                  as blood_culture_unmet,
+           max(R.crystalloid_fluid_met)::numeric                as crystalloid_fluid_met,
+           max(R.crystalloid_fluid_unmet)::numeric              as crystalloid_fluid_unmet,
+           max(R.initial_lactate_met)::numeric                  as initial_lactate_met,
+           max(R.initial_lactate_unmet)::numeric                as initial_lactate_unmet,
+           max(R.repeat_lactate_met)::numeric                   as repeat_lactate_met,
+           max(R.repeat_lactate_unmet)::numeric                 as repeat_lactate_unmet,
+           max(R.vasopressors_met)::numeric                     as vasopressors_met,
+           max(R.vasopressors_unmet)::numeric                   as vasopressors_unmet,
+
+           coalesce(bool_or(meas_fid like 'cms_antibiotics%')   , false)::integer::numeric as antibiotics_any,
+           coalesce(bool_or(meas_fid = 'blood_culture_order')   , false)::integer::numeric as blood_culture_any,
+           coalesce(bool_or(meas_fid like 'crystalloid_fluid%') , false)::integer::numeric as crystalloid_fluid_any,
+           coalesce(bool_or(meas_fid like 'vasopressors_dose%') , false)::integer::numeric as vasopressors_any,
+
+           coalesce(bool_or(meas_fid like 'cms_antibiotics%'   and meas_tsp > coalesce(R.severe_sepsis_onset + interval '3 hours', 'infinity'::timestamptz)), false)::integer::numeric as antibiotics_late,
+           coalesce(bool_or(meas_fid = 'blood_culture_order'   and meas_tsp > coalesce(R.severe_sepsis_onset + interval '3 hours', 'infinity'::timestamptz)), false)::integer::numeric as blood_culture_late,
+           coalesce(bool_or(meas_fid like 'crystalloid_fluid%' and meas_tsp > coalesce(R.severe_sepsis_onset + interval '3 hours', 'infinity'::timestamptz)), false)::integer::numeric as crystalloid_fluid_late,
+           coalesce(bool_or(meas_fid like 'vasopressors_dose%' and meas_tsp > coalesce(R.septic_shock_onset  + interval '6 hours', 'infinity'::timestamptz)), false)::integer::numeric as vasopressors_late,
+
+           coalesce(sum(case when meas_fid = 'lactate_order' then 1 else 0 end), 0)::numeric as num_lactates,
+           coalesce(sum(case when meas_fid = 'lactate_order' and meas_tsp > coalesce(R.severe_sepsis_onset + interval '3 hours', 'infinity'::timestamptz) then 1 else 0 end), 0)::numeric as num_lactates_3hr_late,
+           coalesce(sum(case when meas_fid = 'lactate_order' and meas_tsp > coalesce(R.severe_sepsis_onset + interval '6 hours', 'infinity'::timestamptz) then 1 else 0 end), 0)::numeric as num_lactates_6hr_late,
+
+           (coalesce(sum(case when meas_fid = 'lactate_order' then 1 else 0 end), 0) > 0)::integer::numeric as lactates_any,
+           (coalesce(sum(case when meas_fid = 'lactate_order' and meas_tsp > coalesce(R.severe_sepsis_onset + interval '3 hours', 'infinity'::timestamptz) then 1 else 0 end), 0) > 0)::integer::numeric as lactates_any_3hr_late,
+           (coalesce(sum(case when meas_fid = 'lactate_order' and meas_tsp > coalesce(R.severe_sepsis_onset + interval '6 hours', 'infinity'::timestamptz) then 1 else 0 end), 0) > 0)::integer::numeric as lactates_any_6hr_late,
+
+           max(R.length_of_stay_hrs)::numeric                   as length_of_stay_hrs
+
+    from tabulate_compliance(_pat_state, _dataset_id, _label_id) R
+    group by R.pat_worst_state, R.pat_id, R.enc_id
+    ;
+end; $func$;
+
+
+------------------------------------------
 -- Unit-based reports
 ------------------------------------------
 
