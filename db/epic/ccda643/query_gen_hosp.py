@@ -1,3 +1,19 @@
+HCGH_SPECIFIC = '''
+    -- Either they came right from the HCGH ED or were a direct admit to HCGH
+    AND (
+      (edxferout.EVENT_ID IS NULL and Medicalxferin.EVENT_TYPE_C = 1)
+      OR (
+        EDxferout.EVENT_SUBTYPE_C IN (
+          1
+          ,3
+          )
+        AND edxferout.DEPARTMENT_ID IN (
+          '110300470'
+          ,'110300460'
+          )
+        )
+      )
+'''
 
 template = '''
 IF OBJECT_ID('analytics.dbo.CCDA643_CSNLookupTable', 'U') IS NOT NULL
@@ -31,7 +47,7 @@ FROM
     AND Medicalxferin.EVENT_SUBTYPE_C IN (
       1
       ,3
-      )
+      ){hcgh_specific}
     AND
     -- for patients that are still present in hospital
     --no patients that are still present in hospital
@@ -74,7 +90,7 @@ FROM
     AND Medicalxferin.EVENT_SUBTYPE_C IN (
       1
       ,3
-      )
+      ){hcgh_specific}
     AND
     --no patients that are still present in hospital
     HOSP_DISCH_TIME IS NOT NULL
@@ -926,9 +942,39 @@ WHERE info.DELETE_USER_ID IS NULL
     )
     and (noteEncs.NOTE_STATUS_C NOT IN (1,4,8) OR noteEncs.NOTE_STATUS_C IS NULL);
 GO
+
+:OUT \\\\Client\F$\clarity\\chief_complaint.{idx}.rpt
+SET NOCOUNT ON
+SELECT DISTINCT CSN.EXTERNAL_ID CSN_ID
+  ,LINE
+  ,CONTACT_DATE
+  ,ENC_REASON_ID
+  ,ENC_REASON_NAME
+  ,DISPLAY_TEXT
+  ,COMMENTS
+FROM Analytics.dbo.CCDA643_CSNLookupTable csn
+inner join clarity.dbo.PAT_ENC_RSN_VISIT rv on csn.PAT_ENC_CSN_ID = rv.PAT_ENC_CSN_ID
+inner join CL_RSN_FOR_VISIT v2 on rv.ENC_REASON_ID = v2.REASON_VISIT_ID ;
+GO
+
+:OUT \\\\Client\F$\clarity\\ed_events.{idx}.rpt
+SET NOCOUNT ON
+SELECT DISTINCT CSN.EXTERNAL_ID CSN_ID
+  ,ein.EVENT_ID
+  ,LINE
+  ,EVENT_DISPLAY_NAME
+  ,EVENT_TIME
+  ,EVENT_RECORD_TIME
+FROM Analytics.dbo.CCDA643_CSNLookupTable csn
+inner join Clarity.dbo.ED_IEV_PAT_INFO pin on csn.PAT_ENC_CSN_ID = pin.PAT_ENC_CSN_ID
+inner join Clarity.dbo.ED_IEV_EVENT_INFO ein on ein.EVENT_ID = pin.EVENT_ID
+where EVENT_RECORD_TIME is not null;
+GO
+
 '''
 
 dict = '''
+use clarity;
 -- need to turn sqlcmd mode on
 :OUT \\\\Client\F$\clarity\\flowsheet_dict.rpt
 SET NOCOUNT ON
@@ -944,15 +990,35 @@ GO
 SET NOCOUNT ON
 select DISTINCT proc_id, proc_name, proc_code FROM CLARITY..CLARITY_EAP
 GO
+
+:OUT \\\\Client\F$\clarity\med_dict.rpt
+SET NOCOUNT ON
+select
+MEDICATION_ID,
+meds.name,
+GENERIC_NAME,
+STRENGTH,
+form,
+route,
+meds.PHARM_CLASS_C,
+pharmClass.name pharm_class_name,
+pharmClass.title pharm_class_title,
+meds.THERA_CLASS_C,
+thera.name threa_class_name,
+thera.title threa_class_title
+ from clarity.dbo.CLARITY_MEDICATION meds
+ LEFT  JOIN dbo.ZC_PHARM_CLASS pharmClass ON pharmClass.PHARM_CLASS_C = meds.PHARM_CLASS_C
+ LEFT JOIN dbo.ZC_THERA_CLASS thera ON thera.THERA_CLASS_C = meds.THERA_CLASS_C
+GO
 '''
 
 # 1101 jhh
 # 1102 bmc
 # 1103 hcgh
-hosp = '1101'
-start_date = (2017, 1)
-end_date = (2017, 7)
-num_months = 3
+hosp = '1103'
+start_date = (2014, 1)
+end_date = (2017, 1)
+num_months = 12
 for year in range(start_date[0], end_date[0]+1):
   for month in range(1,13,num_months):
     if year == start_date[0] and month < start_date[1]:
@@ -965,5 +1031,9 @@ for year in range(start_date[0], end_date[0]+1):
       this_end_date = "{year}-{month}-01".format(year=year+1, month=str(1).zfill(2))
     else:
       this_end_date = "{year}-{month}-01".format(year=year, month=str(month + num_months).zfill(2))
-    print(template.format(start_date=this_start_date, end_date=this_end_date, idx=idx, hosp=hosp))
+    if hosp == '1103':
+      hcgh_specific = HCGH_SPECIFIC
+    else:
+      hcgh_specific = ''
+    print(template.format(start_date=this_start_date, end_date=this_end_date, idx=idx, hosp=hosp, hcgh_specific=hcgh_specific))
 print(dict)
