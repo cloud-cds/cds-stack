@@ -17,6 +17,7 @@ source /usr/local/bin/virtualenvwrapper.sh
 
 echo "export VIRTUALENVWRAPPER_PYTHON=\"/usr/bin/python3\"" >> ~/.bashrc
 echo "source /usr/local/bin/virtualenvwrapper.sh" >> ~/.bashrc
+echo "export EDITOR=vim" >> ~/.bashrc
 
 mkvirtualenv -p python3.6 dashan
 

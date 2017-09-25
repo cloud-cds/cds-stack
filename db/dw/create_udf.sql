@@ -3157,9 +3157,9 @@ $$
 STRICT
 LANGUAGE plpgsql IMMUTABLE;
 
-#############################
-## clarity stats functions ##
-#############################
+--#############################
+--## clarity stats functions ##
+--#############################
 
 create or replace function run_clarity_stats(_clarity_workspace text, server text default 'dev_dw', nprocs int default 2)
 returns void as

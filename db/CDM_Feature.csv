@@ -18,6 +18,8 @@ dobutamine_dose,T,JSON,yes,no,,3,,,Medication,1,mcg/kg/min
 abp_mean,TWF,Real,yes,no,last_value_in_window,4,,,"Physiologic, mean of Diastolic Arterial blood pressure",1,mmHg
 stroke_inhosp,T,String,yes,no,,,,,"Diagnoses, t if patient diagnosed with stroke during hospital stay",1,
 ceftriaxone_dose,T,JSON,yes,no,,,,,Medication,1,mg
+aztreonam_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+norepinephrine_dose,T,JSON,yes,no,,,,,Medication,1,TBD
 amoxicillin_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 ampicillin_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 azithromycin_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
@@ -330,6 +332,8 @@ vasopressors_dose,T,Real,yes,no,,,,,vasopressors dose as used in the online seps
 cms_antibiotics_order,T,Real,yes,no,,,,,cms anti-biotics order as used for the online sepsis bundle criteria calculation,1,mg
 crystalloid_fluid_order,T,String,yes,no,,,,,crystaloid fluid order as used for the online sepsis bundle criteria,1,mg
 vasopressors_dose_order,T,String,yes,no,,,,,vasopressors dose order as used in the online sepsis bundle criteria,1,mg
+vasopressin_dose_order,T,String,yes,no,,,,,used in the online sepsis bundle criteria,1,mg
+erythromycin_dose_order,T,String,yes,no,,,,,used in the online sepsis bundle criteria,1,mg
 bands,T,Real,yes,no,,,,,bands as used in the online sepsis bundle criteria calculation,1,%
 lactate_order,T,String,yes,no,,,,,lactate order as uses for the online sepsis bundle critieria calculation,1,order state
 blood_culture_order,T,String,yes,no,,,,,blood culture order as used for the online sepsis bundle criteria calculation,1,order state

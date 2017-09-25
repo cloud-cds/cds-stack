@@ -1262,7 +1262,7 @@ return query
         cross join criteria_default as cd
         left join criteria c on enc_ids.enc_id = c.enc_id and cd.name = c.name
         left join cdm_t t
-            on enc_ids.enc_id = t.enc_id and (t.fid = cd.fid or (cd.name = 'bp_sys' and t.fid in ('nbp_sys', 'abp_sys')))
+            on enc_ids.enc_id = t.enc_id and t.fid = cd.fid
             and (t.tsp is null or t.tsp between ts_start and ts_end)
     ),
     infection as (
