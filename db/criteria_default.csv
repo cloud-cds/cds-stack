@@ -5,17 +5,21 @@ heart_rate,heart_rate,"{""upper"": 90}",simple
 respiratory_rate,resp_rate,"{""upper"": 20}",simple
 wbc,wbc,"{""lower"": 4, ""upper"": 12}",simple
 wbc,bands,"{""upper"":10}",simple
-blood_pressure,bp_sys,"{""lower"":90}",simple
+blood_pressure,abp_sys,"{""lower"":90}",simple
+blood_pressure,nbp_sys,"{""lower"":90}",simple
 mean_arterial_pressure,map,"{""lower"":65}",simple
 bilirubin,bilirubin,"{""upper"":2}",simple
 platelet,platelets,"{""lower"":100}",simple
 inr,inr,"{""upper"":1.5}",simple
 inr,ptt,"{""upper"":60}",simple
 lactate,lactate,"{""upper"":2}",simple
-systolic_bp,bp_sys,"{""lower"":90}",hypotension
+systolic_bp,abp_sys,"{""lower"":90}",hypotension
+systolic_bp,nbp_sys,"{""lower"":90}",hypotension
 hypotension_map,map,"{""lower"":65}",hypotension
-decrease_in_sbp,bp_sys,"{""lower"":65}",decrease_in_sbp
-hypotension_dsbp,bp_sys,"{""lower"":65}",hypotension_dsbp
+decrease_in_sbp,abp_sys,"{""lower"":65}",decrease_in_sbp
+decrease_in_sbp,nbp_sys,"{""lower"":65}",decrease_in_sbp
+hypotension_dsbp,abp_sys,"{""lower"":65}",hypotension_dsbp
+hypotension_dsbp,nbp_sys,"{""lower"":65}",hypotension_dsbp
 respiratory_failure,vent,,respiratory_failure
 respiratory_failure,bipap,,respiratory_failure
 respiratory_failure,cpap,,respiratory_failure
