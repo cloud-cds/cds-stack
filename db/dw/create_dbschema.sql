@@ -791,6 +791,41 @@ create table care_unit(
 );
 
 ----------------------
+-- cdm label tables --
+----------------------
+DROP TABLE IF EXISTS label_version CASCADE;
+CREATE TABLE label_version (
+    label_id        serial primary key,
+    created         timestamptz,
+    description     text
+);
+
+DROP TABLE IF EXISTS cdm_labels;
+CREATE TABLE cdm_labels (
+    dataset_id          integer references dw_version(dataset_id),
+    label_id            integer references label_version(label_id),
+    enc_id              int,
+    tsp                 timestamptz,
+    label_type          text,
+    label               integer,
+    primary key         (dataset_id, label_id, enc_id, tsp)
+);
+
+
+DROP TABLE IF EXISTS cdm_processed_notes;
+CREATE TABLE cdm_processed_notes (
+    dataset_id      integer REFERENCES dw_version(dataset_id),
+    enc_id          int,
+    note_id         varchar(50),
+    note_type       varchar(50),
+    note_status     varchar(50),
+    tsps            timestamptz[],
+    ngrams          text[],
+    PRIMARY KEY (dataset_id, enc_id, note_id, note_type, note_status)
+);
+
+
+----------------------
 -- cdm stats tables --
 ----------------------
 DROP TABLE IF EXISTS cdm_stats cascade;
