@@ -2405,11 +2405,11 @@ RETURNS table(
           else coalesce(counts.count::int, 0)
         end)
   from pat_enc
-  left join pat_status on pat_enc.pat_id = pat_status.pat_id
+  left join pat_status on pat_enc.enc_id = pat_status.enc_id
 
   left join
   (
-      select notifications.pat_id,
+      select notifications.enc_id,
             (case when count(*) > 5 then 5
                   else count(*)
                   end
@@ -2419,9 +2419,9 @@ RETURNS table(
       where not (message#>>'{read}')::bool
       and (message#>>'{timestamp}')::numeric < date_part('epoch', now())
       and (not message::jsonb ? 'model' or message#>>'{model}' = model)
-      group by notifications.pat_id
+      group by notifications.enc_id
   )
-  counts on counts.pat_id = pat_enc.pat_id
+  counts on counts.enc_id = pat_enc.enc_id
 
   left join (
     select cdm_t.enc_id, last(cdm_t.value order by cdm_t.tsp) as unit
@@ -2432,11 +2432,12 @@ RETURNS table(
 
   where pat_enc.pat_id like 'E%'
   and   pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id)
+  and   pat_enc.enc_id = coalesce(pat_id_to_enc_id(this_pat_id), pat_enc.enc_id)
   and   pat_unit.unit similar to (select min(p.value) from parameters p where p.name = 'notifications_whitelist');
 END $func$ LANGUAGE plpgsql;
 
 
-CREATE OR REPLACE FUNCTION notify_future_notification(channel text, this_enc_id int default null)
+CREATE OR REPLACE FUNCTION notify_future_notification(channel text, _pat_id text default null)
 RETURNS void AS $func$
 declare
   payload text;
@@ -2447,7 +2448,7 @@ BEGIN
       from notifications
       where (message#>>'{alert_code}')::text in ('202','203','204','205','206')
       and (message#>>'{timestamp}')::numeric > date_part('epoch', now())
-      and enc_id = coalesce(this_enc_id, enc_id)
+      and enc_id = coalesce(pat_id_to_enc_id(_pat_id), enc_id)
       order by enc_id, tsp) O
   group by enc_id) G into payload;
   if payload is not null then
