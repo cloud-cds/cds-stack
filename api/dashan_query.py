@@ -211,7 +211,7 @@ async def get_patient_profile(db_pool, pat_id):
   full outer join
   (
       select value::timestamptz as admit_time
-      from cdm_s inner join pat_enc on pat_enc.enc_id = cdm_s.enc_id
+      from cdm_s
       where enc_id = (select * from pat_id_to_enc_id('%(pid)s'::text)) and fid = 'admittime'
       order by value::timestamptz desc limit 1
   ) ADT on true
@@ -227,7 +227,7 @@ async def get_patient_profile(db_pool, pat_id):
   full outer join
   (
       select max(value) as age
-      from cdm_s inner join pat_enc on pat_enc.enc_id = cdm_s.enc_id
+      from cdm_s
       where enc_id = (select * from pat_id_to_enc_id('%(pid)s'::text)) and fid = 'age'
   ) AGE on true
   full outer join
