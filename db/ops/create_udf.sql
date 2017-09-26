@@ -1068,9 +1068,9 @@ USING this_pat_id
 --  Criteria Management and Calculation.
 -------------------------------------------------
 
-CREATE OR REPLACE FUNCTION get_criteria(this_pat_id text)
+CREATE OR REPLACE FUNCTION get_criteria(this_enc_id text)
 RETURNS table(
-    pat_id              varchar(50),
+    enc_id              int,
     event_id            int,
     name                varchar(50),
     is_met              boolean,
@@ -1082,7 +1082,7 @@ RETURNS table(
     update_date     timestamptz
 ) AS $func$ BEGIN RETURN QUERY
 SELECT
-    coalesce(e.pat_id, c.pat_id) pat_id,
+    coalesce(e.enc_id, c.enc_id) enc_id,
     e.event_id,
     coalesce(e.name, c.name) as name,
     coalesce(e.is_met, c.is_met) is_met,
@@ -1093,11 +1093,11 @@ SELECT
     coalesce(e.value, c.value) as value,
     coalesce(e.update_date, c.update_date) update_date
 FROM (
-    select * from criteria c2 where c2.pat_id = coalesce(this_pat_id, c2.pat_id)
+    select * from criteria c2 where c2.enc_id = coalesce(this_enc_id, c2.enc_id)
 ) c
 full JOIN
 (
-    select  ce.pat_id,
+    select  ce.enc_id,
             ce.name,
             ce.event_id,
             ce.is_met,
@@ -1108,13 +1108,13 @@ full JOIN
             ce.value,
             ce.update_date
     from criteria_events ce
-    where ce.pat_id = coalesce(this_pat_id, ce.pat_id)
+    where ce.enc_id = coalesce(this_enc_id, ce.enc_id)
     and ce.event_id = (
         select max(ce2.event_id) from criteria_events ce2
-        where ce2.pat_id = coalesce(this_pat_id, ce2.pat_id) and ce2.flag > 0
+        where ce2.enc_id = coalesce(this_enc_id, ce2.enc_id) and ce2.flag > 0
     )
 ) as e
-on c.pat_id = e.pat_id and c.name = e.name
+on c.enc_id = e.enc_id and c.name = e.name
 ;
 END $func$ LANGUAGE plpgsql;
 
@@ -2186,7 +2186,7 @@ end;
 $$ LANGUAGE PLPGSQL;
 
 
-CREATE OR REPLACE FUNCTION suppression_on(this_pat_id text)
+CREATE OR REPLACE FUNCTION suppression_on(this_enc_id int)
 RETURNS boolean as $$
 begin
     return
@@ -2194,7 +2194,7 @@ begin
         select coalesce(
             (select value from parameters where name = 'suppression' limit 1)
             ~ hospital, false)
-        from pat_hosp(this_pat_id));
+        from enc_hosp(this_enc_id));
 end;
 $$ LANGUAGE PLPGSQL;
 
@@ -3268,6 +3268,24 @@ SELECT u.pat_id::text, (CASE WHEN unit ~* 'hc' THEN 'HCGH' WHEN unit ~* 'jh' THE
          ORDER BY p.pat_id,
                t.tsp DESC) c
    GROUP BY c.pat_id) u
+; END $func$ LANGUAGE plpgsql;
+
+create or replace function enc_hosp(this_enc_id int default null)
+RETURNS
+table(enc_id int, hospital text)
+AS $func$ BEGIN RETURN QUERY
+SELECT u.enc_id, (CASE WHEN unit ~* 'hc' THEN 'HCGH' WHEN unit ~* 'jh' THEN 'JHH' WHEN unit ~* 'bmc|bv' THEN 'BMC' WHEN unit ~* 'smh' THEN 'SMH' WHEN unit ~* 'sh' THEN 'SH' ELSE unit END) hospital
+   FROM
+     (SELECT c.enc_id,
+             first(value) unit
+      FROM
+        (SELECT t.enc_id, t.tsp, t.value
+         FROM cdm_t t
+         WHERE fid = 'care_unit' and value <> 'Discharge'
+            and t.enc_id = coalesce(this_enc_id, t.enc_id)
+         ORDER BY t.enc_id,
+               t.tsp DESC) c
+   GROUP BY c.enc_id) u
 ; END $func$ LANGUAGE plpgsql;
 
 create or replace function get_recent_admit_pats(max_duration text)

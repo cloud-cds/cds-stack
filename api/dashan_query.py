@@ -212,27 +212,27 @@ async def get_patient_profile(db_pool, pat_id):
   (
       select value::timestamptz as admit_time
       from cdm_s inner join pat_enc on pat_enc.enc_id = cdm_s.enc_id
-      where enc_id = pat_id_to_enc_id('%(pid)s') and fid = 'admittime'
+      where enc_id = pat_id_to_enc_id('%(pid)s'::text) and fid = 'admittime'
       order by value::timestamptz desc limit 1
   ) ADT on true
   full outer join
   (
-      select deactivated, deactivated_tsp from pat_status where enc_id = pat_id_to_enc_id('%(pid)s') limit 1
+      select deactivated, deactivated_tsp from pat_status where enc_id = pat_id_to_enc_id('%(pid)s'::text) limit 1
   ) DEACT on true
   full outer join
   (
       select date_part('epoch', tsp) detf_tsp, deterioration, uid as detf_uid
-      from deterioration_feedback where enc_id = pat_id_to_enc_id('%(pid)s') limit 1
+      from deterioration_feedback where enc_id = pat_id_to_enc_id('%(pid)s'::text) limit 1
   ) DETF on true
   full outer join
   (
       select max(value) as age
       from cdm_s inner join pat_enc on pat_enc.enc_id = cdm_s.enc_id
-      where enc_id = pat_id_to_enc_id('%(pid)s') and fid = 'age'
+      where enc_id = pat_id_to_enc_id('%(pid)s'::text) and fid = 'age'
   ) AGE on true
   full outer join
   (
-    select min(update_date) as refresh_time from criteria where enc_id = pat_id_to_enc_id('%(pid)s')
+    select min(update_date) as refresh_time from criteria where enc_id = pat_id_to_enc_id('%(pid)s'::text)
   ) REFRESH on true
   full outer join
   (
@@ -240,7 +240,7 @@ async def get_patient_profile(db_pool, pat_id):
                 (array_agg(measurement_time order by measurement_time)  filter (where name in ('sirs_temp','heart_rate','respiratory_rate','wbc') and is_met ) )[2],
                 min(measurement_time) filter (where name in ('blood_pressure','mean_arterial_pressure','decrease_in_sbp','respiratory_failure','creatinine','bilirubin','platelet','inr','lactate') and is_met ))
             as first_sirs_orgdf_tsp
-    from criteria_events where enc_id = pat_id_to_enc_id('%(pid)s') and flag in (-990, 10)
+    from criteria_events where enc_id = pat_id_to_enc_id('%(pid)s'::text) and flag in (-990, 10)
   ) FIRST_SIRS_ORGDF on true
   ''' % { 'pid': pat_id, 'threshold_param_key': threshold_param_key }
 
@@ -280,7 +280,7 @@ async def get_patient_profile(db_pool, pat_id):
 async def get_criteria(db_pool, eid):
   get_criteria_sql = \
   '''
-  select * from get_criteria(pat_id_to_enc_id('%s'))
+  select * from get_criteria(pat_id_to_enc_id('%s'::text))
   ''' % eid
   async with db_pool.acquire() as conn:
     result = await conn.fetch(get_criteria_sql)
@@ -291,7 +291,7 @@ async def get_criteria_log(db_pool, eid):
   get_criteria_log_sql = \
   '''
   select log_id, enc_id, date_part('epoch', tsp) epoch, event from criteria_log
-  where enc_id = pat_id_to_enc_id('%s') order by tsp desc limit 25
+  where enc_id = pat_id_to_enc_id('%s'::text) order by tsp desc limit 25
   ''' % eid
 
   async with db_pool.acquire() as conn:
@@ -311,7 +311,7 @@ async def get_notifications(db_pool, eid):
   get_notifications_sql = \
   '''
   select * from notifications
-  where enc_id = pat_id_to_enc_id('%s')
+  where enc_id = pat_id_to_enc_id('%s'::text)
   and (message#>>'{model}' = '%s' or not message::jsonb ? 'model')
   ''' % (eid, 'lmc' if use_trews_lmc else 'trews')
 
@@ -334,7 +334,7 @@ async def get_order_detail(db_pool, eid):
   get_order_detail_sql = \
   '''
   select tsp, initcap(regexp_replace(regexp_replace(fid, '_dose', ''), '_', ' ')) as fid, value from cdm_t
-  where enc_id = pat_id_to_enc_id('%s') and
+  where enc_id = pat_id_to_enc_id('%s'::text) and
   fid in (
     'azithromycin_dose','aztreonam_dose','cefepime_dose','ceftriaxone_dose','ciprofloxacin_dose','gentamicin_dose','levofloxacin_dose',
     'metronidazole_dose','moxifloxacin_dose','piperacillin_tazbac_dose','vancomycin_dose'
@@ -414,12 +414,12 @@ async def toggle_notification_read(db_pool, eid, notification_id, as_read):
   with update_notifications as
   (   update notifications
       set message = jsonb_set(message::jsonb, '{read}'::text[], '%(val)s'::jsonb, false)
-      where enc_id = pat_id_to_enc_id('%(pid)s') and notification_id = %(nid)s
+      where enc_id = pat_id_to_enc_id('%(pid)s'::text) and notification_id = %(nid)s
       RETURNING *
   )
   insert into criteria_log (pat_id, tsp, event, update_date)
   select
-          pat_id_to_enc_id('%(pid)s'),
+          pat_id_to_enc_id('%(pid)s'::text),
           now(),
           json_build_object('event_type', 'toggle_notifications', 'message', n.message),
           now()
@@ -457,15 +457,15 @@ async def override_criteria(db_pool, eid, name, value='[{}]', user='user', clear
       update_date = now(),
       override_value = %(val)s,
       override_user = %(user)s
-  where enc_id = pat_id_to_enc_id('%(pid)s') and name = '%(name)s';
+  where enc_id = pat_id_to_enc_id('%(pid)s'::text) and name = '%(name)s';
   insert into criteria_log (enc_id, tsp, event, update_date)
   values (
-          pat_id_to_enc_id('%(pid)s')',
+          pat_id_to_enc_id('%(pid)s'::text)',
           now(),
           '{"event_type": "override", "name":"%(name)s", "uid":"%(user_log)s", "override_value":%(val_log)s, "clear":%(clear_log)s}',
           now()
       );
-  select override_criteria_snapshot(pat_id_to_enc_id('%(pid)s'));
+  select override_criteria_snapshot(pat_id_to_enc_id('%(pid)s'::text));
   ''' % params
   logging.info("override_criteria sql:" + override_sql)
 
@@ -487,10 +487,10 @@ async def reset_patient(db_pool, eid, uid='user', event_id=None):
 
 async def deactivate(db_pool, eid, uid, deactivated):
   deactivate_sql = '''
-  select * from deactivate(pat_id_to_enc_id('%(pid)s'), %(deactivated)s);
+  select * from deactivate(pat_id_to_enc_id('%(pid)s'::text), %(deactivated)s);
   insert into criteria_log (pat_id, tsp, event, update_date)
   values (
-          pat_id_to_enc_id('%(pid)s'),
+          pat_id_to_enc_id('%(pid)s'::text),
           now(),
           '{"event_type": "deactivate", "uid":"%(uid)s", "deactivated": %(deactivated)s}',
           now()
@@ -505,13 +505,13 @@ async def deactivate(db_pool, eid, uid, deactivated):
 
 async def get_deactivated(db_pool, eid):
   async with db_pool.acquire() as conn:
-    deactivated = await conn.fetch("select deactivated from pat_status where enc_id = pat_id_to_enc_id('%s')" % eid)
+    deactivated = await conn.fetch("select deactivated from pat_status where enc_id = pat_id_to_enc_id('%s'::text)" % eid)
     return ( len(deactivated) == 1 and deactivated[0][0] is True )
 
 
 async def set_deterioration_feedback(db_pool, eid, deterioration_feedback, uid):
   deterioration_sql = '''
-  select * from set_deterioration_feedback(pat_id_to_enc_id('%(pid)s'), now(), '%(deterioration)s', '%(uid)s');
+  select * from set_deterioration_feedback(pat_id_to_enc_id('%(pid)s'::text), now(), '%(deterioration)s', '%(uid)s');
   ''' % {'pid': eid, 'deterioration': json.dumps(deterioration_feedback), 'uid':uid}
   logging.info("set_deterioration_feedback user:" + deterioration_sql)
   async with db_pool.acquire() as conn:
@@ -522,7 +522,7 @@ async def get_deterioration_feedback(db_pool, eid):
   get_deterioration_feedback_sql = \
   '''
   select enc_id, date_part('epoch', tsp) tsp, deterioration, uid
-  from deterioration_feedback where enc_id = pat_id_to_enc_id('%s') limit 1
+  from deterioration_feedback where enc_id = pat_id_to_enc_id('%s'::text) limit 1
   ''' % eid
   async with db_pool.acquire() as conn:
     df = await conn.fetch(get_deterioration_feedback_sql)
@@ -589,7 +589,7 @@ async def eid_exist(db_pool, eid):
 async def save_feedback(db_pool, doc_id, pat_id, dep_id, feedback):
   feedback_sql = '''
     INSERT INTO feedback_log (doc_id, tsp, enc_id, dep_id, feedback)
-    VALUES ('%(doc)s', now(), pat_id_to_enc_id('%(pid)s'), '%(dep)s', '%(fb)s');
+    VALUES ('%(doc)s', now(), pat_id_to_enc_id('%(pid)s'::text), '%(dep)s', '%(fb)s');
     ''' % {'doc': doc_id, 'pat': pat_id, 'dep': dep_id, 'fb': feedback}
 
   async with db_pool.acquire() as conn:
