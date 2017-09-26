@@ -158,14 +158,14 @@ async def get_patient_events(db_pool, pat_id):
          notification_id as evt_id,
          null as tsp,
          message as payload
-  from notifications where enc_id = pat_id_2_enc_id('%(pat_id)s')
+  from notifications where enc_id = pat_id_to_enc_id('%(pat_id)s'::text)
     and (message#>>'{model}' = '%(model)s' or not message::jsonb ? 'model')
   union all
   select 1 as event_type,
          log_id as evt_id,
          date_part('epoch', tsp) as tsp,
          event as payload
-  from criteria_log where enc_id = pat_id_2_enc_id('%(pat_id)s')
+  from criteria_log where enc_id = pat_id_to_enc_id('%(pat_id)s'::text)
   ''' % { 'pat_id': pat_id, 'model': 'lmc' if use_trews_lmc else 'trews' }
 
   async with db_pool.acquire() as conn:
