@@ -1068,7 +1068,7 @@ USING this_pat_id
 --  Criteria Management and Calculation.
 -------------------------------------------------
 
-CREATE OR REPLACE FUNCTION get_criteria(this_enc_id text)
+CREATE OR REPLACE FUNCTION get_criteria(this_enc_id int)
 RETURNS table(
     enc_id              int,
     event_id            int,
