@@ -212,27 +212,27 @@ async def get_patient_profile(db_pool, pat_id):
   (
       select value::timestamptz as admit_time
       from cdm_s inner join pat_enc on pat_enc.enc_id = cdm_s.enc_id
-      where pat_id = pat_id_to_enc_id('%(pid)s') and fid = 'admittime'
+      where enc_id = pat_id_to_enc_id('%(pid)s') and fid = 'admittime'
       order by value::timestamptz desc limit 1
   ) ADT on true
   full outer join
   (
-      select deactivated, deactivated_tsp from pat_status where pat_id = pat_id_to_enc_id('%(pid)s') limit 1
+      select deactivated, deactivated_tsp from pat_status where enc_id = pat_id_to_enc_id('%(pid)s') limit 1
   ) DEACT on true
   full outer join
   (
       select date_part('epoch', tsp) detf_tsp, deterioration, uid as detf_uid
-      from deterioration_feedback where pat_id = pat_id_to_enc_id('%(pid)s') limit 1
+      from deterioration_feedback where enc_id = pat_id_to_enc_id('%(pid)s') limit 1
   ) DETF on true
   full outer join
   (
       select max(value) as age
       from cdm_s inner join pat_enc on pat_enc.enc_id = cdm_s.enc_id
-      where pat_id = pat_id_to_enc_id('%(pid)s') and fid = 'age'
+      where enc_id = pat_id_to_enc_id('%(pid)s') and fid = 'age'
   ) AGE on true
   full outer join
   (
-    select min(update_date) as refresh_time from criteria where pat_id = pat_id_to_enc_id('%(pid)s')
+    select min(update_date) as refresh_time from criteria where enc_id = pat_id_to_enc_id('%(pid)s')
   ) REFRESH on true
   full outer join
   (
@@ -240,7 +240,7 @@ async def get_patient_profile(db_pool, pat_id):
                 (array_agg(measurement_time order by measurement_time)  filter (where name in ('sirs_temp','heart_rate','respiratory_rate','wbc') and is_met ) )[2],
                 min(measurement_time) filter (where name in ('blood_pressure','mean_arterial_pressure','decrease_in_sbp','respiratory_failure','creatinine','bilirubin','platelet','inr','lactate') and is_met ))
             as first_sirs_orgdf_tsp
-    from criteria_events where pat_id = pat_id_to_enc_id('%(pid)s') and flag in (-990, 10)
+    from criteria_events where enc_id = pat_id_to_enc_id('%(pid)s') and flag in (-990, 10)
   ) FIRST_SIRS_ORGDF on true
   ''' % { 'pid': pat_id, 'threshold_param_key': threshold_param_key }
 
