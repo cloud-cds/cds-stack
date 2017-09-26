@@ -174,13 +174,13 @@ class AlertServer:
         if self.notify_web:
           sql = '''
           with pats as (
-            select enc_id from pat_enc where enc_id in ({pats})
+            select enc_id, pat_id from pat_enc where enc_id in ({pats})
           ),
           alerts as (
             select update_suppression_alert(enc_id, '{channel}', '{model}', 'false') from pats),
           refreshed as (
             insert into refreshed_pats (refreshed_tsp, pats)
-            select now(), jsonb_agg(enc_id) from pats
+            select now(), jsonb_agg(pat_id) from pats
             returning id
           )
           select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
@@ -203,13 +203,13 @@ class AlertServer:
       if self.notify_web:
         sql = '''
         with pats as (
-          select * from get_latest_enc_ids('{hospital}')
+          select e.enc_id, p.pat_id from get_latest_enc_ids('{hospital}') e inner join pat_enc p on e.enc_id = p.enc_id
         ),
         alerts as (
           select update_suppression_alert(enc_id, '{channel}', '{model}', 'false') from pats),
         refreshed as (
           insert into refreshed_pats (refreshed_tsp, pats)
-          select now(), jsonb_agg(enc_id) from pats
+          select now(), jsonb_agg(pat_id) from pats
           returning id
         )
         select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
