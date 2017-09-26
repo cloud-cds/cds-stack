@@ -8,37 +8,6 @@
 -- all callers of get_cms_*_for_window_* should appropriately join on dataset_id
 --
 
-DROP TABLE IF EXISTS label_version CASCADE;
-CREATE TABLE label_version (
-    label_id        serial primary key,
-    created         timestamptz,
-    description     text
-);
-
-DROP TABLE IF EXISTS cdm_labels;
-CREATE TABLE cdm_labels (
-    dataset_id          integer references dw_version(dataset_id),
-    label_id            integer references label_version(label_id),
-    pat_id              text,
-    tsp                 timestamptz,
-    label_type          text,
-    label               integer,
-    primary key         (dataset_id, label_id, pat_id, tsp)
-);
-
-
-DROP TABLE IF EXISTS cdm_processed_notes;
-CREATE TABLE cdm_processed_notes (
-    dataset_id      integer REFERENCES dw_version(dataset_id),
-    pat_id          varchar(50),
-    note_id         varchar(50),
-    note_type       varchar(50),
-    note_status     varchar(50),
-    tsps            timestamptz[],
-    ngrams          text[],
-    PRIMARY KEY (dataset_id, pat_id, note_id, note_type, note_status)
-);
-
 -------------------------------------------------------
 -- Per-window criteria calculation
 
@@ -46,7 +15,7 @@ CREATE TABLE cdm_processed_notes (
 -- This is useful for identifying candidates for whom we can
 -- evaluate suspicion of infection.
 CREATE OR REPLACE FUNCTION get_cms_candidates_for_window(
-                this_pat_id                      text,
+                this_enc_id                      int,
                 ts_start                         timestamptz,
                 ts_end                           timestamptz,
                 _dataset_id                      INTEGER DEFAULT NULL,
@@ -54,7 +23,7 @@ CREATE OR REPLACE FUNCTION get_cms_candidates_for_window(
                 use_clarity_notes                boolean default false,
                 save_criteria_windows            boolean default false
   )
-  RETURNS table(pat_id                           varchar(50),
+  RETURNS table(enc_id                           integer,
                 name                             varchar(50),
                 measurement_time                 timestamptz,
                 value                            text,
@@ -73,24 +42,21 @@ DECLARE
   window_size interval := ts_end - ts_start;
 BEGIN
   select coalesce(_dataset_id, max(dataset_id)) into _dataset_id from dw_version;
-  -- raise notice 'Running calculate criteria on pat %, dataset_id % between %, %',this_pat_id, _dataset_id, ts_start , ts_end;
+  -- raise notice 'Running calculate criteria on pat %, dataset_id % between %, %',this_enc_id, _dataset_id, ts_start , ts_end;
 
   return query
-  with pat_visit_ids as (
-    select distinct P.pat_id, P.visit_id from pat_enc P
-    where P.pat_id = coalesce(this_pat_id, P.pat_id) and P.dataset_id = _dataset_id
-  ),
-  pat_ids as (
-    select distinct P.pat_id from pat_visit_ids P
+  with pat_ids as (
+    select distinct P.enc_id from pat_enc P
+    where P.enc_id = coalesce(this_enc_id, P.enc_id) and P.dataset_id = _dataset_id
   ),
   user_overrides as (
     -- TODO: dispatch to override generator
     select * from (
-      values (null::integer, null::varchar, null::varchar, null::varchar, null::varchar, null::timestamptz, null::text, null::timestamptz, null::text, null::json)
-    ) as criteria (dataset_id, pat_id, name, fid, category, tsp, value, override_time, override_user, override_value)
+      values (null::integer, null::int, null::varchar, null::varchar, null::varchar, null::timestamptz, null::text, null::timestamptz, null::text, null::json)
+    ) as criteria (dataset_id, enc_id, name, fid, category, tsp, value, override_time, override_user, override_value)
   ),
   pat_cvalues as (
-    select pat_ids.pat_id,
+    select pat_ids.enc_id,
            cd.name,
            meas.fid,
            cd.category,
@@ -103,11 +69,11 @@ BEGIN
     from pat_ids
     cross join criteria_default as cd
     left join user_overrides c
-      on pat_ids.pat_id = c.pat_id
+      on pat_ids.enc_id = c.enc_id
       and cd.name = c.name
       and cd.dataset_id = c.dataset_id
     left join cdm_t meas
-        on pat_ids.pat_id = meas.pat_id
+        on pat_ids.enc_id = meas.enc_id
         and meas.fid = cd.fid
         and cd.dataset_id = meas.dataset_id
         and (meas.tsp is null or meas.tsp between ts_start - window_size and ts_end)
@@ -120,12 +86,12 @@ BEGIN
     )
   ),
   pat_aggregates as (
-    select aggs.pat_id,
+    select aggs.enc_id,
            avg(aggs.bp_sys) as bp_sys,
            first(aggs.weight order by aggs.measurement_time) as weight,
            sum(aggs.urine_output) as urine_output
     from (
-        select P.pat_id,
+        select P.enc_id,
                meas.tsp as measurement_time,
                (case when meas.fid in ('nbp_sys', 'abp_sys') then meas.value::numeric else null end) as bp_sys,
                (case when meas.fid = 'weight' then meas.value::numeric else null end) as weight,
@@ -134,15 +100,15 @@ BEGIN
                      then meas.value::numeric else null end
                 ) as urine_output
         from pat_ids P
-        inner join cdm_t meas on P.pat_id = meas.pat_id
+        inner join cdm_t meas on P.enc_id = meas.enc_id
         where meas.fid in ('nbp_sys', 'abp_sys', 'urine_output', 'weight')
         and isnumeric(meas.value)
         and meas.dataset_id = _dataset_id
     ) as aggs
-    group by aggs.pat_id
+    group by aggs.enc_id
   ),
   all_sirs_org as (
-    select  PC.pat_id,
+    select  PC.enc_id,
             PC.name,
             PC.tsp as measurement_time,
             (case
@@ -164,14 +130,14 @@ BEGIN
               (case
                   when PC.category = 'decrease_in_sbp' then
                     decrease_in_sbp_met(
-                      (select max(PBP.bp_sys) from pat_aggregates PBP where PBP.pat_id = PC.pat_id),
+                      (select max(PBP.bp_sys) from pat_aggregates PBP where PBP.enc_id = PC.enc_id),
                       PC.value, PC.c_ovalue, PC.d_ovalue
                     )
 
                   when PC.category = 'urine_output' then
                     urine_output_met(
-                        (select max(PUO.urine_output) from pat_aggregates PUO where PUO.pat_id = PC.pat_id),
-                        (select max(PW.weight) from pat_aggregates PW where PW.pat_id = PC.pat_id),
+                        (select max(PUO.urine_output) from pat_aggregates PUO where PUO.enc_id = PC.enc_id),
+                        (select max(PW.weight) from pat_aggregates PW where PW.enc_id = PC.enc_id),
                         _dataset_id
                     )
 
@@ -199,7 +165,7 @@ BEGIN
       )
       and S.is_met
     )
-    select SO.pat_id,
+    select SO.enc_id,
            SO.sirs1_name,
            SO.sirs2_name,
            SO.odf_name,
@@ -207,7 +173,7 @@ BEGIN
            SO.sirs_onset,
            SO.org_df_onset
     from (
-      select S1.pat_id,
+      select S1.enc_id,
              S1.name as sirs1_name,
              S2.name as sirs2_name,
              D.name as odf_name,
@@ -216,17 +182,17 @@ BEGIN
              coalesce(D.measurement_time, D.override_time) as org_df_onset
       from sirs S1
       inner join sirs S2
-        on S1.pat_id = S2.pat_id
+        on S1.enc_id = S2.enc_id
         and S1.name <> S2.name
         and coalesce(S1.measurement_time, S1.override_time) <= coalesce(S2.measurement_time, S2.override_time)
-      inner join org_df D on S1.pat_id = D.pat_id
+      inner join org_df D on S1.enc_id = D.enc_id
     ) SO
     where not (SO.sirs_initial is null or SO.sirs_onset is null or SO.org_df_onset is null)
     and greatest(SO.sirs_onset, SO.org_df_onset) - least(SO.sirs_initial, SO.org_df_onset) < window_size
   ),
   null_infections as (
     -- This is necessary for get_window_labels_from_criteria
-    select P.pat_id,
+    select P.enc_id,
            'suspicion_of_infection'::varchar as name,
            null::timestamptz                 as measurement_time,
            null::text                        as value,
@@ -238,7 +204,7 @@ BEGIN
     from pat_ids P
   ),
   severe_sepsis_candidates as (
-    select SO.pat_id,
+    select SO.enc_id,
            bool_or(coalesce(I.infection_cnt, 0) > 0) as suspicion_of_infection,
            coalesce(
               first(I.infection_onset order by greatest(SO.sirs_initial, SO.sirs_onset, SO.org_df_onset))
@@ -284,23 +250,23 @@ BEGIN
 
     from all_sirs_org_triples SO
     left join (
-      select I.pat_id,
+      select I.enc_id,
              (case when I.name = 'suspicion_of_infection' and I.is_met then 1 else 0 end) as infection_cnt,
              (case when I.name = 'suspicion_of_infection' then I.override_time else null end) as infection_onset
       from null_infections I
     ) I
-      on SO.pat_id = I.pat_id
+      on SO.enc_id = I.enc_id
       and (greatest(
                 greatest(SO.sirs_onset, SO.org_df_onset) - I.infection_onset,
                 I.infection_onset - least(SO.sirs_onset, SO.org_df_onset)
               ) < interval '6 hours')
 
-    group by SO.pat_id
+    group by SO.enc_id
   ),
 
   severe_sepsis as (
     select
-        CR.pat_id,
+        CR.enc_id,
         CR.name,
         (first(CR.measurement_time order by coalesce(CR.measurement_time, CR.override_time)) filter (where save_criteria_windows or CR.is_met)) as measurement_time,
         (first(CR.value            order by coalesce(CR.measurement_time, CR.override_time)) filter (where save_criteria_windows or CR.is_met))::text as value,
@@ -313,11 +279,11 @@ BEGIN
     from (
       select * from all_sirs_org
       union all
-      select I.pat_id, I.name, I.measurement_time, I.value, I.override_time, I.override_user, I.override_value, I.is_met
+      select I.enc_id, I.name, I.measurement_time, I.value, I.override_time, I.override_user, I.override_value, I.is_met
       from null_infections I
     ) CR
     left join severe_sepsis_candidates CD
-      on CR.pat_id = CD.pat_id
+      on CR.enc_id = CD.enc_id
       and CR.name in ( CD.sirs1_name, CD.sirs2_name, CD.odf_name, 'suspicion_of_infection' )
 
     where ( coalesce(CD.sirs1_name, CD.sirs2_name, CD.odf_name) is null )
@@ -326,11 +292,11 @@ BEGIN
          or ( CD.odf_name   is not null and CD.org_df_onset = coalesce(CR.measurement_time, CR.override_time) )
          or ( CR.name = 'suspicion_of_infection' and (CD.inf_onset = 'infinity'::timestamptz or CR.override_time = CD.inf_onset) )
     )
-    group by CR.pat_id, CR.name
+    group by CR.enc_id, CR.name
   ),
 
   severe_sepsis_onsets as (
-    select sspm.pat_id,
+    select sspm.enc_id,
            sspm.severe_sepsis_is_met,
            (case when sspm.severe_sepsis_onset <> 'infinity'::timestamptz
                  then sspm.severe_sepsis_onset
@@ -342,7 +308,7 @@ BEGIN
            ) as severe_sepsis_wo_infection_onset,
            sspm.severe_sepsis_lead_time
     from (
-      select stats.pat_id,
+      select stats.enc_id,
              coalesce(bool_or(stats.suspicion_of_infection), false) as severe_sepsis_is_met,
 
              max(greatest(coalesce(stats.inf_onset, 'infinity'::timestamptz),
@@ -358,7 +324,7 @@ BEGIN
                 as severe_sepsis_lead_time
 
       from severe_sepsis_candidates stats
-      group by stats.pat_id
+      group by stats.enc_id
     ) sspm
   )
 
@@ -367,7 +333,7 @@ BEGIN
          SSP.severe_sepsis_wo_infection_onset,
          null::timestamptz as septic_shock_onset
   from severe_sepsis new_criteria
-  left join severe_sepsis_onsets SSP on new_criteria.pat_id = SSP.pat_id;
+  left join severe_sepsis_onsets SSP on new_criteria.enc_id = SSP.enc_id;
 
   return;
 END; $function$;
@@ -380,7 +346,7 @@ END; $function$;
 --      rather than looking at the combination of the first occurences.
 --
 CREATE OR REPLACE FUNCTION get_cms_labels_for_window(
-                this_pat_id                      text,
+                this_enc_id                      int,
                 ts_start                         timestamptz,
                 ts_end                           timestamptz,
                 _dataset_id                      INTEGER DEFAULT NULL,
@@ -388,7 +354,7 @@ CREATE OR REPLACE FUNCTION get_cms_labels_for_window(
                 use_clarity_notes                boolean default false,
                 save_criteria_windows            boolean default false
   )
-  RETURNS table(pat_id                           varchar(50),
+  RETURNS table(enc_id                           int,
                 name                             varchar(50),
                 measurement_time                 timestamptz,
                 value                            text,
@@ -414,24 +380,21 @@ DECLARE
 BEGIN
 
   select coalesce(_dataset_id, max(dataset_id)) into _dataset_id from dw_version;
-  -- raise notice 'Running calculate criteria on pat %, dataset_id % between %, %',this_pat_id, _dataset_id, ts_start , ts_end;
+  -- raise notice 'Running calculate criteria on pat %, dataset_id % between %, %',this_enc_id, _dataset_id, ts_start , ts_end;
 
   return query
-  with pat_visit_ids as (
-    select distinct P.pat_id, P.visit_id from pat_enc P
-    where P.pat_id = coalesce(this_pat_id, P.pat_id) and P.dataset_id = _dataset_id
-  ),
-  pat_ids as (
-    select distinct P.pat_id from pat_visit_ids P
+  with pat_ids as (
+    select distinct P.enc_id from pat_enc P
+    where P.enc_id = coalesce(this_enc_id, P.enc_id) and P.dataset_id = _dataset_id
   ),
   user_overrides as (
     -- TODO: dispatch to override generator
     select * from (
-      values (null::integer, null::varchar, null::varchar, null::varchar, null::varchar, null::timestamptz, null::text, null::timestamptz, null::text, null::json)
-    ) as criteria (dataset_id, pat_id, name, fid, category, tsp, value, override_time, override_user, override_value)
+      values (null::integer, null::int, null::varchar, null::varchar, null::varchar, null::timestamptz, null::text, null::timestamptz, null::text, null::json)
+    ) as criteria (dataset_id, enc_id, name, fid, category, tsp, value, override_time, override_user, override_value)
   ),
   pat_cvalues as (
-    select pat_ids.pat_id,
+    select pat_ids.enc_id,
            cd.name,
            meas.fid,
            cd.category,
@@ -444,11 +407,11 @@ BEGIN
     from pat_ids
     cross join criteria_default as cd
     left join user_overrides c
-      on pat_ids.pat_id = c.pat_id
+      on pat_ids.enc_id = c.enc_id
       and cd.name = c.name
       and cd.dataset_id = c.dataset_id
     left join cdm_t meas
-        on pat_ids.pat_id = meas.pat_id
+        on pat_ids.enc_id = meas.enc_id
         and meas.fid = cd.fid
         and cd.dataset_id = meas.dataset_id
         and (meas.tsp is null or meas.tsp between ts_start - window_size and ts_end)
@@ -457,12 +420,12 @@ BEGIN
     and meas.value <> 'nan'
   ),
   pat_aggregates as (
-    select aggs.pat_id,
+    select aggs.enc_id,
            avg(aggs.bp_sys) as bp_sys,
            first(aggs.weight order by aggs.measurement_time) as weight,
            sum(aggs.urine_output) as urine_output
     from (
-        select P.pat_id,
+        select P.enc_id,
                meas.tsp as measurement_time,
                (case when meas.fid in ('nbp_sys', 'abp_sys') then meas.value::numeric else null end) as bp_sys,
                (case when meas.fid = 'weight' then meas.value::numeric else null end) as weight,
@@ -471,15 +434,15 @@ BEGIN
                      then meas.value::numeric else null end
                 ) as urine_output
         from pat_ids P
-        inner join cdm_t meas on P.pat_id = meas.pat_id
+        inner join cdm_t meas on P.enc_id = meas.enc_id
         where meas.fid in ('nbp_sys', 'abp_sys', 'urine_output', 'weight')
         and isnumeric(meas.value)
         and meas.dataset_id = _dataset_id
     ) as aggs
-    group by aggs.pat_id
+    group by aggs.enc_id
   ),
   all_sirs_org as (
-    select  PC.pat_id,
+    select  PC.enc_id,
             PC.name,
             PC.tsp as measurement_time,
             (case
@@ -501,14 +464,14 @@ BEGIN
               (case
                   when PC.category = 'decrease_in_sbp' then
                     decrease_in_sbp_met(
-                      (select max(PBP.bp_sys) from pat_aggregates PBP where PBP.pat_id = PC.pat_id),
+                      (select max(PBP.bp_sys) from pat_aggregates PBP where PBP.enc_id = PC.enc_id),
                       PC.value, PC.c_ovalue, PC.d_ovalue
                     )
 
                   when PC.category = 'urine_output' then
                     urine_output_met(
-                        (select max(PUO.urine_output) from pat_aggregates PUO where PUO.pat_id = PC.pat_id),
-                        (select max(PW.weight) from pat_aggregates PW where PW.pat_id = PC.pat_id),
+                        (select max(PUO.urine_output) from pat_aggregates PUO where PUO.enc_id = PC.enc_id),
+                        (select max(PW.weight) from pat_aggregates PW where PW.enc_id = PC.enc_id),
                         _dataset_id
                     )
 
@@ -536,7 +499,7 @@ BEGIN
       )
       and S.is_met
     )
-    select SO.pat_id,
+    select SO.enc_id,
            SO.sirs1_name,
            SO.sirs2_name,
            SO.odf_name,
@@ -544,7 +507,7 @@ BEGIN
            SO.sirs_onset,
            SO.org_df_onset
     from (
-      select S1.pat_id,
+      select S1.enc_id,
              S1.name as sirs1_name,
              S2.name as sirs2_name,
              D.name as odf_name,
@@ -553,10 +516,10 @@ BEGIN
              coalesce(D.measurement_time, D.override_time) as org_df_onset
       from sirs S1
       inner join sirs S2
-        on S1.pat_id = S2.pat_id
+        on S1.enc_id = S2.enc_id
         and S1.name <> S2.name
         and coalesce(S1.measurement_time, S1.override_time) <= coalesce(S2.measurement_time, S2.override_time)
-      inner join org_df D on S1.pat_id = D.pat_id
+      inner join org_df D on S1.enc_id = D.enc_id
     ) SO
     where not (SO.sirs_initial is null or SO.sirs_onset is null or SO.org_df_onset is null)
     and greatest(SO.sirs_onset, SO.org_df_onset) - least(SO.sirs_initial, SO.org_df_onset) < window_size
@@ -567,7 +530,7 @@ BEGIN
   --
   app_infections as (
       select
-          ainf.pat_id,
+          ainf.enc_id,
           ainf.name,
           first((ainf.measurement_time) order by coalesce(ainf.measurement_time, ainf.c_otime)) as measurement_time,
           first((ainf.value)            order by coalesce(ainf.measurement_time, ainf.c_otime))::text as value,
@@ -577,7 +540,7 @@ BEGIN
           coalesce(bool_or(ainf.is_met), false) as is_met,
           now() as update_date
       from (
-          select  PC.pat_id,
+          select  PC.enc_id,
                   PC.name,
                   PC.tsp as measurement_time,
                   PC.value as value,
@@ -589,18 +552,18 @@ BEGIN
           where PC.name = 'suspicion_of_infection'
           and use_app_infections
       ) as ainf
-      group by ainf.pat_id, ainf.name
+      group by ainf.enc_id, ainf.name
   ),
   extracted_infections as (
     -- Use either clarity or cdm notes for now.
     -- We implement this as a union over two queries, each gated
     -- by a simple where clause based on an function argument.
     with notes_candidates as (
-      select distinct T.pat_id from all_sirs_org_triples T
+      select distinct T.enc_id from all_sirs_org_triples T
     ),
     null_infections as (
       -- get_window_labels_from_criteria explicitly requires a null value to yield states 10 and 12
-      select P.pat_id,
+      select P.enc_id,
              'suspicion_of_infection'::text    as name,
              null::timestamptz                 as measurement_time,
              null::text                        as value,
@@ -612,7 +575,7 @@ BEGIN
       from pat_ids P
     ),
     clarity_matches as (
-        select P.pat_id                                                 as pat_id,
+        select P.enc_id                                                 as enc_id,
                'suspicion_of_infection'::text                           as name,
                min(M.start_ts)                                          as measurement_time,
                min(M.ngram)                                             as value,
@@ -622,15 +585,15 @@ BEGIN
                true                                                     as is_met,
                now()                                                    as update_date
         from notes_candidates NC
-        inner join pat_visit_ids P on NC.pat_id = P.pat_id
+        inner join pat_enc P on NC.enc_id = P.enc_id
         inner join lateral match_clarity_infections(P.visit_id, 3, 3) M on P.visit_id = M.csn_id
         where use_clarity_notes
         and not use_app_infections
-        group by P.pat_id
+        group by P.enc_id
     ),
     cdm_matches as (
         -- TODO: we have picked an arbitrary time interval for notes. Refine.
-        select NC.pat_id                                                as pat_id,
+        select NC.enc_id                                                as enc_id,
                'suspicion_of_infection'::text                           as name,
                min(NTG.tsp)                                             as measurement_time,
                min(NTG.ngram)                                           as value,
@@ -641,20 +604,20 @@ BEGIN
                now()                                                    as update_date
         from notes_candidates NC
         inner join lateral (
-          select M.pat_id, M.dataset_id, N.*
+          select M.enc_id, M.dataset_id, N.*
           from cdm_processed_notes M, lateral unnest(M.tsps, M.ngrams) N(tsp, ngram)
-          where NC.pat_id = M.pat_id
+          where NC.enc_id = M.enc_id
           and M.dataset_id = _dataset_id
           and N.tsp between ts_start - interval '1 days' and ts_end
           and not use_app_infections
         ) NTG
-          on NC.pat_id = NTG.pat_id
+          on NC.enc_id = NTG.enc_id
           and NTG.dataset_id = _dataset_id
           and NTG.tsp between ts_start - interval '1 days' and ts_end
           and not use_app_infections
-        group by NC.pat_id
+        group by NC.enc_id
     )
-    select NI.pat_id,
+    select NI.enc_id,
            coalesce(MTCH.name,             NI.name             ) as name,
            coalesce(MTCH.measurement_time, NI.measurement_time ) as measurement_time,
            coalesce(MTCH.value,            NI.value            ) as value,
@@ -668,7 +631,7 @@ BEGIN
       select * from clarity_matches
       union all
       select * from cdm_matches
-    ) MTCH on NI.pat_id = MTCH.pat_id
+    ) MTCH on NI.enc_id = MTCH.enc_id
     where not use_app_infections
   ),
   infections as (
@@ -678,7 +641,7 @@ BEGIN
 
 
   severe_sepsis_candidates as (
-    select SO.pat_id,
+    select SO.enc_id,
            bool_or(coalesce(I.infection_cnt, 0) > 0) as suspicion_of_infection,
            coalesce(
               first(I.infection_onset order by greatest(SO.sirs_initial, SO.sirs_onset, SO.org_df_onset))
@@ -724,23 +687,23 @@ BEGIN
 
     from all_sirs_org_triples SO
     left join (
-      select I.pat_id,
+      select I.enc_id,
              (case when I.name = 'suspicion_of_infection' and I.is_met then 1 else 0 end) as infection_cnt,
              (case when I.name = 'suspicion_of_infection' then I.override_time else null end) as infection_onset
       from infections I
     ) I
-      on SO.pat_id = I.pat_id
+      on SO.enc_id = I.enc_id
       and (greatest(
                 greatest(SO.sirs_onset, SO.org_df_onset) - I.infection_onset,
                 I.infection_onset - least(SO.sirs_onset, SO.org_df_onset)
               ) < interval '6 hours')
 
-    group by SO.pat_id
+    group by SO.enc_id
   ),
 
   severe_sepsis as (
     select
-        CR.pat_id,
+        CR.enc_id,
         CR.name,
         (first(CR.measurement_time order by coalesce(CR.measurement_time, CR.override_time)) filter (where save_criteria_windows or CR.is_met)) as measurement_time,
         (first(CR.value            order by coalesce(CR.measurement_time, CR.override_time)) filter (where save_criteria_windows or CR.is_met))::text as value,
@@ -753,11 +716,11 @@ BEGIN
     from (
       select * from all_sirs_org
       union all
-      select I.pat_id, I.name, I.measurement_time, I.value, I.override_time, I.override_user, I.override_value, I.is_met
+      select I.enc_id, I.name, I.measurement_time, I.value, I.override_time, I.override_user, I.override_value, I.is_met
       from infections I
     ) CR
     left join severe_sepsis_candidates CD
-      on CR.pat_id = CD.pat_id
+      on CR.enc_id = CD.enc_id
       and CR.name in ( CD.sirs1_name, CD.sirs2_name, CD.odf_name, 'suspicion_of_infection' )
 
     where ( coalesce(CD.sirs1_name, CD.sirs2_name, CD.odf_name) is null )
@@ -766,11 +729,11 @@ BEGIN
          or ( CD.odf_name   is not null and CD.org_df_onset = coalesce(CR.measurement_time, CR.override_time) )
          or ( CR.name = 'suspicion_of_infection' and (CD.inf_onset = 'infinity'::timestamptz or CR.override_time = CD.inf_onset) )
     )
-    group by CR.pat_id, CR.name
+    group by CR.enc_id, CR.name
   ),
 
   severe_sepsis_onsets as (
-    select sspm.pat_id,
+    select sspm.enc_id,
            sspm.severe_sepsis_is_met,
            (case when sspm.severe_sepsis_onset <> 'infinity'::timestamptz
                  then sspm.severe_sepsis_onset
@@ -782,7 +745,7 @@ BEGIN
            ) as severe_sepsis_wo_infection_onset,
            sspm.severe_sepsis_lead_time
     from (
-      select stats.pat_id,
+      select stats.enc_id,
              coalesce(bool_or(stats.suspicion_of_infection), false) as severe_sepsis_is_met,
 
              max(greatest(coalesce(stats.inf_onset, 'infinity'::timestamptz),
@@ -798,13 +761,13 @@ BEGIN
                 as severe_sepsis_lead_time
 
       from severe_sepsis_candidates stats
-      group by stats.pat_id
+      group by stats.enc_id
     ) sspm
   ),
 
   crystalloid_fluid_and_hypoperfusion as (
     select
-        cfhf.pat_id,
+        cfhf.enc_id,
         cfhf.name,
         first((case when cfhf.is_met then cfhf.measurement_time else null end) order by coalesce(cfhf.measurement_time, cfhf.c_otime)) as measurement_time,
         first((case when cfhf.is_met then cfhf.value            else null end) order by coalesce(cfhf.measurement_time, cfhf.c_otime))::text as value,
@@ -818,7 +781,7 @@ BEGIN
       with cf_and_hpf_cvalues as (
         select * from pat_cvalues CV where CV.name in ( 'crystalloid_fluid', 'initial_lactate' )
         union all
-        select pat_ids.pat_id,
+        select pat_ids.enc_id,
                cd.name,
                meas.fid,
                cd.category,
@@ -831,12 +794,12 @@ BEGIN
         from pat_ids
         cross join criteria_default as cd
         left join severe_sepsis_onsets SSP
-          on pat_ids.pat_id = SSP.pat_id
+          on pat_ids.enc_id = SSP.enc_id
         left join infections c
-          on pat_ids.pat_id = c.pat_id
+          on pat_ids.enc_id = c.enc_id
           and cd.name = c.name
         left join cdm_t meas
-            on pat_ids.pat_id = meas.pat_id
+            on pat_ids.enc_id = meas.enc_id
             and meas.fid = cd.fid
             and cd.dataset_id = meas.dataset_id
             and (meas.tsp is null
@@ -847,7 +810,7 @@ BEGIN
         and cd.name in ( 'crystalloid_fluid', 'initial_lactate' )
         and meas.value <> 'nan'
       )
-      select  PC.pat_id,
+      select  PC.enc_id,
               PC.name,
               PC.tsp as measurement_time,
               PC.value as value,
@@ -872,14 +835,14 @@ BEGIN
                             else (SSP.severe_sepsis_onset - orders_lookback) end))
               as is_met
       from cf_and_hpf_cvalues PC
-      left join severe_sepsis_onsets SSP on PC.pat_id = SSP.pat_id
+      left join severe_sepsis_onsets SSP on PC.enc_id = SSP.enc_id
       where PC.name in ( 'crystalloid_fluid', 'initial_lactate' )
     ) as cfhf
-    group by cfhf.pat_id, cfhf.name
+    group by cfhf.enc_id, cfhf.name
   ),
   hypotension as (
     select
-        ht.pat_id,
+        ht.enc_id,
         ht.name,
         first((case when ht.is_met then ht.measurement_time else null end) order by coalesce(ht.measurement_time, ht.c_otime)) as measurement_time,
         first((case when ht.is_met then ht.value            else null end) order by coalesce(ht.measurement_time, ht.c_otime))::text as value,
@@ -891,13 +854,13 @@ BEGIN
     from
     (
         with pat_fluid_overrides as (
-          select CFL.pat_id, coalesce(bool_or(CFL.override_value#>>'{0,text}' = 'Not Indicated'), false) as override
+          select CFL.enc_id, coalesce(bool_or(CFL.override_value#>>'{0,text}' = 'Not Indicated'), false) as override
           from crystalloid_fluid_and_hypoperfusion CFL
           where CFL.name = 'crystalloid_fluid'
-          group by CFL.pat_id
+          group by CFL.enc_id
         ),
         pats_fluid_after_severe_sepsis as (
-          select  MFL.pat_id,
+          select  MFL.enc_id,
                   MFL.tsp,
                   sum(MFL.value::numeric) as total_fluid,
                   -- Fluids are met if they are overriden or if we have more than
@@ -906,16 +869,16 @@ BEGIN
                       or coalesce(sum(MFL.value::numeric), 0) > least(1200, 30 * max(PW.weight))
                   ) as is_met
           from cdm_t MFL
-          left join pat_aggregates PW on MFL.pat_id = PW.pat_id
-          left join severe_sepsis_onsets SSPN on MFL.pat_id = SSPN.pat_id
-          left join pat_fluid_overrides OV on MFL.pat_id = OV.pat_id
+          left join pat_aggregates PW on MFL.enc_id = PW.enc_id
+          left join severe_sepsis_onsets SSPN on MFL.enc_id = SSPN.enc_id
+          left join pat_fluid_overrides OV on MFL.enc_id = OV.enc_id
           where isnumeric(MFL.value)
           and SSPN.severe_sepsis_is_met
           and MFL.tsp >= (SSPN.severe_sepsis_onset - orders_lookback)
           and (MFL.fid = 'crystalloid_fluid' or coalesce(OV.override, false))
-          group by MFL.pat_id, MFL.tsp
+          group by MFL.enc_id, MFL.tsp
         )
-        select PC.pat_id,
+        select PC.enc_id,
                PC.name,
                PC.tsp as measurement_time,
                PC.value as value,
@@ -937,29 +900,29 @@ BEGIN
                     else false
                 end) as is_met
         from pat_cvalues PC
-        left join severe_sepsis_onsets SSPN on PC.pat_id = SSPN.pat_id
+        left join severe_sepsis_onsets SSPN on PC.enc_id = SSPN.enc_id
 
         left join pats_fluid_after_severe_sepsis PFL
-          on PC.pat_id = PFL.pat_id
+          on PC.enc_id = PFL.enc_id
 
         left join lateral (
-          select meas.pat_id, meas.fid, meas.tsp, meas.value
+          select meas.enc_id, meas.fid, meas.tsp, meas.value
           from cdm_t meas
-          where PC.pat_id = meas.pat_id and PC.fid = meas.fid and PC.tsp < meas.tsp
+          where PC.enc_id = meas.enc_id and PC.fid = meas.fid and PC.tsp < meas.tsp
           and meas.value <> 'nan'
           order by meas.tsp
           limit 1
-        ) NEXT on PC.pat_id = NEXT.pat_id and PC.fid = NEXT.fid
+        ) NEXT on PC.enc_id = NEXT.enc_id and PC.fid = NEXT.fid
 
         left join lateral (
-          select BP.pat_id, max(BP.bp_sys) as value
-          from pat_aggregates BP where PC.pat_id = BP.pat_id
-          group by BP.pat_id
-        ) PBPSYS on PC.pat_id = PBPSYS.pat_id
+          select BP.enc_id, max(BP.bp_sys) as value
+          from pat_aggregates BP where PC.enc_id = BP.enc_id
+          group by BP.enc_id
+        ) PBPSYS on PC.enc_id = PBPSYS.enc_id
 
         where PC.name in ('systolic_bp', 'hypotension_map', 'hypotension_dsbp')
     ) as ht
-    group by ht.pat_id, ht.name
+    group by ht.enc_id, ht.name
   ),
 
   septic_shock as (
@@ -970,7 +933,7 @@ BEGIN
   -- Calculate septic shock in an extended window, for use in
   -- any criteria that has requirements after severe sepsis is met.
   septic_shock_onsets as (
-    select stats.pat_id,
+    select stats.enc_id,
            bool_or(stats.cnt > 0) as septic_shock_is_met,
            (case
               when not(bool_or(stats.cnt > 0)) then null
@@ -980,26 +943,26 @@ BEGIN
     from (
         -- Hypotension and hypoperfusion subqueries individually check
         -- that they occur after severe sepsis onset.
-        (select hypotension.pat_id,
+        (select hypotension.enc_id,
                 sum(case when hypotension.is_met then 1 else 0 end) as cnt,
                 min(hypotension.measurement_time) as onset
          from hypotension
-         group by hypotension.pat_id)
+         group by hypotension.enc_id)
         union
-        (select HPF.pat_id,
+        (select HPF.enc_id,
                 sum(case when HPF.is_met then 1 else 0 end) as cnt,
                 min(HPF.measurement_time) as onset
          from crystalloid_fluid_and_hypoperfusion HPF
          where HPF.name = 'initial_lactate'
-         group by HPF.pat_id)
+         group by HPF.enc_id)
     ) stats
-    left join severe_sepsis_onsets SSP on stats.pat_id = SSP.pat_id
-    group by stats.pat_id
+    left join severe_sepsis_onsets SSP on stats.enc_id = SSP.enc_id
+    group by stats.enc_id
   ),
 
   orders_criteria as (
     select
-        ordc.pat_id,
+        ordc.enc_id,
         ordc.name,
         coalesce(   first((case when ordc.is_met then ordc.measurement_time else null end) order by coalesce(ordc.measurement_time, ordc.c_otime)),
                     last(ordc.measurement_time order by coalesce(ordc.measurement_time, ordc.c_otime))
@@ -1039,7 +1002,7 @@ BEGIN
           'vasopressors_order'
         )
         union all
-        select pat_ids.pat_id,
+        select pat_ids.enc_id,
                cd.name,
                meas.fid,
                cd.category,
@@ -1052,12 +1015,12 @@ BEGIN
         from pat_ids
         cross join criteria_default as cd
         left join severe_sepsis_onsets SSP
-          on pat_ids.pat_id = SSP.pat_id
+          on pat_ids.enc_id = SSP.enc_id
         left join infections c
-          on pat_ids.pat_id = c.pat_id
+          on pat_ids.enc_id = c.enc_id
           and cd.name = c.name
         left join cdm_t meas
-            on pat_ids.pat_id = meas.pat_id
+            on pat_ids.enc_id = meas.enc_id
             and meas.fid = cd.fid
             and cd.dataset_id = meas.dataset_id
             and (meas.tsp is null
@@ -1080,7 +1043,7 @@ BEGIN
         )
         and meas.value <> 'nan'
       )
-      select  CV.pat_id,
+      select  CV.enc_id,
               CV.name,
               CV.tsp as measurement_time,
               (case when CV.category in ('after_severe_sepsis_dose', 'after_septic_shock_dose')
@@ -1104,7 +1067,7 @@ BEGIN
                                                   end))
                               , false)
                       from severe_sepsis_onsets SSP
-                      where SSP.pat_id = coalesce(this_pat_id, SSP.pat_id)
+                      where SSP.enc_id = coalesce(this_enc_id, SSP.enc_id)
                     )
                     and ( order_met(CV.name, coalesce(CV.c_ovalue#>>'{0,text}', CV.value)) )
 
@@ -1121,7 +1084,7 @@ BEGIN
                                                   end))
                               , false)
                       from severe_sepsis_onsets SSP
-                      where SSP.pat_id = coalesce(this_pat_id, SSP.pat_id)
+                      where SSP.enc_id = coalesce(this_enc_id, SSP.enc_id)
                     )
                     and ( dose_order_met(CV.fid, CV.c_ovalue#>>'{0,text}',
                                          (case when isnumeric(CV.value) then CV.value::numeric else null::numeric end),
@@ -1134,7 +1097,7 @@ BEGIN
                                         and greatest(CV.c_otime, CV.tsp) > SSH.septic_shock_onset)
                               , false)
                       from septic_shock_onsets SSH
-                      where SSH.pat_id = coalesce(this_pat_id, SSH.pat_id)
+                      where SSH.enc_id = coalesce(this_enc_id, SSH.enc_id)
                     )
                     and ( order_met(CV.name, coalesce(CV.c_ovalue#>>'{0,text}', CV.value)) )
 
@@ -1144,7 +1107,7 @@ BEGIN
                                         and greatest(CV.c_otime, CV.tsp) > SSH.septic_shock_onset)
                               , false)
                       from septic_shock_onsets SSH
-                      where SSH.pat_id = coalesce(this_pat_id, SSH.pat_id)
+                      where SSH.enc_id = coalesce(this_enc_id, SSH.enc_id)
                     )
                     and ( dose_order_met(CV.fid, CV.c_ovalue#>>'{0,text}',
                                          (case when isnumeric(CV.value) then CV.value::numeric else null::numeric end),
@@ -1156,11 +1119,11 @@ BEGIN
               ) as is_met
       from orders_cvalues CV
     ) as ordc
-    group by ordc.pat_id, ordc.name
+    group by ordc.enc_id, ordc.name
   ),
   repeat_lactate as (
     select
-        rlc.pat_id,
+        rlc.enc_id,
         rlc.name,
         first((case when rlc.is_met then rlc.measurement_time else null end) order by coalesce(rlc.measurement_time, rlc.c_otime)) as measurement_time,
         first((case when rlc.is_met then rlc.value            else null end) order by coalesce(rlc.measurement_time, rlc.c_otime))::text as value,
@@ -1171,7 +1134,7 @@ BEGIN
         now() as update_date
     from
     (
-        select  pat_cvalues.pat_id,
+        select  pat_cvalues.enc_id,
                 pat_cvalues.name,
                 pat_cvalues.tsp as measurement_time,
                 order_status(pat_cvalues.fid, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}') as value,
@@ -1191,26 +1154,26 @@ BEGIN
                 )) is_met
         from pat_cvalues
         left join (
-            select oc.pat_id,
+            select oc.enc_id,
                    max(case when oc.is_met then oc.measurement_time else null end) as tsp,
                    coalesce(bool_or(oc.is_met), false) as is_met,
                    coalesce(min(oc.value) = 'Completed', false) as is_completed
             from orders_criteria oc
             where oc.name = 'initial_lactate_order'
-            group by oc.pat_id
-        ) initial_lactate_order on pat_cvalues.pat_id = initial_lactate_order.pat_id
+            group by oc.enc_id
+        ) initial_lactate_order on pat_cvalues.enc_id = initial_lactate_order.enc_id
         left join (
-            select p3.pat_id,
+            select p3.enc_id,
                    max(case when p3.value::numeric > 2.0 then p3.tsp else null end) tsp,
                    coalesce(bool_or(p3.value::numeric > 2.0), false) is_met
             from pat_cvalues p3
             where p3.name = 'initial_lactate'
-            group by p3.pat_id
-        ) lactate_results on pat_cvalues.pat_id = lactate_results.pat_id
+            group by p3.enc_id
+        ) lactate_results on pat_cvalues.enc_id = lactate_results.enc_id
         where pat_cvalues.name = 'repeat_lactate_order'
     )
     as rlc
-    group by rlc.pat_id, rlc.name
+    group by rlc.enc_id, rlc.name
   )
   select new_criteria.*,
          SSP.severe_sepsis_onset,
@@ -1222,8 +1185,8 @@ BEGIN
       union all select * from orders_criteria
       union all select * from repeat_lactate
   ) new_criteria
-  left join severe_sepsis_onsets SSP on new_criteria.pat_id = SSP.pat_id
-  left join septic_shock_onsets SSH on new_criteria.pat_id = SSH.pat_id;
+  left join severe_sepsis_onsets SSP on new_criteria.enc_id = SSP.enc_id
+  left join septic_shock_onsets SSH on new_criteria.enc_id = SSH.enc_id;
 
   return;
 END; $function$;
@@ -1234,7 +1197,7 @@ END; $function$;
 -- Here we explicitly pull out the collected time for blood cultures,
 -- and the result time for lactates
 CREATE OR REPLACE FUNCTION get_cms_labels_for_window_with_complex_orders(
-                this_pat_id                      text,
+                this_enc_id                      int,
                 ts_start                         timestamptz,
                 ts_end                           timestamptz,
                 _dataset_id                      INTEGER DEFAULT NULL,
@@ -1242,7 +1205,7 @@ CREATE OR REPLACE FUNCTION get_cms_labels_for_window_with_complex_orders(
                 use_clarity_notes                boolean default false,
                 save_criteria_windows            boolean default false
   )
-  RETURNS table(pat_id                           varchar(50),
+  RETURNS table(enc_id                           int,
                 name                             varchar(50),
                 measurement_time                 timestamptz,
                 value                            text,
@@ -1268,24 +1231,21 @@ DECLARE
 BEGIN
 
   select coalesce(_dataset_id, max(dataset_id)) into _dataset_id from dw_version;
-  -- raise notice 'Running get_cms_labels_for_window_with_complex_orders on pat %, dataset_id % between %, %',this_pat_id, _dataset_id, ts_start , ts_end;
+  -- raise notice 'Running get_cms_labels_for_window_with_complex_orders on pat %, dataset_id % between %, %',this_enc_id, _dataset_id, ts_start , ts_end;
 
   return query
-  with pat_visit_ids as (
-    select distinct P.pat_id, P.visit_id from pat_enc P
-    where P.pat_id = coalesce(this_pat_id, P.pat_id) and P.dataset_id = _dataset_id
-  ),
-  pat_ids as (
-    select distinct P.pat_id from pat_visit_ids P
+  with pat_ids as (
+    select distinct P.enc_id from pat_enc P
+    where P.enc_id = coalesce(this_enc_id, P.enc_id) and P.dataset_id = _dataset_id
   ),
   user_overrides as (
     -- TODO: dispatch to override generator
     select * from (
-      values (null::integer, null::varchar, null::varchar, null::varchar, null::varchar, null::timestamptz, null::text, null::timestamptz, null::text, null::json)
-    ) as criteria (dataset_id, pat_id, name, fid, category, tsp, value, override_time, override_user, override_value)
+      values (null::integer, null::int, null::varchar, null::varchar, null::varchar, null::timestamptz, null::text, null::timestamptz, null::text, null::json)
+    ) as criteria (dataset_id, enc_id, name, fid, category, tsp, value, override_time, override_user, override_value)
   ),
   pat_cvalues as (
-    select pat_ids.pat_id,
+    select pat_ids.enc_id,
            cd.name,
            meas.fid,
            cd.category,
@@ -1298,11 +1258,11 @@ BEGIN
     from pat_ids
     cross join criteria_default as cd
     left join user_overrides c
-      on pat_ids.pat_id = c.pat_id
+      on pat_ids.enc_id = c.enc_id
       and cd.name = c.name
       and cd.dataset_id = c.dataset_id
     left join cdm_t meas
-        on pat_ids.pat_id = meas.pat_id
+        on pat_ids.enc_id = meas.enc_id
         and meas.fid = cd.fid
         and cd.dataset_id = meas.dataset_id
         and (meas.tsp is null or meas.tsp between ts_start - window_size and ts_end)
@@ -1311,12 +1271,12 @@ BEGIN
     and meas.value <> 'nan'
   ),
   pat_aggregates as (
-    select aggs.pat_id,
+    select aggs.enc_id,
            avg(aggs.bp_sys) as bp_sys,
            first(aggs.weight order by aggs.measurement_time) as weight,
            sum(aggs.urine_output) as urine_output
     from (
-        select P.pat_id,
+        select P.enc_id,
                meas.tsp as measurement_time,
                (case when meas.fid in ('nbp_sys', 'abp_sys') then meas.value::numeric else null end) as bp_sys,
                (case when meas.fid = 'weight' then meas.value::numeric else null end) as weight,
@@ -1325,15 +1285,15 @@ BEGIN
                      then meas.value::numeric else null end
                 ) as urine_output
         from pat_ids P
-        inner join cdm_t meas on P.pat_id = meas.pat_id
+        inner join cdm_t meas on P.enc_id = meas.enc_id
         where meas.fid in ('nbp_sys', 'abp_sys', 'urine_output', 'weight')
         and isnumeric(meas.value)
         and meas.dataset_id = _dataset_id
     ) as aggs
-    group by aggs.pat_id
+    group by aggs.enc_id
   ),
   all_sirs_org as (
-    select  PC.pat_id,
+    select  PC.enc_id,
             PC.name,
             PC.tsp as measurement_time,
             (case
@@ -1355,14 +1315,14 @@ BEGIN
               (case
                   when PC.category = 'decrease_in_sbp' then
                     decrease_in_sbp_met(
-                      (select max(PBP.bp_sys) from pat_aggregates PBP where PBP.pat_id = PC.pat_id),
+                      (select max(PBP.bp_sys) from pat_aggregates PBP where PBP.enc_id = PC.enc_id),
                       PC.value, PC.c_ovalue, PC.d_ovalue
                     )
 
                   when PC.category = 'urine_output' then
                     urine_output_met(
-                        (select max(PUO.urine_output) from pat_aggregates PUO where PUO.pat_id = PC.pat_id),
-                        (select max(PW.weight) from pat_aggregates PW where PW.pat_id = PC.pat_id),
+                        (select max(PUO.urine_output) from pat_aggregates PUO where PUO.enc_id = PC.enc_id),
+                        (select max(PW.weight) from pat_aggregates PW where PW.enc_id = PC.enc_id),
                         _dataset_id
                     )
 
@@ -1390,7 +1350,7 @@ BEGIN
       )
       and S.is_met
     )
-    select SO.pat_id,
+    select SO.enc_id,
            SO.sirs1_name,
            SO.sirs2_name,
            SO.odf_name,
@@ -1398,7 +1358,7 @@ BEGIN
            SO.sirs_onset,
            SO.org_df_onset
     from (
-      select S1.pat_id,
+      select S1.enc_id,
              S1.name as sirs1_name,
              S2.name as sirs2_name,
              D.name as odf_name,
@@ -1407,10 +1367,10 @@ BEGIN
              coalesce(D.measurement_time, D.override_time) as org_df_onset
       from sirs S1
       inner join sirs S2
-        on S1.pat_id = S2.pat_id
+        on S1.enc_id = S2.enc_id
         and S1.name <> S2.name
         and coalesce(S1.measurement_time, S1.override_time) <= coalesce(S2.measurement_time, S2.override_time)
-      inner join org_df D on S1.pat_id = D.pat_id
+      inner join org_df D on S1.enc_id = D.enc_id
     ) SO
     where not (SO.sirs_initial is null or SO.sirs_onset is null or SO.org_df_onset is null)
     and greatest(SO.sirs_onset, SO.org_df_onset) - least(SO.sirs_initial, SO.org_df_onset) < window_size
@@ -1421,7 +1381,7 @@ BEGIN
   --
   app_infections as (
       select
-          ainf.pat_id,
+          ainf.enc_id,
           ainf.name,
           first((ainf.measurement_time) order by coalesce(ainf.measurement_time, ainf.c_otime)) as measurement_time,
           first((ainf.value)            order by coalesce(ainf.measurement_time, ainf.c_otime))::text as value,
@@ -1431,7 +1391,7 @@ BEGIN
           coalesce(bool_or(ainf.is_met), false) as is_met,
           now() as update_date
       from (
-          select  PC.pat_id,
+          select  PC.enc_id,
                   PC.name,
                   PC.tsp as measurement_time,
                   PC.value as value,
@@ -1443,18 +1403,18 @@ BEGIN
           where PC.name = 'suspicion_of_infection'
           and use_app_infections
       ) as ainf
-      group by ainf.pat_id, ainf.name
+      group by ainf.enc_id, ainf.name
   ),
   extracted_infections as (
     -- Use either clarity or cdm notes for now.
     -- We implement this as a union over two queries, each gated
     -- by a simple where clause based on an function argument.
     with notes_candidates as (
-      select distinct T.pat_id from all_sirs_org_triples T
+      select distinct T.enc_id from all_sirs_org_triples T
     ),
     null_infections as (
       -- get_window_labels_from_criteria explicitly requires a null value to yield states 10 and 12
-      select P.pat_id,
+      select P.enc_id,
              'suspicion_of_infection'::text    as name,
              null::timestamptz                 as measurement_time,
              null::text                        as value,
@@ -1466,7 +1426,7 @@ BEGIN
       from pat_ids P
     ),
     clarity_matches as (
-        select P.pat_id                                                 as pat_id,
+        select P.enc_id                                                 as enc_id,
                'suspicion_of_infection'::text                           as name,
                min(M.start_ts)                                          as measurement_time,
                min(M.ngram)                                             as value,
@@ -1476,15 +1436,15 @@ BEGIN
                true                                                     as is_met,
                now()                                                    as update_date
         from notes_candidates NC
-        inner join pat_visit_ids P on NC.pat_id = P.pat_id
+        inner join pat_enc P on NC.enc_id = P.enc_id
         inner join lateral match_clarity_infections(P.visit_id, 3, 3) M on P.visit_id = M.csn_id
         where use_clarity_notes
         and not use_app_infections
-        group by P.pat_id
+        group by P.enc_id
     ),
     cdm_matches as (
         -- TODO: we have picked an arbitrary time interval for notes. Refine.
-        select NC.pat_id                                                as pat_id,
+        select NC.enc_id                                                as enc_id,
                'suspicion_of_infection'::text                           as name,
                min(NTG.tsp)                                             as measurement_time,
                min(NTG.ngram)                                           as value,
@@ -1495,20 +1455,20 @@ BEGIN
                now()                                                    as update_date
         from notes_candidates NC
         inner join lateral (
-          select M.pat_id, M.dataset_id, N.*
+          select M.enc_id, M.dataset_id, N.*
           from cdm_processed_notes M, lateral unnest(M.tsps, M.ngrams) N(tsp, ngram)
-          where NC.pat_id = M.pat_id
+          where NC.enc_id = M.enc_id
           and M.dataset_id = _dataset_id
           and N.tsp between ts_start - interval '1 days' and ts_end
           and not use_app_infections
         ) NTG
-          on NC.pat_id = NTG.pat_id
+          on NC.enc_id = NTG.enc_id
           and NTG.dataset_id = _dataset_id
           and NTG.tsp between ts_start - interval '1 days' and ts_end
           and not use_app_infections
-        group by NC.pat_id
+        group by NC.enc_id
     )
-    select NI.pat_id,
+    select NI.enc_id,
            coalesce(MTCH.name,             NI.name             ) as name,
            coalesce(MTCH.measurement_time, NI.measurement_time ) as measurement_time,
            coalesce(MTCH.value,            NI.value            ) as value,
@@ -1522,7 +1482,7 @@ BEGIN
       select * from clarity_matches
       union all
       select * from cdm_matches
-    ) MTCH on NI.pat_id = MTCH.pat_id
+    ) MTCH on NI.enc_id = MTCH.enc_id
     where not use_app_infections
   ),
   infections as (
@@ -1532,7 +1492,7 @@ BEGIN
 
 
   severe_sepsis_candidates as (
-    select SO.pat_id,
+    select SO.enc_id,
            bool_or(coalesce(I.infection_cnt, 0) > 0) as suspicion_of_infection,
            coalesce(
               first(I.infection_onset order by greatest(SO.sirs_initial, SO.sirs_onset, SO.org_df_onset))
@@ -1578,23 +1538,23 @@ BEGIN
 
     from all_sirs_org_triples SO
     left join (
-      select I.pat_id,
+      select I.enc_id,
              (case when I.name = 'suspicion_of_infection' and I.is_met then 1 else 0 end) as infection_cnt,
              (case when I.name = 'suspicion_of_infection' then I.override_time else null end) as infection_onset
       from infections I
     ) I
-      on SO.pat_id = I.pat_id
+      on SO.enc_id = I.enc_id
       and (greatest(
                 greatest(SO.sirs_onset, SO.org_df_onset) - I.infection_onset,
                 I.infection_onset - least(SO.sirs_onset, SO.org_df_onset)
               ) < interval '6 hours')
 
-    group by SO.pat_id
+    group by SO.enc_id
   ),
 
   severe_sepsis as (
     select
-        CR.pat_id,
+        CR.enc_id,
         CR.name,
         (first(CR.measurement_time order by coalesce(CR.measurement_time, CR.override_time)) filter (where save_criteria_windows or CR.is_met)) as measurement_time,
         (first(CR.value            order by coalesce(CR.measurement_time, CR.override_time)) filter (where save_criteria_windows or CR.is_met))::text as value,
@@ -1607,11 +1567,11 @@ BEGIN
     from (
       select * from all_sirs_org
       union all
-      select I.pat_id, I.name, I.measurement_time, I.value, I.override_time, I.override_user, I.override_value, I.is_met
+      select I.enc_id, I.name, I.measurement_time, I.value, I.override_time, I.override_user, I.override_value, I.is_met
       from infections I
     ) CR
     left join severe_sepsis_candidates CD
-      on CR.pat_id = CD.pat_id
+      on CR.enc_id = CD.enc_id
       and CR.name in ( CD.sirs1_name, CD.sirs2_name, CD.odf_name, 'suspicion_of_infection' )
 
     where ( coalesce(CD.sirs1_name, CD.sirs2_name, CD.odf_name) is null )
@@ -1620,11 +1580,11 @@ BEGIN
          or ( CD.odf_name   is not null and CD.org_df_onset = coalesce(CR.measurement_time, CR.override_time) )
          or ( CR.name = 'suspicion_of_infection' and (CD.inf_onset = 'infinity'::timestamptz or CR.override_time = CD.inf_onset) )
     )
-    group by CR.pat_id, CR.name
+    group by CR.enc_id, CR.name
   ),
 
   severe_sepsis_onsets as (
-    select sspm.pat_id,
+    select sspm.enc_id,
            sspm.severe_sepsis_is_met,
            (case when sspm.severe_sepsis_onset <> 'infinity'::timestamptz
                  then sspm.severe_sepsis_onset
@@ -1636,7 +1596,7 @@ BEGIN
            ) as severe_sepsis_wo_infection_onset,
            sspm.severe_sepsis_lead_time
     from (
-      select stats.pat_id,
+      select stats.enc_id,
              coalesce(bool_or(stats.suspicion_of_infection), false) as severe_sepsis_is_met,
 
              max(greatest(coalesce(stats.inf_onset, 'infinity'::timestamptz),
@@ -1652,13 +1612,13 @@ BEGIN
                 as severe_sepsis_lead_time
 
       from severe_sepsis_candidates stats
-      group by stats.pat_id
+      group by stats.enc_id
     ) sspm
   ),
 
   crystalloid_fluid_and_hypoperfusion as (
     select
-        cfhf.pat_id,
+        cfhf.enc_id,
         cfhf.name,
         first((case when cfhf.is_met then cfhf.measurement_time else null end) order by coalesce(cfhf.measurement_time, cfhf.c_otime)) as measurement_time,
         first((case when cfhf.is_met then cfhf.value            else null end) order by coalesce(cfhf.measurement_time, cfhf.c_otime))::text as value,
@@ -1672,7 +1632,7 @@ BEGIN
       with cf_and_hpf_cvalues as (
         select * from pat_cvalues CV where CV.name in ( 'crystalloid_fluid', 'initial_lactate' )
         union all
-        select pat_ids.pat_id,
+        select pat_ids.enc_id,
                cd.name,
                meas.fid,
                cd.category,
@@ -1685,12 +1645,12 @@ BEGIN
         from pat_ids
         cross join criteria_default as cd
         left join severe_sepsis_onsets SSP
-          on pat_ids.pat_id = SSP.pat_id
+          on pat_ids.enc_id = SSP.enc_id
         left join infections c
-          on pat_ids.pat_id = c.pat_id
+          on pat_ids.enc_id = c.enc_id
           and cd.name = c.name
         left join cdm_t meas
-            on pat_ids.pat_id = meas.pat_id
+            on pat_ids.enc_id = meas.enc_id
             and meas.fid = cd.fid
             and cd.dataset_id = meas.dataset_id
             and (meas.tsp is null
@@ -1701,7 +1661,7 @@ BEGIN
         and cd.name in ( 'crystalloid_fluid', 'initial_lactate' )
         and meas.value <> 'nan'
       )
-      select  PC.pat_id,
+      select  PC.enc_id,
               PC.name,
               PC.tsp as measurement_time,
               PC.value as value,
@@ -1726,14 +1686,14 @@ BEGIN
                             else (SSP.severe_sepsis_onset - orders_lookback) end))
               as is_met
       from cf_and_hpf_cvalues PC
-      left join severe_sepsis_onsets SSP on PC.pat_id = SSP.pat_id
+      left join severe_sepsis_onsets SSP on PC.enc_id = SSP.enc_id
       where PC.name in ( 'crystalloid_fluid', 'initial_lactate' )
     ) as cfhf
-    group by cfhf.pat_id, cfhf.name
+    group by cfhf.enc_id, cfhf.name
   ),
   hypotension as (
     select
-        ht.pat_id,
+        ht.enc_id,
         ht.name,
         first((case when ht.is_met then ht.measurement_time else null end) order by coalesce(ht.measurement_time, ht.c_otime)) as measurement_time,
         first((case when ht.is_met then ht.value            else null end) order by coalesce(ht.measurement_time, ht.c_otime))::text as value,
@@ -1745,13 +1705,13 @@ BEGIN
     from
     (
         with pat_fluid_overrides as (
-          select CFL.pat_id, coalesce(bool_or(CFL.override_value#>>'{0,text}' = 'Not Indicated'), false) as override
+          select CFL.enc_id, coalesce(bool_or(CFL.override_value#>>'{0,text}' = 'Not Indicated'), false) as override
           from crystalloid_fluid_and_hypoperfusion CFL
           where CFL.name = 'crystalloid_fluid'
-          group by CFL.pat_id
+          group by CFL.enc_id
         ),
         pats_fluid_after_severe_sepsis as (
-          select  MFL.pat_id,
+          select  MFL.enc_id,
                   MFL.tsp,
                   sum(MFL.value::numeric) as total_fluid,
                   -- Fluids are met if they are overriden or if we have more than
@@ -1760,16 +1720,16 @@ BEGIN
                       or coalesce(sum(MFL.value::numeric), 0) > least(1200, 30 * max(PW.weight))
                   ) as is_met
           from cdm_t MFL
-          left join pat_aggregates PW on MFL.pat_id = PW.pat_id
-          left join severe_sepsis_onsets SSPN on MFL.pat_id = SSPN.pat_id
-          left join pat_fluid_overrides OV on MFL.pat_id = OV.pat_id
+          left join pat_aggregates PW on MFL.enc_id = PW.enc_id
+          left join severe_sepsis_onsets SSPN on MFL.enc_id = SSPN.enc_id
+          left join pat_fluid_overrides OV on MFL.enc_id = OV.enc_id
           where isnumeric(MFL.value)
           and SSPN.severe_sepsis_is_met
           and MFL.tsp >= (SSPN.severe_sepsis_onset - orders_lookback)
           and (MFL.fid = 'crystalloid_fluid' or coalesce(OV.override, false))
-          group by MFL.pat_id, MFL.tsp
+          group by MFL.enc_id, MFL.tsp
         )
-        select PC.pat_id,
+        select PC.enc_id,
                PC.name,
                PC.tsp as measurement_time,
                PC.value as value,
@@ -1791,29 +1751,29 @@ BEGIN
                     else false
                 end) as is_met
         from pat_cvalues PC
-        left join severe_sepsis_onsets SSPN on PC.pat_id = SSPN.pat_id
+        left join severe_sepsis_onsets SSPN on PC.enc_id = SSPN.enc_id
 
         left join pats_fluid_after_severe_sepsis PFL
-          on PC.pat_id = PFL.pat_id
+          on PC.enc_id = PFL.enc_id
 
         left join lateral (
-          select meas.pat_id, meas.fid, meas.tsp, meas.value
+          select meas.enc_id, meas.fid, meas.tsp, meas.value
           from cdm_t meas
-          where PC.pat_id = meas.pat_id and PC.fid = meas.fid and PC.tsp < meas.tsp
+          where PC.enc_id = meas.enc_id and PC.fid = meas.fid and PC.tsp < meas.tsp
           and meas.value <> 'nan'
           order by meas.tsp
           limit 1
-        ) NEXT on PC.pat_id = NEXT.pat_id and PC.fid = NEXT.fid
+        ) NEXT on PC.enc_id = NEXT.enc_id and PC.fid = NEXT.fid
 
         left join lateral (
-          select BP.pat_id, max(BP.bp_sys) as value
-          from pat_aggregates BP where PC.pat_id = BP.pat_id
-          group by BP.pat_id
-        ) PBPSYS on PC.pat_id = PBPSYS.pat_id
+          select BP.enc_id, max(BP.bp_sys) as value
+          from pat_aggregates BP where PC.enc_id = BP.enc_id
+          group by BP.enc_id
+        ) PBPSYS on PC.enc_id = PBPSYS.enc_id
 
         where PC.name in ('systolic_bp', 'hypotension_map', 'hypotension_dsbp')
     ) as ht
-    group by ht.pat_id, ht.name
+    group by ht.enc_id, ht.name
   ),
 
   septic_shock as (
@@ -1824,7 +1784,7 @@ BEGIN
   -- Calculate septic shock in an extended window, for use in
   -- any criteria that has requirements after severe sepsis is met.
   septic_shock_onsets as (
-    select stats.pat_id,
+    select stats.enc_id,
            bool_or(stats.cnt > 0) as septic_shock_is_met,
            (case
               when not(bool_or(stats.cnt > 0)) then null
@@ -1834,26 +1794,26 @@ BEGIN
     from (
         -- Hypotension and hypoperfusion subqueries individually check
         -- that they occur after severe sepsis onset.
-        (select hypotension.pat_id,
+        (select hypotension.enc_id,
                 sum(case when hypotension.is_met then 1 else 0 end) as cnt,
                 min(hypotension.measurement_time) as onset
          from hypotension
-         group by hypotension.pat_id)
+         group by hypotension.enc_id)
         union
-        (select HPF.pat_id,
+        (select HPF.enc_id,
                 sum(case when HPF.is_met then 1 else 0 end) as cnt,
                 min(HPF.measurement_time) as onset
          from crystalloid_fluid_and_hypoperfusion HPF
          where HPF.name = 'initial_lactate'
-         group by HPF.pat_id)
+         group by HPF.enc_id)
     ) stats
-    left join severe_sepsis_onsets SSP on stats.pat_id = SSP.pat_id
-    group by stats.pat_id
+    left join severe_sepsis_onsets SSP on stats.enc_id = SSP.enc_id
+    group by stats.enc_id
   ),
 
   orders_criteria as (
     select
-        ordc.pat_id,
+        ordc.enc_id,
         ordc.name,
         coalesce(   first((case when ordc.is_met then ordc.measurement_time else null end) order by coalesce(ordc.measurement_time, ordc.c_otime)),
                     last(ordc.measurement_time order by coalesce(ordc.measurement_time, ordc.c_otime))
@@ -1884,7 +1844,7 @@ BEGIN
       -- dependency between the two calculations.
       --
       with orders_cvalues as (
-        select CV.pat_id,
+        select CV.enc_id,
                CV.name,
                CV.fid,
                CV.category,
@@ -1914,7 +1874,7 @@ BEGIN
                   else true
               end)
         union all
-        select pat_ids.pat_id,
+        select pat_ids.enc_id,
                cd.name,
                meas.fid,
                cd.category,
@@ -1934,12 +1894,12 @@ BEGIN
         from pat_ids
         cross join criteria_default as cd
         left join severe_sepsis_onsets SSP
-          on pat_ids.pat_id = SSP.pat_id
+          on pat_ids.enc_id = SSP.enc_id
         left join infections c
-          on pat_ids.pat_id = c.pat_id
+          on pat_ids.enc_id = c.enc_id
           and cd.name = c.name
         left join cdm_t meas
-            on pat_ids.pat_id = meas.pat_id
+            on pat_ids.enc_id = meas.enc_id
             and meas.fid = cd.fid
             and cd.dataset_id = meas.dataset_id
             and (meas.tsp is null
@@ -1962,7 +1922,7 @@ BEGIN
           'vasopressors_order'
         )
       )
-      select  CV.pat_id,
+      select  CV.enc_id,
               CV.name,
               CV.tsp as measurement_time,
               (case when CV.category in ('after_severe_sepsis_dose', 'after_septic_shock_dose')
@@ -1986,7 +1946,7 @@ BEGIN
                                                   end))
                               , false)
                       from severe_sepsis_onsets SSP
-                      where SSP.pat_id = coalesce(this_pat_id, SSP.pat_id)
+                      where SSP.enc_id = coalesce(this_enc_id, SSP.enc_id)
                     )
                     and ( order_met(CV.name, coalesce(CV.c_ovalue#>>'{0,text}', CV.value)) )
 
@@ -2003,7 +1963,7 @@ BEGIN
                                                   end))
                               , false)
                       from severe_sepsis_onsets SSP
-                      where SSP.pat_id = coalesce(this_pat_id, SSP.pat_id)
+                      where SSP.enc_id = coalesce(this_enc_id, SSP.enc_id)
                     )
                     and ( dose_order_met(CV.fid, CV.c_ovalue#>>'{0,text}',
                                          (case when isnumeric(CV.value) then CV.value::numeric else null::numeric end),
@@ -2016,7 +1976,7 @@ BEGIN
                                         and greatest(CV.c_otime, CV.tsp) > SSH.septic_shock_onset)
                               , false)
                       from septic_shock_onsets SSH
-                      where SSH.pat_id = coalesce(this_pat_id, SSH.pat_id)
+                      where SSH.enc_id = coalesce(this_enc_id, SSH.enc_id)
                     )
                     and ( order_met(CV.name, coalesce(CV.c_ovalue#>>'{0,text}', CV.value)) )
 
@@ -2026,7 +1986,7 @@ BEGIN
                                         and greatest(CV.c_otime, CV.tsp) > SSH.septic_shock_onset)
                               , false)
                       from septic_shock_onsets SSH
-                      where SSH.pat_id = coalesce(this_pat_id, SSH.pat_id)
+                      where SSH.enc_id = coalesce(this_enc_id, SSH.enc_id)
                     )
                     and ( dose_order_met(CV.fid, CV.c_ovalue#>>'{0,text}',
                                          (case when isnumeric(CV.value) then CV.value::numeric else null::numeric end),
@@ -2038,11 +1998,11 @@ BEGIN
               ) as is_met
       from orders_cvalues CV
     ) as ordc
-    group by ordc.pat_id, ordc.name
+    group by ordc.enc_id, ordc.name
   ),
   repeat_lactate as (
     select
-        rlc.pat_id,
+        rlc.enc_id,
         rlc.name,
         first((case when rlc.is_met then rlc.measurement_time else null end) order by coalesce(rlc.measurement_time, rlc.c_otime)) as measurement_time,
         first((case when rlc.is_met then rlc.value            else null end) order by coalesce(rlc.measurement_time, rlc.c_otime))::text as value,
@@ -2053,7 +2013,7 @@ BEGIN
         now() as update_date
     from
     (
-        select  pat_cvalues.pat_id,
+        select  pat_cvalues.enc_id,
                 pat_cvalues.name,
                 (pat_cvalues.value::json#>>'{result_tsp}')::timestamptz as measurement_time,
                 order_status(pat_cvalues.fid, pat_cvalues.value::json#>>'{status}', pat_cvalues.c_ovalue#>>'{0,text}') as value,
@@ -2074,27 +2034,27 @@ BEGIN
                 )) is_met
         from pat_cvalues
         left join (
-            select oc.pat_id,
+            select oc.enc_id,
                    max(case when oc.is_met then oc.measurement_time else null end) as tsp,
                    coalesce(bool_or(oc.is_met), false) as is_met,
                    coalesce(min(oc.value) = 'Completed', false) as is_completed
             from orders_criteria oc
             where oc.name = 'initial_lactate_order'
-            group by oc.pat_id
-        ) initial_lactate_order on pat_cvalues.pat_id = initial_lactate_order.pat_id
+            group by oc.enc_id
+        ) initial_lactate_order on pat_cvalues.enc_id = initial_lactate_order.enc_id
         left join (
-            select p3.pat_id,
+            select p3.enc_id,
                    max(case when p3.value::numeric > 2.0 then p3.tsp else null end) tsp,
                    coalesce(bool_or(p3.value::numeric > 2.0), false) is_met
             from pat_cvalues p3
             where p3.name = 'initial_lactate'
-            group by p3.pat_id
-        ) lactate_results on pat_cvalues.pat_id = lactate_results.pat_id
+            group by p3.enc_id
+        ) lactate_results on pat_cvalues.enc_id = lactate_results.enc_id
         where pat_cvalues.name = 'repeat_lactate_order'
         and   pat_cvalues.value::json#>>'{result_tsp}' <> 'NaT'
     )
     as rlc
-    group by rlc.pat_id, rlc.name
+    group by rlc.enc_id, rlc.name
   )
   select new_criteria.*,
          SSP.severe_sepsis_onset,
@@ -2106,8 +2066,8 @@ BEGIN
       union all select * from orders_criteria
       union all select * from repeat_lactate
   ) new_criteria
-  left join severe_sepsis_onsets SSP on new_criteria.pat_id = SSP.pat_id
-  left join septic_shock_onsets SSH on new_criteria.pat_id = SSH.pat_id;
+  left join severe_sepsis_onsets SSP on new_criteria.enc_id = SSP.enc_id
+  left join septic_shock_onsets SSH on new_criteria.enc_id = SSH.enc_id;
 
   return;
 END; $function$;
@@ -2117,11 +2077,11 @@ END; $function$;
 ----------------------------------------------------------
 -- Per-window label calculation
 
-CREATE OR REPLACE FUNCTION get_window_labels_from_criteria(table_name text, _pat_id text)
-  RETURNS table( ts timestamptz, pat_id varchar(50), state int)
+CREATE OR REPLACE FUNCTION get_window_labels_from_criteria(table_name text, _enc_id int)
+  RETURNS table( ts timestamptz, enc_id int, state int)
 AS $func$ BEGIN
   RETURN QUERY EXECUTE format(
-  'select stats.ts, stats.pat_id,
+  'select stats.ts, stats.enc_id,
       (
         case
         when ssp_present and ssh_present then (
@@ -2169,7 +2129,7 @@ AS $func$ BEGIN
       ) as state
   from
   (
-  select %I.ts, %I.pat_id,
+  select %I.ts, %I.enc_id,
       bool_or(severe_sepsis_wo_infection_onset is not null) as sspwoi_present,
       bool_or(severe_sepsis_onset is not null)              as ssp_present,
       bool_or(septic_shock_onset is not null)               as ssh_present,
@@ -2194,10 +2154,10 @@ AS $func$ BEGIN
       count(*) filter (where name = ''vasopressors_order'' and is_met )                                                               as sep_sho_6hr_count
 
   from %I
-  where %I.pat_id = coalesce($1, %I.pat_id)
-  group by %I.ts, %I.pat_id
+  where %I.enc_id = coalesce($1, %I.enc_id)
+  group by %I.ts, %I.enc_id
   ) stats', table_name, table_name, table_name, table_name, table_name, table_name, table_name)
-  USING _pat_id;
+  USING _enc_id;
 END $func$ LANGUAGE plpgsql;
 
 
@@ -2206,7 +2166,7 @@ END $func$ LANGUAGE plpgsql;
 
 -- Returns every measurement as a window candidate.
 CREATE OR REPLACE FUNCTION get_all_meas_timestamps(
-        _pat_id                 text,
+        _enc_id                 text,
         _dataset_id             integer,
         _label_id               integer default 0,
         ts_start                timestamptz DEFAULT '-infinity'::timestamptz,
@@ -2217,19 +2177,19 @@ CREATE OR REPLACE FUNCTION get_all_meas_timestamps(
   LANGUAGE plpgsql
 AS $function$
 DECLARE
-    pat_id_str text;
+    enc_id_str text;
 BEGIN
-  pat_id_str = case when _pat_id is null then 'NULL'
-                    else format('''%s''', _pat_id) end;
+  enc_id_str = case when _enc_id is null then 'NULL'
+                    else format('%s', _enc_id) end;
 
   return query execute format('
-    select pat_id, tsp
+    select enc_id, tsp
       from cdm_t meas
     where
-      meas.pat_id = coalesce(%s, meas.pat_id) and
+      meas.enc_id = coalesce(%s, meas.enc_id) and
       meas.dataset_id = %s and
       meas.tsp between ''%s''::timestamptz and ''%s''::timestamptz'
-    , pat_id_str, _dataset_id, ts_start, ts_end
+    , enc_id_str, _dataset_id, ts_start, ts_end
     );
 END; $function$;
 
@@ -2237,48 +2197,48 @@ END; $function$;
 -- Returns binned timestamps for window boundaries
 -- based on timestamps at which measurements are available.
 CREATE OR REPLACE FUNCTION get_meas_periodic_timestamps(
-        _pat_id                 text,
+        _enc_id                 integer,
         _dataset_id             integer,
         _label_id               integer default 0,
         ts_start                timestamptz DEFAULT '-infinity'::timestamptz,
         ts_end                  timestamptz DEFAULT 'infinity'::timestamptz,
         window_limit            text default 'all'
   )
-  returns table(pat_id varchar(50), tsp timestamptz)
+  returns table(enc_id int, tsp timestamptz)
   LANGUAGE plpgsql
 AS $function$
 DECLARE
-    pat_id_str text;
+    enc_id_str text;
 BEGIN
-  pat_id_str = case when _pat_id is null then 'NULL'
-                    else format('''%s''', _pat_id) end;
+  enc_id_str = case when _enc_id is null then 'NULL'
+                    else format('%s', _enc_id) end;
 
   return query execute format('
     with pat_start as(
-      select pat_id, min(tsp) as min_time
+      select enc_id, min(tsp) as min_time
       from cdm_t meas
       where dataset_id = %s
-      group by pat_id
+      group by enc_id
     ),
     meas_bins as (
-      select distinct meas.pat_id, meas.tsp ,
+      select distinct meas.enc_id, meas.tsp ,
         floor(extract(EPOCH FROM meas.tsp - pat_start.min_time) /
         extract(EPOCH from interval ''1 hour''))+1 as bin
       from
         cdm_t meas
         inner join pat_start
-        on pat_start.pat_id = meas.pat_id
+        on pat_start.enc_id = meas.enc_id
       where
-        meas.pat_id = coalesce(%s, meas.pat_id) and
+        meas.enc_id = coalesce(%s, meas.enc_id) and
         meas.dataset_id = %s and
         meas.tsp between ''%s''::timestamptz and ''%s''::timestamptz
     )
-    select pat_id, max(tsp) as tsp
+    select enc_id, max(tsp) as tsp
     from meas_bins
-    group by pat_id, bin
-    order by pat_id, tsp
+    group by enc_id, bin
+    order by enc_id, tsp
     limit %s'
-    , _dataset_id,  pat_id_str, _dataset_id, ts_start, ts_end, window_limit
+    , _dataset_id,  enc_id_str, _dataset_id, ts_start, ts_end, window_limit
     );
 END; $function$;
 
@@ -2287,7 +2247,7 @@ END; $function$;
 -- every measurement that meets either a SIRS or OrgDF criteria
 -- as a window candidate.
 CREATE OR REPLACE FUNCTION get_meas_timestamps_for_bpas(
-        _pat_id                 text,
+        _enc_id                 text,
         _dataset_id             integer,
         _label_id               integer default 0,
         ts_start                timestamptz DEFAULT '-infinity'::timestamptz,
@@ -2298,10 +2258,10 @@ CREATE OR REPLACE FUNCTION get_meas_timestamps_for_bpas(
   LANGUAGE plpgsql
 AS $function$
 DECLARE
-    pat_id_str text;
+    enc_id_str text;
 BEGIN
-  pat_id_str = case when _pat_id is null then 'NULL'
-                    else format('''%s''', _pat_id) end;
+  enc_id_str = case when _enc_id is null then 'NULL'
+                    else format('%s', _enc_id) end;
 
   return query execute format('
     select distinct meas.pat_id, W.tsp
@@ -2338,7 +2298,7 @@ BEGIN
        end)
     order by meas.pat_id, W.tsp
     limit %s'
-    , _dataset_id, _dataset_id, pat_id_str, ts_start, ts_end, window_limit
+    , _dataset_id, _dataset_id, enc_id_str, ts_start, ts_end, window_limit
     );
 END; $function$;
 
@@ -2346,7 +2306,7 @@ END; $function$;
 -- Returns timestamps for window boundaries based on changes of patient
 -- state observed in a label series.
 CREATE OR REPLACE FUNCTION get_label_change_timestamps(
-        _pat_id                 text,
+        _enc_id                 text,
         _dataset_id             integer,
         _label_id               integer default 0,
         ts_start                timestamptz DEFAULT '-infinity'::timestamptz,
@@ -2357,10 +2317,10 @@ CREATE OR REPLACE FUNCTION get_label_change_timestamps(
   LANGUAGE plpgsql
 AS $function$
 DECLARE
-    pat_id_str text;
+    enc_id_str text;
 BEGIN
-  pat_id_str = case when _pat_id is null then 'NULL'
-                    else format('''%s''', _pat_id) end;
+  enc_id_str = case when _enc_id is null then 'NULL'
+                    else format('%s', _enc_id) end;
 
   return query execute format('
     with state_changes as (
@@ -2378,7 +2338,7 @@ BEGIN
     where label > previous or label > next
     order by pat_id, tsp
     limit %s'
-    , pat_id_str, _dataset_id, _label_id, ts_start, ts_end, window_limit
+    , enc_id_str, _dataset_id, _label_id, ts_start, ts_end, window_limit
     );
 END; $function$;
 
@@ -2386,33 +2346,33 @@ END; $function$;
 -- Returns timestamps for patient states >= 10, picking at most
 -- one timestamp per hour.
 CREATE OR REPLACE FUNCTION get_hourly_active_timestamps(
-        _pat_id                 text,
+        _enc_id                 int,
         _dataset_id             integer,
         _label_id               integer default 0,
         ts_start                timestamptz DEFAULT '-infinity'::timestamptz,
         ts_end                  timestamptz DEFAULT 'infinity'::timestamptz,
         window_limit            text default 'all'
   )
-  returns table(pat_id varchar(50), tsp timestamptz)
+  returns table(enc_id int, tsp timestamptz)
   LANGUAGE plpgsql
 AS $function$
 DECLARE
-    pat_id_str text;
+    enc_id_str text;
 BEGIN
-  pat_id_str = case when _pat_id is null then 'NULL'
-                    else format('''%s''', _pat_id) end;
+  enc_id_str = case when _enc_id is null then 'NULL'
+                    else format('%s', _enc_id) end;
 
   return query execute format('
-    select pat_id::varchar(50), min(tsp)
+    select enc_id::int, min(tsp)
     from cdm_labels
-    where pat_id = coalesce(%s, pat_id)
+    where enc_id = coalesce(%s, enc_id)
     and dataset_id = %s
     and label_id = %s
     and tsp between ''%s''::timestamptz and ''%s''::timestamptz
     and label >= 10
-    group by dataset_id, label_id, pat_id, label_type, date_trunc(''hour'', tsp)
+    group by dataset_id, label_id, enc_id, label_type, date_trunc(''hour'', tsp)
     limit %s'
-    , pat_id_str, _dataset_id, _label_id, ts_start, ts_end, window_limit
+    , enc_id_str, _dataset_id, _label_id, ts_start, ts_end, window_limit
     );
 END; $function$;
 
@@ -2420,7 +2380,7 @@ END; $function$;
 -- Returns windows based on timestamps where a different label series
 -- is active (i.e., non-zero label).
 CREATE OR REPLACE FUNCTION get_pop1_label_timestamps(
-        _pat_id                 text,
+        _enc_id                 text,
         _dataset_id             integer,
         _label_id               integer default 0,
         ts_start                timestamptz DEFAULT '-infinity'::timestamptz,
@@ -2431,10 +2391,10 @@ CREATE OR REPLACE FUNCTION get_pop1_label_timestamps(
   LANGUAGE plpgsql
 AS $function$
 DECLARE
-    pat_id_str text;
+    enc_id_str text;
 BEGIN
-  pat_id_str = case when _pat_id is null then 'NULL'
-                    else format('''%s''', _pat_id) end;
+  enc_id_str = case when _enc_id is null then 'NULL'
+                    else format('%s', _enc_id) end;
 
   return query execute format('
     with interesting_pats as (
@@ -2448,13 +2408,13 @@ BEGIN
     and C.label_id = %s
     and C.tsp between ''%s''::timestamptz and ''%s''::timestamptz
     limit %s'
-    , _dataset_id, _dataset_id, pat_id_str, _dataset_id, _label_id, ts_start, ts_end, window_limit
+    , _dataset_id, _dataset_id, enc_id_str, _dataset_id, _label_id, ts_start, ts_end, window_limit
     );
 END; $function$;
 
 
 CREATE OR REPLACE FUNCTION get_pop2_label_timestamps(
-        _pat_id                 text,
+        _enc_id                 text,
         _dataset_id             integer,
         _label_id               integer default 0,
         ts_start                timestamptz DEFAULT '-infinity'::timestamptz,
@@ -2465,10 +2425,10 @@ CREATE OR REPLACE FUNCTION get_pop2_label_timestamps(
   LANGUAGE plpgsql
 AS $function$
 DECLARE
-    pat_id_str text;
+    enc_id_str text;
 BEGIN
-  pat_id_str = case when _pat_id is null then 'NULL'
-                    else format('''%s''', _pat_id) end;
+  enc_id_str = case when _enc_id is null then 'NULL'
+                    else format('%s', _enc_id) end;
 
   return query execute format('
     select C.pat_id::varchar(50), C.tsp
@@ -2479,13 +2439,13 @@ BEGIN
     and C.tsp between ''%s''::timestamptz and ''%s''::timestamptz
     and C.pat_id not in ( select distinct S.pat_id from cdm_labels S where dataset_id = %s and S.label_id = 152 )
     limit %s'
-    , pat_id_str, _dataset_id, _label_id, ts_start, ts_end, _dataset_id, window_limit
+    , enc_id_str, _dataset_id, _label_id, ts_start, ts_end, _dataset_id, window_limit
     );
 END; $function$;
 
 
 CREATE OR REPLACE FUNCTION get_pop3_label_timestamps(
-        _pat_id                 text,
+        _enc_id                 text,
         _dataset_id             integer,
         _label_id               integer default 0,
         ts_start                timestamptz DEFAULT '-infinity'::timestamptz,
@@ -2496,10 +2456,10 @@ CREATE OR REPLACE FUNCTION get_pop3_label_timestamps(
   LANGUAGE plpgsql
 AS $function$
 DECLARE
-    pat_id_str text;
+    enc_id_str text;
 BEGIN
-  pat_id_str = case when _pat_id is null then 'NULL'
-                    else format('''%s''', _pat_id) end;
+  enc_id_str = case when _enc_id is null then 'NULL'
+                    else format('%s', _enc_id) end;
 
   return query execute format('
     with interesting_pats as (
@@ -2544,7 +2504,7 @@ BEGIN
        end)
     order by meas.pat_id, W.tsp
     limit %s'
-    , _dataset_id, _dataset_id, pat_id_str, ts_start, ts_end, window_limit
+    , _dataset_id, _dataset_id, enc_id_str, ts_start, ts_end, window_limit
     );
 END; $function$;
 
@@ -2678,7 +2638,7 @@ CREATE OR REPLACE FUNCTION get_cms_label_series_for_windows_in_parallel(
         label_description            text,
         window_generator             text,
         label_function               integer,
-        _pat_id                      text,
+        _enc_id                      integer,
         _dataset_id                  integer,
         _label_id                    integer,
         parallel_dblink              text,
@@ -2704,7 +2664,7 @@ DECLARE
     bundle_window_queries      text[];
     bundle_union_query         text;
     bundle_label_query         text;
-    pat_id_str                 text;
+    enc_id_str                 text;
     label_id_str               text;
     window_fn                  text;
     generate_label_query       text;
@@ -2718,8 +2678,8 @@ BEGIN
     select coalesce(_dataset_id, max(dataset_id)) into _dataset_id from dw_version;
     raise notice 'Running get_cms_label_series_for_windows_in_parallel on dataset_id %', _dataset_id;
 
-    pat_id_str = case when _pat_id is null then 'NULL'
-                      else format('''%s''', _pat_id) end;
+    enc_id_str = case when _enc_id is null then 'NULL'
+                      else format('%s', _enc_id) end;
 
     label_id_str = case when _label_id is null then 'NULL'
                         else format('%s', _label_id) end;
@@ -2740,29 +2700,24 @@ BEGIN
         create unlogged table new_criteria_windows_%s as
         with window_ends as (
           select *
-          from %s(%s::text, %s::integer, %s::integer, ''%s''::timestamptz, ''%s''::timestamptz, ''%s''::text)
+          from %s(%s::int, %s::integer, %s::integer, ''%s''::timestamptz, ''%s''::timestamptz, ''%s''::text)
         )
         select partition.tsp as ts, new_criteria.*
         from
           ( select * from window_ends
             where
-            (case
-              when pat_id like ''JH%%''
-              then (substring(pat_id from 3)::int) %% %s = (%s - 1)
-              else (substring(pat_id from 2)::int) %% %s = (%s - 1)
-              end)
+            enc_id %% %s = (%s - 1) -- update partition based on enc_id
           ) partition
           inner join lateral
-          %s(coalesce(%s, partition.pat_id),
+          %s(coalesce(%s, partition.enc_id),
              partition.tsp - ''%s''::interval,
              partition.tsp,
              %s, %s, %s, %s) new_criteria
-        on partition.pat_id = new_criteria.pat_id;'
+        on partition.enc_id = new_criteria.enc_id;'
         , partition_id, partition_id
-        , window_generator, pat_id_str, _dataset_id, label_id_str, ts_start, ts_end, window_limit
+        , window_generator, enc_id_str, _dataset_id, label_id_str, ts_start, ts_end, window_limit
         , num_partitions, partition_id
-        , num_partitions, partition_id
-        , window_fn, pat_id_str, window_size, _dataset_id, use_app_infections_str, use_clarity_notes_str, save_criteria_windows_str)
+        , window_fn, enc_id_str, window_size, _dataset_id, use_app_infections_str, use_clarity_notes_str, save_criteria_windows_str)
       into window_queries
       from generate_series(1, num_partitions) R(partition_id));
 
@@ -2792,13 +2747,13 @@ BEGIN
 
     -- Populate CMS label series.
     window_label_query := format(
-     'insert into cdm_labels (dataset_id, label_id, pat_id, tsp, label_type, label)
-        select %s, %s, sw.pat_id, sw.ts, ''cms state'', sw.state
+     'insert into cdm_labels (dataset_id, label_id, enc_id, tsp, label_type, label)
+        select %s, %s, sw.enc_id, sw.ts, ''cms state'', sw.state
         from get_window_labels_from_criteria(''new_criteria_windows'', %s) sw
-      on conflict (dataset_id, label_id, pat_id, tsp) do update
+      on conflict (dataset_id, label_id, enc_id, tsp) do update
         set label_type = excluded.label_type,
             label = excluded.label;'
-      , _dataset_id, generated_label_id, pat_id_str);
+      , _dataset_id, generated_label_id, enc_id_str);
 
     window_vacuum_query := 'vacuum analyze verbose cdm_labels;';
 
@@ -2814,44 +2769,40 @@ BEGIN
           with onset_times as (
             select * from get_label_series_onset_timestamps(%s, %s) T
             where
-            (case
-              when pat_id like ''JH%%''
-              then (substring(pat_id from 3)::int) %% %s = (%s - 1)
-              else (substring(pat_id from 2)::int) %% %s = (%s - 1)
-              end)
+            enc_id %% %s = (%s - 1) -- update partition based on enc_id
           ),
           severe_sepsis as (
             select T.w_severe_sepsis_onset as ts, SSP.*
             from onset_times T
-            inner join lateral %s(coalesce(%s, T.pat_id), T.w_severe_sepsis_onset - interval ''6 hours'' , T.w_severe_sepsis_onset, %s, %s, %s, %s) SSP
-            on SSP.pat_id = T.pat_id
+            inner join lateral %s(coalesce(%s, T.enc_id), T.w_severe_sepsis_onset - interval ''6 hours'' , T.w_severe_sepsis_onset, %s, %s, %s, %s) SSP
+            on SSP.enc_id = T.enc_id
             where not(T.severe_sepsis_onset is null or T.w_severe_sepsis_onset is null)
             and (T.septic_shock_onset is null or T.severe_sepsis_onset <> T.septic_shock_onset)
           ),
           septic_shock as (
             select T.w_septic_shock_onset as ts, SSH.*
             from onset_times T
-            inner join lateral %s(coalesce(%s, T.pat_id), T.w_septic_shock_onset - interval ''6 hours'', T.w_septic_shock_onset, %s, %s, %s, %s) SSH
-            on SSH.pat_id = T.pat_id
+            inner join lateral %s(coalesce(%s, T.enc_id), T.w_septic_shock_onset - interval ''6 hours'', T.w_septic_shock_onset, %s, %s, %s, %s) SSH
+            on SSH.enc_id = T.enc_id
             where not(T.septic_shock_onset is null or T.w_septic_shock_onset is null)
           ),
           severe_sepsis_6hr_bundle as (
             select T.severe_sepsis_onset + interval ''6 hours'' as ts, SSP.*
             from onset_times T
-            inner join lateral %s(coalesce(%s, T.pat_id), T.severe_sepsis_onset, T.severe_sepsis_onset + interval ''6 hours'', %s, %s, %s, %s) SSP
-            on SSP.pat_id = T.pat_id
+            inner join lateral %s(coalesce(%s, T.enc_id), T.severe_sepsis_onset, T.severe_sepsis_onset + interval ''6 hours'', %s, %s, %s, %s) SSP
+            on SSP.enc_id = T.enc_id
             where T.severe_sepsis_onset is not null
             and (T.septic_shock_onset is null or T.severe_sepsis_onset <> T.septic_shock_onset)
           ),
           septic_shock_6hr_bundle as (
             select T.septic_shock_onset + interval ''6 hours'' as ts, SSH.*
             from onset_times T
-            inner join lateral %s(coalesce(%s, T.pat_id), T.septic_shock_onset, T.septic_shock_onset + interval ''6 hours'', %s, %s, %s, %s) SSH
-            on SSH.pat_id = T.pat_id
+            inner join lateral %s(coalesce(%s, T.enc_id), T.septic_shock_onset, T.septic_shock_onset + interval ''6 hours'', %s, %s, %s, %s) SSH
+            on SSH.enc_id = T.enc_id
             where T.septic_shock_onset is not null
           )
           select PB.ts,
-                 SSP.pat_id,
+                 SSP.enc_id,
                  SSP.name,
                  (case when SSP.name like ''%%_order'' then PB.measurement_time else SSP.measurement_time end) as measurement_time,
                  (case when SSP.name like ''%%_order'' then PB.value            else SSP.value            end) as value,
@@ -2864,10 +2815,10 @@ BEGIN
                  SSP.severe_sepsis_wo_infection_onset,
                  SSP.septic_shock_onset
           from severe_sepsis SSP
-          inner join severe_sepsis_6hr_bundle PB on SSP.pat_id = PB.pat_id and SSP.name = PB.name
+          inner join severe_sepsis_6hr_bundle PB on SSP.enc_id = PB.enc_id and SSP.name = PB.name
           union all
           select HB.ts,
-                 SSH.pat_id,
+                 SSH.enc_id,
                  SSH.name,
                  (case when SSH.name like ''%%_order'' then HB.measurement_time else SSH.measurement_time end) as measurement_time,
                  (case when SSH.name like ''%%_order'' then HB.value            else SSH.value            end) as value,
@@ -2880,13 +2831,13 @@ BEGIN
                  SSH.severe_sepsis_wo_infection_onset,
                  SSH.septic_shock_onset
           from septic_shock SSH
-          inner join septic_shock_6hr_bundle HB on SSH.pat_id = HB.pat_id and SSH.name = HB.name;'
+          inner join septic_shock_6hr_bundle HB on SSH.enc_id = HB.enc_id and SSH.name = HB.name;'
         , partition_id, partition_id
-        , _dataset_id, generated_label_id, num_partitions, partition_id, num_partitions, partition_id
-        , window_fn, pat_id_str, _dataset_id, use_app_infections_str, use_clarity_notes_str, save_criteria_windows_str
-        , window_fn, pat_id_str, _dataset_id, use_app_infections_str, use_clarity_notes_str, save_criteria_windows_str
-        , window_fn, pat_id_str, _dataset_id, use_app_infections_str, use_clarity_notes_str, save_criteria_windows_str
-        , window_fn, pat_id_str, _dataset_id, use_app_infections_str, use_clarity_notes_str, save_criteria_windows_str)
+        , _dataset_id, generated_label_id, num_partitions, partition_id
+        , window_fn, enc_id_str, _dataset_id, use_app_infections_str, use_clarity_notes_str, save_criteria_windows_str
+        , window_fn, enc_id_str, _dataset_id, use_app_infections_str, use_clarity_notes_str, save_criteria_windows_str
+        , window_fn, enc_id_str, _dataset_id, use_app_infections_str, use_clarity_notes_str, save_criteria_windows_str
+        , window_fn, enc_id_str, _dataset_id, use_app_infections_str, use_clarity_notes_str, save_criteria_windows_str)
       into bundle_window_queries
       from generate_series(1, num_partitions) R(partition_id));
 
@@ -2901,15 +2852,15 @@ BEGIN
 
       -- Register a new label id and populate label series.
       bundle_label_query := format(
-        'insert into cdm_labels (dataset_id, label_id, pat_id, tsp, label_type, label)
-          select %s, %s, sw.pat_id, sw.ts, ''bundle compliance state'', sw.state
+        'insert into cdm_labels (dataset_id, label_id, enc_id, tsp, label_type, label)
+          select %s, %s, sw.enc_id, sw.ts, ''bundle compliance state'', sw.state
           from get_window_labels_from_criteria(''bundle_compliance_windows'', %s) sw
-        on conflict (dataset_id, label_id, pat_id, tsp) do update
+        on conflict (dataset_id, label_id, enc_id, tsp) do update
           set label_type = excluded.label_type,
               label = excluded.label;
 
         drop table bundle_compliance_windows;'
-        , _dataset_id, generated_label_id, pat_id_str);
+        , _dataset_id, generated_label_id, enc_id_str);
 
       perform distribute(parallel_dblink, ARRAY[bundle_union_query, bundle_label_query]::text[], 1);
 
@@ -2943,7 +2894,7 @@ CREATE OR REPLACE FUNCTION get_cms_label_series_for_windows_block_parallel(
         label_description       text,
         window_generator        text,
         label_function          integer,
-        _pat_id                 text,
+        _enc_id                 text,
         _dataset_id             integer,
         _label_id               integer,
         parallel_dblink         text,
@@ -2967,7 +2918,7 @@ DECLARE
   first_iter                 boolean := true;
   current_label_id           int := 0;
   generated_label_id         int := 0;
-  pat_id_str                 text;
+  enc_id_str                 text;
   label_id_str               text;
   use_app_infections_str     text;
   use_clarity_notes_str      text;
@@ -2978,8 +2929,8 @@ BEGIN
   ts_end_epoch = ceil(extract(epoch from ts_end) / extract(epoch from ts_step)) * extract(epoch from ts_step);
   ts_end_upper = 'epoch'::timestamptz + (ts_end_epoch::text || ' sec')::interval;
 
-  pat_id_str = case when _pat_id is null then 'NULL'
-                    else format('''%s''', _pat_id) end;
+  enc_id_str = case when _enc_id is null then 'NULL'
+                    else format('%s', _enc_id) end;
 
   label_id_str = case when _label_id is null then 'NULL'
                       else format('%s', _label_id) end;
@@ -3002,7 +2953,7 @@ BEGIN
       ''%s''::timestamptz, ''%s''::timestamptz,
       ''%s'', %s, %s, %s, %s
       )'
-      , label_description, window_generator, label_function, pat_id_str, _dataset_id, label_id_str, parallel_dblink, num_partitions
+      , label_description, window_generator, label_function, enc_id_str, _dataset_id, label_id_str, parallel_dblink, num_partitions
       , ts_block.ts_block_end - ts_step, ts_block.ts_block_end
       , window_limit, use_app_infections_str, use_clarity_notes_str, with_bundle_compliance_str, output_label_series_str
     );
@@ -3036,7 +2987,7 @@ END; $function$;
 CREATE OR REPLACE FUNCTION get_cms_note_matches_for_windows(
         label_description       text,
         window_generator        text,
-        _pat_id                 text,
+        _enc_id                 text,
         _dataset_id             integer,
         _label_id               integer,
         parallel_dblink         text,
@@ -3056,14 +3007,14 @@ DECLARE
     merge_query             text;
     clean_table_query       text;
     window_size             interval := get_parameter('lookbackhours')::interval;
-    pat_id_str              text;
+    enc_id_str              text;
     label_id_str            text;
 BEGIN
     select coalesce(_dataset_id, max(dataset_id)) into _dataset_id from dw_version;
     raise notice 'Running get_cms_note_matches_for_windows on dataset_id %, label_id %', _dataset_id, _label_id;
 
-    pat_id_str = case when _pat_id is null then 'NULL'
-                      else format('''%s''', _pat_id) end;
+    enc_id_str = case when _enc_id is null then 'NULL'
+                      else format('%s', _enc_id) end;
 
     label_id_str = case when _label_id is null then 'NULL'
                         else format('%s', _label_id) end;
@@ -3074,7 +3025,7 @@ BEGIN
         create unlogged table note_candidates_%s as
         with window_ends as (
           select *
-          from %s(%s::text, %s::integer, %s::integer, ''%s''::timestamptz, ''%s''::timestamptz, ''%s''::text)
+          from %s(%s::int, %s::integer, %s::integer, ''%s''::timestamptz, ''%s''::timestamptz, ''%s''::text)
         ),
         partition as (
           select * from window_ends
@@ -3090,7 +3041,7 @@ BEGIN
         where N.dataset_id = %s
         and note_date(N.dates) between (PT.tsp - ''%s''::interval) - interval ''1 days'' and PT.tsp + interval ''1 days'';'
         , partition_id, partition_id
-        , window_generator, pat_id_str, _dataset_id, label_id_str, ts_start, ts_end, window_limit
+        , window_generator, enc_id_str, _dataset_id, label_id_str, ts_start, ts_end, window_limit
         , num_partitions, partition_id
         , num_partitions, partition_id
         , _dataset_id, window_size)
@@ -3105,7 +3056,7 @@ BEGIN
         create unlogged table window_notes_%s as
         select * from match_cdm_infections_from_candidates(coalesce(%s, null), %s, ''note_candidates_%s'', 3, 3) M;'
         , partition_id, partition_id
-        , pat_id_str, _dataset_id, partition_id)
+        , enc_id_str, _dataset_id, partition_id)
       into window_queries
       from generate_series(1, num_partitions) R(partition_id));
 
@@ -3143,7 +3094,7 @@ END; $function$;
 CREATE OR REPLACE FUNCTION get_cms_note_matches_for_windows_blocked(
         label_description       text,
         window_generator        text,
-        _pat_id                 text,
+        _enc_id                 text,
         _dataset_id             integer,
         _label_id               integer,
         parallel_dblink         text,
@@ -3161,7 +3112,7 @@ DECLARE
   ts_end_epoch               bigint;
   ts_end_upper               timestamptz;
   block_query                text;
-  pat_id_str                 text;
+  enc_id_str                 text;
   label_id_str               text;
   first_iter                 boolean := true;
   clean_notes_str            text;
@@ -3170,8 +3121,8 @@ BEGIN
   ts_end_epoch = ceil(extract(epoch from ts_end) / extract(epoch from ts_step)) * extract(epoch from ts_step);
   ts_end_upper = 'epoch'::timestamptz + (ts_end_epoch::text || ' sec')::interval;
 
-  pat_id_str = case when _pat_id is null then 'NULL'
-                    else format('''%s''', _pat_id) end;
+  enc_id_str = case when _enc_id is null then 'NULL'
+                    else format('%s', _enc_id) end;
 
   label_id_str = case when _label_id is null then 'NULL'
                       else format('%s', _label_id) end;
@@ -3192,7 +3143,7 @@ BEGIN
       )
       '
       , label_description, window_generator
-      , pat_id_str, _dataset_id, label_id_str, parallel_dblink, num_partitions
+      , enc_id_str, _dataset_id, label_id_str, parallel_dblink, num_partitions
       , ts_block.ts_block_end - ts_step, ts_block.ts_block_end, window_limit, clean_notes_str
     );
 
@@ -3209,7 +3160,7 @@ END; $function$;
 CREATE OR REPLACE FUNCTION get_cms_label_series(
         label_description       text,
         label_function          integer,
-        _pat_id                 text,
+        _enc_id                 text,
         _dataset_id             integer,
         parallel_dblink         text,
         num_partitions          integer,
@@ -3238,14 +3189,14 @@ BEGIN
 
     select get_cms_label_series_for_windows_block_parallel(
       label_description, 'get_meas_periodic_timestamps', label_function,
-      _pat_id, _dataset_id, null, parallel_dblink, num_partitions, ts_start, ts_end, ts_label_block_size, window_limit, use_app_infections, use_clarity_notes, false)
+      _enc_id, _dataset_id, null, parallel_dblink, num_partitions, ts_start, ts_end, ts_label_block_size, window_limit, use_app_infections, use_clarity_notes, false)
     into result_label_id;
   else
     -- Coarse-grained pass, calculating sirs and org df for state changes.
     if _candidate_label_id is null then
       select get_cms_label_series_for_windows_block_parallel(
         label_description || ' (candidate series)', 'get_meas_periodic_timestamps', candidate_function,
-        _pat_id, _dataset_id, null, parallel_dblink, num_partitions, ts_start, ts_end, ts_label_block_size, window_limit, use_app_infections, use_clarity_notes, false)
+        _enc_id, _dataset_id, null, parallel_dblink, num_partitions, ts_start, ts_end, ts_label_block_size, window_limit, use_app_infections, use_clarity_notes, false)
       into candidate_label_id;
 
       raise notice 'Finished first pass for get_cms_label_series on dataset_id %, label_id %', _dataset_id, candidate_label_id;
@@ -3258,7 +3209,7 @@ BEGIN
         -- Preprocess notes.
         perform get_cms_note_matches_for_windows_blocked(
           label_description, 'get_hourly_active_timestamps',
-          _pat_id, _dataset_id, candidate_label_id, parallel_dblink, num_partitions, ts_start, ts_end, ts_notes_block_size, window_limit);
+          _enc_id, _dataset_id, candidate_label_id, parallel_dblink, num_partitions, ts_start, ts_end, ts_notes_block_size, window_limit);
 
         raise notice 'Finished notes for get_cms_label_series on dataset_id %, label_id %', _dataset_id, candidate_label_id;
       end if;
@@ -3266,7 +3217,7 @@ BEGIN
       -- Fine-grained pass, using windows based on state changes.
       select get_cms_label_series_for_windows_block_parallel(
         label_description, 'get_hourly_active_timestamps', label_function,
-        _pat_id, _dataset_id, candidate_label_id, parallel_dblink, num_partitions,
+        _enc_id, _dataset_id, candidate_label_id, parallel_dblink, num_partitions,
         ts_start, ts_end, ts_label_block_size, window_limit, use_app_infections, use_clarity_notes, with_bundle_compliance)
       into result_label_id;
     else
