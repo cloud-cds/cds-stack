@@ -539,7 +539,7 @@ async def push_notifications_to_epic(db_pool, eid, notify_future_notification=Tr
     model = 'lmc' if use_trews_lmc else 'trews'
     notifications_sql = \
     '''
-    select * from get_notifications_for_epic(pat_id_to_enc_id('%s'), '%s');
+    select * from get_notifications_for_epic('%s', '%s');
     ''' % (eid, model)
     notifications = await conn.fetch(notifications_sql)
     if notifications:
