@@ -5,7 +5,7 @@
 -- Max note size found in 1yr datasets: ~140K
 create or replace function chunk_cdm_notes(_dataset_id integer, notes_workspace text)
 returns table(dataset_id        integer,
-              pat_id            varchar(50),
+              enc_id            integer,
               note_id           text,
               author_type       text,
               note_type         text,
@@ -19,7 +19,7 @@ as $func$
 begin
   return query execute format(
     'select dataset_id,
-           pat_id,
+           enc_id,
            note_id,
            author_type,
            note_type,
@@ -32,7 +32,7 @@ begin
     from (
       select
           PE.dataset_id                                                         as dataset_id,
-          PE.pat_id                                                             as pat_id,
+          PE.enc_id                                                             as enc_id,
           "NOTE_ID"                                                             as note_id,
           "AuthorType"                                                          as author_type,
           "NoteType"                                                            as note_type,
@@ -50,7 +50,7 @@ begin
       inner join pat_enc PE
       on N."CSN_ID" = PE.visit_id and PE.dataset_id = coalesce(%s, PE.dataset_id)
       group by
-        PE.dataset_id, PE.pat_id,
+        PE.dataset_id, PE.enc_id,
         "NOTE_ID", "AuthorType", "NoteType", "NoteStatus",
         "CREATE_INSTANT_DTTM", "CONTACT_DATE_REAL"::numeric, "SPEC_NOTE_TIME_DTTM", "ENTRY_ISTANT_DTTM"
     ) full_notes;'

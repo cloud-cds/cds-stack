@@ -263,7 +263,7 @@ sortkey (dataset_id, pat_id, tsp);
 DROP TABLE IF EXISTS cdm_notes;
 CREATE TABLE cdm_notes (
     dataset_id        integer REFERENCES dw_version(dataset_id),
-    pat_id            varchar(50),
+    enc_id            int,
     note_id           varchar(50),
     author_type       varchar(50),
     note_type         varchar(50),
@@ -273,10 +273,10 @@ CREATE TABLE cdm_notes (
     note_body1        varchar(max),
     note_body2        varchar(max),
     note_body3        varchar(max),
-    PRIMARY KEY (dataset_id, pat_id, note_id, author_type, note_type, contact_date_real, note_status)
+    PRIMARY KEY (dataset_id, enc_id, note_id, author_type, note_type, contact_date_real, note_status)
 )
 diststyle key
-distkey (pat_id);
+distkey (enc_id);
 
 DROP TABLE IF EXISTS cdm_window_offsets_15mins;
 CREATE TABLE cdm_window_offsets_15mins
