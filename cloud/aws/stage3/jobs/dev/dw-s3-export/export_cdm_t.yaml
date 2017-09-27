@@ -1,0 +1,67 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dw-s3-export
+spec:
+  template: # create pods using pod definition in this template
+    metadata:
+      name: dw-s3-export
+      namespace: default
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        opsdx_nodegroup: spot-nodes
+      containers:
+      - name: universe
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.94
+        imagePullPolicy: IfNotPresent
+        command:
+          - sh
+          - -c
+          - "aws s3 cp s3://opsdx-deployment/scripts/dw-s3-export.sh /tmp && chmod 755 /tmp/dw-s3-export.sh && /tmp/dw-s3-export.sh"
+        env:
+        #- name: export_tables
+        #  value: "public.dw_version"
+        # For exporting queries.
+        - name: export_tables ## Must be set, but empty when using an export_query (for now).
+          value: ""
+        - name: export_query
+          value: "select dataset_id, enc_id, tsp::timestamptz(0), fid, value, confidence from cdm_t"
+        - name: query_id
+          value: "public.cdm_t"
+        - name: output_dir
+          value: "dw-s3-export"
+        - name: db_host
+          value: "dw.jh.opsdx.io"
+        - name: db_port
+          value: "5432"
+        - name: db_name
+          value: "opsdx_dev_dw"
+        - name: db_user
+          valueFrom:
+            secretKeyRef:
+              name: dw-s3-export-secrets
+              key: db-username
+        - name: db_password
+          valueFrom:
+            secretKeyRef:
+              name: dw-s3-export-secrets
+              key: db-password
+        - name: AWS_DEFAULT_REGION
+          valueFrom:
+            secretKeyRef:
+              name: dw-s3-export-secrets
+              key: aws-region
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: dw-s3-export-secrets
+              key: aws-access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: dw-s3-export-secrets
+              key: aws-secret-access-key
+        securityContext:
+          privileged: true
