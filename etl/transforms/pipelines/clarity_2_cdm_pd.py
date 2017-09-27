@@ -495,9 +495,9 @@ async def notes(connection, dataset_id, fids, log, is_plan, clarity_workspace):
   log.info("Entering Notes Processing")
   start = time.time()
   sql = '''
-  insert into cdm_notes(dataset_id, pat_id, note_id, note_type, note_status, note_body, dates, providers)
+  insert into cdm_notes(dataset_id, enc_id, note_id, note_type, note_status, note_body, dates, providers)
   select  %(dataset_id)s as dataset_id,
-      PE.pat_id as pat_id,
+      PE.enc_id as enc_id,
       "NOTE_ID" as note_id,
       "NoteType" as note_type,
       coalesce("NoteStatus", 'unknown') as note_status,
@@ -510,8 +510,8 @@ async def notes(connection, dataset_id, fids, log, is_plan, clarity_workspace):
   from %(ws)s."Notes" N
   inner join pat_enc PE
   on N."CSN_ID" = PE.visit_id and PE.dataset_id = %(dataset_id)s %(min_tsp)s
-  group by PE.pat_id, "NOTE_ID", "NoteType", "NoteStatus", "CREATE_INSTANT_DTTM"
-  on conflict (dataset_id, pat_id, note_id, note_type, note_status) do update
+  group by PE.enc_id, "NOTE_ID", "NoteType", "NoteStatus", "CREATE_INSTANT_DTTM"
+  on conflict (dataset_id, enc_id, note_id, note_type, note_status) do update
   set note_body = excluded.note_body,
     dates = excluded.dates,
     providers = excluded.providers
