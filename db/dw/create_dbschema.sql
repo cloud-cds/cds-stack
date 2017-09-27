@@ -167,9 +167,34 @@ CREATE TABLE cdm_notes (
     note_type       varchar(50),
     note_status     varchar(50),
     note_body       text,
-    dates           json,
-    providers       json,
+    dates           text,
+    providers       text,
     PRIMARY KEY (dataset_id, enc_id, note_id, note_type, note_status)
+);
+
+drop table if exists cdm_reports;
+create table cdm_reports (
+    dataset_id                         integer,
+    label_id                           integer,
+    w_max_state                        integer,
+    w_start                            timestamptz,
+    w_end                              timestamptz,
+    enc_id                             int,
+    name                               varchar(50),
+    measurement_time                   timestamptz,
+    value                              text,
+    override_time                      timestamptz,
+    override_user                      text,
+    override_value                     json,
+    is_met                             boolean,
+    update_date                        timestamptz,
+    severe_sepsis_onset                timestamptz,
+    severe_sepsis_wo_infection_onset   timestamptz,
+    septic_shock_onset                 timestamptz,
+    w_severe_sepsis_onset              timestamptz,
+    w_severe_sepsis_wo_infection_onset timestamptz,
+    w_septic_shock_onset               timestamptz,
+    primary key (dataset_id, label_id, w_max_state, w_start, w_end, enc_id, name)
 );
 
 
@@ -789,6 +814,41 @@ create table care_unit(
     leave_time timestamptz,
     care_unit text
 );
+
+----------------------
+-- cdm label tables --
+----------------------
+DROP TABLE IF EXISTS label_version CASCADE;
+CREATE TABLE label_version (
+    label_id        serial primary key,
+    created         timestamptz,
+    description     text
+);
+
+DROP TABLE IF EXISTS cdm_labels;
+CREATE TABLE cdm_labels (
+    dataset_id          integer references dw_version(dataset_id),
+    label_id            integer references label_version(label_id),
+    enc_id              int,
+    tsp                 timestamptz,
+    label_type          text,
+    label               integer,
+    primary key         (dataset_id, label_id, enc_id, tsp)
+);
+
+
+DROP TABLE IF EXISTS cdm_processed_notes;
+CREATE TABLE cdm_processed_notes (
+    dataset_id      integer REFERENCES dw_version(dataset_id),
+    enc_id          int,
+    note_id         varchar(50),
+    note_type       varchar(50),
+    note_status     varchar(50),
+    tsps            timestamptz[],
+    ngrams          text[],
+    PRIMARY KEY (dataset_id, enc_id, note_id, note_type, note_status)
+);
+
 
 ----------------------
 -- cdm stats tables --

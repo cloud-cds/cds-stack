@@ -29,9 +29,9 @@ spec:
         - name: export_query
           # value: "select * from chunk_cdm_notes(6, 'clarity_1m') union all select * from chunk_cdm_notes(1, 'clarity_1y') union all select * from chunk_cdm_notes(10, 'jhh_1m') union all select * from chunk_cdm_notes(12, 'jhh_1y') union all select * from chunk_cdm_notes(11, 'bmc_1m') union all select * from chunk_cdm_notes(13, 'bmc_1y')"
           # value: "select * from chunk_cdm_notes(10, 'jhh_1m')"
-          value: "select * from chunk_cdm_notes(3, 'clarity_3y')"
+          value: "select * from chunk_cdm_notes(1, 'clarity_1y') limit 100"
         - name: query_id
-          value: "public.d3_cdm_notes"
+          value: "public.d1_cdm_notes.test"
           # value: "public.d10_cdm_notes"
         - name: output_dir
           value: "dw-s3-export"
