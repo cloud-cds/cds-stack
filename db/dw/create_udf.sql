@@ -3380,3 +3380,34 @@ set stats = excluded.stats
    value, _clarity_workspace, _clarity_staging_table, key, key);
 end
 $$ language plpgsql;
+
+
+create or replace function copy_cdm_processed_notes_from_redshift(select_query text)
+returns void as
+$$
+begin
+execute
+'insert into cdm_processed_notes
+  select R.dataset_id, R.enc_id, R.note_id, R.note_type, R.note_status, array_agg(tsps) as tsps, array_agg(ngrams) as ngrams
+  from (
+    select R.dataset_id, R.enc_id, R.note_id, R.note_type,
+           first(R.note_status order by R.start_ts) as note_status,
+           min(R.start_ts) as tsps,
+           array_to_string(ARRAY(select jsonb_array_elements_text(N.ngram)), ' ') as ngrams
+    from
+      dblink(''redshift_dw'', $RD$
+        '||query||'
+      $RD$)
+    as R(
+      dataset_id int, enc_id int,
+      note_id text, note_type text, note_status text, start_ts timestamptz,
+      ngrams1 text, ngrams2 text, ngrams3 text
+    ), jsonb_array_elements(R.ngrams1::jsonb || R.ngrams2::jsonb || R.ngrams3::jsonb) as N(ngram)
+
+    group by R.dataset_id, R.enc_id, R.note_id, R.note_type,
+             array_to_string(ARRAY(select jsonb_array_elements_text(N.ngram)), ' ')
+  ) R
+  group by R.dataset_id, R.enc_id, R.note_id, R.note_type, R.note_status
+  ;';
+end
+$$ language plpgsql;

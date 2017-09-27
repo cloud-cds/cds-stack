@@ -1,38 +1,38 @@
 import os
 
 window_template_meas_periodic = '''
-create table measurement_times_d%(dataset_id)s diststyle all sortkey(pat_id, tsp) as
+create table measurement_times_d%(dataset_id)s diststyle all sortkey(enc_id, tsp) as
   with pat_start as(
-    select pat_id, min(tsp) as min_time
-    from criteria_meas meas
+    select enc_id, min(tsp) as min_time
+    from cdm_t meas
     where dataset_id = %(dataset_id)s
-    group by pat_id
+    group by enc_id
   ),
   meas_bins as (
-    select distinct meas.pat_id, meas.tsp ,
+    select distinct meas.enc_id, meas.tsp ,
       floor(extract(EPOCH FROM meas.tsp - pat_start.min_time) / extract(EPOCH from interval '1 hour'))+1 as bin
     from
-      criteria_meas meas
+      cdm_t meas
       inner join pat_start
-      on pat_start.pat_id = meas.pat_id
+      on pat_start.enc_id = meas.enc_id
     where
       meas.dataset_id = %(dataset_id)s
   )
-  select pat_id, max(tsp) as tsp
+  select enc_id, max(tsp) as tsp
   from meas_bins
-  group by pat_id, bin
-  order by pat_id, tsp
+  group by enc_id, bin
+  order by enc_id, tsp
   ;
 
-create table pat_partition_d%(dataset_id)s diststyle all sortkey(pat_id, tsp) as
+create table pat_partition_d%(dataset_id)s diststyle all sortkey(enc_id, tsp) as
   select * from measurement_times_d%(dataset_id)s T
   ;
 '''
 
 window_template_measurements = '''
-create table measurement_times_d%(dataset_id)s diststyle all sortkey(pat_id, tsp) as
-  select distinct meas.pat_id, date_trunc('hour', meas.tsp) as tsp
-  from criteria_meas meas
+create table measurement_times_d%(dataset_id)s diststyle all sortkey(enc_id, tsp) as
+  select distinct meas.enc_id, date_trunc('hour', meas.tsp) as tsp
+  from cdm_t meas
   inner join criteria_default_flat cd on meas.fid = cd.fid
   where
     cd.dataset_id = %(dataset_id)s
@@ -65,17 +65,17 @@ create table measurement_times_d%(dataset_id)s diststyle all sortkey(pat_id, tsp
      end)
   ;
 
-create table pat_partition_d%(dataset_id)s diststyle all sortkey(pat_id, tsp) as
-  select T.pat_id, T.tsp + (O.window_offset::varchar || ' minutes')::interval as tsp
+create table pat_partition_d%(dataset_id)s diststyle all sortkey(enc_id, tsp) as
+  select T.enc_id, T.tsp + (O.window_offset::varchar || ' minutes')::interval as tsp
   from measurement_times_d%(dataset_id)s T
   cross join cdm_window_offsets_15mins O
   ;
 '''
 
 bpa_template = '''
-create table pat_cvalues_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(window_id, pat_id) as
+create table pat_cvalues_d%(dataset_id)s diststyle key distkey(enc_id) sortkey(window_id, enc_id) as
   select date_trunc('hour', meas.tsp) + (O.window_offset || ' minutes')::interval as window_id,
-         meas.pat_id,
+         meas.enc_id,
          cd.name,
          meas.fid,
          cd.category,
@@ -85,7 +85,7 @@ create table pat_cvalues_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(w
          cd.upper as d_upper
   from criteria_default_flat as cd
 
-  left join criteria_meas meas
+  left join cdm_t meas
       on meas.fid = cd.fid
       and cd.dataset_id = meas.dataset_id
 
@@ -127,15 +127,15 @@ create table pat_cvalues_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(w
   ;
 
 
-create table pat_aggregates_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(window_id, pat_id) as
+create table pat_aggregates_d%(dataset_id)s diststyle key distkey(enc_id) sortkey(window_id, enc_id) as
   select aggs.window_id,
-         aggs.pat_id,
+         aggs.enc_id,
          avg(aggs.bp_sys) as bp_sys,
          avg(aggs.weight) as weight,
          sum(aggs.urine_output) as urine_output
   from (
       select date_trunc('hour', meas.tsp) + (O.window_offset || ' minutes')::interval as window_id,
-             meas.pat_id,
+             meas.enc_id,
              meas.tsp as measurement_time,
              (case when meas.fid = 'bp_sys' then meas.value::double precision else null end) as bp_sys,
              (case when meas.fid = 'weight' then meas.value::double precision else null end) as weight,
@@ -143,19 +143,19 @@ create table pat_aggregates_d%(dataset_id)s diststyle key distkey(pat_id) sortke
                    and date_trunc('hour', meas.tsp) + (O.window_offset || ' minutes')::interval - meas.tsp < interval '2 hours'
                    then meas.value::double precision else null end
               ) as urine_output
-      from criteria_meas meas
+      from cdm_t meas
       cross join cdm_window_offsets_15mins O
       where meas.dataset_id = %(dataset_id)s
       and meas.fid in ('bp_sys', 'urine_output', 'weight')
       and isnumeric(meas.value)
   ) as aggs
-  group by aggs.window_id, aggs.pat_id
+  group by aggs.window_id, aggs.enc_id
   ;
 
 
-create table all_sirs_org_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(window_id, pat_id) as
+create table all_sirs_org_d%(dataset_id)s diststyle key distkey(enc_id) sortkey(window_id, enc_id) as
   select  PC.window_id,
-          PC.pat_id,
+          PC.enc_id,
           PC.name,
           PC.tsp as measurement_time,
           (case
@@ -199,7 +199,7 @@ create table all_sirs_org_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(
   from pat_cvalues_d%(dataset_id)s PC
 
   left join pat_aggregates_d%(dataset_id)s PAGG
-    on PC.window_id = PAGG.window_id and PC.pat_id = PAGG.pat_id
+    on PC.window_id = PAGG.window_id and PC.enc_id = PAGG.enc_id
 
   cross join (
     select value::double precision as weight_popmean
@@ -208,10 +208,10 @@ create table all_sirs_org_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(
   ;
 
 
-create table null_infections_d%(dataset_id)s diststyle all sortkey(window_id, pat_id) as
+create table null_infections_d%(dataset_id)s diststyle all sortkey(window_id, enc_id) as
   -- This is necessary for get_window_labels_from_criteria
   select P.tsp                             as window_id,
-         P.pat_id                          as pat_id,
+         P.enc_id                          as enc_id,
          'suspicion_of_infection'::varchar as name,
          null::timestamptz                 as measurement_time,
          null::text                        as value,
@@ -221,7 +221,7 @@ create table null_infections_d%(dataset_id)s diststyle all sortkey(window_id, pa
 
 
 
-create table severe_sepsis_candidates_d%(dataset_id)s diststyle all sortkey(window_id, pat_id) as
+create table severe_sepsis_candidates_d%(dataset_id)s diststyle all sortkey(window_id, enc_id) as
   with all_sirs_org_triples_d%(dataset_id)s as (
     with sirs as (
       select * from all_sirs_org_d%(dataset_id)s S
@@ -236,7 +236,7 @@ create table severe_sepsis_candidates_d%(dataset_id)s diststyle all sortkey(wind
       and S.is_met
     )
     select SO.window_id,
-           SO.pat_id,
+           SO.enc_id,
            SO.sirs1_name,
            SO.sirs2_name,
            SO.odf_name,
@@ -245,7 +245,7 @@ create table severe_sepsis_candidates_d%(dataset_id)s diststyle all sortkey(wind
            SO.org_df_onset
     from (
       select S1.window_id,
-             S1.pat_id,
+             S1.enc_id,
              S1.name as sirs1_name,
              S2.name as sirs2_name,
              D.name as odf_name,
@@ -254,10 +254,10 @@ create table severe_sepsis_candidates_d%(dataset_id)s diststyle all sortkey(wind
              D.measurement_time as org_df_onset
       from org_df D
       inner join sirs S1
-        on D.window_id = S1.window_id and D.pat_id = S1.pat_id
+        on D.window_id = S1.window_id and D.enc_id = S1.enc_id
       inner join sirs S2
         on S1.window_id = S2.window_id
-        and S1.pat_id = S2.pat_id
+        and S1.enc_id = S2.enc_id
         and S1.name <> S2.name
         and S1.measurement_time <= S2.measurement_time
     ) SO
@@ -267,7 +267,7 @@ create table severe_sepsis_candidates_d%(dataset_id)s diststyle all sortkey(wind
   ),
   indexed_triples as (
     select SO.window_id,
-           SO.pat_id,
+           SO.enc_id,
            SO.sirs1_name,
            SO.sirs2_name,
            SO.odf_name,
@@ -278,7 +278,7 @@ create table severe_sepsis_candidates_d%(dataset_id)s diststyle all sortkey(wind
            I.infection_onset,
 
            row_number() over (
-              partition by SO.window_id, SO.pat_id
+              partition by SO.window_id, SO.enc_id
               order by
                 (coalesce(I.infection_cnt, 0) > 0 and I.infection_onset is not null) desc nulls last,
                 greatest(SO.sirs_initial::timestamptz, SO.sirs_onset::timestamptz, SO.org_df_onset::timestamptz)::timestamptz nulls last
@@ -287,17 +287,17 @@ create table severe_sepsis_candidates_d%(dataset_id)s diststyle all sortkey(wind
     from all_sirs_org_triples_d%(dataset_id)s SO
     left join (
       select I.window_id,
-             I.pat_id,
+             I.enc_id,
              (case when I.name = 'suspicion_of_infection' and I.is_met then 1 else 0 end) as infection_cnt,
              (case when I.name = 'suspicion_of_infection' then I.measurement_time else null::timestamptz end) as infection_onset
       from null_infections_d%(dataset_id)s I
     ) I
-      on SO.window_id = I.window_id and SO.pat_id = I.pat_id
+      on SO.window_id = I.window_id and SO.enc_id = I.enc_id
       and greatest(SO.sirs_onset, SO.org_df_onset, I.infection_onset)
             - least(SO.sirs_onset, SO.org_df_onset, I.infection_onset) < interval '6 hours'
   )
   select I.window_id,
-         I.pat_id,
+         I.enc_id,
          coalesce(I.infection_cnt, 0) > 0 as suspicion_of_infection,
 
          (case
@@ -320,10 +320,10 @@ create table severe_sepsis_candidates_d%(dataset_id)s diststyle all sortkey(wind
 
 
 
-create table severe_sepsis_onsets_d%(dataset_id)s diststyle all sortkey(window_id, pat_id) as
+create table severe_sepsis_onsets_d%(dataset_id)s diststyle all sortkey(window_id, enc_id) as
   with severe_sepsis_onsets as (
     select sspm.window_id,
-           sspm.pat_id,
+           sspm.enc_id,
            sspm.severe_sepsis_is_met,
            (case when sspm.severe_sepsis_onset <> 'infinity'::timestamptz
                  then sspm.severe_sepsis_onset
@@ -336,7 +336,7 @@ create table severe_sepsis_onsets_d%(dataset_id)s diststyle all sortkey(window_i
            sspm.severe_sepsis_lead_time
     from (
       select stats.window_id,
-             stats.pat_id,
+             stats.enc_id,
              coalesce(bool_or(stats.suspicion_of_infection), false) as severe_sepsis_is_met,
 
              max(greatest(coalesce(stats.inf_onset, 'infinity'::timestamptz),
@@ -352,7 +352,7 @@ create table severe_sepsis_onsets_d%(dataset_id)s diststyle all sortkey(window_i
                 as severe_sepsis_lead_time
 
       from severe_sepsis_candidates_d%(dataset_id)s stats
-      group by stats.window_id, stats.pat_id
+      group by stats.window_id, stats.enc_id
     ) sspm
   )
 
@@ -362,17 +362,17 @@ create table severe_sepsis_onsets_d%(dataset_id)s diststyle all sortkey(window_i
 
 
 
-create table severe_sepsis_criteria_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(window_id, pat_id) as
+create table severe_sepsis_criteria_d%(dataset_id)s diststyle key distkey(enc_id) sortkey(window_id, enc_id) as
   with indexed_criteria as (
     select
         CR.window_id,
-        CR.pat_id,
+        CR.enc_id,
         CR.name,
         CR.measurement_time,
         CR.value,
         coalesce(CR.is_met, false) as is_met,
         row_number() over (
-          partition by CR.window_id, CR.pat_id, CR.name
+          partition by CR.window_id, CR.enc_id, CR.name
           order by (case when coalesce(CR.is_met, false) then CR.measurement_time else null end) desc nulls last
         ) as row
     from (
@@ -380,7 +380,7 @@ create table severe_sepsis_criteria_d%(dataset_id)s diststyle key distkey(pat_id
       union all select * from null_infections_d%(dataset_id)s
     ) CR
     left join severe_sepsis_candidates_d%(dataset_id)s CD
-      on CR.window_id = CD.window_id and CR.pat_id = CD.pat_id
+      on CR.window_id = CD.window_id and CR.enc_id = CD.enc_id
       and CR.name in ( CD.sirs1_name, CD.sirs2_name, CD.odf_name, 'suspicion_of_infection' )
 
     where ( coalesce(CD.sirs1_name, CD.sirs2_name, CD.odf_name) is null )
@@ -390,7 +390,7 @@ create table severe_sepsis_criteria_d%(dataset_id)s diststyle key distkey(pat_id
          or ( CR.name = 'suspicion_of_infection' and (CD.inf_onset = 'infinity'::timestamptz or CR.measurement_time = CD.inf_onset) )
     )
   )
-  select C.window_id, C.pat_id, C.name, C.measurement_time, C.value, C.is_met,
+  select C.window_id, C.enc_id, C.name, C.measurement_time, C.value, C.is_met,
          getdate()::timestamptz as update_date
   from indexed_criteria C
   where C.row = 1
@@ -398,9 +398,9 @@ create table severe_sepsis_criteria_d%(dataset_id)s diststyle key distkey(pat_id
 '''
 
 severe_sepsis_template = '''
-create table pat_cvalues_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(window_id, pat_id) as
+create table pat_cvalues_d%(dataset_id)s diststyle key distkey(enc_id) sortkey(window_id, enc_id) as
   select date_trunc('hour', meas.tsp) + (O.window_offset || ' minutes')::interval as window_id,
-         meas.pat_id,
+         meas.enc_id,
          cd.name,
          meas.fid,
          cd.category,
@@ -410,7 +410,7 @@ create table pat_cvalues_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(w
          cd.upper as d_upper
   from criteria_default_flat as cd
 
-  left join criteria_meas meas
+  left join cdm_t meas
       on meas.fid = cd.fid
       and cd.dataset_id = meas.dataset_id
 
@@ -452,15 +452,15 @@ create table pat_cvalues_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(w
   ;
 
 
-create table pat_aggregates_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(window_id, pat_id) as
+create table pat_aggregates_d%(dataset_id)s diststyle key distkey(enc_id) sortkey(window_id, enc_id) as
   select aggs.window_id,
-         aggs.pat_id,
+         aggs.enc_id,
          avg(aggs.bp_sys) as bp_sys,
          avg(aggs.weight) as weight,
          sum(aggs.urine_output) as urine_output
   from (
       select date_trunc('hour', meas.tsp) + (O.window_offset || ' minutes')::interval as window_id,
-             meas.pat_id,
+             meas.enc_id,
              meas.tsp as measurement_time,
              (case when meas.fid = 'bp_sys' then meas.value::double precision else null end) as bp_sys,
              (case when meas.fid = 'weight' then meas.value::double precision else null end) as weight,
@@ -468,19 +468,19 @@ create table pat_aggregates_d%(dataset_id)s diststyle key distkey(pat_id) sortke
                    and date_trunc('hour', meas.tsp) + (O.window_offset || ' minutes')::interval - meas.tsp < interval '2 hours'
                    then meas.value::double precision else null end
               ) as urine_output
-      from criteria_meas meas
+      from cdm_t meas
       cross join cdm_window_offsets_15mins O
       where meas.dataset_id = %(dataset_id)s
       and meas.fid in ('bp_sys', 'urine_output', 'weight')
       and isnumeric(meas.value)
   ) as aggs
-  group by aggs.window_id, aggs.pat_id
+  group by aggs.window_id, aggs.enc_id
   ;
 
 
-create table all_sirs_org_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(window_id, pat_id) as
+create table all_sirs_org_d%(dataset_id)s diststyle key distkey(enc_id) sortkey(window_id, enc_id) as
   select  PC.window_id,
-          PC.pat_id,
+          PC.enc_id,
           PC.name,
           PC.tsp as measurement_time,
           (case
@@ -524,7 +524,7 @@ create table all_sirs_org_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(
   from pat_cvalues_d%(dataset_id)s PC
 
   left join pat_aggregates_d%(dataset_id)s PAGG
-    on PC.window_id = PAGG.window_id and PC.pat_id = PAGG.pat_id
+    on PC.window_id = PAGG.window_id and PC.enc_id = PAGG.enc_id
 
   cross join (
     select value::double precision as weight_popmean
@@ -533,7 +533,7 @@ create table all_sirs_org_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(
   ;
 
 
-create table all_sirs_org_triples_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(window_id, pat_id) as
+create table all_sirs_org_triples_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(window_id, enc_id) as
   with sirs as (
     select * from all_sirs_org_d%(dataset_id)s S
     where S.name in ('sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc') and S.is_met
@@ -547,7 +547,7 @@ create table all_sirs_org_triples_d%(dataset_id)s diststyle key distkey(pat_id) 
     and S.is_met
   )
   select SO.window_id,
-         SO.pat_id,
+         SO.enc_id,
          SO.sirs1_name,
          SO.sirs2_name,
          SO.odf_name,
@@ -556,7 +556,7 @@ create table all_sirs_org_triples_d%(dataset_id)s diststyle key distkey(pat_id) 
          SO.org_df_onset
   from (
     select S1.window_id,
-           S1.pat_id,
+           S1.enc_id,
            S1.name as sirs1_name,
            S2.name as sirs2_name,
            D.name as odf_name,
@@ -565,10 +565,10 @@ create table all_sirs_org_triples_d%(dataset_id)s diststyle key distkey(pat_id) 
            D.measurement_time as org_df_onset
     from org_df D
     inner join sirs S1
-      on D.window_id = S1.window_id and D.pat_id = S1.pat_id
+      on D.window_id = S1.window_id and D.enc_id = S1.enc_id
     inner join sirs S2
       on S1.window_id = S2.window_id
-      and S1.pat_id = S2.pat_id
+      and S1.enc_id = S2.enc_id
       and S1.name <> S2.name
       and S1.measurement_time <= S2.measurement_time
   ) SO
@@ -579,15 +579,15 @@ create table all_sirs_org_triples_d%(dataset_id)s diststyle key distkey(pat_id) 
 
 
 
-create table infections_d%(dataset_id)s diststyle all sortkey(window_id, pat_id) as
+create table infections_d%(dataset_id)s diststyle all sortkey(window_id, enc_id) as
   with notes_candidates as (
-    select distinct T.window_id, T.pat_id from all_sirs_org_triples_d%(dataset_id)s T
+    select distinct T.window_id, T.enc_id from all_sirs_org_triples_d%(dataset_id)s T
   ),
 
   null_infections as (
     -- This is necessary for get_window_labels_from_criteria
     select P.tsp                             as window_id,
-           P.pat_id                          as pat_id,
+           P.enc_id                          as enc_id,
            'suspicion_of_infection'::varchar as name,
            null::timestamptz                 as measurement_time,
            null::text                        as value,
@@ -598,40 +598,40 @@ create table infections_d%(dataset_id)s diststyle all sortkey(window_id, pat_id)
   cdm_matches as (
       -- TODO: we have picked an arbitrary time interval for notes. Refine.
       select NC.window_id                             as window_id,
-             NC.pat_id                                as pat_id,
+             NC.enc_id                                as enc_id,
              'suspicion_of_infection'::text           as name,
              min(NTG.tsp)                             as measurement_time,
              listagg(NTG.note_id, ', ')               as value,
              true                                     as is_met
       from notes_candidates NC
       inner join (
-        select M.dataset_id, M.pat_id, M.start_ts as tsp, M.note_id
+        select M.dataset_id, M.enc_id, M.start_ts as tsp, M.note_id
         from cdm_processed_notes M
         where M.dataset_id = %(dataset_id)s
         and not ( ngrams1 = '[]' and ngrams2 = '[]' and ngrams3 = '[]' )
       ) NTG
-        on NC.pat_id = NTG.pat_id
+        on NC.enc_id = NTG.enc_id
         and NTG.dataset_id = %(dataset_id)s
         and NTG.tsp between NC.window_id - interval '12 hours' and NC.window_id
-      group by NC.window_id, NC.pat_id
+      group by NC.window_id, NC.enc_id
   )
 
   select NI.window_id,
-         NI.pat_id,
+         NI.enc_id,
          coalesce(MTCH.name,             NI.name             ) as name,
          coalesce(MTCH.measurement_time, NI.measurement_time ) as measurement_time,
          coalesce(MTCH.value,            NI.value            ) as value,
          coalesce(MTCH.is_met,           NI.is_met           ) as is_met
   from null_infections NI
-  left join cdm_matches MTCH on NI.window_id = MTCH.window_id and NI.pat_id = MTCH.pat_id
+  left join cdm_matches MTCH on NI.window_id = MTCH.window_id and NI.enc_id = MTCH.enc_id
   ;
 
 
 
-create table severe_sepsis_candidates_d%(dataset_id)s diststyle all sortkey(window_id, pat_id) as
+create table severe_sepsis_candidates_d%(dataset_id)s diststyle all sortkey(window_id, enc_id) as
   with indexed_triples as (
     select SO.window_id,
-           SO.pat_id,
+           SO.enc_id,
            SO.sirs1_name,
            SO.sirs2_name,
            SO.odf_name,
@@ -642,7 +642,7 @@ create table severe_sepsis_candidates_d%(dataset_id)s diststyle all sortkey(wind
            I.infection_onset,
 
            row_number() over (
-              partition by SO.window_id, SO.pat_id
+              partition by SO.window_id, SO.enc_id
               order by
                 (coalesce(I.infection_cnt, 0) > 0 and I.infection_onset is not null) desc nulls last,
                 greatest(SO.sirs_initial::timestamptz, SO.sirs_onset::timestamptz, SO.org_df_onset::timestamptz)::timestamptz nulls last
@@ -651,17 +651,17 @@ create table severe_sepsis_candidates_d%(dataset_id)s diststyle all sortkey(wind
     from all_sirs_org_triples_d%(dataset_id)s SO
     left join (
       select I.window_id,
-             I.pat_id,
+             I.enc_id,
              (case when I.name = 'suspicion_of_infection' and I.is_met then 1 else 0 end) as infection_cnt,
              (case when I.name = 'suspicion_of_infection' then I.measurement_time else null::timestamptz end) as infection_onset
       from infections_d%(dataset_id)s I
     ) I
-      on SO.window_id = I.window_id and SO.pat_id = I.pat_id
+      on SO.window_id = I.window_id and SO.enc_id = I.enc_id
       and greatest(SO.sirs_onset, SO.org_df_onset, I.infection_onset)
             - least(SO.sirs_onset, SO.org_df_onset, I.infection_onset) < interval '6 hours'
   )
   select I.window_id,
-         I.pat_id,
+         I.enc_id,
          coalesce(I.infection_cnt, 0) > 0 as suspicion_of_infection,
 
          (case
@@ -683,10 +683,10 @@ create table severe_sepsis_candidates_d%(dataset_id)s diststyle all sortkey(wind
 
 
 
-create table severe_sepsis_onsets_d%(dataset_id)s diststyle all sortkey(window_id, pat_id) as
+create table severe_sepsis_onsets_d%(dataset_id)s diststyle all sortkey(window_id, enc_id) as
   with severe_sepsis_onsets as (
     select sspm.window_id,
-           sspm.pat_id,
+           sspm.enc_id,
            sspm.severe_sepsis_is_met,
            (case when sspm.severe_sepsis_onset <> 'infinity'::timestamptz
                  then sspm.severe_sepsis_onset
@@ -699,7 +699,7 @@ create table severe_sepsis_onsets_d%(dataset_id)s diststyle all sortkey(window_i
            sspm.severe_sepsis_lead_time
     from (
       select stats.window_id,
-             stats.pat_id,
+             stats.enc_id,
              coalesce(bool_or(stats.suspicion_of_infection), false) as severe_sepsis_is_met,
 
              max(greatest(coalesce(stats.inf_onset, 'infinity'::timestamptz),
@@ -715,7 +715,7 @@ create table severe_sepsis_onsets_d%(dataset_id)s diststyle all sortkey(window_i
                 as severe_sepsis_lead_time
 
       from severe_sepsis_candidates_d%(dataset_id)s stats
-      group by stats.window_id, stats.pat_id
+      group by stats.window_id, stats.enc_id
     ) sspm
   )
 
@@ -725,17 +725,17 @@ create table severe_sepsis_onsets_d%(dataset_id)s diststyle all sortkey(window_i
 
 
 
-create table severe_sepsis_criteria_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(window_id, pat_id) as
+create table severe_sepsis_criteria_d%(dataset_id)s diststyle key distkey(enc_id) sortkey(window_id, enc_id) as
   with indexed_criteria as (
     select
         CR.window_id,
-        CR.pat_id,
+        CR.enc_id,
         CR.name,
         CR.measurement_time,
         CR.value,
         coalesce(CR.is_met, false) as is_met,
         row_number() over (
-          partition by CR.window_id, CR.pat_id, CR.name
+          partition by CR.window_id, CR.enc_id, CR.name
           order by (case when coalesce(CR.is_met, false) then CR.measurement_time else null end) desc nulls last
         ) as row
     from (
@@ -743,7 +743,7 @@ create table severe_sepsis_criteria_d%(dataset_id)s diststyle key distkey(pat_id
       union all select * from infections_d%(dataset_id)s
     ) CR
     left join severe_sepsis_candidates_d%(dataset_id)s CD
-      on CR.window_id = CD.window_id and CR.pat_id = CD.pat_id
+      on CR.window_id = CD.window_id and CR.enc_id = CD.enc_id
       and CR.name in ( CD.sirs1_name, CD.sirs2_name, CD.odf_name, 'suspicion_of_infection' )
 
     where ( coalesce(CD.sirs1_name, CD.sirs2_name, CD.odf_name) is null )
@@ -753,7 +753,7 @@ create table severe_sepsis_criteria_d%(dataset_id)s diststyle key distkey(pat_id
          or ( CR.name = 'suspicion_of_infection' and (CD.inf_onset = 'infinity'::timestamptz or CR.measurement_time = CD.inf_onset) )
     )
   )
-  select C.window_id, C.pat_id, C.name, C.measurement_time, C.value, C.is_met,
+  select C.window_id, C.enc_id, C.name, C.measurement_time, C.value, C.is_met,
          getdate()::timestamptz as update_date
   from indexed_criteria C
   where C.row = 1
@@ -765,20 +765,20 @@ severe_sepsis_output_template = '''
 -----------------------------------------
 -- Skip if we're processing septic shock.
 
-create table severe_sepsis_outputs_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(window_id, pat_id) as
+create table severe_sepsis_outputs_d%(dataset_id)s diststyle key distkey(enc_id) sortkey(window_id, enc_id) as
   select new_criteria.*,
          SSP.severe_sepsis_onset,
          SSP.severe_sepsis_wo_infection_onset,
          null::timestamptz as septic_shock_onset
   from severe_sepsis_criteria_d%(dataset_id)s new_criteria
   left join severe_sepsis_onsets_d%(dataset_id)s SSP
-    on new_criteria.window_id = SSP.window_id and new_criteria.pat_id = SSP.pat_id
-  order by new_criteria.pat_id, new_criteria.window_id, new_criteria.name
+    on new_criteria.window_id = SSP.window_id and new_criteria.enc_id = SSP.enc_id
+  order by new_criteria.enc_id, new_criteria.window_id, new_criteria.name
   ;
 
-create table cdm_labels_d%(dataset_id)s diststyle all sortkey(pat_id, tsp) as
-  select sw.pat_id, sw.window_id as tsp, 'cms state' as label_type, sw.state as label from (
-    select stats.window_id, stats.pat_id,
+create table cdm_labels_d%(dataset_id)s diststyle all sortkey(enc_id, tsp) as
+  select sw.enc_id, sw.window_id as tsp, 'cms state' as label_type, sw.state as label from (
+    select stats.window_id, stats.enc_id,
         (
           case
           when ssp_present and ssh_present then (
@@ -826,7 +826,7 @@ create table cdm_labels_d%(dataset_id)s diststyle all sortkey(pat_id, tsp) as
         ) as state
     from
     (
-      select OCR.window_id, OCR.pat_id,
+      select OCR.window_id, OCR.enc_id,
           bool_or(severe_sepsis_wo_infection_onset is not null) as sspwoi_present,
           bool_or(severe_sepsis_onset is not null)              as ssp_present,
           bool_or(septic_shock_onset is not null)               as ssh_present,
@@ -865,8 +865,8 @@ create table cdm_labels_d%(dataset_id)s diststyle all sortkey(pat_id, tsp) as
             as sep_sho_6hr_count
 
       from severe_sepsis_outputs_d%(dataset_id)s OCR
-      where OCR.pat_id = coalesce(null/*this_pat_id*/, OCR.pat_id)
-      group by OCR.window_id, OCR.pat_id
+      where OCR.enc_id = coalesce(null/*this_enc_id*/, OCR.enc_id)
+      group by OCR.window_id, OCR.enc_id
     ) stats
   ) sw
   ;
@@ -884,9 +884,9 @@ create table cdm_labels_d%(dataset_id)s diststyle all sortkey(pat_id, tsp) as
 ## - Requires a <pfx>pat_partition_d<id> table to be available.
 
 septic_shock_template = '''
-create table %(prefix)spat_cvalues_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(window_id, pat_id) as
+create table %(prefix)spat_cvalues_d%(dataset_id)s diststyle key distkey(enc_id) sortkey(window_id, enc_id) as
   select date_trunc('hour', meas.tsp) + (O.window_offset || ' minutes')::interval as window_id,
-         meas.pat_id,
+         meas.enc_id,
          cd.name,
          meas.fid,
          cd.category,
@@ -896,7 +896,7 @@ create table %(prefix)spat_cvalues_d%(dataset_id)s diststyle key distkey(pat_id)
          cd.upper as d_upper
   from criteria_default_flat as cd
 
-  left join criteria_meas meas
+  left join cdm_t meas
       on meas.fid = cd.fid
       and cd.dataset_id = meas.dataset_id
 
@@ -915,15 +915,15 @@ create table %(prefix)spat_cvalues_d%(dataset_id)s diststyle key distkey(pat_id)
   ;
 
 
-create table %(prefix)spat_aggregates_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(window_id, pat_id) as
+create table %(prefix)spat_aggregates_d%(dataset_id)s diststyle key distkey(enc_id) sortkey(window_id, enc_id) as
   select aggs.window_id,
-         aggs.pat_id,
+         aggs.enc_id,
          avg(aggs.bp_sys) as bp_sys,
          avg(aggs.weight) as weight,
          sum(aggs.urine_output) as urine_output
   from (
       select date_trunc('hour', meas.tsp) + (O.window_offset || ' minutes')::interval as window_id,
-             meas.pat_id,
+             meas.enc_id,
              meas.tsp as measurement_time,
              (case when meas.fid = 'bp_sys' then meas.value::double precision else null end) as bp_sys,
              (case when meas.fid = 'weight' then meas.value::double precision else null end) as weight,
@@ -931,19 +931,19 @@ create table %(prefix)spat_aggregates_d%(dataset_id)s diststyle key distkey(pat_
                    and date_trunc('hour', meas.tsp) + (O.window_offset || ' minutes')::interval - meas.tsp < interval '2 hours'
                    then meas.value::double precision else null end
               ) as urine_output
-      from criteria_meas meas
+      from cdm_t meas
       cross join cdm_window_offsets_15mins O
       where meas.dataset_id = %(dataset_id)s
       and meas.fid in ('bp_sys', 'urine_output', 'weight')
       and isnumeric(meas.value)
   ) as aggs
-  group by aggs.window_id, aggs.pat_id
+  group by aggs.window_id, aggs.enc_id
   ;
 
 
-create table %(prefix)sall_sirs_org_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(window_id, pat_id) as
+create table %(prefix)sall_sirs_org_d%(dataset_id)s diststyle key distkey(enc_id) sortkey(window_id, enc_id) as
   select  PC.window_id,
-          PC.pat_id,
+          PC.enc_id,
           PC.name,
           PC.tsp as measurement_time,
           (case
@@ -987,7 +987,7 @@ create table %(prefix)sall_sirs_org_d%(dataset_id)s diststyle key distkey(pat_id
   from %(prefix)spat_cvalues_d%(dataset_id)s PC
 
   left join %(prefix)spat_aggregates_d%(dataset_id)s PAGG
-    on PC.window_id = PAGG.window_id and PC.pat_id = PAGG.pat_id
+    on PC.window_id = PAGG.window_id and PC.enc_id = PAGG.enc_id
 
   cross join (
     select value::double precision as weight_popmean
@@ -1002,7 +1002,7 @@ create table %(prefix)sall_sirs_org_d%(dataset_id)s diststyle key distkey(pat_id
   ;
 
 
-create table %(prefix)sall_sirs_org_triples_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(window_id, pat_id) as
+create table %(prefix)sall_sirs_org_triples_d%(dataset_id)s diststyle key distkey(enc_id) sortkey(window_id, enc_id) as
   with sirs as (
     select * from %(prefix)sall_sirs_org_d%(dataset_id)s S
     where S.name in ('sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc') and S.is_met
@@ -1016,7 +1016,7 @@ create table %(prefix)sall_sirs_org_triples_d%(dataset_id)s diststyle key distke
     and S.is_met
   )
   select SO.window_id,
-         SO.pat_id,
+         SO.enc_id,
          SO.sirs1_name,
          SO.sirs2_name,
          SO.odf_name,
@@ -1025,7 +1025,7 @@ create table %(prefix)sall_sirs_org_triples_d%(dataset_id)s diststyle key distke
          SO.org_df_onset
   from (
     select S1.window_id,
-           S1.pat_id,
+           S1.enc_id,
            S1.name as sirs1_name,
            S2.name as sirs2_name,
            D.name as odf_name,
@@ -1034,10 +1034,10 @@ create table %(prefix)sall_sirs_org_triples_d%(dataset_id)s diststyle key distke
            D.measurement_time as org_df_onset
     from org_df D
     inner join sirs S1
-      on D.window_id = S1.window_id and D.pat_id = S1.pat_id
+      on D.window_id = S1.window_id and D.enc_id = S1.enc_id
     inner join sirs S2
       on S1.window_id = S2.window_id
-      and S1.pat_id = S2.pat_id
+      and S1.enc_id = S2.enc_id
       and S1.name <> S2.name
       and S1.measurement_time <= S2.measurement_time
   ) SO
@@ -1048,15 +1048,15 @@ create table %(prefix)sall_sirs_org_triples_d%(dataset_id)s diststyle key distke
 
 
 
-create table %(prefix)sinfections_d%(dataset_id)s diststyle all sortkey(window_id, pat_id) as
+create table %(prefix)sinfections_d%(dataset_id)s diststyle all sortkey(window_id, enc_id) as
   with notes_candidates as (
-    select distinct T.window_id, T.pat_id from %(prefix)sall_sirs_org_triples_d%(dataset_id)s T
+    select distinct T.window_id, T.enc_id from %(prefix)sall_sirs_org_triples_d%(dataset_id)s T
   ),
 
   null_infections as (
     -- This is necessary for get_window_labels_from_criteria
     select P.tsp                             as window_id,
-           P.pat_id                          as pat_id,
+           P.enc_id                          as enc_id,
            'suspicion_of_infection'::varchar as name,
            null::timestamptz                 as measurement_time,
            null::text                        as value,
@@ -1067,40 +1067,40 @@ create table %(prefix)sinfections_d%(dataset_id)s diststyle all sortkey(window_i
   cdm_matches as (
       -- TODO: we have picked an arbitrary time interval for notes. Refine.
       select NC.window_id                             as window_id,
-             NC.pat_id                                as pat_id,
+             NC.enc_id                                as enc_id,
              'suspicion_of_infection'::text           as name,
              min(NTG.tsp)                             as measurement_time,
              listagg(NTG.note_id, ', ')               as value,
              true                                     as is_met
       from notes_candidates NC
       inner join (
-        select M.dataset_id, M.pat_id, M.start_ts as tsp, M.note_id
+        select M.dataset_id, M.enc_id, M.start_ts as tsp, M.note_id
         from cdm_processed_notes M
         where M.dataset_id = %(dataset_id)s
         and not ( ngrams1 = '[]' and ngrams2 = '[]' and ngrams3 = '[]' )
       ) NTG
-        on NC.pat_id = NTG.pat_id
+        on NC.enc_id = NTG.enc_id
         and NTG.dataset_id = %(dataset_id)s
         and NTG.tsp between NC.window_id - interval '12 hours' and NC.window_id
-      group by NC.window_id, NC.pat_id
+      group by NC.window_id, NC.enc_id
   )
 
   select NI.window_id,
-         NI.pat_id,
+         NI.enc_id,
          coalesce(MTCH.name,             NI.name             ) as name,
          coalesce(MTCH.measurement_time, NI.measurement_time ) as measurement_time,
          coalesce(MTCH.value,            NI.value            ) as value,
          coalesce(MTCH.is_met,           NI.is_met           ) as is_met
   from null_infections NI
-  left join cdm_matches MTCH on NI.window_id = MTCH.window_id and NI.pat_id = MTCH.pat_id
+  left join cdm_matches MTCH on NI.window_id = MTCH.window_id and NI.enc_id = MTCH.enc_id
   ;
 
 
 
-create table %(prefix)ssevere_sepsis_candidates_d%(dataset_id)s diststyle all sortkey(window_id, pat_id) as
+create table %(prefix)ssevere_sepsis_candidates_d%(dataset_id)s diststyle all sortkey(window_id, enc_id) as
   with indexed_triples as (
     select SO.window_id,
-           SO.pat_id,
+           SO.enc_id,
            SO.sirs1_name,
            SO.sirs2_name,
            SO.odf_name,
@@ -1111,7 +1111,7 @@ create table %(prefix)ssevere_sepsis_candidates_d%(dataset_id)s diststyle all so
            I.infection_onset,
 
            row_number() over (
-              partition by SO.window_id, SO.pat_id
+              partition by SO.window_id, SO.enc_id
               order by
                 (coalesce(I.infection_cnt, 0) > 0 and I.infection_onset is not null) desc nulls last,
                 greatest(SO.sirs_initial::timestamptz, SO.sirs_onset::timestamptz, SO.org_df_onset::timestamptz)::timestamptz nulls last
@@ -1120,17 +1120,17 @@ create table %(prefix)ssevere_sepsis_candidates_d%(dataset_id)s diststyle all so
     from %(prefix)sall_sirs_org_triples_d%(dataset_id)s SO
     left join (
       select I.window_id,
-             I.pat_id,
+             I.enc_id,
              (case when I.name = 'suspicion_of_infection' and I.is_met then 1 else 0 end) as infection_cnt,
              (case when I.name = 'suspicion_of_infection' then I.measurement_time else null::timestamptz end) as infection_onset
       from %(prefix)sinfections_d%(dataset_id)s I
     ) I
-      on SO.window_id = I.window_id and SO.pat_id = I.pat_id
+      on SO.window_id = I.window_id and SO.enc_id = I.enc_id
       and greatest(SO.sirs_onset, SO.org_df_onset, I.infection_onset)
             - least(SO.sirs_onset, SO.org_df_onset, I.infection_onset) < interval '6 hours'
   )
   select I.window_id,
-         I.pat_id,
+         I.enc_id,
          coalesce(I.infection_cnt, 0) > 0 as suspicion_of_infection,
 
          (case
@@ -1152,10 +1152,10 @@ create table %(prefix)ssevere_sepsis_candidates_d%(dataset_id)s diststyle all so
 
 
 
-create table %(prefix)ssevere_sepsis_onsets_d%(dataset_id)s diststyle all sortkey(window_id, pat_id) as
+create table %(prefix)ssevere_sepsis_onsets_d%(dataset_id)s diststyle all sortkey(window_id, enc_id) as
   with severe_sepsis_onsets as (
     select sspm.window_id,
-           sspm.pat_id,
+           sspm.enc_id,
            sspm.severe_sepsis_is_met,
            (case when sspm.severe_sepsis_onset <> 'infinity'::timestamptz
                  then sspm.severe_sepsis_onset
@@ -1168,7 +1168,7 @@ create table %(prefix)ssevere_sepsis_onsets_d%(dataset_id)s diststyle all sortke
            sspm.severe_sepsis_lead_time
     from (
       select stats.window_id,
-             stats.pat_id,
+             stats.enc_id,
              coalesce(bool_or(stats.suspicion_of_infection), false) as severe_sepsis_is_met,
 
              max(greatest(coalesce(stats.inf_onset, 'infinity'::timestamptz),
@@ -1184,7 +1184,7 @@ create table %(prefix)ssevere_sepsis_onsets_d%(dataset_id)s diststyle all sortke
                 as severe_sepsis_lead_time
 
       from %(prefix)ssevere_sepsis_candidates_d%(dataset_id)s stats
-      group by stats.window_id, stats.pat_id
+      group by stats.window_id, stats.enc_id
     ) sspm
   )
 
@@ -1194,17 +1194,17 @@ create table %(prefix)ssevere_sepsis_onsets_d%(dataset_id)s diststyle all sortke
 
 
 
-create table %(prefix)ssevere_sepsis_criteria_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(window_id, pat_id) as
+create table %(prefix)ssevere_sepsis_criteria_d%(dataset_id)s diststyle key distkey(enc_id) sortkey(window_id, enc_id) as
   with indexed_criteria as (
     select
         CR.window_id,
-        CR.pat_id,
+        CR.enc_id,
         CR.name,
         CR.measurement_time,
         CR.value,
         coalesce(CR.is_met, false) as is_met,
         row_number() over (
-          partition by CR.window_id, CR.pat_id, CR.name
+          partition by CR.window_id, CR.enc_id, CR.name
           order by (case when coalesce(CR.is_met, false) then CR.measurement_time else null end) desc nulls last
         ) as row
     from (
@@ -1212,7 +1212,7 @@ create table %(prefix)ssevere_sepsis_criteria_d%(dataset_id)s diststyle key dist
       union all select * from %(prefix)sinfections_d%(dataset_id)s
     ) CR
     left join %(prefix)ssevere_sepsis_candidates_d%(dataset_id)s CD
-      on CR.window_id = CD.window_id and CR.pat_id = CD.pat_id
+      on CR.window_id = CD.window_id and CR.enc_id = CD.enc_id
       and CR.name in ( CD.sirs1_name, CD.sirs2_name, CD.odf_name, 'suspicion_of_infection' )
 
     where ( coalesce(CD.sirs1_name, CD.sirs2_name, CD.odf_name) is null )
@@ -1222,7 +1222,7 @@ create table %(prefix)ssevere_sepsis_criteria_d%(dataset_id)s diststyle key dist
          or ( CR.name = 'suspicion_of_infection' and (CD.inf_onset = 'infinity'::timestamptz or CR.measurement_time = CD.inf_onset) )
     )
   )
-  select C.window_id, C.pat_id, C.name, C.measurement_time, C.value, C.is_met,
+  select C.window_id, C.enc_id, C.name, C.measurement_time, C.value, C.is_met,
          getdate()::timestamptz as update_date
   from indexed_criteria C
   where C.row = 1
@@ -1230,10 +1230,10 @@ create table %(prefix)ssevere_sepsis_criteria_d%(dataset_id)s diststyle key dist
 
 
 
-create table %(prefix)scrystalloid_fluid_and_hypoperfusion_d%(dataset_id)s diststyle all sortkey(window_id, pat_id) as
+create table %(prefix)scrystalloid_fluid_and_hypoperfusion_d%(dataset_id)s diststyle all sortkey(window_id, enc_id) as
   with null_cf_and_hpf as (
     select P.tsp                             as window_id,
-           P.pat_id                          as pat_id,
+           P.enc_id                          as enc_id,
            'crystalloid_fluid'::varchar      as name,
            null::timestamptz                 as measurement_time,
            null::varchar                     as value,
@@ -1241,7 +1241,7 @@ create table %(prefix)scrystalloid_fluid_and_hypoperfusion_d%(dataset_id)s dists
     from %(prefix)spat_partition_d%(dataset_id)s P
     union all
     select P.tsp                             as window_id,
-           P.pat_id                          as pat_id,
+           P.enc_id                          as enc_id,
            'initial_lactate'::varchar        as name,
            null::timestamptz                 as measurement_time,
            null::varchar                     as value,
@@ -1251,7 +1251,7 @@ create table %(prefix)scrystalloid_fluid_and_hypoperfusion_d%(dataset_id)s dists
 
   cf_and_hpf_cvalues as (
     select SSP.window_id,
-           SSP.pat_id,
+           SSP.enc_id,
            cd.name,
            meas.fid,
            cd.category,
@@ -1262,8 +1262,8 @@ create table %(prefix)scrystalloid_fluid_and_hypoperfusion_d%(dataset_id)s dists
            SSP.severe_sepsis_onset
     from %(prefix)ssevere_sepsis_onsets_d%(dataset_id)s SSP
     cross join criteria_default as cd
-    left join criteria_meas meas
-        on SSP.pat_id = meas.pat_id
+    left join cdm_t meas
+        on SSP.enc_id = meas.enc_id
         and meas.fid = cd.fid
         and cd.dataset_id = meas.dataset_id
         and (meas.tsp is null
@@ -1281,7 +1281,7 @@ create table %(prefix)scrystalloid_fluid_and_hypoperfusion_d%(dataset_id)s dists
 
   cfhfp as (
     select  PC.window_id,
-            PC.pat_id,
+            PC.enc_id,
             PC.name,
             PC.tsp as measurement_time,
             PC.value as value,
@@ -1302,20 +1302,20 @@ create table %(prefix)scrystalloid_fluid_and_hypoperfusion_d%(dataset_id)s dists
 
   indexed_cfhfp as (
     select PC.window_id,
-           PC.pat_id,
+           PC.enc_id,
            PC.name,
            (case when PC.is_met then PC.measurement_time else null end) as measurement_time,
            (case when PC.is_met then PC.value else null end) as value,
            PC.is_met,
            row_number() over (
-             partition by PC.window_id, PC.pat_id, PC.name
+             partition by PC.window_id, PC.enc_id, PC.name
              order by PC.is_met desc, PC.measurement_time nulls last
            ) as row
     from cfhfp PC
   )
 
   select NC.window_id,
-         NC.pat_id,
+         NC.enc_id,
          coalesce(C.name,             NC.name             ) as name,
          coalesce(C.measurement_time, NC.measurement_time ) as measurement_time,
          coalesce(C.value,            NC.value            ) as value,
@@ -1323,16 +1323,16 @@ create table %(prefix)scrystalloid_fluid_and_hypoperfusion_d%(dataset_id)s dists
          getdate()::timestamptz                             as update_date
   from null_cf_and_hpf NC
   left join indexed_cfhfp C
-    on NC.window_id = C.window_id and NC.pat_id = C.pat_id and C.row = 1
+    on NC.window_id = C.window_id and NC.enc_id = C.enc_id and C.row = 1
   ;
 
 
 
 
-create table %(prefix)shypotension_d%(dataset_id)s diststyle all sortkey(window_id, pat_id) as
+create table %(prefix)shypotension_d%(dataset_id)s diststyle all sortkey(window_id, enc_id) as
   with null_hypotension as (
     select P.tsp                             as window_id,
-           P.pat_id                          as pat_id,
+           P.enc_id                          as enc_id,
            'systolic_bp'::varchar            as name,
            null::timestamptz                 as measurement_time,
            null::varchar                     as value,
@@ -1340,7 +1340,7 @@ create table %(prefix)shypotension_d%(dataset_id)s diststyle all sortkey(window_
     from %(prefix)spat_partition_d%(dataset_id)s P
     union all
     select P.tsp                             as window_id,
-           P.pat_id                          as pat_id,
+           P.enc_id                          as enc_id,
            'hypotension_map'::varchar        as name,
            null::timestamptz                 as measurement_time,
            null::varchar                     as value,
@@ -1348,7 +1348,7 @@ create table %(prefix)shypotension_d%(dataset_id)s diststyle all sortkey(window_
     from %(prefix)spat_partition_d%(dataset_id)s P
     union all
     select P.tsp                             as window_id,
-           P.pat_id                          as pat_id,
+           P.enc_id                          as enc_id,
            'hypotension_dsbp'::varchar       as name,
            null::timestamptz                 as measurement_time,
            null::varchar                     as value,
@@ -1356,11 +1356,11 @@ create table %(prefix)shypotension_d%(dataset_id)s diststyle all sortkey(window_
     from %(prefix)spat_partition_d%(dataset_id)s P
   ),
 
-  -- TODO: could be optimized? The domain here is for every pat_id given
-  -- the LHS of the join is criteria_meas
+  -- TODO: could be optimized? The domain here is for every enc_id given
+  -- the LHS of the join is cdm_t
   pats_fluid_after_severe_sepsis as (
     select  SSPN.window_id,
-            SSPN.pat_id,
+            SSPN.enc_id,
             MFL.tsp,
             sum(MFL.value::numeric) as total_fluid,
             -- Fluids are met if they are overriden or if we have more than
@@ -1370,22 +1370,22 @@ create table %(prefix)shypotension_d%(dataset_id)s diststyle all sortkey(window_
     from %(prefix)ssevere_sepsis_onsets_d%(dataset_id)s SSPN
 
     left join %(prefix)spat_aggregates_d%(dataset_id)s PW
-      on SSPN.window_id = PW.window_id and SSPN.pat_id = PW.pat_id
+      on SSPN.window_id = PW.window_id and SSPN.enc_id = PW.enc_id
 
-    left join criteria_meas MFL
-      on SSPN.pat_id = MFL.pat_id
+    left join cdm_t MFL
+      on SSPN.enc_id = MFL.enc_id
       and MFL.tsp between (SSPN.severe_sepsis_onset - interval '6 hours'/*orders_lookback*/) and SSPN.window_id
 
     where SSPN.severe_sepsis_is_met
     and MFL.dataset_id = %(dataset_id)s
     and isnumeric(MFL.value) and MFL.value <> 'nan'
     and MFL.fid = 'crystalloid_fluid'
-    group by SSPN.window_id, SSPN.pat_id, MFL.tsp
+    group by SSPN.window_id, SSPN.enc_id, MFL.tsp
   ),
 
   hypotension as (
     select PC.window_id,
-           PC.pat_id,
+           PC.enc_id,
            PC.name,
            PC.tsp as measurement_time,
            PC.value as value,
@@ -1407,17 +1407,17 @@ create table %(prefix)shypotension_d%(dataset_id)s diststyle all sortkey(window_
     from %(prefix)ssevere_sepsis_onsets_d%(dataset_id)s SSPN
 
     inner join %(prefix)spat_cvalues_d%(dataset_id)s PC
-      on SSPN.window_id = PC.window_id and SSPN.pat_id = PC.pat_id and SSPN.severe_sepsis_onset <= PC.tsp
+      on SSPN.window_id = PC.window_id and SSPN.enc_id = PC.enc_id and SSPN.severe_sepsis_onset <= PC.tsp
 
     left join %(prefix)spat_aggregates_d%(dataset_id)s PBPSYS
-      on SSPN.window_id = PBPSYS.window_id and SSPN.pat_id = PBPSYS.pat_id
+      on SSPN.window_id = PBPSYS.window_id and SSPN.enc_id = PBPSYS.enc_id
 
     left join pats_fluid_after_severe_sepsis PFL
-      on SSPN.window_id = PFL.window_id and SSPN.pat_id = PFL.pat_id and PFL.tsp < PC.tsp
+      on SSPN.window_id = PFL.window_id and SSPN.enc_id = PFL.enc_id and PFL.tsp < PC.tsp
 
     -- TODO: LIMIT 1? Instead we use upper bound of interval '1 hour'
-    left join criteria_meas NEXT
-      on SSPN.pat_id = NEXT.pat_id and PC.fid = NEXT.fid
+    left join cdm_t NEXT
+      on SSPN.enc_id = NEXT.enc_id and PC.fid = NEXT.fid
       and NEXT.tsp between PC.tsp and PC.window_id + interval '1 hour'
 
     where SSPN.severe_sepsis_is_met
@@ -1428,20 +1428,20 @@ create table %(prefix)shypotension_d%(dataset_id)s diststyle all sortkey(window_
 
   indexed_hypotension as (
     select PC.window_id,
-           PC.pat_id,
+           PC.enc_id,
            PC.name,
            (case when PC.is_met then PC.measurement_time else null end) as measurement_time,
            (case when PC.is_met then PC.value else null end) as value,
            PC.is_met,
            row_number() over (
-             partition by PC.window_id, PC.pat_id, PC.name
+             partition by PC.window_id, PC.enc_id, PC.name
              order by PC.is_met desc, PC.measurement_time nulls last
            ) as row
     from hypotension PC
   )
 
   select NC.window_id,
-         NC.pat_id,
+         NC.enc_id,
          coalesce(C.name,             NC.name             ) as name,
          coalesce(C.measurement_time, NC.measurement_time ) as measurement_time,
          coalesce(C.value,            NC.value            ) as value,
@@ -1449,16 +1449,16 @@ create table %(prefix)shypotension_d%(dataset_id)s diststyle all sortkey(window_
          getdate()::timestamptz                             as update_date
   from null_hypotension NC
   left join indexed_hypotension C
-    on NC.window_id = C.window_id and NC.pat_id = C.pat_id and C.row = 1
+    on NC.window_id = C.window_id and NC.enc_id = C.enc_id and C.row = 1
   ;
 
 
 
 
-create table %(prefix)sseptic_shock_onsets_d%(dataset_id)s diststyle all sortkey(window_id, pat_id) as
+create table %(prefix)sseptic_shock_onsets_d%(dataset_id)s diststyle all sortkey(window_id, enc_id) as
   with septic_shock_onsets as (
     select stats.window_id,
-           stats.pat_id,
+           stats.enc_id,
            bool_or(stats.cnt > 0) as septic_shock_is_met,
            (case
               when not(bool_or(stats.cnt > 0)) then null
@@ -1469,25 +1469,25 @@ create table %(prefix)sseptic_shock_onsets_d%(dataset_id)s diststyle all sortkey
         -- Hypotension and hypoperfusion subqueries individually check
         -- that they occur after severe sepsis onset.
         (select H.window_id,
-                H.pat_id,
+                H.enc_id,
                 sum(case when H.is_met then 1 else 0 end) as cnt,
                 min(H.measurement_time) as onset
          from %(prefix)shypotension_d%(dataset_id)s as H
-         group by H.window_id, H.pat_id)
+         group by H.window_id, H.enc_id)
         union all
         (select HPF.window_id,
-                HPF.pat_id,
+                HPF.enc_id,
                 sum(case when HPF.is_met then 1 else 0 end) as cnt,
                 min(HPF.measurement_time) as onset
          from %(prefix)scrystalloid_fluid_and_hypoperfusion_d%(dataset_id)s HPF
          where HPF.name = 'initial_lactate'
-         group by HPF.window_id, HPF.pat_id)
+         group by HPF.window_id, HPF.enc_id)
     ) stats
 
     left join %(prefix)ssevere_sepsis_onsets_d%(dataset_id)s SSP
-      on stats.window_id = SSP.window_id and stats.pat_id = SSP.pat_id
+      on stats.window_id = SSP.window_id and stats.enc_id = SSP.enc_id
 
-    group by stats.window_id, stats.pat_id
+    group by stats.window_id, stats.enc_id
   )
   select * from septic_shock_onsets
   ;
@@ -1495,13 +1495,13 @@ create table %(prefix)sseptic_shock_onsets_d%(dataset_id)s diststyle all sortkey
 
 
 
-create table %(prefix)sorders_criteria_d%(dataset_id)s diststyle all sortkey(window_id, pat_id) as
+create table %(prefix)sorders_criteria_d%(dataset_id)s diststyle all sortkey(window_id, enc_id) as
   with orders_criteria as (
     -- Unlike previous labeling functions, this pulls out all orders fresh
-    -- from criteria_meas, from their respective lookbacks to the end of the window.
+    -- from cdm_t, from their respective lookbacks to the end of the window.
     with orders_cvalues as (
       select PPRT.tsp as window_id,
-             PPRT.pat_id,
+             PPRT.enc_id,
              cd.name,
              meas.fid,
              cd.category,
@@ -1518,9 +1518,9 @@ create table %(prefix)sorders_criteria_d%(dataset_id)s diststyle all sortkey(win
       from %(prefix)spat_partition_d%(dataset_id)s PPRT
       cross join criteria_default as cd
       left join %(prefix)ssevere_sepsis_onsets_d%(dataset_id)s SSP
-        on PPRT.tsp = SSP.window_id and PPRT.pat_id = SSP.pat_id
-      left join criteria_meas meas
-          on PPRT.pat_id = meas.pat_id
+        on PPRT.tsp = SSP.window_id and PPRT.enc_id = SSP.enc_id
+      left join cdm_t meas
+          on PPRT.enc_id = meas.enc_id
           and meas.fid = cd.fid
           and cd.dataset_id = meas.dataset_id
           and (meas.tsp is null
@@ -1558,7 +1558,7 @@ create table %(prefix)sorders_criteria_d%(dataset_id)s diststyle all sortkey(win
 
     indexed_orders as (
       select  CV.window_id,
-              CV.pat_id,
+              CV.enc_id,
               CV.name,
               CV.tsp as measurement_time,
               (case when CV.category in ('after_severe_sepsis_dose', 'after_septic_shock_dose')
@@ -1610,17 +1610,17 @@ create table %(prefix)sorders_criteria_d%(dataset_id)s diststyle all sortkey(win
               ) as is_met,
 
               row_number() over (
-                partition by CV.window_id, CV.pat_id, CV.name
+                partition by CV.window_id, CV.enc_id, CV.name
                 order by CV.tsp nulls last
               ) as row
 
       from orders_cvalues CV
 
       left join %(prefix)ssevere_sepsis_onsets_d%(dataset_id)s SSP
-        on CV.window_id = SSP.window_id and CV.pat_id = SSP.pat_id
+        on CV.window_id = SSP.window_id and CV.enc_id = SSP.enc_id
 
       left join %(prefix)sseptic_shock_onsets_d%(dataset_id)s SSH
-        on CV.window_id = SSH.window_id and CV.pat_id = SSH.pat_id
+        on CV.window_id = SSH.window_id and CV.enc_id = SSH.enc_id
     )
     select C.*, getdate()::timestamptz as update_date
     from indexed_orders C
@@ -1630,7 +1630,7 @@ create table %(prefix)sorders_criteria_d%(dataset_id)s diststyle all sortkey(win
   repeat_lactate as (
     with indexed_orders as (
       select  CV.window_id,
-              CV.pat_id,
+              CV.enc_id,
               CV.name,
               json_extract_path_text(CV.value, 'result_tsp')::timestamptz as measurement_time,
               order_status(CV.fid, json_extract_path_text(CV.value, 'status')) as value,
@@ -1648,7 +1648,7 @@ create table %(prefix)sorders_criteria_d%(dataset_id)s diststyle all sortkey(win
               )) is_met,
 
               row_number() over (
-                partition by CV.window_id, CV.pat_id, CV.name
+                partition by CV.window_id, CV.enc_id, CV.name
                 order by CV.tsp nulls last
               ) as row
 
@@ -1656,26 +1656,26 @@ create table %(prefix)sorders_criteria_d%(dataset_id)s diststyle all sortkey(win
 
       left join (
           select oc.window_id,
-                 oc.pat_id,
+                 oc.enc_id,
                  max(case when oc.is_met then oc.measurement_time else null end) as tsp,
                  coalesce(bool_or(oc.is_met), false) as is_met,
                  coalesce(min(oc.value) = 'Completed', false) as is_completed
           from orders_criteria oc
           where oc.name = 'initial_lactate_order'
-          group by oc.window_id, oc.pat_id
+          group by oc.window_id, oc.enc_id
       ) initial_lactate_order
-      on CV.window_id = initial_lactate_order.window_id and CV.pat_id = initial_lactate_order.pat_id
+      on CV.window_id = initial_lactate_order.window_id and CV.enc_id = initial_lactate_order.enc_id
 
       left join (
           select p3.window_id,
-                 p3.pat_id,
+                 p3.enc_id,
                  max(case when p3.value::numeric > 2.0 then p3.tsp else null end) tsp,
                  coalesce(bool_or(p3.value::numeric > 2.0), false) is_met
           from %(prefix)spat_cvalues_d%(dataset_id)s p3
           where p3.name = 'initial_lactate'
-          group by p3.window_id, p3.pat_id
+          group by p3.window_id, p3.enc_id
       ) lactate_results
-      on CV.window_id = lactate_results.pat_id and CV.pat_id = lactate_results.pat_id
+      on CV.window_id = lactate_results.enc_id and CV.enc_id = lactate_results.enc_id
 
       where CV.name = 'repeat_lactate_order'
       and   json_extract_path_text(CV.value, 'result_tsp') <> 'NaT'
@@ -1685,14 +1685,14 @@ create table %(prefix)sorders_criteria_d%(dataset_id)s diststyle all sortkey(win
     where C.row = 1
   )
 
-  select O.window_id, O.pat_id, O.name, O.measurement_time, O.value, O.is_met, O.update_date from orders_criteria O
-  union all select R.window_id, R.pat_id, R.name, R.measurement_time, R.value, R.is_met, R.update_date from repeat_lactate R
+  select O.window_id, O.enc_id, O.name, O.measurement_time, O.value, O.is_met, O.update_date from orders_criteria O
+  union all select R.window_id, R.enc_id, R.name, R.measurement_time, R.value, R.is_met, R.update_date from repeat_lactate R
   ;
 
 
 
 
-create table %(prefix)sseptic_shock_outputs_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(window_id, pat_id) as
+create table %(prefix)sseptic_shock_outputs_d%(dataset_id)s diststyle key distkey(enc_id) sortkey(window_id, enc_id) as
   select new_criteria.*,
          SSP.severe_sepsis_onset,
          SSP.severe_sepsis_wo_infection_onset,
@@ -1705,17 +1705,17 @@ create table %(prefix)sseptic_shock_outputs_d%(dataset_id)s diststyle key distke
   ) new_criteria
 
   left join %(prefix)ssevere_sepsis_onsets_d%(dataset_id)s SSP
-    on new_criteria.window_id = SSP.window_id and new_criteria.pat_id = SSP.pat_id
+    on new_criteria.window_id = SSP.window_id and new_criteria.enc_id = SSP.enc_id
 
   left join %(prefix)sseptic_shock_onsets_d%(dataset_id)s SSH
-    on new_criteria.window_id = SSP.window_id and new_criteria.pat_id = SSH.pat_id;
+    on new_criteria.window_id = SSP.window_id and new_criteria.enc_id = SSH.enc_id;
   ;
 
 
 
-create table %(prefix)scdm_shock_labels_d%(dataset_id)s diststyle all sortkey(pat_id, tsp) as
-  select sw.pat_id, sw.window_id as tsp, 'cms state' as label_type, sw.state as label from (
-    select stats.window_id, stats.pat_id,
+create table %(prefix)scdm_shock_labels_d%(dataset_id)s diststyle all sortkey(enc_id, tsp) as
+  select sw.enc_id, sw.window_id as tsp, 'cms state' as label_type, sw.state as label from (
+    select stats.window_id, stats.enc_id,
         (
           case
           when ssp_present and ssh_present then (
@@ -1763,7 +1763,7 @@ create table %(prefix)scdm_shock_labels_d%(dataset_id)s diststyle all sortkey(pa
         ) as state
     from
     (
-      select OCR.window_id, OCR.pat_id,
+      select OCR.window_id, OCR.enc_id,
           bool_or(severe_sepsis_wo_infection_onset is not null) as sspwoi_present,
           bool_or(severe_sepsis_onset is not null)              as ssp_present,
           bool_or(septic_shock_onset is not null)               as ssh_present,
@@ -1802,8 +1802,8 @@ create table %(prefix)scdm_shock_labels_d%(dataset_id)s diststyle all sortkey(pa
             as sep_sho_6hr_count
 
       from %(prefix)sseptic_shock_outputs_d%(dataset_id)s OCR
-      where OCR.pat_id = coalesce(null/*this_pat_id*/, OCR.pat_id)
-      group by OCR.window_id, OCR.pat_id
+      where OCR.enc_id = coalesce(null/*this_enc_id*/, OCR.enc_id)
+      group by OCR.window_id, OCR.enc_id
     ) stats
   ) sw
   ;
@@ -1820,15 +1820,15 @@ severe_sepsis_bundle_label_template = '''
 septic_shock_bundle_label_template = '''
 
 -- Earliest occurrence of each state
-create table earliest_occurrences_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(pat_id) as
-  select L.pat_id, L.label, min(L.tsp) as tsp
+create table earliest_occurrences_d%(dataset_id)s diststyle key distkey(enc_id) sortkey(enc_id) as
+  select L.enc_id, L.label, min(L.tsp) as tsp
   from cdm_labels_d%(dataset_id)s L
   where L.label_type = 'cms state'
-  group by L.pat_id, L.label
+  group by L.enc_id, L.label
   ;
 
-create table onset_times_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(pat_id) as
-  select I.pat_id,
+create table onset_times_d%(dataset_id)s diststyle key distkey(enc_id) sortkey(enc_id) as
+  select I.enc_id,
 
          -- Onset times
          least(min(L10.sspwoi), min(L20.sspwoi), min(L30.sspwoi)) as severe_sepsis_wo_infection_onset,
@@ -1840,69 +1840,69 @@ create table onset_times_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(p
          least(min(L20.w_ssp), min(L30.w_ssh)) as w_severe_sepsis_onset,
          min(L30.w_ssh) as w_septic_shock_onset
   from
-  ( select distinct I.pat_id from earliest_occurrences_d%(dataset_id)s I ) I
+  ( select distinct I.enc_id from earliest_occurrences_d%(dataset_id)s I ) I
 
   left join
   (
     -- Earliest occurrence of sspwoi.
-    select WL10.pat_id,
+    select WL10.enc_id,
            min(LWindow.severe_sepsis_wo_infection_onset) as sspwoi,
            min(WL10.tsp) as w_sspwoi
     from (
-      select L10.pat_id, min(L10.tsp) as tsp
+      select L10.enc_id, min(L10.tsp) as tsp
       from earliest_occurrences_d%(dataset_id)s L10
       where L10.label >= 10 and L10.label < 20
-      group by L10.pat_id
+      group by L10.enc_id
     ) WL10
     -- Retrieve exact timestamp of onset within the window.
     inner join septic_shock_outputs_d%(dataset_id)s LWindow
-      on WL10.pat_id = LWindow.pat_id
+      on WL10.enc_id = LWindow.enc_id
       and WL10.tsp = LWindow.window_id
-    group by WL10.pat_id
+    group by WL10.enc_id
   ) L10
-    on I.pat_id = L10.pat_id
+    on I.enc_id = L10.enc_id
 
   left join (
     -- Earliest occurrence of ssp.
-    select WL20.pat_id,
+    select WL20.enc_id,
            min(LWindow.severe_sepsis_wo_infection_onset) as sspwoi,
            min(LWindow.severe_sepsis_onset) as ssp,
            min(WL20.tsp) as w_ssp
     from (
-      select L20.pat_id, min(L20.tsp) as tsp
+      select L20.enc_id, min(L20.tsp) as tsp
       from earliest_occurrences_d%(dataset_id)s L20
       where L20.label >= 20 and L20.label < 30
-      group by L20.pat_id
+      group by L20.enc_id
     ) WL20
     -- Retrieve exact timestamp of onset within the window.
     inner join septic_shock_outputs_d%(dataset_id)s LWindow
-      on WL20.pat_id = LWindow.pat_id
+      on WL20.enc_id = LWindow.enc_id
       and WL20.tsp = LWindow.window_id
-    group by WL20.pat_id
+    group by WL20.enc_id
   ) L20
-    on I.pat_id = L20.pat_id
+    on I.enc_id = L20.enc_id
 
   left join (
     -- Earliest occurrence of ssh.
-    select WL30.pat_id,
+    select WL30.enc_id,
            min(LWindow.severe_sepsis_wo_infection_onset) as sspwoi,
            min(LWindow.severe_sepsis_onset) as ssp,
            min(LWindow.septic_shock_onset) as ssh,
            min(WL30.tsp) as w_ssh
     from (
-      select L30.pat_id, min(L30.tsp) as tsp
+      select L30.enc_id, min(L30.tsp) as tsp
       from earliest_occurrences_d%(dataset_id)s L30
       where L30.label >= 30
-      group by L30.pat_id
+      group by L30.enc_id
     ) WL30
     -- Retrieve exact timestamp of onset within the window.
     inner join septic_shock_outputs_d%(dataset_id)s LWindow
-      on WL30.pat_id = LWindow.pat_id
+      on WL30.enc_id = LWindow.enc_id
       and WL30.tsp = LWindow.window_id
-    group by WL30.pat_id
+    group by WL30.enc_id
   ) L30
-    on I.pat_id = L30.pat_id
-  group by I.pat_id
+    on I.enc_id = L30.enc_id
+  group by I.enc_id
   ;
 
 --
@@ -1913,13 +1913,13 @@ create table onset_times_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(p
 
 
 
-create table %(prefix)sbundle_compliance_outputs_d%(dataset_id)s diststyle key distkey(pat_id) sortkey(window_id, pat_id) as
+create table %(prefix)sbundle_compliance_outputs_d%(dataset_id)s diststyle key distkey(enc_id) sortkey(window_id, enc_id) as
   with
   severe_sepsis_criteria_at_onset as (
     select SSP.*
     from onset_times T
     inner join septic_shock_outputs_d%(dataset_id)s SSP
-      on T.w_severe_sepsis_onset = SSP.window_id and T.pat_id = SSP.pat_id
+      on T.w_severe_sepsis_onset = SSP.window_id and T.enc_id = SSP.enc_id
     where not(T.severe_sepsis_onset is null or T.w_severe_sepsis_onset is null)
     and (T.septic_shock_onset is null or T.severe_sepsis_onset <> T.septic_shock_onset)
   ),
@@ -1927,26 +1927,26 @@ create table %(prefix)sbundle_compliance_outputs_d%(dataset_id)s diststyle key d
     select SSH.*
     from onset_times T
     inner join septic_shock_outputs_d%(dataset_id)s SSH
-      on T.w_septic_shock_onset = SSH.window_id and T.pat_id = SSH.pat_id
+      on T.w_septic_shock_onset = SSH.window_id and T.enc_id = SSH.enc_id
     where not(T.septic_shock_onset is null or T.w_septic_shock_onset is null)
   )
   severe_sepsis_6hr_bundle as (
     select T.severe_sepsis_onset + interval ''6 hours'' as ts, SSP.*
     from onset_times T
-    inner join lateral %s(coalesce(%s, T.pat_id), T.severe_sepsis_onset, T.severe_sepsis_onset + interval ''6 hours'', %s, %s, %s, %s) SSP
-    on SSP.pat_id = T.pat_id
+    inner join lateral %s(coalesce(%s, T.enc_id), T.severe_sepsis_onset, T.severe_sepsis_onset + interval ''6 hours'', %s, %s, %s, %s) SSP
+    on SSP.enc_id = T.enc_id
     where T.severe_sepsis_onset is not null
     and (T.septic_shock_onset is null or T.severe_sepsis_onset <> T.septic_shock_onset)
   ),
   septic_shock_6hr_bundle as (
     select T.septic_shock_onset + interval ''6 hours'' as ts, SSH.*
     from onset_times T
-    inner join lateral %s(coalesce(%s, T.pat_id), T.septic_shock_onset, T.septic_shock_onset + interval ''6 hours'', %s, %s, %s, %s) SSH
-    on SSH.pat_id = T.pat_id
+    inner join lateral %s(coalesce(%s, T.enc_id), T.septic_shock_onset, T.septic_shock_onset + interval ''6 hours'', %s, %s, %s, %s) SSH
+    on SSH.enc_id = T.enc_id
     where T.septic_shock_onset is not null
   )
   select SSP.window_id,
-         SSP.pat_id,
+         SSP.enc_id,
          SSP.name,
          (case when SSP.name like ''%%_order'' then PB.measurement_time else SSP.measurement_time end) as measurement_time,
          (case when SSP.name like ''%%_order'' then PB.value            else SSP.value            end) as value,
@@ -1956,10 +1956,10 @@ create table %(prefix)sbundle_compliance_outputs_d%(dataset_id)s diststyle key d
          SSP.severe_sepsis_wo_infection_onset,
          SSP.septic_shock_onset
   from severe_sepsis SSP
-  inner join severe_sepsis_6hr_bundle PB on SSP.pat_id = PB.pat_id and SSP.name = PB.name
+  inner join severe_sepsis_6hr_bundle PB on SSP.enc_id = PB.enc_id and SSP.name = PB.name
   union all
   select SSH.window_id,
-         SSH.pat_id,
+         SSH.enc_id,
          SSH.name,
          (case when SSH.name like ''%%_order'' then HB.measurement_time else SSH.measurement_time end) as measurement_time,
          (case when SSH.name like ''%%_order'' then HB.value            else SSH.value            end) as value,
@@ -1969,13 +1969,13 @@ create table %(prefix)sbundle_compliance_outputs_d%(dataset_id)s diststyle key d
          SSH.severe_sepsis_wo_infection_onset,
          SSH.septic_shock_onset
   from septic_shock SSH
-  inner join septic_shock_6hr_bundle HB on SSH.pat_id = HB.pat_id and SSH.name = HB.name
+  inner join septic_shock_6hr_bundle HB on SSH.enc_id = HB.enc_id and SSH.name = HB.name
   ;
 
 
-create table %(prefix)sbundle_compliance_labels_d%(dataset_id)s diststyle all sortkey(pat_id, tsp) as
-  select sw.pat_id, sw.window_id as tsp, 'bundle compliance state' as label_type, sw.state as label from (
-    select stats.window_id, stats.pat_id,
+create table %(prefix)sbundle_compliance_labels_d%(dataset_id)s diststyle all sortkey(enc_id, tsp) as
+  select sw.enc_id, sw.window_id as tsp, 'bundle compliance state' as label_type, sw.state as label from (
+    select stats.window_id, stats.enc_id,
         (
           case
           when ssp_present and ssh_present then (
@@ -2023,7 +2023,7 @@ create table %(prefix)sbundle_compliance_labels_d%(dataset_id)s diststyle all so
         ) as state
     from
     (
-      select OCR.window_id, OCR.pat_id,
+      select OCR.window_id, OCR.enc_id,
           bool_or(severe_sepsis_wo_infection_onset is not null) as sspwoi_present,
           bool_or(severe_sepsis_onset is not null)              as ssp_present,
           bool_or(septic_shock_onset is not null)               as ssh_present,
@@ -2062,8 +2062,8 @@ create table %(prefix)sbundle_compliance_labels_d%(dataset_id)s diststyle all so
             as sep_sho_6hr_count
 
       from %(prefix)sbundle_compliance_outputs_d%(dataset_id)s OCR
-      where OCR.pat_id = coalesce(null/*this_pat_id*/, OCR.pat_id)
-      group by OCR.window_id, OCR.pat_id
+      where OCR.enc_id = coalesce(null/*this_enc_id*/, OCR.enc_id)
+      group by OCR.window_id, OCR.enc_id
     ) stats
   ) sw
   ;
@@ -2145,17 +2145,17 @@ septic_shock_unload_tables = [
 ################################
 # Toplevel
 
-# dataset_id = 1
-# dataset_name = 'hcgh_1yr'
+dataset_id = 1
+dataset_name = 'hcgh_1yr'
 
-dataset_id = 3
-dataset_name = 'hcgh_3yr'
+# dataset_id = 3
+# dataset_name = 'hcgh_3yr_pat'
 
 # dataset_id = 12
-# dataset_name = 'jhh_1yr'
+# dataset_name = 'jhh_1yr_pat'
 
 # dataset_id = 13
-# dataset_name = 'bmc_1yr'
+# dataset_name = 'bmc_1yr_pat'
 
 bpa_template = window_template_measurements + bpa_template + severe_sepsis_output_template
 ssp_template = window_template_meas_periodic + severe_sepsis_template + severe_sepsis_output_template
