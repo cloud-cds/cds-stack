@@ -2126,7 +2126,7 @@ END; $function$;
 -----------------------------------------------
 -- Notification management
 -----------------------------------------------
-CREATE OR REPLACE FUNCTION lmcscore_alert_on(this_enc_id text, timeout text default '15 minutes')
+CREATE OR REPLACE FUNCTION lmcscore_alert_on(this_enc_id int, timeout text default '15 minutes')
 RETURNS table(
     alert_on boolean,
     tsp timestamptz,
