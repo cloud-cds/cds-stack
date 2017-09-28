@@ -246,19 +246,20 @@ CREATE TABLE criteria_default
 )
 diststyle all;
 
-DROP TABLE IF EXISTS criteria_meas;
-CREATE TABLE criteria_meas
+
+DROP TABLE IF EXISTS criteria_default_flat;
+CREATE TABLE criteria_default_flat
 (
-    dataset_id      integer REFERENCES dw_version(dataset_id),
-    pat_id          varchar(50),
-    tsp             timestamptz,
-    fid             varchar(50),
-    value           text,
-    update_date     timestamptz,
-    primary key     (dataset_id, pat_id, tsp, fid)
+    dataset_id          integer REFERENCES dw_version(dataset_id),
+    name                varchar(50),
+    fid                 varchar(50),
+    lower               varchar(max), -- json
+    upper               varchar(max), -- json
+    category            varchar(50),
+    primary key         (dataset_id, name, fid, category)
 )
-diststyle all
-sortkey (dataset_id, pat_id, tsp);
+diststyle all;
+
 
 DROP TABLE IF EXISTS cdm_notes;
 CREATE TABLE cdm_notes (
