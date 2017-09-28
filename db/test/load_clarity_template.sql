@@ -433,7 +433,21 @@ create index ede_idx_id on {workspace}."EdEvents" ("csn_id");
 create index ede_idx_event_id on {workspace}."EdEvents" ("event_id");
 create index ede_idx_event_disp_name on {workspace}."EdEvents" ("event_display_name");
 
-
+drop index if exists fd_idx_id;
+drop index if exists fd_idx_icd9;
+drop index if exists fd_idx_icd10;
+create table {workspace}."FinalDiagnosis"
+(
+  CSN_ID    text,
+  line      int,
+  dx_id     int,
+  icd9      text,
+  icd10     text
+);
+\copy {workspace}."FinalDiagnosis" from '{folder}final_dx.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+create index fd_idx_id on {workspace}."FinalDiagnosis"(csn_id);
+create index fd_idx_icd9 on {workspace}."FinalDiagnosis"(icd9);
+create index fd_idx_icd10 on {workspace}."FinalDiagnosis"(icd10);
 
 drop table if exists {workspace}.flowsheet_dict;
 create table {workspace}.flowsheet_dict
