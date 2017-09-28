@@ -16,6 +16,13 @@ iam_role 'arn:aws:iam::359300513585:role/redshift_role'
 region 'us-east-1'
 format as csv QUOTE '\b' DELIMITER '\t' NULL 'NULL';
 
+copy cdm_g
+from 's3://opsdx-clarity-etl-stage/dw-s3-export/public.cdm_g.csv'
+iam_role 'arn:aws:iam::359300513585:role/redshift_role'
+region 'us-east-1'
+format as csv QUOTE '\b' DELIMITER '\t' NULL 'NULL';
+
+
 copy cdm_twf
 from 's3://opsdx-clarity-etl-stage/dw-s3-export/public.cdm_twf.csv'
 iam_role 'arn:aws:iam::359300513585:role/redshift_role'
@@ -28,18 +35,30 @@ iam_role 'arn:aws:iam::359300513585:role/redshift_role'
 region 'us-east-1'
 format as csv QUOTE '\b' DELIMITER '\t' NULL 'NULL';
 
-copy criteria_meas
-from 's3://opsdx-clarity-etl-stage/dw-s3-export/public.criteria_meas.csv'
+
+copy cdm_notes
+from 's3://opsdx-clarity-etl-stage/dw-s3-export/cdm_notes_d1.csv'
 iam_role 'arn:aws:iam::359300513585:role/redshift_role'
 region 'us-east-1'
 format as csv QUOTE '\b' DELIMITER '\t' NULL 'NULL';
 
 copy cdm_notes
-from 's3://opsdx-clarity-etl-stage/dw-s3-export/public.cdm_notes.csv'
+from 's3://opsdx-clarity-etl-stage/dw-s3-export/cdm_notes_d3.csv'
 iam_role 'arn:aws:iam::359300513585:role/redshift_role'
 region 'us-east-1'
 format as csv QUOTE '\b' DELIMITER '\t' NULL 'NULL';
 
+copy cdm_notes
+from 's3://opsdx-clarity-etl-stage/dw-s3-export/cdm_notes_d12.csv'
+iam_role 'arn:aws:iam::359300513585:role/redshift_role'
+region 'us-east-1'
+format as csv QUOTE '\b' DELIMITER '\t' NULL 'NULL';
+
+copy cdm_notes
+from 's3://opsdx-clarity-etl-stage/dw-s3-export/cdm_notes_d13.csv'
+iam_role 'arn:aws:iam::359300513585:role/redshift_role'
+region 'us-east-1'
+format as csv QUOTE '\b' DELIMITER '\t' NULL 'NULL';
 
 
 insert into cdm_window_offsets_15mins values ( -360 );

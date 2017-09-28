@@ -494,6 +494,7 @@ async def pull_order_procs(connection, dataset_id, fids, log, is_plan, clarity_w
   log.info('pull_order_procs calling get_fid_name_mapping with fids: %s' % str(fids))
   fid_map = get_fid_name_mapping(fids, lp_map)
   op['name'] = op.fid
+  # TODO: FIX this is a 1-1 mapping!
   for fid, names in fid_map.items():
     for name in names:
       op.loc[op['fid'] == name, 'fid'] = fid

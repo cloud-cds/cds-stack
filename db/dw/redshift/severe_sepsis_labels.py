@@ -94,13 +94,15 @@ create table pat_cvalues_d%(dataset_id)s diststyle key distkey(enc_id) sortkey(w
   where cd.dataset_id = %(dataset_id)s
   and meas.dataset_id = %(dataset_id)s
   and meas.value <> 'nan'
+  --tsp is between the window_id - 6 hrs and window_id
+  and meas.tsp between date_trunc('hour', meas.tsp) + (O.window_offset || ' minutes')::interval - '6 hours'::interval and date_trunc('hour', meas.tsp) + (O.window_offset || ' minutes')::interval
   and cd.name in (
     'sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc',
     'respiratory_failure',
     'blood_pressure', 'mean_arterial_pressure', 'decrease_in_sbp', 'creatinine', 'bilirubin', 'platelet', 'inr', 'lactate'
   )
   and meas.fid in (
-    'temperature', 'heart_rate', 'resp_rate', 'wbc', 'bands', 'bp_sys', 'map', 'bilirubin', 'platelets', 'inr',
+    'temperature', 'heart_rate', 'resp_rate', 'wbc', 'bands', 'abp_sys', 'nbp_sys', 'map', 'bilirubin', 'platelets', 'inr',
     'ptt', 'lactate', 'vent', 'bipap', 'cpap', 'creatinine'
   )
   and
@@ -137,7 +139,7 @@ create table pat_aggregates_d%(dataset_id)s diststyle key distkey(enc_id) sortke
       select date_trunc('hour', meas.tsp) + (O.window_offset || ' minutes')::interval as window_id,
              meas.enc_id,
              meas.tsp as measurement_time,
-             (case when meas.fid = 'bp_sys' then meas.value::double precision else null end) as bp_sys,
+             (case when meas.fid in ('abp_sys', 'nbp_sys') then meas.value::double precision else null end) as bp_sys,
              (case when meas.fid = 'weight' then meas.value::double precision else null end) as weight,
              (case when meas.fid = 'urine_output'
                    and date_trunc('hour', meas.tsp) + (O.window_offset || ' minutes')::interval - meas.tsp < interval '2 hours'
@@ -146,7 +148,9 @@ create table pat_aggregates_d%(dataset_id)s diststyle key distkey(enc_id) sortke
       from cdm_t meas
       cross join cdm_window_offsets_15mins O
       where meas.dataset_id = %(dataset_id)s
-      and meas.fid in ('bp_sys', 'urine_output', 'weight')
+      --tsp is between the window_id - 6 hrs and window_id
+      and meas.tsp between date_trunc('hour', meas.tsp) + (O.window_offset || ' minutes')::interval - '6 hours'::interval and date_trunc('hour', meas.tsp) + (O.window_offset || ' minutes')::interval
+      and meas.fid in ('abp_sys', 'nbp_sys', 'urine_output', 'weight')
       and isnumeric(meas.value)
   ) as aggs
   group by aggs.window_id, aggs.enc_id
@@ -425,7 +429,7 @@ create table pat_cvalues_d%(dataset_id)s diststyle key distkey(enc_id) sortkey(w
     'blood_pressure', 'mean_arterial_pressure', 'decrease_in_sbp', 'creatinine', 'bilirubin', 'platelet', 'inr', 'lactate'
   )
   and meas.fid in (
-    'temperature', 'heart_rate', 'resp_rate', 'wbc', 'bands', 'bp_sys', 'map', 'bilirubin', 'platelets', 'inr',
+    'temperature', 'heart_rate', 'resp_rate', 'wbc', 'bands', 'abp_sys', 'nbp_sys', 'map', 'bilirubin', 'platelets', 'inr',
     'ptt', 'lactate', 'vent', 'bipap', 'cpap', 'creatinine'
   )
   and
@@ -462,7 +466,7 @@ create table pat_aggregates_d%(dataset_id)s diststyle key distkey(enc_id) sortke
       select date_trunc('hour', meas.tsp) + (O.window_offset || ' minutes')::interval as window_id,
              meas.enc_id,
              meas.tsp as measurement_time,
-             (case when meas.fid = 'bp_sys' then meas.value::double precision else null end) as bp_sys,
+             (case when meas.fid in ('abp_sys', 'nbp_sys') then meas.value::double precision else null end) as bp_sys,
              (case when meas.fid = 'weight' then meas.value::double precision else null end) as weight,
              (case when meas.fid = 'urine_output'
                    and date_trunc('hour', meas.tsp) + (O.window_offset || ' minutes')::interval - meas.tsp < interval '2 hours'
@@ -471,7 +475,7 @@ create table pat_aggregates_d%(dataset_id)s diststyle key distkey(enc_id) sortke
       from cdm_t meas
       cross join cdm_window_offsets_15mins O
       where meas.dataset_id = %(dataset_id)s
-      and meas.fid in ('bp_sys', 'urine_output', 'weight')
+      and meas.fid in ('abp_sys', 'nbp_sys', 'urine_output', 'weight')
       and isnumeric(meas.value)
   ) as aggs
   group by aggs.window_id, aggs.enc_id
@@ -925,7 +929,7 @@ create table %(prefix)spat_aggregates_d%(dataset_id)s diststyle key distkey(enc_
       select date_trunc('hour', meas.tsp) + (O.window_offset || ' minutes')::interval as window_id,
              meas.enc_id,
              meas.tsp as measurement_time,
-             (case when meas.fid = 'bp_sys' then meas.value::double precision else null end) as bp_sys,
+             (case when meas.fid in ('abp_sys', 'nbp_sys') then meas.value::double precision else null end) as bp_sys,
              (case when meas.fid = 'weight' then meas.value::double precision else null end) as weight,
              (case when meas.fid = 'urine_output'
                    and date_trunc('hour', meas.tsp) + (O.window_offset || ' minutes')::interval - meas.tsp < interval '2 hours'
@@ -934,7 +938,7 @@ create table %(prefix)spat_aggregates_d%(dataset_id)s diststyle key distkey(enc_
       from cdm_t meas
       cross join cdm_window_offsets_15mins O
       where meas.dataset_id = %(dataset_id)s
-      and meas.fid in ('bp_sys', 'urine_output', 'weight')
+      and meas.fid in ('abp_sys', 'nbp_sys', 'urine_output', 'weight')
       and isnumeric(meas.value)
   ) as aggs
   group by aggs.window_id, aggs.enc_id
@@ -2145,17 +2149,17 @@ septic_shock_unload_tables = [
 ################################
 # Toplevel
 
-dataset_id = 1
-dataset_name = 'hcgh_1yr'
+# dataset_id = 1
+# dataset_name = 'hcgh_1yr_v1'
 
-# dataset_id = 3
-# dataset_name = 'hcgh_3yr_pat'
+dataset_id = 3
+dataset_name = 'hcgh_3yr_v1'
 
 # dataset_id = 12
-# dataset_name = 'jhh_1yr_pat'
+# dataset_name = 'jhh_1yr_v1'
 
 # dataset_id = 13
-# dataset_name = 'bmc_1yr_pat'
+# dataset_name = 'bmc_1yr_v1'
 
 bpa_template = window_template_measurements + bpa_template + severe_sepsis_output_template
 ssp_template = window_template_meas_periodic + severe_sepsis_template + severe_sepsis_output_template
