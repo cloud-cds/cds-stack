@@ -971,6 +971,22 @@ inner join Clarity.dbo.ED_IEV_EVENT_INFO ein on ein.EVENT_ID = pin.EVENT_ID
 where EVENT_RECORD_TIME is not null;
 GO
 
+
+:OUT \\\\Client\F$\clarity\\final_dx.{idx}.rpt
+SET NOCOUNT ON
+select
+  CSN.EXTERNAL_ID CSN_ID
+  ,dx.line
+  ,dx.dx_id
+  ,icd9.code icd9
+  ,icd10.code icd10
+FROM Analytics.dbo.CCDA643_CSNLookupTable csn
+inner join HSP_ACCOUNT a on csn.pat_enc_csn_id = a.prim_enc_csn_id
+inner join HSP_ACCT_DX_LIST dx on dx.HSP_ACCOUNT_ID = a.HSP_ACCOUNT_ID
+left JOIN CLARITY.DBO.EDG_CURRENT_ICD10 icd10 ON dx.DX_ID = icd10.DX_ID
+left JOIN CLARITY.DBO.EDG_CURRENT_ICD9 icd9 ON dx.DX_ID = icd9.DX_ID
+where dx.dx_id is not null
+GO
 '''
 
 dict = '''
@@ -1017,7 +1033,7 @@ GO
 # 1103 hcgh
 hosp = '1103'
 start_date = (2014, 1)
-end_date = (2017, 1)
+end_date = (2018, 1)
 num_months = 12
 for year in range(start_date[0], end_date[0]+1):
   for month in range(1,13,num_months):
