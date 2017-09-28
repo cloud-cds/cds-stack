@@ -416,7 +416,7 @@ BEGIN
         and cd.dataset_id = meas.dataset_id
         and (meas.tsp is null or meas.tsp between ts_start - window_size and ts_end)
     where cd.dataset_id = _dataset_id
-    and meas.fid = _dataset_id
+    and meas.dataset_id = _dataset_id
     and meas.value <> 'nan'
   ),
   pat_aggregates as (
