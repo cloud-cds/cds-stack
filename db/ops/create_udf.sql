@@ -893,6 +893,51 @@ format('select stats.enc_id,
     case
     when sus_count = 1 then
         (
+        case when trews_met = 1 and trews_orgdf = 1 then (
+            (
+            case
+            when (fluid_count = 1 and hypotension_count > 0) and hypoperfusion_count = 1 then
+                (case
+                    -- septic shock
+                    when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset)  > ''3 hours''::interval and sev_sep_3hr_count < 4 then 42 -- trews_sev_sep_3hr_exp
+                    when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset)  > ''6 hours''::interval and sev_sep_6hr_count = 0 then 44 -- trews_sev_sep_6hr_exp
+                    when now() - LEAST(hypotension_onset, hypoperfusion_onset) > ''6 hours''::interval and sep_sho_6hr_count = 0 then 46 -- trews_sep_sho_6hr_exp
+                    when sep_sho_6hr_count = 1 then 45 -- trews_sep_sho_6hr_com
+                    when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 43 -- trews_sev_sep_6hr_com
+                    when sev_sep_3hr_count = 4 then 41 -- trews_sev_sep_3hr_com
+                    else
+                    40 end)
+            when (fluid_count = 1 and hypotension_count > 0) then
+                (case
+                    -- septic shock
+                    when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset) > ''3 hours''::interval and sev_sep_3hr_count < 4 then 42 -- trews_sev_sep_3hr_exp
+                    when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset) > ''6 hours''::interval and sev_sep_6hr_count = 0 then 44 -- trews_sev_sep_6hr_exp
+                    when now() - hypotension_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 46 -- trews_sep_sho_6hr_exp
+                    when sep_sho_6hr_count = 1 then 45 -- trews_sep_sho_6hr_com
+                    when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 43 -- trews_sev_sep_6hr_com
+                    when sev_sep_3hr_count = 4 then 41 -- trews_sev_sep_3hr_com
+                    else
+                    40 end)
+            when hypoperfusion_count = 1 then
+                (case
+                    -- septic shock
+                    when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset) > ''3 hours''::interval and sev_sep_3hr_count < 4 then 42 -- trews_sev_sep_3hr_exp
+                    when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset) > ''6 hours''::interval and sev_sep_6hr_count = 0 then 44 -- trews_sev_sep_6hr_exp
+                    when now() - hypoperfusion_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 36 -- trews_sep_sho_6hr_exp
+                    when sep_sho_6hr_count = 1 then 45 -- trews_sep_sho_6hr_com
+                    when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 43 -- trews_sev_sep_6hr_com
+                    when sev_sep_3hr_count = 4 then 41 -- trews_sev_sep_3hr_com
+                    else
+                    40 end)
+            when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset) > ''3 hours''::interval and sev_sep_3hr_count < 4 then 27 -- trews_sev_sep_3hr_exp
+            when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset) > ''6 hours''::interval and sev_sep_6hr_count = 0 then 29 -- trews_sev_sep_6hr_exp
+            when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 28 -- trews_sev_sep_6hr_com
+            when sev_sep_3hr_count = 4 then 26 -- trews_sev_sep_3hr_com
+            else
+            -- severe sepsis
+            25
+            end)
+        )
         case when sirs_count > 1 and organ_count > 0 then (
             (
             case
@@ -944,6 +989,8 @@ format('select stats.enc_id,
         end
         )
     -- no sus
+    when trews > 0 and trews_orgdf > 0 and sus_null_count = 1 then 11 -- trews_sev_sep w.o. sus
+    when trews > 0 and trews_orgdf > 0 and sus_noinf_count = 1 then 13 -- trews_sev_sep w.o. sus
     when sirs_count > 1 and organ_count > 0 and sus_null_count = 1 then 10 -- sev_sep w.o. sus
     when sirs_count > 1 and organ_count > 0 and sus_noinf_count = 1 then 12 -- sev_sep w.o. sus
     else 0 -- health case
@@ -966,7 +1013,9 @@ select %I.enc_id,
     (array_agg(measurement_time order by measurement_time)  filter (where name in (''sirs_temp'',''heart_rate'',''respiratory_rate'',''wbc'') and is_met ) )[2]   as sirs_onset,
     min(measurement_time) filter (where name in (''blood_pressure'',''mean_arterial_pressure'',''decrease_in_sbp'',''respiratory_failure'',''creatinine'',''bilirubin'',''platelet'',''inr'',''lactate'') and is_met ) as organ_onset,
     min(measurement_time) filter (where name in (''systolic_bp'',''hypotension_map'',''hypotension_dsbp'') and is_met ) as hypotension_onset,
-    min(measurement_time) filter (where name = ''initial_lactate'' and is_met) as hypoperfusion_onset
+    min(measurement_time) filter (where name = ''initial_lactate'' and is_met) as hypoperfusion_onset,
+    max(is_met) filter (where name = ''trews'' and is_met) as trews_met,
+    count(*) filter (where name ~ ''trews_'' and is_met) as trews_orgdf
 from %I
 where %I.enc_id = coalesce($1, %I.enc_id)
 %s

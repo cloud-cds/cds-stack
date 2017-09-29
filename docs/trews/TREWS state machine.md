@@ -13,11 +13,11 @@ TREWS-based State Machine v2.0 2017-09-29
 | 7 | severe sepsis not present; note present & 2 sirs present |  UNUSE@OL  |
 | 8 | severe sepsis not present; note present, 1 sirs & 1 orgdf present |  UNUSE@OL  |
 | 10 | severe sepsis not present; 2 sirs & 1 orgdf present, no note |  v1  |
-| 11 | severe sepsis not present; trews & 1 orgdf present, no note |  NEW  |
+| 11 | severe sepsis not present; trews & 1 trews_orgdf present, no note |  NEW  |
 | 12 | severe sepsis not present; 2 sirs & 1 orgdf present, no infection marked by provider |  v1  |
 | 13 | severe sepsis not present; 2 sirs & 1 orgdf present, note present (implies sirs&orgdf and note not within 6 hrs) |  UNUSE@OL  |
-| 14 | severe sepsis not present; trews & 1 orgdf present, no infection marked by provider |  NEW  |
-| 15 | severe sepsis not present; trews & 1 orgdf present, note present (implies trews&orgdf and note not within 6 hrs) |  NEW & UNUSE@OL |
+| 14 | severe sepsis not present; trews & 1 trews_orgdf present, no infection marked by provider |  NEW  |
+| 15 | severe sepsis not present; trews & 1 trews_orgdf present, note present (implies trews&orgdf and note not within 6 hrs) |  NEW & UNUSE@OL |
 | 20 | CMS-based severe sepsis present |  v1  |
 | 21 | CMS-based severe sepsis present; 3hr bundle completed |  v1  |
 | 22 | CMS-based severe sepsis present; 3hr bundle expired |  v1  |
