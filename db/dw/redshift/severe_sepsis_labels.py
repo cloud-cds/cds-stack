@@ -66,7 +66,7 @@ create table measurement_times_d%(dataset_id)s diststyle all sortkey(enc_id, tsp
   ;
 
 create table pat_partition_d%(dataset_id)s diststyle all sortkey(enc_id, tsp) as
-  select T.enc_id, T.tsp + (O.window_offset::varchar || ' minutes')::interval as tsp
+  select distinct T.enc_id, T.tsp + (O.window_offset::varchar || ' minutes')::interval as tsp
   from measurement_times_d%(dataset_id)s T
   cross join cdm_window_offsets_15mins O
   ;
@@ -2152,11 +2152,11 @@ septic_shock_unload_tables = [
 # dataset_id = 1
 # dataset_name = 'hcgh_1yr_v1'
 
-dataset_id = 3
-dataset_name = 'hcgh_3yr_v1'
+# dataset_id = 3
+# dataset_name = 'hcgh_3yr_v1'
 
-# dataset_id = 12
-# dataset_name = 'jhh_1yr_v1'
+dataset_id = 12
+dataset_name = 'jhh_1yr_v1'
 
 # dataset_id = 13
 # dataset_name = 'bmc_1yr_v1'
