@@ -1852,66 +1852,6 @@ return query
 return;
 END; $function$;
 
-
--- Calculates criteria over windows, with each window based on the timestamps
--- at which a measurement is available. This could be replaced by regularly-spaced
--- window endpoints from a generated series.
--- DEPRECATED
-CREATE OR REPLACE FUNCTION calculate_max_criteria(this_pat_id text)
- RETURNS table(window_ts                        timestamptz,
-               pat_id                           varchar(50),
-               name                             varchar(50),
-               measurement_time                 timestamptz,
-               value                            text,
-               override_time                    timestamptz,
-               override_user                    text,
-               override_value                   json,
-               is_met                           boolean,
-               update_date                      timestamptz,
-               severe_sepsis_onset              timestamptz,
-               severe_sepsis_wo_infection_onset timestamptz,
-               septic_shock_onset               timestamptz
-               )
- LANGUAGE plpgsql
-AS $function$
-DECLARE
-    ts_end timestamptz := now();
-    window_size interval := get_parameter('lookbackhours')::interval;
-BEGIN
-    create temporary table new_criteria_windows as
-        select window_ends.tsp as ts, new_criteria.*
-        from (  select distinct meas.pat_id, meas.tsp from criteria_meas meas
-                where meas.pat_id = coalesce(this_pat_id, meas.pat_id)
-                and meas.tsp > ts_end - window_size
-        ) window_ends
-        inner join lateral calculate_criteria(
-            coalesce(this_pat_id, window_ends.pat_id), window_ends.tsp - window_size, window_ends.tsp
-        ) new_criteria
-        on window_ends.pat_id = new_criteria.pat_id;
-
-    return query
-        with state_windows as (
-            select sw.pat_id, sw.state, min(ts) as ts
-            from get_window_states('new_criteria_windows', this_pat_id) sw
-            group by sw.pat_id, sw.state
-        )
-        select new_criteria_windows.*
-        from new_criteria_windows
-        inner join (
-            select state_windows.pat_id, min(state_windows.ts) as ts
-            from state_windows
-            where state_windows.state = (
-                select max(sw2.state) from state_windows sw2 where state_windows.pat_id = sw2.pat_id
-            )
-            group by state_windows.pat_id
-        ) max_windows
-        on new_criteria_windows.pat_id = max_windows.pat_id
-        and new_criteria_windows.ts = max_windows.ts;
-
-    drop table new_criteria_windows;
-    return;
-END; $function$;
-
 --------------------------------------------
 -- Criteria snapshot utilities.
 --------------------------------------------
@@ -3188,8 +3128,6 @@ WHERE enc_id IN
      WHERE pat_id = this_pat_id);
   DELETE
   FROM criteria WHERE pat_id = this_pat_id;
-  DELETE
-  FROM criteria_meas WHERE pat_id = this_pat_id;
   DELETE
   FROM pat_enc WHERE pat_id = this_pat_id;
 END;
