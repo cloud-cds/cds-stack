@@ -23,10 +23,12 @@ TREWS Criteria v2 2017-09-29
 | **ORG_DYS** |`trews_blood_pressure` | TBD | NEW  |
 | **ORG_DYS** |`trews_creatinine` | TBD | NEW  |
 | **ORG_DYS** |`trews_decrease_in_sbp` | TBD |NEW |
+| **ORG_DYS** |`trews_gcs` | TBD |NEW |
 | **ORG_DYS** |`trews_inr` | TBD |NEW |
 | **ORG_DYS** |`trews_lactate` | TBD |NEW |
 | **ORG_DYS** |`trews_mean_arterial_pressure` | TBD | NEW  |
 | **ORG_DYS** |`trews_platelet` | TBD | NEW   |
+| **ORG_DYS** |`trews_ptt` | TBD |NEW |
 | **ORG_DYS** |`trews_respratory_failure` | TBD | NEW |
 | **SEP_SHO** |`crystalloid_fluid` | TBD | v1 |
 | **SEP_SHO** |`hypotension_dsbp` | TBD | v1  |
