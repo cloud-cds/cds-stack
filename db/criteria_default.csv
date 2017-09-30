@@ -33,7 +33,6 @@ sirs_temp,temperature,"{""lower"": 96.8, ""upper"": 100.94}",simple
 suspicion_of_infection,suspicion_of_infection,,simple
 systolic_bp,abp_sys,"{""lower"":90}",hypotension
 systolic_bp,nbp_sys,"{""lower"":90}",hypotension
-trews,,,trewscore
 trews_bilirubin,bilirubin,,trews_organ_dysfunction
 trews_creatinine,creatinine,,trews_organ_dysfunction
 trews_gcs,gcs,,trews_organ_dysfunction
@@ -41,7 +40,7 @@ trews_inr,inr,,trews_organ_dysfunction
 trews_inr,ptt,,trews_organ_dysfunction
 trews_lactate,lactate,,trews_organ_dysfunction
 trews_platelet,platelet,,trews_organ_dysfunction
-trews_vent,,,trews_organ_dysfunction
+trews_vent,vent,,trews_organ_dysfunction
 vasopressors_order,vasopressors_dose,"{""lower"":0}",after_septic_shock_dose
 vasopressors_order,vasopressors_dose_order,"{""lower"":0}",after_septic_shock_dose
 wbc,bands,"{""upper"":10}",simple
