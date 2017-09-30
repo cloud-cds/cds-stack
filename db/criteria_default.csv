@@ -1,39 +1,48 @@
 name,fid,override_value,category
-suspicion_of_infection,suspicion_of_infection,,simple
-sirs_temp,temperature,"{""lower"": 96.8, ""upper"": 100.94}",simple
-heart_rate,heart_rate,"{""upper"": 90}",simple
-respiratory_rate,resp_rate,"{""upper"": 20}",simple
-wbc,wbc,"{""lower"": 4, ""upper"": 12}",simple
-wbc,bands,"{""upper"":10}",simple
+antibiotics_order,cms_antibiotics,"{""lower"":0}",after_severe_sepsis_dose
+antibiotics_order,cms_antibiotics_order,"{""lower"":0}",after_severe_sepsis_dose
+bilirubin,bilirubin,"{""upper"":2}",simple
+blood_culture_order,blood_culture_order,,after_severe_sepsis
 blood_pressure,abp_sys,"{""lower"":90}",simple
 blood_pressure,nbp_sys,"{""lower"":90}",simple
-mean_arterial_pressure,map,"{""lower"":65}",simple
-bilirubin,bilirubin,"{""upper"":2}",simple
-platelet,platelets,"{""lower"":100}",simple
-inr,inr,"{""upper"":1.5}",simple
-inr,ptt,"{""upper"":60}",simple
-lactate,lactate,"{""upper"":2}",simple
-systolic_bp,abp_sys,"{""lower"":90}",hypotension
-systolic_bp,nbp_sys,"{""lower"":90}",hypotension
-hypotension_map,map,"{""lower"":65}",hypotension
-decrease_in_sbp,abp_sys,"{""lower"":65}",decrease_in_sbp
-decrease_in_sbp,nbp_sys,"{""lower"":65}",decrease_in_sbp
-hypotension_dsbp,abp_sys,"{""lower"":65}",hypotension_dsbp
-hypotension_dsbp,nbp_sys,"{""lower"":65}",hypotension_dsbp
-respiratory_failure,vent,,respiratory_failure
-respiratory_failure,bipap,,respiratory_failure
-respiratory_failure,cpap,,respiratory_failure
 creatinine,creatinine,"{""upper"":2.0}",simple
 creatinine,urine_output,"{""lower"":0.5}",urine_output
 crystalloid_fluid,crystalloid_fluid,"{""upper"":30}",simple
 crystalloid_fluid,fluids_intake,"{""upper"":0}",simple
+crystalloid_fluid_order,crystalloid_fluid,"{""lower"":30}",after_severe_sepsis_dose
+crystalloid_fluid_order,crystalloid_fluid_order,"{""lower"":30}",after_severe_sepsis_dose
+decrease_in_sbp,abp_sys,"{""lower"":65}",decrease_in_sbp
+decrease_in_sbp,nbp_sys,"{""lower"":65}",decrease_in_sbp
+heart_rate,heart_rate,"{""upper"": 90}",simple
+hypotension_dsbp,abp_sys,"{""lower"":65}",hypotension_dsbp
+hypotension_dsbp,nbp_sys,"{""lower"":65}",hypotension_dsbp
+hypotension_map,map,"{""lower"":65}",hypotension
 initial_lactate,lactate,"{""upper"":4}",simple
 initial_lactate_order,lactate_order,,after_severe_sepsis
-blood_culture_order,blood_culture_order,,after_severe_sepsis
-antibiotics_order,cms_antibiotics_order,"{""lower"":0}",after_severe_sepsis_dose
-antibiotics_order,cms_antibiotics,"{""lower"":0}",after_severe_sepsis_dose
-crystalloid_fluid_order,crystalloid_fluid_order,"{""lower"":30}",after_severe_sepsis_dose
-crystalloid_fluid_order,crystalloid_fluid,"{""lower"":30}",after_severe_sepsis_dose
+inr,inr,"{""upper"":1.5}",simple
+inr,ptt,"{""upper"":60}",simple
+lactate,lactate,"{""upper"":2}",simple
+mean_arterial_pressure,map,"{""lower"":65}",simple
+platelet,platelets,"{""lower"":100}",simple
 repeat_lactate_order,lactate_order,,repeat_lactate_order
-vasopressors_order,vasopressors_dose_order,"{""lower"":0}",after_septic_shock_dose
+respiratory_failure,bipap,,respiratory_failure
+respiratory_failure,cpap,,respiratory_failure
+respiratory_failure,vent,,respiratory_failure
+respiratory_rate,resp_rate,"{""upper"": 20}",simple
+sirs_temp,temperature,"{""lower"": 96.8, ""upper"": 100.94}",simple
+suspicion_of_infection,suspicion_of_infection,,simple
+systolic_bp,abp_sys,"{""lower"":90}",hypotension
+systolic_bp,nbp_sys,"{""lower"":90}",hypotension
+trews,,,trewscore
+trews_bilirubin,bilirubin,,trews_organ_dysfunction
+trews_creatinine,creatinine,,trews_organ_dysfunction
+trews_gcs,gcs,,trews_organ_dysfunction
+trews_inr,inr,,trews_organ_dysfunction
+trews_inr,ptt,,trews_organ_dysfunction
+trews_lactate,lactate,,trews_organ_dysfunction
+trews_platelet,platelet,,trews_organ_dysfunction
+trews_vent,,,trews_organ_dysfunction
 vasopressors_order,vasopressors_dose,"{""lower"":0}",after_septic_shock_dose
+vasopressors_order,vasopressors_dose_order,"{""lower"":0}",after_septic_shock_dose
+wbc,bands,"{""upper"":10}",simple
+wbc,wbc,"{""lower"": 4, ""upper"": 12}",simple

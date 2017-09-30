@@ -19,7 +19,7 @@ def get_criteria_tasks(job_id, dependency=None, lookback_hours=24*7,
       coro = advance_criteria_snapshot,
       args = [lookback_hours, job_id]
     )]
-  if not suppression:
+  if suppression == 0:
     criteria_tasks += [
       Task(
         name = 'notify_etl_listeners',

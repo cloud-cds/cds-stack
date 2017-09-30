@@ -770,6 +770,13 @@ select value from parameters where name = key;
 $$
 LANGUAGE sql;
 
+CREATE OR REPLACE FUNCTION get_trews_parameter(key text)
+RETURNS text as
+$$
+select value from trews_parameters where name = key;
+$$
+LANGUAGE sql;
+
 CREATE OR REPLACE FUNCTION reset_parameter()
 RETURNS void as
 $$
@@ -824,7 +831,11 @@ RETURNS table( enc_id                               int,
                septic_shock_onset                   timestamptz,
                severe_sepsis_wo_infection_onset     timestamptz,
                severe_sepsis_wo_infection_initial   timestamptz,
-               severe_sepsis_lead_time              timestamptz
+               severe_sepsis_lead_time              timestamptz,
+               trews_severe_sepsis_onset                  timestamptz,
+               trews_severe_sepsis_wo_infection_onset     timestamptz,
+               trews_severe_sepsis_wo_infection_initial   timestamptz,
+               trews_severe_sepsis_lead_time              timestamptz
              )
 AS $func$ BEGIN
 
@@ -873,7 +884,27 @@ AS $func$ BEGIN
       LEAST( max(case when name = 'suspicion_of_infection' then override_time else null end),
              (array_agg(measurement_time order by measurement_time)  filter (where name in ('sirs_temp','heart_rate','respiratory_rate','wbc') and is_met ) )[2],
              min(measurement_time) filter (where name in ('blood_pressure','mean_arterial_pressure','decrease_in_sbp','respiratory_failure','creatinine','bilirubin','platelet','inr','lactate') and is_met ))
-      as severe_sepsis_lead_time
+      as severe_sepsis_lead_time,
+      -- new trews timestamp
+      GREATEST( max(case when name = 'suspicion_of_infection' then override_time else null end),
+                min(measurement_time) filter (where name = 'trews' and is_met)),
+                min(measurement_time) filter (where name in ('trews_bilirubin','trews_creatinine','trews_gcs','trews_inr','trews_lactate','trews_platelet','trews_vent') and is_met ))
+      as trews_severe_sepsis_onset,
+
+      GREATEST(
+          min(measurement_time) filter (where name = 'trews' and is_met)),
+          min(measurement_time) filter (where name in ('trews_bilirubin','trews_creatinine','trews_gcs','trews_inr','trews_lactate','trews_platelet','trews_vent') and is_met ))
+      as trews_severe_sepsis_wo_infection_onset,
+
+      LEAST(
+          min(measurement_time) filter (where name = 'trews' and is_met)),,
+          min(measurement_time) filter (where name in ('trews_bilirubin','trews_creatinine','trews_gcs','trews_inr','trews_lactate','trews_platelet','trews_vent') and is_met ))
+      as trews_severe_sepsis_wo_infection_initial,
+
+      LEAST( max(case when name = 'suspicion_of_infection' then override_time else null end),
+             min(measurement_time) filter (where name = 'trews' and is_met)),
+             min(measurement_time) filter (where name in ('trews_bilirubin','trews_creatinine','trews_gcs','trews_inr','trews_lactate','trews_platelet','trews_vent') and is_met ))
+      as trews_severe_sepsis_lead_time
     from
     criteria_events ICE
     where ICE.enc_id   = MEV.enc_id
@@ -893,6 +924,51 @@ format('select stats.enc_id,
     case
     when sus_count = 1 then
         (
+        case when trews_met = 1 and trews_orgdf = 1 then (
+            (
+            case
+            when (fluid_count = 1 and hypotension_count > 0) and hypoperfusion_count = 1 then
+                (case
+                    -- septic shock
+                    when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset)  > ''3 hours''::interval and sev_sep_3hr_count < 4 then 42 -- trews_sev_sep_3hr_exp
+                    when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset)  > ''6 hours''::interval and sev_sep_6hr_count = 0 then 44 -- trews_sev_sep_6hr_exp
+                    when now() - LEAST(hypotension_onset, hypoperfusion_onset) > ''6 hours''::interval and sep_sho_6hr_count = 0 then 46 -- trews_sep_sho_6hr_exp
+                    when sep_sho_6hr_count = 1 then 45 -- trews_sep_sho_6hr_com
+                    when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 43 -- trews_sev_sep_6hr_com
+                    when sev_sep_3hr_count = 4 then 41 -- trews_sev_sep_3hr_com
+                    else
+                    40 end)
+            when (fluid_count = 1 and hypotension_count > 0) then
+                (case
+                    -- septic shock
+                    when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset) > ''3 hours''::interval and sev_sep_3hr_count < 4 then 42 -- trews_sev_sep_3hr_exp
+                    when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset) > ''6 hours''::interval and sev_sep_6hr_count = 0 then 44 -- trews_sev_sep_6hr_exp
+                    when now() - hypotension_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 46 -- trews_sep_sho_6hr_exp
+                    when sep_sho_6hr_count = 1 then 45 -- trews_sep_sho_6hr_com
+                    when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 43 -- trews_sev_sep_6hr_com
+                    when sev_sep_3hr_count = 4 then 41 -- trews_sev_sep_3hr_com
+                    else
+                    40 end)
+            when hypoperfusion_count = 1 then
+                (case
+                    -- septic shock
+                    when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset) > ''3 hours''::interval and sev_sep_3hr_count < 4 then 42 -- trews_sev_sep_3hr_exp
+                    when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset) > ''6 hours''::interval and sev_sep_6hr_count = 0 then 44 -- trews_sev_sep_6hr_exp
+                    when now() - hypoperfusion_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 36 -- trews_sep_sho_6hr_exp
+                    when sep_sho_6hr_count = 1 then 45 -- trews_sep_sho_6hr_com
+                    when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 43 -- trews_sev_sep_6hr_com
+                    when sev_sep_3hr_count = 4 then 41 -- trews_sev_sep_3hr_com
+                    else
+                    40 end)
+            when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset) > ''3 hours''::interval and sev_sep_3hr_count < 4 then 27 -- trews_sev_sep_3hr_exp
+            when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset) > ''6 hours''::interval and sev_sep_6hr_count = 0 then 29 -- trews_sev_sep_6hr_exp
+            when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 28 -- trews_sev_sep_6hr_com
+            when sev_sep_3hr_count = 4 then 26 -- trews_sev_sep_3hr_com
+            else
+            -- severe sepsis
+            25
+            end)
+        )
         case when sirs_count > 1 and organ_count > 0 then (
             (
             case
@@ -944,6 +1020,8 @@ format('select stats.enc_id,
         end
         )
     -- no sus
+    when trews > 0 and trews_orgdf > 0 and sus_null_count = 1 then 11 -- trews_sev_sep w.o. sus
+    when trews > 0 and trews_orgdf > 0 and sus_noinf_count = 1 then 13 -- trews_sev_sep w.o. sus
     when sirs_count > 1 and organ_count > 0 and sus_null_count = 1 then 10 -- sev_sep w.o. sus
     when sirs_count > 1 and organ_count > 0 and sus_noinf_count = 1 then 12 -- sev_sep w.o. sus
     else 0 -- health case
@@ -966,7 +1044,11 @@ select %I.enc_id,
     (array_agg(measurement_time order by measurement_time)  filter (where name in (''sirs_temp'',''heart_rate'',''respiratory_rate'',''wbc'') and is_met ) )[2]   as sirs_onset,
     min(measurement_time) filter (where name in (''blood_pressure'',''mean_arterial_pressure'',''decrease_in_sbp'',''respiratory_failure'',''creatinine'',''bilirubin'',''platelet'',''inr'',''lactate'') and is_met ) as organ_onset,
     min(measurement_time) filter (where name in (''systolic_bp'',''hypotension_map'',''hypotension_dsbp'') and is_met ) as hypotension_onset,
-    min(measurement_time) filter (where name = ''initial_lactate'' and is_met) as hypoperfusion_onset
+    min(measurement_time) filter (where name = ''initial_lactate'' and is_met) as hypoperfusion_onset,
+    max(is_met) filter (where name = ''trews'' and is_met) as trews_met,
+    min(measurement_time) filter (where name = ''trews'' and is_met) as trews_onset
+    count(*) filter (where name ~ ''trews_'' and is_met) as trews_orgdf,
+    min(measurement_time) filter (where name ~ ''trews_'' and is_met) as trews_orgdf_onset
 from %I
 where %I.enc_id = coalesce($1, %I.enc_id)
 %s
@@ -1302,6 +1384,103 @@ return query
         ) as ordered
         group by ordered.enc_id, ordered.name
     ),
+    esrd as (
+        select distinct enc_id
+        from cdm_s s inner join enc_ids e on s.enc_id = e.enc_id
+        where fid ~ 'esrd_'
+    ),
+    gcs_stroke as (
+        select distinct pc.enc_id, pc.tsp
+        from pat_cvalues pc inner join cdm_t t on pc.enc_id = t.enc_id
+        where pc.name = 'trews_gcs' and t.fid = 'stroke' and t.tsp <= pc.tsp
+    ),
+    platelet_gi_bleed as (
+        select distinct pc.enc_id, pc.tsp
+        from pat_cvalues pc inner join cdm_t t on pc.enc_id = t.enc_id
+        where pc.name = 'trews_platelet' and t.fid in ('gi_bleed', 'gi_bleed_inhosp') and t.tsp <= pc.tsp
+    ),
+    gcs_propofol as (
+        select distinct pc.enc_id, pc.tsp
+        from pat_cvalues pc inner join cdm_t t on pc.enc_id = t.enc_id
+        where pc.name = 'trews_gcs' and t.fid = 'propofol_dose'
+            and ((value::json)->>'action' = 'restart'
+                    or (value::json)->>'action' ~* 'given')
+            and pc.tsp between t.tsp and t.tsp + '24 hours'::interval
+    ),
+    inr_warfarin as (
+        select distinct pc.enc_id, pc.tsp
+        from pat_cvalues pc inner join cdm_t t on pc.enc_id = t.enc_id
+        where pc.name = 'trews_inr' and t.fid in ('warfarin_dose','heparin_dose')
+            and (value::json)->>'action' ~* 'given'
+            and pc.tsp between t.tsp and t.tsp + '30 hours'::interval
+    ),
+    vent as (
+        select distinct pc.enc_id, pc.tsp
+        from pat_cvalues pc inner join cdm_t t on pc.enc_id = t.enc_id
+        where pc.name = 'trews_vent' and t.fid in ('vent','cpap','bipap')
+            and pc.tsp between t.tsp and t.tsp + '48 hours'::interval
+    ),
+    trews as (
+        select
+            ordered.enc_id,
+            'trews' name,
+            first(case when ordered.is_met then ordered.tsp else null end) as measurement_time,
+            first(case when ordered.is_met then trewscore else null end) as value,
+            null as override_time,
+            null as override_user,
+            null as override_value,
+            coalesce(bool_or(ordered.is_met), false) as is_met,
+            now() as update_date
+        from (
+            select ts.enc_id, ts.trewscore,
+            ts.trewscore > get_trews_parameter('trews_threshold')::numeric is_met
+            from pat_cvalues pc
+            inner join trewscore ts on pc.enc_id = ts.enc_id
+            where pc.name = 'trews'
+            and ts.tsp between ts_start and ts_end
+            order by ts.tsp desc
+        ) ordered
+        group by ordered.enc_id
+    ),
+    trews_orgdf as (
+        select
+            ordered.enc_id,
+            ordered.name,
+            first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
+            first(case when ordered.is_met then ordered.value else null end)::text as value,
+            first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
+            first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
+            first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
+            coalesce(bool_or(ordered.is_met), false) as is_met,
+            now() as update_date
+        from (
+            select  pc.enc_id,
+                    pc.name,
+                    pc.tsp as measurement_time,
+                    pc.value as value,
+                    pc.c_otime,
+                    pc.c_ouser,
+                    pc.c_ovalue,
+                    (case when pc.name = 'trews_bilirubin' and fid = 'bilirubin' then pc.value >= 2 and pc.value >= 2 * 0.2
+                     case when pc.name = 'trews_creatinine' and fid = 'creatinine' then pc.value >= 0.5 + 0.5 and pc.value >= 1.5 and esrd.enc_id is null
+                     case when pc.name = 'trews_gcs' and fid = 'gcs' then pc.value < 13 and gs.enc_id is null and gp.enc_id is null
+                     case when pc.name = 'trews_inr' and fid = 'inr' then (pc.value >= 1.5 and pc.value >= 0.5 + 0) and iw.enc_id is null
+                     case when pc.name = 'trews_inr' and fid = 'ptt' then iw.enc_id is null
+                     case when pc.name = 'trews_lactate' and fid = 'lactate' then pc.value > 2
+                     case when pc.name = 'trews_platelet' and fid = 'platelet' then pc.value < 100 and pc.value < 0.5 * 450 and pgb.enc_id is null
+                     case when pc.name = 'trews_vent' then vent.enc_id is not null
+                     else false end) as is_met
+            from pat_cvalues pc
+            left join esrd on pc.enc_id = esrd.enc_id
+            left join gcs_stroke gs on pc.enc_id = gs.enc_id
+            left join gcs_propofol gp on pc.enc_id = gp.enc_id and pc.tsp = gp.tsp
+            left join inr_warfarin iw on pc.enc_id = iw.enc_id and pc.tsp = iw.tsp
+            left join vent on pc.enc_id = vent.enc_id and pc.tsp = vent.tsp
+            left join platelet_gi_bleed pgb on pgb.enc_id = pc.enc_id and pc.tsp = pgb.tsp
+            where pc.name ~ 'trews_'
+        ) ordered
+        group by ordered.enc_id, ordered.name
+    ),
     sirs as (
         select
             ordered.enc_id,
@@ -1401,6 +1580,8 @@ return query
         union all select * from sirs
         union all select * from respiratory_failures
         union all select * from organ_dysfunction_except_rf
+        union all select * from trews
+        union all select * from trews_orgdf
     ),
     severe_sepsis_criteria as (
         with organ_dysfunction as (
@@ -1852,66 +2033,6 @@ return query
 return;
 END; $function$;
 
-
--- Calculates criteria over windows, with each window based on the timestamps
--- at which a measurement is available. This could be replaced by regularly-spaced
--- window endpoints from a generated series.
--- DEPRECATED
-CREATE OR REPLACE FUNCTION calculate_max_criteria(this_pat_id text)
- RETURNS table(window_ts                        timestamptz,
-               pat_id                           varchar(50),
-               name                             varchar(50),
-               measurement_time                 timestamptz,
-               value                            text,
-               override_time                    timestamptz,
-               override_user                    text,
-               override_value                   json,
-               is_met                           boolean,
-               update_date                      timestamptz,
-               severe_sepsis_onset              timestamptz,
-               severe_sepsis_wo_infection_onset timestamptz,
-               septic_shock_onset               timestamptz
-               )
- LANGUAGE plpgsql
-AS $function$
-DECLARE
-    ts_end timestamptz := now();
-    window_size interval := get_parameter('lookbackhours')::interval;
-BEGIN
-    create temporary table new_criteria_windows as
-        select window_ends.tsp as ts, new_criteria.*
-        from (  select distinct meas.pat_id, meas.tsp from criteria_meas meas
-                where meas.pat_id = coalesce(this_pat_id, meas.pat_id)
-                and meas.tsp > ts_end - window_size
-        ) window_ends
-        inner join lateral calculate_criteria(
-            coalesce(this_pat_id, window_ends.pat_id), window_ends.tsp - window_size, window_ends.tsp
-        ) new_criteria
-        on window_ends.pat_id = new_criteria.pat_id;
-
-    return query
-        with state_windows as (
-            select sw.pat_id, sw.state, min(ts) as ts
-            from get_window_states('new_criteria_windows', this_pat_id) sw
-            group by sw.pat_id, sw.state
-        )
-        select new_criteria_windows.*
-        from new_criteria_windows
-        inner join (
-            select state_windows.pat_id, min(state_windows.ts) as ts
-            from state_windows
-            where state_windows.state = (
-                select max(sw2.state) from state_windows sw2 where state_windows.pat_id = sw2.pat_id
-            )
-            group by state_windows.pat_id
-        ) max_windows
-        on new_criteria_windows.pat_id = max_windows.pat_id
-        and new_criteria_windows.ts = max_windows.ts;
-
-    drop table new_criteria_windows;
-    return;
-END; $function$;
-
 --------------------------------------------
 -- Criteria snapshot utilities.
 --------------------------------------------
@@ -1933,7 +2054,7 @@ begin
     from get_states_snapshot(this_enc_id) gss
     inner join criteria c on gss.enc_id = c.enc_id and c.name ~ '_order'
     left join criteria_events e on e.enc_id = gss.enc_id and e.event_id = gss.event_id and e.name = c.name
-    where gss.state in (23,24,35,36) and c.is_met and not coalesce(e.is_met, false)
+    where gss.state in (23,24,28,29,35,36,45,46) and c.is_met and not coalesce(e.is_met, false)
     -- (
     --     -- (
     --     --     -- normal sepsis states: update met orders from criteria
@@ -2003,7 +2124,7 @@ BEGIN
         left join get_states_snapshot(this_enc_id) snapshot on snapshot.enc_id = live.enc_id
         where snapshot.state is null
         or snapshot.state < live.state
-        or ( snapshot.state = 10 and snapshot.severe_sepsis_wo_infection_onset < now() - window_size)
+        or ( snapshot.state in (10,11) and snapshot.severe_sepsis_wo_infection_onset < now() - window_size)
     ),
     deactivate_old_snapshot as
     (
@@ -2021,17 +2142,24 @@ BEGIN
                     first(new_criteria.severe_sepsis_onset) severe_sepsis_onset,
                     first(new_criteria.septic_shock_onset) septic_shock_onset,
                     first(new_criteria.severe_sepsis_wo_infection_onset) severe_sepsis_wo_infection_onset,
-                    first(new_criteria.severe_sepsis_wo_infection_initial) severe_sepsis_wo_infection_initial
+                    first(new_criteria.severe_sepsis_wo_infection_initial) severe_sepsis_wo_infection_initial,
+                    first(new_criteria.trews_severe_sepsis_onset) trews_severe_sepsis_onset,
+                    first(new_criteria.trews_severe_sepsis_wo_infection_onset) trews_severe_sepsis_wo_infection_onset,
+                    first(new_criteria.trews_severe_sepsis_wo_infection_initial) trews_severe_sepsis_wo_infection_initial,
             from new_criteria
             group by new_criteria.enc_id
         ) nc on si.enc_id = nc.enc_id
-        left join lateral update_notifications(si.enc_id, flag_to_alert_codes(si.state_to),
-                                               nc.severe_sepsis_onset,
-                                               nc.septic_shock_onset,
-                                               nc.severe_sepsis_wo_infection_onset,
-                                               nc.severe_sepsis_wo_infection_initial,
-                                               func_mode
-                                               ) n
+        left join lateral update_notifications(si.enc_id,
+            flag_to_alert_codes(si.state_to),
+            nc.severe_sepsis_onset,
+            nc.septic_shock_onset,
+            nc.severe_sepsis_wo_infection_onset,
+            nc.severe_sepsis_wo_infection_initial,
+            nc.trews_severe_sepsis_onset,
+            nc.trews_severe_sepsis_wo_infection_onset,
+            nc.trews_severe_sepsis_wo_infection_initial,
+            func_mode
+            ) n
         on si.enc_id = n.enc_id
     )
     insert into criteria_events (event_id, enc_id, name, measurement_time, value,
@@ -2099,12 +2227,22 @@ BEGIN
                     first(new_criteria.severe_sepsis_onset) severe_sepsis_onset,
                     first(new_criteria.septic_shock_onset) septic_shock_onset,
                     first(new_criteria.severe_sepsis_wo_infection_onset) severe_sepsis_wo_infection_onset,
-                    first(new_criteria.severe_sepsis_wo_infection_initial) severe_sepsis_wo_infection_initial
+                    first(new_criteria.severe_sepsis_wo_infection_initial) severe_sepsis_wo_infection_initial,
+                    first(new_criteria.trews_severe_sepsis_onset) trews_severe_sepsis_onset,
+                    first(new_criteria.trews_severe_sepsis_wo_infection_onset) trews_severe_sepsis_wo_infection_onset,
+                    first(new_criteria.trews_severe_sepsis_wo_infection_initial) trews_severe_sepsis_wo_infection_initial
             from new_criteria
             group by new_criteria.enc_id
         ) nc on pat_states.enc_id = nc.enc_id
         left join lateral update_notifications(pat_states.enc_id, flag_to_alert_codes(pat_states.state),
-            nc.severe_sepsis_onset, nc.septic_shock_onset, nc.severe_sepsis_wo_infection_onset, nc.severe_sepsis_wo_infection_initial, 'override') n
+            nc.severe_sepsis_onset,
+            nc.septic_shock_onset,
+            nc.severe_sepsis_wo_infection_onset,
+            nc.severe_sepsis_wo_infection_initial,
+            nc.trews_severe_sepsis_onset,
+            nc.trews_severe_sepsis_wo_infection_onset,
+            nc.trews_severe_sepsis_wo_infection_initial,
+            'override') n
         on pat_states.enc_id = n.enc_id
     )
     insert into criteria_events (event_id, enc_id, name, measurement_time, value,
@@ -2237,12 +2375,17 @@ $$ LANGUAGE PLPGSQL;
 
 -- '200','201','202','203','204','300','301','302','303','304','305','306'
 -- update notifications when state changed
-CREATE OR REPLACE FUNCTION update_notifications(this_enc_id int, alert_codes text[],
-                                                severe_sepsis_onset timestamptz,
-                                                septic_shock_onset timestamptz,
-                                                sirs_plus_organ_onset timestamptz,
-                                                sirs_plus_organ_initial timestamptz,
-                                                mode text)
+CREATE OR REPLACE FUNCTION update_notifications(
+    this_enc_id int,
+    alert_codes text[],
+    severe_sepsis_onset timestamptz,
+    septic_shock_onset timestamptz,
+    sirs_plus_organ_onset timestamptz,
+    sirs_plus_organ_initial timestamptz,
+    trews_severe_sepsis_onset timestamptz,
+    trews_sirs_plus_organ_onset timestamptz,
+    trews_sirs_plus_organ_initial timestamptz,
+    mode text)
 RETURNS table(enc_id int, alert_code text) AS $$
 BEGIN
     -- clean notifications
@@ -3188,8 +3331,6 @@ WHERE enc_id IN
      WHERE pat_id = this_pat_id);
   DELETE
   FROM criteria WHERE pat_id = this_pat_id;
-  DELETE
-  FROM criteria_meas WHERE pat_id = this_pat_id;
   DELETE
   FROM pat_enc WHERE pat_id = this_pat_id;
 END;

@@ -63,7 +63,7 @@ def main(max_pats=None, hospital=None, lookback_hours=None, db_name=None, repl=F
   # Get mode (real, test, both)
   mode = MODE[int(core.get_environment_var('TREWS_ETL_MODE', 0))]
 
-  # Switch to turn on/off suppression alerts
+  # Get suppression alert mode
   suppression = int(core.get_environment_var('TREWS_ETL_SUPPRESSION', 0))
 
   ########################
@@ -78,8 +78,8 @@ def main(max_pats=None, hospital=None, lookback_hours=None, db_name=None, repl=F
         'fn':   push_cloudwatch_metrics,
         'args': [aws_region, prod_or_dev, hospital]
       })
-    if not suppression:
-      # if suppression is 0, notify_epic will be done in suppression alert server
+    if suppression == 0:
+      # NOTE: if suppression is 1, notify_epic will be done in suppression alert server
       all_tasks.append({
         'name': 'push_notifications',
         'deps': ['get_notifications_for_epic'],
@@ -112,8 +112,10 @@ def main(max_pats=None, hospital=None, lookback_hours=None, db_name=None, repl=F
   plan = Plan(name="epic2op_plan", config=config_dict)
   for task_def in all_tasks:
     plan.add(Task(**task_def))
-  for task in criteria_tasks:
-    plan.add(task)
+  if suppression < 2:
+    # NOTE: when suppression is 2, criteria calculation will be done in the alert server
+    for task in criteria_tasks:
+      plan.add(task)
   for task in loading_tasks:
     plan.add(task)
   engine = Engine(

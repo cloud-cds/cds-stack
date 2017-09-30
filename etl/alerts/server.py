@@ -38,7 +38,10 @@ class AlertServer:
     self.channel              = os.getenv('etl_channel', 'on_opsdx_dev_etl')
     self.suppression_tasks    = {}
     self.model                = os.getenv('suppression_model', 'trews')
-    self.notify_web            = os.getenv('notify_web', 0)
+    self.suppression_mode     = os.getenv('suppression_mode', 0)
+    self.notify_web           = os.getenv('notify_web', 0)
+    self.lookbackhours        = os.getenv('TREWS_ETL_HOURS', 24)
+    self.nprocs               = os.getenv('nprocs', 2)
 
 
   async def async_init(self):
@@ -198,10 +201,18 @@ class AlertServer:
       else:
         logging.info("criteria is not ready for {}".format(pats_str))
 
-  async def run_trews_suppression(self, hospital):
+  async def run_trews_suppression(self, job_id):
     async with self.db_pool.acquire() as conn:
+      sql = ''
+      if self.suppression_mode == 2:
+        # calculate criteria here
+        server = 'dev_db' if 'dev' in self.channel else 'prod_db'
+        sql += '''
+        select garbage_collection();
+        select distribute_advance_criteria_snapshot_for_job('{server}', {hours}, '{job_id}', {nprocs});
+        '''.format(server=server,hours=lookbackhours,job_id=job_id,nprocs=nprocs)
       if self.notify_web:
-        sql = '''
+        sql += '''
         with pats as (
           select e.enc_id, p.pat_id from get_latest_enc_ids('{hospital}') e inner join pat_enc p on e.enc_id = p.enc_id
         ),
@@ -215,7 +226,7 @@ class AlertServer:
         select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
           '''.format(channel=self.channel, model=self.model, hospital=hospital)
       else:
-        sql = '''
+        sql += '''
         select update_suppression_alert(pat_id, '{channel}', '{model}', 'false') from
         (select distinct t.enc_id from cdm_t t
         inner join get_latest_enc_ids('{hospital}') h on h.enc_id = t.enc_id
@@ -249,7 +260,7 @@ class AlertServer:
         self.predictor_manager.create_predict_tasks(hosp=message['hosp'],
                                                     time=message['time'])
       elif self.model == 'trews':
-        await self.run_trews_suppression(message['hosp'])
+        await self.run_trews_suppression(message['job_id'])
       else:
         logging.error("Unknown suppression model {}".format(self.model))
 

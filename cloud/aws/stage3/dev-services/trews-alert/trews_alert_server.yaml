@@ -65,6 +65,12 @@ spec:
           value: "on_opsdx_dev_etl"
         - name: suppression_model
           value: "trews"
+        - name: suppression_mode
+          value: "2"
+        - name: nprocs
+          value: "4"
+        - name: TREWS_ETL_HOURS
+          value: "8"
         - name: notify_web
           value: "1"
         - name: db_host
