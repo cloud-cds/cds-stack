@@ -38,6 +38,7 @@ trews_bilirubin,bilirubin,,trews_organ_dysfunction
 trews_creatinine,creatinine,,trews_organ_dysfunction
 trews_gcs,gcs,,trews_organ_dysfunction
 trews_inr,inr,,trews_organ_dysfunction
+trews_inr,ptt,,trews_organ_dysfunction
 trews_lactate,lactate,,trews_organ_dysfunction
 trews_platelet,platelet,,trews_organ_dysfunction
 trews_vent,,,trews_organ_dysfunction

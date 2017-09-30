@@ -20,7 +20,7 @@ TREWS Criteria v2 2017-09-29
 | **ORG_DYS** |`platelet` | TBD | v1  |
 | **ORG_DYS** |`respiratory_failure` | TBD | v1   |
 | **ORG_DYS** |`trews_bilirubin` | 1 if bilirubin > greatest(2, baseline_platelet) else 0 | NEW   |
-| **ORG_DYS** |`trews_creatinine` | TBD | NEW  |
+| **ORG_DYS** |`trews_creatinine` | 1 if creatinine >= 1.5 and creatinine >= 0.5 + baseline_creatinine and not esrd | NEW  |
 | **ORG_DYS** |`trews_gcs` | 1 if gcs < 13 and not stroke and not propofol else 0 |NEW |
 | **ORG_DYS** |`trews_inr` | 1 if inr > 1.5 and inr > 0.5 + baseline_inr and warfarin else 0 |NEW |
 | **ORG_DYS** |`trews_lactate` | TBD |NEW |
