@@ -58,9 +58,10 @@ async def load_discharge_times(ctxt, contacts_df):
 
 async def notify_data_ready_to_lmc_alert_server(ctxt, job_id):
   message = {
-    'type': 'ETL',
-    'time': str(dt.datetime.utcnow()),
-    'hosp': job_id.split('_')[-2].upper()
+    'type'  : 'ETL',
+    'time'  : str(dt.datetime.utcnow()),
+    'hosp'  : job_id.split('_')[-2].upper(),
+    'job_id': job_id
   }
   try:
     reader, writer = await asyncio.open_connection(protocol.ALERT_SERVER_IP, protocol.ALERT_SERVER_PORT, loop=ctxt.loop)
@@ -73,9 +74,10 @@ async def notify_data_ready_to_lmc_alert_server(ctxt, job_id):
 
 async def notify_data_ready_to_trews_alert_server(ctxt, job_id, _):
   message = {
-    'type': 'ETL',
-    'time': str(dt.datetime.utcnow()),
-    'hosp': job_id.split('_')[-2].upper()
+    'type'  : 'ETL',
+    'time'  : str(dt.datetime.utcnow()),
+    'hosp'  : job_id.split('_')[-2].upper(),
+    'job_id': job_id
   }
   try:
     reader, writer = await asyncio.open_connection(protocol.TREWS_ALERT_SERVER_IP, protocol.TREWS_ALERT_SERVER_PORT, loop=ctxt.loop)
@@ -474,13 +476,13 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
          deps = ['contacts_transform'],
          coro = load_discharge_times),
         ]
-  if not suppression:
+  if suppression == 0:
     all_tasks += [
                   Task(name = 'get_notifications_for_epic',
                        deps = ['workspace_submit', 'advance_criteria_snapshot'],
                        coro = get_notifications_for_epic),
                   ]
-  else:
+  elif suppression == 1:
     all_tasks += [
                   Task(name = 'notify_data_ready_to_lmc_alert_server',
                        deps = ['workspace_submit'],
@@ -489,4 +491,15 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
                        deps = ['workspace_submit', 'advance_criteria_snapshot'],
                        coro = notify_data_ready_to_trews_alert_server)
                   ]
+  elif suppression == 2:
+    all_tasks += [
+                  Task(name = 'notify_data_ready_to_lmc_alert_server',
+                       deps = ['workspace_submit'],
+                       coro = notify_data_ready_to_lmc_alert_server),
+                  Task(name = 'notify_data_ready_to_trews_alert_server',
+                       deps = ['workspace_submit'],
+                       coro = notify_data_ready_to_trews_alert_server)
+                  ]
+  else:
+    ctxt.log.error("Unknown suppression alert mode: {}".format(suppression))
   return all_tasks
