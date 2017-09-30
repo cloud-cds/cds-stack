@@ -3054,10 +3054,12 @@ var toolbar = new function() {
           var g_name = cr['name'] == 'initial_lactate' ? 'hpf_initial_lactate' : cr['name']; // HACK: map group name for hypoperfusion initial lactate.
           var g = this.groups[g_name];
           var v = cr['name'] == 'respiratory_failure' ? cr['value'] : Number(cr['value']).toPrecision(3);
+          var content = '6hr window to trigger CMS sepsis definition starting @ ' + strToTime(start, true, true);
           items.add({
             id: cr['name'],
             group: g['id'],
-            content: v + ' @ ' + strToTime(start, true, true),
+            content: content,
+            title: content,
             start: start,
             end: end,
             type: 'range'
