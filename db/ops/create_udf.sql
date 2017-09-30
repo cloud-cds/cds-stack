@@ -771,7 +771,7 @@ $$
 LANGUAGE sql;
 
 CREATE OR REPLACE FUNCTION get_trews_parameter(key text)
-RETURNS text as
+RETURNS real as
 $$
 select value from trews_parameters where name = key;
 $$
@@ -887,22 +887,22 @@ AS $func$ BEGIN
       as severe_sepsis_lead_time,
       -- new trews timestamp
       GREATEST( max(case when name = 'suspicion_of_infection' then override_time else null end),
-                min(measurement_time) filter (where name = 'trews' and is_met)),
+                min(measurement_time) filter (where name = 'trews' and is_met),
                 min(measurement_time) filter (where name in ('trews_bilirubin','trews_creatinine','trews_gcs','trews_inr','trews_lactate','trews_platelet','trews_vent') and is_met ))
       as trews_severe_sepsis_onset,
 
       GREATEST(
-          min(measurement_time) filter (where name = 'trews' and is_met)),
+          min(measurement_time) filter (where name = 'trews' and is_met),
           min(measurement_time) filter (where name in ('trews_bilirubin','trews_creatinine','trews_gcs','trews_inr','trews_lactate','trews_platelet','trews_vent') and is_met ))
       as trews_severe_sepsis_wo_infection_onset,
 
       LEAST(
-          min(measurement_time) filter (where name = 'trews' and is_met)),,
+          min(measurement_time) filter (where name = 'trews' and is_met),
           min(measurement_time) filter (where name in ('trews_bilirubin','trews_creatinine','trews_gcs','trews_inr','trews_lactate','trews_platelet','trews_vent') and is_met ))
       as trews_severe_sepsis_wo_infection_initial,
 
       LEAST( max(case when name = 'suspicion_of_infection' then override_time else null end),
-             min(measurement_time) filter (where name = 'trews' and is_met)),
+             min(measurement_time) filter (where name = 'trews' and is_met),
              min(measurement_time) filter (where name in ('trews_bilirubin','trews_creatinine','trews_gcs','trews_inr','trews_lactate','trews_platelet','trews_vent') and is_met ))
       as trews_severe_sepsis_lead_time
     from
@@ -1423,7 +1423,7 @@ return query
     trews as (
         select
             ordered.enc_id,
-            'trews' name,
+            'trews' as name,
             first(case when ordered.is_met then ordered.tsp else null end) as measurement_time,
             first(case when ordered.is_met then trewscore else null end) as value,
             null as override_time,
@@ -1433,7 +1433,7 @@ return query
             now() as update_date
         from (
             select ts.enc_id, ts.trewscore,
-            ts.trewscore > get_trews_parameter('trews_threshold')::numeric is_met
+            ts.trewscore > get_trews_parameter('trews_threshold') is_met
             from pat_cvalues pc
             inner join trewscore ts on pc.enc_id = ts.enc_id
             where pc.name = 'trews'
@@ -1462,13 +1462,13 @@ return query
                     pc.c_ouser,
                     pc.c_ovalue,
                     (case when pc.name = 'trews_bilirubin' and fid = 'bilirubin' then pc.value >= 2 and pc.value >= 2 * 0.2
-                     case when pc.name = 'trews_creatinine' and fid = 'creatinine' then pc.value >= 0.5 + 0.5 and pc.value >= 1.5 and esrd.enc_id is null
-                     case when pc.name = 'trews_gcs' and fid = 'gcs' then pc.value < 13 and gs.enc_id is null and gp.enc_id is null
-                     case when pc.name = 'trews_inr' and fid = 'inr' then (pc.value >= 1.5 and pc.value >= 0.5 + 0) and iw.enc_id is null
-                     case when pc.name = 'trews_inr' and fid = 'ptt' then iw.enc_id is null
-                     case when pc.name = 'trews_lactate' and fid = 'lactate' then pc.value > 2
-                     case when pc.name = 'trews_platelet' and fid = 'platelet' then pc.value < 100 and pc.value < 0.5 * 450 and pgb.enc_id is null
-                     case when pc.name = 'trews_vent' then vent.enc_id is not null
+                     when pc.name = 'trews_creatinine' and fid = 'creatinine' then pc.value >= 0.5 + 0.5 and pc.value >= 1.5 and esrd.enc_id is null
+                     when pc.name = 'trews_gcs' and fid = 'gcs' then pc.value < 13 and gs.enc_id is null and gp.enc_id is null
+                     when pc.name = 'trews_inr' and fid = 'inr' then (pc.value >= 1.5 and pc.value >= 0.5 + 0) and iw.enc_id is null
+                     when pc.name = 'trews_inr' and fid = 'ptt' then iw.enc_id is null
+                     when pc.name = 'trews_lactate' and fid = 'lactate' then pc.value > 2
+                     when pc.name = 'trews_platelet' and fid = 'platelet' then pc.value < 100 and pc.value < 0.5 * 450 and pgb.enc_id is null
+                     when pc.name = 'trews_vent' then vent.enc_id is not null
                      else false end) as is_met
             from pat_cvalues pc
             left join esrd on pc.enc_id = esrd.enc_id
@@ -2145,7 +2145,7 @@ BEGIN
                     first(new_criteria.severe_sepsis_wo_infection_initial) severe_sepsis_wo_infection_initial,
                     first(new_criteria.trews_severe_sepsis_onset) trews_severe_sepsis_onset,
                     first(new_criteria.trews_severe_sepsis_wo_infection_onset) trews_severe_sepsis_wo_infection_onset,
-                    first(new_criteria.trews_severe_sepsis_wo_infection_initial) trews_severe_sepsis_wo_infection_initial,
+                    first(new_criteria.trews_severe_sepsis_wo_infection_initial) trews_severe_sepsis_wo_infection_initial
             from new_criteria
             group by new_criteria.enc_id
         ) nc on si.enc_id = nc.enc_id
