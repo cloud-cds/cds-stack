@@ -165,6 +165,15 @@ async def workspace_to_cdm(ctxt, job_id):
 async def load_online_prediction_parameters(ctxt, job_id):
   async with ctxt.db_pool.acquire() as conn:
     ctxt.log.info("load online_prediction_features")
+    # Load features needed for criteria
+    query_criteria_feature = '''
+    select distinct cd.fid from criteria_default cd
+    inner join cdm_feature cf on cd.fid = cf.fid
+    union
+    select unnest(string_to_array(value, ',')) fid from parameters where name = 'criteria_required_derive_fids'
+    '''
+    criteria_features = await conn.fetch(query_criteria_feature)
+    criteria_features = [f['fid'] for f in criteria_features]
     # Load features needed for lmc
     query_lmc_feature = '''
     select f.fid
@@ -193,7 +202,7 @@ async def load_online_prediction_parameters(ctxt, job_id):
     # Get cdm feature dict
     cdm_feature = await conn.fetch("select * from cdm_feature")
     cdm_feature_dict = {f['fid']:dict(f) for f in cdm_feature}
-    required_fids = set(list(feature_weights.keys()) + lmc_features)
+    required_fids = set(list(feature_weights.keys()) + lmc_features + criteria_features)
     # list the measured features for online prediction
     features_with_intermediates = get_features_with_intermediates(\
       required_fids, cdm_feature_dict)
@@ -423,7 +432,7 @@ def _get_feature_description_report(features, dictionary):
   num = len(features)
   features_description = {}
   for fid in features:
-    description = dictionary[fid]['description'].lower()
+    description = dictionary[fid]['description'].lower() if dictionary[fid]['description'] else 'null'
     if description in features_description:
       features_description[description].append(fid)
     else:
