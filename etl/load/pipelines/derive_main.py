@@ -1185,4 +1185,14 @@ query_config = {
        %(dataset_where_block)s %(incremental_enc_id_match)s %(lookbackhours)s
       group by %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp''',
   },
+  'any_antibiotics_order': {
+    'fid_input_items': ['ampicillin_dose', 'clindamycin_dose', 'erythromycin_dose' , 'gentamicin_dose' , 'oxacillin_dose' , 'tobramycin_dose' , 'vancomycin_dose' , 'ceftazidime_dose' , 'cefazolin_dose' , 'penicillin_g_dose' , 'meropenem_dose' , 'penicillin_dose' , 'amoxicillin_dose' , 'piperacillin_tazobac_dose', 'rifampin_dose', 'meropenem_dose', 'rapamycin_dose'],
+    'derive_type': 'simple',
+    'fid_select_expr': '''
+      SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_antibiotics_order', 'True', max(cdm_t.confidence) confidence FROM %(cdm_t)s as cdm_t %(incremental_enc_id_join)s
+      WHERE fid ~ '^(ampicillin|clindamycin|erythromycin|gentamicin|oxacillin|tobramycin|vancomycin|ceftazidime|cefazolin|penicillin_g|meropenem|penicillin|amoxicillin|piperacillin_tazobac|rifampin|meropenem|rapamycin)_dose_order$'
+       AND ((isnumeric(value) and value::numeric > 0) or (not isnumeric(value) and cast(value::json->>'dose' as numeric) > 0))
+       %(dataset_where_block)s %(incremental_enc_id_match)s %(lookbackhours)s
+      group by %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp''',
+  },
 }

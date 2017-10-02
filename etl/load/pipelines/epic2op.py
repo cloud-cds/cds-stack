@@ -167,9 +167,6 @@ async def load_online_prediction_parameters(ctxt, job_id):
     ctxt.log.info("load online_prediction_features")
     # Load features needed for criteria
     query_criteria_feature = '''
-    select distinct cd.fid from criteria_default cd
-    inner join cdm_feature cf on cd.fid = cf.fid
-    union
     select unnest(string_to_array(value, ',')) fid from parameters where name = 'criteria_required_derive_fids'
     '''
     criteria_features = await conn.fetch(query_criteria_feature)
