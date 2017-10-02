@@ -19,18 +19,18 @@ from etl.load.primitives.tbl.derive_helper import *
 from etl.load.primitives.tbl.cardiogenic_shock_feats import *
 
 
-def derive(fid, func_id, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
+def derive(fid, func_id, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
   this_mod = sys.modules[__name__]
   func = getattr(this_mod, func_id)
   return func(fid, fid_input, conn, log, dataset_id, derive_feature_addr,
-              cdm_feature_dict, incremental, cdm_t_target)
+              cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours)
 
 def with_ds(dataset_id, table_name=None, conjunctive=True):
   if dataset_id is not None:
     return '%s %sdataset_id = %s' % (' and' if conjunctive else ' where', '' if table_name is None else table_name+'.', dataset_id)
   return ''
 
-async def lookup_population_mean(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
+async def lookup_population_mean(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
   """
   check if fid_popmean exists or not;
   if not, calculate it
@@ -55,7 +55,7 @@ async def lookup_population_mean(fid, fid_input, conn, log, dataset_id, derive_f
       log.error("lookup_population_mean %s" % fid)
 
 # Same as any_continuous_dose_update (special case)
-async def any_antibiotics_order_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
+async def any_antibiotics_order_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
   """
   fid should be any_antibiotics_order (T, boolean)
   fid_input should be a list of dose
@@ -67,7 +67,7 @@ async def any_antibiotics_order_update(fid, fid_input, conn, log, dataset_id, de
       'wrong fid_input %s' % fid_input
   await any_med_order_update(fid, fid_input, conn, log, dataset_id, incremental)
 
-async def any_pressor_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
+async def any_pressor_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
   """
   fid should be any_pressor (T, boolean)
   fid_input should be a list of dose
@@ -80,7 +80,7 @@ async def any_pressor_update(fid, fid_input, conn, log, dataset_id, derive_featu
   for dose in fid_input_items:
     await any_continuous_dose_update(fid, dose, conn, log, dataset_id=dataset_id, incremental=incremental, cdm_t_target=cdm_t_target)
 
-async def any_inotrope_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
+async def any_inotrope_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
   """
   fid should be any_inotrope (T, boolean)
   fid_input should be a list of dose
@@ -140,7 +140,7 @@ async def any_continuous_dose_update(fid, dose, conn, log, dataset_id=None,
            'start_c': 0, 'end_c': 0}
 
 # Special case
-async def update_continuous_dose_block(fid, block, conn, log, dataset_id, cdm_t_target):
+async def update_continuous_dose_block(fid, block, conn, log, dataset_id, cdm_t_target, cdm_t_lookbackhours):
   select_sql = """
     select value from %s cdm_t where enc_id = %s and fid = '%s'%s
     and tsp <= timestamptz '%s'
@@ -205,7 +205,7 @@ async def any_med_order_update(fid, fid_input, conn, log, dataset_id=None,
 
 
 # Special case
-async def suspicion_of_infection_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
+async def suspicion_of_infection_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
   # 03/20/2016
   assert fid == 'suspicion_of_infection', 'wrong fid %s' % fid
   fid_input_items = [item.strip() for item in fid_input.split(',')]
@@ -261,7 +261,7 @@ async def suspicion_of_infection_update(fid, fid_input, conn, log, dataset_id, d
 
 
 # Special subquery (subquery with if-then-else cases)
-async def hypotension_intp_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
+async def hypotension_intp_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
   assert fid == 'hypotension_intp', 'wrong fid %s' % fid
   assert fid_input == 'hypotension_raw', 'wrong fid_input %s' % fid
   twf_table_temp = derive_feature_addr[fid]['twf_table_temp']
@@ -345,7 +345,7 @@ async def hypotension_intp_update(fid, fid_input, conn, log, dataset_id, derive_
       block_c = block_c | rec['hypotension_raw_c']
 
 # Special subquery (multiple subqueries)
-async def sirs_intp_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
+async def sirs_intp_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
   """
   SIRS_INTP 30m version
   """
@@ -499,7 +499,7 @@ async def sirs_intp_update(fid, fid_input, conn, log, dataset_id, derive_feature
 
 
 # Subquery chain
-async def septic_shock_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
+async def septic_shock_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
   # UPDATE 8/19/2016
   assert fid == 'septic_shock', 'wrong fid %s' % fid
   select_sql = """
@@ -577,7 +577,7 @@ async def septic_shock_update(fid, fid_input, conn, log, dataset_id, derive_feat
 
 
 # Special case (mini-pipeline)
-async def resp_sofa_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
+async def resp_sofa_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
   """
   fid should be resp_sofa
   fid_input should be (vent (T), pao2_to_fio2 (TWF))
@@ -623,7 +623,7 @@ async def resp_sofa_update(fid, fid_input, conn, log, dataset_id, derive_feature
   await conn.execute(update_clause)
 
 # Special case (mini-pipeline)
-async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
+async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours=None):
   """
   fid should be cardio_sofa
   03/20/2016
@@ -657,6 +657,7 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
          'dataset_id': 'dataset_id, ' if dataset_id else '',
          'incremental_enc_id_in': incremental_enc_id_in(' and ', \
             src_twf_table, dataset_id, incremental)}
+  log.info(update_clause)
   await conn.execute(update_clause)
 
   select_sql = """
@@ -664,7 +665,7 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
     value::json->>'action' as action, value::json->>'dose' as dose,
     confidence
     FROM %s cdm_t
-  WHERE fid = '%s'%s %s ORDER BY enc_id, tsp
+  WHERE fid = '%s'%s %s %s ORDER BY enc_id, tsp
   """
 
   update_clause = """
@@ -685,11 +686,12 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
   AND tsp <= timestamptz '%(max_tsp)s'
   ;
   """
-
+  lookbackhours = " and now() - cdm_t.tsp <= '{}'::interval".format(cdm_t_lookbackhours) if cdm_t_lookbackhours is not None else ''
   # update cardio_sofa based on dopamine_dose
   records = await conn.fetch(select_sql % \
       (cdm_t_target, 'dopamine_dose', with_ds(dataset_id),
-       incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental)))
+       incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental),
+       lookbackhours))
   for i, rec in enumerate(records):
     action = rec['action']
     if not action in STOPPED_ACTIONS and rec['dose'] is not None:
@@ -725,7 +727,8 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
     records = await conn.fetch(select_sql \
       % (cdm_t_target, 'epinephrine_dose',
          with_ds(dataset_id)),
-         incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental))
+         incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental),
+         lookbackhours)
   elif unit == 'mcg/min':
     select_sql_with_weight = """
       select sub.enc_id, sub.tsp,
@@ -733,22 +736,22 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
         cast(sub.value::json->>'dose' as numeric)/last(weight) as dose,
         sub.confidence
       from
-      (SELECT t.enc_id, t.tsp, t.value,
-        t.confidence, twf.weight
-        FROM %s t
-        inner join cdm_twf twf
-          on t.fid = '%s' and twf.enc_id = t.enc_id
-          and t.tsp >= twf.tsp
-        %s %s
-        ORDER BY t.enc_id, t.tsp, twf.tsp
+      (SELECT cdm_t.enc_id, cdm_t.tsp, cdm_t.value,
+        cdm_t.confidence, twf.weight
+        FROM %s cdm_t
+        inner join %s twf
+          on cdm_t.fid = '%s' and twf.enc_id = cdm_t.enc_id
+          and cdm_t.tsp >= twf.tsp
+        %s %s %s
+        ORDER BY cdm_t.enc_id, cdm_t.tsp, twf.tsp
       ) as sub
       group by sub.enc_id, sub.tsp, sub.value, sub.confidence
     """
+    lookbackhours2 = ((" where" if dataset_id is None and not incremental else " and") + " now() - cdm_t.tsp <= '{}'::interval".format(cdm_t_lookbackhours)) if cdm_t_lookbackhours is not None else ''
     sql = select_sql_with_weight % \
-      (cdm_t_target, 'epinephrine_dose',
+      (cdm_t_target, twf_table_temp, 'epinephrine_dose',
        with_ds(dataset_id, table_name='t', conjunctive=False),
-       incremental_enc_id_in(' and ' if dataset_id else ' where ', 'twf', dataset_id,
-                             incremental))
+       incremental_enc_id_in(' and ' if dataset_id else ' where ', 'twf', dataset_id, incremental), lookbackhours2)
     log.info("select_sql_with_weight:%s" % sql)
     records = await conn.fetch(sql)
   for i, rec in enumerate(records):
@@ -775,7 +778,7 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
                'enc_id': rec['enc_id'], 'tsp':rec['tsp'],
                'twf_table': twf_table_temp, 'with_ds': with_ds(dataset_id)})
   # update cardio_sofa based on dobutamine_dose
-  records = await conn.fetch(select_sql % (cdm_t_target, 'dobutamine_dose', with_ds(dataset_id),incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental)))
+  records = await conn.fetch(select_sql % (cdm_t_target, 'dobutamine_dose', with_ds(dataset_id),incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental), lookbackhours))
   for i, rec in enumerate(records):
     action = rec['action']
     if not action in STOPPED_ACTIONS and rec['dose'] is not None:
@@ -799,7 +802,7 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
   unit = await conn.fetchrow(get_unit_sql)
   unit = unit['unit']
   if unit == 'mcg/kg/min':
-    records = await conn.fetch(select_sql % (cdm_t_target, 'levophed_infusion_dose', with_ds(dataset_id),incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental)))
+    records = await conn.fetch(select_sql % (cdm_t_target, 'levophed_infusion_dose', with_ds(dataset_id),incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental),lookbackhours))
   elif unit == 'mcg/min':
     select_sql_with_weight = """
       select sub.enc_id, sub.tsp,
@@ -807,22 +810,22 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
         cast(sub.value::json->>'dose' as numeric)/last(weight) as dose,
         sub.confidence
       from
-      (SELECT t.enc_id, t.tsp, t.value,
-        t.confidence, twf.weight
-        FROM %s t
-        inner join cdm_twf twf
-          on t.fid = '%s' and twf.enc_id = t.enc_id
-          and t.tsp >= twf.tsp
-        %s %s
-        ORDER BY t.enc_id, t.tsp, twf.tsp
+      (SELECT cdm_t.enc_id, cdm_t.tsp, cdm_t.value,
+        cdm_t.confidence, twf.weight
+        FROM %s cdm_t
+        inner join %s twf
+          on cdm_t.fid = '%s' and twf.enc_id = cdm_t.enc_id
+          and cdm_t.tsp >= twf.tsp
+        %s %s %s
+        ORDER BY cdm_t.enc_id, cdm_t.tsp, twf.tsp
       ) as sub
       group by sub.enc_id, sub.tsp, sub.value, sub.confidence
     """
     sql = select_sql_with_weight % \
-      (cdm_t_target, 'levophed_infusion_dose',
+      (cdm_t_target, twf_table_temp, 'levophed_infusion_dose',
        with_ds(dataset_id, table_name='t', conjunctive=False),
        incremental_enc_id_in(' and ' if dataset_id else ' where ', 'twf', dataset_id,
-                             incremental))
+                             incremental), lookbackhours2)
     log.info("select_sql_with_weight:%s" % sql)
     records = await conn.fetch(sql)
 
@@ -850,7 +853,7 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
 
 
 # Special case (mini-pipeline)
-async def vasopressor_resuscitation_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
+async def vasopressor_resuscitation_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
   """
   fid should be vasopressor_resuscitation (TWF, boolean)
   fid_input should be levophed_infusion_dose and dopamine_dose
@@ -959,7 +962,7 @@ async def vasopressor_resuscitation_update(fid, fid_input, conn, log, dataset_id
 
 
 # Special case (mini-pipeline)
-async def heart_attack_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
+async def heart_attack_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
   """
   NEED TO MODIFY
   fid_input should be heart_attack_inhosp, ekg_proc, troponin
@@ -1046,7 +1049,7 @@ async def heart_attack_update(fid, fid_input, conn, log, dataset_id, derive_feat
                             dataset_id = dataset_id, cdm_t_target=cdm_t_target)
 
 # Special case (mini-pipeline)
-async def stroke_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
+async def stroke_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
   """
   fid_input should be stroke_inhosp, ct_proc, mri_proc
   fid should be heart_attack (T)
@@ -1103,7 +1106,7 @@ async def stroke_update(fid, fid_input, conn, log, dataset_id, derive_feature_ad
     await load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf], dataset_id=dataset_id)
 
 # Special case (mini-pipeline)
-async def gi_bleed_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
+async def gi_bleed_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
   """
   fid_input should be gi_bleed_inhosp, ct_proc, mri_proc
   fid should be gi_bleed (T)
@@ -1162,7 +1165,7 @@ async def gi_bleed_update(fid, fid_input, conn, log, dataset_id, derive_feature_
 
 
 # Special case (mini-pipeline)
-async def severe_pancreatitis_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
+async def severe_pancreatitis_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
   """
   fid_input should be severe_pancreatitis_inhosp, ct_proc, mri_proc
   fid should be heart_attack (T)
@@ -1216,7 +1219,7 @@ async def severe_pancreatitis_update(fid, fid_input, conn, log, dataset_id, deri
     await load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf], dataset_id=dataset_id, cdm_t_target=cdm_t_target)
 
 # Special case (mini-pipeline)
-async def pulmonary_emboli_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
+async def pulmonary_emboli_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
   """
   fid_input should be pulmonary_emboli_inhosp, ct_proc, ekg_proc
   fid should be heart_attack (T)
@@ -1270,7 +1273,7 @@ async def pulmonary_emboli_update(fid, fid_input, conn, log, dataset_id, derive_
     await load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf], dataset_id=dataset_id, cdm_t_target=cdm_t_target)
 
 # Special case (mini-pipeline)
-async def bronchitis_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
+async def bronchitis_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
   """
   fid_input should be bronchitis_inhosp, chest_xray, bacterial_culture
   fid should be heart_attack (T)
@@ -1324,7 +1327,7 @@ async def bronchitis_update(fid, fid_input, conn, log, dataset_id, derive_featur
     await load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf], dataset_id=dataset_id, cdm_t_target=cdm_t_target)
 
 # Special case (mini-pipeline)
-async def acute_kidney_failure_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
+async def acute_kidney_failure_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
   """
   fid_input should be
   acute_kidney_failure_inhosp, creatinine, urine_output_24hr, dialysis
@@ -1392,7 +1395,7 @@ async def acute_kidney_failure_update(fid, fid_input, conn, log, dataset_id, der
 
 
 # Special case (mini-pipeline)
-async def ards_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
+async def ards_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
   """
   fid_input should be ards_inhosp, pao2_to_fio2, vent
   fid should be ards (T)
@@ -1461,7 +1464,7 @@ async def ards_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr
     await load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf], dataset_id=dataset_id)
 
 # Special case (mini-pipeline)
-async def hepatic_failure_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
+async def hepatic_failure_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
   """
   fid_input should be hepatic_failure_inhosp, bilirubin
   fid should be hepatic_failure (T)

@@ -123,7 +123,7 @@ def get_dependent_features(feature_list, cdm_feature_dict):
     return get_derive_seq(input_map=dic)
 
 
-async def derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=None, derive_feature_addr=None,incremental=False, cdm_t_target='cdm_t'):
+async def derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=None, derive_feature_addr=None,incremental=False, cdm_t_target='cdm_t', cdm_t_lookbackhours=None):
   ts = time.time()
   feature = cdm_feature_dict[fid]
   derive_func_id = feature['derive_func_id']
@@ -158,7 +158,7 @@ async def derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=None, deri
       elif fid_category == 'T':
         # Note they do not touch TWF table
         sql = gen_cdm_t_upsert_query(config_entry, fid,
-                                                dataset_id, incremental, cdm_t_target)
+                                                dataset_id, incremental, cdm_t_target, cdm_t_lookbackhours)
         log.debug(sql)
         await conn.execute(sql)
       elif fid_category == 'S':
@@ -179,7 +179,7 @@ async def derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=None, deri
     # =================================
     log.info("Derive function is not implemented in driver, so we use legacy derive function")
     await derive_func.derive(fid, derive_func_id, derive_func_input, conn, \
-      log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target)
+      log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours)
   te = time.time()
   log.info("derive feature %s end. (%2.2f secs)" % (fid, te-ts))
 
@@ -262,13 +262,14 @@ def gen_subquery_upsert_query(config_entry, fid, dataset_id, derive_feature_addr
   }
   return upsert_clause
 
-def gen_cdm_t_upsert_query(config_entry, fid, dataset_id, incremental, cdm_t_target):
+def gen_cdm_t_upsert_query(config_entry, fid, dataset_id, incremental, cdm_t_target, cdm_t_lookbackhours):
   fid_select_expr = config_entry['fid_select_expr'] % {
     'cdm_t': cdm_t_target,
     'dataset_col_block': 'cdm_t.dataset_id,' if dataset_id is not None else '',
     'dataset_where_block': (' and cdm_t.dataset_id = %s' % dataset_id) if dataset_id is not None else '',
     'incremental_enc_id_join': incremental_enc_id_join('cdm_t', dataset_id, incremental),
-    'incremental_enc_id_match': incremental_enc_id_match(' and ', incremental)
+    'incremental_enc_id_match': incremental_enc_id_match(' and ', incremental),
+    'lookbackhours': " and now() - cdm_t.tsp <= '{}'::interval".format(cdm_t_lookbackhours) if cdm_t_lookbackhours is not None else ''
   }
   # print(fid_select_expr)
   delete_clause = ''
@@ -1155,16 +1156,15 @@ query_config = {
     'derive_type': 'simple',
     'fid_select_expr': '''
                                 SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_anticoagulant', 'True', max(cdm_t.confidence) confidence FROM %(cdm_t)s as cdm_t %(incremental_enc_id_join)s
-                                WHERE fid ~ 'apixaban_dose|dabigatran_dose|rivaroxaban_dose|warfarin_dose|heparin_dose' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s %(incremental_enc_id_match)s
+                                WHERE fid ~ '^(apixaban|dabigatran|rivaroxaban|warfarin|heparin)_dose$' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s %(incremental_enc_id_match)s %(lookbackhours)s
                                 group by %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp''',
   },
-  # NOTE: fid_input dismatch, this feature is not available
   'any_beta_blocker': {
     'fid_input_items': ['acebutolol_dose', 'atenolol_dose', 'bisoprolol_dose', 'metoprolol_dose', 'nadolol_dose', 'propranolol_dose'],
     'derive_type': 'simple',
     'fid_select_expr': '''
                                 SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_beta_blocker', 'True', max(cdm_t.confidence) confidence FROM %(cdm_t)s as cdm_t %(incremental_enc_id_join)s
-                                WHERE fid ~ 'acebutolol_dose|atenolol_dose|bisoprolol_dose|metoprolol_dose|nadolol_dose|propranolol_dose' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s %(incremental_enc_id_match)s
+                                WHERE fid ~ '^(acebutolol|atenolol|bisoprolol|metoprolol|nadolol|propranolol)_dose$' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s %(incremental_enc_id_match)s %(lookbackhours)s
                                 group by %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp''',
   },
   'any_glucocorticoid': {
@@ -1172,7 +1172,7 @@ query_config = {
     'derive_type': 'simple',
     'fid_select_expr': '''
                                 SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_glucocorticoid', 'True', max(cdm_t.confidence) confidence FROM %(cdm_t)s as cdm_t %(incremental_enc_id_join)s
-                                WHERE fid ~ 'hydrocortisone_dose|prednisone_dose|prednisolone_dose|methylprednisolone_dose|dexamethasone_dose|betamethasone_dose|fludrocortisone_dose' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s %(incremental_enc_id_match)s
+                                WHERE fid ~ '^(hydrocortisone|prednisone|prednisolone|methylprednisolone|dexamethasone|betamethasone|fludrocortisone)_dose$' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s %(incremental_enc_id_match)s %(lookbackhours)s
                                 group by %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp''',
   },
   'any_antibiotics': {
@@ -1180,9 +1180,9 @@ query_config = {
     'derive_type': 'simple',
     'fid_select_expr': '''
       SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_antibiotics', 'True', max(cdm_t.confidence) confidence FROM %(cdm_t)s as cdm_t %(incremental_enc_id_join)s
-      WHERE fid ~ 'ampicillin_dose|clindamycin_dose|erythromycin_dose|gentamicin_dose|oxacillin_dose|tobramycin_dose|vancomycin_dose|ceftazidime_dose|cefazolin_dose|penicillin_g_dose|meropenem_dose|penicillin_dose|amoxicillin_dose|piperacillin_tazobac_dose|rifampin_dose|meropenem_dose|rapamycin_dose'
+      WHERE fid ~ '^(ampicillin|clindamycin|erythromycin|gentamicin|oxacillin|tobramycin|vancomycin|ceftazidime|cefazolin|penicillin_g|meropenem|penicillin|amoxicillin|piperacillin_tazobac|rifampin|meropenem|rapamycin)_dose$'
        AND ((isnumeric(value) and value::numeric > 0) or (not isnumeric(value) and cast(value::json->>'dose' as numeric) > 0))
-       %(dataset_where_block)s %(incremental_enc_id_match)s
+       %(dataset_where_block)s %(incremental_enc_id_match)s %(lookbackhours)s
       group by %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp''',
   },
 }

@@ -2,7 +2,7 @@ import asyncio
 import etl.load.primitives.tbl.clean_tbl as clean_tbl
 from etl.load.primitives.tbl.derive_helper import *
 
-async def septic_shock_iii_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
+async def septic_shock_iii_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
   # UPDATE 8/19/2016
   assert fid == 'septic_shock_iii', 'wrong fid %s' % fid
   twf_table_temp = derive_feature_addr[fid]['twf_table_temp']
