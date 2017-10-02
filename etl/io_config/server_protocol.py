@@ -10,11 +10,11 @@ logging.basicConfig(level=logging.INFO, format=SRV_LOG_FMT)
 MAGIC_NUMBER = b'trews_magic_number'
 CONNECTION_CLOSED = 'Connection Closed'
 
-ALERT_SERVER_IP = get_environment_var('ALERT_SERVER_IP',
+LMC_ALERT_SERVER_IP = get_environment_var('LMC_ALERT_SERVER_IP',
                                       'alerts.default.svc.cluster.local')
-ALERT_SERVER_PORT = 31000
+LMC_ALERT_SERVER_PORT = 31000
 
-TREWS_ALERT_SERVER_IP = get_environment_var('ALERT_SERVER_IP',
+TREWS_ALERT_SERVER_IP = get_environment_var('TREWS_ALERT_SERVER_IP',
                                       'trews-alerts.default.svc.cluster.local')
 TREWS_ALERT_SERVER_PORT = 31000
 
