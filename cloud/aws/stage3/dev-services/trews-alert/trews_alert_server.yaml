@@ -65,7 +65,7 @@ spec:
           value: "on_opsdx_dev_etl"
         - name: suppression_model
           value: "trews"
-        - name: suppression_mode
+        - name: TREWS_ETL_SUPPRESSION
           value: "2"
         - name: nprocs
           value: "4"
