@@ -8,7 +8,7 @@ from etl.load.primitives.tbl.derive_helper import *
   Comments: Currently implements definition of traumatic hemorrhagic shock
   See arch file for details
 '''
-async def hemorrhagic_shock_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
+async def hemorrhagic_shock_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
     assert fid == 'hemorrhagic_shock', 'wrong fid %s' % fid
     fid_input_items = [item.strip() for item in fid_input.split(',')]
     assert fid_input_items[0] == 'transfuse_rbc' \
