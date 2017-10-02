@@ -213,35 +213,51 @@ class AlertServer:
     logging.info("calculate_criteria sql: {}".format(sql))
     await conn.fetch(sql)
 
-  async def run_trews_suppression(self, job_id, hospital):
+  async def run_trews_alert(self, job_id, hospital):
     async with self.db_pool.acquire() as conn:
       if self.TREWS_ETL_SUPPRESSION == 2:
         # calculate criteria here
         await self.calculate_criteria(conn, job_id)
-      if self.notify_web:
-        sql = '''
-        with pats as (
-          select e.enc_id, p.pat_id from get_latest_enc_ids('{hospital}') e inner join pat_enc p on e.enc_id = p.enc_id
-        ),
-        alerts as (
-          select update_suppression_alert(enc_id, '{channel}', '{model}', 'false') from pats),
-        refreshed as (
-          insert into refreshed_pats (refreshed_tsp, pats)
-          select now(), jsonb_agg(pat_id) from pats
-          returning id
-        )
-        select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
+        if self.notify_web:
+          sql = '''
+          with pats as (
+            select e.enc_id, p.pat_id from get_latest_enc_ids('{hospital}') e inner join pat_enc p on e.enc_id = p.enc_id
+          ),
+          refreshed as (
+            insert into refreshed_pats (refreshed_tsp, pats)
+            select now(), jsonb_agg(pat_id) from pats
+            returning id
+          )
+          select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
           '''.format(channel=self.channel, model=self.model, hospital=hospital)
-      else:
-        sql = '''
-        select update_suppression_alert(enc_id, '{channel}', '{model}', 'false') from
-        (select distinct t.enc_id from cdm_t t
-        inner join get_latest_enc_ids('{hospital}') h on h.enc_id = t.enc_id
-        where now() - tsp < (select value::interval from parameters where name = 'lookbackhours')) sub;
-          '''.format(channel=self.channel, model=self.model, hospital=hospital)
-      logging.info("trews suppression sql: {}".format(sql))
-      await conn.fetch(sql)
-      logging.info("generate trews suppression alert for {}".format(hospital))
+          logging.info("trews alert sql: {}".format(sql))
+          await conn.fetch(sql)
+          logging.info("generated trews alert for {}".format(hospital))
+      elif self.TREWS_ETL_SUPPRESSION == 1:
+        if self.notify_web:
+          sql = '''
+          with pats as (
+            select e.enc_id, p.pat_id from get_latest_enc_ids('{hospital}') e inner join pat_enc p on e.enc_id = p.enc_id
+          ),
+          alerts as (
+            select update_suppression_alert(enc_id, '{channel}', '{model}', 'false') from pats),
+          refreshed as (
+            insert into refreshed_pats (refreshed_tsp, pats)
+            select now(), jsonb_agg(pat_id) from pats
+            returning id
+          )
+          select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
+            '''.format(channel=self.channel, model=self.model, hospital=hospital)
+        else:
+          sql = '''
+          select update_suppression_alert(enc_id, '{channel}', '{model}', 'false') from
+          (select distinct t.enc_id from cdm_t t
+          inner join get_latest_enc_ids('{hospital}') h on h.enc_id = t.enc_id
+          where now() - tsp < (select value::interval from parameters where name = 'lookbackhours')) sub;
+            '''.format(channel=self.channel, model=self.model, hospital=hospital)
+        logging.info("trews suppression sql: {}".format(sql))
+        await conn.fetch(sql)
+        logging.info("generate trews suppression alert for {}".format(hospital))
 
   async def connection_handler(self, reader, writer):
     ''' Alert server connection handler '''
@@ -267,7 +283,7 @@ class AlertServer:
         self.predictor_manager.create_predict_tasks(hosp=message['hosp'],
                                                     time=message['time'])
       elif self.model == 'trews':
-        await self.run_trews_suppression(message['job_id'],message['hosp'])
+        await self.run_trews_alert(message['job_id'],message['hosp'])
       else:
         logging.error("Unknown suppression model {}".format(self.model))
 

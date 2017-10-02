@@ -2419,7 +2419,6 @@ BEGIN
 END;
 $$ LANGUAGE PLPGSQL;
 
--- '200','201','202','203','204','300','301','302','303','304','305','306'
 -- update notifications when state changed
 CREATE OR REPLACE FUNCTION update_notifications(
     this_enc_id int,
@@ -2435,7 +2434,7 @@ BEGIN
     delete from notifications
         where notifications.enc_id = this_enc_id;
     if suppression_on(this_enc_id) and mode in ('override', 'reset') then
-        -- suppression alerts
+        -- suppression alerts (DEPRECATED when TREWS_ETL_SUPPRESSION = 2)
         insert into notifications (enc_id, message)
         select
             pat_enc.enc_id,
@@ -2508,16 +2507,16 @@ BEGIN
             pat_enc.enc_id,
             json_build_object('alert_code', code, 'read', false,'timestamp',
                 date_part('epoch',
-                    (case when code in ('201','204','303','306') then septic_shock_onset
-                          when code = '300' then sirs_plus_organ_onset
+                    (case when code in ('201','204','303','306','401','404','503','506') then septic_shock_onset
+                          when code in ('300','500') then sirs_plus_organ_onset
                           else severe_sepsis_onset
                           end)::timestamptz
                     +
                     (case
-                        when code = '202' then '3 hours'
-                        when code in ('203','204') then '6 hours'
-                        when code = '304' then '2 hours'
-                        when code in ('305','306') then '5 hours'
+                        when code in ('202','402') then '3 hours'
+                        when code in ('203','204','403','404') then '6 hours'
+                        when code in ('304','504') then '2 hours'
+                        when code in ('305','306','505','506') then '5 hours'
                         else '0 hours'
                         end)::interval),
                 'suppression', 'false'
@@ -2575,6 +2574,47 @@ BEGIN -- Note the CASTING being done for the 2nd and 3rd elements of the array
      WHEN flag = 34 THEN ret := array['200','201','203'];
      WHEN flag = 35 THEN ret := array['200','201'];
      WHEN flag = 36 THEN ret := array['200','201','204'];
+     -- trews:
+     WHEN flag = 11 THEN ret := array['500'];
+     WHEN flag = 25 THEN ret := array['400',
+                                '402',
+                                '403',
+                                '501',
+                                '502',
+                                '504',
+                                '505'];
+     WHEN flag = 26 THEN ret := array['400',
+                                '403',
+                                '502',
+                                '505'];
+     WHEN flag = 27 THEN ret := array['400','402'];
+     WHEN flag = 28 THEN ret := array['400'];
+     WHEN flag = 29 THEN ret := array['400','403'];
+     WHEN flag = 40 THEN ret := array['400','401',
+                                '402',
+                                '403',
+                                '404',
+                                '501',
+                                '502',
+                                '503',
+                                '504',
+                                '505',
+                                '506'];
+     WHEN flag = 41 THEN ret := array['400','401',
+                                '403',
+                                '404',
+                                '502',
+                                '503',
+                                '505',
+                                '506'];
+     WHEN flag = 42 THEN ret := array['400','401','402'];
+     WHEN flag = 43 THEN ret := array['400','401',
+                                '404',
+                                '503',
+                                '506'];
+     WHEN flag = 44 THEN ret := array['400','401','403'];
+     WHEN flag = 45 THEN ret := array['400','401'];
+     WHEN flag = 46 THEN ret := array['400','401','404'];
      ELSE ret := array['0'];
  END CASE ; RETURN ret;
 END;$$ LANGUAGE plpgsql;
