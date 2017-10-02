@@ -65,7 +65,7 @@ async def any_antibiotics_order_update(fid, fid_input, conn, log, dataset_id, de
   for i in range(len(fid_input_items)):
     assert fid_input_items[i].endswith('dose'), \
       'wrong fid_input %s' % fid_input
-  await any_med_order_update(fid, fid_input, conn, log, dataset_id, incremental)
+  await any_med_order_update(fid, fid_input, conn, log, dataset_id, incremental, cdm_t_target, cdm_t_lookbackhours)
 
 async def any_pressor_update(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
   """
@@ -175,22 +175,36 @@ async def update_continuous_dose_block(fid, block, conn, log, dataset_id, cdm_t_
 
 # Special case
 async def any_med_order_update(fid, fid_input, conn, log, dataset_id=None,
-                               incremental=False, cdm_t_target='cdm_t'):
+                               incremental=False, cdm_t_target='cdm_t', cdm_t_lookbackhours=None):
   # Updated on 3/19/2016
   if dataset_id and not incremental:
     await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id,
                                            incremental=incremental, cdm_t_target=cdm_t_target))
   fid_input_items = [item.strip() for item in fid_input.split(',')]
   doses = '|'.join(fid_input_items)
-  select_sql = """
-    SELECT distinct enc_id,
-      value::json->>'order_tsp' order_tsp,
-      max(confidence) confidence FROM %s cdm_t
-    WHERE fid ~ '%s'%s AND cast(value::json->>'dose' as numeric) > 0
-    %s
-    group by enc_id, order_tsp
-  """ % (cdm_t_target, doses, with_ds(dataset_id),
-         incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental))
+  lookbackhours = " and now() - cdm_t.tsp <= '{}'::interval".format(cdm_t_lookbackhours) if cdm_t_lookbackhours is not None else ''
+  if dataset_id:
+    select_sql = """
+      SELECT distinct enc_id,
+        value::json->>'order_tsp' order_tsp,
+        max(confidence) confidence FROM %s cdm_t
+      WHERE fid ~ '%s'%s AND cast(value::json->>'dose' as numeric) > 0
+      %s %s
+      group by enc_id, order_tsp
+    """ % (cdm_t_target, doses, with_ds(dataset_id),
+           incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental),
+           lookbackhours)
+  else:
+    orders = '|'.join(f[:-5] for f in fid_input_items)
+    select_sql = """
+      SELECT distinct enc_id,
+        tsp order_tsp,
+        max(confidence) confidence FROM %s cdm_t
+      WHERE fid ~ '^(%s)_dose_order$' AND value::numeric > 0
+      %s
+      group by enc_id, order_tsp
+    """ % (cdm_t_target, orders, lookbackhours)
+  log.info("query: {}".format(select_sql))
   rows = await conn.fetch(select_sql)
   for row in rows:
     if row['order_tsp']:
@@ -666,6 +680,12 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
     confidence
     FROM %s cdm_t
   WHERE fid = '%s'%s %s %s ORDER BY enc_id, tsp
+  """ if dataset_id else """
+  SELECT enc_id, tsp,
+    'given' as action, value as dose,
+    confidence
+    FROM %s cdm_t
+  WHERE fid = '%s'%s %s %s ORDER BY enc_id, tsp
   """
 
   update_clause = """
@@ -730,7 +750,7 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
          incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental),
          lookbackhours)
   elif unit == 'mcg/min':
-    select_sql_with_weight = """
+    select_sql_with_weight = ("""
       select sub.enc_id, sub.tsp,
         sub.value::json->>'action' as action,
         cast(sub.value::json->>'dose' as numeric)/last(weight) as dose,
@@ -746,7 +766,23 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
         ORDER BY cdm_t.enc_id, cdm_t.tsp, twf.tsp
       ) as sub
       group by sub.enc_id, sub.tsp, sub.value, sub.confidence
-    """
+    """ if dataset_id else """
+      select sub.enc_id, sub.tsp,
+        'given' as action,
+        sub.value::numeric/last(weight) as dose,
+        sub.confidence
+      from
+      (SELECT cdm_t.enc_id, cdm_t.tsp, cdm_t.value,
+        cdm_t.confidence, twf.weight
+        FROM %s cdm_t
+        inner join %s twf
+          on cdm_t.fid = '%s' and twf.enc_id = cdm_t.enc_id
+          and cdm_t.tsp >= twf.tsp
+        %s %s %s
+        ORDER BY cdm_t.enc_id, cdm_t.tsp, twf.tsp
+      ) as sub
+      group by sub.enc_id, sub.tsp, sub.value, sub.confidence
+    """)
     lookbackhours2 = ((" where" if dataset_id is None and not incremental else " and") + " now() - cdm_t.tsp <= '{}'::interval".format(cdm_t_lookbackhours)) if cdm_t_lookbackhours is not None else ''
     sql = select_sql_with_weight % \
       (cdm_t_target, twf_table_temp, 'epinephrine_dose',
@@ -804,7 +840,7 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
   if unit == 'mcg/kg/min':
     records = await conn.fetch(select_sql % (cdm_t_target, 'levophed_infusion_dose', with_ds(dataset_id),incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental),lookbackhours))
   elif unit == 'mcg/min':
-    select_sql_with_weight = """
+    select_sql_with_weight = ("""
       select sub.enc_id, sub.tsp,
         sub.value::json->>'action' as action,
         cast(sub.value::json->>'dose' as numeric)/last(weight) as dose,
@@ -820,7 +856,23 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
         ORDER BY cdm_t.enc_id, cdm_t.tsp, twf.tsp
       ) as sub
       group by sub.enc_id, sub.tsp, sub.value, sub.confidence
-    """
+    """ if dataset_id else """
+      select sub.enc_id, sub.tsp,
+        'given' as action,
+        sub.value::numeric/last(weight) as dose,
+        sub.confidence
+      from
+      (SELECT cdm_t.enc_id, cdm_t.tsp, cdm_t.value,
+        cdm_t.confidence, twf.weight
+        FROM %s cdm_t
+        inner join %s twf
+          on cdm_t.fid = '%s' and twf.enc_id = cdm_t.enc_id
+          and cdm_t.tsp >= twf.tsp
+        %s %s %s
+        ORDER BY cdm_t.enc_id, cdm_t.tsp, twf.tsp
+      ) as sub
+      group by sub.enc_id, sub.tsp, sub.value, sub.confidence
+    """)
     sql = select_sql_with_weight % \
       (cdm_t_target, twf_table_temp, 'levophed_infusion_dose',
        with_ds(dataset_id, table_name='t', conjunctive=False),
@@ -1060,6 +1112,7 @@ async def stroke_update(fid, fid_input, conn, log, dataset_id, derive_feature_ad
   fid_input_items = [item.strip() for item in fid_input.split(',')]
   assert 'stroke_inhosp' == fid_input_items[0] and 'ct_proc' == fid_input_items[1] \
       and 'mri_proc' == fid_input_items[2], "fid_input error: %s" % fid_input_items
+  lookbackhours = " and now() - cdm_t.tsp <= '{}'::interval".format(cdm_t_lookbackhours) if cdm_t_lookbackhours is not None else ''
   if dataset_id and not incremental:
     # clean previous values
     await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental, cdm_t_target=cdm_t_target))
@@ -1068,11 +1121,11 @@ async def stroke_update(fid, fid_input, conn, log, dataset_id, derive_feature_ad
   select_sql = """
   SELECT distinct enc_id, tsp FROM %s cdm_t
   WHERE  fid = 'stroke_inhosp'%s
-  %s
+  %s %s
   ORDER BY enc_id,  tsp;
   """
   records = await conn.fetch(select_sql \
-    % (cdm_t_target, with_ds(dataset_id), incremental_enc_id_in(' and ', 'cdm_t', dataset_id,incremental)))
+    % (cdm_t_target, with_ds(dataset_id), incremental_enc_id_in(' and ', 'cdm_t', dataset_id,incremental), lookbackhours))
 
   # Retrieve CT and MRI order times to corroborate time of diagnosis
   select_sql = """
@@ -1082,6 +1135,7 @@ async def stroke_update(fid, fid_input, conn, log, dataset_id, derive_feature_ad
     and cdm_t.enc_id = %(enc_id)s%(with_ds)s
     and tsp >= timestamptz '%(tsp)s'
     and timestamptz '%(tsp)s' <= tsp + interval '24 hours'
+    %(lookbackhours)s
   ORDER BY tsp
   """
 
@@ -1092,7 +1146,7 @@ async def stroke_update(fid, fid_input, conn, log, dataset_id, derive_feature_ad
     enc_id = record['enc_id']
     tsp = record['tsp']
 
-    evidence = await conn.fetch(select_sql % {'cdm_t': cdm_t_target, 'enc_id':enc_id, 'tsp':tsp, 'with_ds': with_ds(dataset_id)})
+    evidence = await conn.fetch(select_sql % {'cdm_t': cdm_t_target, 'enc_id':enc_id, 'tsp':tsp, 'with_ds': with_ds(dataset_id), 'lookbackhours':lookbackhours})
 
 
     # By default set datetime of diagnosis to time given in ProblemList table
@@ -1117,24 +1171,25 @@ async def gi_bleed_update(fid, fid_input, conn, log, dataset_id, derive_feature_
   fid_input_items = [item.strip() for item in fid_input.split(',')]
   assert 'gi_bleed_inhosp' == fid_input_items[0] and 'ct_proc' == fid_input_items[1] \
       and 'mri_proc' == fid_input_items[2], "fid_input error: %s" % fid_input_items
+  lookbackhours = " and now() - cdm_t.tsp <= '{}'::interval".format(cdm_t_lookbackhours) if cdm_t_lookbackhours is not None else ''
   if dataset_id and not incremental:
     # clean previous values
     await conn.execute(clean_tbl.cdm_t_clean(fid, dataset_id=dataset_id, incremental=incremental, cdm_t_target=cdm_t_target))
   # Retrieve all records of gi_bleed_inhosp
   select_sql = """
   SELECT distinct enc_id, tsp FROM %s cdm_t
-  WHERE  fid = 'gi_bleed_inhosp'%s %s
+  WHERE  fid = 'gi_bleed_inhosp'%s %s %s
   ORDER BY enc_id,  tsp;
   """
   records = await conn.fetch(select_sql % \
-    (cdm_t_target, with_ds(dataset_id), incremental_enc_id_in(' and ', 'cdm_t',dataset_id, incremental)))
+    (cdm_t_target, with_ds(dataset_id), incremental_enc_id_in(' and ', 'cdm_t',dataset_id, incremental), lookbackhours))
 
   # Retrieve CT and MRI order times to corroborate time of diagnosis
   select_sql = """
   SELECT * FROM %(cdm_t)s as cdm_t
   WHERE
     cdm_t.fid ~ 'ct_proc|mri_proc'
-    and cdm_t.enc_id = %(enc_id)s %(with_ds)s
+    and cdm_t.enc_id = %(enc_id)s %(with_ds)s %(lookbackhours)s
     and tsp >= timestamptz '%(tsp)s'
     and timestamptz '%(tsp)s' <= tsp + interval '24 hours'
   ORDER BY tsp;
@@ -1149,7 +1204,7 @@ async def gi_bleed_update(fid, fid_input, conn, log, dataset_id, derive_feature_
     # By default set datetime of diagnosis to time given in ProblemList table
     # This datetime only specifies date though
 
-    evidence = await conn.fetch(select_sql % {'cdm_t': cdm_t_target,'enc_id':enc_id, 'tsp':tsp, 'with_ds': with_ds(dataset_id)})
+    evidence = await conn.fetch(select_sql % {'cdm_t': cdm_t_target,'enc_id':enc_id, 'tsp':tsp, 'with_ds': with_ds(dataset_id), 'lookbackhours':lookbackhours})
 
     # By default set datetime of diagnosis to time given in ProblemList table
     # This datetime only specifies date though

@@ -1231,7 +1231,6 @@ BEGIN
     ), false);
 END; $func$;
 
--- REVIEW: (Yanif)->(Andong): additional statuses in DW version:
 -- 'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result'
 -- 'Final', 'Final result', 'Edited Result - FINAL',
 -- 'Completed', 'Corrected', 'Not Indicated'
@@ -1239,11 +1238,22 @@ create or replace function order_met(order_name text, order_value text)
     returns boolean language plpgsql as $func$
 BEGIN
     return case when order_name = 'blood_culture_order'
-                    then order_value in ('In  process', 'Preliminary', 'Final', 'Completed', 'Not Indicated') or order_value ~* 'Clinically Inappropriate'
+                    then
+                      order_value in (
+                        'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result',
+                        'Final', 'Final result', 'Edited Result - FINAL',
+                        'Completed', 'Corrected', 'Not Indicated'
+                      )
+                      or order_value ~* 'Clinically Inappropriate'
 
-                -- REVIEW: (Yanif)->(Andong): why is there no 'In  process' below analogously to order_status?
                 when order_name = 'initial_lactate_order' or order_name = 'repeat_lactate_order'
-                    then order_value in ('Preliminary', 'Sent', 'Final', 'Completed', 'Not Indicated') or order_value ~* 'Clinically Inappropriate'
+                    then
+                      order_value in (
+                        'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result',
+                        'Final', 'Final result', 'Edited Result - FINAL',
+                        'Completed', 'Corrected', 'Not Indicated'
+                      )
+                      or order_value ~* 'Clinically Inappropriate'
                 else false
             end;
 END; $func$;
@@ -1404,15 +1414,15 @@ return query
         select distinct pc.enc_id, pc.tsp
         from pat_cvalues pc inner join cdm_t t on pc.enc_id = t.enc_id
         where pc.name = 'trews_gcs' and t.fid = 'propofol_dose'
-            and ((t.value::json)->>'action' = 'restart'
-                    or (t.value::json)->>'action' ~* 'given')
+            and ((isnumeric(t.value) and t.value::numeric > 0) or ((t.value::json)->>'action' = 'restart'
+                    or (t.value::json)->>'action' ~* 'given'))
             and pc.tsp between t.tsp and t.tsp + '24 hours'::interval
     ),
     inr_warfarin as (
         select distinct pc.enc_id, pc.tsp
         from pat_cvalues pc inner join cdm_t t on pc.enc_id = t.enc_id
         where pc.name = 'trews_inr' and t.fid in ('warfarin_dose','heparin_dose')
-            and (t.value::json)->>'action' ~* 'given'
+            and (isnumeric(t.value) and t.value::numeric > 0) or (t.value::json)->>'action' ~* 'given'
             and pc.tsp between t.tsp and t.tsp + '30 hours'::interval
     ),
     vent as (
@@ -3560,10 +3570,22 @@ DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
 
 -- problem
 INSERT INTO cdm_s (enc_id, fid, value, confidence)
-select pe.enc_id, json_object_keys(problem::json), ''True'', 1
+select * from
+(select pe.enc_id, json_object_keys(problem::json) fid, ''True'', 1
 from workspace.' || job_id || '_bedded_patients_transformed bp
-    inner join pat_enc pe on pe.visit_id = bp.visit_id
+    inner join pat_enc pe on pe.visit_id = bp.visit_id) PL
+where not fid in (''gi_bleed_inhosp'',''stroke_inhosp'')
 ON CONFLICT (enc_id, fid)
+DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+
+-- gi_bleed_inhosp and stroke_inhosp
+INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+select * from
+(select pe.enc_id, admittime::timestamptz tsp, json_object_keys(problem::json) fid, ''True'', 1
+from workspace.' || job_id || '_bedded_patients_transformed bp
+    inner join pat_enc pe on pe.visit_id = bp.visit_id) PL
+where fid in (''gi_bleed_inhosp'',''stroke_inhosp'')
+ON CONFLICT (enc_id, tsp, fid)
 DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
 
 -- history

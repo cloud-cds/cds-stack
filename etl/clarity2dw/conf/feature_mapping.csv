@@ -224,4 +224,3 @@ sepsis_prob,yes,no,"""ProblemList""","""csn_id"" visit_id, code","WHERE ""code""
 septic_shock_diag,yes,no,"""Diagnoses""","""Code""","WHERE ""Code"" = '785.52'",,
 septic_shock_hist,yes,no,"""MedicalHistory""","""Code""","WHERE ""Code"" = '785.52'",,
 septic_shock_prob,yes,no,"""ProblemList""","""csn_id"" visit_id, code","WHERE ""code"" = '785.52'",,
-chief_complaint,yes,no,"(select cc.csn_id, ee.event_record_time tsp, json_agg(json_build_object('reason', cc.display_text,'comments', cc.comments)) as value from $clarity_workspace.""ChiefComplaint"" cc inner join $clarity_workspace.""EdEvents"" ee on cc.csn_id = ee.csn_id where ee.event_display_name = 'Chief Complaint Filed' group by cc.csn_id, ee.event_record_time) as sub","""csn_id"" visit_id, tsp, value",,,
