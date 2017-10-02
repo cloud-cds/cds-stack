@@ -1444,10 +1444,11 @@ return query
             and pc.tsp between t.tsp and t.tsp + '30 hours'::interval
     ),
     vent as (
-        select distinct pc.enc_id, pc.tsp
+        select pc.enc_id, pc.tsp, first(pc.fid) fid
         from pat_cvalues pc inner join cdm_t t on pc.enc_id = t.enc_id
         where pc.name = 'trews_vent' and t.fid in ('vent','cpap','bipap')
             and pc.tsp between t.tsp and t.tsp + '48 hours'::interval
+        group by pc.enc_id, pc.tsp
     ),
     trews as (
         select
@@ -1485,17 +1486,18 @@ return query
             select  pc.enc_id,
                     pc.name,
                     pc.tsp as measurement_time,
-                    pc.value as value,
+                    (case when pc.name = 'trews_vent' then vent.fid || ':' || pc.value else pc.value end)
+                     as value,
                     pc.c_otime,
                     pc.c_ouser,
                     pc.c_ovalue,
-                    (case when pc.name = 'trews_bilirubin' and fid = 'bilirubin' then pc.value::numeric >= 2 and pc.value::numeric >= 2 * 0.2
-                     when pc.name = 'trews_creatinine' and fid = 'creatinine' then pc.value::numeric >= 0.5 + 0.5 and pc.value::numeric >= 1.5 and esrd.enc_id is null
-                     when pc.name = 'trews_gcs' and fid = 'gcs' then pc.value::numeric < 13 and gs.enc_id is null and gp.enc_id is null
-                     when pc.name = 'trews_inr' and fid = 'inr' then (pc.value::numeric >= 1.5 and pc.value::numeric >= 0.5 + 0) and iw.enc_id is null
-                     when pc.name = 'trews_inr' and fid = 'ptt' then iw.enc_id is null
-                     when pc.name = 'trews_lactate' and fid = 'lactate' then pc.value::numeric > 2
-                     when pc.name = 'trews_platelet' and fid = 'platelet' then pc.value::numeric < 100 and pc.value::numeric < 0.5 * 450 and pgb.enc_id is null
+                    (case when pc.name = 'trews_bilirubin' and pc.fid = 'bilirubin' then pc.value::numeric >= 2 and pc.value::numeric >= 2 * 0.2
+                     when pc.name = 'trews_creatinine' and pc.fid = 'creatinine' then pc.value::numeric >= 0.5 + 0.5 and pc.value::numeric >= 1.5 and esrd.enc_id is null
+                     when pc.name = 'trews_gcs' and pc.fid = 'gcs' then pc.value::numeric < 13 and gs.enc_id is null and gp.enc_id is null
+                     when pc.name = 'trews_inr' and pc.fid = 'inr' then (pc.value::numeric >= 1.5 and pc.value::numeric >= 0.5 + 0) and iw.enc_id is null
+                     when pc.name = 'trews_inr' and pc.fid = 'ptt' then iw.enc_id is null
+                     when pc.name = 'trews_lactate' and pc.fid = 'lactate' then pc.value::numeric > 2
+                     when pc.name = 'trews_platelet' and pc.fid = 'platelet' then pc.value::numeric < 100 and pc.value::numeric < 0.5 * 450 and pgb.enc_id is null
                      when pc.name = 'trews_vent' then vent.enc_id is not null
                      else false end) as is_met
             from pat_cvalues pc
@@ -1578,7 +1580,7 @@ return query
             select  pat_cvalues.enc_id,
                     pat_cvalues.name,
                     pat_cvalues.tsp as measurement_time,
-                    pat_cvalues.value as value,
+                    (case when pat_cvalues.name = 'creatinine' then pat_cvalues.fid || ':' || pat_cvalues.value else pat_cvalues.value end) as value,
                     pat_cvalues.c_otime,
                     pat_cvalues.c_ouser,
                     pat_cvalues.c_ovalue,
