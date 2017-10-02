@@ -17,6 +17,7 @@
 
 	<meta name="theme-color" content="#fff">
 
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 	<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
 	<!--
 	<link rel="stylesheet" href="bower_components/jquery-ui/themes/base/jquery-ui.css">
@@ -33,7 +34,7 @@
 	</div>
 	<div id="page">
 		<div id="header">
-			<h1><span id="header-trewscore"data-toggle="tooltip" title="Current TREWScore">0.78</span><div>TREWS v0.1.1 (BETA)</div><i id="show-console">.</i><span id="header-refresh-time"></span></h1>
+			<h1><span id="header-trewscore" data-toggle="tooltip" title="Current TREWScore">0.78</span><div>TREWS v0.1.1 (BETA)</div><i id="show-console">.</i><span id="header-refresh-time"></span></h1>
 			<div id="header-nav">
 				<li id="header-feedback" data-toggle="tooltip" title="Please submit your feedback here to help us improve TREWS"><span class="text tooltip">Issues/Feedback</span></li>
 				<li id="header-activate-button" data-toggle="tooltip" title="Deactivate TREWS alerts for this patient for 72 hours"><span class="text">Deactivate</span></li>
@@ -49,11 +50,32 @@
 			<div class="card card-header" data-trews="trewscore">
 				<h4></h4>
 			</div>
+			<!-- Patient Condition Card -->
+			<div class="col-1-2">
+				<div class="card" data-trews="patientCondition">
+					<h2></h2>
+					<h5 class="card-subtitle"></h5>
+
+					<div class="slot" data-trews="orgdf-table">
+						<h4 class="table-header" data-trews="orgdf-table-header"></h4>
+						<table></table>
+					</div>
+
+					<div class="slot last-child" data-trews="sirs-table">
+						<h4 class="table-header" data-trews="sirs-table-header"></h4>
+						<table></table>
+					</div>
+				</div>
+			</div>
+
 			<!-- Severe Sepsis Card -->
+			<!-- Septic Shock Card -->
 			<div class="col-1-2">
 				<div class="card" data-trews="severeSepsis">
 					<h2></h2>
 					<h5 class="card-subtitle"></h5>
+					<div class="slot" data-trews="eval-criteria-summary">
+					</div>
 					<div class="slot" data-trews="sus">
 						<div class="actions">
 							<a data-trews="sus-edit" class="edit-btn">Edit Infection</a>
@@ -65,6 +87,43 @@
 							<h5></h5>
 						</div>
 					</div>
+					<div class="slot" data-trews="eval-acute-orgdf">
+						<h3 class="with-slider">Acute organ dysfunction likely due to infection</h3>
+					  <div class="segmented">
+					    <label class="checked">      <input type="radio" class="segment-radio" name="acute-orgdf" id="acute-orgdf-na"  checked /> N/A</label>
+					    <label class="segmented-no"> <input type="radio" class="segment-radio" name="acute-orgdf" id="acute-orgdf-no"  /> No</label>
+					    <label class="segmented-yes"><input type="radio" class="segment-radio" name="acute-orgdf" id="acute-orgdf-yes" /> Yes</label>
+					  </div>
+					  <div class="desc">
+							<div style="width: 60%;">
+								<h4>If not, CMS requires explicit documentation that this abnormal value is due to:</h4>
+								<ul>
+									<li>Chronic condition</li>
+									<li>Patient's normal state</li>
+									<li>Non-infectious acute condition</li>
+									<li>Treatment</li>
+								</ul>
+							</div>
+					  </div>
+						<div class="status">
+							<h4></h4>
+							<h5></h5>
+						</div>
+					</div>
+					<div class="slot last-child" data-trews="eval-has-sepsis">
+						<h3 class="with-slider">Does this patient have severe sepsis?</h3>
+					  <div class="segmented">
+					    <label class="checked" for="has-sepsis-na">       <input type="radio" class="segment-radio" name="has-sepsis" id="has-sepsis-na"  checked /> N/A</label>
+					    <label class="segmented-no" for="has-sepsis-no">  <input type="radio" class="segment-radio" name="has-sepsis" id="has-sepsis-no"  /> No</label>
+					    <label class="segmented-yes" for="has-sepsis-yes"><input type="radio" class="segment-radio" name="has-sepsis" id="has-sepsis-yes" /> Yes</label>
+					  </div>
+						<div class="status">
+							<h4></h4>
+							<h5></h5>
+							<p>&nbsp;</p>
+						</div>
+					</div>
+					<!--
 					<div class="slot" data-trews="sir">
 						{% if release != 'production' %}
 						<div class="actions">
@@ -89,11 +148,9 @@
 						<p class="num-overridden"></p>
 						<div class="criteria-overridden"></div>
 					</div>
+					-->
 				</div>
-			</div>
 
-			<!-- Septic Shock Card -->
-			<div class="col-1-2">
 				<div class="card" data-trews="septicShock">
 					<h2></h2>
 					<h5 class="card-subtitle"></h5>
@@ -134,6 +191,7 @@
 				</div>
 			</div>
 
+			<!--
 			<div id="graph-wrapper" class="col-1-1">
 				<div class="card">
 					<h2>TREWS Acuity Score</h2>
@@ -151,6 +209,7 @@
 					<div id="graphdiv"></div>
 				</div>
 			</div>
+			-->
 
 			<div id="timeline-wrapper" class="col-1-1">
 				<div class="card">

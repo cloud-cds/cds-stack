@@ -11,7 +11,7 @@ html, body {
     background-color: #fff;
     overflow-y: hidden; /* No overflow on the page body, since each column has its own scrollbars. */
 }
-h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li, .vis-inner {
+h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .vis-inner {
     font-family: Helvetica, Arial, sans-serif;
 }
 .cf:before,
@@ -277,6 +277,13 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li, .vis-inner {
     font-size: 16px;
     color: #222;
 }
+.card h4 {
+    text-align: left;
+    font-size: 14px;
+}
+.card h4.table-header {
+    margin: 5px 0;
+}
 .card h5 {
     margin: 5px 0;
     text-align: center;
@@ -290,6 +297,39 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li, .vis-inner {
 }
 .card h5.card-subtitle .workflow-expired {
     color: #ca011a;
+}
+.card table {
+    width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+}
+.card td.pcond-arrow-column, .card th.pcond-arrow-column {
+    border-left: none;
+    font-size: 18px;
+    color: red;
+    padding: 0 5px 0 0;
+    margin: 0;
+}
+.card table th + th {
+    border-left: 2px solid white;
+}
+.card table td + td {
+    border-left: 2px solid white;
+}
+.card th {
+    background-color: #999;
+    color: white;
+    text-align: left;
+    padding: 8px;
+    font-size: 12px;
+}
+.card td {
+    text-align: left;
+    padding: 8px;
+    font-size: 12px;
+}
+.card tr:nth-child(even){
+    background-color: #f2f2f2;
 }
 /*SLots*/
 .slot {
@@ -336,6 +376,10 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li, .vis-inner {
     margin: 0 0 10px;
     color: #777;
 }
+.slot h3.with-slider {
+    float: left;
+    width: 65%;
+}
 .slot p.num,
 .slot p.num-overridden {
     margin: 5px 0 0;
@@ -374,25 +418,25 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li, .vis-inner {
     float: right;
     margin: 0;
 }
-.status {
+.status, .desc {
     margin-top: 10px;
     opacity: 1;
     visibility: visible;
 }
-.status:first-child {
+.status:first-child, .desc:first-child {
     margin-top: 5px;
 }
-.csstransitions .status {
+.csstransitions .status, .csstransitions .desc {
     -ms-transition: opacity .3s, visibility .3s, max-height .3s, margin-top .3s;
     transition: opacity .3s, visibility .3s, max-height .3s, margin-top .3s;
 }
-.status.hidden {
+.status.hidden, .desc.hidden {
     margin-top: 0px;
     max-height: 0px;
     opacity: 0;
     visibility: hidden;
 }
-.status.unhidden {
+.status.unhidden, .desc.unhidden {
     max-height: 100px;
 }
 .status.met {
@@ -401,17 +445,17 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li, .vis-inner {
 .status.unmet {
     border-left: 3px solid green;
 }
-.status h4 {
+.status h4, .desc h4 {
     margin: 0 0 0 5px;
     font-weight: 400;
     font-size: 12px;
 }
-.card[data-trews="sev3"] .status h4 {
+.card[data-trews="sev3"] .status h4, .card[data-trews="sev3"] .desc h4 {
     margin: 0 0 5px 5px;
     font-weight: 400;
     font-size: 12px;
 }
-.status h5 {
+.status h5, .desc h5 {
     font-weight: 400;
     margin: 0 0 0 5px;
     text-align: left;
@@ -421,9 +465,117 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li, .vis-inner {
 .status h5 .value {
     font-weight: 600;
 }
+.status ul, .desc ul {
+    margin: 5px 0;
+    padding-left: 25px;
+}
+.status li, .desc li {
+    text-align: left;
+    font-size: 12px;
+}
 .num-overridden.hidden,
 .criteria-overridden.hidden {
     display: none;
+}
+/*Condition tables*/
+.slot[data-trews="orgdf-table"] {
+    overflow-x: auto;
+}
+.slot[data-trews="sirs-table"] {
+    overflow-x: auto;
+}
+/*Evaluation summaries*/
+.slot[data-trews="eval-criteria-summary"] {
+    overflow-x: auto;
+}
+.slot .eval-summary {
+    display: inline-block;
+    position:relative;
+    width: 30%;
+    height: 20px;
+    padding-right: 20px;
+    min-width: 110px;
+}
+.slot .eval-summary.last-child {
+    width: 40%;
+    padding-right: 0px;
+}
+.slot .eval-summary h3 {
+    display: inline-block;
+    position: absolute;
+    padding-left: 5px;
+    height: 12px;
+}
+.slot .eval-summary .flag {
+    display: inline-block;
+    background: #ddd;
+    height: 20px;
+    width: 20px;
+}
+/*
+.slot .eval-summary.unmet {
+    float: left;
+    border: 2px solid #10b66d;
+    width: 33%;
+}
+.slot .eval-summary.met {
+    float: left;
+    border: 2px solid #ca011a;
+    width: 33%;
+}
+*/
+/*Segmented control*/
+.segmented {
+    display:flex;
+    float:right;
+    flex-flow:row wrap;
+    box-sizing:border-box;
+    font-size: 14px;
+    text-align:center;
+    min-width: 110px;
+}
+.segmented .segment-radio {
+    display: none;
+}
+.segmented label {
+    display:block;
+    flex:1;
+    box-sizing:border-box;
+    border:1px solid #666;
+    border-right:none;
+    color: #666;
+    background-color: #ddd;
+    margin:0;
+    padding:.4em;
+    cursor: pointer;
+    user-select:none;
+    -webkit-user-select:none;
+}
+.segmented label.segmented-no.checked {
+    background-color: #ca011a;
+    color:#fff;
+}
+.segmented label.segmented-yes.checked {
+    background-color: green;
+    color:#fff;
+}
+.segmented label.checked {
+    background:#666;
+    color:#fff;
+}
+.segmented label:first-child {
+    border-radius:.6em 0 0 .6em;
+    border-right:0;
+}
+.segmented label:last-child {
+    border-radius:0 .6em .6em 0;
+    border-right:1px solid;
+}
+.segmented input[type="radio"] {
+    appearance:none;
+    -webkit-appearance:none;
+    margin:0;
+    position: absolute;
 }
 /*Notes*/
 .note {

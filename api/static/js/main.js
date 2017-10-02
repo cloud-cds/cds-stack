@@ -177,11 +177,13 @@ checkIfOrdered = null; // Global bool to flip when clicking "place order"
 window.onresize = function() {
   refreshHeaderHeight('onresize');
 
+  /*
   // Re-render chart.
   graphComponent.render(trews.data.chart_data,
                         (trews.data.severe_sepsis != null ? trews.data.severe_sepsis.onset_time : null),
                         (trews.data.septic_shock != null ? trews.data.septic_shock.onset_time : null),
                         graphComponent.xmin, graphComponent.xmax);
+  */
 
   if ( checkIfOrdered != null) {
     endpoints.getPatientData('place_order', {'actionName': checkIfOrdered});
@@ -476,6 +478,7 @@ var controller = new function() {
     this.clean();
 
     var globalJson = trews.data;
+    patientConditionComponent.render(globalJson["severe_sepsis"]);
     workflowsComponent.render(
       globalJson["antibiotics_order"],
       globalJson["blood_culture_order"],
@@ -485,7 +488,7 @@ var controller = new function() {
       globalJson["vasopressors_order"],
       globalJson['severe_sepsis']['onset_time'],
       globalJson['septic_shock']['onset_time']);
-    graphComponent.refresh(globalJson["chart_data"]);
+    // graphComponent.refresh(globalJson["chart_data"]);
     notifications.render(globalJson['notifications']);
     activity.render(globalJson['auditlist']);
     toolbar.render(globalJson["severe_sepsis"]);
@@ -744,6 +747,72 @@ var trewscoreComponent = new function() {
   }
 }
 
+
+/**
+ * Patient Condition Component
+ * Responsible for rendering current and triggering values of
+ * organ dysfunction and SIRS as tables.
+ */
+var patientConditionComponent = new function() {
+  this.ctn = $("[data-trews='patientCondition']");
+
+  this.renderCriteriaTable = function(after_data_trews, json, constants) {
+    var tbl = $('<table></table>');
+    tbl.append('<tr><th></th><th class="pcond-arrow-column"></th><th>Trigger Value</th><th>Most Recent</th></tr>');
+
+    for (var c in json['criteria']) {
+      var spec = constants['criteria'][c];
+      var val = json['criteria'][c];
+
+      var displayValue = val['value'];
+      var precision = spec['precision'] == undefined ? 5 : spec['precision'];
+
+      if ( displayValue && ( isNumber(displayValue) || !isNaN(Number(displayValue)) ) ) {
+        displayValue = Number(displayValue).toPrecision(precision);
+      }
+
+      if (val['is_met'] && val['measurement_time']) {
+        this.classComplete = " met";
+        var lapsed = timeLapsed(new Date(val['measurement_time']*1000));
+        var strTime = strToTime(new Date(val['measurement_time']*1000));
+        if (c['name'] == 'respiratory_failure') {
+
+          this.status += "Criteria met <span title='" + strTime + "'>" + lapsed + "</span> with <span class='value'>Mechanical Support: On</span>";
+        } else {
+
+          this.status += "Criteria met <span title='" + strTime + "'>" + lapsed + "</span> with a value of <span class='value'>" + displayValue + "</span>";
+        }
+      }
+
+      var name = spec.overrideModal[0].name;
+      var arrow = '<i class="fa fa-arrow-circle-up"></i>';
+      var triggering = val['is_met'] ? displayValue : '';
+      var recent = displayValue == null ? 'N/A' : displayValue;
+      var row = '<td>' + name + '</td>' +
+                '<td class="pcond-arrow-column">' + arrow + '</td>' +
+                '<td>' + triggering + '</td>' +
+                '<td>' + recent + '</td>';
+      tbl.append('<tr>' + row + '</tr>')
+    }
+
+    this.ctn.find("[data-trews='" + after_data_trews + "'] table").replaceWith(tbl);
+  }
+
+  this.render = function(json) {
+    this.ctn.find('h2').text('Patient Condition');
+    this.ctn.find("[data-trews='orgdf-table-header']").text('Organ Dysfunction');
+    this.ctn.find("[data-trews='sirs-table-header']").text('SIRS');
+    this.renderCriteriaTable('orgdf-table', json['organ_dysfunction'], severe_sepsis['organ_dysfunction']);
+    this.renderCriteriaTable('sirs-table', json['sirs'], severe_sepsis['sirs']);
+  }
+}
+
+
+/**
+ * Severe Sepsis Component.
+ * Responsible for rendering severe sepsis evaluation components, including
+ * SOI input, acute organ dysfunction, criteria summary, and severe sepsis presence
+ */
 var severeSepsisComponent = new function() {
   this.sus = {};
   this.ctn = $("[data-trews='severeSepsis']");
@@ -755,6 +824,11 @@ var severeSepsisComponent = new function() {
     $('.selection select').append(s);
   }
 
+  this.acuteSlot = $("[data-trews='eval-acute-orgdf']");
+  this.criteriaSummarySlot = $("[data-trews='eval-criteria-summary']");
+  this.hasSepsisSlot = $("[data-trews='eval-has-sepsis']");
+
+  /*
   this.sirSlot = new slotComponent(
     $("[data-trews='sir']"),
     $('#expand-sir'),
@@ -764,6 +838,7 @@ var severeSepsisComponent = new function() {
     $("[data-trews='org']"),
     $('#expand-org'),
     severe_sepsis['organ_dysfunction']);
+  */
 
   // Returns the class to attach to the SOI slot (to highlight it).
   // Returns null if no highlighting is to be performed.
@@ -823,6 +898,7 @@ var severeSepsisComponent = new function() {
 
   this.render = function(json) {
     this.ctn.find('h2').text(severe_sepsis['display_name']);
+
     if (json['is_met']) {
       this.ctn.addClass('complete');
     } else {
@@ -830,8 +906,37 @@ var severeSepsisComponent = new function() {
     }
     this.sus = json['suspicion_of_infection'];
     this.suspicion(severe_sepsis['suspicion_of_infection']);
-    this.sirSlot.r(json['sirs']);
-    this.orgSlot.r(json['organ_dysfunction']);
+
+    // Listen on segmented controls.
+    $(".segmented label input[type=radio]").each(function(){
+        $(this).on("change", function(){
+            if($(this).is(":checked")){
+               $(this).parent().siblings().each(function(){
+                    $(this).removeClass("checked");
+                });
+                $(this).parent().addClass("checked");
+            }
+        });
+    });
+
+    // Render slots and criteria summary.
+    var trewsSummary = $('<div class="eval-summary"><div class="flag"></div><h3></h3></div>');
+    var sirsSummary  = $('<div class="eval-summary"><div class="flag"></div><h3></h3></div>');
+    var orgdfSummary = $('<div class="eval-summary last-child"><div class="flag"></div><h3></h3></div>');
+
+    trewsSummary.find('h3').text('TREWS');
+    sirsSummary.find('h3').text('SIRS');
+    orgdfSummary.find('h3').text('Organ Dysfunction');
+
+    this.criteriaSummarySlot.empty();
+    this.criteriaSummarySlot.append('<h3>Severe Sepsis Condition Summary</h3>')
+    this.criteriaSummarySlot.append(trewsSummary);
+    this.criteriaSummarySlot.append(sirsSummary);
+    this.criteriaSummarySlot.append(orgdfSummary);
+
+    // Old SIRS/OrgDF slots. Replaced by Patient Condition Card.
+    // this.sirSlot.r(json['sirs']);
+    // this.orgSlot.r(json['organ_dysfunction']);
 
     // Bind no-infection button.
     this.noInfectionBtn.unbind();
@@ -1210,6 +1315,7 @@ var workflowsComponent = new function() {
  * TREWS Chart.
  * A component and supporting functions representing the TREWScore time series plot.
  */
+/*
 var graphComponent = new function() {
   this.is30 = true;
   this.xmin = 0;
@@ -1482,7 +1588,7 @@ function graphTag(plot, x, y, text, id) {
   var placeholderLeft = parseInt($('#' + id).css('width'), 10) / 2;
   placeholder.find('#' + id + '.graph-tag').css('left', (placeholderLeft + o.left) + 'px');
 }
-
+*/
 
 
 /**

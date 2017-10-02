@@ -199,7 +199,7 @@ var criteriaKeyToName = {
 }
 
 var severe_sepsis = {
-	"display_name": "Severe Sepsis Criteria",
+	"display_name": "Severe Sepsis Evaluation",
 	"suspicion_of_infection": {
 		"display_name": "Suspected Source of Infection"
 	},
