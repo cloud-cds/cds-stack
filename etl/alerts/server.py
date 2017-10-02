@@ -29,19 +29,19 @@ logging.basicConfig(level=logging.INFO, format=SRV_LOG_FMT)
 class AlertServer:
   def __init__(self, event_loop, alert_server_port=31000,
                alert_dns='0.0.0.0'):
-    self.db                   = Database()
-    self.loop                 = event_loop
-    self.alert_message_queue  = asyncio.Queue(loop=event_loop)
-    self.predictor_manager    = PredictorManager(self.alert_message_queue, self.loop)
-    self.alert_server_port    = alert_server_port
-    self.alert_dns            = alert_dns
-    self.channel              = os.getenv('etl_channel', 'on_opsdx_dev_etl')
-    self.suppression_tasks    = {}
-    self.model                = os.getenv('suppression_model', 'trews')
-    self.suppression_mode     = os.getenv('suppression_mode', 0)
-    self.notify_web           = os.getenv('notify_web', 0)
-    self.lookbackhours        = os.getenv('TREWS_ETL_HOURS', 24)
-    self.nprocs               = os.getenv('nprocs', 2)
+    self.db                     = Database()
+    self.loop                   = event_loop
+    self.alert_message_queue    = asyncio.Queue(loop  =event_loop)
+    self.predictor_manager      = PredictorManager(self.alert_message_queue, self.loop)
+    self.alert_server_port      = alert_server_port
+    self.alert_dns              = alert_dns
+    self.channel                = os.getenv('etl_channel', 'on_opsdx_dev_etl')
+    self.suppression_tasks      = {}
+    self.model                  = os.getenv('suppression_model', 'trews')
+    self.TREWS_ETL_SUPPRESSION  = int(os.getenv('TREWS_ETL_SUPPRESSION', 0))
+    self.notify_web             = int(os.getenv('notify_web', 0))
+    self.lookbackhours          = int(os.getenv('TREWS_ETL_HOURS', 24))
+    self.nprocs                 = int(os.getenv('nprocs', 2))
 
 
   async def async_init(self):
@@ -195,24 +195,31 @@ class AlertServer:
           )
           select update_suppression_alert(enc_id, '{channel}', '{model}', 'false') from pats)
           '''.format(channel=self.channel, model=self.model, pats=pats_str)
-          logging.info("suppression sql: {}".format(sql))
+          logging.info("lmc suppression sql: {}".format(sql))
           await conn.fetch(sql)
           logging.info("generate suppression alert for {}".format(hospital))
       else:
         logging.info("criteria is not ready for {}".format(pats_str))
 
-  async def run_trews_suppression(self, job_id):
+
+  async def calculate_criteria(self, conn, job_id):
+    server = 'dev_db' if 'dev' in self.channel else 'prod_db'
+    sql = 'select garbage_collection();'
+    logging.info("calculate_criteria sql: {}".format(sql))
+    await conn.fetch(sql)
+    sql = '''
+    select distribute_advance_criteria_snapshot_for_job('{server}', {hours}, '{job_id}', {nprocs});
+    '''.format(server=server,hours=self.lookbackhours,job_id=job_id,nprocs=self.nprocs)
+    logging.info("calculate_criteria sql: {}".format(sql))
+    await conn.fetch(sql)
+
+  async def run_trews_suppression(self, job_id, hospital):
     async with self.db_pool.acquire() as conn:
-      sql = ''
-      if self.suppression_mode == 2:
+      if self.TREWS_ETL_SUPPRESSION == 2:
         # calculate criteria here
-        server = 'dev_db' if 'dev' in self.channel else 'prod_db'
-        sql += '''
-        select garbage_collection();
-        select distribute_advance_criteria_snapshot_for_job('{server}', {hours}, '{job_id}', {nprocs});
-        '''.format(server=server,hours=lookbackhours,job_id=job_id,nprocs=nprocs)
+        await self.calculate_criteria(conn, job_id)
       if self.notify_web:
-        sql += '''
+        sql = '''
         with pats as (
           select e.enc_id, p.pat_id from get_latest_enc_ids('{hospital}') e inner join pat_enc p on e.enc_id = p.enc_id
         ),
@@ -226,13 +233,13 @@ class AlertServer:
         select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
           '''.format(channel=self.channel, model=self.model, hospital=hospital)
       else:
-        sql += '''
-        select update_suppression_alert(pat_id, '{channel}', '{model}', 'false') from
+        sql = '''
+        select update_suppression_alert(enc_id, '{channel}', '{model}', 'false') from
         (select distinct t.enc_id from cdm_t t
         inner join get_latest_enc_ids('{hospital}') h on h.enc_id = t.enc_id
         where now() - tsp < (select value::interval from parameters where name = 'lookbackhours')) sub;
           '''.format(channel=self.channel, model=self.model, hospital=hospital)
-      logging.info("suppression sql: {}".format(sql))
+      logging.info("trews suppression sql: {}".format(sql))
       await conn.fetch(sql)
       logging.info("generate trews suppression alert for {}".format(hospital))
 
@@ -260,7 +267,7 @@ class AlertServer:
         self.predictor_manager.create_predict_tasks(hosp=message['hosp'],
                                                     time=message['time'])
       elif self.model == 'trews':
-        await self.run_trews_suppression(message['job_id'])
+        await self.run_trews_suppression(message['job_id'],message['hosp'])
       else:
         logging.error("Unknown suppression model {}".format(self.model))
 
