@@ -1269,7 +1269,6 @@ BEGIN
             end;
 END; $func$;
 
--- REVIEW: (Yanif)->(Andong): additional statuses in DW version:
 -- 'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result'
 -- 'Final', 'Final result', 'Edited Result - FINAL',
 -- 'Completed', 'Corrected', 'Not Indicated'
@@ -1277,11 +1276,30 @@ create or replace function order_status(order_fid text, value_text text, overrid
     returns text language plpgsql as $func$
 BEGIN
     return case when override_value_text = 'Not Indicated' then 'Completed'
-                when override_value_text = 'Clinically Inappropriate' then 'Completed'
-                when order_fid = 'lactate_order' and (value_text in ('In  process', 'Sent', 'Preliminary', 'Final', 'Completed', 'Corrected', 'Not Indicated') or value_text ~* 'Clinically Inappropriate') then 'Completed'
-                when order_fid = 'lactate_order' and value_text = 'Signed' then 'Ordered'
-                when order_fid = 'blood_culture_order' and (value_text in ('In  process', 'Sent', 'Preliminary', 'Final', 'Completed', 'Corrected', 'Not Indicated') or value_text ~* 'Clinically Inappropriate') then 'Completed'
-                when order_fid = 'blood_culture_order' and value_text = 'Signed' then 'Ordered'
+                when override_value_text ~* 'Clinically Inappropriate' then 'Completed'
+                when order_fid = 'lactate_order' and (
+                        value_text in (
+                          'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result',
+                          'Final', 'Final result', 'Edited Result - FINAL',
+                          'Completed', 'Corrected', 'Not Indicated'
+                        )
+                        or value_text ~* 'Clinically Inappropriate'
+                      )
+                  then 'Completed'
+
+                when order_fid = 'lactate_order' and value_text in ('None', 'Signed') then 'Ordered'
+
+                when order_fid = 'blood_culture_order' and (
+                        value_text in (
+                          'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result',
+                          'Final', 'Final result', 'Edited Result - FINAL',
+                          'Completed', 'Corrected', 'Not Indicated'
+                        )
+                        or value_text ~* 'Clinically Inappropriate'
+                      )
+                  then 'Completed'
+
+                when order_fid = 'blood_culture_order' and value_text in ('None', 'Signed') then 'Ordered'
                 else null
             end;
 END; $func$;
