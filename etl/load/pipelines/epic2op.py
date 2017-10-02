@@ -65,7 +65,7 @@ async def notify_data_ready_to_lmc_alert_server(ctxt, job_id):
   }
   try:
     logging.info('Notify lmc alert server that the ETL is done: {}'.format(message))
-    reader, writer = await asyncio.open_connection(protocol.ALERT_SERVER_IP, protocol.ALERT_SERVER_PORT, loop=ctxt.loop)
+    reader, writer = await asyncio.open_connection(protocol.LMC_ALERT_SERVER_IP, protocol.LMC_ALERT_SERVER_PORT, loop=ctxt.loop)
     await protocol.write_message(writer, message)
     writer.close()
   except Exception as e:

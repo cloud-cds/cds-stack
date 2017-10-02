@@ -831,11 +831,7 @@ RETURNS table( enc_id                               int,
                septic_shock_onset                   timestamptz,
                severe_sepsis_wo_infection_onset     timestamptz,
                severe_sepsis_wo_infection_initial   timestamptz,
-               severe_sepsis_lead_time              timestamptz,
-               trews_severe_sepsis_onset                  timestamptz,
-               trews_severe_sepsis_wo_infection_onset     timestamptz,
-               trews_severe_sepsis_wo_infection_initial   timestamptz,
-               trews_severe_sepsis_lead_time              timestamptz
+               severe_sepsis_lead_time              timestamptz
              )
 AS $func$ BEGIN
 
@@ -851,11 +847,16 @@ AS $func$ BEGIN
   select MEV.enc_id,
          MEV.event_id,
          coalesce(CE.flag, 0) as state,
-         CE.severe_sepsis_onset,
-         CE.septic_shock_onset,
-         CE.severe_sepsis_wo_infection_onset,
-         CE.severe_sepsis_wo_infection_initial,
-         CE.severe_sepsis_lead_time
+         (case when coalesce(CE.flag, 0) in (11,14,15,25,26,27,28,29) or coalesce(CE.flag, 0) >= 40 then CE.trews_severe_sepsis_onset
+            else CE.severe_sepsis_onset end) as severe_sepsis_onset,
+         (case when coalesce(CE.flag, 0) in (11,14,15,25,26,27,28,29) or coalesce(CE.flag, 0) >= 40 then CE.septic_shock_onset
+            else CE.septic_shock_onset end) as septic_shock_onset,
+         (case when coalesce(CE.flag, 0) in (11,14,15,25,26,27,28,29) or coalesce(CE.flag, 0) >= 40 then CE.trews_severe_sepsis_wo_infection_onset
+            else CE.severe_sepsis_wo_infection_onset end) as severe_sepsis_wo_infection_onset,
+         (case when coalesce(CE.flag, 0) in (11,14,15,25,26,27,28,29) or coalesce(CE.flag, 0) >= 40 then CE.trews_severe_sepsis_wo_infection_initial
+            else CE.severe_sepsis_wo_infection_initial end) as severe_sepsis_wo_infection_initial,
+         (case when coalesce(CE.flag, 0) in (11,14,15,25,26,27,28,29) or coalesce(CE.flag, 0) >= 40 then CE.trews_severe_sepsis_lead_time
+            else CE.severe_sepsis_lead_time end) as severe_sepsis_lead_time
   from max_events_by_pat MEV
   left join lateral (
     select
@@ -924,7 +925,7 @@ format('select stats.enc_id,
     case
     when sus_count = 1 then
         (
-        case when trews_met = 1 and trews_orgdf = 1 then (
+        case when trews_met > 0 and trews_orgdf = 1 then (
             (
             case
             when (fluid_count = 1 and hypotension_count > 0) and hypoperfusion_count = 1 then
@@ -969,7 +970,7 @@ format('select stats.enc_id,
             25
             end)
         )
-        case when sirs_count > 1 and organ_count > 0 then (
+        when sirs_count > 1 and organ_count > 0 then (
             (
             case
             when (fluid_count = 1 and hypotension_count > 0) and hypoperfusion_count = 1 then
@@ -1020,8 +1021,8 @@ format('select stats.enc_id,
         end
         )
     -- no sus
-    when trews > 0 and trews_orgdf > 0 and sus_null_count = 1 then 11 -- trews_sev_sep w.o. sus
-    when trews > 0 and trews_orgdf > 0 and sus_noinf_count = 1 then 13 -- trews_sev_sep w.o. sus
+    when trews_met > 0 and trews_orgdf > 0 and sus_null_count = 1 then 11 -- trews_sev_sep w.o. sus
+    when trews_met > 0 and trews_orgdf > 0 and sus_noinf_count = 1 then 13 -- trews_sev_sep w.o. sus
     when sirs_count > 1 and organ_count > 0 and sus_null_count = 1 then 10 -- sev_sep w.o. sus
     when sirs_count > 1 and organ_count > 0 and sus_noinf_count = 1 then 12 -- sev_sep w.o. sus
     else 0 -- health case
@@ -1045,8 +1046,8 @@ select %I.enc_id,
     min(measurement_time) filter (where name in (''blood_pressure'',''mean_arterial_pressure'',''decrease_in_sbp'',''respiratory_failure'',''creatinine'',''bilirubin'',''platelet'',''inr'',''lactate'') and is_met ) as organ_onset,
     min(measurement_time) filter (where name in (''systolic_bp'',''hypotension_map'',''hypotension_dsbp'') and is_met ) as hypotension_onset,
     min(measurement_time) filter (where name = ''initial_lactate'' and is_met) as hypoperfusion_onset,
-    max(is_met) filter (where name = ''trews'' and is_met) as trews_met,
-    min(measurement_time) filter (where name = ''trews'' and is_met) as trews_onset
+    count(*) filter (where name = ''trews'' and is_met) as trews_met,
+    min(measurement_time) filter (where name = ''trews'' and is_met) as trews_onset,
     count(*) filter (where name ~ ''trews_'' and is_met) as trews_orgdf,
     min(measurement_time) filter (where name ~ ''trews_'' and is_met) as trews_orgdf_onset
 from %I
@@ -1385,7 +1386,7 @@ return query
         group by ordered.enc_id, ordered.name
     ),
     esrd as (
-        select distinct enc_id
+        select distinct s.enc_id
         from cdm_s s inner join enc_ids e on s.enc_id = e.enc_id
         where fid ~ 'esrd_'
     ),
@@ -1403,15 +1404,15 @@ return query
         select distinct pc.enc_id, pc.tsp
         from pat_cvalues pc inner join cdm_t t on pc.enc_id = t.enc_id
         where pc.name = 'trews_gcs' and t.fid = 'propofol_dose'
-            and ((value::json)->>'action' = 'restart'
-                    or (value::json)->>'action' ~* 'given')
+            and ((t.value::json)->>'action' = 'restart'
+                    or (t.value::json)->>'action' ~* 'given')
             and pc.tsp between t.tsp and t.tsp + '24 hours'::interval
     ),
     inr_warfarin as (
         select distinct pc.enc_id, pc.tsp
         from pat_cvalues pc inner join cdm_t t on pc.enc_id = t.enc_id
         where pc.name = 'trews_inr' and t.fid in ('warfarin_dose','heparin_dose')
-            and (value::json)->>'action' ~* 'given'
+            and (t.value::json)->>'action' ~* 'given'
             and pc.tsp between t.tsp and t.tsp + '30 hours'::interval
     ),
     vent as (
@@ -1423,21 +1424,20 @@ return query
     trews as (
         select
             ordered.enc_id,
-            'trews' as name,
+            'trews'::text as name,
             first(case when ordered.is_met then ordered.tsp else null end) as measurement_time,
-            first(case when ordered.is_met then trewscore else null end) as value,
-            null as override_time,
-            null as override_user,
-            null as override_value,
+            first(case when ordered.is_met then trewscore else null end)::text as value,
+            null::timestamptz as override_time,
+            null::text as override_user,
+            null::json as override_value,
             coalesce(bool_or(ordered.is_met), false) as is_met,
             now() as update_date
         from (
-            select ts.enc_id, ts.trewscore,
+            select ts.enc_id, ts.tsp, ts.trewscore,
             ts.trewscore > get_trews_parameter('trews_threshold') is_met
-            from pat_cvalues pc
-            inner join trewscore ts on pc.enc_id = ts.enc_id
-            where pc.name = 'trews'
-            and ts.tsp between ts_start and ts_end
+            from enc_ids e
+            left join trews ts on e.enc_id = ts.enc_id
+            where ts.tsp between ts_start and ts_end
             order by ts.tsp desc
         ) ordered
         group by ordered.enc_id
@@ -1461,13 +1461,13 @@ return query
                     pc.c_otime,
                     pc.c_ouser,
                     pc.c_ovalue,
-                    (case when pc.name = 'trews_bilirubin' and fid = 'bilirubin' then pc.value >= 2 and pc.value >= 2 * 0.2
-                     when pc.name = 'trews_creatinine' and fid = 'creatinine' then pc.value >= 0.5 + 0.5 and pc.value >= 1.5 and esrd.enc_id is null
-                     when pc.name = 'trews_gcs' and fid = 'gcs' then pc.value < 13 and gs.enc_id is null and gp.enc_id is null
-                     when pc.name = 'trews_inr' and fid = 'inr' then (pc.value >= 1.5 and pc.value >= 0.5 + 0) and iw.enc_id is null
+                    (case when pc.name = 'trews_bilirubin' and fid = 'bilirubin' then pc.value::numeric >= 2 and pc.value::numeric >= 2 * 0.2
+                     when pc.name = 'trews_creatinine' and fid = 'creatinine' then pc.value::numeric >= 0.5 + 0.5 and pc.value::numeric >= 1.5 and esrd.enc_id is null
+                     when pc.name = 'trews_gcs' and fid = 'gcs' then pc.value::numeric < 13 and gs.enc_id is null and gp.enc_id is null
+                     when pc.name = 'trews_inr' and fid = 'inr' then (pc.value::numeric >= 1.5 and pc.value::numeric >= 0.5 + 0) and iw.enc_id is null
                      when pc.name = 'trews_inr' and fid = 'ptt' then iw.enc_id is null
-                     when pc.name = 'trews_lactate' and fid = 'lactate' then pc.value > 2
-                     when pc.name = 'trews_platelet' and fid = 'platelet' then pc.value < 100 and pc.value < 0.5 * 450 and pgb.enc_id is null
+                     when pc.name = 'trews_lactate' and fid = 'lactate' then pc.value::numeric > 2
+                     when pc.name = 'trews_platelet' and fid = 'platelet' then pc.value::numeric < 100 and pc.value::numeric < 0.5 * 450 and pgb.enc_id is null
                      when pc.name = 'trews_vent' then vent.enc_id is not null
                      else false end) as is_met
             from pat_cvalues pc
@@ -1590,12 +1590,16 @@ return query
         )
         select IC.enc_id,
                sum(IC.cnt) > 0 as suspicion_of_infection,
+               sum(TS.cnt) > 0 as trews,
                sum(SC.cnt) as sirs_cnt,
                sum(OC.cnt) as org_df_cnt,
+               sum(TOC.cnt) as trews_orgdf_cnt,
                max(IC.onset) as inf_onset,
+               max(TS.onset) as trews_onset,
                max(SC.onset) as sirs_onset,
                min(SC.initial) as sirs_initial,
-               max(OC.onset) as org_df_onset
+               max(OC.onset) as org_df_onset,
+               max(TOC.onset) as trews_orgdf_onset
         from
         (
           select infection.enc_id,
@@ -1604,6 +1608,14 @@ return query
           from infection
           group by infection.enc_id
         ) IC
+        left join
+        (
+            select trews.enc_id,
+                   sum(case when trews.is_met then 1 else 0 end) as cnt,
+                   max(trews.measurement_time) as onset
+            from trews
+            group by trews.enc_id
+        ) TS on TS.enc_id = IC.enc_id
         left join
         (
           select sirs.enc_id,
@@ -1621,21 +1633,47 @@ return query
           from organ_dysfunction
           group by organ_dysfunction.enc_id
         ) OC on IC.enc_id = OC.enc_id
+        left join
+        (
+          select trews_orgdf.enc_id,
+                 sum(case when trews_orgdf.is_met then 1 else 0 end) as cnt,
+                 min(trews_orgdf.measurement_time) as onset
+          from trews_orgdf
+          group by trews_orgdf.enc_id
+        ) TOC on IC.enc_id = TOC.enc_id
         group by IC.enc_id
     ),
     severe_sepsis_now as (
       select sspm.enc_id,
-             sspm.severe_sepsis_is_met,
-             (case when sspm.severe_sepsis_onset <> 'infinity'::timestamptz
-                   then sspm.severe_sepsis_onset
-                   else null end
-             ) as severe_sepsis_onset,
-             (case when sspm.severe_sepsis_wo_infection_onset <> 'infinity'::timestamptz
-                   then sspm.severe_sepsis_wo_infection_onset
-                   else null end
-             ) as severe_sepsis_wo_infection_onset,
-             sspm.severe_sepsis_wo_infection_initial,
-             sspm.severe_sepsis_lead_time
+             sspm.trews_severe_sepsis_is_met or sspm.severe_sepsis_is_met severe_sepsis_is_met,
+             (case when sspm.trews_severe_sepsis_is_met then
+                 (case when sspm.severe_sepsis_onset <> 'infinity'::timestamptz
+                       then sspm.severe_sepsis_onset
+                       else null end
+                 )
+              else
+                 (case when sspm.trews_severe_sepsis_onset <> 'infinity'::timestamptz
+                        then sspm.trews_severe_sepsis_onset
+                        else null end
+                 )
+             end) as severe_sepsis_onset,
+             (case when sspm.trews_severe_sepsis_is_met then
+                 (case when sspm.severe_sepsis_wo_infection_onset <> 'infinity'::timestamptz
+                       then sspm.severe_sepsis_wo_infection_onset
+                       else null end
+                 )
+              else
+                 (case when sspm.trews_severe_sepsis_wo_infection_onset <> 'infinity'::timestamptz
+                       then sspm.trews_severe_sepsis_wo_infection_onset
+                       else null end
+                 )
+             end) as severe_sepsis_wo_infection_onset,
+             (case when sspm.trews_severe_sepsis_is_met then sspm.trews_severe_sepsis_wo_infection_initial
+                else sspm.severe_sepsis_wo_infection_initial
+             end) severe_sepsis_wo_infection_initial,
+             (case when sspm.trews_severe_sepsis_is_met then sspm.trews_severe_sepsis_lead_time
+                else sspm.severe_sepsis_lead_time
+             end) severe_sepsis_lead_time
       from (
         select stats.enc_id,
                coalesce(bool_or(stats.suspicion_of_infection
@@ -1643,19 +1681,33 @@ return query
                                   and stats.org_df_cnt > 0)
                         , false
                         ) as severe_sepsis_is_met,
-
+                coalesce(bool_or(stats.suspicion_of_infection
+                                  and stats.trews
+                                  and stats.trews_orgdf_cnt > 0)
+                        , false
+                        ) as trews_severe_sepsis_is_met,
                max(greatest(coalesce(stats.inf_onset, 'infinity'::timestamptz),
                             coalesce(stats.sirs_onset, 'infinity'::timestamptz),
                             coalesce(stats.org_df_onset, 'infinity'::timestamptz))
                    ) as severe_sepsis_onset,
-
+               max(greatest(coalesce(stats.inf_onset, 'infinity'::timestamptz),
+                            coalesce(stats.trews_onset, 'infinity'::timestamptz),
+                            coalesce(stats.trews_orgdf_onset, 'infinity'::timestamptz))
+                   ) as trews_severe_sepsis_onset,
                max(greatest(coalesce(stats.sirs_onset, 'infinity'::timestamptz),
                             coalesce(stats.org_df_onset, 'infinity'::timestamptz))
                    ) as severe_sepsis_wo_infection_onset,
+               max(greatest(coalesce(stats.trews_onset, 'infinity'::timestamptz),
+                            coalesce(stats.trews_orgdf_onset, 'infinity'::timestamptz))
+                   ) as trews_severe_sepsis_wo_infection_onset,
                min(least(stats.sirs_initial, stats.org_df_onset)
                    ) as severe_sepsis_wo_infection_initial,
+               min(least(stats.trews_onset, stats.trews_orgdf_onset)
+                   ) as trews_severe_sepsis_wo_infection_initial,
                min(least(stats.inf_onset, stats.sirs_onset, stats.org_df_onset))
-                  as severe_sepsis_lead_time
+                  as severe_sepsis_lead_time,
+               min(least(stats.inf_onset, stats.trews_onset, stats.trews_orgdf_onset))
+                  as trews_severe_sepsis_lead_time
 
         from severe_sepsis_criteria stats
         group by stats.enc_id
@@ -1686,8 +1738,8 @@ return query
                           else pat_cvalues.fid = 'crystalloid_fluid'
                                 and criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
                      end)
-                    and (ssn.severe_sepsis_is_met
-                            and coalesce(pat_cvalues.c_otime, pat_cvalues.tsp) >= ssn.severe_sepsis_onset)
+                    and ssn.severe_sepsis_is_met
+                            and coalesce(pat_cvalues.c_otime, pat_cvalues.tsp) >= ssn.severe_sepsis_onset
                     as is_met
             from pat_cvalues
             left join severe_sepsis_now ssn on pat_cvalues.enc_id = ssn.enc_id
@@ -2142,10 +2194,7 @@ BEGIN
                     first(new_criteria.severe_sepsis_onset) severe_sepsis_onset,
                     first(new_criteria.septic_shock_onset) septic_shock_onset,
                     first(new_criteria.severe_sepsis_wo_infection_onset) severe_sepsis_wo_infection_onset,
-                    first(new_criteria.severe_sepsis_wo_infection_initial) severe_sepsis_wo_infection_initial,
-                    first(new_criteria.trews_severe_sepsis_onset) trews_severe_sepsis_onset,
-                    first(new_criteria.trews_severe_sepsis_wo_infection_onset) trews_severe_sepsis_wo_infection_onset,
-                    first(new_criteria.trews_severe_sepsis_wo_infection_initial) trews_severe_sepsis_wo_infection_initial
+                    first(new_criteria.severe_sepsis_wo_infection_initial) severe_sepsis_wo_infection_initial
             from new_criteria
             group by new_criteria.enc_id
         ) nc on si.enc_id = nc.enc_id
@@ -2155,9 +2204,6 @@ BEGIN
             nc.septic_shock_onset,
             nc.severe_sepsis_wo_infection_onset,
             nc.severe_sepsis_wo_infection_initial,
-            nc.trews_severe_sepsis_onset,
-            nc.trews_severe_sepsis_wo_infection_onset,
-            nc.trews_severe_sepsis_wo_infection_initial,
             func_mode
             ) n
         on si.enc_id = n.enc_id
@@ -2373,7 +2419,6 @@ BEGIN
 END;
 $$ LANGUAGE PLPGSQL;
 
--- '200','201','202','203','204','300','301','302','303','304','305','306'
 -- update notifications when state changed
 CREATE OR REPLACE FUNCTION update_notifications(
     this_enc_id int,
@@ -2382,9 +2427,6 @@ CREATE OR REPLACE FUNCTION update_notifications(
     septic_shock_onset timestamptz,
     sirs_plus_organ_onset timestamptz,
     sirs_plus_organ_initial timestamptz,
-    trews_severe_sepsis_onset timestamptz,
-    trews_sirs_plus_organ_onset timestamptz,
-    trews_sirs_plus_organ_initial timestamptz,
     mode text)
 RETURNS table(enc_id int, alert_code text) AS $$
 BEGIN
@@ -2392,7 +2434,7 @@ BEGIN
     delete from notifications
         where notifications.enc_id = this_enc_id;
     if suppression_on(this_enc_id) and mode in ('override', 'reset') then
-        -- suppression alerts
+        -- suppression alerts (DEPRECATED when TREWS_ETL_SUPPRESSION = 2)
         insert into notifications (enc_id, message)
         select
             pat_enc.enc_id,
@@ -2465,16 +2507,16 @@ BEGIN
             pat_enc.enc_id,
             json_build_object('alert_code', code, 'read', false,'timestamp',
                 date_part('epoch',
-                    (case when code in ('201','204','303','306') then septic_shock_onset
-                          when code = '300' then sirs_plus_organ_onset
+                    (case when code in ('201','204','303','306','401','404','503','506') then septic_shock_onset
+                          when code in ('300','500') then sirs_plus_organ_onset
                           else severe_sepsis_onset
                           end)::timestamptz
                     +
                     (case
-                        when code = '202' then '3 hours'
-                        when code in ('203','204') then '6 hours'
-                        when code = '304' then '2 hours'
-                        when code in ('305','306') then '5 hours'
+                        when code in ('202','402') then '3 hours'
+                        when code in ('203','204','403','404') then '6 hours'
+                        when code in ('304','504') then '2 hours'
+                        when code in ('305','306','505','506') then '5 hours'
                         else '0 hours'
                         end)::interval),
                 'suppression', 'false'
@@ -2532,6 +2574,47 @@ BEGIN -- Note the CASTING being done for the 2nd and 3rd elements of the array
      WHEN flag = 34 THEN ret := array['200','201','203'];
      WHEN flag = 35 THEN ret := array['200','201'];
      WHEN flag = 36 THEN ret := array['200','201','204'];
+     -- trews:
+     WHEN flag = 11 THEN ret := array['500'];
+     WHEN flag = 25 THEN ret := array['400',
+                                '402',
+                                '403',
+                                '501',
+                                '502',
+                                '504',
+                                '505'];
+     WHEN flag = 26 THEN ret := array['400',
+                                '403',
+                                '502',
+                                '505'];
+     WHEN flag = 27 THEN ret := array['400','402'];
+     WHEN flag = 28 THEN ret := array['400'];
+     WHEN flag = 29 THEN ret := array['400','403'];
+     WHEN flag = 40 THEN ret := array['400','401',
+                                '402',
+                                '403',
+                                '404',
+                                '501',
+                                '502',
+                                '503',
+                                '504',
+                                '505',
+                                '506'];
+     WHEN flag = 41 THEN ret := array['400','401',
+                                '403',
+                                '404',
+                                '502',
+                                '503',
+                                '505',
+                                '506'];
+     WHEN flag = 42 THEN ret := array['400','401','402'];
+     WHEN flag = 43 THEN ret := array['400','401',
+                                '404',
+                                '503',
+                                '506'];
+     WHEN flag = 44 THEN ret := array['400','401','403'];
+     WHEN flag = 45 THEN ret := array['400','401'];
+     WHEN flag = 46 THEN ret := array['400','401','404'];
      ELSE ret := array['0'];
  END CASE ; RETURN ret;
 END;$$ LANGUAGE plpgsql;
