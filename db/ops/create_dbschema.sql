@@ -106,7 +106,8 @@ CREATE TABLE criteria
     override_user       text,
     override_value      json,
     value               text,
-    update_date     timestamptz,
+    update_date         timestamptz,
+    is_acute            boolean,
     primary key (enc_id, name)
 );
 
@@ -123,8 +124,9 @@ CREATE TABLE criteria_events
     override_user       text,
     override_value      json,
     value               text,
-    update_date     timestamptz,
-    flag           int,
+    update_date         timestamptz,
+    is_acute            boolean,
+    flag                int,
     primary key (event_id, enc_id, name)
 );
 DO $$

@@ -1418,6 +1418,11 @@ return query
         from cdm_s s inner join enc_ids e on s.enc_id = e.enc_id
         where fid ~ 'esrd_'
     ),
+    min_tsp as (
+        select e.enc_id, min(t.tsp)
+        from enc_ids e left join cdm_t t on e.enc_id = t.enc_id
+        group by e.enc_id
+    ),
     gcs_stroke as (
         select distinct pc.enc_id, pc.tsp
         from pat_cvalues pc inner join cdm_t t on pc.enc_id = t.enc_id
@@ -1436,19 +1441,62 @@ return query
                     or (t.value::json)->>'action' ~* 'given'))
             and pc.tsp between t.tsp and t.tsp + '24 hours'::interval
     ),
+    trews_vasopressors as (
+        select
+            ordered.enc_id,
+            ordered.name,
+            first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
+            first(case when ordered.is_met then ordered.value else null end)::text as value,
+            first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
+            first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
+            first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
+            coalesce(bool_or(ordered.is_met), false) as is_met,
+            now() as update_date
+        from (
+            select pc.enc_id, pc.tsp as measurement_time,
+            'trews_vasopressors' as name,
+            pc.c_otime,
+            pc.c_ouser,
+            pc.c_ovalue,
+            t.fid || ':' || t.value as value,
+            (case when t.enc_id is null then 0 else 1 end) as is_met,
+            from pat_cvalues pc left join cdm_t t on pc.enc_id = t.enc_id
+            and t.fid ~ '^(dopamine|vasopressin|epinephrine|levophed_infusion|neosynephrine)_dose$'
+            and (pc.tsp between t.tsp and t.tsp + '6 hours'::interval)
+        ) ordered
+        group by ordered.enc_id, ordered.name
+    ),
+    trews_vent as (
+        select
+            ordered.enc_id,
+            ordered.name,
+            first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
+            first(case when ordered.is_met then ordered.value else null end)::text as value,
+            first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
+            first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
+            first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
+            coalesce(bool_or(ordered.is_met), false) as is_met,
+            now() as update_date
+        from (
+            select pc.enc_id, pc.tsp as measurement_time,
+            'trews_vent' as name,
+            pc.c_otime,
+            pc.c_ouser,
+            pc.c_ovalue,
+            t.fid || ':' || t.value as value,
+            (case when t.enc_id is null then 0 else 1 end) as is_met,
+            from pat_cvalues pc left join cdm_t t on pc.enc_id = t.enc_id
+            and t.fid in ('vent', 'cpap', 'bipap')
+            and (pc.tsp between t.tsp and t.tsp + '48 hours'::interval)
+        ) ordered
+        group by ordered.enc_id, ordered.name
+    ),
     inr_warfarin as (
         select distinct pc.enc_id, pc.tsp
         from pat_cvalues pc inner join cdm_t t on pc.enc_id = t.enc_id
         where pc.name = 'trews_inr' and t.fid in ('warfarin_dose','heparin_dose')
             and (isnumeric(t.value) and t.value::numeric > 0) or (t.value::json)->>'action' ~* 'given'
             and pc.tsp between t.tsp and t.tsp + '30 hours'::interval
-    ),
-    vent as (
-        select pc.enc_id, pc.tsp, first(pc.fid) fid
-        from pat_cvalues pc inner join cdm_t t on pc.enc_id = t.enc_id
-        where pc.name = 'trews_vent' and t.fid in ('vent','cpap','bipap')
-            and pc.tsp between t.tsp and t.tsp + '48 hours'::interval
-        group by pc.enc_id, pc.tsp
     ),
     trews as (
         select
@@ -1470,6 +1518,20 @@ return query
             order by ts.tsp desc
         ) ordered
         group by ordered.enc_id
+    ),
+    trews_map_idx as (
+        select pc.enc_id, pc.tsp, pc.value from
+        pat_cvalues pc left join pat_cvalues pc_next on pc.enc_id = pc_next.enc_id and pc_next.name = 'trews_map' and pc_next.fid = 'map' and pc_next.tsp > ts_end - '7 minutes'::interval and pc_next.tsp > pc.tsp
+        where pc.name = 'trews_map' and pc.fid = 'map'
+        and pc.value < 65
+        and ((pc.tsp <= ts_end - '7 minutes'::interval and pc_next.enc_id is not null) or pc.tsp > ts_end - '7 minutes'::interval)
+    ),
+    trews_sbpm_idx as (
+        select pc.enc_id, pc.tsp, pc.value from
+        pat_cvalues pc left join pat_cvalues pc_next on pc.enc_id = pc_next.enc_id and pc_next.name = 'trews_sbpm' and pc_next.fid = 'sbpm' and pc_next.tsp > ts_end - '7 minutes'::interval and pc_next.tsp > pc.tsp
+        where pc.name = 'trews_map' and pc.fid = 'map'
+        and pc.value < 90
+        and ((pc.tsp <= ts_end - '7 minutes'::interval and pc_next.enc_id is not null) or pc.tsp > ts_end - '7 minutes'::interval)
     ),
     trews_orgdf as (
         select
@@ -1497,8 +1559,10 @@ return query
                      when pc.name = 'trews_inr' and pc.fid = 'inr' then (pc.value::numeric >= 1.5 and pc.value::numeric >= 0.5 + 0) and iw.enc_id is null
                      when pc.name = 'trews_inr' and pc.fid = 'ptt' then iw.enc_id is null
                      when pc.name = 'trews_lactate' and pc.fid = 'lactate' then pc.value::numeric > 2
-                     when pc.name = 'trews_platelet' and pc.fid = 'platelet' then pc.value::numeric < 100 and pc.value::numeric < 0.5 * 450 and pgb.enc_id is null
+                     when pc.name = 'trews_platelet' and pc.fid = 'platelets' then pc.value::numeric < 100 and pc.value::numeric < 0.5 * 450 and pgb.enc_id is null
                      when pc.name = 'trews_vent' then vent.enc_id is not null
+                     when pc.name = 'trews_map' then tmi.enc_id is not null or (mt.enc_id is not null and pc.value::numeric < 65 and pc.fid = 'map')
+                     when pc.name = 'trews_sbpm' then tsi.enc_id is not null or (mt.enc_id is not null and pc.value::numeric < 90 and pc.fid = 'sbpm')
                      else false end) as is_met
             from pat_cvalues pc
             left join esrd on pc.enc_id = esrd.enc_id
@@ -1507,7 +1571,10 @@ return query
             left join inr_warfarin iw on pc.enc_id = iw.enc_id and pc.tsp = iw.tsp
             left join vent on pc.enc_id = vent.enc_id and pc.tsp = vent.tsp
             left join platelet_gi_bleed pgb on pgb.enc_id = pc.enc_id and pc.tsp = pgb.tsp
-            where pc.name ~ 'trews_'
+            left join trews_map_idx tmi on pc.enc_id = tmi.enc_id and pc.tsp = tmi.tsp and pc.name = 'trews_map'
+            left join trews_sbpm_idx tsi on pc.enc_id = tsi.enc_id and pc.tsp = tsi.tsp and pc.name = 'trews_sbpm'
+            left join min_tsp mt on pc.enc_id = mt.enc_id and pc.tsp = mt.tsp
+            where pc.name in ('trews_bilirubin','trews_creatinine','trews_gcs','trews_inr','trews_lactate','trews_platelet','trews_map')
         ) ordered
         group by ordered.enc_id, ordered.name
     ),
@@ -1612,6 +1679,7 @@ return query
         union all select * from organ_dysfunction_except_rf
         union all select * from trews
         union all select * from trews_orgdf
+        union all select * from trews_vasopressors
     ),
     severe_sepsis_criteria as (
         with organ_dysfunction as (
