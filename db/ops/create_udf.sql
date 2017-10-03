@@ -1327,6 +1327,7 @@ CREATE OR REPLACE FUNCTION calculate_criteria(this_enc_id int, ts_start timestam
                override_value                       json,
                is_met                               boolean,
                update_date                          timestamptz,
+               is_acute                             boolean,
                severe_sepsis_onset                  timestamptz,
                severe_sepsis_wo_infection_onset     timestamptz,
                severe_sepsis_wo_infection_initial   timestamptz,
@@ -1419,7 +1420,7 @@ return query
         where fid ~ 'esrd_'
     ),
     min_tsp as (
-        select e.enc_id, min(t.tsp)
+        select e.enc_id, min(t.tsp) tsp
         from enc_ids e left join cdm_t t on e.enc_id = t.enc_id
         group by e.enc_id
     ),
@@ -1437,8 +1438,7 @@ return query
         select distinct pc.enc_id, pc.tsp
         from pat_cvalues pc inner join cdm_t t on pc.enc_id = t.enc_id
         where pc.name = 'trews_gcs' and t.fid = 'propofol_dose'
-            and ((isnumeric(t.value) and t.value::numeric > 0) or ((t.value::json)->>'action' = 'restart'
-                    or (t.value::json)->>'action' ~* 'given'))
+            and isnumeric(t.value) and t.value::numeric > 0
             and pc.tsp between t.tsp and t.tsp + '24 hours'::interval
     ),
     trews_vasopressors as (
@@ -1454,12 +1454,12 @@ return query
             now() as update_date
         from (
             select pc.enc_id, pc.tsp as measurement_time,
-            'trews_vasopressors' as name,
+            'trews_vasopressors'::text as name,
             pc.c_otime,
             pc.c_ouser,
             pc.c_ovalue,
             t.fid || ':' || t.value as value,
-            (case when t.enc_id is null then 0 else 1 end) as is_met,
+            (case when t.enc_id is null then true else false end) as is_met
             from pat_cvalues pc left join cdm_t t on pc.enc_id = t.enc_id
             and t.fid ~ '^(dopamine|vasopressin|epinephrine|levophed_infusion|neosynephrine)_dose$'
             and (pc.tsp between t.tsp and t.tsp + '6 hours'::interval)
@@ -1479,12 +1479,12 @@ return query
             now() as update_date
         from (
             select pc.enc_id, pc.tsp as measurement_time,
-            'trews_vent' as name,
+            'trews_vent'::text as name,
             pc.c_otime,
             pc.c_ouser,
             pc.c_ovalue,
             t.fid || ':' || t.value as value,
-            (case when t.enc_id is null then 0 else 1 end) as is_met,
+            (case when t.enc_id is null then true else false end) as is_met
             from pat_cvalues pc left join cdm_t t on pc.enc_id = t.enc_id
             and t.fid in ('vent', 'cpap', 'bipap')
             and (pc.tsp between t.tsp and t.tsp + '48 hours'::interval)
@@ -1495,7 +1495,7 @@ return query
         select distinct pc.enc_id, pc.tsp
         from pat_cvalues pc inner join cdm_t t on pc.enc_id = t.enc_id
         where pc.name = 'trews_inr' and t.fid in ('warfarin_dose','heparin_dose')
-            and (isnumeric(t.value) and t.value::numeric > 0) or (t.value::json)->>'action' ~* 'given'
+            and isnumeric(t.value) and t.value::numeric > 0
             and pc.tsp between t.tsp and t.tsp + '30 hours'::interval
     ),
     trews as (
@@ -1510,11 +1510,11 @@ return query
             coalesce(bool_or(ordered.is_met), false) as is_met,
             now() as update_date
         from (
-            select ts.enc_id, ts.tsp, ts.trewscore,
+            select e.enc_id, ts.tsp, ts.trewscore,
             ts.trewscore > get_trews_parameter('trews_threshold') is_met
             from enc_ids e
             left join trews ts on e.enc_id = ts.enc_id
-            where ts.tsp between ts_start and ts_end
+            and ts.tsp between ts_start and ts_end
             order by ts.tsp desc
         ) ordered
         group by ordered.enc_id
@@ -1524,7 +1524,7 @@ return query
         pat_cvalues pc left join pat_cvalues pc_next on pc.enc_id = pc_next.enc_id and pc_next.name = 'trews_map' and pc_next.fid = 'map' and pc_next.tsp > ts_end - '7 minutes'::interval and pc_next.tsp > pc.tsp
         left join min_tsp on min_tsp.enc_id = pc.enc_id and min_tsp.tsp = pc.tsp
         where pc.name = 'trews_map' and pc.fid = 'map'
-        and pc.value < 65
+        and pc.value::numeric < 65
         and ((pc.tsp <= ts_end - '7 minutes'::interval and pc_next.enc_id is not null) or pc.tsp > ts_end - '7 minutes'::interval or min_tsp.tsp is not null)
     ),
     sbpm as (
@@ -1533,14 +1533,18 @@ return query
         where sbpm_c < 8 and pc.name = 'trews_sbpm'
     ),
     sbpm_pair as (
-        with ordered as (select * from sbpm order by enc_id, tsp)
-        select ordered.*,
-        lag(enc_id) prev_enc_id, lag(tsp) prev_tsp, lag(sbpm) prev_sbpm
-        from ordered
-        where enc_id = lag(enc_id)
+        with paired as (
+            select sbpm.*,
+            lag(sbpm.enc_id) over (order by sbpm.enc_id, sbpm.tsp) prev_enc_id,
+            lag(sbpm.tsp) over (order by sbpm.enc_id, sbpm.tsp) prev_tsp,
+            lag(sbpm.sbpm) over (order by sbpm.enc_id, sbpm.tsp) prev_sbpm
+            from sbpm
+        )
+        select * from paired
+        where paired.enc_id = paired.prev_enc_id
     ),
     trews_sbpm_idx as (
-        select distinct pc.enc_id, pc.tsp, pc.value from
+        select distinct pc.enc_id, pc.tsp, sbpm.sbpm from
         pat_cvalues pc
         left join sbpm on sbpm.enc_id = pc.enc_id and sbpm.tsp = pc.tsp
         left join pat_cvalues pc_next on pc.enc_id = pc_next.enc_id and pc_next.name = 'trews_sbpm' and pc_next.fid = 'sbpm' and pc_next.tsp > ts_end - '7 minutes'::interval and pc_next.tsp > pc.tsp
@@ -1551,7 +1555,7 @@ return query
         and ((pc.tsp <= ts_end - '7 minutes'::interval and pc_next.enc_id is not null) or pc.tsp > ts_end - '7 minutes'::interval or min_tsp.tsp is not null)
     ),
     trews_dsbp_idx as (
-        select pc.enc_id, pc.tsp, pc.value from
+        select pc.enc_id, pc.tsp, pc.sbpm from
         sbpm_pair pc
         left join pat_cvalues pc_next on pc.enc_id = pc_next.enc_id and pc_next.name = 'trews_sbpm' and pc_next.fid = 'sbpm' and pc_next.tsp > ts_end - '7 minutes'::interval and pc_next.tsp > pc.tsp
         where pc.sbpm - pc.prev_sbpm < -40
@@ -1567,12 +1571,15 @@ return query
             first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
             first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
             coalesce(bool_or(ordered.is_met), false) as is_met,
-            now() as update_date
+            now() as update_date,
+            first(case when ordered.is_met then ordered.is_acute else null end) as is_acute
         from (
             select  pc.enc_id,
                     pc.name,
                     pc.tsp as measurement_time,
-                    (case when pc.name = 'trews_vent' then vent.fid || ':' || pc.value else pc.value end)
+                    (case when pc.name = 'trews_dsbp' then tdi.sbpm::text
+                    when pc.name = 'trews_sbpm' then tsi.sbpm::text
+                        else pc.value end)
                      as value,
                     pc.c_otime,
                     pc.c_ouser,
@@ -1581,25 +1588,30 @@ return query
                      when pc.name = 'trews_creatinine' and pc.fid = 'creatinine' then pc.value::numeric >= 0.5 + 0.5 and pc.value::numeric >= 1.5 and esrd.enc_id is null
                      when pc.name = 'trews_gcs' and pc.fid = 'gcs' then pc.value::numeric < 13 and gs.enc_id is null and gp.enc_id is null
                      when pc.name = 'trews_inr' and pc.fid = 'inr' then (pc.value::numeric >= 1.5 and pc.value::numeric >= 0.5 + 0) and iw.enc_id is null
-                     when pc.name = 'trews_inr' and pc.fid = 'ptt' then iw.enc_id is null
+                     when pc.name = 'trews_inr' and pc.fid = 'ptt' then iw.enc_id is null and pc.value::numeric > 60
                      when pc.name = 'trews_lactate' and pc.fid = 'lactate' then pc.value::numeric > 2
                      when pc.name = 'trews_platelet' and pc.fid = 'platelets' then pc.value::numeric < 100 and pc.value::numeric < 0.5 * 450 and pgb.enc_id is null
-                     when pc.name = 'trews_vent' then vent.enc_id is not null
                      when pc.name = 'trews_map' then tmi.enc_id is not null
                      when pc.name = 'trews_sbpm' then tsi.enc_id is not null
                      when pc.name = 'trews_dsbp' then tdi.enc_id is not null
-                     else false end) as is_met
+                     else false end) as is_met,
+                    (case when pc.name = 'trews_bilirubin' and pc.fid = 'bilirubin' then pc.value::numeric >= 2 and pc.value::numeric >= 2 * 0.2
+                     when pc.name = 'trews_creatinine' and pc.fid = 'creatinine' then pc.value::numeric >= 0.5 + 0.5 and pc.value::numeric >= 1.5
+                     when pc.name = 'trews_gcs' and pc.fid = 'gcs' then pc.value::numeric < 13 and gs.enc_id is null and gp.enc_id is null
+                     when pc.name = 'trews_inr' and pc.fid = 'inr' then (pc.value::numeric >= 1.5 and pc.value::numeric >= 0.5 + 0) and iw.enc_id is null
+                     when pc.name = 'trews_inr' and pc.fid = 'ptt' then iw.enc_id is null and pc.value::numeric > 60
+                     when pc.name = 'trews_platelet' and pc.fid = 'platelets' then pc.value::numeric < 100 and pc.value::numeric < 0.5 * 450
+                     else false end) as is_acute
             from pat_cvalues pc
             left join esrd on pc.enc_id = esrd.enc_id
-            left join gcs_stroke gs on pc.enc_id = gs.enc_id
+            left join gcs_stroke gs on pc.enc_id = gs.enc_id and pc.tsp = gs.tsp
             left join gcs_propofol gp on pc.enc_id = gp.enc_id and pc.tsp = gp.tsp
             left join inr_warfarin iw on pc.enc_id = iw.enc_id and pc.tsp = iw.tsp
-            left join vent on pc.enc_id = vent.enc_id and pc.tsp = vent.tsp
             left join platelet_gi_bleed pgb on pgb.enc_id = pc.enc_id and pc.tsp = pgb.tsp
             left join trews_map_idx tmi on pc.enc_id = tmi.enc_id and pc.tsp = tmi.tsp and pc.name = 'trews_map'
             left join trews_sbpm_idx tsi on pc.enc_id = tsi.enc_id and pc.tsp = tsi.tsp and pc.name = 'trews_sbpm'
             left join trews_dsbp_idx tdi on pc.enc_id = tdi.enc_id and pc.tsp = tdi.tsp and pc.name = 'trews_dsbp'
-            where pc.name in ('trews_bilirubin','trews_creatinine','trews_gcs','trews_inr','trews_lactate','trews_platelet','trews_map')
+            where pc.name in ('trews_bilirubin','trews_creatinine','trews_gcs','trews_inr','trews_lactate','trews_platelet','trews_map','trews_sbpm','trews_dsbp')
         ) ordered
         group by ordered.enc_id, ordered.name
     ),
@@ -1698,13 +1710,14 @@ return query
         group by ordered.enc_id, ordered.name
     ),
     severe_sepsis as (
-        select * from infection
-        union all select * from sirs
-        union all select * from respiratory_failures
-        union all select * from organ_dysfunction_except_rf
-        union all select * from trews
+        select *, null::boolean as is_acute from infection
+        union all select *, null::boolean as is_acute from sirs
+        union all select *, null::boolean as is_acute from respiratory_failures
+        union all select *, null::boolean as is_acute from organ_dysfunction_except_rf
+        union all select *, null::boolean as is_acute from trews
         union all select * from trews_orgdf
-        union all select * from trews_vasopressors
+        union all select *, null::boolean as is_acute from trews_vasopressors
+        union all select *, null::boolean as is_acute from trews_vent
     ),
     severe_sepsis_criteria as (
         with organ_dysfunction as (
@@ -2198,9 +2211,9 @@ return query
            septic_shock_now.septic_shock_onset
     from (
         select * from severe_sepsis
-        union all select * from septic_shock
-        union all select * from orders_criteria
-        union all select * from repeat_lactate
+        union all select *, null as is_acute from septic_shock
+        union all select *, null as is_acute from orders_criteria
+        union all select *, null as is_acute from repeat_lactate
     ) new_criteria
     left join severe_sepsis_now on new_criteria.enc_id = severe_sepsis_now.enc_id
     left join septic_shock_now on new_criteria.enc_id = septic_shock_now.enc_id;
@@ -2276,8 +2289,8 @@ BEGIN
 
     with criteria_inserts as
     (
-        insert into criteria (enc_id, name, measurement_time, value, override_time, override_user, override_value, is_met, update_date)
-        select enc_id, name, measurement_time, value, override_time, override_user, override_value, is_met, update_date
+        insert into criteria (enc_id, name, measurement_time, value, override_time, override_user, override_value, is_met, update_date, is_acute)
+        select enc_id, name, measurement_time, value, override_time, override_user, override_value, is_met, update_date, is_acute
         from new_criteria
         on conflict (enc_id, name) do update
         set is_met              = excluded.is_met,
@@ -2286,7 +2299,8 @@ BEGIN
             override_time       = excluded.override_time,
             override_user       = excluded.override_user,
             override_value      = excluded.override_value,
-            update_date         = excluded.update_date
+            update_date         = excluded.update_date,
+            is_acute            = excluded.is_acute
         returning *
     ),
     state_change as
@@ -2332,9 +2346,9 @@ BEGIN
         on si.enc_id = n.enc_id
     )
     insert into criteria_events (event_id, enc_id, name, measurement_time, value,
-                                 override_time, override_user, override_value, is_met, update_date, flag)
+                                 override_time, override_user, override_value, is_met, update_date, is_acute, flag)
     select s.event_id, c.enc_id, c.name, c.measurement_time, c.value,
-           c.override_time, c.override_user, c.override_value, c.is_met, c.update_date,
+           c.override_time, c.override_user, c.override_value, c.is_met, c.update_date, c.is_acute,
            s.state_to as flag
     from ( select ssid.event_id, si.enc_id, si.state_to
            from state_change si
@@ -2364,8 +2378,8 @@ BEGIN
         select * from get_states('new_criteria', this_enc_id)
     ),
     criteria_inserts as (
-        insert into criteria (enc_id, name, override_time, override_user, override_value, is_met, update_date)
-        select enc_id, name, override_time, override_user, override_value, is_met, update_date
+        insert into criteria (enc_id, name, override_time, override_user, override_value, is_met, update_date, is_acute)
+        select enc_id, name, override_time, override_user, override_value, is_met, update_date, is_acute
         from new_criteria
         where name in ( 'suspicion_of_infection', 'crystalloid_fluid' )
         on conflict (enc_id, name) do update
@@ -2375,7 +2389,8 @@ BEGIN
             override_time       = excluded.override_time,
             override_user       = excluded.override_user,
             override_value      = excluded.override_value,
-            update_date         = excluded.update_date
+            update_date         = excluded.update_date,
+            is_acute            = excluded.is_acute
         returning *
     ),
     deactivate_old_snapshot as (
@@ -2415,9 +2430,9 @@ BEGIN
         on pat_states.enc_id = n.enc_id
     )
     insert into criteria_events (event_id, enc_id, name, measurement_time, value,
-                                 override_time, override_user, override_value, is_met, update_date, flag)
+                                 override_time, override_user, override_value, is_met, update_date, is_acute, flag)
     select ssid.event_id, NC.enc_id, NC.name, NC.measurement_time, NC.value,
-           NC.override_time, NC.override_user, NC.override_value, NC.is_met, NC.update_date,
+           NC.override_time, NC.override_user, NC.override_value, NC.is_met, NC.update_date, NC.is_acute,
            pat_states.state as flag
     from new_criteria NC
     cross join (select nextval('criteria_event_ids') event_id) ssid
