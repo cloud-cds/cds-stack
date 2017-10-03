@@ -1522,15 +1522,39 @@ return query
     trews_map_idx as (
         select pc.enc_id, pc.tsp, pc.value from
         pat_cvalues pc left join pat_cvalues pc_next on pc.enc_id = pc_next.enc_id and pc_next.name = 'trews_map' and pc_next.fid = 'map' and pc_next.tsp > ts_end - '7 minutes'::interval and pc_next.tsp > pc.tsp
+        left join min_tsp on min_tsp.enc_id = pc.enc_id and min_tsp.tsp = pc.tsp
         where pc.name = 'trews_map' and pc.fid = 'map'
         and pc.value < 65
-        and ((pc.tsp <= ts_end - '7 minutes'::interval and pc_next.enc_id is not null) or pc.tsp > ts_end - '7 minutes'::interval)
+        and ((pc.tsp <= ts_end - '7 minutes'::interval and pc_next.enc_id is not null) or pc.tsp > ts_end - '7 minutes'::interval or min_tsp.tsp is not null)
+    ),
+    sbpm as (
+        select distinct pc.enc_id, pc.tsp, sbpm
+        from pat_cvalues pc left join cdm_twf on pc.enc_id = cdm_twf.enc_id and pc.tsp = cdm_twf.tsp
+        where sbpm_c < 8 and pc.name = 'trews_sbpm'
+    ),
+    sbpm_pair as (
+        with ordered as (select * from sbpm order by enc_id, tsp)
+        select ordered.*,
+        lag(enc_id) prev_enc_id, lag(tsp) prev_tsp, lag(sbpm) prev_sbpm
+        from ordered
+        where enc_id = lag(enc_id)
     ),
     trews_sbpm_idx as (
+        select distinct pc.enc_id, pc.tsp, pc.value from
+        pat_cvalues pc
+        left join sbpm on sbpm.enc_id = pc.enc_id and sbpm.tsp = pc.tsp
+        left join pat_cvalues pc_next on pc.enc_id = pc_next.enc_id and pc_next.name = 'trews_sbpm' and pc_next.fid = 'sbpm' and pc_next.tsp > ts_end - '7 minutes'::interval and pc_next.tsp > pc.tsp
+        left join sbpm as sbpm_next on pc_next.enc_id = sbpm_next.enc_id and pc_next.tsp = sbpm_next.tsp
+        left join min_tsp on min_tsp.enc_id = pc.enc_id and min_tsp.tsp = pc.tsp
+        where pc.name = 'trews_sbpm'
+        and sbpm.sbpm < 90
+        and ((pc.tsp <= ts_end - '7 minutes'::interval and pc_next.enc_id is not null) or pc.tsp > ts_end - '7 minutes'::interval or min_tsp.tsp is not null)
+    ),
+    trews_dsbp_idx as (
         select pc.enc_id, pc.tsp, pc.value from
-        pat_cvalues pc left join pat_cvalues pc_next on pc.enc_id = pc_next.enc_id and pc_next.name = 'trews_sbpm' and pc_next.fid = 'sbpm' and pc_next.tsp > ts_end - '7 minutes'::interval and pc_next.tsp > pc.tsp
-        where pc.name = 'trews_map' and pc.fid = 'map'
-        and pc.value < 90
+        sbpm_pair pc
+        left join pat_cvalues pc_next on pc.enc_id = pc_next.enc_id and pc_next.name = 'trews_sbpm' and pc_next.fid = 'sbpm' and pc_next.tsp > ts_end - '7 minutes'::interval and pc_next.tsp > pc.tsp
+        where pc.sbpm - pc.prev_sbpm < -40
         and ((pc.tsp <= ts_end - '7 minutes'::interval and pc_next.enc_id is not null) or pc.tsp > ts_end - '7 minutes'::interval)
     ),
     trews_orgdf as (
@@ -1561,8 +1585,9 @@ return query
                      when pc.name = 'trews_lactate' and pc.fid = 'lactate' then pc.value::numeric > 2
                      when pc.name = 'trews_platelet' and pc.fid = 'platelets' then pc.value::numeric < 100 and pc.value::numeric < 0.5 * 450 and pgb.enc_id is null
                      when pc.name = 'trews_vent' then vent.enc_id is not null
-                     when pc.name = 'trews_map' then tmi.enc_id is not null or (mt.enc_id is not null and pc.value::numeric < 65 and pc.fid = 'map')
-                     when pc.name = 'trews_sbpm' then tsi.enc_id is not null or (mt.enc_id is not null and pc.value::numeric < 90 and pc.fid = 'sbpm')
+                     when pc.name = 'trews_map' then tmi.enc_id is not null
+                     when pc.name = 'trews_sbpm' then tsi.enc_id is not null
+                     when pc.name = 'trews_dsbp' then tdi.enc_id is not null
                      else false end) as is_met
             from pat_cvalues pc
             left join esrd on pc.enc_id = esrd.enc_id
@@ -1573,7 +1598,7 @@ return query
             left join platelet_gi_bleed pgb on pgb.enc_id = pc.enc_id and pc.tsp = pgb.tsp
             left join trews_map_idx tmi on pc.enc_id = tmi.enc_id and pc.tsp = tmi.tsp and pc.name = 'trews_map'
             left join trews_sbpm_idx tsi on pc.enc_id = tsi.enc_id and pc.tsp = tsi.tsp and pc.name = 'trews_sbpm'
-            left join min_tsp mt on pc.enc_id = mt.enc_id and pc.tsp = mt.tsp
+            left join trews_dsbp_idx tdi on pc.enc_id = tdi.enc_id and pc.tsp = tdi.tsp and pc.name = 'trews_dsbp'
             where pc.name in ('trews_bilirubin','trews_creatinine','trews_gcs','trews_inr','trews_lactate','trews_platelet','trews_map')
         ) ordered
         group by ordered.enc_id, ordered.name
