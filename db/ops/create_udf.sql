@@ -461,7 +461,7 @@ BEGIN
             ) as set_cols from fid_date_type
         )
     select
-        'insert into cdm_twf (enc_id, tsp, ' || insert_cols || ')
+        'insert into ' || twf_table || ' (enc_id, tsp, ' || insert_cols || ')
         (
           select enc_id, tsp, ' || from_cols || '
           from
@@ -1343,6 +1343,11 @@ return query
         select distinct pat_enc.enc_id from pat_enc
         where pat_enc.enc_id = coalesce(this_enc_id, pat_enc.enc_id)
     ),
+    last_job_tsp as (
+        select e.enc_id, get_most_recent_job_tsp(h.hospital) tsp
+        from enc_ids e
+        left join lateral enc_hosp(e.enc_id) h on e.enc_id = h.enc_id
+    ),
     pat_urine_output as (
         select enc_ids.enc_id, sum(uo.value::numeric) as value
         from enc_ids
@@ -1515,17 +1520,18 @@ return query
             from enc_ids e
             left join trews ts on e.enc_id = ts.enc_id
             and ts.tsp between ts_start and ts_end
-            order by ts.tsp desc
+            order by ts.tsp
         ) ordered
         group by ordered.enc_id
     ),
     trews_map_idx as (
         select pc.enc_id, pc.tsp, pc.value from
-        pat_cvalues pc left join pat_cvalues pc_next on pc.enc_id = pc_next.enc_id and pc_next.name = 'trews_map' and pc_next.fid = 'map' and pc_next.tsp > ts_end - '7 minutes'::interval and pc_next.tsp > pc.tsp
+        pat_cvalues pc left join last_job_tsp ljt on pc.enc_id = ljt.enc_id
+        left join pat_cvalues pc_next on pc.enc_id = pc_next.enc_id and pc_next.name = 'trews_map' and pc_next.fid = 'map' and pc_next.tsp > ljt.tsp - '7 minutes'::interval and pc_next.tsp > pc.tsp
         left join min_tsp on min_tsp.enc_id = pc.enc_id and min_tsp.tsp = pc.tsp
         where pc.name = 'trews_map' and pc.fid = 'map'
         and pc.value::numeric < 65
-        and ((pc.tsp <= ts_end - '7 minutes'::interval and pc_next.enc_id is not null) or pc.tsp > ts_end - '7 minutes'::interval or min_tsp.tsp is not null)
+        and ((pc.tsp <= ljt.tsp - '7 minutes'::interval and pc_next.enc_id is not null) or pc.tsp > ljt.tsp - '7 minutes'::interval or min_tsp.tsp is not null)
     ),
     sbpm as (
         select distinct pc.enc_id, pc.tsp, sbpm
@@ -1545,21 +1551,21 @@ return query
     ),
     trews_sbpm_idx as (
         select distinct pc.enc_id, pc.tsp, sbpm.sbpm from
-        pat_cvalues pc
+        pat_cvalues pc left join last_job_tsp ljt on pc.enc_id = ljt.enc_id
         left join sbpm on sbpm.enc_id = pc.enc_id and sbpm.tsp = pc.tsp
-        left join pat_cvalues pc_next on pc.enc_id = pc_next.enc_id and pc_next.name = 'trews_sbpm' and pc_next.fid = 'sbpm' and pc_next.tsp > ts_end - '7 minutes'::interval and pc_next.tsp > pc.tsp
+        left join pat_cvalues pc_next on pc.enc_id = pc_next.enc_id and pc_next.name = 'trews_sbpm' and pc_next.fid = 'sbpm' and pc_next.tsp > ljt.tsp - '7 minutes'::interval and pc_next.tsp > pc.tsp
         left join sbpm as sbpm_next on pc_next.enc_id = sbpm_next.enc_id and pc_next.tsp = sbpm_next.tsp
         left join min_tsp on min_tsp.enc_id = pc.enc_id and min_tsp.tsp = pc.tsp
         where pc.name = 'trews_sbpm'
         and sbpm.sbpm < 90
-        and ((pc.tsp <= ts_end - '7 minutes'::interval and pc_next.enc_id is not null) or pc.tsp > ts_end - '7 minutes'::interval or min_tsp.tsp is not null)
+        and ((pc.tsp <= ljt.tsp - '7 minutes'::interval and pc_next.enc_id is not null) or pc.tsp > ljt.tsp - '7 minutes'::interval or min_tsp.tsp is not null)
     ),
     trews_dsbp_idx as (
         select pc.enc_id, pc.tsp, pc.sbpm from
-        sbpm_pair pc
-        left join pat_cvalues pc_next on pc.enc_id = pc_next.enc_id and pc_next.name = 'trews_sbpm' and pc_next.fid = 'sbpm' and pc_next.tsp > ts_end - '7 minutes'::interval and pc_next.tsp > pc.tsp
+        sbpm_pair pc left join last_job_tsp ljt on pc.enc_id = ljt.enc_id
+        left join pat_cvalues pc_next on pc.enc_id = pc_next.enc_id and pc_next.name = 'trews_sbpm' and pc_next.fid = 'sbpm' and pc_next.tsp > ljt.tsp - '7 minutes'::interval and pc_next.tsp > pc.tsp
         where pc.sbpm - pc.prev_sbpm < -40
-        and ((pc.tsp <= ts_end - '7 minutes'::interval and pc_next.enc_id is not null) or pc.tsp > ts_end - '7 minutes'::interval)
+        and ((pc.tsp <= ljt.tsp - '7 minutes'::interval and pc_next.enc_id is not null) or pc.tsp > ljt.tsp - '7 minutes'::interval)
     ),
     trews_orgdf as (
         select
@@ -3492,6 +3498,33 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION get_most_recent_job_tsp(IN regex TEXT)
+RETURNS timestamptz
+LANGUAGE plpgsql
+AS
+$$
+DECLARE
+    tsp     timestamptz;
+BEGIN
+    SELECT
+        to_timestamp(split_part(table_name, '_', 4), 'YYYYMMDDHH24MISS')
+        INTO tsp
+    FROM
+        information_schema.tables
+    WHERE
+        table_type = 'BASE TABLE'
+    AND
+        table_schema = 'workspace'
+    AND
+        table_name ~* regex
+    order by table_name desc
+    LIMIT 1;
+
+    RETURN tsp;
+END;
+$$;
+
+
 CREATE OR REPLACE FUNCTION drop_tables_pattern(IN _schema TEXT, IN pattern TEXT)
 RETURNS void
 LANGUAGE plpgsql
@@ -3648,6 +3681,15 @@ SELECT u.enc_id, (CASE WHEN unit ~* 'hc' THEN 'HCGH' WHEN unit ~* 'jh' THEN 'JHH
          ORDER BY t.enc_id,
                t.tsp DESC) c
    GROUP BY c.enc_id) u
+; END $func$ LANGUAGE plpgsql;
+
+
+create or replace function enc_last_etl_tsp(this_enc_id int default null)
+RETURNS
+table(enc_id int, hospital text)
+AS $func$ BEGIN RETURN QUERY
+SELECT 
+FROM enc_hosp(this_enc_id) h
 ; END $func$ LANGUAGE plpgsql;
 
 create or replace function get_recent_admit_pats(max_duration text)
