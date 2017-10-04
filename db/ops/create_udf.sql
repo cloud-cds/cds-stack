@@ -1315,7 +1315,10 @@ BEGIN
             end;
 END; $func$;
 
-
+CREATE or replace FUNCTION date_round(base_date timestamptz, round_interval INTERVAL) RETURNS timestamptz AS $BODY$
+SELECT TO_TIMESTAMP((EXTRACT(epoch FROM $1)::INTEGER + EXTRACT(epoch FROM $2)::INTEGER / 2)
+                / EXTRACT(epoch FROM $2)::INTEGER * EXTRACT(epoch FROM $2)::INTEGER)
+$BODY$ LANGUAGE SQL STABLE;
 
 CREATE OR REPLACE FUNCTION calculate_criteria(this_enc_id int, ts_start timestamptz, ts_end timestamptz)
  RETURNS table(enc_id                               int,
@@ -1342,11 +1345,6 @@ return query
     with enc_ids as (
         select distinct pat_enc.enc_id from pat_enc
         where pat_enc.enc_id = coalesce(this_enc_id, pat_enc.enc_id)
-    ),
-    last_job_tsp as (
-        select e.enc_id, get_most_recent_job_tsp(h.hospital) tsp
-        from enc_ids e
-        left join lateral enc_hosp(e.enc_id) h on e.enc_id = h.enc_id
     ),
     pat_urine_output as (
         select enc_ids.enc_id, sum(uo.value::numeric) as value
@@ -1468,6 +1466,7 @@ return query
             from pat_cvalues pc left join cdm_t t on pc.enc_id = t.enc_id
             and t.fid ~ '^(dopamine|vasopressin|epinephrine|levophed_infusion|neosynephrine)_dose$'
             and (pc.tsp between t.tsp and t.tsp + '6 hours'::interval)
+            order by pc.tsp
         ) ordered
         group by ordered.enc_id, ordered.name
     ),
@@ -1493,6 +1492,7 @@ return query
             from pat_cvalues pc left join cdm_t t on pc.enc_id = t.enc_id
             and t.fid in ('vent', 'cpap', 'bipap')
             and (pc.tsp between t.tsp and t.tsp + '48 hours'::interval)
+            order by pc.tsp
         ) ordered
         group by ordered.enc_id, ordered.name
     ),
@@ -1524,48 +1524,72 @@ return query
         ) ordered
         group by ordered.enc_id
     ),
+    map_pair as (
+        select pc.*,
+        lag(pc.enc_id, -1) over (order by pc.enc_id, pc.tsp) next_enc_id,
+        lag(pc.tsp, -1) over (order by pc.enc_id, pc.tsp) next_tsp,
+        lag(pc.value, -1) over (order by pc.enc_id, pc.tsp) next_value,
+        date_round(pc.tsp, '15 minutes') ceil_tsp
+        from pat_cvalues pc
+        where pc.fid = 'map'
+    ),
     trews_map_idx as (
         select pc.enc_id, pc.tsp, pc.value from
-        pat_cvalues pc left join last_job_tsp ljt on pc.enc_id = ljt.enc_id
-        left join pat_cvalues pc_next on pc.enc_id = pc_next.enc_id and pc_next.name = 'trews_map' and pc_next.fid = 'map' and pc_next.tsp > ljt.tsp - '7 minutes'::interval and pc_next.tsp > pc.tsp
-        left join min_tsp on min_tsp.enc_id = pc.enc_id and min_tsp.tsp = pc.tsp
-        where pc.name = 'trews_map' and pc.fid = 'map'
-        and pc.value::numeric < 65
-        and ((pc.tsp <= ljt.tsp - '7 minutes'::interval and pc_next.enc_id is not null) or pc.tsp > ljt.tsp - '7 minutes'::interval or min_tsp.tsp is not null)
+        map_pair pc left join min_tsp on pc.enc_id = min_tsp.enc_id and pc.tsp = min_tsp.tsp
+        where pc.value::numeric < 65
+        and ((
+            pc.enc_id = pc.next_enc_id
+            and
+            (
+                (pc.tsp <= pc.ceil_tsp - '7 minutes'::interval and pc.next_tsp <= pc.ceil_tsp)
+                or pc.tsp > pc.ceil_tsp - '7 minutes'::interval
+            )
+        ) or min_tsp.tsp is not null)
     ),
     sbpm as (
         select distinct pc.enc_id, pc.tsp, sbpm
         from pat_cvalues pc left join cdm_twf on pc.enc_id = cdm_twf.enc_id and pc.tsp = cdm_twf.tsp
         where sbpm_c < 8 and pc.name = 'trews_sbpm'
     ),
-    sbpm_pair as (
-        with paired as (
-            select sbpm.*,
-            lag(sbpm.enc_id) over (order by sbpm.enc_id, sbpm.tsp) prev_enc_id,
-            lag(sbpm.tsp) over (order by sbpm.enc_id, sbpm.tsp) prev_tsp,
-            lag(sbpm.sbpm) over (order by sbpm.enc_id, sbpm.tsp) prev_sbpm
-            from sbpm
-        )
-        select * from paired
-        where paired.enc_id = paired.prev_enc_id
+    sbpm_triple as (
+        select sbpm.*,
+        lag(sbpm.enc_id) over (order by sbpm.enc_id, sbpm.tsp) prev_enc_id,
+        lag(sbpm.tsp) over (order by sbpm.enc_id, sbpm.tsp) prev_tsp,
+        lag(sbpm.sbpm) over (order by sbpm.enc_id, sbpm.tsp) prev_sbpm,
+        lag(sbpm.enc_id,-1) over (order by sbpm.enc_id, sbpm.tsp) next_enc_id,
+        lag(sbpm.tsp,-1) over (order by sbpm.enc_id, sbpm.tsp) next_tsp,
+        lag(sbpm.sbpm,-1) over (order by sbpm.enc_id, sbpm.tsp) next_sbpm,
+        date_round(sbpm.tsp, '15 minutes') ceil_tsp
+        from sbpm
     ),
     trews_sbpm_idx as (
         select distinct pc.enc_id, pc.tsp, sbpm.sbpm from
-        pat_cvalues pc left join last_job_tsp ljt on pc.enc_id = ljt.enc_id
-        left join sbpm on sbpm.enc_id = pc.enc_id and sbpm.tsp = pc.tsp
-        left join pat_cvalues pc_next on pc.enc_id = pc_next.enc_id and pc_next.name = 'trews_sbpm' and pc_next.fid = 'sbpm' and pc_next.tsp > ljt.tsp - '7 minutes'::interval and pc_next.tsp > pc.tsp
-        left join sbpm as sbpm_next on pc_next.enc_id = sbpm_next.enc_id and pc_next.tsp = sbpm_next.tsp
-        left join min_tsp on min_tsp.enc_id = pc.enc_id and min_tsp.tsp = pc.tsp
+        pat_cvalues pc left join sbpm_triple sbpm on pc.enc_id = sbpm.enc_id and pc.tsp = sbpm.tsp
+        left join min_tsp on pc.enc_id = min_tsp.enc_id and pc.tsp = min_tsp.tsp
         where pc.name = 'trews_sbpm'
         and sbpm.sbpm < 90
-        and ((pc.tsp <= ljt.tsp - '7 minutes'::interval and pc_next.enc_id is not null) or pc.tsp > ljt.tsp - '7 minutes'::interval or min_tsp.tsp is not null)
+        and (
+            (
+                sbpm.enc_id = sbpm.next_enc_id and
+                ((sbpm.tsp <= ceil_tsp - '7 minutes'::interval and sbpm.next_tsp <= ceil_tsp)
+                or sbpm.tsp > ceil_tsp - '7 minutes'::interval)
+            )
+            or min_tsp.tsp is not null
+        )
     ),
     trews_dsbp_idx as (
-        select pc.enc_id, pc.tsp, pc.sbpm from
-        sbpm_pair pc left join last_job_tsp ljt on pc.enc_id = ljt.enc_id
-        left join pat_cvalues pc_next on pc.enc_id = pc_next.enc_id and pc_next.name = 'trews_sbpm' and pc_next.fid = 'sbpm' and pc_next.tsp > ljt.tsp - '7 minutes'::interval and pc_next.tsp > pc.tsp
-        where pc.sbpm - pc.prev_sbpm < -40
-        and ((pc.tsp <= ljt.tsp - '7 minutes'::interval and pc_next.enc_id is not null) or pc.tsp > ljt.tsp - '7 minutes'::interval)
+        select distinct pc.enc_id, pc.tsp, sbpm.sbpm from
+        pat_cvalues pc left join sbpm_triple sbpm on pc.enc_id = sbpm.enc_id and pc.tsp = sbpm.tsp
+        left join min_tsp on pc.enc_id = min_tsp.enc_id and pc.tsp = min_tsp.tsp
+        where pc.name = 'trews_sbpm' and sbpm.prev_enc_id = sbpm.enc_id
+        and sbpm.sbpm - sbpm.prev_sbpm < -40
+        and (
+                sbpm.enc_id = sbpm.next_enc_id and
+                (
+                    (sbpm.tsp <= ceil_tsp - '7 minutes'::interval and sbpm.next_tsp <= ceil_tsp)
+                    or sbpm.tsp > ceil_tsp - '7 minutes'::interval
+                )
+            )
     ),
     trews_orgdf as (
         select
@@ -1618,6 +1642,7 @@ return query
             left join trews_sbpm_idx tsi on pc.enc_id = tsi.enc_id and pc.tsp = tsi.tsp and pc.name = 'trews_sbpm'
             left join trews_dsbp_idx tdi on pc.enc_id = tdi.enc_id and pc.tsp = tdi.tsp and pc.name = 'trews_dsbp'
             where pc.name in ('trews_bilirubin','trews_creatinine','trews_gcs','trews_inr','trews_lactate','trews_platelet','trews_map','trews_sbpm','trews_dsbp')
+            order by pc.tsp
         ) ordered
         group by ordered.enc_id, ordered.name
     ),
