@@ -1459,7 +1459,7 @@ return query
             pc.c_ouser,
             pc.c_ovalue,
             t.fid || ':' || t.value as value,
-            (case when t.enc_id is null then true else false end) as is_met
+            (case when t.enc_id is not null then true else false end) as is_met
             from pat_cvalues pc left join cdm_t t on pc.enc_id = t.enc_id
             and t.fid ~ '^(dopamine|vasopressin|epinephrine|levophed_infusion|neosynephrine)_dose$'
             and (pc.tsp between t.tsp and t.tsp + '6 hours'::interval)
@@ -1484,7 +1484,7 @@ return query
             pc.c_ouser,
             pc.c_ovalue,
             t.fid || ':' || t.value as value,
-            (case when t.enc_id is null then true else false end) as is_met
+            (case when t.enc_id is not null then true else false end) as is_met
             from pat_cvalues pc left join cdm_t t on pc.enc_id = t.enc_id
             and t.fid in ('vent', 'cpap', 'bipap')
             and (pc.tsp between t.tsp and t.tsp + '48 hours'::interval)
