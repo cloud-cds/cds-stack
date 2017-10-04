@@ -8,7 +8,7 @@ import pandas as pd
 import re
 
 
-async def calculate_major_blood_loss(output_fid, input_fid_string, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
+async def calculate_major_blood_loss(output_fid, input_fid_string, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
   """
   fid_input should be name of the feature for which change is to be computed
   fid should be <fid of old feather>_change
@@ -100,7 +100,7 @@ async def calculate_major_blood_loss(output_fid, input_fid_string, conn, log, da
 
   return output_fid
 
-async def calc_num_administrations(output_fid, input_fid_string, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
+async def calc_num_administrations(output_fid, input_fid_string, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
 
   name_prefix = input_fid_string[:-5] # removes _dose
   # input should looks like something _X_dose, and output should look like X_num_admin
@@ -151,7 +151,7 @@ async def calc_num_administrations(output_fid, input_fid_string, conn, log, data
   return output_fid
 
 
-async def calc_acute_heart_failure(output_fid, input_fid_string, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
+async def calc_acute_heart_failure(output_fid, input_fid_string, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
 
     assert output_fid == 'acute_heart_failure', 'output fid should be acute_heart_failure'
 
@@ -203,7 +203,7 @@ async def calc_acute_heart_failure(output_fid, input_fid_string, conn, log, data
     return output_fid
 
 
-async def calc_cardiogenic_shock(output_fid, input_fid_string, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
+async def calc_cardiogenic_shock(output_fid, input_fid_string, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
 
     assert output_fid == 'cardiogenic_shock', 'output fid should be cardiogenic_shock'
 
@@ -278,7 +278,7 @@ async def calc_cardiogenic_shock(output_fid, input_fid_string, conn, log, datase
     return output_fid
 
 
-async def code_doc_note_update(output_fid, input_fid_string, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
+async def code_doc_note_update(output_fid, input_fid_string, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
 
     assert output_fid == 'code_doc_note', 'output fid should be code_doc_note'
 
@@ -335,7 +335,7 @@ async def code_doc_note_update(output_fid, input_fid_string, conn, log, dataset_
     return output_fid
 
 
-async def hosp_admit_update(output_fid, input_fid_string, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental):
+async def hosp_admit_update(output_fid, input_fid_string, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
     assert output_fid == 'hosp_admit', 'output fid should be hosp_admit'
 
     input_fid = [item.strip() for item in input_fid_string.split(',')]
