@@ -2417,10 +2417,7 @@ BEGIN
                     first(new_criteria.severe_sepsis_onset) severe_sepsis_onset,
                     first(new_criteria.septic_shock_onset) septic_shock_onset,
                     first(new_criteria.severe_sepsis_wo_infection_onset) severe_sepsis_wo_infection_onset,
-                    first(new_criteria.severe_sepsis_wo_infection_initial) severe_sepsis_wo_infection_initial,
-                    first(new_criteria.trews_severe_sepsis_onset) trews_severe_sepsis_onset,
-                    first(new_criteria.trews_severe_sepsis_wo_infection_onset) trews_severe_sepsis_wo_infection_onset,
-                    first(new_criteria.trews_severe_sepsis_wo_infection_initial) trews_severe_sepsis_wo_infection_initial
+                    first(new_criteria.severe_sepsis_wo_infection_initial) severe_sepsis_wo_infection_initial
             from new_criteria
             group by new_criteria.enc_id
         ) nc on pat_states.enc_id = nc.enc_id
@@ -2429,9 +2426,6 @@ BEGIN
             nc.septic_shock_onset,
             nc.severe_sepsis_wo_infection_onset,
             nc.severe_sepsis_wo_infection_initial,
-            nc.trews_severe_sepsis_onset,
-            nc.trews_severe_sepsis_wo_infection_onset,
-            nc.trews_severe_sepsis_wo_infection_initial,
             'override') n
         on pat_states.enc_id = n.enc_id
     )
