@@ -4,7 +4,7 @@ import etl.load.primitives.tbl.clean_tbl as clean_tbl
 from etl.load.primitives.tbl.derive_helper import *
 
 
-async def time_since_last_measured(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
+async def time_since_last_measured(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
     # this function is not ready
     """
     fid_input should be name of the feature for which change is to be computed

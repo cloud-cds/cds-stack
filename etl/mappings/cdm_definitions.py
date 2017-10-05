@@ -1,3 +1,6 @@
+"""
+diag, hist, and prob are not included in this cdm_defs
+"""
 cdm_defs = {
     'abp': {
         'unit':     'mmHg',
@@ -22,6 +25,12 @@ cdm_defs = {
         'value':    float,
         'thresh':   (None, None),
         'human_readable':   'Albumin',
+    },
+    'alt_liver_enzymes': {
+        'unit':     'Units/L',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'ALT Liver Enzymes',
     },
     'amoxicillin_dose': {
         'unit':     'mg',
@@ -76,6 +85,12 @@ cdm_defs = {
         'value':    float,
         'thresh':   (0, 50),
         'human_readable':   'Bilirubin',
+    },
+    'bicarbonate': {
+        'unit':     'mmol/L',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Bicarbonate',
     },
     'bipap': {
         'unit':     '',
@@ -185,6 +200,12 @@ cdm_defs = {
         'thresh':   (None, None),
         'human_readable':   'D-Dimer'
     },
+    'dialysis': {
+        'unit':     'ml',
+        'value':    float,
+        'thresh':   (0.01, None),
+        'human_readable':   'Dialysis'
+    },
     'dobutamine_dose': {
         'unit':     'mcg/kg/min',
         'value':    float,
@@ -244,6 +265,12 @@ cdm_defs = {
         'value':    float,
         'thresh':   (4, 20),
         'human_readable':   'Hemoglobin',
+    },
+    'heparin_dose': {
+        'unit':     'mg',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Heparin',
     },
     'hetastarch': {
         'unit':     '',
@@ -401,6 +428,12 @@ cdm_defs = {
         'thresh':   (None, None),
         'human_readable':   'Partial thromboplastin time (PTT)',
     },
+    'propofol_dose': {
+        'unit':     'mg',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Propofol',
+    },
     'rapamycin_dose': {
         'unit':     'mg',
         'value':    float,
@@ -496,6 +529,12 @@ cdm_defs = {
         'value':    str,
         'thresh':   (None, None),
         'human_readable':   'Mechanical Ventilation',
+    },
+    'warfarin_dose': {
+        'unit':     'mg',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Warfarin',
     },
     'wbc': {
         'unit':     '1000/uL',

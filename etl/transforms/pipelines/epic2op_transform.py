@@ -50,6 +50,7 @@ flowsheet_transforms = [
         drop_original = True,
     ),
     lambda fs: format_data.clean_units(fs, 'fid', 'unit'),
+    lambda fs: translate.convert_weight_value_to_float(fs, 'fid', 'value', 'weight'),
     lambda fs: format_data.clean_values(fs, 'fid', 'value'),
     lambda fs: translate.extract_sys_dias_from_bp(fs, 'fid', 'value', 'nbp'),
     lambda fs: translate.extract_sys_dias_from_bp(fs, 'fid', 'value', 'abp'),
@@ -63,8 +64,14 @@ flowsheet_transforms = [
         unit_col = 'unit', from_unit = '', to_unit = '',
         value_col = 'value', convert_func = translate.rass_str_to_number
     ),
+    lambda fs: translate.convert_units(fs,
+        fid_col = 'fid', fids = ['dialysis'],
+        unit_col = 'unit', from_unit = '', to_unit = '',
+        value_col = 'value', convert_func = translate.ml_to_boolean
+    ),
     lambda fs: format_data.filter_to_final_units(fs, 'unit'),
     lambda fs: format_data.threshold_values(fs, 'value'),
+    lambda fs: translate.convert_to_boolean(fs, 'fid', 'value', 'dialysis')
     # lambda fs: derive.sum_values_at_same_tsp(fs,
     #     ['urine_output', 'fluids_intake']
     # ),
@@ -224,9 +231,9 @@ med_admin_transforms = [
     }),
     lambda ma: translate.translate_med_name_to_fid(ma),
     lambda ma: filter_rows.filter_medications(ma),
-    lambda ma: filter_rows.filter_stopped_medications(ma),
+    #lambda ma: filter_rows.filter_stopped_medications(ma),
     #lambda ma: translate.override_empty_doses_with_rates(ma, fid_col='fid', fids=['sodium_bicarbonate']),
-    lambda ma: filter_rows.filter_by_doses(ma),
+    #lambda ma: filter_rows.filter_by_doses(ma),
     lambda ma: translate.convert_units(ma,
         fid_col = 'fid',
         fids = ['piperacillin_tazobac_dose', 'vancomycin_dose',
@@ -245,8 +252,7 @@ med_admin_transforms = [
     lambda ma: derive.combine(ma, 'vasopressors_dose', vasopressors_fids),
     lambda ma: derive.combine(ma, 'crystalloid_fluid', crystalloid_fluid_fids),
     lambda ma: derive.combine(ma, 'cms_antibiotics', cms_antibiotics_fids),
-    lambda ma: format_data.threshold_values(ma, 'dose_value'),
-    # lambda ma: derive.derive_fluids_intake(ma)
+    # lambda ma: format_data.threshold_values(ma, 'dose_value')
 ]
 
 loc_history_transforms = [

@@ -91,6 +91,23 @@ def extract_sys_dias_from_bp(df, fid_col, value_col, bp):
     # df = df.append([bp_sys, bp_dias])
     return df
 
+def convert_to_boolean(df, fid_col, value_col, fid):
+    def convert_to_boolean_in_row(row):
+        row[value_col] = True if row[value_col] > 0 else False
+        return row
+    rows = (df[fid_col] == fid)
+    df[rows] = df[rows].apply(convert_to_boolean_in_row, axis=1)
+    return df
+
+def convert_weight_value_to_float(df, fid_col, value_col, fid):
+    def convert_weight_value_to_float_in_row(row):
+        if '(' in row[value_col]:
+            row[value_col] = row[value_col].split(" ")[0]
+        return row
+    rows = (df[fid_col] == fid)
+    df[rows] = df[rows].apply(convert_weight_value_to_float_in_row, axis=1)
+    return df
+
 def convert_units(df, fid_col, fids, unit_col, from_unit, to_unit, value_col, convert_func):
     def convert_val_in_row(row):
         row[unit_col] = to_unit
@@ -109,6 +126,9 @@ def g_per_l_to_g_per_dl(value):
 
 def g_to_mg(value):
     return float(value)/10.0
+
+def ml_to_boolean(value):
+    return True if float(value) > 0 else False
 
 def ml_per_hr_to_ml_for_1hr(value):
     return float(value)

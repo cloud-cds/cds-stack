@@ -165,6 +165,18 @@ async def workspace_to_cdm(ctxt, job_id):
 async def load_online_prediction_parameters(ctxt, job_id):
   async with ctxt.db_pool.acquire() as conn:
     ctxt.log.info("load online_prediction_features")
+    # Load features needed for criteria
+    query_criteria_feature = '''
+    select unnest(string_to_array(value, ',')) fid from parameters where name = 'criteria_required_derive_fids'
+    '''
+    criteria_features = await conn.fetch(query_criteria_feature)
+    criteria_features = [f['fid'] for f in criteria_features]
+    # Load features needed for jit
+    query_jit_feature = '''
+    select unnest(string_to_array(value, ',')) fid from parameters where name = 'jit_required_twf_fids'
+    '''
+    jit_features = await conn.fetch(query_jit_feature)
+    jit_features = [f['fid'] for f in jit_features]
     # Load features needed for lmc
     query_lmc_feature = '''
     select f.fid
@@ -193,7 +205,7 @@ async def load_online_prediction_parameters(ctxt, job_id):
     # Get cdm feature dict
     cdm_feature = await conn.fetch("select * from cdm_feature")
     cdm_feature_dict = {f['fid']:dict(f) for f in cdm_feature}
-    required_fids = set(list(feature_weights.keys()) + lmc_features)
+    required_fids = set(list(feature_weights.keys()) + lmc_features + criteria_features + jit_features)
     # list the measured features for online prediction
     features_with_intermediates = get_features_with_intermediates(\
       required_fids, cdm_feature_dict)
@@ -270,12 +282,14 @@ async def workspace_derive(ctxt, prediction_params, job_id):
   max_backoff = 60
 
   async with ctxt.db_pool.acquire() as conn:
+    res = await conn.fetchrow("select value from parameters where name = 'etl_workspace_lookbackhours'")
+    lookbackhours = res['value']
     for fid in derive_feature_order:
       attempts = 0
       while True:
         try:
           ctxt.log.info("deriving fid {}".format(fid))
-          await derive_feature(ctxt.log, fid, cdm_feature_dict, conn, derive_feature_addr=derive_feature_addr)
+          await derive_feature(ctxt.log, fid, cdm_feature_dict, conn, derive_feature_addr=derive_feature_addr, cdm_t_lookbackhours=lookbackhours)
           break
         except Exception as e:
           attempts += 1
@@ -421,7 +435,7 @@ def _get_feature_description_report(features, dictionary):
   num = len(features)
   features_description = {}
   for fid in features:
-    description = dictionary[fid]['description'].lower()
+    description = dictionary[fid]['description'].lower() if dictionary[fid]['description'] else 'null'
     if description in features_description:
       features_description[description].append(fid)
     else:

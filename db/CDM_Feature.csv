@@ -137,6 +137,9 @@ gentamicin_dose,T,JSON,yes,no,,3,,,Medication,1,mg
 fluids_intake_1hr,TWF,Real,no,no,,,fluids_intake_1hr,fluids_intake,,1,ml
 co2,TWF,Real,yes,no,last_value_in_window,28,,,"Lab, carbon dioxide",1,mmol/L
 heparin_dose,T,JSON,yes,no,,,,,Medication,1,
+heparin_dose_order,T,String,yes,no,,,,,Medication Orders,1,
+warfarin_dose_order,T,String,yes,no,,,,,Medication Orders,1,
+propofol_dose_order,T,String,yes,no,,,,,Medication Orders,1,
 heart_arrhythmias_prob,S,Boolean,yes,no,,,,,ProblemList,1,no unit
 acebutolol_dose,T,JSON,yes,no,,,,,Medication,1,
 dbpm,TWF,Real,no,no,,,dbpm_update,"abp_dias, nbp_dias","feaure based on BP dias, Diastolic blood pressure (combines invasive and noninvasive), it should not be sparse",1,mmHg

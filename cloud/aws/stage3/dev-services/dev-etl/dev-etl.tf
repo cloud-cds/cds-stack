@@ -97,6 +97,7 @@ resource "aws_lambda_function" "dev_etl_lambda_HCGH" {
         k8s_job_TREWS_ETL_STREAM_SLEEP_SECS  = "${var.DEV_ETL_STREAM_SLEEP_SECS}"
         k8s_job_TREWS_ETL_EPIC_NOTIFICATIONS = "${var.DEV_ETL_EPIC_NOTIFICATIONS}" # disabled when suppression <> 0
         k8s_job_TREWS_ETL_SUPPRESSION = "2"
+        k8s_job_TREWS_ALERT_SERVER_IP = "jit-alerts.default.svc.cluster.local"
       }
     }
 }
@@ -152,6 +153,7 @@ resource "aws_lambda_function" "dev_etl_lambda_JHH" {
         k8s_job_TREWS_ETL_STREAM_SLEEP_SECS  = "${var.DEV_ETL_STREAM_SLEEP_SECS}"
         k8s_job_TREWS_ETL_EPIC_NOTIFICATIONS = "${var.DEV_ETL_EPIC_NOTIFICATIONS}"
         k8s_job_TREWS_ETL_SUPPRESSION = "2"
+        k8s_job_TREWS_ALERT_SERVER_IP = "jit-alerts.default.svc.cluster.local"
       }
     }
 }
@@ -207,6 +209,7 @@ resource "aws_lambda_function" "dev_etl_lambda_BMC" {
         k8s_job_TREWS_ETL_STREAM_SLEEP_SECS  = "${var.DEV_ETL_STREAM_SLEEP_SECS}"
         k8s_job_TREWS_ETL_EPIC_NOTIFICATIONS = "${var.DEV_ETL_EPIC_NOTIFICATIONS}"
         k8s_job_TREWS_ETL_SUPPRESSION = "2"
+        k8s_job_TREWS_ALERT_SERVER_IP = "jit-alerts.default.svc.cluster.local"
       }
     }
 }

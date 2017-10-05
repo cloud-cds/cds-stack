@@ -1,6 +1,6 @@
 from etl.transforms.primitives.df import translate
 from etl.mappings.flowsheet_ids import flowsheet_ids
-from etl.mappings.lab_results import component_ids
+from etl.mappings.component_ids import component_ids
 from etl.core import test_utils
 import pandas as pd
 import pytest

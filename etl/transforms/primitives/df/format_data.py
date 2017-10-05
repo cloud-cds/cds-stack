@@ -104,7 +104,7 @@ def clean_units(df, fid_col, unit_col):
 
 
 def clean_values(df, fid_col, value_col, bad_values = ['see below', '', 'N/A', None, 'Unable to calculate', '---.--',
-    'SEE COMMENT', 'TNP @COMM', '@COMM']):
+    'SEE COMMENT', 'TNP @COMM', '@COMM', 'Pending']):
     def clean_value(row):
         val = row[value_col]
         fid = row[fid_col]
@@ -112,7 +112,7 @@ def clean_values(df, fid_col, value_col, bad_values = ['see below', '', 'N/A', N
             logging.info('Known bad value:\n' + row.to_string())
             return 'Invalid Value'
         if cdm_defs[fid]['value'] == float:
-            val = str(val).replace('<','').replace('>','')
+            val = str(val).replace('<','').replace('>','').replace(',','')
             if val.replace('.','',1).isdigit():
                 return float(val)
             elif re.search('.*-([\d]+)', val):

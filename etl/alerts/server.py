@@ -123,7 +123,13 @@ class AlertServer:
       logging.info("alert_message_queue recv msg: {}".format(msg))
       # Predictor finished
       if msg.get('type') == 'FIN':
-        suppression_future = asyncio.ensure_future(self.run_lmc_suppression(msg), loop=self.loop)
+        if self.model == 'lmc' or self.model == 'trews-jit':
+          if self.TREWS_ETL_SUPPRESSION == 1:
+            suppression_future = asyncio.ensure_future(self.run_suppression(msg), loop=self.loop)
+          elif self.TREWS_ETL_SUPPRESSION == 2:
+            suppression_future = asyncio.ensure_future(self.run_suppression_mode_2(msg), loop=self.loop)
+        else:
+          logging.error("Unknown model: {}".format(self.model))
         self.suppression_tasks[msg['hosp']].append(suppression_future)
         logging.info("create lmc suppression task for {}".format(msg['hosp']))
     logging.info("alert_queue_consumer quit")
@@ -132,13 +138,39 @@ class AlertServer:
     ''' Alert suppression task for a single patient
         and notify frontend that the patient has updated'''
 
-  async def run_lmc_suppression(self, msg):
+  async def run_suppression_mode_2(self, msg):
+    tsp = msg['time']
+    enc_id_str = ','.join([str(i) for i in msg['enc_ids']])
+    hospital = msg['hosp']
+    logging.info("received FIN for enc_ids: {}".format(pats_str))
+    # calculate criteria here
+    await self.calculate_criteria_enc(conn, enc_id_str)
+    if self.notify_web:
+      sql = '''
+      with pats as (
+        select p.enc_id, p.pat_id from pat_enc p
+        where p.enc_id in ({enc_id_str})
+      ),
+      refreshed as (
+        insert into refreshed_pats (refreshed_tsp, pats)
+        select now(), jsonb_agg(pat_id) from pats
+        returning id
+      )
+      select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
+      '''.format(channel=self.channel, model=self.model, enc_id_str=enc_id_str)
+      logging.info("trews alert sql: {}".format(sql))
+      await conn.fetch(sql)
+      logging.info("generated trews alert for {}".format(hospital))
+
+
+  async def run_suppression(self, msg):
     # Wait for Advance Criteria Snapshot to finish and then start generating notifications
     tsp = msg['time']
     pat_ids = await self.convert_enc_ids_to_pat_ids(msg['enc_ids'])
-    pats_str = ','.join([str(i) for i in enc_ids])
+    pats_str = ','.join([str(i) for i in pat_ids])
     hospital = msg['hosp']
     logging.info("received FIN for enc_ids: {}".format(pats_str))
+
     async def criteria_ready(conn, enc_ids, tsp):
       '''
       criteria is ready when
@@ -213,6 +245,17 @@ class AlertServer:
     logging.info("calculate_criteria sql: {}".format(sql))
     await conn.fetch(sql)
 
+  async def calculate_criteria_enc(self, conn, enc_id_str):
+    server = 'dev_db' if 'dev' in self.channel else 'prod_db'
+    sql = 'select garbage_collection();'
+    logging.info("calculate_criteria sql: {}".format(sql))
+    await conn.fetch(sql)
+    sql = '''
+    select distribute_advance_criteria_snapshot_for_enc('{server}', {hours}, '{enc_id_str}', {nprocs});
+    '''.format(server=server,hours=self.lookbackhours,enc_id_str=enc_id_str,nprocs=self.nprocs)
+    logging.info("calculate_criteria sql: {}".format(sql))
+    await conn.fetch(sql)
+
   async def run_trews_alert(self, job_id, hospital):
     async with self.db_pool.acquire() as conn:
       if self.TREWS_ETL_SUPPRESSION == 2:
@@ -277,7 +320,7 @@ class AlertServer:
       return await self.predictor_manager.register(reader, writer, message)
 
     elif message.get('type') == 'ETL':
-      if self.model == 'lmc':
+      if self.model == 'lmc' or self.model == 'trews-jit':
         self.garbage_collect_suppression_tasks(message['hosp'])
         self.predictor_manager.cancel_predict_tasks(hosp=message['hosp'])
         self.predictor_manager.create_predict_tasks(hosp=message['hosp'],

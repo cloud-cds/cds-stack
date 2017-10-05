@@ -1,6 +1,6 @@
 from etl.core.exceptions import TransformError
 from etl.core.config import Config
-from etl.transforms.pipelines import jhapi as jhapi_transform_lists
+from etl.transforms.pipelines import epic2op_transform as jhapi_transform_lists
 import etl.load.pipelines.epic2op as loader
 from etl.load.pipelines.criteria import get_criteria_tasks
 from etl.core.task import Task
@@ -44,7 +44,7 @@ def main(max_pats=None, hospital=None, lookback_hours=None, db_name=None, repl=F
   }
   hospital = hospital or core.get_environment_var('TREWS_ETL_HOSPITAL')
   # Create data for loader
-  job_id = "job_etl_{}_{}".format(hospital, dt.datetime.now().strftime('%m%d%H%M%S')).lower()
+  job_id = "job_etl_{}_{}".format(hospital, dt.datetime.now().strftime('%Y%m%d%H%M%S')).lower()
   archive = int(core.get_environment_var('TREWS_ETL_ARCHIVE', 0))
   lookback_hours = lookback_hours or core.get_environment_var('TREWS_ETL_HOURS')
   # Create jhapi_extractor
