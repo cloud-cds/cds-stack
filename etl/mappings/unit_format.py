@@ -63,4 +63,6 @@ empty_translation_map = {
     'lactated_ringers': '',
     'cefazolin_dose':   '',
     'neosynephrine_dose':   '',
+    'alt_liver_enzymes':    'Units/L',
+    'ast_liver_enzymes':    'Units/L',
 }

@@ -1,6 +1,6 @@
 from etl.core.exceptions import TransformError
 from etl.core.config import Config
-from etl.transforms.pipelines import jhapi as jhapi_transform_lists
+from etl.transforms.pipelines import epic2op_transform as jhapi_transform_lists
 import etl.load.pipelines.epic2op as loader
 from etl.load.pipelines.criteria import get_criteria_tasks
 from etl.core.task import Task

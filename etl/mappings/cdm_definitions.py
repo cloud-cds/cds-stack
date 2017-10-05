@@ -27,7 +27,7 @@ cdm_defs = {
         'human_readable':   'Albumin',
     },
     'alt_liver_enzymes': {
-        'unit':     '',
+        'unit':     'Units/L',
         'value':    float,
         'thresh':   (None, None),
         'human_readable':   'ALT Liver Enzymes',
@@ -57,7 +57,7 @@ cdm_defs = {
         'human_readable':   'Arterial pH',
     },
     'ast_liver_enzymes': {
-        'unit':     '',
+        'unit':     'Units/L',
         'value':    float,
         'thresh':   (None, None),
         'human_readable':   'AST Liver Enzymes',
@@ -87,7 +87,7 @@ cdm_defs = {
         'human_readable':   'Bilirubin',
     },
     'bicarbonate': {
-        'unit':     '',
+        'unit':     'mmol/L',
         'value':    float,
         'thresh':   (None, None),
         'human_readable':   'Bicarbonate',
@@ -201,7 +201,7 @@ cdm_defs = {
         'human_readable':   'D-Dimer'
     },
     'dialysis': {
-        'unit':     '',
+        'unit':     'ml',
         'value':    float,
         'thresh':   (0.01, None),
         'human_readable':   'Dialysis'
