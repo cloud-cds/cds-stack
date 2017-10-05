@@ -173,7 +173,7 @@ async def load_online_prediction_parameters(ctxt, job_id):
     criteria_features = [f['fid'] for f in criteria_features]
     # Load features needed for jit
     query_jit_feature = '''
-    select unnest(string_to_array(value, ',')) fid from parameters where name = 'jit_required_derive_fids'
+    select unnest(string_to_array(value, ',')) fid from parameters where name = 'jit_required_twf_fids'
     '''
     jit_features = await conn.fetch(query_jit_feature)
     jit_features = [f['fid'] for f in jit_features]
