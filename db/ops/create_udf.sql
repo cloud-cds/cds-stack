@@ -1422,11 +1422,6 @@ return query
         from cdm_s s inner join enc_ids e on s.enc_id = e.enc_id
         where fid ~ 'esrd_'
     ),
-    min_tsp as (
-        select e.enc_id, min(t.tsp) tsp
-        from enc_ids e left join cdm_t t on e.enc_id = t.enc_id
-        group by e.enc_id
-    ),
     gcs_stroke as (
         select distinct pc.enc_id, pc.tsp
         from pat_cvalues pc inner join cdm_t t on pc.enc_id = t.enc_id
@@ -1532,23 +1527,16 @@ return query
         select pc.*,
         lag(pc.enc_id, -1) over (order by pc.enc_id, pc.tsp) next_enc_id,
         lag(pc.tsp, -1) over (order by pc.enc_id, pc.tsp) next_tsp,
-        lag(pc.value, -1) over (order by pc.enc_id, pc.tsp) next_value,
-        date_round(pc.tsp, '15 minutes') ceil_tsp
+        lag(pc.value, -1) over (order by pc.enc_id, pc.tsp) next_value
         from pat_cvalues pc
         where pc.fid = 'map'
     ),
     trews_map_idx as (
         select pc.enc_id, pc.tsp, pc.value from
-        map_pair pc left join min_tsp on pc.enc_id = min_tsp.enc_id and pc.tsp = min_tsp.tsp
+        map_pair pc
         where pc.value::numeric < 65
-        and ((
-            pc.enc_id = pc.next_enc_id
-            and
-            (
-                (pc.tsp <= pc.ceil_tsp - '7 minutes'::interval and pc.next_tsp <= pc.ceil_tsp)
-                or pc.tsp > pc.ceil_tsp - '7 minutes'::interval
-            )
-        ) or min_tsp.tsp is not null)
+        and pc.enc_id = pc.next_enc_id
+        and pc.next_tsp - pc.tsp <= '15 minutes'::interval
     ),
     sbpm as (
         select distinct pc.enc_id, pc.tsp, sbpm
@@ -1569,31 +1557,18 @@ return query
     trews_sbpm_idx as (
         select distinct pc.enc_id, pc.tsp, sbpm.sbpm from
         pat_cvalues pc left join sbpm_triple sbpm on pc.enc_id = sbpm.enc_id and pc.tsp = sbpm.tsp
-        left join min_tsp on pc.enc_id = min_tsp.enc_id and pc.tsp = min_tsp.tsp
         where pc.name = 'trews_sbpm'
         and sbpm.sbpm < 90
-        and (
-            (
-                sbpm.enc_id = sbpm.next_enc_id and
-                ((sbpm.tsp <= ceil_tsp - '7 minutes'::interval and sbpm.next_tsp <= ceil_tsp)
-                or sbpm.tsp > ceil_tsp - '7 minutes'::interval)
-            )
-            or min_tsp.tsp is not null
-        )
+        and sbpm.enc_id = sbpm.next_enc_id
+        and sbpm.next_tsp - sbpm.tsp <= '15 minutes'::interval
     ),
     trews_dsbp_idx as (
         select distinct pc.enc_id, pc.tsp, sbpm.sbpm from
         pat_cvalues pc left join sbpm_triple sbpm on pc.enc_id = sbpm.enc_id and pc.tsp = sbpm.tsp
-        left join min_tsp on pc.enc_id = min_tsp.enc_id and pc.tsp = min_tsp.tsp
         where pc.name = 'trews_sbpm' and sbpm.prev_enc_id = sbpm.enc_id
+        and sbpm.enc_id = sbpm.next_enc_id
         and sbpm.sbpm - sbpm.prev_sbpm < -40
-        and (
-                sbpm.enc_id = sbpm.next_enc_id and
-                (
-                    (sbpm.tsp <= ceil_tsp - '7 minutes'::interval and sbpm.next_tsp <= ceil_tsp)
-                    or sbpm.tsp > ceil_tsp - '7 minutes'::interval
-                )
-            )
+        and sbpm.next_tsp - sbpm.tsp <= '15 minutes'::interval
     ),
     trews_orgdf as (
         select
