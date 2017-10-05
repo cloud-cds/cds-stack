@@ -857,7 +857,7 @@ resource "aws_launch_configuration" "tf1-cluster-dev-ml-jh-opsdx-io" {
     create_before_destroy = true
   }
 
-  spot_price = "0.2"
+  spot_price = "0.8"
 }
 
 resource "aws_launch_configuration" "tf10-cluster-dev-ml-jh-opsdx-io" {
@@ -880,7 +880,7 @@ resource "aws_launch_configuration" "tf10-cluster-dev-ml-jh-opsdx-io" {
     create_before_destroy = true
   }
 
-  spot_price = "0.2"
+  spot_price = "0.8"
 }
 
 resource "aws_launch_configuration" "tf11-cluster-dev-ml-jh-opsdx-io" {
@@ -903,7 +903,7 @@ resource "aws_launch_configuration" "tf11-cluster-dev-ml-jh-opsdx-io" {
     create_before_destroy = true
   }
 
-  spot_price = "0.2"
+  spot_price = "0.8"
 }
 
 resource "aws_launch_configuration" "tf12-cluster-dev-ml-jh-opsdx-io" {
@@ -926,7 +926,7 @@ resource "aws_launch_configuration" "tf12-cluster-dev-ml-jh-opsdx-io" {
     create_before_destroy = true
   }
 
-  spot_price = "0.2"
+  spot_price = "0.8"
 }
 
 resource "aws_launch_configuration" "tf2-cluster-dev-ml-jh-opsdx-io" {
@@ -949,7 +949,7 @@ resource "aws_launch_configuration" "tf2-cluster-dev-ml-jh-opsdx-io" {
     create_before_destroy = true
   }
 
-  spot_price = "0.2"
+  spot_price = "0.8"
 }
 
 resource "aws_launch_configuration" "tf3-cluster-dev-ml-jh-opsdx-io" {
@@ -972,7 +972,7 @@ resource "aws_launch_configuration" "tf3-cluster-dev-ml-jh-opsdx-io" {
     create_before_destroy = true
   }
 
-  spot_price = "0.2"
+  spot_price = "0.8"
 }
 
 resource "aws_launch_configuration" "tf4-cluster-dev-ml-jh-opsdx-io" {
@@ -995,7 +995,7 @@ resource "aws_launch_configuration" "tf4-cluster-dev-ml-jh-opsdx-io" {
     create_before_destroy = true
   }
 
-  spot_price = "0.2"
+  spot_price = "0.8"
 }
 
 resource "aws_launch_configuration" "tf5-cluster-dev-ml-jh-opsdx-io" {
@@ -1018,7 +1018,7 @@ resource "aws_launch_configuration" "tf5-cluster-dev-ml-jh-opsdx-io" {
     create_before_destroy = true
   }
 
-  spot_price = "0.2"
+  spot_price = "0.8"
 }
 
 resource "aws_launch_configuration" "tf6-cluster-dev-ml-jh-opsdx-io" {
@@ -1041,7 +1041,7 @@ resource "aws_launch_configuration" "tf6-cluster-dev-ml-jh-opsdx-io" {
     create_before_destroy = true
   }
 
-  spot_price = "0.2"
+  spot_price = "0.8"
 }
 
 resource "aws_launch_configuration" "tf7-cluster-dev-ml-jh-opsdx-io" {
@@ -1064,7 +1064,7 @@ resource "aws_launch_configuration" "tf7-cluster-dev-ml-jh-opsdx-io" {
     create_before_destroy = true
   }
 
-  spot_price = "0.2"
+  spot_price = "0.8"
 }
 
 resource "aws_launch_configuration" "tf8-cluster-dev-ml-jh-opsdx-io" {
@@ -1087,7 +1087,7 @@ resource "aws_launch_configuration" "tf8-cluster-dev-ml-jh-opsdx-io" {
     create_before_destroy = true
   }
 
-  spot_price = "0.2"
+  spot_price = "0.8"
 }
 
 resource "aws_launch_configuration" "tf9-cluster-dev-ml-jh-opsdx-io" {
@@ -1110,7 +1110,7 @@ resource "aws_launch_configuration" "tf9-cluster-dev-ml-jh-opsdx-io" {
     create_before_destroy = true
   }
 
-  spot_price = "0.2"
+  spot_price = "0.8"
 }
 
 resource "aws_launch_configuration" "utility-cluster-dev-ml-jh-opsdx-io" {
