@@ -1441,7 +1441,8 @@ return query
         select distinct pc.enc_id, pc.tsp
         from pat_cvalues pc inner join cdm_t t on pc.enc_id = t.enc_id
         where pc.name = 'trews_gcs' and t.fid = 'propofol_dose'
-            and isnumeric(t.value) and t.value::numeric > 0
+            and t.value::json->>'action' ~* 'given|restart'
+            and isnumeric(t.value::json->>'value') and (t.value::json->>'value')::numeric > 0
             and pc.tsp between t.tsp and t.tsp + '24 hours'::interval
     ),
     trews_vasopressors as (
@@ -1502,7 +1503,8 @@ return query
         select distinct pc.enc_id, pc.tsp
         from pat_cvalues pc inner join cdm_t t on pc.enc_id = t.enc_id
         where pc.name = 'trews_inr' and t.fid in ('warfarin_dose','heparin_dose')
-            and isnumeric(t.value) and t.value::numeric > 0
+            and t.value::json->>'action' ~* 'given'
+            and isnumeric(t.value::json->>'value') and (t.value::json->>'value')::numeric > 0
             and pc.tsp between t.tsp and t.tsp + '30 hours'::interval
     ),
     trews as (
