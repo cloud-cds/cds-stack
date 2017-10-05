@@ -3665,6 +3665,26 @@ begin
 end;
 $$;
 
+create or replace function distribute_advance_criteria_snapshot_for_enc(server text, lookback_hours int, enc_ids text, nprocs int default 2)
+returns void language plpgsql as $$
+declare
+begin
+  execute 'with pats as
+  (select distinct t.enc_id from pat_enc p
+    where p.enc_id in (' || enc_ids ||')
+  ),
+  pats_group as
+  (select pats.*, row_number() over () % ' || nprocs || ' g from pats),
+  queries as (
+    select string_agg((''select advance_criteria_snapshot(''||enc_id||'')'')::text, '';'') q from pats_group group by g
+  ),
+  query_arrays as (
+    select array_agg(q) arr from queries
+  )
+  select distribute('''||server||''', arr, '|| nprocs ||') from query_arrays';
+end;
+$$;
+
 create or replace function pat_hosp(this_pat_id text default null)
 RETURNS
 table(pat_id text, hospital text)
