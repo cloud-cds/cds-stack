@@ -119,6 +119,10 @@ class TREWSAPI(web.View):
         logging.info('override_criteria value: %(name)s %(val)s' % {'name': actionData['actionName'], 'val': actionData['value']})
         await query.override_criteria(db_pool, eid, actionData['actionName'], value=actionData['value'], user=uid)
 
+    elif actionType == u'override_many':
+      for a in actionData:
+        await self.take_action(db_pool, u'override', a, eid, uid)
+
     elif actionType == u'suspicion_of_infection':
       if 'value' in actionData and actionData['value'] == 'Reset':
         await query.override_criteria(db_pool, eid, actionData['actionName'], clear=True, user=uid)
@@ -203,6 +207,19 @@ class TREWSAPI(web.View):
                          "lactate"
                          ]
 
+    TREWS_CRITERIA = ['trews']
+
+    TREWS_ORGAN_DYSFUNCTION = ["trews_sbpm",
+                               "trews_map",
+                               "trews_dsbp",
+                               "trews_vent",
+                               "trews_creatinine",
+                               "trews_bilirubin",
+                               "trews_platelet",
+                               "trews_inr",
+                               "trews_lactate",
+                               "trews_gcs"
+                              ]
 
     HYPOTENSION = ["systolic_bp",
                    "hypotension_map",
@@ -220,12 +237,18 @@ class TREWSAPI(web.View):
                "focus_exam_order"
              ]
 
-    sirs_cnt    = 0
-    od_cnt      = 0
-    sirs_onsets = []
-    od_onsets   = []
-    hp_cnt      = 0
-    hpf_cnt     = 0
+    sirs_cnt     = 0
+    od_cnt       = 0
+    trews_cnt    = 0
+    trews_od_cnt = 0
+
+    sirs_onsets     = []
+    od_onsets       = []
+    trews_onsets    = []
+    trews_od_onsets = []
+
+    hp_cnt       = 0
+    hpf_cnt      = 0
     shock_onsets_hypotension   = []
     shock_onsets_hypoperfusion = []
 
@@ -241,13 +264,19 @@ class TREWSAPI(web.View):
 
       # update every criteria
       criterion = {
-          "name"             : row['name'],
-          "is_met"           : row['is_met'],
-          "value"            : row['value'],
-          "measurement_time" : (row['measurement_time'] - epoch).total_seconds() if row['measurement_time'] is not None else None,
-          "override_time"    : (row['override_time'] - epoch).total_seconds() if row['override_time'] is not None else None,
-          "override_user"    : row['override_user'],
-          "override_value"   : json.loads(row['override_value']) if row['override_value'] is not None else None,
+          "name"                     : row['name'],
+          "is_met"                   : row['is_met'],
+          "value"                    : row['value'],
+          "measurement_time"         : (row['measurement_time'] - epoch).total_seconds() if row['measurement_time'] is not None else None,
+          "override_time"            : (row['override_time'] - epoch).total_seconds() if row['override_time'] is not None else None,
+          "override_user"            : row['override_user'],
+          "override_value"           : json.loads(row['override_value']) if row['override_value'] is not None else None,
+          "recent_measurement_time"  : (row['recent_measurement_time'] - epoch).total_seconds() if row['recent_measurement_time'] is not None else None,
+          "recent_value"             : row['recent_value'] if row['recent_value'] is not None else None,
+          "recent_baseline_time"     : (row['recent_baseline_time'] - epoch).total_seconds() if row['recent_baseline_time'] is not None else None,
+          "recent_baseline_value"    : row['recent_baseline_value'] if row['recent_baseline_value'] is not None else None,
+          "trigger_baseline_time"    : (row['trigger_baseline_time'] - epoch).total_seconds() if row['trigger_baseline_time'] is not None else None,
+          "trigger_baseline_value"   : row['trigger_baseline_value'] if row['trigger_baseline_value'] is not None else None
       }
 
       if criterion["name"] == 'suspicion_of_infection':
@@ -286,6 +315,21 @@ class TREWSAPI(web.View):
           od_cnt += 1
           od_onsets.append(criterion_ts)
 
+      if criterion["name"] in TREWS_CRITERIA:
+        trews_idx = TREWS_CRITERIA.index(criterion["name"])
+        data['severe_sepsis']['trews']['criteria'][trews_idx] = criterion
+        criterion_ts = criterion['override_time'] if criterion['override_user'] else criterion['measurement_time']
+        if criterion["is_met"]:
+          trews_cnt += 1
+          trews_onsets.append(criterion_ts)
+
+      if criterion["name"] in TREWS_ORGAN_DYSFUNCTION:
+        trews_od_idx = TREWS_ORGAN_DYSFUNCTION.index(criterion["name"])
+        data['severe_sepsis']['trews_organ_dysfunction']['criteria'][trews_od_idx] = criterion
+        criterion_ts = criterion['override_time'] if criterion['override_user'] else criterion['measurement_time']
+        if criterion["is_met"]:
+          trews_od_cnt += 1
+          trews_od_onsets.append(criterion_ts)
 
       # septic shock
 
@@ -341,30 +385,71 @@ class TREWSAPI(web.View):
     if od_cnt > 0:
       data['severe_sepsis']['organ_dysfunction']['onset_time'] = sorted(od_onsets)[0]
 
+    # update TREWS criteria and organ dysfunction
+    data['severe_sepsis']['trews']['is_met'] = trews_cnt > 0
+    data['severe_sepsis']['trews']["num_met"] = trews_cnt
+    if trews_cnt > 0:
+      data['severe_sepsis']['trews']['onset_time'] = sorted(trews_onsets)[0]
+
+    data['severe_sepsis']['trews_organ_dysfunction']['is_met'] = trews_od_cnt > 0
+    data['severe_sepsis']['trews_organ_dysfunction']["num_met"] = trews_od_cnt
+    if trews_od_cnt > 0:
+      data['severe_sepsis']['trews_organ_dysfunction']['onset_time'] = sorted(trews_od_onsets)[0]
+
     # update severe_sepsis
-    if data['severe_sepsis']['sirs']['is_met'] and \
-      data['severe_sepsis']['organ_dysfunction']['is_met'] and\
-      not ( data['severe_sepsis']['suspicion_of_infection']['value'] == 'No Infection' \
-          or data['severe_sepsis']['suspicion_of_infection']['value'] is None):
-      data['severe_sepsis']['is_met'] = 1
-      data['severe_sepsis']['onset_time'] = sorted(
-            [
-                data['severe_sepsis']['sirs']['onset_time'] ,
-                data['severe_sepsis']['organ_dysfunction']['onset_time'] ,
-                data['severe_sepsis']['suspicion_of_infection']['update_time']
-                ]
+    cms_met = data['severe_sepsis']['sirs']['is_met'] and \
+              data['severe_sepsis']['organ_dysfunction']['is_met'] and \
+              not ( data['severe_sepsis']['suspicion_of_infection']['value'] == 'No Infection' \
+                  or data['severe_sepsis']['suspicion_of_infection']['value'] is None)
+
+    trews_met = data['severe_sepsis']['trews']['is_met'] and \
+                data['severe_sepsis']['trews_organ_dysfunction']['is_met'] and \
+                not ( data['severe_sepsis']['suspicion_of_infection']['value'] == 'No Infection' \
+                    or data['severe_sepsis']['suspicion_of_infection']['value'] is None)
+
+
+    data['severe_sepsis']['is_met'] = trews_met or cms_met
+    data['severe_sepsis']['is_trews'] = trews_met
+    data['severe_sepsis']['is_cms'] = cms_met
+
+    if trews_met:
+      data['severe_sepsis']['trews_onset_time'] = sorted(
+            [ data['severe_sepsis']['trews']['onset_time'] ,
+              data['severe_sepsis']['trews_organ_dysfunction']['onset_time'] ,
+              data['severe_sepsis']['suspicion_of_infection']['update_time']
+            ]
         )[2]
+
+    if cms_met:
+      data['severe_sepsis']['cms_onset_time'] = sorted(
+            [ data['severe_sepsis']['sirs']['onset_time'] ,
+              data['severe_sepsis']['organ_dysfunction']['onset_time'] ,
+              data['severe_sepsis']['suspicion_of_infection']['update_time']
+            ]
+        )[2]
+
+    # Pick the earlier onset time if both TREWS and CMS are met.
+    if trews_met and cms_met:
+      data['severe_sepsis']['onset_time'] = min(data['severe_sepsis']['trews_onset_time'], data['severe_sepsis']['cms_onset_time'])
       data['chart_data']['severe_sepsis_onset']['timestamp'] = data['severe_sepsis']['onset_time']
-    else:
-      data['severe_sepsis']['is_met'] = 0
+
+    elif trews_met:
+      data['severe_sepsis']['onset_time'] = data['severe_sepsis']['trews_onset_time']
+      data['chart_data']['severe_sepsis_onset']['timestamp'] = data['severe_sepsis']['onset_time']
+
+    elif cms_met:
+      data['severe_sepsis']['onset_time'] = data['severe_sepsis']['cms_onset_time']
+      data['chart_data']['severe_sepsis_onset']['timestamp'] = data['severe_sepsis']['onset_time']
+
 
     # update septic shock
     data['septic_shock']['hypotension']['is_met'] = hp_cnt > 0
     data['septic_shock']['hypotension']['num_met'] = hp_cnt
     data['septic_shock']['hypoperfusion']['is_met'] = hpf_cnt > 0
     data['septic_shock']['hypoperfusion']['num_met'] = hpf_cnt
+
+    # update only when severe_sepsis is met
     if data['severe_sepsis']['is_met']:
-      # only when severs_sepsis is met
       if (data['septic_shock']['crystalloid_fluid']['is_met'] == 1 and hp_cnt > 0) or hpf_cnt > 0:
         data['septic_shock']['is_met'] = True
         # setup onset time

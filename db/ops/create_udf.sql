@@ -1201,6 +1201,146 @@ on c.enc_id = e.enc_id and c.name = e.name
 ;
 END $func$ LANGUAGE plpgsql;
 
+
+-- Criteria retrieval with recent values.
+-- TODO: replace get_criteria when API server has been updated.
+CREATE OR REPLACE FUNCTION get_criteria_v2(this_enc_id int)
+RETURNS table(
+    enc_id                   int,
+    event_id                 int,
+    name                     varchar(50),
+    is_met                   boolean,
+    measurement_time         timestamptz,
+    override_time            timestamptz,
+    override_user            text,
+    override_value           json,
+    value                    text,
+    recent_measurement_time  timestamptz,
+    recent_value             text,
+    recent_baseline_time     timestamptz,
+    recent_baseline_value    text,
+    trigger_baseline_time    timestamptz,
+    trigger_baseline_value   text,
+    update_date              timestamptz
+) AS $func$ BEGIN RETURN QUERY
+SELECT
+    coalesce(e.enc_id, c.enc_id)                     as enc_id,
+    e.event_id                                       as event_id,
+    coalesce(e.name, c.name)                         as name,
+    coalesce(e.is_met, c.is_met)                     as is_met,
+    coalesce(e.measurement_time, c.measurement_time) as measurement_time,
+    coalesce(e.override_time, c.override_time)       as override_time,
+    coalesce(e.override_user, c.override_user)       as override_user,
+    coalesce(e.override_value, c.override_value)     as override_value,
+    coalesce(e.value, c.value)                       as value,
+    recent.tsp                                       as recent_measurement_time,
+    recent.value                                     as recent_value,
+    recent.recent_baseline_time                      as recent_baseline_time,
+    recent.recent_baseline_value                     as recent_baseline_value,
+
+    (case
+      when coalesce(e.name, c.name) in ('trews_bilirubin', 'trews_creatinine', 'trews_platelet')
+      then
+        -- first occurrence of largest value, excluding latest observation
+        (select min(R.t order by R.v desc)
+          from unnest(recent.tsp_by_tsp, recent.value_by_tsp) R(t,v)
+          where R.t < coalesce(e.measurement_time, c.measurement_time))
+
+      else
+        (select first(R.t order by R.t desc)
+          from unnest(recent.tsp_by_tsp) as R(t)
+          where R.t < coalesce(e.measurement_time, c.measurement_time))
+     end
+    ) as trigger_baseline_time,
+
+    (case
+      when coalesce(e.name, c.name) in ('trews_bilirubin', 'trews_creatinine', 'trews_platelet')
+      then
+        -- max value before triggering value
+        (select max(R.v)
+          from unnest(recent.tsp_by_tsp, recent.value_by_tsp) R(t,v)
+          where R.t < coalesce(e.measurement_time, c.measurement_time))
+
+      else
+        (select first(R.v order by R.t desc)
+          from unnest(recent.tsp_by_tsp, recent.value_by_tsp) as R(t,v)
+          where R.t < coalesce(e.measurement_time, c.measurement_time))
+     end
+    ) as trigger_baseline_value,
+
+    coalesce(e.update_date, c.update_date)           as update_date
+FROM (
+    select * from criteria c2 where c2.enc_id = coalesce(this_enc_id, c2.enc_id)
+) c
+full JOIN
+(
+    select  ce.enc_id,
+            ce.name,
+            ce.event_id,
+            ce.is_met,
+            ce.measurement_time,
+            ce.override_time,
+            ce.override_user,
+            ce.override_value,
+            ce.value,
+            ce.update_date
+    from criteria_events ce
+    where ce.enc_id = coalesce(this_enc_id, ce.enc_id)
+    and ce.event_id = (
+        select max(ce2.event_id) from criteria_events ce2
+        where ce2.enc_id = coalesce(this_enc_id, ce2.enc_id) and ce2.flag > 0
+    )
+) as e
+on c.enc_id = e.enc_id and c.name = e.name
+left join
+(
+  -- Retrieve most recent value, even if it falls outside the 6hr window
+  -- of criteria calculation.
+  select enc_ids.enc_id,
+         cd.name,
+         first(cdm_t.tsp order by cdm_t.tsp desc) as tsp,
+         first(cdm_t.value order by cdm_t.tsp desc) as value,
+         (case
+            when cd.name in ('trews_bilirubin', 'trews_creatinine', 'trews_platelet')
+              then
+                -- first occurrence of largest value, excluding latest observation
+                (select min(R.t order by R.v desc)
+                  from unnest(array_agg(cdm_t.tsp order by cdm_t.value desc nulls last),
+                              array_agg(cdm_t.value order by cdm_t.value desc nulls last)) R(t,v)
+                  where R.t <> max(cdm_t.tsp))
+
+            else (array_agg(cdm_t.tsp order by cdm_t.tsp desc nulls last))[2]
+          end)
+          as recent_baseline_time,
+
+         (case
+            when cd.name in ('trews_bilirubin', 'trews_creatinine', 'trews_platelet')
+              then
+              -- max value excluding latest observation
+              (select max(x) from unnest((array_agg(cdm_t.value order by cdm_t.tsp desc nulls last))[2:]) R(x))
+
+            else (array_agg(cdm_t.value order by cdm_t.tsp desc nulls last))[2]
+          end)
+          as recent_baseline_value,
+
+          array_agg(cdm_t.tsp order by cdm_t.tsp desc nulls last) as tsp_by_tsp,
+          array_agg(cdm_t.value order by cdm_t.tsp desc nulls last) as value_by_tsp
+
+  from criteria_default cd
+  cross join ( select distinct cdm_t.enc_id from cdm_t where cdm_t.enc_id = coalesce(this_enc_id, cdm_t.enc_id) ) enc_ids
+  left join cdm_t
+    on cd.fid = cdm_t.fid and enc_ids.enc_id = cdm_t.enc_id
+  where cd.name not like '%_order'
+  group by cd.name, enc_ids.enc_id
+) as recent
+on coalesce(c.enc_id, e.enc_id) = recent.enc_id and coalesce(e.name, c.name) = recent.name
+;
+END $func$ LANGUAGE plpgsql;
+
+
+----------------------------------------------
+-- Criteria calculation helpers.
+--
 create or replace function criteria_value_met(m_value text, c_ovalue json, d_ovalue json)
     returns boolean language plpgsql as $func$
 BEGIN

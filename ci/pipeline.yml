@@ -24,6 +24,13 @@ resources:
       uri: git@github.com:dashan-emr/LMC-Based-On-GPflow.git
       private_key: {{github-private-key}}
 
+  - name: trews
+    type: git
+    source:
+      branch: develop-generic
+      uri: git@github.com:dashan-emr/LMC-Based-On-GPflow.git
+      private_key: {{github-private-key}}
+
 ###############
 # Pull requests
 #
@@ -49,10 +56,19 @@ resources:
   - name: lmc-docker-image
     type: docker-image
     source:
-      repository: 359300513585.dkr.ecr.us-east-1.amazonaws.com/tensorflow
+      repository: 359300513585.dkr.ecr.us-east-1.amazonaws.com/ml-lmc
       aws_access_key_id: {{aws-access-key-id}}
       aws_secret_access_key: {{aws-secret-access-key}}
-      tag: "online-prediction-latest"
+      tag: "lmc-online-latest"
+
+  - name: trews-docker-image
+    type: docker-image
+    source:
+      repository: 359300513585.dkr.ecr.us-east-1.amazonaws.com/ml-trews
+      aws_access_key_id: {{aws-access-key-id}}
+      aws_secret_access_key: {{aws-secret-access-key}}
+      tag: "trews-online-latest"
+
 
 #####################
 # Semantic versioning
@@ -74,11 +90,21 @@ resources:
       driver: git
       initial_version: 0.0.1
       uri: git@github.com:dashan-emr/LMC-Based-On-GPflow.git
-      branch: version
+      branch: lmc-version
       file: version
       private_key: {{github-private-key}}
       git_user: CI bot <ci@ci.ci>
 
+  - name: trews-version
+    type: semver
+    source:
+      driver: git
+      initial_version: 0.0.1
+      uri: git@github.com:dashan-emr/LMC-Based-On-GPflow.git
+      branch: trews-version
+      file: version
+      private_key: {{github-private-key}}
+      git_user: CI bot <ci@ci.ci>
 
 
 jobs:
@@ -218,3 +244,22 @@ jobs:
           tag: lmc-version/number
       - put: lmc-version
         params: {file: lmc-version/version}
+
+  - name: build-trews-docker-image
+    serial: true
+    plan:
+      - get: LMC-Based-On-GPflow
+        resource: trews
+        trigger: true
+      - get: dashan-universe
+        trigger: false
+      - get: trews-version
+        params: {bump: patch}
+      - put: trews-docker-image
+        params:
+          build: .
+          dockerfile: LMC-Based-On-GPflow/tools/Dockerfile
+          tag_as_latest: true
+          tag: trews-version/number
+      - put: trews-version
+        params: {file: trews-version/version}
