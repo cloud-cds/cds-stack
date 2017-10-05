@@ -681,13 +681,15 @@ var timer = new function() {
  * @param HTML element of expand/minimize link to show/hide all criteria
  * @return {String} html for a specific slot
  */
-var slotComponent = function(elem, link, constants, border_with_status, criteria_mapping) {
+var slotComponent = function(elem, link, constants, border_with_status, criteria_mapping, criteria_source, skip_threshold_and_value) {
   this.criteria = {};
   this.elem = elem;
   this.link = link;
   this.constants = constants;
   this.border_with_status = border_with_status;
   this.criteria_mapping = criteria_mapping;
+  this.criteria_source = criteria_source;
+  this.skip_threshold_and_value = skip_threshold_and_value;
 
   this.hasOverridenCriteria = function() {
     var list = []
@@ -714,10 +716,12 @@ var slotComponent = function(elem, link, constants, border_with_status, criteria
         this.elem.removeClass('complete');
       }
     }
+    this.elem.find('.criteria').html('');
     this.elem.find('.criteria-overridden').html('');
     for (var c in this.criteria) {
       var component = new criteriaComponent(this.criteria[c], constants['criteria'][c], constants.key, this.link.hasClass('hidden'),
-                                            this.criteria_mapping == null ? null : this.criteria_mapping[c]);
+                                            this.criteria_mapping == null ? null : this.criteria_mapping[c],
+                                            this.criteria_source, this.skip_threshold_and_value);
       if (component.isOverridden) {
         this.elem.find('.criteria-overridden').append(component.r());
       } else {
@@ -937,7 +941,8 @@ var severeSepsisComponent = new function() {
   this.trewsOrgSlot = new slotComponent(
     $("[data-trews='eval-trews-orgdf']"),
     $('#expand-trews-org'),
-    severe_sepsis['trews_organ_dysfunction'], true, severe_sepsis['trews_organ_dysfunction']['criteria_mapping']);
+    severe_sepsis['trews_organ_dysfunction'], true,
+    severe_sepsis['trews_organ_dysfunction']['criteria_mapping'], 'TREWS Alert', true);
 
   this.cmsSirSlot = new slotComponent(
     $("[data-trews='eval-cms-sirs']"),
@@ -952,6 +957,8 @@ var severeSepsisComponent = new function() {
   // Returns the class to attach to the SOI slot (to highlight it).
   // Returns null if no highlighting is to be performed.
   this.highlightSuspicionClass = function() {
+    // Alert-based highlighting.
+    /*
     var renderTs = Date.now();
     var active205 = false;
     var active300 = false;
@@ -971,6 +978,21 @@ var severeSepsisComponent = new function() {
       return active205 ? 'highlight-expired' : 'highlight-unexpired';
     }
     return null;
+    */
+
+    // Criteria-based highlighting
+    var sepsisOnset = trews.data['severe_sepsis']['onset_time'];
+    var shockOnset = trews.data['septic_shock']['onset_time'];
+
+    var trewsAndOrgDF = trews.data['severe_sepsis']['trews']['is_met']
+                        && trews.data['severe_sepsis']['trews_organ_dysfunction']['is_met']
+                        && (sepsisOnset == null && shockOnset == null);
+
+    var sirsAndOrgDF = trews.data['severe_sepsis']['sirs']['is_met']
+                        && trews.data['severe_sepsis']['organ_dysfunction']['is_met']
+                        && (sepsisOnset == null && shockOnset == null);
+
+    return ( trewsAndOrgDF || sirsAndOrgDF ) ? 'highlight-unexpired' : null;
   }
 
   this.suspicion = function(json) {
@@ -1031,7 +1053,11 @@ var severeSepsisComponent = new function() {
 
     // TREWS criteria.
     this.trewsAcuitySlot.r(json['trews']);
-    this.trewsAcuitySlot.elem.find('.status[data-trews="eval-trews-odds-ratio"] h4').text('Odds Ratio of Mortality: TBD');
+    this.trewsAcuitySlot.elem.find('.status[data-trews="eval-trews-odds-ratio"] h4').html(
+      '<span data-toggle="tooltip" title="' +
+      'The ratio of historical mortalities for patients with TREWS scores higher relative to TREWS scores lower than this patient.' +
+      '">Odds Ratio of Mortality: TBD</span>');
+
     this.trewsOrgSlot.r(json['trews_organ_dysfunction']);
 
     if ( json['trews']['is_met'] && json['trews_organ_dysfunction']['is_met'] ) {
@@ -1064,32 +1090,31 @@ var severeSepsisComponent = new function() {
     if ( !(trews.data == null || trews.data['severe_sepsis'] == null) ) {
       var subtitle = null;
       var subtitleExpired = false;
+
       var sepsisOnset = trews.data['severe_sepsis']['onset_time'];
+
+      var trewsAndOrgDF = json['trews']['is_met'] && json['trews_organ_dysfunction']['is_met'] && json['suspicion_of_infection']['value'] == null;
+      var sirsAndOrgDF = json['sirs']['is_met'] && json['organ_dysfunction']['is_met'] && json['suspicion_of_infection']['value'] == null;
+
       if ( sepsisOnset != null ) {
         var sev6 = $("[data-trews='sev6'] .card-subtitle").html();
         var sev6Completed = sev6.indexOf('completed') >= 0;
+
+        var trewsMet = trews.data['severe_sepsis']['is_trews'] ? 'TREWS' : '';
+        var cmsMet = trews.data['severe_sepsis']['is_cms'] ? ((trewsMet.length > 0 ? ' and ' : '') + 'CMS') : '';
+
         if ( sev6Completed ) {
-          subtitle = 'Patient has met criteria for severe sepsis and required interventions are complete. Please monitor the patient.';
+          subtitle = 'Patient has met ' + trewsMet + cmsMet + ' criteria for severe sepsis and required interventions are complete. Please monitor the patient.';
         } else  {
-          subtitle = 'Patient has met criteria for severe sepsis. Please complete the required interventions.';
+          subtitle = 'Patient has met ' + trewsMet + cmsMet + ' criteria for severe sepsis. Please complete the required interventions.';
           subtitleExpired = true;
         }
       }
-      else if ( json['sirs']['is_met'] && json['organ_dysfunction']['is_met'] && json['suspicion_of_infection']['value'] == null ) {
-        subtitle = 'SIRS and organ dysfunction met. If you suspect infection, this patient requires treatment for sepsis.';
+      else if ( trewsAndOrgDF || sirsAndOrgDF ) {
+        var trewsPrefix = trewsAndOrgDF ? 'TREWS alert criteria met' : '';
+        var cmsPrefix = sirsAndOrgDF ? ((trewsPrefix.length > 0 ? ' and ' : '') + 'CMS alert criteria met') : '';
+        subtitle = trewsPrefix + cmsPrefix + '. If you suspect infection is the cause, this patient must be treated for severe sepsis.';
         subtitleExpired = true;
-      }
-      else if ( json['suspicion_of_infection']['value'] != null && !json['sirs']['is_met'] && !json['organ_dysfunction']['is_met'] ) {
-        subtitle = 'Only suspicion of infection. No action required.';
-      }
-      else if ( json['sirs']['is_met'] && json['suspicion_of_infection']['value'] == null && !json['organ_dysfunction']['is_met'] ) {
-        subtitle = 'Only SIRS criteria met. No action required.';
-      }
-      else if ( json['organ_dysfunction']['is_met'] && json['suspicion_of_infection']['value'] == null && !json['sirs']['is_met'] ) {
-        subtitle = 'Only organ dysfunction met. No action required.';
-      }
-      else if ( json['suspicion_of_infection']['value'] == null && !json['sirs']['is_met'] && !json['organ_dysfunction']['is_met'] ) {
-        subtitle = 'No severe sepsis criteria met. No action required.';
       }
 
       if ( subtitle != null ) {
@@ -1710,11 +1735,12 @@ function graphTag(plot, x, y, text, id) {
  * @param JSON String
  * @return {String} html for a specific criteria
  */
-var criteriaComponent = function(c, constants, key, hidden, criteria_mapping) {
+var criteriaComponent = function(c, constants, key, hidden, criteria_mapping, criteria_source, skip_threshold_and_value) {
   this.isOverridden = false;
   this.status = "";
   this.name = c['name'];
   this.criteria_mapping = criteria_mapping;
+  this.criteria_source = criteria_source;
   this.criteria_button = null;
   this.criteria_button_enable = false;
 
@@ -1741,13 +1767,15 @@ var criteriaComponent = function(c, constants, key, hidden, criteria_mapping) {
     var lapsed = timeLapsed(new Date(c['measurement_time']*1000));
     var strTime = strToTime(new Date(c['measurement_time']*1000));
     if (c['name'] == 'trews') {
-      this.status += "Criteria met <span title='" + strTime + "'>" + lapsed;
+      this.status += (this.criteria_source ? this.criteria_source + ' ' : '') + "Criteria met <span title='" + strTime + "'>" + lapsed;
     }
     else if (c['name'] == 'respiratory_failure') {
-      this.status += "Criteria met <span title='" + strTime + "'>" + lapsed + "</span> with <span class='value'>Mechanical Support: On</span>";
+      this.status += (this.criteria_source ? this.criteria_source + ' ' : '') + "Criteria met <span title='" + strTime + "'>" + lapsed + "</span>"
+        + (skip_threshold_and_value ? '' : " with <span class='value'>Mechanical Support: On</span>");
     }
     else {
-      this.status += "Criteria met <span title='" + strTime + "'>" + lapsed + "</span> with a value of <span class='value'>" + displayValue + "</span>";
+      this.status += (this.criteria_source ? this.criteria_source + ' ' : '') + "Criteria met <span title='" + strTime + "'>" + lapsed + "</span>"
+        + (skip_threshold_and_value ? '' :  " with a value of <span class='value'>" + displayValue + "</span>");
     }
     this.status += (c['override_time']) ? "<br />" : "";
   }
@@ -1768,42 +1796,6 @@ var criteriaComponent = function(c, constants, key, hidden, criteria_mapping) {
     }
   }
 
-  /*
-  if (c['is_met'] && c['measurement_time']) {
-    this.classComplete = " met";
-    var lapsed = timeLapsed(new Date(c['measurement_time']*1000));
-    var strTime = strToTime(new Date(c['measurement_time']*1000));
-    if (c['name'] == 'respiratory_failure') {
-      this.status += "Criteria met <span title='" + strTime + "'>" + lapsed + "</span> with <span class='value'>Mechanical Support: On</span>";
-    } else {
-      this.status += "Criteria met <span title='" + strTime + "'>" + lapsed + "</span> with a value of <span class='value'>" + displayValue + "</span>";
-    }
-  } else {
-    if (c['override_user'] != null) {
-      this.classComplete = " unmet";
-      this.isOverridden = true;
-      if (c['measurement_time']) {
-        var cLapsed = timeLapsed(new Date(c['measurement_time']*1000));
-        var cStrTime = strToTime(new Date(c['measurement_time']*1000));
-        if (c['name'] == 'respiratory_failure') {
-          this.status += "Criteria met <span title='" + cStrTime + "'>" + cLapsed + "</span> with <span class='value'>Mechanical Support: On</span>";
-        } else {
-          this.status += "Criteria met <span title='" + cStrTime + "'>" + cLapsed + "</span> with a value of <span class='value'>" + displayValue + "</span>";
-        }
-        this.status += (c['override_time']) ? "<br />" : "";
-      }
-      if (c['override_time']) {
-        var oLapsed = timeLapsed(new Date(c['override_time']*1000));
-        var oStrTime = strToTime(new Date(c['override_time']*1000));
-        this.status += "Customized by " + c['override_user'] + " <span title='" + oStrTime + "'>" + oLapsed + "</span>";
-      }
-    } else {
-      hiddenClass = (hidden) ? " hidden" : " unhidden";
-      this.classComplete = " unmet";
-      this.status = "";
-    }
-  }
-  */
 
   var criteriaString = "";
   var oCriteria = this.isOverridden ? trews.getSpecificCriteria(key, constants.key) : null;
@@ -1839,6 +1831,9 @@ var criteriaComponent = function(c, constants, key, hidden, criteria_mapping) {
       criteriaString += name + " measurements not due to infection.";
       this.criteria_button_enable = true;
     }
+    else if ( skip_threshold_and_value ) {
+      criteriaString += name;
+    }
     else if ( c['name'] == 'trews' ) {
       if (c['is_met']) {
         criteriaString += name + " <b>indicates high risk of deterioration</b>"
@@ -1861,9 +1856,9 @@ var criteriaComponent = function(c, constants, key, hidden, criteria_mapping) {
       var comp = (constants.overrideModal[i].range == 'min') ? "<" : ">";
       criteriaString += name + " " + comp + " " + crit + unit;
     }
-    criteriaString += " or ";
+    criteriaString += skip_threshold_and_value ? " / " : " or ";
   }
-  criteriaString = criteriaString.slice(0, -4);
+  criteriaString = skip_threshold_and_value ? criteriaString.slice(0, -3) : criteriaString.slice(0, -4);
 
   // Add criteria button (for organ dysfunction).
   var criteria_button_symbol = '<i class="fa ' + (this.criteria_button_enable ? 'fa-check' : 'fa-close') + '"></i>';
@@ -2899,20 +2894,25 @@ var toolbar = new function() {
           careStatus = alertSource + ' Septic Shock criteria met at ' + strToTime(new Date(shockOnset*1000), true, false) + '. '
         }
         else if ( sepsisOnset != null ) {
-          careStatus = alertSource + ' Severe Sepsis criteria met at ' + strToTime(new Date(sepsisOnset*1000), true, false)  + '. '
+          careStatus = '';
+          if ( trews.data['severe_sepsis']['is_trews'] ) {
+            careStatus += 'TREWS Severe Sepsis criteria met at ' + strToTime(new Date(trews.data['severe_sepsis']['trews_onset_time']*1000), true, false)  + '. '
+          }
+
+          if ( trews.data['severe_sepsis']['is_cms'] ) {
+            careStatus += 'CMS Severe Sepsis criteria met at ' + strToTime(new Date(trews.data['severe_sepsis']['cms_onset_time']*1000), true, false)  + '. '
+          }
         }
 
         careStatus += actualTreatments + ' of ' + expectedTreatments + ' treatment steps complete.'
         careStatusHighPriority = !careCompleted;
       }
-      else if ( trewsAndOrgDF ) {
+      else if ( trewsAndOrgDF || sirsAndOrgDF ) {
         var trewsAndOrgDFOnset = new Date(Math.max(trews.data['severe_sepsis']['trews']['onset_time'], trews.data['severe_sepsis']['trews_organ_dysfunction']['onset_time']) * 1000);
-        careStatus = 'TREWS Acuity Score indicates high risk of severe sepsis, and TREWS Organ Dysfunction criteria met at ' + strToTime(trewsAndOrgDFOnset, true, false) + '. Enter whether infection is suspected.';
-        careStatusHighPriority = false;
-      }
-      else if ( sirsAndOrgDF ) {
         var sirsAndOrgDFOnset = new Date(Math.max(trews.data['severe_sepsis']['sirs']['onset_time'], trews.data['severe_sepsis']['organ_dysfunction']['onset_time']) * 1000);
-        careStatus = 'CMS SIRS and CMS Organ Dysfunction criteria met at ' + strToTime(sirsAndOrgDFOnset, true, false) + '. Enter whether infection is suspected.';
+        var trewsPrefix = trewsAndOrgDF ? 'TREWS alert criteria met at ' + strToTime(trewsAndOrgDFOnset, true, false) : '';
+        var cmsPrefix = sirsAndOrgDF ? ((trewsPrefix.length > 0 ? ' and ' : '') + 'CMS alert criteria met at ' + strToTime(sirsAndOrgDFOnset, true, false)) : '';
+        careStatus = trewsPrefix + cmsPrefix + '. Enter whether infection is suspected.';
         careStatusHighPriority = false;
       }
 
@@ -3764,8 +3764,8 @@ var toolbar = new function() {
         id: 'crossing_' + i,
         group: groups['trewscore']['id'],
         content: msg,
-        start: new Date(st * 1000),
-        end: new Date(en * 1000),
+        start: new Date(st),
+        end: new Date(en),
         title: title,
         type: 'range',
         style: style
@@ -3774,7 +3774,7 @@ var toolbar = new function() {
 
     for (var i = 0; i < numEntries; i++) {
       var v = scoreValues[i];
-      var t = scoreTsps[i];
+      var t = scoreTsps[i]*1000;
       if ( prevData != null ) {
         var dropBelow = prevData.v >= threshold && v < threshold;
         var riseAbove = prevData.v <= threshold && v > threshold;
@@ -3799,7 +3799,7 @@ var toolbar = new function() {
     if ( prevCrossing != null && numEntries > 0
           && prevCrossing.v > threshold && scoreValues[numEntries - 1] > threshold )
     {
-      var crossing = mkCrossingItem(this.groups, numEntries - 1, prevCrossing.t, scoreTsps[numEntries - 1], maxInSegment, redItemStyle);
+      var crossing = mkCrossingItem(this.groups, numEntries - 1, prevCrossing.t, scoreTsps[numEntries - 1]*1000, maxInSegment, redItemStyle);
       var parentCrossing = $.extend({}, crossing, { id: scoreParentId + '_' + crossing.id, group: scoreParentGId });
       items.add(crossing);
       items.add(parentCrossing);

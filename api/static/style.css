@@ -11,7 +11,7 @@ html, body {
     background-color: #fff;
     overflow-y: hidden; /* No overflow on the page body, since each column has its own scrollbars. */
 }
-h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .vis-inner {
+h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .vis-inner, .vis-item-content {
     font-family: Helvetica, Arial, sans-serif;
 }
 .cf:before,
@@ -259,7 +259,8 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
 }
 .card.inactive a,
 .card.inactive .place-order,
-.card.inactive .no-infection {
+.card.inactive .no-infection,
+.card.inactive .criteria-btn {
     pointer-events: none;
 }
 .card.inactive a[disabled] {
@@ -343,6 +344,13 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
     margin-top: 15px;
 }
 /*Slots*/
+.slot .bundle-override {
+    display: inline-block;
+    float: left;
+    width: 40%;
+    margin: 0;
+    color: #666;
+}
 .slot.last-child[data-trews="eval-trews-or-cms"] {
     margin-top: 15px;
     border: 0;
@@ -350,7 +358,8 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
 }
 .slot.last-child[data-trews="treat-sepsis"], .slot.last-child[data-trews="treat-shock"] {
     border: 0;
-    padding-top: 10px;
+    padding: 0;
+    width: 30%;
 }
 .half-slot {
     width: 48%;
@@ -422,6 +431,8 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
     display: inline-block;
     float: left;
     padding-right: 20px;
+    margin: 0;
+    color: #666;
 }
 .slot h3 {
     font-size: 14px;
@@ -607,7 +618,8 @@ span.criteria-btn {
 }
 .onoffswitch-label {
     display: block; overflow: hidden; cursor: pointer;
-    border: 2px solid #999999; border-radius: 20px;
+    border-radius: 20px;
+    border: 0; // 2px solid #999999
 }
 .onoffswitch-inner {
     display: block; width: 200%; margin-left: -100%;
@@ -1147,6 +1159,11 @@ span.criteria-btn {
     cursor: pointer;
     margin: 0 0 0 10px ;
     font-size: 14px;
+}
+.timeline-zoom-btn:hover {
+    border: 1px solid #ca011a;
+    background-color: #eee;
+    padding: 5px;
 }
 .vis_item_order_incomplete {
     background: repeating-linear-gradient(
