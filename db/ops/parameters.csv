@@ -7,3 +7,4 @@ etl_workspace_submit_hours,8 hours
 etl_workspace_lookbackhours,32 hours
 notifications_whitelist,%
 criteria_required_derive_fids,"stroke,gi_bleed,sbpm"
+jit_required_derive_fids,"dbpm"

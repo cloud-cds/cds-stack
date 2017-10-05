@@ -83,6 +83,9 @@ med_regex = [
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
         'part_of': ['cms_antibiotics'],
     }, {
+        'fid': 'heparin_dose',
+        'pos': 'heparin'
+    }, {
         'fid': 'hetastarch',
         'pos': '^hetastarch',
         'neg': 'injection|flush syringe|nebulizer',
@@ -147,6 +150,9 @@ med_regex = [
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
         'part_of': ['cms_antibiotics'],
     }, {
+        'fid': 'propofol_dose',
+        'pos': 'propofol'
+    }, {
         'fid': 'rifampin_dose',
         'pos': '^rifampin',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
@@ -175,6 +181,9 @@ med_regex = [
         'fid': 'vasopressin_dose',
         'pos': '^vasopressin',
         'part_of': ['vasopressors_dose']
+    }, {
+        'fid': 'warfarin_dose',
+        'pos': 'warfarin.* tablet'
     }
     # {
     #     'fid': 'fluids_intake',

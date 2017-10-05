@@ -171,6 +171,12 @@ async def load_online_prediction_parameters(ctxt, job_id):
     '''
     criteria_features = await conn.fetch(query_criteria_feature)
     criteria_features = [f['fid'] for f in criteria_features]
+    # Load features needed for jit
+    query_jit_feature = '''
+    select unnest(string_to_array(value, ',')) fid from parameters where name = 'jit_required_derive_fids'
+    '''
+    jit_features = await conn.fetch(query_jit_feature)
+    jit_features = [f['fid'] for f in jit_features]
     # Load features needed for lmc
     query_lmc_feature = '''
     select f.fid
@@ -199,7 +205,7 @@ async def load_online_prediction_parameters(ctxt, job_id):
     # Get cdm feature dict
     cdm_feature = await conn.fetch("select * from cdm_feature")
     cdm_feature_dict = {f['fid']:dict(f) for f in cdm_feature}
-    required_fids = set(list(feature_weights.keys()) + lmc_features + criteria_features)
+    required_fids = set(list(feature_weights.keys()) + lmc_features + criteria_features + jit_features)
     # list the measured features for online prediction
     features_with_intermediates = get_features_with_intermediates(\
       required_fids, cdm_feature_dict)

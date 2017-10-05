@@ -110,6 +110,9 @@ def g_per_l_to_g_per_dl(value):
 def g_to_mg(value):
     return float(value)/10.0
 
+def ml_to_boolean(value):
+    return True if float(value) > 0 else False
+
 def ml_per_hr_to_ml_for_1hr(value):
     return float(value)
 

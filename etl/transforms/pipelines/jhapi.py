@@ -63,6 +63,11 @@ flowsheet_transforms = [
         unit_col = 'unit', from_unit = '', to_unit = '',
         value_col = 'value', convert_func = translate.rass_str_to_number
     ),
+    lambda fs: translate.convert_units(fs,
+        fid_col = 'fid', fids = ['dialysis'],
+        unit_col = 'unit', from_unit = '', to_unit = '',
+        value_col = 'value', convert_func = translate.ml_to_boolean
+    ),
     lambda fs: format_data.filter_to_final_units(fs, 'unit'),
     lambda fs: format_data.threshold_values(fs, 'value'),
     # lambda fs: derive.sum_values_at_same_tsp(fs,
@@ -245,8 +250,7 @@ med_admin_transforms = [
     lambda ma: derive.combine(ma, 'vasopressors_dose', vasopressors_fids),
     lambda ma: derive.combine(ma, 'crystalloid_fluid', crystalloid_fluid_fids),
     lambda ma: derive.combine(ma, 'cms_antibiotics', cms_antibiotics_fids),
-    lambda ma: format_data.threshold_values(ma, 'dose_value'),
-    # lambda ma: derive.derive_fluids_intake(ma)
+    lambda ma: format_data.threshold_values(ma, 'dose_value')
 ]
 
 loc_history_transforms = [
