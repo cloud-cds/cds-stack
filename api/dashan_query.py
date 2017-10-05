@@ -280,7 +280,7 @@ async def get_patient_profile(db_pool, pat_id):
 async def get_criteria(db_pool, eid):
   get_criteria_sql = \
   '''
-  select * from get_criteria(pat_id_to_enc_id('%s'::text))
+  select * from get_criteria_v2(pat_id_to_enc_id('%s'::text))
   ''' % eid
   async with db_pool.acquire() as conn:
     result = await conn.fetch(get_criteria_sql)
@@ -441,6 +441,7 @@ async def override_criteria(db_pool, eid, name, value='[{}]', user='user', clear
       value[0]['upper'] = temp_c_to_f(float(value[0]['upper']))
 
   params = {
+      'time': 'now()' if not clear else 'null',
       'user': ("'" + user + "'") if not clear else 'null',
       'val': ("'" + (json.dumps(value) if isinstance(value, list) else value) + "'") if not clear else 'null',
       'name': name if name != 'sus-edit' else 'suspicion_of_infection',
@@ -453,14 +454,14 @@ async def override_criteria(db_pool, eid, name, value='[{}]', user='user', clear
   override_sql = \
   '''
   update criteria set
-      override_time = now(),
+      override_time = %(time)s,
       update_date = now(),
       override_value = %(val)s,
       override_user = %(user)s
   where enc_id = (select * from pat_id_to_enc_id('%(pid)s'::text)) and name = '%(name)s';
   insert into criteria_log (enc_id, tsp, event, update_date)
   values (
-          pat_id_to_enc_id('%(pid)s'::text)',
+          pat_id_to_enc_id('%(pid)s'::text),
           now(),
           '{"event_type": "override", "name":"%(name)s", "uid":"%(user_log)s", "override_value":%(val_log)s, "clear":%(clear_log)s}',
           now()

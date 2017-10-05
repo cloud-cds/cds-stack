@@ -144,5 +144,4 @@ protokubeImage:
 __EOF_KUBE_ENV
 
 download-release
-sudo docker pull damsl/tf:hossein
 echo "== nodeup node config done =="

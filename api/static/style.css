@@ -11,7 +11,7 @@ html, body {
     background-color: #fff;
     overflow-y: hidden; /* No overflow on the page body, since each column has its own scrollbars. */
 }
-h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li, .vis-inner {
+h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .vis-inner, .vis-item-content {
     font-family: Helvetica, Arial, sans-serif;
 }
 .cf:before,
@@ -248,24 +248,32 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li, .vis-inner {
 }
 .card.complete {
     background-color: #eee;
+    border-top: 3px solid #aaa;
+    border-right: 1px solid #aaa;
+    border-bottom: 1px solid #aaa;
     border-left: 5px solid #aaa;
 }
 .card.inactive {
     -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=45)";
     opacity: 0.45;
 }
-.card.inactive a {
+.card.inactive a,
+.card.inactive .place-order,
+.card.inactive .no-infection,
+.card.inactive .criteria-btn {
     pointer-events: none;
 }
 .card.inactive a[disabled] {
     pointer-events: none;
 }
+/*
 .card.inactive a.edit-btn,
 .card.inactive a.orderNA,
 .card.inactive .place-order,
 .card.inactive .no-infection {
     display: none;
 }
+*/
 .card.inactive .status h5 {
     color: #000;
 }
@@ -276,6 +284,13 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li, .vis-inner {
     margin: 6px;
     font-size: 16px;
     color: #222;
+}
+.card h4 {
+    text-align: left;
+    font-size: 14px;
+}
+.card h4.table-header {
+    margin: 5px 0;
 }
 .card h5 {
     margin: 5px 0;
@@ -291,7 +306,81 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li, .vis-inner {
 .card h5.card-subtitle .workflow-expired {
     color: #ca011a;
 }
-/*SLots*/
+.card table {
+    width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+}
+.card i.pcond-acute {
+    font-size: 18px;
+    color: red;
+    padding-left: 10px;
+}
+.card td.pcond-triggering-value {
+    color: red;
+}
+.card table th + th {
+    border-left: 2px solid white;
+}
+.card table td + td {
+    border-left: 2px solid white;
+}
+.card th {
+    background-color: #999;
+    color: white;
+    text-align: left;
+    padding: 8px;
+    font-size: 12px;
+}
+.card td {
+    text-align: left;
+    padding: 8px;
+    font-size: 12px;
+}
+.card tr:nth-child(even){
+    background-color: #f2f2f2;
+}
+.card[data-trews="septicShock"] {
+    margin-top: 15px;
+}
+/*Slots*/
+.slot .bundle-override {
+    display: inline-block;
+    float: left;
+    width: 40%;
+    margin: 0;
+    color: #666;
+}
+.slot.last-child[data-trews="eval-trews-or-cms"] {
+    margin-top: 15px;
+    border: 0;
+    padding: 0;
+}
+.slot.last-child[data-trews="treat-sepsis"], .slot.last-child[data-trews="treat-shock"] {
+    border: 0;
+    padding: 0;
+    width: 30%;
+}
+.half-slot {
+    width: 48%;
+    display: inline-block;
+}
+.or-slot {
+    width: 4%;
+    display: inline-block;
+    margin-top: 20px;
+    font-size: 12px;
+    text-align: center;
+}
+.slot .or-slot h3 {
+    color: black;
+}
+.half-slot-left {
+    float: left;
+}
+.half-slot-right {
+    float: right;
+}
 .slot {
     padding: 10px;
     border: 1px solid #ddd;
@@ -331,10 +420,28 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li, .vis-inner {
     background-color: #eee;
     border-left: 5px solid #aaa;
 }
+.slot.complete-with-status {
+    background-color: #eee;
+    border-left: 5px solid #ca011a;
+}
+.slot.incomplete-with-status {
+    border-left: 5px solid green;
+}
+.slot h2.with-slider {
+    display: inline-block;
+    float: left;
+    padding-right: 20px;
+    margin: 0;
+    color: #666;
+}
 .slot h3 {
     font-size: 14px;
     margin: 0 0 10px;
     color: #777;
+}
+.slot h3.with-slider {
+    float: left;
+    width: 65%;
 }
 .slot p.num,
 .slot p.num-overridden {
@@ -343,6 +450,9 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li, .vis-inner {
 }
 .slot p.num a {
     text-decoration: underline;
+}
+.slot[data-trews="sus"] h3 {
+    float: left;
 }
 .actions {
     font-size: 12px;
@@ -370,30 +480,36 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li, .vis-inner {
 .actions a.hidden {
     display: none;
 }
+.actions a[data-trews="sus-edit"] {
+    margin-left: 30px;
+}
 .actions p {
     float: right;
     margin: 0;
 }
-.status {
+.status, .desc {
     margin-top: 10px;
     opacity: 1;
     visibility: visible;
 }
-.status:first-child {
+.status:first-child, .desc:first-child {
     margin-top: 5px;
 }
-.csstransitions .status {
+.csstransitions .status, .csstransitions .desc {
     -ms-transition: opacity .3s, visibility .3s, max-height .3s, margin-top .3s;
     transition: opacity .3s, visibility .3s, max-height .3s, margin-top .3s;
 }
-.status.hidden {
+.status.hidden, .desc.hidden {
     margin-top: 0px;
     max-height: 0px;
     opacity: 0;
     visibility: hidden;
 }
-.status.unhidden {
+.status.unhidden, .desc.unhidden {
     max-height: 100px;
+}
+.status.met.met-deactivated, .status.unmet.met-deactivated {
+    border-left: 3px solid #aaa;
 }
 .status.met {
     border-left: 3px solid #ca011a;
@@ -401,17 +517,17 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li, .vis-inner {
 .status.unmet {
     border-left: 3px solid green;
 }
-.status h4 {
+.status h4, .desc h4 {
     margin: 0 0 0 5px;
     font-weight: 400;
     font-size: 12px;
 }
-.card[data-trews="sev3"] .status h4 {
+.card[data-trews="sev3"] .status h4, .card[data-trews="sev3"] .desc h4 {
     margin: 0 0 5px 5px;
     font-weight: 400;
     font-size: 12px;
 }
-.status h5 {
+.status h5, .desc h5 {
     font-weight: 400;
     margin: 0 0 0 5px;
     text-align: left;
@@ -421,9 +537,123 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li, .vis-inner {
 .status h5 .value {
     font-weight: 600;
 }
+.status ul, .desc ul {
+    margin: 5px 0;
+    padding-left: 25px;
+}
+.status li, .desc li {
+    text-align: left;
+    font-size: 12px;
+}
 .num-overridden.hidden,
 .criteria-overridden.hidden {
     display: none;
+}
+/*Criteria override*/
+span.criteria-btn {
+    font-size: 18px;
+    color: #777;
+    cursor: pointer;
+}
+/*Segmented control*/
+.segmented {
+    display:flex;
+    float:right;
+    flex-flow:row wrap;
+    box-sizing:border-box;
+    font-size: 14px;
+    text-align:center;
+    min-width: 110px;
+}
+.segmented .segment-radio {
+    display: none;
+}
+.segmented label {
+    display:block;
+    flex:1;
+    box-sizing:border-box;
+    border:1px solid #666;
+    border-right:none;
+    color: #666;
+    background-color: #ddd;
+    margin:0;
+    padding:.4em;
+    cursor: pointer;
+    user-select:none;
+    -webkit-user-select:none;
+}
+.segmented label.segmented-no.checked {
+    background-color: #ca011a;
+    color:#fff;
+}
+.segmented label.segmented-yes.checked {
+    background-color: green;
+    color:#fff;
+}
+.segmented label.checked {
+    background:#666;
+    color:#fff;
+}
+.segmented label:first-child {
+    border-radius:.6em 0 0 .6em;
+    border-right:0;
+}
+.segmented label:last-child {
+    border-radius:0 .6em .6em 0;
+    border-right:1px solid;
+}
+.segmented input[type="radio"] {
+    appearance:none;
+    -webkit-appearance:none;
+    margin:0;
+    position: absolute;
+}
+/*On/off slider*/
+.onoffswitch {
+    display: inline-block; /*float: right;*/ position: relative; width: 90px; margin-right: 10px;
+    -webkit-user-select:none; -moz-user-select:none; -ms-user-select: none;
+}
+.onoffswitch-checkbox {
+    display: none;
+}
+.onoffswitch-label {
+    display: block; overflow: hidden; cursor: pointer;
+    border-radius: 20px;
+    border: 0; // 2px solid #999999
+}
+.onoffswitch-inner {
+    display: block; width: 200%; margin-left: -100%;
+    transition: margin 0.3s ease-in 0s;
+}
+.onoffswitch-inner:before, .onoffswitch-inner:after {
+    display: block; float: left; width: 50%; height: 30px; padding: 0; line-height: 30px;
+    font-size: 14px; color: white; font-family: Trebuchet, Arial, sans-serif; font-weight: bold;
+    box-sizing: border-box;
+}
+.onoffswitch-inner:before {
+    content: "ON";
+    padding-left: 10px;
+    background-color: green; color: #FFFFFF;
+}
+.onoffswitch-inner:after {
+    content: "OFF";
+    padding-right: 10px;
+    background-color: #EEEEEE; color: #999999;
+    text-align: right;
+}
+.onoffswitch-switch {
+    display: block; width: 18px; margin: 6px;
+    background: #FFFFFF;
+    position: absolute; top: 0; bottom: 0;
+    right: 56px;
+    border: 2px solid #999999; border-radius: 20px;
+    transition: all 0.3s ease-in 0s;
+}
+.onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-inner {
+    margin-left: 0;
+}
+.onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-switch {
+    right: 0px;
 }
 /*Notes*/
 .note {
@@ -884,6 +1114,10 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li, .vis-inner {
     display: inline-block;
 }
 /* Timeline */
+#zoom-label-span {
+    margin-left: 6px;
+    font-size: 14px;
+}
 #timeline-div {
     width: 100%;
     min-height: 300px;
@@ -901,6 +1135,15 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li, .vis-inner {
     color: #555;
     background-color: #555;
 }
+.vis-content .vis-label.vis_g_cms_severe_sepsis , .vis-foreground .vis-group.vis_g_cms_severe_sepsis,
+.vis-content .vis-label.vis_g_trewscore         , .vis-foreground .vis-group.vis_g_trewscore,
+.vis-content .vis-label.vis_g_soi               , .vis-foreground .vis-group.vis_g_soi,
+.vis-content .vis-label.vis_g_cms_sirs          , .vis-foreground .vis-group.vis_g_cms_sirs,
+.vis-content .vis-label.vis_g_hypotension       , .vis-foreground .vis-group.vis_g_hypotension,
+.vis-content .vis-label.vis_g_orders            , .vis-foreground .vis-group.vis_g_orders
+{
+    border-top: 2.5px double #777;
+}
 .vis-label.vis-nesting-group.vis_g_severe_sepsis_active,
 .vis-label.vis-nesting-group.vis_g_septic_shock_active,
 .vis-label.vis-nested-group.vis_g_blood_culture_incomplete,
@@ -916,6 +1159,11 @@ h1, h2, h3, h4, h5, h6, a, p, span, input, select, option, li, .vis-inner {
     cursor: pointer;
     margin: 0 0 0 10px ;
     font-size: 14px;
+}
+.timeline-zoom-btn:hover {
+    border: 1px solid #ca011a;
+    background-color: #eee;
+    padding: 5px;
 }
 .vis_item_order_incomplete {
     background: repeating-linear-gradient(
