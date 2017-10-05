@@ -231,9 +231,9 @@ med_admin_transforms = [
     }),
     lambda ma: translate.translate_med_name_to_fid(ma),
     lambda ma: filter_rows.filter_medications(ma),
-    lambda ma: filter_rows.filter_stopped_medications(ma),
+    #lambda ma: filter_rows.filter_stopped_medications(ma),
     #lambda ma: translate.override_empty_doses_with_rates(ma, fid_col='fid', fids=['sodium_bicarbonate']),
-    lambda ma: filter_rows.filter_by_doses(ma),
+    #lambda ma: filter_rows.filter_by_doses(ma),
     lambda ma: translate.convert_units(ma,
         fid_col = 'fid',
         fids = ['piperacillin_tazobac_dose', 'vancomycin_dose',
@@ -252,7 +252,7 @@ med_admin_transforms = [
     lambda ma: derive.combine(ma, 'vasopressors_dose', vasopressors_fids),
     lambda ma: derive.combine(ma, 'crystalloid_fluid', crystalloid_fluid_fids),
     lambda ma: derive.combine(ma, 'cms_antibiotics', cms_antibiotics_fids),
-    lambda ma: format_data.threshold_values(ma, 'dose_value')
+    # lambda ma: format_data.threshold_values(ma, 'dose_value')
 ]
 
 loc_history_transforms = [

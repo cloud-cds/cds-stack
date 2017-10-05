@@ -3876,7 +3876,7 @@ select pat_enc.enc_id, mar.tsp::timestamptz, mar.fid,
     max(mar.dose_value::numeric), 0
 from workspace.' || job_id || '_med_admin_transformed mar
     inner join pat_enc on pat_enc.visit_id = mar.visit_id
-where isnumeric(mar.dose_value) and mar.tsp <> ''NaT'' and mar.tsp::timestamptz < now() and mar.fid not ilike ''dose'' and mar.fid <> ''fluids_intake''
+where isnumeric(mar.dose_value) and mar.tsp <> ''NaT'' and mar.tsp::timestamptz < now() and mar.fid not ilike ''%_dose'' and mar.fid <> ''fluids_intake''
 group by pat_enc.enc_id, tsp, mar.fid
 ON CONFLICT (enc_id, tsp, fid)
 DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
