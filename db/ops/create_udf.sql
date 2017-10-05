@@ -1462,7 +1462,8 @@ return query
             pc.c_ouser,
             pc.c_ovalue,
             t.fid || ':' || t.value as value,
-            (case when t.enc_id is not null then true else false end) as is_met
+            (case when pc.c_ovalue#>>'{0,text}' = 'No Infection' then false
+             when t.enc_id is not null then true else false end) as is_met
             from pat_cvalues pc left join cdm_t t on pc.enc_id = t.enc_id
             and t.fid ~ '^(dopamine|vasopressin|epinephrine|levophed_infusion|neosynephrine)_dose$'
             and (pc.tsp between t.tsp and t.tsp + '6 hours'::interval)
@@ -1488,7 +1489,8 @@ return query
             pc.c_ouser,
             pc.c_ovalue,
             t.fid || ':' || t.value as value,
-            (case when t.enc_id is not null then true else false end) as is_met
+            (case when pc.c_ovalue#>>'{0,text}' = 'No Infection' then false
+                when t.enc_id is not null then true else false end) as is_met
             from pat_cvalues pc left join cdm_t t on pc.enc_id = t.enc_id
             and t.fid in ('vent', 'cpap', 'bipap')
             and (pc.tsp between t.tsp and t.tsp + '48 hours'::interval)
@@ -1614,7 +1616,8 @@ return query
                     pc.c_otime,
                     pc.c_ouser,
                     pc.c_ovalue,
-                    (case when pc.name = 'trews_bilirubin' and pc.fid = 'bilirubin' then pc.value::numeric >= 2 and pc.value::numeric >= 2 * 0.2
+                    (case when pc.c_ovalue#>>'{0,text}' = 'No Infection' then false
+                     when pc.name = 'trews_bilirubin' and pc.fid = 'bilirubin' then pc.value::numeric >= 2 and pc.value::numeric >= 2 * 0.2
                      when pc.name = 'trews_creatinine' and pc.fid = 'creatinine' then pc.value::numeric >= 0.5 + 0.5 and pc.value::numeric >= 1.5 and esrd.enc_id is null
                      when pc.name = 'trews_gcs' and pc.fid = 'gcs' then pc.value::numeric < 13 and gs.enc_id is null and gp.enc_id is null
                      when pc.name = 'trews_inr' and pc.fid = 'inr' then (pc.value::numeric >= 1.5 and pc.value::numeric >= 0.5 + 0) and iw.enc_id is null
