@@ -997,7 +997,7 @@ var severeSepsisComponent = new function() {
 
   this.suspicion = function(json) {
     this.susCtn.find('h3').text(json['display_name']);
-    this.susCtn.removeClass('complete');
+    this.susCtn.removeClass('complete complete-with-status');
     if (this.sus['value'] == null) {
       var highlightCls = this.highlightSuspicionClass();
       if ( highlightCls != null ) {
@@ -1012,7 +1012,7 @@ var severeSepsisComponent = new function() {
     } else {
       this.susCtn.removeClass('highlight-expired highlight-unexpired');
       if (this.sus['value'] != 'No Infection') {
-        this.susCtn.addClass('complete');
+        this.susCtn.addClass('complete-with-status');
       }
       this.susCtn.find('.status').show();
       this.susCtn.find('.selection').hide();
@@ -2534,7 +2534,7 @@ var notifications = new function() {
 
     // Highlight next step if we have a code 300, and code 205 has not passed.
     var susCtn = $("[data-trews='sus']");
-    if ( !susCtn.hasClass('complete') ) {
+    if ( !susCtn.hasClass('complete') || !susCtn.hasClass('complete-with-status') ) {
       var highlightCls = severeSepsisComponent.highlightSuspicionClass();
       if ( highlightCls != null ) {
         susCtn.addClass(highlightCls);
@@ -3414,7 +3414,12 @@ var toolbar = new function() {
       }
     } else {
       if ( this.chartHasSepsisMarker ) {
-        this.chart.removeCustomTime('v_cms_severe_sepsis');
+        try {
+          this.chart.removeCustomTime('v_cms_severe_sepsis');
+        } catch(err) {
+          appendToConsole('Failed to timeline marker for v_cms_severe_sepsis: ' + err.message);
+        }
+        this.chartHasSepsisMarker = false
       }
     }
 
@@ -3886,6 +3891,8 @@ var toolbar = new function() {
       var tsp = new Date(obj[evt][tsp_field]*1000);
       var g = this.groups[sepsis_events[i]['grp']];
 
+      var itemId = sepsis_events[i]['grp'];
+
       if ( evt == 'suspicion_of_infection' && obj[evt][tsp_field] != null && obj[evt]['value'] != null ) {
         lbl = sepsis_events[i]['n'] + '(' + obj[evt]['value'] + ')';
         tip = sepsis_events[i]['tip'];
@@ -3913,7 +3920,7 @@ var toolbar = new function() {
         }
 
         items.add($.extend({}, itemBase, {
-          id: evt,
+          id: itemId,
           group: g['id'],
           style: sepsis_events[i]['sty']
         }));
@@ -3924,7 +3931,7 @@ var toolbar = new function() {
               && sepsis_events[i]['end'] != null && sepsis_events[i]['end'] < now )
         {
           items.add({
-            id: evt + '_to_now',
+            id: itemId + '_to_now',
             group: g['id'],
             content: ' ',
             title: lbl + ' at ' + strToTime(tsp, true, true) + '. ' + sepsis_events[i]['extend_lbl'] ,
@@ -3939,7 +3946,7 @@ var toolbar = new function() {
           for (var j = 0; j < sepsis_events[i]['pgrp'].length; j++) {
             var pg = this.groups[sepsis_events[i]['pgrp'][j]];
             var item = $.extend({}, itemBase, {
-              id: sepsis_events[i]['pgrp'][j] + '_' + evt,
+              id: sepsis_events[i]['pgrp'][j] + '_' + itemId,
               group: pg['id']
             });
 
