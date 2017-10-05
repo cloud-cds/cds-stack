@@ -248,24 +248,31 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
 }
 .card.complete {
     background-color: #eee;
+    border-top: 3px solid #aaa;
+    border-right: 1px solid #aaa;
+    border-bottom: 1px solid #aaa;
     border-left: 5px solid #aaa;
 }
 .card.inactive {
     -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=45)";
     opacity: 0.45;
 }
-.card.inactive a {
+.card.inactive a,
+.card.inactive .place-order,
+.card.inactive .no-infection {
     pointer-events: none;
 }
 .card.inactive a[disabled] {
     pointer-events: none;
 }
+/*
 .card.inactive a.edit-btn,
 .card.inactive a.orderNA,
 .card.inactive .place-order,
 .card.inactive .no-infection {
     display: none;
 }
+*/
 .card.inactive .status h5 {
     color: #000;
 }
@@ -303,12 +310,13 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
     overflow-x: auto;
     border-collapse: collapse;
 }
-.card td.pcond-arrow-column, .card th.pcond-arrow-column {
-    border-left: none;
+.card i.pcond-acute {
     font-size: 18px;
     color: red;
-    padding: 0 5px 0 0;
-    margin: 0;
+    padding-left: 10px;
+}
+.card td.pcond-triggering-value {
+    color: red;
 }
 .card table th + th {
     border-left: 2px solid white;
@@ -331,7 +339,39 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
 .card tr:nth-child(even){
     background-color: #f2f2f2;
 }
-/*SLots*/
+.card[data-trews="septicShock"] {
+    margin-top: 15px;
+}
+/*Slots*/
+.slot.last-child[data-trews="eval-trews-or-cms"] {
+    margin-top: 15px;
+    border: 0;
+    padding: 0;
+}
+.slot.last-child[data-trews="treat-sepsis"], .slot.last-child[data-trews="treat-shock"] {
+    border: 0;
+    padding-top: 10px;
+}
+.half-slot {
+    width: 48%;
+    display: inline-block;
+}
+.or-slot {
+    width: 4%;
+    display: inline-block;
+    margin-top: 20px;
+    font-size: 12px;
+    text-align: center;
+}
+.slot .or-slot h3 {
+    color: black;
+}
+.half-slot-left {
+    float: left;
+}
+.half-slot-right {
+    float: right;
+}
 .slot {
     padding: 10px;
     border: 1px solid #ddd;
@@ -371,6 +411,18 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
     background-color: #eee;
     border-left: 5px solid #aaa;
 }
+.slot.complete-with-status {
+    background-color: #eee;
+    border-left: 5px solid #ca011a;
+}
+.slot.incomplete-with-status {
+    border-left: 5px solid green;
+}
+.slot h2.with-slider {
+    display: inline-block;
+    float: left;
+    padding-right: 20px;
+}
 .slot h3 {
     font-size: 14px;
     margin: 0 0 10px;
@@ -387,6 +439,9 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
 }
 .slot p.num a {
     text-decoration: underline;
+}
+.slot[data-trews="sus"] h3 {
+    float: left;
 }
 .actions {
     font-size: 12px;
@@ -414,6 +469,9 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
 .actions a.hidden {
     display: none;
 }
+.actions a[data-trews="sus-edit"] {
+    margin-left: 30px;
+}
 .actions p {
     float: right;
     margin: 0;
@@ -438,6 +496,9 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
 }
 .status.unhidden, .desc.unhidden {
     max-height: 100px;
+}
+.status.met.met-deactivated, .status.unmet.met-deactivated {
+    border-left: 3px solid #aaa;
 }
 .status.met {
     border-left: 3px solid #ca011a;
@@ -477,53 +538,12 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
 .criteria-overridden.hidden {
     display: none;
 }
-/*Condition tables*/
-.slot[data-trews="orgdf-table"] {
-    overflow-x: auto;
+/*Criteria override*/
+span.criteria-btn {
+    font-size: 18px;
+    color: #777;
+    cursor: pointer;
 }
-.slot[data-trews="sirs-table"] {
-    overflow-x: auto;
-}
-/*Evaluation summaries*/
-.slot[data-trews="eval-criteria-summary"] {
-    overflow-x: auto;
-}
-.slot .eval-summary {
-    display: inline-block;
-    position:relative;
-    width: 30%;
-    height: 20px;
-    padding-right: 20px;
-    min-width: 110px;
-}
-.slot .eval-summary.last-child {
-    width: 40%;
-    padding-right: 0px;
-}
-.slot .eval-summary h3 {
-    display: inline-block;
-    position: absolute;
-    padding-left: 5px;
-    height: 12px;
-}
-.slot .eval-summary .flag {
-    display: inline-block;
-    background: #ddd;
-    height: 20px;
-    width: 20px;
-}
-/*
-.slot .eval-summary.unmet {
-    float: left;
-    border: 2px solid #10b66d;
-    width: 33%;
-}
-.slot .eval-summary.met {
-    float: left;
-    border: 2px solid #ca011a;
-    width: 33%;
-}
-*/
 /*Segmented control*/
 .segmented {
     display:flex;
@@ -576,6 +596,52 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
     -webkit-appearance:none;
     margin:0;
     position: absolute;
+}
+/*On/off slider*/
+.onoffswitch {
+    display: inline-block; /*float: right;*/ position: relative; width: 90px; margin-right: 10px;
+    -webkit-user-select:none; -moz-user-select:none; -ms-user-select: none;
+}
+.onoffswitch-checkbox {
+    display: none;
+}
+.onoffswitch-label {
+    display: block; overflow: hidden; cursor: pointer;
+    border: 2px solid #999999; border-radius: 20px;
+}
+.onoffswitch-inner {
+    display: block; width: 200%; margin-left: -100%;
+    transition: margin 0.3s ease-in 0s;
+}
+.onoffswitch-inner:before, .onoffswitch-inner:after {
+    display: block; float: left; width: 50%; height: 30px; padding: 0; line-height: 30px;
+    font-size: 14px; color: white; font-family: Trebuchet, Arial, sans-serif; font-weight: bold;
+    box-sizing: border-box;
+}
+.onoffswitch-inner:before {
+    content: "ON";
+    padding-left: 10px;
+    background-color: green; color: #FFFFFF;
+}
+.onoffswitch-inner:after {
+    content: "OFF";
+    padding-right: 10px;
+    background-color: #EEEEEE; color: #999999;
+    text-align: right;
+}
+.onoffswitch-switch {
+    display: block; width: 18px; margin: 6px;
+    background: #FFFFFF;
+    position: absolute; top: 0; bottom: 0;
+    right: 56px;
+    border: 2px solid #999999; border-radius: 20px;
+    transition: all 0.3s ease-in 0s;
+}
+.onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-inner {
+    margin-left: 0;
+}
+.onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-switch {
+    right: 0px;
 }
 /*Notes*/
 .note {
@@ -1036,6 +1102,10 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
     display: inline-block;
 }
 /* Timeline */
+#zoom-label-span {
+    margin-left: 6px;
+    font-size: 14px;
+}
 #timeline-div {
     width: 100%;
     min-height: 300px;
@@ -1052,6 +1122,15 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
 .vis-custom-time.v_cms_severe_sepsis {
     color: #555;
     background-color: #555;
+}
+.vis-content .vis-label.vis_g_cms_severe_sepsis , .vis-foreground .vis-group.vis_g_cms_severe_sepsis,
+.vis-content .vis-label.vis_g_trewscore         , .vis-foreground .vis-group.vis_g_trewscore,
+.vis-content .vis-label.vis_g_soi               , .vis-foreground .vis-group.vis_g_soi,
+.vis-content .vis-label.vis_g_cms_sirs          , .vis-foreground .vis-group.vis_g_cms_sirs,
+.vis-content .vis-label.vis_g_hypotension       , .vis-foreground .vis-group.vis_g_hypotension,
+.vis-content .vis-label.vis_g_orders            , .vis-foreground .vis-group.vis_g_orders
+{
+    border-top: 2.5px double #777;
 }
 .vis-label.vis-nesting-group.vis_g_severe_sepsis_active,
 .vis-label.vis-nesting-group.vis_g_septic_shock_active,

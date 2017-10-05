@@ -158,7 +158,7 @@ var criteriaKeyToName = {
 		"units": "sec"}
 	],
 	"lactate": [
-		{"name": "Lactate Measurement",
+		{"name": "Lactate",
 		"units": "mmol/L"}
 	],
 	"crystalloid_fluid": [
@@ -195,7 +195,52 @@ var criteriaKeyToName = {
 	],
 	"vasopressors_order": [
 		{"name": "Vasopressors Order"}
-	]
+	],
+	/* TREWS organ dysfunction criteria */
+	"trews_sbpm": [
+		{"name": "Systolic Blood Pressure",
+		"units": "mmHg"}
+	],
+	"trews_map": [
+		{"name": "Mean Arterial Pressure",
+		"units": "mmHg"}
+	],
+	"trews_dsbp": [
+		{"name": "Decrease in Systolic Blood Pressure",
+		"units": "mmHg"}
+	],
+	"trews_vent": [
+		{"name": "Respiratory Failure: Mechanical Support",
+		"units": ""}
+	],
+	"trews_creatinine": [
+		{"name": "Creatinine",
+		"units": "mg/dL"},
+		{"name": "Urine Output",
+		"units": "mL/kg/hour"}
+	],
+	"trews_bilirubin": [
+		{"name": "Bilirubin",
+		"units": "mg/dL"}
+	],
+	"trews_platelet": [
+		{"name": "Platelet Count",
+		"units": ""}
+	],
+	"trews_inr": [
+		{"name": "INR",
+		"units": ""},
+		{"name": "PTT",
+		"units": "sec"}
+	],
+	"trews_lactate": [
+		{"name": "Lactate",
+		"units": "mmol/L"}
+	],
+	"trews_gcs": [
+		{"name": "GCS",
+		"units": ""}
+	],
 }
 
 var severe_sepsis = {
@@ -219,7 +264,10 @@ var severe_sepsis = {
 				"range": "true",
 				"minAbsolute": 20,
 				"maxAbsolute": 50,
-				"values": [36.0, 38.3]
+				"values": [36.0, 38.3],
+				"acute_threshold": null,
+				"acute_cmp": null,
+				"acute_arrow": null
 			}],
 			"precision": 3
 		}, {
@@ -235,7 +283,10 @@ var severe_sepsis = {
 				"range": "max",
 				"minAbsolute": 20,
 				"maxAbsolute": 240,
-				"value": 90
+				"value": 90,
+				"acute_threshold": null,
+				"acute_cmp": null,
+				"acute_arrow": null
 			}],
 			"precision": 4
 		}, {
@@ -251,7 +302,10 @@ var severe_sepsis = {
 				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 80,
-				"value": 20
+				"value": 20,
+				"acute_threshold": null,
+				"acute_cmp": null,
+				"acute_arrow": null
 			}],
 			"precision": 3
 		}, {
@@ -267,7 +321,10 @@ var severe_sepsis = {
 				"range": "true",
 				"minAbsolute": 2,
 				"maxAbsolute": 15,
-				"values": [4, 12]
+				"values": [4, 12],
+				"acute_threshold": null,
+				"acute_cmp": null,
+				"acute_arrow": null
 			},{
 				"id": "override_bands",
 				"header": "Override Bands",
@@ -277,14 +334,17 @@ var severe_sepsis = {
 				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 15,
-				"value": 10
+				"value": 10,
+				"acute_threshold": null,
+				"acute_cmp": null,
+				"acute_arrow": null
 			}],
 			"precision": 3
 		}]
 	},
 	"organ_dysfunction": {
 		"key": "org",
-		"display_name": "Organ Dysfunction",
+		"display_name": "CMS Definition Organ Dysfunction",
 		"criteria": [{
 			"key": "blood_pressure",
 			"criteria_display_name": "Systolic Blood Pressure < 90",
@@ -298,7 +358,10 @@ var severe_sepsis = {
 				"range": "min",
 				"minAbsolute": 0,
 				"maxAbsolute": 180,
-				"value": 90
+				"value": 90,
+				"acute_threshold": null,
+				"acute_cmp": null,
+				"acute_arrow": null
 			}],
 			"precision": 4
 		}, {
@@ -314,7 +377,10 @@ var severe_sepsis = {
 				"range": "min",
 				"minAbsolute": 0,
 				"maxAbsolute": 180,
-				"value": 65
+				"value": 65,
+				"acute_threshold": null,
+				"acute_cmp": null,
+				"acute_arrow": null
 			}],
 			"precision": 3
 		}, {
@@ -330,7 +396,10 @@ var severe_sepsis = {
 				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 100,
-				"value": 40
+				"value": 40,
+				"acute_threshold": null,
+				"acute_cmp": null,
+				"acute_arrow": null
 			}],
 			"precision": 3
 		}, {
@@ -346,7 +415,10 @@ var severe_sepsis = {
 				"range": 'max',
 				"minAbsolute": 0,
 				"maxAbsolute": 1,
-				"value": 0
+				"value": 0,
+				"acute_threshold": null,
+				"acute_cmp": null,
+				"acute_arrow": null
 			}],
 			"precision": 4
 		}, {
@@ -362,7 +434,10 @@ var severe_sepsis = {
 				"range": "max",
 				"minAbsolute": 0.0,
 				"maxAbsolute": 4.0,
-				"value": 2.0
+				"value": 2.0,
+				"acute_threshold": 0.3,
+				"acute_cmp": "GT",
+				"acute_arrow": "up"
 			}, {
 				"id": "override_urine_output",
 				"header": "Override Urine Output",
@@ -372,7 +447,10 @@ var severe_sepsis = {
 				"range": "min",
 				"minAbsolute": 0.0,
 				"maxAbsolute": 3.0,
-				"value": 0.5
+				"value": 0.5,
+				"acute_threshold": null,
+				"acute_cmp": null,
+				"acute_arrow": null
 			}],
 			"precision": 3
 		}, {
@@ -388,7 +466,10 @@ var severe_sepsis = {
 				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 4,
-				"value": 2
+				"value": 2,
+				"acute_threshold": 0.3,
+				"acute_cmp": "GT",
+				"acute_arrow": "up"
 			}],
 			"precision": 3
 		}, {
@@ -404,7 +485,10 @@ var severe_sepsis = {
 				"range": "min",
 				"minAbsolute": 0,
 				"maxAbsolute": 200000,
-				"value": 100000
+				"value": 100000,
+				"acute_threshold": -50,
+				"acute_cmp": "LT",
+				"acute_arrow": "down"
 			}],
 			"precision": 6
 		}, {
@@ -420,7 +504,10 @@ var severe_sepsis = {
 				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 200000,
-				"value": 100000
+				"value": 100000,
+				"acute_threshold": null,
+				"acute_cmp": null,
+				"acute_arrow": null
 			},{
 				"id": "override_ptt",
 				"header": "Override PTT",
@@ -430,7 +517,10 @@ var severe_sepsis = {
 				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 120,
-				"value": 60
+				"value": 60,
+				"acute_threshold": null,
+				"acute_cmp": null,
+				"acute_arrow": null
 			}],
 			"precision": 5
 		}, {
@@ -440,21 +530,330 @@ var severe_sepsis = {
 			"overrideModal": [{
 				"id": "override_lactate_measurement",
 				"header": "Override Lactate Measurement",
-				"name": "Lactate Measurement",
+				"name": "Lactate",
 				"units": "mmol/L",
 				"step": 0.01,
 				"range": "max",
 				"minAbsolute": 0,
 				"maxAbsolute": 4,
-				"value": 2
+				"value": 2,
+				"acute_threshold": 0.1,
+				"acute_cmp": "GT",
+				"acute_arrow": "up"
 			}],
 			"precision": 3
+		}],
+		"criteria_mapping": [{
+			"src": "blood_pressure",
+			"dst": "trews_sbpm"
+		}, {
+			"src": "mean_arterial_pressure",
+			"dst": "trews_map"
+		}, {
+			"src": "decrease_in_sbp",
+			"dst": "trews_dsbp"
+		}, {
+			"src": "respiratory_failure",
+			"dst": "trews_vent"
+		}, {
+			"src": "creatinine",
+			"dst": "trews_creatinine"
+		}, {
+			"src": "bilirubin",
+			"dst": "trews_bilirubin"
+		}, {
+			"src": "platelet",
+			"dst": "trews_platelet"
+		}, {
+			"src": "inr",
+			"dst": "trews_inr"
+		}, {
+			"src": "lactate",
+			"dst": "trews_lactate"
+		}]
+	},
+	"trews": {
+		"key": "trews",
+		"display_name": "TREWS Acuity Score",
+		"criteria": [{
+			"key": "trews",
+			"criteria_display_name": "TREWS Acuity Score indicates high risk of deterioration",
+			"dropdown": "TREWS Acuity Score is normal",
+			"overrideModal": [{
+				"id": "override_trews",
+				"header": "Override TREWS Score assessment",
+				"name": "TREWS Acuity Score",
+				"units": "",
+				"step": 0.05,
+				"range": "max",
+				"minAbsolute": 0,
+				"maxAbsolute": 1,
+				"value": 0.75,
+				"acute_threshold": null,
+				"acute_cmp": null,
+				"acute_arrow": null
+			}]
+		}]
+	},
+	"trews_organ_dysfunction": {
+		"key": "trews_org",
+		"display_name": "TREWS Definition Organ Dysfunction",
+		"criteria": [{
+			"key": "trews_sbpm",
+			"criteria_display_name": "Systolic Blood Pressure < 90",
+			"dropdown": "Blood pressure is normal",
+			"overrideModal": [{
+				"id": "override_trews_sbpm",
+				"header": "Override Blood Pressure",
+				"name": "Systolic Blood Pressure",
+				"units": "mmHg",
+				"step": 1,
+				"range": "min",
+				"minAbsolute": 0,
+				"maxAbsolute": 180,
+				"value": 90,
+				"acute_threshold": null,
+				"acute_cmp": null,
+				"acute_arrow": null
+			}],
+			"precision": 4
+		}, {
+			"key": "trews_map",
+			"criteria_display_name": "Mean arterial pressure < 65",
+			"dropdown": "Mean arterial pressure is normal",
+			"overrideModal": [{
+				"id": "override_trews_map",
+				"header": "Override Mean Arterial Pressure",
+				"name": "Mean Arterial Pressure",
+				"units": "mmHg",
+				"step": 1,
+				"range": "min",
+				"minAbsolute": 0,
+				"maxAbsolute": 180,
+				"value": 65,
+				"acute_threshold": null,
+				"acute_cmp": null,
+				"acute_arrow": null
+			}],
+			"precision": 3
+		}, {
+			"key": "trews_dsbp",
+			"criteria_display_name": "Decrease in SBP by > 40 mmHg from the last recorded SBP considered normal for given patient",
+			"dropdown": "Decrease in SBP is normal",
+			"overrideModal": [{
+				"id": "override_trews_dsbp",
+				"header": "Override Decrease in Systolic Blood Pressure",
+				"name": "Decrease in Systolic Blood Pressure",
+				"units": "mmHg",
+				"step": 1,
+				"range": "max",
+				"minAbsolute": 0,
+				"maxAbsolute": 100,
+				"value": 40,
+				"acute_threshold": null,
+				"acute_cmp": null,
+				"acute_arrow": null
+			}],
+			"precision": 3
+		}, {
+			"key": "trews_vent",
+			"criteria_display_name": "Acute respiratory failure evidenced by invasive or non-invasive ventiliation",
+			"dropdown": "Respiratory failure is normal",
+			"overrideModal": [{
+				"id": "override_trews_vent",
+				"header": "Override Respiratory Failure",
+				"name": "Respiratory Failure",
+				"units": "",
+				"step": 1,
+				"range": 'max',
+				"minAbsolute": 0,
+				"maxAbsolute": 1,
+				"value": 0,
+				"acute_threshold": null,
+				"acute_cmp": null,
+				"acute_arrow": null
+			}],
+			"precision": 4
+		}, {
+			"key": "trews_creatinine",
+			"criteria_display_name": "Creatinine > 2.0 or Urine Output < 0.5 mL/kg/hour for 2 hours",
+			"dropdown": "Creatinine and/or Urine Output is normal",
+			"overrideModal": [{
+				"id": "override_trews_creatinine",
+				"header": "Override Creatinine",
+				"name": "Creatinine",
+				"units": "mg/dL",
+				"step": 0.1,
+				"range": "max",
+				"minAbsolute": 0.0,
+				"maxAbsolute": 4.0,
+				"value": 2.0,
+				"acute_threshold": 0.3,
+				"acute_cmp": "GT",
+				"acute_arrow": "up"
+			}, {
+				"id": "override_trews_urine_output",
+				"header": "Override Urine Output",
+				"name": "Urine Output",
+				"units": "mL/kg/hour",
+				"step": 0.1,
+				"range": "min",
+				"minAbsolute": 0.0,
+				"maxAbsolute": 3.0,
+				"value": 0.5,
+				"acute_threshold": null,
+				"acute_cmp": null,
+				"acute_arrow": null
+			}],
+			"precision": 3
+		}, {
+			"key": "trews_bilirubin",
+			"criteria_display_name": "Bilirubin > 2 mg/dL (34.2 mmol/L)",
+			"dropdown": "Bilirubin is normal",
+			"overrideModal": [{
+				"id": "override_trews_bilirubin",
+				"header": "Override Bilirubin",
+				"name": "Bilirubin",
+				"units": "mg/dL",
+				"step": 0.01,
+				"range": "max",
+				"minAbsolute": 0,
+				"maxAbsolute": 4,
+				"value": 2,
+				"acute_threshold": 0.3,
+				"acute_cmp": "GT",
+				"acute_arrow": "up"
+			}],
+			"precision": 3
+		}, {
+			"key": "trews_platelet",
+			"criteria_display_name": "Platelet count < 100,000",
+			"dropdown": "Platelet Count is normal",
+			"overrideModal": [{
+				"id": "override_trews_platelet",
+				"header": "Override Platelet Count",
+				"name": "Platelet Count",
+				"units": "",
+				"step": 100,
+				"range": "min",
+				"minAbsolute": 0,
+				"maxAbsolute": 200000,
+				"value": 100000,
+				"acute_threshold": -50,
+				"acute_cmp": "LT",
+				"acute_arrow": "down"
+			}],
+			"precision": 6
+		}, {
+			"key": "trews_inr",
+			"criteria_display_name": "INR > 1.5 or PTT > 60 sec",
+			"dropdown": "INR is normal",
+			"overrideModal": [{
+				"id": "override_trews_inr",
+				"header": "Override INR",
+				"name": "INR",
+				"units": "",
+				"step": 1000,
+				"range": "max",
+				"minAbsolute": 0,
+				"maxAbsolute": 200000,
+				"value": 100000,
+				"acute_threshold": null,
+				"acute_cmp": null,
+				"acute_arrow": null
+			},{
+				"id": "override_trews_ptt",
+				"header": "Override PTT",
+				"name": "PTT",
+				"units": "sec",
+				"step": 1,
+				"range": "max",
+				"minAbsolute": 0,
+				"maxAbsolute": 120,
+				"value": 60,
+				"acute_threshold": null,
+				"acute_cmp": null,
+				"acute_arrow": null
+			}],
+			"precision": 5
+		}, {
+			"key": "trews_lactate",
+			"criteria_display_name": "Lactate > 2mmol/L: (18.0 mg/dL)",
+			"dropdown": "Lactate is normal",
+			"overrideModal": [{
+				"id": "override_trews_lactate",
+				"header": "Override Lactate Measurement",
+				"name": "Lactate",
+				"units": "mmol/L",
+				"step": 0.01,
+				"range": "max",
+				"minAbsolute": 0,
+				"maxAbsolute": 4,
+				"value": 2,
+				"acute_threshold": 0.1,
+				"acute_cmp": "GT",
+				"acute_arrow": "up"
+			}],
+			"precision": 3
+		}, {
+			"key": "trews_gcs",
+			"criteria_display_name": "GCS < 13",
+			"dropdown": "GCS is normal",
+			"overrideModal": [{
+				"id": "override_trews_gcs",
+				"header": "Override GCS",
+				"name": "GCS",
+				"units": "",
+				"step": 1,
+				"range": "min",
+				"minAbsolute": 3,
+				"maxAbsolute": 15,
+				"value": 13,
+				"acute_threshold": 2,
+				"acute_cmp": "GT",
+				"acute_arrow": "up"
+			}],
+			"precision": 1
+		}],
+		"criteria_mapping": [{
+			"src": "trews_sbpm",
+			"dst": "blood_pressure"
+		}, {
+			"src": "trews_map",
+			"dst": "mean_arterial_pressure"
+		}, {
+			"src": "trews_dsbp",
+			"dst": "decrease_in_sbp"
+		}, {
+			"src": "trews_vent",
+			"dst": "respiratory_failure"
+		}, {
+			"src": "trews_creatinine",
+			"dst": "creatinine"
+		}, {
+			"src": "trews_bilirubin",
+			"dst": "bilirubin"
+		}, {
+			"src": "trews_platelet",
+			"dst": "platelet"
+		}, {
+			"src": "trews_inr",
+			"dst": "inr"
+		}, {
+			"src": "trews_lactate",
+			"dst": "lactate"
+		}, {
+			"src": "trews_lactate",
+			"dst": "lactate"
+		}, {
+			"src": "trews_gcs",
+			"dst": null
 		}]
 	}
 }
 
 var septic_shock = {
-	"display_name": "Septic Shock Criteria",
+	"display_name": "Septic Shock Evaluation",
 	"tension": {
 		"key": "tension",
 		"display_name": "Persistent Hypotension",
