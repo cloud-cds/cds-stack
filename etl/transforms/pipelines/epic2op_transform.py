@@ -50,6 +50,7 @@ flowsheet_transforms = [
         drop_original = True,
     ),
     lambda fs: format_data.clean_units(fs, 'fid', 'unit'),
+    lambda fs: translate.convert_weight_value_to_float(fs, 'fid', 'value', 'weight'),
     lambda fs: format_data.clean_values(fs, 'fid', 'value'),
     lambda fs: translate.extract_sys_dias_from_bp(fs, 'fid', 'value', 'nbp'),
     lambda fs: translate.extract_sys_dias_from_bp(fs, 'fid', 'value', 'abp'),
@@ -70,6 +71,7 @@ flowsheet_transforms = [
     ),
     lambda fs: format_data.filter_to_final_units(fs, 'unit'),
     lambda fs: format_data.threshold_values(fs, 'value'),
+    lambda fs: translate.convert_to_boolean(fs, 'fid', 'value', 'dialysis')
     # lambda fs: derive.sum_values_at_same_tsp(fs,
     #     ['urine_output', 'fluids_intake']
     # ),
