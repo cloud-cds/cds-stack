@@ -11,7 +11,7 @@ html, body {
     background-color: #fff;
     overflow-y: hidden; /* No overflow on the page body, since each column has its own scrollbars. */
 }
-h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .vis-inner, .vis-item-content {
+h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .vis-inner, .vis-item-content, .vis-text {
     font-family: Helvetica, Arial, sans-serif;
 }
 .cf:before,
