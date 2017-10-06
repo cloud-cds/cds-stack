@@ -160,8 +160,7 @@ CREATE TABLE criteria_default
     name    varchar(50) ,
     fid       varchar(50) ,
     override_value  json,
-    category varchar(50),
-    primary key(name, fid, category)
+    category varchar(50)
 );
 
 DROP TABLE IF EXISTS notifications;
