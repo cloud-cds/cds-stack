@@ -226,10 +226,12 @@ var trews = new function() {
         return this.data['severe_sepsis']['sirs']['criteria'];
       case 'org':
         return this.data['severe_sepsis']['organ_dysfunction']['criteria'];
-      case 'trews_org':
-        return this.data['severe_sepsis']['trews_organ_dysfunction']['criteria'];
       case 'organ_dysfunction':
         return this.data['severe_sepsis']['organ_dysfunction']['criteria'];
+      case 'trews':
+        return this.data['severe_sepsis']['trews']['criteria'];
+      case 'trews_org':
+        return this.data['severe_sepsis']['trews_organ_dysfunction']['criteria'];
       case 'trews_organ_dysfunction':
         return this.data['severe_sepsis']['trews_organ_dysfunction']['criteria'];
       case 'tension':
