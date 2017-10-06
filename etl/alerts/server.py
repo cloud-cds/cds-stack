@@ -143,7 +143,7 @@ class AlertServer:
     tsp = msg['time']
     enc_id_str = ','.join([str(i) for i in msg['enc_ids'] if i])
     hospital = msg['hosp']
-    logging.info("received FIN for enc_ids: {}".format(pats_str))
+    logging.info("received FIN for enc_ids: {}".format(enc_id_str))
     # calculate criteria here
     await self.calculate_criteria_enc(conn, enc_id_str)
     if self.notify_web:
