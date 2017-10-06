@@ -46,7 +46,7 @@ spec:
         opsdx_nodegroup: spot-nodes
       containers:
       - name: jit-alerts
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.189
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.190
         imagePullPolicy: Always
         resources:
           requests:

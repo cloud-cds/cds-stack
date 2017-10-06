@@ -324,7 +324,8 @@ class AlertServer:
 
     elif message.get('type') == 'ETL':
       if self.model == 'lmc' or self.model == 'trews-jit':
-        self.garbage_collect_suppression_tasks(message['hosp'])
+        if self.model == 'lmc':
+          self.garbage_collect_suppression_tasks(message['hosp'])
         self.predictor_manager.cancel_predict_tasks(hosp=message['hosp'])
         self.predictor_manager.create_predict_tasks(hosp=message['hosp'],
                                                     time=message['time'])
