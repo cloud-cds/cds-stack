@@ -3752,7 +3752,7 @@ var toolbar = new function() {
 
     var numEntries = Math.max(scoreValues.length, scoreTsps.length);
     if ( numEntries > 0 ) {
-      prevCrossing = {v: scoreValues[0], t: scoreTsps[0]};
+      prevCrossing = {v: scoreValues[0], t: scoreTsps[0]*1000};
     }
 
     var mkCrossingItem = function(groups, i, st, en, maxInSegment, style) {
