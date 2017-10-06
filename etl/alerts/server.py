@@ -145,23 +145,24 @@ class AlertServer:
     hospital = msg['hosp']
     logging.info("received FIN for enc_ids: {}".format(enc_id_str))
     # calculate criteria here
-    await self.calculate_criteria_enc(conn, enc_id_str)
-    if self.notify_web:
-      sql = '''
-      with pats as (
-        select p.enc_id, p.pat_id from pat_enc p
-        where p.enc_id in ({enc_id_str})
-      ),
-      refreshed as (
-        insert into refreshed_pats (refreshed_tsp, pats)
-        select now(), jsonb_agg(pat_id) from pats
-        returning id
-      )
-      select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
-      '''.format(channel=self.channel, model=self.model, enc_id_str=enc_id_str)
-      logging.info("trews alert sql: {}".format(sql))
-      await conn.fetch(sql)
-      logging.info("generated trews alert for {}".format(hospital))
+    async with self.db_pool.acquire() as conn:
+      await self.calculate_criteria_enc(conn, enc_id_str)
+      if self.notify_web:
+        sql = '''
+        with pats as (
+          select p.enc_id, p.pat_id from pat_enc p
+          where p.enc_id in ({enc_id_str})
+        ),
+        refreshed as (
+          insert into refreshed_pats (refreshed_tsp, pats)
+          select now(), jsonb_agg(pat_id) from pats
+          returning id
+        )
+        select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
+        '''.format(channel=self.channel, model=self.model, enc_id_str=enc_id_str)
+        logging.info("trews alert sql: {}".format(sql))
+        await conn.fetch(sql)
+        logging.info("generated trews alert for {}".format(hospital))
 
 
   async def run_suppression(self, msg):
