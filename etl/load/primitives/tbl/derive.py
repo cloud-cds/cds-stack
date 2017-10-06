@@ -680,12 +680,6 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
     confidence
     FROM %s cdm_t
   WHERE fid = '%s'%s %s %s ORDER BY enc_id, tsp
-  """ if dataset_id else """
-  SELECT enc_id, tsp,
-    'given' as action, value as dose,
-    confidence
-    FROM %s cdm_t
-  WHERE fid = '%s'%s %s %s ORDER BY enc_id, tsp
   """
 
   update_clause = """
@@ -750,7 +744,7 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
          incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental),
          lookbackhours)
   elif unit == 'mcg/min':
-    select_sql_with_weight = ("""
+    select_sql_with_weight = """
       select sub.enc_id, sub.tsp,
         sub.value::json->>'action' as action,
         cast(sub.value::json->>'dose' as numeric)/last(weight) as dose,
@@ -766,23 +760,7 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
         ORDER BY cdm_t.enc_id, cdm_t.tsp, twf.tsp
       ) as sub
       group by sub.enc_id, sub.tsp, sub.value, sub.confidence
-    """ if dataset_id else """
-      select sub.enc_id, sub.tsp,
-        'given' as action,
-        sub.value::numeric/last(weight) as dose,
-        sub.confidence
-      from
-      (SELECT cdm_t.enc_id, cdm_t.tsp, cdm_t.value,
-        cdm_t.confidence, twf.weight
-        FROM %s cdm_t
-        inner join %s twf
-          on cdm_t.fid = '%s' and twf.enc_id = cdm_t.enc_id
-          and cdm_t.tsp >= twf.tsp
-        %s %s %s
-        ORDER BY cdm_t.enc_id, cdm_t.tsp, twf.tsp
-      ) as sub
-      group by sub.enc_id, sub.tsp, sub.value, sub.confidence
-    """)
+    """
     lookbackhours2 = ((" where" if dataset_id is None and not incremental else " and") + " now() - cdm_t.tsp <= '{}'::interval".format(cdm_t_lookbackhours)) if cdm_t_lookbackhours is not None else ''
     sql = select_sql_with_weight % \
       (cdm_t_target, twf_table_temp, 'epinephrine_dose',
@@ -840,7 +818,7 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
   if unit == 'mcg/kg/min':
     records = await conn.fetch(select_sql % (cdm_t_target, 'levophed_infusion_dose', with_ds(dataset_id),incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental),lookbackhours))
   elif unit == 'mcg/min':
-    select_sql_with_weight = ("""
+    select_sql_with_weight = """
       select sub.enc_id, sub.tsp,
         sub.value::json->>'action' as action,
         cast(sub.value::json->>'dose' as numeric)/last(weight) as dose,
@@ -856,23 +834,7 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
         ORDER BY cdm_t.enc_id, cdm_t.tsp, twf.tsp
       ) as sub
       group by sub.enc_id, sub.tsp, sub.value, sub.confidence
-    """ if dataset_id else """
-      select sub.enc_id, sub.tsp,
-        'given' as action,
-        sub.value::numeric/last(weight) as dose,
-        sub.confidence
-      from
-      (SELECT cdm_t.enc_id, cdm_t.tsp, cdm_t.value,
-        cdm_t.confidence, twf.weight
-        FROM %s cdm_t
-        inner join %s twf
-          on cdm_t.fid = '%s' and twf.enc_id = cdm_t.enc_id
-          and cdm_t.tsp >= twf.tsp
-        %s %s %s
-        ORDER BY cdm_t.enc_id, cdm_t.tsp, twf.tsp
-      ) as sub
-      group by sub.enc_id, sub.tsp, sub.value, sub.confidence
-    """)
+    """
     sql = select_sql_with_weight % \
       (cdm_t_target, twf_table_temp, 'levophed_infusion_dose',
        with_ds(dataset_id, table_name='t', conjunctive=False),
