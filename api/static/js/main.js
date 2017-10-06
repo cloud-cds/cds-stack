@@ -1030,11 +1030,20 @@ var severeSepsisComponent = new function() {
   this.render = function(json) {
     this.ctn.find('h2').text(severe_sepsis['display_name']);
 
+    // Reset severe sepsis manual override.
+    $('[data-trews="treat-sepsis"]').find('h2.with-slider').removeClass('inactive');
+    $('[data-trews="treat-sepsis"]').find('.onoffswitch').removeClass('inactive');
+
     if (json['is_met']) {
       this.ctn.addClass('complete');
+
+      // Disable severe sepsis manual override.
+      $('[data-trews="treat-sepsis"]').find('h2.with-slider').addClass('inactive');
+      $('[data-trews="treat-sepsis"]').find('.onoffswitch').addClass('inactive');
     } else {
       this.ctn.removeClass('complete');
     }
+
     this.sus = json['suspicion_of_infection'];
     this.suspicion(severe_sepsis['suspicion_of_infection']);
 
@@ -1061,18 +1070,18 @@ var severeSepsisComponent = new function() {
     this.trewsOrgSlot.r(json['trews_organ_dysfunction']);
 
     if ( json['trews']['is_met'] && json['trews_organ_dysfunction']['is_met'] ) {
-      this.trewsSlot.addClass('complete');
+      this.trewsSlot.addClass('complete-with-status');
     } else {
-      this.trewsSlot.removeClass('complete');
+      this.trewsSlot.removeClass('complete-with-status');
     }
 
     // CMS SIRS/OrgDF slots.
     this.cmsSirSlot.r(json['sirs']);
     this.cmsOrgSlot.r(json['organ_dysfunction']);
     if ( json['sirs']['is_met'] && json['organ_dysfunction']['is_met'] ) {
-      this.cmsSlot.addClass('complete');
+      this.cmsSlot.addClass('complete-with-status');
     } else {
-      this.cmsSlot.removeClass('complete');
+      this.cmsSlot.removeClass('complete-with-status');
     }
 
     // Bind no-infection button.
@@ -1152,8 +1161,16 @@ var septicShockComponent = new function() {
   this.render = function(json, severeSepsis) {
     this.ctn.find('h2').text(septic_shock['display_name']);
 
+    // Reset septic shock manual override.
+    $('[data-trews="treat-shock"]').find('h2.with-slider').removeClass('inactive');
+    $('[data-trews="treat-shock"]').find('.onoffswitch').removeClass('inactive');
+
     if (json['is_met']) {
       this.ctn.addClass('complete');
+
+      // Disable septic shock manual override.
+      $('[data-trews="treat-shock"]').find('h2.with-slider').removeClass('inactive');
+      $('[data-trews="treat-shock"]').find('.onoffswitch').removeClass('inactive');
     } else {
       this.ctn.removeClass('complete');
     }
@@ -3166,6 +3183,7 @@ var toolbar = new function() {
       min: this.chartMin,
       max: this.chartMax,
       rollingMode: { follow: false, offset: 0.75 },
+      selectable: false,
       stack: false,
       zoomable: false,
       //zoomMin: 60 * 1000,
@@ -3476,13 +3494,14 @@ var toolbar = new function() {
 
       var deadline_exceeded = false;
 
+      var t_action = null;
       var t_condition = k == 'vasopressors' ? septic_shock_start : severe_sepsis_start;
       var t_deadline = k == 'vasopressors' ? septic_shock_deadline :
                         (k == 'repeat_lactate' ? severe_sepsis_deadline6 : severe_sepsis_deadline3);
 
       if ( json[k2]['status'] != null ) {
 
-        var t_action = new Date(json[k2]['time'] * 1000);
+        t_action = new Date(json[k2]['time'] * 1000);
 
         // Care completed maintenance.
         var order_complete = orderStatusCompleted(json[k2]) && t_deadline != null && t_action <= t_deadline;
@@ -3573,18 +3592,37 @@ var toolbar = new function() {
           t_condition: t_condition,
           t_deadline: t_deadline
         });
-      } else if ( t_deadline != null ) {
-        // Not yet ordered.
-        g_class = 'vis_g_' + k + '_incomplete';
+      }
+      else {
+        if ( t_deadline != null ) {
+          // Not yet ordered.
+          g_class = 'vis_g_' + k + '_incomplete';
+        }
+
+        // Mark bundles as incomplete.
+        if ( k != 'vasopressors' ) { severe_sepsis_completed['status'] = false; }
+        septic_shock_completed['status'] = false;
       }
 
       if ( !deadline_exceeded && t_deadline != null ) {
         // Deadline range.
+        var tipPreDeadline = 'Need to complete by ' + strToTime(t_deadline, true, true);
+        var tipPostDeadline = 'Deadline passed at ' + strToTime(t_deadline, true, true);
+
+        var t_compare = t_action;
+        if ( t_compare == null ) { t_compare = new Date(); }
+
+        var tooltip = t_compare <= t_deadline ? tipPreDeadline : tipPostDeadline;
+        if ( t_action != null && json[k2]['status'] == 'Completed' && t_action <= t_deadline ) {
+          tooltip = 'Order completed before deadline passed at ' + strToTime(t_deadline, true, true);
+        }
+
+
         items.add({
           id: json[k2]['name'] + '_deadline',
           group: g['id'],
           content: ' ',
-          title: 'Deadline passed at ' + strToTime(t_deadline, true, true),
+          title: tooltip,
           start: t_deadline,
           end: new Date(t_deadline.getTime() + range_as_point_duration),
           type: 'range',

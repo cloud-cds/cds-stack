@@ -434,6 +434,10 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
     margin: 0;
     color: #666;
 }
+.slot h2.with-slider.inactive {
+    -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=45)";
+    opacity: 0.45;
+}
 .slot h3 {
     font-size: 14px;
     margin: 0 0 10px;
@@ -612,6 +616,11 @@ span.criteria-btn {
 .onoffswitch {
     display: inline-block; /*float: right;*/ position: relative; width: 90px; margin-right: 10px;
     -webkit-user-select:none; -moz-user-select:none; -ms-user-select: none;
+}
+.onoffswitch.inactive {
+    -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=45)";
+    opacity: 0.45;
+    pointer-events: none;
 }
 .onoffswitch-checkbox {
     display: none;
@@ -1134,6 +1143,7 @@ span.criteria-btn {
 .vis-custom-time.v_cms_severe_sepsis {
     color: #555;
     background-color: #555;
+    pointer-events: none;
 }
 .vis-content .vis-label.vis_g_cms_severe_sepsis , .vis-foreground .vis-group.vis_g_cms_severe_sepsis,
 .vis-content .vis-label.vis_g_trewscore         , .vis-foreground .vis-group.vis_g_trewscore,
