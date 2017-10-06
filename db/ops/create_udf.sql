@@ -1672,8 +1672,8 @@ return query
         where pc.fid = 'map'
     ),
     trews_map_idx as (
-        select pc.enc_id, pc.tsp, pc.value from
-        map_pair pc
+        select pc.enc_id, pc.tsp, pc.value
+        from map_pair pc
         where pc.value::numeric < 65
         and pc.enc_id = pc.next_enc_id
         and pc.next_tsp - pc.tsp <= '15 minutes'::interval
@@ -1695,16 +1695,16 @@ return query
         from sbpm
     ),
     trews_sbpm_idx as (
-        select distinct pc.enc_id, pc.tsp, sbpm.sbpm from
-        pat_cvalues pc left join sbpm_triple sbpm on pc.enc_id = sbpm.enc_id and pc.tsp = sbpm.tsp
+        select distinct pc.enc_id, pc.tsp, sbpm.sbpm
+        from pat_cvalues pc left join sbpm_triple sbpm on pc.enc_id = sbpm.enc_id and pc.tsp = sbpm.tsp
         where pc.name = 'trews_sbpm'
         and sbpm.sbpm < 90
         and sbpm.enc_id = sbpm.next_enc_id
         and sbpm.next_tsp - sbpm.tsp <= '15 minutes'::interval
     ),
     trews_dsbp_idx as (
-        select distinct pc.enc_id, pc.tsp, sbpm.sbpm from
-        pat_cvalues pc left join sbpm_triple sbpm on pc.enc_id = sbpm.enc_id and pc.tsp = sbpm.tsp
+        select distinct pc.enc_id, pc.tsp, sbpm.sbpm
+        from pat_cvalues pc left join sbpm_triple sbpm on pc.enc_id = sbpm.enc_id and pc.tsp = sbpm.tsp
         where pc.name = 'trews_sbpm' and sbpm.prev_enc_id = sbpm.enc_id
         and sbpm.enc_id = sbpm.next_enc_id
         and sbpm.sbpm - sbpm.prev_sbpm < -40
@@ -1812,7 +1812,10 @@ return query
                 pat_cvalues.c_otime,
                 pat_cvalues.c_ouser,
                 pat_cvalues.c_ovalue,
-                (coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value) is not null) as is_met
+                (case
+                    when pat_cvalues.c_ovalue#>>'{0,text}' = 'No Infection' then false
+                    else coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value) is not null
+                  end) as is_met
             from pat_cvalues
             inner join pat_enc on pat_cvalues.enc_id = pat_enc.enc_id
             where pat_cvalues.category = 'respiratory_failure'
@@ -1835,11 +1838,16 @@ return query
             select  pat_cvalues.enc_id,
                     pat_cvalues.name,
                     pat_cvalues.tsp as measurement_time,
-                    (case when pat_cvalues.name = 'creatinine' then pat_cvalues.fid || ':' || pat_cvalues.value else pat_cvalues.value end) as value,
+                    (case when pat_cvalues.name = 'creatinine'
+                            then pat_cvalues.fid || ':' || pat_cvalues.value
+                          else pat_cvalues.value
+                      end) as value,
                     pat_cvalues.c_otime,
                     pat_cvalues.c_ouser,
                     pat_cvalues.c_ovalue,
                     (case
+                        when pat_cvalues.c_ovalue#>>'{0,text}' = 'No Infection' then false
+
                         when pat_cvalues.category = 'decrease_in_sbp' then
                             decrease_in_sbp_met(
                                 (select max(pat_bp_sys.value) from pat_bp_sys where pat_bp_sys.enc_id = pat_cvalues.enc_id),
@@ -1855,7 +1863,10 @@ return query
                         end
                     ) as is_met
             from pat_cvalues
-            where pat_cvalues.name in ('blood_pressure', 'mean_arterial_pressure', 'decrease_in_sbp', 'creatinine', 'bilirubin', 'platelet', 'inr', 'lactate')
+            where pat_cvalues.name in (
+              'blood_pressure', 'mean_arterial_pressure', 'decrease_in_sbp',
+              'creatinine', 'bilirubin', 'platelet', 'inr', 'lactate'
+            )
             order by pat_cvalues.tsp
         ) as ordered
         group by ordered.enc_id, ordered.name
@@ -3847,7 +3858,7 @@ create or replace function enc_last_etl_tsp(this_enc_id int default null)
 RETURNS
 table(enc_id int, hospital text)
 AS $func$ BEGIN RETURN QUERY
-SELECT 
+SELECT
 FROM enc_hosp(this_enc_id) h
 ; END $func$ LANGUAGE plpgsql;
 
