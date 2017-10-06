@@ -139,8 +139,9 @@ class AlertServer:
         and notify frontend that the patient has updated'''
 
   async def run_suppression_mode_2(self, msg):
+    logging.info("start to run suppression mode 2 for msg {}".format(msg))
     tsp = msg['time']
-    enc_id_str = ','.join([str(i) for i in msg['enc_ids']])
+    enc_id_str = ','.join([str(i) for i in msg['enc_ids'] if i])
     hospital = msg['hosp']
     logging.info("received FIN for enc_ids: {}".format(pats_str))
     # calculate criteria here
