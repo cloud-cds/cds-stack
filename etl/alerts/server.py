@@ -131,7 +131,7 @@ class AlertServer:
         else:
           logging.error("Unknown model: {}".format(self.model))
         self.suppression_tasks[msg['hosp']].append(suppression_future)
-        logging.info("create lmc suppression task for {}".format(msg['hosp']))
+        logging.info("create {model} suppression task for {}".format(self.model,msg['hosp']))
     logging.info("alert_queue_consumer quit")
 
   async def suppression(self, pat_id, tsp):
@@ -165,6 +165,7 @@ class AlertServer:
 
   async def run_suppression(self, msg):
     # Wait for Advance Criteria Snapshot to finish and then start generating notifications
+    logging.info("start to run suppression for msg {}".format(msg))
     tsp = msg['time']
     pat_ids = await self.convert_enc_ids_to_pat_ids(msg['enc_ids'])
     pats_str = ','.join([str(i) for i in pat_ids])
