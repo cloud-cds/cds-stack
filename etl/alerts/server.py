@@ -163,6 +163,7 @@ class AlertServer:
         logging.info("trews alert sql: {}".format(sql))
         await conn.fetch(sql)
         logging.info("generated trews alert for {}".format(hospital))
+    logging.info("complete to run suppression mode 2 for msg {}".format(msg))
 
 
   async def run_suppression(self, msg):
@@ -258,6 +259,7 @@ class AlertServer:
     '''.format(server=server,hours=self.lookbackhours,enc_id_str=enc_id_str,nprocs=self.nprocs)
     logging.info("calculate_criteria sql: {}".format(sql))
     await conn.fetch(sql)
+    logging.info("complete calculate_criteria_enc")
 
   async def run_trews_alert(self, job_id, hospital):
     async with self.db_pool.acquire() as conn:
