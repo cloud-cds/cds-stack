@@ -3790,7 +3790,7 @@ returns void language plpgsql as $$
 declare
 begin
   execute 'with pats as
-  (select distinct t.enc_id from pat_enc p
+  (select distinct p.enc_id from pat_enc p
     where p.enc_id in (' || enc_ids ||')
   ),
   pats_group as
