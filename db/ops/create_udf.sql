@@ -1586,14 +1586,14 @@ return query
             ordered.name,
             first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
             first(case when ordered.is_met then ordered.value else null end)::text as value,
-            first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-            first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-            first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
+            first(ordered.c_otime) as override_time,
+            first(ordered.c_ouser) as override_user,
+            first(ordered.c_ovalue) as override_value,
             coalesce(bool_or(ordered.is_met), false) as is_met,
             now() as update_date
         from (
             select pc.enc_id, pc.tsp as measurement_time,
-            'trews_vasopressors'::text as name,
+            pc.name,
             pc.c_otime,
             pc.c_ouser,
             pc.c_ovalue,
@@ -1603,6 +1603,7 @@ return query
             from pat_cvalues pc left join cdm_t t on pc.enc_id = t.enc_id
             and t.fid ~ '^(dopamine|vasopressin|epinephrine|levophed_infusion|neosynephrine)_dose$'
             and (pc.tsp between t.tsp and t.tsp + '6 hours'::interval)
+            where pc.name = 'trews_vasopressors'
             order by pc.tsp
         ) ordered
         group by ordered.enc_id, ordered.name
@@ -1613,14 +1614,14 @@ return query
             ordered.name,
             first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
             first(case when ordered.is_met then ordered.value else null end)::text as value,
-            first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-            first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-            first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
+            first(ordered.c_otime) as override_time,
+            first(ordered.c_ouser) as override_user,
+            first(ordered.c_ovalue) as override_value,
             coalesce(bool_or(ordered.is_met), false) as is_met,
             now() as update_date
         from (
             select pc.enc_id, pc.tsp as measurement_time,
-            'trews_vent'::text as name,
+            pc.name,
             pc.c_otime,
             pc.c_ouser,
             pc.c_ovalue,
@@ -1630,6 +1631,7 @@ return query
             from pat_cvalues pc left join cdm_t t on pc.enc_id = t.enc_id
             and t.fid in ('vent', 'cpap', 'bipap')
             and (pc.tsp between t.tsp and t.tsp + '48 hours'::interval)
+            where pc.name = 'trews_vent'
             order by pc.tsp
         ) ordered
         group by ordered.enc_id, ordered.name
@@ -1645,23 +1647,29 @@ return query
     trews as (
         select
             ordered.enc_id,
-            'trews'::text as name,
+            ordered.name,
             first(case when ordered.is_met then ordered.tsp else null end) as measurement_time,
-            first(case when ordered.is_met then trewscore else null end)::text as value,
-            null::timestamptz as override_time,
-            null::text as override_user,
-            null::json as override_value,
+            first(case when ordered.is_met then score else null end)::text as value,
+            first(ordered.c_otime) as override_time,
+            first(ordered.c_ouser) as override_user,
+            first(ordered.c_ovalue) as override_value,
             coalesce(bool_or(ordered.is_met), false) as is_met,
             now() as update_date
         from (
-            select e.enc_id, ts.tsp, ts.trewscore,
-            ts.trewscore > get_trews_parameter('trews_threshold') is_met
-            from enc_ids e
-            left join trews ts on e.enc_id = ts.enc_id
+            select pc.enc_id, pc.name,
+            pc.c_otime, pc.c_ouser, pc.c_ovalue,
+            ts.tsp, ts.score,
+            (case when pc.c_ovalue#>>'{0,text}' = 'No Infection' then false
+                when ts.score > get_trews_parameter('trews_jit_threshold') then True
+                else False end) is_met
+            from pat_cvalues pc
+            left join trews_jit_score ts on pc.enc_id = ts.enc_id
             and ts.tsp between ts_start and ts_end
+            and ts.model_id = get_trews_parameter('trews_jit_model_id')
+            where pc.name = 'trews'
             order by ts.tsp
         ) ordered
-        group by ordered.enc_id
+        group by ordered.enc_id, ordered.name
     ),
     map_pair as (
         select pc.*,
@@ -1716,9 +1724,9 @@ return query
             ordered.name,
             first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
             first(case when ordered.is_met then ordered.value else null end)::text as value,
-            first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-            first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-            first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
+            first(ordered.c_otime) as override_time,
+            first(ordered.c_ouser) as override_user,
+            first(ordered.c_ovalue) as override_value,
             coalesce(bool_or(ordered.is_met), false) as is_met,
             now() as update_date,
             first(case when ordered.is_met then ordered.is_acute else null end) as is_acute
@@ -2543,11 +2551,10 @@ BEGIN
         insert into criteria (enc_id, name, override_time, override_user, override_value, is_met, update_date, is_acute)
         select enc_id, name, override_time, override_user, override_value, is_met, update_date, is_acute
         from new_criteria
-        where name in ( 'suspicion_of_infection', 'crystalloid_fluid' )
+        -- NOTE: currently allow all criteria being updated
+        -- name in ( 'suspicion_of_infection', 'crystalloid_fluid')
         on conflict (enc_id, name) do update
         set is_met              = excluded.is_met,
-            measurement_time    = excluded.measurement_time,
-            value               = excluded.value,
             override_time       = excluded.override_time,
             override_user       = excluded.override_user,
             override_value      = excluded.override_value,
