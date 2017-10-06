@@ -130,8 +130,8 @@ class AlertServer:
             suppression_future = asyncio.ensure_future(self.run_suppression_mode_2(msg), loop=self.loop)
         else:
           logging.error("Unknown model: {}".format(self.model))
-        self.suppression_tasks[msg['hosp']].append(suppression_future)
-        logging.info("create {model} suppression task for {}".format(self.model,msg['hosp']))
+        # self.suppression_tasks[msg['hosp']].append(suppression_future)
+        # logging.info("create {model} suppression task for {}".format(self.model,msg['hosp']))
     logging.info("alert_queue_consumer quit")
 
   async def suppression(self, pat_id, tsp):
