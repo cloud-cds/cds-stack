@@ -3,5 +3,5 @@ min_score,-1.7026364500000002
 max_score,1.7008183999999986
 trews_threshold,0.853961
 lmc_threshold,0.75
-trews_jit_threshold,0.031
-trews_jit_model_id,1
+trews_jit_threshold,0.0003796
+trews_jit_model_id,2
