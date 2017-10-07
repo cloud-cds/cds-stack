@@ -843,9 +843,6 @@ var severe_sepsis = {
 			"src": "trews_lactate",
 			"dst": "lactate"
 		}, {
-			"src": "trews_lactate",
-			"dst": "lactate"
-		}, {
 			"src": "trews_gcs",
 			"dst": null
 		}]
