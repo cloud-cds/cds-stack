@@ -2193,17 +2193,6 @@ return query
         left join severe_sepsis_now ssn on stats.enc_id = ssn.enc_id
         group by stats.enc_id
     ),
-    -- pats_that_have_orders as (
-    --     select distinct pat_cvalues.enc_id
-    --     from pat_cvalues
-    --     where pat_cvalues.name in (
-    --         'initial_lactate_order',
-    --         'blood_culture_order',
-    --         'antibiotics_order',
-    --         'crystalloid_fluid_order',
-    --         'vasopressors_order'
-    --     )
-    -- ),
     orders_criteria as (
         select
             ordered.enc_id,
@@ -2328,7 +2317,7 @@ return query
             first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
             first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
             first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
-            coalesce(bool_or(ordered.is_met), false) as is_met,
+            coalesce(bool_or(ordered.is_met is not null and ordered.is_met), null) as is_met,
             now() as update_date
         from
         (
@@ -2339,17 +2328,13 @@ return query
                     pat_cvalues.c_otime,
                     pat_cvalues.c_ouser,
                     pat_cvalues.c_ovalue,
-                    ((
-                      coalesce(initial_lactate_order.is_met and lactate_results.is_met, false)
-                        and order_met(pat_cvalues.name, coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value))
-                        and (coalesce(pat_cvalues.tsp > initial_lactate_order.tsp, false)
-                                and coalesce(lactate_results.tsp > initial_lactate_order.tsp, false))
-                    ) or
-                    (
-                      not( coalesce(initial_lactate_order.is_completed
-                                      and ( lactate_results.is_met or pat_cvalues.tsp <= initial_lactate_order.tsp )
-                                    , false) )
-                    )) is_met
+                    (case when initial_lactate_order.is_met and lactate_results.is_met
+                        and pat_cvalues.tsp > initial_lactate_order.tsp
+                        and pat_cvalues.tsp > lactate_results.tsp
+                        then True
+                        when not initial_lactate_order.is_met or not lactate_results.is_met
+                        then null
+                        else false end) is_met
             from pat_cvalues
             left join (
                 select oc.enc_id,
