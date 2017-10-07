@@ -42,7 +42,7 @@ class AlertServer:
     self.notify_web             = int(os.getenv('notify_web', 0))
     self.lookbackhours          = int(os.getenv('TREWS_ETL_HOURS', 24))
     self.nprocs                 = int(os.getenv('nprocs', 2))
-
+    self.hospital_to_predict    = os.getenv('hospital_to_predict', 'HCGH')
 
   async def async_init(self):
     self.db_pool = await self.db.get_connection_pool()
@@ -326,11 +326,17 @@ class AlertServer:
 
     elif message.get('type') == 'ETL':
       if self.model == 'lmc' or self.model == 'trews-jit':
-        if self.model == 'lmc':
-          self.garbage_collect_suppression_tasks(message['hosp'])
-        self.predictor_manager.cancel_predict_tasks(hosp=message['hosp'])
-        self.predictor_manager.create_predict_tasks(hosp=message['hosp'],
+        if message.get('hosp') in self.hospital_to_predict:
+          if self.model == 'lmc':
+            self.garbage_collect_suppression_tasks(message['hosp'])
+          self.predictor_manager.cancel_predict_tasks(hosp=message['hosp'])
+          self.predictor_manager.create_predict_tasks(hosp=message['hosp'],
                                                     time=message['time'])
+        else:
+          logging.info("skip prediction for msg: {}".format(message))
+          self.run_trews_alert(message['job_id'],message['hosp'])
+        else:
+          logging.error("Unknown model: {}".format(self.model))
       elif self.model == 'trews':
         await self.run_trews_alert(message['job_id'],message['hosp'])
       else:
