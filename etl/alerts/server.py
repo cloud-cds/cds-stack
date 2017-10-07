@@ -334,7 +334,7 @@ class AlertServer:
                                                     time=message['time'])
         else:
           logging.info("skip prediction for msg: {}".format(message))
-          self.run_trews_alert(message['job_id'],message['hosp'])
+          await self.run_trews_alert(message['job_id'],message['hosp'])
       elif self.model == 'trews':
         await self.run_trews_alert(message['job_id'],message['hosp'])
       else:
