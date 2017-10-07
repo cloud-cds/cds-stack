@@ -2333,11 +2333,11 @@ return query
                             (
                                 order_met(pat_cvalues.name, coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value))
                                 and pat_cvalues.tsp > initial_lactate_order.tsp
-                                and pat_cvalues.tsp > initial_lactate.tsp
+                                and pat_cvalues.tsp > lactate_results.tsp
                             )
 
                         )
-                        then True
+                        then true
                         else false end) is_met
             from pat_cvalues
             left join (
