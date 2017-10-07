@@ -2316,7 +2316,7 @@ return query
             first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
             first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
             first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
-            coalesce(bool_or(ordered.is_met), null) as is_met,
+            coalesce(bool_or(ordered.is_met), false) as is_met,
             now() as update_date
         from
         (
