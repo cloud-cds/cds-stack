@@ -1039,7 +1039,9 @@ select %I.enc_id,
     count(*) filter (where name in (''blood_pressure'',''mean_arterial_pressure'',''decrease_in_sbp'',''respiratory_failure'',''creatinine'',''bilirubin'',''platelet'',''inr'',''lactate'') and is_met ) as organ_count,
     count(*) filter (where name in (''systolic_bp'',''hypotension_map'',''hypotension_dsbp'') and is_met ) as hypotension_count,
     count(*) filter (where name in (''initial_lactate_order'',''blood_culture_order'',''antibiotics_order'', ''crystalloid_fluid_order'') and is_met ) as sev_sep_3hr_count,
-    count(*) filter (where name = ''repeat_lactate_order'' and is_met ) as sev_sep_6hr_count,
+    case(when count(*) filter (where name = ''initial_lactate_order'' and is_met ) = 1 and
+        count(*) filter (where name = ''repeat_lactate_order'' and is_met ) = 0 then 0 else 1 end
+    ) as sev_sep_6hr_count,
     count(*) filter (where name = ''vasopressors_order'' and is_met ) as sep_sho_6hr_count,
     first(override_time) filter (where name = ''suspicion_of_infection'' and is_met) as sus_onset,
     (array_agg(measurement_time order by measurement_time)  filter (where name in (''sirs_temp'',''heart_rate'',''respiratory_rate'',''wbc'') and is_met ) )[2]   as sirs_onset,
