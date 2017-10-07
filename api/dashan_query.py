@@ -149,6 +149,68 @@ async def get_trews_contributors(db_pool, pat_id, start_hrs=6, start_day=2, end_
         'tf_3_value' : tf_values[2]
     }
 
+# Retrieves a sampled/bucketed time series of JIT scores.
+#
+async def get_trews_jit_score(db_pool, pat_id, start_hrs=6, start_day=2, end_day=7, sample_mins=30, sample_hrs=12):
+
+  sample_start_hrs = start_hrs
+  sample_start_day = start_day
+  sample_end_day = end_day
+  sample_hr_mins = sample_mins
+  sample_day_hrs = sample_hrs
+
+  get_score_sql = \
+  '''
+  with jit_scores as (
+    select tjs.enc_id, tjs.tsp, tjs.score, tjs.odds_ratio,
+           (case
+            when tjs.tsp <= now() - interval '%(sample_start_day)s days'
+            then date_trunc('day', tjs.tsp) + (interval '%(sample_day_hrs)s hours' * floor(date_part('hour', tjs.tsp)::float / %(sample_day_hrs)s))
+            when tjs.tsp <= now() - interval '%(sample_start_hrs)s hours'
+            then date_trunc('hour', tjs.tsp) + (interval '%(sample_hr_mins)s minutes' * floor(date_part('minute', tjs.tsp)::float / %(sample_hr_mins)s))
+            else null
+            end) as tsp_bucket
+    from trews_jit_score tjs
+    where tjs.enc_id = (select * from pat_id_to_enc_id('%(pat_id)s'::text))
+    and tjs.model_id = get_trews_parameter('trews_jit_model_id')
+    and tjs.tsp >= now() - interval '%(sample_end_day)s days'
+    order by tsp_bucket
+  )
+  select tsp_bucket at time zone 'UTC' as tsp,
+         avg(score) as score,
+         avg(odds_ratio) as odds_ratio
+  from jit_scores
+  where tsp_bucket is not null
+  group by enc_id, tsp_bucket
+  ''' % {
+    'pat_id'           : pat_id,
+    'sample_start_hrs' : sample_start_hrs,
+    'sample_start_day' : sample_start_day,
+    'sample_end_day'   : sample_end_day,
+    'sample_hr_mins'   : sample_hr_mins,
+    'sample_day_hrs'   : sample_day_hrs
+  }
+
+  async with db_pool.acquire() as conn:
+    result = await conn.fetch(get_score_sql)
+
+    timestamps  = []
+    trewscores  = []
+    odds_ratios = []
+
+    epoch = datetime.datetime.utcfromtimestamp(0).replace(tzinfo=pytz.UTC)
+
+    for row in result:
+      timestamps.append((row['tsp'] - epoch).total_seconds())
+      trewscores.append(float(row['score']))
+      odds_ratios.append(float(row['odds_ratio']))
+
+    return {
+        'timestamp'  : timestamps,
+        'trewscore'  : trewscores,
+        'odds_ratio' : odds_ratios
+    }
+
 
 # Single roundtrip retrieval of both notifications and history events.
 async def get_patient_events(db_pool, pat_id):

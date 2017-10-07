@@ -994,7 +994,7 @@ var severeSepsisComponent = new function() {
                         && trews.data['severe_sepsis']['organ_dysfunction']['is_met']
                         && (sepsisOnset == null && shockOnset == null);
 
-    return ( trewsAndOrgDF || sirsAndOrgDF ) ? 'highlight-unexpired' : null;
+    return ( trewsAndOrgDF || sirsAndOrgDF ) ? 'highlight-expired' : null;
   }
 
   this.suspicion = function(json) {
@@ -1064,10 +1064,31 @@ var severeSepsisComponent = new function() {
 
     // TREWS criteria.
     this.trewsAcuitySlot.r(json['trews']);
+
+    var odds_ratio_str = '';
+    if ( trews.data != null
+          && trews.data.chart_data.chart_values.timestamp != null
+          && trews.data.chart_data.chart_values.odds_ratio != null )
+    {
+      var num_ts = trews.data.chart_data.chart_values['timestamp'].length - 1;
+      var num_or = trews.data.chart_data.chart_values['odds_ratio'].length - 1;
+      var chart_idx = Math.min(num_ts, num_or)
+      if ( chart_idx > 0 ) {
+        var odds_ratio_date = new Date(trews.data.chart_data.chart_values['timestamp'][chart_idx]*1000);
+        var odds_ratio_val = trews.data.chart_data.chart_values['odds_ratio'][chart_idx]
+        if ( isNumber(odds_ratio_val) ) { odds_ratio_val = odds_ratio_val.toFixed(3); }
+        odds_ratio_str = 'Most recent odds ratio of mortality: ' + odds_ratio_val + ' computed ' + timeLapsed(odds_ratio_date);
+      }
+    }
+
+    if ( odds_ratio_str.length == 0 ) {
+      odds_ratio_str = 'No odds ratio of mortality available.';
+    }
+
     this.trewsAcuitySlot.elem.find('.status[data-trews="eval-trews-odds-ratio"] h4').html(
       '<span data-toggle="tooltip" title="' +
       'The ratio of historical mortalities for patients with TREWS scores higher relative to TREWS scores lower than this patient.' +
-      '">Odds Ratio of Mortality: TBD</span>');
+      '">' + odds_ratio_str + '</span>');
 
     this.trewsOrgSlot.r(json['trews_organ_dysfunction']);
 
@@ -1680,19 +1701,21 @@ function graph(json, severeOnset, shockOnset, xmin, xmax, ymin, ymax) {
                 </div>\
               </div>";
 
-      var accessIndex = dataIndex >= json['chart_values']['tf_1_name'].length ?
-                          json['chart_values']['tf_1_name'].length - 1 : dataIndex;
+      // Note: no contributing features available in TREWS-JIT.
+      //
+      //var accessIndex = dataIndex >= json['chart_values']['tf_1_name'].length ?
+      //                    json['chart_values']['tf_1_name'].length - 1 : dataIndex;
 
-      features += "<div class='row cf'>\
-              <h4 class='name'>" + humanReadable(json['chart_values']['tf_1_name'][accessIndex]) + "</h4>\
-              <h4 class='value'>" + json['chart_values']['tf_1_value'][accessIndex] + "</h4>\
-            </div><div class='row cf'>\
-              <h4 class='name'>" + humanReadable(json['chart_values']['tf_2_name'][accessIndex]) + "</h4>\
-              <h4 class='value'>" + json['chart_values']['tf_2_value'][accessIndex] + "</h4>\
-            </div><div class='row cf'>\
-              <h4 class='name'>" + humanReadable(json['chart_values']['tf_3_name'][accessIndex]) + "</h4>\
-              <h4 class='value'>" + json['chart_values']['tf_3_value'][accessIndex] + "</h4>\
-            </div>";
+      //features += "<div class='row cf'>\
+      //        <h4 class='name'>" + humanReadable(json['chart_values']['tf_1_name'][accessIndex]) + "</h4>\
+      //        <h4 class='value'>" + json['chart_values']['tf_1_value'][accessIndex] + "</h4>\
+      //      </div><div class='row cf'>\
+      //        <h4 class='name'>" + humanReadable(json['chart_values']['tf_2_name'][accessIndex]) + "</h4>\
+      //        <h4 class='value'>" + json['chart_values']['tf_2_value'][accessIndex] + "</h4>\
+      //      </div><div class='row cf'>\
+      //        <h4 class='name'>" + humanReadable(json['chart_values']['tf_3_name'][accessIndex]) + "</h4>\
+      //        <h4 class='value'>" + json['chart_values']['tf_3_value'][accessIndex] + "</h4>\
+      //      </div>";
 
       $("#tooltip").html(features)
         .css({top: item.pageY+5, left: item.pageX+5})
@@ -1880,7 +1903,9 @@ var criteriaComponent = function(c, constants, key, hidden, criteria_mapping, cr
   criteriaString = skip_threshold_and_value ? criteriaString.slice(0, -3) : criteriaString.slice(0, -4);
 
   // Add criteria button (for organ dysfunction).
-  var criteria_button_symbol = '<i class="fa ' + (this.criteria_button_enable ? 'fa-check' : 'fa-close') + '"></i>';
+  var criteria_button_symbol = this.criteria_button_enable ? '<p>Re-enable</p>' : '<i class="fa fa-close"></i>';
+    // '<i class="fa ' + (this.criteria_button_enable ? 'fa-check' : 'fa-close') + '"></i>';
+
   var cb_tooltip = this.criteria_button_enable ?
     'This organ dysfunction has been marked as not caused by infection. Click to re-enable (it will reset in  72 hours).'
     : 'Click to indicate that this organ dysfunction is not caused by infection, and disable. It will reset in 72 hours.'
