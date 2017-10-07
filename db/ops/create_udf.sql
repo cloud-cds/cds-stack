@@ -1649,7 +1649,7 @@ return query
             ordered.enc_id,
             ordered.name,
             first(case when ordered.is_met then ordered.tsp else null end) as measurement_time,
-            first(case when ordered.is_met then score else null end)::text as value,
+            first(case when ordered.is_met then json_build_object('score', score, 'odds_ratio', odds_ratio) else null end)::text as value,
             first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
             first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
             first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
@@ -1658,7 +1658,7 @@ return query
         from (
             select pc.enc_id, pc.name,
             pc.c_otime, pc.c_ouser, pc.c_ovalue,
-            ts.tsp, ts.score,
+            ts.tsp, ts.score, ts.odds_ratio,
             (case when pc.c_ovalue#>>'{0,text}' = 'No Infection' then false
                 when ts.score > get_trews_parameter('trews_jit_threshold') then True
                 else False end) is_met
