@@ -1586,9 +1586,9 @@ return query
             ordered.name,
             first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
             first(case when ordered.is_met then ordered.value else null end)::text as value,
-            first(ordered.c_otime) as override_time,
-            first(ordered.c_ouser) as override_user,
-            first(ordered.c_ovalue) as override_value,
+            first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
+            first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
+            first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
             coalesce(bool_or(ordered.is_met), false) as is_met,
             now() as update_date
         from (
@@ -1614,9 +1614,9 @@ return query
             ordered.name,
             first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
             first(case when ordered.is_met then ordered.value else null end)::text as value,
-            first(ordered.c_otime) as override_time,
-            first(ordered.c_ouser) as override_user,
-            first(ordered.c_ovalue) as override_value,
+            first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
+            first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
+            first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
             coalesce(bool_or(ordered.is_met), false) as is_met,
             now() as update_date
         from (
@@ -1650,9 +1650,9 @@ return query
             ordered.name,
             first(case when ordered.is_met then ordered.tsp else null end) as measurement_time,
             first(case when ordered.is_met then score else null end)::text as value,
-            first(ordered.c_otime) as override_time,
-            first(ordered.c_ouser) as override_user,
-            first(ordered.c_ovalue) as override_value,
+            first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
+            first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
+            first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
             coalesce(bool_or(ordered.is_met), false) as is_met,
             now() as update_date
         from (
@@ -1724,9 +1724,9 @@ return query
             ordered.name,
             first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
             first(case when ordered.is_met then ordered.value else null end)::text as value,
-            first(ordered.c_otime) as override_time,
-            first(ordered.c_ouser) as override_user,
-            first(ordered.c_ovalue) as override_value,
+            first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
+            first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
+            first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
             coalesce(bool_or(ordered.is_met), false) as is_met,
             now() as update_date,
             first(case when ordered.is_met then ordered.is_acute else null end) as is_acute
@@ -2466,9 +2466,6 @@ BEGIN
         set is_met              = excluded.is_met,
             measurement_time    = excluded.measurement_time,
             value               = excluded.value,
-            override_time       = excluded.override_time,
-            override_user       = excluded.override_user,
-            override_value      = excluded.override_value,
             update_date         = excluded.update_date,
             is_acute            = excluded.is_acute
         returning *
@@ -2548,16 +2545,15 @@ BEGIN
         select * from get_states('new_criteria', this_enc_id)
     ),
     criteria_inserts as (
-        insert into criteria (enc_id, name, override_time, override_user, override_value, is_met, update_date, is_acute)
-        select enc_id, name, override_time, override_user, override_value, is_met, update_date, is_acute
+        insert into criteria (enc_id, name, is_met, measurement_time, value, override_time, override_user, override_value, update_date, is_acute)
+        select enc_id, name, is_met, measurement_time, value, override_time, override_user, override_value, update_date, is_acute
         from new_criteria
         -- NOTE: currently allow all criteria being updated
         -- name in ( 'suspicion_of_infection', 'crystalloid_fluid')
         on conflict (enc_id, name) do update
         set is_met              = excluded.is_met,
-            override_time       = excluded.override_time,
-            override_user       = excluded.override_user,
-            override_value      = excluded.override_value,
+            measurement_time    = excluded.measurement_time,
+            value               = excluded.value,
             update_date         = excluded.update_date,
             is_acute            = excluded.is_acute
         returning *
