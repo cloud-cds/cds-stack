@@ -335,8 +335,6 @@ class AlertServer:
         else:
           logging.info("skip prediction for msg: {}".format(message))
           self.run_trews_alert(message['job_id'],message['hosp'])
-        else:
-          logging.error("Unknown model: {}".format(self.model))
       elif self.model == 'trews':
         await self.run_trews_alert(message['job_id'],message['hosp'])
       else:

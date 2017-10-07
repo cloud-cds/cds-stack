@@ -2193,17 +2193,17 @@ return query
         left join severe_sepsis_now ssn on stats.enc_id = ssn.enc_id
         group by stats.enc_id
     ),
-    pats_that_have_orders as (
-        select distinct pat_cvalues.enc_id
-        from pat_cvalues
-        where pat_cvalues.name in (
-            'initial_lactate_order',
-            'blood_culture_order',
-            'antibiotics_order',
-            'crystalloid_fluid_order',
-            'vasopressors_order'
-        )
-    ),
+    -- pats_that_have_orders as (
+    --     select distinct pat_cvalues.enc_id
+    --     from pat_cvalues
+    --     where pat_cvalues.name in (
+    --         'initial_lactate_order',
+    --         'blood_culture_order',
+    --         'antibiotics_order',
+    --         'crystalloid_fluid_order',
+    --         'vasopressors_order'
+    --     )
+    -- ),
     orders_criteria as (
         select
             ordered.enc_id,
@@ -2232,7 +2232,7 @@ return query
                 select  PO.enc_id, SNP.state,
                         min(SNP.severe_sepsis_lead_time) as severe_sepsis_lead_time,
                         min(SNP.septic_shock_onset) as septic_shock_onset
-                from pats_that_have_orders PO
+                from enc_ids PO
                 inner join lateral get_states_snapshot(PO.enc_id) SNP on PO.enc_id = SNP.enc_id
                 where SNP.state >= 20
                 group by PO.enc_id, SNP.state
