@@ -1885,13 +1885,18 @@ var criteriaComponent = function(c, constants, key, hidden, criteria_mapping, cr
     'This organ dysfunction has been marked as not caused by infection. Click to re-enable (it will reset in  72 hours).'
     : 'Click to indicate that this organ dysfunction is not caused by infection, and disable. It will reset in 72 hours.'
 
+  var data_src = this.criteria_mapping != null && this.criteria_mapping.src != null ?
+    ('data-criteria-src="' + this.criteria_mapping.src + '" ') : '';
+
+  var data_dst = this.criteria_mapping != null && this.criteria_mapping.dst != null ?
+    ('data-criteria-dst="' + this.criteria_mapping.dst + '" ') :  '';
+
   this.criteria_button = (this.criteria_mapping == null || !(c['is_met'] || this.criteria_button_enable)) ? null :
     '<div style="float: right;">' +
       '<span class="criteria-btn" ' +
         'data-toggle="tooltip" title="' + cb_tooltip + '" ' +
         'data-as-enable="' + this.criteria_button_enable.toString() + '"' +
-        'data-criteria-src="' + this.criteria_mapping.src + '" ' +
-        'data-criteria-dst="' + this.criteria_mapping.dst + '">' +
+        data_src + data_dst + '>' +
       criteria_button_symbol + '</span></div>';
 
   this.html = "<div class='status" + this.classComplete + hiddenClass + deactivatedClass + "' data-trews='criteria_" + this.name + "'>\
