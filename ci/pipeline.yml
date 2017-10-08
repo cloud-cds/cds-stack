@@ -69,6 +69,14 @@ resources:
       aws_secret_access_key: {{aws-secret-access-key}}
       tag: "trews-online-latest"
 
+  - name: trews-chrome-docker-image
+    type: docker-image
+    source:
+      repository: 359300513585.dkr.ecr.us-east-1.amazonaws.com/utilities
+      aws_access_key_id: {{aws-access-key-id}}
+      aws_secret_access_key: {{aws-secret-access-key}}
+      tag: "trews-chrome"
+
 
 #####################
 # Semantic versioning
@@ -263,3 +271,15 @@ jobs:
           tag: trews-version/number
       - put: trews-version
         params: {file: trews-version/version}
+
+  - name: build-chrome-docker-image
+    serial: true
+    plan:
+      - get: dashan-universe
+        trigger: false
+      - get: dashan-universe-version
+      - put: trews-chrome-docker-image
+        params:
+          build: .
+          dockerfile: dashan-universe/images/dockerfiles/trews-chrome
+          tag: dashan-universe-version/number
