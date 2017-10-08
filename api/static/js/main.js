@@ -3809,7 +3809,7 @@ var toolbar = new function() {
     var prevCrossing = null;
 
     var numEntries = Math.max(scoreValues.length, scoreTsps.length);
-    if ( numEntries > 0 ) {
+    if ( numEntries > 0 && scoreValues[0] > threshold ) {
       prevCrossing = {v: scoreValues[0], t: scoreTsps[0]*1000};
     }
 
@@ -3848,8 +3848,10 @@ var toolbar = new function() {
           items.add(crossing);
           items.add(parentCrossing);
           maxInSegment = null;
+          prevCrossing = null
         }
         else if ( riseAbove ) {
+          // TODO: linear interpolation between prev and current?
           prevCrossing = {v: v, t: t};
           maxInSegment = v;
         }
@@ -3862,7 +3864,7 @@ var toolbar = new function() {
     if ( prevCrossing != null && numEntries > 0
           && prevCrossing.v > threshold && scoreValues[numEntries - 1] > threshold )
     {
-      var crossing = mkCrossingItem(this.groups, numEntries - 1, prevCrossing.t, scoreTsps[numEntries - 1]*1000, maxInSegment, redItemStyle);
+      var crossing = mkCrossingItem(this.groups, numEntries - 1, prevCrossing.t, now.getTime(), maxInSegment, redItemStyle);
       var parentCrossing = $.extend({}, crossing, { id: scoreParentId + '_' + crossing.id, group: scoreParentGId });
       items.add(crossing);
       items.add(parentCrossing);

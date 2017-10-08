@@ -30,21 +30,36 @@ var DETERIORATIONS = [
 var ALERT_CODES = {
 	"100": "TREWScore has passed the Septic Shock Risk Threshold",
 	"101": "TREWScore has been elevated for ",
-	"200": "All criteria for <b>Severe Sepsis</b> have been met",
-	"201": "All criteria for <b>Septic Shock</b> have been met",
-	"202": "<b>3hr</b> have passed since <b>Severe Sepsis</b> onset",
-	"203": "<b>6hr</b> have passed since <b>Severe Sepsis</b> onset",
-	"204": "<b>6hr</b> have passed since <b>Septic Shock</b> onset",
-	"205": "<b>6hr</b> have passed since Suspicion of Infection should have been entered, Severe Sepsis criteria have been reset",
-	"206": "<span class='suppressed'><b>6hr</b> have passed since Suspicion of Infection should have been entered, Severe Sepsis criteria have been reset</span>",
-	"300": "2/3 Severe Sepsis Criteria met: Enter Suspicion of Infection",
-	"301": "Severe Sepsis 3hr bundle intervention(s) need to be ordered", 										// Should be prefixed with count of number of severe sepsis 3hr interventions pending.
-	"302": "Severe Sepsis 6hr bundle intervention(s) need to be ordered", 										// Should be prefixed with count of number of severe sepsis 6hr interventions pending.
-	"303": "Septic Shock 6hr bundle intervention(s) need to be ordered", 										  // Should be prefixed with count of number of septic shock interventions pending.
-	"304": "Severe Sepsis 3hr bundle intervention(s) need to be completed in the next hour",  // Should be prefixed with the number of severe sepsis interventions to be completed before the 3hr window expires.
-	"305": "Severe Sepsis 6hr bundle intervention(s) need to be completed in the next hour",  // Should be prefixed with the number of severe sepsis interventions to be completed before the 6hr window expires.
-	"306": "Septic Shock 6hr bundle intervention(s) need to be completed in the next hour",    // Should be prefixed with the number of septic shock interventions to be completed before the 6hr window expires.
-	"307": "<span class='suppressed'>2/3 Severe Sepsis Criteria met: Enter Suspicion of Infection</span>"
+	"200": "All criteria for <b>CMS Severe Sepsis</b> have been met",
+	"201": "All criteria for <b>CMS Septic Shock</b> have been met",
+	"202": "<b>3hr</b> have passed since <b>CMS Severe Sepsis</b> onset",
+	"203": "<b>6hr</b> have passed since <b>CMS Severe Sepsis</b> onset",
+	"204": "<b>6hr</b> have passed since <b>CMS Septic Shock</b> onset",
+	"205": "<b>6hr</b> have passed since Suspicion of Infection should have been entered, CMS Severe Sepsis criteria have been reset",
+	"206": "<span class='suppressed'><b>6hr</b> have passed since Suspicion of Infection should have been entered, CMS Severe Sepsis criteria have been reset</span>",
+	"300": "2/3 CMS Severe Sepsis Criteria met: Enter Suspicion of Infection",
+	"301": "CMS Severe Sepsis 3hr bundle intervention(s) need to be ordered", 										// Should be prefixed with count of number of severe sepsis 3hr interventions pending.
+	"302": "CMS Severe Sepsis 6hr bundle intervention(s) need to be ordered", 										// Should be prefixed with count of number of severe sepsis 6hr interventions pending.
+	"303": "CMS Septic Shock 6hr bundle intervention(s) need to be ordered", 										  // Should be prefixed with count of number of septic shock interventions pending.
+	"304": "CMS Severe Sepsis 3hr bundle intervention(s) need to be completed in the next hour",  // Should be prefixed with the number of severe sepsis interventions to be completed before the 3hr window expires.
+	"305": "CMS Severe Sepsis 6hr bundle intervention(s) need to be completed in the next hour",  // Should be prefixed with the number of severe sepsis interventions to be completed before the 6hr window expires.
+	"306": "CMS Septic Shock 6hr bundle intervention(s) need to be completed in the next hour",    // Should be prefixed with the number of septic shock interventions to be completed before the 6hr window expires.
+	"307": "<span class='suppressed'>2/3 CMS Severe Sepsis Criteria met: Enter Suspicion of Infection</span>",
+	"400": "All criteria for <b>TREWS Severe Sepsis</b> have been met",
+	"401": "All criteria for <b>TREWS Septic Shock</b> have been met",
+	"402": "<b>3hr</b> have passed since <b>TREWS Severe Sepsis</b> onset",
+	"403": "<b>6hr</b> have passed since <b>TREWS Severe Sepsis</b> onset",
+	"404": "<b>6hr</b> have passed since <b>TREWS Septic Shock</b> onset",
+	"405": "<b>6hr</b> have passed since Suspicion of Infection should have been entered, TREWS Severe Sepsis criteria have been reset",
+	"406": "<span class='suppressed'><b>6hr</b> have passed since Suspicion of Infection should have been entered, TREWS Severe Sepsis criteria have been reset</span>",
+	"500": "2/3 TREWS Severe Sepsis Criteria met: Enter Suspicion of Infection",
+	"501": "TREWS Severe Sepsis 3hr bundle intervention(s) need to be ordered", 										// Should be prefixed with count of number of severe sepsis 3hr interventions pending.
+	"502": "TREWS Severe Sepsis 6hr bundle intervention(s) need to be ordered", 										// Should be prefixed with count of number of severe sepsis 6hr interventions pending.
+	"503": "TREWS Septic Shock 6hr bundle intervention(s) need to be ordered", 										  // Should be prefixed with count of number of septic shock interventions pending.
+	"504": "TREWS Severe Sepsis 3hr bundle intervention(s) need to be completed in the next hour",  // Should be prefixed with the number of severe sepsis interventions to be completed before the 3hr window expires.
+	"505": "TREWS Severe Sepsis 6hr bundle intervention(s) need to be completed in the next hour",  // Should be prefixed with the number of severe sepsis interventions to be completed before the 6hr window expires.
+	"506": "TREWS Septic Shock 6hr bundle intervention(s) need to be completed in the next hour",    // Should be prefixed with the number of septic shock interventions to be completed before the 6hr window expires.
+	"507": "<span class='suppressed'>2/3 TREWS Severe Sepsis Criteria met: Enter Suspicion of Infection</span>"
 }
 
 var LOG_STRINGS = {
