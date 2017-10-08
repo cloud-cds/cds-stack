@@ -2014,7 +2014,6 @@ return query
                   as severe_sepsis_lead_time,
                min(least(stats.inf_onset, stats.trews_onset, stats.trews_orgdf_onset))
                   as trews_severe_sepsis_lead_time
-
         from severe_sepsis_criteria stats
         group by stats.enc_id
       ) sspm
@@ -2193,17 +2192,6 @@ return query
         left join severe_sepsis_now ssn on stats.enc_id = ssn.enc_id
         group by stats.enc_id
     ),
-    -- pats_that_have_orders as (
-    --     select distinct pat_cvalues.enc_id
-    --     from pat_cvalues
-    --     where pat_cvalues.name in (
-    --         'initial_lactate_order',
-    --         'blood_culture_order',
-    --         'antibiotics_order',
-    --         'crystalloid_fluid_order',
-    --         'vasopressors_order'
-    --     )
-    -- ),
     orders_criteria as (
         select
             ordered.enc_id,
@@ -2339,17 +2327,18 @@ return query
                     pat_cvalues.c_otime,
                     pat_cvalues.c_ouser,
                     pat_cvalues.c_ovalue,
-                    ((
-                      coalesce(initial_lactate_order.is_met and lactate_results.is_met, false)
-                        and order_met(pat_cvalues.name, coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value))
-                        and (coalesce(pat_cvalues.tsp > initial_lactate_order.tsp, false)
-                                and coalesce(lactate_results.tsp > initial_lactate_order.tsp, false))
-                    ) or
-                    (
-                      not( coalesce(initial_lactate_order.is_completed
-                                      and ( lactate_results.is_met or pat_cvalues.tsp <= initial_lactate_order.tsp )
-                                    , false) )
-                    )) is_met
+                    (case when initial_lactate_order.is_met
+                        and (
+                            not lactate_results.is_met or
+                            (
+                                order_met(pat_cvalues.name, coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value))
+                                and pat_cvalues.tsp > initial_lactate_order.tsp
+                                and pat_cvalues.tsp > lactate_results.tsp
+                            )
+
+                        )
+                        then true
+                        else false end) is_met
             from pat_cvalues
             left join (
                 select oc.enc_id,
@@ -2362,7 +2351,7 @@ return query
             ) initial_lactate_order on pat_cvalues.enc_id = initial_lactate_order.enc_id
             left join (
                 select p3.enc_id,
-                       max(case when p3.value::numeric > 2.0 then p3.tsp else null end) tsp,
+                       min(case when p3.value::numeric > 2.0 then p3.tsp else null end) tsp,
                        coalesce(bool_or(p3.value::numeric > 2.0), false) is_met
                 from pat_cvalues p3
                 where p3.name = 'initial_lactate'
