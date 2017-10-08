@@ -58,8 +58,8 @@ spec:
         env:
         - name: release
           value: "epic2017"
-        - name: use_trews_lmc
-          value: "false"
+        - name: model_in_use
+          value: "trews-jit"
         - name: db_host
           value: "dev.db.jh.opsdx.io"
         - name: db_port
