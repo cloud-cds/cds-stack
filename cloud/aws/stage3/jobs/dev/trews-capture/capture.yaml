@@ -1,0 +1,69 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: trews-capture
+spec:
+  template: # create pods using pod definition in this template
+    metadata:
+      name: trews-capture
+      namespace: default
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        opsdx_nodegroup: spot-nodes
+      containers:
+      - name: universe
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/utilities:1.0.211
+        imagePullPolicy: IfNotPresent
+        command:
+          - sh
+          - -c
+          - "aws s3 cp s3://opsdx-deployment/scripts/trews-capture.sh /tmp && chmod 755 /tmp/trews-capture.sh && /tmp/trews-capture.sh"
+        env:
+        - name: capture_query # Must return a single column of pat_ids
+          value: "select distinct pat_id from pat_enc inner join cdm_s on pat_enc.enc_id = cdm_s.enc_id where cdm_s.fid = 'age' and cdm_s.value::numeric > 18 and pat_enc.enc_id in ( select enc_id from (select enc_id, count(*) c from criteria where update_date > now() - interval '6 hours' and is_met group by enc_id having count(*) > 6) R )"
+        - name: query_id
+          value: "dev.capture.test"
+        - name: output_bucket
+          value: "opsdx-clarity-etl-stage"
+        - name: output_dir
+          value: "trews-capture"
+        - name: trews_url
+          valueFrom:
+            secretKeyRef:
+              name: trews-capture-secrets
+              key: trews-url
+        - name: db_host
+          value: "dev.db.jh.opsdx.io"
+        - name: db_port
+          value: "5432"
+        - name: db_name
+          value: "opsdx_dev"
+        - name: db_user
+          valueFrom:
+            secretKeyRef:
+              name: trews-capture-secrets
+              key: db-username
+        - name: db_password
+          valueFrom:
+            secretKeyRef:
+              name: trews-capture-secrets
+              key: db-password
+        - name: AWS_DEFAULT_REGION
+          valueFrom:
+            secretKeyRef:
+              name: trews-capture-secrets
+              key: aws-region
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: trews-capture-secrets
+              key: aws-access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: trews-capture-secrets
+              key: aws-secret-access-key
+        securityContext:
+          privileged: true
