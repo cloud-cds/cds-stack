@@ -1070,10 +1070,10 @@ var severeSepsisComponent = new function() {
           && trews.data.chart_data.chart_values.timestamp != null
           && trews.data.chart_data.chart_values.odds_ratio != null )
     {
-      var num_ts = trews.data.chart_data.chart_values['timestamp'].length - 1;
-      var num_or = trews.data.chart_data.chart_values['odds_ratio'].length - 1;
-      var chart_idx = Math.min(num_ts, num_or)
-      if ( chart_idx > 0 ) {
+      var num_ts = trews.data.chart_data.chart_values['timestamp'].length;
+      var num_or = trews.data.chart_data.chart_values['odds_ratio'].length;
+      var chart_idx = Math.min(num_ts, num_or) - 1;
+      if ( chart_idx >= 0 ) {
         var odds_ratio_date = new Date(trews.data.chart_data.chart_values['timestamp'][chart_idx]*1000);
         var odds_ratio_val = trews.data.chart_data.chart_values['odds_ratio'][chart_idx]
         if ( isNumber(odds_ratio_val) ) { odds_ratio_val = odds_ratio_val.toFixed(3); }
