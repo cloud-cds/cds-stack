@@ -1952,7 +1952,7 @@ return query
     severe_sepsis_now as (
       select sspm.enc_id,
              sspm.trews_severe_sepsis_is_met or sspm.severe_sepsis_is_met severe_sepsis_is_met,
-             (case when sspm.trews_severe_sepsis_is_met then
+             (case when sspm.trews_severe_sepsis_wo_infection_is_met then
                 (case when sspm.trews_severe_sepsis_onset <> 'infinity'::timestamptz
                         then sspm.trews_severe_sepsis_onset
                         else null end
@@ -1963,7 +1963,7 @@ return query
                        else null end
                  )
              end) as severe_sepsis_onset,
-             (case when sspm.trews_severe_sepsis_is_met then
+             (case when sspm.trews_severe_sepsis_wo_infection_is_met then
                 (case when sspm.trews_severe_sepsis_wo_infection_onset <> 'infinity'::timestamptz
                        then sspm.trews_severe_sepsis_wo_infection_onset
                        else null end
@@ -1974,10 +1974,10 @@ return query
                        else null end
                  )
              end) as severe_sepsis_wo_infection_onset,
-             (case when sspm.trews_severe_sepsis_is_met then sspm.trews_severe_sepsis_wo_infection_initial
+             (case when sspm.trews_severe_sepsis_wo_infection_is_met then sspm.trews_severe_sepsis_wo_infection_initial
                 else sspm.severe_sepsis_wo_infection_initial
              end) severe_sepsis_wo_infection_initial,
-             (case when sspm.trews_severe_sepsis_is_met then sspm.trews_severe_sepsis_lead_time
+             (case when sspm.trews_severe_sepsis_wo_infection_is_met then sspm.trews_severe_sepsis_lead_time
                 else sspm.severe_sepsis_lead_time
              end) severe_sepsis_lead_time
       from (
@@ -1987,11 +1987,17 @@ return query
                                   and stats.org_df_cnt > 0)
                         , false
                         ) as severe_sepsis_is_met,
-                coalesce(bool_or(stats.suspicion_of_infection
+               coalesce(bool_or(stats.suspicion_of_infection
                                   and stats.trews
                                   and stats.trews_orgdf_cnt > 0)
                         , false
                         ) as trews_severe_sepsis_is_met,
+               coalesce(bool_or(stats.sirs_cnt > 1 and stats.org_df_cnt > 0)
+                        , false
+                        ) as severe_sepsis_wo_infection_is_met,
+               coalesce(bool_or(stats.trews and stats.trews_orgdf_cnt > 0)
+                        , false
+                        ) as trews_severe_sepsis_wo_infection_is_met,
                max(greatest(coalesce(stats.inf_onset, 'infinity'::timestamptz),
                             coalesce(stats.sirs_onset, 'infinity'::timestamptz),
                             coalesce(stats.org_df_onset, 'infinity'::timestamptz))
