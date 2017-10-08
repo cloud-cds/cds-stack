@@ -9,7 +9,7 @@ TREWS Alerts v2 2017-10-01
 | 203 | **6hr** have passed since **CMS Severe Sepsis** onset|
 | 204 | **6hr** have passed since **CMS Septic Shock** onset|
 | 205 | **6hr** have passed since Suspicion of Infection should have been entered, **CMS Severe Sepsis** criteria have been reset|
-| 206 | **6hr** have passed since Suspicion of Infection should have been entered, **CMS Severe Sepsis** criteria have been reset|
+| 206 | (SUPPRESSED)**6hr** have passed since Suspicion of Infection should have been entered, **CMS Severe Sepsis** criteria have been reset|
 | 300 | 2/3 **CMS Severe Sepsis** Criteria met: Enter Suspicion of Infection|
 | 301 | **CMS Severe Sepsis** **3hr** bundle intervention(s) need to be ordered|
 | 302 | **CMS Severe Sepsis** **6hr** bundle intervention(s) need to be ordered|
@@ -23,7 +23,7 @@ TREWS Alerts v2 2017-10-01
 | 403 | **6hr** have passed since **TREWS Severe Sepsis** onset|
 | 404 | **6hr** have passed since **TREWS Septic Shock** onset|
 | 405 | **6hr** have passed since Suspicion of Infection should have been entered, **TREWS Severe Sepsis** criteria have been reset|
-| 406 | **6hr** have passed since Suspicion of Infection should have been entered, **TREWS Severe Sepsis** criteria have been reset|
+| 406 | (SUPPRESSED)**6hr** have passed since Suspicion of Infection should have been entered, **TREWS Severe Sepsis** criteria have been reset|
 | 500 | 2/3 **TREWS Severe Sepsis** Criteria met: Enter Suspicion of Infection|
 | 501 | **TREWS Severe Sepsis** **3hr** bundle intervention(s) need to be ordered|
 | 502 | **TREWS Severe Sepsis** **6hr** bundle intervention(s) need to be ordered|
