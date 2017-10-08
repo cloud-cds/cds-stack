@@ -17,6 +17,7 @@ TREWS Alerts v2 2017-10-01
 | 304 | **CMS Severe Sepsis** **3hr** bundle intervention(s) need to be completed in the next hour|
 | 305 | **CMS Severe Sepsis** **6hr** bundle intervention(s) need to be completed in the next hour|
 | 306 | **CMS Septic Shock** **6hr** bundle intervention(s) need to be completed in the next hour|
+| 307 | (SUPPRESSED)2/3 **CMS Severe Sepsis** Criteria met: Enter Suspicion of Infection|
 | 400 | All criteria for **TREWS Severe Sepsis** have been met|
 | 401 | All criteria for **TREWS Septic Shock** have been met|
 | 402 | **3hr** have passed since **TREWS Severe Sepsis** onset|
@@ -31,3 +32,4 @@ TREWS Alerts v2 2017-10-01
 | 504 | **TREWS Severe Sepsis** **3hr** bundle intervention(s) need to be completed in the next hour|
 | 505 | **TREWS Severe Sepsis** **6hr** bundle intervention(s) need to be completed in the next hour|
 | 506 | **TREWS Septic Shock** **6hr** bundle intervention(s) need to be completed in the next hour|
+| 507 | (SUPPRESSED)2/3 **TREWS Severe Sepsis** Criteria met: Enter Suspicion of Infection|
