@@ -63,7 +63,10 @@ var LOG_STRINGS = {
 	},
 	"deactivate": " <b>deactivated</b> the patient",
 	"activate": " <b>activated</b> the patient",
-	"toggle_notifications": " toggled notifications"
+	"toggle_notifications": " toggled notifications",
+	"auto_deactivate": " automatically deactivated the patient",
+	"reset_bundle_expired_pats": " reset patients with expired treatment bundles after 72 hrs",
+	"reset_noinf_expired_pats": " reset patients with no infection after 72 hrs"
 }
 
 var EDIT = {
@@ -195,6 +198,11 @@ var criteriaKeyToName = {
 	],
 	"vasopressors_order": [
 		{"name": "Vasopressors Order"}
+	],
+	/* TREWScore */
+	"trews": [
+		{"name": "TREWS Acuity Score",
+		"units": ""}
 	],
 	/* TREWS organ dysfunction criteria */
 	"trews_sbpm": [

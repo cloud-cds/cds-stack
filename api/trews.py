@@ -76,7 +76,7 @@ order_link_mode = os.environ['order_link_mode'] if 'order_link_mode' in os.envir
 force_server_loc = os.environ['force_server_loc'] if 'force_server_loc' in os.environ else None
 force_server_dep = os.environ['force_server_dep'] if 'force_server_dep' in os.environ else None
 
-use_trews_lmc = os.environ['use_trews_lmc'].lower() == 'true' if 'use_trews_lmc' in os.environ else False
+model_in_use = os.environ['model_in_use']
 
 logging.info('''TREWS Configuration::
   release: %s
@@ -380,17 +380,11 @@ def etl_channel_recv(conn, proc_id, channel, payload):
     if payload.count(':') == 2:
       if payload.startswith('invalidate_cache:'):
         header, body, model = payload.split(":")
-        if (use_trews_lmc and model == 'lmc') or (not use_trews_lmc and model == 'trews'):
-          # if body.startswith('H'):
-          #   hosp = body[1:]
-          #   if 'db_pool' in app:
-          #     global pat_cache
-          #     asyncio.ensure_future(dashan_query.invalidate_cache_hospital(app['db_pool'], proc_id, channel, hosp, pat_cache))
-          # else:
+        if model_in_use == model:
           invalidate_cache(conn, proc_id, channel, body.split(","))
       elif payload.startswith('invalidate_cache_batch:'):
         header, serial_id, model = payload.split(":")
-        if (use_trews_lmc and model == 'lmc') or (not use_trews_lmc and model == 'trews'):
+        if model_in_use == model:
           global pat_cache
           asyncio.ensure_future(dashan_query.invalidate_cache_batch(app['db_pool'], proc_id, channel, serial_id, pat_cache))
       else:

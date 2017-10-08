@@ -477,15 +477,18 @@ class TREWSAPI(web.View):
       # parallel query execution
       pat_values = await asyncio.gather(
                       query.get_criteria(db_pool, eid),
-                      query.get_trews_contributors(db_pool, eid, start_hrs=chart_sample_start_hrs, start_day=chart_sample_start_day, end_day=chart_sample_end_day, sample_mins=chart_sample_mins, sample_hrs=chart_sample_hrs),
+                      #query.get_trews_contributors(db_pool, eid, start_hrs=chart_sample_start_hrs, start_day=chart_sample_start_day, end_day=chart_sample_end_day, sample_mins=chart_sample_mins, sample_hrs=chart_sample_hrs),
+                      query.get_trews_jit_score(db_pool, eid, start_hrs=chart_sample_start_hrs, start_day=chart_sample_start_day, end_day=chart_sample_end_day, sample_mins=chart_sample_mins, sample_hrs=chart_sample_hrs),
                       query.get_patient_events(db_pool, eid),
                       query.get_patient_profile(db_pool, eid)
                     )
+
       if pat_values[0] is None or len(pat_values[0]) == 0:
         # cannot find data for this eid
         data = None
         return data
       await pat_cache.set(eid, pat_values, ttl=300)
+
     else:
       api_monitor.add_metric('CacheHits')
 

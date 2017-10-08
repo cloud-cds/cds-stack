@@ -559,6 +559,11 @@ span.criteria-btn {
     color: #777;
     cursor: pointer;
 }
+span.criteria-btn p {
+    font-size: 12px;
+    color: #10b66d;
+    cursor: pointer;
+}
 /*Segmented control*/
 .segmented {
     display:flex;

@@ -1649,7 +1649,7 @@ return query
             ordered.enc_id,
             ordered.name,
             first(case when ordered.is_met then ordered.tsp else null end) as measurement_time,
-            first(case when ordered.is_met then score else null end)::text as value,
+            first(case when ordered.is_met then json_build_object('score', score, 'odds_ratio', odds_ratio) else null end)::text as value,
             first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
             first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
             first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
@@ -1658,7 +1658,7 @@ return query
         from (
             select pc.enc_id, pc.name,
             pc.c_otime, pc.c_ouser, pc.c_ovalue,
-            ts.tsp, ts.score,
+            ts.tsp, ts.score, ts.odds_ratio,
             (case when pc.c_ovalue#>>'{0,text}' = 'No Infection' then false
                 when ts.score > get_trews_parameter('trews_jit_threshold') then True
                 else False end) is_met
@@ -1953,24 +1953,24 @@ return query
       select sspm.enc_id,
              sspm.trews_severe_sepsis_is_met or sspm.severe_sepsis_is_met severe_sepsis_is_met,
              (case when sspm.trews_severe_sepsis_is_met then
+                (case when sspm.trews_severe_sepsis_onset <> 'infinity'::timestamptz
+                        then sspm.trews_severe_sepsis_onset
+                        else null end
+                 )
+              else
                  (case when sspm.severe_sepsis_onset <> 'infinity'::timestamptz
                        then sspm.severe_sepsis_onset
                        else null end
                  )
-              else
-                 (case when sspm.trews_severe_sepsis_onset <> 'infinity'::timestamptz
-                        then sspm.trews_severe_sepsis_onset
-                        else null end
-                 )
              end) as severe_sepsis_onset,
              (case when sspm.trews_severe_sepsis_is_met then
-                 (case when sspm.severe_sepsis_wo_infection_onset <> 'infinity'::timestamptz
-                       then sspm.severe_sepsis_wo_infection_onset
+                (case when sspm.trews_severe_sepsis_wo_infection_onset <> 'infinity'::timestamptz
+                       then sspm.trews_severe_sepsis_wo_infection_onset
                        else null end
                  )
               else
-                 (case when sspm.trews_severe_sepsis_wo_infection_onset <> 'infinity'::timestamptz
-                       then sspm.trews_severe_sepsis_wo_infection_onset
+                 (case when sspm.severe_sepsis_wo_infection_onset <> 'infinity'::timestamptz
+                       then sspm.severe_sepsis_wo_infection_onset
                        else null end
                  )
              end) as severe_sepsis_wo_infection_onset,
@@ -3752,8 +3752,8 @@ returns void language plpgsql as $$
 declare
 begin
   execute 'with pats as
-  (select distinct m.enc_id from cdm_t t
-    inner join pat_hosp() h on h.pat_id = t.pat_id
+  (select distinct t.enc_id from cdm_t t
+    inner join enc_hosp() h on h.enc_id = t.enc_id
     where now() - tsp < interval ''' || lookback_hours || ' hours'' and h.hospital = '''||hospital||'''),
   pats_group as
   (select pats.*, row_number() over () % ' || nprocs || ' g from pats),
