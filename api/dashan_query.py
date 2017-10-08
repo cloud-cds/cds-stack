@@ -176,6 +176,10 @@ async def get_trews_jit_score(db_pool, pat_id, start_hrs=6, start_day=2, end_day
     and tjs.tsp >= now() - interval '%(sample_end_day)s days'
     order by tsp_bucket
   )
+  select tsp at time zone 'UTC' as tsp, score, odds_ratio
+  from jit_scores
+  where tsp_bucket is null
+  union all
   select tsp_bucket at time zone 'UTC' as tsp,
          avg(score) as score,
          avg(odds_ratio) as odds_ratio
@@ -262,7 +266,7 @@ async def get_patient_events(db_pool, pat_id):
 # - deterioration feedback timestamp, statuses and uid
 #
 async def get_patient_profile(db_pool, pat_id):
-  threshold_param_key = 'lmc_threshold' if use_trews_lmc else 'trews_threshold'
+  threshold_param_key = 'lmc_threshold' if use_trews_lmc else 'trews_jit_threshold'
   get_patient_profile_sql = \
   '''
   select * from
@@ -325,7 +329,7 @@ async def get_patient_profile(db_pool, pat_id):
     if len(result) == 1:
       epoch = datetime.datetime.utcfromtimestamp(0).replace(tzinfo=pytz.UTC)
 
-      profile['trews_threshold']      = float("{:.2f}".format(float(result[0][0])))
+      profile['trews_threshold']      = float("{:.9f}".format(float(result[0][0])))
       profile['admit_time']           = (result[0][1] - epoch).total_seconds() if result[0][1] is not None else None
       profile['deactivated']          = result[0][2]
       profile['deactivated_tsp']      = (result[0][3] - epoch).total_seconds() if result[0][3] is not None else None

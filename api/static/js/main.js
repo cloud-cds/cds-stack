@@ -1823,7 +1823,6 @@ var criteriaComponent = function(c, constants, key, hidden, criteria_mapping, cr
   }
 
   if (c['override_user'] != null && c['override_time']) {
-    console.log('Override for ' + c['name'] + ' ' + (c['measurement_time'] ? 'HASMT' : '') + ' ' + (c['override_time'] ? 'HASOVT' : ''));
     var oLapsed = timeLapsed(new Date(c['override_time']*1000));
     var oStrTime = strToTime(new Date(c['override_time']*1000));
     this.status += "Customized by " + c['override_user'] + " <span title='" + oStrTime + "'>" + oLapsed + "</span>";
@@ -1840,6 +1839,7 @@ var criteriaComponent = function(c, constants, key, hidden, criteria_mapping, cr
 
 
   var criteriaString = "";
+  var criteriaStringSuffix = "";
   var oCriteria = this.isOverridden ? trews.getSpecificCriteria(key, constants.key) : null;
 
   for (var i = 0; i < constants.overrideModal.length; i++) {
@@ -1870,7 +1870,8 @@ var criteriaComponent = function(c, constants, key, hidden, criteria_mapping, cr
     // Generate criteria string.
     if ( crit === 'No Infection' ) {
       deactivatedClass = " met-deactivated";
-      criteriaString += name + " measurements not due to infection.";
+      criteriaString += name;
+      criteriaStringSuffix = " measurements not due to infection";
       this.criteria_button_enable = true;
     }
     else if ( skip_threshold_and_value ) {
@@ -1901,6 +1902,7 @@ var criteriaComponent = function(c, constants, key, hidden, criteria_mapping, cr
     criteriaString += skip_threshold_and_value ? " / " : " or ";
   }
   criteriaString = skip_threshold_and_value ? criteriaString.slice(0, -3) : criteriaString.slice(0, -4);
+  criteriaString += criteriaStringSuffix;
 
   // Add criteria button (for organ dysfunction).
   var criteria_button_symbol = this.criteria_button_enable ? '<p>Re-enable</p>' : '<i class="fa fa-close"></i>';
@@ -2650,16 +2652,18 @@ var activity = new function() {
 
     var text_overrides = [ "suspicion_of_infection" ];
 
-    var msg = ""
+    var msg = "";
+    var user = data.uid == null ? 'TREWS' : (data['uid'] == 'dba' ? 'TREWS automatically' : data['uid']);
+    if ( user == 'user' ) { user = 'Test user'; }
 
     var is_order = jQuery.inArray(data.name, order_overrides) >= 0;
     var is_text = jQuery.inArray(data.name, text_overrides) >= 0
 
     if (data['event_type'] == 'set_deterioration_feedback') {
       if (data.value.other == "" && data.value.value.length == 0) {
-        return data['uid'] + " has cleared <b>other conditions driving deterioration</b>"
+        return user + " has cleared <b>other conditions driving deterioration</b>"
       }
-      msg += data['uid'] + LOG_STRINGS[data['event_type']]
+      msg += user + LOG_STRINGS[data['event_type']]
       if (data.value.value.length > 0) {
         for (var i = 0; i < data.value.value.length; i ++) {
           msg += data.value.value[i] + ", "
@@ -2673,79 +2677,63 @@ var activity = new function() {
       }
     } else if (data['event_type'] == 'override') {
       if (data['clear']) {
-        msg += data['uid'] + LOG_STRINGS[data['event_type']]['clear']
-        for (var i = 0; i < criteriaKeyToName[data.name].length - 1; i ++) {
-          msg += criteriaKeyToName[data.name][i].name + ", "
-        }
-        if (criteriaKeyToName[data.name].length > 2) {
-          msg += "and " + criteriaKeyToName[data.name][criteriaKeyToName[data.name].length - 1].name
-        }
-        else {
-          if (criteriaKeyToName[data.name].length > 1) {
-            msg = msg.substring(0, msg.length - 2) + " and "
+        msg += user + LOG_STRINGS[data['event_type']]['clear']
+        for (var i = 0; i < criteriaKeyToName[data.name].length; i ++) {
+          var suffix = criteriaKeyToName[data.name].length > 1 ? ", " : "";
+          // For the last element, add an 'and' to the rendered message,
+          // stripping the comma if we have exactly 2 elements,
+          if ( criteriaKeyToName[data.name].length > 1 && i == (criteriaKeyToName[data.name].length - 1) ) {
+            if ( criteriaKeyToName[data.name].length == 2 ) {
+              msg = msg.substring(0, msg.length - 2) + " "
+            }
+            msg += "and ";
+            suffix = "";
           }
-          msg += criteriaKeyToName[data.name][criteriaKeyToName[data.name].length - 1].name
+          msg += criteriaKeyToName[data.name][i].name + suffix;
         }
       } else {
         var action = is_order ? LOG_STRINGS[data['event_type']]['ordered'][0] : LOG_STRINGS[data['event_type']]['customized'][0];
-        msg += data['uid'] + action
-        for (var i = 0; i < criteriaKeyToName[data.name].length - 1; i ++) {
-          if (is_order) {
-            msg += criteriaKeyToName[data.name][i].name
-              + LOG_STRINGS[data['event_type']]['ordered'][1]
-              + data.override_value[i].text
-              + ", "
-          } else if (is_text) {
-            msg += criteriaKeyToName[data.name][i].name
-              + LOG_STRINGS[data['event_type']]['customized'][1]
-              + data.override_value[i].text
-              + ", "
-          } else {
-            msg += criteriaKeyToName[data.name][i].name
-              + LOG_STRINGS[data['event_type']]['customized'][1]
-              + UpperLowerToLogicalOperators(data.override_value[i], criteriaKeyToName[data.name][i].units)
-              + ", "
+        msg += user + action;
+        for (var i = 0; i < criteriaKeyToName[data.name].length; i ++) {
+          if ( i >= data.override_value.length ) {
+            // Strip trailing comma
+            if ( criteriaKeyToName[data.name].length > 1 ) { msg = msg.substring(0, msg.length - 2) + " " }
+            break;
           }
-        }
-        if (criteriaKeyToName[data.name].length > 2) {
-          if (is_order) {
-            msg += "and " + criteriaKeyToName[data.name][criteriaKeyToName[data.name].length - 1].name
-              + LOG_STRINGS[data['event_type']]['ordered'][1]
-              + data.override_value[i].text
-          } else if (is_text) {
-            msg += "and " + criteriaKeyToName[data.name][criteriaKeyToName[data.name].length - 1].name
-              + LOG_STRINGS[data['event_type']]['customized'][1]
-              + data.override_value[i].text
-          } else {
-            msg += "and " + criteriaKeyToName[data.name][criteriaKeyToName[data.name].length - 1].name
-              + LOG_STRINGS[data['event_type']]['customized'][1]
-              + UpperLowerToLogicalOperators(data.override_value[i], criteriaKeyToName[data.name][i].units)
+
+          var suffix = criteriaKeyToName[data.name].length > 1 ? ", " : "";
+          // For the last element, add an 'and' to the rendered message,
+          // stripping the comma if we have exactly 2 elements,
+          if ( criteriaKeyToName[data.name].length > 1 && i == (criteriaKeyToName[data.name].length - 1) ) {
+            if ( criteriaKeyToName[data.name].length == 2 ) {
+              msg = msg.substring(0, msg.length - 2) + " "
+            }
+            msg += "and ";
+            suffix = "";
           }
-        }
-        else {
-          if (criteriaKeyToName[data.name].length > 1) {
-            msg = msg.substring(0, msg.length - 2) + " and "
-          }
-          if (is_order) {
-            msg += criteriaKeyToName[data.name][criteriaKeyToName[data.name].length - 1].name
-              + LOG_STRINGS[data['event_type']]['ordered'][1]
-              + data.override_value[i].text
-          } else if (is_text) {
-            msg += criteriaKeyToName[data.name][criteriaKeyToName[data.name].length - 1].name
-              + LOG_STRINGS[data['event_type']]['customized'][1]
-              + data.override_value[i].text
-          } else {
-            msg += criteriaKeyToName[data.name][criteriaKeyToName[data.name].length - 1].name
-              + LOG_STRINGS[data['event_type']]['customized'][1]
-              + UpperLowerToLogicalOperators(data.override_value[i], criteriaKeyToName[data.name][i].units)
+          msg += criteriaKeyToName[data.name][i].name;
+          if ( data.override_value != null && data.override_value.length > i ) {
+            if (is_order) {
+              msg += LOG_STRINGS[data['event_type']]['ordered'][1]
+                    + data.override_value[i].text;
+            } else if (is_text || data.override_value[i].text != null) {
+              msg += LOG_STRINGS[data['event_type']]['customized'][1]
+                    + data.override_value[i].text;
+            } else if ( data.override_value[i].range != null ) {
+              msg += LOG_STRINGS[data['event_type']]['customized'][1]
+                    + UpperLowerToLogicalOperators(data.override_value[i], criteriaKeyToName[data.name][i].units);
+            }
+            msg += suffix;
           }
         }
       }
-    } else if (data['event_type'] == 'deactivate') {
+    }
+    else if (data['event_type'] == 'deactivate' || data['event_type'] == 'auto_deactivate') {
       event_type = data['deactivated'] ? 'deactivate' : 'activate';
-      msg += data['uid'] + LOG_STRINGS[event_type]
-    } else {
-      msg += data['uid'] + LOG_STRINGS[data['event_type']]
+      msg += user + LOG_STRINGS[event_type]
+    }
+    else {
+      msg += user + LOG_STRINGS[data['event_type']]
     }
     return msg;
   }
@@ -3566,7 +3554,7 @@ var toolbar = new function() {
         var itemBase = {
           id: json[k2]['name'],
           group: g['id'],
-          content: ' ',
+          content: '&nbsp;',
           title: tooltip,
           type: 'range',
           style: greenItemStyle
@@ -3602,7 +3590,7 @@ var toolbar = new function() {
             items.add({
               id: json[k2]['name'] + '_warning',
               group: g['id'],
-              content: ' ',
+              content: '&nbsp;',
               title: tooltip,
               start: t_deadline,
               end: t_action,
@@ -3653,7 +3641,7 @@ var toolbar = new function() {
         items.add({
           id: json[k2]['name'] + '_deadline',
           group: g['id'],
-          content: ' ',
+          content: '&nbsp;',
           title: tooltip,
           start: t_deadline,
           end: new Date(t_deadline.getTime() + range_as_point_duration),
@@ -3828,7 +3816,7 @@ var toolbar = new function() {
     var mkCrossingItem = function(groups, i, st, en, maxInSegment, style) {
       var shortRange = en - st <= (45 * 60 * 1000);
 
-      var msg = shortRange ? ' ' : 'High Risk';
+      var msg = shortRange ? '&nbsp;' : 'High Risk';
       if (!shortRange && maxInSegment != null) { msg += ' (max ' + maxInSegment.toFixed(2) + ')'; }
 
       var title = 'High Risk of Deterioration'
@@ -3903,7 +3891,8 @@ var toolbar = new function() {
                   json['severe_sepsis']['suspicion_of_infection']['update_user'] : 'user'),
         end:  severe_sepsis_end,
         sty:  lightRedItemStyle,
-        psty: defaultItemStyle
+        psty: defaultItemStyle,
+        min_duration: 5*60*1000
       },
       { grp: 'cms_severe_sepsis',
         pgrp: null,
@@ -3963,6 +3952,8 @@ var toolbar = new function() {
 
       var itemId = sepsis_events[i]['grp'];
 
+      var min_duration = sepsis_events[i]['min_duration'];
+
       if ( evt == 'suspicion_of_infection' && obj[evt][tsp_field] != null && obj[evt]['value'] != null ) {
         lbl = sepsis_events[i]['n'] + '(' + obj[evt]['value'] + ')';
         tip = sepsis_events[i]['tip'];
@@ -3980,7 +3971,12 @@ var toolbar = new function() {
         };
 
         if ( sepsis_events[i]['end'] != null ) {
-          itemBase = $.extend({}, itemBase, { end: sepsis_events[i]['end'], type: 'range', });
+          // Ensure min duration.
+          if ( min_duration != null && sepsis_events[i]['end'] - tsp < min_duration ) {
+            itemBase = $.extend({}, itemBase, { end: new Date(tsp.getTime() + min_duration), type: 'range', });
+          } else {
+            itemBase = $.extend({}, itemBase, { end: sepsis_events[i]['end'], type: 'range', });
+          }
         } else {
           itemBase = $.extend({}, itemBase, { type: 'box', });
         }
@@ -4003,7 +3999,7 @@ var toolbar = new function() {
           items.add({
             id: itemId + '_to_now',
             group: g['id'],
-            content: ' ',
+            content: '&nbsp;',
             title: lbl + ' at ' + strToTime(tsp, true, true) + '. ' + sepsis_events[i]['extend_lbl'] ,
             start: sepsis_events[i]['end'],
             end: now,
