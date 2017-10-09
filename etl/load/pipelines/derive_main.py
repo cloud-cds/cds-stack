@@ -3,7 +3,7 @@ import etl.load.primitives.tbl.derive as derive_func
 import etl.load.primitives.tbl.clean_tbl as clean_tbl
 from etl.load.primitives.tbl.derive import with_ds
 from etl.load.primitives.tbl.derive_helper import *
-
+import logging
 import time
 
 async def derive_main(log, conn, cdm_feature_dict, mode=None, fid=None,
@@ -1196,3 +1196,90 @@ query_config = {
       group by %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp''',
   },
 }
+
+
+def plan(cdm_feature_dict, derive_fids=None, derive_dependents=False, dataset_id=None, enc_ids=None,
+         cdm_twf='cdm_twf', cdm_t='cdm_t', cdm_s='cdm_s', log=logging):
+  if derive_fids is None:
+    derive_fids = [fid for fid in cdm_feature_dict if not cdm_feature_dict[fid]['is_measured']]
+  # include related derive features
+  dependent_derive_fids = {'S':[],'T':[],'TWF':[]}
+  for derive_fid in derive_fids.copy():
+    for fid_str in cdm_feature_dict[derive_fid]['derive_func_input'].split(","):
+      fid = fid_str.strip()
+      if not cdm_feature_dict[fid]['is_measured'] and fid not in derive_fids:
+        dependent_derive_fids[cdm_feature_dict[fid]['category']].append(fid)
+  # required measured twf, s, or t features
+  measure_fids = {'S':[],'T':[],'TWF':[]}
+  for derive_fid in derive_fids:
+    for fid_str in cdm_feature_dict[derive_fid]['derive_func_input'].split(","):
+      fid = fid_str.strip()
+      if cdm_feature_dict[fid]['is_measured']:
+        measure_fids[cdm_feature_dict[fid]['category']].append(fid)
+  log.info("derive_fids: {}".format(derive_fids))
+  log.info("measure_fids: {}".format(measure_fids))
+  if enc_ids and dataset_id:
+    twf_constraint = 'where enc_id in ({}) and dataset_id = {}'.format(','.join(enc_ids), dataset_id)
+  elif enc_ids and not dataset_id:
+    twf_constraint = 'where enc_id in ({})'.format(','.join(enc_ids))
+  elif not enc_ids and dataset_id:
+    twf_constraint = 'where dataset_id = {}'.format(dataset_id)
+  else:
+    twf_constraint = ''
+  if derive_dependents:
+    derive_fids += dependent_derive_fids['S'] + dependent_derive_fids['T'] + dependent_derive_fids['TWF']
+    existing_fids = measure_fids
+  else:
+    existing_fids = {
+      'S': dependent_derive_fids['S'] + measure_fids['S'],
+      'T': dependent_derive_fids['T'] + measure_fids['T'],
+      'TWF': dependent_derive_fids['TWF'] + measure_fids['TWF']
+    }
+  twf_cols = ','.join(['{fid},{fid}_c'.format(fid=fid) for fid in existing_fids['TWF']])
+  query = '''
+  with cdm_s as (
+    select enc_id, fid, value, confidence from {cdm_s}
+    where fid in ({cdm_s_fids}){enc_id_in}{dataset_id_equal}
+  ),
+  cdm_t as (
+    select enc_id, tsp, fid, value, confidence from {cdm_t}
+    where fid in ({cdm_t_fids}){enc_id_in}{dataset_id_equal}
+  ),
+  cdm_twf as (
+    select enc_id, tsp, {twf_cols} from {cdm_twf}
+    {twf_constraint}
+  )
+  '''.format(
+      enc_id_in = ' and enc_id in ({})'.format(','.join(enc_ids)) if enc_ids else '',
+      cdm_s=cdm_s, cdm_t=cdm_t, cdm_twf=cdm_twf,
+      cdm_s_fids=','.join(["'{}'".format(fid) for fid in existing_fids['S']]),
+      cdm_t_fids=','.join(["'{}'".format(fid) for fid in existing_fids['T']]),
+      dataset_id_equal=' and dataset_id = {}'.format(dataset_id) if dataset_id else '',
+      twf_cols=twf_cols, twf_constraint=twf_constraint
+    )
+  pending_derive_fids = derive_fids.copy()
+  layers = []
+  log.info("pending_derive_fids: {}".format(pending_derive_fids))
+  while len(pending_derive_fids)>0:
+    layer = len(layers)
+    layer_fids = get_layer_fids(pending_derive_fids, cdm_feature_dict)
+    log.info("layer {}: deriving features: {}".format(layer, layer_fids))
+    for k,v in layer_fids.items():
+      for fid in v:
+        pending_derive_fids.remove(fid)
+    layers.append(layer_fids)
+  return query
+
+def get_layer_fids(fids, cdm_feature_dict):
+  layer_fids = {'S':[], 'T':[], 'TWF':[]}
+  for fid in fids:
+    # print(fid)
+    ready = True
+    fid_inputs = [f.strip() for f in cdm_feature_dict[fid]['derive_func_input'].split(',')]
+    for fid_input in fid_inputs:
+      if fid_input in fids:
+        ready = False
+    if ready:
+      category = cdm_feature_dict[fid]['category']
+      layer_fids[category].append(fid)
+  return layer_fids
