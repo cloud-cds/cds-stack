@@ -113,7 +113,7 @@ async def get_notifications_for_epic(ctxt, job_id, _):
     result = await conn.fetch("""
       SELECT n.* from get_notifications_for_epic(null) n
       inner join workspace.{}_bedded_patients_transformed bp
-      on n.pat_id = bp.pat_id
+      on n.pat_id = bp.pat_id and n.visit_id = bp.visit_id
       """.format(job_id))
     return list(dict(x) for x in result)
 
