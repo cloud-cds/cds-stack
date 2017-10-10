@@ -179,6 +179,9 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
 #status-header.low-priority {
     background-color: #eca72c;
 }
+#status-header.no-priority {
+    background-color: #aaa;
+}
 #status-header h5 {
     margin: 0;
     font-size: 14px;
@@ -347,12 +350,11 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
 .slot .bundle-override {
     display: inline-block;
     float: left;
-    width: 40%;
+    width: 30%;
     margin: 0;
     color: #666;
 }
 .slot.last-child[data-trews="eval-trews-or-cms"] {
-    margin-top: 15px;
     border: 0;
     padding: 0;
 }
@@ -411,10 +413,12 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
     content: 'complete';
 }
 .slot.highlight-unexpired {
-    outline: 2px solid #10b66d;
+    box-sizing: border-box;
+    border: 6px solid #10b66d;
 }
 .slot.highlight-expired {
-    outline: 2px solid #ca011a;
+    box-sizing: border-box;
+    border: 6px solid #ca011a;
 }
 .slot.complete {
     background-color: #eee;
@@ -422,10 +426,13 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
 }
 .slot.complete-with-status {
     background-color: #eee;
-    border-left: 5px solid #ca011a;
+    border-left: 3px solid #ca011a;
 }
 .slot.incomplete-with-status {
-    border-left: 5px solid green;
+    border-left: 3px solid green;
+}
+.slot.skip-complete {
+    background-color: #eee;
 }
 .slot h2.with-slider {
     display: inline-block;
@@ -554,6 +561,14 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
     display: none;
 }
 /*Criteria override*/
+div.label-acute-orgdf {
+    margin-top: 10px;
+    padding: 5px;
+}
+span.label-acute-orgdf {
+    font-size: 12px;
+    font-weight: 600;
+}
 span.criteria-btn {
     font-size: 18px;
     color: #777;

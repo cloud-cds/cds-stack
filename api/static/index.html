@@ -56,7 +56,7 @@
 				<!-- Treatment Override Card -->
 				<div class="card">
 					<div class="slot last-child" data-trews="go-to-treatment">
-						<h2 class="bundle-override">Manual Override. Click To Initiate Treatment:</h2>
+						<h2 class="bundle-override">Manual Override:</h2>
 
 						<div class="slot last-child half-slot half-slot-left" data-trews="treat-sepsis">
 							<h2 class="with-slider">Severe Sepsis</h2>
@@ -93,7 +93,7 @@
 					<div class="slot last-child" data-trews="sus">
 						<h3></h3>
 						<div class="actions">
-							<a data-trews="sus-edit" class="edit-btn">Enter or Edit Infection</a>
+							<a data-trews="sus-edit" class="edit-btn">Enter or Edit Infection Source</a>
 							<span data-trews="no-infection" class="no-infection no-infection-btn">Enter No Infection Suspected</span>
 						</div>
 						<div style="clear: both;"></div>
@@ -102,22 +102,19 @@
 							<h5></h5>
 						</div>
 					</div>
+					<div class="label-acute-orgdf"><span class="label-acute-orgdf"></span></div>
 					<div class="slot last-child" data-trews="eval-trews-or-cms">
 						<div class="slot last-child half-slot half-slot-left" data-trews="eval-trews">
-							<h3>TREWS Alert Criteria</h3>
+							<h3>TREWS Alert</h3>
 							<div class="slot" data-trews="eval-trews-acuity">
 								<h3>TREWS Acuity Score</h3>
-								<div class="status" data-trews="eval-trews-odds-ratio">
+								<div class="status" data-trews="eval-trews-acuity-criteria">
 									<h4 style="margin: 0"></h4>
-									<h5></h5>
+									<h5 style="margin: 0"></h5>
 								</div>
-								<p class="num"><span class="num-text"></span>(need 1, <a id="expand-trews-acuity" class="hidden">see all</a>)</p>
-								<div class="criteria"></div>
-								<p class="num-overridden"></p>
-								<div class="criteria-overridden"></div>
 							</div>
 							<div class="slot last-child" data-trews="eval-trews-orgdf">
-								<h3>TREWS Definition Organ Dysfunction</h3>
+								<h3>TREWS Organ Dysfunction Criteria</h3>
 								<p class="num"><span class="num-text"></span>(need 1, <a id="expand-trews-org" class="hidden">see all</a>)</p>
 								<div class="criteria"></div>
 								<p class="num-overridden"></p>
@@ -130,7 +127,7 @@
 						<div class="slot last-child half-slot half-slot-right" data-trews="eval-cms">
 							<h3>CMS Alert Criteria</h3>
 							<div class="slot" data-trews="eval-cms-orgdf">
-								<h3>CMS Definition Organ Dysfunction</h3>
+								<h3>CMS Organ Dysfunction Criteria</h3>
 								<p class="num"><span class="num-text"></span>(need 1, <a id="expand-org" class="hidden">see all</a>)</p>
 								<div class="criteria"></div>
 								<p class="num-overridden"></p>
