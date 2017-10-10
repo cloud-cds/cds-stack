@@ -169,7 +169,7 @@ class AlertServer:
         sql = '''
         with pats as (
           select p.enc_id, p.pat_id from pat_enc p
-          inner join get_latest_enc_ids('{hosp}')
+          inner join get_latest_enc_ids('{hosp}') e on p.enc_id = e.enc_id
         ),
         refreshed as (
           insert into refreshed_pats (refreshed_tsp, pats)
