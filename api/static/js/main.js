@@ -1085,8 +1085,16 @@ var severeSepsisComponent = new function() {
     // Inline rendering of acuity score slot.
     this.trewsAcuitySlot.r(json['trews']);
 
+    var trews_risk_str = '';
+    var score_name = severe_sepsis['trews']['criteria'][0].overrideModal[0].name;
+
+    if ( json['trews']['is_met'] ) {
+      trews_risk_str = score_name + " <b>indicates high risk of severe sepsis</b>";
+    } else {
+      trews_risk_str = score_name + " does not indicate high risk of severe sepsis";
+    }
+
     var odds_ratio_str = '';
-    var trews_criteria_str = '';
     if ( trews.data != null
           && trews.data.chart_data.chart_values.timestamp != null
           && trews.data.chart_data.chart_values.odds_ratio != null )
@@ -1107,7 +1115,7 @@ var severeSepsisComponent = new function() {
       odds_ratio_str = 'No odds ratio of mortality available.';
     }
 
-    trews_criteria_str =
+    odds_ratio_str =
       '<span data-toggle="tooltip" title="' +
       'The ratio of historical mortalities for patients with TREWS scores higher relative to TREWS scores lower than this patient.' +
       '">' + odds_ratio_str + '</span>';
@@ -1119,15 +1127,10 @@ var severeSepsisComponent = new function() {
       trews_status_str += "TREWS Alert Criteria met <span title='" + strTime + "'>" + lapsed;
     }
 
-    if ( json['trews']['is_met'] ) {
-      trews_criteria_str += '<br><br>' + severe_sepsis['trews']['criteria'][0].overrideModal[0].name + " <b>indicates high risk of severe sepsis</b>";
-    }
-    else {
-      trews_criteria_str += '<br><br>' + severe_sepsis['trews']['criteria'][0].overrideModal[0].name + " does not indicate high risk of severe sepsis";
-    }
 
-    this.trewsAcuitySlot.elem.find('.status[data-trews="eval-trews-acuity-criteria"] h4').html(trews_criteria_str);
-    this.trewsAcuitySlot.elem.find('.status[data-trews="eval-trews-acuity-criteria"] h5').html(trews_status_str);
+    this.trewsAcuitySlot.elem.find('.status[data-trews="eval-trews-acuity-criteria"] h4[data-trews="eval-trews-acuity-risk"]').html(trews_risk_str);
+    this.trewsAcuitySlot.elem.find('.status[data-trews="eval-trews-acuity-criteria"] h5[data-trews="eval-trews-acuity-met"]').html(trews_status_str);
+    this.trewsAcuitySlot.elem.find('.status[data-trews="eval-trews-acuity-criteria"] h4[data-trews="eval-trews-acuity-odds-ratio"]').html(odds_ratio_str);
 
     this.trewsOrgSlot.r(json['trews_organ_dysfunction']);
 
@@ -1153,7 +1156,7 @@ var severeSepsisComponent = new function() {
           || this.trewsOrgSlot.elem.find('.num-overridden').text().length > 0
           || this.cmsOrgSlot.elem.find('.num-overridden').text().length > 0 )
     {
-      $('span.label-acute-orgdf').text('To deactivate bundle, remove organ dysfunction that are not acute and likely due to infection');
+      $('span.label-acute-orgdf').text('For patient evaluation, remove organ dysfunction that are not acute and likely due to infection');
     }
 
     // Bind no-infection button.
