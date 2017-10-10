@@ -11,6 +11,10 @@ import asyncio
 from jhapi_io import JHAPI
 import dashan_universe.transforms as transforms
 
+api_monitor = APIMonitor()
+if api_monitor.enabled:
+  api_monitor.register_metric('EpicNotificationSuccess', 'Count', [('API', api_monitor.monitor_target)])
+  api_monitor.register_metric('EpicNotificationFailures', 'Count', [('API', api_monitor.monitor_target)])
 
 logging.basicConfig(format='%(levelname)s|%(asctime)s.%(msecs)03d|%(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
 
@@ -632,6 +636,7 @@ async def push_notifications_to_epic(db_pool, eid, notify_future_notification=Tr
 
 
 async def load_epic_notifications(db_pool, notifications):
+  total = len(notifications)
   if epic_notifications is not None and int(epic_notifications):
     success = []
     patients = [{
@@ -661,6 +666,8 @@ async def load_epic_notifications(db_pool, notifications):
       )
     await conn.fetch(sql)
     logging.info("update epic notification history")
+  api_monitor.add_metric('EpicNotificationSuccess', value=len(success))
+  api_monitor.add_metric('EpicNotificationFailures', value=total-len(success))
 
 
 
