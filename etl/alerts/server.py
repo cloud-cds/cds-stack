@@ -175,12 +175,12 @@ class AlertServer:
         dimension_name = 'Alert Server',
         metric_names   = ['e2e_time_{}'.format(msg['hosp']),
                           'criteria_time_{}'.format(msg['hosp']),
-                          'prediction_time_{}'.format(msg['hosp'])],
+                          'prediction_time_{}'.format(msg['hosp']),
                           'prediction_enc_cnt_{}'.format(msg['hosp'])],
         metric_values  = [(t_end - parser.parse(msg['time'])).total_seconds(),
                           (t_end - t_fin).total_seconds(),
-                          (t_end - self.job_status[msg['hosp']+msg['time']]['t_start']).total_seconds()],
-                          len(msg['enc_ids'])
+                          (t_end - self.job_status[msg['hosp']+msg['time']]['t_start']).total_seconds(),
+                          len(msg['enc_ids'])]
         metric_units   = ['Seconds','Seconds','Seconds', 'Count']
       )
     self.job_status.pop(msg['hosp']+msg['time'],None)
