@@ -127,7 +127,6 @@ class AlertServer:
       logging.info("alert_message_queue recv msg: {}".format(msg))
       # Predictor finished
       if msg.get('type') == 'FIN':
-        t_fin = dt.datetime.now()
         if self.model == 'lmc' or self.model == 'trews-jit':
           if self.TREWS_ETL_SUPPRESSION == 1:
             suppression_future = asyncio.ensure_future(self.run_suppression(msg), loop=self.loop)
@@ -137,19 +136,6 @@ class AlertServer:
           logging.error("Unknown model: {}".format(self.model))
         # self.suppression_tasks[msg['hosp']].append(suppression_future)
         # logging.info("create {model} suppression task for {}".format(self.model,msg['hosp']))
-        t_end = dt.datetime.now()
-        if msg['hosp']+msg['time'] in self.job_status:
-          self.cloudwatch_logger.push_many(
-            dimension_name = 'Alert Server',
-            metric_names   = ['e2e_time_{}'.format(msg['hosp']),
-                              'criteria_time_{}'.format(msg['hosp']),
-                              'prediction_time_{}'.format(msg['hosp'])],
-            metric_values  = [(t_end - parser.parse(msg['time'])).total_seconds(),
-                              (t_end - t_fin).total_seconds(),
-                              (t_end - self.job_status[msg['hosp']+msg['time']]['t_start']).total_seconds()],
-            metric_units   = ['Seconds','Seconds','Seconds']
-          )
-        self.job_status.pop(msg['hosp']+msg['time'],None)
     logging.info("alert_queue_consumer quit")
 
   async def suppression(self, pat_id, tsp):
@@ -157,6 +143,7 @@ class AlertServer:
         and notify frontend that the patient has updated'''
 
   async def run_suppression_mode_2(self, msg):
+    t_fin = dt.datetime.now()
     logging.info("start to run suppression mode 2 for msg {}".format(msg))
     tsp = msg['time']
     enc_id_str = ','.join([str(i) for i in msg['enc_ids'] if i])
@@ -182,6 +169,21 @@ class AlertServer:
         await conn.fetch(sql)
         logging.info("generated trews alert for {}".format(hospital))
     logging.info("complete to run suppression mode 2 for msg {}".format(msg))
+    t_end = dt.datetime.now()
+    if msg['hosp']+msg['time'] in self.job_status:
+      self.cloudwatch_logger.push_many(
+        dimension_name = 'Alert Server',
+        metric_names   = ['e2e_time_{}'.format(msg['hosp']),
+                          'criteria_time_{}'.format(msg['hosp']),
+                          'prediction_time_{}'.format(msg['hosp'])],
+                          'prediction_enc_cnt_{}'.format(msg['hosp'])],
+        metric_values  = [(t_end - parser.parse(msg['time'])).total_seconds(),
+                          (t_end - t_fin).total_seconds(),
+                          (t_end - self.job_status[msg['hosp']+msg['time']]['t_start']).total_seconds()],
+                          len(msg['enc_ids'])
+        metric_units   = ['Seconds','Seconds','Seconds', 'Count']
+      )
+    self.job_status.pop(msg['hosp']+msg['time'],None)
 
 
   async def run_suppression(self, msg):
