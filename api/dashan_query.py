@@ -665,7 +665,7 @@ async def load_epic_notifications(db_pool, notifications):
     success = notifications
   async with db_pool.acquire() as conn:
     sql = '''
-    insert into epic_notifications_history (tsp, enc_id, value)
+    insert into epic_notifications_history (tsp, enc_id, count)
     values {}
     '''.format(
         ','.join(['(now(), {}, {})'.format(n['enc_id'], n['count']) for n in success])
