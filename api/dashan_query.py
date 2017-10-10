@@ -614,7 +614,7 @@ async def push_notifications_to_epic(db_pool, eid, notify_future_notification=Tr
     notifications = await conn.fetch(notifications_sql)
     if notifications:
       logging.info("push notifications to epic ({}) for {}".format(epic_notifications, eid))
-      load_epic_notifications(notifications)
+      await load_epic_notifications(notifications)
       etl_channel = os.environ['etl_channel'] if 'etl_channel' in os.environ else None
       if etl_channel and notify_future_notification:
         notify_future_notification_sql = \
@@ -631,8 +631,9 @@ async def push_notifications_to_epic(db_pool, eid, notify_future_notification=Tr
       logging.info("skipping notifications (e.g., not in notifications_whitelist)")
 
 
-async def load_epic_notifications(notifications):
+async def load_epic_notifications(db_pool, notifications):
   if epic_notifications is not None and int(epic_notifications):
+    success = []
     patients = [{
         'pat_id': n['pat_id'],
         'visit_id': n['visit_id'],
@@ -641,13 +642,26 @@ async def load_epic_notifications(notifications):
     jhapi_loader = JHAPI('prod', client_id, client_secret)
     responses = jhapi_loader.load_notifications(patients)
 
-    for pt, response in zip(patients, responses):
+    for pt, n, response in zip(patients, notifications, responses):
       if response is None:
         logging.error('Failed to push notifications: %s %s %s' % (pt['pat_id'], pt['visit_id'], pt['notifications']))
       elif response.status_code != requests.codes.ok:
         logging.error('Failed to push notifications: %s %s %s HTTP %s' % (pt['pat_id'], pt['visit_id'], pt['notifications'], response.status_code))
+      elif response.status_code == requests.codes.ok:
+        success.append(n)
   else:
     logging.info("skip loading epic notifications")
+    success = notifications
+  async with db_pool.acquire() as conn:
+    sql = '''
+    insert into epic_notifications_history (tsp, enc_id, value)
+    values {}
+    '''.format(
+        ','.join(['(now(), {}, {})'.format(n['enc_id'], n['count']) for n in success])
+      )
+    await conn.fetch(sql)
+    logging.info("update epic notification history")
+
 
 
 async def eid_exist(db_pool, eid):

@@ -171,6 +171,16 @@ CREATE  TABLE notifications
     message     json
 );
 
+DROP TABLE IF EXISTS epic_notifications_history;
+CREATE  TABLE epic_notifications_history
+(
+    id          serial          PRIMARY KEY,
+    tsp         timestamptz     not null,
+    enc_id      int             not null,
+    count       int             not null
+);
+
+
 DROP TABLE IF EXISTS refreshed_pats;
 CREATE TABLE refreshed_pats
 (

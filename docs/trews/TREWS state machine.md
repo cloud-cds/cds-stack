@@ -42,3 +42,15 @@ TREWS-based State Machine v2.0 2017-09-29
 | 44 | TREWS-based severe sepsis & septic shock present; severe sepsis 6hr bundle expired |  NEW  |
 | 45 | TREWS-based severe sepsis & septic shock present; septic shock 6hr bundle completed |  NEW  |
 | 46 | TREWS-based severe sepsis & septic shock present; septic shock 6hr bundle expired |  NEW  |
+| 50 | User-specified severe sepsis present |  v1  |
+| 51 | User-specified severe sepsis present; 3hr bundle completed |  v1  |
+| 52 | User-specified severe sepsis present; 3hr bundle expired |  v1  |
+| 53 | User-specified severe sepsis present; 6hr bundle completed |  v1  |
+| 54 | User-specified severe sepsis present; 6hr bundle expired |  v1  |
+| 60 | User-specified severe sepsis & septic shock present |  v1  |
+| 61 | User-specified severe sepsis & septic shock present; severe sepsis sep 3hr bundle completed |  v1  |
+| 62 | User-specified severe sepsis & septic shock present; severe sepsis 3hr bundle expired |  v1  |
+| 63 | User-specified severe sepsis & septic shock present; severe sepsis sep 6hr bundle completed |  v1  |
+| 64 | User-specified severe sepsis & septic shock present; severe sepsis 6hr bundle expired |  v1  |
+| 65 | User-specified severe sepsis & septic shock present; septic shock 6hr bundle completed |  v1  |
+| 66 | User-specified severe sepsis & septic shock present; septic shock 6hr bundle expired |  v1  |

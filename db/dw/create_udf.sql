@@ -62,7 +62,7 @@ AS $func$ BEGIN RETURN QUERY
 SELECT u.enc_id, (CASE WHEN unit ~* 'hc' THEN 'HCGH' WHEN unit ~* 'jh' THEN 'JHH' WHEN unit ~* 'bmc|bv' THEN 'BMC' WHEN unit ~* 'smh' THEN 'SMH' WHEN unit ~* 'sh' THEN 'SH' ELSE unit END) hospital
    FROM
      (SELECT c.enc_id,
-             first(value) unit
+             first(value order by c.tsp) unit
       FROM
         (SELECT p.enc_id, t.tsp, t.value
          FROM pat_enc p
@@ -998,9 +998,9 @@ BEGIN
       group by P.pat_id
   ),
   pat_weights as (
-    select ordered.pat_id, first(ordered.value) as value
+    select ordered.pat_id, first(ordered.value order by ordered.tsp) as value
     from (
-        select P.pat_id, weights.value::numeric as value
+        select P.pat_id, weights.value::numeric as value, weights.tsp
         from pat_ids P
         inner join criteria_meas weights on P.pat_id = weights.pat_id
         where weights.fid = 'weight'  and weights.dataset_id = _dataset_id
@@ -1012,11 +1012,11 @@ BEGIN
       select
           ordered.pat_id,
           ordered.name,
-          first(ordered.measurement_time) as measurement_time,
-          first(ordered.value)::text as value,
-          first(ordered.c_otime) as override_time,
-          first(ordered.c_ouser) as override_user,
-          first(ordered.c_ovalue) as override_value,
+          first(ordered.measurement_time order by ordered.measurement_time) as measurement_time,
+          (first(ordered.value order by ordered.measurement_time))::text as value,
+          first(ordered.c_otime order by ordered.measurement_time) as override_time,
+          first(ordered.c_ouser order by ordered.measurement_time) as override_user,
+          first(ordered.c_ovalue order by ordered.measurement_time) as override_value,
           coalesce(bool_or(ordered.is_met), false) as is_met,
           now() as update_date
       from (
@@ -1038,11 +1038,11 @@ BEGIN
       select
           ordered.pat_id,
           ordered.name,
-          first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
-          first(case when ordered.is_met then ordered.value else null end)::text as value,
-          first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-          first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-          first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
+          first(ordered.measurement_time order by ordered.measurement_time) filter (where ordered.is_met) as measurement_time,
+          first(ordered.value order by ordered.measurement_time) filter (where ordered.is_met)::text as value,
+          first(ordered.c_otime order by ordered.measurement_time) filter (where ordered.is_met) as override_time,
+          first(ordered.c_ouser order by ordered.measurement_time) filter (where ordered.is_met) as override_user,
+          first(ordered.c_ovalue order by ordered.measurement_time) filter (where ordered.is_met) as override_value,
           coalesce(bool_or(ordered.is_met), false) as is_met,
           now() as update_date
       from (
@@ -1064,11 +1064,11 @@ BEGIN
     select
         ordered.pat_id,
         ordered.name,
-        first(case when ordered.is_met then ordered.tsp else null end) as measurement_time,
-        first(case when ordered.is_met then ordered.value else null end)::text as value,
-        first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-        first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-        first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
+        first(ordered.tsp ordered by ordered.tsp) filter (where ordered.is_met) as measurement_time,
+        (first(ordered.value ordered by ordered.tsp) filter (where ordered.is_met))::text as value,
+        first(ordered.c_otime ordered by ordered.tsp) filter (where ordered.is_met) as override_time,
+        first(ordered.c_ouser ordered by ordered.tsp) filter (where ordered.is_met) as override_user,
+        first(ordered.c_ovalue ordered by ordered.tsp) filter (where ordered.is_met) as override_value,
         coalesce(bool_or(ordered.is_met), false) as is_met,
         now() as update_date
     from (
@@ -1091,11 +1091,11 @@ BEGIN
     select
         ordered.pat_id,
         ordered.name,
-        first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
-        first(case when ordered.is_met then ordered.value else null end)::text as value,
-        first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-        first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-        first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
+        first(ordered.measurement_time order by ordered.measurement_time) filter (where ordered.is_met) as measurement_time,
+        (first(ordered.value order by ordered.measurement_time) filter (where ordered.is_met))::text as value,
+        first(ordered.c_otime order by ordered.measurement_time) filter (where ordered.is_met) as override_time,
+        first(ordered.c_ouser order by ordered.measurement_time) filter (where ordered.is_met) as override_user,
+        first(ordered.c_ovalue order by ordered.measurement_time) filter (where ordered.is_met) as override_value,
         coalesce(bool_or(ordered.is_met), false) as is_met,
         now() as update_date
     from (
@@ -1219,11 +1219,11 @@ BEGIN
     select
         ordered.pat_id,
         ordered.name,
-        first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
-        first(case when ordered.is_met then ordered.value else null end)::text as value,
-        first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-        first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-        first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
+        (first(ordered.measurement_time order by ordered.measurement_time) filter (where ordered.is_met)) as measurement_time,
+        (first(ordered.value order by ordered.measurement_time) filter (where ordered.is_met))::text as value,
+        (first(ordered.c_otime order by ordered.measurement_time) filter (where ordered.is_met)) as override_time,
+        (first(ordered.c_ouser order by ordered.measurement_time) filter (where ordered.is_met)) as override_user,
+        (first(ordered.c_ovalue order by ordered.measurement_time) filter (where ordered.is_met)) as override_value,
         coalesce(bool_or(ordered.is_met), false) as is_met,
         now() as update_date
     from
@@ -1254,11 +1254,11 @@ BEGIN
       select
           ordered.pat_id,
           ordered.name,
-          first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
-          first(case when ordered.is_met then ordered.value else null end)::text as value,
-          first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-          first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-          first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
+          (first(ordered.measurement_time order by ordered.is_met) filter (where ordered.is_met)) as measurement_time,
+          (first(ordered.value order by ordered.is_met) filter (where ordered.is_met))::text as value,
+          (first(ordered.c_otime order by ordered.is_met) filter (where ordered.is_met)) as override_time,
+          (first(ordered.c_ouser order by ordered.is_met) filter (where ordered.is_met)) as override_user,
+          (first(ordered.c_ovalue order by ordered.is_met) filter (where ordered.is_met)) as override_value,
           coalesce(bool_or(ordered.is_met), false) as is_met,
           now() as update_date
       from
@@ -1337,11 +1337,11 @@ BEGIN
       select
           ordered.pat_id,
           ordered.name,
-          first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
-          first(case when ordered.is_met then ordered.value else null end)::text as value,
-          first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-          first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-          first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
+          (first(ordered.measurement_time order by ordered.measurement_time) filter (where ordered.is_met)) as measurement_time,
+          (first(ordered.value order by ordered.measurement_time) filter (where ordered.is_met))::text as value,
+          (first(ordered.c_otime order by ordered.measurement_time) filter (where ordered.is_met)) as override_time,
+          (first(ordered.c_ouser order by ordered.measurement_time) filter (where ordered.is_met)) as override_user,
+          (first(ordered.c_ovalue order by ordered.measurement_time) filter (where ordered.is_met)) as override_value,
           coalesce(bool_or(ordered.is_met), false) as is_met,
           now() as update_date
       from
@@ -1399,21 +1399,21 @@ BEGIN
     select
         ordered.pat_id,
         ordered.name,
-        coalesce(   first(case when ordered.is_met then ordered.measurement_time else null end),
-                    last(ordered.measurement_time)
+        coalesce(   (first(ordered.measurement_time order by ordered.measurement_time) filter (where ordered.is_met)),
+                    last(ordered.measurement_time order by ordered.measurement_time)
         ) as measurement_time,
-        coalesce(   first(case when ordered.is_met then ordered.value else null end)::text,
-                    last(ordered.value)::text
+        coalesce(   (first(ordered.value order by ordered.measurement_time) filter (where ordered.is_met))::text,
+                    last(ordered.value order by ordered.measurement_time)::text
         ) as value,
-        coalesce(   first(case when ordered.is_met then ordered.c_otime else null end),
-                    last(ordered.c_otime)
+        coalesce(   (first(ordered.c_otime order by ordered.measurement_time) filter (where ordered.is_met)),
+                    last(ordered.c_otime order by ordered.measurement_time)
         ) as override_time,
-        coalesce(   first(case when ordered.is_met then ordered.c_ouser else null end),
-                    last(ordered.c_ouser)
+        coalesce(   (first(ordered.c_ouser order by ordered.measurement_time) filter (where ordered.is_met)),
+                    last(ordered.c_ouser order by ordered.measurement_time)
         ) as override_user,
         coalesce(
-            first(case when ordered.is_met then ordered.c_ovalue else null end),
-            last(ordered.c_ovalue)
+            (first(ordered.c_ovalue order by ordered.measurement_time) filter (where ordered.is_met)),
+            last(ordered.c_ovalue order by ordered.measurement_time)
         ) as override_value,
         coalesce(bool_or(ordered.is_met), false) as is_met,
         now() as update_date
@@ -1544,11 +1544,11 @@ BEGIN
     select
         ordered.pat_id,
         ordered.name,
-        first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
-        first(case when ordered.is_met then ordered.value else null end)::text as value,
-        first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-        first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-        first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
+        (first(ordered.measurement_time order by ordered.measurement_time) filter (where ordered.is_met)) as measurement_time,
+        (first(ordered.value order by ordered.measurement_time) filter (where ordered.is_met))::text as value,
+        (first(ordered.c_otime order by ordered.measurement_time) filter (where ordered.is_met)) as override_time,
+        (first(ordered.c_ouser order by ordered.measurement_time) filter (where ordered.is_met)) as override_user,
+        (first(ordered.c_ovalue order by ordered.measurement_time) filter (where ordered.is_met)) as override_value,
         coalesce(bool_or(ordered.is_met), false) as is_met,
         now() as update_date
     from
@@ -2134,7 +2134,7 @@ BEGIN
     -- Upsert cdm_t features
     -- ================================================
     insert into criteria_meas (dataset_id, pat_id, tsp, fid, value, update_date)
-    select cdm_t.dataset_id, pat_enc.pat_id, cdm_t.tsp, cdm_t.fid, first(cdm_t.value), now()
+    select cdm_t.dataset_id, pat_enc.pat_id, cdm_t.tsp, cdm_t.fid, first(cdm_t.value order by cdm_t.tsp), now()
     FROM
     cdm_t
     inner join
@@ -2174,7 +2174,7 @@ BEGIN
     -- ================================================
     raise notice 'handling bp_sys as a special case';
     insert into criteria_meas (dataset_id, pat_id, tsp, fid, value, update_date)
-    select cdm_t.dataset_id, pat_enc.pat_id, cdm_t.tsp, 'bp_sys', first(cdm_t.value), now()
+    select cdm_t.dataset_id, pat_enc.pat_id, cdm_t.tsp, 'bp_sys', first(cdm_t.value order by cdm_t.tsp), now()
     FROM
     cdm_t
     inner join
