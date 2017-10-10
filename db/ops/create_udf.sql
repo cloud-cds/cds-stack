@@ -2939,7 +2939,7 @@ BEGIN
             json_build_object('alert_code', code, 'read', false,'timestamp',
                 date_part('epoch',
                     (case when code in ('201','204','303','306','401','404','503','506','601','604','703','706') then septic_shock_onset
-                          when code in ('300','500','700') then sirs_plus_organ_onset
+                          when code in ('300','500') then sirs_plus_organ_onset
                           else severe_sepsis_onset
                           end)::timestamptz
                     +
@@ -3095,42 +3095,46 @@ CREATE OR REPLACE FUNCTION get_notifications_for_epic(this_pat_id text default n
 RETURNS table(
     pat_id              varchar(50),
     visit_id            varchar(50),
+    enc_id              int,
     count               int
 ) AS $func$ BEGIN RETURN QUERY
-  select pat_enc.pat_id, pat_enc.visit_id,
-        (case when deactivated is true then 0
-          else coalesce(counts.count::int, 0)
-        end)
-  from pat_enc
-  left join pat_status on pat_enc.enc_id = pat_status.enc_id
-
-  left join
+  with prev as (
+    select p.pat_id, p.visit_id, p.enc_id, coalesce(
+        (last(h.count order by h.id) filter (where h.id is not null)),
+        0) count_prev
+    from pat_enc p
+    inner join get_latest_enc_ids_within_notification_whitelist() wl
+        on p.enc_id = wl.enc_id
+    left join epic_notifications_history h on h.enc_id = p.enc_id
+    where p.pat_id = coalesce(this_pat_id, p.pat_id)
+    and p.pat_id like 'E%'
+    group by p.enc_id, p.visit_id, p.enc_id
+  ),
+  compare as
   (
-      select notifications.enc_id,
-            (case when count(*) > 5 then 5
-                  else count(*)
-                  end
-            ) as count
-      from
-      notifications
-      where not (message#>>'{read}')::bool
-      and (message#>>'{timestamp}')::numeric < date_part('epoch', now())
-      and (not message::jsonb ? 'model' or message#>>'{model}' = model)
-      group by notifications.enc_id
+      select prev.pat_id, prev.visit_id, prev.enc_id, prev.count_prev,
+            (case when deactivated is true then 0
+              else coalesce(counts.count::int, 0)
+            end) count
+      from prev
+      left join pat_status on prev.enc_id = pat_status.enc_id
+      left join
+      (
+          select notifications.enc_id,
+                (case when count(*) > 5 then 5
+                      else count(*)
+                      end
+                ) as count
+          from
+          notifications
+          where not (message#>>'{read}')::bool
+          and (message#>>'{timestamp}')::numeric < date_part('epoch', now())
+          and (not message::jsonb ? 'model' or message#>>'{model}' = model)
+          group by notifications.enc_id
+      )
+      counts on counts.enc_id = prev.enc_id
   )
-  counts on counts.enc_id = pat_enc.enc_id
-
-  left join (
-    select cdm_t.enc_id, last(cdm_t.value order by cdm_t.tsp) as unit
-    from cdm_t
-    where cdm_t.fid = 'care_unit'
-    group by cdm_t.enc_id
-  ) pat_unit on pat_enc.enc_id = pat_unit.enc_id
-
-  where pat_enc.pat_id like 'E%'
-  and   pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id)
-  and   pat_enc.enc_id = coalesce(pat_id_to_enc_id(this_pat_id), pat_enc.enc_id)
-  and   pat_unit.unit similar to (select min(p.value) from parameters p where p.name = 'notifications_whitelist');
+  select compare.pat_id, compare.visit_id, compare.enc_id, compare.count from compare where compare.count <> compare.count_prev;
 END $func$ LANGUAGE plpgsql;
 
 
@@ -3890,6 +3894,20 @@ DECLARE
     bedded_patients     text;
 begin
 select table_name from information_schema.tables where table_type = 'BASE TABLE' and table_schema = 'workspace' and table_name ilike 'job_etl_' || hospital || '%bedded_patients_transformed' order by table_name desc limit 1 into bedded_patients;
+return query
+execute 'select enc_id from pat_enc p inner join workspace.' || bedded_patients || ' bp on bp.visit_id = p.visit_id';
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION get_latest_enc_ids_within_notification_whitelist()
+RETURNS table (enc_id int)
+LANGUAGE plpgsql
+AS
+$$
+DECLARE
+    bedded_patients     text;
+begin
+select table_name from information_schema.tables where table_type = 'BASE TABLE' and table_schema = 'workspace' and table_name ilike 'job_etl_' || (get_parameter('notifications_whitelist')) || 'bedded_patients_transformed' order by table_name desc limit 1 into bedded_patients;
 return query
 execute 'select enc_id from pat_enc p inner join workspace.' || bedded_patients || ' bp on bp.visit_id = p.visit_id';
 END;
