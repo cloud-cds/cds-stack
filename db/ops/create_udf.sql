@@ -1618,6 +1618,30 @@ return query
         ) as ordered
         group by ordered.enc_id, ordered.name
     ),
+    first_meas as (
+        select e.enc_id,
+        first(t.value::real order by t.tsp) filter (where fid = 'bilirubin') bilirubin,
+        first(t.value::real order by t.tsp) filter (where fid = 'creatinine') creatinine,
+        first(t.value::real order by t.tsp) filter (where fid = 'inr') inr,
+        first(t.value::real order by t.tsp) filter (where fid = 'platelets') platelets
+        from enc_ids e inner join cdm_t t on e.enc_id = t.enc_id
+        where t.fid in ('bilirubin', 'creatinine', 'inr', 'platelets')
+        group by e.enc_id
+    ),
+    trews_baseline as (
+        select e.enc_id,
+        (case when ob.bilirubin is null then 0.2
+            else least(ob.bilirubin, fm.bilirubin) end) bilirubin,
+        (case when ob.creatinine is null then 0.5
+            else least(ob.creatinine, fm.creatinine) end) creatinine,
+        (case when ob.inr is null then 0
+            else least(ob.inr, fm.inr) end) inr,
+        (case when ob.platelets is null then 450
+            else greatest(ob.platelets, fm.platelets) end) platelets
+        from enc_ids e inner join pat_enc pe on e.enc_id = pe.enc_id
+        left join orgdf_baselines ob on ob.pat_id = pe.pat_id
+        left join first_meas fm on fm.enc_id = e.enc_id
+    ),
     esrd as (
         select distinct s.enc_id
         from cdm_s s inner join enc_ids e on s.enc_id = e.enc_id
@@ -1637,7 +1661,7 @@ return query
         select distinct pc.enc_id, pc.tsp
         from pat_cvalues pc inner join cdm_t t on pc.enc_id = t.enc_id
         where pc.name = 'trews_gcs' and t.fid = 'propofol_dose'
-            and t.value::json->>'action' ~* 'given|restart'
+            and t.value::json->>'action' ~* 'given|restarted|new bag'
             and isnumeric(t.value::json->>'value') and (t.value::json->>'value')::numeric > 0
             and pc.tsp between t.tsp and t.tsp + '24 hours'::interval
     ),
@@ -1669,7 +1693,14 @@ return query
         ) ordered
         group by ordered.enc_id, ordered.name
     ),
+    first_vent as (
+        select t.enc_id, t.fid, min(t.tsp) tsp, first(t.value order by t.tsp) as value
+        from enc_ids e inner join cdm_t t on e.enc_id = t.enc_id
+        where t.fid in ('vent', 'cpap', 'bipap')
+        group by t.enc_id, t.fid
+    ),
     trews_vent as (
+        --use the earliest one for each type
         select
             ordered.enc_id,
             ordered.name,
@@ -1686,12 +1717,11 @@ return query
             pc.c_otime,
             pc.c_ouser,
             pc.c_ovalue,
-            t.fid || ':' || t.value as value,
+            first_vent.fid || ':' || first_vent.value as value,
             (case when pc.c_ovalue#>>'{0,text}' = 'No Infection' then false
-                when t.enc_id is not null then true else false end) as is_met
-            from pat_cvalues pc left join cdm_t t on pc.enc_id = t.enc_id
-            and t.fid in ('vent', 'cpap', 'bipap')
-            and (pc.tsp between t.tsp and t.tsp + '48 hours'::interval)
+                when first_vent.enc_id is not null then true else false end) as is_met
+            from pat_cvalues pc left join first_vent on pc.enc_id = first_vent.enc_id
+            and (pc.tsp between first_vent.tsp and first_vent.tsp + '24 hours'::interval)
             where pc.name = 'trews_vent'
             order by pc.tsp
         ) ordered
@@ -1701,7 +1731,7 @@ return query
         select distinct pc.enc_id, pc.tsp
         from pat_cvalues pc inner join cdm_t t on pc.enc_id = t.enc_id
         where pc.name = 'trews_inr' and t.fid in ('warfarin_dose','heparin_dose')
-            and t.value::json->>'action' ~* 'given'
+            and t.value::json->>'action' ~* 'given|restarted|new bag'
             and isnumeric(t.value::json->>'value') and (t.value::json->>'value')::numeric > 0
             and pc.tsp between t.tsp and t.tsp + '30 hours'::interval
     ),
@@ -1803,23 +1833,28 @@ return query
                     pc.c_ouser,
                     pc.c_ovalue,
                     (case when pc.c_ovalue#>>'{0,text}' = 'No Infection' then false
-                     when pc.name = 'trews_bilirubin' and pc.fid = 'bilirubin' then pc.value::numeric >= 2 and pc.value::numeric >= 2 * 0.2
-                     when pc.name = 'trews_creatinine' and pc.fid = 'creatinine' then pc.value::numeric >= 0.5 + 0.5 and pc.value::numeric >= 1.5 and esrd.enc_id is null
+                     when pc.name = 'trews_bilirubin' and pc.fid = 'bilirubin' then pc.value::numeric >= 2 and pc.value::numeric >= 2 * tb.bilirubin -- 0.2
+                     when pc.name = 'trews_creatinine' and pc.fid = 'creatinine' then pc.value::numeric >= 0.5 + tb.creatinine --0.5
+                            and pc.value::numeric >= 1.5 and esrd.enc_id is null
                      when pc.name = 'trews_gcs' and pc.fid = 'gcs' then pc.value::numeric < 13 and gs.enc_id is null and gp.enc_id is null
-                     when pc.name = 'trews_inr' and pc.fid = 'inr' then (pc.value::numeric >= 1.5 and pc.value::numeric >= 0.5 + 0) and iw.enc_id is null
+                     when pc.name = 'trews_inr' and pc.fid = 'inr' then (pc.value::numeric >= 1.5 and pc.value::numeric >= 0.5 + tb.inr -- 0
+                        ) and iw.enc_id is null
                      when pc.name = 'trews_inr' and pc.fid = 'ptt' then iw.enc_id is null and pc.value::numeric > 60
                      when pc.name = 'trews_lactate' and pc.fid = 'lactate' then pc.value::numeric > 2
-                     when pc.name = 'trews_platelet' and pc.fid = 'platelets' then pc.value::numeric < 100 and pc.value::numeric < 0.5 * 450 and pgb.enc_id is null
+                     when pc.name = 'trews_platelet' and pc.fid = 'platelets' then pc.value::numeric < 100 and pc.value::numeric < 0.5 * tb.platelets --450
+                             and pgb.enc_id is null
                      when pc.name = 'trews_map' then tmi.enc_id is not null
                      when pc.name = 'trews_sbpm' then tsi.enc_id is not null
                      when pc.name = 'trews_dsbp' then tdi.enc_id is not null
                      else false end) as is_met,
-                    (case when pc.name = 'trews_bilirubin' and pc.fid = 'bilirubin' then pc.value::numeric >= 2 and pc.value::numeric >= 2 * 0.2
-                     when pc.name = 'trews_creatinine' and pc.fid = 'creatinine' then pc.value::numeric >= 0.5 + 0.5 and pc.value::numeric >= 1.5
+                    (case when pc.name = 'trews_bilirubin' and pc.fid = 'bilirubin' then pc.value::numeric >= 2 and pc.value::numeric >= 2 * tb.bilirubin -- 0.2
+                     when pc.name = 'trews_creatinine' and pc.fid = 'creatinine' then pc.value::numeric >= 0.5 + tb.creatinine --0.5
+                             and pc.value::numeric >= 1.5
                      when pc.name = 'trews_gcs' and pc.fid = 'gcs' then pc.value::numeric < 13 and gs.enc_id is null and gp.enc_id is null
-                     when pc.name = 'trews_inr' and pc.fid = 'inr' then (pc.value::numeric >= 1.5 and pc.value::numeric >= 0.5 + 0) and iw.enc_id is null
+                     when pc.name = 'trews_inr' and pc.fid = 'inr' then (pc.value::numeric >= 1.5 and pc.value::numeric >= 0.5 + tb.inr -- 0
+                            ) and iw.enc_id is null
                      when pc.name = 'trews_inr' and pc.fid = 'ptt' then iw.enc_id is null and pc.value::numeric > 60
-                     when pc.name = 'trews_platelet' and pc.fid = 'platelets' then pc.value::numeric < 100 and pc.value::numeric < 0.5 * 450
+                     when pc.name = 'trews_platelet' and pc.fid = 'platelets' then pc.value::numeric < 100 and pc.value::numeric < 0.5 * tb.platelets --450
                      else false end) as is_acute
             from pat_cvalues pc
             left join esrd on pc.enc_id = esrd.enc_id
@@ -1830,6 +1865,7 @@ return query
             left join trews_map_idx tmi on pc.enc_id = tmi.enc_id and pc.tsp = tmi.tsp and pc.name = 'trews_map'
             left join trews_sbpm_idx tsi on pc.enc_id = tsi.enc_id and pc.tsp = tsi.tsp and pc.name = 'trews_sbpm'
             left join trews_dsbp_idx tdi on pc.enc_id = tdi.enc_id and pc.tsp = tdi.tsp and pc.name = 'trews_dsbp'
+            left join trews_baseline tb on pc.enc_id = tb.enc_id
             where pc.name in ('trews_bilirubin','trews_creatinine','trews_gcs','trews_inr','trews_lactate','trews_platelet','trews_map','trews_sbpm','trews_dsbp')
             order by pc.tsp
         ) ordered
