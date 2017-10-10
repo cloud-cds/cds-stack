@@ -8,11 +8,13 @@ import etl.io_config.server_protocol as protocol
 from etl.io_config.database import Database
 from etl.alerts.predictor_manager import PredictorManager
 import datetime as dt
+from dateutil import parser
 import pytz
 import socket
 import random, string
 import functools
 import os
+from etl.io_config.cloudwatch import Cloudwatch
 
 def randomword(length):
    return ''.join(random.choice(string.ascii_uppercase) for i in range(length))
@@ -43,6 +45,8 @@ class AlertServer:
     self.lookbackhours          = int(os.getenv('TREWS_ETL_HOURS', 24))
     self.nprocs                 = int(os.getenv('nprocs', 2))
     self.hospital_to_predict    = os.getenv('hospital_to_predict', 'HCGH')
+    self.cloudwatch_logger      = Cloudwatch()
+    self.job_status = {}
 
   async def async_init(self):
     self.db_pool = await self.db.get_connection_pool()
@@ -139,6 +143,7 @@ class AlertServer:
         and notify frontend that the patient has updated'''
 
   async def run_suppression_mode_2(self, msg):
+    t_fin = dt.datetime.now()
     logging.info("start to run suppression mode 2 for msg {}".format(msg))
     tsp = msg['time']
     enc_id_str = ','.join([str(i) for i in msg['enc_ids'] if i])
@@ -148,10 +153,23 @@ class AlertServer:
     async with self.db_pool.acquire() as conn:
       await self.calculate_criteria_enc(conn, enc_id_str)
       if self.notify_web:
+        # sql = '''
+        # with pats as (
+        #   select p.enc_id, p.pat_id from pat_enc p
+        #   where p.enc_id in ({enc_id_str})
+        # ),
+        # refreshed as (
+        #   insert into refreshed_pats (refreshed_tsp, pats)
+        #   select now(), jsonb_agg(pat_id) from pats
+        #   returning id
+        # )
+        # select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
+        # '''.format(channel=self.channel, model=self.model, enc_id_str=enc_id_str)
+        # NOTE: I don't turst the enc_ids from FIN msg
         sql = '''
         with pats as (
           select p.enc_id, p.pat_id from pat_enc p
-          where p.enc_id in ({enc_id_str})
+          inner join get_latest_enc_ids('{hosp}')
         ),
         refreshed as (
           insert into refreshed_pats (refreshed_tsp, pats)
@@ -159,11 +177,26 @@ class AlertServer:
           returning id
         )
         select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
-        '''.format(channel=self.channel, model=self.model, enc_id_str=enc_id_str)
+        '''.format(channel=self.channel, model=self.model, enc_id_str=enc_id_str, hosp=msg['hosp'])
         logging.info("trews alert sql: {}".format(sql))
         await conn.fetch(sql)
         logging.info("generated trews alert for {}".format(hospital))
     logging.info("complete to run suppression mode 2 for msg {}".format(msg))
+    t_end = dt.datetime.now()
+    if msg['hosp']+msg['time'] in self.job_status:
+      self.cloudwatch_logger.push_many(
+        dimension_name = 'Alert Server',
+        metric_names   = ['e2e_time_{}'.format(msg['hosp']),
+                          'criteria_time_{}'.format(msg['hosp']),
+                          'prediction_time_{}'.format(msg['hosp']),
+                          'prediction_enc_cnt_{}'.format(msg['hosp'])],
+        metric_values  = [(t_end - parser.parse(msg['time'])).total_seconds(),
+                          (t_end - t_fin).total_seconds(),
+                          (t_end - self.job_status[msg['hosp']+msg['time']]['t_start']).total_seconds(),
+                          len(msg['enc_ids'])],
+        metric_units   = ['Seconds','Seconds','Seconds', 'Count']
+      )
+    self.job_status.pop(msg['hosp']+msg['time'],None)
 
 
   async def run_suppression(self, msg):
@@ -339,6 +372,15 @@ class AlertServer:
         await self.run_trews_alert(message['job_id'],message['hosp'])
       else:
         logging.error("Unknown suppression model {}".format(self.model))
+      self.job_status[message['hosp'] + message['time']] = {
+        'msg': message, 't_start': dt.datetime.now()
+      }
+      self.cloudwatch_logger.push_many(
+        dimension_name = 'Alert Server',
+        metric_names = ['etl_done_{}'.format(message['hosp'])],
+        metric_values = [1],
+        metric_units = ['Count']
+      )
 
     else:
       logging.error("Don't know how to process this message")

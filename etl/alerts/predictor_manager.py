@@ -38,6 +38,8 @@ class Predictor:
     # LMC information
     self.avg_total_time = 0
     self.avg_optimization_time = 0
+    self.total_time = 0
+    self.optimization_time = 0
 
   def __str__(self):
     return predictor_str(self.partition_index, self.model_type, self.is_active)
@@ -99,6 +101,8 @@ class Predictor:
         # NOTE (andong): we also handle catchup fin message here
         logging.info("{} - received FIN: {}".format(self, message))
         num_pats = len(message['enc_ids'])
+        self.total_time = message['total_time']
+        self.optimization_time = message['optimization_time']
         self.avg_total_time = message['total_time'] / num_pats
         self.avg_optimization_time = message['optimization_time'] / num_pats
         logging.info("avg_total_time: {}, avg_optimization_time: {}".format(self.avg_total_time, self.avg_optimization_time))
@@ -150,11 +154,15 @@ class PredictorManager:
 
       # Send individual predictor info to cloudwatch
       for pred_id, pred in self.predictors.items():
+        metric_tuples += [
+          ('predictor_{}_{}_{}_status'.format(*pred_id), STATUS_DICT[pred.status], 'None'),
+        ]
         if pred.avg_total_time > 0:
           metric_tuples += [
-            ('predictor_{}_{}_{}_status'.format(*pred_id), STATUS_DICT[pred.status], 'None'),
             ('avg_total_time_{}'.format(pred.model_type), pred.avg_total_time, 'Seconds'),
-            ('avg_optimization_time_{}'.format(pred.model_type), pred.avg_optimization_time, 'Seconds'),
+              ('avg_optimization_time_{}'.format(pred.model_type), pred.avg_optimization_time, 'Seconds'),
+              ('total_time_{}'.format(pred.model_type), pred.total_time, 'Seconds'),
+              ('optimization_time_{}'.format(pred.model_type), pred.optimization_time, 'Seconds'),
           ]
           pred.avg_total_time = 0
       logging.info("cloudwatch metrics: {}".format(metric_tuples))

@@ -6,7 +6,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "hideControls": false,
-  "id": 3,
+  "id": 1,
   "links": [],
   "rows": [
     {
@@ -318,7 +318,7 @@
               "alias": "db:opsdx_dev",
               "datasource": "cloudwatch",
               "dimensions": {
-                "DBInstanceIdentifier": "opsdx-dev"
+                "DBInstanceIdentifier": "opsdx-jh-dev"
               },
               "expr": "sum(label_replace(rate(container_cpu_usage_seconds_total{pod_name=~\"epic2op-[a-z]*-dev.*\", image=~\".*trews-etl.*\"}[2m]), \"pod_lbl\", \"epic2op-$1-dev\", \"pod_name\", \"epic2op-([a-z]*)-dev-(.*)\")\n) by (pod_lbl)",
               "format": "time_series",
@@ -343,7 +343,7 @@
               "intervalFactor": 2,
               "legendFormat": "{{ pod_lbl }}",
               "refId": "B",
-              "step": 30
+              "step": 20
             }
           ],
           "thresholds": [],
@@ -614,7 +614,7 @@
             {
               "alias": "HCGH",
               "dimensions": {
-                "FunctionName": "opsdx-dev-etl-lambda-HCGH"
+                "FunctionName": "opsdx-jh-dev-etl-lambda-HCGH"
               },
               "expr": "",
               "intervalFactor": 2,
@@ -630,7 +630,7 @@
             {
               "alias": "BMC",
               "dimensions": {
-                "FunctionName": "opsdx-dev-etl-lambda-BMC"
+                "FunctionName": "opsdx-jh-dev-etl-lambda-BMC"
               },
               "metricName": "Invocations",
               "namespace": "AWS/Lambda",
@@ -644,7 +644,7 @@
             {
               "alias": "JHH",
               "dimensions": {
-                "FunctionName": "opsdx-dev-etl-lambda-JHH"
+                "FunctionName": "opsdx-jh-dev-etl-lambda-JHH"
               },
               "metricName": "Invocations",
               "namespace": "AWS/Lambda",
@@ -1592,6 +1592,6 @@
     ]
   },
   "timezone": "browser",
-  "title": "OpsDX Dev ETL",
-  "version": 11
+  "title": "OpsDX JH Dev ETL",
+  "version": 3
 }

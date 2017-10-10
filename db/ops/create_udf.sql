@@ -923,6 +923,62 @@ RETURNS table( enc_id int, state int) AS $func$ BEGIN RETURN QUERY EXECUTE
 format('select stats.enc_id,
     (
     case
+    when ui_severe_sepsis_cnt = 1 then (
+            (
+            case
+            when ui_septic_shock_cnt = 1 then
+                (case
+                -- septic shock
+                when now() - ui_severe_sepsis_onset  > ''3 hours''::interval and sev_sep_3hr_count < 4 then 62 -- ui_sev_sep_3hr_exp
+                when now() - ui_severe_sepsis_onset  > ''6 hours''::interval and sev_sep_6hr_count = 0 then 64 -- ui_sev_sep_6hr_exp
+                when now() - ui_septic_shock_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 66 -- trews_sep_sho_6hr_exp
+                when sep_sho_6hr_count = 1 then 65 -- trews_sep_sho_6hr_com
+                when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 63 -- ui_sev_sep_6hr_com
+                when sev_sep_3hr_count = 4 then 61 -- ui_sev_sep_3hr_com
+                else
+                60 end)
+            when (fluid_count = 1 and hypotension_count > 0) and hypoperfusion_count = 1 then
+                (case
+                    -- septic shock
+                    when now() - ui_severe_sepsis_onset  > ''3 hours''::interval and sev_sep_3hr_count < 4 then 62 -- ui_sev_sep_3hr_exp
+                    when now() - ui_severe_sepsis_onset  > ''6 hours''::interval and sev_sep_6hr_count = 0 then 64 -- ui_sev_sep_6hr_exp
+                    when now() - LEAST(hypotension_onset, hypoperfusion_onset) > ''6 hours''::interval and sep_sho_6hr_count = 0 then 66 -- trews_sep_sho_6hr_exp
+                    when sep_sho_6hr_count = 1 then 65 -- trews_sep_sho_6hr_com
+                    when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 63 -- ui_sev_sep_6hr_com
+                    when sev_sep_3hr_count = 4 then 61 -- ui_sev_sep_3hr_com
+                    else
+                    60 end)
+            when (fluid_count = 1 and hypotension_count > 0) then
+                (case
+                    -- septic shock
+                    when now() - ui_severe_sepsis_onset > ''3 hours''::interval and sev_sep_3hr_count < 4 then 62 -- ui_sev_sep_3hr_exp
+                    when now() - ui_severe_sepsis_onset > ''6 hours''::interval and sev_sep_6hr_count = 0 then 64 -- ui_sev_sep_6hr_exp
+                    when now() - hypotension_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 66 -- trews_sep_sho_6hr_exp
+                    when sep_sho_6hr_count = 1 then 65 -- trews_sep_sho_6hr_com
+                    when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 63 -- ui_sev_sep_6hr_com
+                    when sev_sep_3hr_count = 4 then 61 -- ui_sev_sep_3hr_com
+                    else
+                    60 end)
+            when hypoperfusion_count = 1 then
+                (case
+                    -- septic shock
+                    when now() - ui_severe_sepsis_onset > ''3 hours''::interval and sev_sep_3hr_count < 4 then 62 -- trews_sev_sep_3hr_exp
+                    when now() - ui_severe_sepsis_onset > ''6 hours''::interval and sev_sep_6hr_count = 0 then 64 -- trews_sev_sep_6hr_exp
+                    when now() - hypoperfusion_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 66 -- trews_sep_sho_6hr_exp
+                    when sep_sho_6hr_count = 1 then 65 -- trews_sep_sho_6hr_com
+                    when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 63 -- trews_sev_sep_6hr_com
+                    when sev_sep_3hr_count = 4 then 61 -- trews_sev_sep_3hr_com
+                    else
+                    40 end)
+            when now() - ui_severe_sepsis_onset > ''3 hours''::interval and sev_sep_3hr_count < 4 then 52 -- ui_sev_sep_3hr_exp
+            when now() - ui_severe_sepsis_onset > ''6 hours''::interval and sev_sep_6hr_count = 0 then 54 -- ui_sev_sep_6hr_exp
+            when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 53 -- ui_sev_sep_6hr_com
+            when sev_sep_3hr_count = 4 then 51 -- ui_sev_sep_3hr_com
+            else
+            -- severe sepsis
+            50
+            end)
+        )
     when sus_count = 1 then
         (
         case when trews_met > 0 and trews_orgdf = 1 then (
@@ -955,7 +1011,7 @@ format('select stats.enc_id,
                     -- septic shock
                     when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset) > ''3 hours''::interval and sev_sep_3hr_count < 4 then 42 -- trews_sev_sep_3hr_exp
                     when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset) > ''6 hours''::interval and sev_sep_6hr_count = 0 then 44 -- trews_sev_sep_6hr_exp
-                    when now() - hypoperfusion_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 36 -- trews_sep_sho_6hr_exp
+                    when now() - hypoperfusion_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 46 -- trews_sep_sho_6hr_exp
                     when sep_sho_6hr_count = 1 then 45 -- trews_sep_sho_6hr_com
                     when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 43 -- trews_sev_sep_6hr_com
                     when sev_sep_3hr_count = 4 then 41 -- trews_sev_sep_3hr_com
@@ -1049,7 +1105,11 @@ select %I.enc_id,
     count(*) filter (where name = ''trews'' and is_met) as trews_met,
     min(measurement_time) filter (where name = ''trews'' and is_met) as trews_onset,
     count(*) filter (where name ~ ''trews_'' and is_met) as trews_orgdf,
-    min(measurement_time) filter (where name ~ ''trews_'' and is_met) as trews_orgdf_onset
+    min(measurement_time) filter (where name ~ ''trews_'' and is_met) as trews_orgdf_onset,
+    count(*) filter (where name = ''ui_severe_sepsis'' and is_met) as ui_severe_sepsis_cnt,
+    min(override_time) filter (where name = ''ui_severe_sepsis'' and is_met) as ui_severe_sepsis_onset,
+    count(*) filter (where name = ''ui_septic_shock'' and is_met) as ui_septic_shock_cnt,
+    min(override_time) filter (where name = ''ui_septic_shock'' and is_met) as ui_septic_shock_onset
 from %I
 where %I.enc_id = coalesce($1, %I.enc_id)
 %s
@@ -1523,7 +1583,8 @@ return query
                c.override_time as c_otime,
                c.override_user as c_ouser,
                c.override_value as c_ovalue,
-               cd.override_value as d_ovalue
+               cd.override_value as d_ovalue,
+               c.is_met as c_ois_met
         from enc_ids
         cross join criteria_default as cd
         left join criteria c on enc_ids.enc_id = c.enc_id and cd.name = c.name
@@ -1535,11 +1596,11 @@ return query
         select
             ordered.enc_id,
             ordered.name,
-            first(ordered.measurement_time) as measurement_time,
-            first(ordered.value)::text as value,
-            first(ordered.c_otime) as override_time,
-            first(ordered.c_ouser) as override_user,
-            first(ordered.c_ovalue) as override_value,
+            first(ordered.measurement_time order by ordered.measurement_time) as measurement_time,
+            first(ordered.value order by ordered.measurement_time)::text as value,
+            first(ordered.c_otime order by ordered.measurement_time) as override_time,
+            first(ordered.c_ouser order by ordered.measurement_time) as override_user,
+            first(ordered.c_ovalue order by ordered.measurement_time) as override_value,
             coalesce(bool_or(ordered.is_met), false) as is_met,
             now() as update_date
         from (
@@ -1584,11 +1645,11 @@ return query
         select
             ordered.enc_id,
             ordered.name,
-            first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
-            first(case when ordered.is_met then ordered.value else null end)::text as value,
-            first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-            first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-            first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
+            (first(ordered.measurement_time order by ordered.is_met) filter (where ordered.is_met)) as measurement_time,
+            (first(ordered.value order by ordered.is_met) filter (where ordered.is_met))::text as value,
+            (first(ordered.c_otime order by ordered.is_met) filter (where ordered.is_met)) as override_time,
+            (first(ordered.c_ouser order by ordered.is_met) filter (where ordered.is_met)) as override_user,
+            (first(ordered.c_ovalue order by ordered.is_met) filter (where ordered.is_met)) as override_value,
             coalesce(bool_or(ordered.is_met), false) as is_met,
             now() as update_date
         from (
@@ -1612,11 +1673,11 @@ return query
         select
             ordered.enc_id,
             ordered.name,
-            first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
-            first(case when ordered.is_met then ordered.value else null end)::text as value,
-            first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-            first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-            first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
+            (first(ordered.measurement_time order by ordered.measurement_time) filter (where ordered.is_met)) as measurement_time,
+            (first(ordered.value order by ordered.measurement_time) filter (where ordered.is_met))::text as value,
+            (first(ordered.c_otime order by ordered.measurement_time) filter (where ordered.is_met)) as override_time,
+            (first(ordered.c_ouser order by ordered.measurement_time) filter (where ordered.is_met)) as override_user,
+            (first(ordered.c_ovalue order by ordered.measurement_time) filter (where ordered.is_met)) as override_value,
             coalesce(bool_or(ordered.is_met), false) as is_met,
             now() as update_date
         from (
@@ -1648,11 +1709,11 @@ return query
         select
             ordered.enc_id,
             ordered.name,
-            first(case when ordered.is_met then ordered.tsp else null end) as measurement_time,
-            first(case when ordered.is_met then json_build_object('score', score, 'odds_ratio', odds_ratio) else null end)::text as value,
-            first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-            first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-            first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
+            (first(ordered.tsp order by ordered.tsp) filter (where ordered.is_met)) as measurement_time,
+            (first(json_build_object('score', score, 'odds_ratio', odds_ratio) order by ordered.tsp) filter (where ordered.is_met))::text as value,
+            (first(ordered.c_otime order by ordered.tsp) filter (where ordered.is_met)) as override_time,
+            (first(ordered.c_ouser order by ordered.tsp) filter (where ordered.is_met)) as override_user,
+            (first(ordered.c_ovalue order by ordered.tsp) filter (where ordered.is_met)) as override_value,
             coalesce(bool_or(ordered.is_met), false) as is_met,
             now() as update_date
         from (
@@ -1722,14 +1783,14 @@ return query
         select
             ordered.enc_id,
             ordered.name,
-            first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
-            first(case when ordered.is_met then ordered.value else null end)::text as value,
-            first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-            first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-            first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
+            (first(ordered.measurement_time order by ordered.is_met) filter (where ordered.is_met)) as measurement_time,
+            (first(ordered.value order by ordered.is_met) filter (where ordered.is_met))::text as value,
+            (first(ordered.c_otime order by ordered.is_met) filter (where ordered.is_met)) as override_time,
+            (first(ordered.c_ouser order by ordered.is_met) filter (where ordered.is_met)) as override_user,
+            (first(ordered.c_ovalue order by ordered.is_met) filter (where ordered.is_met)) as override_value,
             coalesce(bool_or(ordered.is_met), false) as is_met,
             now() as update_date,
-            first(case when ordered.is_met then ordered.is_acute else null end) as is_acute
+            (first(ordered.is_acute order by ordered.is_met) filter (where ordered.is_met)) as is_acute
         from (
             select  pc.enc_id,
                     pc.name,
@@ -1778,11 +1839,11 @@ return query
         select
             ordered.enc_id,
             ordered.name,
-            first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
-            first(case when ordered.is_met then ordered.value else null end)::text as value,
-            first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-            first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-            first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
+            (first(ordered.measurement_time order by ordered.measurement_time) filter (where ordered.is_met)) as measurement_time,
+            (first(ordered.value order by ordered.measurement_time) filter (where ordered.is_met))::text as value,
+            (first(ordered.c_otime order by ordered.measurement_time) filter (where ordered.is_met)) as override_time,
+            (first(ordered.c_ouser order by ordered.measurement_time) filter (where ordered.is_met)) as override_user,
+            (first(ordered.c_ovalue order by ordered.measurement_time) filter (where ordered.is_met)) as override_value,
             coalesce(bool_or(ordered.is_met), false) as is_met,
             now() as update_date
         from (
@@ -1804,11 +1865,11 @@ return query
         select
             ordered.enc_id,
             ordered.name,
-            first(case when ordered.is_met then ordered.tsp else null end) as measurement_time,
-            first(case when ordered.is_met then ordered.value else null end)::text as value,
-            first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-            first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-            first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
+            (first(ordered.tsp order by ordered.tsp) filter (where ordered.is_met)) as measurement_time,
+            (first(ordered.value order by ordered.tsp) filter (where ordered.is_met))::text as value,
+            (first(ordered.c_otime order by ordered.tsp) filter (where ordered.is_met)) as override_time,
+            (first(ordered.c_ouser order by ordered.tsp) filter (where ordered.is_met)) as override_user,
+            (first(ordered.c_ovalue order by ordered.tsp) filter (where ordered.is_met)) as override_value,
             coalesce(bool_or(ordered.is_met), false) as is_met,
             now() as update_date
         from (
@@ -1835,11 +1896,11 @@ return query
         select
             ordered.enc_id,
             ordered.name,
-            first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
-            first(case when ordered.is_met then ordered.value else null end)::text as value,
-            first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-            first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-            first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
+            (first(ordered.measurement_time order by ordered.measurement_time) filter (where ordered.is_met)) as measurement_time,
+            (first(ordered.value order by ordered.measurement_time) filter (where ordered.is_met))::text as value,
+            (first(ordered.c_otime order by ordered.measurement_time) filter (where ordered.is_met)) as override_time,
+            (first(ordered.c_ouser order by ordered.measurement_time) filter (where ordered.is_met)) as override_user,
+            (first(ordered.c_ovalue order by ordered.measurement_time) filter (where ordered.is_met)) as override_value,
             coalesce(bool_or(ordered.is_met), false) as is_met,
             now() as update_date
         from (
@@ -1879,6 +1940,58 @@ return query
         ) as ordered
         group by ordered.enc_id, ordered.name
     ),
+    ui_severe_sepsis as (
+        select
+            ordered.enc_id,
+            ordered.name,
+            (first(ordered.measurement_time order by ordered.measurement_time) filter (where ordered.is_met)) as measurement_time,
+            (first(ordered.value order by ordered.measurement_time) filter (where ordered.is_met))::text as value,
+            (first(ordered.c_otime order by ordered.measurement_time) filter (where ordered.is_met)) as override_time,
+            (first(ordered.c_ouser order by ordered.measurement_time) filter (where ordered.is_met)) as override_user,
+            (first(ordered.c_ovalue order by ordered.measurement_time) filter (where ordered.is_met)) as override_value,
+            coalesce(bool_or(ordered.is_met), false) as is_met,
+            now() as update_date
+        from (
+            select  pat_cvalues.enc_id,
+                    pat_cvalues.name,
+                    pat_cvalues.tsp as measurement_time,
+                    pat_cvalues.value as value,
+                    pat_cvalues.c_otime,
+                    pat_cvalues.c_ouser,
+                    pat_cvalues.c_ovalue,
+                    pat_cvalues.c_ois_met as is_met
+            from pat_cvalues
+            where pat_cvalues.name = 'ui_severe_sepsis'
+            order by pat_cvalues.tsp
+        ) as ordered
+        group by ordered.enc_id, ordered.name
+    ),
+    ui_septic_shock as (
+        select
+            ordered.enc_id,
+            ordered.name,
+            (first(ordered.measurement_time order by ordered.measurement_time) filter (where ordered.is_met)) as measurement_time,
+            (first(ordered.value order by ordered.measurement_time) filter (where ordered.is_met))::text as value,
+            (first(ordered.c_otime order by ordered.measurement_time) filter (where ordered.is_met)) as override_time,
+            (first(ordered.c_ouser order by ordered.measurement_time) filter (where ordered.is_met)) as override_user,
+            (first(ordered.c_ovalue order by ordered.measurement_time) filter (where ordered.is_met)) as override_value,
+            coalesce(bool_or(ordered.is_met), false) as is_met,
+            now() as update_date
+        from (
+            select  pat_cvalues.enc_id,
+                    pat_cvalues.name,
+                    pat_cvalues.tsp as measurement_time,
+                    pat_cvalues.value as value,
+                    pat_cvalues.c_otime,
+                    pat_cvalues.c_ouser,
+                    pat_cvalues.c_ovalue,
+                    pat_cvalues.c_ois_met as is_met
+            from pat_cvalues
+            where pat_cvalues.name = 'ui_septic_shock'
+            order by pat_cvalues.tsp
+        ) as ordered
+        group by ordered.enc_id, ordered.name
+    ),
     severe_sepsis as (
         select *, null::boolean as is_acute from infection
         union all select *, null::boolean as is_acute from sirs
@@ -1888,6 +2001,7 @@ return query
         union all select * from trews_orgdf
         union all select *, null::boolean as is_acute from trews_vasopressors
         union all select *, null::boolean as is_acute from trews_vent
+        union all select *, null::boolean as is_acute from ui_severe_sepsis
     ),
     severe_sepsis_criteria as (
         with organ_dysfunction as (
@@ -1905,7 +2019,9 @@ return query
                max(SC.onset) as sirs_onset,
                min(SC.initial) as sirs_initial,
                max(OC.onset) as org_df_onset,
-               max(TOC.onset) as trews_orgdf_onset
+               max(TOC.onset) as trews_orgdf_onset,
+               sum(UI.cnt) as ui_cnt,
+               max(UI.onset) as ui_onset
         from
         (
           select infection.enc_id,
@@ -1947,12 +2063,21 @@ return query
           from trews_orgdf
           group by trews_orgdf.enc_id
         ) TOC on IC.enc_id = TOC.enc_id
+        left join
+        (
+          select ui_severe_sepsis.enc_id,
+                 sum(case when ui_severe_sepsis.is_met then 1 else 0 end) as cnt,
+                 min(ui_severe_sepsis.override_time) as onset
+          from ui_severe_sepsis
+          group by ui_severe_sepsis.enc_id
+        ) UI on IC.enc_id = UI.enc_id
         group by IC.enc_id
     ),
     severe_sepsis_now as (
       select sspm.enc_id,
-             sspm.trews_severe_sepsis_is_met or sspm.severe_sepsis_is_met severe_sepsis_is_met,
-             (case when sspm.trews_severe_sepsis_wo_infection_is_met then
+             sspm.ui_is_met or sspm.trews_severe_sepsis_is_met or sspm.severe_sepsis_is_met severe_sepsis_is_met,
+             (case when sspm.ui_is_met then sspm.ui_onset
+              when sspm.trews_severe_sepsis_wo_infection_is_met then
                 (case when sspm.trews_severe_sepsis_onset <> 'infinity'::timestamptz
                         then sspm.trews_severe_sepsis_onset
                         else null end
@@ -1963,7 +2088,8 @@ return query
                        else null end
                  )
              end) as severe_sepsis_onset,
-             (case when sspm.trews_severe_sepsis_wo_infection_is_met then
+             (case when sspm.ui_is_met then sspm.ui_onset
+                when sspm.trews_severe_sepsis_wo_infection_is_met then
                 (case when sspm.trews_severe_sepsis_wo_infection_onset <> 'infinity'::timestamptz
                        then sspm.trews_severe_sepsis_wo_infection_onset
                        else null end
@@ -1974,10 +2100,12 @@ return query
                        else null end
                  )
              end) as severe_sepsis_wo_infection_onset,
-             (case when sspm.trews_severe_sepsis_wo_infection_is_met then sspm.trews_severe_sepsis_wo_infection_initial
+             (case when sspm.ui_is_met then sspm.ui_onset
+                when sspm.trews_severe_sepsis_wo_infection_is_met then sspm.trews_severe_sepsis_wo_infection_initial
                 else sspm.severe_sepsis_wo_infection_initial
              end) severe_sepsis_wo_infection_initial,
-             (case when sspm.trews_severe_sepsis_wo_infection_is_met then sspm.trews_severe_sepsis_lead_time
+             (case when sspm.ui_is_met then sspm.ui_onset
+                when sspm.trews_severe_sepsis_wo_infection_is_met then sspm.trews_severe_sepsis_lead_time
                 else sspm.severe_sepsis_lead_time
              end) severe_sepsis_lead_time
       from (
@@ -1998,6 +2126,10 @@ return query
                coalesce(bool_or(stats.trews and stats.trews_orgdf_cnt > 0)
                         , false
                         ) as trews_severe_sepsis_wo_infection_is_met,
+               coalesce(bool_or(stats.ui_cnt > 0)
+                        , false
+                        ) as ui_is_met,
+               max(stats.ui_onset) as ui_onset,
                max(greatest(coalesce(stats.inf_onset, 'infinity'::timestamptz),
                             coalesce(stats.sirs_onset, 'infinity'::timestamptz),
                             coalesce(stats.org_df_onset, 'infinity'::timestamptz))
@@ -2028,11 +2160,11 @@ return query
         select
             ordered.enc_id,
             ordered.name,
-            first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
-            first(case when ordered.is_met then ordered.value else null end)::text as value,
-            first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-            first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-            first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
+            (first(ordered.measurement_time order by ordered.measurement_time) filter (where ordered.is_met)) as measurement_time,
+            (first(ordered.value order by ordered.measurement_time) filter (where ordered.is_met))::text as value,
+            (first(ordered.c_otime order by ordered.measurement_time) filter (where ordered.is_met)) as override_time,
+            (first(ordered.c_ouser order by ordered.measurement_time) filter (where ordered.is_met)) as override_user,
+            (first(ordered.c_ovalue order by ordered.measurement_time) filter (where ordered.is_met)) as override_value,
             coalesce(bool_or(ordered.is_met), false) as is_met,
             now() as update_date
         from
@@ -2063,11 +2195,11 @@ return query
         select
             ordered.enc_id,
             ordered.name,
-            first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
-            first(case when ordered.is_met then ordered.value else null end)::text as value,
-            first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-            first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-            first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
+            (first(ordered.measurement_time order by ordered.measurement_time) filter (where ordered.is_met)) as measurement_time,
+            (first(ordered.value order by ordered.measurement_time) filter (where ordered.is_met))::text as value,
+            (first(ordered.c_otime order by ordered.measurement_time) filter (where ordered.is_met)) as override_time,
+            (first(ordered.c_ouser order by ordered.measurement_time) filter (where ordered.is_met)) as override_user,
+            (first(ordered.c_ovalue order by ordered.measurement_time) filter (where ordered.is_met)) as override_value,
             coalesce(bool_or(ordered.is_met), false) as is_met,
             now() as update_date
         from
@@ -2146,11 +2278,11 @@ return query
         select
             ordered.enc_id,
             ordered.name,
-            first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
-            first(case when ordered.is_met then ordered.value else null end)::text as value,
-            first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-            first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-            first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
+            (first(ordered.measurement_time order by ordered.measurement_time) filter (where ordered.is_met)) as measurement_time,
+            (first(ordered.value order by ordered.measurement_time) filter (where ordered.is_met))::text as value,
+            (first(ordered.c_otime order by ordered.measurement_time) filter (where ordered.is_met)) as override_time,
+            (first(ordered.c_ouser order by ordered.measurement_time) filter (where ordered.is_met)) as override_user,
+            (first(ordered.c_ovalue order by ordered.measurement_time) filter (where ordered.is_met)) as override_value,
             coalesce(bool_or(ordered.is_met), false) as is_met,
             now() as update_date
         from
@@ -2177,11 +2309,13 @@ return query
         select * from crystalloid_fluid
         union all select * from hypotension
         union all select * from hypoperfusion
+        union all select * from ui_septic_shock
     ),
     septic_shock_now as (
         select stats.enc_id,
-               bool_or(stats.cnt > 0) as septic_shock_is_met,
-               greatest(min(stats.onset), max(ssn.severe_sepsis_onset)) as septic_shock_onset
+               coalesce(bool_or(ui.ui_cnt > 0), bool_or(stats.cnt > 0)) as septic_shock_is_met,
+               (case when bool_or(ui.ui_cnt > 0) then min(ui.ui_onset)
+                else greatest(min(stats.onset), max(ssn.severe_sepsis_onset)) end) as septic_shock_onset
         from (
             (select hypotension.enc_id,
                     sum(case when hypotension.is_met then 1 else 0 end) as cnt,
@@ -2196,27 +2330,33 @@ return query
              group by hypoperfusion.enc_id)
         ) stats
         left join severe_sepsis_now ssn on stats.enc_id = ssn.enc_id
+        left join
+        (select ui_septic_shock.enc_id,
+            sum(case when ui_septic_shock.is_met then 1 else 0 end) as ui_cnt,
+            min(ui_septic_shock.override_time) as ui_onset
+         from ui_septic_shock
+         group by ui_septic_shock.enc_id) ui on stats.enc_id = ui.enc_id
         group by stats.enc_id
     ),
     orders_criteria as (
         select
             ordered.enc_id,
             ordered.name,
-            coalesce(   first(case when ordered.is_met then ordered.measurement_time else null end),
-                        last(ordered.measurement_time)
+            coalesce(   (first(ordered.measurement_time order by ordered.measurement_time) filter (where ordered.is_met)),
+                        last(ordered.measurement_time order by ordered.measurement_time)
             ) as measurement_time,
-            coalesce(   first(case when ordered.is_met then ordered.value else null end)::text,
-                        last(ordered.value)::text
+            coalesce(   (first(ordered.value order by ordered.measurement_time) filter (where ordered.is_met))::text,
+                        last(ordered.value order by ordered.measurement_time)::text
             ) as value,
-            coalesce(   first(case when ordered.is_met then ordered.c_otime else null end),
-                        last(ordered.c_otime)
+            coalesce(   (first(ordered.c_otime order by ordered.measurement_time) filter (where ordered.is_met)),
+                        last(ordered.c_otime order by ordered.measurement_time)
             ) as override_time,
-            coalesce(   first(case when ordered.is_met then ordered.c_ouser else null end),
-                        last(ordered.c_ouser)
+            coalesce(   (first(ordered.c_ouser order by ordered.measurement_time) filter (where ordered.is_met)),
+                        last(ordered.c_ouser order by ordered.measurement_time)
             ) as override_user,
             coalesce(
-                first(case when ordered.is_met then ordered.c_ovalue else null end),
-                last(ordered.c_ovalue)
+                (first(ordered.c_ovalue order by ordered.measurement_time) filter (where ordered.is_met)),
+                last(ordered.c_ovalue order by ordered.measurement_time)
             ) as override_value,
             coalesce(bool_or(ordered.is_met), false) as is_met,
             now() as update_date
@@ -2317,11 +2457,11 @@ return query
         select
             ordered.enc_id,
             ordered.name,
-            first(case when ordered.is_met then ordered.measurement_time else null end) as measurement_time,
-            first(case when ordered.is_met then ordered.value else null end)::text as value,
-            first(case when ordered.is_met then ordered.c_otime else null end) as override_time,
-            first(case when ordered.is_met then ordered.c_ouser else null end) as override_user,
-            first(case when ordered.is_met then ordered.c_ovalue else null end) as override_value,
+            (first(ordered.measurement_time order by ordered.measurement_time) filter (where ordered.is_met)) as measurement_time,
+            (first(ordered.value order by ordered.measurement_time) filter (where ordered.is_met))::text as value,
+            (first(ordered.c_otime order by ordered.measurement_time) filter (where ordered.is_met)) as override_time,
+            (first(ordered.c_ouser order by ordered.measurement_time) filter (where ordered.is_met)) as override_user,
+            (first(ordered.c_ovalue order by ordered.measurement_time) filter (where ordered.is_met)) as override_value,
             coalesce(bool_or(ordered.is_met), false) as is_met,
             now() as update_date
         from
@@ -2799,16 +2939,16 @@ BEGIN
             pat_enc.enc_id,
             json_build_object('alert_code', code, 'read', false,'timestamp',
                 date_part('epoch',
-                    (case when code in ('201','204','303','306','401','404','503','506') then septic_shock_onset
+                    (case when code in ('201','204','303','306','401','404','503','506','601','604','703','706') then septic_shock_onset
                           when code in ('300','500') then sirs_plus_organ_onset
                           else severe_sepsis_onset
                           end)::timestamptz
                     +
                     (case
-                        when code in ('202','402') then '3 hours'
-                        when code in ('203','204','403','404') then '6 hours'
-                        when code in ('304','504') then '2 hours'
-                        when code in ('305','306','505','506') then '5 hours'
+                        when code in ('202','402','602') then '3 hours'
+                        when code in ('203','204','403','404','603','604') then '6 hours'
+                        when code in ('304','504','704') then '2 hours'
+                        when code in ('305','306','505','506','705','506') then '5 hours'
                         else '0 hours'
                         end)::interval),
                 'suppression', 'false'
@@ -2907,6 +3047,46 @@ BEGIN -- Note the CASTING being done for the 2nd and 3rd elements of the array
      WHEN flag = 44 THEN ret := array['400','401','403'];
      WHEN flag = 45 THEN ret := array['400','401'];
      WHEN flag = 46 THEN ret := array['400','401','404'];
+     -- ui:
+     WHEN flag = 50 THEN ret := array['600',
+                                '602',
+                                '603',
+                                '701',
+                                '702',
+                                '704',
+                                '705'];
+     WHEN flag = 51 THEN ret := array['600',
+                                '603',
+                                '702',
+                                '705'];
+     WHEN flag = 52 THEN ret := array['600','602'];
+     WHEN flag = 53 THEN ret := array['600'];
+     WHEN flag = 54 THEN ret := array['600','603'];
+     WHEN flag = 60 THEN ret := array['600','601',
+                                '602',
+                                '603',
+                                '604',
+                                '701',
+                                '702',
+                                '703',
+                                '704',
+                                '705',
+                                '706'];
+     WHEN flag = 61 THEN ret := array['600','601',
+                                '603',
+                                '604',
+                                '702',
+                                '703',
+                                '705',
+                                '706'];
+     WHEN flag = 62 THEN ret := array['600','601','602'];
+     WHEN flag = 63 THEN ret := array['600','601',
+                                '604',
+                                '703',
+                                '706'];
+     WHEN flag = 64 THEN ret := array['600','601','603'];
+     WHEN flag = 65 THEN ret := array['600','601'];
+     WHEN flag = 66 THEN ret := array['600','601','604'];
      ELSE ret := array['0'];
  END CASE ; RETURN ret;
 END;$$ LANGUAGE plpgsql;
@@ -2916,42 +3096,46 @@ CREATE OR REPLACE FUNCTION get_notifications_for_epic(this_pat_id text default n
 RETURNS table(
     pat_id              varchar(50),
     visit_id            varchar(50),
+    enc_id              int,
     count               int
 ) AS $func$ BEGIN RETURN QUERY
-  select pat_enc.pat_id, pat_enc.visit_id,
-        (case when deactivated is true then 0
-          else coalesce(counts.count::int, 0)
-        end)
-  from pat_enc
-  left join pat_status on pat_enc.enc_id = pat_status.enc_id
-
-  left join
+  with prev as (
+    select p.pat_id, p.visit_id, p.enc_id, coalesce(
+        (last(h.count order by h.id) filter (where h.id is not null)),
+        0) count_prev
+    from pat_enc p
+    inner join get_latest_enc_ids_within_notification_whitelist() wl
+        on p.enc_id = wl.enc_id
+    left join epic_notifications_history h on h.enc_id = p.enc_id
+    where p.pat_id = coalesce(this_pat_id, p.pat_id)
+    and p.pat_id like 'E%'
+    group by p.enc_id, p.visit_id, p.enc_id
+  ),
+  compare as
   (
-      select notifications.enc_id,
-            (case when count(*) > 5 then 5
-                  else count(*)
-                  end
-            ) as count
-      from
-      notifications
-      where not (message#>>'{read}')::bool
-      and (message#>>'{timestamp}')::numeric < date_part('epoch', now())
-      and (not message::jsonb ? 'model' or message#>>'{model}' = model)
-      group by notifications.enc_id
+      select prev.pat_id, prev.visit_id, prev.enc_id, prev.count_prev,
+            (case when deactivated is true then 0
+              else coalesce(counts.count::int, 0)
+            end) count
+      from prev
+      left join pat_status on prev.enc_id = pat_status.enc_id
+      left join
+      (
+          select notifications.enc_id,
+                (case when count(*) > 5 then 5
+                      else count(*)
+                      end
+                ) as count
+          from
+          notifications
+          where not (message#>>'{read}')::bool
+          and (message#>>'{timestamp}')::numeric < date_part('epoch', now())
+          and (not message::jsonb ? 'model' or message#>>'{model}' = model)
+          group by notifications.enc_id
+      )
+      counts on counts.enc_id = prev.enc_id
   )
-  counts on counts.enc_id = pat_enc.enc_id
-
-  left join (
-    select cdm_t.enc_id, last(cdm_t.value order by cdm_t.tsp) as unit
-    from cdm_t
-    where cdm_t.fid = 'care_unit'
-    group by cdm_t.enc_id
-  ) pat_unit on pat_enc.enc_id = pat_unit.enc_id
-
-  where pat_enc.pat_id like 'E%'
-  and   pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id)
-  and   pat_enc.enc_id = coalesce(pat_id_to_enc_id(this_pat_id), pat_enc.enc_id)
-  and   pat_unit.unit similar to (select min(p.value) from parameters p where p.name = 'notifications_whitelist');
+  select compare.pat_id, compare.visit_id, compare.enc_id, compare.count from compare where compare.count <> compare.count_prev;
 END $func$ LANGUAGE plpgsql;
 
 
@@ -2964,7 +3148,9 @@ BEGIN
   (select enc_id, enc_id || ',' || string_agg(tsp, ',') pat_tsp from
       (select enc_id, ((message#>>'{timestamp}')::numeric::int)::text tsp
       from notifications
-      where (message#>>'{alert_code}')::text in ('202','203','204','205','206')
+      where (message#>>'{alert_code}')::text in ('202','203','204','205','206',
+        '402','403','404','405','406',
+        '602','603','604','605','606')
       and (message#>>'{timestamp}')::numeric > date_part('epoch', now())
       and enc_id = coalesce(pat_id_to_enc_id(_pat_id), enc_id)
       order by enc_id, tsp) O
@@ -3013,7 +3199,7 @@ BEGIN
     with pats as (
         select gss.enc_id from get_states_snapshot(this_enc_id) gss
         left join pat_status s on s.enc_id = gss.enc_id
-        where (state = 23 or state = 35)
+        where state in (23,35,28,45,53,65)
         and (s.enc_id IS NULL or not s.deactivated)
     )
     -- if criteria_events has been in an event for longer than deactivate_hours,
@@ -3062,7 +3248,7 @@ begin
     (select distinct e.enc_id
     from criteria_events e
     inner join lateral get_states_snapshot(e.enc_id) SNP on e.enc_id = SNP.enc_id
-    where flag = 10 and now() - SNP.severe_sepsis_wo_infection_initial > (select value from parameters where name = 'lookbackhours')::interval
+    where flag in (10,11) and now() - SNP.severe_sepsis_wo_infection_initial > (select value from parameters where name = 'lookbackhours')::interval
     and e.enc_id = coalesce(this_enc_id, e.enc_id)) p;
 end; $$;
 
@@ -3076,7 +3262,7 @@ begin
     select distinct e.enc_id
         from criteria_events e
         inner join lateral get_states_snapshot(e.enc_id) SNP on e.enc_id = SNP.enc_id
-        where flag in (22,24,32,34,36) and now() - SNP.severe_sepsis_onset > get_parameter('deactivate_expire_hours')::interval
+        where flag in (22,24,32,34,36,27,29,42,44,46,52,54,62,64,66) and now() - SNP.severe_sepsis_onset > get_parameter('deactivate_expire_hours')::interval
         and e.enc_id = coalesce(this_enc_id, e.enc_id)
     ),
     logging as (
@@ -3101,7 +3287,7 @@ begin
     select distinct e.enc_id
         from criteria_events e
         inner join criteria c on e.enc_id = c.enc_id
-        where flag = 12 and c.name = 'suspicion_of_infection'
+        where flag in (12,14) and c.name = 'suspicion_of_infection'
         and now() - c.override_time::timestamptz
             > get_parameter('deactivate_expire_hours')::interval
         and e.enc_id = coalesce(this_enc_id, e.enc_id)
@@ -3714,6 +3900,20 @@ execute 'select enc_id from pat_enc p inner join workspace.' || bedded_patients 
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION get_latest_enc_ids_within_notification_whitelist()
+RETURNS table (enc_id int)
+LANGUAGE plpgsql
+AS
+$$
+DECLARE
+    bedded_patients     text;
+begin
+select table_name from information_schema.tables where table_type = 'BASE TABLE' and table_schema = 'workspace' and table_name ilike 'job_etl_' || (get_parameter('notifications_whitelist')) || 'bedded_patients_transformed' order by table_name desc limit 1 into bedded_patients;
+return query
+execute 'select enc_id from pat_enc p inner join workspace.' || bedded_patients || ' bp on bp.visit_id = p.visit_id';
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION del_pat(this_pat_id text) RETURNS void LANGUAGE plpgsql AS $$ BEGIN
 DELETE
 FROM cdm_twf
@@ -3821,7 +4021,7 @@ AS $func$ BEGIN RETURN QUERY
 SELECT u.pat_id::text, (CASE WHEN unit ~* 'hc' THEN 'HCGH' WHEN unit ~* 'jh' THEN 'JHH' WHEN unit ~* 'bmc|bv' THEN 'BMC' WHEN unit ~* 'smh' THEN 'SMH' WHEN unit ~* 'sh' THEN 'SH' ELSE unit END) hospital
    FROM
      (SELECT c.pat_id,
-             first(value) unit
+             first(value order by c.tsp) unit
       FROM
         (SELECT p.pat_id, t.tsp, t.value
          FROM pat_enc p
@@ -3840,7 +4040,7 @@ AS $func$ BEGIN RETURN QUERY
 SELECT u.enc_id, (CASE WHEN unit ~* 'hc' THEN 'HCGH' WHEN unit ~* 'jh' THEN 'JHH' WHEN unit ~* 'bmc|bv' THEN 'BMC' WHEN unit ~* 'smh' THEN 'SMH' WHEN unit ~* 'sh' THEN 'SH' ELSE unit END) hospital
    FROM
      (SELECT c.enc_id,
-             first(value) unit
+             first(value order by c.tsp) unit
       FROM
         (SELECT t.enc_id, t.tsp, t.value
          FROM cdm_t t
@@ -3970,7 +4170,7 @@ DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
 
 -- workspace_lab_results_2_cdm_t
 INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
-select pat_enc.enc_id, lr.tsp::timestamptz, lr.fid, first(lr.value), 0 from workspace.' || job_id || '_lab_results_transformed lr
+select pat_enc.enc_id, lr.tsp::timestamptz, lr.fid, first(lr.value order by lr.tsp::timestamptz), 0 from workspace.' || job_id || '_lab_results_transformed lr
     inner join pat_enc on pat_enc.visit_id = lr.visit_id
 where lr.tsp <> ''NaT'' and lr.tsp::timestamptz < now()
 group by pat_enc.enc_id, lr.tsp, lr.fid
