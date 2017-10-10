@@ -55,7 +55,7 @@ locations = {
 ##############################
 # Globals: cache and monitor.
 pat_cache = LRUMemoryCache(plugins=[HitMissRatioPlugin()], max_size=5000)
-api_monitor = APIMonitor()
+api_monitor = query.api_monitor
 
 # Register API metrics
 if api_monitor.enabled:

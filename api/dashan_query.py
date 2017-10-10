@@ -8,9 +8,13 @@ import logging
 import pytz
 import requests
 import asyncio
+
 from jhapi_io import JHAPI
+from monitoring import APIMonitor
+
 import dashan_universe.transforms as transforms
 
+# Globals.
 api_monitor = APIMonitor()
 if api_monitor.enabled:
   api_monitor.register_metric('EpicNotificationSuccess', 'Count', [('API', api_monitor.monitor_target)])
