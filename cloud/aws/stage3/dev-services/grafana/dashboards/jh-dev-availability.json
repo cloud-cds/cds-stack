@@ -73,7 +73,7 @@
             {
               "alias": "",
               "dimensions": {
-                "AutoScalingGroupName": "web.cluster.dev.opsdx.io"
+                "AutoScalingGroupName": "web.cluster-dev.jh.opsdx.io"
               },
               "expr": "",
               "intervalFactor": 2,
@@ -159,7 +159,7 @@
             {
               "alias": "",
               "dimensions": {
-                "AutoScalingGroupName": "etl.cluster.dev.opsdx.io"
+                "AutoScalingGroupName": "etl.cluster-dev.jh.opsdx.io"
               },
               "metricName": "GroupInServiceInstances",
               "namespace": "AWS/AutoScaling",
@@ -243,7 +243,7 @@
           "targets": [
             {
               "dimensions": {
-                "AutoScalingGroupName": "nodes.cluster.dev.opsdx.io"
+                "AutoScalingGroupName": "nodes.cluster-dev.jh.opsdx.io"
               },
               "metricName": "GroupInServiceInstances",
               "namespace": "AWS/AutoScaling",
@@ -570,7 +570,7 @@
             {
               "alias": "GP",
               "dimensions": {
-                "AutoScalingGroupName": "nodes.cluster.dev.opsdx.io"
+                "AutoScalingGroupName": "nodes.cluster-dev.jh.opsdx.io"
               },
               "expr": "",
               "hide": false,
@@ -587,7 +587,7 @@
             {
               "alias": "Web",
               "dimensions": {
-                "AutoScalingGroupName": "web.cluster.dev.opsdx.io"
+                "AutoScalingGroupName": "web.cluster-dev.jh.opsdx.io"
               },
               "hide": false,
               "metricName": "GroupInServiceInstances",
@@ -602,7 +602,7 @@
             {
               "alias": "ETL",
               "dimensions": {
-                "AutoScalingGroupName": "etl.cluster.dev.opsdx.io"
+                "AutoScalingGroupName": "etl.cluster-dev.jh.opsdx.io"
               },
               "hide": false,
               "metricName": "GroupInServiceInstances",
@@ -617,7 +617,7 @@
             {
               "alias": "Locust",
               "dimensions": {
-                "AutoScalingGroupName": "locust.cluster.dev.opsdx.io"
+                "AutoScalingGroupName": "locust.cluster-dev.jh.opsdx.io"
               },
               "hide": false,
               "metricName": "GroupInServiceInstances",
@@ -632,7 +632,7 @@
             {
               "alias": "Scoring",
               "dimensions": {
-                "AutoScalingGroupName": "predictor.cluster.dev.opsdx.io"
+                "AutoScalingGroupName": "predictor.cluster-dev.jh.opsdx.io"
               },
               "metricName": "GroupInServiceInstances",
               "namespace": "AWS/AutoScaling",
@@ -1408,7 +1408,7 @@
           "targets": [
             {
               "dimensions": {
-                "AutoScalingGroupName": "nodes.cluster.dev.opsdx.io"
+                "AutoScalingGroupName": "nodes.cluster-dev.jh.opsdx.io"
               },
               "expr": "",
               "intervalFactor": 2,
@@ -2065,7 +2065,7 @@
           "targets": [
             {
               "dimensions": {
-                "FunctionName": "opsdx-dev-etl-lambda"
+                "FunctionName": "opsdx-jh-dev-etl-lambda"
               },
               "expr": "",
               "intervalFactor": 2,
@@ -2148,7 +2148,7 @@
           "targets": [
             {
               "dimensions": {
-                "FunctionName": "opsdx-dev-etl-lambda"
+                "FunctionName": "opsdx-jh-dev-etl-lambda"
               },
               "expr": "",
               "intervalFactor": 2,
