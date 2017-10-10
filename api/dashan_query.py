@@ -624,7 +624,7 @@ async def push_notifications_to_epic(db_pool, eid, notify_future_notification=Tr
     notifications = await conn.fetch(notifications_sql)
     if notifications:
       logging.info("push notifications to epic ({}) for {}".format(epic_notifications, eid))
-      await load_epic_notifications(notifications)
+      await load_epic_notifications(db_pool, notifications)
       etl_channel = os.environ['etl_channel'] if 'etl_channel' in os.environ else None
       if etl_channel and notify_future_notification:
         notify_future_notification_sql = \
@@ -725,7 +725,7 @@ async def invalidate_cache_batch(db_pool, pid, channel, serial_id, pat_cache):
   pat_sql = 'select jsonb_array_elements_text(pats) pat_id from refreshed_pats where id = {}'.format(serial_id)
   async with db_pool.acquire() as conn:
     notifications = await conn.fetch(sql)
-    await load_epic_notifications(notifications)
+    await load_epic_notifications(db_pool, notifications)
     pats = await conn.fetch(pat_sql)
     for pat_id in pats:
       logging.info("Invalidating cache for %s" % pat_id['pat_id'])
