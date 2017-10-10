@@ -1583,7 +1583,8 @@ return query
                c.override_time as c_otime,
                c.override_user as c_ouser,
                c.override_value as c_ovalue,
-               cd.override_value as d_ovalue
+               cd.override_value as d_ovalue,
+               c.is_met as c_ois_met
         from enc_ids
         cross join criteria_default as cd
         left join criteria c on enc_ids.enc_id = c.enc_id and cd.name = c.name
@@ -1958,7 +1959,7 @@ return query
                     pat_cvalues.c_otime,
                     pat_cvalues.c_ouser,
                     pat_cvalues.c_ovalue,
-                    criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue) as is_met
+                    pat_cvalues.c_ois_met as is_met
             from pat_cvalues
             where pat_cvalues.name = 'ui_severe_sepsis'
             order by pat_cvalues.tsp
@@ -1984,7 +1985,7 @@ return query
                     pat_cvalues.c_otime,
                     pat_cvalues.c_ouser,
                     pat_cvalues.c_ovalue,
-                    criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue) as is_met
+                    pat_cvalues.c_ois_met as is_met
             from pat_cvalues
             where pat_cvalues.name = 'ui_septic_shock'
             order by pat_cvalues.tsp
