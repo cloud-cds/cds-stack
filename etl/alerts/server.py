@@ -8,11 +8,13 @@ import etl.io_config.server_protocol as protocol
 from etl.io_config.database import Database
 from etl.alerts.predictor_manager import PredictorManager
 import datetime as dt
+from dateutil import parser
 import pytz
 import socket
 import random, string
 import functools
 import os
+from etl.io_config.cloudwatch import Cloudwatch
 
 def randomword(length):
    return ''.join(random.choice(string.ascii_uppercase) for i in range(length))
@@ -43,6 +45,8 @@ class AlertServer:
     self.lookbackhours          = int(os.getenv('TREWS_ETL_HOURS', 24))
     self.nprocs                 = int(os.getenv('nprocs', 2))
     self.hospital_to_predict    = os.getenv('hospital_to_predict', 'HCGH')
+    self.cloudwatch_logger      = Cloudwatch()
+    self.job_status = {}
 
   async def async_init(self):
     self.db_pool = await self.db.get_connection_pool()
@@ -123,6 +127,7 @@ class AlertServer:
       logging.info("alert_message_queue recv msg: {}".format(msg))
       # Predictor finished
       if msg.get('type') == 'FIN':
+        t_fin = dt.datetime.now()
         if self.model == 'lmc' or self.model == 'trews-jit':
           if self.TREWS_ETL_SUPPRESSION == 1:
             suppression_future = asyncio.ensure_future(self.run_suppression(msg), loop=self.loop)
@@ -132,6 +137,19 @@ class AlertServer:
           logging.error("Unknown model: {}".format(self.model))
         # self.suppression_tasks[msg['hosp']].append(suppression_future)
         # logging.info("create {model} suppression task for {}".format(self.model,msg['hosp']))
+        t_end = dt.datetime.now()
+        if msg['hosp']+msg['time'] in self.job_status:
+          self.cloudwatch_logger.push_many(
+            dimension_name = 'Alert Server',
+            metric_names   = ['e2e_time_{}'.format(msg['hosp']),
+                              'criteria_time_{}'.format(msg['hosp']),
+                              'prediction_time_{}'.format(msg['hosp'])],
+            metric_values  = [(t_end - parser.parse(msg['time'])).total_seconds(),
+                              (t_end - t_fin).total_seconds(),
+                              (t_end - self.job_status[msg['hosp']+msg['time']]['t_start']).total_seconds()],
+            metric_units   = ['Seconds','Seconds','Seconds']
+          )
+        self.job_status.pop(msg['hosp']+msg['time'],None)
     logging.info("alert_queue_consumer quit")
 
   async def suppression(self, pat_id, tsp):
@@ -339,6 +357,15 @@ class AlertServer:
         await self.run_trews_alert(message['job_id'],message['hosp'])
       else:
         logging.error("Unknown suppression model {}".format(self.model))
+      self.job_status[message['hosp'] + message['time']] = {
+        'msg': message, 't_start': dt.datetime.now()
+      }
+      self.cloudwatch_logger.push_many(
+        dimension_name = 'Alert Server',
+        metric_names = ['etl_done_{}'.format(message['hosp'])],
+        metric_values = [1],
+        metric_units = ['Count']
+      )
 
     else:
       logging.error("Don't know how to process this message")
