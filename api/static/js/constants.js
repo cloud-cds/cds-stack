@@ -264,6 +264,15 @@ var criteriaKeyToName = {
 		{"name": "GCS",
 		"units": ""}
 	],
+	/* UI Components */
+	"ui_severe_sepsis": [
+		{"name": "Severe Sepsis Bundle Override",
+		"units": ""}
+	],
+	"ui_septic_shock": [
+		{"name": "Septic Shock Bundle Override",
+		"units": ""}
+	],
 }
 
 var severe_sepsis = {

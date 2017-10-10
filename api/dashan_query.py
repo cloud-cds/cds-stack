@@ -349,7 +349,7 @@ async def get_patient_profile(db_pool, pat_id):
 async def get_criteria(db_pool, eid):
   get_criteria_sql = \
   '''
-  select * from get_criteria_v2(pat_id_to_enc_id('%s'::text))
+  select * from get_criteria(pat_id_to_enc_id('%s'::text))
   ''' % eid
   async with db_pool.acquire() as conn:
     result = await conn.fetch(get_criteria_sql)
@@ -504,12 +504,13 @@ async def toggle_notification_read(db_pool, eid, notification_id, as_read):
 def temp_c_to_f(c):
   return c * 1.8 + 32
 
-async def override_criteria(db_pool, eid, name, value='[{}]', user='user', clear=False):
+async def override_criteria(db_pool, eid, name, value='[{}]', user='user', clear=False, is_met=None):
   if name == 'sirs_temp' and not clear:
       value[0]['lower'] = temp_c_to_f(float(value[0]['lower']))
       value[0]['upper'] = temp_c_to_f(float(value[0]['upper']))
 
   params = {
+      'set_is_met': 'is_met = %s,' % is_met if is_met is not None else '',
       'time': 'now()' if not clear else 'null',
       'user': ("'" + user + "'") if not clear else 'null',
       'val': ("'" + (json.dumps(value) if isinstance(value, list) else value) + "'") if not clear else 'null',
@@ -523,6 +524,7 @@ async def override_criteria(db_pool, eid, name, value='[{}]', user='user', clear
   override_sql = \
   '''
   update criteria set
+      %(set_is_met)s
       override_time = %(time)s,
       update_date = now(),
       override_value = %(val)s,

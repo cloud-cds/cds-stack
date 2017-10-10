@@ -17,13 +17,7 @@ sirs = {
             "value": None,
             "measurement_time": None,
             "override_time": None,
-            "override_user": None,
-            "recent_measurement_time": None,
-            "recent_value": None,
-            "recent_baseline_time": None,
-            "recent_baseline_value": None,
-            "trigger_baseline_time": None,
-            "trigger_baseline_value": None
+            "override_user": None
         },
         {
             "name": "heart_rate",
@@ -31,13 +25,7 @@ sirs = {
             "value": None,
             "measurement_time": None,
             "override_time": None,
-            "override_user": None,
-            "recent_measurement_time": None,
-            "recent_value": None,
-            "recent_baseline_time": None,
-            "recent_baseline_value": None,
-            "trigger_baseline_time": None,
-            "trigger_baseline_value": None
+            "override_user": None
         },
         {
             "name": "respiratory_rate",
@@ -45,13 +33,7 @@ sirs = {
             "value": None,
             "measurement_time": None,
             "override_time": None,
-            "override_user": None,
-            "recent_measurement_time": None,
-            "recent_value": None,
-            "recent_baseline_time": None,
-            "recent_baseline_value": None,
-            "trigger_baseline_time": None,
-            "trigger_baseline_value": None
+            "override_user": None
         },
         {
             "name": "wbc",
@@ -59,13 +41,7 @@ sirs = {
             "value": None,
             "measurement_time": None,
             "override_time": None,
-            "override_user": None,
-            "recent_measurement_time": None,
-            "recent_value": None,
-            "recent_baseline_time": None,
-            "recent_baseline_value": None,
-            "trigger_baseline_time": None,
-            "trigger_baseline_value": None
+            "override_user": None
         }
     ]
 }
@@ -82,13 +58,7 @@ organ_dysfunction = {
             "value": None,
             "measurement_time": None,
             "override_time": None,
-            "override_user": None,
-            "recent_measurement_time": None,
-            "recent_value": None,
-            "recent_baseline_time": None,
-            "recent_baseline_value": None,
-            "trigger_baseline_time": None,
-            "trigger_baseline_value": None
+            "override_user": None
         },
         {
             "name": "mean_arterial_pressure",
@@ -96,13 +66,7 @@ organ_dysfunction = {
             "value": None,
             "measurement_time": None,
             "override_time": None,
-            "override_user": None,
-            "recent_measurement_time": None,
-            "recent_value": None,
-            "recent_baseline_time": None,
-            "recent_baseline_value": None,
-            "trigger_baseline_time": None,
-            "trigger_baseline_value": None
+            "override_user": None
         },
         {
             "name": "decrease_in_sbp",
@@ -110,13 +74,7 @@ organ_dysfunction = {
             "value": None,
             "measurement_time": None,
             "override_time": None,
-            "override_user": None,
-            "recent_measurement_time": None,
-            "recent_value": None,
-            "recent_baseline_time": None,
-            "recent_baseline_value": None,
-            "trigger_baseline_time": None,
-            "trigger_baseline_value": None
+            "override_user": None
         },
         {
             "name": "respiratory_failure",
@@ -124,13 +82,7 @@ organ_dysfunction = {
             "value": None,
             "measurement_time": None,
             "override_time": None,
-            "override_user": None,
-            "recent_measurement_time": None,
-            "recent_value": None,
-            "recent_baseline_time": None,
-            "recent_baseline_value": None,
-            "trigger_baseline_time": None,
-            "trigger_baseline_value": None
+            "override_user": None
         },
         {
             "name": "creatinine",
@@ -138,13 +90,7 @@ organ_dysfunction = {
             "value": None,
             "measurement_time": None,
             "override_time": None,
-            "override_user": None,
-            "recent_measurement_time": None,
-            "recent_value": None,
-            "recent_baseline_time": None,
-            "recent_baseline_value": None,
-            "trigger_baseline_time": None,
-            "trigger_baseline_value": None
+            "override_user": None
         },
         {
             "name": "bilirubin",
@@ -152,13 +98,7 @@ organ_dysfunction = {
             "value": None,
             "measurement_time": None,
             "override_time": None,
-            "override_user": None,
-            "recent_measurement_time": None,
-            "recent_value": None,
-            "recent_baseline_time": None,
-            "recent_baseline_value": None,
-            "trigger_baseline_time": None,
-            "trigger_baseline_value": None
+            "override_user": None
         },
         {
             "name": "platelet",
@@ -166,13 +106,7 @@ organ_dysfunction = {
             "value": None,
             "measurement_time": None,
             "override_time": None,
-            "override_user": None,
-            "recent_measurement_time": None,
-            "recent_value": None,
-            "recent_baseline_time": None,
-            "recent_baseline_value": None,
-            "trigger_baseline_time": None,
-            "trigger_baseline_value": None
+            "override_user": None
         },
         {
             "name": "inr",
@@ -180,13 +114,7 @@ organ_dysfunction = {
             "value": None,
             "measurement_time": None,
             "override_time": None,
-            "override_user": None,
-            "recent_measurement_time": None,
-            "recent_value": None,
-            "recent_baseline_time": None,
-            "recent_baseline_value": None,
-            "trigger_baseline_time": None,
-            "trigger_baseline_value": None
+            "override_user": None
         },
         {
             "name": "lactate",
@@ -194,13 +122,7 @@ organ_dysfunction = {
             "value": None,
             "measurement_time": None,
             "override_time": None,
-            "override_user": None,
-            "recent_measurement_time": None,
-            "recent_value": None,
-            "recent_baseline_time": None,
-            "recent_baseline_value": None,
-            "trigger_baseline_time": None,
-            "trigger_baseline_value": None
+            "override_user": None
         }
     ]
 }
@@ -217,13 +139,7 @@ trews = {
             "value": None,
             "measurement_time": None,
             "override_time": None,
-            "override_user": None,
-            "recent_measurement_time": None,
-            "recent_value": None,
-            "recent_baseline_time": None,
-            "recent_baseline_value": None,
-            "trigger_baseline_time": None,
-            "trigger_baseline_value": None
+            "override_user": None
         }
     ]
 }
@@ -240,13 +156,7 @@ trews_organ_dysfunction = {
             "value": None,
             "measurement_time": None,
             "override_time": None,
-            "override_user": None,
-            "recent_measurement_time": None,
-            "recent_value": None,
-            "recent_baseline_time": None,
-            "recent_baseline_value": None,
-            "trigger_baseline_time": None,
-            "trigger_baseline_value": None
+            "override_user": None
         },
         {
             "name": "trews_map",
@@ -254,13 +164,7 @@ trews_organ_dysfunction = {
             "value": None,
             "measurement_time": None,
             "override_time": None,
-            "override_user": None,
-            "recent_measurement_time": None,
-            "recent_value": None,
-            "recent_baseline_time": None,
-            "recent_baseline_value": None,
-            "trigger_baseline_time": None,
-            "trigger_baseline_value": None
+            "override_user": None
         },
         {
             "name": "trews_dsbp",
@@ -268,13 +172,7 @@ trews_organ_dysfunction = {
             "value": None,
             "measurement_time": None,
             "override_time": None,
-            "override_user": None,
-            "recent_measurement_time": None,
-            "recent_value": None,
-            "recent_baseline_time": None,
-            "recent_baseline_value": None,
-            "trigger_baseline_time": None,
-            "trigger_baseline_value": None
+            "override_user": None
         },
         {
             "name": "trews_vent",
@@ -282,13 +180,7 @@ trews_organ_dysfunction = {
             "value": None,
             "measurement_time": None,
             "override_time": None,
-            "override_user": None,
-            "recent_measurement_time": None,
-            "recent_value": None,
-            "recent_baseline_time": None,
-            "recent_baseline_value": None,
-            "trigger_baseline_time": None,
-            "trigger_baseline_value": None
+            "override_user": None
         },
         {
             "name": "trews_creatinine",
@@ -296,13 +188,7 @@ trews_organ_dysfunction = {
             "value": None,
             "measurement_time": None,
             "override_time": None,
-            "override_user": None,
-            "recent_measurement_time": None,
-            "recent_value": None,
-            "recent_baseline_time": None,
-            "recent_baseline_value": None,
-            "trigger_baseline_time": None,
-            "trigger_baseline_value": None
+            "override_user": None
         },
         {
             "name": "trews_bilirubin",
@@ -310,13 +196,7 @@ trews_organ_dysfunction = {
             "value": None,
             "measurement_time": None,
             "override_time": None,
-            "override_user": None,
-            "recent_measurement_time": None,
-            "recent_value": None,
-            "recent_baseline_time": None,
-            "recent_baseline_value": None,
-            "trigger_baseline_time": None,
-            "trigger_baseline_value": None
+            "override_user": None
         },
         {
             "name": "trews_platelet",
@@ -324,13 +204,7 @@ trews_organ_dysfunction = {
             "value": None,
             "measurement_time": None,
             "override_time": None,
-            "override_user": None,
-            "recent_measurement_time": None,
-            "recent_value": None,
-            "recent_baseline_time": None,
-            "recent_baseline_value": None,
-            "trigger_baseline_time": None,
-            "trigger_baseline_value": None
+            "override_user": None
         },
         {
             "name": "trews_inr",
@@ -338,13 +212,7 @@ trews_organ_dysfunction = {
             "value": None,
             "measurement_time": None,
             "override_time": None,
-            "override_user": None,
-            "recent_measurement_time": None,
-            "recent_value": None,
-            "recent_baseline_time": None,
-            "recent_baseline_value": None,
-            "trigger_baseline_time": None,
-            "trigger_baseline_value": None
+            "override_user": None
         },
         {
             "name": "trews_lactate",
@@ -352,13 +220,7 @@ trews_organ_dysfunction = {
             "value": None,
             "measurement_time": None,
             "override_time": None,
-            "override_user": None,
-            "recent_measurement_time": None,
-            "recent_value": None,
-            "recent_baseline_time": None,
-            "recent_baseline_value": None,
-            "trigger_baseline_time": None,
-            "trigger_baseline_value": None
+            "override_user": None
         },
         {
             "name": "trews_gcs",
@@ -366,13 +228,7 @@ trews_organ_dysfunction = {
             "value": None,
             "measurement_time": None,
             "override_time": None,
-            "override_user": None,
-            "recent_measurement_time": None,
-            "recent_value": None,
-            "recent_baseline_time": None,
-            "recent_baseline_value": None,
-            "trigger_baseline_time": None,
-            "trigger_baseline_value": None
+            "override_user": None
         }
     ]
 }
@@ -404,13 +260,7 @@ hypotension = {
             "value": None,
             "measurement_time": None,
             "override_time": None,
-            "override_user": None,
-            "recent_measurement_time": None,
-            "recent_value": None,
-            "recent_baseline_time": None,
-            "recent_baseline_value": None,
-            "trigger_baseline_time": None,
-            "trigger_baseline_value": None
+            "override_user": None
         },
         {
             "name": "hypotension_map",
@@ -418,13 +268,7 @@ hypotension = {
             "value": None,
             "measurement_time": None,
             "override_time": None,
-            "override_user": None,
-            "recent_measurement_time": None,
-            "recent_value": None,
-            "recent_baseline_time": None,
-            "recent_baseline_value": None,
-            "trigger_baseline_time": None,
-            "trigger_baseline_value": None
+            "override_user": None
         },
         {
             "name": "hypotension_dsbp",
@@ -432,13 +276,7 @@ hypotension = {
             "value": None,
             "measurement_time": None,
             "override_time": None,
-            "override_user": None,
-            "recent_measurement_time": None,
-            "recent_value": None,
-            "recent_baseline_time": None,
-            "recent_baseline_value": None,
-            "trigger_baseline_time": None,
-            "trigger_baseline_value": None
+            "override_user": None
         }
     ]
 }
@@ -455,30 +293,18 @@ hypoperfusion = {
             "value": None,
             "measurement_time": None,
             "override_time": None,
-            "override_user": None,
-            "recent_measurement_time": None,
-            "recent_value": None,
-            "recent_baseline_time": None,
-            "recent_baseline_value": None,
-            "trigger_baseline_time": None,
-            "trigger_baseline_value": None
+            "override_user": None
         }
     ]
 }
 
 crystalloid_fluid = {
-            "name": "crystalloid_fluid",
-            "is_met": False,
-            "value": None,
-            "measurement_time": None,
-            "override_time": None,
-            "override_user": None,
-            "recent_measurement_time": None,
-            "recent_value": None,
-            "recent_baseline_time": None,
-            "recent_baseline_value": None,
-            "trigger_baseline_time": None,
-            "trigger_baseline_value": None
+    "name": "crystalloid_fluid",
+    "is_met": False,
+    "value": None,
+    "measurement_time": None,
+    "override_time": None,
+    "override_user": None
 }
 
 septic_shock = {
@@ -538,6 +364,24 @@ vasopressors_order = {
     "note": "note"
 }
 
+ui_severe_sepsis = {
+    "name": "ui_severe_sepsis",
+    "is_met": False,
+    "value": None,
+    "measurement_time": None,
+    "override_time": None,
+    "override_user": None
+}
+
+ui_septic_shock = {
+    "name": "ui_septic_shock",
+    "is_met": False,
+    "value": None,
+    "measurement_time": None,
+    "override_time": None,
+    "override_user": None
+}
+
 patient_data_example = {
     'pat_id': 'patient_example',
     severe_sepsis['name']: severe_sepsis,
@@ -570,7 +414,11 @@ patient_data_example = {
             'timestamp': None
         }
     },
-    "notifications": []
+    "notifications": [],
+    "ui": {
+        ui_severe_sepsis["name"]: ui_severe_sepsis,
+        ui_septic_shock["name"]: ui_septic_shock,
+    }
 }
 
 empty_patient_data_example = {
@@ -605,5 +453,9 @@ empty_patient_data_example = {
             'timestamp': None
         }
     },
-    "notifications": []
+    "notifications": [],
+    "ui": {
+        ui_severe_sepsis["name"]: ui_severe_sepsis,
+        ui_septic_shock["name"]: ui_septic_shock,
+    }
 }

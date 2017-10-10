@@ -485,7 +485,6 @@ var controller = new function() {
     this.clean();
 
     var globalJson = trews.data;
-    //patientConditionComponent.render(globalJson["severe_sepsis"]);
     workflowsComponent.render(
       globalJson["antibiotics_order"],
       globalJson["blood_culture_order"],
@@ -493,6 +492,7 @@ var controller = new function() {
       globalJson["initial_lactate_order"],
       globalJson["repeat_lactate_order"],
       globalJson["vasopressors_order"],
+      globalJson["ui"],
       globalJson['severe_sepsis']['onset_time'],
       globalJson['septic_shock']['onset_time']);
     // graphComponent.refresh(globalJson["chart_data"]);
@@ -506,6 +506,7 @@ var controller = new function() {
     severeSepsisComponent.render(globalJson["severe_sepsis"]);
     septicShockComponent.render(globalJson["septic_shock"], globalJson['severe_sepsis']['is_met']);
     timeline.render(globalJson);
+    treatmentOverrideComponent.render(globalJson["severe_sepsis"], globalJson["septic_shock"], globalJson['ui']);
     //trewscoreComponent.render(globalJson['chart_data']);
 
     // Adjust column components as necessary.
@@ -524,6 +525,7 @@ var controller = new function() {
     notifications.render(globalJson['notifications']);
   }
 
+  /*
   this.refreshWorkflowsAndComponents = function() {
     var globalJson = trews.data;
     workflowsComponent.render(
@@ -533,6 +535,7 @@ var controller = new function() {
       globalJson["initial_lactate_order"],
       globalJson["repeat_lactate_order"],
       globalJson["vasopressors_order"],
+      globalJson["ui"],
       globalJson['severe_sepsis']['onset_time'],
       globalJson['septic_shock']['onset_time']);
 
@@ -541,6 +544,7 @@ var controller = new function() {
     severeSepsisComponent.render(globalJson["severe_sepsis"]);
     septicShockComponent.render(globalJson["septic_shock"], globalJson['severe_sepsis']['is_met']);
   }
+  */
 
   // TODO: handle details for every order type.
   this.refreshOrderDetails = function(order_details_type) {
@@ -821,108 +825,87 @@ var trewscoreComponent = new function() {
 
 
 /**
- * Patient Condition Component
- * Responsible for rendering current and triggering values of
- * organ dysfunction and SIRS as tables.
- */
-/*
-var patientConditionComponent = new function() {
-  this.ctn = $("[data-trews='patientCondition']");
-
-  this.renderCriteriaTable = function(after_data_trews, json, constants) {
-    var tbl = $('<table></table>');
-    tbl.append('<tr><th></th><th>Trigger Value</th><th>Most Recent</th></tr>');
-
-    for (var c in json['criteria']) {
-      var spec = constants['criteria'][c];
-      var val = json['criteria'][c];
-
-      var precision = spec['precision'] == undefined ? 5 : spec['precision'];
-
-      var displayValue = val['value'];
-      var displayRecentValue = val['recent_value'];
-
-      if ( displayValue && ( isNumber(displayValue) || !isNaN(Number(displayValue)) ) ) {
-        displayValue = Number(displayValue).toPrecision(precision);
-      }
-
-      if ( displayRecentValue && ( isNumber(displayRecentValue) || !isNaN(Number(displayRecentValue)) ) ) {
-        displayRecentValue = Number(displayRecentValue).toPrecision(precision);
-      }
-
-      var name = spec.overrideModal[0].name;
-      var acute_threshold = spec.overrideModal[0].acute_threshold;
-      var acute_cmp = spec.overrideModal[0].acute_cmp;
-      var acute_arrow = spec.overrideModal[0].acute_arrow;
-
-      var acute_icon = '';
-
-      var triggering = val['is_met'] ? displayValue : '';
-      var triggering_acute = false;
-
-      var recent = displayRecentValue == null ? 'N/A' : displayRecentValue;
-      var recent_acute = false;
-
-      if ( acute_threshold && acute_cmp && acute_arrow ) {
-        if ( acute_cmp == 'GT' ) {
-          triggering_acute = (val['value'] - val['trigger_baseline_value']) > acute_threshold;
-          recent_acute = (val['recent_value'] - val['recent_baseline_value']) > acute_threshold;
-        } else {
-          triggering_acute = (val['value'] - val['trigger_baseline_value']) < acute_threshold;
-          recent_acute = (val['recent_value'] - val['recent_baseline_value']) < acute_threshold;
-        }
-
-        if ( acute_arrow == 'up' ) {
-          acute_icon = '<i class="fa fa-arrow-circle-up pcond-acute"></i>';
-        } else {
-          acute_icon = '<i class="fa fa-arrow-circle-down pcond-acute"></i>';
-        }
-      }
-
-      var row = '<td>' + name + '</td>' +
-                '<td class="pcond-triggering-value">' + triggering + (triggering_acute ? acute_icon : '') + '</td>' +
-                '<td>' + recent + (recent_acute ? acute_icon : '') + '</td>';
-      tbl.append('<tr>' + row + '</tr>')
-    }
-
-    this.ctn.find("[data-trews='" + after_data_trews + "'] table").replaceWith(tbl);
-  }
-
-  this.render = function(json) {
-    this.ctn.find('h2').text('Patient Condition');
-    this.ctn.find("[data-trews='orgdf-table-header']").text('Organ Dysfunction');
-    this.ctn.find("[data-trews='sirs-table-header']").text('SIRS');
-    this.renderCriteriaTable('orgdf-table', json['organ_dysfunction'], severe_sepsis['organ_dysfunction']);
-    this.renderCriteriaTable('sirs-table', json['sirs'], severe_sepsis['sirs']);
-  }
-}
-*/
-
-/**
  * Treatment override component.
  * Allows users to enable the interventions by directly clicking a toggle slider.
  */
 var treatmentOverrideComponent = new function() {
+  this.sevsep_override_ctn = $('[data-trews="treat-sepsis"]');
+  this.sevsep_override_btn = null;
+
+  this.sepshk_override_ctn = $('[data-trews="treat-shock"]');
+  this.sepshk_override_btn = null;
+
   this.init = function() {
-    $('#severe-sepsis-toggle').click(function(e) {
-      workflowsComponent.sev36Override = e.target.checked;
-      // Switch the other toggle off, for mutually exclusive operation.
+    this.sevsep_override_btn = $('#severe-sepsis-toggle');
+    this.sepshk_override_btn = $('#septic-shock-toggle');
+
+    // Add click handlers. Note these will be ignored by the parent's inactive class as present.
+    // this.sevsep_override_btn.unbind();
+    this.sevsep_override_btn.click(function(e) {
+      $('#loading').addClass('waiting').spin(); // Add spinner to page
+      var action = { "actionName": 'ui_severe_sepsis', 'is_met': e.target.checked };
       if ( e.target.checked ) {
-        workflowsComponent.sep6Override = false;
-        $('#septic-shock-toggle').attr('checked', false);
+        action['value'] = [{'text': 'dummy'}];
+      } else {
+        action['clear'] = true;
       }
-      controller.refreshWorkflowsAndComponents();
+      endpoints.getPatientData("override", action);
     });
 
-    $('#septic-shock-toggle').click(function(e) {
-      workflowsComponent.sep6Override = e.target.checked;
-      // Switch the other toggle off, for mutually exclusive operation.
+    // this.sevsep_override_btn.unbind();
+    this.sepshk_override_btn.click(function(e) {
+      $('#loading').addClass('waiting').spin(); // Add spinner to page
+      var action = { "actionName": 'ui_septic_shock', 'is_met': e.target.checked };
       if ( e.target.checked ) {
-        workflowsComponent.sev36Override = false;
-        $('#severe-sepsis-toggle').attr('checked', false);
+        action['value'] = [{'text': 'dummy'}];
+      } else {
+        action['clear'] = true;
       }
-      controller.refreshWorkflowsAndComponents();
+      endpoints.getPatientData("override", action);
     });
+  }
+
+  this.render = function(sspJSON, sshJSON, uiJSON) {
+
+    // Reset severe sepsis manual override.
+    this.sevsep_override_ctn.find('h2.with-slider').removeClass('inactive');
+    this.sevsep_override_ctn.find('.onoffswitch').removeClass('inactive');
+
+    // Reset septic shock manual override.
+    this.sepshk_override_ctn.find('h2.with-slider').removeClass('inactive');
+    this.sepshk_override_ctn.find('.onoffswitch').removeClass('inactive');
+
+    var any_override = uiJSON['ui_severe_sepsis']['is_met'] || uiJSON['ui_septic_shock']['is_met'];
+
+    if ( uiJSON['ui_septic_shock']['is_met'] || ( !any_override && (sspJSON['is_met'] || sshJSON['is_met']) ) ) {
+      this.sevsep_override_ctn.find('h2.with-slider').addClass('inactive');
+      this.sevsep_override_ctn.find('.onoffswitch').addClass('inactive');
+    }
+    else {
+      this.sevsep_override_btn.attr('checked', uiJSON['ui_severe_sepsis']['is_met']);
+    }
+
+    if ( !any_override && sshJSON['is_met'] ) {
+      this.sepshk_override_ctn.find('h2.with-slider').addClass('inactive');
+      this.sepshk_override_ctn.find('.onoffswitch').addClass('inactive');
+    }
+    else {
+      this.sepshk_override_btn.attr('checked', uiJSON['ui_septic_shock']['is_met']);
+    }
+
+    if ( any_override ) {
+      var sep_t = uiJSON['ui_severe_sepsis']['override_time'] == null ? uiJSON['ui_septic_shock']['override_time'] : uiJSON['ui_severe_sepsis']['override_time'];
+      var shk_t = uiJSON['ui_septic_shock']['override_time'] == null ? uiJSON['ui_severe_sepsis']['override_time'] : uiJSON['ui_septic_shock']['override_time'];
+
+      var override_t = Math.min(sep_t, shk_t);
+      var override_u = uiJSON['ui_severe_sepsis']['override_time'] == override_t ? uiJSON['ui_severe_sepsis']['override_user'] : uiJSON['ui_septic_shock']['override_user'];
+
+      var lapsed = timeLapsed(new Date(override_t*1000));
+      var strTime = strToTime(new Date(override_t*1000));
+      $('.bundle-override h5').html('Overridden by ' + override_u + " <span title='" + strTime + "'>" + lapsed);
+    } else {
+      $('.bundle-override h5').html('');
+    }
   }
 }
 
@@ -1051,16 +1034,8 @@ var severeSepsisComponent = new function() {
                         && json['suspicion_of_infection']['value'] == 'No Infection'
                         && (trews_alerting || cms_alerting);
 
-    // Reset severe sepsis manual override.
-    $('[data-trews="treat-sepsis"]').find('h2.with-slider').removeClass('inactive');
-    $('[data-trews="treat-sepsis"]').find('.onoffswitch').removeClass('inactive');
-
     if (json['is_met']) {
       this.ctn.addClass('complete');
-
-      // Disable severe sepsis manual override.
-      $('[data-trews="treat-sepsis"]').find('h2.with-slider').addClass('inactive');
-      $('[data-trews="treat-sepsis"]').find('.onoffswitch').addClass('inactive');
     } else {
       this.ctn.removeClass('complete');
     }
@@ -1187,10 +1162,16 @@ var severeSepsisComponent = new function() {
         var sev6 = $("[data-trews='sev6'] .card-subtitle").html();
         var sev6Completed = sev6.indexOf('completed') >= 0;
 
+        if ( trews.data['ui']['ui_severe_sepsis']['is_met'] || trews.data['ui']['ui_septic_shock']['is_met'] ) {
+          subtitle = 'Patient manually overridden for severe sepsis';
+        } else {
+          subtitle = 'Patient evaluation indicates severe sepsis';
+        }
+
         if ( sev6Completed ) {
-          subtitle = 'Patient evaluation indicates severe sepsis, and the required interventions are complete. Please monitor the patient.';
+          subtitle += ', and the required interventions are complete. Please monitor the patient.';
         } else  {
-          subtitle = 'Patient evaluation indicates severe sepsis. Please complete the required interventions.';
+          subtitle += '. Please complete the required interventions.';
           subtitleExpired = true;
         }
       }
@@ -1240,16 +1221,8 @@ var septicShockComponent = new function() {
   this.render = function(json, severeSepsis) {
     this.ctn.find('h2').text(septic_shock['display_name']);
 
-    // Reset septic shock manual override.
-    $('[data-trews="treat-shock"]').find('h2.with-slider').removeClass('inactive');
-    $('[data-trews="treat-shock"]').find('.onoffswitch').removeClass('inactive');
-
     if (json['is_met']) {
       this.ctn.addClass('complete');
-
-      // Disable septic shock manual override.
-      $('[data-trews="treat-shock"]').find('h2.with-slider').removeClass('inactive');
-      $('[data-trews="treat-shock"]').find('.onoffswitch').removeClass('inactive');
     } else {
       this.ctn.removeClass('complete');
     }
@@ -1297,10 +1270,17 @@ var septicShockComponent = new function() {
       if ( shockOnset != null ) {
         var sep6 = $("[data-trews='sep6'] .card-subtitle").html();
         var sep6Completed = sep6.indexOf('completed') >= 0;
+
+        if ( trews.data['ui']['ui_septic_shock']['is_met'] ) {
+          subtitle = 'Patient manually overridden for septic shock';
+        } else {
+          subtitle = 'Patient evaluation indicates septic shock';
+        }
+
         if ( sep6Completed ) {
-          subtitle = 'Patient has met criteria for septic shock and required interventions are complete. Please monitor the patient.';
+          subtitle += ', and the required interventions are complete. Please monitor the patient.';
         } else  {
-          subtitle = 'Patient has met criteria for septic shock. Please complete the required interventions.';
+          subtitle += '. Please complete the required interventions.';
           subtitleExpired = true;
         }
       }
@@ -1451,11 +1431,14 @@ var workflowsComponent = new function() {
   }
 
 
-  this.render = function(aJSON, bJSON, fJSON, iJSON, rJSON, vJSON, severeOnset, shockOnset) {
+  this.render = function(aJSON, bJSON, fJSON, iJSON, rJSON, vJSON, uiJSON, severeOnset, shockOnset) {
     // this.clean();
     this.sev3Ctn.find('h2').text(workflows['sev3']['display_name']);
     this.sev6Ctn.find('h2').text(workflows['sev6']['display_name']);
     this.sep6Ctn.find('h2').text(workflows['sep6']['display_name']);
+
+    this.sev36Override = uiJSON['ui_severe_sepsis']['is_met'];
+    this.sep6Override = uiJSON['ui_septic_shock']['is_met'];
 
     if ( (trews.data['deactivated'] || severeOnset == null) && !(this.sev36Override || this.sep6Override) ) {
       this.sev3Ctn.addClass('inactive');
@@ -2986,20 +2969,29 @@ var toolbar = new function() {
         var actualTreatments = sev3Active ? numSev3Complete : (sev6Active ? numSev6Complete : numSep6Complete);
 
         if ( shockOnset != null ) {
-          if ( sepsisAsTrews ) {
-            careStatus = 'TREWS Septic Shock met at ' + strToTime(new Date(shockOnset*1000), true, false) + '. ';
+          if ( trews.data['ui']['ui_septic_shock']['is_met'] ) {
+            careStatus = 'Patient manually overriden at ' + strToTime(new Date(shockOnset*1000), true, false) + '. ';
           } else {
-            careStatus = 'CMS Septic Shock criteria met at ' + strToTime(new Date(shockOnset*1000), true, false) + '. ';
+            if ( sepsisAsTrews ) {
+              careStatus = 'TREWS Septic Shock met at ' + strToTime(new Date(shockOnset*1000), true, false) + '. ';
+            } else {
+              careStatus = 'CMS Septic Shock criteria met at ' + strToTime(new Date(shockOnset*1000), true, false) + '. ';
+            }
           }
         }
         else if ( sepsisOnset != null ) {
-          careStatus = '';
-          if ( trews.data['severe_sepsis']['is_trews'] ) {
-            careStatus += 'TREWS Severe Sepsis met at ' + strToTime(new Date(trews.data['severe_sepsis']['trews_onset_time']*1000), true, false)  + '. '
+          if ( trews.data['ui']['ui_severe_sepsis']['is_met'] ) {
+            careStatus = 'Patient manually overriden at ' + strToTime(new Date(sepsisOnset*1000), true, false) + '. ';
           }
+          else {
+            careStatus = '';
+            if ( trews.data['severe_sepsis']['is_trews'] ) {
+              careStatus += 'TREWS Severe Sepsis met at ' + strToTime(new Date(trews.data['severe_sepsis']['trews_onset_time']*1000), true, false)  + '. '
+            }
 
-          if ( trews.data['severe_sepsis']['is_cms'] ) {
-            careStatus += 'CMS Severe Sepsis criteria met at ' + strToTime(new Date(trews.data['severe_sepsis']['cms_onset_time']*1000), true, false)  + '. '
+            if ( trews.data['severe_sepsis']['is_cms'] ) {
+              careStatus += 'CMS Severe Sepsis criteria met at ' + strToTime(new Date(trews.data['severe_sepsis']['cms_onset_time']*1000), true, false)  + '. '
+            }
           }
         }
 

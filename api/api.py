@@ -111,13 +111,14 @@ class TREWSAPI(web.View):
       return {'getAntibioticsResult': antibiotics}
 
     elif actionType == u'override':
+      action_is_met = actionData['is_met'] if 'is_met' in actionData else None
       action_is_clear = 'clear' in actionData and actionData['clear']
-      logging.info('override_criteria action %(clear)s: %(v)s' % {'v': json.dumps(actionData), 'clear': action_is_clear})
+      logging.info('override_criteria action %(clear)s %(is_met)s: %(v)s' % {'v': json.dumps(actionData), 'clear': action_is_clear, 'is_met': action_is_met})
       if action_is_clear:
-        await query.override_criteria(db_pool, eid, actionData['actionName'], clear=True, user=uid)
+        await query.override_criteria(db_pool, eid, actionData['actionName'], clear=True, user=uid, is_met=action_is_met)
       else:
         logging.info('override_criteria value: %(name)s %(val)s' % {'name': actionData['actionName'], 'val': actionData['value']})
-        await query.override_criteria(db_pool, eid, actionData['actionName'], value=actionData['value'], user=uid)
+        await query.override_criteria(db_pool, eid, actionData['actionName'], value=actionData['value'], user=uid, is_met=action_is_met)
 
     elif actionType == u'override_many':
       for a in actionData:
@@ -196,6 +197,7 @@ class TREWSAPI(web.View):
   def update_criteria(self, criteria_result_set, data):
 
     SIRS = ['sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc']
+
     ORGAN_DYSFUNCTION = ["blood_pressure",
                          "mean_arterial_pressure",
                          "decrease_in_sbp",
@@ -237,6 +239,9 @@ class TREWSAPI(web.View):
                "focus_exam_order"
              ]
 
+    UI = [ "ui_septic_shock",
+           "ui_severe_sepsis" ]
+
     sirs_cnt     = 0
     od_cnt       = 0
     trews_cnt    = 0
@@ -270,13 +275,7 @@ class TREWSAPI(web.View):
           "measurement_time"         : (row['measurement_time'] - epoch).total_seconds() if row['measurement_time'] is not None else None,
           "override_time"            : (row['override_time'] - epoch).total_seconds() if row['override_time'] is not None else None,
           "override_user"            : row['override_user'],
-          "override_value"           : json.loads(row['override_value']) if row['override_value'] is not None else None,
-          "recent_measurement_time"  : (row['recent_measurement_time'] - epoch).total_seconds() if row['recent_measurement_time'] is not None else None,
-          "recent_value"             : row['recent_value'] if row['recent_value'] is not None else None,
-          "recent_baseline_time"     : (row['recent_baseline_time'] - epoch).total_seconds() if row['recent_baseline_time'] is not None else None,
-          "recent_baseline_value"    : row['recent_baseline_value'] if row['recent_baseline_value'] is not None else None,
-          "trigger_baseline_time"    : (row['trigger_baseline_time'] - epoch).total_seconds() if row['trigger_baseline_time'] is not None else None,
-          "trigger_baseline_value"   : row['trigger_baseline_value'] if row['trigger_baseline_value'] is not None else None
+          "override_value"           : json.loads(row['override_value']) if row['override_value'] is not None else None
       }
 
       if criterion["name"] == 'suspicion_of_infection':
@@ -373,6 +372,11 @@ class TREWSAPI(web.View):
           "is_met": is_met
         }
 
+      # update UI components
+      if criterion["name"] in UI:
+        data['ui'][criterion["name"]] = criterion
+
+
     # update sirs
     data['severe_sepsis']['sirs']['is_met'] = sirs_cnt > 1
     data['severe_sepsis']['sirs']["num_met"] = sirs_cnt
@@ -408,7 +412,7 @@ class TREWSAPI(web.View):
                     or data['severe_sepsis']['suspicion_of_infection']['value'] is None)
 
 
-    data['severe_sepsis']['is_met'] = trews_met or cms_met
+    data['severe_sepsis']['is_met'] = trews_met or cms_met or data['ui']['ui_severe_sepsis']['is_met'] or data['ui']['ui_septic_shock']['is_met']
     data['severe_sepsis']['is_trews'] = trews_met
     data['severe_sepsis']['is_cms'] = cms_met
 
@@ -428,8 +432,20 @@ class TREWSAPI(web.View):
             ]
         )[2]
 
-    # Pick the earlier onset time if both TREWS and CMS are met.
-    if trews_met and cms_met:
+    if data['ui']['ui_severe_sepsis']['is_met'] or data['ui']['ui_septic_shock']['is_met']:
+      # Pick the earlier of ui override times, handling if either is none.
+      data['severe_sepsis']['onset_time'] = data['ui']['ui_severe_sepsis']['override_time']
+
+      if data['severe_sepsis']['onset_time'] is None:
+        data['severe_sepsis']['onset_time'] = data['ui']['ui_septic_shock']['override_time']
+
+      elif data['ui']['ui_septic_shock']['override_time'] is not None:
+        data['severe_sepsis']['onset_time'] = min(data['severe_sepsis']['onset_time'], data['ui']['ui_severe_sepsis']['override_time'])
+
+      data['chart_data']['severe_sepsis_onset']['timestamp'] = data['severe_sepsis']['onset_time']
+
+    elif trews_met and cms_met:
+      # Pick the earlier onset time if both TREWS and CMS are met.
       data['severe_sepsis']['onset_time'] = min(data['severe_sepsis']['trews_onset_time'], data['severe_sepsis']['cms_onset_time'])
       data['chart_data']['severe_sepsis_onset']['timestamp'] = data['severe_sepsis']['onset_time']
 
@@ -450,17 +466,23 @@ class TREWSAPI(web.View):
 
     # update only when severe_sepsis is met
     if data['severe_sepsis']['is_met']:
-      if (data['septic_shock']['crystalloid_fluid']['is_met'] == 1 and hp_cnt > 0) or hpf_cnt > 0:
+      if data['ui']['ui_septic_shock']['is_met']:
+        data['septic_shock']['is_met'] = True
+        data['septic_shock']['onset_time'] = data['ui']['ui_septic_shock']['override_time']
+        data['chart_data']['septic_shock_onset']['timestamp'] = data['septic_shock']['onset_time']
+
+      elif (data['septic_shock']['crystalloid_fluid']['is_met'] == 1 and hp_cnt > 0) or hpf_cnt > 0:
         data['septic_shock']['is_met'] = True
         # setup onset time
         if data['septic_shock']['crystalloid_fluid']['is_met'] == 1 and hp_cnt > 0:
           max_fluid_time = max(data['septic_shock']['crystalloid_fluid']['override_time'], data['septic_shock']['crystalloid_fluid']['measurement_time'])
           data['septic_shock']['onset_time'] = sorted(shock_onsets_hypotension + [max_fluid_time])[-1]
-          # print shock_onsets_hypotension
           if hpf_cnt > 0:
             data['septic_shock']['onset_time'] = sorted([data['septic_shock']['onset_time']] +shock_onsets_hypoperfusion)[0]
         else:
           data['septic_shock']['onset_time'] = sorted(shock_onsets_hypoperfusion)[0]
+
+        data['chart_data']['septic_shock_onset']['timestamp'] = data['septic_shock']['onset_time']
 
 
   async def update_response_json(self, db_pool, data, eid):

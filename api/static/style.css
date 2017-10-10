@@ -351,8 +351,16 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
     display: inline-block;
     float: left;
     width: 30%;
+}
+.slot .bundle-override h2 {
     margin: 0;
     color: #666;
+}
+.slot .bundle-override h5 {
+    margin: 0;
+    color: #666;
+    text-align: left;
+    font-weight: 400;
 }
 .slot.last-child[data-trews="eval-trews-or-cms"] {
     border: 0;
