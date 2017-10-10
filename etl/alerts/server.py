@@ -193,7 +193,7 @@ class AlertServer:
         metric_values  = [(t_end - parser.parse(msg['time'])).total_seconds(),
                           (t_end - t_fin).total_seconds(),
                           (t_end - self.job_status[msg['hosp']+msg['time']]['t_start']).total_seconds(),
-                          len(msg['enc_ids'])]
+                          len(msg['enc_ids'])],
         metric_units   = ['Seconds','Seconds','Seconds', 'Count']
       )
     self.job_status.pop(msg['hosp']+msg['time'],None)
