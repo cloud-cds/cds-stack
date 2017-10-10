@@ -74,12 +74,16 @@ def extract_user_interactions(events):
         query_params['action_data'] = json.dumps(query_params['action_data']) if query_params['action_data'] is not None else None
         query_params['render_data'] = json.dumps(evt_msg['resp']['render_data']) if 'render_data' in evt_msg['resp'] else None
 
+      if query_params['uid'] is None:
+        query_params['uid'] = 'UNKNOWN'
+
       query_params['tsp'] = datetime.datetime.utcfromtimestamp(evt['timestamp'] / 1000)
       query_params['addr'] = evt_msg['resp']['headers']['X-Real-Ip'] if 'X-Real-Ip' in evt_msg['resp']['headers'] else None
       query_params['log_entry'] = evt_msg['resp'] if extract_log_entry else None
 
       session_prefix = "route="
       session_id = evt_msg['resp']['headers']['Cookie'] if 'Cookie' in evt_msg['resp']['headers'] else None
+      session_id = next((s for s in map(lambda x: x.strip(), session_id.split(';')) if s.startswith(session_prefix)), None)
       query_params['session'] = session_id[len(session_prefix):] if session_id and session_id.startswith(session_prefix) else session_id
 
       #interactions.append([query_params[i] for i in attr_order])
@@ -91,36 +95,6 @@ def extract_user_interactions(events):
   logging.info('Extracted {} interactions from logs'.format(len(interactions)))
   return interactions
 
-##
-# Executes a sql query with fresh connection and transaction, and a randomized retry backoff.
-
-## ASYNC VERSION
-# async def execute_with_backoff(sql, params, timeout=10, backoff=2, base=2, max_timeout=10*60, max_backoff=3*60):
-#   conn = await asyncpg.connect(database = os.environ['db_name'],     \
-#                                user     = os.environ['db_user'],     \
-#                                password = os.environ['db_password'], \
-#                                host     = os.environ['db_host'],     \
-#                                port     = os.environ['db_port'])
-#   attempts = 0
-#   done = False
-#   if timeout:
-#     init_timeout = timeout
-#   while not done:
-#     try:
-#       attempts += 1
-#       async with conn.transaction():
-#         await conn.executemany(sql, params, timeout=timeout)
-#         done = True
-#     except Exception as e:
-#       random_secs = random.uniform(0, 1)
-#       if timeout:
-#         timeout = min(((base**attempts) + random_secs + init_timeout), max_timeout)
-#       wait_time = min(((base**attempts) + random_secs), max_backoff)
-#       logging.warn("execute_load failed: retry %s times in %s secs with timeout %s secs" % (attempts, wait_time, timeout))
-#       logging.exception(e)
-#       await asyncio.sleep(wait_time)
-#       continue
-#   await conn.close()
 
 def execute_with_backoff(sql, params_list, timeout=10, backoff=2, base=2, max_timeout=10*60, max_backoff=3*60):
   if params_list:
@@ -131,21 +105,11 @@ def execute_with_backoff(sql, params_list, timeout=10, backoff=2, base=2, max_ti
     conn.close()
     engine.dispose()
 
-##
-# Inserts log events into the user_interactions table.
-# def insert_interactions(interactions):
-#   global attr_order
-#   attrs = ','.join(attr_order)
-#   params = list(map(lambda x: '${}'.format(x+1), range(len(attr_order))))
-#   sql = 'insert into user_interactions ({}) values ({})'.format(attrs, params)
-#   loop = asyncio.new_event_loop()
-#   loop.run_until_complete(execute_with_backoff(sql, interactions))
-#   loop.close()
 
 def insert_interactions(interactions):
   global attr_order
-  attrs = ','.join(attr_order)
-  params = ','.join([':' + i for i in attr_order])
+  attrs = ','.join(map(lambda x: 'enc_id' if x == 'pat_id' else x, attr_order))
+  params = ','.join([('pat_id_to_enc_id(:' + i + ')') if i == 'pat_id' else (':' + i) for i in attr_order])
   sql = 'insert into user_interactions ({}) values ({})'.format(attrs, params)
   execute_with_backoff(sql, interactions)
 
