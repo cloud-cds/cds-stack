@@ -153,10 +153,23 @@ class AlertServer:
     async with self.db_pool.acquire() as conn:
       await self.calculate_criteria_enc(conn, enc_id_str)
       if self.notify_web:
+        # sql = '''
+        # with pats as (
+        #   select p.enc_id, p.pat_id from pat_enc p
+        #   where p.enc_id in ({enc_id_str})
+        # ),
+        # refreshed as (
+        #   insert into refreshed_pats (refreshed_tsp, pats)
+        #   select now(), jsonb_agg(pat_id) from pats
+        #   returning id
+        # )
+        # select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
+        # '''.format(channel=self.channel, model=self.model, enc_id_str=enc_id_str)
+        # NOTE: I don't turst the enc_ids from FIN msg
         sql = '''
         with pats as (
           select p.enc_id, p.pat_id from pat_enc p
-          where p.enc_id in ({enc_id_str})
+          inner join get_latest_enc_ids('{hosp}')
         ),
         refreshed as (
           insert into refreshed_pats (refreshed_tsp, pats)
@@ -164,7 +177,7 @@ class AlertServer:
           returning id
         )
         select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
-        '''.format(channel=self.channel, model=self.model, enc_id_str=enc_id_str)
+        '''.format(channel=self.channel, model=self.model, enc_id_str=enc_id_str, hosp=msg['hosp'])
         logging.info("trews alert sql: {}".format(sql))
         await conn.fetch(sql)
         logging.info("generated trews alert for {}".format(hospital))
