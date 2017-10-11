@@ -2660,6 +2660,7 @@ BEGIN
         from state_change
         where criteria_events.event_id = state_change.from_event_id
         and criteria_events.enc_id = state_change.enc_id
+        and state_change.state_from >= 0
     ),
     notified_patients as (
         select distinct si.enc_id
@@ -3352,7 +3353,7 @@ begin
         where enc_id = this_enc_id and flag >= 0;
     else
         update criteria_events set flag = flag - 1000
-        where enc_id = this_enc_id and event_id = _event_id;
+        where enc_id = this_enc_id and event_id = _event_id and flag >= 0;
     end if;
     insert into criteria_log (enc_id, tsp, event, update_date)
     values (
