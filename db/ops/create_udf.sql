@@ -1590,7 +1590,11 @@ return query
         left join criteria c on enc_ids.enc_id = c.enc_id and cd.name = c.name
         left join cdm_t t
             on enc_ids.enc_id = t.enc_id and t.fid = cd.fid
-            and (t.tsp is null or t.tsp between ts_start and ts_end)
+            and (
+                t.tsp is null
+                or (cd.name ~* 'trews' and t.tsp <= ts_end)
+                or t.tsp between ts_start and ts_end
+                )
     ),
     infection as (
         select
@@ -1739,12 +1743,12 @@ return query
         select
             ordered.enc_id,
             ordered.name,
-            (first(ordered.tsp order by ordered.tsp) filter (where ordered.is_met)) as measurement_time,
-            (first(json_build_object('score', score, 'odds_ratio', odds_ratio) order by ordered.tsp) filter (where ordered.is_met))::text as value,
-            (first(ordered.c_otime order by ordered.tsp) filter (where ordered.is_met)) as override_time,
-            (first(ordered.c_ouser order by ordered.tsp) filter (where ordered.is_met)) as override_user,
-            (first(ordered.c_ovalue order by ordered.tsp) filter (where ordered.is_met)) as override_value,
-            coalesce(bool_or(ordered.is_met), false) as is_met,
+            (last(ordered.tsp order by ordered.tsp)) as measurement_time,
+            (last(json_build_object('score', score, 'odds_ratio', odds_ratio) order by ordered.tsp))::text as value,
+            (last(ordered.c_otime order by ordered.tsp)) as override_time,
+            (last(ordered.c_ouser order by ordered.tsp)) as override_user,
+            (last(ordered.c_ovalue order by ordered.tsp)) as override_value,
+            coalesce((last(ordered.is_met order by ordered.tsp)),false) as is_met,
             now() as update_date
         from (
             select pc.enc_id, pc.name,
@@ -1755,9 +1759,8 @@ return query
                 else False end) is_met
             from pat_cvalues pc
             left join trews_jit_score ts on pc.enc_id = ts.enc_id
-            and ts.tsp between ts_start and ts_end
             and ts.model_id = get_trews_parameter('trews_jit_model_id')
-            where pc.name = 'trews'
+            where pc.name = 'trews' and ts.tsp <= ts_end
             order by ts.tsp
         ) ordered
         group by ordered.enc_id, ordered.name
@@ -1768,7 +1771,7 @@ return query
         lag(pc.tsp, -1) over (order by pc.enc_id, pc.tsp) next_tsp,
         lag(pc.value, -1) over (order by pc.enc_id, pc.tsp) next_value
         from pat_cvalues pc
-        where pc.fid = 'map'
+        where pc.fid = 'map' and pc.name = 'trews_map'
     ),
     trews_map_idx as (
         select pc.enc_id, pc.tsp, pc.value
@@ -1780,7 +1783,7 @@ return query
     sbpm as (
         select distinct pc.enc_id, pc.tsp, sbpm
         from pat_cvalues pc left join cdm_twf on pc.enc_id = cdm_twf.enc_id and pc.tsp = cdm_twf.tsp
-        where sbpm_c < 8 and pc.name = 'trews_sbpm'
+        where sbpm_c < 8 and pc.name = 'trews_sbpm' and cdm_twf.tsp < ts_end
     ),
     sbpm_triple as (
         select sbpm.*,
@@ -3128,6 +3131,46 @@ BEGIN -- Note the CASTING being done for the 2nd and 3rd elements of the array
  END CASE ; RETURN ret;
 END;$$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION get_trewscores_for_epic(this_enc_id int default null)
+RETURNS table(
+    pat_id              varchar(50),
+    visit_id            varchar(50),
+    enc_id              int,
+    tsp                 timestamptz,
+    trewscore           real
+) AS $func$ #variable_conflict use_column
+BEGIN RETURN QUERY
+  with prev as (
+    select p.pat_id, p.visit_id, p.enc_id, coalesce(
+        (last(h.trewscore order by h.tsp)),
+        0) trewscore_prev
+    from pat_enc p
+    inner join get_latest_enc_ids_within_notification_whitelist() wl
+        on p.enc_id = wl.enc_id
+    left join epic_trewscores_history h on h.enc_id = p.enc_id
+    where p.enc_id = coalesce(this_enc_id, p.enc_id)
+    and p.pat_id like 'E%'
+    group by p.enc_id, p.visit_id, p.enc_id
+  ),
+  compare as
+  (
+      select tjs.enc_id, max(tjs.tsp) tsp,
+            last(tjs.score order by tjs.tsp) trewscore,
+            prev.trewscore_prev
+      from prev
+      inner join trews_jit_score tjs on tjs.enc_id = prev.enc_id and tjs.model_id = get_trews_parameter('trews_jit_model_id')
+      group by tjs.enc_id, prev.trewscore_prev
+  ),
+  update_history as (
+    insert into epic_trewscores_history (tsp, enc_id, trewscore)
+    select c.tsp, c.enc_id, c.trewscore from compare c
+    where round(c.trewscore::numeric,4) <> round(c.trewscore_prev::numeric, 4)
+    on conflict (tsp, enc_id) do update set trewscore = Excluded.trewscore
+    returning *
+  )
+  select prev.pat_id, prev.visit_id, prev.enc_id, compare.tsp, compare.trewscore::real
+  from prev inner join compare on prev.enc_id = compare.enc_id inner join update_history on compare.enc_id = update_history.enc_id;
+END $func$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION get_notifications_for_epic(this_pat_id text default null, model text default 'trews')
 RETURNS table(
@@ -3135,10 +3178,11 @@ RETURNS table(
     visit_id            varchar(50),
     enc_id              int,
     count               int
-) AS $func$ BEGIN RETURN QUERY
+) AS $func$ #variable_conflict use_column
+BEGIN RETURN QUERY
   with prev as (
     select p.pat_id, p.visit_id, p.enc_id, coalesce(
-        (last(h.count order by h.id) filter (where h.id is not null)),
+        last(h.count order by h.tsp),
         0) count_prev
     from pat_enc p
     inner join get_latest_enc_ids_within_notification_whitelist() wl
@@ -3155,7 +3199,7 @@ RETURNS table(
                 when state = 11 then 2
                 when state = 10 then 3
                 when state in (20,21,22,24,25,26,27,29,50,51,52,54) then 4
-                when state in (30,31,32,33,34,36,40,41,42,43,44,46) then 6
+                when state in (30,31,32,33,34,36,40,41,42,43,44,46,60,61,62,63,64,66) then 6
                 when state in (23,28,53) then 5
                 when state in (35,45,65) then 7
               else 1
@@ -3163,10 +3207,19 @@ RETURNS table(
       from prev
       left join pat_status on prev.enc_id = pat_status.enc_id
       left join lateral get_states_snapshot(prev.enc_id) gss on gss.enc_id = prev.enc_id
+  ),
+  update_history as (
+    insert into epic_notifications_history (tsp, enc_id, count)
+    select now() tsp, c.enc_id, c.count from compare c
+    where c.count <> c.count_prev
+    on conflict (tsp, enc_id) do update set count = Excluded.count
+    returning *
   )
-  select compare.pat_id, compare.visit_id, compare.enc_id, compare.count from compare where compare.count <> compare.count_prev;
+  select c.pat_id, c.visit_id, c.enc_id, c.count from compare c inner join update_history uh on c.enc_id = uh.enc_id;
 END $func$ LANGUAGE plpgsql;
 
+
+-- DEPRECATED
 CREATE OR REPLACE FUNCTION get_notifications_count_for_epic(this_pat_id text default null, model text default 'trews')
 RETURNS table(
     pat_id              varchar(50),
@@ -4183,7 +4236,7 @@ DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
 -- problem
 INSERT INTO cdm_s (enc_id, fid, value, confidence)
 select * from
-(select pe.enc_id, json_object_keys(problem::json) fid, ''True'', 1
+(select pe.enc_id, json_object_keys(problem_all::json) fid, ''True'', 1
 from workspace.' || job_id || '_bedded_patients_transformed bp
     inner join pat_enc pe on pe.visit_id = bp.visit_id) PL
 where not fid in (''gi_bleed_inhosp'',''stroke_inhosp'')
@@ -4193,7 +4246,7 @@ DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
 -- gi_bleed_inhosp and stroke_inhosp
 INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
 select * from
-(select pe.enc_id, admittime::timestamptz tsp, json_object_keys(problem::json) fid, ''True'', 1
+(select pe.enc_id, admittime::timestamptz tsp, json_object_keys(problem_all::json) fid, ''True'', 1
 from workspace.' || job_id || '_bedded_patients_transformed bp
     inner join pat_enc pe on pe.visit_id = bp.visit_id) PL
 where fid in (''gi_bleed_inhosp'',''stroke_inhosp'')

@@ -185,7 +185,7 @@ class AlertServer:
     t_end = dt.datetime.now()
     if msg['hosp']+msg['time'] in self.job_status:
       self.cloudwatch_logger.push_many(
-        dimension_name = 'Alert Server',
+        dimension_name = 'AlertServer',
         metric_names   = ['e2e_time_{}'.format(msg['hosp']),
                           'criteria_time_{}'.format(msg['hosp']),
                           'prediction_time_{}'.format(msg['hosp']),
@@ -376,7 +376,7 @@ class AlertServer:
         'msg': message, 't_start': dt.datetime.now()
       }
       self.cloudwatch_logger.push_many(
-        dimension_name = 'Alert Server',
+        dimension_name = 'AlertServer',
         metric_names = ['etl_done_{}'.format(message['hosp'])],
         metric_values = [1],
         metric_units = ['Count']
