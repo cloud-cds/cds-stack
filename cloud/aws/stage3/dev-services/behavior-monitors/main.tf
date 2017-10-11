@@ -31,6 +31,7 @@ data "aws_security_group" "lambda_sg" {
   id = "${var.lambda_sg_id}"
 }
 
+
 ##
 # Behavior Monitor Log Extractor
 #
@@ -38,7 +39,7 @@ data "aws_security_group" "lambda_sg" {
 resource "aws_lambda_function" "behamon_log_extractor" {
 
     function_name    = "${var.deploy_prefix}-dev-behamon_log_extractor"
-    handler          = "extractor.handler"
+    handler          = "log_extractor.handler"
     s3_bucket        = "${var.s3_opsdx_lambda}"
     s3_key           = "${var.aws_behamon_lambda_package}"
     role             = "${var.aws_behamon_lambda_role_arn}"
