@@ -142,6 +142,7 @@ class pats_seen_by_docs(metric):
   def calc(self):
     num_pats_seen = """
         select u.uid as doc_id,
+               first(loc) as hospital,
                count(distinct p.pat_id) as num_pats_seen,
                min(u.tsp) as first_access,
                max(u.tsp) as last_access
