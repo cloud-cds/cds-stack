@@ -3151,6 +3151,44 @@ RETURNS table(
   compare as
   (
       select prev.pat_id, prev.visit_id, prev.enc_id, prev.count_prev,
+            (case when deactivated then 1
+                when state = 11 then 2
+                when state = 10 then 3
+                when state in (20,21,22,24,25,26,27,29,50,51,52,54) then 4
+                when state in (30,31,32,33,34,36,40,41,42,43,44,46) then 6
+                when state in (23,28,53) then 5
+                when state in (35,45,65) then 7
+              else 1
+            end) count
+      from prev
+      left join pat_status on prev.enc_id = pat_status.enc_id
+      left join lateral get_states_snapshot(prev.enc_id) gss on gss.enc_id = prev.enc_id
+  )
+  select compare.pat_id, compare.visit_id, compare.enc_id, compare.count from compare where compare.count <> compare.count_prev;
+END $func$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION get_notifications_count_for_epic(this_pat_id text default null, model text default 'trews')
+RETURNS table(
+    pat_id              varchar(50),
+    visit_id            varchar(50),
+    enc_id              int,
+    count               int
+) AS $func$ BEGIN RETURN QUERY
+  with prev as (
+    select p.pat_id, p.visit_id, p.enc_id, coalesce(
+        (last(h.count order by h.id) filter (where h.id is not null)),
+        0) count_prev
+    from pat_enc p
+    inner join get_latest_enc_ids_within_notification_whitelist() wl
+        on p.enc_id = wl.enc_id
+    left join epic_notifications_history h on h.enc_id = p.enc_id
+    where p.pat_id = coalesce(this_pat_id, p.pat_id)
+    and p.pat_id like 'E%'
+    group by p.enc_id, p.visit_id, p.enc_id
+  ),
+  compare as
+  (
+      select prev.pat_id, prev.visit_id, prev.enc_id, prev.count_prev,
             (case when deactivated is true then 0
               else coalesce(counts.count::int, 0)
             end) count
@@ -3174,7 +3212,6 @@ RETURNS table(
   )
   select compare.pat_id, compare.visit_id, compare.enc_id, compare.count from compare where compare.count <> compare.count_prev;
 END $func$ LANGUAGE plpgsql;
-
 
 CREATE OR REPLACE FUNCTION notify_future_notification(channel text, _pat_id text default null)
 RETURNS void AS $func$
