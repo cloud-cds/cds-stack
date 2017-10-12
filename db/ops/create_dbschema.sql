@@ -174,11 +174,21 @@ CREATE  TABLE notifications
 DROP TABLE IF EXISTS epic_notifications_history;
 CREATE  TABLE epic_notifications_history
 (
-    id          serial          PRIMARY KEY,
     tsp         timestamptz     not null,
     enc_id      int             not null,
-    count       int             not null
+    count       int             not null,
+    PRIMARY KEY(tsp, enc_id)
 );
+
+DROP TABLE IF EXISTS epic_trewscores_history;
+CREATE  TABLE epic_trewscores_history
+(
+    tsp         timestamptz         not null,
+    enc_id      int                 not null,
+    trewscore   double precision    not null,
+    PRIMARY KEY(tsp, enc_id)
+);
+
 
 
 DROP TABLE IF EXISTS refreshed_pats;

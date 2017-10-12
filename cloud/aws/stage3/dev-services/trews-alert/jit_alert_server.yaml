@@ -46,7 +46,7 @@ spec:
         opsdx_nodegroup: spot-nodes
       containers:
       - name: jit-alerts
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.214
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.235
         imagePullPolicy: Always
         resources:
           requests:
@@ -68,7 +68,7 @@ spec:
         - name: TREWS_ETL_SUPPRESSION
           value: "2"
         - name: nprocs
-          value: "4"
+          value: "2"
         - name: TREWS_ETL_HOURS
           value: "8"
         - name: notify_web

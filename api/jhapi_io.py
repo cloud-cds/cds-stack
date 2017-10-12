@@ -22,7 +22,7 @@ class JHAPI:
             'User-Agent': ''
         }
 
-    def load_notifications(self, patients, load_tz='US/Eastern'):
+    def load_flowsheet(self, patients, flowsheet_id, load_tz='US/Eastern'):
         if patients is None or len(patients) == 0:
             logging.warn('No patients passed in')
             return None
@@ -33,9 +33,9 @@ class JHAPI:
             'PatientID':            pat['pat_id'],
             'ContactID':            pat['visit_id'],
             'UserID':               'WSEPSIS',
-            'FlowsheetID':          '9490',
-            'Value':                pat['notifications'],
-            'InstantValueTaken':    current_time,
+            'FlowsheetID':          flowsheet_id,
+            'Value':                pat['value'],
+            'InstantValueTaken':    pat['tsp'] if 'tsp' in pat else current_time,
             'FlowsheetTemplateID':  '304700006',
         } for pat in patients]
         for payload in payloads:

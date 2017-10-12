@@ -168,7 +168,7 @@ class PredictorManager:
       logging.info("cloudwatch metrics: {}".format(metric_tuples))
       # Send all info to cloudwatch
       self.cloudwatch_logger.push_many(
-        dimension_name = 'LMC Predictors',
+        dimension_name = 'LMCPredictors',
         metric_names   = [metric[0] for metric in metric_tuples],
         metric_values  = [metric[1] for metric in metric_tuples],
         metric_units   = [metric[2] for metric in metric_tuples]
