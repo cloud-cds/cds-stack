@@ -193,6 +193,61 @@ resource "aws_cloudwatch_metric_alarm" "jhh_etl_up" {
   }
 }
 
+# Alert server/predictor failures
+resource "aws_cloudwatch_metric_alarm" "hcgh_alertserver_up" {
+  alarm_name                = "${var.deploy_prefix}-dev-hcgh-alertserver-up"
+  comparison_operator       = "LessThanThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "e2e_time_HCGH"
+  namespace                 = "OpsDX"
+  period                    = "3600"
+  statistic                 = "SampleCount"
+  threshold                 = "3"
+  alarm_description         = "HCGH Dev Alert Server and Predictor invocations in the past hour"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    "Alert Server" = "dev"
+  }
+}
+
+# TODO: switch to e2e_time_{JHH/BMC} when predictions are enabled.
+resource "aws_cloudwatch_metric_alarm" "bmc_alertserver_up" {
+  alarm_name                = "${var.deploy_prefix}-dev-bmc-alertserver-up"
+  comparison_operator       = "LessThanThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "etl_done_BMC"
+  namespace                 = "OpsDX"
+  period                    = "3600"
+  statistic                 = "SampleCount"
+  threshold                 = "3"
+  alarm_description         = "BMC Dev Alert Server ETL-Done messages in the past hour"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    "Alert Server" = "dev"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "jhh_alertserver_up" {
+  alarm_name                = "${var.deploy_prefix}-dev-jhh-alertserver-up"
+  comparison_operator       = "LessThanThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "etl_done_JHH"
+  namespace                 = "OpsDX"
+  period                    = "3600"
+  statistic                 = "SampleCount"
+  threshold                 = "3"
+  alarm_description         = "JHH Dev Alert Server ETL-Done messages in the past hour"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    "Alert Server" = "dev"
+  }
+}
 
 # Ping failures
 resource "aws_cloudwatch_metric_alarm" "ping_up" {
@@ -222,7 +277,7 @@ resource "aws_cloudwatch_metric_alarm" "high_webservice_latency" {
   namespace                 = "OpsDX"
   period                    = "60"
   statistic                 = "Average"
-  threshold                 = "300"
+  threshold                 = "1000"
   treat_missing_data        = "notBreaching"
   alarm_description         = "Average webservice latency in the past minute"
   alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]

@@ -14,7 +14,13 @@ logging.debug("Import complete")
 
 print(os.environ)
 
-def_stack_to_english_dict = {'opsdx-prod':'Prod','opsdx-dev':'Dev','Test':'Test'}
+def_stack_to_english_dict = {
+  'opsdx-prod'    : 'Prod',
+  'opsdx-jh-prod' : 'Prod',
+  'opsdx-dev'     : 'Dev',
+  'opsdx-jh-dev'  : 'Dev',
+  'Test'          : 'Test'
+}
 
 class Engine:
   def __init__(self, time_start, time_end):
@@ -35,9 +41,7 @@ class Engine:
         return default_val
 
     self.BEHAMON_STACK = try_to_read_from_environ('BEHAMON_STACK','Test')
-
     self.receiving_email_address = try_to_read_from_environ('REPORT_RECEIVING_EMAIL_ADDRESS','trews-jhu@opsdx.io')
-    # self.receiving_email_address = try_to_read_from_environ('REPORT_RECEIVING_EMAIL_ADDRESS','peterm@opsdx.io')
 
 
   def run(self, mode):
@@ -50,8 +54,8 @@ class Engine:
 
     if mode == 'reports':
       metric_list = [
-        metrics.report_introduction, 
-        metrics.pats_seen_by_docs, 
+        metrics.report_introduction,
+        metrics.pats_seen_by_docs,
         metrics.user_engagement,
         metrics.suspicion_of_infection_modified,
         # metrics.get_sepsis_state_stats,
@@ -61,8 +65,8 @@ class Engine:
 
     elif mode == 'metrics':
       metric_list = [
-        metrics.unique_usrs, 
-        metrics.get_sepsis_state_stats, 
+        metrics.unique_usrs,
+        metrics.get_sepsis_state_stats,
         metrics.pats_with_threshold_crossings,
       ]
 
@@ -90,7 +94,7 @@ class Engine:
 
     for x in cwm_list:
       logger.info("\t" + str(x))
-    
+
     for md in cwm_list:
       md['Dimensions'] = [{'Name': 'analysis','Value': self.BEHAMON_STACK}]
 

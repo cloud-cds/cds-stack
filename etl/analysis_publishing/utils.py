@@ -7,8 +7,6 @@ from pytz import timezone
 import sqlalchemy
 
 
-
-
 def get_db_engine():
   host          = os.environ['db_host']
   port          = os.environ['db_port']
@@ -22,16 +20,13 @@ def get_db_engine():
   return engine
 
 
-
 def time2epoch(tsp):
   e = int(((tsp - datetime(1970, 1, 1, tzinfo=tsp.tzinfo)).total_seconds()) * (10 ** 3))
   return e
 
 
-
 def epoch2time(epoch):
   return datetime.utcfromtimestamp(epoch / 1000)
-
 
 
 def get_tz_format(tz_in_str='US/Eastern'):
@@ -41,7 +36,6 @@ def get_tz_format(tz_in_str='US/Eastern'):
   return out_tsp_fmt, tz
 
 
-
 def to_tz_str(time_in, out_tsp_fmt, tz):
   try:
     str_out = (time_in + tz._utcoffset).strftime(out_tsp_fmt)
@@ -55,7 +49,6 @@ def to_tz_str(time_in, out_tsp_fmt, tz):
   except:
     str_out = None  # handles nones and nans
   return str_out
-
 
 
 def datetime_2_utc_str(df, tz_in_str='US/Eastern', column_list=None):

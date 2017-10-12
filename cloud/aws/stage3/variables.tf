@@ -172,6 +172,7 @@ variable "aws_behamon_lambda_role_arn" {}
 variable "aws_weave_cleaner_lambda_package" {}
 variable "aws_weave_cleaner_lambda_role_arn" {}
 
+
 ######################################
 # Behavior monitors
 
@@ -180,6 +181,9 @@ variable "dev_behamon_log_group_arn" {}
 
 variable "prod_behamon_log_group_name" {}
 variable "prod_behamon_log_group_arn" {}
+
+variable "scorecard_report_firing_rate_min" {}
+variable "scorecard_report_firing_rate_expr" {}
 
 
 ######################################

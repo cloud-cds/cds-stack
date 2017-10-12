@@ -167,6 +167,9 @@ module "stage3" {
   prod_behamon_log_group_name = "${var.prod_behamon_log_group_name}"
   prod_behamon_log_group_arn  = "${var.prod_behamon_log_group_arn}"
 
+  scorecard_report_firing_rate_min  = "${var.scorecard_report_firing_rate_min}"
+  scorecard_report_firing_rate_expr = "${var.scorecard_report_firing_rate_expr}"
+
   ######################################
   # Alarm2slack
 
