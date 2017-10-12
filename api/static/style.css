@@ -237,17 +237,15 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
     user-select: none;
     cursor: default;
 }
-.card.card-header {
-    padding: 10px;
-    border: 1px solid #ddd;
-    text-align: center;
-}
-.card.card-header h4 {
-    font-size: 16px;
+.card.card-summary h4 {
+    margin: 0 0 0 5px;
+    font-size: 14px;
     font-weight: normal;
 }
-.card.card-header.high-priority {
-    outline: 2px solid #ca011a;
+.card.card-summary h4 span.summary-more-detail {
+    text-decoration: underline;
+    font-size: 14px;
+    cursor: pointer;
 }
 .card.complete {
     background-color: #eee;
@@ -287,6 +285,12 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
     margin: 6px;
     font-size: 16px;
     color: #222;
+}
+.card.inactive h2[data-trews="sev3-action"], .card h2[data-trews="sep6-action"] {
+    opacity: 0.3;
+}
+.card h2[data-trews="sev3-header"], .card h2[data-trews="sep6-header"] {
+    margin-top: 12px;
 }
 .card h4 {
     text-align: left;
@@ -422,11 +426,11 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
 }
 .slot.highlight-unexpired {
     box-sizing: border-box;
-    border: 6px solid #10b66d;
+    border: 3px solid #10b66d;
 }
 .slot.highlight-expired {
     box-sizing: border-box;
-    border: 6px solid #ca011a;
+    border: 3px solid #ca011a;
 }
 .slot.complete {
     background-color: #eee;
@@ -434,13 +438,16 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
 }
 .slot.complete-with-status {
     background-color: #eee;
-    border-left: 3px solid #ca011a;
+    border-left: 5px solid #ca011a;
 }
 .slot.incomplete-with-status {
-    border-left: 3px solid green;
+    border-left: 5px solid green;
 }
 .slot.skip-complete {
     background-color: #eee;
+}
+.complete .slot.skip-complete {
+    border: none;
 }
 .slot h2.with-slider {
     display: inline-block;
@@ -470,8 +477,32 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
 .slot p.num a {
     text-decoration: underline;
 }
+div.slot[data-trews="care-summary-detail"] {
+    margin-bottom: 10px;
+}
+.slot[data-trews="care-summary-detail"] p.num {
+    margin: 0;
+}
+.slot[data-trews="sus"] a, .slot[data-trews="sus"] span[data-trews="no-infection"] {
+    font-size: 15px;
+    line-height: 30px;
+}
 .slot[data-trews="sus"] h3 {
     float: left;
+    margin-top: 6px;
+    font-size: 16px;
+}
+.slot[data-trews="eval-acute-orgdf"] {
+    margin-top: 10px;
+}
+.slot[data-trews="eval-acute-orgdf"] h3 {
+    float: left;
+    font-size: 16px;
+    width: 90%;
+}
+.slot[data-trews="eval-orgdf"] h3 {
+    float: none;;
+    font-size: 14px;
 }
 .actions {
     font-size: 12px;
@@ -487,6 +518,9 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
     margin-left: 10px;
     display: block;
     cursor: pointer;
+}
+.actions .no-infection.pressed {
+    cursor: no-drop;
 }
 .actions .place-order-disabled {
     text-decoration: line-through;
@@ -691,6 +725,26 @@ span.criteria-btn p {
 }
 .onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-switch {
     right: 0px;
+}
+/*Circled numbers*/
+.numberCircle {
+    float: left;
+    margin-right: 10px;
+    border-radius: 50%;
+
+    width: 30px;
+    height: 30px;
+    padding: 4px;
+
+    background: #454ADE;
+    border: 2px solid #aaa;
+    color: #fff;
+    text-align: center;
+
+    font-size: 16px;
+}
+.card.inactive .numberCircle {
+    opacity: 0.3;
 }
 /*Notes*/
 .note {
