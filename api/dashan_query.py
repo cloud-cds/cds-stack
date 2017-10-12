@@ -25,8 +25,8 @@ logging.basicConfig(format='%(levelname)s|%(asctime)s.%(msecs)03d|%(message)s', 
 epic_notifications = os.environ['epic_notifications']
 client_id          = os.environ['jhapi_client_id']
 client_secret      = os.environ['jhapi_client_secret']
-use_trews_lmc      = os.environ['use_trews_lmc'].lower() == 'true' if 'use_trews_lmc' in os.environ else False
-
+model_in_use = os.environ['model_in_use']
+use_trews_lmc = False if model_in_use == 'lmc' else True
 ##########################################
 # Compact query implementations.
 # These pull out multiple component TREWS data and metadata
@@ -646,8 +646,8 @@ async def push_notifications_to_epic(db_pool, eid, notify_future_notification=Tr
     ''' % (eid, model)
     notifications = await conn.fetch(notifications_sql)
     if notifications:
-      logging.info("push notifications to epic ({}) for {}".format(epic_notifications, eid))
-      await load_epic_notifications(db_pool, notifications)
+      logging.info("push notifications to epic (epic_notifications={}) for {}".format(epic_notifications, eid))
+      await load_epic_notifications(notifications)
       etl_channel = os.environ['etl_channel'] if 'etl_channel' in os.environ else None
       if etl_channel and notify_future_notification:
         notify_future_notification_sql = \
@@ -661,44 +661,59 @@ async def push_notifications_to_epic(db_pool, eid, notify_future_notification=Tr
       else:
         logging.info("skipping notify_future_notification")
     else:
-      logging.info("skipping notifications (e.g., not in notifications_whitelist)")
+      logging.info("skipping notifications (e.g., no update or not in notifications_whitelist)")
 
 
-async def load_epic_notifications(db_pool, notifications):
+async def load_epic_notifications(notifications):
   total = len(notifications)
   if epic_notifications is not None and int(epic_notifications):
     success = []
     patients = [{
         'pat_id': n['pat_id'],
         'visit_id': n['visit_id'],
-        'notifications': n['count']
+        'value': n['count']
     } for n in notifications]
     jhapi_loader = JHAPI('prod', client_id, client_secret)
-    responses = jhapi_loader.load_notifications(patients)
+    responses = jhapi_loader.load_flowsheet(patients, flowsheet_id="9490")
 
     for pt, n, response in zip(patients, notifications, responses):
       if response is None:
-        logging.error('Failed to push notifications: %s %s %s' % (pt['pat_id'], pt['visit_id'], pt['notifications']))
+        logging.error('Failed to push notifications: %s %s %s' % (pt['pat_id'], pt['visit_id'], pt['value']))
       elif response.status_code != requests.codes.ok:
-        logging.error('Failed to push notifications: %s %s %s HTTP %s' % (pt['pat_id'], pt['visit_id'], pt['notifications'], response.status_code))
+        logging.error('Failed to push notifications: %s %s %s HTTP %s' % (pt['pat_id'], pt['visit_id'], pt['value'], response.status_code))
       elif response.status_code == requests.codes.ok:
         success.append(n)
   else:
     logging.info("skip loading epic notifications")
     success = notifications
-  async with db_pool.acquire() as conn:
-    sql = '''
-    insert into epic_notifications_history (tsp, enc_id, count)
-    values {}
-    '''.format(
-        ','.join(['(now(), {}, {})'.format(n['enc_id'], n['count']) for n in success])
-      )
-    await conn.fetch(sql)
-    logging.info("update epic notification history")
   api_monitor.add_metric('EpicNotificationSuccess', value=len(success))
   api_monitor.add_metric('EpicNotificationFailures', value=total-len(success))
 
+async def load_epic_trewscores(trewscores):
+  total = len(trewscores)
+  if epic_notifications is not None and int(epic_notifications):
+    success = []
+    patients = [{
+        'pat_id': n['pat_id'],
+        'visit_id': n['visit_id'],
+        'value': n['trewscore'],
+        'tsp': n['tsp']
+    } for n in trewscores]
+    jhapi_loader = JHAPI('prod', client_id, client_secret)
+    responses = jhapi_loader.load_flowsheet(patients, flowsheet_id="9485")
 
+    for pt, n, response in zip(patients, trewscores, responses):
+      if response is None:
+        logging.error('Failed to push trewscores: %s %s %s' % (pt['pat_id'], pt['visit_id'], pt['value']))
+      elif response.status_code != requests.codes.ok:
+        logging.error('Failed to push trewscores: %s %s %s HTTP %s' % (pt['pat_id'], pt['visit_id'], pt['value'], response.status_code))
+      elif response.status_code == requests.codes.ok:
+        success.append(n)
+  else:
+    logging.info("skip loading epic trewscores")
+    success = trewscores
+  api_monitor.add_metric('EpicTrewscoreSuccess', value=len(success))
+  api_monitor.add_metric('EpicTrewscoreFailures', value=total-len(success))
 
 async def eid_exist(db_pool, eid):
   async with db_pool.acquire() as conn:
@@ -734,7 +749,6 @@ async def get_recent_pats_from_hosp(db_pool, hosp, model):
 async def invalidate_cache_batch(db_pool, pid, channel, serial_id, pat_cache):
   # run push_notifications_to_epic in a batch way
   logging.info('Invalidating patient cache serial_id %s (via channel %s)' % (serial_id, channel))
-  model = 'lmc' if use_trews_lmc else 'trews'
   sql = '''with notifications as (
     select n.* from
     (select jsonb_array_elements_text(pats) pat_id from refreshed_pats where id = {serial_id}) p
@@ -744,12 +758,25 @@ async def invalidate_cache_batch(db_pool, pid, channel, serial_id, pat_cache):
     select notify_future_notification('{channel}', pat_id) from notifications
   )
   select n.* from notifications n cross join notify_future;
-  '''.format(serial_id=serial_id, model=model, channel=channel)
+  '''.format(serial_id=serial_id, model=model_in_use, channel=channel)
   pat_sql = 'select jsonb_array_elements_text(pats) pat_id from refreshed_pats where id = {}'.format(serial_id)
   async with db_pool.acquire() as conn:
     notifications = await conn.fetch(sql)
-    await load_epic_notifications(db_pool, notifications)
+    await load_epic_notifications(notifications)
     pats = await conn.fetch(pat_sql)
     for pat_id in pats:
       logging.info("Invalidating cache for %s" % pat_id['pat_id'])
       asyncio.ensure_future(pat_cache.delete(pat_id['pat_id']))
+
+async def update_epic_trewscore(db_pool, pid, channel, serial_id, pat_cache):
+  # run push_notifications_to_epic in a batch way
+  logging.info('Updating epic trewscore with serial_id %s (via channel %s)' % (serial_id, channel))
+  if model_in_use == 'trews-jit':
+    sql = '''
+      select * from get_trewscores_for_epic();
+    '''
+    async with db_pool.acquire() as conn:
+      trewscores = await conn.fetch(sql)
+      await load_epic_trewscores(trewscores)
+  else:
+    logging.error("Model is not implemented for update_epic_trewscore")
