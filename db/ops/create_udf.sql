@@ -923,62 +923,101 @@ RETURNS table( enc_id int, state int) AS $func$ BEGIN RETURN QUERY EXECUTE
 format('select stats.enc_id,
     (
     case
+    when ui_severe_sepsis_cnt = 0 and ui_septic_shock_cnt = 1 then (
+        -- trews severe sepsis ON
+        case when sus_count = 1 and trews_met > 0 and trews_orgdf = 1 then
+            (case
+            -- septic shock
+            when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset)  > ''3 hours''::interval and sev_sep_3hr_count < 4 then 62 -- ui_sev_sep_3hr_exp
+            when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset)  > ''6 hours''::interval and sev_sep_6hr_count = 0 then 64 -- ui_sev_sep_6hr_exp
+            when now() - ui_septic_shock_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 66 -- trews_sep_sho_6hr_exp
+            when sep_sho_6hr_count = 1 then 65 -- trews_sep_sho_6hr_com
+            when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 63 -- ui_sev_sep_6hr_com
+            when sev_sep_3hr_count = 4 then 61 -- ui_sev_sep_3hr_com
+            else
+            60 end)
+        -- cms severe sepsis ON
+        when sus_count = 1 and sirs_count > 1 and organ_count > 0 then
+        -- use ui_septic_shock ON
+            (case
+            -- septic shock
+            when now() - GREATEST(sus_onset, sirs_onset, organ_onset)  > ''3 hours''::interval and sev_sep_3hr_count < 4 then 62 -- ui_sev_sep_3hr_exp
+            when now() - GREATEST(sus_onset, sirs_onset, organ_onset)  > ''6 hours''::interval and sev_sep_6hr_count = 0 then 64 -- ui_sev_sep_6hr_exp
+            when now() - ui_septic_shock_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 66 -- trews_sep_sho_6hr_exp
+            when sep_sho_6hr_count = 1 then 65 -- trews_sep_sho_6hr_com
+            when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 63 -- ui_sev_sep_6hr_com
+            when sev_sep_3hr_count = 4 then 61 -- ui_sev_sep_3hr_com
+            else
+            60 end)
+        else
+            (case
+            -- septic shock
+            when now() - ui_septic_shock_onset  > ''3 hours''::interval and sev_sep_3hr_count < 4 then 62 -- ui_sev_sep_3hr_exp
+            when now() - ui_septic_shock_onset  > ''6 hours''::interval and sev_sep_6hr_count = 0 then 64 -- ui_sev_sep_6hr_exp
+            when now() - ui_septic_shock_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 66 -- trews_sep_sho_6hr_exp
+            when sep_sho_6hr_count = 1 then 65 -- trews_sep_sho_6hr_com
+            when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 63 -- ui_sev_sep_6hr_com
+            when sev_sep_3hr_count = 4 then 61 -- ui_sev_sep_3hr_com
+            else
+            60 end)
+        end
+    )
     when ui_severe_sepsis_cnt = 1 then (
-            (
-            case
-            when ui_septic_shock_cnt = 1 then
-                (case
+        (
+        case
+        when ui_septic_shock_cnt = 1 then
+            (case
+            -- septic shock
+            when now() - ui_severe_sepsis_onset  > ''3 hours''::interval and sev_sep_3hr_count < 4 then 62 -- ui_sev_sep_3hr_exp
+            when now() - ui_severe_sepsis_onset  > ''6 hours''::interval and sev_sep_6hr_count = 0 then 64 -- ui_sev_sep_6hr_exp
+            when now() - ui_septic_shock_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 66 -- trews_sep_sho_6hr_exp
+            when sep_sho_6hr_count = 1 then 65 -- trews_sep_sho_6hr_com
+            when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 63 -- ui_sev_sep_6hr_com
+            when sev_sep_3hr_count = 4 then 61 -- ui_sev_sep_3hr_com
+            else
+            60 end)
+        when (fluid_count = 1 and hypotension_count > 0) and hypoperfusion_count = 1 then
+            (case
                 -- septic shock
                 when now() - ui_severe_sepsis_onset  > ''3 hours''::interval and sev_sep_3hr_count < 4 then 62 -- ui_sev_sep_3hr_exp
                 when now() - ui_severe_sepsis_onset  > ''6 hours''::interval and sev_sep_6hr_count = 0 then 64 -- ui_sev_sep_6hr_exp
-                when now() - ui_septic_shock_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 66 -- trews_sep_sho_6hr_exp
+                when now() - LEAST(hypotension_onset, hypoperfusion_onset) > ''6 hours''::interval and sep_sho_6hr_count = 0 then 66 -- trews_sep_sho_6hr_exp
                 when sep_sho_6hr_count = 1 then 65 -- trews_sep_sho_6hr_com
                 when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 63 -- ui_sev_sep_6hr_com
                 when sev_sep_3hr_count = 4 then 61 -- ui_sev_sep_3hr_com
                 else
                 60 end)
-            when (fluid_count = 1 and hypotension_count > 0) and hypoperfusion_count = 1 then
-                (case
-                    -- septic shock
-                    when now() - ui_severe_sepsis_onset  > ''3 hours''::interval and sev_sep_3hr_count < 4 then 62 -- ui_sev_sep_3hr_exp
-                    when now() - ui_severe_sepsis_onset  > ''6 hours''::interval and sev_sep_6hr_count = 0 then 64 -- ui_sev_sep_6hr_exp
-                    when now() - LEAST(hypotension_onset, hypoperfusion_onset) > ''6 hours''::interval and sep_sho_6hr_count = 0 then 66 -- trews_sep_sho_6hr_exp
-                    when sep_sho_6hr_count = 1 then 65 -- trews_sep_sho_6hr_com
-                    when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 63 -- ui_sev_sep_6hr_com
-                    when sev_sep_3hr_count = 4 then 61 -- ui_sev_sep_3hr_com
-                    else
-                    60 end)
-            when (fluid_count = 1 and hypotension_count > 0) then
-                (case
-                    -- septic shock
-                    when now() - ui_severe_sepsis_onset > ''3 hours''::interval and sev_sep_3hr_count < 4 then 62 -- ui_sev_sep_3hr_exp
-                    when now() - ui_severe_sepsis_onset > ''6 hours''::interval and sev_sep_6hr_count = 0 then 64 -- ui_sev_sep_6hr_exp
-                    when now() - hypotension_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 66 -- trews_sep_sho_6hr_exp
-                    when sep_sho_6hr_count = 1 then 65 -- trews_sep_sho_6hr_com
-                    when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 63 -- ui_sev_sep_6hr_com
-                    when sev_sep_3hr_count = 4 then 61 -- ui_sev_sep_3hr_com
-                    else
-                    60 end)
-            when hypoperfusion_count = 1 then
-                (case
-                    -- septic shock
-                    when now() - ui_severe_sepsis_onset > ''3 hours''::interval and sev_sep_3hr_count < 4 then 62 -- trews_sev_sep_3hr_exp
-                    when now() - ui_severe_sepsis_onset > ''6 hours''::interval and sev_sep_6hr_count = 0 then 64 -- trews_sev_sep_6hr_exp
-                    when now() - hypoperfusion_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 66 -- trews_sep_sho_6hr_exp
-                    when sep_sho_6hr_count = 1 then 65 -- trews_sep_sho_6hr_com
-                    when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 63 -- trews_sev_sep_6hr_com
-                    when sev_sep_3hr_count = 4 then 61 -- trews_sev_sep_3hr_com
-                    else
-                    40 end)
-            when now() - ui_severe_sepsis_onset > ''3 hours''::interval and sev_sep_3hr_count < 4 then 52 -- ui_sev_sep_3hr_exp
-            when now() - ui_severe_sepsis_onset > ''6 hours''::interval and sev_sep_6hr_count = 0 then 54 -- ui_sev_sep_6hr_exp
-            when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 53 -- ui_sev_sep_6hr_com
-            when sev_sep_3hr_count = 4 then 51 -- ui_sev_sep_3hr_com
-            else
-            -- severe sepsis
-            50
-            end)
-        )
+        when (fluid_count = 1 and hypotension_count > 0) then
+            (case
+                -- septic shock
+                when now() - ui_severe_sepsis_onset > ''3 hours''::interval and sev_sep_3hr_count < 4 then 62 -- ui_sev_sep_3hr_exp
+                when now() - ui_severe_sepsis_onset > ''6 hours''::interval and sev_sep_6hr_count = 0 then 64 -- ui_sev_sep_6hr_exp
+                when now() - hypotension_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 66 -- trews_sep_sho_6hr_exp
+                when sep_sho_6hr_count = 1 then 65 -- trews_sep_sho_6hr_com
+                when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 63 -- ui_sev_sep_6hr_com
+                when sev_sep_3hr_count = 4 then 61 -- ui_sev_sep_3hr_com
+                else
+                60 end)
+        when hypoperfusion_count = 1 then
+            (case
+                -- septic shock
+                when now() - ui_severe_sepsis_onset > ''3 hours''::interval and sev_sep_3hr_count < 4 then 62 -- trews_sev_sep_3hr_exp
+                when now() - ui_severe_sepsis_onset > ''6 hours''::interval and sev_sep_6hr_count = 0 then 64 -- trews_sev_sep_6hr_exp
+                when now() - hypoperfusion_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 66 -- trews_sep_sho_6hr_exp
+                when sep_sho_6hr_count = 1 then 65 -- trews_sep_sho_6hr_com
+                when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 63 -- trews_sev_sep_6hr_com
+                when sev_sep_3hr_count = 4 then 61 -- trews_sev_sep_3hr_com
+                else
+                40 end)
+        when now() - ui_severe_sepsis_onset > ''3 hours''::interval and sev_sep_3hr_count < 4 then 52 -- ui_sev_sep_3hr_exp
+        when now() - ui_severe_sepsis_onset > ''6 hours''::interval and sev_sep_6hr_count = 0 then 54 -- ui_sev_sep_6hr_exp
+        when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 53 -- ui_sev_sep_6hr_com
+        when sev_sep_3hr_count = 4 then 51 -- ui_sev_sep_3hr_com
+        else
+        -- severe sepsis
+        50
+        end)
+    )
     when sus_count = 1 then
         (
         case when trews_met > 0 and trews_orgdf = 1 then (
@@ -2056,8 +2095,10 @@ return query
                min(SC.initial) as sirs_initial,
                max(OC.onset) as org_df_onset,
                max(TOC.onset) as trews_orgdf_onset,
-               sum(UI.cnt) as ui_cnt,
-               max(UI.onset) as ui_onset
+               sum(UISS1.cnt) as ui_ss1_cnt,
+               max(UISS1.onset) as ui_ss1_onset,
+               sum(UISS2.cnt) as ui_ss2_cnt,
+               max(UISS2.onset) as ui_ss2_onset
         from
         (
           select infection.enc_id,
@@ -2106,13 +2147,23 @@ return query
                  min(ui_severe_sepsis.override_time) as onset
           from ui_severe_sepsis
           group by ui_severe_sepsis.enc_id
-        ) UI on IC.enc_id = UI.enc_id
+        ) UISS1 on IC.enc_id = UISS1.enc_id
+        left join
+        (
+          select ui_septic_shock.enc_id,
+                 sum(case when ui_septic_shock.is_met then 1 else 0 end) as cnt,
+                 min(ui_septic_shock.override_time) as onset
+          from ui_septic_shock
+          group by ui_septic_shock.enc_id
+        ) UISS2 on IC.enc_id = UISS2.enc_id
         group by IC.enc_id
     ),
     severe_sepsis_now as (
       select sspm.enc_id,
-             sspm.ui_is_met or sspm.trews_severe_sepsis_is_met or sspm.severe_sepsis_is_met severe_sepsis_is_met,
-             (case when sspm.ui_is_met then sspm.ui_onset
+             sspm.ui_ss2_is_met, sspm.ui_ss1_is_met or sspm.trews_severe_sepsis_is_met or sspm.severe_sepsis_is_met severe_sepsis_is_met,
+             (case when sspm.ui_ss1_is_met then sspm.ui_ss1_onset
+              when not sspm.severe_sepsis_is_met and not sspm.trews_severe_sepsis_is_met and sspm.ui_ss2_is_met
+                then sspm.ui_ss2_onset
               when sspm.trews_severe_sepsis_wo_infection_is_met then
                 (case when sspm.trews_severe_sepsis_onset <> 'infinity'::timestamptz
                         then sspm.trews_severe_sepsis_onset
@@ -2124,8 +2175,10 @@ return query
                        else null end
                  )
              end) as severe_sepsis_onset,
-             (case when sspm.ui_is_met then sspm.ui_onset
-                when sspm.trews_severe_sepsis_wo_infection_is_met then
+             (case when sspm.ui_ss1_is_met then sspm.ui_ss1_onset
+              when not sspm.severe_sepsis_is_met and not sspm.trews_severe_sepsis_is_met and sspm.ui_ss2_is_met
+                then sspm.ui_ss2_onset
+              when sspm.trews_severe_sepsis_wo_infection_is_met then
                 (case when sspm.trews_severe_sepsis_wo_infection_onset <> 'infinity'::timestamptz
                        then sspm.trews_severe_sepsis_wo_infection_onset
                        else null end
@@ -2136,13 +2189,17 @@ return query
                        else null end
                  )
              end) as severe_sepsis_wo_infection_onset,
-             (case when sspm.ui_is_met then sspm.ui_onset
-                when sspm.trews_severe_sepsis_wo_infection_is_met then sspm.trews_severe_sepsis_wo_infection_initial
-                else sspm.severe_sepsis_wo_infection_initial
+             (case when sspm.ui_ss1_is_met then sspm.ui_ss1_onset
+              when not sspm.severe_sepsis_is_met and not sspm.trews_severe_sepsis_is_met and sspm.ui_ss2_is_met
+                then sspm.ui_ss2_onset
+              when sspm.trews_severe_sepsis_wo_infection_is_met then sspm.trews_severe_sepsis_wo_infection_initial
+              else sspm.severe_sepsis_wo_infection_initial
              end) severe_sepsis_wo_infection_initial,
-             (case when sspm.ui_is_met then sspm.ui_onset
-                when sspm.trews_severe_sepsis_wo_infection_is_met then sspm.trews_severe_sepsis_lead_time
-                else sspm.severe_sepsis_lead_time
+             (case when sspm.ui_ss1_is_met then sspm.ui_ss1_onset
+              when not sspm.severe_sepsis_is_met and not sspm.trews_severe_sepsis_is_met and sspm.ui_ss2_is_met
+                then sspm.ui_ss2_onset
+              when sspm.trews_severe_sepsis_wo_infection_is_met then sspm.trews_severe_sepsis_lead_time
+              else sspm.severe_sepsis_lead_time
              end) severe_sepsis_lead_time
       from (
         select stats.enc_id,
@@ -2162,10 +2219,14 @@ return query
                coalesce(bool_or(stats.trews and stats.trews_orgdf_cnt > 0)
                         , false
                         ) as trews_severe_sepsis_wo_infection_is_met,
-               coalesce(bool_or(stats.ui_cnt > 0)
+               coalesce(bool_or(stats.ui_ss1_cnt > 0)
                         , false
-                        ) as ui_is_met,
-               max(stats.ui_onset) as ui_onset,
+                        ) as ui_ss1_is_met,
+               max(stats.ui_ss1_onset) as ui_ss1_onset,
+               coalesce(bool_or(stats.ui_ss2_cnt > 0)
+                        , false
+                        ) as ui_ss2_is_met,
+               max(stats.ui_ss2_onset) as ui_ss2_onset,
                max(greatest(coalesce(stats.inf_onset, 'infinity'::timestamptz),
                             coalesce(stats.sirs_onset, 'infinity'::timestamptz),
                             coalesce(stats.org_df_onset, 'infinity'::timestamptz))
