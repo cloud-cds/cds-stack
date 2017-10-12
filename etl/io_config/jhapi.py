@@ -55,9 +55,10 @@ class JHAPIConfig:
     max_backoff = ctxt.flags.JHAPI_BACKOFF_MAX
     session_attempts = ctxt.flags.JHAPI_ATTEMPTS_SESSION
     request_attempts = ctxt.flags.JHAPI_ATTEMPTS_REQUEST
-
     # Asyncronous task to make a request
     async def fetch(session, sem, setting):
+      success = 0
+      error = 0
       for i in range(request_attempts):
         try:
           async with sem:
@@ -66,8 +67,10 @@ class JHAPIConfig:
                 body = await response.text()
                 logging.error("  Status={}\tMessage={}".format(response.status, body))
                 response = None
+                error += 1
               else:
                 response = await response.json()
+                success += 1
               break
         except IOError as e:
           if i < request_attempts - 1 and not e.errno in (104): # Connection reset by peer
@@ -83,8 +86,7 @@ class JHAPIConfig:
             sleep(wait_time)
           else:
             raise Exception("Fail to request URL {}".format(url))
-
-      return response, i+1
+      return response, i+1, success, error
 
 
     # Get the client session and create a task for each request
@@ -116,9 +118,15 @@ class JHAPIConfig:
       dimension_name = 'ETL',
       metric_name    = 'requests_made',
       value          = sum(x[1] for x in future.result()),
-      unit           = 'Count',
+      unit           = 'Count'
     )
-
+    label = self.hospital + '_' + endpoint.replace('/', '_') + '_' + http_method
+    self.cloudwatch_logger.push_many(
+      dimension_name  = 'ETL',
+      metric_names    = ['{}_success'.format(label), '{}_error'.format(label) ],
+      metric_values   = [sum(x[2] for x in future.result()), sum(x[3] for x in future.result())],
+      metric_units    = ['Count','Count']
+    )
     # Return responses
     return [x[0] for x in future.result()]
 
