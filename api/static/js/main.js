@@ -159,7 +159,7 @@ window.onload = function() {
   notificationRefresher.init();
   deterioration.init();
   timeline.init();
-  //treatmentOverrideComponent.init();
+  treatmentOverrideComponent.init();
   $('#fake-console').text(window.location);
   $('#fake-console').hide();
   $('#show-console').click(function() {
@@ -513,7 +513,7 @@ var controller = new function() {
     severeSepsisComponent.render(globalJson["severe_sepsis"]);
     septicShockComponent.render(globalJson["septic_shock"], globalJson['severe_sepsis']['is_met']);
     timeline.render(globalJson);
-    //treatmentOverrideComponent.render(globalJson["severe_sepsis"], globalJson["septic_shock"], globalJson['ui']);
+    treatmentOverrideComponent.render(globalJson["severe_sepsis"], globalJson["septic_shock"], globalJson['ui']);
     careSummaryComponent.render();
 
     // Adjust column components as necessary.
@@ -1150,16 +1150,20 @@ var careSummaryComponent = new function() {
 
     this.detailSlot.r(combined, combined_constants, null);
     if ( this.detailVisible ) {
-      this.detailSlot.elem.show();
+      this.detailSlot.elem.removeClass('hidden').addClass('.unhidden');
       this.ctn.find('h4 span.summary-more-detail').text('Less Detail');
     } else {
-      this.detailSlot.elem.hide();
+      this.detailSlot.elem.removeClass('unhidden').addClass('hidden');
       this.ctn.find('h4 span.summary-more-detail').text('More Detail');
     }
 
     this.ctn.find('h4 span.summary-more-detail').unbind();
     this.ctn.find('h4 span.summary-more-detail').click(function(e) {
-      careSummaryComponent.detailSlot.elem.toggle();
+      if ( careSummaryComponent.detailSlot.elem.hasClass('hidden') ) {
+        careSummaryComponent.detailSlot.elem.removeClass('hidden').addClass('unhidden');
+      } else {
+        careSummaryComponent.detailSlot.elem.removeClass('unhidden').addClass('hidden');
+      }
       careSummaryComponent.detailVisible = !careSummaryComponent.detailVisible;
       careSummaryComponent.ctn.find('h4 span.summary-more-detail').text(careSummaryComponent.detailVisible ? 'Less Detail' : 'More Detail');
     });
@@ -1171,7 +1175,6 @@ var careSummaryComponent = new function() {
  * Treatment override component.
  * Allows users to enable the interventions by directly clicking a toggle slider.
  */
-/*
 var treatmentOverrideComponent = new function() {
   this.sevsep_override_ctn = $('[data-trews="treat-sepsis"]');
   this.sevsep_override_btn = null;
@@ -1212,17 +1215,17 @@ var treatmentOverrideComponent = new function() {
   this.render = function(sspJSON, sshJSON, uiJSON) {
 
     // Reset severe sepsis manual override.
-    this.sevsep_override_ctn.find('h2.with-slider').removeClass('inactive');
+    this.sevsep_override_ctn.find('h4').removeClass('inactive');
     this.sevsep_override_ctn.find('.onoffswitch').removeClass('inactive');
 
     // Reset septic shock manual override.
-    this.sepshk_override_ctn.find('h2.with-slider').removeClass('inactive');
+    this.sepshk_override_ctn.find('h4').removeClass('inactive');
     this.sepshk_override_ctn.find('.onoffswitch').removeClass('inactive');
 
     var any_override = uiJSON['ui_severe_sepsis']['is_met'] || uiJSON['ui_septic_shock']['is_met'];
 
     if ( uiJSON['ui_septic_shock']['is_met'] || ( !any_override && (sspJSON['is_met'] || sshJSON['is_met']) ) ) {
-      this.sevsep_override_ctn.find('h2.with-slider').addClass('inactive');
+      this.sevsep_override_ctn.find('h4').addClass('inactive');
       this.sevsep_override_ctn.find('.onoffswitch').addClass('inactive');
     }
     else {
@@ -1230,13 +1233,14 @@ var treatmentOverrideComponent = new function() {
     }
 
     if ( !any_override && sshJSON['is_met'] ) {
-      this.sepshk_override_ctn.find('h2.with-slider').addClass('inactive');
+      this.sepshk_override_ctn.find('h4').addClass('inactive');
       this.sepshk_override_ctn.find('.onoffswitch').addClass('inactive');
     }
     else {
       this.sepshk_override_btn.attr('checked', uiJSON['ui_septic_shock']['is_met']);
     }
 
+    /*
     if ( any_override ) {
       var sep_t = uiJSON['ui_severe_sepsis']['override_time'] == null ? uiJSON['ui_septic_shock']['override_time'] : uiJSON['ui_severe_sepsis']['override_time'];
       var shk_t = uiJSON['ui_septic_shock']['override_time'] == null ? uiJSON['ui_severe_sepsis']['override_time'] : uiJSON['ui_septic_shock']['override_time'];
@@ -1250,9 +1254,9 @@ var treatmentOverrideComponent = new function() {
     } else {
       $('.bundle-override h5').html('');
     }
+    */
   }
 }
-*/
 
 
 /**
@@ -1374,7 +1378,7 @@ var severeSepsisComponent = new function() {
   }
 
   this.render = function(json) {
-    this.ctn.find('h2').text(severe_sepsis['display_name']);
+    this.ctn.find('h2.card-header').text(severe_sepsis['display_name']);
 
     var trews_alerting = json['trews']['is_met'] && json['trews_organ_dysfunction']['is_met'];
     var cms_alerting = json['sirs']['is_met'] && json['organ_dysfunction']['is_met'];
@@ -1420,7 +1424,7 @@ var severeSepsisComponent = new function() {
     var orgdf_ctn = $('[data-trews="eval-acute-orgdf"]');
     orgdf_ctn.find('h3').text('Below, we list likely sources of organ dysfunction that triggered the alert. Remove any that you believe are not due to infection.');
 
-    orgdf_ctn.removeClass('highlight-expired highlight-unexpired');
+    orgdf_ctn.removeClass('inactive highlight-expired highlight-unexpired');
     if ( this.susCtn.hasClass('highlight-expired') ) {
       orgdf_ctn.addClass('highlight-expired');
     }
@@ -1434,6 +1438,14 @@ var severeSepsisComponent = new function() {
     this.orgSlot.r(sepsis_as_cms ? json['organ_dysfunction'] : json['trews_organ_dysfunction'],
                    sepsis_as_cms ? severe_sepsis['organ_dysfunction'] : severe_sepsis['trews_organ_dysfunction'],
                    sepsis_as_cms ? severe_sepsis['organ_dysfunction']['criteria_mapping'] : severe_sepsis['trews_organ_dysfunction']['criteria_mapping']);
+
+    if (!((sepsis_as_cms ? json['organ_dysfunction']['num_met'] : json['trews_organ_dysfunction']['num_met']) > 0
+            || trews.data['ui']['ui_severe_sepsis']['is_met']
+            || trews.data['ui']['ui_septic_shock']['is_met'] ))
+    {
+      orgdf_ctn.addClass('inactive');
+    }
+
 
     /*
     // TREWS criteria.
@@ -1573,7 +1585,7 @@ var septicShockComponent = new function() {
     $('#expand-fus'), true, false, false);
 
   this.render = function(json, severeSepsis) {
-    this.ctn.find('h2').text(septic_shock['display_name']);
+    this.ctn.find('h2.card-header').text(septic_shock['display_name']);
 
     if (json['is_met']) {
       this.ctn.addClass('complete');
