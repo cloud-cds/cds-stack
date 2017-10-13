@@ -4237,7 +4237,9 @@ where tsp <> ''NaT'' and tsp::timestamptz < now() and mo.dose is not null and mo
 group by enc_id, tsp, fid
 ON CONFLICT (enc_id, tsp, fid)
 DO UPDATE SET value = EXCLUDED.value, confidence=0;
-';
+
+-- update orgdf baselines
+select * from update_orgdf_baselines(''' || job_id || ''')';
 -- workspace_notes_2_cdm_notes
 if to_regclass('workspace.' || job_id || '_notes_transformed') is not null then
     execute
@@ -4251,4 +4253,64 @@ if to_regclass('workspace.' || job_id || '_notes_transformed') is not null then
         dates = excluded.dates,
         providers = excluded.providers;';
 end if;
+END $func$ LANGUAGE plpgsql;
+
+
+
+CREATE OR REPLACE FUNCTION update_orgdf_baselines(job_id text)
+RETURNS void AS $func$ #variable_conflict use_column
+BEGIN
+execute
+'with discharged as (
+  select p.pat_id,
+  last(t.enc_id order by t.tsp) enc_id
+  from cdm_t t inner join pat_enc p on t.enc_id = p.enc_id
+  inner join workspace.' || job_id || '_bedded_patients_transformed bp on bp.pat_id = p.pat_id
+  where fid = ''discharge''
+  and tsp between now() - ''4 months''::interval and now()
+  group by p.pat_id
+),
+baseline as (
+  select d.pat_id, d.enc_id,
+  first(t.value::numeric order by t.value::numeric) filter (where t.fid = ''bilirubin'') bilirubin,
+  first(t.tsp order by t.value::numeric) filter (where t.fid = ''bilirubin'') bilirubin_tsp,
+  first(t.value::numeric order by t.value::numeric) filter (where t.fid = ''creatinine'') creatinine,
+  first(t.tsp order by t.value::numeric) filter (where t.fid = ''creatinine'') creatinine_tsp,
+  first(t.value::numeric order by t.value::numeric) filter (where t.fid = ''inr'') inr,
+  first(t.tsp order by t.value::numeric) filter (where t.fid = ''inr'') inr_tsp,
+  last(t.value::numeric order by t.value::numeric) filter (where t.fid = ''platelets'') platelets,
+  last(t.tsp order by t.value::numeric) filter (where t.fid = ''platelets'') platelets_tsp
+  from discharged d
+  left join cdm_t t on d.enc_id = t.enc_id
+  where t.fid in (''creatinine'', ''bilirubin'', ''inr'', ''platelets'')
+  group by d.pat_id, d.enc_id
+)
+insert into orgdf_baselines (pat_id, bilirubin, bilirubin_tsp, creatinine, creatinine_tsp, inr, inr_tsp, platelets, platelets_tsp)
+select b.pat_id, b.bilirubin, b.bilirubin_tsp, b.creatinine, b.creatinine_tsp, b.inr, b.inr_tsp, b.platelets, b.platelets_tsp
+from baseline b
+on conflict (pat_id) do update set
+bilirubin = (case when now() - orgdf_baselines.bilirubin_tsp > ''4 months''::interval
+              or Excluded.bilirubin < orgdf_baselines.bilirubin then Excluded.bilirubin
+             else orgdf_baselines.bilirubin end),
+bilirubin_tsp = (case when now() - orgdf_baselines.bilirubin_tsp > ''4 months''::interval
+              or Excluded.bilirubin < orgdf_baselines.bilirubin then Excluded.bilirubin_tsp
+             else orgdf_baselines.bilirubin_tsp end),
+creatinine = (case when now() - orgdf_baselines.creatinine_tsp > ''4 months''::interval
+              or Excluded.creatinine < orgdf_baselines.creatinine then Excluded.creatinine
+             else orgdf_baselines.creatinine end),
+creatinine_tsp = (case when now() - orgdf_baselines.creatinine_tsp > ''4 months''::interval
+              or Excluded.creatinine < orgdf_baselines.creatinine then Excluded.creatinine_tsp
+             else orgdf_baselines.creatinine_tsp end),
+inr = (case when now() - orgdf_baselines.inr_tsp > ''4 months''::interval
+              or Excluded.inr < orgdf_baselines.inr then Excluded.inr
+             else orgdf_baselines.inr end),
+inr_tsp = (case when now() - orgdf_baselines.inr_tsp > ''4 months''::interval
+              or Excluded.inr < orgdf_baselines.inr then Excluded.inr_tsp
+             else orgdf_baselines.inr_tsp end),
+platelets = (case when now() - orgdf_baselines.platelets_tsp > ''4 months''::interval
+              or Excluded.platelets > orgdf_baselines.platelets then Excluded.platelets
+             else orgdf_baselines.platelets end),
+platelets_tsp = (case when now() - orgdf_baselines.platelets_tsp > ''4 months''::interval
+              or Excluded.platelets > orgdf_baselines.platelets then Excluded.platelets_tsp
+             else orgdf_baselines.platelets_tsp end)';
 END $func$ LANGUAGE plpgsql;
