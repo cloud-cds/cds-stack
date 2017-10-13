@@ -1670,9 +1670,34 @@ return query
         select
             ordered.enc_id,
             ordered.name,
-            (last(ordered.tsp order by ordered.tsp)) as measurement_time,
+            (case when ordered.name = 'trews'
+                then last(ordered.tsp order by ordered.tsp)
+                when ordered.name = 'trews_bilirubin' then last(((ordered.orgdf_details::json)#>>'{bilirubin_trigger,tsp}')::timestamptz order by ordered.tsp)
+                when ordered.name = 'trews_creatinine' then last(((ordered.orgdf_details::json)#>>'{creatinine_trigger,tsp}')::timestamptz order by ordered.tsp)
+                when ordered.name = 'trews_dsbp' then last(((ordered.orgdf_details::json)#>>'{delta_hypotetrigger,tsp}' )::timestamptz order by ordered.tsp)
+                when ordered.name = 'trews_gcs' then last(((ordered.orgdf_details::json)#>>'{gcs_trigger,tsp}')::timestamptz order by ordered.tsp)
+                when ordered.name = 'trews_inr' then last(((ordered.orgdf_details::json)#>>'{inr_trigger,tsp}')::timestamptz order by ordered.tsp)
+                when ordered.name = 'trews_lactate' then last(((ordered.orgdf_details::json)#>>'{lactate_trigger,tsp}')::timestamptz order by ordered.tsp)
+                when ordered.name = 'trews_map' then last(((ordered.orgdf_details::json)#>>'{map_hypotetrigger,tsp}')::timestamptz order by ordered.tsp)
+                when ordered.name = 'trews_platelet' then last(((ordered.orgdf_details::json)#>>'{platelets_trigger,tsp}')::timestamptz order by ordered.tsp)
+                when ordered.name = 'trews_sbpm' then last(((ordered.orgdf_details::json)#>>'{sbpm_hypotetrigger,tsp}')::timestamptz order by ordered.tsp)
+                when ordered.name = 'trews_vasopressors' then last(((ordered.orgdf_details::json)#>>'{vasopressors_trigger,tsp}')::timestamptz order by ordered.tsp)
+                when ordered.name = 'trews_vent' then last(((ordered.orgdf_details::json)#>>'{vent_trigger,tsp}')::timestamptz order by ordered.tsp)
+                else null end
+            )::timestamptz as measurement_time,
             (case when ordered.name = 'trews'
                 then (last(json_build_object('score', score, 'odds_ratio', odds_ratio) order by ordered.tsp))::text
+                when ordered.name = 'trews_bilirubin' then last(((ordered.orgdf_details::jsonb)#>'{bilirubin_trigger}' #- '{tsp}')::text order by ordered.tsp)
+                when ordered.name = 'trews_creatinine' then last(((ordered.orgdf_details::jsonb)#>'{creatinine_trigger}' #- '{tsp}')::text order by ordered.tsp)
+                when ordered.name = 'trews_dsbp' then last(((ordered.orgdf_details::jsonb)#>'{delta_hypotetrigger}' #- '{tsp}')::text order by ordered.tsp)
+                when ordered.name = 'trews_gcs' then last(((ordered.orgdf_details::jsonb)#>'{gcs_trigger}' #- '{tsp}')::text order by ordered.tsp)
+                when ordered.name = 'trews_inr' then last(((ordered.orgdf_details::jsonb)#>'{inr_trigger}' #- '{tsp}')::text order by ordered.tsp)
+                when ordered.name = 'trews_lactate' then last(((ordered.orgdf_details::jsonb)#>'{lactate_trigger}' #- '{tsp}')::text order by ordered.tsp)
+                when ordered.name = 'trews_map' then last(((ordered.orgdf_details::jsonb)#>'{map_hypotetrigger}' #- '{tsp}')::text order by ordered.tsp)
+                when ordered.name = 'trews_platelet' then last(((ordered.orgdf_details::jsonb)#>'{platelets_trigger}' #- '{tsp}')::text order by ordered.tsp)
+                when ordered.name = 'trews_sbpm' then last(((ordered.orgdf_details::jsonb)#>'{sbpm_hypotetrigger}' #- '{tsp}')::text order by ordered.tsp)
+                when ordered.name = 'trews_vasopressors' then last(((ordered.orgdf_details::jsonb)#>'{vasopressors_trigger}' #- '{tsp}')::text order by ordered.tsp)
+                when ordered.name = 'trews_vent' then last(((ordered.orgdf_details::jsonb)#>'{vent_trigger}' #- '{tsp}')::text order by ordered.tsp)
             else null end) as value,
             (last(ordered.c_otime order by ordered.tsp)) as override_time,
             (last(ordered.c_ouser order by ordered.tsp)) as override_user,
@@ -1689,8 +1714,7 @@ return query
                 when ordered.name = 'trews_platelet' then last(ordered.platelets_orgdf::numeric = 1 order by ordered.tsp)
                 when ordered.name = 'trews_sbpm' then last(ordered.sbpm_hypotension::numeric = 1 order by ordered.tsp)
                 when ordered.name = 'trews_vasopressors' then last(ordered.vasopressors_orgdf::numeric = 1 order by ordered.tsp)
-                -- NOTE: trews_vent is not implemented right now
-                -- when ordered.name = 'trews_vent' then last(ordered.vent_orgdf::numeric = 1 order by ordered.tsp)
+                when ordered.name = 'trews_vent' then last(ordered.vent_orgdf::numeric = 1 order by ordered.tsp)
             else false end), false) as is_met,
             now() as update_date,
             false as is_acute -- NOTE: not implemented
@@ -1698,10 +1722,7 @@ return query
             select pc.enc_id, pc.name,
             pc.c_otime, pc.c_ouser, pc.c_ovalue,
             ts.tsp, ts.score, ts.odds_ratio, ts.creatinine_orgdf,
-            ts.bilirubin_orgdf, ts.platelets_orgdf, ts.gcs_orgdf, ts.inr_orgdf, ts.sbpm_hypotension, ts.map_hypotension, ts.delta_hypotension, ts.vasopressors_orgdf, ts.lactate_orgdf
-            -- (case when pc.c_ovalue#>>'{0,text}' = 'No Infection' then false
-            --     when ts.score > get_trews_parameter('trews_jit_threshold') then True
-            --     else False end) is_met
+            ts.bilirubin_orgdf, ts.platelets_orgdf, ts.gcs_orgdf, ts.inr_orgdf, ts.sbpm_hypotension, ts.map_hypotension, ts.delta_hypotension, ts.vasopressors_orgdf, ts.lactate_orgdf, ts.vent_orgdf,ts.orgdf_details
             from pat_cvalues pc
             left join trews_jit_score ts on pc.enc_id = ts.enc_id
             and ts.model_id = get_trews_parameter('trews_jit_model_id')
