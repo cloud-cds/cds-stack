@@ -239,13 +239,18 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
 }
 .card.card-summary h4 {
     margin: 0 0 0 5px;
-    font-size: 14px;
+    font-size: 16px;
     font-weight: normal;
 }
 .card.card-summary h4 span.summary-more-detail {
     text-decoration: underline;
-    font-size: 14px;
+    font-size: 16px;
     cursor: pointer;
+}
+.card.card-summary .status h4 {
+    margin: 0 0 0 5px;
+    font-size: 14px;
+    font-weight: normal;
 }
 .card.complete {
     background-color: #eee;
@@ -282,11 +287,30 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
     font-weight: 600;
 }
 .card h2 {
+    display: inline-block;
     margin: 6px;
     font-size: 16px;
     color: #222;
 }
-.card.inactive h2[data-trews="sev3-action"], .card h2[data-trews="sep6-action"] {
+div.manual-override {
+    float: right;
+    margin-top: 10px;
+    position: relative;
+    z-index: 1;
+    user-select: none;
+    cursor: default;
+}
+div.manual-override h4 {
+    float: right;
+    color: #777;
+    margin: 3px 10px 0 0;
+    font-size: 14px;
+}
+div.manual-override h4.inactive {
+    -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=45)";
+    opacity: 0.45;
+}
+.card.inactive h2[data-trews="sev3-action"], .card.inactive h2[data-trews="sep6-action"] {
     opacity: 0.3;
 }
 .card h2[data-trews="sev3-header"], .card h2[data-trews="sep6-header"] {
@@ -351,54 +375,14 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
     margin-top: 15px;
 }
 /*Slots*/
-.slot .bundle-override {
-    display: inline-block;
-    float: left;
-    width: 30%;
-}
-.slot .bundle-override h2 {
-    margin: 0;
-    color: #666;
-}
-.slot .bundle-override h5 {
-    margin: 0;
-    color: #666;
-    text-align: left;
-    font-weight: 400;
-}
-.slot.last-child[data-trews="eval-trews-or-cms"] {
-    border: 0;
-    padding: 0;
-}
-.slot.last-child[data-trews="treat-sepsis"], .slot.last-child[data-trews="treat-shock"] {
-    border: 0;
-    padding: 0;
-    width: 30%;
-}
-.half-slot {
-    width: 48%;
-    display: inline-block;
-}
-.or-slot {
-    width: 4%;
-    display: inline-block;
-    margin-top: 20px;
-    font-size: 12px;
-    text-align: center;
-}
-.slot .or-slot h3 {
-    color: black;
-}
-.half-slot-left {
-    float: left;
-}
-.half-slot-right {
-    float: right;
-}
 .slot {
     padding: 10px;
     border: 1px solid #ddd;
     border-bottom: none;
+}
+.slot.inactive {
+    opacity: 0.45;
+    pointer-events: none;
 }
 .slot.last-child {
     border-bottom: 1px solid #ddd;
@@ -423,6 +407,23 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
 }
 #right-column .slot.complete:before {
     content: 'complete';
+}
+.half-slot {
+    width: 48%;
+    display: inline-block;
+}
+.or-slot {
+    width: 4%;
+    display: inline-block;
+    margin-top: 20px;
+    font-size: 12px;
+    text-align: center;
+}
+.half-slot-left {
+    float: left;
+}
+.half-slot-right {
+    float: right;
 }
 .slot.highlight-unexpired {
     box-sizing: border-box;
@@ -465,9 +466,8 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
     margin: 0 0 10px;
     color: #777;
 }
-.slot h3.with-slider {
-    float: left;
-    width: 65%;
+.slot .or-slot h3 {
+    color: black;
 }
 .slot p.num,
 .slot p.num-overridden {
@@ -480,8 +480,23 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
 div.slot[data-trews="care-summary-detail"] {
     margin-bottom: 10px;
 }
+.slot[data-trews="care-summary-detail"].hidden {
+    margin-top: 0px;
+    max-height: 0px;
+    padding-top: 0px;
+    padding-bottom: 0px;
+    opacity: 0;
+    visibility: hidden;
+}
+.slot[data-trews="care-summary-detail"].unhidden {
+}
+.csstransitions .slot[data-trews="care-summary-detail"] {
+    -ms-transition: opacity .3s, visibility .3s, max-height .3s, margin-top .3s, padding-top .3s, padding-bottom .3s;
+    transition: opacity .3s, visibility .3s, max-height .3s, margin-top .3s, padding-top .3s, padding-bottom .3s;
+}
 .slot[data-trews="care-summary-detail"] p.num {
-    margin: 0;
+    margin: 0 0 15px 0;
+    font-size: 14px;
 }
 .slot[data-trews="sus"] a, .slot[data-trews="sus"] span[data-trews="no-infection"] {
     font-size: 15px;
@@ -501,8 +516,32 @@ div.slot[data-trews="care-summary-detail"] {
     width: 90%;
 }
 .slot[data-trews="eval-orgdf"] h3 {
-    float: none;;
+    float: none;
     font-size: 14px;
+}
+.slot.last-child[data-trews="eval-trews-or-cms"] {
+    border: 0;
+    padding: 0;
+}
+.slot.last-child[data-trews="treat-sepsis"], .slot.last-child[data-trews="treat-shock"] {
+    border: 0;
+    padding: 0;
+    width: 30%;
+}
+.slot .bundle-override {
+    display: inline-block;
+    float: left;
+    width: 30%;
+}
+.slot .bundle-override h2 {
+    margin: 0;
+    color: #666;
+}
+.slot .bundle-override h5 {
+    margin: 0;
+    color: #666;
+    text-align: left;
+    font-weight: 400;
 }
 .actions {
     font-size: 12px;
@@ -573,7 +612,7 @@ div.slot[data-trews="care-summary-detail"] {
 .status h4, .desc h4 {
     margin: 0 0 0 5px;
     font-weight: 400;
-    font-size: 12px;
+    font-size: 14px;
 }
 .card[data-trews="sev3"] .status h4, .card[data-trews="sev3"] .desc h4 {
     margin: 0 0 5px 5px;
@@ -676,7 +715,7 @@ span.criteria-btn p {
 }
 /*On/off slider*/
 .onoffswitch {
-    display: inline-block; /*float: right;*/ position: relative; width: 90px; margin-right: 10px;
+    display: inline-block; float: right; position: relative; width: 70px; margin-right: 10px;
     -webkit-user-select:none; -moz-user-select:none; -ms-user-select: none;
 }
 .onoffswitch.inactive {
@@ -689,22 +728,21 @@ span.criteria-btn p {
 }
 .onoffswitch-label {
     display: block; overflow: hidden; cursor: pointer;
-    border-radius: 20px;
-    border: 0; // 2px solid #999999
+    border: 0; border-radius: 20px;
 }
 .onoffswitch-inner {
     display: block; width: 200%; margin-left: -100%;
     transition: margin 0.3s ease-in 0s;
 }
 .onoffswitch-inner:before, .onoffswitch-inner:after {
-    display: block; float: left; width: 50%; height: 30px; padding: 0; line-height: 30px;
+    display: block; float: left; width: 50%; height: 22px; padding: 0; line-height: 22px;
     font-size: 14px; color: white; font-family: Trebuchet, Arial, sans-serif; font-weight: bold;
     box-sizing: border-box;
 }
 .onoffswitch-inner:before {
     content: "ON";
     padding-left: 10px;
-    background-color: green; color: #FFFFFF;
+    background-color: mediumseagreen; color: #FFFFFF;
 }
 .onoffswitch-inner:after {
     content: "OFF";
@@ -713,10 +751,10 @@ span.criteria-btn p {
     text-align: right;
 }
 .onoffswitch-switch {
-    display: block; width: 18px; margin: 6px;
+    display: block; width: 12px; margin: 5px;
     background: #FFFFFF;
     position: absolute; top: 0; bottom: 0;
-    right: 56px;
+    right: 44px;
     border: 2px solid #999999; border-radius: 20px;
     transition: all 0.3s ease-in 0s;
 }
@@ -743,7 +781,7 @@ span.criteria-btn p {
 
     font-size: 16px;
 }
-.card.inactive .numberCircle {
+.card.inactive .numberCircle, .slot.inactive .numberCircle {
     opacity: 0.3;
 }
 /*Notes*/
