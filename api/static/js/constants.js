@@ -278,7 +278,8 @@ var criteriaKeyToName = {
 var severe_sepsis = {
 	"display_name": "Severe Sepsis Evaluation",
 	"suspicion_of_infection": {
-		"display_name": "Suspected Source of Infection"
+		// "display_name": "Suspected Source of Infection"
+		"display_name": "Please indicate whether infection is suspected"
 	},
 	"sirs": {
 		"key": "sirs",
@@ -708,7 +709,10 @@ var severe_sepsis = {
 			"precision": 4
 		}, {
 			"key": "trews_creatinine",
-			"criteria_display_name": "Creatinine > 2.0 or Urine Output < 0.5 mL/kg/hour for 2 hours",
+			"baseline_key": "baseline_creatinine",
+			"criteria_display_name": "Creatinine > 2.0 mg/dL or Urine Output < 0.5 mL/kg/hour for 2 hours",
+			"baseline_display_name": "0.5 mg/dL increase",
+			"baseline_trend": "increased",
 			"dropdown": "Creatinine and/or Urine Output is normal",
 			"overrideModal": [{
 				"id": "override_trews_creatinine",
@@ -740,7 +744,10 @@ var severe_sepsis = {
 			"precision": 3
 		}, {
 			"key": "trews_bilirubin",
+			"baseline_key": "baseline_bilirubin",
 			"criteria_display_name": "Bilirubin > 2 mg/dL (34.2 mmol/L)",
+			"baseline_display_name": "100%",
+			"baseline_trend": "increased",
 			"dropdown": "Bilirubin is normal",
 			"overrideModal": [{
 				"id": "override_trews_bilirubin",
@@ -759,7 +766,10 @@ var severe_sepsis = {
 			"precision": 3
 		}, {
 			"key": "trews_platelet",
+			"baseline_key": "baseline_platelets",
 			"criteria_display_name": "Platelet count < 100,000",
+			"baseline_display_name": "50% decrease",
+			"baseline_trend": "decreased",
 			"dropdown": "Platelet Count is normal",
 			"overrideModal": [{
 				"id": "override_trews_platelet",
@@ -778,7 +788,10 @@ var severe_sepsis = {
 			"precision": 6
 		}, {
 			"key": "trews_inr",
+			"baseline_key": "baseline_inr",
 			"criteria_display_name": "INR > 1.5 or PTT > 60 sec",
+			"baseline_display_name": "0.5 INR increase",
+			"baseline_trend": "increased",
 			"dropdown": "INR is normal",
 			"overrideModal": [{
 				"id": "override_trews_inr",

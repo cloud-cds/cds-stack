@@ -46,14 +46,25 @@
 		<div id="status-header">
 		</div>
 		<div id="left-column">
-			<!-- TREW Score slot -->
-			<!--
-			<div class="card card-header" data-trews="trewscore">
-				<h4></h4>
-			</div>
-			-->
 			<div class="col-1-1">
+
+				<!-- Care Summary Card -->
+				<div class="card card-summary" data-trews="care-summary">
+					<h2>Summary</h2>
+					<h4></h4>
+					<h5></h5>
+					<div class="slot last-child" data-trews="care-summary-detail">
+						<h3></h3>
+						<p class="num"><span class="num-text"></span>(<a id="expand-care-detail" class="hidden">see all</a>)</p>
+						<div class="criteria"></div>
+						<p class="num-overridden"></p>
+						<div class="criteria-overridden"></div>
+					</div>
+					<div style="clear: both;"></div>
+				</div>
+
 				<!-- Treatment Override Card -->
+				<!--
 				<div class="card">
 					<div class="slot last-child" data-trews="go-to-treatment">
 						<div class="bundle-override">
@@ -84,20 +95,19 @@
 						</div>
 						<div style="clear: both;"></div>
 					</div>
-					<!--
-					<h4 style="clear: both; padding-top: 10px; margin-top: 0px; margin-bottom: 0px; text-align: center;"><u>OR</u></h4>
-					-->
 				</div>
+				-->
 
 				<!-- Severe Sepsis Card -->
 				<div class="card" data-trews="severeSepsis">
 					<h2></h2>
 					<h5 class="card-subtitle"></h5>
 					<div class="slot last-child" data-trews="sus">
+						<div class="numberCircle"><span>1</span></div>
 						<h3></h3>
 						<div class="actions">
 							<a data-trews="sus-edit" class="edit-btn">Enter or Edit Infection Source</a>
-							<span data-trews="no-infection" class="no-infection no-infection-btn">Enter No Infection Suspected</span>
+							<span data-trews="no-infection" class="no-infection no-infection-btn">No Infection Suspected, Exit</span>
 						</div>
 						<div style="clear: both;"></div>
 						<div class="status">
@@ -105,7 +115,24 @@
 							<h5></h5>
 						</div>
 					</div>
-					<div class="label-acute-orgdf"><span class="label-acute-orgdf"></span></div>
+					<div class="slot last-child" data-trews="eval-acute-orgdf">
+						<div class="numberCircle"><span>2</span></div>
+						<h3></h3>
+						<div style="clear: both;"></div>
+						<div class="slot last-child" data-trews="eval-orgdf">
+							<h3></h3>
+							<p class="num"><span class="num-text"></span>(need 1, <a id="expand-org" class="hidden">see all</a>)</p>
+							<div class="criteria"></div>
+							<p class="num-overridden"></p>
+							<div class="criteria-overridden"></div>
+						</div>
+					</div>
+					<!--
+					<div class="label-acute-orgdf">
+						<span class="label-acute-orgdf"></span>
+					</div>
+					-->
+					<!--
 					<div class="slot last-child" data-trews="eval-trews-or-cms">
 						<div class="slot last-child half-slot half-slot-left" data-trews="eval-trews">
 							<h3>TREWS Alert</h3>
@@ -148,50 +175,54 @@
 						</div>
 						<div style="clear: both;"></div>
 					</div>
+					-->
 				</div>
 
 
 				<!-- Septic Shock Card -->
 				<div class="card" data-trews="septicShock">
+					<div class="numberCircle"><span>4</span></div>
 					<h2></h2>
 					<h5 class="card-subtitle"></h5>
-					<div class="slot last-child half-slot half-slot-left" data-trews="eval-ht-or-hpf">
-						<div class="slot" id="fluid-note">
-							<div class="actions">
-								<a id="fluid-note-btn">Not indicated</a>
+					<div style="margin-top: 15px">
+						<div class="slot last-child half-slot half-slot-left" data-trews="eval-ht-or-hpf">
+							<div class="slot" id="fluid-note">
+								<div class="actions">
+									<a id="fluid-note-btn">Not indicated</a>
+								</div>
+								<h3>To meet criteria:</h3>
+								<p class="num">30 ml/kg fluid must have been administered</p>
 							</div>
-							<h3>To meet criteria:</h3>
-							<p class="num">30 ml/kg fluid must have been administered</p>
+							<div class="slot last-child" data-trews="tension">
+								{% if release != 'production' %}
+								<div class="actions">
+									<a data-trews="tension" class="edit-btn">Edit</a>
+								</div>
+								{% endif %}
+								<h3></h3>
+								<p class="num"><span class="num-text"></span>(need 1, <a id="expand-ten" class="hidden">see all</a>)</p>
+								<div class="criteria"></div>
+								<p class="num-overridden"></p>
+								<div class="criteria-overridden"></div>
+							</div>
 						</div>
-						<div class="slot last-child" data-trews="tension">
+						<div class="or-slot">
+							<h3><u>OR</u></h3>
+						</div>
+						<div class="slot last-child half-slot half-slot-right" data-trews="fusion">
 							{% if release != 'production' %}
 							<div class="actions">
-								<a data-trews="tension" class="edit-btn">Edit</a>
+								<a data-trews="fusion" class="edit-btn">Edit</a>
 							</div>
 							{% endif %}
 							<h3></h3>
-							<p class="num"><span class="num-text"></span>(need 1, <a id="expand-ten" class="hidden">see all</a>)</p>
+							<p class="num"><span class="num-text"></span>(need 1, <a id="expand-fus" class="hidden">see all</a>)</p>
 							<div class="criteria"></div>
 							<p class="num-overridden"></p>
 							<div class="criteria-overridden"></div>
 						</div>
+						<div style="clear: both;"></div>
 					</div>
-					<div class="or-slot">
-						<h3><u>OR</u></h3>
-					</div>
-					<div class="slot last-child half-slot half-slot-right" data-trews="fusion">
-						{% if release != 'production' %}
-						<div class="actions">
-							<a data-trews="fusion" class="edit-btn">Edit</a>
-						</div>
-						{% endif %}
-						<h3></h3>
-						<p class="num"><span class="num-text"></span>(need 1, <a id="expand-fus" class="hidden">see all</a>)</p>
-						<div class="criteria"></div>
-						<p class="num-overridden"></p>
-						<div class="criteria-overridden"></div>
-					</div>
-					<div style="clear: both;"></div>
 				</div>
 			</div>
 
@@ -218,7 +249,9 @@
 			<div class="col-1-1">
 				<!-- Severe Sepsis Workflow Card -->
 				<div class="card" data-trews="sev3">
-					<h2></h2>
+					<div class="numberCircle"><span>3</span></div>
+					<h2 data-trews="sev3-action">Order Severe Sepsis Bundle items below</h2>
+					<h2 data-trews="sev3-header"></h2>
 					<h5 class="card-subtitle"></h5>
 					<div class="slot" data-trews="init_lactate">
 						<h3></h3>
@@ -400,7 +433,9 @@
 				</div>
 				<!-- Septic Shock 6hr Workflow Card -->
 				<div class="card" data-trews="sep6">
-					<h2></h2>
+					<div class="numberCircle"><span>5</span></div>
+					<h2 data-trews="sep6-action">Order Septic Shock Bundle items below</h2>
+					<h2 data-trews="sep6-header"></h2>
 					<h5 class="card-subtitle"></h5>
 					<div class="slot" data-trews="vasopressors">
 						<h3></h3>

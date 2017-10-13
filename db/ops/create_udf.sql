@@ -1279,6 +1279,11 @@ FROM (
 ) c
 full JOIN
 (
+    with max_event_id_by_enc as (
+        select ce2.enc_id, max(ce2.event_id) as event_id from criteria_events ce2
+        where ce2.enc_id = coalesce(this_enc_id, ce2.enc_id) and ce2.flag > 0
+        group by ce2.enc_id
+    )
     select  ce.enc_id,
             ce.name,
             ce.event_id,
@@ -1290,11 +1295,9 @@ full JOIN
             ce.value,
             ce.update_date
     from criteria_events ce
+    inner join max_event_id_by_enc m
+      on ce.enc_id = m.enc_id and ce.event_id = m.event_id
     where ce.enc_id = coalesce(this_enc_id, ce.enc_id)
-    and ce.event_id = (
-        select max(ce2.event_id) from criteria_events ce2
-        where ce2.enc_id = coalesce(this_enc_id, ce2.enc_id) and ce2.flag > 0
-    )
 ) as e
 on c.enc_id = e.enc_id and c.name = e.name
 ;
@@ -1373,6 +1376,11 @@ FROM (
 ) c
 full JOIN
 (
+    with max_event_id_by_enc as (
+        select ce2.enc_id, max(ce2.event_id) as event_id from criteria_events ce2
+        where ce2.enc_id = coalesce(this_enc_id, ce2.enc_id) and ce2.flag > 0
+        group by ce2.enc_id
+    )
     select  ce.enc_id,
             ce.name,
             ce.event_id,
@@ -1384,11 +1392,9 @@ full JOIN
             ce.value,
             ce.update_date
     from criteria_events ce
+    inner join max_event_id_by_enc m
+      on ce.enc_id = m.enc_id and ce.event_id = m.event_id
     where ce.enc_id = coalesce(this_enc_id, ce.enc_id)
-    and ce.event_id = (
-        select max(ce2.event_id) from criteria_events ce2
-        where ce2.enc_id = coalesce(this_enc_id, ce2.enc_id) and ce2.flag > 0
-    )
 ) as e
 on c.enc_id = e.enc_id and c.name = e.name
 left join
