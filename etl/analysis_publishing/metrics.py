@@ -352,6 +352,116 @@ class pats_with_threshold_crossings(metric):
 
     return data_dict
 
+# Find patients with high risk outside trews orgdf
+class find_high_risk_pats_outsided_trews_orgdf(metric):
+  def __init__(self,connection, first_time_str, last_time_str):
+    super().__init__(connection, first_time_str, last_time_str)
+    self.name = 'User Engagement'
+
+  def calc(self):
+    sql = """
+    select *
+    from (
+      select enc_id, event_id,
+             max(update_date) as tsp,
+             count(*) filter (where name like 'trews_%' and is_met) as trews_orgdf,
+             count(*) filter (where name = 'trews' and is_met) as trews_risk
+      from criteria_events
+      group by enc_id, event_id
+    ) R
+    where trews_risk > trews_orgdf
+    order by enc_id, tsp desc, event_id desc;
+    """
+
+    res_df = pd.read_sql(sqlalchemy.text(sql), self.connection)
+    self.data = res_df
+
+  def to_html(self):
+    return self.data.to_html()
+
+# Find patients currently alerting on TREWS and CMS simultaneously
+class find_high_risk_pats_outsided_trews_orgdf(metric):
+  def __init__(self,connection, first_time_str, last_time_str):
+    super().__init__(connection, first_time_str, last_time_str)
+    self.name = 'User Engagement'
+
+  def calc(self):
+    sql = """
+    select p.pat_id, c.* from (
+      select enc_id,
+             count(*) filter (where name like 'trews_%' and is_met) as trews_orgdf,
+             count(*) filter (where name = 'trews' and is_met) as trews_risk,
+             count(*) filter (where name in ('sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc') and is_met) as sirs,
+             count(*) filter (where name in ('blood_pressure', 'mean_arterial_pressure', 'decrease_in_sbp', 'respiratory_failure', 'creatinine', 'bilirubin', 'platelet', 'inr', 'lactate') and is_met) as orgdf
+      from get_criteria(null::int)
+      group by enc_id
+    ) c
+    inner join pat_enc p on c.enc_id = p.enc_id
+    where trews_orgdf > 0 and trews_risk > 0
+    and sirs > 1 and orgdf > 0
+    """
+
+    res_df = pd.read_sql(sqlalchemy.text(sql), self.connection)
+    self.data = res_df
+
+  def to_html(self):
+    return self.data.to_html()
+
+# Find patients currently alerting on TREWS without CMS
+class find_high_risk_pats_outsided_trews_orgdf(metric):
+  def __init__(self,connection, first_time_str, last_time_str):
+    super().__init__(connection, first_time_str, last_time_str)
+    self.name = 'User Engagement'
+
+  def calc(self):
+    sql = """
+    select p.pat_id, c.* from (
+    select enc_id,
+           count(*) filter (where name like 'trews_%' and is_met) as trews_orgdf,
+           count(*) filter (where name = 'trews' and is_met) as trews_risk,
+           count(*) filter (where name in ('sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc') and is_met) as sirs,
+           count(*) filter (where name in ('blood_pressure', 'mean_arterial_pressure', 'decrease_in_sbp', 'respiratory_failure', 'creatinine', 'bilirubin', 'platelet', 'inr', 'lactate') and is_met) as orgdf
+    from get_criteria(null::int)
+    group by enc_id
+  ) c
+  inner join pat_enc p on c.enc_id = p.enc_id
+  where trews_orgdf > 0 and trews_risk > 0
+  and (sirs < 2 or orgdf < 1)
+    """
+
+    res_df = pd.read_sql(sqlalchemy.text(sql), self.connection)
+    self.data = res_df
+
+  def to_html(self):
+    return self.data.to_html()
+
+# Find patients currently alerting on CMS without TREWS
+class find_high_risk_pats_outsided_trews_orgdf(metric):
+  def __init__(self,connection, first_time_str, last_time_str):
+    super().__init__(connection, first_time_str, last_time_str)
+    self.name = 'User Engagement'
+
+  def calc(self):
+    sql = """
+    select p.pat_id, c.* from (
+      select enc_id,
+             count(*) filter (where name like 'trews_%' and is_met) as trews_orgdf,
+             count(*) filter (where name = 'trews' and is_met) as trews_risk,
+             count(*) filter (where name in ('sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc') and is_met) as sirs,
+             count(*) filter (where name in ('blood_pressure', 'mean_arterial_pressure', 'decrease_in_sbp', 'respiratory_failure', 'creatinine', 'bilirubin', 'platelet', 'inr', 'lactate') and is_met) as orgdf
+      from get_criteria(null::int)
+      group by enc_id
+    ) c
+    inner join pat_enc p on c.enc_id = p.enc_id
+    where sirs > 1 and orgdf > 0
+    and (trews_orgdf < 1 or trews_risk < 1)
+    """
+
+    res_df = pd.read_sql(sqlalchemy.text(sql), self.connection)
+    self.data = res_df
+
+  def to_html(self):
+    return self.data.to_html()
 #---------------------------------
 ## Metric Factory
 #---------------------------------
