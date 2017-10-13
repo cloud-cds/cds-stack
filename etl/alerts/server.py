@@ -150,8 +150,9 @@ class AlertServer:
     hospital = msg['hosp']
     logging.info("received FIN for enc_ids: {}".format(enc_id_str))
     # calculate criteria here
+    # NOTE: I don't turst the enc_ids from FIN msg
     async with self.db_pool.acquire() as conn:
-      await self.calculate_criteria_enc(conn, enc_id_str)
+      await self.calculate_criteria_hospital(conn, hospital)
       if self.notify_web:
         # sql = '''
         # with pats as (
@@ -165,7 +166,6 @@ class AlertServer:
         # )
         # select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
         # '''.format(channel=self.channel, model=self.model, enc_id_str=enc_id_str)
-        # NOTE: I don't turst the enc_ids from FIN msg
         sql = '''
         with pats as (
           select p.enc_id, p.pat_id from pat_enc p
@@ -279,6 +279,17 @@ class AlertServer:
     sql = '''
     select distribute_advance_criteria_snapshot_for_job('{server}', {hours}, '{job_id}', {nprocs});
     '''.format(server=server,hours=self.lookbackhours,job_id=job_id,nprocs=self.nprocs)
+    logging.info("calculate_criteria sql: {}".format(sql))
+    await conn.fetch(sql)
+
+  async def calculate_criteria_hospital(self, conn, hospital):
+    server = 'dev_db' if 'dev' in self.channel else 'prod_db'
+    sql = 'select garbage_collection();'
+    logging.info("calculate_criteria sql: {}".format(sql))
+    await conn.fetch(sql)
+    sql = '''
+    select distribute_advance_criteria_snapshot_for_online_hospital('{server}', {hours}, '{hospital}', {nprocs});
+    '''.format(server=server,hours=self.lookbackhours,hospital=hospital,nprocs=self.nprocs)
     logging.info("calculate_criteria sql: {}".format(sql))
     await conn.fetch(sql)
 
