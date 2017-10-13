@@ -209,8 +209,6 @@ class TREWSAPI(web.View):
                          "lactate"
                          ]
 
-    TREWS_CRITERIA = ['trews']
-
     TREWS_ORGAN_DYSFUNCTION = ["trews_sbpm",
                                "trews_map",
                                "trews_dsbp",
@@ -222,6 +220,9 @@ class TREWSAPI(web.View):
                                "trews_lactate",
                                "trews_gcs"
                               ]
+
+    TREWS_CRITERIA = ['trews']
+    TREWS_ALERT_CRITERIA = ['trews_subalert']
 
     HYPOTENSION = ["systolic_bp",
                    "hypotension_map",
@@ -314,6 +315,15 @@ class TREWSAPI(web.View):
           od_cnt += 1
           od_onsets.append(criterion_ts)
 
+      if criterion["name"] in TREWS_ORGAN_DYSFUNCTION:
+        trews_od_idx = TREWS_ORGAN_DYSFUNCTION.index(criterion["name"])
+        data['severe_sepsis']['trews_organ_dysfunction']['criteria'][trews_od_idx] = criterion
+        criterion_ts = criterion['override_time'] if criterion['override_user'] else criterion['measurement_time']
+        if criterion["is_met"]:
+          trews_od_cnt += 1
+          trews_od_onsets.append(criterion_ts)
+
+      # update TREWS score component
       if criterion["name"] in TREWS_CRITERIA:
         trews_idx = TREWS_CRITERIA.index(criterion["name"])
         data['severe_sepsis']['trews']['criteria'][trews_idx] = criterion
@@ -322,13 +332,10 @@ class TREWSAPI(web.View):
           trews_cnt += 1
           trews_onsets.append(criterion_ts)
 
-      if criterion["name"] in TREWS_ORGAN_DYSFUNCTION:
-        trews_od_idx = TREWS_ORGAN_DYSFUNCTION.index(criterion["name"])
-        data['severe_sepsis']['trews_organ_dysfunction']['criteria'][trews_od_idx] = criterion
-        criterion_ts = criterion['override_time'] if criterion['override_user'] else criterion['measurement_time']
-        if criterion["is_met"]:
-          trews_od_cnt += 1
-          trews_od_onsets.append(criterion_ts)
+      # update TREWS subalert component
+      if criterion["name"] in TREWS_ALERT_CRITERIA:
+        data['severe_sepsis'][criterion["name"]] = criterion
+
 
       # septic shock
 
@@ -375,6 +382,7 @@ class TREWSAPI(web.View):
       # update UI components
       if criterion["name"] in UI:
         data['ui'][criterion["name"]] = criterion
+
 
 
     # update sirs

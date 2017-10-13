@@ -1120,17 +1120,7 @@ var careSummaryComponent = new function() {
   this.detailVisible = false;
   this.detailSlot = new slotComponent($("[data-trews='care-summary-detail']"), $('#expand-care-detail'), false, false, false, null, false, true);
 
-  this.render = function() {
-    // longPatientSummary args: with_alert, with_action, with_treatment, with_reset, with_no_risk
-    var patient_summary = longPatientSummary(true, false, false, false, true);
-    this.ctn.find('h4').html(patient_summary.care_status + '&nbsp;&nbsp;<span class="summary-more-detail">More Detail</span>');
-
-    var trews_alerting = trews.data['severe_sepsis']['trews']['is_met'] && trews.data['severe_sepsis']['trews_organ_dysfunction']['is_met'];
-    var cms_alerting = trews.data['severe_sepsis']['sirs']['is_met'] && trews.data['severe_sepsis']['organ_dysfunction']['is_met'];
-
-    var alert_as_cms = (!trews_alerting && cms_alerting)
-                          || (!trews.data['severe_sepsis']['is_trews'] && trews.data['severe_sepsis']['is_cms'])
-
+  this.renderDetail = function(alert_as_cms) {
     /*
     var combined = $.extend(true, {}, trews.data['severe_sepsis'], {'name': 'combined_sepsis'});
     var combined_constants = {'key': 'combined_sepsis', 'display_name': 'All Criteria'};
@@ -1155,39 +1145,65 @@ var careSummaryComponent = new function() {
     var shock_str = null;
     var lactate_str = null;
 
-    if ( !alert_as_cms ) {
-      var pct_mortality = 'XXX'; // TODO
-      var pct_sevsep = 'YYY'; // TODO
-      score_str = 'At this score, there is an <b>' + pct_mortality + '%</b> in-hospital mortality rate. '
-                + '<b>' + pct_sevsep + '%</b> of individuals experience severe sepsis.'
-
-    } else {
-      score_str = 'TREWS Acuity Score does not indicate high risk of severe sepsis';
-    }
-
     var cms_hr_idx = 1;
     var cms_sbp_idx = 0;
     var cms_lactate_idx = 8;
 
-    var trews_hr_idx = null; // TODO
     var trews_sbp_idx = 0;
     var trews_lactate_idx = 8;
 
+    var pct_mortality = null;
+    var pct_sevsep = null;
     var heart_rate = null;
     var sbp = null;
+    var lactate = null;
+    var lactate_tsp = null;
 
     if ( alert_as_cms ) {
       heart_rate = trews.data['severe_sepsis']['sirs']['criteria'][cms_hr_idx].value;
       sbp = trews.data['severe_sepsis']['organ_dysfunction']['criteria'][cms_sbp_idx].value
-    } else {
+
+      lactate = trews.data['severe_sepsis']['organ_dysfunction']['criteria'][cms_lactate_idx].value
+      lactate_tsp = trews.data['severe_sepsis']['organ_dysfunction']['criteria'][cms_lactate_idx].measurement_time;
+    }
+    else {
       try {
-        heart_rate = null; // TODO
-        trews_sbp_json = trews.data['severe_sepsis']['trews_organ_dysfunction']['criteria'][trews_lactate_idx].value;
-        if ( trews_sbp_json != null ) {
-          trews_sbp_json = JSON.parse(trews_sbp_json);
-          sbp = trews_sbp_json.value;
+        trews_subalert_json = trews.data['severe_sepsis']['trews_subalert'].value;
+
+        if ( trews_subalert_json != null ) {
+          trews_subalert_json = JSON.parse(trews_subalert_json);
+          pct_mortality = trews_subalert_json.pct_mortality;
+          pct_sevsep = trews_subalert_json.pct_sevsep
+          heart_rate = trews_subalert_json.heart_rate;
+          if ( 'lactate' in trews_subalert_json ) { lactate = trews_subalert_json.lactate; }
+          if ( 'lactate_tsp' in trews_subalert_json ) { lactate_tsp = trews_subalert_json.lactate_tsp; }
+          if ( 'sbpm' in trews_subalert_json ) { sbp = trews_subalert_json.sbpm; }
+        }
+
+        if ( sbp == null ) {
+          trews_sbp_json = trews.data['severe_sepsis']['trews_organ_dysfunction']['criteria'][trews_lactate_idx].value;
+          if ( trews_sbp_json != null ) {
+            trews_sbp_json = JSON.parse(trews_sbp_json);
+            sbp = trews_sbp_json.value;
+          }
+        }
+
+        if ( lactate == null ) {
+          trews_lactate_json = trews.data['severe_sepsis']['trews_organ_dysfunction']['criteria'][trews_lactate_idx].value;
+          if ( trews_lactate_json != null ) {
+            trews_lactate_json = JSON.parse(trews_lactate_json);
+            lactate = trews_lactate_json.value;
+            lactate_tsp = trews.data['severe_sepsis']['trews_organ_dysfunction']['criteria'][trews_lactate_idx].measurement_time;
+          }
         }
       } catch (e) {}
+    }
+
+    if ( alert_as_cms ) {
+      score_str = 'TREWS Acuity Score does not indicate high risk of severe sepsis';
+    } else if (pct_mortality != null && pct_sevsep != null) {
+      score_str = 'At this score, there is an <b>' + pct_mortality + '%</b> in-hospital mortality rate. '
+                + '<b>' + pct_sevsep + '%</b> of individuals experience severe sepsis.'
     }
 
     if ( heart_rate != null && sbp != null ) {
@@ -1197,22 +1213,6 @@ var careSummaryComponent = new function() {
       shock_str = 'Either <b>heart rate</b> or <b>systolic blood pressure</b> measurement is currently unavailable.';
     }
 
-    var lactate = null;
-    var lactate_tsp = null;
-    if ( alert_as_cms ) {
-      lactate = trews.data['severe_sepsis']['organ_dysfunction']['criteria'][cms_lactate_idx].value
-      lactate_tsp = trews.data['severe_sepsis']['organ_dysfunction']['criteria'][cms_lactate_idx].measurement_time;
-    } else {
-      try {
-        trews_lactate_json = trews.data['severe_sepsis']['trews_organ_dysfunction']['criteria'][trews_lactate_idx].value;
-        if ( trews_lactate_json != null ) {
-          trews_lactate_json = JSON.parse(trews_lactate_json);
-          lactate = trews_lactate_json.value;
-          lactate_tsp = trews.data['severe_sepsis']['trews_organ_dysfunction']['criteria'][trews_lactate_idx].measurement_time;
-        }
-      } catch (e) {}
-    }
-
     if ( lactate != null && lactate_tsp != null ) {
       lactate_str = 'The most recent <b>lactate</b> level when the alert fired was ' + lactate + ' mmol/L at ' + strToTime(lactate_time, true, false);
     } else {
@@ -1220,7 +1220,7 @@ var careSummaryComponent = new function() {
     }
 
     var html_str = '<ul>'
-                   + '<li>' + score_str + '</li><br><br>'
+                   + (score_str == null ? '' : '<li>' + score_str + '</li><br><br>')
                    + '<li>' + shock_str + '</li><br><br>'
                    + '<li>' + lactate_str + '</li>'
                    + '</ul>'
@@ -1229,6 +1229,20 @@ var careSummaryComponent = new function() {
     this.detailSlot.elem.find('.criteria').html(html_str);
     this.detailSlot.elem.addClass('skip-complete');
     this.detailSlot.elem.find('.num').hide();
+  }
+
+  this.render = function() {
+    // longPatientSummary args: with_alert, with_action, with_treatment, with_reset, with_no_risk
+    var patient_summary = longPatientSummary(true, false, false, false, true);
+    this.ctn.find('h4').html(patient_summary.care_status + '&nbsp;&nbsp;<span class="summary-more-detail">More Detail</span>');
+
+    var trews_alerting = trews.data['severe_sepsis']['trews']['is_met'] && trews.data['severe_sepsis']['trews_organ_dysfunction']['is_met'];
+    var cms_alerting = trews.data['severe_sepsis']['sirs']['is_met'] && trews.data['severe_sepsis']['organ_dysfunction']['is_met'];
+
+    var alert_as_cms = (!trews_alerting && cms_alerting)
+                          || (!trews.data['severe_sepsis']['is_trews'] && trews.data['severe_sepsis']['is_cms']);
+
+    this.renderDetail(alert_as_cms);
 
     if ( this.detailVisible ) {
       this.detailSlot.elem.removeClass('hidden').addClass('unhidden');
