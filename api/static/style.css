@@ -478,7 +478,7 @@ div.manual-override h4.inactive {
     text-decoration: underline;
 }
 div.slot[data-trews="care-summary-detail"] {
-    margin-bottom: 10px;
+    margin: 5px 5px 10px 5px;
 }
 .slot[data-trews="care-summary-detail"].hidden {
     margin-top: 0px;

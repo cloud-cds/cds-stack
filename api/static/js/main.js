@@ -1131,6 +1131,7 @@ var careSummaryComponent = new function() {
     var alert_as_cms = (!trews_alerting && cms_alerting)
                           || (!trews.data['severe_sepsis']['is_trews'] && trews.data['severe_sepsis']['is_cms'])
 
+    /*
     var combined = $.extend(true, {}, trews.data['severe_sepsis'], {'name': 'combined_sepsis'});
     var combined_constants = {'key': 'combined_sepsis', 'display_name': 'All Criteria'};
 
@@ -1147,10 +1148,90 @@ var careSummaryComponent = new function() {
     }
 
     trews.data['severe_sepsis']['combined'] = combined;
-
     this.detailSlot.r(combined, combined_constants, null);
+    */
+
+    var score_str = null;
+    var shock_str = null;
+    var lactate_str = null;
+
+    if ( !alert_as_cms ) {
+      var pct_mortality = 'XXX'; // TODO
+      var pct_sevsep = 'YYY'; // TODO
+      score_str = 'At this score, there is an <b>' + pct_mortality + '%</b> in-hospital mortality rate. '
+                + '<b>' + pct_sevsep + '%</b> of individuals experience severe sepsis.'
+
+    } else {
+      score_str = 'TREWS Acuity Score does not indicate high risk of severe sepsis';
+    }
+
+    var cms_hr_idx = 1;
+    var cms_sbp_idx = 0;
+    var cms_lactate_idx = 8;
+
+    var trews_hr_idx = null; // TODO
+    var trews_sbp_idx = 0;
+    var trews_lactate_idx = 8;
+
+    var heart_rate = null;
+    var sbp = null;
+
+    if ( alert_as_cms ) {
+      heart_rate = trews.data['severe_sepsis']['sirs']['criteria'][cms_hr_idx].value;
+      sbp = trews.data['severe_sepsis']['organ_dysfunction']['criteria'][cms_sbp_idx].value
+    } else {
+      try {
+        heart_rate = null; // TODO
+        trews_sbp_json = trews.data['severe_sepsis']['trews_organ_dysfunction']['criteria'][trews_lactate_idx].value;
+        if ( trews_sbp_json != null ) {
+          trews_sbp_json = JSON.parse(trews_sbp_json);
+          sbp = trews_sbp_json.value;
+        }
+      } catch (e) {}
+    }
+
+    if ( heart_rate != null && sbp != null ) {
+      var shock_index_value = Number(heart_rate / sbp).toFixed(3);
+      shock_str = '<b>Shock index</b> is ' + shock_index_value + ' bpm/mmHg';
+    } else {
+      shock_str = 'Either <b>heart rate</b> or <b>systolic blood pressure</b> measurement is currently unavailable.';
+    }
+
+    var lactate = null;
+    var lactate_tsp = null;
+    if ( alert_as_cms ) {
+      lactate = trews.data['severe_sepsis']['organ_dysfunction']['criteria'][cms_lactate_idx].value
+      lactate_tsp = trews.data['severe_sepsis']['organ_dysfunction']['criteria'][cms_lactate_idx].measurement_time;
+    } else {
+      try {
+        trews_lactate_json = trews.data['severe_sepsis']['trews_organ_dysfunction']['criteria'][trews_lactate_idx].value;
+        if ( trews_lactate_json != null ) {
+          trews_lactate_json = JSON.parse(trews_lactate_json);
+          lactate = trews_lactate_json.value;
+          lactate_tsp = trews.data['severe_sepsis']['trews_organ_dysfunction']['criteria'][trews_lactate_idx].measurement_time;
+        }
+      } catch (e) {}
+    }
+
+    if ( lactate != null && lactate_tsp != null ) {
+      lactate_str = 'The most recent <b>lactate</b> level when the alert fired was ' + lactate + ' mmol/L at ' + strToTime(lactate_time, true, false);
+    } else {
+      lactate_str = 'No <b>lactate</b> measurements currently available.';
+    }
+
+    var html_str = '<ul>'
+                   + '<li>' + score_str + '</li><br><br>'
+                   + '<li>' + shock_str + '</li><br><br>'
+                   + '<li>' + lactate_str + '</li>'
+                   + '</ul>'
+                   ;
+
+    this.detailSlot.elem.find('.criteria').html(html_str);
+    this.detailSlot.elem.addClass('skip-complete');
+    this.detailSlot.elem.find('.num').hide();
+
     if ( this.detailVisible ) {
-      this.detailSlot.elem.removeClass('hidden').addClass('.unhidden');
+      this.detailSlot.elem.removeClass('hidden').addClass('unhidden');
       this.ctn.find('h4 span.summary-more-detail').text('Less Detail');
     } else {
       this.detailSlot.elem.removeClass('unhidden').addClass('hidden');
@@ -2167,19 +2248,63 @@ var criteriaComponent = function(c, constants, key, hidden, criteria_mapping, cr
   this.criteria_button = null;
   this.criteria_button_enable = false;
 
+  // Rendering variables.
+  var hiddenClass = "";
+  var deactivatedClass = "";
+
   var displayValue = c['value'];
+  var displayBaselineValue = null;
   var precision = constants['precision'] == undefined ? 5 : constants['precision'];
+
+  // Baseline.
+  if ( constants.baseline_key != null && constants.baseline_trend != null
+          && trews.data['orgdf_baselines'][constants.baseline_key] != null )
+  {
+    displayBaselineValue = trews.data['orgdf_baselines'][constants.baseline_key];
+  }
 
   if ( displayValue && ( isNumber(displayValue) || !isNaN(Number(displayValue)) ) ) {
     displayValue = Number(displayValue).toPrecision(precision);
   }
 
-  var hiddenClass = "";
-  var deactivatedClass = "";
+  if ( displayBaselineValue && ( isNumber(displayBaselineValue) || !isNaN(Number(displayBaselineValue)) ) ) {
+    displayBaselineValue = Number(displayBaselineValue).toPrecision(precision);
+  }
+
+  // Handle TREWS organ dysfunction values as JSON objects.
+  if ( c['name'].startsWith('trews_') && displayValue != null ) {
+    try {
+      var jsonValue = JSON.parse(displayValue);
+      if ( isNumber(jsonValue) ) {
+        displayValue = jsonValue;
+      }
+      else if ( 'value' in jsonValue ) {
+        displayValue = jsonValue.value
+      }
+      else {
+        displayValue = 'N/A';
+      }
+
+      if ( 'baseline' in jsonValue ) {
+        displayBaselineValue = (jsonValue.baseline == null || jsonValue.baseline < 0) ? null : jsonValue.baseline;
+        if ( displayBaselineValue && ( isNumber(displayBaselineValue) || !isNaN(Number(displayValue)) ) ) {
+          displayBaselineValue = Number(displayBaselineValue).toPrecision(precision);
+        }
+      }
+    } catch(e) {
+      displayValue = 'N/A';
+      displayBaselineValue = null;
+    }
+    console.log(c['name'] + ' value: ' + displayValue + ' baseline: ' + displayBaselineValue);
+  }
 
   // Local conversions.
   if ( c['name'] == 'sirs_temp' ) {
     displayValue = ((Number(displayValue) - 32) / 1.8).toPrecision(3);
+  }
+
+  if ( c['is_met'] && (c['name'] == 'respiratory_failure' || c['name'] == 'trews_vent') ) {
+    displayValue = 'Mechanical Support: On';
   }
 
   if (c['override_user'] != null) {
@@ -2192,9 +2317,9 @@ var criteriaComponent = function(c, constants, key, hidden, criteria_mapping, cr
     if (c['name'] == 'trews') {
       this.status += (this.criteria_source ? this.criteria_source + ' ' : '') + "Criteria met <span title='" + strTime + "'>" + lapsed;
     }
-    else if (c['name'] == 'respiratory_failure') {
+    else if (c['name'] == 'respiratory_failure' || c['name'] == 'trews_vent') {
       this.status += (this.criteria_source ? this.criteria_source + ' ' : '') + "Criteria met <span title='" + strTime + "'>" + lapsed + "</span>"
-        + (skip_threshold_and_value ? '' : " with <span class='value'>Mechanical Support: On</span>");
+        + (skip_threshold_and_value ? '' : " with <span class='value'>" + displayValue + "</span>");
     }
     else {
       this.status += (this.criteria_source ? this.criteria_source + ' ' : '') + "Criteria met <span title='" + strTime + "'>" + lapsed + "</span>"
@@ -2206,7 +2331,7 @@ var criteriaComponent = function(c, constants, key, hidden, criteria_mapping, cr
             && trews.data['orgdf_baselines'][constants.baseline_key] != null )
     {
       this.status += ', ' + constants.baseline_trend + ' from last recorded baseline of '
-                  + trews.data['orgdf_baselines'][constants.baseline_key] + ' ' + constants.overrideModal[0].units;
+                  + displayBaselineValue + ' ' + constants.overrideModal[0].units;
     }
     this.status += (c['override_time']) ? "<br />" : "";
   }
