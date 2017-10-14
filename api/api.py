@@ -247,11 +247,13 @@ class TREWSAPI(web.View):
     od_cnt       = 0
     trews_cnt    = 0
     trews_od_cnt = 0
+    trews_subalert_cnt = 0
 
     sirs_onsets     = []
     od_onsets       = []
     trews_onsets    = []
     trews_od_onsets = []
+    trews_subalert_onsets = []
 
     hp_cnt       = 0
     hpf_cnt      = 0
@@ -335,6 +337,10 @@ class TREWSAPI(web.View):
       # update TREWS subalert component
       if criterion["name"] in TREWS_ALERT_CRITERIA:
         data['severe_sepsis'][criterion["name"]] = criterion
+        criterion_ts = criterion['override_time'] if criterion['override_user'] else criterion['measurement_time']
+        if criterion["is_met"]:
+          trews_subalert_cnt += 1
+          trews_subalert_onsets.append(criterion_ts)
 
 
       # septic shock
@@ -408,14 +414,16 @@ class TREWSAPI(web.View):
     if trews_od_cnt > 0:
       data['severe_sepsis']['trews_organ_dysfunction']['onset_time'] = sorted(trews_od_onsets)[0]
 
+    if trews_subalert_cnt > 0:
+      data['severe_sepsis']['trews_subalert']['onset_time'] = sorted(trews_subalert_onsets)[0]
+
     # update severe_sepsis
     cms_met = data['severe_sepsis']['sirs']['is_met'] and \
               data['severe_sepsis']['organ_dysfunction']['is_met'] and \
               not ( data['severe_sepsis']['suspicion_of_infection']['value'] == 'No Infection' \
                   or data['severe_sepsis']['suspicion_of_infection']['value'] is None)
 
-    trews_met = data['severe_sepsis']['trews']['is_met'] and \
-                data['severe_sepsis']['trews_organ_dysfunction']['is_met'] and \
+    trews_met = data['severe_sepsis']['trews_subalert']['is_met'] and \
                 not ( data['severe_sepsis']['suspicion_of_infection']['value'] == 'No Infection' \
                     or data['severe_sepsis']['suspicion_of_infection']['value'] is None)
 
@@ -426,11 +434,10 @@ class TREWSAPI(web.View):
 
     if trews_met:
       data['severe_sepsis']['trews_onset_time'] = sorted(
-            [ data['severe_sepsis']['trews']['onset_time'] ,
-              data['severe_sepsis']['trews_organ_dysfunction']['onset_time'] ,
+            [ data['severe_sepsis']['trews_subalert']['onset_time'] ,
               data['severe_sepsis']['suspicion_of_infection']['update_time']
             ]
-        )[2]
+        )[1]
 
     if cms_met:
       data['severe_sepsis']['cms_onset_time'] = sorted(
@@ -507,7 +514,6 @@ class TREWSAPI(web.View):
       # parallel query execution
       pat_values = await asyncio.gather(
                       query.get_criteria(db_pool, eid),
-                      #query.get_trews_contributors(db_pool, eid, start_hrs=chart_sample_start_hrs, start_day=chart_sample_start_day, end_day=chart_sample_end_day, sample_mins=chart_sample_mins, sample_hrs=chart_sample_hrs),
                       query.get_trews_jit_score(db_pool, eid, start_hrs=chart_sample_start_hrs, start_day=chart_sample_start_day, end_day=chart_sample_end_day, sample_mins=chart_sample_mins, sample_hrs=chart_sample_hrs),
                       query.get_patient_events(db_pool, eid),
                       query.get_patient_profile(db_pool, eid)
