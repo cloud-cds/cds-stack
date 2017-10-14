@@ -410,7 +410,7 @@ class AlertServer:
                                 ],
               metric_units   = ['Seconds','Seconds']
             )
-          self.job_status.pop(msg['hosp']+msg['time'],None)
+          self.job_status.pop(message['hosp']+message['time'],None)
       elif self.model == 'trews':
         await self.run_trews_alert(message['job_id'],message['hosp'])
       else:
