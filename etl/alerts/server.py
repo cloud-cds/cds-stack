@@ -378,6 +378,15 @@ class AlertServer:
       return await self.predictor_manager.register(reader, writer, message)
 
     elif message.get('type') == 'ETL':
+      self.cloudwatch_logger.push_many(
+        dimension_name = 'AlertServer',
+        metric_names = ['etl_done_{}'.format(message['hosp'])],
+        metric_values = [1],
+        metric_units = ['Count']
+      )
+      self.job_status[message['hosp'] + message['time']] = {
+        'msg': message, 't_start': dt.datetime.now()
+      }
       if self.model == 'lmc' or self.model == 'trews-jit':
         if message.get('hosp') in self.hospital_to_predict:
           if self.model == 'lmc':
@@ -387,21 +396,25 @@ class AlertServer:
                                                     time=message['time'])
         else:
           logging.info("skip prediction for msg: {}".format(message))
+          t_fin = dt.datetime.now()
           await self.run_trews_alert(message['job_id'],message['hosp'])
+          t_end = dt.datetime.now()
+          if message['hosp']+message['time'] in self.job_status:
+            self.cloudwatch_logger.push_many(
+              dimension_name = 'AlertServer',
+              metric_names   = ['e2e_time_{}'.format(message['hosp']),
+                                'criteria_time_{}'.format(message['hosp']),
+                                ],
+              metric_values  = [(t_end - parser.parse(message['time'])).total_seconds(),
+                                (t_end - t_fin).total_seconds(),
+                                ],
+              metric_units   = ['Seconds','Seconds','Seconds', 'Count']
+            )
+          self.job_status.pop(msg['hosp']+msg['time'],None)
       elif self.model == 'trews':
         await self.run_trews_alert(message['job_id'],message['hosp'])
       else:
         logging.error("Unknown suppression model {}".format(self.model))
-      self.job_status[message['hosp'] + message['time']] = {
-        'msg': message, 't_start': dt.datetime.now()
-      }
-      self.cloudwatch_logger.push_many(
-        dimension_name = 'AlertServer',
-        metric_names = ['etl_done_{}'.format(message['hosp'])],
-        metric_values = [1],
-        metric_units = ['Count']
-      )
-
     else:
       logging.error("Don't know how to process this message")
 
