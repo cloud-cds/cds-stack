@@ -241,10 +241,12 @@ var trews = new function() {
       case 'fusion':
         return this.data['septic_shock']['hypoperfusion']['criteria'];
 
+      /*
       case 'combined_sepsis':
         return this.data['severe_sepsis']['combined']['criteria'];
       case 'combined_shock':
         return this.data['septic_shock']['combined']['criteria'];
+      */
     }
   }
   this.getSpecificCriteria = function(slot, key) {
@@ -844,7 +846,7 @@ function longPatientSummary(with_alert, with_action, with_treatment, with_reset,
 
   if ( !(trews.data == null || trews.data['severe_sepsis'] == null) ) {
 
-    var trews_alerting = trews.data['severe_sepsis']['trews']['is_met'] && trews.data['severe_sepsis']['trews_organ_dysfunction']['is_met'];
+    var trews_alerting = trews.data['severe_sepsis']['trews_subalert']['is_met'];
     var cms_alerting = trews.data['severe_sepsis']['sirs']['is_met'] && trews.data['severe_sepsis']['organ_dysfunction']['is_met'];
 
     var not_infected = trews.data['severe_sepsis']['suspicion_of_infection']['update_time'] != null
@@ -858,7 +860,7 @@ function longPatientSummary(with_alert, with_action, with_treatment, with_reset,
     var sepsis_onset = trews.data['severe_sepsis']['onset_time'];
     var shock_onset = trews.data['septic_shock']['onset_time'];
 
-    var trews_and_orgdf = trews_alerting && (sepsis_onset == null && shock_onset == null);
+    var trews_subalert = trews_alerting && (sepsis_onset == null && shock_onset == null);
     var sirs_and_orgdf = cms_alerting && (sepsis_onset == null && shock_onset == null);
 
     var num_sev3_complete = 0;
@@ -902,8 +904,7 @@ function longPatientSummary(with_alert, with_action, with_treatment, with_reset,
       var not_infected_time = null
       if ( trews_alerting ) {
         not_infected_time = Math.max(trews.data['severe_sepsis']['suspicion_of_infection']['update_time'],
-                                     trews.data['severe_sepsis']['trews']['onset_time'],
-                                     trews.data['severe_sepsis']['trews_organ_dysfunction']['onset_time']);
+                                     trews.data['severe_sepsis']['trews_subalert']['onset_time']);
       } else {
         not_infected_time = Math.max(trews.data['severe_sepsis']['suspicion_of_infection']['update_time'],
                                      trews.data['severe_sepsis']['sirs']['onset_time'],
@@ -979,17 +980,17 @@ function longPatientSummary(with_alert, with_action, with_treatment, with_reset,
       }
       care_status_priority = !care_completed ? 'high-priority' : 'low-priority';
     }
-    else if ( trews_and_orgdf || sirs_and_orgdf ) {
-      var trews_and_orgdf_onset = new Date(Math.max(trews.data['severe_sepsis']['trews']['onset_time'], trews.data['severe_sepsis']['trews_organ_dysfunction']['onset_time']) * 1000);
+    else if ( trews_subalert || sirs_and_orgdf ) {
+      var trews_subalert_onset = new Date(trews.data['severe_sepsis']['trews_subalert']['onset_time'] * 1000);
       var sirs_and_orgdf_onset = new Date(Math.max(trews.data['severe_sepsis']['sirs']['onset_time'], trews.data['severe_sepsis']['organ_dysfunction']['onset_time']) * 1000);
 
-      var trews_prefix = trews_and_orgdf ? 'TREWS triggered for ' + (with_html ? '<b>' : '') + 'high risk of severe sepsis' + (with_html ? '</b>' : '') + ' at ' + strToTime(trews_and_orgdf_onset, true, false) : '';
+      var trews_prefix = trews_subalert ? 'TREWS triggered for ' + (with_html ? '<b>' : '') + 'high risk of severe sepsis' + (with_html ? '</b>' : '') + ' at ' + strToTime(trews_subalert_onset, true, false) : '';
       var cms_prefix = sirs_and_orgdf ? (with_html ? '<b>' : '') + 'CMS SIRS and Organ Dysfunction' + (with_html ? '</b>' : '') + ' criteria met at ' + strToTime(sirs_and_orgdf_onset, true, false) : '';
 
       care_status = '';
       if ( with_alert ) {
         care_status += trews_prefix;
-        if ( !trews_and_orgdf && sirs_and_orgdf ) {
+        if ( !trews_subalert && sirs_and_orgdf ) {
           care_status += cms_prefix;
         }
         else if ( with_separate_cms && sirs_and_orgdf ) {
@@ -997,7 +998,7 @@ function longPatientSummary(with_alert, with_action, with_treatment, with_reset,
         }
         care_status += '.'
       } else {
-        care_status += (trews_and_orgdf ? 'TREWS alert' : '') + (sirs_and_orgdf ? (trews_and_orgdf ? ' and ' : '') + 'CMS alert' : '') + ' fired,';
+        care_status += (trews_subalert ? 'TREWS alert' : '') + (sirs_and_orgdf ? (trews_subalert ? ' and ' : '') + 'CMS alert' : '') + ' fired,';
       }
       if ( with_action ) {
         var last_as_comma = care_status[care_status.length - 1] == ',';
@@ -1038,9 +1039,9 @@ function patientSevereSepsisSummary() {
   if ( !(trews.data == null || trews.data['severe_sepsis'] == null) ) {
 
     var subtitle = null;
-    var subtitleExpired = false;
+    var subtitle_expired = false;
 
-    var trews_alerting = trews.data['severe_sepsis']['trews']['is_met'] && trews.data['severe_sepsis']['trews_organ_dysfunction']['is_met'];
+    var trews_alerting = trews.data['severe_sepsis']['trews_subalert']['is_met'];
     var cms_alerting = trews.data['severe_sepsis']['sirs']['is_met'] && trews.data['severe_sepsis']['organ_dysfunction']['is_met'];
 
     var not_infected = trews.data['severe_sepsis']['suspicion_of_infection']['update_time'] != null
@@ -1048,17 +1049,17 @@ function patientSevereSepsisSummary() {
                         && (trews_alerting || cms_alerting);
 
 
-    var sepsisOnset = trews.data['severe_sepsis']['onset_time'];
+    var sepsis_onset = trews.data['severe_sepsis']['onset_time'];
 
-    var trewsAndOrgDF = trews_alerting && trews.data['severe_sepsis']['suspicion_of_infection']['value'] == null;
-    var sirsAndOrgDF = cms_alerting && trews.data['severe_sepsis']['suspicion_of_infection']['value'] == null;
+    var trews_subalert = trews_alerting && trews.data['severe_sepsis']['suspicion_of_infection']['value'] == null;
+    var sirs_and_orgdf = cms_alerting && trews.data['severe_sepsis']['suspicion_of_infection']['value'] == null;
 
     if ( not_infected ) {
       subtitle = 'Patient evaluated as not septic.';
     }
-    else if ( sepsisOnset != null ) {
+    else if ( sepsis_onset != null ) {
       var sev6 = $("[data-trews='sev6'] .card-subtitle").html();
-      var sev6Completed = sev6.indexOf('completed') >= 0;
+      var sev6_completed = sev6.indexOf('completed') >= 0;
 
       if ( trews.data['ui']['ui_severe_sepsis']['is_met'] || trews.data['ui']['ui_septic_shock']['is_met'] ) {
         subtitle = 'Patient manually overridden for severe sepsis';
@@ -1066,21 +1067,21 @@ function patientSevereSepsisSummary() {
         subtitle = 'Patient evaluation indicates severe sepsis';
       }
 
-      if ( sev6Completed ) {
+      if ( sev6_completed ) {
         subtitle += ', and the required interventions are complete. Please monitor the patient.';
       } else  {
         subtitle += '. Please complete the required interventions.';
-        subtitleExpired = true;
+        subtitle_expired = true;
       }
     }
-    else if ( trewsAndOrgDF || sirsAndOrgDF ) {
-      var trewsPrefix = trewsAndOrgDF ? 'TREWS triggered for high risk of severe sepsis' : '';
-      var cmsPrefix = sirsAndOrgDF ? ((trewsPrefix.length > 0 ? ' and ' : '') + 'CMS alert criteria met') : '';
-      subtitle = trewsPrefix + cmsPrefix + '. If you suspect infection is the cause, treat patient for severe sepsis.';
-      subtitleExpired = true;
+    else if ( trews_subalert || sirs_and_orgdf ) {
+      var trews_prefix = trews_subalert ? 'TREWS triggered for high risk of severe sepsis' : '';
+      var cms_prefix = sirs_and_orgdf ? ((trews_prefix.length > 0 ? ' and ' : '') + 'CMS alert criteria met') : '';
+      subtitle = trews_prefix + cms_prefix + '. If you suspect infection is the cause, treat patient for severe sepsis.';
+      subtitle_expired = true;
     }
 
-    return {'subtitle': subtitle, 'subtitleExpired': subtitleExpired};
+    return {'subtitle': subtitle, 'subtitle_expired': subtitle_expired};
   }
   return null;
 }
@@ -1093,11 +1094,11 @@ function patientSepticShockSummary() {
 
   if ( !(trews.data == null || trews.data['septic_shock'] == null) ) {
     var subtitle = null;
-    var subtitleExpired = false;
-    var shockOnset = trews.data['septic_shock']['onset_time'];
-    if ( shockOnset != null ) {
+    var subtitle_expired = false;
+    var shock_onset = trews.data['septic_shock']['onset_time'];
+    if ( shock_onset != null ) {
       var sep6 = $("[data-trews='sep6'] .card-subtitle").html();
-      var sep6Completed = sep6.indexOf('completed') >= 0;
+      var sep6_completed = sep6.indexOf('completed') >= 0;
 
       if ( trews.data['ui']['ui_septic_shock']['is_met'] ) {
         subtitle = 'Patient manually overridden for septic shock';
@@ -1105,11 +1106,11 @@ function patientSepticShockSummary() {
         subtitle = 'Patient evaluation indicates septic shock';
       }
 
-      if ( sep6Completed ) {
+      if ( sep6_completed ) {
         subtitle += ', and the required interventions are complete. Please monitor the patient.';
       } else  {
         subtitle += '. Please complete the required interventions.';
-        subtitleExpired = true;
+        subtitle_expired = true;
       }
     }
     else if ( trews.data['septic_shock']['crystalloid_fluid']['is_met']
@@ -1125,7 +1126,7 @@ function patientSepticShockSummary() {
       subtitle = 'No septic shock criteria met. No action required.';
     }
 
-    return {'subtitle': subtitle, 'subtitleExpired': subtitleExpired};
+    return {'subtitle': subtitle, 'subtitle_expired': subtitle_expired};
   }
 
   return null;
@@ -1265,7 +1266,7 @@ var careSummaryComponent = new function() {
     var patient_summary = longPatientSummary(true, false, false, false, true, true, true);
     this.ctn.find('h4').html(patient_summary.care_status + '&nbsp;&nbsp;<span class="summary-more-detail">More Detail</span>');
 
-    var trews_alerting = trews.data['severe_sepsis']['trews']['is_met'] && trews.data['severe_sepsis']['trews_organ_dysfunction']['is_met'];
+    var trews_alerting = trews.data['severe_sepsis']['trews_subalert']['is_met'];
     var cms_alerting = trews.data['severe_sepsis']['sirs']['is_met'] && trews.data['severe_sepsis']['organ_dysfunction']['is_met'];
 
     var alert_as_cms = (!trews_alerting && cms_alerting)
@@ -1405,67 +1406,22 @@ var severeSepsisComponent = new function() {
 
   this.orgSlot = new slotComponent($("[data-trews='eval-orgdf']"), $('#expand-org'), false, true, false, null, false, true);
 
-  /*
-  this.trewsSlot = $("[data-trews='eval-trews']");
-  this.cmsSlot = $("[data-trews='eval-cms']");
-
-  this.trewsAcuitySlot = new slotComponent(
-    $("[data-trews='eval-trews-acuity']"),
-    $('#expand-trews-acuity'), true, false, true, null, null, null, true);
-
-  this.trewsOrgSlot = new slotComponent(
-    $("[data-trews='eval-trews-orgdf']"),
-    $('#expand-trews-org'), true, false, true, 'TREWS Alert', true, true);
-
-  this.cmsSirSlot = new slotComponent(
-    $("[data-trews='eval-cms-sirs']"),
-    $('#expand-sir'), true, false, true);
-
-  this.cmsOrgSlot = new slotComponent(
-    $("[data-trews='eval-cms-orgdf']"),
-    $('#expand-org'), true, false, true);
-  */
-
 
   // Returns the class to attach to the SOI slot (to highlight it).
   // Returns null if no highlighting is to be performed.
   this.highlightSuspicionClass = function() {
-    // Alert-based highlighting.
-    /*
-    var renderTs = Date.now();
-    var active205 = false;
-    var active300 = false;
-
-    if ( trews.data != null && trews.data.notifications != null ) {
-      for (var i = 0; i < trews.data.notifications.length; i++) {
-        // Skip notifications scheduled in the future, as part of the Dashan event queue.
-        var notifTs = new Date(trews.data.notifications[i]['timestamp'] * 1000);
-        if (notifTs > renderTs) { continue; }
-        if ( trews.data.notifications[i]['alert_code'] == '205' ) { active205 = true; }
-        if ( trews.data.notifications[i]['alert_code'] == '300' ) { active300 = true; }
-      }
-    }
-
-    appendToConsole('soi-highlight 205:' + active205.toString() + ' 300:' + active300.toString());
-    if ( active300 ) {
-      return active205 ? 'highlight-expired' : 'highlight-unexpired';
-    }
-    return null;
-    */
-
     // Criteria-based highlighting
-    var sepsisOnset = trews.data['severe_sepsis']['onset_time'];
-    var shockOnset = trews.data['septic_shock']['onset_time'];
+    var sepsis_onset = trews.data['severe_sepsis']['onset_time'];
+    var shock_onset = trews.data['septic_shock']['onset_time'];
 
-    var trewsAndOrgDF = trews.data['severe_sepsis']['trews']['is_met']
-                        && trews.data['severe_sepsis']['trews_organ_dysfunction']['is_met']
-                        && (sepsisOnset == null && shockOnset == null);
+    var trews_subalert = trews.data['severe_sepsis']['trews_subalert']['is_met']
+                        && (sepsis_onset == null && shock_onset == null);
 
-    var sirsAndOrgDF = trews.data['severe_sepsis']['sirs']['is_met']
+    var sirs_and_orgdf = trews.data['severe_sepsis']['sirs']['is_met']
                         && trews.data['severe_sepsis']['organ_dysfunction']['is_met']
-                        && (sepsisOnset == null && shockOnset == null);
+                        && (sepsis_onset == null && shock_onset == null);
 
-    return ( trewsAndOrgDF || sirsAndOrgDF ) ? 'highlight-expired' : null;
+    return ( trews_subalert || sirs_and_orgdf ) ? 'highlight-expired' : null;
   }
 
   this.suspicion = function(json) {
@@ -1504,7 +1460,7 @@ var severeSepsisComponent = new function() {
   this.render = function(json) {
     this.ctn.find('h2.card-header').text(severe_sepsis['display_name']);
 
-    var trews_alerting = json['trews']['is_met'] && json['trews_organ_dysfunction']['is_met'];
+    var trews_alerting = json['trews_subalert']['is_met'];
     var cms_alerting = json['sirs']['is_met'] && json['organ_dysfunction']['is_met'];
 
     var not_infected = json['suspicion_of_infection']['update_time'] != null
@@ -1517,36 +1473,13 @@ var severeSepsisComponent = new function() {
       this.ctn.removeClass('complete');
     }
 
-    // Show/hide workflow step number.
-    /*
-    if ( !trews_alerting && !cms_alerting ) {
-      this.susCtn.find('.numberCircle').hide();
-      this.acuteOrgCtn.find('.numberCircle').hide();
-    } else {
-      this.susCtn.find('.numberCircle').show();
-      this.acuteOrgCtn.find('.numberCircle').show();
-    }
-    */
-
     this.sus = json['suspicion_of_infection'];
     this.suspicion(severe_sepsis['suspicion_of_infection']);
 
-    /*
-    // Listen on segmented controls.
-    $(".segmented label input[type=radio]").each(function(){
-        $(this).on("change", function(){
-            if($(this).is(":checked")){
-               $(this).parent().siblings().each(function(){
-                    $(this).removeClass("checked");
-                });
-                $(this).parent().addClass("checked");
-            }
-        });
-    });
-    */
-
+    // Render acute orgdf deselection (step 2).
+    var orgdf_label = 'Below, we list likely sources of organ dysfunction that triggered the alert. Remove any that you believe are not due to infection.';
     var orgdf_ctn = $('[data-trews="eval-acute-orgdf"]');
-    orgdf_ctn.find('h3').text('Below, we list likely sources of organ dysfunction that triggered the alert. Remove any that you believe are not due to infection.');
+    orgdf_ctn.find('h3').text(orgdf_label);
 
     orgdf_ctn.removeClass('inactive highlight-expired highlight-unexpired');
     if ( this.susCtn.hasClass('highlight-expired') ) {
@@ -1556,99 +1489,21 @@ var severeSepsisComponent = new function() {
       orgdf_ctn.addClass('highlight-unexpired');
     }
 
-    var sepsis_as_cms = (!trews_alerting && cms_alerting)
+    var alert_as_cms = (!trews_alerting && cms_alerting)
                           || (!trews.data['severe_sepsis']['is_trews'] && trews.data['severe_sepsis']['is_cms'])
 
-    this.orgSlot.r(sepsis_as_cms ? json['organ_dysfunction'] : json['trews_organ_dysfunction'],
-                   sepsis_as_cms ? severe_sepsis['organ_dysfunction'] : severe_sepsis['trews_organ_dysfunction'],
-                   sepsis_as_cms ? severe_sepsis['organ_dysfunction']['criteria_mapping'] : severe_sepsis['trews_organ_dysfunction']['criteria_mapping']);
+    this.orgSlot.r(alert_as_cms ? json['organ_dysfunction'] : json['trews_organ_dysfunction'],
+                   alert_as_cms ? severe_sepsis['organ_dysfunction'] : severe_sepsis['trews_organ_dysfunction'],
+                   alert_as_cms ? severe_sepsis['organ_dysfunction']['criteria_mapping'] : severe_sepsis['trews_organ_dysfunction']['criteria_mapping']);
 
-    if (!((sepsis_as_cms ? json['organ_dysfunction']['num_met'] : json['trews_organ_dysfunction']['num_met']) > 0
+    var num_orgdf = alert_as_cms ? json['organ_dysfunction']['num_met'] : json['trews_organ_dysfunction']['num_met'];
+    if (!(num_orgdf > 0
             || trews.data['ui']['ui_severe_sepsis']['is_met']
             || trews.data['ui']['ui_septic_shock']['is_met'] ))
     {
       orgdf_ctn.addClass('inactive');
     }
 
-
-    /*
-    // TREWS criteria.
-    // Inline rendering of acuity score slot.
-    this.trewsAcuitySlot.r(json['trews'], severe_sepsis['trews']);
-
-    var trews_risk_str = '';
-    var score_name = severe_sepsis['trews']['criteria'][0].overrideModal[0].name;
-
-    if ( json['trews']['is_met'] ) {
-      trews_risk_str = score_name + " <b>indicates high risk of severe sepsis</b>";
-    } else {
-      trews_risk_str = score_name + " does not indicate high risk of severe sepsis";
-    }
-
-    var odds_ratio_str = '';
-    if ( trews.data != null
-          && trews.data.chart_data.chart_values.timestamp != null
-          && trews.data.chart_data.chart_values.odds_ratio != null )
-    {
-      var num_ts = trews.data.chart_data.chart_values['timestamp'].length;
-      var num_or = trews.data.chart_data.chart_values['odds_ratio'].length;
-      var chart_idx = Math.min(num_ts, num_or) - 1;
-      if ( chart_idx >= 0 ) {
-        var odds_ratio_date = new Date(trews.data.chart_data.chart_values['timestamp'][chart_idx]*1000);
-        var odds_ratio_val = trews.data.chart_data.chart_values['odds_ratio'][chart_idx]
-        if ( isNumber(odds_ratio_val) ) { odds_ratio_val = odds_ratio_val.toFixed(3); }
-        var lapsed = timeLapsed(odds_ratio_date, true);
-        odds_ratio_str = 'Most recent odds ratio of mortality: ' + odds_ratio_val + (lapsed.startsWith('at') ? ' ' : ', ') + lapsed;
-      }
-    }
-
-    if ( odds_ratio_str.length == 0 ) {
-      odds_ratio_str = 'No odds ratio of mortality available.';
-    }
-
-    odds_ratio_str =
-      '<span data-toggle="tooltip" title="' +
-      'The ratio of historical mortalities for patients with TREWS scores higher relative to TREWS scores lower than this patient.' +
-      '">' + odds_ratio_str + '</span>';
-
-    var trews_status_str = '';
-    if ( json['trews']['criteria'][0]['is_met'] && json['trews']['criteria'][0]['measurement_time'] ) {
-      var lapsed = timeLapsed(new Date(json['trews']['criteria'][0]['measurement_time']*1000));
-      var strTime = strToTime(new Date(json['trews']['criteria'][0]['measurement_time']*1000));
-      trews_status_str += "TREWS Alert Criteria met <span title='" + strTime + "'>" + lapsed;
-    }
-
-    this.trewsAcuitySlot.elem.find('.status[data-trews="eval-trews-acuity-criteria"] h4[data-trews="eval-trews-acuity-risk"]').html(trews_risk_str);
-    this.trewsAcuitySlot.elem.find('.status[data-trews="eval-trews-acuity-criteria"] h5[data-trews="eval-trews-acuity-met"]').html(trews_status_str);
-    this.trewsAcuitySlot.elem.find('.status[data-trews="eval-trews-acuity-criteria"] h4[data-trews="eval-trews-acuity-odds-ratio"]').html(odds_ratio_str);
-
-    this.trewsOrgSlot.r(json['trews_organ_dysfunction'], severe_sepsis['trews_organ_dysfunction'], severe_sepsis['trews_organ_dysfunction']['criteria_mapping']);
-
-    if ( trews_alerting ) {
-      this.trewsSlot.removeClass('incomplete-with-status').addClass('complete-with-status');
-    } else {
-      this.trewsSlot.removeClass('complete-with-status').addClass('incomplete-with-status');
-    }
-
-    // CMS SIRS/OrgDF slots.
-    this.cmsSirSlot.r(json['sirs'], severe_sepsis['sirs']);
-    this.cmsOrgSlot.r(json['organ_dysfunction'], severe_sepsis['organ_dysfunction'], severe_sepsis['organ_dysfunction']['criteria_mapping']);
-    if ( cms_alerting ) {
-      this.cmsSlot.addClass('complete-with-status');
-    } else {
-      this.cmsSlot.removeClass('complete-with-status');
-    }
-
-    // Refresh organ dysfunction enable/disable label.
-    $('span.label-acute-orgdf').text('');
-
-    if ( json['trews_organ_dysfunction']['is_met'] || json['organ_dysfunction']['is_met']
-          || this.trewsOrgSlot.elem.find('.num-overridden').text().length > 0
-          || this.cmsOrgSlot.elem.find('.num-overridden').text().length > 0 )
-    {
-      $('span.label-acute-orgdf').text('For patient evaluation, remove organ dysfunction that are not acute and likely due to infection');
-    }
-    */
 
     // Bind no-infection button.
     this.noInfectionBtn.unbind();
@@ -1676,7 +1531,7 @@ var severeSepsisComponent = new function() {
       var subTitleElem = this.ctn.find('.card-subtitle');
       if ( sepsis_summary.subtitle != null ) {
         subTitleElem.text(sepsis_summary.subtitle);
-        if ( sepsis_summary.subtitleExpired ) { subTitleElem.addClass('workflow-expired'); }
+        if ( sepsis_summary.subtitle_expired ) { subTitleElem.addClass('workflow-expired'); }
         else { subTitleElem.removeClass('workflow-expired'); }
       }
       else{
@@ -1759,7 +1614,7 @@ var septicShockComponent = new function() {
     if ( shock_summary != null && shock_summary.subtitle != null ) {
       var subTitleElem = this.ctn.find('.card-subtitle');
       subTitleElem.text(shock_summary.subtitle);
-      if ( shock_summary.subtitleExpired ) { subTitleElem.addClass('workflow-expired'); }
+      if ( shock_summary.subtitle_expired ) { subTitleElem.addClass('workflow-expired'); }
       else { subTitleElem.removeClass('workflow-expired'); }
     }
     */
@@ -3896,19 +3751,37 @@ var toolbar = new function() {
     }
 
     // Add criteria items.
+    var criteria_min_duration = 5*60*1000;
     for (var cls_i in criteriaClasses) {
       var pcls = criteriaClasses[cls_i]['pcls'];
       var cls = criteriaClasses[cls_i]['cls'];
       for (var c in json[pcls][cls]['criteria']) {
         var cr = json[pcls][cls]['criteria'][c];
         if ( cr['is_met'] ) {
+
           var start = new Date(cr['measurement_time'] * 1000);
-          var end = new Date(start.getTime() + 6 * 3600 * 1000);
+          var end = null;
+          var content = null;
+          if ( cls == 'trews_organ_dysfunction' || cls == 'hypotension' || cls == 'hypoperfusion' ) {
+            end = now;
+            // Ensure min duration.
+            if ( end - start < criteria_min_duration ) { end = new Date(start.getTime() + criteria_min_duration); }
+
+            if ( cls == 'trews_organ_dysfunction' ) {
+              content = 'Window to trigger TREWS alert starting @ ' + strToTime(start, true, true);
+            } else {
+              content = 'Window to trigger septic shock starting @ ' + strToTime(start, true, true);
+            }
+          } else {
+            end = new Date(start.getTime() + 6 * 3600 * 1000);
+            content = '6hr window to trigger CMS severe sepsis starting @ ' + strToTime(start, true, true);
+          }
+
           var g_name = cr['name'] == 'initial_lactate' ? 'hpf_initial_lactate' : cr['name']; // HACK: map group name for hypoperfusion initial lactate.
           var g = this.groups[g_name];
+
           var v = cr['name'] == 'respiratory_failure' ? cr['value'] : Number(cr['value']).toPrecision(3);
-          var c_type = cls == 'trews_organ_dysfunction' ? 'TREWS' : 'CMS'
-          var content = '6hr window to trigger ' + c_type + ' sepsis definition starting @ ' + strToTime(start, true, true);
+
           items.add({
             id: cr['name'],
             group: g['id'],
