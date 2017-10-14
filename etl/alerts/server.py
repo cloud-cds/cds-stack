@@ -288,8 +288,8 @@ class AlertServer:
     logging.info("calculate_criteria sql: {}".format(sql))
     await conn.fetch(sql)
     sql = '''
-    select distribute_advance_criteria_snapshot_for_online_hospital('{server}', {hours}, '{hospital}', {nprocs});
-    '''.format(server=server,hours=self.lookbackhours,hospital=hospital,nprocs=self.nprocs)
+    select distribute_advance_criteria_snapshot_for_online_hospital('{server}', '{hospital}', {nprocs});
+    '''.format(server=server,hospital=hospital,nprocs=self.nprocs)
     logging.info("calculate_criteria sql: {}".format(sql))
     await conn.fetch(sql)
 
