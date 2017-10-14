@@ -40,6 +40,7 @@ class Predictor:
     self.avg_optimization_time = 0
     self.total_time = 0
     self.optimization_time = 0
+    self.model                  = os.getenv('suppression_model', 'trews')
 
   def __str__(self):
     return predictor_str(self.partition_index, self.model_type, self.is_active)
@@ -294,10 +295,15 @@ class PredictorManager:
 
       # DEAD - predictor failed, restart run_predict
       elif pred.status == 'DEAD':
-        logging.error("{} died, trying again".format(pred))
-        self.loop.create_task(self.run_predict(partition_id, model_type, hosp,
-                                               time, not active))
         pred.stop()
+        if self.model == 'trews-jit':
+          logging.error("{} died.".format(pred))
+          self.loop.create_task(self.run_predict(partition_id, model_type, hosp,
+                                               time, not active))
+        else:
+          logging.error("{} died, trying again".format(pred))
+          self.loop.create_task(self.run_predict(partition_id, model_type, hosp,
+                                               time, active))
         return
 
       # FIN - return
