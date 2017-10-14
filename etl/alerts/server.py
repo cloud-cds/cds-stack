@@ -144,6 +144,17 @@ class AlertServer:
 
   async def run_suppression_mode_2(self, msg):
     t_fin = dt.datetime.now()
+    if msg['hosp']+msg['time'] in self.job_status:
+      self.cloudwatch_logger.push_many(
+        dimension_name = 'AlertServer',
+        metric_names   = [
+                          'prediction_time_{}'.format(msg['hosp']),
+                          'prediction_enc_cnt_{}'.format(msg['hosp'])],
+        metric_values  = [
+                          (t_end - self.job_status[msg['hosp']+msg['time']]['t_start']).total_seconds(),
+                          len(msg['enc_ids'])],
+        metric_units   = ['Seconds','Seconds','Seconds', 'Count']
+      )
     logging.info("start to run suppression mode 2 for msg {}".format(msg))
     tsp = msg['time']
     enc_id_str = ','.join([str(i) for i in msg['enc_ids'] if i])
@@ -188,12 +199,10 @@ class AlertServer:
         dimension_name = 'AlertServer',
         metric_names   = ['e2e_time_{}'.format(msg['hosp']),
                           'criteria_time_{}'.format(msg['hosp']),
-                          'prediction_time_{}'.format(msg['hosp']),
-                          'prediction_enc_cnt_{}'.format(msg['hosp'])],
+                          ],
         metric_values  = [(t_end - parser.parse(msg['time'])).total_seconds(),
                           (t_end - t_fin).total_seconds(),
-                          (t_end - self.job_status[msg['hosp']+msg['time']]['t_start']).total_seconds(),
-                          len(msg['enc_ids'])],
+                          ],
         metric_units   = ['Seconds','Seconds','Seconds', 'Count']
       )
     self.job_status.pop(msg['hosp']+msg['time'],None)
