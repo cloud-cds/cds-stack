@@ -153,7 +153,7 @@ class AlertServer:
         metric_values  = [
                           (t_end - self.job_status[msg['hosp']+msg['time']]['t_start']).total_seconds(),
                           len(msg['enc_ids'])],
-        metric_units   = ['Seconds','Seconds','Seconds', 'Count']
+        metric_units   = ['Seconds', 'Count']
       )
     logging.info("start to run suppression mode 2 for msg {}".format(msg))
     tsp = msg['time']
@@ -203,7 +203,7 @@ class AlertServer:
         metric_values  = [(t_end - parser.parse(msg['time'])).total_seconds(),
                           (t_end - t_fin).total_seconds(),
                           ],
-        metric_units   = ['Seconds','Seconds','Seconds', 'Count']
+        metric_units   = ['Seconds','Seconds']
       )
     self.job_status.pop(msg['hosp']+msg['time'],None)
 
@@ -408,7 +408,7 @@ class AlertServer:
               metric_values  = [(t_end - parser.parse(message['time'])).total_seconds(),
                                 (t_end - t_fin).total_seconds(),
                                 ],
-              metric_units   = ['Seconds','Seconds','Seconds', 'Count']
+              metric_units   = ['Seconds','Seconds']
             )
           self.job_status.pop(msg['hosp']+msg['time'],None)
       elif self.model == 'trews':
