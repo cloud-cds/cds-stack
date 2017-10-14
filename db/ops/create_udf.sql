@@ -925,11 +925,11 @@ format('select stats.enc_id,
     case
     when ui_severe_sepsis_cnt = 0 and ui_septic_shock_cnt = 1 then (
         -- trews severe sepsis ON
-        case when sus_count = 1 and trews_met > 0 and trews_orgdf = 1 then
+        case when sus_count = 1 and trews_subalert_met > 0 then
             (case
             -- septic shock
-            when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset)  > ''3 hours''::interval and sev_sep_3hr_count < 4 then 62 -- ui_sev_sep_3hr_exp
-            when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset)  > ''6 hours''::interval and sev_sep_6hr_count = 0 then 64 -- ui_sev_sep_6hr_exp
+            when now() - GREATEST(sus_onset, trews_subalert_onset)  > ''3 hours''::interval and sev_sep_3hr_count < 4 then 62 -- ui_sev_sep_3hr_exp
+            when now() - GREATEST(sus_onset, trews_subalert_onset)  > ''6 hours''::interval and sev_sep_6hr_count = 0 then 64 -- ui_sev_sep_6hr_exp
             when now() - ui_septic_shock_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 66 -- trews_sep_sho_6hr_exp
             when sep_sho_6hr_count = 1 then 65 -- trews_sep_sho_6hr_com
             when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 63 -- ui_sev_sep_6hr_com
@@ -1020,14 +1020,14 @@ format('select stats.enc_id,
     )
     when sus_count = 1 then
         (
-        case when trews_met > 0 and trews_orgdf = 1 then (
+        case when trews_subalert_met > 0 then (
             (
             case
             when (fluid_count = 1 and hypotension_count > 0) and hypoperfusion_count = 1 then
                 (case
                     -- septic shock
-                    when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset)  > ''3 hours''::interval and sev_sep_3hr_count < 4 then 42 -- trews_sev_sep_3hr_exp
-                    when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset)  > ''6 hours''::interval and sev_sep_6hr_count = 0 then 44 -- trews_sev_sep_6hr_exp
+                    when now() - GREATEST(sus_onset, trews_subalert_onset)  > ''3 hours''::interval and sev_sep_3hr_count < 4 then 42 -- trews_sev_sep_3hr_exp
+                    when now() - GREATEST(sus_onset, trews_subalert_onset)  > ''6 hours''::interval and sev_sep_6hr_count = 0 then 44 -- trews_sev_sep_6hr_exp
                     when now() - LEAST(hypotension_onset, hypoperfusion_onset) > ''6 hours''::interval and sep_sho_6hr_count = 0 then 46 -- trews_sep_sho_6hr_exp
                     when sep_sho_6hr_count = 1 then 45 -- trews_sep_sho_6hr_com
                     when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 43 -- trews_sev_sep_6hr_com
@@ -1037,8 +1037,8 @@ format('select stats.enc_id,
             when (fluid_count = 1 and hypotension_count > 0) then
                 (case
                     -- septic shock
-                    when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset) > ''3 hours''::interval and sev_sep_3hr_count < 4 then 42 -- trews_sev_sep_3hr_exp
-                    when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset) > ''6 hours''::interval and sev_sep_6hr_count = 0 then 44 -- trews_sev_sep_6hr_exp
+                    when now() - GREATEST(sus_onset, trews_subalert_onset) > ''3 hours''::interval and sev_sep_3hr_count < 4 then 42 -- trews_sev_sep_3hr_exp
+                    when now() - GREATEST(sus_onset, trews_subalert_onset) > ''6 hours''::interval and sev_sep_6hr_count = 0 then 44 -- trews_sev_sep_6hr_exp
                     when now() - hypotension_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 46 -- trews_sep_sho_6hr_exp
                     when sep_sho_6hr_count = 1 then 45 -- trews_sep_sho_6hr_com
                     when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 43 -- trews_sev_sep_6hr_com
@@ -1048,16 +1048,16 @@ format('select stats.enc_id,
             when hypoperfusion_count = 1 then
                 (case
                     -- septic shock
-                    when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset) > ''3 hours''::interval and sev_sep_3hr_count < 4 then 42 -- trews_sev_sep_3hr_exp
-                    when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset) > ''6 hours''::interval and sev_sep_6hr_count = 0 then 44 -- trews_sev_sep_6hr_exp
+                    when now() - GREATEST(sus_onset, trews_subalert_onset) > ''3 hours''::interval and sev_sep_3hr_count < 4 then 42 -- trews_sev_sep_3hr_exp
+                    when now() - GREATEST(sus_onset, trews_subalert_onset) > ''6 hours''::interval and sev_sep_6hr_count = 0 then 44 -- trews_sev_sep_6hr_exp
                     when now() - hypoperfusion_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 46 -- trews_sep_sho_6hr_exp
                     when sep_sho_6hr_count = 1 then 45 -- trews_sep_sho_6hr_com
                     when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 43 -- trews_sev_sep_6hr_com
                     when sev_sep_3hr_count = 4 then 41 -- trews_sev_sep_3hr_com
                     else
                     40 end)
-            when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset) > ''3 hours''::interval and sev_sep_3hr_count < 4 then 27 -- trews_sev_sep_3hr_exp
-            when now() - GREATEST(sus_onset, trews_onset, trews_orgdf_onset) > ''6 hours''::interval and sev_sep_6hr_count = 0 then 29 -- trews_sev_sep_6hr_exp
+            when now() - GREATEST(sus_onset, trews_subalert_onset) > ''3 hours''::interval and sev_sep_3hr_count < 4 then 27 -- trews_sev_sep_3hr_exp
+            when now() - GREATEST(sus_onset, trews_subalert_onset) > ''6 hours''::interval and sev_sep_6hr_count = 0 then 29 -- trews_sev_sep_6hr_exp
             when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 28 -- trews_sev_sep_6hr_com
             when sev_sep_3hr_count = 4 then 26 -- trews_sev_sep_3hr_com
             else
@@ -1116,8 +1116,8 @@ format('select stats.enc_id,
         end
         )
     -- no sus
-    when trews_met > 0 and trews_orgdf > 0 and sus_null_count = 1 then 11 -- trews_sev_sep w.o. sus
-    when trews_met > 0 and trews_orgdf > 0 and sus_noinf_count = 1 then 13 -- trews_sev_sep w.o. sus
+    when trews_subalert_met > 0 and sus_null_count = 1 then 11 -- trews_sev_sep w.o. sus
+    when trews_subalert_met > 0 and sus_noinf_count = 1 then 13 -- trews_sev_sep w.o. sus
     when sirs_count > 1 and organ_count > 0 and sus_null_count = 1 then 10 -- sev_sep w.o. sus
     when sirs_count > 1 and organ_count > 0 and sus_noinf_count = 1 then 12 -- sev_sep w.o. sus
     else 0 -- health case
@@ -1143,6 +1143,8 @@ select %I.enc_id,
     min(measurement_time) filter (where name = ''initial_lactate'' and is_met) as hypoperfusion_onset,
     count(*) filter (where name = ''trews'' and is_met) as trews_met,
     min(measurement_time) filter (where name = ''trews'' and is_met) as trews_onset,
+    count(*) filter (where name = ''trews_subalert'' and is_met) as trews_subalert_met,
+    min(measurement_time) filter (where name = ''trews_subalert'' and is_met) as trews_subalert_onset,
     count(*) filter (where name ~ ''trews_'' and is_met) as trews_orgdf,
     min(measurement_time) filter (where name ~ ''trews_'' and is_met) as trews_orgdf_onset,
     count(*) filter (where name = ''ui_severe_sepsis'' and is_met) as ui_severe_sepsis_cnt,
@@ -1670,8 +1672,8 @@ return query
         select
             ordered.enc_id,
             ordered.name,
-            (case when ordered.name = 'trews'
-                then last(ordered.tsp order by ordered.tsp)
+            (case when ordered.name = 'trews' then last(ordered.tsp order by ordered.tsp)
+                when ordered.name = 'trews_subalert' then last(ordered.tsp order by ordered.tsp)
                 when ordered.name = 'trews_bilirubin' then last(((ordered.orgdf_details::json)#>>'{bilirubin_trigger,tsp}')::timestamptz order by ordered.tsp)
                 when ordered.name = 'trews_creatinine' then last(((ordered.orgdf_details::json)#>>'{creatinine_trigger,tsp}')::timestamptz order by ordered.tsp)
                 when ordered.name = 'trews_dsbp' then last(((ordered.orgdf_details::json)#>>'{delta_hypotetrigger,tsp}' )::timestamptz order by ordered.tsp)
@@ -1687,6 +1689,7 @@ return query
             )::timestamptz as measurement_time,
             (case when ordered.name = 'trews'
                 then (last(json_build_object('score', score, 'odds_ratio', odds_ratio) order by ordered.tsp))::text
+                when ordered.name = 'trews_subalert' then last(json_build_object('alert', (ordered.orgdf_details::jsonb)#>'{alert}', 'pct_mortality', (ordered.orgdf_details::jsonb)#>'{percent_mortality}', 'pct_sevsep', (ordered.orgdf_details::jsonb)#>'{percent_sevsep}', 'heart_rate', (ordered.orgdf_details::jsonb)#>'{heart_rate}', 'lactate', (ordered.orgdf_details::jsonb)#>'{lactate}', 'sbpm', (ordered.orgdf_details::jsonb)#>'{sbpm}')::text order by ordered.tsp)
                 when ordered.name = 'trews_bilirubin' then last(((ordered.orgdf_details::jsonb)#>'{bilirubin_trigger}' #- '{tsp}')::text order by ordered.tsp)
                 when ordered.name = 'trews_creatinine' then last(((ordered.orgdf_details::jsonb)#>'{creatinine_trigger}' #- '{tsp}')::text order by ordered.tsp)
                 when ordered.name = 'trews_dsbp' then last(((ordered.orgdf_details::jsonb)#>'{delta_hypotetrigger}' #- '{tsp}')::text order by ordered.tsp)
@@ -1704,6 +1707,7 @@ return query
             (last(ordered.c_ovalue order by ordered.tsp)) as override_value,
             coalesce((case when last(ordered.c_ovalue#>>'{0,text}' order by ordered.tsp) = 'No Infection' then false
                 when ordered.name = 'trews' then last(ordered.score > get_trews_parameter('trews_jit_threshold') order by ordered.tsp)
+                when ordered.name = 'trews_subalert' then last(((ordered.orgdf_details::jsonb)#>>'{alert}')::boolean order by ordered.tsp)
                 when ordered.name = 'trews_bilirubin' then last(ordered.bilirubin_orgdf::numeric = 1 order by ordered.tsp)
                 when ordered.name = 'trews_creatinine' then last(ordered.creatinine_orgdf::numeric = 1 order by ordered.tsp)
                 when ordered.name = 'trews_dsbp' then last(ordered.delta_hypotension::numeric = 1 order by ordered.tsp)
@@ -1906,11 +1910,13 @@ return query
         select IC.enc_id,
                sum(IC.cnt) > 0 as suspicion_of_infection,
                sum(TS.cnt) > 0 as trews,
+               sum(TA.cnt) > 0 as trews_subalert,
                sum(SC.cnt) as sirs_cnt,
                sum(OC.cnt) as org_df_cnt,
                sum(TOC.cnt) as trews_orgdf_cnt,
                max(IC.onset) as inf_onset,
                max(TS.onset) as trews_onset,
+               max(TA.onset) as trews_subalert_onset,
                max(SC.onset) as sirs_onset,
                min(SC.initial) as sirs_initial,
                max(OC.onset) as org_df_onset,
@@ -1935,6 +1941,14 @@ return query
             from trews where trews.name = 'trews'
             group by trews.enc_id
         ) TS on TS.enc_id = IC.enc_id
+        left join
+        (
+            select trews.enc_id,
+                   sum(case when trews.is_met then 1 else 0 end) as cnt,
+                   max(trews.measurement_time) as onset
+            from trews where trews.name = 'trews_subalert'
+            group by trews.enc_id
+        ) TA on TA.enc_id = IC.enc_id
         left join
         (
           select sirs.enc_id,
@@ -2029,14 +2043,13 @@ return query
                         , false
                         ) as severe_sepsis_is_met,
                coalesce(bool_or(stats.suspicion_of_infection
-                                  and stats.trews
-                                  and stats.trews_orgdf_cnt > 0)
+                                  and stats.trews_subalert)
                         , false
                         ) as trews_severe_sepsis_is_met,
                coalesce(bool_or(stats.sirs_cnt > 1 and stats.org_df_cnt > 0)
                         , false
                         ) as severe_sepsis_wo_infection_is_met,
-               coalesce(bool_or(stats.trews and stats.trews_orgdf_cnt > 0)
+               coalesce(bool_or(stats.trews_subalert)
                         , false
                         ) as trews_severe_sepsis_wo_infection_is_met,
                coalesce(bool_or(stats.ui_ss1_cnt > 0)
@@ -2052,22 +2065,20 @@ return query
                             coalesce(stats.org_df_onset, 'infinity'::timestamptz))
                    ) as severe_sepsis_onset,
                max(greatest(coalesce(stats.inf_onset, 'infinity'::timestamptz),
-                            coalesce(stats.trews_onset, 'infinity'::timestamptz),
-                            coalesce(stats.trews_orgdf_onset, 'infinity'::timestamptz))
+                            coalesce(stats.trews_subalert_onset, 'infinity'::timestamptz))
                    ) as trews_severe_sepsis_onset,
                max(greatest(coalesce(stats.sirs_onset, 'infinity'::timestamptz),
                             coalesce(stats.org_df_onset, 'infinity'::timestamptz))
                    ) as severe_sepsis_wo_infection_onset,
-               max(greatest(coalesce(stats.trews_onset, 'infinity'::timestamptz),
-                            coalesce(stats.trews_orgdf_onset, 'infinity'::timestamptz))
+               max(greatest(coalesce(stats.trews_subalert_onset, 'infinity'::timestamptz))
                    ) as trews_severe_sepsis_wo_infection_onset,
                min(least(stats.sirs_initial, stats.org_df_onset)
                    ) as severe_sepsis_wo_infection_initial,
-               min(least(stats.trews_onset, stats.trews_orgdf_onset)
+               min(least(stats.trews_subalert_onset)
                    ) as trews_severe_sepsis_wo_infection_initial,
                min(least(stats.inf_onset, stats.sirs_onset, stats.org_df_onset))
                   as severe_sepsis_lead_time,
-               min(least(stats.inf_onset, stats.trews_onset, stats.trews_orgdf_onset))
+               min(least(stats.inf_onset, stats.trews_subalert_onset))
                   as trews_severe_sepsis_lead_time
         from severe_sepsis_criteria stats
         group by stats.enc_id
@@ -3975,6 +3986,26 @@ begin
     select array_agg(q) arr from queries
   )
   select distribute('''||server||''', arr, '|| nprocs ||') from query_arrays';
+  return;
+end;
+$$;
+
+create or replace function distribute_advance_criteria_snapshot_for_online_hospital(server text, hospital text, nprocs int default 2)
+returns void language plpgsql as $$
+declare
+begin
+  execute 'with pats as
+  (select enc_id from get_latest_enc_ids('''||hospital||''')),
+  pats_group as
+  (select pats.*, row_number() over () % ' || nprocs || ' g from pats),
+  queries as (
+    select string_agg((''select advance_criteria_snapshot(''||enc_id||'')'')::text, '';'') q from pats_group group by g
+  ),
+  query_arrays as (
+    select array_agg(q) arr from queries
+  )
+  select distribute('''||server||''', arr, '|| nprocs ||') from query_arrays';
+  return;
 end;
 $$;
 
@@ -4341,3 +4372,28 @@ platelets_tsp = (case when now() - orgdf_baselines.platelets_tsp > ''4 months'':
               or Excluded.platelets > orgdf_baselines.platelets then Excluded.platelets_tsp
              else orgdf_baselines.platelets_tsp end)';
 END $func$ LANGUAGE plpgsql;
+
+
+
+create or replace function post_prediction(hospital text,
+    server text, nprocs int, channel text default null, model text default null)
+returns void language plpgsql as $$
+-- reset patients who are in state 10 and expired for lookbackhours
+begin
+    perform garbage_collection();
+    perform distribute_advance_criteria_snapshot_for_online_hospital(server, hospital, nprocs);
+    if channel is not null then
+        execute
+        'with pats as (
+          select p.enc_id, p.pat_id from pat_enc p
+          inner join get_latest_enc_ids(''' || hospital || ''') e on p.enc_id = e.enc_id
+        ),
+        refreshed as (
+          insert into refreshed_pats (refreshed_tsp, pats)
+          select now(), jsonb_agg(pat_id) from pats
+          returning id
+        )
+        select pg_notify('''|| channel || ''', ''invalidate_cache_batch:'' || id || '':'' || ''' || model || ''') from refreshed;';
+    end if;
+    return;
+end; $$;
