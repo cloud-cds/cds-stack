@@ -3199,6 +3199,12 @@ as $$ begin
     -- if false then reset patient automatically
     if not deactivated then
         perform reset_patient(enc_id);
+        insert into criteria_log (enc_id, tsp, event, update_date)
+        values (enc_id,
+                now(),
+                json_build_object('event_type', 'reset', 'uid', 'dba', 'deactivated', deactivated),
+                now()
+               );
     end IF;
 end; $$;
 
@@ -3248,24 +3254,52 @@ end; $$;
 
 create or replace function reactivate(this_enc_id int default null) returns void language plpgsql
 -- turn deactivated patients longer than deactivate_expire_hours to active
-as $$ begin
-    perform deactivate(s.enc_id, false, 'auto_deactivate') from pat_status s
-    inner join lateral get_states_snapshot(s.enc_id) SNP on s.enc_id = SNP.enc_id
-    where deactivated
-    and now() - SNP.severe_sepsis_onset > get_parameter('deactivate_expire_hours')::interval
-    and s.enc_id = coalesce(this_enc_id, s.enc_id);
+as $$
+declare res text;
+begin
+    with pats as (
+        select distinct s.enc_id
+        from pat_status s
+        inner join lateral get_states_snapshot(s.enc_id) SNP on s.enc_id = SNP.enc_id
+        where deactivated
+        and now() - SNP.severe_sepsis_onset > get_parameter('deactivate_expire_hours')::interval
+        and s.enc_id = coalesce(this_enc_id, s.enc_id)
+    ),
+    logging as (
+        insert into criteria_log (enc_id, tsp, event, update_date)
+        values (
+              this_enc_id,
+              now(),
+              '{"event_type": "reactivate", "uid":"dba"}',
+              now()
+          )
+    )
+    select deactivate(s.enc_id, false, 'auto_deactivate') from pats into res;
+    return;
 end; $$;
 
 create or replace function reset_soi_pats(this_enc_id int default null)
 returns void language plpgsql as $$
+declare res text;
 -- reset patients who are in state 10 and expired for lookbackhours
 begin
-    perform reset_patient(enc_id) from
-    (select distinct e.enc_id
-    from criteria_events e
-    inner join lateral get_states_snapshot(e.enc_id) SNP on e.enc_id = SNP.enc_id
-    where flag in (10,11) and now() - SNP.severe_sepsis_wo_infection_initial > (select value from parameters where name = 'lookbackhours')::interval
-    and e.enc_id = coalesce(this_enc_id, e.enc_id)) p;
+    with pats as (select distinct e.enc_id
+        from criteria_events e
+        inner join lateral get_states_snapshot(e.enc_id) SNP on e.enc_id = SNP.enc_id
+        where flag in (10,11) and now() - SNP.severe_sepsis_wo_infection_initial > (select value from parameters where name = 'lookbackhours')::interval
+        and e.enc_id = coalesce(this_enc_id, e.enc_id)
+    ),
+    logging as (
+        insert into criteria_log (enc_id, tsp, event, update_date)
+        values (
+              this_enc_id,
+              now(),
+              '{"event_type": "reset_soi_pats", "uid":"dba"}',
+              now()
+          )
+    )
+    select reset_patient(enc_id) from pats into res;
+    return;
 end; $$;
 
 
@@ -3334,13 +3368,13 @@ begin
         update criteria_events set flag = flag - 1000
         where enc_id = this_enc_id and event_id = _event_id and flag >= 0;
     end if;
-    insert into criteria_log (enc_id, tsp, event, update_date)
-    values (
-          this_enc_id,
-          now(),
-          '{"event_type": "reset", "uid":"dba"}',
-          now()
-      );
+    -- insert into criteria_log (enc_id, tsp, event, update_date)
+    -- values (
+    --       this_enc_id,
+    --       now(),
+    --       json_build_object('event_type', 'reset', 'uid', 'dba', 'tag', _tag),
+    --       now()
+    --   );
     delete from notifications where enc_id = this_enc_id;
     perform advance_criteria_snapshot(this_enc_id, 'reset');
 end; $$;
