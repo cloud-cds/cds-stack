@@ -5,6 +5,7 @@ from etl.io_config.cloudwatch import Cloudwatch
 import logging
 import functools
 import humanize
+import os
 
 STATUS_DICT = {
   'IDLE': 1,
