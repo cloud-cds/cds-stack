@@ -834,11 +834,13 @@ var slotComponent = function(elem, link, display_name, skip_summary, border_with
 /*
  * Text description as previously used in the header.
  */
-function longPatientSummary(with_alert, with_action, with_treatment, with_reset, with_no_risk) {
+function longPatientSummary(with_alert, with_action, with_treatment, with_reset, with_no_risk, with_separate_cms, with_html) {
 
   var care_status = null;
   var care_status_priority = null;
   var auto_reset_date = null;
+
+  var cms_status = null;
 
   if ( !(trews.data == null || trews.data['severe_sepsis'] == null) ) {
 
@@ -932,10 +934,18 @@ function longPatientSummary(with_alert, with_action, with_treatment, with_reset,
         if ( trews.data['ui']['ui_septic_shock']['is_met'] ) {
           care_status = 'Patient manually overriden at ' + strToTime(new Date(shock_onset*1000), true, false) + '. ';
         } else if ( with_alert ) {
-          if ( sepsis_as_trews ) {
-            care_status = 'TREWS Septic Shock met at ' + strToTime(new Date(shock_onset*1000), true, false) + '. ';
-          } else {
-            care_status = 'CMS Septic Shock criteria met at ' + strToTime(new Date(shock_onset*1000), true, false) + '. ';
+          care_status = '';
+          if ( trews.data['severe_sepsis']['is_trews'] ) {
+            care_status += 'TREWS Septic Shock met at ' + strToTime(new Date(shock_onset*1000), true, false) + '. ';
+          }
+
+          if ( trews.data['severe_sepsis']['is_cms'] ) {
+            if ( !trews.data['severe_sepsis']['is_trews'] ) {
+              care_status += 'CMS Septic Shock criteria met at ' + strToTime(new Date(shock_onset*1000), true, false) + '. ';
+            }
+            else if ( with_separate_cms ) {
+              cms_status = 'CMS Septic Shock criteria met at ' + strToTime(new Date(shock_onset*1000), true, false) + '. ';
+            }
           }
         }
       }
@@ -950,7 +960,13 @@ function longPatientSummary(with_alert, with_action, with_treatment, with_reset,
           }
 
           if ( trews.data['severe_sepsis']['is_cms'] ) {
-            care_status += 'CMS Severe Sepsis criteria met at ' + strToTime(new Date(trews.data['severe_sepsis']['cms_onset_time']*1000), true, false)  + '. '
+            if ( !trews.data['severe_sepsis']['is_trews'] ) {
+              care_status += 'CMS Severe Sepsis criteria met at ' + strToTime(new Date(trews.data['severe_sepsis']['cms_onset_time']*1000), true, false)  + '. '
+            }
+            else if ( with_separate_cms ) {
+              cms_status = 'CMS Severe Sepsis criteria met at ' + strToTime(new Date(trews.data['severe_sepsis']['cms_onset_time']*1000), true, false)  + '. '
+            }
+
           }
         }
       }
@@ -967,12 +983,19 @@ function longPatientSummary(with_alert, with_action, with_treatment, with_reset,
       var trews_and_orgdf_onset = new Date(Math.max(trews.data['severe_sepsis']['trews']['onset_time'], trews.data['severe_sepsis']['trews_organ_dysfunction']['onset_time']) * 1000);
       var sirs_and_orgdf_onset = new Date(Math.max(trews.data['severe_sepsis']['sirs']['onset_time'], trews.data['severe_sepsis']['organ_dysfunction']['onset_time']) * 1000);
 
-      var trews_prefix = trews_and_orgdf ? 'TREWS triggered for high risk of severe sepsis at ' + strToTime(trews_and_orgdf_onset, true, false) : '';
-      var cms_prefix = sirs_and_orgdf ? ((trews_prefix.length > 0 ? ' and ' : '') + 'CMS alert criteria met at ' + strToTime(sirs_and_orgdf_onset, true, false)) : '';
+      var trews_prefix = trews_and_orgdf ? 'TREWS triggered for ' + (with_html ? '<b>' : '') + 'high risk of severe sepsis' + (with_html ? '</b>' : '') + ' at ' + strToTime(trews_and_orgdf_onset, true, false) : '';
+      var cms_prefix = sirs_and_orgdf ? (with_html ? '<b>' : '') + 'CMS SIRS and Organ Dysfunction' + (with_html ? '</b>' : '') + ' criteria met at ' + strToTime(sirs_and_orgdf_onset, true, false) : '';
 
       care_status = '';
       if ( with_alert ) {
-        care_status += trews_prefix + cms_prefix + '.';
+        care_status += trews_prefix;
+        if ( !trews_and_orgdf && sirs_and_orgdf ) {
+          care_status += cms_prefix;
+        }
+        else if ( with_separate_cms && sirs_and_orgdf ) {
+          cms_status = cms_prefix + '.';
+        }
+        care_status += '.'
       } else {
         care_status += (trews_and_orgdf ? 'TREWS alert' : '') + (sirs_and_orgdf ? (trews_and_orgdf ? ' and ' : '') + 'CMS alert' : '') + ' fired,';
       }
@@ -1001,7 +1024,8 @@ function longPatientSummary(with_alert, with_action, with_treatment, with_reset,
 
   return { 'care_status'          : care_status,
            'care_status_priority' : care_status_priority,
-           'auto_reset_date'      : auto_reset_date
+           'auto_reset_date'      : auto_reset_date,
+           'cms_status'           : cms_status
          }
 }
 
@@ -1120,7 +1144,7 @@ var careSummaryComponent = new function() {
   this.detailVisible = false;
   this.detailSlot = new slotComponent($("[data-trews='care-summary-detail']"), $('#expand-care-detail'), false, false, false, null, false, true);
 
-  this.renderDetail = function(alert_as_cms) {
+  this.renderDetail = function(alert_as_cms, cms_status) {
     /*
     var combined = $.extend(true, {}, trews.data['severe_sepsis'], {'name': 'combined_sepsis'});
     var combined_constants = {'key': 'combined_sepsis', 'display_name': 'All Criteria'};
@@ -1206,7 +1230,7 @@ var careSummaryComponent = new function() {
     if ( alert_as_cms ) {
       score_str = 'TREWS Acuity Score does not indicate high risk of severe sepsis';
     } else if (pct_mortality != null && pct_sevsep != null) {
-      score_str = 'At this score, there is an <b>' + pct_mortality + '%</b> in-hospital mortality rate. '
+      score_str = 'At this TREWS Acuity Score, there is an <b>' + pct_mortality + '%</b> in-hospital mortality rate. '
                 + '<b>' + pct_sevsep + '%</b> of individuals experience severe sepsis.'
     }
 
@@ -1225,6 +1249,7 @@ var careSummaryComponent = new function() {
 
     var html_str = '<ul>'
                    + (score_str == null ? '' : '<li>' + score_str + '</li><br><br>')
+                   + (cms_status != null ? '<li>' + cms_status + '</li><br><br>' : '')
                    + '<li>' + shock_str + '</li><br><br>'
                    + '<li>' + lactate_str + '</li>'
                    + '</ul>'
@@ -1236,8 +1261,8 @@ var careSummaryComponent = new function() {
   }
 
   this.render = function() {
-    // longPatientSummary args: with_alert, with_action, with_treatment, with_reset, with_no_risk
-    var patient_summary = longPatientSummary(true, false, false, false, true);
+    // longPatientSummary args: with_alert, with_action, with_treatment, with_reset, with_no_risk, with_separate_cms
+    var patient_summary = longPatientSummary(true, false, false, false, true, true, true);
     this.ctn.find('h4').html(patient_summary.care_status + '&nbsp;&nbsp;<span class="summary-more-detail">More Detail</span>');
 
     var trews_alerting = trews.data['severe_sepsis']['trews']['is_met'] && trews.data['severe_sepsis']['trews_organ_dysfunction']['is_met'];
@@ -1246,7 +1271,7 @@ var careSummaryComponent = new function() {
     var alert_as_cms = (!trews_alerting && cms_alerting)
                           || (!trews.data['severe_sepsis']['is_trews'] && trews.data['severe_sepsis']['is_cms']);
 
-    this.renderDetail(alert_as_cms);
+    this.renderDetail(alert_as_cms, patient_summary.cms_status);
 
     if ( this.detailVisible ) {
       this.detailSlot.elem.removeClass('hidden').addClass('unhidden');
