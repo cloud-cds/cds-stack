@@ -2542,8 +2542,21 @@ BEGIN
         from get_states('new_criteria', this_enc_id) live
         left join get_states_snapshot(this_enc_id) snapshot on snapshot.enc_id = live.enc_id
         where snapshot.state is null
+        or ( snapshot.state = 10 and snapshot.severe_sepsis_wo_infection_onset < now() - window_size)
+        or ( snapshot.state = 11 and live.state <> snapshot.state)
+        -- once on cms severe sepsis path way, keep in cms path way
+        or ( snapshot.state between 20 and 24 and ((live.state between 30 and 36) or (live.state between 20 and 24) or (live.state between 60 and 66)) and snapshot.state < live.state)
+        -- once on cms septic shock path way, keep in cms path way
+        or ( snapshot.state between 30 and 36 and (live.state between 30 and 36) and snapshot.state < live.state)
+        -- once on trews severe sepsis path way, keep in trews path way
+        or ( snapshot.state between 25 and 29 and ((live.state between 40 and 46) or (live.state between 25 and 29) or (live.state between 60 and 66)) and snapshot.state < live.state)
+        -- once on trews septic shock path way, keep in trews path way
+        or ( snapshot.state between 40 and 46 and (live.state between 40 and 46) and snapshot.state < live.state)
+        -- once on ui severe sepsis path way, keep in ui path way
+        or ( snapshot.state between 50 and 54 and (live.state between 50 and 66) and snapshot.state < live.state)
+        -- once on ui septic shock path way, keep in ui path way
+        or ( snapshot.state between 60 and 66 and (live.state between 60 and 66) and snapshot.state < live.state)
         or snapshot.state < live.state
-        or ( snapshot.state in (10,11) and snapshot.severe_sepsis_wo_infection_onset < now() - window_size)
     ),
     deactivate_old_snapshot as
     (
@@ -3274,7 +3287,7 @@ begin
               now()
           )
     )
-    select deactivate(s.enc_id, false, 'auto_deactivate') from pats into res;
+    select deactivate(enc_id, false, 'auto_deactivate') from pats into res;
     return;
 end; $$;
 
