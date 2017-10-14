@@ -1177,7 +1177,7 @@ var careSummaryComponent = new function() {
           heart_rate = trews_subalert_json.heart_rate != null && 'value' in trews_subalert_json.heart_rate ? trews_subalert_json.heart_rate.value : null;
           if ( 'lactate' in trews_subalert_json && trews_subalert_json.lactate != null ) {
             lactate = trews_subalert_json.lactate.value;
-            lactate_tsp = trews_subalert_json.lactate.tsp;
+            lactate_tsp = new Date(trews_subalert_json.lactate.tsp);
           }
           if ( 'sbpm' in trews_subalert_json && trews_subalert_json.sbpm != null ) {
             sbp = trews_subalert_json.sbpm.value;
@@ -1218,7 +1218,7 @@ var careSummaryComponent = new function() {
     }
 
     if ( lactate != null && lactate_tsp != null ) {
-      lactate_str = 'The most recent <b>lactate</b> level when the alert fired was ' + lactate + ' mmol/L at ' + strToTime(lactate_time, true, false);
+      lactate_str = 'The most recent <b>lactate</b> level when the alert fired was ' + lactate + ' mmol/L at ' + strToTime(lactate_tsp, true, false);
     } else {
       lactate_str = 'No <b>lactate</b> measurements currently available.';
     }
@@ -2313,7 +2313,6 @@ var criteriaComponent = function(c, constants, key, hidden, criteria_mapping, cr
       displayValue = 'N/A';
       displayBaselineValue = null;
     }
-    console.log(c['name'] + ' value: ' + displayValue + ' baseline: ' + displayBaselineValue);
   }
 
   // Local conversions.
