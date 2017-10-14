@@ -1172,12 +1172,16 @@ var careSummaryComponent = new function() {
 
         if ( trews_subalert_json != null ) {
           trews_subalert_json = JSON.parse(trews_subalert_json);
-          pct_mortality = trews_subalert_json.pct_mortality;
-          pct_sevsep = trews_subalert_json.pct_sevsep
-          heart_rate = trews_subalert_json.heart_rate;
-          if ( 'lactate' in trews_subalert_json ) { lactate = trews_subalert_json.lactate; }
-          if ( 'lactate_tsp' in trews_subalert_json ) { lactate_tsp = trews_subalert_json.lactate_tsp; }
-          if ( 'sbpm' in trews_subalert_json ) { sbp = trews_subalert_json.sbpm; }
+          pct_mortality = Number(trews_subalert_json.pct_mortality).toFixed(2);
+          pct_sevsep = Number(trews_subalert_json.pct_sevsep).toFixed(2);
+          heart_rate = trews_subalert_json.heart_rate != null && 'value' in trews_subalert_json.heart_rate ? trews_subalert_json.heart_rate.value : null;
+          if ( 'lactate' in trews_subalert_json && trews_subalert_json.lactate != null ) {
+            lactate = trews_subalert_json.lactate.value;
+            lactate_tsp = trews_subalert_json.lactate.tsp;
+          }
+          if ( 'sbpm' in trews_subalert_json && trews_subalert_json.sbpm != null ) {
+            sbp = trews_subalert_json.sbpm.value;
+          }
         }
 
         if ( sbp == null ) {
