@@ -151,7 +151,7 @@ class AlertServer:
                           'prediction_time_{}'.format(msg['hosp']),
                           'prediction_enc_cnt_{}'.format(msg['hosp'])],
         metric_values  = [
-                          (t_end - self.job_status[msg['hosp']+msg['time']]['t_start']).total_seconds(),
+                          (t_fin - self.job_status[msg['hosp']+msg['time']]['t_start']).total_seconds(),
                           len(msg['enc_ids'])],
         metric_units   = ['Seconds', 'Count']
       )
