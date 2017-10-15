@@ -40,6 +40,7 @@ variable "k8s_dev_key" {
 }
 
 variable "k8s_dev_image" {}
+variable "k8s_dev_utilities_image" {}
 
 variable "k8s_prod_server_host" {
   description = "Kubernetes master host"
@@ -196,6 +197,15 @@ variable "slack_watchers" {}
 
 
 ######################################
-# Weave Cleaner firing rate
+# Weave Cleaner
 
 variable "weave_cleaner_firing_rate_mins" {}
+
+
+######################################
+# TREWS capture
+
+variable "trews_capture_url" {}
+variable "trews_capture_firing_rate_min" {}
+variable "trews_capture_firing_rate_expr" {}
+

@@ -192,3 +192,38 @@ module "dev_ml_weave_cleaner" {
   k8s_dev_ml_pass      = "${var.k8s_dev_ml_pass}"
   k8s_dev_ml_cert_auth = "${var.k8s_dev_ml_cert_auth}"
 }
+
+
+module "dev_trews_capture" {
+  source = "./dev-services/trews-capture"
+  aws_region = "${var.aws_region}"
+  deploy_prefix = "${var.deploy_prefix}"
+
+  s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
+  aws_klaunch_lambda_package  = "${var.aws_klaunch_lambda_package}"
+  aws_klaunch_lambda_role_arn = "${var.aws_klaunch_lambda_role_arn}"
+
+  db_host     = "${var.dev_db_host}"
+  db_name     = "${var.dev_db_name}"
+  db_username = "${var.dev_db_username}"
+  db_password = "${var.dev_db_password}"
+
+  lambda_subnet1_id = "${var.lambda_subnet1_id}"
+  lambda_subnet2_id = "${var.lambda_subnet2_id}"
+  lambda_sg_id      = "${var.lambda_sg_id}"
+
+  k8s_server_host = "${var.k8s_dev_server_host}"
+  k8s_server_port = "${var.k8s_dev_server_port}"
+
+  k8s_name      = "${var.k8s_dev_name}"
+  k8s_server    = "${var.k8s_dev_server}"
+  k8s_user      = "${var.k8s_dev_user}"
+  k8s_pass      = "${var.k8s_dev_pass}"
+  k8s_cert_auth = "${var.k8s_dev_cert_auth}"
+
+  k8s_trews_capture_image = "${var.k8s_dev_utilities_image}"
+
+  trews_capture_url = "${var.trews_capture_url}"
+  trews_capture_firing_rate_min  = "${var.trews_capture_firing_rate_min}"
+  trews_capture_firing_rate_expr = "${var.trews_capture_firing_rate_expr}"
+}
