@@ -123,9 +123,9 @@ class JHAPIConfig:
     label = self.hospital + '_' + endpoint.replace('/', '_') + '_' + http_method
     self.cloudwatch_logger.push_many(
       dimension_name  = 'ETL',
-      metric_names    = ['{}_success'.format(label), '{}_error'.format(label) ],
-      metric_values   = [sum(x[2] for x in future.result()), sum(x[3] for x in future.result())],
-      metric_units    = ['Count','Count']
+      metric_names    = ['{}_success'.format(label), '{}_error'.format(label), 'jh_api_request_success', 'jh_api_request_error'],
+      metric_values   = [sum(x[2] for x in future.result()), sum(x[3] for x in future.result()), sum(x[2] for x in future.result()), sum(x[3] for x in future.result())],
+      metric_units    = ['Count','Count','Count','Count']
     )
     # Return responses
     return [x[0] for x in future.result()]
