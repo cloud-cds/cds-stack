@@ -82,9 +82,11 @@ class Engine:
     if mode == 'reports':
       report_html_body = report_metric_factory.build_report_body()
       self.send_email(report_html_body)
+
     elif mode == 'metrics':
       cwm_metrics_list = report_metric_factory.get_cwm_output()
       self.push_to_cwm(cwm_metrics_list)
+
     else:
       logger.error("Invalid mode: {}".format(mode))
 
@@ -132,14 +134,11 @@ class Engine:
 
 
 
-
 def parse_arguments():
   parser = argparse.ArgumentParser(description='Behavioral monitoring engine')
   parser.add_argument('mode', type=str, choices=['reports', 'metrics'])
   parser.add_argument('execution_period_minutes', type=int)
   return parser.parse_args()
-
-
 
 
 if __name__ == '__main__':

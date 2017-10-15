@@ -382,9 +382,9 @@ class trews_but_no_cms_stats(metric):
         from criteria_events C
         inner join (
           select distinct enc_id
-          from cdm_t where fid =  'care_unit' and value like '%HCGH%'
+          from cdm_t where fid =  'care_unit' and value like '%%HCGH%%'
           and enc_id not in ( select distinct enc_id from get_latest_enc_ids('HCGH') )
-          and tsp between %(start)s and %(end)s
+          and tsp between '%(start)s'::timestamptz and '%(end)s'::timestamptz
           union
           select distinct enc_id from get_latest_enc_ids('HCGH')
         ) R on C.enc_id = R.enc_id
@@ -429,9 +429,9 @@ class cms_but_no_trews_stats(metric):
         from criteria_events C
         inner join (
           select distinct enc_id
-          from cdm_t where fid =  'care_unit' and value like '%HCGH%'
+          from cdm_t where fid =  'care_unit' and value like '%%HCGH%%'
           and enc_id not in ( select distinct enc_id from get_latest_enc_ids('HCGH') )
-          and tsp between %(start)s and %(end)s
+          and tsp between '%(start)s'::timestamptz and '%(end)s'::timestamptz
           union
           select distinct enc_id from get_latest_enc_ids('HCGH')
         ) R on C.enc_id = R.enc_id
@@ -476,9 +476,9 @@ class trews_and_cms_stats(metric):
         from criteria_events C
         inner join (
           select distinct enc_id
-          from cdm_t where fid =  'care_unit' and value like '%HCGH%'
+          from cdm_t where fid =  'care_unit' and value like '%%HCGH%%'
           and enc_id not in ( select distinct enc_id from get_latest_enc_ids('HCGH') )
-          and tsp between %(start)s and %(end)s
+          and tsp between '%(start)s'::timestamptz and '%(end)s'::timestamptz
           union
           select distinct enc_id from get_latest_enc_ids('HCGH')
         ) R on C.enc_id = R.enc_id
