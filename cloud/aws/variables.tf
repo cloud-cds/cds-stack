@@ -215,6 +215,7 @@ variable "k8s_dev_key" {
 }
 
 variable "k8s_dev_image" {}
+variable "k8s_dev_utilities_image" {}
 
 ###################################
 # K8s prod
@@ -320,3 +321,10 @@ variable "alarm2slack_kms_key_arn" {}
 variable "slack_hook" {}
 variable "slack_channel" {}
 variable "slack_watchers" {}
+
+######################################
+# TREWS Capture
+
+variable "trews_capture_url" {}
+variable "trews_capture_firing_rate_min" {}
+variable "trews_capture_firing_rate_expr" {}
