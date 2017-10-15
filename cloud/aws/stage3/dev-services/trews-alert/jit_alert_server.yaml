@@ -46,13 +46,16 @@ spec:
         opsdx_nodegroup: spot-nodes
       containers:
       - name: jit-alerts
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.235
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.274
         imagePullPolicy: Always
         resources:
           requests:
             memory: "2Gi"
             cpu: "250m"
         command:
+        # - sh
+        # - -c
+        # - sleep 72000
         - /usr/local/bin/python3
         - /etl/alerts/server.py
         ports:

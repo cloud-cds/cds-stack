@@ -1593,6 +1593,11 @@ return query
         select distinct pat_enc.enc_id from pat_enc
         where pat_enc.enc_id = coalesce(this_enc_id, pat_enc.enc_id)
     ),
+    esrd as (
+        select e.enc_id
+        from enc_ids e inner join cdm_s s on e.enc_id = s.enc_id
+        where fid ~ 'esrd'
+    ),
     pat_urine_output as (
         select enc_ids.enc_id, sum(uo.value::numeric) as value
         from enc_ids
@@ -1826,11 +1831,13 @@ return query
                                 (select max(pat_urine_output.value) from pat_urine_output where pat_urine_output.enc_id = pat_cvalues.enc_id),
                                 (select max(pat_weights.value) from pat_weights where pat_weights.enc_id = pat_cvalues.enc_id)
                             )
-
+                        when pat_cvalues.name = 'creatinine' then
+                            criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue) and esrd.enc_id is null -- excluded esrd enc_ids
                         else criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
                         end
                     ) as is_met
             from pat_cvalues
+            left join esrd on pat_cvalues.enc_id = esrd.enc_id
             where pat_cvalues.name in (
               'blood_pressure', 'mean_arterial_pressure', 'decrease_in_sbp',
               'creatinine', 'bilirubin', 'platelet', 'inr', 'lactate'
