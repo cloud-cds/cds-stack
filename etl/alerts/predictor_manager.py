@@ -41,7 +41,6 @@ class Predictor:
     self.avg_optimization_time = 0
     self.total_time = 0
     self.optimization_time = 0
-    self.model                  = os.getenv('suppression_model', 'trews')
 
   def __str__(self):
     return predictor_str(self.partition_index, self.model_type, self.is_active)
@@ -138,7 +137,7 @@ class PredictorManager:
     self.predict_task_futures = {}
     self.loop = event_loop
     self.cloudwatch_logger = Cloudwatch()
-
+    self.model = os.getenv('suppression_model', 'trews')
     # Start monitoring task
     self.loop.create_task(self.monitor_predictors())
 
