@@ -246,16 +246,19 @@ class PredictorManager:
       else:
         err = '{} dead'.format(predictor_str(partition_id, model_type, active))
 
-      # Log reason for error
-      logging.error("{} -- trying {} predictor {}".format(
-        err, 'backup' if active else 'active',
-        humanize.naturaltime(dt.datetime.now() + dt.timedelta(seconds=backoff))
-      ))
+      if self.model == 'trews-jit':
+        return
+      else:
+        # Log reason for error
+        logging.error("{} -- trying {} predictor {}".format(
+          err, 'backup' if active else 'active',
+          humanize.naturaltime(dt.datetime.now() + dt.timedelta(seconds=backoff))
+        ))
 
-      # Switch to backup if active (and vice versa)
-      active = not active
-      await asyncio.sleep(backoff)
-      backoff = backoff * 2 if backoff < 64 else backoff
+        # Switch to backup if active (and vice versa)
+        active = not active
+        await asyncio.sleep(backoff)
+        backoff = backoff * 2 if backoff < 64 else backoff
 
     # Check status
     if predictor_started == False:
@@ -267,22 +270,6 @@ class PredictorManager:
     # start_time = dt.datetime.now()
     timeout = dt.timedelta(seconds = 10)
     while True:
-      # # TIMEOUT - predictor not getting updated
-      # if pred.last_updated - start_time > timeout:
-      #   logging.error("{} not getting updated - timeout".format(pred))
-      #   self.loop.create_task(self.run_predict(partition_id, model_type, hosp,
-      #                                          time, not active))
-      #   pred.stop()
-      #   return
-
-      # # IDLE - restart run_predict on timeout
-      # elif pred.status == 'IDLE' and (dt.datetime.now() - start_time) > timeout:
-      #   logging.error("{} is in IDLE state after 10 seconds - timeout".format(pred))
-      #   self.loop.create_task(self.run_predict(partition_id, model_type, hosp,
-      #                                          time, not active))
-      #   pred.stop()
-      #   return
-
       if pred.last_updated - dt.datetime.now() > timeout:
         logging.error("{} not getting updated - timeout - restart run_predict".format(pred))
         pred.stop()
@@ -299,8 +286,6 @@ class PredictorManager:
         pred.stop()
         if self.model == 'trews-jit':
           logging.error("{} died.".format(pred))
-          self.loop.create_task(self.run_predict(partition_id, model_type, hosp,
-                                               time, not active))
         else:
           logging.error("{} died, trying again".format(pred))
           self.loop.create_task(self.run_predict(partition_id, model_type, hosp,
