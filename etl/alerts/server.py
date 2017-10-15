@@ -46,7 +46,7 @@ class AlertServer:
     self.nprocs                 = int(os.getenv('nprocs', 2))
     self.hospital_to_predict    = os.getenv('hospital_to_predict', 'HCGH')
     self.cloudwatch_logger      = Cloudwatch()
-    self.job_status = {}
+    # self.job_status = {}
 
   async def async_init(self):
     self.db_pool = await self.db.get_connection_pool()
@@ -144,17 +144,17 @@ class AlertServer:
 
   async def run_suppression_mode_2(self, msg):
     t_fin = dt.datetime.now()
-    if msg['hosp']+msg['time'] in self.job_status:
-      self.cloudwatch_logger.push_many(
-        dimension_name = 'AlertServer',
-        metric_names   = [
-                          'prediction_time_{}'.format(msg['hosp']),
-                          'prediction_enc_cnt_{}'.format(msg['hosp'])],
-        metric_values  = [
-                          (t_fin - self.job_status[msg['hosp']+msg['time']]['t_start']).total_seconds(),
-                          len(msg['enc_ids'])],
-        metric_units   = ['Seconds', 'Count']
-      )
+    # if msg['hosp']+msg['time'] in self.job_status:
+    self.cloudwatch_logger.push_many(
+      dimension_name = 'AlertServer',
+      metric_names   = [
+                        'prediction_time_{}'.format(msg['hosp']),
+                        'prediction_enc_cnt_{}'.format(msg['hosp'])],
+      metric_values  = [
+                        (t_fin - parser.parse(msg['time'])).total_seconds(),
+                        len(msg['enc_ids'])],
+      metric_units   = ['Seconds', 'Count']
+    )
     logging.info("start to run suppression mode 2 for msg {}".format(msg))
     tsp = msg['time']
     enc_id_str = ','.join([str(i) for i in msg['enc_ids'] if i])
@@ -194,18 +194,18 @@ class AlertServer:
         logging.info("generated trews alert for {}".format(hospital))
     logging.info("complete to run suppression mode 2 for msg {}".format(msg))
     t_end = dt.datetime.now()
-    if msg['hosp']+msg['time'] in self.job_status:
-      self.cloudwatch_logger.push_many(
-        dimension_name = 'AlertServer',
-        metric_names   = ['e2e_time_{}'.format(msg['hosp']),
-                          'criteria_time_{}'.format(msg['hosp']),
-                          ],
-        metric_values  = [(t_end - parser.parse(msg['time'])).total_seconds(),
-                          (t_end - t_fin).total_seconds(),
-                          ],
-        metric_units   = ['Seconds','Seconds']
-      )
-    self.job_status.pop(msg['hosp']+msg['time'],None)
+    # if msg['hosp']+msg['time'] in self.job_status:
+    self.cloudwatch_logger.push_many(
+      dimension_name = 'AlertServer',
+      metric_names   = ['e2e_time_{}'.format(msg['hosp']),
+                        'criteria_time_{}'.format(msg['hosp']),
+                        ],
+      metric_values  = [(t_end - parser.parse(msg['time'])).total_seconds(),
+                        (t_end - t_fin).total_seconds(),
+                        ],
+      metric_units   = ['Seconds','Seconds']
+    )
+    # self.job_status.pop(msg['hosp']+msg['time'],None)
 
 
   async def run_suppression(self, msg):
@@ -384,9 +384,9 @@ class AlertServer:
         metric_values = [1],
         metric_units = ['Count']
       )
-      self.job_status[message['hosp'] + message['time']] = {
-        'msg': message, 't_start': dt.datetime.now()
-      }
+      # self.job_status[message['hosp'] + message['time']] = {
+      #   'msg': message, 't_start': dt.datetime.now()
+      # }
       if self.model == 'lmc' or self.model == 'trews-jit':
         if message.get('hosp') in self.hospital_to_predict:
           if self.model == 'lmc':
@@ -399,18 +399,18 @@ class AlertServer:
           t_fin = dt.datetime.now()
           await self.run_trews_alert(message['job_id'],message['hosp'])
           t_end = dt.datetime.now()
-          if message['hosp']+message['time'] in self.job_status:
-            self.cloudwatch_logger.push_many(
-              dimension_name = 'AlertServer',
-              metric_names   = ['e2e_time_{}'.format(message['hosp']),
-                                'criteria_time_{}'.format(message['hosp']),
-                                ],
-              metric_values  = [(t_end - parser.parse(message['time'])).total_seconds(),
-                                (t_end - t_fin).total_seconds(),
-                                ],
-              metric_units   = ['Seconds','Seconds']
-            )
-          self.job_status.pop(message['hosp']+message['time'],None)
+          # if message['hosp']+message['time'] in self.job_status:
+          self.cloudwatch_logger.push_many(
+            dimension_name = 'AlertServer',
+            metric_names   = ['e2e_time_{}'.format(message['hosp']),
+                              'criteria_time_{}'.format(message['hosp']),
+                              ],
+            metric_values  = [(t_end - parser.parse(message['time'])).total_seconds(),
+                              (t_end - t_fin).total_seconds(),
+                              ],
+            metric_units   = ['Seconds','Seconds']
+          )
+          # self.job_status.pop(message['hosp']+message['time'],None)
       elif self.model == 'trews':
         await self.run_trews_alert(message['job_id'],message['hosp'])
       else:
