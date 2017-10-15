@@ -282,7 +282,15 @@ class AlertServer:
 
   async def calculate_criteria(self, conn, job_id):
     server = 'dev_db' if 'dev' in self.channel else 'prod_db'
-    sql = 'select garbage_collection();'
+    if 'hcgh' in job_id:
+      hospital = 'HCGH'
+    elif 'bmc' in job_id:
+      hospital = 'BMC'
+    elif 'jhh' in job_id:
+        hospital = 'JHH'
+    else:
+      logging.error("Invalid job id: {}".format(job_id))
+    sql = "select garbage_collection('{}');".format(hospital)
     logging.info("calculate_criteria sql: {}".format(sql))
     await conn.fetch(sql)
     sql = '''
@@ -293,7 +301,7 @@ class AlertServer:
 
   async def calculate_criteria_hospital(self, conn, hospital):
     server = 'dev_db' if 'dev' in self.channel else 'prod_db'
-    sql = 'select garbage_collection();'
+    sql = "select garbage_collection('{}');".format(hospital)
     logging.info("calculate_criteria sql: {}".format(sql))
     await conn.fetch(sql)
     sql = '''

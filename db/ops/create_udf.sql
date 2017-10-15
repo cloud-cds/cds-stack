@@ -3266,6 +3266,14 @@ create or replace function garbage_collection(this_enc_id int default null) retu
     perform drop_tables_pattern('workspace', '_' || to_char((now() - interval '2 days')::date, 'MMDD'));
 end; $$;
 
+
+create or replace function garbage_collection(hospital text) returns void language plpgsql as $$ begin
+    perform reactivate(enc_id), reset_soi_pats(enc_id), reset_bundle_expired_pats(enc_id), reset_noinf_expired_pats(enc_id)
+    from get_latest_enc_ids(hospital);
+    perform del_old_refreshed_pats();
+    perform drop_tables_pattern('workspace', '_' || to_char((now() - interval '2 days')::date, 'MMDD'));
+end; $$;
+
 create or replace function del_old_refreshed_pats() returns void language plpgsql
 -- turn deactivated patients longer than deactivate_expire_hours to active
 as $$ begin
