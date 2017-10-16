@@ -21,13 +21,13 @@ spec:
           - -c
           - "aws s3 cp s3://opsdx-deployment/scripts/dw-s3-export.sh /tmp && chmod 755 /tmp/dw-s3-export.sh && /tmp/dw-s3-export.sh"
         env:
-        # - name: export_tables
-        #  value: "public.cdm_twf_test"
+        #- name: export_tables
+        #  value: "public.dw_version"
         # For exporting queries.
         - name: export_tables ## Must be set, but empty when using an export_query (for now).
           value: ""
         - name: export_query
-          value: "select * from cdm_twf_test"
+          value: "select * from dw_version"
         - name: query_id
           value: "public.test"
         - name: output_dir
