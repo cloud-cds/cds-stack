@@ -4116,6 +4116,10 @@ var toolbar = new function() {
     var scoreParentId = 'trews_sevsep_score';
     var scoreParentGId = this.groups[scoreParentId]['id']
 
+    var scoreSegmentsByGroup = {};
+    scoreSegmentsByGroup[this.groups['trewscore']['id']] = [];
+    scoreSegmentsByGroup[scoreParentGId] = [];
+
     var maxInSegment = null;
     var prevData = null;
     var prevCrossing = null;
@@ -4147,39 +4151,52 @@ var toolbar = new function() {
       };
     }
 
-    for (var i = 0; i < numEntries; i++) {
-      var v = scoreValues[i];
-      var t = scoreTsps[i]*1000;
-      if ( prevData != null ) {
-        var dropBelow = prevData.v >= threshold && v < threshold;
-        var riseAbove = prevData.v <= threshold && v > threshold;
+    try {
+      for (var i = 0; i < numEntries; i++) {
+        var v = scoreValues[i];
+        var t = scoreTsps[i]*1000;
+        if ( prevData != null ) {
+          var dropBelow = prevData.v >= threshold && v < threshold;
+          var riseAbove = prevData.v <= threshold && v > threshold;
 
-        if ( dropBelow ) {
-          var crossing = mkCrossingItem(this.groups, i, prevCrossing.t, t, maxInSegment, redItemStyle);
-          var parentCrossing = $.extend({}, crossing, { id: scoreParentId + '_' + crossing.id, group: scoreParentGId });
-          items.add(crossing);
-          items.add(parentCrossing);
-          maxInSegment = null;
-          prevCrossing = null
+          if ( dropBelow ) {
+            var crossing = mkCrossingItem(this.groups, i, prevCrossing.t, t, maxInSegment, redItemStyle);
+            var parentCrossing = $.extend({}, crossing, { id: scoreParentId + '_' + crossing.id, group: scoreParentGId });
+            scoreSegmentsByGroup[crossing['group']].push(crossing);
+            scoreSegmentsByGroup[parentCrossing['group']].push(parentCrossing);
+            maxInSegment = null;
+            prevCrossing = null
+          }
+          else if ( riseAbove ) {
+            // TODO: linear interpolation between prev and current?
+            prevCrossing = {v: v, t: t};
+            maxInSegment = v;
+          }
         }
-        else if ( riseAbove ) {
-          // TODO: linear interpolation between prev and current?
-          prevCrossing = {v: v, t: t};
-          maxInSegment = v;
-        }
+        prevData = {v: v, t: t};
+        if ( maxInSegment != null ) { maxInSegment = Math.max(maxInSegment, v); }
       }
-      prevData = {v: v, t: t};
-      if ( maxInSegment != null ) { maxInSegment = Math.max(maxInSegment, v); }
-    }
 
-    // Final segment.
-    if ( prevCrossing != null && numEntries > 0
-          && prevCrossing.v > threshold && scoreValues[numEntries - 1] > threshold )
-    {
-      var crossing = mkCrossingItem(this.groups, numEntries - 1, prevCrossing.t, now.getTime(), maxInSegment, redItemStyle);
-      var parentCrossing = $.extend({}, crossing, { id: scoreParentId + '_' + crossing.id, group: scoreParentGId });
-      items.add(crossing);
-      items.add(parentCrossing);
+      // Final segment.
+      if ( prevCrossing != null && numEntries > 0
+            && prevCrossing.v > threshold && scoreValues[numEntries - 1] > threshold )
+      {
+        var crossing = mkCrossingItem(this.groups, numEntries - 1, prevCrossing.t, now.getTime(), maxInSegment, redItemStyle);
+        var parentCrossing = $.extend({}, crossing, { id: scoreParentId + '_' + crossing.id, group: scoreParentGId });
+        scoreSegmentsByGroup[crossing['group']].push(crossing);
+        scoreSegmentsByGroup[parentCrossing['group']].push(parentCrossing);
+      }
+
+      // Append only the last segment for now, to be comparable to CMS.
+      // This is because we only use the latest criteria in the REST API, rather than the history
+      // of snapshots from the criteria_events table.
+      // Note the above loop assumes a timestamp sorted order for trewscores, thus we do not need to re-sort.
+      if ( scoreSegmentsByGroup[this.groups['trewscore']['id']].length > 0 && scoreSegmentsByGroup[scoreParentGId].length > 0 ) {
+        items.add(scoreSegmentsByGroup[this.groups['trewscore']['id']][scoreSegmentsByGroup[this.groups['trewscore']['id']].length - 1]);
+        items.add(scoreSegmentsByGroup[scoreParentGId][scoreSegmentsByGroup[scoreParentGId].length - 1]);
+      }
+    } catch(e) {
+      appendToConsole('Exception while calculating TREWS timeline intervals: ' + e.message);
     }
 
     // Add point items.
