@@ -372,7 +372,7 @@ resource "aws_cloudwatch_metric_alarm" "hcgh_predictor_up" {
   namespace                 = "OpsDX"
   period                    = "3600"
   statistic                 = "SampleCount"
-  threshold                 = "5"
+  threshold                 = "3"
   alarm_description         = "HCGH Dev Predictor invocations in the past hour"
   alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
