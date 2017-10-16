@@ -76,7 +76,9 @@ order_link_mode = os.environ['order_link_mode'] if 'order_link_mode' in os.envir
 force_server_loc = os.environ['force_server_loc'] if 'force_server_loc' in os.environ else None
 force_server_dep = os.environ['force_server_dep'] if 'force_server_dep' in os.environ else None
 
-model_in_use = os.environ['model_in_use']
+default_pat_id = os.environ['default_pat_id'] if 'default_pat_id' in os.environ else None
+
+model_in_use = os.environ['model_in_use'] if 'model_in_use' in os.environ else None
 
 logging.info('''TREWS Configuration::
   release: %s
@@ -90,6 +92,8 @@ logging.info('''TREWS Configuration::
   order_link_mode: %s
   force_server_loc: %s
   force_server_dep: %s
+  default_pat_id: %s
+  model_in_use: %s
   ''' % (release,
          'on' if encrypted_query else 'off', \
          'on' if trews_app_key else 'off', \
@@ -97,7 +101,7 @@ logging.info('''TREWS Configuration::
          'on' if trews_open_access and trews_open_access.lower() == 'true' else 'off',
          'on' if log_decryption else 'off',
          'on' if log_user_latency else 'off',
-         ie_mode, order_link_mode, force_server_loc, force_server_dep)
+         ie_mode, order_link_mode, force_server_loc, force_server_dep, default_pat_id, model_in_use)
   )
 
 # global

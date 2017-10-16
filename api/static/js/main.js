@@ -3168,19 +3168,24 @@ var activity = new function() {
       return;
     }
 
-    for (var i = 0; i < data.length; i++) {
+    // Sort a deep copy of the activity log by descending timestamp.
+    var activities = data.concat().sort(function(a,b) {
+      return a['timestamp'] == b['timestamp'] ? 0 : (a['timestamp'] < b['timestamp'] ? -1 : 1);
+    });
 
-      var time = new Date(data[i]['timestamp'] * 1000);
+    for (var i = 0; i < activities.length; i++) {
+
+      var time = new Date(activities[i]['timestamp'] * 1000);
 
       // Skip messages if there is no content (used to short-circuit empty interventions).
-      var msg = this.getLogMsg(data[i]);
+      var msg = this.getLogMsg(activities[i]);
       if ( msg == undefined ) { continue; }
 
       // Display the notification.
       var log = $('<div class="log-item"></div>');
       log.append('<h3>' + msg + '</h3>')
       var subtext = $('<div class="subtext cf"></div>');
-      subtext.append('<p>' + timeLapsed(new Date(data[i]['timestamp']*1000)) + '</p>');
+      subtext.append('<p>' + timeLapsed(new Date(activities[i]['timestamp']*1000)) + '</p>');
       log.append(subtext);
       this.a.prepend(log);
     }
