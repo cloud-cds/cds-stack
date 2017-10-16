@@ -282,6 +282,7 @@ class AlertServer:
 
   async def calculate_criteria(self, conn, job_id):
     server = 'dev_db' if 'dev' in self.channel else 'prod_db'
+    hospital = None
     if 'hcgh' in job_id:
       hospital = 'HCGH'
     elif 'bmc' in job_id:
@@ -290,14 +291,15 @@ class AlertServer:
         hospital = 'JHH'
     else:
       logging.error("Invalid job id: {}".format(job_id))
-    sql = "select garbage_collection('{}');".format(hospital)
-    logging.info("calculate_criteria sql: {}".format(sql))
-    await conn.fetch(sql)
-    sql = '''
-    select distribute_advance_criteria_snapshot_for_job('{server}', {hours}, '{job_id}', {nprocs});
-    '''.format(server=server,hours=self.lookbackhours,job_id=job_id,nprocs=self.nprocs)
-    logging.info("calculate_criteria sql: {}".format(sql))
-    await conn.fetch(sql)
+    if hospital:
+      sql = "select garbage_collection('{}');".format(hospital)
+      logging.info("calculate_criteria sql: {}".format(sql))
+      await conn.fetch(sql)
+      sql = '''
+      select distribute_advance_criteria_snapshot_for_job('{server}', {hours}, '{job_id}', {nprocs});
+      '''.format(server=server,hours=self.lookbackhours,job_id=job_id,nprocs=self.nprocs)
+      logging.info("calculate_criteria sql: {}".format(sql))
+      await conn.fetch(sql)
 
   async def calculate_criteria_hospital(self, conn, hospital):
     server = 'dev_db' if 'dev' in self.channel else 'prod_db'
