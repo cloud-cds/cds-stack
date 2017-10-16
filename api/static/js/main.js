@@ -2200,6 +2200,10 @@ var criteriaComponent = function(c, constants, key, hidden, criteria_mapping, cr
     displayValue = ((Number(displayValue) - 32) / 1.8).toPrecision(3);
   }
 
+  if  ( c['name'] == 'platelet' || c['name'] == 'trews_platelet' ) {
+    displayValue = (Number(displayValue) * 1000).toLocaleString(); // Platelets are stored in units of 1,000.
+  }
+
   if ( c['is_met'] && (c['name'] == 'respiratory_failure' || c['name'] == 'trews_vent') ) {
     displayValue = 'Mechanical Support: On';
   }
@@ -4191,6 +4195,12 @@ var toolbar = new function() {
       // This is because we only use the latest criteria in the REST API, rather than the history
       // of snapshots from the criteria_events table.
       // Note the above loop assumes a timestamp sorted order for trewscores, thus we do not need to re-sort.
+      //
+      // TODO: should we also check that a TREWS Org DF interval is present?
+      // - Because update the criteria table on every TREWS edge, we only show intervals for the last
+      //   edge to the current point in time.
+      // - If the last edge corresponds to a False trews subalert, we will not have any orgdf interval.
+      //
       if ( scoreSegmentsByGroup[this.groups['trewscore']['id']].length > 0 && scoreSegmentsByGroup[scoreParentGId].length > 0 ) {
         items.add(scoreSegmentsByGroup[this.groups['trewscore']['id']][scoreSegmentsByGroup[this.groups['trewscore']['id']].length - 1]);
         items.add(scoreSegmentsByGroup[scoreParentGId][scoreSegmentsByGroup[scoreParentGId].length - 1]);
