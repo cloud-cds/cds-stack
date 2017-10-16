@@ -3271,12 +3271,12 @@ begin
     ),
     logging as (
         insert into criteria_log (enc_id, tsp, event, update_date)
-        values (
-              this_enc_id,
+        select
+              enc_id,
               now(),
               '{"event_type": "reactivate", "uid":"dba"}',
               now()
-          )
+        from pats
     )
     select deactivate(enc_id, false, 'auto_deactivate') from pats into res;
     return;
@@ -3290,17 +3290,17 @@ begin
     with pats as (select distinct e.enc_id
         from criteria_events e
         inner join lateral get_states_snapshot(e.enc_id) SNP on e.enc_id = SNP.enc_id
-        where flag in (10,11) and now() - SNP.severe_sepsis_wo_infection_initial > (select value from parameters where name = 'lookbackhours')::interval
+        where flag = 10 and now() - SNP.severe_sepsis_wo_infection_initial > (select value from parameters where name = 'lookbackhours')::interval
         and e.enc_id = coalesce(this_enc_id, e.enc_id)
     ),
     logging as (
         insert into criteria_log (enc_id, tsp, event, update_date)
-        values (
-              this_enc_id,
+        select
+              enc_id,
               now(),
               '{"event_type": "reset_soi_pats", "uid":"dba"}',
               now()
-          )
+        from pats
     )
     select reset_patient(enc_id) from pats into res;
     return;
@@ -3321,12 +3321,12 @@ begin
     ),
     logging as (
         insert into criteria_log (enc_id, tsp, event, update_date)
-        values (
-              this_enc_id,
+        select
+              enc_id,
               now(),
               '{"event_type": "reset_bundle_expired_pats", "uid":"dba"}',
               now()
-          )
+        from pats
     )
     select reset_patient(enc_id) from pats into res;
     return;
@@ -3348,12 +3348,12 @@ begin
     ),
     logging as (
         insert into criteria_log (enc_id, tsp, event, update_date)
-        values (
-              this_enc_id,
+        select
+              enc_id,
               now(),
               '{"event_type": "reset_noinf_expired_pats", "uid":"dba"}',
               now()
-          )
+        from pats
     )
     select reset_patient(enc_id) from pats into res;
     return;
