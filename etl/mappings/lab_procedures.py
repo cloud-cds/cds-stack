@@ -1,4 +1,4 @@
-procedure_ids = [
+lab_procedure_ids = [
     ( 'blood_culture', [
         '7564',
     ]),
