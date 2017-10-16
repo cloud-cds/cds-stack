@@ -4,7 +4,7 @@ import etl.transforms.primitives.df.format_data as format_data
 import etl.transforms.primitives.df.restructure as restructure
 import etl.transforms.primitives.df.translate as translate
 from etl.mappings.flowsheet_ids import flowsheet_ids
-from etl.mappings.procedure_ids import procedure_ids
+from etl.mappings.active_procedure_ids import active_procedure_ids
 from etl.mappings.component_ids import component_ids
 from etl.mappings.med_regex import med_regex
 
@@ -89,8 +89,8 @@ active_procedures_transforms = [
     }),
     lambda lo: translate.translate_epic_id_to_fid(lo,
         col = 'procedure_id', new_col = 'fid',
-        config_map = procedure_ids, drop_original = True,
-        add_string = '_order', add_string_fid=['blood_culture', 'lactate'], remove_if_not_found = True
+        config_map = active_procedure_ids, drop_original = True,
+        add_string = '_order', add_string_fid=['blood_culture', 'lactate', 'culture'], remove_if_not_found = True
     ),
     lambda lo: derive.derive_procedure_status(lo),
 ]
