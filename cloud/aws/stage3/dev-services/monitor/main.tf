@@ -362,3 +362,59 @@ resource "aws_cloudwatch_metric_alarm" "dw_low_space" {
     DBInstanceIdentifier = "${var.deploy_prefix}-dw"
   }
 }
+
+# Predictor and alert server alarms.
+resource "aws_cloudwatch_metric_alarm" "hcgh_predictor_up" {
+  alarm_name                = "${var.deploy_prefix}-dev-hcgh-predictor-up"
+  comparison_operator       = "LessThanThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "total_time_long"
+  namespace                 = "OpsDX"
+  period                    = "3600"
+  statistic                 = "SampleCount"
+  threshold                 = "3"
+  alarm_description         = "HCGH Dev Predictor invocations in the past hour"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    LMCPredictor = "dev"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "hcgh_e2e_up" {
+  alarm_name                = "${var.deploy_prefix}-dev-hcgh-e2e-up"
+  comparison_operator       = "LessThanThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "e2e_time_HCGH"
+  namespace                 = "OpsDX"
+  period                    = "3600"
+  statistic                 = "SampleCount"
+  threshold                 = "3"
+  alarm_description         = "HCGH Dev Predictor invocations in the past hour"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    AlertServer = "dev"
+  }
+}
+
+# JH API request alarms.
+resource "aws_cloudwatch_metric_alarm" "jh_api_request_error" {
+  alarm_name                = "${var.deploy_prefix}-dev-jh-api-request-error"
+  comparison_operator       = "GreaterThanOrEqualToThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "jh_api_request_error"
+  namespace                 = "OpsDX"
+  period                    = "3600"
+  statistic                 = "Maximum"
+  threshold                 = "1"
+  alarm_description         = "Dev JH API request error in the past hour"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    ETL = "dev"
+  }
+}
