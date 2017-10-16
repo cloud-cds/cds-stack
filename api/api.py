@@ -423,7 +423,7 @@ class TREWSAPI(web.View):
               not ( data['severe_sepsis']['suspicion_of_infection']['value'] == 'No Infection' \
                   or data['severe_sepsis']['suspicion_of_infection']['value'] is None)
 
-    trews_met = data['severe_sepsis']['trews_subalert']['is_met'] and \
+    trews_met = (data['severe_sepsis']['trews_subalert']['is_met'] if 'trews_subalert' in data['severe_sepsis'] else False) and \
                 not ( data['severe_sepsis']['suspicion_of_infection']['value'] == 'No Infection' \
                     or data['severe_sepsis']['suspicion_of_infection']['value'] is None)
 

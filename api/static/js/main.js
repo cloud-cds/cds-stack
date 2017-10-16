@@ -846,7 +846,7 @@ function longPatientSummary(with_alert, with_action, with_treatment, with_reset,
 
   if ( !(trews.data == null || trews.data['severe_sepsis'] == null) ) {
 
-    var trews_alerting = trews.data['severe_sepsis']['trews_subalert']['is_met'];
+    var trews_alerting = 'trews_subalert' in trews.data['severe_sepsis'] ? trews.data['severe_sepsis']['trews_subalert']['is_met'] : false;
     var cms_alerting = trews.data['severe_sepsis']['sirs']['is_met'] && trews.data['severe_sepsis']['organ_dysfunction']['is_met'];
 
     var not_infected = trews.data['severe_sepsis']['suspicion_of_infection']['update_time'] != null
@@ -1041,7 +1041,7 @@ function patientSevereSepsisSummary() {
     var subtitle = null;
     var subtitle_expired = false;
 
-    var trews_alerting = trews.data['severe_sepsis']['trews_subalert']['is_met'];
+    var trews_alerting = 'trews_subalert' in trews.data['severe_sepsis'] ? trews.data['severe_sepsis']['trews_subalert']['is_met'] : false;
     var cms_alerting = trews.data['severe_sepsis']['sirs']['is_met'] && trews.data['severe_sepsis']['organ_dysfunction']['is_met'];
 
     var not_infected = trews.data['severe_sepsis']['suspicion_of_infection']['update_time'] != null
@@ -1193,7 +1193,7 @@ var careSummaryComponent = new function() {
     }
     else {
       try {
-        trews_subalert_json = trews.data['severe_sepsis']['trews_subalert'].value;
+        trews_subalert_json = 'trews_subalert' in trews.data['severe_sepsis'] ? trews.data['severe_sepsis']['trews_subalert'].value : null;
 
         if ( trews_subalert_json != null ) {
           trews_subalert_json = JSON.parse(trews_subalert_json);
@@ -1266,7 +1266,7 @@ var careSummaryComponent = new function() {
     var patient_summary = longPatientSummary(true, false, false, false, true, true, true);
     this.ctn.find('h4').html(patient_summary.care_status + '&nbsp;&nbsp;<span class="summary-more-detail">More Detail</span>');
 
-    var trews_alerting = trews.data['severe_sepsis']['trews_subalert']['is_met'];
+    var trews_alerting = 'trews_subalert' in trews.data['severe_sepsis'] ? trews.data['severe_sepsis']['trews_subalert']['is_met'] : false;
     var cms_alerting = trews.data['severe_sepsis']['sirs']['is_met'] && trews.data['severe_sepsis']['organ_dysfunction']['is_met'];
 
     var alert_as_cms = (!trews_alerting && cms_alerting)
@@ -1414,7 +1414,7 @@ var severeSepsisComponent = new function() {
     var sepsis_onset = trews.data['severe_sepsis']['onset_time'];
     var shock_onset = trews.data['septic_shock']['onset_time'];
 
-    var trews_subalert = trews.data['severe_sepsis']['trews_subalert']['is_met']
+    var trews_subalert = ('trews_subalert' in trews.data['severe_sepsis'] ? trews.data['severe_sepsis']['trews_subalert']['is_met'] : false)
                         && (sepsis_onset == null && shock_onset == null);
 
     var sirs_and_orgdf = trews.data['severe_sepsis']['sirs']['is_met']
@@ -1460,7 +1460,7 @@ var severeSepsisComponent = new function() {
   this.render = function(json) {
     this.ctn.find('h2.card-header').text(severe_sepsis['display_name']);
 
-    var trews_alerting = json['trews_subalert']['is_met'];
+    var trews_alerting = 'trews_subalert' in json ? json['trews_subalert']['is_met'] : false;
     var cms_alerting = json['sirs']['is_met'] && json['organ_dysfunction']['is_met'];
 
     var not_infected = json['suspicion_of_infection']['update_time'] != null
