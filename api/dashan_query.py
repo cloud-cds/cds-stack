@@ -455,7 +455,7 @@ async def get_order_detail(db_pool, eid):
   where enc_id = (select * from pat_id_to_enc_id('%s'::text)) and
   fid in (
     'azithromycin_dose','aztreonam_dose','cefepime_dose','ceftriaxone_dose','ciprofloxacin_dose','gentamicin_dose','levofloxacin_dose',
-    'metronidazole_dose','moxifloxacin_dose','piperacillin_tazbac_dose','vancomycin_dose'
+    'metronidazole_dose','moxifloxacin_dose','piperacillin_tazobac_dose','vancomycin_dose'
   )
   and now() - tsp < (select value::interval from parameters where name = 'lookbackhours');
   ''' % eid
