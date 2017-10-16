@@ -65,7 +65,7 @@ class JHAPIConfig:
             async with session.request(**setting) as response:
               if response.status != 200:
                 body = await response.text()
-                logging.error("  Status={}\tMessage={}".format(response.status, body))
+                logging.error("Status={}\tMessage={}\tRequest={}".format(response.status, body, setting))
                 response = None
                 error += 1
               else:
