@@ -2,7 +2,6 @@
   "annotations": {
     "list": []
   },
-  "editMode": false,
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
@@ -217,7 +216,8 @@
               "statistics": [
                 "Average"
               ]
-            },{
+            },
+            {
               "dimensions": {
                 "ETL": "dev"
               },
@@ -242,7 +242,8 @@
               "statistics": [
                 "Average"
               ]
-            },{
+            },
+            {
               "dimensions": {
                 "ETL": "dev"
               },
@@ -1678,12 +1679,14 @@
   ],
   "schemaVersion": 14,
   "style": "dark",
-  "tags": [],
+  "tags": [
+    "dev"
+  ],
   "templating": {
     "list": []
   },
   "time": {
-    "from": "now-1h",
+    "from": "now-12h",
     "to": "now"
   },
   "timepicker": {
@@ -1713,5 +1716,5 @@
   },
   "timezone": "",
   "title": "OpsDX JH API Request",
-  "version": 5
+  "version": 15
 }
