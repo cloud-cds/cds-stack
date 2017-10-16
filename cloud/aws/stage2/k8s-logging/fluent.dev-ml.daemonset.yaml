@@ -35,7 +35,7 @@ spec:
         hostPath:
           path: /var/lib/docker
       containers:
-      - image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/opsdx-cluster-logging:0.0.1
+      - image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/opsdx-cluster-logging:0.0.4
         imagePullPolicy: Always
         name: fluentd
         resources:
@@ -46,13 +46,12 @@ spec:
             memory: 200Mi
         volumeMounts:
         - name: host-logs
-          mountPath: /mnt/log/
-          readOnly: true
+          mountPath: /var/log/
         - name: docker-logs
           mountPath: /var/lib/docker/
           readOnly: true
         - name: pos-files
-          mountPath: /mnt/pos/
+          mountPath: /var/pos/
         env:
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
