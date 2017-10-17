@@ -1683,7 +1683,7 @@ return query
         select
             ordered.enc_id,
             ordered.name,
-            (case when ordered.name = 'trews' then last(ordered.tsp order by ordered.tsp)
+            (case
                 when ordered.name = 'trews_subalert' then last(ordered.tsp order by ordered.tsp)
                 when ordered.name = 'trews_bilirubin' then last(((ordered.orgdf_details::json)#>>'{bilirubin_trigger,tsp}')::timestamptz order by ordered.tsp)
                 when ordered.name = 'trews_creatinine' then last(((ordered.orgdf_details::json)#>>'{creatinine_trigger,tsp}')::timestamptz order by ordered.tsp)
@@ -1698,9 +1698,7 @@ return query
                 when ordered.name = 'trews_vent' then last(((ordered.orgdf_details::json)#>>'{vent_trigger,tsp}')::timestamptz order by ordered.tsp)
                 else null end
             )::timestamptz as measurement_time,
-            (case when ordered.name = 'trews'
-                then (last(json_build_object('score', score, 'odds_ratio', odds_ratio) order by ordered.tsp))::text
-                when ordered.name = 'trews_subalert' then last(json_build_object('alert', (ordered.orgdf_details::jsonb)#>'{alert}', 'pct_mortality', (ordered.orgdf_details::jsonb)#>'{percent_mortality}', 'pct_sevsep', (ordered.orgdf_details::jsonb)#>'{percent_sevsep}', 'heart_rate', (ordered.orgdf_details::jsonb)#>'{heart_rate}', 'lactate', (ordered.orgdf_details::jsonb)#>'{lactate}', 'sbpm', (ordered.orgdf_details::jsonb)#>'{sbpm}')::text order by ordered.tsp)
+            (case when ordered.name = 'trews_subalert' then last(json_build_object('alert', (ordered.orgdf_details::jsonb)#>'{alert}', 'pct_mortality', (ordered.orgdf_details::jsonb)#>'{percent_mortality}', 'pct_sevsep', (ordered.orgdf_details::jsonb)#>'{percent_sevsep}', 'heart_rate', (ordered.orgdf_details::jsonb)#>'{heart_rate}', 'lactate', (ordered.orgdf_details::jsonb)#>'{lactate}', 'sbpm', (ordered.orgdf_details::jsonb)#>'{sbpm}')::text order by ordered.tsp)
                 when ordered.name = 'trews_bilirubin' then last(((ordered.orgdf_details::jsonb)#>'{bilirubin_trigger}' #- '{tsp}')::text order by ordered.tsp)
                 when ordered.name = 'trews_creatinine' then last(((ordered.orgdf_details::jsonb)#>'{creatinine_trigger}' #- '{tsp}')::text order by ordered.tsp)
                 when ordered.name = 'trews_dsbp' then last(((ordered.orgdf_details::jsonb)#>'{delta_hypotetrigger}' #- '{tsp}')::text order by ordered.tsp)
@@ -1717,7 +1715,6 @@ return query
             (last(ordered.c_ouser order by ordered.tsp)) as override_user,
             (last(ordered.c_ovalue order by ordered.tsp)) as override_value,
             coalesce((case when last(ordered.c_ovalue#>>'{0,text}' order by ordered.tsp) = 'No Infection' then false
-                when ordered.name = 'trews' then last(ordered.score > get_trews_parameter('trews_jit_threshold') order by ordered.tsp)
                 when ordered.name = 'trews_subalert' then last(((ordered.orgdf_details::jsonb)#>>'{alert}')::boolean order by ordered.tsp)
                 when ordered.name = 'trews_bilirubin' then last(ordered.bilirubin_orgdf::numeric = 1 order by ordered.tsp)
                 when ordered.name = 'trews_creatinine' then last(ordered.creatinine_orgdf::numeric = 1 order by ordered.tsp)
@@ -4678,3 +4675,88 @@ group by care_unit.care_unit
 ;
 END $func$ LANGUAGE plpgsql;
 
+create or replace function delete_enc(this_enc_id int)
+returns void language plpgsql as $$
+declare
+begin
+  delete from cdm_twf where enc_id = this_enc_id;
+  delete from cdm_t where enc_id = this_enc_id;
+  delete from cdm_s where enc_id = this_enc_id;
+  delete from cdm_notes where enc_id = this_enc_id;
+  delete from cdm_labels where enc_id = this_enc_id;
+  delete from criteria where enc_id = this_enc_id;
+  delete from criteria_events where enc_id = this_enc_id;
+  delete from criteria_log where enc_id = this_enc_id;
+  delete from trews where enc_id = this_enc_id;
+  delete from trews_jit_score where enc_id = this_enc_id;
+  delete from lmcscore where enc_id = this_enc_id;
+  delete from deterioration_feedback where enc_id = this_enc_id;
+  delete from epic_notifications_history where enc_id = this_enc_id;
+  delete from epic_trewscores_history where enc_id = this_enc_id;
+  delete from feedback_log where enc_id = this_enc_id;
+  delete from notifications where enc_id = this_enc_id;
+  delete from pat_status where enc_id = this_enc_id;
+  delete from user_interactions where enc_id = this_enc_id;
+  delete from pat_enc where enc_id = this_enc_id;
+end;
+$$;
+
+create or replace function clone_enc(from_enc int, to_pat_id text, to_visit_id text)
+returns int language plpgsql as $$
+declare to_enc int;
+begin
+  perform delete_enc(enc_id) from pat_enc where pat_id = to_pat_id and visit_id = to_visit_id;
+  insert into pat_enc (pat_id, visit_id)
+    values (to_pat_id, to_visit_id);
+  select enc_id from pat_enc where pat_id = to_pat_id and visit_id = to_visit_id into to_enc;
+  create temp table clone_temp as
+    select * from cdm_twf where enc_id = from_enc;
+  update clone_temp set enc_id = to_enc;
+  insert into cdm_twf select * from clone_temp;
+  drop table clone_temp;
+  create temp table clone_temp as select * from cdm_t where enc_id = from_enc;
+  update clone_temp set enc_id = to_enc;
+  insert into cdm_t select * from clone_temp;
+  drop table clone_temp;
+  create temp table clone_temp as select * from cdm_s where enc_id = from_enc;
+  update clone_temp set enc_id = to_enc;
+  insert into cdm_s select * from clone_temp;
+  drop table clone_temp;
+  create temp table clone_temp as select * from cdm_notes where enc_id = from_enc;
+  update clone_temp set enc_id = to_enc;
+  insert into cdm_notes select * from clone_temp;
+  drop table clone_temp;
+  create temp table clone_temp as select * from cdm_labels where enc_id = from_enc;
+  update clone_temp set enc_id = to_enc;
+  insert into cdm_labels select * from clone_temp;
+  drop table clone_temp;
+  return to_enc;
+end;
+$$;
+
+create or replace function shift_to_now(this_enc_id int, now_tsp timestamptz default now())
+returns void language plpgsql as $$
+declare shift_interval interval;
+begin
+select now_tsp - max(tsp) from cdm_t where enc_id = this_enc_id into shift_interval;
+update cdm_t set tsp = tsp + shift_interval where enc_id = this_enc_id;
+update cdm_twf set tsp = tsp + shift_interval where enc_id = this_enc_id;
+end;
+$$;
+
+CREATE OR REPLACE FUNCTION get_ofd_enc_ids(window text default '1 month')
+RETURNS table (enc_id int)
+LANGUAGE plpgsql
+AS
+$$
+begin
+return query with ofd as
+(select pe.enc_id, max(tsp) tsp from pat_enc pe
+inner join cdm_t t on pe.enc_id = t.enc_id
+group by pe.enc_id)
+select ofd.enc_id from ofd where now() - tsp > window::interval
+except select * from get_latest_enc_ids('HCGH')
+except select * from get_latest_enc_ids('JHH')
+except select * from get_latest_enc_ids('BMC');
+END;
+$$;
