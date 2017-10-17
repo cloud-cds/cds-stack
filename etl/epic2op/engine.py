@@ -180,8 +180,8 @@ def combine_db_data(ctxt, pats_t, flowsheets_t, active_procedures_t, lab_orders_
   return db_data
 
 
-def combine_cloudwatch_data(ctxt, pats_t, flowsheets_t, lab_orders_t,
-                            active_procedures_t, lab_results_t, med_orders_t,
+def combine_cloudwatch_data(ctxt, pats_t, flowsheets_t, active_procedures_t,
+                            lab_orders_t, lab_results_t, med_orders_t,
                             med_admin_t, loc_history_t, notes_t, note_texts_t):
   return {
     'bedded_pats'       : len(pats_t.index),
