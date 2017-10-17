@@ -398,8 +398,8 @@ async def get_patient_profile(db_pool, pat_id):
 async def get_criteria(db_pool, eid):
   get_criteria_sql = \
   '''
-  select * from get_criteria(pat_id_to_enc_id('%s'::text))
-  ''' % eid
+  select * from get_criteria(case when pat_id_to_enc_id('%(pid)s'::text) is null then -1 else pat_id_to_enc_id('%(pid)s'::text) end)
+  ''' % {'pid': eid}
   async with db_pool.acquire() as conn:
     result = await conn.fetch(get_criteria_sql)
     return result

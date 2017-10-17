@@ -75,8 +75,7 @@ order_link_mode = os.environ['order_link_mode'] if 'order_link_mode' in os.envir
 
 force_server_loc = os.environ['force_server_loc'] if 'force_server_loc' in os.environ else None
 force_server_dep = os.environ['force_server_dep'] if 'force_server_dep' in os.environ else None
-
-default_pat_id = os.environ['default_pat_id'] if 'default_pat_id' in os.environ else None
+force_pat_ids = os.environ['force_pat_ids'].split(',') if 'force_pat_ids' in os.environ else None
 
 model_in_use = os.environ['model_in_use'] if 'model_in_use' in os.environ else None
 
@@ -92,7 +91,7 @@ logging.info('''TREWS Configuration::
   order_link_mode: %s
   force_server_loc: %s
   force_server_dep: %s
-  default_pat_id: %s
+  force_pat_ids: %s
   model_in_use: %s
   ''' % (release,
          'on' if encrypted_query else 'off', \
@@ -101,7 +100,10 @@ logging.info('''TREWS Configuration::
          'on' if trews_open_access and trews_open_access.lower() == 'true' else 'off',
          'on' if log_decryption else 'off',
          'on' if log_user_latency else 'off',
-         ie_mode, order_link_mode, force_server_loc, force_server_dep, default_pat_id, model_in_use)
+         ie_mode, order_link_mode,
+         force_server_loc, force_server_dep,
+         ','.join(force_pat_ids) if force_pat_ids else '',
+         model_in_use)
   )
 
 # global
@@ -251,7 +253,17 @@ class TREWSStaticResource(web.View):
           validated = trews_admin_key == parameters['adminkey']
 
         if validated:
-          r_body = self.get_index_body(parameters)
+          if force_pat_ids and 'PATID' in parameters and parameters['PATID'] in force_pat_ids:
+            r_body = self.get_index_body(parameters)
+
+          elif force_pat_ids:
+            new_params = dict(parameters.items())
+            new_params['PATID'] = force_pat_ids[0]
+            new_qs = urllib.parse.urlencode(new_params)
+            return web.HTTPFound(URL+INDEX_FILENAME+'?'+new_qs)
+
+          else:
+            r_body = self.get_index_body(parameters)
 
         else:
           self.bad_request('Unauthorized access')
