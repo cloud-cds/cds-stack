@@ -18,7 +18,7 @@ from aiocache.plugins import HitMissRatioPlugin
 from monitoring import APIMonitor
 
 import re
-EID_REGEX = '^(E[0-9]{9}|[0-9]{,6})$' # including test ids
+EID_REGEX = '^((E|Z)[0-9]{9}|[0-9]{,6})$' # including test ids
 
 logging.basicConfig(format='%(levelname)s|%(asctime)s.%(msecs)03d|%(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
 
