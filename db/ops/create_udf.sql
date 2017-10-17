@@ -4459,3 +4459,242 @@ begin
     end if;
     return;
 end; $$;
+
+
+------------------------------------------------
+-- Alert Statistics
+
+
+-- For each pat/enc/unit, count trews/cms snapshots that fired within the stay in that unit.
+-- Also returns earliest time of trews/cms firing within that unit.
+--
+CREATE OR REPLACE FUNCTION get_alert_stats_by_enc(ts_start timestamptz, ts_end timestamptz)
+RETURNS table(
+    pat_id              character varying(50),
+    enc_id              integer,
+    care_unit           text,
+    enter_time          timestamp with time zone,
+    leave_time          timestamp with time zone,
+    trews_no_cms        bigint,
+    cms_no_trews        bigint,
+    trews_and_cms       bigint,
+    any_trews           bigint,
+    any_cms             bigint,
+    earliest_trews      timestamp with time zone,
+    earliest_cms        timestamp with time zone
+) AS $func$ BEGIN RETURN QUERY
+
+with raw_care_unit_tbl as (
+  select R.enc_id, R.enter_time, (case when R.leave_time is null then date_trunc('second', now()) else R.leave_time end) as leave_time, R.care_unit
+  from (
+    select R.enc_id,
+           R.tsp as enter_time,
+           lead(R.tsp,1) OVER (PARTITION BY R.enc_id ORDER BY R.tsp) as leave_time,
+           (case when R.care_unit = 'Arrival' then R.next_unit else R.care_unit end) as care_unit
+    from (
+      select R.enc_id, R.tsp, R.care_unit,
+             lead(R.tsp,1) OVER (PARTITION BY R.enc_id ORDER BY R.tsp,
+                (case when R.care_unit = 'Arrival' then 0 when R.care_unit = 'Discharge' then 2 else 1 end)
+             ) as next_tsp,
+             lead(R.care_unit,1) OVER (PARTITION BY R.enc_id ORDER BY R.tsp,
+                (case when R.care_unit = 'Arrival' then 0 when R.care_unit = 'Discharge' then 2 else 1 end)
+             ) as next_unit,
+             first_value(R.care_unit) over (PARTITION by R.enc_id order by R.tsp,
+                (case when R.care_unit = 'Arrival' then 0 when R.care_unit = 'Discharge' then 2 else 1 end)
+             ) as first_unit
+      from (
+        select cdm_s.enc_id, cdm_s.value::timestamptz as tsp, 'Arrival' as care_unit
+        from cdm_s
+        where cdm_s.fid = 'admittime'
+        union all
+        select cdm_t.enc_id, cdm_t.tsp, (case when cdm_t.fid = 'discharge' then 'Discharge' else cdm_t.value end) as care_unit
+        from cdm_t
+        where ( cdm_t.fid = 'care_unit' or cdm_t.fid = 'discharge' )
+      ) R
+      order by
+        R.enc_id, R.tsp,
+        (case when R.care_unit = 'Arrival' then 0 when R.care_unit = 'Discharge' then 2 else 1 end)
+    ) R
+    where not (R.care_unit = 'Arrival' and R.first_unit <> 'Arrival')
+    and (R.next_tsp is null or R.tsp <> R.next_tsp)
+    order by R.enc_id, enter_time
+  ) R
+),
+discharge_filtered as (
+  select R.*
+  from raw_care_unit_tbl R
+  where R.care_unit != 'Discharge' and R.leave_time is not null
+),
+care_unit as (
+  select D.enc_id, D.enter_time, D.leave_time, D.care_unit
+  from discharge_filtered D
+),
+snapshots as (
+  select R.pat_id, R.enc_id, R.event_id,
+         max(R.update_date) as update_date,
+         count(*) filter (where R.trews_subalert > 0 and ( R.sirs < 2 or R.orgdf < 1 )) as trews_no_cms,
+         count(*) filter (where R.sirs > 1 and R.orgdf > 0 and R.trews_subalert = 0) as cms_no_trews,
+         count(*) filter (where R.trews_subalert > 0 and R.sirs > 1 and R.orgdf > 0) as trews_and_cms,
+         count(*) filter (where R.trews_subalert > 0) as any_trews,
+         count(*) filter (where R.sirs > 1 and R.orgdf > 0) as any_cms,
+         min(R.trews_subalert_onset) filter (where R.trews_subalert > 0) as trews_subalert_onset,
+         min(greatest(R.sirs_onset, R.organ_onset)) filter (where R.sirs > 1 and R.orgdf > 0) as cms_onset
+  from (
+    select p.pat_id, C.enc_id, C.event_id, C.flag,
+           max(C.update_date) as update_date,
+           count(*) filter (where C.name like 'trews_subalert' and C.is_met) as trews_subalert,
+           count(*) filter (where C.name in ('sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc') and C.is_met) as sirs,
+           count(*) filter (where C.name in ('blood_pressure', 'mean_arterial_pressure', 'decrease_in_sbp', 'respiratory_failure', 'creatinine', 'bilirubin', 'platelet', 'inr', 'lactate') and C.is_met) as orgdf,
+           (array_agg(C.measurement_time order by C.measurement_time)  filter (where C.name in ('sirs_temp','heart_rate','respiratory_rate','wbc') and C.is_met ) )[2]   as sirs_onset,
+           min(C.measurement_time) filter (where C.name in ('blood_pressure','mean_arterial_pressure','decrease_in_sbp','respiratory_failure','creatinine','bilirubin','platelet','inr','lactate') and C.is_met ) as organ_onset,
+           min(C.measurement_time) filter (where C.name = 'trews_subalert' and C.is_met) as trews_subalert_onset
+    from criteria_events C
+    inner join (
+      select distinct cdm_t.enc_id
+      from cdm_t where cdm_t.fid =  'care_unit' and cdm_t.value like '%HCGH%'
+      and cdm_t.enc_id not in ( select distinct R.enc_id from get_latest_enc_ids('HCGH') R  )
+      and cdm_t.tsp between ts_start and ts_end
+      union
+      select distinct BP.enc_id from get_latest_enc_ids('HCGH') BP
+      inner join cdm_t on BP.enc_id = cdm_t.enc_id
+      and cdm_t.tsp between ts_start and ts_end
+    ) R on C.enc_id = R.enc_id
+    inner join pat_enc p on c.enc_id = p.enc_id
+    group by p.pat_id, C.enc_id, C.event_id, C.flag
+    having max(C.update_date) between ts_start and ts_end
+  ) R
+  group by R.pat_id, R.enc_id, R.event_id
+)
+select R.pat_id, R.enc_id, care_unit.care_unit,
+       min(care_unit.enter_time) as enter_time,
+       max(care_unit.leave_time) as leave_time,
+       count(distinct R.event_id) filter (where R.trews_no_cms > 0 and R.trews_subalert_onset between care_unit.enter_time and care_unit.leave_time) as trews_no_cms,
+       count(distinct R.event_id) filter (where R.cms_no_trews > 0 and R.cms_onset between care_unit.enter_time and care_unit.leave_time) as cms_no_trews,
+       count(distinct R.event_id) filter (where R.trews_and_cms > 0 and R.trews_subalert_onset between care_unit.enter_time and care_unit.leave_time and R.cms_onset between care_unit.enter_time and care_unit.leave_time) as trews_and_cms,
+       count(distinct R.event_id) filter (where R.any_trews > 0 and R.trews_subalert_onset between care_unit.enter_time and care_unit.leave_time) as any_trews,
+       count(distinct R.event_id) filter (where R.any_cms > 0 and R.cms_onset between care_unit.enter_time and care_unit.leave_time) as any_cms,
+       min(R.trews_subalert_onset) filter (where R.any_trews > 0 and R.trews_subalert_onset between care_unit.enter_time and care_unit.leave_time) as earliest_trews,
+       min(R.cms_onset) filter (where R.any_cms > 0 and R.cms_onset between care_unit.enter_time and care_unit.leave_time) as earliest_cms
+from snapshots R
+inner join care_unit
+on R.enc_id = care_unit.enc_id
+and (
+   (R.trews_subalert_onset between care_unit.enter_time and care_unit.leave_time)
+or (R.cms_onset between care_unit.enter_time and care_unit.leave_time)
+)
+group by R.pat_id, R.enc_id, care_unit.care_unit
+;
+END $func$ LANGUAGE plpgsql;
+
+
+-- For each unit, count # of pats/encs with trews/cms alerts that fired within the stay in that unit.
+--
+CREATE OR REPLACE FUNCTION get_alert_stats_by_unit(ts_start timestamptz, ts_end timestamptz)
+RETURNS table(
+    care_unit           text,
+    total_encs          bigint,
+    trews_no_cms        bigint,
+    cms_no_trews        bigint,
+    trews_and_cms       bigint,
+    any_trews           bigint,
+    any_cms             bigint
+) AS $func$ BEGIN RETURN QUERY
+with raw_care_unit_tbl as (
+  select R.enc_id, R.enter_time, (case when R.leave_time is null then date_trunc('second', now()) else R.leave_time end) as leave_time, R.care_unit
+  from (
+    select R.enc_id,
+           R.tsp as enter_time,
+           lead(R.tsp,1) OVER (PARTITION BY R.enc_id ORDER BY R.tsp) as leave_time,
+           (case when R.care_unit = 'Arrival' then R.next_unit else R.care_unit end) as care_unit
+    from (
+      select R.enc_id, R.tsp, R.care_unit,
+             lead(R.tsp,1) OVER (PARTITION BY R.enc_id ORDER BY R.tsp,
+                (case when R.care_unit = 'Arrival' then 0 when R.care_unit = 'Discharge' then 2 else 1 end)
+             ) as next_tsp,
+             lead(R.care_unit,1) OVER (PARTITION BY R.enc_id ORDER BY R.tsp,
+                (case when R.care_unit = 'Arrival' then 0 when R.care_unit = 'Discharge' then 2 else 1 end)
+             ) as next_unit,
+             first_value(R.care_unit) over (PARTITION by R.enc_id order by R.tsp,
+                (case when R.care_unit = 'Arrival' then 0 when R.care_unit = 'Discharge' then 2 else 1 end)
+             ) as first_unit
+      from (
+        select cdm_s.enc_id, cdm_s.value::timestamptz as tsp, 'Arrival' as care_unit
+        from cdm_s
+        where cdm_s.fid = 'admittime'
+        union all
+        select cdm_t.enc_id, cdm_t.tsp, (case when cdm_t.fid = 'discharge' then 'Discharge' else cdm_t.value end) as care_unit
+        from cdm_t
+        where ( cdm_t.fid = 'care_unit' or cdm_t.fid = 'discharge' )
+      ) R
+      order by
+        R.enc_id, R.tsp,
+        (case when R.care_unit = 'Arrival' then 0 when R.care_unit = 'Discharge' then 2 else 1 end)
+    ) R
+    where not (R.care_unit = 'Arrival' and R.first_unit <> 'Arrival')
+    and (R.next_tsp is null or R.tsp <> R.next_tsp)
+    order by R.enc_id, enter_time
+  ) R
+),
+discharge_filtered as (
+  select R.*
+  from raw_care_unit_tbl R
+  where R.care_unit != 'Discharge' and R.leave_time is not null
+),
+care_unit as (
+  select D.enc_id, D.enter_time, D.leave_time, D.care_unit
+  from discharge_filtered D
+),
+snapshots as (
+  select R.pat_id, R.enc_id, R.event_id,
+         max(R.update_date) as update_date,
+         count(*) filter (where R.trews_subalert > 0 and ( R.sirs < 2 or R.orgdf < 1 )) as trews_no_cms,
+         count(*) filter (where R.sirs > 1 and R.orgdf > 0 and R.trews_subalert = 0) as cms_no_trews,
+         count(*) filter (where R.trews_subalert > 0 and R.sirs > 1 and R.orgdf > 0) as trews_and_cms,
+         count(*) filter (where R.trews_subalert > 0) as any_trews,
+         count(*) filter (where R.sirs > 1 and R.orgdf > 0) as any_cms,
+         min(R.trews_subalert_onset) filter (where R.trews_subalert > 0) as trews_subalert_onset,
+         min(greatest(R.sirs_onset, R.organ_onset)) filter (where R.sirs > 1 and R.orgdf > 0) as cms_onset
+  from (
+    select p.pat_id, C.enc_id, C.event_id, C.flag,
+           max(C.update_date) as update_date,
+           count(*) filter (where C.name like 'trews_subalert' and C.is_met) as trews_subalert,
+           count(*) filter (where C.name in ('sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc') and C.is_met) as sirs,
+           count(*) filter (where C.name in ('blood_pressure', 'mean_arterial_pressure', 'decrease_in_sbp', 'respiratory_failure', 'creatinine', 'bilirubin', 'platelet', 'inr', 'lactate') and C.is_met) as orgdf,
+           (array_agg(C.measurement_time order by C.measurement_time)  filter (where C.name in ('sirs_temp','heart_rate','respiratory_rate','wbc') and C.is_met ) )[2]   as sirs_onset,
+           min(C.measurement_time) filter (where C.name in ('blood_pressure','mean_arterial_pressure','decrease_in_sbp','respiratory_failure','creatinine','bilirubin','platelet','inr','lactate') and C.is_met ) as organ_onset,
+           min(C.measurement_time) filter (where C.name = 'trews_subalert' and C.is_met) as trews_subalert_onset
+    from criteria_events C
+    inner join (
+      select distinct cdm_t.enc_id
+      from cdm_t where cdm_t.fid =  'care_unit' and cdm_t.value like '%HCGH%'
+      and cdm_t.enc_id not in ( select distinct R.enc_id from get_latest_enc_ids('HCGH') R  )
+      and cdm_t.tsp between ts_start and ts_end
+      union
+      select distinct BP.enc_id from get_latest_enc_ids('HCGH') BP
+      inner join cdm_t on BP.enc_id = cdm_t.enc_id
+      and cdm_t.tsp between ts_start and ts_end
+    ) R on C.enc_id = R.enc_id
+    inner join pat_enc p on c.enc_id = p.enc_id
+    group by p.pat_id, C.enc_id, C.event_id, C.flag
+    having max(C.update_date) between ts_start and ts_end
+  ) R
+  group by R.pat_id, R.enc_id, R.event_id
+)
+select care_unit.care_unit,
+       count(distinct R.enc_id) as total_encs,
+       count(distinct R.enc_id) filter (where R.trews_no_cms > 0 and R.trews_subalert_onset between care_unit.enter_time and care_unit.leave_time) as trews_no_cms,
+       count(distinct R.enc_id) filter (where R.cms_no_trews > 0 and R.cms_onset between care_unit.enter_time and care_unit.leave_time) as cms_no_trews,
+       count(distinct R.enc_id) filter (where R.trews_and_cms > 0 and R.trews_subalert_onset between care_unit.enter_time and care_unit.leave_time and R.cms_onset between care_unit.enter_time and care_unit.leave_time) as trews_and_cms,
+       count(distinct R.enc_id) filter (where R.any_trews > 0 and R.trews_subalert_onset between care_unit.enter_time and care_unit.leave_time) as any_trews,
+       count(distinct R.enc_id) filter (where R.any_cms > 0 and R.cms_onset between care_unit.enter_time and care_unit.leave_time) as any_cms
+from snapshots R
+inner join care_unit
+on R.enc_id = care_unit.enc_id
+and (
+   (R.trews_subalert_onset between care_unit.enter_time and care_unit.leave_time)
+or (R.cms_onset between care_unit.enter_time and care_unit.leave_time)
+)
+group by care_unit.care_unit
+;
+END $func$ LANGUAGE plpgsql;
+
