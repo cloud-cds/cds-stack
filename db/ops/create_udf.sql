@@ -4529,11 +4529,8 @@ snapshots as (
       select distinct cdm_t.enc_id
       from cdm_t where cdm_t.fid =  'care_unit' and cdm_t.value like '%HCGH%'
       and cdm_t.enc_id not in ( select distinct R.enc_id from get_latest_enc_ids('HCGH') R  )
-      and cdm_t.tsp between ts_start and ts_end
       union
       select distinct BP.enc_id from get_latest_enc_ids('HCGH') BP
-      inner join cdm_t on BP.enc_id = cdm_t.enc_id
-      and cdm_t.tsp between ts_start and ts_end
     ) R on C.enc_id = R.enc_id
     inner join pat_enc p on c.enc_id = p.enc_id
     group by p.pat_id, C.enc_id, C.event_id, C.flag
@@ -4644,11 +4641,8 @@ snapshots as (
       select distinct cdm_t.enc_id
       from cdm_t where cdm_t.fid =  'care_unit' and cdm_t.value like '%HCGH%'
       and cdm_t.enc_id not in ( select distinct R.enc_id from get_latest_enc_ids('HCGH') R  )
-      and cdm_t.tsp between ts_start and ts_end
       union
       select distinct BP.enc_id from get_latest_enc_ids('HCGH') BP
-      inner join cdm_t on BP.enc_id = cdm_t.enc_id
-      and cdm_t.tsp between ts_start and ts_end
     ) R on C.enc_id = R.enc_id
     inner join pat_enc p on c.enc_id = p.enc_id
     group by p.pat_id, C.enc_id, C.event_id, C.flag
