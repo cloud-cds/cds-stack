@@ -1,7 +1,7 @@
 from etl.mappings.api_servers import servers
 from etl.mappings.flowsheet_ids import flowsheet_ids
 from etl.mappings.component_ids import component_ids
-from etl.mappings.lab_procedures import procedure_ids
+from etl.mappings.lab_procedures import lab_procedure_ids
 
 from etl.core.environment import Environment
 from etl.io_config.cloudwatch import Cloudwatch
@@ -65,7 +65,7 @@ class JHAPIConfig:
             async with session.request(**setting) as response:
               if response.status != 200:
                 body = await response.text()
-                logging.error("  Status={}\tMessage={}".format(response.status, body))
+                logging.error("Status={}\tMessage={}\tRequest={}".format(response.status, body, setting))
                 response = None
                 error += 1
               else:
@@ -200,7 +200,7 @@ class JHAPIConfig:
   def extract_lab_orders(self, ctxt, bedded_patients):
     resource = '/patients/labs/procedure'
     procedure_types = []
-    for _, ids in procedure_ids:
+    for _, ids in lab_procedure_ids:
       procedure_types += ({'Type': 'INTERNAL', 'ID': str(x)} for x in ids)
     payloads = [{
       'Id':                   pat['pat_id'],

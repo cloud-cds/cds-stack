@@ -3,7 +3,7 @@ from etl.transforms.primitives.df import format_data
 from etl.transforms.primitives.df import restructure
 from etl.transforms.primitives.df import translate
 from etl.transforms.primitives.df.pandas_utils import async_read_df
-from etl.mappings import lab_procedures_clarity as lp_config
+from etl.mappings import lab_procedures_clarity
 from etl.load.primitives.row import load_row
 import etl.transforms.primitives.df.filter_rows as filter_rows
 from etl.clarity2dw.extractor import log_time
@@ -475,7 +475,7 @@ async def pull_order_procs(connection, dataset_id, fids, log, is_plan, clarity_w
       log.info('pull_order_procs get_fid_name_mapping for %s %s' % (order_fid, fid))
 
       found = False
-      for pfid, codes in lp_config.procedure_ids:
+      for pfid, codes in lab_procedures_clarity.procedure_ids:
         if fid == pfid:
           found = True
           nameList = list()

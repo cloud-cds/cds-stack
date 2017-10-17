@@ -1141,12 +1141,8 @@ select %I.enc_id,
     min(measurement_time) filter (where name in (''blood_pressure'',''mean_arterial_pressure'',''decrease_in_sbp'',''respiratory_failure'',''creatinine'',''bilirubin'',''platelet'',''inr'',''lactate'') and is_met ) as organ_onset,
     min(measurement_time) filter (where name in (''systolic_bp'',''hypotension_map'',''hypotension_dsbp'') and is_met ) as hypotension_onset,
     min(measurement_time) filter (where name = ''initial_lactate'' and is_met) as hypoperfusion_onset,
-    count(*) filter (where name = ''trews'' and is_met) as trews_met,
-    min(measurement_time) filter (where name = ''trews'' and is_met) as trews_onset,
     count(*) filter (where name = ''trews_subalert'' and is_met) as trews_subalert_met,
     min(measurement_time) filter (where name = ''trews_subalert'' and is_met) as trews_subalert_onset,
-    count(*) filter (where name ~ ''trews_'' and is_met) as trews_orgdf,
-    min(measurement_time) filter (where name ~ ''trews_'' and is_met) as trews_orgdf_onset,
     count(*) filter (where name = ''ui_severe_sepsis'' and is_met) as ui_severe_sepsis_cnt,
     min(override_time) filter (where name = ''ui_severe_sepsis'' and is_met) as ui_severe_sepsis_onset,
     count(*) filter (where name = ''ui_septic_shock'' and is_met) as ui_septic_shock_cnt,
@@ -1916,18 +1912,14 @@ return query
         )
         select IC.enc_id,
                sum(IC.cnt) > 0 as suspicion_of_infection,
-               sum(TS.cnt) > 0 as trews,
                sum(TA.cnt) > 0 as trews_subalert,
                sum(SC.cnt) as sirs_cnt,
                sum(OC.cnt) as org_df_cnt,
-               sum(TOC.cnt) as trews_orgdf_cnt,
                max(IC.onset) as inf_onset,
-               max(TS.onset) as trews_onset,
                max(TA.onset) as trews_subalert_onset,
                max(SC.onset) as sirs_onset,
                min(SC.initial) as sirs_initial,
                max(OC.onset) as org_df_onset,
-               max(TOC.onset) as trews_orgdf_onset,
                sum(UISS1.cnt) as ui_ss1_cnt,
                max(UISS1.onset) as ui_ss1_onset,
                sum(UISS2.cnt) as ui_ss2_cnt,
@@ -1940,14 +1932,6 @@ return query
           from infection
           group by infection.enc_id
         ) IC
-        left join
-        (
-            select trews.enc_id,
-                   sum(case when trews.is_met then 1 else 0 end) as cnt,
-                   max(trews.measurement_time) as onset
-            from trews where trews.name = 'trews'
-            group by trews.enc_id
-        ) TS on TS.enc_id = IC.enc_id
         left join
         (
             select trews.enc_id,
@@ -1973,14 +1957,6 @@ return query
           from organ_dysfunction
           group by organ_dysfunction.enc_id
         ) OC on IC.enc_id = OC.enc_id
-        left join
-        (
-          select trews_orgdf.enc_id,
-                 sum(case when trews_orgdf.is_met then 1 else 0 end) as cnt,
-                 min(trews_orgdf.measurement_time) as onset
-          from trews trews_orgdf where trews_orgdf.name <> 'trews'
-          group by trews_orgdf.enc_id
-        ) TOC on IC.enc_id = TOC.enc_id
         left join
         (
           select ui_severe_sepsis.enc_id,
@@ -3295,12 +3271,12 @@ begin
     ),
     logging as (
         insert into criteria_log (enc_id, tsp, event, update_date)
-        values (
-              this_enc_id,
+        select
+              enc_id,
               now(),
               '{"event_type": "reactivate", "uid":"dba"}',
               now()
-          )
+        from pats
     )
     select deactivate(enc_id, false, 'auto_deactivate') from pats into res;
     return;
@@ -3314,17 +3290,17 @@ begin
     with pats as (select distinct e.enc_id
         from criteria_events e
         inner join lateral get_states_snapshot(e.enc_id) SNP on e.enc_id = SNP.enc_id
-        where flag in (10,11) and now() - SNP.severe_sepsis_wo_infection_initial > (select value from parameters where name = 'lookbackhours')::interval
+        where flag = 10 and now() - SNP.severe_sepsis_wo_infection_initial > (select value from parameters where name = 'lookbackhours')::interval
         and e.enc_id = coalesce(this_enc_id, e.enc_id)
     ),
     logging as (
         insert into criteria_log (enc_id, tsp, event, update_date)
-        values (
-              this_enc_id,
+        select
+              enc_id,
               now(),
               '{"event_type": "reset_soi_pats", "uid":"dba"}',
               now()
-          )
+        from pats
     )
     select reset_patient(enc_id) from pats into res;
     return;
@@ -3345,12 +3321,12 @@ begin
     ),
     logging as (
         insert into criteria_log (enc_id, tsp, event, update_date)
-        values (
-              this_enc_id,
+        select
+              enc_id,
               now(),
               '{"event_type": "reset_bundle_expired_pats", "uid":"dba"}',
               now()
-          )
+        from pats
     )
     select reset_patient(enc_id) from pats into res;
     return;
@@ -3372,12 +3348,12 @@ begin
     ),
     logging as (
         insert into criteria_log (enc_id, tsp, event, update_date)
-        values (
-              this_enc_id,
+        select
+              enc_id,
               now(),
               '{"event_type": "reset_noinf_expired_pats", "uid":"dba"}',
               now()
-          )
+        from pats
     )
     select reset_patient(enc_id) from pats into res;
     return;
