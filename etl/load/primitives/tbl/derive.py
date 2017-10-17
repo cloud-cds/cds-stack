@@ -763,7 +763,7 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
     """
     lookbackhours2 = ((" where" if dataset_id is None and not incremental else " and") + " now() - cdm_t.tsp <= '{}'::interval".format(cdm_t_lookbackhours)) if cdm_t_lookbackhours is not None else ''
     sql = select_sql_with_weight % \
-      (cdm_t_target, twf_table_temp, 'epinephrine_dose',
+      (cdm_t_target, 'cdm_twf' if dataset_id else twf_table_temp, 'epinephrine_dose',
        with_ds(dataset_id, table_name='t', conjunctive=False),
        incremental_enc_id_in(' and ' if dataset_id else ' where ', 'twf', dataset_id, incremental), lookbackhours2)
     log.info("select_sql_with_weight:%s" % sql)
