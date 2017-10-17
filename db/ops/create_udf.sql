@@ -4567,13 +4567,13 @@ END $func$ LANGUAGE plpgsql;
 --
 CREATE OR REPLACE FUNCTION get_alert_stats_by_unit(ts_start timestamptz, ts_end timestamptz)
 RETURNS table(
-    care_unit           text,
-    total_encs          bigint,
-    trews_no_cms        bigint,
-    cms_no_trews        bigint,
-    trews_and_cms       bigint,
-    any_trews           bigint,
-    any_cms             bigint
+    care_unit                 text,
+    total_encs_with_alerts    bigint,
+    trews_no_cms              bigint,
+    cms_no_trews              bigint,
+    trews_and_cms             bigint,
+    any_trews                 bigint,
+    any_cms                   bigint
 ) AS $func$ BEGIN RETURN QUERY
 with raw_care_unit_tbl as (
   select R.enc_id, R.enter_time, (case when R.leave_time is null then date_trunc('second', now()) else R.leave_time end) as leave_time, R.care_unit
