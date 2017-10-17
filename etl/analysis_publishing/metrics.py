@@ -384,12 +384,12 @@ class trews_but_no_cms_stats(metric):
           select distinct enc_id
           from cdm_t where fid =  'care_unit' and value like '%%HCGH%%'
           and enc_id not in ( select distinct enc_id from get_latest_enc_ids('HCGH') )
-          and tsp between '%(start)s'::timestamptz and '%(end)s'::timestamptz
           union
           select distinct enc_id from get_latest_enc_ids('HCGH')
         ) R on C.enc_id = R.enc_id
         inner join pat_enc p on c.enc_id = p.enc_id
         group by p.pat_id, C.enc_id, C.event_id, C.flag
+        having max(C.update_date) between '%(start)s'::timestamptz and '%(end)s'::timestamptz
       ) R
       group by pat_id, enc_id
     ) R
@@ -431,12 +431,12 @@ class cms_but_no_trews_stats(metric):
           select distinct enc_id
           from cdm_t where fid =  'care_unit' and value like '%%HCGH%%'
           and enc_id not in ( select distinct enc_id from get_latest_enc_ids('HCGH') )
-          and tsp between '%(start)s'::timestamptz and '%(end)s'::timestamptz
           union
           select distinct enc_id from get_latest_enc_ids('HCGH')
         ) R on C.enc_id = R.enc_id
         inner join pat_enc p on c.enc_id = p.enc_id
         group by p.pat_id, C.enc_id, C.event_id, C.flag
+        having max(C.update_date) between '%(start)s'::timestamptz and '%(end)s'::timestamptz
       ) R
       group by pat_id, enc_id
     ) R
@@ -478,12 +478,12 @@ class trews_and_cms_stats(metric):
           select distinct enc_id
           from cdm_t where fid =  'care_unit' and value like '%%HCGH%%'
           and enc_id not in ( select distinct enc_id from get_latest_enc_ids('HCGH') )
-          and tsp between '%(start)s'::timestamptz and '%(end)s'::timestamptz
           union
           select distinct enc_id from get_latest_enc_ids('HCGH')
         ) R on C.enc_id = R.enc_id
         inner join pat_enc p on c.enc_id = p.enc_id
         group by p.pat_id, C.enc_id, C.event_id, C.flag
+        having max(C.update_date) between '%(start)s'::timestamptz and '%(end)s'::timestamptz
       ) R
       group by pat_id, enc_id
     ) R
@@ -496,6 +496,25 @@ class trews_and_cms_stats(metric):
   def to_html(self):
     html = "{num} encounters had a co-occurring TREWS and CMS alert<br>".format(num=self.data['num_encounters'].iloc[0])
     return html
+
+
+class alert_stats_by_unit(metric):
+  def __init__(self,connection, first_time_str, last_time_str):
+    super().__init__(connection, first_time_str, last_time_str)
+    self.name = '# of Encounters with TREWS and CMS Alerts By Unit'
+
+  def calc(self):
+    sql = \
+    '''
+    select * from get_alert_stats_by_unit('%(start)s'::timestamptz, '%(end)s'::timestamptz)
+    ''' % { 'start': self.first_time_str, 'end': self.last_time_str }
+
+    res_df = pd.read_sql(sqlalchemy.text(sql), self.connection)
+    self.data = res_df
+
+  def to_html(self):
+    return self.data.to_html()
+
 
 
 #---------------------------------

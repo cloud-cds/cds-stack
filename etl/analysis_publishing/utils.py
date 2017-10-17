@@ -14,8 +14,6 @@ def get_db_engine():
   user          = os.environ['db_user']
   pw            = os.environ['db_password']
   conn_str      = 'postgresql://{}:{}@{}:{}/{}'.format(user, pw, host, port, db)
-  print(conn_str)
-
   engine = sqlalchemy.create_engine(conn_str)
   return engine
 

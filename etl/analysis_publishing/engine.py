@@ -57,13 +57,14 @@ class Engine:
         metrics.report_introduction,
         metrics.pats_seen_by_docs,
         metrics.user_engagement,
-        metrics.trews_but_no_cms_stats,
-        metrics.cms_but_no_trews_stats,
-        metrics.trews_and_cms_stats,
+        metrics.alert_stats_by_unit,
+        #metrics.trews_but_no_cms_stats,
+        #metrics.cms_but_no_trews_stats,
+        #metrics.trews_and_cms_stats,
         metrics.suspicion_of_infection_modified,
         # metrics.get_sepsis_state_stats,
         metrics.notification_stats,
-        metrics.pats_with_threshold_crossings
+        #metrics.pats_with_threshold_crossings
       ]
 
     elif mode == 'metrics':
