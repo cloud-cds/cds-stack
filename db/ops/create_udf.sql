@@ -477,8 +477,18 @@ BEGIN
                         then ' and tsp <= ''' || end_tsp || '''::timestamptz'
                     else '' end)
             || '
-            group by enc_id, tsp
-          ) as T
+            group by enc_id, tsp' ||
+            (case when start_tsp is not null
+              then
+              ' union all
+              select enc_id, tsp, json_object_agg(fid, json_build_object(''value'', value, ''confidence'', confidence)) as rec
+            from
+            (select enc_id, fid, last(tsp order by tsp) as tsp, last(value order by tsp) as value, last(confidence order by tsp) as confidence from cdm_t where fid in ' || fid_array || (case when enc_ids is not null then ' and enc_id in ' ||enc_id_array else '' end) || ' and tsp < ''' || start_tsp || '''::timestamptz
+            group by enc_id, fid) carry_on
+            group by enc_id, tsp'
+              else '' end)
+          ||
+          ') as T
         ) on conflict (enc_id, tsp) do update set ' || set_cols
     into query_str
     from select_insert_cols cross join select_from_cols cross join select_set_cols cross join select_fid_array cross join select_enc_id_array;
