@@ -3327,7 +3327,7 @@ var toolbar = new function() {
       groupId++;
     }
 
-    this.groups['trews_vasopressors'] = { id: groupId, content: 'TREWS Vasopressors' };
+    this.groups['trews_vasopressors'] = { id: groupId, content: 'Vasopressors' };
     trewsOrganGroupIds.push(groupId);
     groupId++;
 

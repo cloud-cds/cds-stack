@@ -497,10 +497,10 @@ class TREWSAPI(web.View):
       # parallel query execution
       pat_values = await asyncio.gather(
                       query.get_criteria(db_pool, eid),
-                      query.get_trews_jit_score(db_pool, eid, start_hrs=chart_sample_start_hrs, start_day=chart_sample_start_day, end_day=chart_sample_end_day, sample_mins=chart_sample_mins, sample_hrs=chart_sample_hrs),
                       query.get_patient_events(db_pool, eid),
                       query.get_patient_profile(db_pool, eid),
                       query.get_trews_intervals(db_pool, eid)
+                      #query.get_trews_jit_score(db_pool, eid, start_hrs=chart_sample_start_hrs, start_day=chart_sample_start_day, end_day=chart_sample_end_day, sample_mins=chart_sample_mins, sample_hrs=chart_sample_hrs)
                     )
 
       if pat_values[0] is None or len(pat_values[0]) == 0:
@@ -520,19 +520,19 @@ class TREWSAPI(web.View):
       ( sz, pat_cache.hit_miss_ratio["hits"], pat_cache.hit_miss_ratio["total"] ))
 
     criteria_result_set    = pat_values[0]
-    chart_values           = pat_values[1]
-    notifications, history = pat_values[2]
-    patient_scalars        = pat_values[3]
-    trews_intervals        = pat_values[4]
+    notifications, history = pat_values[1]
+    patient_scalars        = pat_values[2]
+    trews_intervals        = pat_values[3]
+    #chart_values           = pat_values[4]
 
     self.update_criteria(criteria_result_set, data)
 
     try:
       # update chart data
       data['chart_data']['patient_arrival']['timestamp'] = patient_scalars['admit_time']
-      data['chart_data']['trewscore_threshold']          = patient_scalars['trews_threshold']
       data['chart_data']['patient_age']                  = patient_scalars['age']
-      data['chart_data']['chart_values']                 = chart_values
+      #data['chart_data']['trewscore_threshold']          = patient_scalars['trews_threshold']
+      #data['chart_data']['chart_values']                 = chart_values
 
       # update profile components
       data['deactivated']          = patient_scalars['deactivated']
