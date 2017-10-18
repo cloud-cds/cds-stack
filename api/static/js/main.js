@@ -394,9 +394,9 @@ var endpoints = new function() {
       var disablePage = false;
 
       if ( trews.data != null && trews.data.profile != null ) {
-        disablePage = trews.data.profile['age'] < 18;
+        disablePage = trews.data.profile['age'] < 18 || trews.data.profile['excluded_units'];
       } else if ( result.hasOwnProperty('trewsData') && result.trewsData.profile != null ) {
-        disablePage = result.trewsData.profile['age'] < 18;
+        disablePage = result.trewsData.profile['age'] < 18 || result.trewsData.profile['excluded_units'];
       }
 
       if ( disablePage ) {
