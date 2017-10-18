@@ -4742,10 +4742,21 @@ create or replace function shift_to_now(this_enc_id int, now_tsp timestamptz def
 returns void language plpgsql as $$
 declare shift_interval interval;
 begin
-select now_tsp - max(tsp) from cdm_t where enc_id = this_enc_id into shift_interval;
+select now_tsp - greatest(max(t.tsp), coalesce(max(c.override_time), max(t.tsp) )) from cdm_t t left join criteria c on t.enc_id = c.enc_id and c.override_user is not null where t.enc_id = this_enc_id into shift_interval;
 update cdm_t set tsp = tsp + shift_interval where enc_id = this_enc_id;
 update cdm_twf set tsp = tsp + shift_interval where enc_id = this_enc_id;
-update criteria set measurement_time = measurement_time + shift_interval, override_time = override_time + shift_interval where enc_id = this_enc_id;
+update criteria set override_time = override_time + shift_interval where enc_id = this_enc_id and override_user is not null;
+end;
+$$;
+
+create or replace function refresh_enc(this_enc_id int)
+returns void language plpgsql as $$
+begin
+    perform shift_to_now(this_enc_id);
+    delete from criteria_events where enc_id = this_enc_id;
+    perform advance_criteria_snapshot(this_enc_id);
+    perform pg_notify('on_opsdx_dev_etl', 'invalidate_cache:' || pat_id || ':trews-jit')
+    from pat_enc where enc_id = this_enc_id;
 end;
 $$;
 
