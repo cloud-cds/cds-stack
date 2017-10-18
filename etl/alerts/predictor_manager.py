@@ -214,13 +214,13 @@ class PredictorManager:
       logging.info("{} cancelled".format(future))
 
 
-  def create_predict_tasks(self, hosp, time):
+  def create_predict_tasks(self, hosp, time, job_id):
     ''' Start all predictors '''
-    logging.info("Starting all predictors for ETL {} {}".format(hosp, time))
+    logging.info("Starting all predictors for ETL {} {} {}".format(hosp, time, job_id))
     self.predict_task_futures[hosp] = []
     for pid in self.get_partition_ids():
       for model in self.get_model_types():
-        future = asyncio.ensure_future(self.run_predict(pid, model, hosp, time),
+        future = asyncio.ensure_future(self.run_predict(pid, model, hosp, time, job_id),
                                        loop=self.loop)
         self.predict_task_futures[hosp].append(future)
     logging.info("Started {} predictors".format(len(self.predict_task_futures[hosp])))
@@ -228,7 +228,7 @@ class PredictorManager:
 
 
 
-  async def run_predict(self, partition_id, model_type, hosp, time, active=True):
+  async def run_predict(self, partition_id, model_type, hosp, time, job_id, active=True):
     ''' Start a predictor for a given partition id and model '''
     backoff = 1
 
@@ -273,7 +273,7 @@ class PredictorManager:
         logging.error("{} not getting updated - timeout - restart run_predict".format(pred))
         pred.stop()
         self.loop.create_task(self.run_predict(partition_id, model_type, hosp,
-                                               time, not active))
+                                               time, job_id, not active))
         return
 
       # BUSY - all ok, keep monitoring
@@ -288,7 +288,7 @@ class PredictorManager:
         else:
           logging.error("{} died, trying again".format(pred))
           self.loop.create_task(self.run_predict(partition_id, model_type, hosp,
-                                               time, active))
+                                               time, job_id, active))
         return
 
       # FIN - return
