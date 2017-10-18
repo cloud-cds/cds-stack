@@ -3,27 +3,27 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: jit-alerts
+  name: jit-alerts-test
   labels:
-    app: jit-alerts
+    app: jit-alerts-test
 spec:
   type: NodePort
   ports:
-    - name: jit-alerts
+    - name: jit-alerts-test
       port: 31000
   selector:
-    app: jit-alerts
+    app: jit-alerts-test
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: jit-alerts
+  name: jit-alerts-test
 spec:
   replicas: 1
   template:
     metadata:
       labels:
-        app: jit-alerts
+        app: jit-alerts-test
       annotations:
         pod.alpha.kubernetes.io/initialized: "true"
         scheduler.alpha.kubernetes.io/affinity: >
@@ -34,7 +34,7 @@ spec:
                     "matchExpressions": [{
                       "key": "app",
                       "operator": "In",
-                      "values": ["jit-alerts"]
+                      "values": ["jit-alerts-test"]
                     }]
                   },
                   "topologyKey": "kubernetes.io/hostname"
@@ -45,7 +45,7 @@ spec:
       nodeSelector:
         opsdx_nodegroup: spot-nodes
       containers:
-      - name: jit-alerts
+      - name: jit-alerts-test
         image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.308
         imagePullPolicy: Always
         resources:
@@ -59,7 +59,7 @@ spec:
         - /usr/local/bin/python3
         - /etl/alerts/server.py
         ports:
-          - name: jit-alerts
+          - name: jit-alerts-test
             containerPort: 31000
         env:
         - name: SUPPRESS_CLOUDWATCH

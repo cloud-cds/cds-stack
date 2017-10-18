@@ -4239,16 +4239,6 @@ from workspace.' || job_id || '_bedded_patients_transformed bp
 ON CONFLICT (enc_id, fid)
 DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
 
--- workspace_flowsheets_2_cdm_t
-INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
-select pat_enc.enc_id, fs.tsp::timestamptz, fs.fid, last(fs.value), 0 from workspace.' || job_id || '_flowsheets_transformed fs
-    inner join pat_enc on pat_enc.visit_id = fs.visit_id
-    where fs.tsp <> ''NaT'' and fs.tsp::timestamptz < now()
-    and fs.fid <> ''fluids_intake''
-group by pat_enc.enc_id, tsp, fs.fid
-ON CONFLICT (enc_id, tsp, fid)
-DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
-
 -- workspace_lab_results_2_cdm_t
 INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
 select pat_enc.enc_id, lr.tsp::timestamptz, lr.fid, first(lr.value order by lr.tsp::timestamptz), 0 from workspace.' || job_id || '_lab_results_transformed lr
@@ -4295,13 +4285,6 @@ select pat_enc.enc_id, mar.tsp::timestamptz, mar.fid, mar.dose_value as value
         inner join pat_enc on pat_enc.visit_id = mar.visit_id
     where isnumeric(mar.dose_value) and mar.tsp <> ''NaT'' and mar.tsp::timestamptz < now() and mar.fid = ''fluids_intake''
                 and mar.dose_value::numeric > 0
-    UNION
-    select pat_enc.enc_id, fs.tsp::timestamptz, fs.fid, fs.value::text
-    from workspace.' || job_id || '_flowsheets_transformed fs
-        inner join pat_enc on pat_enc.visit_id = fs.visit_id
-        where fs.tsp <> ''NaT'' and fs.tsp::timestamptz < now()
-        and fs.fid = ''fluids_intake''
-        and fs.value::numeric > 0
 )
 INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
 select u.enc_id, u.tsp, u.fid,
@@ -4310,16 +4293,6 @@ from u
 group by u.enc_id, u.tsp, u.fid
 ON CONFLICT (enc_id, tsp, fid)
 DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
-
--- lab_orders
-INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
-select enc_id, tsp::timestamptz, fid, last(lo.status), 0
-from workspace.' || job_id || '_lab_orders_transformed lo
-inner join pat_enc p on lo.visit_id = p.visit_id
-where tsp <> ''NaT'' and tsp::timestamptz < now()
-group by enc_id, tsp, fid
-ON CONFLICT (enc_id, tsp, fid)
-DO UPDATE SET value = EXCLUDED.value, confidence=0;
 
 -- active_procedures
 INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
@@ -4343,6 +4316,50 @@ DO UPDATE SET value = EXCLUDED.value, confidence=0;
 
 -- update orgdf baselines
 select * from update_orgdf_baselines(''' || job_id || ''')';
+
+
+-- workspace_flowsheets_2_cdm_t
+if to_regclass('workspace.' || job_id || '_flowsheet_transformed') is not null then
+    execute
+    'INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+    select pat_enc.enc_id, fs.tsp::timestamptz, fs.fid, last(fs.value), 0 from workspace.' || job_id || '_flowsheets_transformed fs
+        inner join pat_enc on pat_enc.visit_id = fs.visit_id
+        where fs.tsp <> ''NaT'' and fs.tsp::timestamptz < now()
+        and fs.fid <> ''fluids_intake''
+    group by pat_enc.enc_id, tsp, fs.fid
+    ON CONFLICT (enc_id, tsp, fid)
+    DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+    -- workspace_fluids_intake_2_cdm_t
+    with u as (
+    select pat_enc.enc_id, fs.tsp::timestamptz, fs.fid, fs.value::text
+        from workspace.' || job_id || '_flowsheets_transformed fs
+            inner join pat_enc on pat_enc.visit_id = fs.visit_id
+            where fs.tsp <> ''NaT'' and fs.tsp::timestamptz < now()
+            and fs.fid = ''fluids_intake''
+            and fs.value::numeric > 0
+    )
+    INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+    select u.enc_id, u.tsp, u.fid,
+            sum(u.value::numeric), 0
+    from u
+    group by u.enc_id, u.tsp, u.fid
+    ON CONFLICT (enc_id, tsp, fid)
+    DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;';
+end if;
+
+if to_regclass('workspace.' || job_id || '_lab_orders_transformed') is not null then
+    execute
+    '-- lab_orders
+    INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+    select enc_id, tsp::timestamptz, fid, last(lo.status), 0
+    from workspace.' || job_id || '_lab_orders_transformed lo
+    inner join pat_enc p on lo.visit_id = p.visit_id
+    where tsp <> ''NaT'' and tsp::timestamptz < now()
+    group by enc_id, tsp, fid
+    ON CONFLICT (enc_id, tsp, fid)
+    DO UPDATE SET value = EXCLUDED.value, confidence=0;';
+end if;
+
 -- workspace_notes_2_cdm_notes
 if to_regclass('workspace.' || job_id || '_notes_transformed') is not null then
     execute
@@ -4514,7 +4531,7 @@ update cdm_twf set tsp = tsp + shift_interval where enc_id = this_enc_id;
 end;
 $$;
 
-CREATE OR REPLACE FUNCTION get_ofd_enc_ids(window text default '1 month')
+CREATE OR REPLACE FUNCTION get_ofd_enc_ids(win text default '1 month')
 RETURNS table (enc_id int)
 LANGUAGE plpgsql
 AS
@@ -4524,7 +4541,7 @@ return query with ofd as
 (select pe.enc_id, max(tsp) tsp from pat_enc pe
 inner join cdm_t t on pe.enc_id = t.enc_id
 group by pe.enc_id)
-select ofd.enc_id from ofd where now() - tsp > window::interval
+select ofd.enc_id from ofd where now() - tsp > win::interval
 except select * from get_latest_enc_ids('HCGH')
 except select * from get_latest_enc_ids('JHH')
 except select * from get_latest_enc_ids('BMC');
