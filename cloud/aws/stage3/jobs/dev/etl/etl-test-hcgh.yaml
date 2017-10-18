@@ -44,6 +44,8 @@ spec:
           value: "jit-alerts.default.svc.cluster.local"
         - name: etl_channel
           value: "on_opsdx_dev_etl"
+        - name: SUPPRESS_CLOUDWATCH
+          value: "True"
         - name: jhapi_client_id
           valueFrom:
             secretKeyRef:
