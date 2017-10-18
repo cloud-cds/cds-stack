@@ -44,6 +44,16 @@ spec:
           value: "jit-alerts.default.svc.cluster.local"
         - name: etl_channel
           value: "on_opsdx_dev_etl"
+        - name: jhapi_client_id
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: jhapi-client-id
+        - name: jhapi_client_secret
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: jhapi-client-secret
         - name: db_host
           value: "dev.db.jh.opsdx.io"
         - name: db_port
