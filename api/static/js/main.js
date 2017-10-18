@@ -391,8 +391,13 @@ var endpoints = new function() {
       }
 
       // Check page is already not disabled, or we have the primary page data.
-      var disablePage = (trews.data != null && trews.data.chart_data != null && trews.data.chart_data.patient_age < 18)
-                          || (result.hasOwnProperty('trewsData') && result.trewsData.chart_data.patient_age < 18);
+      var disablePage = false;
+
+      if ( trews.data != null && trews.data.profile != null ) {
+        disablePage = trews.data.profile['age'] < 18;
+      } else if ( result.hasOwnProperty('trewsData') && result.trewsData.profile != null ) {
+        disablePage = result.trewsData.profile['age'] < 18;
+      }
 
       if ( disablePage ) {
         $('#loading').removeClass('waiting').spin(false); // Remove any spinner from the page
@@ -404,8 +409,8 @@ var endpoints = new function() {
         if ( result.hasOwnProperty('trewsData') ) {
           $('#loading').removeClass('waiting').spin(false); // Remove any spinner from the page
           trews.setData(result.trewsData);
-          if ( trews.data && trews.data['refresh_time'] != null ) { // Update the Epic refresh time.
-            var refreshMsg = 'Last refreshed from Epic at ' + strToTime(new Date(trews.data['refresh_time']*1000), true, true) + '.';
+          if ( trews.data && trews.data.profile['refresh_time'] != null ) { // Update the Epic refresh time.
+            var refreshMsg = 'Last refreshed from Epic at ' + strToTime(new Date(trews.data.profile['refresh_time']*1000), true, true) + '.';
             $('h1 #header-refresh-time').text(refreshMsg);
           }
           logSuspicion('set'); // Suspicion debugging.
@@ -1519,7 +1524,7 @@ var severeSepsisComponent = new function() {
     }
     */
 
-    if (trews.data['deactivated'] || (workflowsComponent.sev36Override || workflowsComponent.sep6Override) ) {
+    if (trews.data.profile['deactivated'] || (workflowsComponent.sev36Override || workflowsComponent.sep6Override) ) {
       this.ctn.addClass('inactive');
     } else {
       this.ctn.removeClass('inactive');
@@ -1597,7 +1602,7 @@ var septicShockComponent = new function() {
     }
     */
 
-    if ( trews.data['deactivated'] || !severeSepsis || (workflowsComponent.sev36Override || workflowsComponent.sep6Override) ) {
+    if ( trews.data.profile['deactivated'] || !severeSepsis || (workflowsComponent.sev36Override || workflowsComponent.sep6Override) ) {
       this.ctn.addClass('inactive');
     } else {
       this.ctn.removeClass('inactive');
@@ -1739,7 +1744,7 @@ var workflowsComponent = new function() {
     this.sev36Override = uiJSON['ui_severe_sepsis']['is_met'];
     this.sep6Override = uiJSON['ui_septic_shock']['is_met'];
 
-    if ( (trews.data['deactivated'] || severeOnset == null) && !(this.sev36Override || this.sep6Override) ) {
+    if ( (trews.data.profile['deactivated'] || severeOnset == null) && !(this.sev36Override || this.sep6Override) ) {
       this.sev3Ctn.addClass('inactive');
       this.sev6Ctn.addClass('inactive');
     } else {
@@ -1747,7 +1752,7 @@ var workflowsComponent = new function() {
       this.sev6Ctn.removeClass('inactive');
     }
 
-    if ( (trews.data['deactivated'] || shockOnset == null) && !this.sep6Override ) {
+    if ( (trews.data.profile['deactivated'] || shockOnset == null) && !this.sep6Override ) {
       this.sep6Ctn.addClass('inactive');
     } else {
       this.sep6Ctn.removeClass('inactive');
@@ -1867,8 +1872,8 @@ var graphComponent = new function() {
       var max = json['chart_values']['timestamp'][json['chart_values']['timestamp'].length - 1];
       this.xmax = ((max - this.xmin) / 6) + max;
     } else {
-      if (json.patient_arrival != null) {
-        this.xmin = json.patient_arrival.timestamp * 1000;
+      if ( trews.data.profile['admit_time'] != null) {
+        this.xmin = trews.data.profile['admit_time'] * 1000;
         this.xmax = ((Date.now() - this.xmin) / 6) + Date.now();
       } else {
         this.xmin = (Date.now() * 1000) - (6 * 60 * 60 * 1000)
@@ -1945,14 +1950,14 @@ function graph(json, severeOnset, shockOnset, xmin, xmax, ymin, ymax) {
     {color: "#e64535", lineWidth: 1, yaxis: {from: json['trewscore_threshold'],to: json['trewscore_threshold']}}
   ]
 
-  var arrivalx = (json['patient_arrival']['timestamp'] != undefined) ? json['patient_arrival']['timestamp'] * 1000 : null;
+  var arrivalx = (trews.data.profile['admit_time'] != undefined) ? trews.data.profile['admit_time'] * 1000 : null;
   var severeOnsetx = (severeOnset != undefined) ? severeOnset * 1000 : null;
   var shockOnsetx = (shockOnset != undefined) ? shockOnset * 1000 : null;
 
   var severeOnsety = null;
   var shockOnsety = null;
 
-  if (json['patient_arrival']['timestamp'] != undefined) {
+  if (trews.data.profile['admit_time'] != undefined) {
     var arrivalMark = {color: "#ccc", lineWidth: 1, xaxis: {from: arrivalx,to: arrivalx}};
     //var arrivaly = json['chart_values']['trewscore'].indexOf(arrivalx);
     var arrivaly = jQuery.inArray(arrivalx, json['chart_values']['trewscore'])
@@ -2991,7 +2996,7 @@ var notifications = new function() {
       susCtn.removeClass('highlight-expired highlight-unexpired');
     }
 
-    if ( trews.data['deactivated'] ) {
+    if ( trews.data.profile['deactivated'] ) {
       // For deactivated patients, we hide the counter, but still show a notification list.
       this.nav.find('b').hide();
     } else if (numUnread == 0) {
@@ -3194,7 +3199,7 @@ var toolbar = new function() {
     this.activateNav.click(function(e) {
       $('#loading').addClass('waiting').spin(); // Add spinner to page
       toolbar.activateNav.addClass('loading');
-      endpoints.getPatientData('deactivate', {'value': !trews.data['deactivated']}, toolbar.activateNav);
+      endpoints.getPatientData('deactivate', {'value': !trews.data.profile['deactivated']}, toolbar.activateNav);
     });
 
     // Feedback dialog initialization.
@@ -3233,7 +3238,7 @@ var toolbar = new function() {
   }
   this.render = function(json) {
     this.resetNav.show()
-    if ( trews.data['deactivated'] ) {
+    if ( trews.data.profile['deactivated'] ) {
       this.activateNav.find('span').text('Activate Patient');
     } else {
       this.activateNav.find('span').text('Deactivate Patient');

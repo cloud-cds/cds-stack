@@ -352,14 +352,6 @@ async def get_patient_profile(db_pool, pat_id):
   ) REFRESH on true
   full outer join
   (
-    select GREATEST(
-                (array_agg(measurement_time order by measurement_time)  filter (where name in ('sirs_temp','heart_rate','respiratory_rate','wbc') and is_met ) )[2],
-                min(measurement_time) filter (where name in ('blood_pressure','mean_arterial_pressure','decrease_in_sbp','respiratory_failure','creatinine','bilirubin','platelet','inr','lactate') and is_met ))
-            as first_sirs_orgdf_tsp
-    from criteria_events where enc_id = (select * from pat_id_to_enc_id('%(pid)s'::text)) and flag in (-990, 10)
-  ) FIRST_SIRS_ORGDF on true
-  full outer join
-  (
     select creatinine     as baseline_creatinine,
            inr            as baseline_inr,
            bilirubin      as baseline_bilirubin,
@@ -385,7 +377,6 @@ async def get_patient_profile(db_pool, pat_id):
         'detf_uid'             : None,
         'age'                  : None,
         'refresh_time'         : None,
-        'first_sirs_orgdf_tsp' : None,
         'orgdf_baselines'      : None
     }
 
@@ -401,16 +392,15 @@ async def get_patient_profile(db_pool, pat_id):
       profile['detf_uid']             = result[0][6]
       profile['age']                  = result[0][7]
       profile['refresh_time']         = (result[0][8] - epoch).total_seconds() if result[0][8] is not None else None
-      profile['first_sirs_orgdf_tsp'] = (result[0][9] - epoch).total_seconds() if result[0][9] is not None else None
       profile['orgdf_baselines']      = {
-                                          'baseline_creatinine'     : result[0][10] if result[0][10] is not None else None,
-                                          'baseline_inr'            : result[0][11] if result[0][11] is not None else None,
-                                          'baseline_bilirubin'      : result[0][12] if result[0][12] is not None else None,
-                                          'baseline_platelets'      : result[0][13] if result[0][13] is not None else None,
-                                          'baseline_creatinine_tsp' : (result[0][14] - epoch).total_seconds() if result[0][14] is not None else None,
-                                          'baseline_inr_tsp'        : (result[0][15] - epoch).total_seconds() if result[0][15] is not None else None,
-                                          'baseline_bilirubin_tsp'  : (result[0][16] - epoch).total_seconds() if result[0][16] is not None else None,
-                                          'baseline_platelets_tsp'  : (result[0][17] - epoch).total_seconds() if result[0][17] is not None else None
+                                          'baseline_creatinine'     : result[0][9]                            if result[0][9]  is not None else None,
+                                          'baseline_inr'            : result[0][10]                           if result[0][10] is not None else None,
+                                          'baseline_bilirubin'      : result[0][11]                           if result[0][11] is not None else None,
+                                          'baseline_platelets'      : result[0][12]                           if result[0][12] is not None else None,
+                                          'baseline_creatinine_tsp' : (result[0][13] - epoch).total_seconds() if result[0][13] is not None else None,
+                                          'baseline_inr_tsp'        : (result[0][14] - epoch).total_seconds() if result[0][14] is not None else None,
+                                          'baseline_bilirubin_tsp'  : (result[0][15] - epoch).total_seconds() if result[0][15] is not None else None,
+                                          'baseline_platelets_tsp'  : (result[0][16] - epoch).total_seconds() if result[0][16] is not None else None
                                         }
 
     return profile

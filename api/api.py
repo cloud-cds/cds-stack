@@ -529,16 +529,18 @@ class TREWSAPI(web.View):
 
     try:
       # update chart data
-      data['chart_data']['patient_arrival']['timestamp'] = patient_scalars['admit_time']
-      data['chart_data']['patient_age']                  = patient_scalars['age']
       #data['chart_data']['trewscore_threshold']          = patient_scalars['trews_threshold']
       #data['chart_data']['chart_values']                 = chart_values
 
-      # update profile components
-      data['deactivated']          = patient_scalars['deactivated']
-      data['deactivated_tsp']      = patient_scalars['deactivated_tsp']
-      data['refresh_time']         = patient_scalars['refresh_time']
-      data['first_sirs_orgdf_tsp'] = patient_scalars['first_sirs_orgdf_tsp']
+      # update consolidated profile
+      profile = {
+        'age'                  : patient_scalars['age'],
+        'admit_time'           : patient_scalars['admit_time'],
+        'deactivated'          : patient_scalars['deactivated'],
+        'refresh_time'         : patient_scalars['refresh_time']
+      }
+
+      data['profile']              = profile
       data['orgdf_baselines']      = patient_scalars['orgdf_baselines']
 
       data['deterioration_feedback'] = {
@@ -640,9 +642,9 @@ class TREWSAPI(web.View):
                   # Track summary object for user interaction logs.
                   self.request.app['render_data'] = {
                     'notifications'           : data['notifications'],
-                    'trewscore'               : data['chart_data']['chart_values']['trewscore'][-1] if data['chart_data']['chart_values']['trewscore'] else None,
-                    'deactivated'             : data['deactivated'],
-                    'refresh_time'            : data['refresh_time'],
+                    #'trewscore'               : data['chart_data']['chart_values']['trewscore'][-1] if data['chart_data']['chart_values']['trewscore'] else None,
+                    'deactivated'             : data['profile']['deactivated'],
+                    'refresh_time'            : data['profile']['refresh_time'],
                     'severe_sepsis'           : { 'is_met'                 : data['severe_sepsis']['is_met'],
                                                   'suspicion_of_infection' : data['severe_sepsis']['suspicion_of_infection'],
                                                   'sirs'                   : { 'is_met': data['severe_sepsis']['sirs']['is_met'] },
