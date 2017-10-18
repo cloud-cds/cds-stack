@@ -4668,3 +4668,103 @@ group by care_unit.care_unit
 ;
 END $func$ LANGUAGE plpgsql;
 
+
+------------------------------------------------
+-- Timeline helpers.
+
+-- TREWS alert and organ dysfunction interval construction
+CREATE OR REPLACE FUNCTION get_trews_orgdf_intervals(this_enc_id integer)
+RETURNS table(
+    name      text,
+    intervals jsonb[]
+) AS $func$ BEGIN RETURN QUERY
+with enc_states as (
+  select S.name, R.tsp, S.state
+  from (
+    select tsp,
+           ARRAY[
+             'creatinine_orgdf',
+             'bilirubin_orgdf',
+             'platelets_orgdf',
+             'gcs_orgdf',
+             'inr_orgdf',
+             'lactate_orgdf',
+             'sbpm_hypotension',
+             'map_hypotension',
+             'delta_hypotension',
+             'vasopressors_orgdf',
+             'vent_orgdf',
+             'alert'
+           ]::text[] as names,
+           ARRAY[
+              creatinine_orgdf::int,
+              bilirubin_orgdf::int,
+              platelets_orgdf::int,
+              gcs_orgdf::int,
+              inr_orgdf::int,
+              lactate_orgdf::int,
+              sbpm_hypotension::int,
+              map_hypotension::int,
+              delta_hypotension::int,
+              vasopressors_orgdf::int,
+              vent_orgdf::int,
+              ((orgdf_details::jsonb)#>>'{alert}')::bool::int
+           ]::int[] as states
+    from trews_jit_score s
+    where s.enc_id = this_enc_id
+    and s.model_id = (select max(P.value) from trews_parameters P where P.name = 'trews_jit_model_id')
+  ) R, lateral unnest(R.names, R.states) S(name, state)
+),
+state_nb as (
+  select C.name,
+         C.tsp,
+         C.state,
+         lead(C.state, 1) over (partition by C.name order by C.tsp rows between current row and 1 following) as next,
+         lead(C.tsp, 1)   over (partition by C.name order by C.tsp rows between current row and 1 following) as next_tsp,
+         lag(C.state, 1)  over (partition by C.name order by C.tsp rows 1 preceding) as previous,
+         lag(C.tsp, 1)    over (partition by C.name order by C.tsp rows 1 preceding) as previous_tsp
+  from enc_states C
+),
+edges as (
+  select NB.name,
+         NB.tsp,
+         (case
+            when NB.next_tsp is null then now()
+            when NB.state <> NB.next then NB.next_tsp
+            else NB.tsp
+          end) as cf_tsp,
+         NB.state,
+         NB.next,
+         NB.next_tsp
+  from state_nb NB
+  where NB.state <> NB.next or NB.next is null
+  or NB.state <> NB.previous or NB.previous is null
+  order by NB.name, NB.tsp
+),
+edge_pairs as (
+  select E.*,
+         lead(E.state, 1)  over (partition by E.name order by E.tsp rows between current row and 1 following) as next_edge_state,
+         lead(E.tsp, 1)    over (partition by E.name order by E.tsp rows between current row and 1 following) as next_edge_tsp,
+         lead(E.cf_tsp, 1) over (partition by E.name order by E.tsp rows between current row and 1 following) as next_edge_cf_tsp,
+         lag(E.state, 1)   over (partition by E.name order by E.tsp rows 1 preceding) as prev_edge_label,
+         lag(E.tsp, 1)     over (partition by E.name order by E.tsp rows 1 preceding) as prev_edge_tsp
+  from edges E
+),
+intervals as (
+  select E.name, E.state,
+         E.tsp as ts_start,
+         (case
+            when E.next_edge_tsp is null and (E.prev_edge_tsp is null or E.state <> E.prev_edge_label) then E.cf_tsp
+            when E.state = E.next_edge_state then E.next_edge_cf_tsp
+            else E.next_edge_tsp
+          end) as ts_end
+  from edge_pairs E
+  where (E.prev_edge_tsp is null or E.state <> E.prev_edge_label)
+  order by E.name, E.tsp
+)
+select I.name, array_agg(jsonb_build_object('value', I.state, 'ts_start', I.ts_start, 'ts_end', I.ts_end)) as intervals
+from intervals I
+group by I.name
+;
+END $func$ LANGUAGE plpgsql;
+
