@@ -4443,6 +4443,94 @@ begin
     return;
 end; $$;
 
+-----------------------------------
+-- Patient cloning.
+create or replace function delete_enc(this_enc_id int)
+returns void language plpgsql as $$
+declare
+begin
+  delete from cdm_twf where enc_id = this_enc_id;
+  delete from cdm_t where enc_id = this_enc_id;
+  delete from cdm_s where enc_id = this_enc_id;
+  delete from cdm_notes where enc_id = this_enc_id;
+  delete from cdm_labels where enc_id = this_enc_id;
+  delete from criteria where enc_id = this_enc_id;
+  delete from criteria_events where enc_id = this_enc_id;
+  delete from criteria_log where enc_id = this_enc_id;
+  delete from trews where enc_id = this_enc_id;
+  delete from trews_jit_score where enc_id = this_enc_id;
+  delete from lmcscore where enc_id = this_enc_id;
+  delete from deterioration_feedback where enc_id = this_enc_id;
+  delete from epic_notifications_history where enc_id = this_enc_id;
+  delete from epic_trewscores_history where enc_id = this_enc_id;
+  delete from feedback_log where enc_id = this_enc_id;
+  delete from notifications where enc_id = this_enc_id;
+  delete from pat_status where enc_id = this_enc_id;
+  delete from user_interactions where enc_id = this_enc_id;
+  delete from pat_enc where enc_id = this_enc_id;
+end;
+$$;
+
+create or replace function clone_enc(from_enc int, to_pat_id text, to_visit_id text)
+returns int language plpgsql as $$
+declare to_enc int;
+begin
+  perform delete_enc(enc_id) from pat_enc where pat_id = to_pat_id and visit_id = to_visit_id;
+  insert into pat_enc (pat_id, visit_id)
+    values (to_pat_id, to_visit_id);
+  select enc_id from pat_enc where pat_id = to_pat_id and visit_id = to_visit_id into to_enc;
+  create temp table clone_temp as
+    select * from cdm_twf where enc_id = from_enc;
+  update clone_temp set enc_id = to_enc;
+  insert into cdm_twf select * from clone_temp;
+  drop table clone_temp;
+  create temp table clone_temp as select * from cdm_t where enc_id = from_enc;
+  update clone_temp set enc_id = to_enc;
+  insert into cdm_t select * from clone_temp;
+  drop table clone_temp;
+  create temp table clone_temp as select * from cdm_s where enc_id = from_enc;
+  update clone_temp set enc_id = to_enc;
+  insert into cdm_s select * from clone_temp;
+  drop table clone_temp;
+  create temp table clone_temp as select * from cdm_notes where enc_id = from_enc;
+  update clone_temp set enc_id = to_enc;
+  insert into cdm_notes select * from clone_temp;
+  drop table clone_temp;
+  create temp table clone_temp as select * from cdm_labels where enc_id = from_enc;
+  update clone_temp set enc_id = to_enc;
+  insert into cdm_labels select * from clone_temp;
+  drop table clone_temp;
+  return to_enc;
+end;
+$$;
+
+create or replace function shift_to_now(this_enc_id int, now_tsp timestamptz default now())
+returns void language plpgsql as $$
+declare shift_interval interval;
+begin
+select now_tsp - max(tsp) from cdm_t where enc_id = this_enc_id into shift_interval;
+update cdm_t set tsp = tsp + shift_interval where enc_id = this_enc_id;
+update cdm_twf set tsp = tsp + shift_interval where enc_id = this_enc_id;
+end;
+$$;
+
+CREATE OR REPLACE FUNCTION get_ofd_enc_ids(window text default '1 month')
+RETURNS table (enc_id int)
+LANGUAGE plpgsql
+AS
+$$
+begin
+return query with ofd as
+(select pe.enc_id, max(tsp) tsp from pat_enc pe
+inner join cdm_t t on pe.enc_id = t.enc_id
+group by pe.enc_id)
+select ofd.enc_id from ofd where now() - tsp > window::interval
+except select * from get_latest_enc_ids('HCGH')
+except select * from get_latest_enc_ids('JHH')
+except select * from get_latest_enc_ids('BMC');
+END;
+$$;
+
 
 ------------------------------------------------
 -- Alert Statistics
@@ -4760,19 +4848,103 @@ begin
 end;
 $$;
 
-CREATE OR REPLACE FUNCTION get_ofd_enc_ids(window text default '1 month')
-RETURNS table (enc_id int)
-LANGUAGE plpgsql
-AS
-$$
-begin
-return query with ofd as
-(select pe.enc_id, max(tsp) tsp from pat_enc pe
-inner join cdm_t t on pe.enc_id = t.enc_id
-group by pe.enc_id)
-select ofd.enc_id from ofd where now() - tsp > window::interval
-except select * from get_latest_enc_ids('HCGH')
-except select * from get_latest_enc_ids('JHH')
-except select * from get_latest_enc_ids('BMC');
-END;
-$$;
+------------------------------------------------
+-- Timeline helpers.
+
+-- TREWS alert and organ dysfunction interval construction
+CREATE OR REPLACE FUNCTION get_trews_orgdf_intervals(this_enc_id integer)
+RETURNS table(
+    name      text,
+    intervals json
+) AS $func$ BEGIN RETURN QUERY
+with enc_states as (
+  select S.name, R.tsp, S.state
+  from (
+    select tsp,
+           ARRAY[
+             'trews_creatinine',
+             'trews_bilirubin',
+             'trews_platelet',
+             'trews_gcs',
+             'trews_inr',
+             'trews_lactate',
+             'trews_sbpm',
+             'trews_map',
+             'trews_dsbp',
+             'trews_vasopressors',
+             'trews_vent',
+             'trews_subalert'
+           ]::text[] as names,
+           ARRAY[
+              creatinine_orgdf::int,
+              bilirubin_orgdf::int,
+              platelets_orgdf::int,
+              gcs_orgdf::int,
+              inr_orgdf::int,
+              lactate_orgdf::int,
+              sbpm_hypotension::int,
+              map_hypotension::int,
+              delta_hypotension::int,
+              vasopressors_orgdf::int,
+              vent_orgdf::int,
+              ((orgdf_details::jsonb)#>>'{alert}')::bool::int
+           ]::int[] as states
+    from trews_jit_score s
+    where s.enc_id = this_enc_id
+    and s.model_id = (select max(P.value) from trews_parameters P where P.name = 'trews_jit_model_id')
+  ) R, lateral unnest(R.names, R.states) S(name, state)
+),
+state_nb as (
+  select C.name,
+         C.tsp,
+         C.state,
+         lead(C.state, 1) over (partition by C.name order by C.tsp rows between current row and 1 following) as next,
+         lead(C.tsp, 1)   over (partition by C.name order by C.tsp rows between current row and 1 following) as next_tsp,
+         lag(C.state, 1)  over (partition by C.name order by C.tsp rows 1 preceding) as previous,
+         lag(C.tsp, 1)    over (partition by C.name order by C.tsp rows 1 preceding) as previous_tsp
+  from enc_states C
+),
+edges as (
+  select NB.name,
+         NB.tsp,
+         (case
+            when NB.next_tsp is null then now()
+            when NB.state <> NB.next then NB.next_tsp
+            else NB.tsp
+          end) as cf_tsp,
+         NB.state,
+         NB.next,
+         NB.next_tsp
+  from state_nb NB
+  where NB.state <> NB.next or NB.next is null
+  or NB.state <> NB.previous or NB.previous is null
+  order by NB.name, NB.tsp
+),
+edge_pairs as (
+  select E.*,
+         lead(E.state, 1)  over (partition by E.name order by E.tsp rows between current row and 1 following) as next_edge_state,
+         lead(E.tsp, 1)    over (partition by E.name order by E.tsp rows between current row and 1 following) as next_edge_tsp,
+         lead(E.cf_tsp, 1) over (partition by E.name order by E.tsp rows between current row and 1 following) as next_edge_cf_tsp,
+         lag(E.state, 1)   over (partition by E.name order by E.tsp rows 1 preceding) as prev_edge_label,
+         lag(E.tsp, 1)     over (partition by E.name order by E.tsp rows 1 preceding) as prev_edge_tsp
+  from edges E
+),
+intervals as (
+  select E.name, E.state,
+         E.tsp as ts_start,
+         (case
+            when E.next_edge_tsp is null and (E.prev_edge_tsp is null or E.state <> E.prev_edge_label) then E.cf_tsp
+            when E.state = E.next_edge_state then E.next_edge_cf_tsp
+            else E.next_edge_tsp
+          end) as ts_end
+  from edge_pairs E
+  where (E.prev_edge_tsp is null or E.state <> E.prev_edge_label)
+  order by E.name, E.tsp
+)
+select I.name,
+       json_agg(json_build_object('value', I.state, 'ts_start', I.ts_start, 'ts_end', I.ts_end) order by I.ts_start) filter (where I.state = 1)
+       as last_interval
+from intervals I
+group by I.name
+;
+END $func$ LANGUAGE plpgsql;

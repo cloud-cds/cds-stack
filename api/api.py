@@ -221,7 +221,6 @@ class TREWSAPI(web.View):
                                "trews_gcs"
                               ]
 
-    TREWS_CRITERIA = ['trews']
     TREWS_ALERT_CRITERIA = ['trews_subalert']
 
     HYPOTENSION = ["systolic_bp",
@@ -245,13 +244,11 @@ class TREWSAPI(web.View):
 
     sirs_cnt     = 0
     od_cnt       = 0
-    trews_cnt    = 0
     trews_od_cnt = 0
     trews_subalert_cnt = 0
 
     sirs_onsets     = []
     od_onsets       = []
-    trews_onsets    = []
     trews_od_onsets = []
     trews_subalert_onsets = []
 
@@ -325,15 +322,6 @@ class TREWSAPI(web.View):
           trews_od_cnt += 1
           trews_od_onsets.append(criterion_ts)
 
-      # update TREWS score component
-      if criterion["name"] in TREWS_CRITERIA:
-        trews_idx = TREWS_CRITERIA.index(criterion["name"])
-        data['severe_sepsis']['trews']['criteria'][trews_idx] = criterion
-        criterion_ts = criterion['override_time'] if criterion['override_user'] else criterion['measurement_time']
-        if criterion["is_met"]:
-          trews_cnt += 1
-          trews_onsets.append(criterion_ts)
-
       # update TREWS subalert component
       if criterion["name"] in TREWS_ALERT_CRITERIA:
         data['severe_sepsis'][criterion["name"]] = criterion
@@ -403,12 +391,7 @@ class TREWSAPI(web.View):
     if od_cnt > 0:
       data['severe_sepsis']['organ_dysfunction']['onset_time'] = sorted(od_onsets)[0]
 
-    # update TREWS criteria and organ dysfunction
-    data['severe_sepsis']['trews']['is_met'] = trews_cnt > 0
-    data['severe_sepsis']['trews']["num_met"] = trews_cnt
-    if trews_cnt > 0:
-      data['severe_sepsis']['trews']['onset_time'] = sorted(trews_onsets)[0]
-
+    # update TREWS organ dysfunction
     data['severe_sepsis']['trews_organ_dysfunction']['is_met'] = trews_od_cnt > 0
     data['severe_sepsis']['trews_organ_dysfunction']["num_met"] = trews_od_cnt
     if trews_od_cnt > 0:
@@ -514,9 +497,10 @@ class TREWSAPI(web.View):
       # parallel query execution
       pat_values = await asyncio.gather(
                       query.get_criteria(db_pool, eid),
-                      query.get_trews_jit_score(db_pool, eid, start_hrs=chart_sample_start_hrs, start_day=chart_sample_start_day, end_day=chart_sample_end_day, sample_mins=chart_sample_mins, sample_hrs=chart_sample_hrs),
                       query.get_patient_events(db_pool, eid),
-                      query.get_patient_profile(db_pool, eid)
+                      query.get_patient_profile(db_pool, eid),
+                      query.get_trews_intervals(db_pool, eid)
+                      #query.get_trews_jit_score(db_pool, eid, start_hrs=chart_sample_start_hrs, start_day=chart_sample_start_day, end_day=chart_sample_end_day, sample_mins=chart_sample_mins, sample_hrs=chart_sample_hrs)
                     )
 
       if pat_values[0] is None or len(pat_values[0]) == 0:
@@ -536,24 +520,27 @@ class TREWSAPI(web.View):
       ( sz, pat_cache.hit_miss_ratio["hits"], pat_cache.hit_miss_ratio["total"] ))
 
     criteria_result_set    = pat_values[0]
-    chart_values           = pat_values[1]
-    notifications, history = pat_values[2]
-    patient_scalars        = pat_values[3]
+    notifications, history = pat_values[1]
+    patient_scalars        = pat_values[2]
+    trews_intervals        = pat_values[3]
+    #chart_values           = pat_values[4]
 
     self.update_criteria(criteria_result_set, data)
 
     try:
       # update chart data
-      data['chart_data']['patient_arrival']['timestamp'] = patient_scalars['admit_time']
-      data['chart_data']['trewscore_threshold']          = patient_scalars['trews_threshold']
-      data['chart_data']['patient_age']                  = patient_scalars['age']
-      data['chart_data']['chart_values']                 = chart_values
+      #data['chart_data']['trewscore_threshold']          = patient_scalars['trews_threshold']
+      #data['chart_data']['chart_values']                 = chart_values
 
-      # update profile components
-      data['deactivated']          = patient_scalars['deactivated']
-      data['deactivated_tsp']      = patient_scalars['deactivated_tsp']
-      data['refresh_time']         = patient_scalars['refresh_time']
-      data['first_sirs_orgdf_tsp'] = patient_scalars['first_sirs_orgdf_tsp']
+      # update consolidated profile
+      profile = {
+        'age'                  : patient_scalars['age'],
+        'admit_time'           : patient_scalars['admit_time'],
+        'deactivated'          : patient_scalars['deactivated'],
+        'refresh_time'         : patient_scalars['refresh_time']
+      }
+
+      data['profile']              = profile
       data['orgdf_baselines']      = patient_scalars['orgdf_baselines']
 
       data['deterioration_feedback'] = {
@@ -565,6 +552,10 @@ class TREWSAPI(web.View):
       # update_notifications and history
       data['notifications'] = notifications
       data['auditlist']     = history
+
+      # update trews intervals
+      data['trews_intervals'] = trews_intervals
+
       return data
 
     except KeyError as ex:
@@ -651,9 +642,9 @@ class TREWSAPI(web.View):
                   # Track summary object for user interaction logs.
                   self.request.app['render_data'] = {
                     'notifications'           : data['notifications'],
-                    'trewscore'               : data['chart_data']['chart_values']['trewscore'][-1] if data['chart_data']['chart_values']['trewscore'] else None,
-                    'deactivated'             : data['deactivated'],
-                    'refresh_time'            : data['refresh_time'],
+                    #'trewscore'               : data['chart_data']['chart_values']['trewscore'][-1] if data['chart_data']['chart_values']['trewscore'] else None,
+                    'deactivated'             : data['profile']['deactivated'],
+                    'refresh_time'            : data['profile']['refresh_time'],
                     'severe_sepsis'           : { 'is_met'                 : data['severe_sepsis']['is_met'],
                                                   'suspicion_of_infection' : data['severe_sepsis']['suspicion_of_infection'],
                                                   'sirs'                   : { 'is_met': data['severe_sepsis']['sirs']['is_met'] },

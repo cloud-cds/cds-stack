@@ -1260,6 +1260,30 @@ span.criteria-btn p {
     vertical-align: middle;
     display: inline-block;
 }
+#timeline-header.hidden, #timeline-div.hidden, #timeline-zoom-div.hidden, #timeline-div.hidden .vis-timeline {
+    margin-top: 0px;
+    min-height: 0px;
+    max-height: 0px;
+    padding-top: 0px;
+    padding-bottom: 0px;
+    opacity: 0;
+    visibility: hidden;
+}
+#timeline-div.unhidden, #timeline-div.unhidden .vis-timeline {
+    min-height: 300px;
+}
+#timeline-header.unhidden, #timeline-zoom-div.unhidden {
+    min-height: 24px;
+}
+.csstransitions #timeline-header, .csstransitions #timeline-div, .csstransitions #timeline-zoom-div {
+    -ms-transition: opacity .3s, visibility .3s, max-height .3s, margin-top .3s, padding-top .3s, padding-bottom .3s;
+    transition: opacity .3s, visibility .3s, max-height .3s, margin-top .3s, padding-top .3s, padding-bottom .3s;
+}
+#expand-timeline {
+    float: right;
+    text-decoration: underline;
+    font-weight: 200;
+}
 .vis-custom-time.v_cms_severe_sepsis {
     color: #555;
     background-color: #555;
