@@ -4763,6 +4763,91 @@ group by care_unit.care_unit
 ;
 END $func$ LANGUAGE plpgsql;
 
+create or replace function delete_enc(this_enc_id int)
+returns void language plpgsql as $$
+declare
+begin
+  delete from cdm_twf where enc_id = this_enc_id;
+  delete from cdm_t where enc_id = this_enc_id;
+  delete from cdm_s where enc_id = this_enc_id;
+  delete from cdm_notes where enc_id = this_enc_id;
+  delete from cdm_labels where enc_id = this_enc_id;
+  delete from criteria where enc_id = this_enc_id;
+  delete from criteria_events where enc_id = this_enc_id;
+  delete from criteria_log where enc_id = this_enc_id;
+  delete from trews where enc_id = this_enc_id;
+  delete from trews_jit_score where enc_id = this_enc_id;
+  delete from lmcscore where enc_id = this_enc_id;
+  delete from deterioration_feedback where enc_id = this_enc_id;
+  delete from epic_notifications_history where enc_id = this_enc_id;
+  delete from epic_trewscores_history where enc_id = this_enc_id;
+  delete from feedback_log where enc_id = this_enc_id;
+  delete from notifications where enc_id = this_enc_id;
+  delete from pat_status where enc_id = this_enc_id;
+  delete from user_interactions where enc_id = this_enc_id;
+  delete from pat_enc where enc_id = this_enc_id;
+end;
+$$;
+
+create or replace function clone_enc(from_enc int, to_pat_id text, to_visit_id text)
+returns int language plpgsql as $$
+declare to_enc int;
+begin
+  perform delete_enc(enc_id) from pat_enc where pat_id = to_pat_id and visit_id = to_visit_id;
+  insert into pat_enc (pat_id, visit_id)
+    values (to_pat_id, to_visit_id);
+  select enc_id from pat_enc where pat_id = to_pat_id and visit_id = to_visit_id into to_enc;
+  create temp table clone_temp as
+    select * from cdm_twf where enc_id = from_enc;
+  update clone_temp set enc_id = to_enc;
+  insert into cdm_twf select * from clone_temp;
+  drop table clone_temp;
+  create temp table clone_temp as select * from cdm_t where enc_id = from_enc;
+  update clone_temp set enc_id = to_enc;
+  insert into cdm_t select * from clone_temp;
+  drop table clone_temp;
+  create temp table clone_temp as select * from cdm_s where enc_id = from_enc;
+  update clone_temp set enc_id = to_enc;
+  insert into cdm_s select * from clone_temp;
+  drop table clone_temp;
+  create temp table clone_temp as select * from cdm_notes where enc_id = from_enc;
+  update clone_temp set enc_id = to_enc;
+  insert into cdm_notes select * from clone_temp;
+  drop table clone_temp;
+  create temp table clone_temp as select * from cdm_labels where enc_id = from_enc;
+  update clone_temp set enc_id = to_enc;
+  insert into cdm_labels select * from clone_temp;
+  drop table clone_temp;
+  create temp table clone_temp as select * from criteria where enc_id = from_enc;
+  update clone_temp set enc_id = to_enc;
+  insert into criteria select * from clone_temp;
+  drop table clone_temp;
+  return to_enc;
+end;
+$$;
+
+create or replace function shift_to_now(this_enc_id int, now_tsp timestamptz default now())
+returns void language plpgsql as $$
+declare shift_interval interval;
+begin
+select now_tsp - greatest(max(t.tsp), coalesce(max(c.override_time), max(t.tsp) )) from cdm_t t left join criteria c on t.enc_id = c.enc_id and c.override_user is not null where t.enc_id = this_enc_id into shift_interval;
+update cdm_t set tsp = tsp + shift_interval where enc_id = this_enc_id;
+update cdm_twf set tsp = tsp + shift_interval where enc_id = this_enc_id;
+update criteria set override_time = override_time + shift_interval where enc_id = this_enc_id and override_user is not null;
+end;
+$$;
+
+create or replace function refresh_enc(this_enc_id int)
+returns void language plpgsql as $$
+begin
+    perform shift_to_now(this_enc_id);
+    delete from criteria_events where enc_id = this_enc_id;
+    perform advance_criteria_snapshot(this_enc_id);
+    perform pg_notify('on_opsdx_dev_etl', 'invalidate_cache:' || pat_id || ':trews-jit')
+    from pat_enc where enc_id = this_enc_id;
+end;
+$$;
+
 ------------------------------------------------
 -- Timeline helpers.
 
@@ -4863,4 +4948,3 @@ from intervals I
 group by I.name
 ;
 END $func$ LANGUAGE plpgsql;
-
