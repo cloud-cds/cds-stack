@@ -516,7 +516,8 @@ class TREWSAPI(web.View):
                       query.get_criteria(db_pool, eid),
                       query.get_trews_jit_score(db_pool, eid, start_hrs=chart_sample_start_hrs, start_day=chart_sample_start_day, end_day=chart_sample_end_day, sample_mins=chart_sample_mins, sample_hrs=chart_sample_hrs),
                       query.get_patient_events(db_pool, eid),
-                      query.get_patient_profile(db_pool, eid)
+                      query.get_patient_profile(db_pool, eid),
+                      query.get_trews_intervals(db_pool, eid)
                     )
 
       if pat_values[0] is None or len(pat_values[0]) == 0:
@@ -539,6 +540,7 @@ class TREWSAPI(web.View):
     chart_values           = pat_values[1]
     notifications, history = pat_values[2]
     patient_scalars        = pat_values[3]
+    trews_intervals        = pat_values[4]
 
     self.update_criteria(criteria_result_set, data)
 
@@ -565,6 +567,10 @@ class TREWSAPI(web.View):
       # update_notifications and history
       data['notifications'] = notifications
       data['auditlist']     = history
+
+      # update trews intervals
+      data['trews_intervals'] = trews_intervals
+
       return data
 
     except KeyError as ex:

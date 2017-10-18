@@ -245,6 +245,27 @@ async def get_trews_jit_score(db_pool, pat_id, start_hrs=6, start_day=2, end_day
     }
 
 
+# Retrieves TREWS alert and orgdf intervals for the timeline view.
+#
+async def get_trews_intervals(db_pool, pat_id):
+  get_intervals_sql = \
+  '''
+  select * from get_trews_orgdf_intervals(case when pat_id_to_enc_id('%(pat_id)s'::text) is null then -1 else pat_id_to_enc_id('%(pat_id)s'::text) end);
+  ''' % { 'pat_id' : pat_id }
+
+  async with db_pool.acquire() as conn:
+    result = await conn.fetch(get_intervals_sql)
+
+    intervals = {}
+    epoch = datetime.datetime.utcfromtimestamp(0).replace(tzinfo=pytz.UTC)
+
+    for row in result:
+      n = row['name']
+      intervals[n] = { 'name': n, 'intervals': json.loads(row['intervals']) if row['intervals'] is not None else [] }
+
+    return intervals
+
+
 # Single roundtrip retrieval of both notifications and history events.
 async def get_patient_events(db_pool, pat_id):
   get_events_sql = \

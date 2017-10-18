@@ -4770,25 +4770,25 @@ END $func$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION get_trews_orgdf_intervals(this_enc_id integer)
 RETURNS table(
     name      text,
-    intervals jsonb[]
+    intervals json
 ) AS $func$ BEGIN RETURN QUERY
 with enc_states as (
   select S.name, R.tsp, S.state
   from (
     select tsp,
            ARRAY[
-             'creatinine_orgdf',
-             'bilirubin_orgdf',
-             'platelets_orgdf',
-             'gcs_orgdf',
-             'inr_orgdf',
-             'lactate_orgdf',
-             'sbpm_hypotension',
-             'map_hypotension',
-             'delta_hypotension',
-             'vasopressors_orgdf',
-             'vent_orgdf',
-             'alert'
+             'trews_creatinine',
+             'trews_bilirubin',
+             'trews_platelet',
+             'trews_gcs',
+             'trews_inr',
+             'trews_lactate',
+             'trews_sbpm',
+             'trews_map',
+             'trews_dsbp',
+             'trews_vasopressors',
+             'trews_vent',
+             'trews_subalert'
            ]::text[] as names,
            ARRAY[
               creatinine_orgdf::int,
@@ -4856,7 +4856,9 @@ intervals as (
   where (E.prev_edge_tsp is null or E.state <> E.prev_edge_label)
   order by E.name, E.tsp
 )
-select I.name, array_agg(jsonb_build_object('value', I.state, 'ts_start', I.ts_start, 'ts_end', I.ts_end)) as intervals
+select I.name,
+       json_agg(json_build_object('value', I.state, 'ts_start', I.ts_start, 'ts_end', I.ts_end) order by I.ts_start) filter (where I.state = 1)
+       as last_interval
 from intervals I
 group by I.name
 ;

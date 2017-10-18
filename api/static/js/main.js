@@ -3306,6 +3306,13 @@ var toolbar = new function() {
   this.groupDataSet = new vis.DataSet();
   this.clsSegments = {};
 
+  this.ctn = $('#timeline-wrapper');
+  this.chartHdr = $('#timeline-header');
+  this.chartCtn = $('#timeline-div');
+  this.zoomCtn = $('#timeline-zoom-div');
+  this.expandBtn = $('#expand-timeline');
+  this.timelineVisible = false;
+
   this.startOfHour = function(d) {
     dStart = new Date(d);
     dStart.setUTCMinutes(0);
@@ -3350,6 +3357,10 @@ var toolbar = new function() {
       trewsOrganGroupIds.push(groupId);
       groupId++;
     }
+
+    this.groups['trews_vasopressors'] = { id: groupId, content: 'TREWS Vasopressors' };
+    trewsOrganGroupIds.push(groupId);
+    groupId++;
 
     for(var c in severe_sepsis['sirs']['criteria']) {
       var cr = severe_sepsis['sirs']['criteria'][c];
@@ -3493,7 +3504,6 @@ var toolbar = new function() {
     };
 
     // create visualization
-    var container = document.getElementById('timeline-div');
     this.chartMin = today - 7 * day;
     this.chartMax = today + 1.5 * day;
     this.chartOptions = {
@@ -3510,7 +3520,7 @@ var toolbar = new function() {
         return a.id - b.id;
       },
     };
-    this.chart = new vis.Timeline(container, [], this.chartOptions);
+    this.chart = new vis.Timeline(this.chartCtn[0], [], this.chartOptions);
 
     $('.timeline-zoom-btn').click(function(e) {
       e.stopPropagation();
@@ -3523,7 +3533,8 @@ var toolbar = new function() {
         var lookback = parseInt($(this).attr('data-zoom-hours'), 10)
         timeline.chart.setWindow(new Date(lastHour - lookback * hour), new Date(lastHour + 5 * hour));
       }
-    })
+    });
+
   }
 
   this.allOverlaps = function(cls, intervalsByCls, withSingletons, onPair) {
@@ -3702,7 +3713,7 @@ var toolbar = new function() {
     var criteriaClasses = [
       {'cls': 'sirs'                    , 'pcls' : 'severe_sepsis'},
       {'cls': 'organ_dysfunction'       , 'pcls' : 'severe_sepsis'},
-      {'cls': 'trews_organ_dysfunction' , 'pcls' : 'severe_sepsis'},
+      // {'cls': 'trews_organ_dysfunction' , 'pcls' : 'severe_sepsis'},
       {'cls': 'hypotension'             , 'pcls' : 'septic_shock'},
       {'cls': 'hypoperfusion'           , 'pcls' : 'septic_shock'}
     ];
@@ -3807,6 +3818,63 @@ var toolbar = new function() {
           if ( this.groupDataSet.get(g['id']) == null ) {
             criteriaGroupIds[cls].push(g['id']);
             this.groupDataSet.add($.extend({}, g, { visible: visibleIds.indexOf(g['id']) >= 0 }))
+          }
+        }
+      }
+    }
+
+    // Add trews organ dysfunction intervals
+    var scoreParentId = 'trews_sevsep_score';
+    var scoreParentGId = this.groups[scoreParentId]['id']
+
+    for (var c in json['trews_intervals']) {
+      var intervals = json['trews_intervals'][c];
+      for (var i in intervals['intervals']) {
+        var iv = intervals['intervals'][i];
+        if ( iv['value'] ) {
+          var start = new Date(iv['ts_start']);
+          var end = new Date(iv['ts_end']);
+
+          if ( intervals['name'] == 'trews_subalert' ) {
+            var content = 'High Risk';
+            var title = 'High Risk of Severe Sepsis from ' + strToTime(start, true, false) + ' to ' + strToTime(end, true, false);;
+
+            var crossing = {
+              id: 'crossing_' + i,
+              group: this.groups['trewscore']['id'],
+              content: content,
+              start: start,
+              end: end,
+              title: title,
+              type: 'range',
+              style: redItemStyle
+            };
+
+            var parentCrossing = $.extend({}, crossing, { id: scoreParentId + '_' + crossing.id, group: scoreParentGId });
+            items.add(crossing);
+            items.add(parentCrossing);
+          }
+          else {
+            var content = 'Window to trigger TREWS alert starting @ ' + strToTime(start, true, true);
+            var g = this.groups[intervals['name']];
+
+            items.add({
+              id: intervals['name'],
+              group: g['id'],
+              content: content,
+              title: content,
+              start: start,
+              end: end,
+              type: 'range'
+            });
+
+            aggregateItems['trews_organ_dysfunction'].push({start: start, end: end});
+
+            // Show active criteria initially.
+            if ( this.groupDataSet.get(g['id']) == null ) {
+              criteriaGroupIds['trews_organ_dysfunction'].push(g['id']);
+              this.groupDataSet.add($.extend({}, g, { visible: visibleIds.indexOf(g['id']) >= 0 }))
+            }
           }
         }
       }
@@ -4041,6 +4109,7 @@ var toolbar = new function() {
     };
 
     var segmentIndexes = $.map(criteriaClasses, function(i) { return i['cls']; });
+    segmentIndexes.push('trews_organ_dysfunction');
 
 
     this.clsSegments = segments;
@@ -4112,6 +4181,7 @@ var toolbar = new function() {
       segmentIdsByGroup[gId] += segments[cls]['data'].length;
     }
 
+    /*
     // Add score threshold crossings.
     var scoreValues = json['chart_data']['chart_values']['trewscore'];
     var scoreTsps = json['chart_data']['chart_values']['timestamp'];
@@ -4208,6 +4278,7 @@ var toolbar = new function() {
     } catch(e) {
       appendToConsole('Exception while calculating TREWS timeline intervals: ' + e.message);
     }
+    */
 
     // Add point items.
     var severe_sepsis_treatment_lbl =
@@ -4412,6 +4483,33 @@ var toolbar = new function() {
       this.zoomToFit();
       this.chartInitialized = true;
     }
+
+    if ( this.timelineVisible ) {
+      this.chartHdr.removeClass('hidden').addClass('unhidden');
+      this.chartCtn.removeClass('hidden').addClass('unhidden');
+      this.zoomCtn.removeClass('hidden').addClass('unhidden');
+      this.expandBtn.text('Hide Clinical Timeline');
+    } else {
+      this.chartHdr.removeClass('unhidden').addClass('hidden');
+      this.chartCtn.removeClass('unhidden').addClass('hidden');
+      this.zoomCtn.removeClass('unhidden').addClass('hidden');
+      this.expandBtn.text('Show Clinical Timeline');
+    }
+
+    this.expandBtn.unbind();
+    this.expandBtn.click(function(e) {
+      if ( timeline.chartCtn.hasClass('hidden') ) {
+        timeline.chartHdr.removeClass('hidden').addClass('unhidden');
+        timeline.chartCtn.removeClass('hidden').addClass('unhidden');
+        timeline.zoomCtn.removeClass('hidden').addClass('unhidden');
+      } else {
+        timeline.chartHdr.removeClass('unhidden').addClass('hidden');
+        timeline.chartCtn.removeClass('unhidden').addClass('hidden');
+        timeline.zoomCtn.removeClass('unhidden').addClass('hidden');
+      }
+      timeline.timelineVisible = !timeline.timelineVisible;
+      timeline.expandBtn.text(timeline.timelineVisible ? 'Hide Clinical Timeline' : 'Show Clinical Timeline');
+    });
   }
  }
 
