@@ -537,7 +537,8 @@ class TREWSAPI(web.View):
         'age'                  : patient_scalars['age'],
         'admit_time'           : patient_scalars['admit_time'],
         'deactivated'          : patient_scalars['deactivated'],
-        'refresh_time'         : patient_scalars['refresh_time']
+        'refresh_time'         : patient_scalars['refresh_time'],
+        'excluded_units'       : patient_scalars['excluded_units']
       }
 
       data['profile']              = profile
