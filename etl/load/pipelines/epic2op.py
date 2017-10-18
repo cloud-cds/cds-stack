@@ -156,7 +156,7 @@ async def workspace_to_cdm(ctxt, job_id):
     try:
       await conn.fetch(query)
     except asyncpg.exceptions.UndefinedTableError:
-      logging.error("Workspace table does exist for {}".format(func))
+      logging.error("Workspace table does exist for {}".format(query))
     return job_id
 
 

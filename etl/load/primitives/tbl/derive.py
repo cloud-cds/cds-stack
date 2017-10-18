@@ -837,7 +837,7 @@ async def cardio_sofa_update(fid, fid_input, conn, log, dataset_id, derive_featu
     """
     sql = select_sql_with_weight % \
       (cdm_t_target, twf_table_temp, 'levophed_infusion_dose',
-       with_ds(dataset_id, table_name='t', conjunctive=False),
+       with_ds(dataset_id, table_name='cdm_t', conjunctive=False),
        incremental_enc_id_in(' and ' if dataset_id else ' where ', 'twf', dataset_id,
                              incremental), lookbackhours2)
     log.info("select_sql_with_weight:%s" % sql)

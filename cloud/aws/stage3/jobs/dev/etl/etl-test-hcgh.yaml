@@ -1,0 +1,91 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: etl-test-hcgh
+spec:
+  template: # create pods using pod definition in this template
+    metadata:
+      name: etl-test-hcgh
+      namespace: default
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        opsdx_nodegroup: spot-nodes
+      containers:
+      - name: universe
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:latest
+        imagePullPolicy: IfNotPresent
+        command:
+          - sh
+          - -c
+          - "/usr/local/bin/python3 /etl/epic2op/engine.py --hospital=HCGH"
+        env:
+        - name: TREWS_ETL_SERVER
+          value: "test"
+        - name: TREWS_ETL_HOSPITAL
+          value: "HCGH"
+        - name: TREWS_ETL_HOURS
+          value: "8"
+        - name: TREWS_ETL_MODE
+          value: "1"
+        - name: TREWS_ETL_DEMO_MODE
+          value: "4"
+        - name: TREWS_ETL_ARCHIVE
+          value: "0"
+        - name: TREWS_ETL_STREAM_HOURS
+          value: "8"
+        - name: TREWS_ETL_STREAM_SLICES
+          value: "120"
+        - name: TREWS_ETL_EPIC_NOTIFICATIONS
+          value: "0"
+        - name: TREWS_ETL_SUPPRESSION
+          value: "2"
+        - name: TREWS_ETL_ALERT_SERVER_IP
+          value: "jit-alerts.default.svc.cluster.local"
+        - name: etl_channel
+          value: "on_opsdx_dev_etl"
+        - name: SUPPRESS_CLOUDWATCH
+          value: "True"
+        - name: jhapi_client_id
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: jhapi-client-id
+        - name: jhapi_client_secret
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: jhapi-client-secret
+        - name: db_host
+          value: "dev.db.jh.opsdx.io"
+        - name: db_port
+          value: "5432"
+        - name: db_name
+          value: "opsdx_test"
+        - name: db_user
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: db-username
+        - name: db_password
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: db-password
+        - name: AWS_DEFAULT_REGION
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-region
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-secret-access-key
+        securityContext:
+          privileged: true
