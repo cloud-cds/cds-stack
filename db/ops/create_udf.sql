@@ -4730,6 +4730,10 @@ begin
   update clone_temp set enc_id = to_enc;
   insert into cdm_labels select * from clone_temp;
   drop table clone_temp;
+  create temp table clone_temp as select * from criteria where enc_id = from_enc;
+  update clone_temp set enc_id = to_enc;
+  insert into criteria select * from clone_temp;
+  drop table clone_temp;
   return to_enc;
 end;
 $$;
@@ -4741,6 +4745,7 @@ begin
 select now_tsp - max(tsp) from cdm_t where enc_id = this_enc_id into shift_interval;
 update cdm_t set tsp = tsp + shift_interval where enc_id = this_enc_id;
 update cdm_twf set tsp = tsp + shift_interval where enc_id = this_enc_id;
+update criteria set measurement_time = measurement_time + shift_interval, override_time = override_time + shift_interval where enc_id = this_enc_id;
 end;
 $$;
 
