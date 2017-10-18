@@ -229,8 +229,6 @@ var trews = new function() {
       case 'organ_dysfunction':
         return this.data['severe_sepsis']['organ_dysfunction']['criteria'];
 
-      case 'trews':
-        return this.data['severe_sepsis']['trews']['criteria'];
       case 'trews_org':
         return this.data['severe_sepsis']['trews_organ_dysfunction']['criteria'];
       case 'trews_organ_dysfunction':
@@ -1146,26 +1144,6 @@ var careSummaryComponent = new function() {
   this.detailSlot = new slotComponent($("[data-trews='care-summary-detail']"), $('#expand-care-detail'), false, false, false, null, false, true);
 
   this.renderDetail = function(alert_as_cms, cms_status) {
-    /*
-    var combined = $.extend(true, {}, trews.data['severe_sepsis'], {'name': 'combined_sepsis'});
-    var combined_constants = {'key': 'combined_sepsis', 'display_name': 'All Criteria'};
-
-    if ( alert_as_cms ) {
-      combined['is_met'] = cms_alerting;
-      combined['num_met'] = trews.data['severe_sepsis']['organ_dysfunction']['num_met'] + trews.data['severe_sepsis']['sirs']['num_met'];
-      combined['criteria'] = trews.data['severe_sepsis']['organ_dysfunction']['criteria'].concat(trews.data['severe_sepsis']['sirs']['criteria']);
-      combined_constants['criteria'] = severe_sepsis['organ_dysfunction']['criteria'].concat(severe_sepsis['sirs']['criteria']);
-    } else {
-      combined['is_met'] = trews_alerting;
-      combined['num_met'] = trews.data['severe_sepsis']['trews']['num_met'] + trews.data['severe_sepsis']['trews_organ_dysfunction']['num_met'];
-      combined['criteria'] = trews.data['severe_sepsis']['trews']['criteria'].concat(trews.data['severe_sepsis']['trews_organ_dysfunction']['criteria']);
-      combined_constants['criteria'] = severe_sepsis['trews']['criteria'].concat(severe_sepsis['trews_organ_dysfunction']['criteria']);
-    }
-
-    trews.data['severe_sepsis']['combined'] = combined;
-    this.detailSlot.r(combined, combined_constants, null);
-    */
-
     var score_str = null;
     var shock_str = null;
     var lactate_str = null;
@@ -2215,10 +2193,8 @@ var criteriaComponent = function(c, constants, key, hidden, criteria_mapping, cr
   if (c['is_met'] && c['measurement_time']) {
     var lapsed = timeLapsed(new Date(c['measurement_time']*1000));
     var strTime = strToTime(new Date(c['measurement_time']*1000));
-    if (c['name'] == 'trews') {
-      this.status += (this.criteria_source ? this.criteria_source + ' ' : '') + "Criteria met <span title='" + strTime + "'>" + lapsed;
-    }
-    else if (c['name'] == 'respiratory_failure' || c['name'] == 'trews_vent') {
+
+    if (c['name'] == 'respiratory_failure' || c['name'] == 'trews_vent') {
       this.status += (this.criteria_source ? this.criteria_source + ' ' : '') + "Criteria met <span title='" + strTime + "'>" + lapsed + "</span>"
         + (skip_threshold_and_value ? '' : " with <span class='value'>" + displayValue + "</span>");
     }
@@ -2291,13 +2267,6 @@ var criteriaComponent = function(c, constants, key, hidden, criteria_mapping, cr
     }
     else if ( skip_threshold_and_value ) {
       criteriaString += name;
-    }
-    else if ( c['name'] == 'trews' ) {
-      if (c['is_met']) {
-        criteriaString += name + " <b>indicates high risk of severe sepsis</b>";
-      } else {
-        criteriaString += name + " does not indicate high risk of severe sepsis";
-      }
     }
     else if ( c['name'] == 'respiratory_failure' ) {
       if (c['is_met']) {

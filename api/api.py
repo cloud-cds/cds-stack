@@ -221,7 +221,6 @@ class TREWSAPI(web.View):
                                "trews_gcs"
                               ]
 
-    TREWS_CRITERIA = ['trews']
     TREWS_ALERT_CRITERIA = ['trews_subalert']
 
     HYPOTENSION = ["systolic_bp",
@@ -245,13 +244,11 @@ class TREWSAPI(web.View):
 
     sirs_cnt     = 0
     od_cnt       = 0
-    trews_cnt    = 0
     trews_od_cnt = 0
     trews_subalert_cnt = 0
 
     sirs_onsets     = []
     od_onsets       = []
-    trews_onsets    = []
     trews_od_onsets = []
     trews_subalert_onsets = []
 
@@ -325,15 +322,6 @@ class TREWSAPI(web.View):
           trews_od_cnt += 1
           trews_od_onsets.append(criterion_ts)
 
-      # update TREWS score component
-      if criterion["name"] in TREWS_CRITERIA:
-        trews_idx = TREWS_CRITERIA.index(criterion["name"])
-        data['severe_sepsis']['trews']['criteria'][trews_idx] = criterion
-        criterion_ts = criterion['override_time'] if criterion['override_user'] else criterion['measurement_time']
-        if criterion["is_met"]:
-          trews_cnt += 1
-          trews_onsets.append(criterion_ts)
-
       # update TREWS subalert component
       if criterion["name"] in TREWS_ALERT_CRITERIA:
         data['severe_sepsis'][criterion["name"]] = criterion
@@ -403,12 +391,7 @@ class TREWSAPI(web.View):
     if od_cnt > 0:
       data['severe_sepsis']['organ_dysfunction']['onset_time'] = sorted(od_onsets)[0]
 
-    # update TREWS criteria and organ dysfunction
-    data['severe_sepsis']['trews']['is_met'] = trews_cnt > 0
-    data['severe_sepsis']['trews']["num_met"] = trews_cnt
-    if trews_cnt > 0:
-      data['severe_sepsis']['trews']['onset_time'] = sorted(trews_onsets)[0]
-
+    # update TREWS organ dysfunction
     data['severe_sepsis']['trews_organ_dysfunction']['is_met'] = trews_od_cnt > 0
     data['severe_sepsis']['trews_organ_dysfunction']["num_met"] = trews_od_cnt
     if trews_od_cnt > 0:
