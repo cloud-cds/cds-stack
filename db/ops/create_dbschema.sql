@@ -500,3 +500,32 @@ CREATE TABLE orgdf_baselines (
     bilirubin_tsp   timestamptz,
     platelets_tsp   timestamptz
 );
+
+DROP TABLE IF EXISTS trews_jit_score;
+CREATE TABLE trews_jit_score (
+ model_id            integer,
+ enc_id              integer,
+ tsp                 timestamptz,
+ score               double precision,
+ odds_ratio          double precision,
+ creatinine_orgdf    double precision,
+ bilirubin_orgdf     double precision,
+ platelets_orgdf     double precision,
+ gcs_orgdf           double precision,
+ inr_orgdf           double precision,
+ hypotension_orgdf   double precision,
+ sbpm_hypotension    double precision,
+ map_hypotension     double precision,
+ delta_hypotension   double precision,
+ vasopressors_orgdf  double precision,
+ lactate_orgdf       double precision,
+ orgdf_details       text,
+ vent_orgdf          integer,
+ primary key (model_id, enc_id, tsp)
+);
+
+DROP TABLE IF EXISTS predictor_times;
+CREATE TABLE predictor_times (
+    name        varchar(40) primary key,
+    tsp         timestamptz
+);
