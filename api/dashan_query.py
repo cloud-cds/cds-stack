@@ -15,6 +15,7 @@ from monitoring import APIMonitor
 import dashan_universe.transforms as transforms
 
 # Globals.
+EPIC_SERVER = os.environ['epic_server']
 api_monitor = APIMonitor()
 if api_monitor.enabled:
   api_monitor.register_metric('EpicNotificationSuccess', 'Count', [('API', api_monitor.monitor_target)])
@@ -522,7 +523,7 @@ async def is_order_placed(db_pool, eid, order_type, order_time):
   logging.info("Patient csn='{}', hosp='{}'".format(csn, hospital))
 
   # Extract and transform orders
-  jhapi_loader = JHAPI('prod', client_id, client_secret)
+  jhapi_loader = JHAPI(EPIC_SERVER, client_id, client_secret)
   lab_orders, med_orders = jhapi_loader.extract_orders(eid, csn, hospital)
   lab_orders = transforms.transform_lab_orders(lab_orders)
   med_orders = transforms.transform_med_orders(med_orders)
