@@ -195,7 +195,7 @@ metadata:
     ingress.kubernetes.io/ssl-redirect: "true"
 spec:
   rules:
-  - host: trews-test.jh.opsdx.io
+  - host: trews-dev.jh.opsdx.io
     http:
       paths:
       - backend:

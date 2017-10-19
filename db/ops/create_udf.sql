@@ -2450,7 +2450,7 @@ END; $function$;
 CREATE OR REPLACE FUNCTION order_event_update(this_enc_id int)
 RETURNS void AS $$
 begin
-    insert into criteria_events
+    insert into criteria_events (event_id, enc_id, name, is_met, measurement_time, override_time, override_user, override_value, value, update_date, flag)
     select gss.event_id,
            gss.enc_id,
            c.name,
