@@ -357,16 +357,44 @@ class pats_with_threshold_crossings(metric):
 # TREWS and CMS Alert monitors
 #
 
-#  Num pats/encs with a TREWS alert, but never a CMS alert.
-class trews_but_no_cms_stats(metric):
+class alert_stats_totals(metric):
   def __init__(self,connection, first_time_str, last_time_str):
     super().__init__(connection, first_time_str, last_time_str)
-    self.name = 'Encounters with TREWS, but no CMS alerts'
+    self.name = 'Total Encounters, and Encounters with TREWS and CMS alerts'
 
   def calc(self):
     sql = \
     '''
-    select count(distinct enc_id) as num_encounters
+    select 'Total Encounters With Alerts' as name, count(distinct enc_id) as num_encounters
+    from (
+      select pat_id, enc_id,
+             count(*) filter (where trews_subalert > 0 and ( sirs < 2 or orgdf < 1 )) as trews_no_cms,
+             count(*) filter (where sirs > 1 and orgdf > 0 and trews_subalert = 0) as cms_no_trews,
+             count(*) filter (where trews_subalert > 0 and sirs > 1 and orgdf > 0) as trews_and_cms,
+             count(*) filter (where trews_subalert > 0) as any_trews,
+             count(*) filter (where sirs > 1 and orgdf > 0) as any_cms
+      from (
+        select p.pat_id, C.enc_id, C.event_id, C.flag,
+               count(*) filter (where name like 'trews_subalert' and is_met) as trews_subalert,
+               count(*) filter (where name in ('sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc') and is_met) as sirs,
+               count(*) filter (where name in ('blood_pressure', 'mean_arterial_pressure', 'decrease_in_sbp', 'respiratory_failure', 'creatinine', 'bilirubin', 'platelet', 'inr', 'lactate') and is_met) as orgdf
+        from criteria_events C
+        inner join (
+          select distinct enc_id
+          from cdm_t where fid =  'care_unit' and value like '%%HCGH%%'
+          and enc_id not in ( select distinct enc_id from get_latest_enc_ids('HCGH') )
+          union
+          select distinct enc_id from get_latest_enc_ids('HCGH')
+        ) R on C.enc_id = R.enc_id
+        inner join pat_enc p on c.enc_id = p.enc_id
+        group by p.pat_id, C.enc_id, C.event_id, C.flag
+        having max(C.update_date) between '%(start)s'::timestamptz and '%(end)s'::timestamptz
+      ) R
+      group by pat_id, enc_id
+    ) R
+    where any_trews > 0 or any_cms > 0
+    union all
+    select 'TREWS, but no CMS' as name, count(distinct enc_id) as num_encounters
     from (
       select pat_id, enc_id,
              count(*) filter (where trews_subalert > 0 and ( sirs < 2 or orgdf < 1 )) as trews_no_cms,
@@ -394,26 +422,8 @@ class trews_but_no_cms_stats(metric):
       group by pat_id, enc_id
     ) R
     where any_trews > 0 and any_cms = 0
-    ''' % { 'start': self.first_time_str, 'end': self.last_time_str }
-
-    res_df = pd.read_sql(sqlalchemy.text(sql), self.connection)
-    self.data = res_df
-
-  def to_html(self):
-    html = "{num} encounters had a TREWS alert, but no CMS alert<br>".format(num=self.data['num_encounters'].iloc[0])
-    return html
-
-
-#  Num pats/encs with a CMS, but never a TREWS alert.
-class cms_but_no_trews_stats(metric):
-  def __init__(self,connection, first_time_str, last_time_str):
-    super().__init__(connection, first_time_str, last_time_str)
-    self.name = 'Encounters with CMS, but no TREWS alerts'
-
-  def calc(self):
-    sql = \
-    '''
-    select count(distinct enc_id) as num_encounters
+    union all
+    select 'CMS, but no TREWS' as name, count(distinct enc_id) as num_encounters
     from (
       select pat_id, enc_id,
              count(*) filter (where trews_subalert > 0 and ( sirs < 2 or orgdf < 1 )) as trews_no_cms,
@@ -441,26 +451,8 @@ class cms_but_no_trews_stats(metric):
       group by pat_id, enc_id
     ) R
     where any_cms > 0 and any_trews = 0
-    ''' % { 'start': self.first_time_str, 'end': self.last_time_str }
-
-    res_df = pd.read_sql(sqlalchemy.text(sql), self.connection)
-    self.data = res_df
-
-  def to_html(self):
-    html = "{num} encounters had a CMS alert, but no TREWS alert<br>".format(num=self.data['num_encounters'].iloc[0])
-    return html
-
-
-#  Num pats/encs with an overlapping TREWS and CMS alert.
-class trews_and_cms_stats(metric):
-  def __init__(self,connection, first_time_str, last_time_str):
-    super().__init__(connection, first_time_str, last_time_str)
-    self.name = 'Encounters with simultaneous TREWS and CMS alerts'
-
-  def calc(self):
-    sql = \
-    '''
-    select count(distinct enc_id) as num_encounters
+    union all
+    select 'TREWS and CMS Co-ocurring' as name, count(distinct enc_id) as num_encounters
     from (
       select pat_id, enc_id,
              count(*) filter (where trews_subalert > 0 and ( sirs < 2 or orgdf < 1 )) as trews_no_cms,
@@ -494,9 +486,7 @@ class trews_and_cms_stats(metric):
     self.data = res_df
 
   def to_html(self):
-    html = "{num} encounters had a co-occurring TREWS and CMS alert<br>".format(num=self.data['num_encounters'].iloc[0])
-    return html
-
+    return self.data.to_html()
 
 class alert_stats_by_unit(metric):
   def __init__(self,connection, first_time_str, last_time_str):
