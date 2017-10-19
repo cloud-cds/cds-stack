@@ -1,4 +1,54 @@
 {
+  "__inputs": [
+    {
+      "name": "DS_CLOUDWATCH",
+      "label": "cloudwatch",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "cloudwatch",
+      "pluginName": "CloudWatch"
+    },
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "prometheus",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "datasource",
+      "id": "cloudwatch",
+      "name": "CloudWatch",
+      "version": "1.0.0"
+    },
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "4.4.3"
+    },
+    {
+      "type": "panel",
+      "id": "graph",
+      "name": "Graph",
+      "version": ""
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "singlestat",
+      "name": "Singlestat",
+      "version": ""
+    }
+  ],
   "annotations": {
     "list": []
   },
@@ -6,7 +56,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "hideControls": false,
-  "id": 4,
+  "id": null,
   "links": [],
   "refresh": "5s",
   "rows": [
@@ -23,7 +73,7 @@
             "rgba(237, 129, 40, 0.89)",
             "rgba(50, 172, 45, 0.97)"
           ],
-          "datasource": "cloudwatch",
+          "datasource": "${DS_CLOUDWATCH}",
           "format": "none",
           "gauge": {
             "maxValue": 100,
@@ -107,7 +157,7 @@
             "rgba(237, 129, 40, 0.89)",
             "rgba(50, 172, 45, 0.97)"
           ],
-          "datasource": "cloudwatch",
+          "datasource": "${DS_CLOUDWATCH}",
           "format": "none",
           "gauge": {
             "maxValue": 100,
@@ -157,7 +207,7 @@
             {
               "alias": "",
               "dimensions": {
-                "LoadBalancerName": "aa9fd46b65b7f11e7952b12a1bba98f6"
+                "LoadBalancerName": "a9af228d890c411e78f8f0a55a470ed9"
               },
               "expr": "",
               "intervalFactor": 2,
@@ -234,8 +284,8 @@
           "steppedLine": false,
           "targets": [
             {
-              "datasource": "prometheus",
-              "expr": "label_replace(sum(rate(container_cpu_usage_seconds_total{pod_name=~\".*trews.*\", image=~\".*trews-rest-api.*\"}[2m])) by (pod_name), \"pod_lbl\", \"trews-api-$1\", \"pod_name\", \"trews-rest-api-[0-9a-zA-Z]*-(.*)\") * 100",
+              "datasource": "${DS_PROMETHEUS}",
+              "expr": "label_replace(sum(rate(container_cpu_usage_seconds_total{pod_name=~\".*trews-rest-api-[0-9].*\", image=~\".*universe.*\"}[2m])) by (pod_name), \"pod_lbl\", \"trews-api-$1\", \"pod_name\", \"trews-rest-api-[0-9a-zA-Z]*-(.*)\") * 100",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -243,10 +293,10 @@
               "legendFormat": "{{ pod_lbl }}",
               "metric": "",
               "refId": "B",
-              "step": 2
+              "step": 4
             },
             {
-              "datasource": "prometheus",
+              "datasource": "${DS_PROMETHEUS}",
               "expr": "sum(rate(container_cpu_usage_seconds_total[2m])) / sum(machine_cpu_cores) * 100",
               "format": "time_series",
               "hide": false,
@@ -255,11 +305,11 @@
               "legendFormat": "cluster total",
               "metric": "",
               "refId": "C",
-              "step": 2
+              "step": 4
             },
             {
-              "datasource": "prometheus",
-              "expr": "label_replace(sum(rate(container_cpu_usage_seconds_total{pod_name=~\"trews-rest-api.*\", image=~\".*nginx.*\"}[2m])) by (pod_name), \"pod_lbl\",  \"nginx-$1\", \"pod_name\", \"trews-rest-api-[0-9a-zA-Z]*-(.*)\") * 100",
+              "datasource": "${DS_PROMETHEUS}",
+              "expr": "label_replace(sum(rate(container_cpu_usage_seconds_total{pod_name=~\"trews-rest-api-[0-9].*\", image=~\".*nginx.*\"}[2m])) by (pod_name), \"pod_lbl\",  \"nginx-$1\", \"pod_name\", \"trews-rest-api-[0-9a-zA-Z]*-(.*)\") * 100",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -267,11 +317,11 @@
               "legendFormat": "{{ pod_lbl }}",
               "metric": "",
               "refId": "E",
-              "step": 2
+              "step": 4
             },
             {
               "alias": "DB",
-              "datasource": "cloudwatch",
+              "datasource": "${DS_CLOUDWATCH}",
               "dimensions": {
                 "DBInstanceIdentifier": "opsdx-jh-dev"
               },
@@ -327,7 +377,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "prometheus",
+          "datasource": "${DS_PROMETHEUS}",
           "fill": 1,
           "id": 19,
           "legend": {
@@ -356,7 +406,7 @@
           "steppedLine": true,
           "targets": [
             {
-              "expr": "label_replace(sum(rate(container_cpu_usage_seconds_total{pod_name=~\".*trews.*\", image=~\".*trews-rest-api.*\"}[2m])) by (pod_name), \"pod_lbl\", \"trews-api-$1\", \"pod_name\", \"trews-rest-api-[0-9a-zA-Z]*-(.*)\")",
+              "expr": "label_replace(sum(rate(container_cpu_usage_seconds_total{pod_name=~\".*trews-rest-api-[0-9].*\", image=~\".*universe.*\"}[2m])) by (pod_name), \"pod_lbl\", \"trews-api-$1\", \"pod_name\", \"trews-rest-api-[0-9a-zA-Z]*-(.*)\")",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -364,10 +414,10 @@
               "legendFormat": "{{ pod_lbl }}",
               "metric": "",
               "refId": "B",
-              "step": 4
+              "step": 10
             },
             {
-              "expr": "label_replace(sum(rate(container_cpu_usage_seconds_total{pod_name=~\"trews-rest-api.*\", image=~\".*nginx.*\"}[2m])) by (pod_name), \"pod_lbl\",  \"nginx-$1\", \"pod_name\", \"trews-rest-api-[0-9a-zA-Z]*-(.*)\")",
+              "expr": "label_replace(sum(rate(container_cpu_usage_seconds_total{pod_name=~\"trews-rest-api-[0-9].*\", image=~\".*nginx.*\"}[2m])) by (pod_name), \"pod_lbl\",  \"nginx-$1\", \"pod_name\", \"trews-rest-api-[0-9a-zA-Z]*-(.*)\")",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -375,7 +425,7 @@
               "legendFormat": "{{ pod_lbl }}",
               "metric": "",
               "refId": "E",
-              "step": 4
+              "step": 10
             }
           ],
           "thresholds": [],
@@ -419,7 +469,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "prometheus",
+          "datasource": "${DS_PROMETHEUS}",
           "fill": 1,
           "id": 17,
           "legend": {
@@ -448,7 +498,7 @@
           "steppedLine": true,
           "targets": [
             {
-              "expr": "label_replace(sum(container_memory_working_set_bytes{pod_name=~\"trews-rest-api.*\", image=~\".*trews-rest-api.*\"}) by (pod_name), \"pod_lbl\", \"trews-api-$1\", \"pod_name\", \"trews-rest-api-[0-9a-zA-Z]*-(.*)\")",
+              "expr": "label_replace(sum(container_memory_working_set_bytes{pod_name=~\"trews-rest-api-[0-9].*\", image=~\".*universe.*\"}) by (pod_name), \"pod_lbl\", \"trews-api-$1\", \"pod_name\", \"trews-rest-api-[0-9a-zA-Z]*-(.*)\")",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -456,16 +506,16 @@
               "legendFormat": "{{ pod_lbl }}",
               "metric": "",
               "refId": "B",
-              "step": 4
+              "step": 10
             },
             {
-              "expr": "label_replace(sum(container_memory_working_set_bytes{pod_name=~\"trews-rest-api.*\", image=~\".*nginx.*\"}) by (pod_name), \"pod_lbl\", \"nginx-$1\", \"pod_name\", \"trews-rest-api-[0-9a-zA-Z]*-(.*)\")",
+              "expr": "label_replace(sum(container_memory_working_set_bytes{pod_name=~\"trews-rest-api-[0-9].*\", image=~\".*nginx.*\"}) by (pod_name), \"pod_lbl\", \"nginx-$1\", \"pod_name\", \"trews-rest-api-[0-9a-zA-Z]*-(.*)\")",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
               "legendFormat": "{{ pod_lbl }}",
               "refId": "A",
-              "step": 4
+              "step": 10
             }
           ],
           "thresholds": [],
@@ -509,7 +559,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "cloudwatch",
+          "datasource": "${DS_CLOUDWATCH}",
           "fill": 1,
           "id": 14,
           "legend": {
@@ -590,7 +640,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "cloudwatch",
+          "datasource": "${DS_CLOUDWATCH}",
           "fill": 1,
           "id": 16,
           "legend": {
@@ -618,7 +668,7 @@
           "targets": [
             {
               "dimensions": {
-                "API": "opsdx-jh-dev"
+                "API": "opsdx-dev"
               },
               "metricName": "CacheMisses",
               "namespace": "OpsDX",
@@ -671,7 +721,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "cloudwatch",
+          "datasource": "${DS_CLOUDWATCH}",
           "fill": 1,
           "id": 13,
           "legend": {
@@ -700,7 +750,7 @@
             {
               "alias": "",
               "dimensions": {
-                "Browser": "opsdx-jh-dev"
+                "Browser": "opsdx-dev"
               },
               "metricName": "UserLatencyAvg",
               "namespace": "OpsDX",
@@ -765,7 +815,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "cloudwatch",
+          "datasource": "${DS_CLOUDWATCH}",
           "fill": 1,
           "id": 2,
           "legend": {
@@ -848,7 +898,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "cloudwatch",
+          "datasource": "${DS_CLOUDWATCH}",
           "fill": 1,
           "id": 3,
           "legend": {
@@ -956,7 +1006,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "cloudwatch",
+          "datasource": "${DS_CLOUDWATCH}",
           "fill": 1,
           "id": 4,
           "legend": {
@@ -984,7 +1034,7 @@
           "targets": [
             {
               "dimensions": {
-                "LoadBalancerName": "aa9fd46b65b7f11e7952b12a1bba98f6"
+                "LoadBalancerName": "a9af228d890c411e78f8f0a55a470ed9"
               },
               "expr": "",
               "intervalFactor": 2,
@@ -999,7 +1049,7 @@
             },
             {
               "dimensions": {
-                "LoadBalancerName": "aa9fd46b65b7f11e7952b12a1bba98f6"
+                "LoadBalancerName": "a9af228d890c411e78f8f0a55a470ed9"
               },
               "metricName": "SurgeQueueLength",
               "namespace": "AWS/ELB",
@@ -1052,7 +1102,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "cloudwatch",
+          "datasource": "${DS_CLOUDWATCH}",
           "fill": 1,
           "id": 5,
           "legend": {
@@ -1080,7 +1130,7 @@
           "targets": [
             {
               "dimensions": {
-                "LoadBalancerName": "aa9fd46b65b7f11e7952b12a1bba98f6"
+                "LoadBalancerName": "a9af228d890c411e78f8f0a55a470ed9"
               },
               "expr": "",
               "intervalFactor": 2,
@@ -1148,7 +1198,7 @@
     "list": []
   },
   "time": {
-    "from": "now-30m",
+    "from": "now-1h",
     "to": "now"
   },
   "timepicker": {
@@ -1177,6 +1227,6 @@
     ]
   },
   "timezone": "browser",
-  "title": "OpsDX Dev Web",
-  "version": 9
+  "title": "OpsDX JH Dev Web",
+  "version": 5
 }
