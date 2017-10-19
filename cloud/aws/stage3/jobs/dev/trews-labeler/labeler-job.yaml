@@ -1,0 +1,71 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: trews-labeler
+spec:
+  template:
+    metadata:
+      name: trews-labeler
+      namespace: default
+      labels:
+        app: trews-labeler
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        opsdx_nodegroup: spot-nodes
+      containers:
+      - name: tensorflow-long
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/ml-trews:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 2222
+          name: server
+        env:
+        - name : NODE_INDEX
+          value: '1'
+        - name : K8S_DEPLOYMENT
+          value: 'True'
+        - name : NUM_WORKERS
+          value: '1'
+        - name : 'NO_CULTURE_NAME_AVAILABLE'
+          value: 'True'
+        - name : HOSPITAL_REGEX
+          value: 'HCGH'
+        - name : DATASET_NAME
+          value: 'HCGH'
+        - name : DATASET_ID
+          value: '0'
+        - name : LABEL_ID
+          value: '0'
+        - name : LMCHOME
+          value: /lmc/LMC-Based-On-GPflow/
+        - name : DESCRIP
+          value: 'predict'
+        - name : DATASOURCE
+          value: 'SQL'
+        - name : DATASET
+          value: '1'
+        - name : DATABASE
+          value: 'dev'
+        - name: DB_PASS
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: db-password
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-secret-access-key
+        command:
+        - sh
+        - -c
+        - cd /lmc/LMC-Based-On-GPflow && ./sep2_labels_k8s.sh
+        securityContext:
+          privileged: true
