@@ -40,8 +40,8 @@ spec:
           value: "0"
         - name: TREWS_ETL_SUPPRESSION
           value: "2"
-        - name: TREWS_ETL_ALERT_SERVER_IP
-          value: "jit-alerts.default.svc.cluster.local"
+        - name: TREWS_ALERT_SERVER_IP
+          value: "jit-alerts-test.default.svc.cluster.local"
         - name: etl_channel
           value: "on_opsdx_dev_etl"
         - name: SUPPRESS_CLOUDWATCH

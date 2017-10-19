@@ -46,7 +46,7 @@ spec:
         opsdx_nodegroup: spot-nodes
       containers:
       - name: jit-alerts-test
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.308
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:latest
         imagePullPolicy: Always
         resources:
           requests:
@@ -81,7 +81,7 @@ spec:
         - name: db_port
           value: "5432"
         - name: db_name
-          value: "opsdx_dev"
+          value: "opsdx_test"
         - name: db_user
           valueFrom:
             secretKeyRef:
