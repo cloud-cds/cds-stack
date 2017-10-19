@@ -104,8 +104,8 @@ class Predictor:
         num_pats = len(message['enc_ids'])
         self.total_time = message['total_time']
         self.optimization_time = message['optimization_time']
-        self.avg_total_time = message['total_time'] / num_pats
-        self.avg_optimization_time = message['optimization_time'] / num_pats
+        self.avg_total_time = message['total_time'] / (num_pats if num_pats > 0 else 1)
+        self.avg_optimization_time = message['optimization_time'] / (num_pats if num_pats > 0 else 1)
         logging.info("avg_total_time: {}, avg_optimization_time: {}".format(self.avg_total_time, self.avg_optimization_time))
         await queue.put({
           'type': 'FIN',
