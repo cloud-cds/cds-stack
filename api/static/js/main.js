@@ -3833,7 +3833,7 @@ var toolbar = new function() {
             var g = this.groups[intervals['name']];
 
             items.add({
-              id: intervals['name'],
+              id: intervals['name'] + '_' + i,
               group: g['id'],
               content: content,
               title: content,

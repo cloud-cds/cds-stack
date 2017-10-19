@@ -78,7 +78,7 @@ resource "aws_lambda_function" "trews_capture_lambda" {
         kube_cmd_2 = "aws s3 cp s3://opsdx-deployment/scripts/trews-capture.sh /tmp && chmod 755 /tmp/trews-capture.sh && /tmp/trews-capture.sh"
 
         # ETL Environment Variables
-        k8s_job_capture_query = "select distinct p.pat_id from ( select C.enc_id, count(*) filter (where name like 'trews_subalert' and is_met) as trews_subalert, count(*) filter (where name in ('sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc') and is_met) as sirs, count(*) filter (where name in ('blood_pressure', 'mean_arterial_pressure', 'decrease_in_sbp', 'respiratory_failure', 'creatinine', 'bilirubin', 'platelet', 'inr', 'lactate') and is_met) as orgdf from get_criteria(null::int) C inner join ( select distinct enc_id from get_latest_enc_ids('HCGH') ) R on C.enc_id = R.enc_id group by C.enc_id ) c inner join pat_enc p on c.enc_id = p.enc_id where trews_subalert > 0 or ( sirs > 1 and orgdf > 0 )"
+        k8s_job_capture_query = "select distinct pat_id from get_alert_stats_by_enc(now() - interval '6 hours', now())"
         k8s_job_query_id      = "dev.capture.test"
         k8s_job_output_bucket = "opsdx-clarity-etl-stage"
         k8s_job_output_dir    = "trews-capture"
