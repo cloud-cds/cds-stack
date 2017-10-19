@@ -365,6 +365,22 @@ class alert_stats_totals(metric):
   def calc(self):
     sql = \
     '''
+    select 'Total Encounters In Time Range' as name, count(distinct enc_id) as num_encounters
+    from (
+        select p.pat_id, C.enc_id
+        from criteria_events C
+        inner join (
+          select distinct enc_id
+          from cdm_t where fid =  'care_unit' and value like '%%HCGH%%'
+          and enc_id not in ( select distinct enc_id from get_latest_enc_ids('HCGH') )
+          union
+          select distinct enc_id from get_latest_enc_ids('HCGH')
+        ) R on C.enc_id = R.enc_id
+        inner join pat_enc p on c.enc_id = p.enc_id
+        group by p.pat_id, C.enc_id
+        having max(C.update_date) between '%(start)s'::timestamptz and '%(end)s'::timestamptz
+    ) R
+    union all
     select 'Total Encounters With Alerts' as name, count(distinct enc_id) as num_encounters
     from (
       select pat_id, enc_id,
