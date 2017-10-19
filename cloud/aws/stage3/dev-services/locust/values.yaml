@@ -13,7 +13,7 @@ service:
   nodePort: 0
 master:
   config:
-    target-host: https://trews.dev.opsdx.io
+    target-host: https://trews-stage.jh.opsdx.io
     # set secrets from helm command line
     trews_pats: ""
     trews_admin_key: ""
