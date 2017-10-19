@@ -125,7 +125,8 @@ resource "aws_lambda_function" "scorecard_report_lambda" {
 
         kube_cmd_0 = "sh"
         kube_cmd_1 = "-c"
-        kube_cmd_2 = "/usr/local/bin/python3 /etl/analysis_publishing/engine.py reports ${var.scorecard_report_firing_rate_min}"
+        #kube_cmd_2 = "/usr/local/bin/python3 /etl/analysis_publishing/engine.py reports ${var.scorecard_report_firing_rate_min}"
+        kube_cmd_2 = "/usr/local/bin/python3 /etl/analysis_publishing/engine.py reports 360"
 
         # ETL Environment Variables
         k8s_job_BEHAMON_STACK                      = "${var.deploy_prefix}-dev"
