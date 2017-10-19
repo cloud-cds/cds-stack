@@ -15,7 +15,7 @@ from monitoring import APIMonitor
 import dashan_universe.transforms as transforms
 
 # Globals.
-EPIC_SERVER = os.environ['epic_server']
+EPIC_SERVER = os.environ['epic_server'] if 'epic_server' in os.environ else 'prod'
 api_monitor = APIMonitor()
 if api_monitor.enabled:
   api_monitor.register_metric('EpicNotificationSuccess', 'Count', [('API', api_monitor.monitor_target)])
@@ -717,7 +717,7 @@ async def load_epic_notifications(notifications):
         'visit_id': n['visit_id'],
         'value': n['count']
     } for n in notifications]
-    jhapi_loader = JHAPI('prod', client_id, client_secret)
+    jhapi_loader = JHAPI(EPIC_SERVER, client_id, client_secret)
     responses = jhapi_loader.load_flowsheet(patients, flowsheet_id="9490")
 
     for pt, n, response in zip(patients, notifications, responses):
@@ -743,7 +743,7 @@ async def load_epic_trewscores(trewscores):
         'value': n['trewscore'],
         'tsp': n['tsp']
     } for n in trewscores]
-    jhapi_loader = JHAPI('prod', client_id, client_secret)
+    jhapi_loader = JHAPI(EPIC_SERVER, client_id, client_secret)
     responses = jhapi_loader.load_flowsheet(patients, flowsheet_id="9485")
 
     for pt, n, response in zip(patients, trewscores, responses):
