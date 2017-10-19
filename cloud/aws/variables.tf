@@ -216,6 +216,7 @@ variable "k8s_dev_key" {
 
 variable "k8s_dev_image" {}
 variable "k8s_dev_utilities_image" {}
+variable "k8s_dev_ml_trews_image" {}
 
 ###################################
 # K8s prod
@@ -328,3 +329,10 @@ variable "slack_watchers" {}
 variable "trews_capture_url" {}
 variable "trews_capture_firing_rate_min" {}
 variable "trews_capture_firing_rate_expr" {}
+
+######################################
+# TREWS labeler
+
+variable "trews_labeler_firing_rate_min" {}
+variable "trews_labeler_firing_rate_expr" {}
+

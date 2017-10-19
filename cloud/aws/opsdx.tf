@@ -55,6 +55,8 @@ module "stage2" {
 module "stage3" {
   source = "./stage3"
 
+  access_key    = "${var.access_key}"
+  secret_key    = "${var.secret_key}"
   aws_region    = "${var.aws_region}"
   domain        = "${var.domain}"
   deploy_prefix = "${var.deploy_prefix}"
@@ -187,6 +189,13 @@ module "stage3" {
   trews_capture_url  = "${var.trews_capture_url}"
   trews_capture_firing_rate_min  = "${var.trews_capture_firing_rate_min}"
   trews_capture_firing_rate_expr = "${var.trews_capture_firing_rate_expr}"
+
+  ######################################
+  # TREWS Labeler
+  k8s_dev_ml_trews_image = "${var.k8s_dev_ml_trews_image}"
+
+  trews_labeler_firing_rate_min  = "${var.trews_labeler_firing_rate_min}"
+  trews_labeler_firing_rate_expr = "${var.trews_labeler_firing_rate_expr}"
 
 }
 

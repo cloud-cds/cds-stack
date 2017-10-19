@@ -1,3 +1,5 @@
+variable "access_key" {}
+variable "secret_key" {}
 variable "aws_region" {}
 
 ###################################
@@ -86,6 +88,7 @@ variable "k8s_dev_ml_server" {}
 variable "k8s_dev_ml_user" {}
 variable "k8s_dev_ml_pass" {}
 variable "k8s_dev_ml_cert_auth" {}
+variable "k8s_dev_ml_trews_image" {}
 
 
 ####################################
@@ -208,4 +211,11 @@ variable "weave_cleaner_firing_rate_mins" {}
 variable "trews_capture_url" {}
 variable "trews_capture_firing_rate_min" {}
 variable "trews_capture_firing_rate_expr" {}
+
+
+######################################
+# TREWS labeler
+
+variable "trews_labeler_firing_rate_min" {}
+variable "trews_labeler_firing_rate_expr" {}
 
