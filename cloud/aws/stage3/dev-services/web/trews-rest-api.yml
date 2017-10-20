@@ -42,7 +42,7 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: trews-rest-api
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.306
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.323
         resources:
           requests:
             memory: "2816Mi"
@@ -205,7 +205,7 @@ metadata:
     ingress.kubernetes.io/ssl-redirect: "true"
 spec:
   rules:
-  - host: trews-dev.jh.opsdx.io
+  - host: trews-stage.jh.opsdx.io
     http:
       paths:
       - backend:
