@@ -710,6 +710,9 @@ async def push_notifications_to_epic(db_pool, eid, notify_future_notification=Tr
 
 async def load_epic_notifications(notifications):
   total = len(notifications)
+  if total == 0:
+    logging.info("No notification need to be updated to Epic")
+    return
   if epic_notifications is not None and int(epic_notifications):
     success = []
     patients = [{
@@ -735,6 +738,9 @@ async def load_epic_notifications(notifications):
 
 async def load_epic_trewscores(trewscores):
   total = len(trewscores)
+  if total == 0:
+    logging.info("No trewscore need to be updated to Epic")
+    return
   if epic_notifications is not None and int(epic_notifications):
     success = []
     patients = [{
