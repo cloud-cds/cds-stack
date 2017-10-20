@@ -360,7 +360,7 @@ class pats_with_threshold_crossings(metric):
 class alert_stats_totals(metric):
   def __init__(self,connection, first_time_str, last_time_str):
     super().__init__(connection, first_time_str, last_time_str)
-    self.name = 'Total Encounters, and Encounters with TREWS and CMS alerts'
+    self.name = 'TREWS and CMS Alert Statistics for Recent Encounters'
 
   def calc(self):
     sql = \
@@ -401,10 +401,10 @@ class alert_stats_totals(metric):
       union
       select distinct enc_id from bp_included
     )
-    select 'Total Encounters in Time Range', count(distinct E.enc_id)
-    from enc_included E
+    select 'Total Encounters for Bedded Patients in Time Range' as name, count(distinct E.enc_id) as num_encounters
+    from bp_included E
     union all
-    select 'Total Encounters With At Least One Measurement in Time Range', count(distinct E.enc_id)
+    select 'Total Encounters With At Least One Measurement in Time Range' as name, count(distinct E.enc_id) as num_encounters
     from enc_included E
     inner join cdm_t on E.enc_id = cdm_t.enc_id
     and cdm_t.tsp between '%(start)s'::timestamptz and '%(end)s'::timestamptz
@@ -509,7 +509,7 @@ class alert_stats_totals(metric):
 class alert_stats_by_unit(metric):
   def __init__(self,connection, first_time_str, last_time_str):
     super().__init__(connection, first_time_str, last_time_str)
-    self.name = '# of Encounters with TREWS and CMS Alerts By Unit'
+    self.name = 'TREWS and CMS Alert Statistics For Recent Encounters By Unit'
 
   def calc(self):
     sql = \
@@ -527,7 +527,7 @@ class alert_stats_by_unit(metric):
 class alert_evaluation_stats(metric):
   def __init__(self,connection, first_time_str, last_time_str):
     super().__init__(connection, first_time_str, last_time_str)
-    self.name = 'TREWS and CMS Alert Evaluation'
+    self.name = 'TREWS and CMS Alert Evaluation over a 48hr Period'
 
   def calc(self):
     sql = \
@@ -650,13 +650,13 @@ class alert_evaluation_stats(metric):
     select S.*
     from (
       select ARRAY[
-              'total_sepsis_cases',
-              'num_trews_alerts',
-              'trews_true_positive',
-              'num_cms_alerts',
-              'cms_true_positive',
-              'trews_union_cms_alerts',
-              'union_true_positive'
+              'Total Sepsis Cases',
+              '# of TREWS Alerts',
+              'TREWS True Positive',
+              '# of CMS Alerts',
+              'CMS True Positive',
+              'TREWS union CMS alerts',
+              'Union True Positive'
              ]::text[] as names,
              ARRAY[
                count(sev_sep),
@@ -673,7 +673,7 @@ class alert_evaluation_stats(metric):
         union
         select distinct enc_id from bp_included
       )
-    ) R, unnest(R.names, R.values) S(name, frequency)
+    ) R, unnest(R.names, R.values) S(name, occurrences)
     ''' % { 'start': self.first_time_str, 'end': self.last_time_str, 'interval': '48 hours' }
 
     res_df = pd.read_sql(sqlalchemy.text(sql), self.connection)

@@ -12,8 +12,6 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 logging.debug("Import complete")
 
-print(os.environ)
-
 def_stack_to_english_dict = {
   'opsdx-prod'    : 'Prod',
   'opsdx-jh-prod' : 'Prod',
@@ -41,7 +39,7 @@ class Engine:
         return default_val
 
     self.BEHAMON_STACK = try_to_read_from_environ('BEHAMON_STACK','Test')
-    self.receiving_email_address = try_to_read_from_environ('REPORT_RECEIVING_EMAIL_ADDRESS','trews-jhu@opsdx.io')
+    self.receiving_email_addresses = list(map(strip, try_to_read_from_environ('REPORT_RECEIVING_EMAIL_ADDRESS','trews-jhu@opsdx.io').split(',')))
 
 
   def run(self, mode):
@@ -120,7 +118,7 @@ class Engine:
     self.boto_ses_client.send_email(
       Source='trews-jhu@opsdx.io',
       Destination={
-        'ToAddresses': [self.receiving_email_address],
+        'ToAddresses': self.receiving_email_addresses,
       },
       Message={
         'Subject': {'Data': 'Report Metrics (%s)' % def_stack_to_english_dict[self.BEHAMON_STACK]},
