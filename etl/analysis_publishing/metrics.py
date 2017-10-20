@@ -667,7 +667,7 @@ class alert_evaluation_stats(metric):
                count(coalesce(cms_alert_time, t_time)),
                count(*) filter (where coalesce(cms_alert_time, t_time) is not null and sev_sep is not null)
              ]::bigint[] as values
-      from confusion_table
+      from confusion_table C
       where coalesce(C.t_enc_id, C.sev_sep, C.crit_enc_id) in (
         select distinct enc_id from hcgh_discharged
         union
