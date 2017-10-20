@@ -338,6 +338,64 @@ def convert_amoxicillin_dose_to_mg(entries, log):
                     action)
     return results
 
+def convert_dose_to_mg_and_medroute(entries, log):    
+    global GIVEN_ACTIONS
+    results = []
+
+    for entry in entries:
+        name = entry['display_name']
+        tsp  = entry['TimeActionTaken']
+        dose = entry['Dose']
+        unit = entry['MedUnit']
+        order_tsp = entry['ORDER_INST']
+        action = entry['ActionTaken']
+        if 'injection' in name:
+            medroute = 'Injection'
+        elif 'capsule' in name:
+            medroute = 'Capsule'
+        elif 'tablet' in name:
+            medroute = 'Tablet'
+        else:
+            medruote = ''
+
+        if action in GIVEN_ACTIONS:
+            if dose is None:
+                results.append(None)
+                log_assert(log, unit == 'kg' or unit == 'g' or unit == 'mg' or unit == 'mcg', "Unknown unit %s" % unit)
+            elif unit == 'kg':
+                results.append([tsp,
+                        json.dumps({'dose': 1000*1000*float(dose), \
+                            'order_tsp':order_tsp.strftime("%Y-%m-%d %H:%M:%S"),
+                            'action': entry['ActionTaken'],
+                            'med_route': medroute}),
+                        confidence.UNIT_TRANSFORMED])
+            elif unit == 'g':
+                results.append([tsp,
+                        json.dumps({'dose':1000*float(dose), \
+                            'order_tsp':order_tsp.strftime("%Y-%m-%d %H:%M:%S"),
+                            'action': entry['ActionTaken'],
+                            'med_route': medroute}),
+                        confidence.UNIT_TRANSFORMED])
+            elif unit == 'mg':
+                results.append([tsp,
+                        json.dumps({'dose':float(dose), \
+                            'order_tsp': order_tsp.strftime("%Y-%m-%d %H:%M:%S"),
+                            'action': entry['ActionTaken'],
+                            'med_route': medroute}),
+                        confidence.NO_TRANSFORM])
+            elif unit == 'mcg':
+                results.append([tsp,
+                        json.dumps({'dose':0.001*float(dose), \
+                            'order_tsp': order_tsp.strftime("%Y-%m-%d %H:%M:%S"),
+                            'action': entry['ActionTaken'],
+                            'med_route': medroute}),
+                        confidence.NO_TRANSFORM])
+        else:
+            log.warn(\
+                "convert_dose_to_mg_and_medroute: non given action: %s" % \
+                    action)
+    return results
+
 
 def convert_penicillin_dose(entries, log):
     # TODO convert mg to million unit
