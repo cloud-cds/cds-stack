@@ -319,7 +319,7 @@ shock_idx,TWF,Real,no,no,,,shock_idx_update,"heart_rate, sbpm","vital signs-base
 sirs_hr_oor,TWF,Boolean,no,no,,,sirs_hr_oor_update,heart_rate,"vital sign based,  it should not be sparse",1,no unit
 sirs_intp,TWF,Boolean,no,no,,,sirs_intp_update,sirs_raw,it should not be sparse,1,no unit
 sirs_raw,TWF,Boolean,no,no,,,sirs_raw_update,"sirs_temperature_oor, sirs_hr_oor, sirs_resp_oor, sirs_wbc_oor","mix of lab and vital signs, it should not be sparse",1,no unit
-sirs_resp_oor,TWF,Boolean,no,no,,,sirs_resp_oor_update,"resp_rate","vital signs based,  it should not be sparse",1,no unit
+sirs_resp_oor,TWF,Boolean,no,no,,,sirs_resp_oor_update,resp_rate,"vital signs based,  it should not be sparse",1,no unit
 sirs_temperature_oor,TWF,Boolean,no,no,,,sirs_temperature_oor_update,temperature,it should not be sparse,1,no unit
 sirs_wbc_oor,TWF,Boolean,no,no,,,sirs_wbc_oor_update,"wbc, bands",it should not be sparse,1,no unit
 sodium,TWF,Real,yes,no,last_value_in_window,28,,,Lab,1,mmol/L
@@ -361,3 +361,69 @@ warfarin_dose_order,T,String,yes,no,,,,,Medication Orders,1,
 wbc,TWF,Real,yes,no,last_value_in_window,28,,,Lab,1,K/mm3
 weight,TWF,Real,yes,no,last_value_in_window,168,,,Phyiologic,1,kg
 worst_sofa,TWF,Integer,no,no,,,worst_sofa_update,"resp_sofa, hepatic_sofa, hematologic_sofa, cardio_sofa, neurologic_sofa, renal_sofa",it should not be sparse,1,no unit
+acetylcysteine_dose,T,JSON,yes,no,,,,,Medication,1,mg
+metformin_dose,T,JSON,yes,no,,,,,Medication,1,mg
+amlodipine_dose,T,JSON,yes,no,,,,,Medication,1,mg
+nicardipine_dose,T,JSON,yes,no,,,,,Medication,1,mg
+nifedipine_dose,T,JSON,yes,no,,,,,Medication,1,mg
+atorvastatin_dose,T,JSON,yes,no,,,,,Medication,1,mg
+simvastatin_dose,T,JSON,yes,no,,,,,Medication,1,mg
+rosuvastatin_dose,T,JSON,yes,no,,,,,Medication,1,mg
+pravastatin_dose,T,JSON,yes,no,,,,,Medication,1,mg
+vytorin_dose,T,JSON,yes,no,,,,,Medication,1,mg
+ezetimibe_dose,T,JSON,yes,no,,,,,Medication,1,mg
+octreotide_dose,T,JSON,yes,no,,,,,Medication,1,mcg
+simvastatin_dose,T,JSON,yes,no,,,,,Medication,1,mg
+chlorothiazide_dose,T,JSON,yes,no,,,,,Medication,1,mg
+hydrochlorothiazide_dose,T,JSON,yes,no,,,,,Medication,1,mg
+aliskiren_dose,T,JSON,yes,no,,,,,Medication,1,mg
+indapamide_dose,T,JSON,yes,no,,,,,Medication,1,mg
+acetazolamide_dose,T,JSON,yes,no,,,,,Medication,1,mg
+bumetanide_dose,T,JSON,yes,no,,,,,Medication,1,mg
+triamterene_dose,T,JSON,yes,no,,,,,Medication,1,mg
+spironolactone_dose,T,JSON,yes,no,,,,,Medication,1,mg
+mannitol_dose,T,JSON,yes,no,,,,,Medication,1,g
+calcium_gluconate_dose,T,JSON,yes,no,,,,,Medication,1,mg
+sodium_polystyrene_dose,T,JSON,yes,no,,,,,Medication,1,g
+sevelamer_dose,T,JSON,yes,no,,,,,Medication,1,mg
+lanthanum_dose,T,JSON,yes,no,,,,,Medication,1,mg
+acyclovir_dose,T,JSON,yes,no,,,,,Medication,1,mg
+amphotericin_b_fungizone_dose,T,JSON,yes,no,,,,,Medication,1,mg
+amphotericin_b_ambisome_dose,T,JSON,yes,no,,,,,Medication,1,mg
+gadopentetate_dimeglumine_dose,T,JSON,yes,no,,,,,Medication,1,mL
+ifosfamide_dose,T,JSON,yes,no,,,,,Medication,1,mg
+ioversol_dose,T,JSON,yes,no,,,,,Medication,1,mL
+valsartan_dose,T,JSON,yes,no,,,,,Medication,1,mg
+candesartan_dose,T,JSON,yes,no,,,,,Medication,1,mg
+irbesartan_dose,T,JSON,yes,no,,,,,Medication,1,mg
+telmisartan_dose,T,JSON,yes,no,,,,,Medication,1,mg
+losartan_dose,T,JSON,yes,no,,,,,Medication,1,mg
+zonisamide_dose,T,JSON,yes,no,,,,,Medication,1,mg
+ketorolac_dose,T,JSON,yes,no,,,,,Medication,1,mg
+lithium_dose,T,JSON,yes,no,,,,,Medication,1,mg
+mesalamine_dose,T,JSON,yes,no,,,,,Medication,1,mg
+methotrexate_dose,T,JSON,yes,no,,,,,Medication,1,mg
+tacrolimus_dose,T,JSON,yes,no,,,,,Medication,1,mg
+topiramate_dose,T,JSON,yes,no,,,,,Medication,1,mg
+valacyclovir_dose,T,JSON,yes,no,,,,,Medication,1,mg
+valganciclovir_dose,T,JSON,yes,no,,,,,Medication,1,mg
+cisplatin_dose,T,JSON,yes,no,,,,,Medication,1,mg
+colistimethate_dose,T,JSON,yes,no,,,,,Medication,1,mg
+cyclosporine_dose,T,JSON,yes,no,,,,,Medication,1,mg
+dapsone_dose,T,JSON,yes,no,,,,,Medication,1,mg
+ganciclovir_dose,T,JSON,yes,no,,,,,Medication,1,mg
+sulfasalazine_dose,T,JSON,yes,no,,,,,Medication,1,mg
+allopurinol_dose,T,JSON,yes,no,,,,,Medication,1,mg
+carboplatin_dose,T,JSON,yes,no,,,,,Medication,1,mg
+cefotaxime_dose,T,JSON,yes,no,,,,,Medication,1,mg
+dexlansoprazole_dose,T,JSON,yes,no,,,,,Medication,1,mg
+esomeprazole_dose,T,JSON,yes,no,,,,,Medication,1,mg
+lansoprazole_dose,T,JSON,yes,no,,,,,Medication,1,mg
+omeprazole_dose,T,JSON,yes,no,,,,,Medication,1,mg
+cefuroxime_dose,T,JSON,yes,no,,,,,Medication,1,mg
+valsartan_hydrochlorothiazide_dose,T,JSON,yes,no,,,,,Medication,1,mg
+candesartan_hydrochlorothiazide_dose,T,JSON,yes,no,,,,,Medication,1,mg
+irbesartan_hydrochlorothiazide_dose,T,JSON,yes,no,,,,,Medication,1,mg
+losartan_hydrochlorothiazide_dose,T,JSON,yes,no,,,,,Medication,1,mg
+telmisartan_amlodipine_dose,T,JSON,yes,no,,,,,Medication,1,mg
+telmisartan_hydrochlorothiazide_dose,T,JSON,yes,no,,,,,Medication,1,mg
