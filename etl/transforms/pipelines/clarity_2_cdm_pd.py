@@ -560,3 +560,355 @@ async def notes(connection, dataset_id, fids, log, is_plan, clarity_workspace):
     log.info('Notes query skipped, due to plan mode')
 
   return log_time(log, 'note', start, '[status: %s]' % status, '[status: %s]' % status)
+
+async def split_vytorin(connection, dataset_id, fids, log, is_plan, clarity_workspace):
+    log.info("Entering Vytorin Split Processing")
+
+    start = time.time()
+    query = """select * from {ws}."MedicationAdministration" inner join pat_enc on {ws}."MedicationAdministration"."CSN_ID" = pat_enc.visit_id
+    WHERE "display_name" ilike '%%vytorin%%' 
+    AND NOT "display_name" ILIKE ANY(array['%%gel%%','%%vaginal%%','%%cream%%','%%ophthalmic%%','%%ointment%%','%%nebulizer%%','%%drop%%'])
+    AND pat_enc.dataset_id = {dataset} 
+    """.format(ws=clarity_workspace, dataset = dataset_id)                
+
+    sql_dt = await async_read_df(query, connection)
+    log.info("Finished reading Vytorin data")
+    results = []
+
+    for ix, dt in sql_dt.iterrows():
+        fid_list = re.findall(r'ezetimibe|simvastatin|pravastatin', dt['display_name'], re.I)
+        dosage_list = re.findall(r'(\d+\.?\d+)', dt['display_name'], re.I)
+        for j in [0, 1]:
+            fid = "{}_dose".format(fid_list[j]).lower()
+            dose = dosage_list[j].lower()
+            results.append([dataset_id, dt['enc_id'], pd.to_datetime(dt['TimeActionTaken']),
+             fid, str(dt['ORDER_INST']), dt['ActionTaken'], dose])
+    log.info("Finished processing Vytorin data")
+
+    if not is_plan:
+        log.info("Start writing into databaset")
+        for i in results:            
+            json_dump = json.dumps({'order_tsp' : i[4], 'action' : i[5], 'dose' : i[6]})
+            await load_row.upsert_t(connection, [i[1], i[2], i[3], json_dump, 2], dataset_id = dataset_id, log = log)
+        log.info('Vytorin write in complete')
+    else:
+        log.info('Vytorin write in skipped, due to plan mode')
+    extracted = len(sql_dt)
+    loaded = len(results)
+    return log_time(log, 'votorin', start, extracted, loaded)
+
+async def split_hydrochlorothiazide(connection, dataset_id, fids, log, is_plan, clarity_workspace):
+    log.info("Entering hydrochlorothiazide Split Processing")
+    start = time.time()
+
+    query = """select * from {ws}."MedicationAdministration" 
+    inner join pat_enc on {ws}."MedicationAdministration"."CSN_ID" = pat_enc.visit_id
+    WHERE "display_name" ilike 'hydrochlorothiazide%%'
+    AND NOT "display_name" ILIKE ANY(array['%%gel%%','%%vaginal%%','%%cream%%','%%ophthalmic%%','%%ointment%%','%%nebulizer%%','%%drop%%'])
+    AND pat_enc.dataset_id = {dataset} 
+    """.format(ws=clarity_workspace, dataset = dataset_id)                
+    
+    sql_dt = await async_read_df(query, connection)
+    log.info("Finished reading Hydrochlorothiazide data")    
+    results = []
+
+    for ix, dt in sql_dt.iterrows():
+        fid_list = re.findall(r'hydrodiuril|MICROZIDE', dt['display_name'], re.I)
+        dosage_list = re.findall(r'(\d+\.?\d+)', dt['display_name'], re.I)
+
+        for j in [0]:
+            fid = "{}_dose".format(fid_list[j]).lower()
+            dose = dosage_list[j].lower()
+            results.append([dataset_id, dt['enc_id'], pd.to_datetime(dt['TimeActionTaken']),
+             fid, str(dt['ORDER_INST']), dt['ActionTaken'], dose])
+    log.info("Finished processing Hydrochlorothiazide data")
+    
+    if not is_plan:
+        log.info("Start writing into databaset")
+        for i in results:            
+            json_dump = json.dumps({'order_tsp' : i[4], 'action' : i[5], 'dose' : i[6]})
+            await load_row.upsert_t(connection, [i[1], i[2], i[3], json_dump, 2], dataset_id = dataset_id, log = log)
+        log.info('Hydrochlorothiazide write in complete')
+    else:
+        log.info('Hydrochlorothiazide write in skipped, due to plan mode')
+       
+    extracted = len(sql_dt)
+    loaded = len(results)
+    return log_time(log, 'hydrochlorothiazide', start, extracted, loaded)
+
+
+async def split_amlodipine_valsartan(connection, dataset_id, fids, log, is_plan, clarity_workspace):
+    log.info("Entering amlodipine_valsartan Split Processing")  
+    start = time.time()
+    
+    query = """select * from {ws}."MedicationAdministration" 
+    inner join pat_enc on {ws}."MedicationAdministration"."CSN_ID" = pat_enc.visit_id
+    WHERE "display_name" ilike 'amlodipine%%valsartan%%EXFORGE%%'
+    AND NOT "display_name" ILIKE ANY(array['%%gel%%','%%vaginal%%','%%cream%%','%%ophthalmic%%','%%ointment%%','%%nebulizer%%','%%drop%%'])
+    AND pat_enc.dataset_id = {dataset} 
+    """.format(ws=clarity_workspace, dataset = dataset_id)                
+    
+    sql_dt = await async_read_df(query, connection)
+    log.info("Finished reading amlodipine_valsartan data")
+    results = []
+    
+    for ix, dt in sql_dt.iterrows():
+        fid_list = re.findall(r'amlodipine|valsartan', dt['display_name'], re.I)
+        dosage_list = re.findall(r'(\d+\.?\d+)', dt['display_name'], re.I)        
+        for j in [0, 1]:
+            fid = "{}_dose".format(fid_list[j]).lower()
+            dose = dosage_list[j].lower()
+            results.append([dataset_id, dt['enc_id'], pd.to_datetime(dt['TimeActionTaken']),
+             fid, str(dt['ORDER_INST']), dt['ActionTaken'], dose])    
+    log.info("Finished processing amlodipine_valsartan data")
+    
+    if not is_plan:
+        log.info("Start writing into databaset")
+        for i in results:            
+            json_dump = json.dumps({'order_tsp' : i[4], 'action' : i[5], 'dose' : i[6]})
+            await load_row.upsert_t(connection, [i[1], i[2], i[3], json_dump, 2], dataset_id = dataset_id, log = log)
+        log.info('amlodipine_valsartan write in complete')
+    else:
+        log.info('amlodipine_valsartan write in skipped, due to plan mode')
+
+    extracted = len(sql_dt)
+    loaded = len(results)
+    return log_time(log, 'amlodipine_valsartan', start, extracted, loaded)
+
+
+async def split_valsartan_hydrochlorothiazide(connection, dataset_id, fids, log, is_plan, clarity_workspace):
+    log.info("Entering valsartan_hydrochlorothiazide Split Processing")
+    start = time.time()
+    
+    query = """select * from {ws}."MedicationAdministration" 
+    inner join pat_enc on {ws}."MedicationAdministration"."CSN_ID" = pat_enc.visit_id
+    WHERE "display_name" ilike 'valsartan%%hydrochlorothiazide%%'
+    AND NOT "display_name" ILIKE ANY(array['%%gel%%','%%vaginal%%','%%cream%%','%%ophthalmic%%','%%ointment%%','%%nebulizer%%','%%drop%%'])
+    AND pat_enc.dataset_id = {dataset} 
+    """.format(ws=clarity_workspace, dataset = dataset_id)                
+
+    sql_dt = await async_read_df(query, connection)
+    log.info("Finished reading valsartan_hydrochlorothiazide data")    
+    results = []    
+
+    for ix, dt in sql_dt.iterrows():
+        fid_list = re.findall(r'hydrochlorothiazide|valsartan', dt['display_name'], re.I)
+        dosage_list = re.findall(r'(\d+\.?\d+)', dt['display_name'], re.I)        
+        for j in [0, 1]:
+            fid = "{}_dose".format(fid_list[j]).lower()
+            dose = dosage_list[j]
+            results.append([dataset_id, dt['enc_id'], pd.to_datetime(dt['TimeActionTaken']),
+             fid, str(dt['ORDER_INST']), dt['ActionTaken'], dose])
+    log.info("Finished processing valsartan_hydrochlorothiazide data")
+
+    if not is_plan:
+        log.info("Start writing into databaset")
+        for i in results:            
+            json_dump = json.dumps({'order_tsp' : i[4], 'action' : i[5], 'dose' : i[6]})
+            await load_row.upsert_t(connection, [i[1], i[2], i[3], json_dump, 2], dataset_id = dataset_id, log = log)
+        log.info('valsartan_hydrochlorothiazide write in complete')
+    else:
+        log.info('valsartan_hydrochlorothiazide write in skipped, due to plan mode')
+
+    extracted = len(sql_dt)
+    loaded = len(results)
+    return log_time(log, 'valsartan_hydrochlorothiazide', start, extracted, loaded)
+
+
+
+async def split_candesartan_hydrochlorothiazide(connection, dataset_id, fids, log, is_plan, clarity_workspace):
+    log.info("Entering candesartan_hydrochlorothiazide Split Processing")
+    start = time.time()
+    
+    query = """select * from {ws}."MedicationAdministration" 
+    inner join pat_enc on {ws}."MedicationAdministration"."CSN_ID" = pat_enc.visit_id
+    WHERE "display_name" ilike 'candesartan%%hydrochlorothiazide%%'
+    AND NOT "display_name" ILIKE ANY(array['%%gel%%','%%vaginal%%','%%cream%%','%%ophthalmic%%','%%ointment%%','%%nebulizer%%','%%drop%%'])
+    AND pat_enc.dataset_id = {dataset} 
+    """.format(ws=clarity_workspace, dataset = dataset_id)                
+
+    sql_dt = await async_read_df(query, connection)
+    log.info("Finished reading candesartan_hydrochlorothiazide data")    
+    results = []
+
+    for ix, dt in sql_dt.iterrows():
+        fid_list = re.findall(r'hydrochlorothiazide|candesartan', dt['display_name'], re.I)
+        dosage_list = re.findall(r'(\d+\.?\d+)', dt['display_name'], re.I)
+        for j in [0, 1]:
+            fid = "{}_dose".format(fid_list[j]).lower()
+            dose = dosage_list[j]
+            results.append([dataset_id, dt['enc_id'], pd.to_datetime(dt['TimeActionTaken']),
+             fid, str(dt['ORDER_INST']), dt['ActionTaken'], dose])
+    log.info("Finished processing candesartan_hydrochlorothiazide data")
+
+    if not is_plan:
+        log.info("Start writing into databaset")
+        for i in results:            
+            json_dump = json.dumps({'order_tsp' : i[4], 'action' : i[5], 'dose' : i[6]})
+            await load_row.upsert_t(connection, [i[1], i[2], i[3], json_dump, 2], dataset_id = dataset_id, log = log)
+        log.info('candesartan_hydrochlorothiazide write in complete')
+    else:
+        log.info('candesartan_hydrochlorothiazide write in skipped, due to plan mode')
+    
+    extracted = len(sql_dt)
+    loaded = len(results)
+    return log_time(log, 'candesartan_hydrochlorothiazide', start, extracted, loaded)
+
+
+async def split_irbesartan_hydrochlorothiazide(connection, dataset_id, fids, log, is_plan, clarity_workspace):
+    log.info("Entering irbesartan_hydrochlorothiazide Split Processing")
+    start = time.time()
+    
+    query = """select * from {ws}."MedicationAdministration" 
+    inner join pat_enc on {ws}."MedicationAdministration"."CSN_ID" = pat_enc.visit_id
+    WHERE "display_name" ilike 'irbesartan%%hydrochlorothiazide%%'
+    AND NOT "display_name" ILIKE ANY(array['%%gel%%','%%vaginal%%','%%cream%%','%%ophthalmic%%','%%ointment%%','%%nebulizer%%','%%drop%%'])
+    AND pat_enc.dataset_id = {dataset} 
+    """.format(ws=clarity_workspace, dataset = dataset_id)                
+
+    sql_dt = await async_read_df(query, connection)
+    log.info("Finished reading irbesartan_hydrochlorothiazide data")    
+    results = []
+
+    for ix, dt in sql_dt.iterrows():
+        fid_list = re.findall(r'hydrochlorothiazide|irbesartan', dt['display_name'], re.I)
+        dosage_list = re.findall(r'(\d+\.?\d+)', dt['display_name'], re.I)
+        for j in [0, 1]:
+            fid = "{}_dose".format(fid_list[j]).lower()
+            dose = dosage_list[j]
+            results.append([dataset_id, dt['enc_id'], pd.to_datetime(dt['TimeActionTaken']),
+             fid, str(dt['ORDER_INST']), dt['ActionTaken'], dose])
+
+    log.info("Finished processing irbesartan_hydrochlorothiazide data")
+    if not is_plan:
+        log.info("Start writing into databaset")
+        for i in results:            
+            json_dump = json.dumps({'order_tsp' : i[4], 'action' : i[5], 'dose' : i[6]})
+            await load_row.upsert_t(connection, [i[1], i[2], i[3], json_dump, 2], dataset_id = dataset_id, log = log)
+        log.info('irbesartan_hydrochlorothiazide write in complete')
+    else:
+        log.info('irbesartan_hydrochlorothiazide write in skipped, due to plan mode')
+
+    extracted = len(sql_dt)
+    loaded = len(results)
+    return log_time(log, 'irbesartan_hydrochlorothiazide', start, extracted, loaded)
+
+
+async def split_losartan_hydrochlorothiazide(connection, dataset_id, fids, log, is_plan, clarity_workspace):
+    log.info("Entering losartan_hydrochlorothiazide Split Processing")
+    start = time.time()
+    
+    query = """select * from {ws}."MedicationAdministration" 
+    inner join pat_enc on {ws}."MedicationAdministration"."CSN_ID" = pat_enc.visit_id
+    WHERE "display_name" ilike 'losartan%%hydrochlorothiazide%%'
+    AND NOT "display_name" ILIKE ANY(array['%%gel%%','%%vaginal%%','%%cream%%','%%ophthalmic%%','%%ointment%%','%%nebulizer%%','%%drop%%'])
+    AND pat_enc.dataset_id = {dataset} 
+    """.format(ws=clarity_workspace, dataset = dataset_id)                
+
+    sql_dt = await async_read_df(query, connection)
+    log.info("Finished reading losartan_hydrochlorothiazide data")
+    results = []
+
+    for ix, dt in sql_dt.iterrows():
+        fid_list = re.findall(r'hydrochlorothiazide|losartan', dt['display_name'], re.I)
+        dosage_list = re.findall(r'(\d+\.?\d+)', dt['display_name'], re.I)
+        for j in [0, 1]:
+            fid = "{}_dose".format(fid_list[j]).lower()
+            dose = dosage_list[j]
+            results.append([dataset_id, dt['enc_id'], pd.to_datetime(dt['TimeActionTaken']),
+             fid, str(dt['ORDER_INST']), dt['ActionTaken'], dose])
+
+    log.info("Finished processing losartan_hydrochlorothiazide data")
+    
+    if not is_plan:
+        log.info("Start writing into databaset")
+        for i in results:            
+            json_dump = json.dumps({'order_tsp' : i[4], 'action' : i[5], 'dose' : i[6]})
+            await load_row.upsert_t(connection, [i[1], i[2], i[3], json_dump, 2], dataset_id = dataset_id, log = log)
+        log.info('losartan_hydrochlorothiazide write in complete')
+    else:
+        log.info('losartan_hydrochlorothiazide write in skipped, due to plan mode')
+    extracted = len(sql_dt)
+    loaded = len(results)
+    return log_time(log, 'losartan_hydrochlorothiazide', start, extracted, loaded)
+
+
+async def split_telmisartan_amlodipine(connection, dataset_id, fids, log, is_plan, clarity_workspace):
+    log.info("Entering telmisartan_amlodipine Split Processing")
+
+    start = time.time()
+    query = """select * from {ws}."MedicationAdministration" 
+    inner join pat_enc on {ws}."MedicationAdministration"."CSN_ID" = pat_enc.visit_id
+    WHERE "display_name" ilike 'telmisartan%%amlodipine%%'
+    AND NOT "display_name" ILIKE ANY(array['%%gel%%','%%vaginal%%','%%cream%%','%%ophthalmic%%','%%ointment%%','%%nebulizer%%','%%drop%%'])
+    AND pat_enc.dataset_id = {dataset} 
+    """.format(ws=clarity_workspace, dataset = dataset_id)                
+
+    sql_dt = await async_read_df(query, connection)
+    log.info("Finished reading telmisartan_amlodipine data")    
+    results = []
+    
+    for ix, dt in sql_dt.iterrows():
+        fid_list = re.findall(r'telmisartan|amlodipine', dt['display_name'], re.I)
+        dosage_list = re.findall(r'(\d+\.?\d+)', dt['display_name'], re.I)
+        for j in [0, 1]:
+            fid = "{}_dose".format(fid_list[j]).lower()
+            dose = dosage_list[j]
+            results.append([dataset_id, dt['enc_id'], pd.to_datetime(dt['TimeActionTaken']),
+             fid, str(dt['ORDER_INST']), dt['ActionTaken'], dose])
+    
+    log.info("Finished processing telmisartan_amlodipine data")
+
+    if not is_plan:
+        log.info("Start writing into databaset")
+        for i in results:            
+            json_dump = json.dumps({'order_tsp' : i[4], 'action' : i[5], 'dose' : i[6]})
+            await load_row.upsert_t(connection, [i[1], i[2], i[3], json_dump, 2], dataset_id = dataset_id, log = log)
+        log.info('telmisartan_amlodipine write in complete')
+    else:
+        log.info('telmisartan_amlodipine write in skipped, due to plan mode')
+        
+    extracted = len(sql_dt)
+    loaded = len(results)
+    return log_time(log, 'telmisartan_amlodipine', start, extracted, loaded)
+    
+
+async def split_telmisartan_hydrochlorothiazide(connection, dataset_id, fids, log, is_plan, clarity_workspace):
+    log.info("Entering telmisartan_hydrochlorothiazide Split Processing")
+    start = time.time()
+    
+    query = """select * from {ws}."MedicationAdministration" 
+    inner join pat_enc on {ws}."MedicationAdministration"."CSN_ID" = pat_enc.visit_id
+    WHERE "display_name" ilike 'telmisartan%%hydrochlorothiazide%%'
+    AND NOT "display_name" ILIKE ANY(array['%%gel%%','%%vaginal%%','%%cream%%','%%ophthalmic%%','%%ointment%%','%%nebulizer%%','%%drop%%'])
+    AND pat_enc.dataset_id = {dataset} 
+    """.format(ws=clarity_workspace, dataset = dataset_id)                
+    
+    sql_dt = await async_read_df(query, connection)
+    log.info("Finished reading telmisartan_hydrochlorothiazide data")    
+    results = []
+
+    for ix, dt in sql_dt.iterrows():
+        fid_list = re.findall(r'telmisartan|hydrochlorothiazide', dt['display_name'], re.I)
+        dosage_list = re.findall(r'(\d+\.?\d+)', dt['display_name'], re.I)
+        for j in [0, 1]:
+            fid = "{}_dose".format(fid_list[j]).lower()
+            dose = dosage_list[j]
+            results.append([dataset_id, dt['enc_id'], pd.to_datetime(dt['TimeActionTaken']),
+             fid, str(dt['ORDER_INST']), dt['ActionTaken'], dose])
+
+    log.info("Finished processing telmisartan_hydrochlorothiazide data")
+    
+    if not is_plan:
+        log.info("Start writing into databaset")
+        for i in results:            
+            json_dump = json.dumps({'order_tsp' : i[4], 'action' : i[5], 'dose' : i[6]})
+            await load_row.upsert_t(connection, [i[1], i[2], i[3], json_dump, 2], dataset_id = dataset_id, log = log)
+        log.info('telmisartan_hydrochlorothiazide write in complete')
+    else:
+        log.info('telmisartan_hydrochlorothiazide write in skipped, due to plan mode')
+
+    extracted = len(sql_dt)
+    loaded = len(results)
+    return log_time(log, 'telmisartan_hydrochlorothiazide', start, extracted, loaded)
+
