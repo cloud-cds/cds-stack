@@ -15,6 +15,7 @@ from monitoring import APIMonitor
 import dashan_universe.transforms as transforms
 
 # Globals.
+EPIC_SERVER = os.environ['epic_server'] if 'epic_server' in os.environ else 'prod'
 api_monitor = APIMonitor()
 if api_monitor.enabled:
   api_monitor.register_metric('EpicNotificationSuccess', 'Count', [('API', api_monitor.monitor_target)])
@@ -522,7 +523,7 @@ async def is_order_placed(db_pool, eid, order_type, order_time):
   logging.info("Patient csn='{}', hosp='{}'".format(csn, hospital))
 
   # Extract and transform orders
-  jhapi_loader = JHAPI('prod', client_id, client_secret)
+  jhapi_loader = JHAPI(EPIC_SERVER, client_id, client_secret)
   lab_orders, med_orders = jhapi_loader.extract_orders(eid, csn, hospital)
   lab_orders = transforms.transform_lab_orders(lab_orders)
   med_orders = transforms.transform_med_orders(med_orders)
@@ -709,6 +710,9 @@ async def push_notifications_to_epic(db_pool, eid, notify_future_notification=Tr
 
 async def load_epic_notifications(notifications):
   total = len(notifications)
+  if total == 0:
+    logging.info("No notification need to be updated to Epic")
+    return
   if epic_notifications is not None and int(epic_notifications):
     success = []
     patients = [{
@@ -716,7 +720,7 @@ async def load_epic_notifications(notifications):
         'visit_id': n['visit_id'],
         'value': n['count']
     } for n in notifications]
-    jhapi_loader = JHAPI('prod', client_id, client_secret)
+    jhapi_loader = JHAPI(EPIC_SERVER, client_id, client_secret)
     responses = jhapi_loader.load_flowsheet(patients, flowsheet_id="9490")
 
     for pt, n, response in zip(patients, notifications, responses):
@@ -734,15 +738,18 @@ async def load_epic_notifications(notifications):
 
 async def load_epic_trewscores(trewscores):
   total = len(trewscores)
+  if total == 0:
+    logging.info("No trewscore need to be updated to Epic")
+    return
   if epic_notifications is not None and int(epic_notifications):
     success = []
     patients = [{
         'pat_id': n['pat_id'],
         'visit_id': n['visit_id'],
-        'value': n['trewscore'],
+        'value': format(n['trewscore'], '.2f').lstrip('0'),
         'tsp': n['tsp']
     } for n in trewscores]
-    jhapi_loader = JHAPI('prod', client_id, client_secret)
+    jhapi_loader = JHAPI(EPIC_SERVER, client_id, client_secret)
     responses = jhapi_loader.load_flowsheet(patients, flowsheet_id="9485")
 
     for pt, n, response in zip(patients, trewscores, responses):
@@ -807,8 +814,8 @@ async def invalidate_cache_batch(db_pool, pid, channel, serial_id, pat_cache):
     notifications = await conn.fetch(sql)
     await load_epic_notifications(notifications)
     pats = await conn.fetch(pat_sql)
+    logging.info("Invalidating cache for %s" % ','.join(pat_id['pat_id'] for pat_id in pats))
     for pat_id in pats:
-      logging.info("Invalidating cache for %s" % pat_id['pat_id'])
       asyncio.ensure_future(pat_cache.delete(pat_id['pat_id']))
 
 async def update_epic_trewscore(db_pool, pid, channel, serial_id, pat_cache):

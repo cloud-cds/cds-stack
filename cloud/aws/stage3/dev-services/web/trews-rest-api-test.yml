@@ -58,6 +58,8 @@ spec:
         env:
         #- name: force_pat_ids
         #  value: "comma_separated_pat_ids"
+        - name: epic_server
+          value: "test"
         - name: release
           value: "epic2017"
         - name: model_in_use
@@ -131,7 +133,7 @@ spec:
         - name: trews_open_access
           value: "false"
         - name: epic_notifications
-          value: "0"
+          value: "1"
         - name: logging
           value: "1"
         - name: logging_period

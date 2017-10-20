@@ -39,7 +39,7 @@ class JHAPI:
             'FlowsheetTemplateID':  '304700006',
         } for pat in patients]
         for payload in payloads:
-            logging.info('%s NOTIFY %s %s %s' % (payload['InstantValueTaken'], payload['PatientID'], payload['ContactID'], payload['Value']))
+            logging.info('%s load_flowsheet %s %s %s %s' % (flowsheet_id, payload['InstantValueTaken'], payload['PatientID'], payload['ContactID'], payload['Value']))
         reqs = [grequests.post(url, json=payload, timeout=10.0, headers=self.headers) for payload in payloads]
         responses = grequests.map(reqs)
         return responses

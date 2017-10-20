@@ -140,7 +140,7 @@ async def any_continuous_dose_update(fid, dose, conn, log, dataset_id=None,
            'start_c': 0, 'end_c': 0}
 
 # Special case
-async def update_continuous_dose_block(fid, block, conn, log, dataset_id, cdm_t_target, cdm_t_lookbackhours):
+async def update_continuous_dose_block(fid, block, conn, log, dataset_id, cdm_t_target):
   select_sql = """
     select value from %s cdm_t where enc_id = %s and fid = '%s'%s
     and tsp <= timestamptz '%s'
