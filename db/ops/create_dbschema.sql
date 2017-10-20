@@ -529,3 +529,14 @@ CREATE TABLE predictor_times (
     name        varchar(40) primary key,
     tsp         timestamptz
 );
+
+
+----------------------------------
+-- Load testing
+create unlogged table locust_stats (
+  job_id    int,
+  t_start   timestamptz,
+  t_end     timestamptz,
+  latencies jsonb,
+  load      jsonb
+);

@@ -22,7 +22,7 @@ spec:
           - "aws s3 cp s3://opsdx-deployment/scripts/trews-capture.sh /tmp && chmod 755 /tmp/trews-capture.sh && /tmp/trews-capture.sh"
         env:
         - name: capture_query # Must return a single column of pat_ids
-          value: "select distinct pat_id from pat_enc inner join cdm_s on pat_enc.enc_id = cdm_s.enc_id where cdm_s.fid = 'age' and cdm_s.value::numeric > 18 and pat_enc.enc_id in ( select enc_id from (select enc_id, count(*) c from criteria where update_date > now() - interval '6 hours' and is_met group by enc_id having count(*) > 6) R )"
+          value: "select distinct E.pat_id from get_alert_stats_by_enc(now() - interval '6 hours', now()) E inner join cdm_s on cdm_s.enc_id = E.enc_id and cdm_s.fid = 'age' inner join cdm_t on cdm_t.enc_id = E.enc_id and cdm_t.fid = 'care_unit' group by E.pat_id, E.enc_id having count(*) filter (where cdm_s.value::numeric < 18) = 0 and count(*) filter(where cdm_t.fid in ('HCGH LABOR & DELIVERY', 'HCGH EMERGENCY-PEDS', 'HCGH 2C NICU', 'HCGH 1CX PEDIATRICS', 'HCGH 2N MCU')) = 0"
         - name: query_id
           value: "dev.capture.test"
         - name: output_bucket

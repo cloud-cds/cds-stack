@@ -78,7 +78,7 @@ resource "aws_lambda_function" "trews_capture_lambda" {
         kube_cmd_2 = "aws s3 cp s3://opsdx-deployment/scripts/trews-capture.sh /tmp && chmod 755 /tmp/trews-capture.sh && /tmp/trews-capture.sh"
 
         # ETL Environment Variables
-        k8s_job_capture_query = "select distinct pat_id from get_alert_stats_by_enc(now() - interval '6 hours', now())"
+        k8s_job_capture_query = "select distinct E.pat_id from get_alert_stats_by_enc(now() - interval '6 hours', now()) E inner join cdm_s on cdm_s.enc_id = E.enc_id and cdm_s.fid = 'age' inner join cdm_t on cdm_t.enc_id = E.enc_id and cdm_t.fid = 'care_unit' group by E.pat_id, E.enc_id having count(*) filter (where cdm_s.value::numeric < 18) = 0 and count(*) filter(where cdm_t.value in ('HCGH LABOR & DELIVERY', 'HCGH EMERGENCY-PEDS', 'HCGH 2C NICU', 'HCGH 1CX PEDIATRICS', 'HCGH 2N MCU')) = 0"
         k8s_job_query_id      = "dev.capture.test"
         k8s_job_output_bucket = "opsdx-clarity-etl-stage"
         k8s_job_output_dir    = "trews-capture"

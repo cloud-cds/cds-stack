@@ -1,0 +1,20 @@
+FROM python:3.6.1-slim
+
+# Get pip to download and install requirements:
+RUN apt-get update \
+    && apt-get install -y build-essential libpq-dev rsyslog fuse postgresql-client git wget curl \
+    && pip install --upgrade pip \
+    && pip install --no-cache-dir setuptools \
+    && pip install awscli pytz sqlalchemy psycopg2 locustio
+
+# COPY licenses, sample tasks and entrypoint into root
+COPY app /
+
+# Set script to be executable
+RUN chmod 755 /entrypoint.sh
+
+# Expose the required Locust ports
+EXPOSE 5557 5558 8089
+
+# Start Locust using LOCUS_OPTS environment variable
+ENTRYPOINT ["/entrypoint.sh"]
