@@ -28,18 +28,15 @@ class JHAPI:
             logging.warn('No patients passed in')
             return None
         url = self.server + '/patients/addflowsheetvalue'
-        if 'tsp' in pat['tsp']:
-            pat['tsp'] = str(pat['tsp'].astimezone(pytz.timezone((load_tz))))
-        else:
-            t_utc = dt.datetime.utcnow().replace(tzinfo=pytz.utc)
-            pat['tsp'] = str(t_utc.astimezone(pytz.timezone(load_tz)))
+        t_utc = dt.datetime.utcnow().replace(tzinfo=pytz.utc)
+        now = str(t_utc.astimezone(pytz.timezone(load_tz)))
         payloads = [{
             'PatientID':            pat['pat_id'],
             'ContactID':            pat['visit_id'],
             'UserID':               'WSEPSIS',
             'FlowsheetID':          flowsheet_id,
             'Value':                pat['value'],
-            'InstantValueTaken':    pat['tsp'],
+            'InstantValueTaken':    str(pat['tsp'].astimezone(pytz.timezone((load_tz)))) if 'tsp' in pat else now,
             'FlowsheetTemplateID':  '304700006',
         } for pat in patients]
         for payload in payloads:
