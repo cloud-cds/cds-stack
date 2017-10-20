@@ -4729,6 +4729,36 @@ care_unit as (
   select D.enc_id, D.enter_time, D.leave_time, D.care_unit
   from discharge_filtered D
 ),
+bp_included as (
+  select distinct BP.enc_id
+  from get_latest_enc_ids('HCGH') BP
+  inner join cdm_s on cdm_s.enc_id = BP.enc_id and cdm_s.fid = 'age'
+  inner join cdm_t on cdm_t.enc_id = BP.enc_id and cdm_t.fid = 'care_unit'
+  group by BP.enc_id
+  having count(*) filter (where cdm_s.value::numeric <= 18) = 0
+  and count(*) filter(where cdm_t.value in ('HCGH LABOR & DELIVERY', 'HCGH EMERGENCY-PEDS', 'HCGH 2C NICU', 'HCGH 1CX PEDIATRICS', 'HCGH 2N MCU')) = 0
+),
+hcgh_discharged as (
+  select distinct cdm_t.enc_id
+  from cdm_t
+  where cdm_t.fid =  'care_unit' and cdm_t.value like '%HCGH%'
+  and cdm_t.enc_id not in (
+    select distinct enc_id
+    from (
+      select enc_id from bp_included
+      union all
+      select cdm_t.enc_id
+      from cdm_t
+      where cdm_t.fid = 'care_unit'
+      and cdm_t.value in ('HCGH LABOR & DELIVERY', 'HCGH EMERGENCY-PEDS', 'HCGH 2C NICU', 'HCGH 1CX PEDIATRICS', 'HCGH 2N MCU')
+      group by cdm_t.enc_id
+      union all
+      select cdm_s.enc_id
+      from cdm_s
+      where cdm_s.fid = 'age' and cdm_s.value::numeric <= 18
+    ) R
+  )
+),
 snapshots as (
   select R.pat_id, R.enc_id, R.event_id,
          max(R.update_date) as update_date,
@@ -4749,13 +4779,7 @@ snapshots as (
            min(C.measurement_time) filter (where C.name in ('blood_pressure','mean_arterial_pressure','decrease_in_sbp','respiratory_failure','creatinine','bilirubin','platelet','inr','lactate') and C.is_met ) as organ_onset,
            min(C.measurement_time) filter (where C.name = 'trews_subalert' and C.is_met) as trews_subalert_onset
     from criteria_events C
-    inner join (
-      select distinct cdm_t.enc_id
-      from cdm_t where cdm_t.fid =  'care_unit' and cdm_t.value like '%HCGH%'
-      and cdm_t.enc_id not in ( select distinct R.enc_id from get_latest_enc_ids('HCGH') R  )
-      union
-      select distinct BP.enc_id from get_latest_enc_ids('HCGH') BP
-    ) R on C.enc_id = R.enc_id
+    inner join enc_included R on C.enc_id = R.enc_id
     inner join pat_enc p on c.enc_id = p.enc_id
     group by p.pat_id, C.enc_id, C.event_id, C.flag
     having max(C.update_date) between ts_start and ts_end
