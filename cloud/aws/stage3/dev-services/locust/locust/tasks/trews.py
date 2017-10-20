@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from locust import HttpLocust, TaskSet, events
+from locust import HttpLocust, TaskSet, events, stats
 import sys, os, random
 import logging
 import datetime
@@ -254,7 +254,7 @@ class IdleUser(HttpLocust):
 
 job_id = int(os.environ['JOB_ID']) if 'JOB_ID' in os.environ else -1
 table_name = os.environ['LOCUST_TABLE'] if 'LOCUST_TABLE' in os.environ else 'locust_stats'
-batch_size = int(os.environ['BATCH_SZ']) if 'BATCH_SZ' in os.environ else 100
+batch_size = int(os.environ['BATCH_SZ']) if 'BATCH_SZ' in os.environ else 1000
 
 prometheus_url = os.environ['PROM_URL'] if 'PROM_URL' in os.environ else 'http://prometheus-prometheus-server.monitoring.svc.cluster.local'
 prometheus_load_query = 'label_replace(sum(rate(container_cpu_usage_seconds_total{pod_name=~".*trews-rest-api-[0-9].*", image=~".*universe.*"}[2m])) by (pod_name),"pod_lbl","trews-api-$1","pod_name","trews-rest-api-[0-9a-zA-Z]*-(.*)")'
@@ -292,29 +292,45 @@ def flush_stats():
         logging.error("Error: {}".format(e))
 
 
+    # Get Locust stats (without aggregating over the full history)
+    # This relies on Locust's implementation to do incremental aggregation for
+    # only the fields used below.
+    total_stats = stats.global_stats.aggregated_stats()
+    locust_stats = {
+        'num_requests'         : total_stats.num_requests,
+        'num_failures'         : total_stats.num_failures,
+        'last_tsp'             : total_stats.last_request_timestamp,
+        'start_time'           : total_stats.start_time,
+        'total_response_time'  : total_stats.total_response_time,
+        'max_response_time'    : total_stats.max_response_time,
+        'min_response_time'    : total_stats.min_response_time,
+        'total_content_length' : total_stats.total_content_length
+    }
+
     # Write to DB
     params = {
-        'job_id'  : job_id,
-        't_start' : t_start,
-        't_end'   : t_end,
-        'latency' : json.dumps(latencies),
-        'load'    : json.dumps(pod_cpus)
+        'job_id'       : job_id,
+        't_start'      : t_start,
+        't_end'        : t_end,
+        'latency'      : json.dumps(latencies),
+        'load'         : json.dumps(pod_cpus),
+        'locust_stats' : json.dumps(locust_stats)
     }
 
     sql = \
     '''
-    insert into %(tbl)s (job_id, t_start, t_end, latencies, load)
+    insert into %(tbl)s (job_id, t_start, t_end, latencies, load, locust_stats)
         values (
             :job_id,
             'epoch'::timestamptz + :t_start * interval '1 second',
             'epoch'::timestamptz + :t_end * interval '1 second',
-            :latency, :load)
+            :latency, :load, :locust_stats)
     ''' % {'tbl': table_name}
 
     conn = engine.connect()
     conn.execute(text(sql), params)
 
-    logging.info('Pushed stats to DB for %s to %s' % (batch_start, batch_end))
+    logging.info('Pushed stats to DB for %s' % batch_start)
     latencies.clear()
     conn.close()
 

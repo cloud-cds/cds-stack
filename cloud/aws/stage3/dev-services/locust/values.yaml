@@ -23,7 +23,7 @@ master:
     db_user: ""
     db_password: ""
     job_id: "1"
-    batch_sz: "100"
+    batch_sz: "1000"
   nodeSelector:
     opsdx_nodegroup: locust
   resources:
@@ -46,7 +46,7 @@ worker:
     db_user: ""
     db_password: ""
     job_id: "1"
-    batch_sz: "100"
+    batch_sz: "1000"
   nodeSelector:
     opsdx_nodegroup: locust
   replicaCount: 8

@@ -533,10 +533,12 @@ CREATE TABLE predictor_times (
 
 ----------------------------------
 -- Load testing
+--
 create unlogged table locust_stats (
-  job_id    int,
-  t_start   timestamptz,
-  t_end     timestamptz,
-  latencies jsonb,
-  load      jsonb
+  job_id        int,
+  t_start       timestamptz,
+  t_end         timestamptz,
+  latencies     jsonb,
+  load          jsonb,
+  locust_stats  jsonb
 );
