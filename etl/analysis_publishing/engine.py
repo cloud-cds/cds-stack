@@ -39,7 +39,7 @@ class Engine:
         return default_val
 
     self.BEHAMON_STACK = try_to_read_from_environ('BEHAMON_STACK','Test')
-    self.receiving_email_addresses = list(map(strip, try_to_read_from_environ('REPORT_RECEIVING_EMAIL_ADDRESS','trews-jhu@opsdx.io').split(',')))
+    self.receiving_email_addresses = list(map(lambda x: x.strip(), try_to_read_from_environ('REPORT_RECEIVING_EMAIL_ADDRESS','trews-jhu@opsdx.io').split(',')))
 
 
   def run(self, mode):
