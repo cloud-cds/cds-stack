@@ -585,7 +585,7 @@ class alert_evaluation_stats(metric):
                      count(tsp) as cnt
               from trews_jit_score
               where model_id = (select max(value) from trews_parameters where name = 'trews_jit_model_id')
-              and (orgdf_details::json#>>'{{alert}}') = 'True'
+              and (orgdf_details::json ->> 'alert') = 'True'
               and enc_id in (select enc_id from get_latest_enc_ids('HCGH'))
               and tsp between '%(end)s'::timestamptz - interval '%(interval)s' and '%(end)s'::timestamptz
               group by enc_id
@@ -632,7 +632,7 @@ class alert_evaluation_stats(metric):
                           from criteria_events C
                           inner join (
                             select distinct cdm_t.enc_id
-                            from cdm_t where cdm_t.fid =  'care_unit' and cdm_t.value like '%HCGH%'
+                            from cdm_t where cdm_t.fid =  'care_unit' and cdm_t.value like '%%HCGH%%'
                             and cdm_t.enc_id not in ( select distinct R.enc_id from get_latest_enc_ids('HCGH') R  )
                             union
                             select distinct BP.enc_id from get_latest_enc_ids('HCGH') BP
