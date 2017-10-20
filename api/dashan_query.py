@@ -746,7 +746,7 @@ async def load_epic_trewscores(trewscores):
     patients = [{
         'pat_id': n['pat_id'],
         'visit_id': n['visit_id'],
-        'value': n['trewscore'],
+        'value': format(n['trewscore'], '.2f').lstrip('0'),
         'tsp': n['tsp']
     } for n in trewscores]
     jhapi_loader = JHAPI(EPIC_SERVER, client_id, client_secret)
@@ -814,8 +814,8 @@ async def invalidate_cache_batch(db_pool, pid, channel, serial_id, pat_cache):
     notifications = await conn.fetch(sql)
     await load_epic_notifications(notifications)
     pats = await conn.fetch(pat_sql)
+    logging.info("Invalidating cache for %s" % ','.join(pat_id['pat_id'] for pat_id in pats))
     for pat_id in pats:
-      logging.info("Invalidating cache for %s" % pat_id['pat_id'])
       asyncio.ensure_future(pat_cache.delete(pat_id['pat_id']))
 
 async def update_epic_trewscore(db_pool, pid, channel, serial_id, pat_cache):
