@@ -59,6 +59,7 @@ class Engine:
         metrics.user_engagement,
         metrics.alert_stats_totals,
         metrics.alert_stats_by_unit,
+        metrics.alert_evaluation_stats,
         metrics.suspicion_of_infection_modified,
         # metrics.get_sepsis_state_stats,
         metrics.notification_stats,
