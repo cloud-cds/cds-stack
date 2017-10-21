@@ -9,6 +9,8 @@ import asyncio
 from aiohttp import web
 from aiohttp.web import Response
 
+from botocore.exceptions import ClientError
+
 #import watchtower
 from cw_log import CloudWatchLogHandler
 from fluentmetrics import FluentMetric
@@ -276,16 +278,22 @@ def post_log_object(request, response):
 
   return result
 
-
+# Time-based CW log flushing
 last_log_flush = datetime.datetime.utcnow()
 try:
   log_period = int(os.environ['logging_period']) if 'logging_period' in os.environ else 30
 except ValueError:
   log_period = 30
 
+# Packet-size based CW log flushing
+logged_bytes_since_flush = 0
+logged_bytes_packet_limit = 1048576 # Limit on CW put_log_events
+logged_bytes_flush_factor = 0.9
+
 async def cloudwatch_logger_middleware(app, handler):
   async def middleware_handler(request):
     global last_log_flush, log_period
+    global logged_bytes_since_flush, logged_bytes_packet_limit, logged_bytes_flush_factor
 
     # Pre-logging
     if cwlog_enabled:
@@ -297,15 +305,27 @@ async def cloudwatch_logger_middleware(app, handler):
 
     # Post-logging
     if cwlog_enabled:
-      cwlog.info(json.dumps({ 'resp': post_log_object(request, response) }))
+      try:
+        msg = json.dumps({ 'resp': post_log_object(request, response) })
+        cwlog.info(msg)
 
-      # Time-based manual flush
-      # TODO: exponential backoff on flush failures.
-      srvnow = datetime.datetime.utcnow()
-      do_flush = (srvnow - last_log_flush).total_seconds() > log_period
-      if do_flush:
-        cwlog_handler.flush()
-        last_log_flush = srvnow
+        # Time-based or size-based manual flush
+        srvnow = datetime.datetime.utcnow()
+        do_timed_flush = (srvnow - last_log_flush).total_seconds() > log_period
+
+        logged_bytes_since_flush += len(msg)
+        do_size_flush = logged_bytes_since_flush > logged_bytes_flush_factor * logged_bytes_packet_limit
+
+        do_flush = do_timed_flush or do_size_flush
+
+        if do_flush:
+          cwlog_handler.flush()
+          last_log_flush = srvnow
+          logged_bytes_since_flush = 0
+
+      except ClientError as e:
+        # TODO: exponential backoff on flush failures.
+        logging.error(str(e))
 
     return response
 
