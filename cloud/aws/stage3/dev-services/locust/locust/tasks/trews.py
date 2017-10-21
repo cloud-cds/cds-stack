@@ -10,7 +10,13 @@ import pytz
 import requests
 import sqlalchemy
 from sqlalchemy import text
+
+####################
+# Configuration
+
 sys.path.append(os.getcwd())
+logging.basicConfig()
+
 
 ###########################
 # Constants & Utilities
@@ -21,28 +27,83 @@ load_test_user = 'LOADTESTUSER'
 location = os.environ['TREWS_LOCATION'] if 'TREWS_LOCATION' in os.environ else '1103701'
 adminkey = os.environ['TREWS_ADMIN_KEY']
 
-global_pat_ids = [
-    "3121",
-    "3122",
-]
+global_pat_ids = []
 
-logging.basicConfig()
+
+##########################################
+# DB Helpers.
+
+def get_db_engine():
+    host     = os.environ['DB_HOST']
+    port     = os.environ['DB_PORT']
+    db       = os.environ['DB_NAME']
+    user     = os.environ['DB_USER']
+    pw       = os.environ['DB_PASSWORD']
+    conn_str = 'postgresql://{}:{}@{}:{}/{}'.format(user, pw, host, port, db)
+    return sqlalchemy.create_engine(conn_str)
+
+engine = get_db_engine()
+
+def run_sql(sql, params=None, fields):
+    global engine
+    conn = engine.connect()
+    if params:
+        r = conn.execute(text(sql), params)
+    else:
+        r = conn.execute(text(sql))
+
+    results = []
+    for row in r:
+        results.append([row[f] for f in fields])
+
+    conn.close()
+    return results
+
+def pat_ids_for_hospital(hospital):
+    excluded_units = {
+        'HCGH': ['HCGH LABOR & DELIVERY', 'HCGH EMERGENCY-PEDS', 'HCGH 2C NICU', 'HCGH 1CX PEDIATRICS', 'HCGH 2N MCU'],
+        'JHH' : [],
+        'BMC' : []
+    }
+
+    exclusion_clause = 'having count(*) filter (where cdm_s.value::numeric <= 18) = 0'
+    if hospital in excluded_units:
+        unit_list = map(lambda x: "'%s'" % s, excluded_units['hospital'])
+        exclusion_clause = \
+        '''
+        %(clause)s
+        and count(*) filter(where cdm_t.value in ( %(unit_list)s )) = 0
+        ''' % { 'clause': exclusion_clause, 'unit_list': unit_list }
+
+    pat_ids_sql = \
+    '''
+    select distinct P.pat_id
+    from get_latest_enc_ids(:hospital) BP
+    inner join cdm_s on cdm_s.enc_id = BP.enc_id and cdm_s.fid = 'age'
+    inner join cdm_t on cdm_t.enc_id = BP.enc_id and cdm_t.fid = 'care_unit'
+    inner join pat_enc P on BP.enc_id = P.enc_id
+    group by P.pat_id, BP.enc_id
+    %(exclusion_clause)s
+    ''' % { 'exclusion_clause' : exclusion_clause }
+
+    return run_sql(pat_ids_sql, {'hospital': hospital}, ['pat_id'])
+
+
+##########################################
+# Locust Task
 
 if 'TREWS_PATS' in os.environ:
     global_pat_ids = os.environ['TREWS_PATS'].split(',')
     logging.info('Using pat_ids: {}'.format(global_pat_ids))
 
-logging.info('Creating DB Engine... ')
+else:
+    # Default to getting all bedded patients in HCGH.
+    hospital = 'HCGH'
+    if 'TREWS_HOSPITAL' on os.environ:
+        hospital = os.environ['TREWS_HOSPITAL']
 
-host     = os.environ['DB_HOST']
-port     = os.environ['DB_PORT']
-db       = os.environ['DB_NAME']
-user     = os.environ['DB_USER']
-pw       = os.environ['DB_PASSWORD']
-conn_str = 'postgresql://{}:{}@{}:{}/{}'.format(user, pw, host, port, db)
-engine   = sqlalchemy.create_engine(conn_str)
-
-logging.info('Created DB engine.')
+    global_pat_ids = pat_ids_for_hospital(hospital)
+    logging.info('Using %s pat_ids from %s' % (len(global_pat_ids), hospital))
 
 
 def get_request_body(user, action_type=None, action=None):
