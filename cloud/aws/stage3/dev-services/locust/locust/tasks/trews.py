@@ -25,6 +25,7 @@ epoch = datetime.datetime.utcfromtimestamp(0).replace(tzinfo=pytz.UTC)
 
 load_test_user = 'LOADTESTUSER'
 location = os.environ['TREWS_LOCATION'] if 'TREWS_LOCATION' in os.environ else '1103701'
+department = os.environ['TREWS_DEPARTMENT'] if 'TREWS_DEPARTMENT' in os.environ else '110300460'
 adminkey = os.environ['TREWS_ADMIN_KEY']
 
 global_pat_ids = []
@@ -44,7 +45,7 @@ def get_db_engine():
 
 engine = get_db_engine()
 
-def run_sql(sql, params=None, fields):
+def run_sql(sql, params, fields):
     global engine
     conn = engine.connect()
     if params:
@@ -53,8 +54,10 @@ def run_sql(sql, params=None, fields):
         r = conn.execute(text(sql))
 
     results = []
-    for row in r:
-        results.append([row[f] for f in fields])
+
+    if fields:
+        for row in r:
+            results.append([row[f] for f in fields])
 
     conn.close()
     return results
@@ -68,7 +71,7 @@ def pat_ids_for_hospital(hospital):
 
     exclusion_clause = 'having count(*) filter (where cdm_s.value::numeric <= 18) = 0'
     if hospital in excluded_units:
-        unit_list = map(lambda x: "'%s'" % s, excluded_units['hospital'])
+        unit_list = ', '.join(map(lambda u: "'%s'" % u, excluded_units[hospital]))
         exclusion_clause = \
         '''
         %(clause)s
@@ -99,10 +102,10 @@ if 'TREWS_PATS' in os.environ:
 else:
     # Default to getting all bedded patients in HCGH.
     hospital = 'HCGH'
-    if 'TREWS_HOSPITAL' on os.environ:
+    if 'TREWS_HOSPITAL' in os.environ:
         hospital = os.environ['TREWS_HOSPITAL']
 
-    global_pat_ids = pat_ids_for_hospital(hospital)
+    global_pat_ids = list(map(lambda t: t[0], pat_ids_for_hospital(hospital)))
     logging.info('Using %s pat_ids from %s' % (len(global_pat_ids), hospital))
 
 
@@ -110,8 +113,8 @@ def get_request_body(user, action_type=None, action=None):
     return json.dumps({
         "q":            str(user['pat_id']),
         "u":            str(user['user_id']),
-        "depid":        "test_department",
-        "csn":          "123",
+        "depid":        str(user['department']),
+        "csn":          "1234567890",
         "loc":          str(user['location']),
         "actionType":   action_type,
         "action":       action
@@ -287,7 +290,8 @@ class IdleBehavior(TaskSet):
         self.user = {
             'pat_id': random.choice(global_pat_ids),
             'user_id': load_test_user,
-            'location': location
+            'location': location,
+            'department': department
         }
         index(self)
 
@@ -388,12 +392,9 @@ def flush_stats():
             :latency, :load, :locust_stats)
     ''' % {'tbl': table_name}
 
-    conn = engine.connect()
-    conn.execute(text(sql), params)
-
-    logging.info('Pushed stats to DB for %s' % batch_start)
+    run_sql(sql, params, None)
     latencies.clear()
-    conn.close()
+    logging.info('Pushed stats to DB for %s' % batch_start)
 
 def on_request_success(request_type, name, response_time, response_length):
     """
