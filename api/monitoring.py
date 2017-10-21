@@ -297,7 +297,9 @@ async def cloudwatch_logger_middleware(app, handler):
 
     # Pre-logging
     if cwlog_enabled:
-      cwlog.info(json.dumps({ 'req': pre_log_object(request) }))
+      msg = json.dumps({ 'req': pre_log_object(request) })
+      cwlog.info(msg)
+      logged_bytes_since_flush += len(msg)
 
     request.app['body'] = None
     request.app['render_data'] = None
@@ -314,11 +316,14 @@ async def cloudwatch_logger_middleware(app, handler):
         do_timed_flush = (srvnow - last_log_flush).total_seconds() > log_period
 
         logged_bytes_since_flush += len(msg)
-        do_size_flush = logged_bytes_since_flush > logged_bytes_flush_factor * logged_bytes_packet_limit
+        do_size_flush = logged_bytes_since_flush > (logged_bytes_flush_factor * logged_bytes_packet_limit)
 
         do_flush = do_timed_flush or do_size_flush
 
         if do_flush:
+          logtup = (do_timed_flush, do_size_flush, logged_bytes_since_flush, logged_bytes_since_flush / logged_bytes_packet_limit)
+          logging.info('CW LOG FLUSH: timed: %s size: %s bytes: %s (%s)' % logtup)
+
           cwlog_handler.flush()
           last_log_flush = srvnow
           logged_bytes_since_flush = 0
