@@ -4759,6 +4759,11 @@ hcgh_discharged as (
     ) R
   )
 ),
+enc_included as (
+  select distinct enc_id from hcgh_discharged
+  union
+  select distinct enc_id from bp_included
+),
 snapshots as (
   select R.pat_id, R.enc_id, R.event_id,
          max(R.update_date) as update_date,
