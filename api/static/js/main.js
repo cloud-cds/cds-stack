@@ -149,7 +149,6 @@ window.onload = function() {
   window.parent.postMessage({'action': 'Epic.Clinical.Informatics.Web.InitiateHandshake'}, '*');
 
   timer.init();
-  endpoints.getPatientData();
   dropdown.init();
   overrideModal.init();
   notifications.init();
@@ -379,7 +378,7 @@ var endpoints = new function() {
       url: this.url,
       data: JSON.stringify(postBody),
       dataType: "json",
-      start_time: new Date().getTime()
+      start_time: new Date().getTime(),
     }).done(function(result) {
       $('body').removeClass('waiting');
       if ( toolbarButton ) { toolbarButton.removeClass('loading'); }
