@@ -38,8 +38,6 @@ TREWS Alerts v2 2017-10-01
 | 602 | **3hr** have passed since **User-specified Severe Sepsis** onset|
 | 603 | **6hr** have passed since **User-specified Severe Sepsis** onset|
 | 604 | **6hr** have passed since **User-specified Septic Shock** onset|
-| 605 | **6hr** have passed since Suspicion of Infection should have been entered, **User-specified Severe Sepsis** criteria have been reset|
-| 606 | (SUPPRESSED)**6hr** have passed since Suspicion of Infection should have been entered, **User-specified Severe Sepsis** criteria have been reset|
 | 701 | **User-specified Severe Sepsis** **3hr** bundle intervention(s) need to be ordered|
 | 702 | **User-specified Severe Sepsis** **6hr** bundle intervention(s) need to be ordered|
 | 703 | **User-specified Septic Shock** **6hr** bundle intervention(s) need to be ordered|

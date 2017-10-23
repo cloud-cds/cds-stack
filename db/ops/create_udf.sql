@@ -1684,7 +1684,6 @@ return query
             ordered.enc_id,
             ordered.name,
             (case
-                when ordered.name = 'trews_subalert' then last(ordered.tsp ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
                 when ordered.name = 'trews_bilirubin' then last(((ordered.orgdf_details::json)#>>'{bilirubin_trigger,tsp}')::timestamptz ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
                 when ordered.name = 'trews_creatinine' then last(((ordered.orgdf_details::json)#>>'{creatinine_trigger,tsp}')::timestamptz ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
                 when ordered.name = 'trews_dsbp' then last(((ordered.orgdf_details::json)#>>'{delta_hypotetrigger,tsp}' )::timestamptz ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
@@ -1698,8 +1697,7 @@ return query
                 when ordered.name = 'trews_vent' then last(((ordered.orgdf_details::json)#>>'{vent_trigger,tsp}')::timestamptz ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
                 else null end
             )::timestamptz as measurement_time,
-            (case when ordered.name = 'trews_subalert' then last(json_build_object('alert', (ordered.orgdf_details::jsonb)#>'{alert}', 'pct_mortality', (ordered.orgdf_details::jsonb)#>'{percent_mortality}', 'pct_sevsep', (ordered.orgdf_details::jsonb)#>'{percent_sevsep}', 'heart_rate', (ordered.orgdf_details::jsonb)#>'{heart_rate}', 'lactate', (ordered.orgdf_details::jsonb)#>'{lactate}', 'sbpm', (ordered.orgdf_details::jsonb)#>'{sbpm}')::text ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_bilirubin' then last(((ordered.orgdf_details::jsonb)#>'{bilirubin_trigger}' #- '{tsp}')::text ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
+            (case when ordered.name = 'trews_bilirubin' then last(((ordered.orgdf_details::jsonb)#>'{bilirubin_trigger}' #- '{tsp}')::text ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
                 when ordered.name = 'trews_creatinine' then last(((ordered.orgdf_details::jsonb)#>'{creatinine_trigger}' #- '{tsp}')::text ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
                 when ordered.name = 'trews_dsbp' then last(((ordered.orgdf_details::jsonb)#>'{delta_hypotetrigger}' #- '{tsp}')::text ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
                 when ordered.name = 'trews_gcs' then last(((ordered.orgdf_details::jsonb)#>'{gcs_trigger}' #- '{tsp}')::text ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
@@ -1715,7 +1713,6 @@ return query
             (last(ordered.c_ouser ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)) as override_user,
             (last(ordered.c_ovalue ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)) as override_value,
             coalesce((case when last(ordered.c_ovalue#>>'{0,text}' ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz) = 'No Infection' then false
-                when ordered.name = 'trews_subalert' then last(((ordered.orgdf_details::jsonb)#>>'{alert}')::boolean ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
                 when ordered.name = 'trews_bilirubin' then last(ordered.bilirubin_orgdf::numeric = 1 ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
                 when ordered.name = 'trews_creatinine' then last(ordered.creatinine_orgdf::numeric = 1 ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
                 when ordered.name = 'trews_dsbp' then last(ordered.delta_hypotension::numeric = 1 ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
@@ -1738,7 +1735,39 @@ return query
             from pat_cvalues pc
             left join trews_jit_score ts on pc.enc_id = ts.enc_id
             and ts.model_id = get_trews_parameter('trews_jit_model_id')
-            where pc.name ~* 'trews'
+            where pc.name ~* 'trews_' and pc.name <> 'trews_subalert'
+        ) ordered
+        group by ordered.enc_id, ordered.name
+    ),
+    trews_subalert as (
+        select
+            ordered.enc_id,
+            ordered.name,
+            last(ordered.tsp ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
+                as measurement_time,
+            last(json_build_object('alert', (ordered.orgdf_details::jsonb)#>'{alert}', 'pct_mortality', (ordered.orgdf_details::jsonb)#>'{percent_mortality}', 'pct_sevsep', (ordered.orgdf_details::jsonb)#>'{percent_sevsep}', 'heart_rate', (ordered.orgdf_details::jsonb)#>'{heart_rate}', 'lactate', (ordered.orgdf_details::jsonb)#>'{lactate}', 'sbpm', (ordered.orgdf_details::jsonb)#>'{sbpm}')::text ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
+                as value,
+            (last(ordered.c_otime ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)) as override_time,
+            (last(ordered.c_ouser ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)) as override_user,
+            (last(ordered.c_ovalue ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)) as override_value,
+            coalesce(
+                (case when last(ordered.c_ovalue#>>'{0,text}' ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz) = 'No Infection' then false
+                    else last(((ordered.orgdf_details::jsonb)#>>'{alert}')::boolean ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz) and bool_or(trews_is_met)
+                end)
+            , false) as is_met,
+            now() as update_date,
+            false as is_acute -- NOTE: not implemented
+        from (
+            select pc.enc_id, pc.name,
+            pc.c_otime, pc.c_ouser, pc.c_ovalue,
+            ts.tsp, ts.score, ts.odds_ratio, ts.creatinine_orgdf,
+            ts.bilirubin_orgdf, ts.platelets_orgdf, ts.gcs_orgdf, ts.inr_orgdf, ts.sbpm_hypotension, ts.map_hypotension, ts.delta_hypotension, ts.vasopressors_orgdf, ts.lactate_orgdf, ts.vent_orgdf,ts.orgdf_details,
+            trews.is_met trews_is_met
+            from pat_cvalues pc
+            left join trews on pc.enc_id = trews.enc_id
+            left join trews_jit_score ts on pc.enc_id = ts.enc_id
+            and ts.model_id = get_trews_parameter('trews_jit_model_id')
+            where pc.name = 'trews_subalert'
         ) ordered
         group by ordered.enc_id, ordered.name
     ),
@@ -1907,7 +1936,7 @@ return query
         union all select *, null::boolean as is_acute from respiratory_failures
         union all select *, null::boolean as is_acute from organ_dysfunction_except_rf
         union all select * from trews
-        -- union all select * from trews_orgdf
+        union all select * from trews_subalert
         -- union all select *, null::boolean as is_acute from trews_vasopressors
         -- union all select *, null::boolean as is_acute from trews_vent
         union all select *, null::boolean as is_acute from ui_severe_sepsis
@@ -2880,7 +2909,7 @@ BEGIN
                         when code in ('202','402','602') then '3 hours'
                         when code in ('203','204','403','404','603','604') then '6 hours'
                         when code in ('304','504','704') then '2 hours'
-                        when code in ('305','306','505','506','705','506') then '5 hours'
+                        when code in ('305','306','505','506','506','705','706') then '5 hours'
                         else '0 hours'
                         end)::interval),
                 'suppression', 'false'
@@ -3169,7 +3198,7 @@ BEGIN
       from notifications
       where (message#>>'{alert_code}')::text in ('202','203','204','205','206',
         '402','403','404','405','406',
-        '602','603','604','605','606')
+        '602','603','604')
       and (message#>>'{timestamp}')::numeric > date_part('epoch', now())
       and enc_id = coalesce(pat_id_to_enc_id(_pat_id), enc_id)
       order by enc_id, tsp) O
