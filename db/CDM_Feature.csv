@@ -373,7 +373,6 @@ pravastatin_dose,T,JSON,yes,no,,,,,Medication,1,mg
 vytorin_dose,T,JSON,yes,no,,,,,Medication,1,mg
 ezetimibe_dose,T,JSON,yes,no,,,,,Medication,1,mg
 octreotide_dose,T,JSON,yes,no,,,,,Medication,1,mcg
-simvastatin_dose,T,JSON,yes,no,,,,,Medication,1,mg
 chlorothiazide_dose,T,JSON,yes,no,,,,,Medication,1,mg
 hydrochlorothiazide_dose,T,JSON,yes,no,,,,,Medication,1,mg
 aliskiren_dose,T,JSON,yes,no,,,,,Medication,1,mg
@@ -427,3 +426,16 @@ irbesartan_hydrochlorothiazide_dose,T,JSON,yes,no,,,,,Medication,1,mg
 losartan_hydrochlorothiazide_dose,T,JSON,yes,no,,,,,Medication,1,mg
 telmisartan_amlodipine_dose,T,JSON,yes,no,,,,,Medication,1,mg
 telmisartan_hydrochlorothiazide_dose,T,JSON,yes,no,,,,,Medication,1,mg
+amikacin_dose,T,JSON,yes,no,,,,,Medication,1,mg
+neomycin_dose,T,JSON,yes,no,,,,,Medication,1,mg
+trimethoprim_dose,T,JSON,yes,no,,,,,Medication,1,mg
+acetaminophen_dose,T,JSON,yes,no,,,,,Medication,1,mg
+naproxen_dose,T,JSON,yes,no,,,,,Medication,1,mg
+ibuprofen_dose,T,JSON,yes,no,,,,,Medication,1,mg
+diclofenac_dose,T,JSON,yes,no,,,,,Medication,1,mg
+indomethacin_dose,T,JSON,yes,no,,,,,Medication,1,mg
+meloxicam_dose,T,JSON,yes,no,,,,,Medication,1,mg
+celecoxib_dose,T,JSON,yes,no,,,,,Medication,1,mg
+benazepril_dose,T,JSON,yes,no,,,,,Medication,1,mg
+iohexol_dose,T,JSON,yes,no,,,,,Medication,1,mL
+iodixanol_dose,T,JSON,yes,no,,,,,Medication,1,mL

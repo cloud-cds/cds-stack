@@ -577,7 +577,7 @@ async def split_vytorin(connection, dataset_id, fids, log, is_plan, clarity_work
 
     for ix, dt in sql_dt.iterrows():
         fid_list = re.findall(r'ezetimibe|simvastatin|pravastatin', dt['display_name'], re.I)
-        dosage_list = re.findall(r'(\d+\.?\d+)', dt['display_name'], re.I)
+        dosage_list = re.findall(r'(\d+\.?\d{0,2})', dt['display_name'], re.I)
         for j in [0, 1]:
             fid = "{}_dose".format(fid_list[j]).lower()
             dose = dosage_list[j].lower()
@@ -614,7 +614,7 @@ async def split_hydrochlorothiazide(connection, dataset_id, fids, log, is_plan, 
 
     for ix, dt in sql_dt.iterrows():
         fid_list = re.findall(r'hydrodiuril|MICROZIDE', dt['display_name'], re.I)
-        dosage_list = re.findall(r'(\d+\.?\d+)', dt['display_name'], re.I)
+        dosage_list = re.findall(r'(\d+\.?\d{0,2})', dt['display_name'], re.I)
 
         for j in [0]:
             fid = "{}_dose".format(fid_list[j]).lower()
@@ -654,12 +654,12 @@ async def split_amlodipine_valsartan(connection, dataset_id, fids, log, is_plan,
     
     for ix, dt in sql_dt.iterrows():
         fid_list = re.findall(r'amlodipine|valsartan', dt['display_name'], re.I)
-        dosage_list = re.findall(r'(\d+\.?\d+)', dt['display_name'], re.I)        
+        dosage_list = re.findall(r'(\d+\.?\d{0,2})', dt['display_name'], re.I)        
         for j in [0, 1]:
             fid = "{}_dose".format(fid_list[j]).lower()
             dose = dosage_list[j].lower()
             results.append([dataset_id, dt['enc_id'], pd.to_datetime(dt['TimeActionTaken']),
-             fid, str(dt['ORDER_INST']), dt['ActionTaken'], dose])    
+                fid, str(dt['ORDER_INST']), dt['ActionTaken'], dose])    
     log.info("Finished processing amlodipine_valsartan data")
     
     if not is_plan:
@@ -693,7 +693,7 @@ async def split_valsartan_hydrochlorothiazide(connection, dataset_id, fids, log,
 
     for ix, dt in sql_dt.iterrows():
         fid_list = re.findall(r'hydrochlorothiazide|valsartan', dt['display_name'], re.I)
-        dosage_list = re.findall(r'(\d+\.?\d+)', dt['display_name'], re.I)        
+        dosage_list = re.findall(r'(\d+\.?\d{0,2})', dt['display_name'], re.I)        
         for j in [0, 1]:
             fid = "{}_dose".format(fid_list[j]).lower()
             dose = dosage_list[j]
@@ -733,7 +733,7 @@ async def split_candesartan_hydrochlorothiazide(connection, dataset_id, fids, lo
 
     for ix, dt in sql_dt.iterrows():
         fid_list = re.findall(r'hydrochlorothiazide|candesartan', dt['display_name'], re.I)
-        dosage_list = re.findall(r'(\d+\.?\d+)', dt['display_name'], re.I)
+        dosage_list = re.findall(r'(\d+\.?\d{0,2})', dt['display_name'], re.I)
         for j in [0, 1]:
             fid = "{}_dose".format(fid_list[j]).lower()
             dose = dosage_list[j]
@@ -772,7 +772,7 @@ async def split_irbesartan_hydrochlorothiazide(connection, dataset_id, fids, log
 
     for ix, dt in sql_dt.iterrows():
         fid_list = re.findall(r'hydrochlorothiazide|irbesartan', dt['display_name'], re.I)
-        dosage_list = re.findall(r'(\d+\.?\d+)', dt['display_name'], re.I)
+        dosage_list = re.findall(r'(\d+\.?\d{0,2})', dt['display_name'], re.I)
         for j in [0, 1]:
             fid = "{}_dose".format(fid_list[j]).lower()
             dose = dosage_list[j]
@@ -811,7 +811,7 @@ async def split_losartan_hydrochlorothiazide(connection, dataset_id, fids, log, 
 
     for ix, dt in sql_dt.iterrows():
         fid_list = re.findall(r'hydrochlorothiazide|losartan', dt['display_name'], re.I)
-        dosage_list = re.findall(r'(\d+\.?\d+)', dt['display_name'], re.I)
+        dosage_list = re.findall(r'(\d+\.?\d{0,2})', dt['display_name'], re.I)
         for j in [0, 1]:
             fid = "{}_dose".format(fid_list[j]).lower()
             dose = dosage_list[j]
@@ -850,7 +850,7 @@ async def split_telmisartan_amlodipine(connection, dataset_id, fids, log, is_pla
     
     for ix, dt in sql_dt.iterrows():
         fid_list = re.findall(r'telmisartan|amlodipine', dt['display_name'], re.I)
-        dosage_list = re.findall(r'(\d+\.?\d+)', dt['display_name'], re.I)
+        dosage_list = re.findall(r'(\d+\.?\d{0,2})', dt['display_name'], re.I)
         for j in [0, 1]:
             fid = "{}_dose".format(fid_list[j]).lower()
             dose = dosage_list[j]
@@ -890,7 +890,7 @@ async def split_telmisartan_hydrochlorothiazide(connection, dataset_id, fids, lo
 
     for ix, dt in sql_dt.iterrows():
         fid_list = re.findall(r'telmisartan|hydrochlorothiazide', dt['display_name'], re.I)
-        dosage_list = re.findall(r'(\d+\.?\d+)', dt['display_name'], re.I)
+        dosage_list = re.findall(r'(\d+\.?\d{0,2})', dt['display_name'], re.I)
         for j in [0, 1]:
             fid = "{}_dose".format(fid_list[j]).lower()
             dose = dosage_list[j]
