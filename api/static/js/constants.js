@@ -32,11 +32,11 @@ var ALERT_CODES = {
 	"101": "TREWScore has been elevated for ",
 	"200": "All criteria for <b>CMS Severe Sepsis</b> have been met",
 	"201": "All criteria for <b>CMS Septic Shock</b> have been met",
-	"202": "<b>3hr</b> have passed since <b>Severe Sepsis</b> onset",
-	"203": "<b>6hr</b> have passed since <b>Severe Sepsis</b> onset",
-	"204": "<b>6hr</b> have passed since <b>Septic Shock</b> onset",
-	"205": "<b>6hr</b> have passed since Suspicion of Infection should have been entered, CMS Severe Sepsis criteria have been reset",
-	"206": "<span class='suppressed'><b>6hr</b> have passed since Suspicion of Infection should have been entered, CMS Severe Sepsis Criteria have been reset</span>",
+	"202": "<b>3hrs</b> have passed since <b>Severe Sepsis</b> onset",
+	"203": "<b>6hrs</b> have passed since <b>Severe Sepsis</b> onset",
+	"204": "<b>6hrs</b> have passed since <b>Septic Shock</b> onset",
+	"205": "<b>6hrs</b> have passed since Suspicion of Infection should have been entered, CMS Severe Sepsis criteria have been reset",
+	"206": "<span class='suppressed'><b>6hrs</b> have passed since Suspicion of Infection should have been entered, CMS Severe Sepsis Criteria have been reset</span>",
 	"300": "Enter Suspicion of Infection: 2/3 CMS Severe Sepsis Criteria (SIRS and Organ Dysfunction) met",
 	"301": "Severe Sepsis 3hr bundle intervention(s) need to be ordered", 										// Should be prefixed with count of number of severe sepsis 3hr interventions pending.
 	"302": "Severe Sepsis 6hr bundle intervention(s) need to be ordered", 										// Should be prefixed with count of number of severe sepsis 6hr interventions pending.
@@ -47,11 +47,11 @@ var ALERT_CODES = {
 	"307": "<span class='suppressed'>Enter Suspicion of Infection: 2/3 CMS Severe Sepsis Criteria (SIRS and Organ Dysfunction) met</span>",
 	"400": "All criteria for <b>TREWS Severe Sepsis</b> have been met",
 	"401": "All criteria for <b>TREWS Septic Shock</b> have been met",
-	"402": "<b>3hr</b> have passed since <b>Severe Sepsis</b> onset",
-	"403": "<b>6hr</b> have passed since <b>Severe Sepsis</b> onset",
-	"404": "<b>6hr</b> have passed since <b>Septic Shock</b> onset",
-	"405": "<b>6hr</b> have passed since Suspicion of Infection should have been entered, TREWS Severe Sepsis Alert has been reset",
-	"406": "<span class='suppressed'><b>6hr</b> have passed since Suspicion of Infection should have been entered, TREWS Severe Sepsis Alert has been reset</span>",
+	"402": "<b>3hrs</b> have passed since <b>Severe Sepsis</b> onset",
+	"403": "<b>6hrs</b> have passed since <b>Severe Sepsis</b> onset",
+	"404": "<b>6hrs</b> have passed since <b>Septic Shock</b> onset",
+	"405": "<b>6hrs</b> have passed since Suspicion of Infection should have been entered, TREWS Severe Sepsis Alert has been reset",
+	"406": "<span class='suppressed'><b>6hrs</b> have passed since Suspicion of Infection should have been entered, TREWS Severe Sepsis Alert has been reset</span>",
 	"500": "Enter Suspicion of Infection: TREWS Severe Sepsis Alert met",
 	"501": "Severe Sepsis 3hr bundle intervention(s) need to be ordered", 										// Should be prefixed with count of number of severe sepsis 3hr interventions pending.
 	"502": "Severe Sepsis 6hr bundle intervention(s) need to be ordered", 										// Should be prefixed with count of number of severe sepsis 6hr interventions pending.
@@ -60,6 +60,17 @@ var ALERT_CODES = {
 	"505": "Severe Sepsis 6hr bundle intervention(s) need to be completed in the next hour",  // Should be prefixed with the number of severe sepsis interventions to be completed before the 6hr window expires.
 	"506": "Septic Shock 6hr bundle intervention(s) need to be completed in the next hour",    // Should be prefixed with the number of septic shock interventions to be completed before the 6hr window expires.
 	"507": "<span class='suppressed'>Enter Suspicion of Infection: TREWS Severe Sepsis Alert met</span>",
+	"600":	"Patient has been manually overridden for Severe Sepsis",
+	"601":	"Patient has been manually overridden for Septic Shock",
+	"602":	"3hrs have passed since Severe Sepsis Manual Override",
+	"603":	"6hrs have passed since Severe Sepsis Manual Override",
+	"604":	"6hrs have passed since Septic Shock Manual Override",
+	"701":	"Severe Sepsis 3hr bundle intervention(s) need to be ordered",
+	"702":	"Severe Sepsis 6hr bundle intervention(s) need to be ordered",
+	"703":	"Septic Shock 6hr bundle intervention(s) need to be ordered",
+	"704":	"Severe Sepsis 3hr bundle intervention(s) need to be completed in the next hour",
+	"705":	"Severe Sepsis 6hr bundle intervention(s) need to be completed in the next hour",
+	"706":	"Septic Shock 6hr bundle intervention(s) need to be completed in the next hour",
 }
 
 var LOG_STRINGS = {
@@ -81,7 +92,8 @@ var LOG_STRINGS = {
 	"toggle_notifications": " toggled notifications",
 	"auto_deactivate": " automatically deactivated the patient",
 	"reset_bundle_expired_pats": " reset patients with expired treatment bundles after 72 hrs",
-	"reset_noinf_expired_pats": " reset patients with no infection after 72 hrs"
+	"reset_noinf_expired_pats": " reset patients with no infection after 72 hrs",
+	"reset_soi_pats": " reset patients with expired CMS alerts after 6 hrs"
 }
 
 var EDIT = {
@@ -442,7 +454,7 @@ var severe_sepsis = {
 			"overrideModal": [{
 				"id": "override_respiratory_failure",
 				"header": "Override Respiratory Failure",
-				"name": "Respiratory Failure",
+				"name": "Respiratory Failure (Mechanical Ventilation Initiated)",
 				"units": "",
 				"step": 1,
 				"range": 'max',
@@ -533,11 +545,11 @@ var severe_sepsis = {
 				"header": "Override INR",
 				"name": "INR",
 				"units": "",
-				"step": 1000,
+				"step": 0.1,
 				"range": "max",
 				"minAbsolute": 0,
-				"maxAbsolute": 200000,
-				"value": 100000,
+				"maxAbsolute": 15,
+				"value": 1.5,
 				"acute_threshold": null,
 				"acute_cmp": null,
 				"acute_arrow": null
@@ -695,7 +707,7 @@ var severe_sepsis = {
 			"overrideModal": [{
 				"id": "override_trews_vent",
 				"header": "Override Respiratory Failure",
-				"name": "Respiratory Failure",
+				"name": "Respiratory Failure (Mechanical Ventilation Initiated)",
 				"units": "",
 				"step": 1,
 				"range": 'max',
@@ -710,10 +722,10 @@ var severe_sepsis = {
 		}, {
 			"key": "trews_creatinine",
 			"baseline_key": "baseline_creatinine",
-			"criteria_display_name": "Creatinine > 2.0 mg/dL or Urine Output < 0.5 mL/kg/hour for 2 hours",
+			"criteria_display_name": "Creatinine > 1.5 mg/dL",
 			"baseline_display_name": "0.5 mg/dL increase",
 			"baseline_trend": "increased",
-			"dropdown": "Creatinine and/or Urine Output is normal",
+			"dropdown": "Creatinine is normal",
 			"overrideModal": [{
 				"id": "override_trews_creatinine",
 				"header": "Override Creatinine",
@@ -723,23 +735,10 @@ var severe_sepsis = {
 				"range": "max",
 				"minAbsolute": 0.0,
 				"maxAbsolute": 4.0,
-				"value": 2.0,
+				"value": 1.5,
 				"acute_threshold": 0.3,
 				"acute_cmp": "GT",
 				"acute_arrow": "up"
-			}, {
-				"id": "override_trews_urine_output",
-				"header": "Override Urine Output",
-				"name": "Urine Output",
-				"units": "mL/kg/hour",
-				"step": 0.1,
-				"range": "min",
-				"minAbsolute": 0.0,
-				"maxAbsolute": 3.0,
-				"value": 0.5,
-				"acute_threshold": null,
-				"acute_cmp": null,
-				"acute_arrow": null
 			}],
 			"precision": 3
 		}, {
@@ -798,11 +797,11 @@ var severe_sepsis = {
 				"header": "Override INR",
 				"name": "INR",
 				"units": "",
-				"step": 1000,
+				"step": 0.1,
 				"range": "max",
 				"minAbsolute": 0,
-				"maxAbsolute": 200000,
-				"value": 100000,
+				"maxAbsolute": 15,
+				"value": 1.5,
 				"acute_threshold": null,
 				"acute_cmp": null,
 				"acute_arrow": null
