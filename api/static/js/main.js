@@ -1543,7 +1543,8 @@ var severeSepsisComponent = new function() {
                    alert_as_cms ? severe_sepsis['organ_dysfunction']['criteria_mapping'] : severe_sepsis['trews_organ_dysfunction']['criteria_mapping']);
 
     var num_orgdf = alert_as_cms ? json['organ_dysfunction']['num_met'] : json['trews_organ_dysfunction']['num_met'];
-    if (!(num_orgdf > 0
+    var num_orgdf_ovr = alert_as_cms ? json['organ_dysfunction']['num_overridden'] : json['trews_organ_dysfunction']['num_overridden'];
+    if (!(num_orgdf > 0 || num_orgdf_ovr > 0
             || trews.data['ui']['ui_severe_sepsis']['is_met']
             || trews.data['ui']['ui_septic_shock']['is_met'] ))
     {
