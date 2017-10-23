@@ -1757,3 +1757,38 @@ def _calculate_volume_in_ml_json(volumes, entry_cur, entry_nxt, remain_vol_pre, 
     else:
         log.warn("Invalid unit: %s" % unit)
 
+def convert_to_ml(entries, log):
+    global GIVEN_ACTIONS, IV_START_ACTIONS
+    results = []
+    for entry in entries:
+        action = entry['ActionTaken']
+        if action in GIVEN_ACTIONS or IV_START_ACTIONS:
+            result = _convert_to_ml(entry, log)
+            if result:
+                results.append(result)
+        else:
+            log.warn("convert_to_ml: non given action: %s" % action)
+    return results
+
+def _convert_to_ml(entry, log):
+    name = entry['display_name']
+    tsp = entry['TimeActionTaken']
+    dose = entry['Dose']
+    unit = entry['MedUnit']
+    order_tsp = entry['ORDER_INST']
+    action = entry['ActionTaken']
+    if dose is None:
+        return None    
+    log_assert(log, unit == 'L' or unit == 'mL', "Unknown unit %s" % unit   )
+    if unit == 'L':
+        return [tsp,
+                json.dumps({'dose': 1000*float(dose), \
+                    'order_tsp':order_tsp.strftime("%Y-%m-%d %H:%M:%S"),
+                    'action': entry['ActionTaken']}),
+                confidence.UNIT_TRANSFORMED]
+    elif unit == 'mL':
+        return [tsp,
+                json.dumps({'dose':float(dose), \
+                    'order_tsp':order_tsp.strftime("%Y-%m-%d %H:%M:%S"),
+                    'action': entry['ActionTaken']}),
+                confidence.UNIT_TRANSFORMED]
