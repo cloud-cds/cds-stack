@@ -840,7 +840,7 @@ var slotComponent = function(elem, link, display_name, skip_summary, border_with
 /*
  * Text description as previously used in the header.
  */
-function longPatientSummary(with_alert, action_type, with_treatment, with_reset, with_no_risk, with_separate_cms, with_html) {
+function longPatientSummary(with_alert, action_type, with_treatment, with_reset, with_no_risk, with_separate_cms, with_html, more_detail_html) {
 
   var care_status = null;
   var care_status_priority = null;
@@ -931,6 +931,9 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
         care_status = 'No infection suspected for this patient. ';
       }
       if ( action_type == 1 ) {
+        if ( more_detail_html ) {
+          care_status += more_detail_html;
+        }
         care_status += '<br>No further sepsis evaluation steps required at this time. '
       }
       care_status_priority = 'no-priority';
@@ -938,6 +941,9 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
     else if ( with_alert && not_acute_orgdf ) {
       care_status = 'No acute organ dysfunction due to infection for this patient. Evaluation step 1 complete. ';
       if ( action_type == 1 ) {
+        if ( more_detail_html ) {
+          care_status += more_detail_html;
+        }
         care_status += '<br>Please continue to monitor for any organ dysfunction due to infection.';
       }
       care_status_priority = 'no-priority';
@@ -972,6 +978,9 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
           }
         }
 
+        if ( action_type == 1 && more_detail_html ) {
+          care_status += more_detail_html;
+        }
         if ( action_type == 1 && actual_treatments < expected_treatments ) {
           care_status += '<br>Please order missing bundle items under Steps 3 and 5. '
         }
@@ -996,6 +1005,9 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
           }
         }
 
+        if ( action_type == 1 && more_detail_html ) {
+          care_status += more_detail_html;
+        }
         if ( action_type == 1 && actual_treatments < expected_treatments ) {
           care_status += '<br>Please order missing bundle items under Step 3. '
         }
@@ -1030,6 +1042,9 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
         care_status += (trews_subalert ? 'TREWS alert' : '') + (sirs_and_orgdf ? (trews_subalert ? ' and ' : '') + 'CMS alert' : '') + ' fired,';
       }
       if ( action_type == 1 ) {
+        if ( more_detail_html ) {
+          care_status += more_detail_html;
+        }
         var last_as_comma = care_status[care_status.length - 1] == ',';
         care_status +=  (last_as_comma ? ' please' : '<br>Please') + ' complete evaluation for severe sepsis in steps 1 and 2 below.';
       }
@@ -1285,12 +1300,10 @@ var careSummaryComponent = new function() {
 
     var has_any_alert = trews_alerting || cms_alerting;
 
-    // longPatientSummary args: with_alert, action_type, with_treatment, with_reset, with_no_risk, with_separate_cms
-    var patient_summary = longPatientSummary(true, 1, false, false, true, true, true);
+    // longPatientSummary args: with_alert, action_type, with_treatment, with_reset, with_no_risk, with_separate_cms, more_detail_html
+    var more_detail_html = '&nbsp;&nbsp;<span class="summary-more-detail">More Detail</span>';
+    var patient_summary = longPatientSummary(true, 1, false, false, true, true, true, has_any_alert ? more_detail_html : null);
     var summary_html = patient_summary.care_status;
-    if ( has_any_alert ) {
-      summary_html += '&nbsp;&nbsp;<span class="summary-more-detail">More Detail</span>';
-    }
     this.ctn.find('h4').html(summary_html);
 
     if ( has_any_alert ) {
@@ -1455,7 +1468,7 @@ var severeSepsisComponent = new function() {
 
   this.suspicion = function(json) {
     this.susCtn.find('h3').text(json['display_name']);
-    this.susCtn.removeClass('complete complete-with-status');
+    this.susCtn.removeClass('complete complete-with-status complete-no-infection');
     if (this.sus['value'] == null) {
       var highlightCls = this.highlightSuspicionClass();
       if ( highlightCls != null ) {
@@ -1472,6 +1485,9 @@ var severeSepsisComponent = new function() {
       this.susCtn.removeClass('highlight-expired highlight-unexpired');
       if (this.sus['value'] != 'No Infection') {
         this.susCtn.addClass('complete-with-status');
+      }
+      else {
+        this.susCtn.addClass('complete-no-infection');
       }
       this.susCtn.find('.status').show();
       this.susCtn.find('.selection').hide();
@@ -1496,10 +1512,11 @@ var severeSepsisComponent = new function() {
                         && json['suspicion_of_infection']['value'] == 'No Infection'
                         && (trews_alerting || cms_alerting);
 
+    this.ctn.removeClass('complete complete-no-infection');
     if (json['is_met']) {
       this.ctn.addClass('complete');
-    } else {
-      this.ctn.removeClass('complete');
+    } else if ( json['suspicion_of_infection']['value'] == 'No Infection' ) {
+      this.ctn.addClass('complete-no-infection');
     }
 
     this.sus = json['suspicion_of_infection'];
@@ -1615,7 +1632,7 @@ var septicShockComponent = new function() {
     if ( json['crystalloid_fluid']['is_met'] ) {
       fnoteBtnText = "Reset";
     } else {
-      fnoteBtnText = "Not Indicated";
+      fnoteBtnText = "Clinically Inappropriate";
     }
 
     if ( fnoteBtnText ) {
@@ -1624,7 +1641,7 @@ var septicShockComponent = new function() {
         "actionName": 'crystalloid_fluid'
       };
 
-      if ( fnoteBtnText == 'Not Indicated' ) {
+      if ( fnoteBtnText == 'Clinically Inappropriate' ) {
         action['value'] = [{'text': 'Not Indicated'}];
       } else {
         action['clear'] = true;

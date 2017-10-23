@@ -339,7 +339,11 @@ class TREWSFeedback(web.View):
           feedback = str(result_json['feedback'])
       )
 
-      subject = 'Feedback - {}'.format(str(result_json['u']))
+      if result_json['u'] is not None:
+        subject = 'Feedback - {}'.format(str(result_json['u']))
+      else:
+        subject = 'Feedback'
+
       html_text = [
           ("Physician", str(result_json['u'])),
           ("Current patient in view", str(result_json['q'])),

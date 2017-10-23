@@ -774,7 +774,7 @@ async def eid_exist(db_pool, eid):
 async def save_feedback(db_pool, doc_id, pat_id, dep_id, feedback):
   feedback_sql = '''
     INSERT INTO feedback_log (doc_id, tsp, enc_id, dep_id, feedback)
-    VALUES ('%(doc)s', now(), pat_id_to_enc_id('%(pid)s'::text), '%(dep)s', '%(fb)s');
+    VALUES ('%(doc)s', now(), pat_id_to_enc_id('%(pat)s'::text), '%(dep)s', '%(fb)s');
     ''' % {'doc': doc_id, 'pat': pat_id, 'dep': dep_id, 'fb': feedback}
 
   async with db_pool.acquire() as conn:

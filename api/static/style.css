@@ -177,7 +177,7 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
     background-color: #ca011a;
 }
 #status-header.low-priority {
-    background-color: #eca72c;
+    background-color: #fff100;
 }
 #status-header.no-priority {
     background-color: #aaa;
@@ -185,8 +185,11 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
 #status-header h5 {
     margin: 0;
     font-size: 14px;
-    line-height: 20px;
+    line-height: 28px;
     text-align: center;
+}
+#status-header.low-priority h5 {
+    color: #555;
 }
 /* End Header */
 #left-column {
@@ -508,8 +511,17 @@ div.slot[data-trews="care-summary-detail"] {
     margin-top: 6px;
     font-size: 16px;
 }
+.slot[data-trews="sus"].complete-with-status h3 {
+    opacity: 0.35;
+}
+.slot[data-trews="sus"].complete-no-infection h3 {
+    opacity: 0.35;
+}
 .slot[data-trews="eval-acute-orgdf"] {
     margin-top: 10px;
+}
+.card.complete-no-infection .slot[data-trews="eval-acute-orgdf"] h3 {
+    opacity: 0.35;
 }
 .slot[data-trews="eval-acute-orgdf"] h3 {
     float: left;
@@ -781,6 +793,15 @@ span.criteria-btn p {
     text-align: center;
 
     font-size: 16px;
+}
+.slot[data-trews="sus"].complete-with-status .numberCircle {
+    opacity: 0.3;
+}
+.slot[data-trews="sus"].complete-no-infection .numberCircle {
+    opacity: 0.3;
+}
+.card.complete-no-infection .slot[data-trews="eval-acute-orgdf"] .numberCircle {
+    opacity: 0.3;
 }
 .card.inactive .numberCircle, .slot.inactive .numberCircle {
     opacity: 0.3;
