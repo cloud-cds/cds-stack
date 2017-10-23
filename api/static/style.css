@@ -241,6 +241,7 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
     margin: 0 0 0 5px;
     font-size: 16px;
     font-weight: normal;
+    line-height: 2;
 }
 .card.card-summary h4 span.summary-more-detail {
     text-decoration: underline;

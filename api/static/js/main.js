@@ -400,7 +400,9 @@ var endpoints = new function() {
 
       if ( disablePage ) {
         $('#loading').removeClass('waiting').spin(false); // Remove any spinner from the page
-        var msg = "<b>Disabling TREWS: this patient meets our exclusion criteria.</b>" +
+        var exclusion_reason = "<b>Patient is less than 18 years old, or has been treated in an excluded hospital unit.</b>";
+        var msg = "<b>Disabling TREWS, this patient meets our exclusion criteria.</b>" +
+                  "<br/>" + exclusion_reason +
                   "<br/>Please contact trews-jhu@opsdx.io for more information.";
         $('#loading p').html(msg);
       }
@@ -838,7 +840,7 @@ var slotComponent = function(elem, link, display_name, skip_summary, border_with
 /*
  * Text description as previously used in the header.
  */
-function longPatientSummary(with_alert, with_action, with_treatment, with_reset, with_no_risk, with_separate_cms, with_html) {
+function longPatientSummary(with_alert, action_type, with_treatment, with_reset, with_no_risk, with_separate_cms, with_html) {
 
   var care_status = null;
   var care_status_priority = null;
@@ -854,6 +856,13 @@ function longPatientSummary(with_alert, with_action, with_treatment, with_reset,
     var not_infected = trews.data['severe_sepsis']['suspicion_of_infection']['update_time'] != null
                         && trews.data['severe_sepsis']['suspicion_of_infection']['value'] == 'No Infection'
                         && (trews_alerting || cms_alerting);
+
+    var has_infection = trews.data['severe_sepsis']['suspicion_of_infection']['update_time'] != null
+                          && trews.data['severe_sepsis']['suspicion_of_infection']['value'] == 'No Infection';
+
+    // TODO: change trews_alerting in the condition below when a dependency to trews_organ_dysfunction is added.
+    var not_acute_orgdf = has_infection && (trews_alerting || cms_alerting)
+                            && (trews_alerting || trews.data['severe_sepsis']['sirs']['is_met']);
 
     var sepsis_as_trews = trews.data['severe_sepsis']['is_met']
                             && trews.data['severe_sepsis']['is_trews']
@@ -921,6 +930,16 @@ function longPatientSummary(with_alert, with_action, with_treatment, with_reset,
       } else {
         care_status = 'No infection suspected for this patient. ';
       }
+      if ( action_type == 1 ) {
+        care_status += '<br>No further sepsis evaluation steps required at this time. '
+      }
+      care_status_priority = 'no-priority';
+    }
+    else if ( with_alert && not_acute_orgdf ) {
+      care_status = 'No acute organ dysfunction due to infection for this patient. Evaluation step 1 complete. ';
+      if ( action_type == 1 ) {
+        care_status += '<br>Please continue to monitor for any organ dysfunction due to infection.';
+      }
       care_status_priority = 'no-priority';
     }
     else if ( sepsis_onset != null || shock_onset != null ) {
@@ -930,6 +949,7 @@ function longPatientSummary(with_alert, with_action, with_treatment, with_reset,
         auto_reset_date = new Date(expired_date);
       }
 
+      // TODO: simplify to just 5 or 6?
       var expected_treatments = sev3_active ? 4 : (sev6_active ? 5 : 6);
       var actual_treatments = sev3_active ? num_sev3_complete : (sev6_active ? num_sev6_complete : num_sep6_complete);
 
@@ -951,6 +971,10 @@ function longPatientSummary(with_alert, with_action, with_treatment, with_reset,
             }
           }
         }
+
+        if ( action_type == 1 && actual_treatments < expected_treatments ) {
+          care_status += '<br>Please order missing bundle items under Steps 3 and 5. '
+        }
       }
       else if ( sepsis_onset != null ) {
         if ( trews.data['ui']['ui_severe_sepsis']['is_met'] ) {
@@ -969,8 +993,11 @@ function longPatientSummary(with_alert, with_action, with_treatment, with_reset,
             else if ( with_separate_cms ) {
               cms_status = 'CMS Severe Sepsis criteria met at ' + strToTime(new Date(trews.data['severe_sepsis']['cms_onset_time']*1000), true, false)  + '. '
             }
-
           }
+        }
+
+        if ( action_type == 1 && actual_treatments < expected_treatments ) {
+          care_status += '<br>Please order missing bundle items under Step 3. '
         }
       }
 
@@ -1002,7 +1029,11 @@ function longPatientSummary(with_alert, with_action, with_treatment, with_reset,
       } else {
         care_status += (trews_subalert ? 'TREWS alert' : '') + (sirs_and_orgdf ? (trews_subalert ? ' and ' : '') + 'CMS alert' : '') + ' fired,';
       }
-      if ( with_action ) {
+      if ( action_type == 1 ) {
+        var last_as_comma = care_status[care_status.length - 1] == ',';
+        care_status +=  (last_as_comma ? ' please' : '<br>Please') + ' complete evaluation for severe sepsis in steps 1 and 2 below.';
+      }
+      else if ( action_type == 2 ) {
         var last_as_comma = care_status[care_status.length - 1] == ',';
         care_status +=  (last_as_comma ? ' please' : ' Please') + ' complete the severe sepsis evaluation.';
       }
@@ -1149,6 +1180,7 @@ var careSummaryComponent = new function() {
 
   this.renderDetail = function(alert_as_cms, cms_status) {
     var score_str = null;
+    var score_str2 = null;
     var shock_str = null;
     var lactate_str = null;
 
@@ -1213,8 +1245,8 @@ var careSummaryComponent = new function() {
     if ( alert_as_cms ) {
       score_str = 'TREWS Acuity Score does not indicate high risk of severe sepsis';
     } else if (pct_mortality != null && pct_sevsep != null) {
-      score_str = 'At this TREWS Acuity Score, there is an <b>' + pct_mortality + '%</b> in-hospital mortality rate. '
-                + '<b>' + pct_sevsep + '%</b> of individuals experience severe sepsis.'
+      score_str = 'At this TREWS Acuity Score, there is an <b>' + pct_mortality + '%</b> in-hospital mortality rate.';
+      score_str2 = '<b>' + pct_sevsep + '%</b> of individuals experience severe sepsis.';
     }
 
     if ( heart_rate != null && sbp != null ) {
@@ -1231,10 +1263,11 @@ var careSummaryComponent = new function() {
     }
 
     var html_str = '<ul>'
-                   + (score_str == null ? '' : '<li>' + score_str + '</li><br><br>')
-                   + (cms_status != null ? '<li>' + cms_status + '</li><br><br>' : '')
-                   + '<li>' + shock_str + '</li><br><br>'
-                   + '<li>' + lactate_str + '</li>'
+                   + (score_str == null ? '' : '<li>' + score_str + '</li>')
+                   + (score_str2 == null ? ''  : '<br><li>' + score_str2 + '</li>')
+                   + (cms_status != null ? '<br><li>' + cms_status + '</li>' : '')
+                   //+ '<li>' + shock_str + '</li><br><br>'
+                   //+ '<li>' + lactate_str + '</li>'
                    + '</ul>'
                    ;
 
@@ -1244,36 +1277,50 @@ var careSummaryComponent = new function() {
   }
 
   this.render = function() {
-    // longPatientSummary args: with_alert, with_action, with_treatment, with_reset, with_no_risk, with_separate_cms
-    var patient_summary = longPatientSummary(true, false, false, false, true, true, true);
-    this.ctn.find('h4').html(patient_summary.care_status + '&nbsp;&nbsp;<span class="summary-more-detail">More Detail</span>');
-
     var trews_alerting = 'trews_subalert' in trews.data['severe_sepsis'] ? trews.data['severe_sepsis']['trews_subalert']['is_met'] : false;
     var cms_alerting = trews.data['severe_sepsis']['sirs']['is_met'] && trews.data['severe_sepsis']['organ_dysfunction']['is_met'];
 
     var alert_as_cms = (!trews_alerting && cms_alerting)
                           || (!trews.data['severe_sepsis']['is_trews'] && trews.data['severe_sepsis']['is_cms']);
 
-    this.renderDetail(alert_as_cms, patient_summary.cms_status);
+    var has_any_alert = trews_alerting || cms_alerting;
+
+    // longPatientSummary args: with_alert, action_type, with_treatment, with_reset, with_no_risk, with_separate_cms
+    var patient_summary = longPatientSummary(true, 1, false, false, true, true, true);
+    var summary_html = patient_summary.care_status;
+    if ( has_any_alert ) {
+      summary_html += '&nbsp;&nbsp;<span class="summary-more-detail">More Detail</span>';
+    }
+    this.ctn.find('h4').html(summary_html);
+
+    if ( has_any_alert ) {
+      this.renderDetail(alert_as_cms, patient_summary.cms_status);
+    }
 
     if ( this.detailVisible ) {
       this.detailSlot.elem.removeClass('hidden').addClass('unhidden');
-      this.ctn.find('h4 span.summary-more-detail').text('Less Detail');
+      if ( has_any_alert ) {
+        this.ctn.find('h4 span.summary-more-detail').text('Less Detail');
+      }
     } else {
       this.detailSlot.elem.removeClass('unhidden').addClass('hidden');
-      this.ctn.find('h4 span.summary-more-detail').text('More Detail');
+      if ( has_any_alert ) {
+        this.ctn.find('h4 span.summary-more-detail').text('More Detail');
+      }
     }
 
-    this.ctn.find('h4 span.summary-more-detail').unbind();
-    this.ctn.find('h4 span.summary-more-detail').click(function(e) {
-      if ( careSummaryComponent.detailSlot.elem.hasClass('hidden') ) {
-        careSummaryComponent.detailSlot.elem.removeClass('hidden').addClass('unhidden');
-      } else {
-        careSummaryComponent.detailSlot.elem.removeClass('unhidden').addClass('hidden');
-      }
-      careSummaryComponent.detailVisible = !careSummaryComponent.detailVisible;
-      careSummaryComponent.ctn.find('h4 span.summary-more-detail').text(careSummaryComponent.detailVisible ? 'Less Detail' : 'More Detail');
-    });
+    if ( has_any_alert ) {
+      this.ctn.find('h4 span.summary-more-detail').unbind();
+      this.ctn.find('h4 span.summary-more-detail').click(function(e) {
+        if ( careSummaryComponent.detailSlot.elem.hasClass('hidden') ) {
+          careSummaryComponent.detailSlot.elem.removeClass('hidden').addClass('unhidden');
+        } else {
+          careSummaryComponent.detailSlot.elem.removeClass('unhidden').addClass('hidden');
+        }
+        careSummaryComponent.detailVisible = !careSummaryComponent.detailVisible;
+        careSummaryComponent.ctn.find('h4 span.summary-more-detail').text(careSummaryComponent.detailVisible ? 'Less Detail' : 'More Detail');
+      });
+    }
   }
 }
 
@@ -2272,7 +2319,7 @@ var criteriaComponent = function(c, constants, key, hidden, criteria_mapping, cr
     else if ( skip_threshold_and_value ) {
       criteriaString += name;
     }
-    else if ( c['name'] == 'respiratory_failure' ) {
+    else if ( c['name'] == 'respiratory_failure' || c['name'] == 'trews_vent' ) {
       if (c['is_met']) {
         criteriaString += name;
       } else {
@@ -2846,20 +2893,31 @@ var notifications = new function() {
     var alertMsg = ALERT_CODES[data['alert_code']];
     var suppressed = false;
 
-    if ( data['alert_code'] == '301' || data['alert_code'] == '304' ) {
+    if ( data['alert_code'] == '301' || data['alert_code'] == '304'
+          || data['alert_code'] == '501' || data['alert_code'] == '504'
+          || data['alert_code'] == '701' || data['alert_code'] == '704' )
+    {
       var n = trews.getIncompleteSevereSepsis3hr();
       if ( n > 0 ) { alertMsg = String(n) + ' ' + alertMsg; } else { return null; }
     }
-    else if ( data['alert_code'] == '302' || data['alert_code'] == '305' ) {
+    else if ( data['alert_code'] == '302' || data['alert_code'] == '305'
+                || data['alert_code'] == '502' || data['alert_code'] == '505'
+                || data['alert_code'] == '702' || data['alert_code'] == '705' )
+    {
       var n = trews.getIncompleteSevereSepsis6hr();
       if ( n > 0 ) { alertMsg = String(n) + ' ' + alertMsg; } else { return null; }
     }
-    else if ( data['alert_code'] == '303' || data['alert_code'] == '306' ) {
+    else if ( data['alert_code'] == '303' || data['alert_code'] == '306'
+                || data['alert_code'] == '503' || data['alert_code'] == '506'
+                || data['alert_code'] == '703' || data['alert_code'] == '706' )
+    {
       var n = trews.getIncompleteSepticShock();
       if ( n > 0 ) { alertMsg = String(n) + ' ' + alertMsg; } else { return null; }
     }
 
-    if ( data['alert_code'] == '206' || data['alert_code'] == '307' ) {
+    if ( data['alert_code'] == '206' || data['alert_code'] == '307'
+            || data['alert_code'] == '406' || data['alert_code'] == '507' )
+    {
       suppressed = true;
     }
     return {'msg': alertMsg, 'suppressed': suppressed};
@@ -3245,8 +3303,8 @@ var toolbar = new function() {
     this.activateNav.show()
 
     // Render status bar.
-    // longPatientSummary args: with_alert, with_action, with_treatment, with_reset, with_no_risk
-    var patient_summary = longPatientSummary(false, true, true, true, false);
+    // longPatientSummary args: with_alert, action_type, with_treatment, with_reset, with_no_risk
+    var patient_summary = longPatientSummary(false, 2, true, true, false);
 
     if ( patient_summary.care_status ){
       this.statusBar.html('<h5>' + patient_summary.care_status + '</h5>');
