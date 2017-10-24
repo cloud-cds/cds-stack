@@ -172,6 +172,8 @@ h1, h2, h3, h4, h5, h6, a, p, td, th, span, label, input, select, option, li, .v
     background-color: #fff;
     color: #fff;
     display: none;
+    user-select: none;
+    cursor: default;
 }
 #status-header.high-priority {
     background-color: #ca011a;
