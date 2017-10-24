@@ -894,7 +894,7 @@ var severe_sepsis = {
 }
 
 var septic_shock = {
-	"display_name": "Septic Shock Evaluation",
+	"display_name": "Septic Shock Monitoring",
 	"tension": {
 		"key": "tension",
 		"display_name": "Persistent Hypotension",

@@ -854,15 +854,19 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
     var cms_alerting = trews.data['severe_sepsis']['sirs']['is_met'] && trews.data['severe_sepsis']['organ_dysfunction']['is_met'];
 
     var not_infected = trews.data['severe_sepsis']['suspicion_of_infection']['update_time'] != null
-                        && trews.data['severe_sepsis']['suspicion_of_infection']['value'] == 'No Infection'
-                        && (trews_alerting || cms_alerting);
+                        && trews.data['severe_sepsis']['suspicion_of_infection']['value'] == 'No Infection';
 
     var has_infection = trews.data['severe_sepsis']['suspicion_of_infection']['update_time'] != null
-                          && trews.data['severe_sepsis']['suspicion_of_infection']['value'] == 'No Infection';
+                          && trews.data['severe_sepsis']['suspicion_of_infection']['value'] != null
+                          && trews.data['severe_sepsis']['suspicion_of_infection']['value'] != 'No Infection';
 
-    // TODO: change trews_alerting in the condition below when a dependency to trews_organ_dysfunction is added.
-    var not_acute_orgdf = has_infection && (trews_alerting || cms_alerting)
-                            && (trews_alerting || trews.data['severe_sepsis']['sirs']['is_met']);
+    var trews_org_ovr = trews.data['severe_sepsis']['trews_organ_dysfunction']['num_met'] == 0
+                          && trews.data['severe_sepsis']['trews_organ_dysfunction']['num_overridden'] > 0;
+
+    var cms_org_ovr = trews.data['severe_sepsis']['organ_dysfunction']['num_met'] == 0
+                        && trews.data['severe_sepsis']['organ_dysfunction']['num_overridden'] > 0;
+
+    var not_acute_orgdf = trews_org_ovr || (trews.data['severe_sepsis']['sirs']['is_met'] && cms_org_ovr);
 
     var sepsis_as_trews = trews.data['severe_sepsis']['is_met']
                             && trews.data['severe_sepsis']['is_trews']
@@ -905,11 +909,8 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
     var care_completed = sev6_completed || sep6_completed;
     var care_expired = sev3_expired || sev6_expired || sep6_expired;
 
-    var expired_offset = ((sev3_expired ? 3 * 60 * 60 : 6 * 60 * 60) + (72 * 60 * 60)) * 1000;
-    var expired_date = ((sev3_expired || sev6_expired ? sepsis_onset : shock_onset) * 1000) + expired_offset;
-      // TODO: should this always be 72hrs after severe sepsis onset (not shock onset)?
-      // TODO: also, should this always be 72 hours after the onset time vs after the bundle expiry time.
-
+    var expired_offset = 72 * 60 * 60 * 1000;
+    var expired_date = (sepsis_onset * 1000) + expired_offset;
 
     if ( not_infected ) {
       var not_infected_time = null
@@ -923,28 +924,55 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
       }
 
       not_infected_date = new Date(not_infected_time.toFixed(0) * 1000);
-      auto_reset_date = not_infected_date.getTime() + (72 * 60 * 60 * 1000);
+      auto_reset_date = new Date(not_infected_date.getTime() + (72 * 60 * 60 * 1000));
 
       if ( with_alert ) {
-        care_status = 'Patient evaluted as not septic at ' + strToTime(not_infected_date, true, false) + '. ';
+        care_status = 'No infection suspected for this patient at ' + strToTime(not_infected_date, true, false) + '. ';
       } else {
-        care_status = 'No infection suspected for this patient. ';
+        care_status = 'Patient evaluted as not septic. ';
       }
       if ( action_type == 1 ) {
-        if ( more_detail_html ) {
-          care_status += more_detail_html;
-        }
         care_status += '<br>No further sepsis evaluation steps required at this time. '
       }
       care_status_priority = 'no-priority';
     }
-    else if ( with_alert && not_acute_orgdf ) {
-      care_status = 'No acute organ dysfunction due to infection for this patient. Evaluation step 1 complete. ';
+    else if ( not_acute_orgdf ) {
+      var not_acute_orgdf_time = null;
+      var orgdf_criteria =
+        trews_org_ovr ?
+          trews.data['severe_sepsis']['trews_organ_dysfunction']['criteria']
+          : trews.data['severe_sepsis']['organ_dysfunction']['criteria'];
+
+      for (var i in  orgdf_criteria) {
+        if ( orgdf_criteria[i]['override_time'] ) {
+          not_acute_orgdf_time = not_acute_orgdf_time == null ? orgdf_criteria[i]['override_time']
+                                  : Math.min(orgdf_criteria[i]['override_time'], not_acute_orgdf_time);
+        }
+      }
+
+      not_acute_orgdf_date = new Date(not_acute_orgdf_time.toFixed(0) * 1000);
+      auto_reset_date = new Date(not_acute_orgdf_date.getTime() + (72 * 60 * 60 * 1000)); // TODO: check whether this is implemented w/ Andong.
+
+      if ( with_alert ) {
+        care_status = 'No acute organ dysfunction due to infection for this patient'
+                        + (not_acute_orgdf_date ? ' at ' + strToTime(not_acute_orgdf_date, true, false) : '')+ '. ';
+
+      } else {
+        care_status = 'Patient evaluated as not septic. '
+      }
+
       if ( action_type == 1 ) {
+        if ( has_infection ) {
+          care_status += 'Evaluation steps 1 and 2 complete. '
+        }
         if ( more_detail_html ) {
           care_status += more_detail_html;
         }
-        care_status += '<br>Please continue to monitor for any organ dysfunction due to infection.';
+        if ( has_infection ) {
+          care_status += '<br>Please continue to monitor for any organ dysfunction due to infection.'
+        } else {
+          care_status += '<br>Please complete whether infection is suspected for this patient in evaluation step 1.';
+        }
       }
       care_status_priority = 'no-priority';
     }
@@ -1060,10 +1088,10 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
     }
 
     if ( with_reset && auto_reset_date != null ) {
-      var remaining = new Date(auto_reset_date - Date.now());
+      var remaining = new Date(auto_reset_date.getTime() - Date.now());
       var minutes = (remaining.getUTCMinutes() < 10) ? "0" + remaining.getUTCMinutes() : remaining.getUTCMinutes();
       var hours = remaining.getUTCHours();
-      var days = remaining.getUTCDay() - 4;
+      var days = remaining.getUTCDate() - 1;
 
       if ( days >= 0 && hours >= 0 && minutes >= 0 ) {
         care_status += ' TREWS will reset in ' + days + ' days ' + hours + ' hours ' + minutes + ' minutes.';
@@ -1093,9 +1121,7 @@ function patientSevereSepsisSummary() {
     var cms_alerting = trews.data['severe_sepsis']['sirs']['is_met'] && trews.data['severe_sepsis']['organ_dysfunction']['is_met'];
 
     var not_infected = trews.data['severe_sepsis']['suspicion_of_infection']['update_time'] != null
-                        && trews.data['severe_sepsis']['suspicion_of_infection']['value'] == 'No Infection'
-                        && (trews_alerting || cms_alerting);
-
+                        && trews.data['severe_sepsis']['suspicion_of_infection']['value'] == 'No Infection';
 
     var sepsis_onset = trews.data['severe_sepsis']['onset_time'];
 
@@ -1507,10 +1533,6 @@ var severeSepsisComponent = new function() {
 
     var trews_alerting = 'trews_subalert' in json ? json['trews_subalert']['is_met'] : false;
     var cms_alerting = json['sirs']['is_met'] && json['organ_dysfunction']['is_met'];
-
-    var not_infected = json['suspicion_of_infection']['update_time'] != null
-                        && json['suspicion_of_infection']['value'] == 'No Infection'
-                        && (trews_alerting || cms_alerting);
 
     this.ctn.removeClass('complete complete-no-infection');
     if (json['is_met']) {
