@@ -1679,7 +1679,7 @@ return query
         ) as ordered
         group by ordered.enc_id, ordered.name
     ),
-    trews as (
+    trews_orgdf as (
         select
             ordered.enc_id,
             ordered.name,
@@ -1762,14 +1762,19 @@ return query
             pc.c_otime, pc.c_ouser, pc.c_ovalue,
             ts.tsp, ts.score, ts.odds_ratio, ts.creatinine_orgdf,
             ts.bilirubin_orgdf, ts.platelets_orgdf, ts.gcs_orgdf, ts.inr_orgdf, ts.sbpm_hypotension, ts.map_hypotension, ts.delta_hypotension, ts.vasopressors_orgdf, ts.lactate_orgdf, ts.vent_orgdf,ts.orgdf_details,
-            trews.is_met trews_is_met
+            trews_orgdf.is_met trews_is_met
             from pat_cvalues pc
-            left join trews on pc.enc_id = trews.enc_id
+            left join trews_orgdf on pc.enc_id = trews_orgdf.enc_id
             left join trews_jit_score ts on pc.enc_id = ts.enc_id
             and ts.model_id = get_trews_parameter('trews_jit_model_id')
             where pc.name = 'trews_subalert'
         ) ordered
         group by ordered.enc_id, ordered.name
+    ),
+    trews as (
+        select * from trews_subalert
+        union all
+        select * from trews_orgdf
     ),
     sirs as (
         select
@@ -1936,9 +1941,6 @@ return query
         union all select *, null::boolean as is_acute from respiratory_failures
         union all select *, null::boolean as is_acute from organ_dysfunction_except_rf
         union all select * from trews
-        union all select * from trews_subalert
-        -- union all select *, null::boolean as is_acute from trews_vasopressors
-        -- union all select *, null::boolean as is_acute from trews_vent
         union all select *, null::boolean as is_acute from ui_severe_sepsis
     ),
     severe_sepsis_criteria as (
@@ -2818,7 +2820,7 @@ CREATE OR REPLACE FUNCTION update_notifications(
     alert_codes text[],
     severe_sepsis_onset timestamptz,
     septic_shock_onset timestamptz,
-    sirs_plus_organ_onset timestamptz,
+    severe_sepsis_wo_inf_onset timestamptz,
     sirs_plus_organ_initial timestamptz,
     mode text)
 RETURNS table(enc_id int, alert_code text) AS $$
@@ -2837,7 +2839,7 @@ BEGIN
                     else code
                 end)
                 , 'read', false,'timestamp',
-                date_part('epoch', sirs_plus_organ_onset::timestamptz),
+                date_part('epoch', severe_sepsis_wo_inf_onset::timestamptz),
                 'suppression', 'true',
                 'model', 'trews',
                 'trews_tsp', tsp,
@@ -2856,7 +2858,7 @@ BEGIN
                     else code
                 end)
                 , 'read', false,'timestamp',
-                date_part('epoch', sirs_plus_organ_onset::timestamptz),
+                date_part('epoch', severe_sepsis_wo_inf_onset::timestamptz),
                 'suppression', 'true',
                 'model', 'lmc',
                 'trews_tsp', tsp,
@@ -2874,7 +2876,7 @@ BEGIN
             json_build_object('alert_code', code, 'read', false,'timestamp',
                 date_part('epoch',
                     (case when code in ('201','204','303','306') then septic_shock_onset
-                          when code = '300' then sirs_plus_organ_onset
+                          when code in ('300', '500') then severe_sepsis_wo_inf_onset
                           else severe_sepsis_onset
                           end)::timestamptz
                     +
@@ -2901,7 +2903,7 @@ BEGIN
             json_build_object('alert_code', code, 'read', false,'timestamp',
                 date_part('epoch',
                     (case when code in ('201','204','303','306','401','404','503','506','601','604','703','706') then septic_shock_onset
-                          when code in ('300','500') then sirs_plus_organ_onset
+                          when code in ('300','500') then severe_sepsis_wo_inf_onset
                           else severe_sepsis_onset
                           end)::timestamptz
                     +
@@ -4513,8 +4515,26 @@ begin
   delete from notifications where enc_id = this_enc_id;
   delete from pat_status where enc_id = this_enc_id;
   delete from user_interactions where enc_id = this_enc_id;
+  delete from orgdf_baselines where pat_id = (select pat_id from pat_enc where enc_id = this_enc_id);
   delete from pat_enc where enc_id = this_enc_id;
 end;
+$$;
+
+CREATE OR REPLACE FUNCTION get_ofd_enc_ids(win text default '1 month')
+RETURNS table (enc_id int)
+LANGUAGE plpgsql
+AS
+$$
+begin
+return query with ofd as
+(select pe.enc_id, max(tsp) tsp from pat_enc pe
+inner join cdm_t t on pe.enc_id = t.enc_id
+group by pe.enc_id)
+select ofd.enc_id from ofd where now() - tsp > win::interval
+except select * from get_latest_enc_ids('HCGH')
+except select * from get_latest_enc_ids('JHH')
+except select * from get_latest_enc_ids('BMC');
+END;
 $$;
 
 create or replace function clone_enc(from_enc int, to_pat_id text, to_visit_id text)
@@ -4546,6 +4566,20 @@ begin
   update clone_temp set enc_id = to_enc;
   insert into cdm_labels select * from clone_temp;
   drop table clone_temp;
+  create temp table clone_temp as select * from criteria where enc_id = from_enc;
+  update clone_temp set enc_id = to_enc;
+  insert into criteria select * from clone_temp;
+  drop table clone_temp;
+  create temp table clone_temp as select * from orgdf_baselines where pat_id = (select pat_id from pat_enc where enc_id = from_enc);
+  update clone_temp set pat_id = to_pat_id;
+  insert into orgdf_baselines select * from clone_temp;
+  drop table clone_temp;
+  create temp table clone_temp as select * from trews_jit_score where enc_id = from_enc;
+  update clone_temp set enc_id = to_enc;
+  insert into trews_jit_score select * from clone_temp;
+  drop table clone_temp;
+  perform pg_notify('on_opsdx_dev_etl', 'invalidate_cache:' || pat_id || ':trews-jit')
+    from pat_enc where enc_id = to_enc;
   return to_enc;
 end;
 $$;
@@ -4554,30 +4588,31 @@ create or replace function shift_to_now(this_enc_id int, now_tsp timestamptz def
 returns void language plpgsql as $$
 declare shift_interval interval;
 begin
-select now_tsp - max(tsp) from cdm_t where enc_id = this_enc_id into shift_interval;
+select now_tsp - greatest(max(t.tsp), coalesce(max(c.override_time), max(t.tsp) )) from cdm_t t left join criteria c on t.enc_id = c.enc_id and c.override_user is not null where t.enc_id = this_enc_id into shift_interval;
 update cdm_t set tsp = tsp + shift_interval where enc_id = this_enc_id;
 update cdm_twf set tsp = tsp + shift_interval where enc_id = this_enc_id;
+update criteria set override_time = override_time + shift_interval where enc_id = this_enc_id and override_user is not null;
+update criteria_events set override_time = override_time + shift_interval,
+    measurement_time = measurement_time + shift_interval,
+    update_date = update_date + shift_interval
+    where enc_id = this_enc_id and override_user is not null;
+update orgdf_baselines set
+    creatinine_tsp = creatinine_tsp + shift_interval,
+    inr_tsp = inr_tsp + shift_interval,
+    bilirubin_tsp = bilirubin_tsp + shift_interval,
+    platelets_tsp = platelets_tsp + shift_interval
+    where pat_id = (select pat_id from pat_enc where enc_id = this_enc_id);
 end;
 $$;
 
-CREATE OR REPLACE FUNCTION get_ofd_enc_ids(win text default '1 month')
-RETURNS table (enc_id int)
-LANGUAGE plpgsql
-AS
-$$
+create or replace function refresh_enc(this_enc_id int, offset_interval text default '0')
+returns void language plpgsql as $$
 begin
-return query with ofd as
-(select pe.enc_id, max(tsp) tsp from pat_enc pe
-inner join cdm_t t on pe.enc_id = t.enc_id
-group by pe.enc_id)
-select ofd.enc_id from ofd where now() - tsp > win::interval
-except select * from get_latest_enc_ids('HCGH')
-except select * from get_latest_enc_ids('JHH')
-except select * from get_latest_enc_ids('BMC');
-END;
+    perform shift_to_now(this_enc_id, now() - offset_interval::interval);
+    perform pg_notify('on_opsdx_dev_etl', 'invalidate_cache:' || pat_id || ':trews-jit')
+    from pat_enc where enc_id = this_enc_id;
+end;
 $$;
-
-
 ------------------------------------------------
 -- Alert Statistics
 
@@ -4838,90 +4873,7 @@ group by care_unit.care_unit
 ;
 END $func$ LANGUAGE plpgsql;
 
-create or replace function delete_enc(this_enc_id int)
-returns void language plpgsql as $$
-declare
-begin
-  delete from cdm_twf where enc_id = this_enc_id;
-  delete from cdm_t where enc_id = this_enc_id;
-  delete from cdm_s where enc_id = this_enc_id;
-  delete from cdm_notes where enc_id = this_enc_id;
-  delete from cdm_labels where enc_id = this_enc_id;
-  delete from criteria where enc_id = this_enc_id;
-  delete from criteria_events where enc_id = this_enc_id;
-  delete from criteria_log where enc_id = this_enc_id;
-  delete from trews where enc_id = this_enc_id;
-  delete from trews_jit_score where enc_id = this_enc_id;
-  delete from lmcscore where enc_id = this_enc_id;
-  delete from deterioration_feedback where enc_id = this_enc_id;
-  delete from epic_notifications_history where enc_id = this_enc_id;
-  delete from epic_trewscores_history where enc_id = this_enc_id;
-  delete from feedback_log where enc_id = this_enc_id;
-  delete from notifications where enc_id = this_enc_id;
-  delete from pat_status where enc_id = this_enc_id;
-  delete from user_interactions where enc_id = this_enc_id;
-  delete from pat_enc where enc_id = this_enc_id;
-end;
-$$;
 
-create or replace function clone_enc(from_enc int, to_pat_id text, to_visit_id text)
-returns int language plpgsql as $$
-declare to_enc int;
-begin
-  perform delete_enc(enc_id) from pat_enc where pat_id = to_pat_id and visit_id = to_visit_id;
-  insert into pat_enc (pat_id, visit_id)
-    values (to_pat_id, to_visit_id);
-  select enc_id from pat_enc where pat_id = to_pat_id and visit_id = to_visit_id into to_enc;
-  create temp table clone_temp as
-    select * from cdm_twf where enc_id = from_enc;
-  update clone_temp set enc_id = to_enc;
-  insert into cdm_twf select * from clone_temp;
-  drop table clone_temp;
-  create temp table clone_temp as select * from cdm_t where enc_id = from_enc;
-  update clone_temp set enc_id = to_enc;
-  insert into cdm_t select * from clone_temp;
-  drop table clone_temp;
-  create temp table clone_temp as select * from cdm_s where enc_id = from_enc;
-  update clone_temp set enc_id = to_enc;
-  insert into cdm_s select * from clone_temp;
-  drop table clone_temp;
-  create temp table clone_temp as select * from cdm_notes where enc_id = from_enc;
-  update clone_temp set enc_id = to_enc;
-  insert into cdm_notes select * from clone_temp;
-  drop table clone_temp;
-  create temp table clone_temp as select * from cdm_labels where enc_id = from_enc;
-  update clone_temp set enc_id = to_enc;
-  insert into cdm_labels select * from clone_temp;
-  drop table clone_temp;
-  create temp table clone_temp as select * from criteria where enc_id = from_enc;
-  update clone_temp set enc_id = to_enc;
-  insert into criteria select * from clone_temp;
-  drop table clone_temp;
-  return to_enc;
-end;
-$$;
-
-create or replace function shift_to_now(this_enc_id int, now_tsp timestamptz default now())
-returns void language plpgsql as $$
-declare shift_interval interval;
-begin
-select now_tsp - greatest(max(t.tsp), coalesce(max(c.override_time), max(t.tsp) )) from cdm_t t left join criteria c on t.enc_id = c.enc_id and c.override_user is not null where t.enc_id = this_enc_id into shift_interval;
-update cdm_t set tsp = tsp + shift_interval where enc_id = this_enc_id;
-update cdm_twf set tsp = tsp + shift_interval where enc_id = this_enc_id;
-update criteria set override_time = override_time + shift_interval where enc_id = this_enc_id and override_user is not null;
-end;
-$$;
-
-create or replace function refresh_enc(this_enc_id int)
-returns void language plpgsql as $$
-begin
-    perform shift_to_now(this_enc_id);
-    delete from criteria_events where enc_id = this_enc_id;
-    perform advance_criteria_snapshot(this_enc_id);
-    perform pg_notify('on_opsdx_dev_etl', 'invalidate_cache:' || pat_id || ':trews-jit')
-    from pat_enc where enc_id = this_enc_id;
-end;
-$$;
 
 ------------------------------------------------
 -- Timeline helpers.
