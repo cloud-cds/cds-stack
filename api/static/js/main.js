@@ -3146,12 +3146,39 @@ var activity = new function() {
 
     var text_overrides = [ "suspicion_of_infection" ];
 
+    var cms_orgdf = [ "blood_pressure",
+                      "mean_arterial_pressure",
+                      "decrease_in_sbp",
+                      "respiratory_failure",
+                      "creatinine",
+                      "bilirubin",
+                      "platelet",
+                      "inr",
+                      "lactate" ];
+
+    var trews_orgdf = [ "trews_sbpm",
+                        "trews_map",
+                        "trews_dsbp",
+                        "trews_vent",
+                        "trews_creatinine",
+                        "trews_bilirubin",
+                        "trews_platelet",
+                        "trews_inr",
+                        "trews_lactate",
+                        "trews_gcs" ];
+
     var msg = "";
     var user = data.uid == null ? 'TREWS' : (data['uid'] == 'dba' ? 'TREWS automatically' : data['uid']);
     if ( user == 'user' ) { user = 'Test user'; }
 
     var is_order = jQuery.inArray(data.name, order_overrides) >= 0;
-    var is_text = jQuery.inArray(data.name, text_overrides) >= 0
+    var is_text = jQuery.inArray(data.name, text_overrides) >= 0;
+    var is_cms_orgdf = jQuery.inArray(data.name, cms_orgdf) >= 0;
+    var is_trews_orgdf = jQuery.inArray(data.name, trews_orgdf) >= 0;
+
+
+    // SKip CMS orgdf entries since there's a matching TREWS orgdf entry in the log.
+    if ( is_cms_orgdf ) { return null; }
 
     if (data['event_type'] == 'set_deterioration_feedback') {
       if (data.value.other == "" && data.value.value.length == 0) {
@@ -3171,53 +3198,86 @@ var activity = new function() {
       }
     } else if (data['event_type'] == 'override') {
       if (data['clear']) {
-        msg += user + LOG_STRINGS[data['event_type']]['clear']
-        for (var i = 0; i < criteriaKeyToName[data.name].length; i ++) {
-          var suffix = criteriaKeyToName[data.name].length > 1 ? ", " : "";
-          // For the last element, add an 'and' to the rendered message,
-          // stripping the comma if we have exactly 2 elements,
-          if ( criteriaKeyToName[data.name].length > 1 && i == (criteriaKeyToName[data.name].length - 1) ) {
-            if ( criteriaKeyToName[data.name].length == 2 ) {
-              msg = msg.substring(0, msg.length - 2) + " "
-            }
-            msg += "and ";
-            suffix = "";
+        if ( data.name == 'ui_severe_sepsis' || data.name == 'ui_septic_shock' ) {
+          msg += user + " reset the <b>manual override</b> for the <b>" + criteriaKeyToName[data.name][0].name + "</b>";
+        }
+        else if ( criteriaKeyToName[data.name].length > 0 && is_trews_orgdf )
+        {
+          var event_type = null;
+          if ( event_type == 'respiratory_failure' || event_type == 'trews' ) {
+            event_type = '<b>Respiratory Failure (Mechanical Ventilation)</b>';
+          } else {
+            event_type = '<b>' + criteriaKeyToName[data.name][0].name + '</b> measurements';
           }
-          msg += criteriaKeyToName[data.name][i].name + suffix;
+          msg += user + " re-enabled the entry for acute organ dysfunction based on " + event_type;
+        }
+        else {
+          var action = data.name == 'suspicion_of_infection' ? " cleared " : LOG_STRINGS[data['event_type']]['clear'];
+          msg += user + action;
+          for (var i = 0; i < criteriaKeyToName[data.name].length; i ++) {
+            var suffix = criteriaKeyToName[data.name].length > 1 ? ", " : "";
+            // For the last element, add an 'and' to the rendered message,
+            // stripping the comma if we have exactly 2 elements,
+            if ( criteriaKeyToName[data.name].length > 1 && i == (criteriaKeyToName[data.name].length - 1) ) {
+              if ( criteriaKeyToName[data.name].length == 2 ) {
+                msg = msg.substring(0, msg.length - 2) + " "
+              }
+              msg += "and ";
+              suffix = "";
+            }
+            msg += '<b>' + criteriaKeyToName[data.name][i].name + '</b>' + suffix;
+          }
         }
       } else {
-        var action = is_order ? LOG_STRINGS[data['event_type']]['ordered'][0] : LOG_STRINGS[data['event_type']]['customized'][0];
-        msg += user + action;
-        for (var i = 0; i < criteriaKeyToName[data.name].length; i ++) {
-          if ( i >= data.override_value.length ) {
-            // Strip trailing comma
-            if ( criteriaKeyToName[data.name].length > 1 ) { msg = msg.substring(0, msg.length - 2) + " " }
-            break;
+        if ( data.name == 'ui_severe_sepsis' || data.name == 'ui_septic_shock' ) {
+          msg += user + " <b>manually overrode</b> the <b>" + criteriaKeyToName[data.name][0].name + "</b>";
+        }
+        else if ( data.override_value.length > 0 && criteriaKeyToName[data.name].length > 0
+                    && data.override_value[0].text == 'No Infection' && is_trews_orgdf )
+        {
+          // Handle no acute organ dysfunction.
+          var event_type = null;
+          if ( event_type == 'respiratory_failure' || event_type == 'trews' ) {
+            event_type = '<b>Respiratory Failure (Mechanical Ventilation)</b> does';
+          } else {
+            event_type = '<b>' + criteriaKeyToName[data.name][0].name + '</b> measurements do';
           }
+          msg += user + " entered " + event_type + " not indicate organ dysfunction due to infection";
+        }
+        else {
+          var action = is_order ? LOG_STRINGS[data['event_type']]['ordered'][0] : LOG_STRINGS[data['event_type']]['customized'][0];
+          msg += user + action;
+          for (var i = 0; i < criteriaKeyToName[data.name].length; i ++) {
+            if ( i >= data.override_value.length ) {
+              // Strip trailing comma
+              if ( criteriaKeyToName[data.name].length > 1 ) { msg = msg.substring(0, msg.length - 2) + " " }
+              break;
+            }
 
-          var suffix = criteriaKeyToName[data.name].length > 1 ? ", " : "";
-          // For the last element, add an 'and' to the rendered message,
-          // stripping the comma if we have exactly 2 elements,
-          if ( criteriaKeyToName[data.name].length > 1 && i == (criteriaKeyToName[data.name].length - 1) ) {
-            if ( criteriaKeyToName[data.name].length == 2 ) {
-              msg = msg.substring(0, msg.length - 2) + " "
+            var suffix = criteriaKeyToName[data.name].length > 1 ? ", " : "";
+            // For the last element, add an 'and' to the rendered message,
+            // stripping the comma if we have exactly 2 elements,
+            if ( criteriaKeyToName[data.name].length > 1 && i == (criteriaKeyToName[data.name].length - 1) ) {
+              if ( criteriaKeyToName[data.name].length == 2 ) {
+                msg = msg.substring(0, msg.length - 2) + " "
+              }
+              msg += "and ";
+              suffix = "";
             }
-            msg += "and ";
-            suffix = "";
-          }
-          msg += criteriaKeyToName[data.name][i].name;
-          if ( data.override_value != null && data.override_value.length > i ) {
-            if (is_order) {
-              msg += LOG_STRINGS[data['event_type']]['ordered'][1]
-                    + data.override_value[i].text;
-            } else if (is_text || data.override_value[i].text != null) {
-              msg += LOG_STRINGS[data['event_type']]['customized'][1]
-                    + data.override_value[i].text;
-            } else if ( data.override_value[i].range != null ) {
-              msg += LOG_STRINGS[data['event_type']]['customized'][1]
-                    + UpperLowerToLogicalOperators(data.override_value[i], criteriaKeyToName[data.name][i].units);
+            msg += '<b>' + criteriaKeyToName[data.name][i].name + '</b>';
+            if ( data.override_value != null && data.override_value.length > i ) {
+              if (is_order) {
+                msg += LOG_STRINGS[data['event_type']]['ordered'][1] + data.override_value[i].text;
+              }
+              else if (is_text || data.override_value[i].text != null) {
+                msg += LOG_STRINGS[data['event_type']]['customized'][1] + '<b>' + data.override_value[i].text + '</b>';
+              }
+              else if ( data.override_value[i].range != null ) {
+                msg += LOG_STRINGS[data['event_type']]['customized'][1]
+                      + UpperLowerToLogicalOperators(data.override_value[i], criteriaKeyToName[data.name][i].units);
+              }
+              msg += suffix;
             }
-            msg += suffix;
           }
         }
       }

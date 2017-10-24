@@ -77,10 +77,10 @@ var LOG_STRINGS = {
 	"set_deterioration_feedback": " set <b>other conditions driving deterioration</b> to the following values: ",
 	"reset": " <b>reset</b> the patient",
 	"override": {
-		"clear": " cleared <b>customizations</b> for ",
+		"clear": " cleared values for ",
 		"customized": [
-			" <b>customized</b> ",
-			" values to "
+			" set ",
+			" to "
 		],
 		"ordered": [
 			" <b>placed a</b> ",
@@ -278,11 +278,11 @@ var criteriaKeyToName = {
 	],
 	/* UI Components */
 	"ui_severe_sepsis": [
-		{"name": "Severe Sepsis Bundle Override",
+		{"name": "Severe Sepsis Bundle",
 		"units": ""}
 	],
 	"ui_septic_shock": [
-		{"name": "Septic Shock Bundle Override",
+		{"name": "Septic Shock Bundle",
 		"units": ""}
 	],
 }
