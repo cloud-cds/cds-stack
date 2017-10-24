@@ -33,7 +33,6 @@ sirs_temp,temperature,"{""lower"": 96.8, ""upper"": 100.94}",simple
 suspicion_of_infection,suspicion_of_infection,,simple
 systolic_bp,abp_sys,"{""lower"":90}",hypotension
 systolic_bp,nbp_sys,"{""lower"":90}",hypotension
-trews,,,trews
 trews_subalert,,,trews
 trews_bilirubin,,,trews_organ_dysfunction
 trews_creatinine,,,trews_organ_dysfunction
