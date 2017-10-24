@@ -224,10 +224,13 @@ class TREWSStaticResource(web.View):
         if log_decryption:
           logging.info('Decrypted %s' % str(params))
 
-        if params is not None and 'USERID' in params and 'PATID' in params:
+        if params is not None and ('USERID' in params or release != 'production') and 'PATID' in params:
 
           if trews_app_key:
             params['trewsapp'] = encrypt(trews_app_key)
+
+          if 'USERID' not in params:
+            params['USERID'] = 'UNKNOWN'
 
           new_qs = urllib.parse.urlencode(params)
 
@@ -239,7 +242,8 @@ class TREWSStaticResource(web.View):
           return web.HTTPFound(URL+INDEX_FILENAME+'?'+new_qs)
 
         else:
-          self.bad_request('Failed to decrypt query parameters')
+          param_keys = list(params.keys()) if params is not None else []
+          self.bad_request('Failed to decrypt query parameters (found keys: %s)' % ', '.join(param_keys))
 
       else:
         validated = trews_open_access.lower() == 'true' if trews_open_access else False
@@ -339,7 +343,11 @@ class TREWSFeedback(web.View):
           feedback = str(result_json['feedback'])
       )
 
-      subject = 'Feedback - {}'.format(str(result_json['u']))
+      if result_json['u'] is not None:
+        subject = 'Feedback - {}'.format(str(result_json['u']))
+      else:
+        subject = 'Feedback'
+
       html_text = [
           ("Physician", str(result_json['u'])),
           ("Current patient in view", str(result_json['q'])),

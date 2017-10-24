@@ -840,7 +840,7 @@ var slotComponent = function(elem, link, display_name, skip_summary, border_with
 /*
  * Text description as previously used in the header.
  */
-function longPatientSummary(with_alert, action_type, with_treatment, with_reset, with_no_risk, with_separate_cms, with_html) {
+function longPatientSummary(with_alert, action_type, with_treatment, with_reset, with_no_risk, with_separate_cms, with_html, more_detail_html) {
 
   var care_status = null;
   var care_status_priority = null;
@@ -854,15 +854,19 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
     var cms_alerting = trews.data['severe_sepsis']['sirs']['is_met'] && trews.data['severe_sepsis']['organ_dysfunction']['is_met'];
 
     var not_infected = trews.data['severe_sepsis']['suspicion_of_infection']['update_time'] != null
-                        && trews.data['severe_sepsis']['suspicion_of_infection']['value'] == 'No Infection'
-                        && (trews_alerting || cms_alerting);
+                        && trews.data['severe_sepsis']['suspicion_of_infection']['value'] == 'No Infection';
 
     var has_infection = trews.data['severe_sepsis']['suspicion_of_infection']['update_time'] != null
-                          && trews.data['severe_sepsis']['suspicion_of_infection']['value'] == 'No Infection';
+                          && trews.data['severe_sepsis']['suspicion_of_infection']['value'] != null
+                          && trews.data['severe_sepsis']['suspicion_of_infection']['value'] != 'No Infection';
 
-    // TODO: change trews_alerting in the condition below when a dependency to trews_organ_dysfunction is added.
-    var not_acute_orgdf = has_infection && (trews_alerting || cms_alerting)
-                            && (trews_alerting || trews.data['severe_sepsis']['sirs']['is_met']);
+    var trews_org_ovr = trews.data['severe_sepsis']['trews_organ_dysfunction']['num_met'] == 0
+                          && trews.data['severe_sepsis']['trews_organ_dysfunction']['num_overridden'] > 0;
+
+    var cms_org_ovr = trews.data['severe_sepsis']['organ_dysfunction']['num_met'] == 0
+                        && trews.data['severe_sepsis']['organ_dysfunction']['num_overridden'] > 0;
+
+    var not_acute_orgdf = trews_org_ovr || (trews.data['severe_sepsis']['sirs']['is_met'] && cms_org_ovr);
 
     var sepsis_as_trews = trews.data['severe_sepsis']['is_met']
                             && trews.data['severe_sepsis']['is_trews']
@@ -905,11 +909,8 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
     var care_completed = sev6_completed || sep6_completed;
     var care_expired = sev3_expired || sev6_expired || sep6_expired;
 
-    var expired_offset = ((sev3_expired ? 3 * 60 * 60 : 6 * 60 * 60) + (72 * 60 * 60)) * 1000;
-    var expired_date = ((sev3_expired || sev6_expired ? sepsis_onset : shock_onset) * 1000) + expired_offset;
-      // TODO: should this always be 72hrs after severe sepsis onset (not shock onset)?
-      // TODO: also, should this always be 72 hours after the onset time vs after the bundle expiry time.
-
+    var expired_offset = 72 * 60 * 60 * 1000;
+    var expired_date = (sepsis_onset * 1000) + expired_offset;
 
     if ( not_infected ) {
       var not_infected_time = null
@@ -923,22 +924,55 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
       }
 
       not_infected_date = new Date(not_infected_time.toFixed(0) * 1000);
-      auto_reset_date = not_infected_date.getTime() + (72 * 60 * 60 * 1000);
+      auto_reset_date = new Date(not_infected_date.getTime() + (72 * 60 * 60 * 1000));
 
       if ( with_alert ) {
-        care_status = 'Patient evaluted as not septic at ' + strToTime(not_infected_date, true, false) + '. ';
+        care_status = 'No infection suspected for this patient at ' + strToTime(not_infected_date, true, false) + '. ';
       } else {
-        care_status = 'No infection suspected for this patient. ';
+        care_status = 'Patient evaluted as not septic. ';
       }
       if ( action_type == 1 ) {
         care_status += '<br>No further sepsis evaluation steps required at this time. '
       }
       care_status_priority = 'no-priority';
     }
-    else if ( with_alert && not_acute_orgdf ) {
-      care_status = 'No acute organ dysfunction due to infection for this patient. Evaluation step 1 complete. ';
+    else if ( not_acute_orgdf ) {
+      var not_acute_orgdf_time = null;
+      var orgdf_criteria =
+        trews_org_ovr ?
+          trews.data['severe_sepsis']['trews_organ_dysfunction']['criteria']
+          : trews.data['severe_sepsis']['organ_dysfunction']['criteria'];
+
+      for (var i in  orgdf_criteria) {
+        if ( orgdf_criteria[i]['override_time'] ) {
+          not_acute_orgdf_time = not_acute_orgdf_time == null ? orgdf_criteria[i]['override_time']
+                                  : Math.min(orgdf_criteria[i]['override_time'], not_acute_orgdf_time);
+        }
+      }
+
+      not_acute_orgdf_date = new Date(not_acute_orgdf_time.toFixed(0) * 1000);
+      auto_reset_date = new Date(not_acute_orgdf_date.getTime() + (72 * 60 * 60 * 1000)); // TODO: check whether this is implemented w/ Andong.
+
+      if ( with_alert ) {
+        care_status = 'No acute organ dysfunction due to infection for this patient'
+                        + (not_acute_orgdf_date ? ' at ' + strToTime(not_acute_orgdf_date, true, false) : '')+ '. ';
+
+      } else {
+        care_status = 'Patient evaluated as not septic. '
+      }
+
       if ( action_type == 1 ) {
-        care_status += '<br>Please continue to monitor for any organ dysfunction due to infection.';
+        if ( has_infection ) {
+          care_status += 'Evaluation steps 1 and 2 complete. '
+        }
+        if ( more_detail_html ) {
+          care_status += more_detail_html;
+        }
+        if ( has_infection ) {
+          care_status += '<br>Please continue to monitor for any organ dysfunction due to infection.'
+        } else {
+          care_status += '<br>Please complete whether infection is suspected for this patient in evaluation step 1.';
+        }
       }
       care_status_priority = 'no-priority';
     }
@@ -949,9 +983,8 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
         auto_reset_date = new Date(expired_date);
       }
 
-      // TODO: simplify to just 5 or 6?
-      var expected_treatments = sev3_active ? 4 : (sev6_active ? 5 : 6);
-      var actual_treatments = sev3_active ? num_sev3_complete : (sev6_active ? num_sev6_complete : num_sep6_complete);
+      var expected_treatments = sep6_active ? 6 : 5;
+      var actual_treatments = sep6_active ? num_sep6_complete : num_sev6_complete;
 
       if ( shock_onset != null ) {
         if ( trews.data['ui']['ui_septic_shock']['is_met'] ) {
@@ -972,6 +1005,9 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
           }
         }
 
+        if ( action_type == 1 && more_detail_html ) {
+          care_status += more_detail_html;
+        }
         if ( action_type == 1 && actual_treatments < expected_treatments ) {
           care_status += '<br>Please order missing bundle items under Steps 3 and 5. '
         }
@@ -996,6 +1032,9 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
           }
         }
 
+        if ( action_type == 1 && more_detail_html ) {
+          care_status += more_detail_html;
+        }
         if ( action_type == 1 && actual_treatments < expected_treatments ) {
           care_status += '<br>Please order missing bundle items under Step 3. '
         }
@@ -1030,6 +1069,9 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
         care_status += (trews_subalert ? 'TREWS alert' : '') + (sirs_and_orgdf ? (trews_subalert ? ' and ' : '') + 'CMS alert' : '') + ' fired,';
       }
       if ( action_type == 1 ) {
+        if ( more_detail_html ) {
+          care_status += more_detail_html;
+        }
         var last_as_comma = care_status[care_status.length - 1] == ',';
         care_status +=  (last_as_comma ? ' please' : '<br>Please') + ' complete evaluation for severe sepsis in steps 1 and 2 below.';
       }
@@ -1045,10 +1087,10 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
     }
 
     if ( with_reset && auto_reset_date != null ) {
-      var remaining = new Date(auto_reset_date - Date.now());
+      var remaining = new Date(auto_reset_date.getTime() - Date.now());
       var minutes = (remaining.getUTCMinutes() < 10) ? "0" + remaining.getUTCMinutes() : remaining.getUTCMinutes();
       var hours = remaining.getUTCHours();
-      var days = remaining.getUTCDay() - 4;
+      var days = remaining.getUTCDate() - 1;
 
       if ( days >= 0 && hours >= 0 && minutes >= 0 ) {
         care_status += ' TREWS will reset in ' + days + ' days ' + hours + ' hours ' + minutes + ' minutes.';
@@ -1078,9 +1120,7 @@ function patientSevereSepsisSummary() {
     var cms_alerting = trews.data['severe_sepsis']['sirs']['is_met'] && trews.data['severe_sepsis']['organ_dysfunction']['is_met'];
 
     var not_infected = trews.data['severe_sepsis']['suspicion_of_infection']['update_time'] != null
-                        && trews.data['severe_sepsis']['suspicion_of_infection']['value'] == 'No Infection'
-                        && (trews_alerting || cms_alerting);
-
+                        && trews.data['severe_sepsis']['suspicion_of_infection']['value'] == 'No Infection';
 
     var sepsis_onset = trews.data['severe_sepsis']['onset_time'];
 
@@ -1285,12 +1325,10 @@ var careSummaryComponent = new function() {
 
     var has_any_alert = trews_alerting || cms_alerting;
 
-    // longPatientSummary args: with_alert, action_type, with_treatment, with_reset, with_no_risk, with_separate_cms
-    var patient_summary = longPatientSummary(true, 1, false, false, true, true, true);
+    // longPatientSummary args: with_alert, action_type, with_treatment, with_reset, with_no_risk, with_separate_cms, more_detail_html
+    var more_detail_html = '&nbsp;&nbsp;<span class="summary-more-detail">More Detail</span>';
+    var patient_summary = longPatientSummary(true, 1, false, false, true, true, true, has_any_alert ? more_detail_html : null);
     var summary_html = patient_summary.care_status;
-    if ( has_any_alert ) {
-      summary_html += '&nbsp;&nbsp;<span class="summary-more-detail">More Detail</span>';
-    }
     this.ctn.find('h4').html(summary_html);
 
     if ( has_any_alert ) {
@@ -1455,7 +1493,7 @@ var severeSepsisComponent = new function() {
 
   this.suspicion = function(json) {
     this.susCtn.find('h3').text(json['display_name']);
-    this.susCtn.removeClass('complete complete-with-status');
+    this.susCtn.removeClass('complete complete-with-status complete-no-infection');
     if (this.sus['value'] == null) {
       var highlightCls = this.highlightSuspicionClass();
       if ( highlightCls != null ) {
@@ -1472,6 +1510,9 @@ var severeSepsisComponent = new function() {
       this.susCtn.removeClass('highlight-expired highlight-unexpired');
       if (this.sus['value'] != 'No Infection') {
         this.susCtn.addClass('complete-with-status');
+      }
+      else {
+        this.susCtn.addClass('complete-no-infection');
       }
       this.susCtn.find('.status').show();
       this.susCtn.find('.selection').hide();
@@ -1492,14 +1533,11 @@ var severeSepsisComponent = new function() {
     var trews_alerting = 'trews_subalert' in json ? json['trews_subalert']['is_met'] : false;
     var cms_alerting = json['sirs']['is_met'] && json['organ_dysfunction']['is_met'];
 
-    var not_infected = json['suspicion_of_infection']['update_time'] != null
-                        && json['suspicion_of_infection']['value'] == 'No Infection'
-                        && (trews_alerting || cms_alerting);
-
+    this.ctn.removeClass('complete complete-no-infection');
     if (json['is_met']) {
       this.ctn.addClass('complete');
-    } else {
-      this.ctn.removeClass('complete');
+    } else if ( json['suspicion_of_infection']['value'] == 'No Infection' ) {
+      this.ctn.addClass('complete-no-infection');
     }
 
     this.sus = json['suspicion_of_infection'];
@@ -1526,7 +1564,8 @@ var severeSepsisComponent = new function() {
                    alert_as_cms ? severe_sepsis['organ_dysfunction']['criteria_mapping'] : severe_sepsis['trews_organ_dysfunction']['criteria_mapping']);
 
     var num_orgdf = alert_as_cms ? json['organ_dysfunction']['num_met'] : json['trews_organ_dysfunction']['num_met'];
-    if (!(num_orgdf > 0
+    var num_orgdf_ovr = alert_as_cms ? json['organ_dysfunction']['num_overridden'] : json['trews_organ_dysfunction']['num_overridden'];
+    if (!(num_orgdf > 0 || num_orgdf_ovr > 0
             || trews.data['ui']['ui_severe_sepsis']['is_met']
             || trews.data['ui']['ui_septic_shock']['is_met'] ))
     {
@@ -1615,7 +1654,7 @@ var septicShockComponent = new function() {
     if ( json['crystalloid_fluid']['is_met'] ) {
       fnoteBtnText = "Reset";
     } else {
-      fnoteBtnText = "Not Indicated";
+      fnoteBtnText = "Clinically Inappropriate";
     }
 
     if ( fnoteBtnText ) {
@@ -1624,7 +1663,7 @@ var septicShockComponent = new function() {
         "actionName": 'crystalloid_fluid'
       };
 
-      if ( fnoteBtnText == 'Not Indicated' ) {
+      if ( fnoteBtnText == 'Clinically Inappropriate' ) {
         action['value'] = [{'text': 'Not Indicated'}];
       } else {
         action['clear'] = true;
@@ -3107,12 +3146,39 @@ var activity = new function() {
 
     var text_overrides = [ "suspicion_of_infection" ];
 
+    var cms_orgdf = [ "blood_pressure",
+                      "mean_arterial_pressure",
+                      "decrease_in_sbp",
+                      "respiratory_failure",
+                      "creatinine",
+                      "bilirubin",
+                      "platelet",
+                      "inr",
+                      "lactate" ];
+
+    var trews_orgdf = [ "trews_sbpm",
+                        "trews_map",
+                        "trews_dsbp",
+                        "trews_vent",
+                        "trews_creatinine",
+                        "trews_bilirubin",
+                        "trews_platelet",
+                        "trews_inr",
+                        "trews_lactate",
+                        "trews_gcs" ];
+
     var msg = "";
     var user = data.uid == null ? 'TREWS' : (data['uid'] == 'dba' ? 'TREWS automatically' : data['uid']);
     if ( user == 'user' ) { user = 'Test user'; }
 
     var is_order = jQuery.inArray(data.name, order_overrides) >= 0;
-    var is_text = jQuery.inArray(data.name, text_overrides) >= 0
+    var is_text = jQuery.inArray(data.name, text_overrides) >= 0;
+    var is_cms_orgdf = jQuery.inArray(data.name, cms_orgdf) >= 0;
+    var is_trews_orgdf = jQuery.inArray(data.name, trews_orgdf) >= 0;
+
+
+    // SKip CMS orgdf entries since there's a matching TREWS orgdf entry in the log.
+    if ( is_cms_orgdf ) { return null; }
 
     if (data['event_type'] == 'set_deterioration_feedback') {
       if (data.value.other == "" && data.value.value.length == 0) {
@@ -3132,53 +3198,86 @@ var activity = new function() {
       }
     } else if (data['event_type'] == 'override') {
       if (data['clear']) {
-        msg += user + LOG_STRINGS[data['event_type']]['clear']
-        for (var i = 0; i < criteriaKeyToName[data.name].length; i ++) {
-          var suffix = criteriaKeyToName[data.name].length > 1 ? ", " : "";
-          // For the last element, add an 'and' to the rendered message,
-          // stripping the comma if we have exactly 2 elements,
-          if ( criteriaKeyToName[data.name].length > 1 && i == (criteriaKeyToName[data.name].length - 1) ) {
-            if ( criteriaKeyToName[data.name].length == 2 ) {
-              msg = msg.substring(0, msg.length - 2) + " "
-            }
-            msg += "and ";
-            suffix = "";
+        if ( data.name == 'ui_severe_sepsis' || data.name == 'ui_septic_shock' ) {
+          msg += user + " reset the <b>manual override</b> for the <b>" + criteriaKeyToName[data.name][0].name + "</b>";
+        }
+        else if ( criteriaKeyToName[data.name].length > 0 && is_trews_orgdf )
+        {
+          var event_type = null;
+          if ( event_type == 'respiratory_failure' || event_type == 'trews' ) {
+            event_type = '<b>Respiratory Failure (Mechanical Ventilation)</b>';
+          } else {
+            event_type = '<b>' + criteriaKeyToName[data.name][0].name + '</b> measurements';
           }
-          msg += criteriaKeyToName[data.name][i].name + suffix;
+          msg += user + " re-enabled the entry for acute organ dysfunction based on " + event_type;
+        }
+        else {
+          var action = data.name == 'suspicion_of_infection' ? " cleared " : LOG_STRINGS[data['event_type']]['clear'];
+          msg += user + action;
+          for (var i = 0; i < criteriaKeyToName[data.name].length; i ++) {
+            var suffix = criteriaKeyToName[data.name].length > 1 ? ", " : "";
+            // For the last element, add an 'and' to the rendered message,
+            // stripping the comma if we have exactly 2 elements,
+            if ( criteriaKeyToName[data.name].length > 1 && i == (criteriaKeyToName[data.name].length - 1) ) {
+              if ( criteriaKeyToName[data.name].length == 2 ) {
+                msg = msg.substring(0, msg.length - 2) + " "
+              }
+              msg += "and ";
+              suffix = "";
+            }
+            msg += '<b>' + criteriaKeyToName[data.name][i].name + '</b>' + suffix;
+          }
         }
       } else {
-        var action = is_order ? LOG_STRINGS[data['event_type']]['ordered'][0] : LOG_STRINGS[data['event_type']]['customized'][0];
-        msg += user + action;
-        for (var i = 0; i < criteriaKeyToName[data.name].length; i ++) {
-          if ( i >= data.override_value.length ) {
-            // Strip trailing comma
-            if ( criteriaKeyToName[data.name].length > 1 ) { msg = msg.substring(0, msg.length - 2) + " " }
-            break;
+        if ( data.name == 'ui_severe_sepsis' || data.name == 'ui_septic_shock' ) {
+          msg += user + " <b>manually overrode</b> the <b>" + criteriaKeyToName[data.name][0].name + "</b>";
+        }
+        else if ( data.override_value.length > 0 && criteriaKeyToName[data.name].length > 0
+                    && data.override_value[0].text == 'No Infection' && is_trews_orgdf )
+        {
+          // Handle no acute organ dysfunction.
+          var event_type = null;
+          if ( event_type == 'respiratory_failure' || event_type == 'trews' ) {
+            event_type = '<b>Respiratory Failure (Mechanical Ventilation)</b> does';
+          } else {
+            event_type = '<b>' + criteriaKeyToName[data.name][0].name + '</b> measurements do';
           }
+          msg += user + " entered " + event_type + " not indicate organ dysfunction due to infection";
+        }
+        else {
+          var action = is_order ? LOG_STRINGS[data['event_type']]['ordered'][0] : LOG_STRINGS[data['event_type']]['customized'][0];
+          msg += user + action;
+          for (var i = 0; i < criteriaKeyToName[data.name].length; i ++) {
+            if ( i >= data.override_value.length ) {
+              // Strip trailing comma
+              if ( criteriaKeyToName[data.name].length > 1 ) { msg = msg.substring(0, msg.length - 2) + " " }
+              break;
+            }
 
-          var suffix = criteriaKeyToName[data.name].length > 1 ? ", " : "";
-          // For the last element, add an 'and' to the rendered message,
-          // stripping the comma if we have exactly 2 elements,
-          if ( criteriaKeyToName[data.name].length > 1 && i == (criteriaKeyToName[data.name].length - 1) ) {
-            if ( criteriaKeyToName[data.name].length == 2 ) {
-              msg = msg.substring(0, msg.length - 2) + " "
+            var suffix = criteriaKeyToName[data.name].length > 1 ? ", " : "";
+            // For the last element, add an 'and' to the rendered message,
+            // stripping the comma if we have exactly 2 elements,
+            if ( criteriaKeyToName[data.name].length > 1 && i == (criteriaKeyToName[data.name].length - 1) ) {
+              if ( criteriaKeyToName[data.name].length == 2 ) {
+                msg = msg.substring(0, msg.length - 2) + " "
+              }
+              msg += "and ";
+              suffix = "";
             }
-            msg += "and ";
-            suffix = "";
-          }
-          msg += criteriaKeyToName[data.name][i].name;
-          if ( data.override_value != null && data.override_value.length > i ) {
-            if (is_order) {
-              msg += LOG_STRINGS[data['event_type']]['ordered'][1]
-                    + data.override_value[i].text;
-            } else if (is_text || data.override_value[i].text != null) {
-              msg += LOG_STRINGS[data['event_type']]['customized'][1]
-                    + data.override_value[i].text;
-            } else if ( data.override_value[i].range != null ) {
-              msg += LOG_STRINGS[data['event_type']]['customized'][1]
-                    + UpperLowerToLogicalOperators(data.override_value[i], criteriaKeyToName[data.name][i].units);
+            msg += '<b>' + criteriaKeyToName[data.name][i].name + '</b>';
+            if ( data.override_value != null && data.override_value.length > i ) {
+              if (is_order) {
+                msg += LOG_STRINGS[data['event_type']]['ordered'][1] + data.override_value[i].text;
+              }
+              else if (is_text || data.override_value[i].text != null) {
+                msg += LOG_STRINGS[data['event_type']]['customized'][1] + '<b>' + data.override_value[i].text + '</b>';
+              }
+              else if ( data.override_value[i].range != null ) {
+                msg += LOG_STRINGS[data['event_type']]['customized'][1]
+                      + UpperLowerToLogicalOperators(data.override_value[i], criteriaKeyToName[data.name][i].units);
+              }
+              msg += suffix;
             }
-            msg += suffix;
           }
         }
       }

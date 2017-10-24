@@ -247,6 +247,10 @@ class TREWSAPI(web.View):
     trews_od_cnt = 0
     trews_subalert_cnt = 0
 
+    sirs_ovr_cnt     = 0
+    od_ovr_cnt       = 0
+    trews_od_ovr_cnt = 0
+
     sirs_onsets     = []
     od_onsets       = []
     trews_od_onsets = []
@@ -306,6 +310,9 @@ class TREWSAPI(web.View):
           sirs_cnt += 1
           sirs_onsets.append(criterion_ts)
 
+        if criterion['override_user']:
+          sirs_ovr_cnt += 1
+
       if criterion["name"] in ORGAN_DYSFUNCTION:
         od_idx = ORGAN_DYSFUNCTION.index(criterion["name"])
         data['severe_sepsis']['organ_dysfunction']['criteria'][od_idx] = criterion
@@ -314,6 +321,9 @@ class TREWSAPI(web.View):
           od_cnt += 1
           od_onsets.append(criterion_ts)
 
+        if criterion['override_user']:
+          od_ovr_cnt += 1
+
       if criterion["name"] in TREWS_ORGAN_DYSFUNCTION:
         trews_od_idx = TREWS_ORGAN_DYSFUNCTION.index(criterion["name"])
         data['severe_sepsis']['trews_organ_dysfunction']['criteria'][trews_od_idx] = criterion
@@ -321,6 +331,9 @@ class TREWSAPI(web.View):
         if criterion["is_met"]:
           trews_od_cnt += 1
           trews_od_onsets.append(criterion_ts)
+
+        if criterion['override_user']:
+          trews_od_ovr_cnt += 1
 
       # update TREWS subalert component
       if criterion["name"] in TREWS_ALERT_CRITERIA:
@@ -382,18 +395,21 @@ class TREWSAPI(web.View):
     # update sirs
     data['severe_sepsis']['sirs']['is_met'] = sirs_cnt > 1
     data['severe_sepsis']['sirs']["num_met"] = sirs_cnt
+    data['severe_sepsis']['sirs']["num_overridden"] = sirs_ovr_cnt
     if sirs_cnt > 1:
       data['severe_sepsis']['sirs']['onset_time'] = sorted(sirs_onsets)[1]
 
     # update organ dysfunction
     data['severe_sepsis']['organ_dysfunction']['is_met'] = od_cnt > 0
     data['severe_sepsis']['organ_dysfunction']["num_met"] = od_cnt
+    data['severe_sepsis']['organ_dysfunction']["num_overridden"] = od_ovr_cnt
     if od_cnt > 0:
       data['severe_sepsis']['organ_dysfunction']['onset_time'] = sorted(od_onsets)[0]
 
     # update TREWS organ dysfunction
     data['severe_sepsis']['trews_organ_dysfunction']['is_met'] = trews_od_cnt > 0
     data['severe_sepsis']['trews_organ_dysfunction']["num_met"] = trews_od_cnt
+    data['severe_sepsis']['trews_organ_dysfunction']["num_overridden"] = trews_od_ovr_cnt
     if trews_od_cnt > 0:
       data['severe_sepsis']['trews_organ_dysfunction']['onset_time'] = sorted(trews_od_onsets)[0]
 
