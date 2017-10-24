@@ -2328,16 +2328,19 @@ return query
                 where SNP.state >= 20
                 group by PO.enc_id, SNP.state
             ),
-            orders_severe_sepsis_lead_times as (
-                select LT.enc_id, min(LT.severe_sepsis_lead_time) - orders_lookback as severe_sepsis_lead_time
+            orders_severe_sepsis_onsets as (
+                select LT.enc_id, min(LT.severe_sepsis_lead_time) - orders_lookback as severe_sepsis_onset_for_order,
+                min(LT.severe_sepsis_lead_time) - initial_lactate_lookback as severe_sepsis_onset_for_initial_lactate_order,
+                min(LT.severe_sepsis_lead_time) - blood_culture_order_lookback as severe_sepsis_onset_for_blood_culture_order,
+                min(LT.severe_sepsis_lead_time) - antibiotics_order_lookback as severe_sepsis_onset_for_antibiotics_order
                 from (
                     select  SSPN.enc_id,
-                            min(case when SSPN.severe_sepsis_is_met then SSPN.severe_sepsis_lead_time else null end)
-                                as severe_sepsis_lead_time
+                            min(case when SSPN.severe_sepsis_is_met then SSPN.severe_sepsis_onset else null end)
+                                as severe_sepsis_onset
                         from severe_sepsis_now SSPN
                         group by SSPN.enc_id
                     union all
-                    select PC.enc_id, min(PC.severe_sepsis_lead_time) as severe_sepsis_lead_time
+                    select PC.enc_id, min(PC.severe_sepsis_onset) as severe_sepsis_onset
                         from past_criteria PC
                         where PC.state >= 20
                         group by PC.enc_id
@@ -2372,11 +2375,11 @@ return query
                     pat_cvalues.c_ovalue,
                     (case
                         when pat_cvalues.category = 'after_severe_sepsis' then
-                            ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > OLT.severe_sepsis_lead_time, false) )
+                            ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > (case when pat_cvalues.name = 'initial_lactate_order' then OLT.severe_sepsis_onset_for_initial_lactate_order when pat_cvalues.name = 'blood_culture_order' then OLT.severe_sepsis_onset_for_blood_culture_order when pat_cvalues.name = 'antibiotics_order' then OLT.severe_sepsis_onset_for_antibiotics_order else OLT.severe_sepsis_onset_for_order end), false) )
                             and ( order_met(pat_cvalues.name, coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value)) )
 
                         when pat_cvalues.category = 'after_severe_sepsis_dose' then
-                            ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > OLT.severe_sepsis_lead_time, false) )
+                            ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > (case when pat_cvalues.name = 'initial_lactate_order' then OLT.severe_sepsis_onset_for_initial_lactate_order when pat_cvalues.name = 'blood_culture_order' then OLT.severe_sepsis_onset_for_blood_culture_order when pat_cvalues.name = 'antibiotics_order' then OLT.severe_sepsis_onset_for_antibiotics_order else OLT.severe_sepsis_onset_for_order end), false) )
                             and ( dose_order_met(pat_cvalues.fid, pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value::numeric,
                                     coalesce((pat_cvalues.c_ovalue#>>'{0,lower}')::numeric,
                                              (pat_cvalues.d_ovalue#>>'{lower}')::numeric)) )
@@ -2395,7 +2398,7 @@ return query
                         end
                     ) as is_met
             from pat_cvalues
-              left join orders_severe_sepsis_lead_times OLT
+              left join orders_severe_sepsis_onsets OLT
                 on pat_cvalues.enc_id = OLT.enc_id
               left join orders_septic_shock_onsets OST
                 on pat_cvalues.enc_id = OST.enc_id
