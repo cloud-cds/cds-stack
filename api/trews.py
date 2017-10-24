@@ -239,7 +239,8 @@ class TREWSStaticResource(web.View):
           return web.HTTPFound(URL+INDEX_FILENAME+'?'+new_qs)
 
         else:
-          self.bad_request('Failed to decrypt query parameters (found keys: %s)' % ', '.join(list(params.keys())))
+          param_keys = list(params.keys()) if params is not None else []
+          self.bad_request('Failed to decrypt query parameters (found keys: %s)' % ', '.join(param_keys))
 
       else:
         validated = trews_open_access.lower() == 'true' if trews_open_access else False
