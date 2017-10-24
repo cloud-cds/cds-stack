@@ -1592,7 +1592,11 @@ CREATE OR REPLACE FUNCTION calculate_criteria(this_enc_id int, ts_start timestam
  LANGUAGE plpgsql
 AS $function$
 DECLARE
-  orders_lookback interval := interval '6 hours';
+  -- Criteria Lookbacks.
+  initial_lactate_order_lookback       interval := interval '6 hours';
+  orders_lookback                interval := interval '6 hours';
+  blood_culture_order_lookback   interval := interval '48 hours';
+  antibiotics_order_lookback     interval := interval '24 hours';
 BEGIN
 return query
     with enc_ids as (
@@ -1650,7 +1654,11 @@ return query
             on enc_ids.enc_id = t.enc_id and t.fid = cd.fid
             and (
                 t.tsp is null
-                or t.tsp between ts_start and ts_end
+                or (cd.name = 'initial_lactate_order' and t.tsp between least(ts_start, ts_end - initial_lactate_order_lookback) and ts_end)
+                or (cd.name = 'blood_culture_order' and t.tsp between least(ts_start, ts_end - blood_culture_order_lookback) and ts_end)
+                or (cd.name = 'antibiotics_order' and t.tsp between least(ts_start, ts_end - antibiotics_order_lookback) and ts_end)
+                or (cd.name ~ '_order' and t.tsp between least(ts_start, ts_end - orders_lookback) and ts_end)
+                or (cd.name !~ '_order' and t.tsp between ts_start and ts_end)
                 )
     ),
     infection as (
@@ -1679,7 +1687,7 @@ return query
         ) as ordered
         group by ordered.enc_id, ordered.name
     ),
-    trews as (
+    trews_orgdf as (
         select
             ordered.enc_id,
             ordered.name,
@@ -1762,14 +1770,19 @@ return query
             pc.c_otime, pc.c_ouser, pc.c_ovalue,
             ts.tsp, ts.score, ts.odds_ratio, ts.creatinine_orgdf,
             ts.bilirubin_orgdf, ts.platelets_orgdf, ts.gcs_orgdf, ts.inr_orgdf, ts.sbpm_hypotension, ts.map_hypotension, ts.delta_hypotension, ts.vasopressors_orgdf, ts.lactate_orgdf, ts.vent_orgdf,ts.orgdf_details,
-            trews.is_met trews_is_met
+            trews_orgdf.is_met trews_is_met
             from pat_cvalues pc
-            left join trews on pc.enc_id = trews.enc_id
+            left join trews_orgdf on pc.enc_id = trews_orgdf.enc_id
             left join trews_jit_score ts on pc.enc_id = ts.enc_id
             and ts.model_id = get_trews_parameter('trews_jit_model_id')
             where pc.name = 'trews_subalert'
         ) ordered
         group by ordered.enc_id, ordered.name
+    ),
+    trews as (
+        select * from trews_subalert
+        union all
+        select * from trews_orgdf
     ),
     sirs as (
         select
@@ -1936,9 +1949,6 @@ return query
         union all select *, null::boolean as is_acute from respiratory_failures
         union all select *, null::boolean as is_acute from organ_dysfunction_except_rf
         union all select * from trews
-        union all select * from trews_subalert
-        -- union all select *, null::boolean as is_acute from trews_vasopressors
-        -- union all select *, null::boolean as is_acute from trews_vent
         union all select *, null::boolean as is_acute from ui_severe_sepsis
     ),
     severe_sepsis_criteria as (
@@ -2311,23 +2321,26 @@ return query
         (
             with past_criteria as (
                 select  PO.enc_id, SNP.state,
-                        min(SNP.severe_sepsis_lead_time) as severe_sepsis_lead_time,
+                        min(SNP.severe_sepsis_onset) as severe_sepsis_onset,
                         min(SNP.septic_shock_onset) as septic_shock_onset
                 from enc_ids PO
                 inner join lateral get_states_snapshot(PO.enc_id) SNP on PO.enc_id = SNP.enc_id
                 where SNP.state >= 20
                 group by PO.enc_id, SNP.state
             ),
-            orders_severe_sepsis_lead_times as (
-                select LT.enc_id, min(LT.severe_sepsis_lead_time) - orders_lookback as severe_sepsis_lead_time
+            orders_severe_sepsis_onsets as (
+                select LT.enc_id, min(coalesce(LT.severe_sepsis_onset, now())) - orders_lookback as severe_sepsis_onset_for_order,
+                min(coalesce(LT.severe_sepsis_onset, now())) - initial_lactate_order_lookback as severe_sepsis_onset_for_initial_lactate_order,
+                min(coalesce(LT.severe_sepsis_onset, now())) - blood_culture_order_lookback as severe_sepsis_onset_for_blood_culture_order,
+                min(coalesce(LT.severe_sepsis_onset, now())) - antibiotics_order_lookback as severe_sepsis_onset_for_antibiotics_order
                 from (
                     select  SSPN.enc_id,
-                            min(case when SSPN.severe_sepsis_is_met then SSPN.severe_sepsis_lead_time else null end)
-                                as severe_sepsis_lead_time
+                            min(case when SSPN.severe_sepsis_is_met then SSPN.severe_sepsis_onset else null end)
+                                as severe_sepsis_onset
                         from severe_sepsis_now SSPN
                         group by SSPN.enc_id
                     union all
-                    select PC.enc_id, min(PC.severe_sepsis_lead_time) as severe_sepsis_lead_time
+                    select PC.enc_id, min(PC.severe_sepsis_onset) as severe_sepsis_onset
                         from past_criteria PC
                         where PC.state >= 20
                         group by PC.enc_id
@@ -2362,11 +2375,11 @@ return query
                     pat_cvalues.c_ovalue,
                     (case
                         when pat_cvalues.category = 'after_severe_sepsis' then
-                            ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > OLT.severe_sepsis_lead_time, false) )
+                            ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > (case when pat_cvalues.name = 'initial_lactate_order' then OLT.severe_sepsis_onset_for_initial_lactate_order when pat_cvalues.name = 'blood_culture_order' then OLT.severe_sepsis_onset_for_blood_culture_order when pat_cvalues.name = 'antibiotics_order' then OLT.severe_sepsis_onset_for_antibiotics_order else OLT.severe_sepsis_onset_for_order end), false) )
                             and ( order_met(pat_cvalues.name, coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value)) )
 
                         when pat_cvalues.category = 'after_severe_sepsis_dose' then
-                            ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > OLT.severe_sepsis_lead_time, false) )
+                            ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > (case when pat_cvalues.name = 'initial_lactate_order' then OLT.severe_sepsis_onset_for_initial_lactate_order when pat_cvalues.name = 'blood_culture_order' then OLT.severe_sepsis_onset_for_blood_culture_order when pat_cvalues.name = 'antibiotics_order' then OLT.severe_sepsis_onset_for_antibiotics_order else OLT.severe_sepsis_onset_for_order end), false) )
                             and ( dose_order_met(pat_cvalues.fid, pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value::numeric,
                                     coalesce((pat_cvalues.c_ovalue#>>'{0,lower}')::numeric,
                                              (pat_cvalues.d_ovalue#>>'{lower}')::numeric)) )
@@ -2385,7 +2398,7 @@ return query
                         end
                     ) as is_met
             from pat_cvalues
-              left join orders_severe_sepsis_lead_times OLT
+              left join orders_severe_sepsis_onsets OLT
                 on pat_cvalues.enc_id = OLT.enc_id
               left join orders_septic_shock_onsets OST
                 on pat_cvalues.enc_id = OST.enc_id
@@ -2818,7 +2831,7 @@ CREATE OR REPLACE FUNCTION update_notifications(
     alert_codes text[],
     severe_sepsis_onset timestamptz,
     septic_shock_onset timestamptz,
-    sirs_plus_organ_onset timestamptz,
+    severe_sepsis_wo_inf_onset timestamptz,
     sirs_plus_organ_initial timestamptz,
     mode text)
 RETURNS table(enc_id int, alert_code text) AS $$
@@ -2837,7 +2850,7 @@ BEGIN
                     else code
                 end)
                 , 'read', false,'timestamp',
-                date_part('epoch', sirs_plus_organ_onset::timestamptz),
+                date_part('epoch', severe_sepsis_wo_inf_onset::timestamptz),
                 'suppression', 'true',
                 'model', 'trews',
                 'trews_tsp', tsp,
@@ -2856,7 +2869,7 @@ BEGIN
                     else code
                 end)
                 , 'read', false,'timestamp',
-                date_part('epoch', sirs_plus_organ_onset::timestamptz),
+                date_part('epoch', severe_sepsis_wo_inf_onset::timestamptz),
                 'suppression', 'true',
                 'model', 'lmc',
                 'trews_tsp', tsp,
@@ -2874,7 +2887,7 @@ BEGIN
             json_build_object('alert_code', code, 'read', false,'timestamp',
                 date_part('epoch',
                     (case when code in ('201','204','303','306') then septic_shock_onset
-                          when code = '300' then sirs_plus_organ_onset
+                          when code in ('300', '500') then severe_sepsis_wo_inf_onset
                           else severe_sepsis_onset
                           end)::timestamptz
                     +
@@ -2901,7 +2914,7 @@ BEGIN
             json_build_object('alert_code', code, 'read', false,'timestamp',
                 date_part('epoch',
                     (case when code in ('201','204','303','306','401','404','503','506','601','604','703','706') then septic_shock_onset
-                          when code in ('300','500') then sirs_plus_organ_onset
+                          when code in ('300','500') then severe_sepsis_wo_inf_onset
                           else severe_sepsis_onset
                           end)::timestamptz
                     +
@@ -3280,7 +3293,11 @@ end; $$;
 
 
 create or replace function garbage_collection(hospital text) returns void language plpgsql as $$ begin
-    perform reactivate(enc_id), reset_soi_pats(enc_id), reset_bundle_expired_pats(enc_id), reset_noinf_expired_pats(enc_id)
+    perform reactivate(enc_id),
+        reset_soi_pats(enc_id),
+        reset_bundle_expired_pats(enc_id),
+        reset_noinf_expired_pats(enc_id),
+        reset_orgdf_expired_pats(enc_id)
     from get_latest_enc_ids(hospital);
     perform del_old_refreshed_pats();
     perform drop_tables_pattern('workspace', '_' || to_char((now() - interval '2 days')::date, 'MMDD'));
@@ -3395,6 +3412,42 @@ begin
     return;
 end; $$;
 
+create or replace function reset_orgdf_expired_pats(this_enc_id int default null)
+returns void language plpgsql as $$
+declare res text;
+-- Add 72 hr reset when all orgdf have been marked as not acute (issue #128)
+begin
+    with pats as (
+        select enc_id
+        from
+        (
+            select enc_id,
+            coalesce(bool_or(c.is_met) filter (where c.name ~ 'trews'), false) is_any_trews_orgdf_met,
+            coalesce(bool_or(c.is_met) filter (where c.name !~ 'trews'), false) is_any_cms_orgdf_met,
+            count(*) filter (where c.override_value#>>'{0,text}' = 'No Infection') override_cnt,
+            coalesce(now() - min(c.override_time::timestamptz) > get_parameter('deactivate_expire_hours')::interval, false) expired
+            from criteria c
+            where c.name in (
+                'blood_pressure', 'mean_arterial_pressure', 'decrease_in_sbp',
+                'creatinine', 'bilirubin', 'platelet', 'inr', 'lactate', 'respiratory_failure'
+                'trews_bilirubin', 'trews_creatinine', 'trews_dsbp', 'trews_gcs', 'trews_inr',
+                'trews_lactate', 'trews_map', 'trews_platelet', 'trews_sbpm', 'trews_vasopressors', 'trews_vent')
+            and c.enc_id = coalesce(this_enc_id, c.enc_id)
+            group by enc_id
+        ) S where (not is_any_trews_orgdf_met or not is_any_cms_orgdf_met) and expired and override_cnt > 0
+    ),
+    logging as (
+        insert into criteria_log (enc_id, tsp, event, update_date)
+        select
+              enc_id,
+              now(),
+              '{"event_type": "reset_orgdf_expired_pats", "uid":"dba"}',
+              now()
+        from pats
+    )
+    select reset_patient(enc_id) from pats into res;
+    return;
+end; $$;
 
 create or replace function reset_patient(this_enc_id int, _event_id int default null)
 returns void language plpgsql as $$
@@ -4268,15 +4321,6 @@ from workspace.' || job_id || '_bedded_patients_transformed bp
 ON CONFLICT (enc_id, fid)
 DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
 
--- workspace_lab_results_2_cdm_t
-INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
-select pat_enc.enc_id, lr.tsp::timestamptz, lr.fid, first(lr.value order by lr.tsp::timestamptz), 0 from workspace.' || job_id || '_lab_results_transformed lr
-    inner join pat_enc on pat_enc.visit_id = lr.visit_id
-where lr.tsp <> ''NaT'' and lr.tsp::timestamptz < now()
-group by pat_enc.enc_id, lr.tsp, lr.fid
-ON CONFLICT (enc_id, tsp, fid)
-DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
-
 -- workspace_location_history_2_cdm_t
 INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
 select pat_enc.enc_id, lr.tsp::timestamptz, lr.fid, lr.value, 0 from workspace.' || job_id || '_location_history_transformed lr
@@ -4348,7 +4392,7 @@ select * from update_orgdf_baselines(''' || job_id || ''')';
 
 
 -- workspace_flowsheets_2_cdm_t
-if to_regclass('workspace.' || job_id || '_flowsheet_transformed') is not null then
+if to_regclass('workspace.' || job_id || '_flowsheets_transformed') is not null then
     execute
     'INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
     select pat_enc.enc_id, fs.tsp::timestamptz, fs.fid, last(fs.value), 0 from workspace.' || job_id || '_flowsheets_transformed fs
@@ -4402,9 +4446,19 @@ if to_regclass('workspace.' || job_id || '_notes_transformed') is not null then
         dates = excluded.dates,
         providers = excluded.providers;';
 end if;
+
+-- workspace_lab_results_2_cdm_t
+if to_regclass('workspace.' || job_id || '_lab_results_transformed') is not null then
+    execute '
+    INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+    select pat_enc.enc_id, lr.tsp::timestamptz, lr.fid, first(lr.value order by lr.tsp::timestamptz), 0 from workspace.' || job_id || '_lab_results_transformed lr
+        inner join pat_enc on pat_enc.visit_id = lr.visit_id
+    where lr.tsp <> ''NaT'' and lr.tsp::timestamptz < now()
+    group by pat_enc.enc_id, lr.tsp, lr.fid
+    ON CONFLICT (enc_id, tsp, fid)
+    DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;';
+end if;
 END $func$ LANGUAGE plpgsql;
-
-
 
 CREATE OR REPLACE FUNCTION update_orgdf_baselines(job_id text)
 RETURNS void AS $func$ #variable_conflict use_column
@@ -4513,8 +4567,26 @@ begin
   delete from notifications where enc_id = this_enc_id;
   delete from pat_status where enc_id = this_enc_id;
   delete from user_interactions where enc_id = this_enc_id;
+  delete from orgdf_baselines where pat_id = (select pat_id from pat_enc where enc_id = this_enc_id);
   delete from pat_enc where enc_id = this_enc_id;
 end;
+$$;
+
+CREATE OR REPLACE FUNCTION get_ofd_enc_ids(win text default '1 month')
+RETURNS table (enc_id int)
+LANGUAGE plpgsql
+AS
+$$
+begin
+return query with ofd as
+(select pe.enc_id, max(tsp) tsp from pat_enc pe
+inner join cdm_t t on pe.enc_id = t.enc_id
+group by pe.enc_id)
+select ofd.enc_id from ofd where now() - tsp > win::interval
+except select * from get_latest_enc_ids('HCGH')
+except select * from get_latest_enc_ids('JHH')
+except select * from get_latest_enc_ids('BMC');
+END;
 $$;
 
 create or replace function clone_enc(from_enc int, to_pat_id text, to_visit_id text)
@@ -4546,6 +4618,20 @@ begin
   update clone_temp set enc_id = to_enc;
   insert into cdm_labels select * from clone_temp;
   drop table clone_temp;
+  create temp table clone_temp as select * from criteria where enc_id = from_enc;
+  update clone_temp set enc_id = to_enc;
+  insert into criteria select * from clone_temp;
+  drop table clone_temp;
+  create temp table clone_temp as select * from orgdf_baselines where pat_id = (select pat_id from pat_enc where enc_id = from_enc);
+  update clone_temp set pat_id = to_pat_id;
+  insert into orgdf_baselines select * from clone_temp;
+  drop table clone_temp;
+  create temp table clone_temp as select * from trews_jit_score where enc_id = from_enc;
+  update clone_temp set enc_id = to_enc;
+  insert into trews_jit_score select * from clone_temp;
+  drop table clone_temp;
+  perform pg_notify('on_opsdx_dev_etl', 'invalidate_cache:' || pat_id || ':trews-jit')
+    from pat_enc where enc_id = to_enc;
   return to_enc;
 end;
 $$;
@@ -4554,30 +4640,31 @@ create or replace function shift_to_now(this_enc_id int, now_tsp timestamptz def
 returns void language plpgsql as $$
 declare shift_interval interval;
 begin
-select now_tsp - max(tsp) from cdm_t where enc_id = this_enc_id into shift_interval;
+select now_tsp - greatest(max(t.tsp), coalesce(max(c.override_time), max(t.tsp) )) from cdm_t t left join criteria c on t.enc_id = c.enc_id and c.override_user is not null where t.enc_id = this_enc_id into shift_interval;
 update cdm_t set tsp = tsp + shift_interval where enc_id = this_enc_id;
 update cdm_twf set tsp = tsp + shift_interval where enc_id = this_enc_id;
+update criteria set override_time = override_time + shift_interval where enc_id = this_enc_id and override_user is not null;
+update criteria_events set override_time = override_time + shift_interval,
+    measurement_time = measurement_time + shift_interval,
+    update_date = update_date + shift_interval
+    where enc_id = this_enc_id and override_user is not null;
+update orgdf_baselines set
+    creatinine_tsp = creatinine_tsp + shift_interval,
+    inr_tsp = inr_tsp + shift_interval,
+    bilirubin_tsp = bilirubin_tsp + shift_interval,
+    platelets_tsp = platelets_tsp + shift_interval
+    where pat_id = (select pat_id from pat_enc where enc_id = this_enc_id);
 end;
 $$;
 
-CREATE OR REPLACE FUNCTION get_ofd_enc_ids(win text default '1 month')
-RETURNS table (enc_id int)
-LANGUAGE plpgsql
-AS
-$$
+create or replace function refresh_enc(this_enc_id int, offset_interval text default '0')
+returns void language plpgsql as $$
 begin
-return query with ofd as
-(select pe.enc_id, max(tsp) tsp from pat_enc pe
-inner join cdm_t t on pe.enc_id = t.enc_id
-group by pe.enc_id)
-select ofd.enc_id from ofd where now() - tsp > win::interval
-except select * from get_latest_enc_ids('HCGH')
-except select * from get_latest_enc_ids('JHH')
-except select * from get_latest_enc_ids('BMC');
-END;
+    perform shift_to_now(this_enc_id, now() - offset_interval::interval);
+    perform pg_notify('on_opsdx_dev_etl', 'invalidate_cache:' || pat_id || ':trews-jit')
+    from pat_enc where enc_id = this_enc_id;
+end;
 $$;
-
-
 ------------------------------------------------
 -- Alert Statistics
 
@@ -4838,90 +4925,7 @@ group by care_unit.care_unit
 ;
 END $func$ LANGUAGE plpgsql;
 
-create or replace function delete_enc(this_enc_id int)
-returns void language plpgsql as $$
-declare
-begin
-  delete from cdm_twf where enc_id = this_enc_id;
-  delete from cdm_t where enc_id = this_enc_id;
-  delete from cdm_s where enc_id = this_enc_id;
-  delete from cdm_notes where enc_id = this_enc_id;
-  delete from cdm_labels where enc_id = this_enc_id;
-  delete from criteria where enc_id = this_enc_id;
-  delete from criteria_events where enc_id = this_enc_id;
-  delete from criteria_log where enc_id = this_enc_id;
-  delete from trews where enc_id = this_enc_id;
-  delete from trews_jit_score where enc_id = this_enc_id;
-  delete from lmcscore where enc_id = this_enc_id;
-  delete from deterioration_feedback where enc_id = this_enc_id;
-  delete from epic_notifications_history where enc_id = this_enc_id;
-  delete from epic_trewscores_history where enc_id = this_enc_id;
-  delete from feedback_log where enc_id = this_enc_id;
-  delete from notifications where enc_id = this_enc_id;
-  delete from pat_status where enc_id = this_enc_id;
-  delete from user_interactions where enc_id = this_enc_id;
-  delete from pat_enc where enc_id = this_enc_id;
-end;
-$$;
 
-create or replace function clone_enc(from_enc int, to_pat_id text, to_visit_id text)
-returns int language plpgsql as $$
-declare to_enc int;
-begin
-  perform delete_enc(enc_id) from pat_enc where pat_id = to_pat_id and visit_id = to_visit_id;
-  insert into pat_enc (pat_id, visit_id)
-    values (to_pat_id, to_visit_id);
-  select enc_id from pat_enc where pat_id = to_pat_id and visit_id = to_visit_id into to_enc;
-  create temp table clone_temp as
-    select * from cdm_twf where enc_id = from_enc;
-  update clone_temp set enc_id = to_enc;
-  insert into cdm_twf select * from clone_temp;
-  drop table clone_temp;
-  create temp table clone_temp as select * from cdm_t where enc_id = from_enc;
-  update clone_temp set enc_id = to_enc;
-  insert into cdm_t select * from clone_temp;
-  drop table clone_temp;
-  create temp table clone_temp as select * from cdm_s where enc_id = from_enc;
-  update clone_temp set enc_id = to_enc;
-  insert into cdm_s select * from clone_temp;
-  drop table clone_temp;
-  create temp table clone_temp as select * from cdm_notes where enc_id = from_enc;
-  update clone_temp set enc_id = to_enc;
-  insert into cdm_notes select * from clone_temp;
-  drop table clone_temp;
-  create temp table clone_temp as select * from cdm_labels where enc_id = from_enc;
-  update clone_temp set enc_id = to_enc;
-  insert into cdm_labels select * from clone_temp;
-  drop table clone_temp;
-  create temp table clone_temp as select * from criteria where enc_id = from_enc;
-  update clone_temp set enc_id = to_enc;
-  insert into criteria select * from clone_temp;
-  drop table clone_temp;
-  return to_enc;
-end;
-$$;
-
-create or replace function shift_to_now(this_enc_id int, now_tsp timestamptz default now())
-returns void language plpgsql as $$
-declare shift_interval interval;
-begin
-select now_tsp - greatest(max(t.tsp), coalesce(max(c.override_time), max(t.tsp) )) from cdm_t t left join criteria c on t.enc_id = c.enc_id and c.override_user is not null where t.enc_id = this_enc_id into shift_interval;
-update cdm_t set tsp = tsp + shift_interval where enc_id = this_enc_id;
-update cdm_twf set tsp = tsp + shift_interval where enc_id = this_enc_id;
-update criteria set override_time = override_time + shift_interval where enc_id = this_enc_id and override_user is not null;
-end;
-$$;
-
-create or replace function refresh_enc(this_enc_id int)
-returns void language plpgsql as $$
-begin
-    perform shift_to_now(this_enc_id);
-    delete from criteria_events where enc_id = this_enc_id;
-    perform advance_criteria_snapshot(this_enc_id);
-    perform pg_notify('on_opsdx_dev_etl', 'invalidate_cache:' || pat_id || ':trews-jit')
-    from pat_enc where enc_id = this_enc_id;
-end;
-$$;
 
 ------------------------------------------------
 -- Timeline helpers.

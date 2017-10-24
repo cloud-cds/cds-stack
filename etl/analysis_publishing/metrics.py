@@ -523,6 +523,18 @@ class alert_stats_by_unit(metric):
   def to_html(self):
     return self.data.to_html()
 
+  def to_cwm(self):
+    res = []
+    for i, row in self.data.iterrows():
+      for label in ['trews_no_cms', 'cms_no_trews', 'trews_and_cms', 'any_trews', 'any_cms']:
+        data_dict = {
+          'MetricName': 'alert_count_' + label + '_' + row['care_unit'].replace(' ', '_'),
+          'Timestamp': self.last_time_str,
+          'Value': int(row[label]),
+          'Unit': 'Count',
+        }
+        res.append(data_dict)
+    return res
 
 class alert_evaluation_stats(metric):
   def __init__(self,connection, first_time_str, last_time_str):
@@ -721,15 +733,3 @@ class metric_factory(object):
         raise(Warning("Unclear how to intepret output of {} to_cwm method".format(metric.name)))
 
     return cwm_list
-
-
-
-
-
-
-
-
-
-
-
-
