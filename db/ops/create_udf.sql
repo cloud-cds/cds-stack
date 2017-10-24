@@ -1592,7 +1592,11 @@ CREATE OR REPLACE FUNCTION calculate_criteria(this_enc_id int, ts_start timestam
  LANGUAGE plpgsql
 AS $function$
 DECLARE
-  orders_lookback interval := interval '6 hours';
+  -- Criteria Lookbacks.
+  initial_lactate_order_lookback       interval := interval '6 hours';
+  orders_lookback                interval := interval '6 hours';
+  blood_culture_order_lookback   interval := interval '48 hours';
+  antibiotics_order_lookback     interval := interval '24 hours';
 BEGIN
 return query
     with enc_ids as (
@@ -1650,7 +1654,11 @@ return query
             on enc_ids.enc_id = t.enc_id and t.fid = cd.fid
             and (
                 t.tsp is null
-                or t.tsp between ts_start and ts_end
+                or (cd.name = 'initial_lactate_order' and t.tsp between least(ts_start, ts_end - initial_lactate_order_lookback) and ts_end)
+                or (cd.name = 'blood_culture_order' and t.tsp between least(ts_start, ts_end - blood_culture_order_lookback) and ts_end)
+                or (cd.name = 'antibiotics_order' and t.tsp between least(ts_start, ts_end - antibiotics_order_lookback) and ts_end)
+                or (cd.name ~ '_order' and t.tsp between least(ts_start, ts_end - orders_lookback) and ts_end)
+                or (cd.name !~ '_order' and t.tsp between ts_start and ts_end)
                 )
     ),
     infection as (
@@ -2313,23 +2321,26 @@ return query
         (
             with past_criteria as (
                 select  PO.enc_id, SNP.state,
-                        min(SNP.severe_sepsis_lead_time) as severe_sepsis_lead_time,
+                        min(SNP.severe_sepsis_onset) as severe_sepsis_onset,
                         min(SNP.septic_shock_onset) as septic_shock_onset
                 from enc_ids PO
                 inner join lateral get_states_snapshot(PO.enc_id) SNP on PO.enc_id = SNP.enc_id
                 where SNP.state >= 20
                 group by PO.enc_id, SNP.state
             ),
-            orders_severe_sepsis_lead_times as (
-                select LT.enc_id, min(LT.severe_sepsis_lead_time) - orders_lookback as severe_sepsis_lead_time
+            orders_severe_sepsis_onsets as (
+                select LT.enc_id, min(coalesce(LT.severe_sepsis_onset, now())) - orders_lookback as severe_sepsis_onset_for_order,
+                min(coalesce(LT.severe_sepsis_onset, now())) - initial_lactate_order_lookback as severe_sepsis_onset_for_initial_lactate_order,
+                min(coalesce(LT.severe_sepsis_onset, now())) - blood_culture_order_lookback as severe_sepsis_onset_for_blood_culture_order,
+                min(coalesce(LT.severe_sepsis_onset, now())) - antibiotics_order_lookback as severe_sepsis_onset_for_antibiotics_order
                 from (
                     select  SSPN.enc_id,
-                            min(case when SSPN.severe_sepsis_is_met then SSPN.severe_sepsis_lead_time else null end)
-                                as severe_sepsis_lead_time
+                            min(case when SSPN.severe_sepsis_is_met then SSPN.severe_sepsis_onset else null end)
+                                as severe_sepsis_onset
                         from severe_sepsis_now SSPN
                         group by SSPN.enc_id
                     union all
-                    select PC.enc_id, min(PC.severe_sepsis_lead_time) as severe_sepsis_lead_time
+                    select PC.enc_id, min(PC.severe_sepsis_onset) as severe_sepsis_onset
                         from past_criteria PC
                         where PC.state >= 20
                         group by PC.enc_id
@@ -2364,11 +2375,11 @@ return query
                     pat_cvalues.c_ovalue,
                     (case
                         when pat_cvalues.category = 'after_severe_sepsis' then
-                            ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > OLT.severe_sepsis_lead_time, false) )
+                            ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > (case when pat_cvalues.name = 'initial_lactate_order' then OLT.severe_sepsis_onset_for_initial_lactate_order when pat_cvalues.name = 'blood_culture_order' then OLT.severe_sepsis_onset_for_blood_culture_order when pat_cvalues.name = 'antibiotics_order' then OLT.severe_sepsis_onset_for_antibiotics_order else OLT.severe_sepsis_onset_for_order end), false) )
                             and ( order_met(pat_cvalues.name, coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value)) )
 
                         when pat_cvalues.category = 'after_severe_sepsis_dose' then
-                            ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > OLT.severe_sepsis_lead_time, false) )
+                            ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > (case when pat_cvalues.name = 'initial_lactate_order' then OLT.severe_sepsis_onset_for_initial_lactate_order when pat_cvalues.name = 'blood_culture_order' then OLT.severe_sepsis_onset_for_blood_culture_order when pat_cvalues.name = 'antibiotics_order' then OLT.severe_sepsis_onset_for_antibiotics_order else OLT.severe_sepsis_onset_for_order end), false) )
                             and ( dose_order_met(pat_cvalues.fid, pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value::numeric,
                                     coalesce((pat_cvalues.c_ovalue#>>'{0,lower}')::numeric,
                                              (pat_cvalues.d_ovalue#>>'{lower}')::numeric)) )
@@ -2387,7 +2398,7 @@ return query
                         end
                     ) as is_met
             from pat_cvalues
-              left join orders_severe_sepsis_lead_times OLT
+              left join orders_severe_sepsis_onsets OLT
                 on pat_cvalues.enc_id = OLT.enc_id
               left join orders_septic_shock_onsets OST
                 on pat_cvalues.enc_id = OST.enc_id
@@ -4310,15 +4321,6 @@ from workspace.' || job_id || '_bedded_patients_transformed bp
 ON CONFLICT (enc_id, fid)
 DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
 
--- workspace_lab_results_2_cdm_t
-INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
-select pat_enc.enc_id, lr.tsp::timestamptz, lr.fid, first(lr.value order by lr.tsp::timestamptz), 0 from workspace.' || job_id || '_lab_results_transformed lr
-    inner join pat_enc on pat_enc.visit_id = lr.visit_id
-where lr.tsp <> ''NaT'' and lr.tsp::timestamptz < now()
-group by pat_enc.enc_id, lr.tsp, lr.fid
-ON CONFLICT (enc_id, tsp, fid)
-DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
-
 -- workspace_location_history_2_cdm_t
 INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
 select pat_enc.enc_id, lr.tsp::timestamptz, lr.fid, lr.value, 0 from workspace.' || job_id || '_location_history_transformed lr
@@ -4444,9 +4446,19 @@ if to_regclass('workspace.' || job_id || '_notes_transformed') is not null then
         dates = excluded.dates,
         providers = excluded.providers;';
 end if;
+
+-- workspace_lab_results_2_cdm_t
+if to_regclass('workspace.' || job_id || '_lab_results_transformed') is not null then
+    execute '
+    INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+    select pat_enc.enc_id, lr.tsp::timestamptz, lr.fid, first(lr.value order by lr.tsp::timestamptz), 0 from workspace.' || job_id || '_lab_results_transformed lr
+        inner join pat_enc on pat_enc.visit_id = lr.visit_id
+    where lr.tsp <> ''NaT'' and lr.tsp::timestamptz < now()
+    group by pat_enc.enc_id, lr.tsp, lr.fid
+    ON CONFLICT (enc_id, tsp, fid)
+    DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;';
+end if;
 END $func$ LANGUAGE plpgsql;
-
-
 
 CREATE OR REPLACE FUNCTION update_orgdf_baselines(job_id text)
 RETURNS void AS $func$ #variable_conflict use_column
