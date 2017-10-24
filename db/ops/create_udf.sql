@@ -3286,7 +3286,7 @@ create or replace function garbage_collection(hospital text) returns void langua
         reset_soi_pats(enc_id),
         reset_bundle_expired_pats(enc_id),
         reset_noinf_expired_pats(enc_id),
-        reset_orgdf_pats(enc_id)
+        reset_orgdf_expired_pats(enc_id)
     from get_latest_enc_ids(hospital);
     perform del_old_refreshed_pats();
     perform drop_tables_pattern('workspace', '_' || to_char((now() - interval '2 days')::date, 'MMDD'));
@@ -3401,7 +3401,7 @@ begin
     return;
 end; $$;
 
-create or replace function reset_orgdf_pats(this_enc_id int default null)
+create or replace function reset_orgdf_expired_pats(this_enc_id int default null)
 returns void language plpgsql as $$
 declare res text;
 -- Add 72 hr reset when all orgdf have been marked as not acute (issue #128)
@@ -3412,7 +3412,7 @@ begin
         (
             select enc_id,
             coalesce(bool_or(c.is_met) filter (where c.name ~ 'trews'), false) is_any_trews_orgdf_met,
-            coalesce(bool_or(c.is_met) filter (where not c.name ~ 'trews'), false) is_any_cms_orgdf_met,
+            coalesce(bool_or(c.is_met) filter (where c.name !~ 'trews'), false) is_any_cms_orgdf_met,
             count(*) filter (where c.override_value#>>'{0,text}' = 'No Infection') override_cnt,
             coalesce(now() - min(c.override_time::timestamptz) > get_parameter('deactivate_expire_hours')::interval, false) expired
             from criteria c
@@ -3430,7 +3430,7 @@ begin
         select
               enc_id,
               now(),
-              '{"event_type": "reset_orgdf_pats", "uid":"dba"}',
+              '{"event_type": "reset_orgdf_expired_pats", "uid":"dba"}',
               now()
         from pats
     )
