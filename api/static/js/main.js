@@ -983,9 +983,8 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
         auto_reset_date = new Date(expired_date);
       }
 
-      // TODO: simplify to just 5 or 6?
-      var expected_treatments = sev3_active ? 4 : (sev6_active ? 5 : 6);
-      var actual_treatments = sev3_active ? num_sev3_complete : (sev6_active ? num_sev6_complete : num_sep6_complete);
+      var expected_treatments = sep6_active ? 6 : 5;
+      var actual_treatments = sep6_active ? num_sep6_complete : num_sev6_complete;
 
       if ( shock_onset != null ) {
         if ( trews.data['ui']['ui_septic_shock']['is_met'] ) {
