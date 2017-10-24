@@ -318,6 +318,11 @@ class TREWSLog(web.View):
         api_monitor.add_metric('UserErrors')
         logging.error(json.dumps(log_entry, indent=4))
 
+      # Page closed logging in CW.
+      elif 'session-close' in log_entry:
+        self.request.app['body'] = log_entry
+        logging.warning(json.dumps(log_entry, indent=4))
+
       else:
         # Generic printing
         logging.warning(json.dumps(log_entry, indent=4))

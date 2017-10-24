@@ -176,7 +176,7 @@ window.onunload = function() {
     type: "POST",
     async: false,
     url: "log",
-    data: JSON.stringify({'session': 'unload'}),
+    data: JSON.stringify({'session-close': 'unload'}),
     dataType: "json"
   });
 }
