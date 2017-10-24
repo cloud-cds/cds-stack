@@ -224,10 +224,13 @@ class TREWSStaticResource(web.View):
         if log_decryption:
           logging.info('Decrypted %s' % str(params))
 
-        if params is not None and 'USERID' in params and 'PATID' in params:
+        if params is not None and ('USERID' in params or release != 'production') and 'PATID' in params:
 
           if trews_app_key:
             params['trewsapp'] = encrypt(trews_app_key)
+
+          if 'USERID' not in params:
+            params['USERID'] = 'UNKNOWN'
 
           new_qs = urllib.parse.urlencode(params)
 
