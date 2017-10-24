@@ -501,6 +501,7 @@ CREATE TABLE orgdf_baselines (
     platelets_tsp   timestamptz
 );
 
+DROP TABLE IF EXISTS trews_jit_score;
 CREATE TABLE trews_jit_score(
 model_id           integer                 ,
 enc_id             integer                 ,

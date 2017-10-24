@@ -65,10 +65,13 @@ class Engine:
       ]
 
     elif mode == 'metrics':
+      # metric_list = [
+      #   metrics.unique_usrs,
+      #   metrics.get_sepsis_state_stats,
+      #   metrics.pats_with_threshold_crossings,
+      # ]
       metric_list = [
-        metrics.unique_usrs,
-        metrics.get_sepsis_state_stats,
-        metrics.pats_with_threshold_crossings,
+        metrics.alert_stats_by_unit
       ]
 
     else:
@@ -101,10 +104,13 @@ class Engine:
     for md in cwm_list:
       md['Dimensions'] = [{'Name': 'analysis','Value': self.BEHAMON_STACK}]
 
-    put_status = self.boto_cloudwatch_client.put_metric_data(
-      Namespace  = 'OpsDX',
-      MetricData = cwm_list,
-    )
+    i = 0
+    while i < len(cwm_list):
+      put_status = self.boto_cloudwatch_client.put_metric_data(
+        Namespace  = 'OpsDX',
+        MetricData = cwm_list[i:min(i+20, len(cwm_list))]
+      )
+      i = i + 20
 
     logger.info("Metrics sent to cloudwatch ")
 
