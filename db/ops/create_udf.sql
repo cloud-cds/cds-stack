@@ -3423,7 +3423,7 @@ begin
                 'trews_lactate', 'trews_map', 'trews_platelet', 'trews_sbpm', 'trews_vasopressors', 'trews_vent')
             and c.enc_id = coalesce(this_enc_id, c.enc_id)
             group by enc_id
-        ) S where (not is_any_trews_orgdf_met or not is_any_cms_orgdf_met) and excluded and override_cnt > 0
+        ) S where (not is_any_trews_orgdf_met or not is_any_cms_orgdf_met) and expired and override_cnt > 0
     ),
     logging as (
         insert into criteria_log (enc_id, tsp, event, update_date)
