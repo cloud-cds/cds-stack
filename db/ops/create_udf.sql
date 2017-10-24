@@ -1592,7 +1592,11 @@ CREATE OR REPLACE FUNCTION calculate_criteria(this_enc_id int, ts_start timestam
  LANGUAGE plpgsql
 AS $function$
 DECLARE
-  orders_lookback interval := interval '6 hours';
+  -- Criteria Lookbacks.
+  initial_lactate_lookback       interval := interval '6 hours';
+  orders_lookback                interval := interval '6 hours';
+  blood_culture_order_lookback   interval := interval '48 hours';
+  antibiotics_order_lookback     interval := interval '24 hours';
 BEGIN
 return query
     with enc_ids as (
@@ -1650,7 +1654,11 @@ return query
             on enc_ids.enc_id = t.enc_id and t.fid = cd.fid
             and (
                 t.tsp is null
-                or t.tsp between ts_start and ts_end
+                or (cd.name = 'initial_lactate_order' and t.tsp between least(ts_start, ts_end - initial_lactate_lookback) and ts_end)
+                or (cd.name = 'blood_culture_order' and t.tsp between least(ts_start, ts_end - blood_culture_lookback) and ts_end)
+                or (cd.name = 'antibiotics_order' and t.tsp between least(ts_start, ts_end - antibiotics_lookback) and ts_end)
+                or (cd.name ~ '_order' and t.tsp between least(ts_start, ts_end - orders_lookback) and ts_end)
+                or (cd.name !~ '_order' and t.tsp between ts_start and ts_end)
                 )
     ),
     infection as (
