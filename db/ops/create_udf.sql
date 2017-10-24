@@ -3282,7 +3282,11 @@ end; $$;
 
 
 create or replace function garbage_collection(hospital text) returns void language plpgsql as $$ begin
-    perform reactivate(enc_id), reset_soi_pats(enc_id), reset_bundle_expired_pats(enc_id), reset_noinf_expired_pats(enc_id)
+    perform reactivate(enc_id),
+        reset_soi_pats(enc_id),
+        reset_bundle_expired_pats(enc_id),
+        reset_noinf_expired_pats(enc_id),
+        reset_orgdf_pats(enc_id)
     from get_latest_enc_ids(hospital);
     perform del_old_refreshed_pats();
     perform drop_tables_pattern('workspace', '_' || to_char((now() - interval '2 days')::date, 'MMDD'));
@@ -3397,6 +3401,42 @@ begin
     return;
 end; $$;
 
+create or replace function reset_orgdf_pats(this_enc_id int default null)
+returns void language plpgsql as $$
+declare res text;
+-- Add 72 hr reset when all orgdf have been marked as not acute (issue #128)
+begin
+    with pats as (
+        select enc_id
+        from
+        (
+            select enc_id,
+            coalesce(bool_or(c.is_met) filter (where c.name ~ 'trews'), false) is_any_trews_orgdf_met,
+            coalesce(bool_or(c.is_met) filter (where not c.name ~ 'trews'), false) is_any_cms_orgdf_met,
+            count(*) filter (where c.override_value#>>'{0,text}' = 'No Infection') override_cnt,
+            coalesce(now() - min(c.override_time::timestamptz) > get_parameter('deactivate_expire_hours')::interval, false) expired
+            from criteria c
+            where c.name in (
+                'blood_pressure', 'mean_arterial_pressure', 'decrease_in_sbp',
+                'creatinine', 'bilirubin', 'platelet', 'inr', 'lactate', 'respiratory_failure'
+                'trews_bilirubin', 'trews_creatinine', 'trews_dsbp', 'trews_gcs', 'trews_inr',
+                'trews_lactate', 'trews_map', 'trews_platelet', 'trews_sbpm', 'trews_vasopressors', 'trews_vent')
+            and c.enc_id = coalesce(this_enc_id, c.enc_id)
+            group by enc_id
+        ) S where (not is_any_trews_orgdf_met or not is_any_cms_orgdf_met) and excluded and override_cnt > 0
+    ),
+    logging as (
+        insert into criteria_log (enc_id, tsp, event, update_date)
+        select
+              enc_id,
+              now(),
+              '{"event_type": "reset_orgdf_pats", "uid":"dba"}',
+              now()
+        from pats
+    )
+    select reset_patient(enc_id) from pats into res;
+    return;
+end; $$;
 
 create or replace function reset_patient(this_enc_id int, _event_id int default null)
 returns void language plpgsql as $$
@@ -4350,7 +4390,7 @@ select * from update_orgdf_baselines(''' || job_id || ''')';
 
 
 -- workspace_flowsheets_2_cdm_t
-if to_regclass('workspace.' || job_id || '_flowsheet_transformed') is not null then
+if to_regclass('workspace.' || job_id || '_flowsheets_transformed') is not null then
     execute
     'INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
     select pat_enc.enc_id, fs.tsp::timestamptz, fs.fid, last(fs.value), 0 from workspace.' || job_id || '_flowsheets_transformed fs
