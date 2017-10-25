@@ -4634,6 +4634,10 @@ begin
   update clone_temp set enc_id = to_enc;
   insert into trews_jit_score select * from clone_temp;
   drop table clone_temp;
+  create temp table clone_temp as select * from notifications where enc_id = from_enc;
+  update clone_temp set enc_id = to_enc;
+  insert into notifications select * from clone_temp;
+  drop table clone_temp;
   perform pg_notify('on_opsdx_dev_etl', 'invalidate_cache:' || pat_id || ':trews-jit')
     from pat_enc where enc_id = to_enc;
   return to_enc;
