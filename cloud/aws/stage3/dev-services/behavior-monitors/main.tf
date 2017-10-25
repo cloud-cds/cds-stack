@@ -191,7 +191,7 @@ resource "aws_lambda_function" "scorecard_metric_lambda" {
 
         kube_cmd_0 = "sh"
         kube_cmd_1 = "-c"
-        kube_cmd_2 = "/usr/local/bin/python3 /etl/analysis_publishing/engine.py metrics 1440"
+        kube_cmd_2 = "/usr/local/bin/python3 /etl/analysis_publishing/engine.py metrics 2880"
 
         # ETL Environment Variables
         k8s_job_BEHAMON_STACK                      = "${var.deploy_prefix}-dev"

@@ -71,7 +71,8 @@ class Engine:
       #   metrics.pats_with_threshold_crossings,
       # ]
       metric_list = [
-        metrics.alert_stats_by_unit
+        metrics.alert_stats_by_unit,
+        metrics.alert_count_8hr
       ]
 
     else:
