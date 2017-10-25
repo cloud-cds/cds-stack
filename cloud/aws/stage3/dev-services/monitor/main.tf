@@ -418,3 +418,76 @@ resource "aws_cloudwatch_metric_alarm" "jh_api_request_error" {
     ETL = "dev"
   }
 }
+
+
+resource "aws_cloudwatch_metric_alarm" "trews_alert_count_on_hcgh_ed" {
+  alarm_name                = "${var.deploy_prefix}-dev-trews-alert-count-hcgh-ed"
+  comparison_operator       = "LessThanOrEqualToThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "alert_count_any_trews_HCGH_EMERGENCY-ADULTS"
+  namespace                 = "OpsDX"
+  period                    = "3600"
+  statistic                 = "Minimum"
+  threshold                 = "0"
+  alarm_description         = "The number of Trews alerts fired at HCGH ED in the past hour"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    analysis = "opsdx-jh-dev"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "cms_alert_count_on_hcgh_ed" {
+  alarm_name                = "${var.deploy_prefix}-dev-cms-alert-count-hcgh-ed"
+  comparison_operator       = "LessThanOrEqualToThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "alert_count_any_cms_HCGH_EMERGENCY-ADULTS"
+  namespace                 = "OpsDX"
+  period                    = "3600"
+  statistic                 = "Minimum"
+  threshold                 = "0"
+  alarm_description         = "The number of CMS alerts fired at HCGH ED in the past hour"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    analysis = "opsdx-jh-dev"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "trews_alert_count_on_hcgh_3c_icu" {
+  alarm_name                = "${var.deploy_prefix}-dev-trews-alert-count-hcgh-3c-icu"
+  comparison_operator       = "LessThanOrEqualToThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "alert_count_any_trews_HCGH_3C_ICU"
+  namespace                 = "OpsDX"
+  period                    = "3600"
+  statistic                 = "Minimum"
+  threshold                 = "0"
+  alarm_description         = "The number of Trews alerts fired at HCGH 3C ICU in the past hour"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    analysis = "opsdx-jh-dev"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "cms_alert_count_on_hcgh_3c_icu" {
+  alarm_name                = "${var.deploy_prefix}-dev-cms-alert-count-hcgh-3c-icu"
+  comparison_operator       = "LessThanOrEqualToThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "alert_count_any_cms_HCGH_3C_ICU"
+  namespace                 = "OpsDX"
+  period                    = "3600"
+  statistic                 = "Minimum"
+  threshold                 = "0"
+  alarm_description         = "The number of CMS alerts fired at HCGH 3C ICU in the past hour"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    analysis = "opsdx-jh-dev"
+  }
+}

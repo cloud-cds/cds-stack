@@ -189,6 +189,8 @@ variable "prod_behamon_log_group_arn" {}
 variable "scorecard_report_firing_rate_min" {}
 variable "scorecard_report_firing_rate_expr" {}
 
+variable "scorecard_metric_firing_rate_min" {}
+variable "scorecard_metric_firing_rate_expr" {}
 
 ######################################
 # Alarm2Slack

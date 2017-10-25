@@ -150,6 +150,11 @@ module "dev_behavior_monitors" {
 
   scorecard_report_firing_rate_min  = "${var.scorecard_report_firing_rate_min}"
   scorecard_report_firing_rate_expr = "${var.scorecard_report_firing_rate_expr}"
+
+  k8s_scorecard_metric_image = "${var.k8s_dev_image}"
+
+  scorecard_metric_firing_rate_min  = "${var.scorecard_metric_firing_rate_min}"
+  scorecard_metric_firing_rate_expr = "${var.scorecard_metric_firing_rate_expr}"
 }
 
 module "prod_behavior_monitors" {
