@@ -95,6 +95,50 @@ resource "aws_autoscaling_group" "c2dw-etl-cluster-dev-ml-jh-opsdx-io" {
   }
 }
 
+resource "aws_autoscaling_group" "labeler1-cluster-dev-ml-jh-opsdx-io" {
+  name                 = "labeler1.cluster-dev-ml.jh.opsdx.io"
+  launch_configuration = "${aws_launch_configuration.labeler1-cluster-dev-ml-jh-opsdx-io.id}"
+  max_size             = 10
+  min_size             = 0
+  vpc_zone_identifier  = ["subnet-52acb31a"]
+
+  tag = {
+    key                 = "Component"
+    value               = "Labeler Node"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "KubernetesCluster"
+    value               = "cluster-dev-ml.jh.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Name"
+    value               = "labeler1.cluster-dev-ml.jh.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Stack"
+    value               = "Dev-ML"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "k8s.io/cluster-autoscaler/node-template/label/opsdx_nodegroup"
+    value               = "labeler1"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "k8s.io/role/node"
+    value               = "1"
+    propagate_at_launch = true
+  }
+}
+
 resource "aws_autoscaling_group" "master-us-east-1d-masters-cluster-dev-ml-jh-opsdx-io" {
   name                 = "master-us-east-1d.masters.cluster-dev-ml.jh.opsdx.io"
   launch_configuration = "${aws_launch_configuration.master-us-east-1d-masters-cluster-dev-ml-jh-opsdx-io.id}"
@@ -814,6 +858,29 @@ resource "aws_launch_configuration" "c2dw-etl-cluster-dev-ml-jh-opsdx-io" {
   }
 
   spot_price = "0.2"
+}
+
+resource "aws_launch_configuration" "labeler1-cluster-dev-ml-jh-opsdx-io" {
+  name_prefix                 = "labeler1.cluster-dev-ml.jh.opsdx.io-"
+  image_id                    = "ami-08431d73"
+  instance_type               = "r4.2xlarge"
+  key_name                    = "${aws_key_pair.kubernetes-cluster-dev-ml-jh-opsdx-io-551d14812028ed6fac475b92d6893824.id}"
+  iam_instance_profile        = "${aws_iam_instance_profile.nodes-cluster-dev-ml-jh-opsdx-io.id}"
+  security_groups             = ["${aws_security_group.nodes-cluster-dev-ml-jh-opsdx-io.id}"]
+  associate_public_ip_address = false
+  user_data                   = "${file("${path.module}/data/aws_launch_configuration_labeler1.cluster-dev-ml.jh.opsdx.io_user_data")}"
+
+  root_block_device = {
+    volume_type           = "gp2"
+    volume_size           = 128
+    delete_on_termination = true
+  }
+
+  lifecycle = {
+    create_before_destroy = true
+  }
+
+  spot_price = "0.5320"
 }
 
 resource "aws_launch_configuration" "master-us-east-1d-masters-cluster-dev-ml-jh-opsdx-io" {
