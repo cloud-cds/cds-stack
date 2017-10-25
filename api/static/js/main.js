@@ -367,6 +367,7 @@ var endpoints = new function() {
     postBody = {
       q: (getQueryVariable('PATID') === false) ? null : getQueryVariable('PATID'),
       u: (getQueryVariable('USERID') === false) ? null : cleanUserId(getQueryVariable('USERID')),
+      s: (getQueryVariable('TSESSID') === false) ? null : getQueryVariable('TSESSID'),
       depid: (getQueryVariable('DEP') === false) ? null : getQueryVariable('DEP'),
       csn: (getQueryVariable('CSN') === false) ? null : getQueryVariable('CSN'),
       loc: (getQueryVariable('LOC') === false) ? null : getQueryVariable('LOC'),

@@ -2,6 +2,7 @@ import gevent.monkey
 gevent.monkey.patch_all()
 
 import os, sys, traceback
+import binascii
 import copy
 import logging
 import datetime
@@ -232,6 +233,10 @@ class TREWSStaticResource(web.View):
           if 'USERID' not in params:
             params['USERID'] = 'UNKNOWN'
 
+          # Add a session id
+          if 'TSESSID' not in params:
+            params['TSESSID'] = binascii.hexlify(os.urandom(24))
+
           new_qs = urllib.parse.urlencode(params)
 
           # Redirect to the index page, with unencrypted query variables.
@@ -257,7 +262,19 @@ class TREWSStaticResource(web.View):
           validated = trews_admin_key == parameters['adminkey']
 
         if validated:
-          if force_pat_ids and 'PATID' in parameters and parameters['PATID'] in force_pat_ids:
+          if 'TSESSID' not in parameters or 'USERID' not in parameters:
+            new_params = dict(parameters.items())
+
+            if 'TSESSID' not in new_params:
+              new_params['TSESSID'] = binascii.hexlify(os.urandom(24))
+
+            if 'USERID' not in new_params:
+              new_params['USERID'] = 'UNKNOWN'
+
+            new_qs = urllib.parse.urlencode(new_params)
+            return web.HTTPFound(URL+INDEX_FILENAME+'?'+new_qs)
+
+          elif force_pat_ids and 'PATID' in parameters and parameters['PATID'] in force_pat_ids:
             r_body = self.get_index_body(parameters)
 
           elif force_pat_ids:
