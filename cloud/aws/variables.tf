@@ -132,11 +132,19 @@ variable "dw_snapshot_dbname" {
 ####################################
 # JH API
 
-variable "jhapi_client_id" {
+variable "dev_jhapi_client_id" {
   description = "EPIC JHAPI Login"
 }
 
-variable "jhapi_client_secret" {
+variable "dev_jhapi_client_secret" {
+  description = "EPIC JHAPI Secret"
+}
+
+variable "prod_jhapi_client_id" {
+  description = "EPIC JHAPI Login"
+}
+
+variable "prod_jhapi_client_secret" {
   description = "EPIC JHAPI Secret"
 }
 
@@ -314,6 +322,9 @@ variable "prod_behamon_log_group_arn" {}
 
 variable "scorecard_report_firing_rate_min" {}
 variable "scorecard_report_firing_rate_expr" {}
+
+variable "scorecard_metric_firing_rate_min" {}
+variable "scorecard_metric_firing_rate_expr" {}
 
 ######################################
 # Alarm2Slack

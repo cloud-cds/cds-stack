@@ -28,8 +28,8 @@ module "dev_etl" {
   dev_db_password         = "${var.dev_db_password}"
   dev_etl_channel         = "${var.dev_etl_channel}"
 
-  jhapi_client_id     = "${var.jhapi_client_id}"
-  jhapi_client_secret = "${var.jhapi_client_secret}"
+  dev_jhapi_client_id     = "${var.dev_jhapi_client_id}"
+  dev_jhapi_client_secret = "${var.dev_jhapi_client_secret}"
 
   DEV_ETL_SERVER             = "${var.DEV_ETL_SERVER}"
   DEV_ETL_HOSPITAL           = "${var.DEV_ETL_HOSPITAL}"
@@ -73,8 +73,8 @@ module "prod_etl" {
   prod_db_password         = "${var.prod_db_password}"
   prod_etl_channel         = "${var.prod_etl_channel}"
 
-  jhapi_client_id     = "${var.jhapi_client_id}"
-  jhapi_client_secret = "${var.jhapi_client_secret}"
+  prod_jhapi_client_id     = "${var.prod_jhapi_client_id}"
+  prod_jhapi_client_secret = "${var.prod_jhapi_client_secret}"
 
   PROD_ETL_SERVER             = "${var.PROD_ETL_SERVER}"
   PROD_ETL_HOSPITAL           = "${var.PROD_ETL_HOSPITAL}"
@@ -150,6 +150,11 @@ module "dev_behavior_monitors" {
 
   scorecard_report_firing_rate_min  = "${var.scorecard_report_firing_rate_min}"
   scorecard_report_firing_rate_expr = "${var.scorecard_report_firing_rate_expr}"
+
+  k8s_scorecard_metric_image = "${var.k8s_dev_image}"
+
+  scorecard_metric_firing_rate_min  = "${var.scorecard_metric_firing_rate_min}"
+  scorecard_metric_firing_rate_expr = "${var.scorecard_metric_firing_rate_expr}"
 }
 
 module "prod_behavior_monitors" {

@@ -4622,6 +4622,10 @@ begin
   update clone_temp set enc_id = to_enc;
   insert into criteria select * from clone_temp;
   drop table clone_temp;
+  create temp table clone_temp as select * from criteria_events where enc_id = from_enc;
+  update clone_temp set enc_id = to_enc;
+  insert into criteria_events select * from clone_temp;
+  drop table clone_temp;
   create temp table clone_temp as select * from orgdf_baselines where pat_id = (select pat_id from pat_enc where enc_id = from_enc);
   update clone_temp set pat_id = to_pat_id;
   insert into orgdf_baselines select * from clone_temp;
