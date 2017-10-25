@@ -109,8 +109,11 @@ module "stage3" {
   dev_etl_lambda_firing_rate_mins  = "${var.dev_etl_lambda_firing_rate_mins}"
   prod_etl_lambda_firing_rate_mins = "${var.prod_etl_lambda_firing_rate_mins}"
 
-  jhapi_client_id     = "${var.jhapi_client_id}"
-  jhapi_client_secret = "${var.jhapi_client_secret}"
+  dev_jhapi_client_id     = "${var.dev_jhapi_client_id}"
+  dev_jhapi_client_secret = "${var.dev_jhapi_client_secret}"
+
+  prod_jhapi_client_id     = "${var.prod_jhapi_client_id}"
+  prod_jhapi_client_secret = "${var.prod_jhapi_client_secret}"
 
   DEV_ETL_SERVER             = "${var.DEV_ETL_SERVER}"
   DEV_ETL_HOSPITAL           = "${var.DEV_ETL_HOSPITAL}"

@@ -94,11 +94,19 @@ variable "k8s_dev_ml_trews_image" {}
 ####################################
 # JH API
 
-variable "jhapi_client_id" {
+variable "dev_jhapi_client_id" {
   description = "EPIC JHAPI Login"
 }
 
-variable "jhapi_client_secret" {
+variable "dev_jhapi_client_secret" {
+  description = "EPIC JHAPI Secret"
+}
+
+variable "prod_jhapi_client_id" {
+  description = "EPIC JHAPI Login"
+}
+
+variable "prod_jhapi_client_secret" {
   description = "EPIC JHAPI Secret"
 }
 

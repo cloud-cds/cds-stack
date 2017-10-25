@@ -25,8 +25,8 @@ variable "prod_db_name" {}
 variable "prod_db_username" {}
 variable "prod_db_password" {}
 
-variable "jhapi_client_id" {}
-variable "jhapi_client_secret" {}
+variable "prod_jhapi_client_id" {}
+variable "prod_jhapi_client_secret" {}
 variable "prod_etl_channel" {}
 
 variable "prod_etl_lambda_firing_rate_mins" {}
@@ -83,8 +83,8 @@ resource "aws_lambda_function" "prod_etl_lambda_HCGH" {
         k8s_job_db_user     = "${var.prod_db_username}"
         k8s_job_db_password = "${var.prod_db_password}"
 
-        k8s_job_jhapi_client_id     = "${var.jhapi_client_id}"
-        k8s_job_jhapi_client_secret = "${var.jhapi_client_secret}"
+        k8s_job_jhapi_client_id     = "${var.prod_jhapi_client_id}"
+        k8s_job_jhapi_client_secret = "${var.prod_jhapi_client_secret}"
         k8s_job_etl_channel         = "${var.prod_etl_channel}"
 
         k8s_job_TREWS_ETL_SERVER             = "${var.PROD_ETL_SERVER}"
@@ -132,8 +132,8 @@ resource "aws_lambda_function" "prod_etl_lambda_JHH" {
         k8s_job_db_name     = "${var.prod_db_name}"
         k8s_job_db_user     = "${var.prod_db_username}"
         k8s_job_db_password = "${var.prod_db_password}"
-        k8s_job_jhapi_client_id     = "${var.jhapi_client_id}"
-        k8s_job_jhapi_client_secret = "${var.jhapi_client_secret}"
+        k8s_job_jhapi_client_id     = "${var.prod_jhapi_client_id}"
+        k8s_job_jhapi_client_secret = "${var.prod_jhapi_client_secret}"
         k8s_job_etl_channel         = "${var.prod_etl_channel}"
         k8s_job_TREWS_ETL_SERVER             = "${var.PROD_ETL_SERVER}"
         k8s_job_TREWS_ETL_HOSPITAL           = "JHH"
@@ -180,8 +180,8 @@ resource "aws_lambda_function" "prod_etl_lambda_BMC" {
         k8s_job_db_name     = "${var.prod_db_name}"
         k8s_job_db_user     = "${var.prod_db_username}"
         k8s_job_db_password = "${var.prod_db_password}"
-        k8s_job_jhapi_client_id     = "${var.jhapi_client_id}"
-        k8s_job_jhapi_client_secret = "${var.jhapi_client_secret}"
+        k8s_job_jhapi_client_id     = "${var.prod_jhapi_client_id}"
+        k8s_job_jhapi_client_secret = "${var.prod_jhapi_client_secret}"
         k8s_job_etl_channel         = "${var.prod_etl_channel}"
         k8s_job_TREWS_ETL_SERVER             = "${var.PROD_ETL_SERVER}"
         k8s_job_TREWS_ETL_HOSPITAL           = "BMC"
