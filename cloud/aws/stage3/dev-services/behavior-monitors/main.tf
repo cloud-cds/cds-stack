@@ -90,7 +90,7 @@ resource "aws_cloudwatch_log_subscription_filter" "behamon_log_extractor_filter"
   depends_on      = ["aws_lambda_permission.behamon_log_extractor_permissions"]
   name            = "${var.deploy_prefix}_dev_behamon_log_extractor_filter"
   log_group_name  = "${var.behamon_log_group_name}"
-  filter_pattern  = "{ $.resp.body.q != \"null\" || ($.resp.url = \"*PATID*\" && $.resp.url != \"*PINGUSER*\") }"
+  filter_pattern  = "{ ( ($.resp.body.q != \"null\" && $.resp.body.s != \"null\" && $.resp.body.u != \"LOADTESTUSER\") || $.resp.body.session-close != \"null\") || ($.resp.url = \"*PATID*\" && $.resp.url = \"*TSESSID*\" && $.resp.url != \"*PINGUSER*\" && $.resp.url != \"*LOADTESTUSER*\") }"
   destination_arn = "${aws_lambda_function.behamon_log_extractor.arn}"
 }
 
