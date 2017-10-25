@@ -172,11 +172,16 @@ window.onload = function() {
 };
 
 window.onunload = function() {
+  var postBody = {
+    'session-id': (getQueryVariable('TSESSID') === false) ? null : getQueryVariable('TSESSID'),
+    'session-close': 'unload'
+  };
+
   $.ajax({
     type: "POST",
     async: false,
     url: "log",
-    data: JSON.stringify({'session-close': 'unload'}),
+    data: JSON.stringify(postBody),
     dataType: "json"
   });
 }
