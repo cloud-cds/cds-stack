@@ -303,6 +303,7 @@ class TREWSStaticResource(web.View):
 class TREWSLog(web.View):
   async def post(self):
     try:
+      srvnow = datetime.datetime.utcnow().isoformat()
       log_entry = await self.request.json()
       if 'buffer' in log_entry:
         # Handle frontend stats
@@ -318,10 +319,16 @@ class TREWSLog(web.View):
         api_monitor.add_metric('UserErrors')
         logging.error(json.dumps(log_entry, indent=4))
 
-      # Page closed logging in CW.
       elif 'session-close' in log_entry:
+        # Stash log entry for page closed log extraction in CW.
+        # Log locally in standard request format.
         self.request.app['body'] = log_entry
-        logging.warning(json.dumps(log_entry, indent=4))
+        logging.info('%(date)s %(method)s %(host)s HDR %(headers)s BODY %(body)s'
+            % { 'date'         : srvnow,
+                'method'       : self.request.method,
+                'host'         : self.request.host,
+                'headers'      : dict(self.request.headers.items()),
+                'body'         : log_entry })
 
       else:
         # Generic printing
