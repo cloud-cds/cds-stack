@@ -592,7 +592,6 @@ class TREWSAPI(web.View):
 
           # Make available to the CW log middleware
           self.request.app['body'] = req_body
-          logging.info("0")
           logging.info('%(date)s %(method)s %(host)s HDR %(headers)s BODY %(body)s'
               % { 'date'         : srvnow,
                   'method'       : self.request.method,

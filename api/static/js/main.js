@@ -142,6 +142,9 @@ function Listener(event) {
 /**
  * Window callbacks.
  */
+
+var checkIfOrdered = null; // Global bool to flip when clicking "place order"
+
 window.onload = function() {
   // Handshake with Epic 2017 AGL.
   lastAction = 'handshake';
@@ -168,11 +171,20 @@ window.onload = function() {
   refreshHeaderHeight('onload');
 };
 
+window.onunload = function() {
+  $.ajax({
+    type: "POST",
+    async: false,
+    url: "log",
+    data: JSON.stringify({'session-close': 'unload'}),
+    dataType: "json"
+  });
+}
+
 window.onerror = function(error, url, line) {
   controller.sendLog({acc:'error', data:'ERR:'+error+' URL:'+url+' L:'+line}, true);
 };
 
-checkIfOrdered = null; // Global bool to flip when clicking "place order"
 
 window.onresize = function() {
   refreshHeaderHeight('onresize');
