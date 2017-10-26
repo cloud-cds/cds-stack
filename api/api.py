@@ -371,11 +371,20 @@ class TREWSAPI(web.View):
       if criterion["name"] in ORDERS:
         value = criterion['value']
         is_met = criterion['is_met']
-        if ('override_value' in criterion) and (criterion['override_value'] is not None) and ('text' in criterion['override_value'][0]):
-            value = criterion['override_value'][0]['text']
+        order_ts = criterion['measurement_time']
 
+        valid_override_value = ('override_value' in criterion) and (criterion['override_value'] is not None) and ('text' in criterion['override_value'][0])
         valid_override_ts = 'override_time' in criterion and criterion['override_time'] is not None
-        order_ts = criterion['override_time'] if valid_override_ts else criterion['measurement_time']
+
+        if valid_override_value and valid_override_ts:
+            override_value = criterion['override_value'][0]['text']
+            override_ts = criterion['override_time']
+
+            # For orders placed through the webapp (i.e., as override_value == 'Ordered'),
+            # we use the value retrieved by ETL if it is more recent than the time of the override action.
+            if not (override_value == 'Ordered' and order_ts is not None and order_ts > override_ts):
+              value = override_value
+              order_ts = override_ts
 
         data[criterion["name"]] = {
           "name": criterion["name"],
