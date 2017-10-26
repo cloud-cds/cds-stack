@@ -41,7 +41,7 @@ spec:
         volumeMounts:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
-      - name: trews-rest-api
+      - name: trews-rest-api-test
         image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:latest
         resources:
           requests:
