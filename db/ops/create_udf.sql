@@ -1753,7 +1753,8 @@ return query
             ordered.name,
             last(ordered.tsp ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
                 as measurement_time,
-            last(json_build_object('alert', (ordered.orgdf_details::jsonb)#>'{alert}', 'pct_mortality', (ordered.orgdf_details::jsonb)#>'{percent_mortality}', 'pct_sevsep', (ordered.orgdf_details::jsonb)#>'{percent_sevsep}', 'heart_rate', (ordered.orgdf_details::jsonb)#>'{heart_rate}', 'lactate', (ordered.orgdf_details::jsonb)#>'{lactate}', 'sbpm', (ordered.orgdf_details::jsonb)#>'{sbpm}')::text ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
+            last(json_build_object('score', ordered.score, 'threshold', (ordered.orgdf_details::jsonb)#>'{th}',
+            'alert', (ordered.orgdf_details::jsonb)#>'{alert}', 'pct_mortality', (ordered.orgdf_details::jsonb)#>'{percent_mortality}', 'pct_sevsep', (ordered.orgdf_details::jsonb)#>'{percent_sevsep}', 'heart_rate', (ordered.orgdf_details::jsonb)#>'{heart_rate}', 'lactate', (ordered.orgdf_details::jsonb)#>'{lactate}', 'sbpm', (ordered.orgdf_details::jsonb)#>'{sbpm}')::text ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
                 as value,
             (last(ordered.c_otime ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)) as override_time,
             (last(ordered.c_ouser ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)) as override_user,
