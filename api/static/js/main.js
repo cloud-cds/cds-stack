@@ -342,7 +342,8 @@ var notificationRefresher = new function() {
   this.refreshPeriod = 10000;
   this.refreshTimer = null;
   this.init = function() {
-    this.poll(this);
+    // Initial 2sec delay on initialization, to desync with main data refresher.
+    window.setTimeout(function() { notificationRefresher.poll(notificationRefresher); }, 2000);
   }
   this.poll = function(obj) {
     endpoints.getPatientData('pollNotifications');

@@ -583,6 +583,8 @@ class TREWSAPI(web.View):
 
   async def post(self):
     try:
+      request_key = None
+
       with api_monitor.time(self.request.path):
         api_monitor.request(self.request.path)
 
@@ -591,7 +593,13 @@ class TREWSAPI(web.View):
           req_body = await self.request.json()
 
           # Make available to the CW log middleware
-          self.request.app['body'][-1] = req_body
+          if 's' in req_body and req_body['s'] is not None and 'actionType' in req_body:
+            request_key_action = 'load' if req_body['actionType'] is None else req_body['actionType']
+            request_key = self.request.path + '-' + request_key_action + '-' + req_body['s']
+
+          if request_key:
+            self.request.app['body'][request_key] = req_body
+
           logging.info('%(date)s %(method)s %(host)s HDR %(headers)s BODY %(body)s'
               % { 'date'         : srvnow,
                   'method'       : self.request.method,
@@ -656,45 +664,46 @@ class TREWSAPI(web.View):
                   response_body = {'trewsData': data}
 
                   # Track summary object for user interaction logs.
-                  self.request.app['render_data'][-1] = {
-                    'notifications'           : data['notifications'],
-                    'deactivated'             : data['profile']['deactivated'],
-                    'refresh_time'            : data['profile']['refresh_time'],
-                    'severe_sepsis'           : { 'is_met'                  : data['severe_sepsis']['is_met'],
-                                                  'suspicion_of_infection'  : data['severe_sepsis']['suspicion_of_infection'],
-                                                  'sirs'                    : { 'is_met': data['severe_sepsis']['sirs']['is_met'] },
-                                                  'organ_dysfunction'       : { 'is_met': data['severe_sepsis']['organ_dysfunction']['is_met'],
-                                                                                'num_met': data['severe_sepsis']['organ_dysfunction']['num_met'],
-                                                                                'overriden': [i['name'] for i in data['severe_sepsis']['organ_dysfunction']['criteria'] if i['override_time'] is not None]
-                                                                              },
-                                                  'trews_subalert'          : data['severe_sepsis']['trews_subalert'],
-                                                  'trews_organ_dysfunction' : { 'is_met': data['severe_sepsis']['trews_organ_dysfunction']['is_met'],
-                                                                                'num_met': data['severe_sepsis']['trews_organ_dysfunction']['num_met'],
-                                                                                'overriden': [i['name'] for i in data['severe_sepsis']['trews_organ_dysfunction']['criteria'] if i['override_time'] is not None]
-                                                                              },
-                                                },
-                    'septic_shock'            : { 'is_met'            : data['septic_shock']['is_met'],
-                                                  'crystalloid_fluid' : { 'is_met': data['septic_shock']['crystalloid_fluid']['is_met'] },
-                                                  'hypoperfusion'     : { 'is_met': data['septic_shock']['hypoperfusion']['is_met'] },
-                                                  'hypotension'       : { 'is_met': data['septic_shock']['hypotension']['is_met'] }
-                                                },
-                    'initial_lactate_order'   : { k: data['initial_lactate_order'][k]   for k in ['status', 'time', 'user'] },
-                    'antibiotics_order'       : { k: data['antibiotics_order'][k]       for k in ['status', 'time', 'user'] },
-                    'blood_culture_order'     : { k: data['blood_culture_order'][k]     for k in ['status', 'time', 'user'] },
-                    'crystalloid_fluid_order' : { k: data['crystalloid_fluid_order'][k] for k in ['status', 'time', 'user'] },
-                    'repeat_lactate_order'    : { k: data['repeat_lactate_order'][k]    for k in ['status', 'time', 'user'] },
-                    'vasopressors_order'      : { k: data['vasopressors_order'][k]      for k in ['status', 'time', 'user'] },
-                    'ui'                      : { 'ui_severe_sepsis': { 'is_met': data['ui']['ui_severe_sepsis']['is_met'] },
-                                                  'ui_septic_shock': { 'is_met': data['ui']['ui_septic_shock']['is_met'] }
-                                                }
-                  }
+                  if request_key:
+                    self.request.app['render_data'][request_key] = {
+                      'notifications'           : data['notifications'],
+                      'deactivated'             : data['profile']['deactivated'],
+                      'refresh_time'            : data['profile']['refresh_time'],
+                      'severe_sepsis'           : { 'is_met'                  : data['severe_sepsis']['is_met'],
+                                                    'suspicion_of_infection'  : data['severe_sepsis']['suspicion_of_infection'],
+                                                    'sirs'                    : { 'is_met': data['severe_sepsis']['sirs']['is_met'] },
+                                                    'organ_dysfunction'       : { 'is_met': data['severe_sepsis']['organ_dysfunction']['is_met'],
+                                                                                  'num_met': data['severe_sepsis']['organ_dysfunction']['num_met'],
+                                                                                  'overriden': [i['name'] for i in data['severe_sepsis']['organ_dysfunction']['criteria'] if i['override_time'] is not None]
+                                                                                },
+                                                    'trews_subalert'          : data['severe_sepsis']['trews_subalert'],
+                                                    'trews_organ_dysfunction' : { 'is_met': data['severe_sepsis']['trews_organ_dysfunction']['is_met'],
+                                                                                  'num_met': data['severe_sepsis']['trews_organ_dysfunction']['num_met'],
+                                                                                  'overriden': [i['name'] for i in data['severe_sepsis']['trews_organ_dysfunction']['criteria'] if i['override_time'] is not None]
+                                                                                },
+                                                  },
+                      'septic_shock'            : { 'is_met'            : data['septic_shock']['is_met'],
+                                                    'crystalloid_fluid' : { 'is_met': data['septic_shock']['crystalloid_fluid']['is_met'] },
+                                                    'hypoperfusion'     : { 'is_met': data['septic_shock']['hypoperfusion']['is_met'] },
+                                                    'hypotension'       : { 'is_met': data['septic_shock']['hypotension']['is_met'] }
+                                                  },
+                      'initial_lactate_order'   : { k: data['initial_lactate_order'][k]   for k in ['status', 'time', 'user'] },
+                      'antibiotics_order'       : { k: data['antibiotics_order'][k]       for k in ['status', 'time', 'user'] },
+                      'blood_culture_order'     : { k: data['blood_culture_order'][k]     for k in ['status', 'time', 'user'] },
+                      'crystalloid_fluid_order' : { k: data['crystalloid_fluid_order'][k] for k in ['status', 'time', 'user'] },
+                      'repeat_lactate_order'    : { k: data['repeat_lactate_order'][k]    for k in ['status', 'time', 'user'] },
+                      'vasopressors_order'      : { k: data['vasopressors_order'][k]      for k in ['status', 'time', 'user'] },
+                      'ui'                      : { 'ui_severe_sepsis': { 'is_met': data['ui']['ui_severe_sepsis']['is_met'] },
+                                                    'ui_septic_shock': { 'is_met': data['ui']['ui_septic_shock']['is_met'] }
+                                                  }
+                    }
 
                 else:
                   raise web.HTTPBadRequest(body=json.dumps({'message': 'No patient found'}))
 
               # Track summary object for user interaction logs.
-              elif actionType == u'pollNotifications':
-                self.request.app['render_data'][-1] = { 'notifications': response_body['notifications'] }
+              elif actionType == u'pollNotifications' and request_key:
+                self.request.app['render_data'][request_key] = { 'notifications': response_body['notifications'] }
 
           else:
             response_body = {'message': 'Invalid TREWS REST API request'}
