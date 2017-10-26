@@ -339,7 +339,7 @@ class TREWSLog(web.View):
       elif 'session-close' in log_entry:
         # Stash log entry for page closed log extraction in CW.
         # Log locally in standard request format.
-        self.request.app['body'] = log_entry
+        self.request.app['body'][-1] = log_entry
         logging.info('%(date)s %(method)s %(host)s HDR %(headers)s BODY %(body)s'
             % { 'date'         : srvnow,
                 'method'       : self.request.method,

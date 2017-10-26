@@ -172,11 +172,16 @@ window.onload = function() {
 };
 
 window.onunload = function() {
+  var postBody = {
+    'session-id': (getQueryVariable('TSESSID') === false) ? null : getQueryVariable('TSESSID'),
+    'session-close': 'unload'
+  };
+
   $.ajax({
     type: "POST",
     async: false,
     url: "log",
-    data: JSON.stringify({'session-close': 'unload'}),
+    data: JSON.stringify(postBody),
     dataType: "json"
   });
 }
@@ -3217,7 +3222,7 @@ var activity = new function() {
         else if ( criteriaKeyToName[data.name].length > 0 && is_trews_orgdf )
         {
           var event_type = null;
-          if ( event_type == 'respiratory_failure' || event_type == 'trews' ) {
+          if ( data.name == 'respiratory_failure' || data.name == 'trews_vent' ) {
             event_type = '<b>Respiratory Failure (Mechanical Ventilation)</b>';
           } else {
             event_type = '<b>' + criteriaKeyToName[data.name][0].name + '</b> measurements';
@@ -3250,7 +3255,7 @@ var activity = new function() {
         {
           // Handle no acute organ dysfunction.
           var event_type = null;
-          if ( event_type == 'respiratory_failure' || event_type == 'trews' ) {
+          if ( data.name == 'respiratory_failure' || data.name == 'trews_vent' ) {
             event_type = '<b>Respiratory Failure (Mechanical Ventilation)</b> does';
           } else {
             event_type = '<b>' + criteriaKeyToName[data.name][0].name + '</b> measurements do';
