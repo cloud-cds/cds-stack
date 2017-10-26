@@ -127,21 +127,13 @@ organ_dysfunction = {
     ]
 }
 
-trews = {
-    "name": "trews",
+trews_subalert = {
+    "name": "trews_subalert",
     "is_met": False,
-    "onset_time": None,
-    "num_met": 0,
-    "criteria": [
-        {
-            "name": "trews",
-            "is_met": False,
-            "value": None,
-            "measurement_time": None,
-            "override_time": None,
-            "override_user": None
-        }
-    ]
+    "value": None,
+    "measurement_time": None,
+    "override_time": None,
+    "override_user": None
 }
 
 trews_organ_dysfunction = {
@@ -244,7 +236,7 @@ severe_sepsis = {
     suspicion_of_infection['name']:suspicion_of_infection,
     sirs["name"]: sirs,
     organ_dysfunction['name']: organ_dysfunction,
-    trews['name']: trews,
+    trews_subalert['name']: trews_subalert,
     trews_organ_dysfunction['name']: trews_organ_dysfunction
 }
 
