@@ -44,7 +44,7 @@ class alert_performance_metrics(metric):
   def __init__(self,connection, first_time_str, last_time_str):
 
     super().__init__(connection, first_time_str, last_time_str)
-    self.name = 'alert_performance_stats'
+    self.name = 'Alert Performance Stats'
 
 
     self.sepsis_performance_window = 24*7#long_window ## 24*7 hours window
@@ -264,18 +264,19 @@ class alert_performance_metrics(metric):
     df = care_unit_df.loc[(~ind1), :]
     aggregate_df = df.groupby('care_unit')['enc_id'].nunique().reset_index(level=0)
     aggregate_df.rename(columns={'enc_id':'total # of enc_ids'}, inplace=True)
+    total_cnts_dict['total # of enc_ids'] = int(len(df['enc_id'].unique()))
 
     ## 2) total number of patients with alerts on
     total_cnts_dict['# encids with alert ON'], cnts_by_unit_df = get_alert_counts(alerts_df, 'union_alert', window=self.window)
     aggregate_df = pd.merge(aggregate_df, cnts_by_unit_df.reset_index(level=0), how='left', on='care_unit')
     aggregate_df['enc_id'] = aggregate_df['enc_id'].fillna(0).astype(int)
-    aggregate_df.rename(columns={'enc_id':'# encids with alert ON'}, inplace=True)
+    aggregate_df.rename(columns={'enc_id':'# encids with alert present'}, inplace=True)
 
     ## 3) total number of patients with trews alerts on
     total_cnts_dict['# encids with TREWS alert ON'], cnts_by_unit_df = get_alert_counts(alerts_df, 'jit_alert', window=self.window)
     aggregate_df = pd.merge(aggregate_df, cnts_by_unit_df.reset_index(level=0), how='left', on='care_unit')
     aggregate_df['enc_id'] = aggregate_df['enc_id'].fillna(0).astype(int)
-    aggregate_df.rename(columns={'enc_id':'# encids with TREWS alert ON'}, inplace=True)
+    aggregate_df.rename(columns={'enc_id':'# encids with TREWS alert present'}, inplace=True)
 
 
     enc_ids_with_trews_alert = alerts_df.loc[alerts_df['jit_alert']==1, 'enc_id'].unique()
@@ -288,14 +289,14 @@ class alert_performance_metrics(metric):
                                                                 'union_alert', window=self.window)
     aggregate_df = pd.merge(aggregate_df, cnts_by_unit_df.reset_index(level=0), how='left', on='care_unit')
     aggregate_df['enc_id'] = aggregate_df['enc_id'].fillna(0).astype(int)
-    aggregate_df.rename(columns={'enc_id':'# encids with only CMS alert ON'}, inplace=True)
+    aggregate_df.rename(columns={'enc_id':'# encids with only CMS alert present'}, inplace=True)
 
     ## 4) total number of patients with alert trigger
     total_cnts_dict['# alerts fired'], cnts_by_unit_df = get_alert_counts(alerts_df,
                 'union_alert_delta', window=self.window)
     aggregate_df = pd.merge(aggregate_df, cnts_by_unit_df.reset_index(level=0), how='left', on='care_unit')
     aggregate_df['enc_id'] = aggregate_df['enc_id'].fillna(0).astype(int)
-    aggregate_df.rename(columns={'enc_id':'# alerts fired'}, inplace=True)
+    aggregate_df.rename(columns={'enc_id':'# alerts fired in this period'}, inplace=True)
 
 
     ##### output
@@ -343,14 +344,20 @@ class alert_performance_metrics(metric):
         nFNs = len(np.intersect1d(not_alerted, sep_df['enc_id'].unique()))
         num_alerts = nTPs + nFPs
 
-        cnts = OrderedDict([('# sepsis', '%d' %(len(sep_df['enc_id'].unique()))),
+        cnts = OrderedDict([('# total enc_ids', '%d' %(len(main_df['enc_id'].unique()))),
+                            ('# sepsis', '%d' %(len(sep_df['enc_id'].unique()))),
                             ('# alerted','%d' %int(num_alerts)),
                             ('TPR', '%.3f' %(float(nTPs)/(nTPs+nFNs))),
                             ('FPR', '%.3f' %(float(nFPs)/(nFPs+nTNs))),
                             ('PPV', '%0.3f' %(float(nTPs)/(nTPs+nFPs)))])
 
-        cnt_df = TP_df.groupby('care_unit')['enc_id'].nunique().reset_index(level=0).copy()
-        cnt_df['enc_id'] = cnt_df['enc_id'].astype(int)
+        cnt_df = main_df.groupby('care_unit')['enc_id'].nunique().reset_index(level=0).copy()
+        cnt_df['enc_id'] = cnt_df['enc_id'].fillna(0).astype(int)
+        cnt_df.rename(columns={'enc_id':'# total enc_ids'}, inplace=True)
+
+        cnt_df = pd.merge(cnt_df, TP_df.groupby('care_unit')['enc_id'].nunique().reset_index(level=0),
+                            how='outer', on='care_unit')
+        cnt_df['enc_id'] = cnt_df['enc_id'].fillna(0).astype(int)
         cnt_df.rename(columns={'enc_id':'# TPs'}, inplace=True)
         cnt_df = pd.merge(cnt_df, FP_df.groupby('care_unit')['enc_id'].nunique().reset_index(level=0),
                          how='outer', on='care_unit')
@@ -397,8 +404,8 @@ class alert_performance_metrics(metric):
 
       txt = "<h3>Total Number of Alerts</h3>" + self.total_counts.to_html()
       txt += "<h5># alerts fired = # enc_ids on whom the alert went from Off to On in this period."
-      txt += "<br/># alerts On = # enc_ids whose alert was On at some time during this period but may have been fired before.</h5>"
-      txt += "<h3>Number of Alerts by Care Unit</h3>" + self.cnts_by_unit.to_html()
+      txt += "<br/># alerts present = # enc_ids whose alert was On at some time during this period but may have been fired before.</h5>"
+      txt += "<h3>Number of Alerts by Care Unit for Recent Encounters</h3>" + self.cnts_by_unit.to_html()
       txt += "<h3>Performance Measures Over a 7-Day Period" + self.performance_metrics.to_html()
       txt += "<h3>Performance Measures Over a 7-Day Period by Care Unit" + self.performance_cnt_df.to_html()
 
