@@ -2,7 +2,9 @@ from datetime import datetime
 import pandas as pd
 import sqlalchemy
 from datetime import datetime as dt
-
+import numpy as np
+from pytz import timezone
+from collections import OrderedDict
 
 #---------------------------------
 ## Metric Classes
@@ -36,6 +38,372 @@ class report_introduction(metric):
     html += 'The following report covers times between {s} and {e}'.format(s=self.first_time_str, e=self.last_time_str)
     html += '</p>'
     return html
+
+class alert_performance_metrics(metric):
+
+  def __init__(self,connection, first_time_str, last_time_str):
+
+    super().__init__(connection, first_time_str, last_time_str)
+    self.name = 'alert_performance_stats'
+
+
+    self.sepsis_performance_window = 24*7#long_window ## 24*7 hours window
+    self.connection = connection
+    # self.now = pd.to_datetime('now').tz_localize(timezone('utc'))
+    self.now = pd.to_datetime(self.last_time_str).tz_localize(timezone('utc'))
+
+    self.window = (pd.to_datetime(last_time_str) - pd.to_datetime(first_time_str)) / pd.to_timedelta("1 hour")
+
+  def get_enc_ids(self, discharge_time):
+
+      query = """with excluded_encids as (
+
+                select distinct EXC.enc_id
+                from cdm_t EXC
+                inner join cdm_s on cdm_s.enc_id = EXC.enc_id and cdm_s.fid = 'age'
+                inner join cdm_t on cdm_t.enc_id = EXC.enc_id and cdm_t.fid = 'care_unit'
+                group by EXC.enc_id
+                having count(*) filter (where cdm_s.value::numeric < 18) > 0
+                or count(*) filter(where cdm_t.value in ('HCGH LABOR & DELIVERY', 'HCGH EMERGENCY-PEDS', 'HCGH 2C NICU', 'HCGH 1CX PEDIATRICS', 'HCGH 2N MCU')) > 0
+            ),
+            bedded as (
+
+                select distinct BP.enc_id
+                from get_latest_enc_ids('HCGH') BP
+                where BP.enc_id not in(
+                    select enc_id from excluded_encids
+                )
+            ),
+            discharged as (
+                select distinct enc_id from cdm_t
+                where fid='discharge' and
+                tsp > '{0}'
+                and enc_id not in (
+                    select enc_id from excluded_encids
+                )
+                and value::json ->> 'disposition' like '%HCGH%'
+            )
+            select enc_id
+            from (
+                (select d.enc_id from discharged d)
+                union
+                (select b.enc_id from bedded b)
+            ) R1""".format(str(discharge_time))
+
+      encids_df = pd.read_sql(sqlalchemy.text(query), self.connection)
+      enc_ids = encids_df['enc_id'].as_matrix().astype(int)
+      return enc_ids
+
+  def get_care_unit(self, cdmt_df):
+
+      care_unit_df = cdmt_df.loc[cdmt_df['fid']=='care_unit', ['enc_id', 'tsp', 'value']].copy()
+      care_unit_df = care_unit_df.sort_values(by=['enc_id', 'tsp'])
+      care_unit_df.rename(columns={'tsp':'enter_time', 'value':'care_unit'}, inplace=True)
+      care_unit_df['leave_time'] = care_unit_df.groupby('enc_id')['enter_time'].shift(-1)
+
+      # fill in the leave time on the last unit
+      last_unit_tsp = care_unit_df.groupby('enc_id').agg({'enter_time':'max'})
+      last_unit_tsp.reset_index(level=0, inplace=True)
+      last_unit_tsp.rename(columns={'enter_time':'last_unit_tsp'}, inplace=True)
+      discharge_tsp = cdmt_df.loc[cdmt_df['fid']=='discharge', ['enc_id', 'tsp']].copy()
+      df = pd.merge(last_unit_tsp, discharge_tsp, on='enc_id', how='inner')
+
+      # final step
+      if df.shape[0] > 0:
+          care_unit_df = pd.merge(care_unit_df, df, how='outer', on='enc_id')
+          care_unit_df.loc[care_unit_df['last_unit_tsp']==care_unit_df['enter_time'], 'leave_time'] = \
+                                          care_unit_df.loc[care_unit_df['last_unit_tsp']==care_unit_df['enter_time'], 'tsp']
+          care_unit_df.drop(['tsp', 'last_unit_tsp'], axis=1, inplace=True)
+
+      care_unit_df = care_unit_df.loc[care_unit_df['care_unit']!='Discharge']
+
+      return care_unit_df
+
+  def get_cdmt_df(self, valid_enc_ids):
+
+        ### read cdm_t to get min/max_tsp and build care_unit_df
+        query = """select enc_id, tsp, fid, value from cdm_t where enc_id in ({0})
+                        order by enc_id, tsp""".format(', '.join([str(e) for e in valid_enc_ids]))
+        cdmt_df = pd.read_sql(sqlalchemy.text(query), self.connection, columns=['enc_id', 'tsp', 'fid', 'value'])
+        cdmt_df['tsp'] = pd.to_datetime(cdmt_df['tsp']).dt.tz_convert(timezone('utc'))
+
+        return cdmt_df
+
+  def calc(self):
+    ## this is the time we started running trews -- don't go before this date.
+    start_tsp = pd.to_datetime('2017-10-19 16:00:00+00:00').tz_localize(timezone('utc'))
+
+    ## get trews_model_id
+    model_id_query = "select value from trews_parameters where name='trews_jit_model_id';"
+    model_id_df = pd.read_sql(sqlalchemy.text(model_id_query), self.connection, columns=['value'])
+    model_id = model_id_df['value'].as_matrix().astype(int)[0]
+
+    #### get_valid_enc_ids
+    valid_enc_ids = self.get_enc_ids(start_tsp)
+
+    # read trews_jit_alerts
+    query = """
+            select enc_id, tsp, orgdf_details::json ->> 'alert' as jit_alert
+            from trews_jit_score
+            where model_id={0}
+            and enc_id in ({1})""".format(str(model_id), ', '.join([str(e) for e in valid_enc_ids]))
+    trews_jit_df = pd.read_sql(sqlalchemy.text(query), self.connection, columns=['enc_id', 'tsp', 'jit_alert'])
+    trews_jit_df['tsp'] = pd.to_datetime(trews_jit_df['tsp']).dt.tz_convert(timezone('utc'))
+    trews_jit_df['jit_alert'] = trews_jit_df['jit_alert'].map({'True':1, 'False':0}).astype(float)
+
+    # to build care_unit_df
+    cdmt_df = self.get_cdmt_df(valid_enc_ids)
+
+    ## compute care_unit_df
+    care_unit_df = self.get_care_unit(cdmt_df)
+
+    ## read cms, trews_sub_alerts from criteria_events
+    query = """
+            with sub_criteria_events as (
+                select enc_id, event_id, flag, update_date,
+                       min(measurement_time) filter (where name = 'trews_subalert' and is_met) as trews_subalert_onset,
+                       count(*) filter (where name in ('sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc') and is_met) as sirs,
+                       count(*) filter (where name in ('blood_pressure', 'mean_arterial_pressure', 'decrease_in_sbp', 'respiratory_failure', 'creatinine', 'bilirubin', 'platelet', 'inr', 'lactate') and is_met) as orgdf,
+                       (array_agg(measurement_time order by measurement_time)  filter (where name in ('sirs_temp','heart_rate','respiratory_rate','wbc') and is_met ) )[2]   as sirs_onset,
+                       min(measurement_time) filter (where name in ('blood_pressure','mean_arterial_pressure','decrease_in_sbp','respiratory_failure','creatinine','bilirubin','platelet','inr','lactate') and is_met ) as organ_onset
+                from criteria_events
+                where enc_id in ({0})
+                group by enc_id, event_id, flag, update_date
+            )
+            select enc_id, event_id, update_date as tsp, flag, min(trews_subalert_onset) as trews_subalert,
+                min(greatest(sirs_onset, organ_onset)) filter (where sirs > 1 and orgdf > 0) as cms_onset
+            from sub_criteria_events
+            group by enc_id, event_id, flag, update_date
+            order by enc_id, update_date, cms_onset""".format(', '.join([str(e) for e in valid_enc_ids]))
+    union_df = pd.read_sql(sqlalchemy.text(query), self.connection,
+                      columns=['enc_id', 'event_id', 'tsp', 'flag', 'trews_subalert', 'cms_onset'])
+    union_df['tsp'] = pd.to_datetime(union_df['tsp']).dt.tz_convert(timezone('utc'))
+    union_df['flag'] = union_df['flag'].astype(int)
+    union_df['union_alert'] = 0
+    union_df.loc[(~union_df['cms_onset'].isnull())|(~union_df['trews_subalert'].isnull())|(union_df['flag']>=10), 'union_alert'] = 1
+
+    ## reading trews_subalerts again here because I want to get the deltas (note that no conditioning on is_met=true)
+    query = """select enc_id, update_date as tsp, is_met as criteria_jit
+                from criteria_events
+                where name like 'trews_subalert'
+                and enc_id in ({0});""".format(', '.join([str(e) for e in valid_enc_ids]))
+    trews_subalert_df = pd.read_sql(sqlalchemy.text(query), self.connection, columns=['enc_id', 'tsp', 'criteria_jit'])
+    trews_subalert_df['tsp'] = pd.to_datetime(trews_subalert_df['tsp']).dt.tz_convert(timezone('utc'))
+    trews_subalert_df['criteria_jit'] = trews_subalert_df['criteria_jit'].astype(float)
+
+
+    ####### merge all alert types and interpolate every 15 minutes
+    alerts_df = cdmt_df[['enc_id', 'tsp']].copy()
+    alerts_df = pd.merge(alerts_df, trews_jit_df, how='outer', on=['enc_id', 'tsp'])
+    alerts_df = pd.merge(alerts_df, trews_subalert_df, how='outer', on=['enc_id', 'tsp'])
+    alerts_df = pd.merge(alerts_df, union_df[['enc_id', 'tsp', 'union_alert']], how='outer', on=['enc_id', 'tsp'])
+    alerts_df.drop_duplicates(subset=['enc_id', 'tsp'], inplace=True)
+    alerts_df = alerts_df.sort_values(by=['enc_id', 'tsp'])
+
+    ## fill in the first point for each enc_id to 0 if null
+    first_tsp_index = alerts_df.groupby('enc_id', as_index=False)['tsp'].idxmin()
+    columns = ['jit_alert', 'criteria_jit', 'union_alert']
+    alerts_df.loc[first_tsp_index, columns] = alerts_df.loc[first_tsp_index, columns].fillna(0)
+    alerts_df[columns] = alerts_df[columns].ffill()
+    alerts_df.reset_index(drop=True, inplace=True)
+
+    def interpolate_score_df(main_df, stepsize='5min'):
+
+        dict_of_dfs = {k: v for k, v in main_df.groupby('enc_id')}
+        enc_ids = dict_of_dfs.keys()
+        grid_df1 = {}
+        for e0, enc_id in enumerate(enc_ids):
+            tmp_df = dict_of_dfs[enc_id].loc[dict_of_dfs[enc_id]['tsp']>=start_tsp,:].copy()
+            if tmp_df.shape[0] == 0:
+                continue
+            df = tmp_df.set_index('tsp').resample(stepsize, closed='right').ffill()
+
+            df['jit_delta'] = df['jit_alert'].diff()
+            df['num_jit_delta'] = np.sum((~df['jit_delta'].isnull())*(df['jit_delta']!=0))
+            df['crit_jit_delta'] = df['criteria_jit'].diff()
+            df['num_crit_jit_delta'] = np.sum((~df['crit_jit_delta'].isnull())*(df['crit_jit_delta']!=0))
+            df['union_alert_delta'] = df['union_alert'].diff()
+            df['num_union_alert_delta'] = np.sum((~df['union_alert_delta'].isnull())*(df['union_alert_delta']!=0))
+
+            df['jit_sim'] = np.sum(df['jit_alert']*df['criteria_jit'])/(np.sum(df['jit_alert']) + 1e-10)
+
+            #### filtering everything by start_tsp
+
+            grid_df1.update({enc_id:df.reset_index(level=0)})
+
+        return pd.concat([grid_df1[x] for x in grid_df1.keys()])
+
+    alerts_df = interpolate_score_df(alerts_df)
+
+    def merge_with_care_unit(main_df, care_unit_df=care_unit_df):
+
+        tmp_df = pd.merge(main_df, care_unit_df, how='left', on='enc_id')
+        ind1 = tmp_df['tsp']>tmp_df['enter_time']
+        ind2 = tmp_df['tsp']<tmp_df['leave_time']
+        ind3 = tmp_df['leave_time'].isnull()
+        tmp_df = tmp_df.loc[((ind1)&(ind2))|((ind1)&(ind3)), :]
+
+        return tmp_df
+
+    def get_alert_counts(main_df, alert_type, window=6):
+        init_time = (self.now - pd.to_timedelta(window, unit='h'))#.tz_localize(timezone('utc'))
+
+        tmp_df = merge_with_care_unit(main_df.loc[(main_df['tsp']>=init_time)&(main_df[alert_type]==1)])
+        num_unq_enc_ids = len(tmp_df['enc_id'].unique())
+
+        df = tmp_df.groupby('care_unit')['enc_id'].nunique()
+        return num_unq_enc_ids, df
+
+    ############### Alert counts
+
+    total_cnts_dict = OrderedDict()
+
+    ## 1) total number of patients by care_unit in the window
+    init_time = (self.now - pd.to_timedelta(self.window, unit='h'))#.tz_localize(timezone('utc'))
+    ind1 = (care_unit_df['leave_time']<init_time)&(~care_unit_df['leave_time'].isnull())
+    df = care_unit_df.loc[(~ind1), :]
+    aggregate_df = df.groupby('care_unit')['enc_id'].nunique().reset_index(level=0)
+    aggregate_df.rename(columns={'enc_id':'total # of enc_ids'}, inplace=True)
+
+    ## 2) total number of patients with alerts on
+    total_cnts_dict['# encids with alert ON'], cnts_by_unit_df = get_alert_counts(alerts_df, 'union_alert', window=self.window)
+    aggregate_df = pd.merge(aggregate_df, cnts_by_unit_df.reset_index(level=0), how='left', on='care_unit')
+    aggregate_df['enc_id'] = aggregate_df['enc_id'].fillna(0).astype(int)
+    aggregate_df.rename(columns={'enc_id':'# encids with alert ON'}, inplace=True)
+
+    ## 3) total number of patients with trews alerts on
+    total_cnts_dict['# encids with TREWS alert ON'], cnts_by_unit_df = get_alert_counts(alerts_df, 'jit_alert', window=self.window)
+    aggregate_df = pd.merge(aggregate_df, cnts_by_unit_df.reset_index(level=0), how='left', on='care_unit')
+    aggregate_df['enc_id'] = aggregate_df['enc_id'].fillna(0).astype(int)
+    aggregate_df.rename(columns={'enc_id':'# encids with TREWS alert ON'}, inplace=True)
+
+
+    enc_ids_with_trews_alert = alerts_df.loc[alerts_df['jit_alert']==1, 'enc_id'].unique()
+    enc_ids_with_any_alert = alerts_df.loc[alerts_df['union_alert']==1, 'enc_id'].unique()
+    enc_ids_with_only_cms = np.setdiff1d(enc_ids_with_any_alert, enc_ids_with_trews_alert)
+
+    ## 4) total number of patients with alerts on  only due to CMS
+    total_cnts_dict['# encids with only CMS alert ON'], cnts_by_unit_df = \
+                        get_alert_counts(alerts_df.loc[alerts_df['enc_id'].isin(enc_ids_with_only_cms)],
+                                                                'union_alert', window=self.window)
+    aggregate_df = pd.merge(aggregate_df, cnts_by_unit_df.reset_index(level=0), how='left', on='care_unit')
+    aggregate_df['enc_id'] = aggregate_df['enc_id'].fillna(0).astype(int)
+    aggregate_df.rename(columns={'enc_id':'# encids with only CMS alert ON'}, inplace=True)
+
+    ## 4) total number of patients with alert trigger
+    total_cnts_dict['# alerts fired'], cnts_by_unit_df = get_alert_counts(alerts_df,
+                'union_alert_delta', window=self.window)
+    aggregate_df = pd.merge(aggregate_df, cnts_by_unit_df.reset_index(level=0), how='left', on='care_unit')
+    aggregate_df['enc_id'] = aggregate_df['enc_id'].fillna(0).astype(int)
+    aggregate_df.rename(columns={'enc_id':'# alerts fired'}, inplace=True)
+
+
+    ##### output
+    self.cnts_by_unit = aggregate_df
+    self.total_counts = pd.DataFrame.from_dict(total_cnts_dict, orient='index')
+    self.total_counts.rename(columns={0:'count'}, inplace=True)
+
+    ################ Performance (TPR, PPV) based on cases with sepsis starting at start_tsp
+    performance_df = aggregate_df['care_unit'].copy()
+
+    ## read sepsis_labels
+    query = """
+        select distinct enc_id, tsp as sepsis_onset
+        from cdm_labels
+        where label_id =  (select max(label_id) from label_version)
+        and enc_id in ({0})""".format(', '.join([str(e) for e in valid_enc_ids]))
+    sepsis_df = pd.read_sql(sqlalchemy.text(query), self.connection, columns=['enc_id', 'tsepsis_onset'])
+    sepsis_df['sepsis_onset'] = pd.to_datetime(sepsis_df['sepsis_onset']).dt.tz_convert(timezone('utc'))
+    sepsis_df = sepsis_df.loc[sepsis_df['sepsis_onset']>=start_tsp, :]
+
+    ## get first sepsis onset
+    sepsis_df = sepsis_df[['enc_id', 'sepsis_onset']].copy()
+    sepsis_df = sepsis_df.sort_values(by=['enc_id', 'sepsis_onset'])
+    idx = sepsis_df.groupby('enc_id')['sepsis_onset'].idxmin()
+    first_sepsis = sepsis_df.loc[idx, ['enc_id', 'sepsis_onset']]
+
+    ## cut alerts made before and up to one hour after the first sepsis onset
+    myalert_df = merge_with_care_unit(alerts_df)
+    myalert_df = pd.merge(myalert_df, first_sepsis, how='left', on='enc_id')
+    myalert_df['sep'] = False
+    myalert_df.loc[~myalert_df['sepsis_onset'].isnull(), 'sep'] = True
+    myalert_df.loc[myalert_df['sepsis_onset'].isnull(), 'sepsis_onset'] = myalert_df.loc[myalert_df['sepsis_onset'].isnull(),
+                                                                        'tsp']
+    myalert_df = myalert_df.loc[myalert_df['tsp']<=myalert_df['sepsis_onset']+pd.to_timedelta('1 hour')]
+
+    def get_alert_performance(main_df, sep_df=first_sepsis):
+
+        TP_df = main_df.loc[(main_df['union_alert']>0)&(main_df['sep']), :]
+        FP_df = main_df.loc[(main_df['union_alert']>0)&(~main_df['sep']), :]
+
+        TPs, FPs = TP_df['enc_id'].unique(), FP_df['enc_id'].unique()
+        nTPs, nFPs = len(TPs), len(FPs)
+        not_alerted = np.setdiff1d(main_df['enc_id'].unique(), np.union1d(TPs, FPs))
+        nTNs = len(np.setdiff1d(not_alerted, sep_df['enc_id'].unique()))
+        nFNs = len(np.intersect1d(not_alerted, sep_df['enc_id'].unique()))
+        num_alerts = nTPs + nFPs
+
+        cnts = OrderedDict([('# sepsis', '%d' %(len(sep_df['enc_id'].unique()))),
+                            ('# alerted','%d' %int(num_alerts)),
+                            ('TPR', '%.3f' %(float(nTPs)/(nTPs+nFNs))),
+                            ('FPR', '%.3f' %(float(nFPs)/(nFPs+nTNs))),
+                            ('PPV', '%0.3f' %(float(nTPs)/(nTPs+nFPs)))])
+
+        cnt_df = TP_df.groupby('care_unit')['enc_id'].nunique().reset_index(level=0).copy()
+        cnt_df['enc_id'] = cnt_df['enc_id'].astype(int)
+        cnt_df.rename(columns={'enc_id':'# TPs'}, inplace=True)
+        cnt_df = pd.merge(cnt_df, FP_df.groupby('care_unit')['enc_id'].nunique().reset_index(level=0),
+                         how='outer', on='care_unit')
+        cnt_df['enc_id'] = cnt_df['enc_id'].fillna(0).astype(int)
+        cnt_df.rename(columns={'enc_id':'# FPs'}, inplace=True)
+
+        tmp_df = sep_df.copy()
+        tmp_df.rename(columns={'sepsis_onset':'tsp'}, inplace=True)
+        tmp_df = merge_with_care_unit(tmp_df)
+        cnt_df = pd.merge(cnt_df, tmp_df.groupby('care_unit')['enc_id'].nunique().reset_index(level=0),
+                                     how='outer', on='care_unit')
+        cnt_df['enc_id'] = cnt_df['enc_id'].fillna(0).astype(int)
+        cnt_df.rename(columns={'enc_id':'# sepsis cases'}, inplace=True)
+
+        ## FPs only due to CMS
+        onlyCMS_FP_df = main_df.loc[(main_df['enc_id'].isin(enc_ids_with_only_cms))&
+                                    (main_df['union_alert']>0)&
+                                    (~main_df['sep']), :]
+        cnt_df = pd.merge(cnt_df, onlyCMS_FP_df.groupby('care_unit')['enc_id'].nunique().reset_index(level=0).copy(),
+                        how='outer', on='care_unit')
+        cnt_df['enc_id'] = cnt_df['enc_id'].fillna(0).astype(int)
+        cnt_df.rename(columns={'enc_id':'# CMS only FPs'}, inplace=True)
+
+        ## TPs only due to CMS
+        onlyCMS_TP_df = main_df.loc[(main_df['enc_id'].isin(enc_ids_with_only_cms))&
+                                    (main_df['union_alert']>0)&
+                                    (main_df['sep']), :]
+        cnt_df = pd.merge(cnt_df, onlyCMS_TP_df.groupby('care_unit')['enc_id'].nunique().reset_index(level=0).copy(),
+                        how='outer', on='care_unit')
+        cnt_df['enc_id'] = cnt_df['enc_id'].fillna(0).astype(int)
+        cnt_df.rename(columns={'enc_id':'# CMS only TPs'}, inplace=True)
+
+        return cnts, cnt_df.fillna(0)
+
+    # people with first sepsis onset within past (window) hours
+    init_time = (self.now - pd.to_timedelta(self.sepsis_performance_window, unit='h'))#.tz_localize(timezone('utc'))
+    cnts, performance_cnt_df = get_alert_performance(myalert_df.loc[myalert_df['tsp']>init_time],
+                                                  sep_df=first_sepsis.loc[first_sepsis['sepsis_onset']>init_time])
+
+    self.performance_metrics = pd.DataFrame.from_dict(cnts, orient='index').rename(columns={0:''}) # output
+    self.performance_cnt_df = performance_cnt_df
+
+  def to_html(self):
+
+      txt = "<h3>Total Number of Alerts</h3>" + self.total_counts.to_html()
+      txt += "<h5># alerts fired = # enc_ids on whom the alert went from Off to On in this period."
+      txt += "<br/># alerts On = # enc_ids whose alert was On at some time during this period but may have been fired before.</h5>"
+      txt += "<h3>Number of Alerts by Care Unit</h3>" + self.cnts_by_unit.to_html()
+      txt += "<h3>Performance Measures Over a 7-Day Period" + self.performance_metrics.to_html()
+      txt += "<h3>Performance Measures Over a 7-Day Period by Care Unit" + self.performance_cnt_df.to_html()
+
+      return txt
+
 
 
 class suspicion_of_infection_modified(metric):
