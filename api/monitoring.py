@@ -254,7 +254,7 @@ if 'logging' in os.environ and int(os.environ['logging']) == 1 and 'cloudwatch_l
   cwlog.addHandler(cwlog_handler)
   cwlog.setLevel(logging.INFO)
 
-def pre_log_object(request):
+async def pre_log_object(request):
   srvnow = datetime.datetime.utcnow().isoformat()
   return {
     'date'         : srvnow,
@@ -263,7 +263,7 @@ def pre_log_object(request):
     'headers'      : dict(request.headers.items())
   }
 
-def post_log_object(request, response):
+async def post_log_object(request, response):
   srvnow = datetime.datetime.utcnow().isoformat()
   result = {
     'date'         : srvnow,
@@ -273,10 +273,33 @@ def post_log_object(request, response):
   }
 
   result['status'] = response.status
-  for i in ['body', 'render_data']:
-    result[i] = request.app[i].pop() if i in request.app and request.app[i] else None
+  request_body = None
+  request_key = None
+
+  if request.method == 'POST':
+    request_body = await request.json()
+    request_session = None
+    request_action = None
+
+    if request_body and 's' in request_body and request_body['s'] is not None:
+      request_session = request_body['s']
+    elif request_body and 'session-close' in request_body and 'session-id' in request_body and request_body['session-id'] is not None:
+      request_session = request_body['session-id']
+
+    if 'actionType' in request_body:
+      request_action = 'load' if request_body['actionType'] is None else request_body['actionType']
+    elif 'session-close' in request_body:
+      request_action = 'close'
+
+    if request_session and request_action:
+      request_key = request.path + '-' + request_action + '-' + request_session
+
+  if request_key:
+    for i in ['body', 'render_data']:
+      result[i] = request.app[i].pop(request_key, None) if i in request.app and request.app[i] else None
 
   return result
+
 
 # Time-based CW log flushing
 last_log_flush = datetime.datetime.utcnow()
@@ -297,21 +320,22 @@ async def cloudwatch_logger_middleware(app, handler):
 
     # Pre-logging
     if cwlog_enabled:
-      msg = json.dumps({ 'req': pre_log_object(request) })
+      log_request = await pre_log_object(request)
+      msg = json.dumps({ 'req': log_request })
       cwlog.info(msg)
       logged_bytes_since_flush += len(msg)
 
       for i in ['body', 'render_data']:
         if i not in request.app:
-          request.app[i] = []
-        request.app[i].append(None)
+          request.app[i] = {}
 
     response = await handler(request)
 
     # Post-logging
     if cwlog_enabled:
       try:
-        msg = json.dumps({ 'resp': post_log_object(request, response) })
+        log_response = await post_log_object(request, response)
+        msg = json.dumps({ 'resp': log_response })
         cwlog.info(msg)
 
         # Time-based or size-based manual flush
