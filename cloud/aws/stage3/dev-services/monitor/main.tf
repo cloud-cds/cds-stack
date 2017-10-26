@@ -428,7 +428,7 @@ resource "aws_cloudwatch_metric_alarm" "trews_alert_count_on_hcgh_ed" {
   namespace                 = "OpsDX"
   period                    = "3600"
   statistic                 = "Minimum"
-  threshold                 = "0"
+  threshold                 = "12"
   alarm_description         = "The number of Trews alerts fired at HCGH ED in the past hour"
   alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
@@ -446,7 +446,7 @@ resource "aws_cloudwatch_metric_alarm" "cms_alert_count_on_hcgh_ed" {
   namespace                 = "OpsDX"
   period                    = "3600"
   statistic                 = "Minimum"
-  threshold                 = "0"
+  threshold                 = "4"
   alarm_description         = "The number of CMS alerts fired at HCGH ED in the past hour"
   alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
@@ -464,7 +464,7 @@ resource "aws_cloudwatch_metric_alarm" "trews_alert_count_on_hcgh_3c_icu" {
   namespace                 = "OpsDX"
   period                    = "3600"
   statistic                 = "Minimum"
-  threshold                 = "0"
+  threshold                 = "4"
   alarm_description         = "The number of Trews alerts fired at HCGH 3C ICU in the past hour"
   alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
@@ -482,7 +482,7 @@ resource "aws_cloudwatch_metric_alarm" "cms_alert_count_on_hcgh_3c_icu" {
   namespace                 = "OpsDX"
   period                    = "3600"
   statistic                 = "Minimum"
-  threshold                 = "0"
+  threshold                 = "4"
   alarm_description         = "The number of CMS alerts fired at HCGH 3C ICU in the past hour"
   alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
@@ -500,7 +500,7 @@ resource "aws_cloudwatch_metric_alarm" "cms_alert_count_8hr" {
   namespace                 = "OpsDX"
   period                    = "3600"
   statistic                 = "Minimum"
-  threshold                 = "0"
+  threshold                 = "1"
   alarm_description         = "The number of CMS alerts fired in the past 8 hours"
   alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
@@ -518,7 +518,7 @@ resource "aws_cloudwatch_metric_alarm" "trews_alert_count_8hr" {
   namespace                 = "OpsDX"
   period                    = "3600"
   statistic                 = "Minimum"
-  threshold                 = "0"
+  threshold                 = "1"
   alarm_description         = "The number of Trews alerts fired in the past 8 hours"
   alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
