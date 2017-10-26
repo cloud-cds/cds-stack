@@ -401,7 +401,8 @@ DROP TABLE IF EXISTS user_interactions;
 CREATE TABLE user_interactions (
     tsp             timestamptz,
     addr            cidr,
-    session         char(40),
+    host_session    char(40),
+    user_session    char(48),
     uid             varchar(16),
     action          text,
     enc_id          int,
