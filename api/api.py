@@ -591,7 +591,7 @@ class TREWSAPI(web.View):
           req_body = await self.request.json()
 
           # Make available to the CW log middleware
-          self.request.app['body'] = req_body
+          self.request.app['body'][-1] = req_body
           logging.info('%(date)s %(method)s %(host)s HDR %(headers)s BODY %(body)s'
               % { 'date'         : srvnow,
                   'method'       : self.request.method,
@@ -656,7 +656,7 @@ class TREWSAPI(web.View):
                   response_body = {'trewsData': data}
 
                   # Track summary object for user interaction logs.
-                  self.request.app['render_data'] = {
+                  self.request.app['render_data'][-1] = {
                     'notifications'           : data['notifications'],
                     #'trewscore'               : data['chart_data']['chart_values']['trewscore'][-1] if data['chart_data']['chart_values']['trewscore'] else None,
                     'deactivated'             : data['profile']['deactivated'],
@@ -684,11 +684,11 @@ class TREWSAPI(web.View):
 
               # Track summary object for user interaction logs.
               elif actionType == u'pollNotifications':
-                self.request.app['render_data'] = { 'notifications': response_body['notifications'] }
+                self.request.app['render_data'][-1] = { 'notifications': response_body['notifications'] }
 
           else:
             response_body = {'message': 'Invalid TREWS REST API request'}
-          logging.info("end")
+
           return json_response(response_body)
 
         else:
