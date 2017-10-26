@@ -4634,9 +4634,9 @@ begin
   update clone_temp set enc_id = to_enc;
   insert into trews_jit_score select * from clone_temp;
   drop table clone_temp;
-  create temp table clone_temp as select * from notifications where enc_id = from_enc;
+  create temp table clone_temp as select enc_id, message from notifications where enc_id = from_enc;
   update clone_temp set enc_id = to_enc;
-  insert into notifications select * from clone_temp;
+  insert into notifications (enc_id, message) select * from clone_temp;
   drop table clone_temp;
   perform pg_notify('on_opsdx_dev_etl', 'invalidate_cache:' || pat_id || ':trews-jit')
     from pat_enc where enc_id = to_enc;
@@ -4648,20 +4648,22 @@ create or replace function shift_to_now(this_enc_id int, now_tsp timestamptz def
 returns void language plpgsql as $$
 declare shift_interval interval;
 begin
-select now_tsp - greatest(max(t.tsp), coalesce(max(c.override_time), max(t.tsp) )) from cdm_t t left join criteria c on t.enc_id = c.enc_id and c.override_user is not null where t.enc_id = this_enc_id into shift_interval;
+select now_tsp - greatest(max(t.tsp), coalesce(max(c.override_time), max(c.measurement_time), max(t.tsp) )) from cdm_t t left join criteria c on t.enc_id = c.enc_id and c.override_user is not null where t.enc_id = this_enc_id into shift_interval;
 update cdm_t set tsp = tsp + shift_interval where enc_id = this_enc_id;
 update cdm_twf set tsp = tsp + shift_interval where enc_id = this_enc_id;
 update criteria set override_time = override_time + shift_interval where enc_id = this_enc_id and override_user is not null;
 update criteria_events set override_time = override_time + shift_interval,
     measurement_time = measurement_time + shift_interval,
     update_date = update_date + shift_interval
-    where enc_id = this_enc_id and override_user is not null;
+    where enc_id = this_enc_id;
 update orgdf_baselines set
     creatinine_tsp = creatinine_tsp + shift_interval,
     inr_tsp = inr_tsp + shift_interval,
     bilirubin_tsp = bilirubin_tsp + shift_interval,
     platelets_tsp = platelets_tsp + shift_interval
     where pat_id = (select pat_id from pat_enc where enc_id = this_enc_id);
+update notifications set
+    message = message::jsonb #- '{timestamp}' || jsonb_build_object('timestamp',((message#>>'{timestamp}')::numeric + EXTRACT(EPOCH FROM shift_interval)));
 end;
 $$;
 
