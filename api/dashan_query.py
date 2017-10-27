@@ -548,11 +548,17 @@ async def find_active_orders(db_pool, eid, orders):
   # Extract and transform orders
   jhapi_loader = JHAPI(EPIC_SERVER, client_id, client_secret)
   lab_orders, med_orders = jhapi_loader.extract_orders(eid, csn, hospital)
+
+  logging.info("Patient %s visit %s pre-transform lab_orders: %s" % (eid, csn, lab_orders))
+  logging.info("Patient %s visit %s pre-transform med_orders: %s" % (eid, csn, med_orders))
+
   lab_orders = transforms.transform_lab_orders(lab_orders)
   med_orders = transforms.transform_med_orders(med_orders)
   all_orders = {**lab_orders, **med_orders}
 
-  logging.info("Patient %s visit %s all_orders: %s" % (eid, csn, all_orders))
+  logging.info("Patient %s visit %s post-transform lab_orders: %s" % (eid, csn, lab_orders))
+  logging.info("Patient %s visit %s post-transform med_orders: %s" % (eid, csn, med_orders))
+  logging.info("Patient %s visit %s post-transform all_orders: %s" % (eid, csn, all_orders))
 
   orders_to_check = map(lambda o: o[0].replace('_order', '').replace('repeat_', '').replace('initial_', ''), validated_orders)
   tsps_to_check = { order: tsps for order, tsps in all_orders.items() if order in orders_to_check }

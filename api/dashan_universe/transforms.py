@@ -7,10 +7,10 @@ def transform_lab_orders(lab_orders):
     order_tsps = {'blood_culture': [], 'lactate': []}
 
     for order in lab_orders:
-        if order.get('OrderStatus') in ['Signed', '']:
-            if order.get('ProcedureID') in order_ids['blood_culture']:
+        if order.get('OrderStatus') in ['Signed', 'Sent', '']:
+            if order.get('ProcedureId') in order_ids['blood_culture']:
                 order_tsps['blood_culture'].append(order.get('OrderInstant'))
-            elif order.get('ProcedureID') in order_ids['lactate']:
+            elif order.get('ProcedureId') in order_ids['lactate']:
                 order_tsps['lactate'].append(order.get('OrderInstant'))
 
     return order_tsps
