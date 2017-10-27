@@ -910,5 +910,6 @@ async def split_telmisartan_hydrochlorothiazide(connection, dataset_id, fids, lo
 
     extracted = len(sql_dt)
     loaded = len(results)
+    
     return log_time(log, 'telmisartan_hydrochlorothiazide', start, extracted, loaded)
 
