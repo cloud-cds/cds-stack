@@ -133,12 +133,11 @@ class TREWSAPI(web.View):
           # Mark active orders as overrides.
           order_overrides = { o: None for (o,t) in ordered }
           for o in order_overrides:
-            # Shift blood culture to ensure its override time is before its collection time
-            # otherwise blood cultures will never complete.
-            if o == 'blood_culture_order':
-              await query.override_criteria(db_pool, eid, o, value='[{ "text": "Ordered" }]', user=uid, override_pre_offset_secs=20)
-            else:
-              await query.override_criteria(db_pool, eid, o, value='[{ "text": "Ordered" }]', user=uid)
+            # Shift orders to ensure their measured timestamps (i.e., when actions took place in Epic),
+            # are not dominated by our detection timestamps due to our polling process.
+            #
+            # TODO: use the signing time as the override timestamp for order interactions.
+            await query.override_criteria(db_pool, eid, o, value='[{ "text": "Ordered" }]', user=uid, override_pre_offset_secs=30)
 
           # Immediately invalidate cache.
           logging.info("Invalidating cache after signing for %s" % eid)
