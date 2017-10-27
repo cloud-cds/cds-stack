@@ -1776,7 +1776,7 @@ return query
             left join trews_orgdf on pc.enc_id = trews_orgdf.enc_id
             left join trews_jit_score ts on pc.enc_id = ts.enc_id
             and ts.model_id = get_trews_parameter('trews_jit_model_id')
-            where pc.name = 'trews_subalert'
+            where pc.name = 'trews_subalert' and orgdf_details !~ '"tsp":"null"'
         ) ordered
         group by ordered.enc_id, ordered.name
     ),
