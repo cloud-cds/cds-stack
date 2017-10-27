@@ -573,10 +573,11 @@ async def find_active_orders(db_pool, eid, orders):
         tsp = datetime.datetime.strptime(tsp, '%Y-%m-%dT%H:%M:%S%z')
         logging.info('Parsed TSP %s' % tsp)
 
+        order_time_tz = order_time.replace(tzinfo=pytz.UTC)
         logging.info('Checking %s / %s : %s > %s = %s and %s' \
-          % (order_type, order_key, tsp, order_time, tsp > order_time, (order_type, order_time) not in active_orders))
+          % (order_type, order_key, tsp, order_time_tz, tsp > order_time_tz, (order_type, order_time) not in active_orders))
 
-        if tsp > order_time and (order_type, order_time) not in active_orders:
+        if tsp > order_time_tz and (order_type, order_time) not in active_orders:
           logging.info("Found an active %s: %s is past the order time of %s" % (order_type, tsp, order_time))
           active_orders.append((order_type, order_time))
 
