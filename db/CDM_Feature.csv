@@ -439,3 +439,25 @@ celecoxib_dose,T,JSON,yes,no,,,,,Medication,1,mg
 benazepril_dose,T,JSON,yes,no,,,,,Medication,1,mg
 iohexol_dose,T,JSON,yes,no,,,,,Medication,1,mL
 iodixanol_dose,T,JSON,yes,no,,,,,Medication,1,mL
+pancreatic_cancer_icd9_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
+pancreatic_cancer_icd9_hist,S,Boolean,yes,no,,,,,History,1,no unit
+pancreatic_cancer_icd9_prob,S,Boolean,yes,no,,,,,ProblemList,1,no unit
+bladder_cancer_icd9_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
+bladder_cancer_icd9_hist,S,Boolean,yes,no,,,,,History,1,no unit
+bladder_cancer_icd9_prob,S,Boolean,yes,no,,,,,ProblemList,1,no unit
+prostate_cancer_icd9_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
+prostate_cancer_icd9_hist,S,Boolean,yes,no,,,,,History,1,no unit
+prostate_cancer_icd9_prob,S,Boolean,yes,no,,,,,ProblemList,1,no unit
+kidney_cancer_icd9_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
+kidney_cancer_icd9_hist,S,Boolean,yes,no,,,,,History,1,no unit
+kidney_cancer_icd9_prob,S,Boolean,yes,no,,,,,ProblemList,1,no unit
+cardiac_arrest_icd9_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
+cardiac_arrest_icd9_hist,S,Boolean,yes,no,,,,,History,1,no unit
+cardiac_arrest_icd9_prob,S,Boolean,yes,no,,,,,ProblemList,1,no unit
+cardiogenic_shock_icd9_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
+cardiogenic_shock_icd9_hist,S,Boolean,yes,no,,,,,History,1,no unit
+cardiogenic_shock_icd9_prob,S,Boolean,yes,no,,,,,ProblemList,1,no unit
+other_shock_icd9_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
+other_shock_icd9_hist,S,Boolean,yes,no,,,,,History,1,no unit
+other_shock_icd9_prob,S,Boolean,yes,no,,,,,ProblemList,1,no unit
+vancomycin,TWF,Real,yes,no,,,,,Lab,1,mic/mL
