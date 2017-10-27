@@ -119,6 +119,7 @@ class TREWSAPI(web.View):
       # Copy all pending orders since the last sleep (or as initialization)
       orders_to_check = copy.deepcopy(pending_orders[task_key]) if task_key in pending_orders else []
       if orders_to_check:
+        logging.info('Found %s pending orders for %s' % (len(orders_to_check), eid))
         ordered = await query.find_active_orders(db_pool = db_pool, eid = eid, orders = orders_to_check)
 
         if ordered:
@@ -139,9 +140,11 @@ class TREWSAPI(web.View):
           timeout = epoch # Terminate the loop.
 
       else:
+        logging.info('No pending orders for %s' % eid)
         timeout = epoch # Terminate the loop.
 
-    logging.info('Order checking task completed for %s' % eid)
+    logging.info('Order checking task completed for %s %s, %s pending signing actions will complete at the next ETL' \
+                   % (eid, task_key, len(pending_orders[task_key])))
 
 
   # match and test the consistent API for overriding
@@ -171,7 +174,7 @@ class TREWSAPI(web.View):
         still_ordering = pending_orders.pop(order_action_key, [])
         order_tasks = order_processing_tasks.pop(order_action_key, [])
 
-        cancelled = sum(map(lambda t: 1 if t.cancel() else 0, order_tasks))
+        cancelled = sum(map(lambda t: 1 if not t['task'].done() and t['task'].cancel() else 0, order_tasks))
         logging.info('Closed session with %s in-flight orders, cancelling %s / %s tasks' \
                         % (len(still_ordering), cancelled, len(order_tasks)))
 
@@ -230,7 +233,7 @@ class TREWSAPI(web.View):
         # Check if an order has been signed for 5 minutes, at 10 second intervals.
         # If we do not have a request key, the user will wait until the next ETL to see the Ordered status.
         if action_key and len(action_key) > 1:
-          task_key = action_key[0] + '-' + actionType '-' + action_key[1]
+          task_key = action_key[0] + '-' + actionType + '-' + action_key[1]
 
           # Add to pending orders.
           if task_key not in pending_orders:
@@ -240,13 +243,36 @@ class TREWSAPI(web.View):
 
           # Find any existing task.
           order_tasks = order_processing_tasks[task_key] if task_key in order_processing_tasks else []
-          has_task = functools.reduce(lambda acc, t: acc or (t['type'] == 'check_orders' and not t['task'].done()), order_tasks)
+
+          # Maintain order processing task list for this session.
+          existing_tasks = []
+          tasks_to_delete = []
+          other_tasks = []
+          for t in order_tasks:
+            if t['type'] == 'check_orders':
+              if t['task'].done():
+                tasks_to_delete.append(t)
+              else:
+                existing_tasks.append(t)
+            else:
+              other_tasks.append(t)
+
+          logging.info('Order processing tasks stats: existing:%s delete:%s other:%s' % (len(existing_tasks), len(tasks_to_delete), len(other_tasks)) )
+          order_processing_tasks[task_key] = existing_tasks + other_tasks
 
           # Start a order checking task as needed.
-          if not has_task:
+          if existing_tasks:
+            logging.info('Found existing order checking task for %s: ' % (eid))
+
+          else:
+            logging.info('Creating order checking task for %s: %s' % (eid, task_key))
             task = { 'type': 'check_orders',
-                     'task': asyncio.ensure_future(self.check_order_signed(db_pool, task_key, eid, uid, 300, 10)) }
-            order_processing_tasks[task_key] = task
+                     'task': asyncio.ensure_future(self.check_order_signed(db_pool, task_key, eid, uid, 30, 10)) }
+
+            if task_key not in order_processing_tasks:
+              order_processing_tasks[task_key] = []
+
+            order_processing_tasks[task_key].append(task)
 
         else:
           logging.error('Invalid action key while placing order: key=%s order_type=%s' % (str(action_key), order_type))

@@ -517,7 +517,7 @@ async def find_active_orders(db_pool, eid, orders):
                        'repeat_lactate_order',
                        'vasopressors_order']
 
-  validated_orders = filter(lambda o: o[0] in valid_order_types, orders)
+  validated_orders = list(filter(lambda o: o[0] in valid_order_types, orders))
 
   if len(validated_orders) != len(orders):
     logging.error('Invalid orders to check in argument: ' % str(orders))
