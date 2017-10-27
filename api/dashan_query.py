@@ -567,11 +567,20 @@ async def find_active_orders(db_pool, eid, orders):
     if order_key in all_orders:
       logging.info('Checking %s / %s with tsp: %s in %s' % (order_type, order_key, order_time, all_orders[order_key]))
       for tsp in all_orders[order_key]:
+
+        logging.info('Processing TSP %s' % tsp)
         tsp = tsp[:-3]+tsp[-2:] if ":" == tsp[-3:-2] else tsp # Format tz for parsing
-        tsp = dt.datetime.strptime(tsp, '%Y-%m-%dT%H:%M:%S%z')
+        tsp = datetime.datetime.strptime(tsp, '%Y-%m-%dT%H:%M:%S%z')
+        logging.info('Parsed TSP %s' % tsp)
+
+        logging.info('Checking %s / %s : %s > %s = %s and %s' \
+          % (order_type, order_key, tsp, order_time, tsp > order_time, (order_type, order_time) not in active_orders))
+
         if tsp > order_time and (order_type, order_time) not in active_orders:
           logging.info("Found an active %s: %s is past the order time of %s" % (order_type, tsp, order_time))
           active_orders.append((order_type, order_time))
+
+  logging.info('find_active_orders result for %s %s: %s' % (eid, csn, active_orders))
 
   return active_orders
 

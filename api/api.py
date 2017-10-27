@@ -126,12 +126,19 @@ class TREWSAPI(web.View):
           # Remove orders found from pending_orders.
           # Note we do this from pending_orders to include any orders added while
           # searching for active orders.
+          logging.info('Pending orders before: %s // %s' % (ordered, pending_orders[task_key]))
+
           pending_orders[task_key] = list(filter(lambda o: o not in ordered, pending_orders[task_key]))
+
+          logging.info('Pending orders after: %s' % pending_orders[task_key])
 
           # Mark active orders as overrides.
           order_overrides = { o: None for (o,t) in ordered }
           for o in order_overrides:
             await query.override_criteria(db_pool, eid, o, value='[{ "text": "Ordered" }]', user=uid)
+
+        else:
+          logging.info('No active orders from %s' % orders_to_check)
 
         # Sleep if we still have orders to process.
         if pending_orders[task_key]:
