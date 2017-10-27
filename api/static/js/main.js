@@ -143,8 +143,6 @@ function Listener(event) {
  * Window callbacks.
  */
 
-var checkIfOrdered = null; // Global bool to flip when clicking "place order"
-
 window.onload = function() {
   // Handshake with Epic 2017 AGL.
   lastAction = 'handshake';
@@ -172,15 +170,28 @@ window.onload = function() {
 };
 
 window.onunload = function() {
+  var url = (window.location.hostname.indexOf("localhost") > -1) ?
+              "http://localhost:8000/api" :
+              window.location.protocol + "//" + window.location.hostname + "/api";
+
   var postBody = {
-    'session-id': (getQueryVariable('TSESSID') === false) ? null : getQueryVariable('TSESSID'),
-    'session-close': 'unload'
+    q: (getQueryVariable('PATID') === false) ? null : getQueryVariable('PATID'),
+    u: (getQueryVariable('USERID') === false) ? null : cleanUserId(getQueryVariable('USERID')),
+    s: (getQueryVariable('TSESSID') === false) ? null : getQueryVariable('TSESSID'),
+    depid: (getQueryVariable('DEP') === false) ? null : getQueryVariable('DEP'),
+    csn: (getQueryVariable('CSN') === false) ? null : getQueryVariable('CSN'),
+    loc: (getQueryVariable('LOC') === false) ? null : getQueryVariable('LOC'),
+    actionType: 'close_session',
+    action: {
+      'session-close': 'unload',
+      'session-id': (getQueryVariable('TSESSID') === false) ? null : getQueryVariable('TSESSID')
+    }
   };
 
   $.ajax({
     type: "POST",
     async: false,
-    url: "log",
+    url: url,
     data: JSON.stringify(postBody),
     dataType: "json"
   });
@@ -201,11 +212,6 @@ window.onresize = function() {
                         (trews.data.septic_shock != null ? trews.data.septic_shock.onset_time : null),
                         graphComponent.xmin, graphComponent.xmax);
   */
-
-  if ( checkIfOrdered != null) {
-    endpoints.getPatientData('place_order', {'actionName': checkIfOrdered});
-    checkIfOrdered = null;
-  }
 }
 
 
@@ -346,7 +352,7 @@ var notificationRefresher = new function() {
     window.setTimeout(function() { notificationRefresher.poll(notificationRefresher); }, 2000);
   }
   this.poll = function(obj) {
-    endpoints.getPatientData('pollNotifications');
+    endpoints.getPatientData('poll_notifications');
     obj.refreshTimer = window.setTimeout(function() { obj.poll(obj); }, obj.refreshPeriod);
   }
   this.terminate = function() {
@@ -440,8 +446,8 @@ var endpoints = new function() {
         } else if ( result.hasOwnProperty('notifications') ) {
           trews.setNotifications(result.notifications);
           controller.refreshNotifications();
-        } else if ( result.hasOwnProperty('getAntibioticsResult') ) {
-          trews.setAntibiotics(result.getAntibioticsResult);
+        } else if ( result.hasOwnProperty('antibiotics_result') ) {
+          trews.setAntibiotics(result.antibiotics_result);
           controller.refreshOrderDetails('antibiotics-details');
         }
 
@@ -1742,7 +1748,6 @@ var workflowsComponent = new function() {
 
       // Track order placed action.
       lastAction = order;
-      checkIfOrdered = order;
 
       if ( release == 'epic2017' ) {
         // TODO: should we remove specific orders before posting, to implement replacement order semantics?
@@ -1753,6 +1758,7 @@ var workflowsComponent = new function() {
             'action': 'Epic.Clinical.Informatics.Web.PostOrder',
             'args': { 'OrderKey': key }
           }, '*');
+          endpoints.getPatientData('place_order', {'actionName': order});
         } else {
           appendToConsole('Skipping order (null parent)');
         }
@@ -1763,10 +1769,9 @@ var workflowsComponent = new function() {
         if ( anc != null ) { txt += '\nANCHOR:' + anc.innerHTML; }
         appendToConsole(txt);
 
-        checkIfOrdered = null;
         if ( anc != null ) {
           anc.click();
-          checkIfOrdered = $(this).attr('data-trews');
+          endpoints.getPatientData('place_order', {'actionName': order});
         }
       }
     });
@@ -2295,6 +2300,10 @@ var criteriaComponent = function(c, constants, key, hidden, criteria_mapping, cr
     displayValue = 'Mechanical Support: On';
   }
 
+  if ( c['is_met'] && c['name'] == 'trews_vasopressors') {
+    displayValue = 'Vasopressors: Initiated';
+  }
+
   if (c['override_user'] != null) {
     this.isOverridden = true;
   }
@@ -2303,7 +2312,7 @@ var criteriaComponent = function(c, constants, key, hidden, criteria_mapping, cr
     var lapsed = timeLapsed(new Date(c['measurement_time']*1000));
     var strTime = strToTime(new Date(c['measurement_time']*1000));
 
-    if (c['name'] == 'respiratory_failure' || c['name'] == 'trews_vent') {
+    if (c['name'] == 'respiratory_failure' || c['name'] == 'trews_vent' || c['name'] == 'trews_vasopressors') {
       this.status += (this.criteria_source ? this.criteria_source + ' ' : '') + "Criteria met <span title='" + strTime + "'>" + lapsed + "</span>"
         + (skip_threshold_and_value ? '' : " with <span class='value'>" + displayValue + "</span>");
     }
@@ -2385,6 +2394,14 @@ var criteriaComponent = function(c, constants, key, hidden, criteria_mapping, cr
         criteriaString += name + ": Mechanical Support: " + with_support;
       }
     }
+    else if ( c['name'] == 'trews_vasopressors' ) {
+      if (c['is_met']) {
+        criteriaString += name;
+      } else {
+        var with_support = crit == 0 ? 'Not administered' : 'Initiated';
+        criteriaString += name + ": " + with_support;
+      }
+    }
     else if (constants.overrideModal[i].range == 'true') {
       criteriaString += name + " < " + crit[0] + ' ' + unit + " or > " + crit[1] + ' ' + unit;
     }
@@ -2458,9 +2475,11 @@ var taskComponent = function(json, elem, constants, doseLimit) {
   } else {
     elem.find('h3').html(constants['display_name']);
   }
-  elem.removeClass('in-progress');
-  elem.removeClass('complete');
-  if ( json['status'] == 'Ordered' ) {
+  elem.removeClass('in-action in-progress complete');
+  if ( json['status'] == 'Ordering' ) {
+    elem.addClass('in-action');
+  }
+  else if ( json['status'] == 'Ordered' ) {
     elem.addClass('in-progress');
   }
   else if ( orderStatusCompleted(json) ) {
@@ -2489,7 +2508,7 @@ var taskComponent = function(json, elem, constants, doseLimit) {
         if ( naMsg != '' ) {
           controller.refreshOrderDetails('antibiotics-details');
         } else {
-          endpoints.getPatientData('getAntibiotics');
+          endpoints.getPatientData('get_antibiotics');
         }
       } else {
         var detailsCtn = $(".order-details-content[data-trews='antibiotics-details']");
@@ -3184,7 +3203,8 @@ var activity = new function() {
                         "trews_platelet",
                         "trews_inr",
                         "trews_lactate",
-                        "trews_gcs" ];
+                        "trews_gcs",
+                        "trews_vasopressors" ];
 
     var msg = "";
     var user = data.uid == null ? 'TREWS' : (data['uid'] == 'dba' ? 'TREWS automatically' : data['uid']);
@@ -3225,7 +3245,11 @@ var activity = new function() {
           var event_type = null;
           if ( data.name == 'respiratory_failure' || data.name == 'trews_vent' ) {
             event_type = '<b>Respiratory Failure (Mechanical Ventilation)</b>';
-          } else {
+          }
+          else if ( data.name == 'trews_vasopressors' ) {
+            event_type = '<b>Vasopressors</b>';
+          }
+          else {
             event_type = '<b>' + criteriaKeyToName[data.name][0].name + '</b> measurements';
           }
           msg += user + " re-enabled the entry for acute organ dysfunction based on " + event_type;
@@ -3258,7 +3282,11 @@ var activity = new function() {
           var event_type = null;
           if ( data.name == 'respiratory_failure' || data.name == 'trews_vent' ) {
             event_type = '<b>Respiratory Failure (Mechanical Ventilation)</b> does';
-          } else {
+          }
+          else if ( data.name == 'trews_vasopressors' ) {
+            event_type = '<b>Vasopressors</b>';
+          }
+          else {
             event_type = '<b>' + criteriaKeyToName[data.name][0].name + '</b> measurements do';
           }
           msg += user + " entered " + event_type + " not indicate organ dysfunction due to infection";

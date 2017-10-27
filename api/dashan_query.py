@@ -2,6 +2,7 @@
 dashan_query.py
 """
 import os, sys, traceback
+import functools
 import json
 import datetime
 import logging
@@ -503,53 +504,71 @@ async def get_order_detail(db_pool, eid):
     return order_details
 
 
-async def is_order_placed(db_pool, eid, order_type, order_time):
-  ''' See if an order for 'order_type' has been placed after 'order_time' '''
+async def find_active_orders(db_pool, eid, orders):
+  ''' Find any active orders from a list of order types and order placement times.
+      The orders argument should be a list of (order type, placement time) tuples.
+  '''
 
   # Check order_type value
-  if order_type not in ['antibiotics_order', 'blood_culture_order',
-                        'crystalloid_fluid_order', 'initial_lactate_order',
-                        'repeat_lactate_order', 'vasopressors_order']:
-    logging.error("Can't handle this order type: {}".format(order_type))
-    await asyncio.sleep(1)
-    return False
-  logging.info("Checking if order has been placed for '{}'".format(order_type))
+  valid_order_types = ['antibiotics_order',
+                       'blood_culture_order',
+                       'crystalloid_fluid_order',
+                       'initial_lactate_order',
+                       'repeat_lactate_order',
+                       'vasopressors_order']
+
+  validated_orders = filter(lambda o: o[0] in valid_order_types, orders)
+
+  if len(validated_orders) != len(orders):
+    logging.error('Invalid orders to check in argument: ' % str(orders))
+    return []
+
+  logging.info('Checking active orders for %s from %s' % (eid, str(validated_orders)))
 
   # Get patient info needed for extract
+  csn = None
+  hospital = None
   async with db_pool.acquire() as conn:
-    row = await conn.fetchrow("SELECT * FROM pat_enc WHERE pat_id = '{}';".format(eid))
+    sql = \
+    '''
+    select P.visit_id, S.value
+    from pat_enc P
+    inner join cdm_s S on P.enc_id = S.enc_id
+    where P.enc_id = pat_id_to_enc_id('%(pid)s'::text)
+    and S.fid = 'hospital'
+    ''' % {'pid': eid}
+
+    row = await conn.fetchrow(sql)
     csn = row['visit_id']
-    hospital = await conn.fetchval("SELECT value FROM cdm_s WHERE enc_id = '{}' AND fid = 'hospital';".format(row['enc_id']))
-  logging.info("Patient csn='{}', hosp='{}'".format(csn, hospital))
+    hospital = row['value']
+
+  if not (csn and hospital):
+    logging.info('Invalid CSN and hospital for %s: csn=%s hospital=%s' % (eid, csn, hospital))
+    return []
 
   # Extract and transform orders
   jhapi_loader = JHAPI(EPIC_SERVER, client_id, client_secret)
   lab_orders, med_orders = jhapi_loader.extract_orders(eid, csn, hospital)
   lab_orders = transforms.transform_lab_orders(lab_orders)
   med_orders = transforms.transform_med_orders(med_orders)
-  logging.info("Patients lab_orders: {}".format(lab_orders))
-  logging.info("Patients med_orders: {}".format(med_orders))
-
-  # Get all the timestamps for the correct order
-  order_to_check = order_type.replace('_order', '').replace('repeat_', '').replace('initial_', '')
   all_orders = {**lab_orders, **med_orders}
-  for order in all_orders:
-    if order == order_to_check:
-      tsps_to_check = all_orders[order]
-  logging.info("Checking these {} orders: {}".format(order_to_check, tsps_to_check))
 
-  # Parse the time stamps and compare to 'order_time'
-  for tsp in tsps_to_check:
-    tsp = tsp[:-3]+tsp[-2:] if ":" == tsp[-3:-2] else tsp # Format tz for parsing
-    tsp = dt.datetime.strptime(tsp, '%Y-%m-%dT%H:%M:%S%z')
-    if tsp > order_time:
-      logging.info("{} is past the order time of {}".format(tsp, order_time))
-      return True
+  logging.info("Patient %s visit %s all_orders: %s" % (eid, csn, all_orders))
 
-  # Couldn't find an order after 'order_time'
-  logging.info("No timestamp past {}".format(order_time))
-  return False
+  orders_to_check = map(lambda o: o[0].replace('_order', '').replace('repeat_', '').replace('initial_', ''), validated_orders)
+  tsps_to_check = { order: tsps for order, tsps in all_orders.items() if order in orders_to_check }
 
+  active_orders = []
+  for (order_type, order_time) in validated_orders:
+    if order_type in tsps_to_check:
+      for tsp in tsps_to_check[order_type]:
+        tsp = tsp[:-3]+tsp[-2:] if ":" == tsp[-3:-2] else tsp # Format tz for parsing
+        tsp = dt.datetime.strptime(tsp, '%Y-%m-%dT%H:%M:%S%z')
+        if tsp > order_time and (order_type, order_time) not in active_orders:
+          logging.info("Found an active %s: %s is past the order time of %s" % (order_type, tsp, order_time))
+          active_orders.append((order_type, order_time))
+
+  return active_orders
 
 
 async def toggle_notification_read(db_pool, eid, notification_id, as_read):

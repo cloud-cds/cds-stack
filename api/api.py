@@ -57,6 +57,21 @@ locations = {
 pat_cache = LRUMemoryCache(plugins=[HitMissRatioPlugin()], max_size=5000)
 api_monitor = query.api_monitor
 
+# Data structures for order placement in TREWS.
+# 1. pending_orders: a dict of pending orders by session.
+#    Pending orders are represented as a list of order type and order placement time
+#    as initiated by the user through the TREWS page.
+#
+# 2. order_processing_tasks: a dict of background order checking tasks by session.
+#    Tasks are represented as a list of asyncio Tasks.
+#
+# Entries in both of these datastructures are deleted at the end of a session.
+#
+pending_orders = {}
+order_processing_tasks = {}
+
+
+
 # Register API metrics
 if api_monitor.enabled:
   api_monitor.register_metric('CacheSize', 'None', [('API', api_monitor.monitor_target)])
@@ -94,21 +109,77 @@ class TREWSAPI(web.View):
       traceback.print_exc()
       raise web.HTTPBadRequest(body=json.dumps({'message': str(ex)}))
 
-  # match and test the consistent API for overriding
-  async def take_action(self, db_pool, actionType, actionData, eid, uid):
+  # an async order checking loop.
+  async def check_order_signed(self, db_pool, task_key, eid, uid, timeout_secs, rate_secs):
+    # Initialize timeout.
+    epoch = datetime.datetime.utcfromtimestamp(0)
+    timeout = datetime.datetime.utcnow() + datetime.timedelta(seconds=timeout_secs)
 
-    # Match pollNotifications first since this is the most common action.
-    if actionType == u'pollNotifications':
+    while timeout > datetime.datetime.utcnow():
+      # Copy all pending orders since the last sleep (or as initialization)
+      orders_to_check = copy.deepcopy(pending_orders[task_key]) if task_key in pending_orders else []
+      if orders_to_check:
+        ordered = await query.find_active_orders(db_pool = db_pool, eid = eid, orders = orders_to_check)
+
+        if ordered:
+          # Remove orders found from pending_orders.
+          # Note we do this from pending_orders to include any orders added while
+          # searching for active orders.
+          pending_orders[task_key] = list(filter(lambda o: o not in ordered, pending_orders[task_key]))
+
+          # Mark active orders as overrides.
+          order_overrides = { o: None for (o,t) in ordered }
+          for o in order_overrides:
+            await query.override_criteria(db_pool, eid, o, value='[{ "text": "Ordered" }]', user=uid)
+
+        # Sleep if we still have orders to process.
+        if pending_orders[task_key]:
+          await asyncio.sleep(rate_secs)
+        else:
+          timeout = epoch # Terminate the loop.
+
+      else:
+        timeout = epoch # Terminate the loop.
+
+    logging.info('Order checking task completed for %s' % eid)
+
+
+  # match and test the consistent API for overriding
+  async def take_action(self, db_pool, action_key, actionType, actionData, eid, uid):
+
+    # Match poll_notifications first since this is the most common action.
+    if actionType == u'poll_notifications':
       notifications = await query.get_notifications(db_pool, eid)
       return {'notifications': notifications}
 
-    elif actionType == u'pollAuditlist':
+    elif actionType == u'poll_auditlist':
       auditlist = await query.get_criteria_log(db_pool, eid)
       return {'auditlist': auditlist}
 
-    elif actionType == u'getAntibiotics':
+    elif actionType == u'get_antibiotics':
       antibiotics = await query.get_order_detail(db_pool, eid)
-      return {'getAntibioticsResult': antibiotics}
+      return {'antibiotics_result': antibiotics}
+
+    elif actionType == u'close_session':
+      # Clean all session state.
+      # - pending_orders
+      # - order_processing_tasks
+      #
+      if action_key and len(action_key) > 1:
+        order_action_key = action_key[0] + '-' + 'place_order' + '-' + action_key[1]
+
+        still_ordering = pending_orders.pop(order_action_key, [])
+        order_tasks = order_processing_tasks.pop(order_action_key, [])
+
+        cancelled = sum(map(lambda t: 1 if t.cancel() else 0, order_tasks))
+        logging.info('Closed session with %s in-flight orders, cancelling %s / %s tasks' \
+                        % (len(still_ordering), cancelled, len(order_tasks)))
+
+      else:
+        # TODO: return error status here.
+        logging.error('Invalid action key when closing a session: %s' % str(action_key))
+
+      return {'result': 'OK'}
 
     elif actionType == u'override':
       action_is_met = actionData['is_met'] if 'is_met' in actionData else None
@@ -122,7 +193,7 @@ class TREWSAPI(web.View):
 
     elif actionType == u'override_many':
       for a in actionData:
-        await self.take_action(db_pool, u'override', a, eid, uid)
+        await self.take_action(db_pool, action_key, u'override', a, eid, uid)
 
     elif actionType == u'suspicion_of_infection':
       if 'value' in actionData and actionData['value'] == 'Reset':
@@ -144,20 +215,41 @@ class TREWSAPI(web.View):
         return {'message': msg}
 
     elif actionType == u'place_order':
-      ''' Check if order placed for 30 seconds '''
+
+      order_type = actionData['actionName']
+      order_time = datetime.datetime.now() - datetime.timedelta(seconds=5)
+
       if no_check_for_orders:
-        await query.override_criteria(db_pool, eid, actionData['actionName'], value='[{ "text": "Ordered" }]', user=uid)
-        return
-      start_time = datetime.datetime.now()
-      while start_time + datetime.timedelta(seconds=30) > datetime.datetime.now():
-        order_placed = await query.is_order_placed(db_pool    = db_pool,
-                                                   eid        = eid,
-                                                   order_type = actionData['actionName'],
-                                                   order_time = (start_time - datetime.timedelta(seconds=5)))
-        if order_placed:
-          await query.override_criteria(db_pool, eid, actionData['actionName'], value='[{ "text": "Ordered" }]', user=uid)
-          return
-        await asyncio.sleep(1)
+        # Skip the 'Ordering' step and directly mark as 'Ordered'.
+        await query.override_criteria(db_pool, eid, order_type, value='[{ "text": "Ordered" }]', user=uid)
+      else:
+        # Mark that the user is ordering an item.
+        # Fall through to cache invaldation at the end of this block to push the new Ordering status.
+        await query.override_criteria(db_pool, eid, order_type, value='[{ "text": "Ordering" }]', user=uid)
+
+        # Check if an order has been signed for 5 minutes, at 10 second intervals.
+        # If we do not have a request key, the user will wait until the next ETL to see the Ordered status.
+        if action_key and len(action_key) > 1:
+          task_key = action_key[0] + '-' + actionType '-' + action_key[1]
+
+          # Add to pending orders.
+          if task_key not in pending_orders:
+            pending_orders[task_key] = []
+
+          pending_orders[task_key].append((order_type, order_time))
+
+          # Find any existing task.
+          order_tasks = order_processing_tasks[task_key] if task_key in order_processing_tasks else []
+          has_task = functools.reduce(lambda acc, t: acc or (t['type'] == 'check_orders' and not t['task'].done()), order_tasks)
+
+          # Start a order checking task as needed.
+          if not has_task:
+            task = { 'type': 'check_orders',
+                     'task': asyncio.ensure_future(self.check_order_signed(db_pool, task_key, eid, uid, 300, 10)) }
+            order_processing_tasks[task_key] = task
+
+        else:
+          logging.error('Invalid action key while placing order: key=%s order_type=%s' % (str(action_key), order_type))
 
     elif actionType == u'complete_order':
       await query.override_criteria(db_pool, eid, actionData['actionName'], value='[{ "text": "Completed" }]', user=uid)
@@ -183,7 +275,7 @@ class TREWSAPI(web.View):
       logging.error(msg)
       return {'message': msg}
 
-    # All actions other than pollNotifications or pollAuditlist
+    # All actions other than read-only actions (poll notifications/activities, and get_antibiotics)
     # reach this point, and thus we invalidate the cached patient data here.
     # These non-polling actions may change the patient or frontend state,
     # thus we must ensure we query the database again.
@@ -218,7 +310,8 @@ class TREWSAPI(web.View):
                                "trews_platelet",
                                "trews_inr",
                                "trews_lactate",
-                               "trews_gcs"
+                               "trews_gcs",
+                               "trews_vasopressors"
                               ]
 
     TREWS_ALERT_CRITERIA = ['trews_subalert']
@@ -380,9 +473,9 @@ class TREWSAPI(web.View):
             override_value = criterion['override_value'][0]['text']
             override_ts = criterion['override_time']
 
-            # For orders placed through the webapp (i.e., as override_value == 'Ordered'),
+            # For orders placed through the webapp (i.e., as override_value in ['Ordering', 'Ordered']),
             # we use the value retrieved by ETL if it is more recent than the time of the override action.
-            if not (override_value == 'Ordered' and order_ts is not None and order_ts > override_ts):
+            if not (override_value in ['Ordering', 'Ordered'] and order_ts is not None and order_ts > override_ts):
               value = override_value
               order_ts = override_ts
 
@@ -593,6 +686,7 @@ class TREWSAPI(web.View):
   async def post(self):
     try:
       request_key = None
+      action_key = None
 
       with api_monitor.time(self.request.path):
         api_monitor.request(self.request.path)
@@ -605,6 +699,7 @@ class TREWSAPI(web.View):
           if 's' in req_body and req_body['s'] is not None and 'actionType' in req_body:
             request_key_action = 'load' if req_body['actionType'] is None else req_body['actionType']
             request_key = self.request.path + '-' + request_key_action + '-' + req_body['s']
+            action_key = (self.request.path, req_body['s'])
 
           if request_key:
             self.request.app['body'][request_key] = req_body
@@ -665,9 +760,9 @@ class TREWSAPI(web.View):
               actionData = req_body['action']
 
               if actionType is not None:
-                response_body = await self.take_action(db_pool, actionType, actionData, eid, uid)
+                response_body = await self.take_action(db_pool, action_key, actionType, actionData, eid, uid)
 
-              if not actionType in [u'pollNotifications', u'pollAuditlist', u'getAntibiotics']:
+              if not actionType in [u'poll_notifications', u'poll_auditlist', u'get_antibiotics', u'close_session']:
                 data = await self.update_response_json(db_pool, data, eid)
                 if data is not None:
                   response_body = {'trewsData': data}
@@ -711,7 +806,7 @@ class TREWSAPI(web.View):
                   raise web.HTTPBadRequest(body=json.dumps({'message': 'No patient found'}))
 
               # Track summary object for user interaction logs.
-              elif actionType == u'pollNotifications' and request_key:
+              elif actionType == u'poll_notifications' and request_key:
                 self.request.app['render_data'][request_key] = { 'notifications': response_body['notifications'] }
 
           else:
