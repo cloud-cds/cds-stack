@@ -393,14 +393,13 @@ div.manual-override h4.inactive {
 .slot.last-child {
     border-bottom: 1px solid #ddd;
 }
-.slot.in-progress,
+#right-column .slot.in-progress,
 #right-column .slot.complete {
     border-left: 5px solid #aaa;
     position: relative;
 }
-.slot.in-progress:before,
+#right-column .slot.in-progress:before,
 #right-column .slot.complete:before {
-    content: 'ordered';
     display: block;
     position: absolute;
     right: 10px;
@@ -410,6 +409,12 @@ div.manual-override h4.inactive {
     font-weight: bold;
     font-family: Helvetica, Arial, sans-serif;
     color: #aaa;
+}
+#right-column .slot.in-action:before,
+    content: 'signing';
+}
+#right-column .slot.in-progress:before,
+    content: 'ordered';
 }
 #right-column .slot.complete:before {
     content: 'complete';
