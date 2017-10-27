@@ -281,8 +281,7 @@ class AlertServer:
       else:
         logging.info("criteria is not ready for {}".format(pats_str))
 
-
-  async def calculate_criteria(self, conn, job_id):
+  async def distribute_calculate_criteria(self, conn, job_id):
     server = 'dev_db' if 'dev' in self.channel else 'prod_db'
     hospital = None
     if 'hcgh' in job_id:
@@ -302,8 +301,7 @@ class AlertServer:
       '''.format(server=server,hours=self.lookbackhours,job_id=job_id,nprocs=self.nprocs)
       logging.info("calculate_criteria sql: {}".format(sql))
       await conn.fetch(sql)
-
-  async def calculate_criteria_hospital(self, conn, hospital):
+  async def distribute_calculate_criteria_hospital(self, conn, hospital):
     server = 'dev_db' if 'dev' in self.channel else 'prod_db'
     sql = "select garbage_collection('{}');".format(hospital)
     logging.info("calculate_criteria sql: {}".format(sql))
@@ -311,6 +309,16 @@ class AlertServer:
     sql = '''
     select distribute_advance_criteria_snapshot_for_online_hospital('{server}', '{hospital}', {nprocs});
     '''.format(server=server,hospital=hospital,nprocs=self.nprocs)
+    logging.info("calculate_criteria sql: {}".format(sql))
+    await conn.fetch(sql)
+
+  async def calculate_criteria_hospital(self, conn, hospital):
+    sql = "select garbage_collection('{}');".format(hospital)
+    logging.info("calculate_criteria sql: {}".format(sql))
+    await conn.fetch(sql)
+    sql = '''
+    select advance_criteria_snapshot(enc_id) from get_latest_enc_ids('{hospital}');
+    '''.format(hospital=hospital)
     logging.info("calculate_criteria sql: {}".format(sql))
     await conn.fetch(sql)
 
@@ -330,7 +338,7 @@ class AlertServer:
     async with self.db_pool.acquire() as conn:
       if self.TREWS_ETL_SUPPRESSION == 2:
         # calculate criteria here
-        await self.calculate_criteria(conn, job_id)
+        await self.calculate_criteria_hospital(conn, hospital)
         if self.notify_web:
           sql = '''
           with pats as (
