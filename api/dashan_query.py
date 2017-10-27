@@ -28,7 +28,6 @@ epic_notifications = os.environ['epic_notifications']
 client_id          = os.environ['jhapi_client_id']
 client_secret      = os.environ['jhapi_client_secret']
 model_in_use       = os.environ['model_in_use']
-use_lmc_model      = model_in_use == 'lmc'
 excluded_units     = os.environ['excluded_units'].split(',') \
                       if 'excluded_units' in os.environ \
                       else ['HCGH LABOR & DELIVERY', 'HCGH EMERGENCY-PEDS', 'HCGH 2C NICU', 'HCGH 1CX PEDIATRICS', 'HCGH 2N MCU']
@@ -44,7 +43,7 @@ excluded_units     = ', '.join(map(lambda unit: "'%s'" % unit, excluded_units))
 # - trews scores
 # - top 3 features that contributed to the each time point
 async def get_trews_contributors(db_pool, pat_id, start_hrs=6, start_day=2, end_day=7, sample_mins=30, sample_hrs=12):
-  contributor_fn = 'calculate_lmc_contributors' if use_lmc_model else 'calculate_trews_contributors'
+  contributor_fn = 'calculate_lmc_contributors' if model_in_use == 'lmc' else 'calculate_trews_contributors'
 
   rank_limit = 3
   sample_start_hrs = start_hrs
@@ -288,7 +287,7 @@ async def get_patient_events(db_pool, pat_id):
          date_part('epoch', tsp) as tsp,
          event as payload
   from criteria_log where enc_id = (select * from pat_id_to_enc_id('%(pat_id)s'::text))
-  ''' % { 'pat_id': pat_id, 'model': 'lmc' if use_lmc_model else 'trews' }
+  ''' % { 'pat_id': pat_id, 'model': model_in_use }
 
   async with db_pool.acquire() as conn:
     result = await conn.fetch(get_events_sql)
@@ -322,7 +321,7 @@ async def get_patient_events(db_pool, pat_id):
 # - deterioration feedback timestamp, statuses and uid
 #
 async def get_patient_profile(db_pool, pat_id):
-  threshold_param_key = 'lmc_threshold' if use_lmc_model else 'trews_jit_threshold'
+  threshold_param_key = 'lmc_threshold' if model_in_use == 'lmc' else 'trews_jit_threshold'
   get_patient_profile_sql = \
   '''
   select * from
@@ -458,7 +457,7 @@ async def get_notifications(db_pool, eid):
   select * from notifications
   where enc_id = (select * from pat_id_to_enc_id('%s'::text))
   and (message#>>'{model}' = '%s' or not message::jsonb ? 'model')
-  ''' % (eid, 'lmc' if use_lmc_model else 'trews')
+  ''' % (eid, model_in_use)
 
   async with db_pool.acquire() as conn:
     result = await conn.fetch(get_notifications_sql)
@@ -702,7 +701,7 @@ async def get_deterioration_feedback(db_pool, eid):
 
 async def push_notifications_to_epic(db_pool, eid, notify_future_notification=True):
   async with db_pool.acquire() as conn:
-    model = 'lmc' if use_lmc_model else 'trews'
+    model = model_in_use
     notifications_sql = \
     '''
     select * from get_notifications_for_epic('%s', '%s');
@@ -801,7 +800,7 @@ async def save_feedback(db_pool, doc_id, pat_id, dep_id, feedback):
 
 
 async def notify_pat_update(db_pool, channel, pat_id):
-  notify_sql = "notify {}, 'invalidate_cache:{}:{}'".format(channel, pat_id,'lmc' if use_lmc_model else 'trews')
+  notify_sql = "notify {}, 'invalidate_cache:{}:{}'".format(channel, pat_id, model_in_use)
   logging.info("notify_sql: " + notify_sql)
   async with db_pool.acquire() as conn:
     await conn.execute(notify_sql)
