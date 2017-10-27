@@ -155,6 +155,13 @@ class JHAPIConfig:
     df = pd.DataFrame(responses[0]).head(limit) if limit else pd.DataFrame(responses[0])
     return df.assign(hospital = hospital)
 
+  def extract_ed_patients(self, ctxt, hospital, limit=None):
+    resource = '/facilities/hospital/' + self.hospital + '/edptntlist'
+    responses = self.make_requests(ctxt, resource, [None], 'GET')
+    if limit:
+      logging.info("max_num_pats = {}".format(limit))
+    df = pd.DataFrame(responses[0]).head(limit) if limit else pd.DataFrame(responses[0])
+    return df.assign(hospital = hospital)
 
   def combine(self, response_list, to_merge):
     if type(response_list) != list:
