@@ -560,13 +560,13 @@ async def find_active_orders(db_pool, eid, orders):
   logging.info("Patient %s visit %s post-transform med_orders: %s" % (eid, csn, med_orders))
   logging.info("Patient %s visit %s post-transform all_orders: %s" % (eid, csn, all_orders))
 
-  orders_to_check = map(lambda o: o[0].replace('_order', '').replace('repeat_', '').replace('initial_', ''), validated_orders)
-  tsps_to_check = { order: tsps for order, tsps in all_orders.items() if order in orders_to_check }
-
   active_orders = []
+
   for (order_type, order_time) in validated_orders:
-    if order_type in tsps_to_check:
-      for tsp in tsps_to_check[order_type]:
+    order_key = order_type.replace('_order', '').replace('repeat_', '').replace('initial_', '')
+    if order_key in all_orders:
+      logging.info('Checking %s / %s with tsp: %s in %s' % (order_type, order_key, order_time, all_orders[order_key]))
+      for tsp in all_orders[order_key]:
         tsp = tsp[:-3]+tsp[-2:] if ":" == tsp[-3:-2] else tsp # Format tz for parsing
         tsp = dt.datetime.strptime(tsp, '%Y-%m-%dT%H:%M:%S%z')
         if tsp > order_time and (order_type, order_time) not in active_orders:
