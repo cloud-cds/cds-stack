@@ -42,11 +42,11 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: trews-rest-api-test
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:latest
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.392
         resources:
           requests:
-            memory: "256Mi"
-            cpu: "200m"
+            memory: "2816Mi"
+            cpu: "1000m"
         ports:
         - containerPort: 8000
         command: ["/bin/sh","-c"]
