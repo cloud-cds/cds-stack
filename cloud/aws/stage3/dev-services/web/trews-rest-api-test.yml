@@ -42,7 +42,7 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: trews-rest-api-test
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.392
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.396
         resources:
           requests:
             memory: "2816Mi"
@@ -124,8 +124,8 @@ spec:
           value: "edge"
         - name: order_link_mode
           value: "direct"
-        - name: no_check_for_orders
-          value: "True"
+        # - name: no_check_for_orders
+        #   value: "True"
         - name: log_decryption
           value: "true"
         - name: log_user_latency
