@@ -231,6 +231,9 @@ class TREWSAPI(web.View):
         await query.override_criteria(db_pool, eid, order_type, value='[{ "text": "Ordering" }]', user=uid)
 
         # Check if an order has been signed for 5 minutes, at 10 second intervals.
+        order_task_timeout = 300
+        order_task_rate = 10
+
         # If we do not have a request key, the user will wait until the next ETL to see the Ordered status.
         if action_key and len(action_key) > 1:
           task_key = action_key[0] + '-' + actionType + '-' + action_key[1]
@@ -267,7 +270,9 @@ class TREWSAPI(web.View):
           else:
             logging.info('Creating order checking task for %s: %s' % (eid, task_key))
             task = { 'type': 'check_orders',
-                     'task': asyncio.ensure_future(self.check_order_signed(db_pool, task_key, eid, uid, 30, 10)) }
+                     'task': asyncio.ensure_future( \
+                        self.check_order_signed(db_pool, task_key, eid, uid, order_task_timeout, order_task_rate))
+                   }
 
             if task_key not in order_processing_tasks:
               order_processing_tasks[task_key] = []
