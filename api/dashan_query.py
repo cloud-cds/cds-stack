@@ -553,6 +553,8 @@ async def find_active_orders(db_pool, eid, orders):
   med_orders = transforms.transform_med_orders(med_orders)
   all_orders = {**lab_orders, **med_orders}
 
+  logging.info("Patient %s visit %s lab_orders: %s" % (eid, csn, lab_orders))
+  logging.info("Patient %s visit %s med_orders: %s" % (eid, csn, med_orders))
   logging.info("Patient %s visit %s all_orders: %s" % (eid, csn, all_orders))
 
   orders_to_check = map(lambda o: o[0].replace('_order', '').replace('repeat_', '').replace('initial_', ''), validated_orders)
