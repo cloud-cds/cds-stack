@@ -291,14 +291,21 @@ async def code_doc_note_update(output_fid, input_fid_string, conn, log, dataset_
     # Remove Existing Output
     # ------------------------------------------------
     await conn.execute(clean_tbl.cdm_t_clean(output_fid, dataset_id=dataset_id, incremental=incremental))
-
-    select_sql = """with tbl1 as (select enc_id, note_id, note_type, note_status, (dates::json #>>'{{create_instant_dttm}}')::timestamptz as create_tsp from cdm_notes where {dataset_id_where} note_type ilike 'code documentation' order by enc_id, note_id),
+    select_sql = """with tbl1 as (select enc_id as pat_id, note_id, note_type, note_status, (dates::json #>>'{{create_instant_dttm}}')::timestamptz as create_tsp from cdm_notes where {dataset_id_where} note_type ilike 'code documentation' order by enc_id, note_id),
     tbl2 as (select pat_id, enc_id from pat_enc where {dataset_id_where} pat_id in (select distinct pat_id from cdm_notes where {dataset_id_where} note_type ilike 'code documentation')),
     tbl3 as (select enc_id, value::timestamptz as admsn_time from cdm_s where {dataset_id_where} fid ilike 'hosp_admsn_time' and enc_id in (select enc_id from pat_enc where {dataset_id_where} pat_id in (select distinct pat_id from cdm_notes where note_type ilike 'code documentation'))),
     tbl4 as (select enc_id, tsp as discharge_time from cdm_t where {dataset_id_where} fid ilike 'discharge' and enc_id in (select enc_id from pat_enc where {dataset_id_where} pat_id in (select distinct pat_id from cdm_notes where note_type ilike 'code documentation'))),
     tbl5 as (select coalesce(tbl3.enc_id, tbl4.enc_id) as enc_id, admsn_time, discharge_time from tbl3 join tbl4 on tbl3.enc_id = tbl4.enc_id),
     tbl6 as (select coalesce(tbl5.enc_id, tbl2.enc_id) as enc_id, pat_id, admsn_time, discharge_time from tbl5 join tbl2 on tbl5.enc_id = tbl2.enc_id)
-    select tbl6.pat_id as pat_id, tbl6.enc_id, note_id, note_type, note_status, create_tsp, admsn_time, discharge_time from tbl1 full join tbl6 on tbl1.enc_id = tbl6.enc_id where tbl1.create_tsp between tbl6.admsn_time and tbl6.discharge_time order by note_id;"""
+    select tbl6.pat_id as pat_id, tbl6.enc_id, note_id, note_type, note_status, create_tsp, admsn_time, discharge_time from tbl1 full join tbl6 on tbl1.pat_id = tbl6.pat_id where tbl1.create_tsp between tbl6.admsn_time and tbl6.discharge_time order by note_id;"""
+
+    # select_sql = """with tbl1 as (select enc_id, note_id, note_type, note_status, (dates::json #>>'{{create_instant_dttm}}')::timestamptz as create_tsp from cdm_notes where {dataset_id_where} note_type ilike 'code documentation' order by enc_id, note_id),
+    # tbl2 as (select pat_id, enc_id from pat_enc where {dataset_id_where} pat_id in (select distinct pat_id from cdm_notes where {dataset_id_where} note_type ilike 'code documentation')),
+    # tbl3 as (select enc_id, value::timestamptz as admsn_time from cdm_s where {dataset_id_where} fid ilike 'hosp_admsn_time' and enc_id in (select enc_id from pat_enc where {dataset_id_where} pat_id in (select distinct pat_id from cdm_notes where note_type ilike 'code documentation'))),
+    # tbl4 as (select enc_id, tsp as discharge_time from cdm_t where {dataset_id_where} fid ilike 'discharge' and enc_id in (select enc_id from pat_enc where {dataset_id_where} pat_id in (select distinct pat_id from cdm_notes where note_type ilike 'code documentation'))),
+    # tbl5 as (select coalesce(tbl3.enc_id, tbl4.enc_id) as enc_id, admsn_time, discharge_time from tbl3 join tbl4 on tbl3.enc_id = tbl4.enc_id),
+    # tbl6 as (select coalesce(tbl5.enc_id, tbl2.enc_id) as enc_id, pat_id, admsn_time, discharge_time from tbl5 join tbl2 on tbl5.enc_id = tbl2.enc_id)
+    # select tbl6.pat_id as pat_id, tbl6.enc_id, note_id, note_type, note_status, create_tsp, admsn_time, discharge_time from tbl1 full join tbl6 on tbl1.enc_id = tbl6.enc_id where tbl1.create_tsp between tbl6.admsn_time and tbl6.discharge_time order by note_id;"""
     select_df = await conn.fetch(select_sql.format(dataset_id_where = 'dataset_id = {} and '.format(dataset_id) if  dataset_id is not None else ''))
     insert_sql = """insert into cdm_t ({dataset_id_block} enc_id, tsp, fid, value, confidence) values ({dataset_id} {enc_id}, '{tsp}', '{fid}', '{value}', {confidence})"""
     distinct = {}
