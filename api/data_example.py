@@ -221,6 +221,14 @@ trews_organ_dysfunction = {
             "measurement_time": None,
             "override_time": None,
             "override_user": None
+        },
+        {
+            "name": "trews_vasopressors",
+            "is_met": False,
+            "value": None,
+            "measurement_time": None,
+            "override_time": None,
+            "override_user": None
         }
     ]
 }

@@ -276,6 +276,10 @@ var criteriaKeyToName = {
 		{"name": "GCS",
 		"units": ""}
 	],
+	"trews_vasopressors": [
+		{"name": "Vasopressors",
+		"units": ""}
+	],
 	/* UI Components */
 	"ui_severe_sepsis": [
 		{"name": "Severe Sepsis Bundle",
@@ -718,7 +722,7 @@ var severe_sepsis = {
 				"acute_cmp": null,
 				"acute_arrow": null
 			}],
-			"precision": 4
+			"precision": 1
 		}, {
 			"key": "trews_creatinine",
 			"baseline_key": "baseline_creatinine",
@@ -858,6 +862,25 @@ var severe_sepsis = {
 				"acute_arrow": "up"
 			}],
 			"precision": 1
+		}, {
+			"key": "trews_vasopressors",
+			"criteria_display_name": "Vasopressors Initiated",
+			"dropdown": "Vasopressors is normal",
+			"overrideModal": [{
+				"id": "override_trews_vasopressors",
+				"header": "Override Vasopressors",
+				"name": "Vasopressors Initiated",
+				"units": "",
+				"step": 1,
+				"range": 'max',
+				"minAbsolute": 0,
+				"maxAbsolute": 1,
+				"value": 0,
+				"acute_threshold": null,
+				"acute_cmp": null,
+				"acute_arrow": null
+			}],
+			"precision": 1
 		}],
 		"criteria_mapping": [{
 			"src": "trews_sbpm",
@@ -888,6 +911,9 @@ var severe_sepsis = {
 			"dst": "lactate"
 		}, {
 			"src": "trews_gcs",
+			"dst": null
+		}, {
+			"src": "trews_vasopressors",
 			"dst": null
 		}]
 	}
