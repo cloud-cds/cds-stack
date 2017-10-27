@@ -613,14 +613,16 @@ async def toggle_notification_read(db_pool, eid, notification_id, as_read):
 def temp_c_to_f(c):
   return c * 1.8 + 32
 
-async def override_criteria(db_pool, eid, name, value='[{}]', user='user', clear=False, is_met=None):
+async def override_criteria(db_pool, eid, name, value='[{}]', user='user', clear=False, is_met=None, override_pre_offset_secs=None):
   if name == 'sirs_temp' and not clear:
       value[0]['lower'] = temp_c_to_f(float(value[0]['lower']))
       value[0]['upper'] = temp_c_to_f(float(value[0]['upper']))
 
+  time_offset_suffix = (" - interval '%s seconds'" % override_pre_offset_secs) if override_pre_offset_secs else ''
+
   params = {
       'set_is_met': 'is_met = %s,' % is_met if is_met is not None else '',
-      'time': 'now()' if not clear else 'null',
+      'time': 'now()' + time_offset_suffix if not clear else 'null',
       'user': ("'" + user + "'") if not clear else 'null',
       'val': ("'" + (json.dumps(value) if isinstance(value, list) else value) + "'") if not clear else 'null',
       'name': name if name != 'sus-edit' else 'suspicion_of_infection',
