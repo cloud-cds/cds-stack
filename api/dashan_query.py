@@ -483,7 +483,7 @@ async def get_order_detail(db_pool, eid):
     'azithromycin_dose','aztreonam_dose','cefepime_dose','ceftriaxone_dose','ciprofloxacin_dose','gentamicin_dose','levofloxacin_dose',
     'metronidazole_dose','moxifloxacin_dose','piperacillin_tazobac_dose','vancomycin_dose'
   )
-  and now() - tsp < (select value::interval from parameters where name = 'lookbackhours');
+  and now() - tsp <= interval '24 hours';
   ''' % eid
 
   async with db_pool.acquire() as conn:

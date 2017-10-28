@@ -95,6 +95,48 @@ def get_readable_loc(loc):
   return result
 
 
+###################
+# Background tasks
+
+# Removes any order processing task entries every 3 hours,
+# to ensure that long sessions don't accumulate memory, and if
+# we do not see close_session messages.
+
+gc_order_processing_task = None
+do_gc_order_processing_task = True # Background task control variable.
+
+async def run_gc_order_processing_tasks():
+  sleep_period = 3 * 3600
+  while do_gc_order_processing_task:
+    await asyncio.sleep(sleep_period)
+    t_gc = datetime.datetime.now() - datetime.timedelta(seconds=sleep_period)
+
+    keys_to_delete = []
+    for task_key in order_processing_tasks:
+      t_task = order_processing_tasks[task_key]['start']
+      if t_task < t_gc:
+        logging.info('Found stale order processing task %s (%s < %s = %s)' % (task_key, t_task, t_gc, t_task < t_gc))
+        keys_to_delete.append(task_key)
+      else:
+        logging.info('Skipping GC for order processing task %s (%s < %s = %s)' % (task_key, t_task, t_gc, t_task < t_gc))
+
+    for k in keys_to_delete:
+      tasks_to_cancel = order_processing_tasks.pop(k, [])
+      cancelled = sum(map(lambda t: 1 if not t['task'].done() and t['task'].cancel() else 0, tasks_to_cancel))
+      logging.info('GC session %s cancelling %s / %s tasks' % (k, cancelled, len(tasks_to_cancel)))
+
+async def start_gc_order_processing_tasks(app):
+  gc_order_processing_task = asyncio.ensure_future(run_gc_order_processing_tasks())
+
+async def stop_gc_order_processing_tasks(app):
+  do_gc_order_processing_task = False
+  if gc_order_processing_task and not gc_order_processing_task.done():
+    gc_order_processing_task.cancel()
+
+
+###########################
+# Handlers.
+
 class TREWSAPI(web.View):
 
   async def get(self):
@@ -108,6 +150,11 @@ class TREWSAPI(web.View):
       logging.warning(str(ex))
       traceback.print_exc()
       raise web.HTTPBadRequest(body=json.dumps({'message': str(ex)}))
+
+  async def invalidate_cache(self, db_pool, eid):
+    logging.info("Invalidating cache after signing for %s" % eid)
+    await pat_cache.delete(eid)
+    await query.notify_pat_update(db_pool, os.environ['etl_channel'], eid)
 
   # an async order checking loop.
   async def check_order_signed(self, db_pool, task_key, eid, uid, timeout_secs, rate_secs):
@@ -123,13 +170,6 @@ class TREWSAPI(web.View):
         ordered = await query.find_active_orders(db_pool = db_pool, eid = eid, orders = orders_to_check)
 
         if ordered:
-          # Remove orders found from pending_orders.
-          # Note we do this from pending_orders to include any orders added while
-          # searching for active orders.
-          logging.info('Pending orders before: %s // %s' % (ordered, pending_orders[task_key]))
-          pending_orders[task_key] = list(filter(lambda o: o not in ordered, pending_orders[task_key]))
-          logging.info('Pending orders after: %s' % pending_orders[task_key])
-
           # Mark active orders as overrides.
           order_overrides = { o: None for (o,t) in ordered }
           for o in order_overrides:
@@ -140,9 +180,17 @@ class TREWSAPI(web.View):
             await query.override_criteria(db_pool, eid, o, value='[{ "text": "Ordered" }]', user=uid, override_pre_offset_secs=30)
 
           # Immediately invalidate cache.
-          logging.info("Invalidating cache after signing for %s" % eid)
-          await pat_cache.delete(eid)
-          await query.notify_pat_update(db_pool, os.environ['etl_channel'], eid)
+          await self.invalidate_cache(db_pool, eid)
+
+          # Remove orders found from pending_orders.
+          # Note we do this from pending_orders to include any orders added while
+          # searching for active orders.
+          logging.info('Pending orders and timeout before: %s / %s // %s' % (timeout, ordered, pending_orders[task_key]))
+          pending_orders[task_key] = list(filter(lambda o: o not in ordered, pending_orders[task_key]))
+          if pending_orders[task_key]:
+            timeout = functools.reduce(lambda acc, o: max(acc, o[1]), pending_orders[task_key]) \
+                        + datetime.timedelta(seconds=timeout_secs)
+          logging.info('Pending orders and timeout after: %s / %s' % (timeout, pending_orders[task_key]))
 
         else:
           logging.info('No active orders from %s' % orders_to_check)
@@ -157,8 +205,18 @@ class TREWSAPI(web.View):
         logging.info('No pending orders for %s' % eid)
         timeout = epoch # Terminate the loop.
 
-    logging.info('Order checking task completed for %s %s, %s pending signing actions will complete at the next ETL' \
-                   % (eid, task_key, len(pending_orders[task_key])))
+    if timeout != epoch and task_key in pending_orders and pending_orders[task_key]:
+      orders_to_clear = pending_orders.pop(task_key, [])
+      logging.info('Timing out orders %s' % orders_to_clear)
+      order_overrides = { o: None for (o,t) in orders_to_clear }
+      for o in order_overrides:
+        await query.override_criteria(db_pool, eid, o, clear=True, user=uid)
+
+      # Immediately invalidate cache.
+      await self.invalidate_cache(db_pool, eid)
+
+    logging.info('Order checking task completed for %s %s, pending_orders(%s)=%s' \
+                    % (eid, task_key, task_key in pending_orders, len(pending_orders.get(task_key, []))))
 
 
   # match and test the consistent API for overriding
@@ -283,8 +341,9 @@ class TREWSAPI(web.View):
 
           else:
             logging.info('Creating order checking task for %s: %s' % (eid, task_key))
-            task = { 'type': 'check_orders',
-                     'task': asyncio.ensure_future( \
+            task = { 'type'  : 'check_orders',
+                     'start' : datetime.datetime.now(),
+                     'task'  : asyncio.ensure_future( \
                         self.check_order_signed(db_pool, task_key, eid, uid, order_task_timeout, order_task_rate))
                    }
 
