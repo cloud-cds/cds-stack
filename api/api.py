@@ -31,6 +31,10 @@ chart_sample_end_day   = int(os.environ['chart_sample_end_day']) if 'chart_sampl
 chart_sample_mins      = int(os.environ['chart_sample_mins']) if 'chart_sample_mins' in os.environ else 30
 chart_sample_hrs       = int(os.environ['chart_sample_hrs']) if 'chart_sample_hrs' in os.environ else 6
 
+# User-based access control.
+user_whitelist = list(map(lambda u: u.lower(), os.environ['user_whitelist'].split(','))) \
+                    if 'user_whitelist' in os.environ else None
+
 # Deactivated sites.
 disabled_msg = os.environ['disabled_msg'] if 'disabled_msg' in os.environ else None
 location_blacklist = os.environ['location_blacklist'] if 'location_blacklist' in os.environ else None
@@ -791,6 +795,9 @@ class TREWSAPI(web.View):
       raise
 
 
+  ###########################
+  # Handler for POST /api
+  #
   async def post(self):
     try:
       request_key = None
@@ -834,6 +841,20 @@ class TREWSAPI(web.View):
         eid = req_body['q']
         uid = req_body['u'] if 'u' in req_body and req_body['u'] is not None else 'user'
         loc = req_body['loc'] if 'loc' in req_body and req_body['loc'] is not None else ''
+
+        # Whitelisted users access control.
+        if user_whitelist and uid and not uid.lower() in user_whitelist:
+          # Prioritize disabled message if one exists
+          if disabled_msg is not None:
+            logging.info("DISABLED")
+            raise web.HTTPBadRequest(body=json.dumps({'message': disabled_msg, 'standalone': True}))
+
+          else:
+            msg = '<b>Unauthorized access:</b> You are not registered to use TREWS.<br>' + \
+                  'Please contact trews-jhu@opsdx.io for more information'
+
+            logging.info('Unauthorized access by %s' % uid)
+            raise web.HTTPBadRequest(body=json.dumps({'message': msg, 'standalone': True}))
 
         # Full-site disabling.
         if disabled_msg is not None:
