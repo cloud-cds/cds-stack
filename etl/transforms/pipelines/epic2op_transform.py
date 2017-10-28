@@ -29,6 +29,15 @@ bedded_patients_transforms = [
     lambda bp: format_data.format_gender_to_string(bp, 'gender'),
 ]
 
+ed_patients_transforms = [
+    lambda bp: restructure.select_columns(bp, {
+        'PatientIDs':       'pat_id',
+        'CSN':              'visit_id',
+        'hospital':         'hospital',
+    }),
+    lambda bp: restructure.extract_id_from_list(bp, 'pat_id', 'EMRN')
+]
+
 flowsheet_transforms = [
     lambda fs: restructure.select_columns(fs, {
         'pat_id':           'pat_id',

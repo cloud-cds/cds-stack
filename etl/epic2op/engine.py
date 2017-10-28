@@ -19,7 +19,7 @@ import boto3, botocore
 import argparse
 from time import sleep
 import IPython
-
+import numpy as np
 
 MODE = {
   1: 'real',
@@ -139,11 +139,12 @@ def main(max_pats=None, hospital=None, lookback_hours=None, db_name=None, repl=F
 
 
 
-def combine_extract_data(ctxt, pats, flowsheets, active_procedures, lab_orders,
+def combine_extract_data(ctxt, pats, ed_pats, flowsheets, active_procedures, lab_orders,
                       lab_results, med_orders, med_admin, loc_history, notes,
                       note_texts):
   return {
     'bedded_patients': pats,
+    'ed_patients': ed_pats,
     'flowsheets': flowsheets,
     'active_procedures': active_procedures,
     'lab_orders': lab_orders,
@@ -201,7 +202,7 @@ def get_combine_tasks():
   return [{
     'name': 'combine_db_data',
     'deps': [
-      'bedded_patients_transform',
+      'patients_combine',
       'timezone_hack_flowsheets',
       'active_procedures_transform',
       'lab_orders_transform',
@@ -216,7 +217,7 @@ def get_combine_tasks():
   }, {
     'name': 'combine_cloudwatch_data',
     'deps': [
-      'bedded_patients_transform',
+      'patients_combine',
       'timezone_hack_flowsheets',
       'active_procedures_transform',
       'lab_orders_transform',
@@ -232,6 +233,7 @@ def get_combine_tasks():
     'name': 'combine_extract_data',
     'deps': [
       'bedded_patients_extract',
+      'ed_patients_extract',
       'flowsheets_extract',
       'active_procedures_extract',
       'lab_orders_extract',
@@ -328,44 +330,87 @@ def transform(ctxt, df, transform_list_name):
     df = skip_none(df, transform_fn)
   return df
 
+def patients_combine(ctxt, df, df2):
+  if df2 is None:
+    df2 = pd.DataFrame()
+  df2 = df2[~df2.visit_id.isin(df.visit_id)]
+  df2['patient_class'] = None
+  df2['diagnosis'] = None
+  df2['history'] = None
+  df2['problem'] = None
+  df2['problem_all'] = None
+  df2['patient_class'] = 'Emergency NB'
+  df2['diagnosis'] = df2['diagnosis'].apply(lambda x: {})
+  df2['history'] = df2['history'].apply(lambda x: {})
+  df2['problem'] = df2['problem'].apply(lambda x: {})
+  df2['problem_all'] = df2['problem_all'].apply(lambda x: {})
+  df = df.append(df2)
+  ctxt.log.info(df)
+  return df
+
 def get_extraction_tasks(extractor, max_pats=None):
   return [
     {
       'name': 'bedded_patients_extract',
       'fn':   extractor.extract_bedded_patients,
       'args': [extractor.hospital, max_pats],
-    }, { # Barrier 1
+    },
+    {
+      'name': 'ed_patients_extract',
+      'fn':   extractor.extract_ed_patients,
+      'args': [extractor.hospital, max_pats],
+    },
+    { # Barrier 1
       'name': 'bedded_patients_transform',
       'deps': ['bedded_patients_extract'],
       'fn':   transform,
       'args': ['bedded_patients_transforms'],
-    }, { # Barrier 2
+    },
+    { # Barrier 1
+      'name': 'ed_patients_transform',
+      'deps': ['ed_patients_extract'],
+      'fn':   transform,
+      'args': ['ed_patients_transforms'],
+    },
+    {
+      'name': 'ed_patients_mrn_extract',
+      'deps': ['ed_patients_transform'],
+      'fn':   extractor.extract_ed_patients_mrn,
+      'args': [],
+    },
+    {
+      'name': 'patients_combine',
+      'fn':   patients_combine,
+      'deps': ['bedded_patients_transform', 'ed_patients_mrn_extract'],
+      'args': []
+    },
+    { # Barrier 2
       'name': 'flowsheets_extract',
-      'deps': ['bedded_patients_transform'],
+      'deps': ['patients_combine'],
       'fn':   extractor.extract_flowsheets,
     }, {
       'name': 'active_procedures_extract',
-      'deps': ['bedded_patients_transform'],
+      'deps': ['patients_combine'],
       'fn':   extractor.extract_active_procedures,
     }, {
       'name': 'lab_orders_extract',
-      'deps': ['bedded_patients_transform'],
+      'deps': ['patients_combine'],
       'fn':   extractor.extract_lab_orders,
     }, {
       'name': 'lab_results_extract',
-      'deps': ['bedded_patients_transform'],
+      'deps': ['patients_combine'],
       'fn':   extractor.extract_lab_results,
     }, {
       'name': 'loc_history_extract',
-      'deps': ['bedded_patients_transform'],
+      'deps': ['patients_combine'],
       'fn':   extractor.extract_loc_history,
     }, {
       'name': 'med_orders_extract',
-      'deps': ['bedded_patients_transform'],
+      'deps': ['patients_combine'],
       'fn':   extractor.extract_med_orders,
     }, {
       'name': 'notes_extract',
-      'deps': ['bedded_patients_transform'],
+      'deps': ['patients_combine'],
       'fn':   extractor.extract_notes,
     }, { # Barrier 3
       'name': 'flowsheets_transform',
