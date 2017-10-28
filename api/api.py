@@ -857,7 +857,7 @@ class TREWSAPI(web.View):
             raise web.HTTPBadRequest(body=json.dumps({'message': msg, 'standalone': True}))
 
         # Full-site disabling.
-        if disabled_msg is not None:
+        if not user_whitelist and disabled_msg is not None:
           logging.info("DISABLED")
           raise web.HTTPBadRequest(body=json.dumps({'message': disabled_msg, 'standalone': True}))
 
