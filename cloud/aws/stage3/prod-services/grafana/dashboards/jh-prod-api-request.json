@@ -6,399 +6,28 @@
   "gnetId": null,
   "graphTooltip": 0,
   "hideControls": false,
-  "id": 3,
+  "id": 7,
   "links": [],
+  "refresh": false,
   "rows": [
     {
       "collapse": false,
-      "height": "50",
-      "panels": [
-        {
-          "cacheTimeout": null,
-          "colorBackground": false,
-          "colorValue": false,
-          "colors": [
-            "rgba(245, 54, 54, 0.9)",
-            "rgba(237, 129, 40, 0.89)",
-            "rgba(50, 172, 45, 0.97)"
-          ],
-          "datasource": "cloudwatch",
-          "format": "none",
-          "gauge": {
-            "maxValue": 100,
-            "minValue": 0,
-            "show": false,
-            "thresholdLabels": false,
-            "thresholdMarkers": true
-          },
-          "height": "25",
-          "id": 11,
-          "interval": null,
-          "links": [],
-          "mappingType": 1,
-          "mappingTypes": [
-            {
-              "name": "value to text",
-              "value": 1
-            },
-            {
-              "name": "range to text",
-              "value": 2
-            }
-          ],
-          "maxDataPoints": 100,
-          "nullPointMode": "connected",
-          "nullText": null,
-          "postfix": "",
-          "postfixFontSize": "50%",
-          "prefix": "",
-          "prefixFontSize": "50%",
-          "rangeMaps": [
-            {
-              "from": "null",
-              "text": "N/A",
-              "to": "null"
-            }
-          ],
-          "span": 4,
-          "sparkline": {
-            "fillColor": "rgba(31, 118, 189, 0.18)",
-            "full": false,
-            "lineColor": "rgb(31, 120, 193)",
-            "show": false
-          },
-          "tableColumn": "",
-          "targets": [
-            {
-              "alias": "",
-              "dimensions": {
-                "ETL": "opsdx_prod"
-              },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "JHH_TotalTime",
-              "namespace": "OpsDX",
-              "period": "3600",
-              "refId": "A",
-              "region": "us-east-1",
-              "statistics": [
-                "SampleCount"
-              ]
-            }
-          ],
-          "thresholds": "",
-          "title": "JHH ETL Jobs / Hour",
-          "transparent": true,
-          "type": "singlestat",
-          "valueFontSize": "80%",
-          "valueMaps": [
-            {
-              "op": "=",
-              "text": "N/A",
-              "value": "null"
-            }
-          ],
-          "valueName": "current"
-        },
-        {
-          "cacheTimeout": null,
-          "colorBackground": false,
-          "colorValue": false,
-          "colors": [
-            "rgba(245, 54, 54, 0.9)",
-            "rgba(237, 129, 40, 0.89)",
-            "rgba(50, 172, 45, 0.97)"
-          ],
-          "datasource": null,
-          "format": "none",
-          "gauge": {
-            "maxValue": 100,
-            "minValue": 0,
-            "show": false,
-            "thresholdLabels": false,
-            "thresholdMarkers": true
-          },
-          "height": "25px",
-          "id": 13,
-          "interval": null,
-          "links": [],
-          "mappingType": 1,
-          "mappingTypes": [
-            {
-              "name": "value to text",
-              "value": 1
-            },
-            {
-              "name": "range to text",
-              "value": 2
-            }
-          ],
-          "maxDataPoints": 100,
-          "nullPointMode": "connected",
-          "nullText": null,
-          "postfix": "",
-          "postfixFontSize": "50%",
-          "prefix": "",
-          "prefixFontSize": "50%",
-          "rangeMaps": [
-            {
-              "from": "null",
-              "text": "N/A",
-              "to": "null"
-            }
-          ],
-          "span": 4,
-          "sparkline": {
-            "fillColor": "rgba(31, 118, 189, 0.18)",
-            "full": false,
-            "lineColor": "rgb(31, 120, 193)",
-            "show": false
-          },
-          "tableColumn": "",
-          "targets": [
-            {
-              "alias": "",
-              "dimensions": {
-                "ETL": "opsdx_prod"
-              },
-              "metricName": "BMC_TotalTime",
-              "namespace": "OpsDX",
-              "period": "3600",
-              "refId": "A",
-              "region": "us-east-1",
-              "statistics": [
-                "SampleCount"
-              ]
-            }
-          ],
-          "thresholds": "",
-          "title": "BMC ETL Jobs / Hour",
-          "transparent": true,
-          "type": "singlestat",
-          "valueFontSize": "80%",
-          "valueMaps": [
-            {
-              "op": "=",
-              "text": "N/A",
-              "value": "null"
-            }
-          ],
-          "valueName": "current"
-        },
-        {
-          "cacheTimeout": null,
-          "colorBackground": false,
-          "colorValue": false,
-          "colors": [
-            "rgba(245, 54, 54, 0.9)",
-            "rgba(237, 129, 40, 0.89)",
-            "rgba(50, 172, 45, 0.97)"
-          ],
-          "datasource": null,
-          "format": "none",
-          "gauge": {
-            "maxValue": 100,
-            "minValue": 0,
-            "show": false,
-            "thresholdLabels": false,
-            "thresholdMarkers": true
-          },
-          "id": 14,
-          "interval": null,
-          "links": [],
-          "mappingType": 1,
-          "mappingTypes": [
-            {
-              "name": "value to text",
-              "value": 1
-            },
-            {
-              "name": "range to text",
-              "value": 2
-            }
-          ],
-          "maxDataPoints": 100,
-          "nullPointMode": "connected",
-          "nullText": null,
-          "postfix": "",
-          "postfixFontSize": "50%",
-          "prefix": "",
-          "prefixFontSize": "50%",
-          "rangeMaps": [
-            {
-              "from": "null",
-              "text": "N/A",
-              "to": "null"
-            }
-          ],
-          "span": 4,
-          "sparkline": {
-            "fillColor": "rgba(31, 118, 189, 0.18)",
-            "full": false,
-            "lineColor": "rgb(31, 120, 193)",
-            "show": false
-          },
-          "tableColumn": "",
-          "targets": [
-            {
-              "alias": "",
-              "dimensions": {
-                "ETL": "opsdx_prod"
-              },
-              "metricName": "HCGH_TotalTime",
-              "namespace": "OpsDX",
-              "period": "3600",
-              "refId": "A",
-              "region": "us-east-1",
-              "statistics": [
-                "SampleCount"
-              ]
-            }
-          ],
-          "thresholds": "",
-          "title": "HCGH ETL Jobs / Hour",
-          "transparent": true,
-          "type": "singlestat",
-          "valueFontSize": "80%",
-          "valueMaps": [
-            {
-              "op": "=",
-              "text": "N/A",
-              "value": "null"
-            }
-          ],
-          "valueName": "current"
-        }
-      ],
-      "repeat": null,
-      "repeatIteration": null,
-      "repeatRowId": null,
-      "showTitle": false,
-      "title": "Dashboard Row",
-      "titleSize": "h6"
-    },
-    {
-      "collapse": false,
-      "height": "250px",
+      "height": 301,
       "panels": [
         {
           "aliasColors": {},
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "-- Mixed --",
+          "datasource": null,
           "fill": 1,
-          "id": 12,
-          "legend": {
-            "alignAsTable": true,
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "rightSide": true,
-            "show": true,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "links": [],
-          "nullPointMode": "connected",
-          "percentage": false,
-          "pointradius": 5,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "span": 12,
-          "stack": false,
-          "steppedLine": true,
-          "targets": [
-            {
-              "alias": "db:opsdx_prod",
-              "datasource": "cloudwatch",
-              "dimensions": {
-                "DBInstanceIdentifier": "opsdx-prod"
-              },
-              "expr": "sum(label_replace(rate(container_cpu_usage_seconds_total{pod_name=~\"epic2op-[a-z]*-prod.*\", image=~\".*trews-etl.*\"}[2m]), \"pod_lbl\", \"epic2op-$1-prod\", \"pod_name\", \"epic2op-([a-z]*)-prod-(.*)\")\n) by (pod_lbl)",
-              "format": "time_series",
-              "interval": "",
-              "intervalFactor": 2,
-              "legendFormat": "{{ pod_lbl }}",
-              "metricName": "CPUUtilization",
-              "namespace": "AWS/RDS",
-              "period": "",
-              "refId": "A",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ],
-              "step": 30
-            },
-            {
-              "datasource": "prometheus",
-              "expr": "sum(label_replace(rate(container_cpu_usage_seconds_total{pod_name=~\"epic2op-[a-z]*-prod.*\", image=~\".*trews-etl.*\"}[2m]), \"pod_lbl\", \"epic2op-$1-prod\", \"pod_name\", \"epic2op-([a-z]*)-prod-(.*)\")\n) by (pod_lbl) * 100",
-              "format": "time_series",
-              "interval": "",
-              "intervalFactor": 2,
-              "legendFormat": "{{ pod_lbl }}",
-              "refId": "B",
-              "step": 30
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeShift": null,
-          "title": "CPU Utilization (ETL+DB)",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "percent",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ]
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "cloudwatch",
-          "fill": 0,
           "id": 1,
           "legend": {
-            "alignAsTable": false,
             "avg": false,
             "current": false,
             "max": false,
             "min": false,
-            "rightSide": true,
             "show": true,
-            "sideWidth": 100,
             "total": false,
             "values": false
           },
@@ -410,49 +39,17 @@
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
-          "seriesOverrides": [
-            {
-              "alias": "JHH Total",
-              "color": "#7EB26D"
-            },
-            {
-              "alias": "JHH Extract",
-              "color": "#7EB26D",
-              "dashes": true
-            },
-            {
-              "alias": "HCGH Total",
-              "color": "#65C5DB"
-            },
-            {
-              "alias": "HCGH Extract",
-              "color": "#6ED0E0",
-              "dashes": true
-            },
-            {
-              "alias": "BMC Total",
-              "color": "#EAB839"
-            },
-            {
-              "alias": "BMC Extract",
-              "color": "#EAB839",
-              "dashes": true
-            }
-          ],
+          "seriesOverrides": [],
           "spaceLength": 10,
-          "span": 6,
+          "span": 4,
           "stack": false,
-          "steppedLine": false,
+          "steppedLine": true,
           "targets": [
             {
-              "alias": "JHH Extract",
               "dimensions": {
-                "ETL": "opsdx_prod"
+                "ETL": "prod"
               },
-              "expr": "",
-              "hide": false,
-              "intervalFactor": 2,
-              "metricName": "JHH_ExtractTime",
+              "metricName": "HCGH__facilities_hospital_HCGH_beddedpatients_GET_success",
               "namespace": "OpsDX",
               "period": "",
               "refId": "A",
@@ -462,13 +59,10 @@
               ]
             },
             {
-              "alias": "JHH Total",
               "dimensions": {
-                "ETL": "opsdx_prod"
+                "ETL": "prod"
               },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "JHH_TotalTime",
+              "metricName": "HCGH__facilities_hospital_HCGH_beddedpatients_GET_error",
               "namespace": "OpsDX",
               "period": "",
               "refId": "B",
@@ -478,13 +72,10 @@
               ]
             },
             {
-              "alias": "BMC Extract",
               "dimensions": {
-                "ETL": "opsdx_prod"
+                "ETL": "prod"
               },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "BMC_ExtractTime",
+              "metricName": "JHH__facilities_hospital_JHH_beddedpatients_GET_success",
               "namespace": "OpsDX",
               "period": "",
               "refId": "C",
@@ -494,13 +85,10 @@
               ]
             },
             {
-              "alias": "BMC Total",
               "dimensions": {
-                "ETL": "opsdx_prod"
+                "ETL": "prod"
               },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "BMC_TotalTime",
+              "metricName": "JHH__facilities_hospital_JHH_beddedpatients_GET_error",
               "namespace": "OpsDX",
               "period": "",
               "refId": "D",
@@ -510,13 +98,10 @@
               ]
             },
             {
-              "alias": "HCGH Extract",
               "dimensions": {
-                "ETL": "opsdx_prod"
+                "ETL": "prod"
               },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "HCGH_ExtractTime",
+              "metricName": "BMC__facilities_hospital_BMC_beddedpatients_GET_success",
               "namespace": "OpsDX",
               "period": "",
               "refId": "E",
@@ -526,393 +111,13 @@
               ]
             },
             {
-              "alias": "HCGH Total",
               "dimensions": {
-                "ETL": "opsdx_prod"
+                "ETL": "prod"
               },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "HCGH_TotalTime",
+              "metricName": "BMC__facilities_hospital_BMC_beddedpatients_GET_error",
               "namespace": "OpsDX",
               "period": "",
               "refId": "F",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ]
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeShift": null,
-          "title": "ETL  Time",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "s",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": false
-            }
-          ]
-        },
-        {
-          "aliasColors": {},
-          "bars": true,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "cloudwatch",
-          "fill": 1,
-          "id": 9,
-          "legend": {
-            "alignAsTable": true,
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "rightSide": true,
-            "show": true,
-            "total": false,
-            "values": false
-          },
-          "lines": false,
-          "linewidth": 1,
-          "links": [],
-          "nullPointMode": "connected",
-          "percentage": false,
-          "pointradius": 5,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "span": 6,
-          "stack": true,
-          "steppedLine": false,
-          "targets": [
-            {
-              "alias": "HCGH",
-              "dimensions": {
-                "FunctionName": "opsdx-prod-etl-lambda-HCGH"
-              },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "Invocations",
-              "namespace": "AWS/Lambda",
-              "period": "",
-              "refId": "A",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ]
-            },
-            {
-              "alias": "BMC",
-              "dimensions": {
-                "FunctionName": "opsdx-prod-etl-lambda-BMC"
-              },
-              "metricName": "Invocations",
-              "namespace": "AWS/Lambda",
-              "period": "",
-              "refId": "B",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ]
-            },
-            {
-              "alias": "JHH",
-              "dimensions": {
-                "FunctionName": "opsdx-prod-etl-lambda-JHH"
-              },
-              "metricName": "Invocations",
-              "namespace": "AWS/Lambda",
-              "period": "",
-              "refId": "C",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ]
-            },
-            {
-              "alias": "Completions",
-              "dimensions": {
-                "ETL": "opsdx_prod"
-              },
-              "metricName": "NumBeddedPatients",
-              "namespace": "OpsDX",
-              "period": "",
-              "refId": "D",
-              "region": "us-east-1",
-              "statistics": [
-                "SampleCount"
-              ]
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeShift": null,
-          "title": "Invocations & Completions",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "short",
-              "label": "",
-              "logBase": 1,
-              "max": null,
-              "min": "0",
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ]
-        }
-      ],
-      "repeat": null,
-      "repeatIteration": null,
-      "repeatRowId": null,
-      "showTitle": true,
-      "title": "ETL Performance",
-      "titleSize": "h6"
-    },
-    {
-      "collapse": false,
-      "height": 250,
-      "panels": [
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "cloudwatch",
-          "fill": 1,
-          "id": 3,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "rightSide": true,
-            "show": true,
-            "sideWidth": 55,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "links": [],
-          "nullPointMode": "connected",
-          "percentage": false,
-          "pointradius": 5,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "span": 4,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "alias": "JHH",
-              "dimensions": {
-                "ETL": "opsdx_prod"
-              },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "JHH_NumFlowsheets",
-              "namespace": "OpsDX",
-              "period": "",
-              "refId": "A",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ]
-            },
-            {
-              "alias": "BMC",
-              "dimensions": {
-                "ETL": "opsdx_prod"
-              },
-              "expr": "",
-              "hide": false,
-              "intervalFactor": 2,
-              "metricName": "BMC_NumFlowsheets",
-              "namespace": "OpsDX",
-              "period": "",
-              "refId": "B",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ]
-            },
-            {
-              "alias": "HCGH",
-              "dimensions": {
-                "ETL": "opsdx_prod"
-              },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "HCGH_NumFlowsheets",
-              "namespace": "OpsDX",
-              "period": "",
-              "refId": "C",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ]
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeShift": null,
-          "title": "Flowsheets Rows",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": false
-            }
-          ]
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "cloudwatch",
-          "fill": 1,
-          "id": 2,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "rightSide": true,
-            "show": true,
-            "sideWidth": 55,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "links": [],
-          "nullPointMode": "connected",
-          "percentage": false,
-          "pointradius": 5,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "span": 4,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "alias": "JHH",
-              "dimensions": {
-                "ETL": "opsdx_prod"
-              },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "JHH_NumBeddedPatients",
-              "namespace": "OpsDX",
-              "period": "",
-              "refId": "A",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ]
-            },
-            {
-              "alias": "BMC",
-              "dimensions": {
-                "ETL": "opsdx_prod"
-              },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "BMC_NumBeddedPatients",
-              "namespace": "OpsDX",
-              "period": "",
-              "refId": "B",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ]
-            },
-            {
-              "alias": "HCGH",
-              "dimensions": {
-                "ETL": "opsdx_prod"
-              },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "HCGH_NumBeddedPatients",
-              "namespace": "OpsDX",
-              "period": "",
-              "refId": "C",
               "region": "us-east-1",
               "statistics": [
                 "Average"
@@ -951,7 +156,7 @@
               "logBase": 1,
               "max": null,
               "min": null,
-              "show": false
+              "show": true
             }
           ]
         },
@@ -960,17 +165,15 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "cloudwatch",
+          "datasource": null,
           "fill": 1,
-          "id": 10,
+          "id": 8,
           "legend": {
             "avg": false,
             "current": false,
             "max": false,
             "min": false,
-            "rightSide": true,
             "show": true,
-            "sideWidth": 55,
             "total": false,
             "values": false
           },
@@ -989,13 +192,10 @@
           "steppedLine": false,
           "targets": [
             {
-              "alias": "JHH",
               "dimensions": {
-                "ETL": "opsdx_prod"
+                "ETL": "prod"
               },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "JHH_NumLocationHistory",
+              "metricName": "HCGH__patients_contacts_GET_success",
               "namespace": "OpsDX",
               "period": "",
               "refId": "A",
@@ -1005,13 +205,10 @@
               ]
             },
             {
-              "alias": "BMC",
               "dimensions": {
-                "ETL": "opsdx_prod"
+                "ETL": "prod"
               },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "BMC_NumLocationHistory",
+              "metricName": "HCGH__patients_contacts_GET_error",
               "namespace": "OpsDX",
               "period": "",
               "refId": "B",
@@ -1021,16 +218,52 @@
               ]
             },
             {
-              "alias": "HCGH",
               "dimensions": {
-                "ETL": "opsdx_prod"
+                "ETL": "prod"
               },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "HCGH_NumLocationHistory",
+              "metricName": "JHH__patients_contacts_GET_success",
               "namespace": "OpsDX",
               "period": "",
-              "refId": "C",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "JHH__patients_contacts_GET_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "BMC__patients_contacts_GET_success",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "BMC__patients_contacts_GET_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
               "region": "us-east-1",
               "statistics": [
                 "Average"
@@ -1040,7 +273,7 @@
           "thresholds": [],
           "timeFrom": null,
           "timeShift": null,
-          "title": "Location History",
+          "title": "Contacts",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -1069,7 +302,7 @@
               "logBase": 1,
               "max": null,
               "min": null,
-              "show": false
+              "show": true
             }
           ]
         },
@@ -1078,17 +311,15 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "cloudwatch",
+          "datasource": null,
           "fill": 1,
-          "id": 4,
+          "id": 6,
           "legend": {
             "avg": false,
             "current": false,
             "max": false,
             "min": false,
-            "rightSide": true,
             "show": true,
-            "sideWidth": 55,
             "total": false,
             "values": false
           },
@@ -1102,18 +333,15 @@
           "renderer": "flot",
           "seriesOverrides": [],
           "spaceLength": 10,
-          "span": 3,
+          "span": 4,
           "stack": false,
           "steppedLine": false,
           "targets": [
             {
-              "alias": "JHH",
               "dimensions": {
-                "ETL": "opsdx_prod"
+                "ETL": "prod"
               },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "JHH_NumLabOrders",
+              "metricName": "HCGH__patients_adtlocationhistory_GET_success",
               "namespace": "OpsDX",
               "period": "",
               "refId": "A",
@@ -1123,13 +351,10 @@
               ]
             },
             {
-              "alias": "BMC",
               "dimensions": {
-                "ETL": "opsdx_prod"
+                "ETL": "prod"
               },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "BMC_NumLabOrders",
+              "metricName": "HCGH__patients_adtlocationhistory_GET_error",
               "namespace": "OpsDX",
               "period": "",
               "refId": "B",
@@ -1139,16 +364,52 @@
               ]
             },
             {
-              "alias": "HCGH",
               "dimensions": {
-                "ETL": "opsdx_prod"
+                "ETL": "prod"
               },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "HCGH_NumLabOrders",
+              "metricName": "JHH__patients_adtlocationhistory_GET_success",
               "namespace": "OpsDX",
               "period": "",
-              "refId": "C",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "JHH__patients_adtlocationhistory_GET_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "BMC__patients_adtlocationhistory_GET_success",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "BMC__patients_adtlocationhistory_GET_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
               "region": "us-east-1",
               "statistics": [
                 "Average"
@@ -1158,7 +419,7 @@
           "thresholds": [],
           "timeFrom": null,
           "timeShift": null,
-          "title": "Lab Orders",
+          "title": "ADT Location History",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -1187,7 +448,165 @@
               "logBase": 1,
               "max": null,
               "min": null,
-              "show": false
+              "show": true
+            }
+          ]
+        }
+      ],
+      "repeat": null,
+      "repeatIteration": null,
+      "repeatRowId": null,
+      "showTitle": true,
+      "title": "Basic",
+      "titleSize": "h6"
+    },
+    {
+      "collapse": false,
+      "height": 250,
+      "panels": [
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fill": 1,
+          "id": 2,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 2,
+          "links": [],
+          "nullPointMode": "connected",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 6,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "HCGH__patients_flowsheetrows_POST_success",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "HCGH__patients_flowsheetrows_POST_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "JHH__patients_flowsheetrows_POST_success",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "JHH__patients_flowsheetrows_POST_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "BMC__patients_flowsheetrows_POST_success",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "BMC__patients_flowsheetrows_POST_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Flowsheet",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
             }
           ]
         },
@@ -1196,17 +615,15 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "cloudwatch",
+          "datasource": null,
           "fill": 1,
-          "id": 7,
+          "id": 3,
           "legend": {
             "avg": false,
             "current": false,
             "max": false,
             "min": false,
-            "rightSide": true,
             "show": true,
-            "sideWidth": 51,
             "total": false,
             "values": false
           },
@@ -1220,18 +637,15 @@
           "renderer": "flot",
           "seriesOverrides": [],
           "spaceLength": 10,
-          "span": 3,
+          "span": 6,
           "stack": false,
           "steppedLine": false,
           "targets": [
             {
-              "alias": "JHH",
               "dimensions": {
-                "ETL": "opsdx_prod"
+                "ETL": "prod"
               },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "JHH_NumLabResults",
+              "metricName": "HCGH__patients_labs_component_POST_success",
               "namespace": "OpsDX",
               "period": "",
               "refId": "A",
@@ -1241,13 +655,10 @@
               ]
             },
             {
-              "alias": "BMC",
               "dimensions": {
-                "ETL": "opsdx_prod"
+                "ETL": "prod"
               },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "BMC_NumLabResults",
+              "metricName": "HCGH__patients_labs_component_POST_error",
               "namespace": "OpsDX",
               "period": "",
               "refId": "B",
@@ -1257,16 +668,52 @@
               ]
             },
             {
-              "alias": "HCGH",
               "dimensions": {
-                "ETL": "opsdx_prod"
+                "ETL": "prod"
               },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "HCGH_NumLabResults",
+              "metricName": "JHH__patients_labs_component_POST_success",
               "namespace": "OpsDX",
               "period": "",
-              "refId": "C",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "JHH__patients_labs_component_POST_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "BMC__patients_labs_component_POST_success",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "BMC__patients_labs_component_POST_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
               "region": "us-east-1",
               "statistics": [
                 "Average"
@@ -1305,243 +752,7 @@
               "logBase": 1,
               "max": null,
               "min": null,
-              "show": false
-            }
-          ]
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "cloudwatch",
-          "fill": 1,
-          "id": 5,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "rightSide": true,
-            "show": true,
-            "sideWidth": 51,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "links": [],
-          "nullPointMode": "connected",
-          "percentage": false,
-          "pointradius": 5,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "span": 3,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "alias": "JHH",
-              "dimensions": {
-                "ETL": "opsdx_prod"
-              },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "JHH_NumMedOrders",
-              "namespace": "OpsDX",
-              "period": "",
-              "refId": "A",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ]
-            },
-            {
-              "alias": "BMC",
-              "dimensions": {
-                "ETL": "opsdx_prod"
-              },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "BMC_NumMedOrders",
-              "namespace": "OpsDX",
-              "period": "",
-              "refId": "B",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ]
-            },
-            {
-              "alias": "HCGH",
-              "dimensions": {
-                "ETL": "opsdx_prod"
-              },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "HCGH_NumMedOrders",
-              "namespace": "OpsDX",
-              "period": "",
-              "refId": "C",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ]
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeShift": null,
-          "title": "Med Orders",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": false
-            }
-          ]
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "cloudwatch",
-          "fill": 1,
-          "id": 6,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "rightSide": true,
-            "show": true,
-            "sideWidth": 51,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "links": [],
-          "nullPointMode": "connected",
-          "percentage": false,
-          "pointradius": 5,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "span": 3,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "alias": "JHH",
-              "dimensions": {
-                "ETL": "opsdx_prod"
-              },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "JHH_NumMedAdmin",
-              "namespace": "OpsDX",
-              "period": "",
-              "refId": "A",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ]
-            },
-            {
-              "alias": "BMC",
-              "dimensions": {
-                "ETL": "opsdx_prod"
-              },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "BMC_NumMedAdmin",
-              "namespace": "OpsDX",
-              "period": "",
-              "refId": "B",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ]
-            },
-            {
-              "alias": "HCGH",
-              "dimensions": {
-                "ETL": "opsdx_prod"
-              },
-              "expr": "",
-              "intervalFactor": 2,
-              "metricName": "HCGH_NumMedAdmin",
-              "namespace": "OpsDX",
-              "period": "",
-              "refId": "C",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ]
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeShift": null,
-          "title": "Med Admin",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": false
             }
           ]
         }
@@ -1550,7 +761,1026 @@
       "repeatIteration": null,
       "repeatRowId": null,
       "showTitle": true,
-      "title": "ETL Types",
+      "title": "Measurements",
+      "titleSize": "h6"
+    },
+    {
+      "collapse": false,
+      "height": 250,
+      "panels": [
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fill": 1,
+          "id": 9,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "connected",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 6,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "HCGH__patients_medications_GET_success",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "HCGH__patients_medications_GET_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "JHH__patients_medications_GET_success",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "JHH__patients_medications_GET_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "BMC__patients_medications_GET_success",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "BMC__patients_medications_GET_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Medication",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ]
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fill": 1,
+          "id": 10,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "connected",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 6,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "HCGH__patients_medicationadministrationhistory_POST_success",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "HCGH__patients_medicationadministrationhistory_POST_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "JHH__patients_medicationadministrationhistory_POST_success",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "JHH__patients_medicationadministrationhistory_POST_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "BMC__patients_medicationadministrationhistory_POST_success",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "BMC__patients_medicationadministrationhistory_POST_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Medication Administration History",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ]
+        }
+      ],
+      "repeat": null,
+      "repeatIteration": null,
+      "repeatRowId": null,
+      "showTitle": true,
+      "title": "Medications",
+      "titleSize": "h6"
+    },
+    {
+      "collapse": false,
+      "height": 240,
+      "panels": [
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fill": 1,
+          "id": 4,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "connected",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 6,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "HCGH__patients_labs_procedure_POST_success",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "HCGH__patients_labs_procedure_POST_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "JHH__patients_labs_procedure_POST_success",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "JHH__patients_labs_procedure_POST_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "BMC__patients_labs_procedure_POST_success",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "BMC__patients_labs_procedure_POST_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Lab Procedures",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ]
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fill": 1,
+          "id": 5,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "connected",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 6,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "HCGH__facilities_hospital_HCGH_orders_activeprocedures_GET_success",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "HCGH__facilities_hospital_HCGH_orders_activeprocedures_GET_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "JHH__facilities_hospital_JHH_orders_activeprocedures_GET_success",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "JHH__facilities_hospital_JHH_orders_activeprocedures_GET_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "BMC__facilities_hospital_BMC_orders_activeprocedures_GET_success",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "BMC__facilities_hospital_BMC_orders_activeprocedures_GET_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Active Procedures",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ]
+        }
+      ],
+      "repeat": null,
+      "repeatIteration": null,
+      "repeatRowId": null,
+      "showTitle": true,
+      "title": "Orders",
+      "titleSize": "h6"
+    },
+    {
+      "collapse": false,
+      "height": 250,
+      "panels": [
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fill": 1,
+          "id": 7,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "connected",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 4,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "HCGH__patients_documents_list_GET_success",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "HCGH__patients_documents_list_GET_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "JHH__patients_documents_list_GET_success",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "JHH__patients_documents_list_GET_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "BMC__patients_documents_list_GET_success",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "BMC__patients_documents_list_GET_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Document List",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ]
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fill": 1,
+          "id": 8,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "connected",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 4,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "HCGH__patients_documents_text_GET_success",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "HCGH__patients_documents_text_GET_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "JHH__patients_documents_text_GET_success",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "JHH__patients_documents_text_GET_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "BMC__patients_documents_text_GET_success",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "BMC__patients_documents_text_GET_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Document Text",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ]
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fill": 1,
+          "id": 11,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "connected",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 4,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "HCGH__patients_documents_text_GET_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "JHH__patients_documents_text_GET_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "prod"
+              },
+              "metricName": "BMC__patients_documents_text_GET_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Document Text Errors",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ]
+        }
+      ],
+      "repeat": null,
+      "repeatIteration": null,
+      "repeatRowId": null,
+      "showTitle": true,
+      "title": "Notes",
       "titleSize": "h6"
     }
   ],
@@ -1563,7 +1793,7 @@
     "list": []
   },
   "time": {
-    "from": "now-6h",
+    "from": "now-24h",
     "to": "now"
   },
   "timepicker": {
@@ -1591,7 +1821,7 @@
       "30d"
     ]
   },
-  "timezone": "browser",
-  "title": "OpsDX Prod ETL",
-  "version": 11
+  "timezone": "",
+  "title": "OpsDX Prod JH API Request",
+  "version": 18
 }
