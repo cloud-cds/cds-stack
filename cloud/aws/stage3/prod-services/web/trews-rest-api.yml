@@ -42,23 +42,33 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: trews-rest-api
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/trews-rest-api:0.1.98
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.411
         resources:
           requests:
             memory: "2816Mi"
             cpu: "1000m"
         ports:
         - containerPort: 8000
-        command:
-          - "sh"
-          - "start-prod.sh"
+        command: ["/bin/sh","-c"]
+        args: ["cd api;sh start-prod.sh"]
         securityContext:
           capabilities:
             add:
             - "SYS_PTRACE"
         env:
+        # - name: force_pat_ids
+        #   value: "comma_separated_pat_ids"
+        #
+        # - name: no_check_for_orders
+        #   value: "True"
+        - name: user_whitelist
+          value: "YAHMAD1,AZHAN2,NRAWAT1,IPMDHCGH,EDMDHCGH,EDRNHCGH,EDRES"
+        - name: disabled_msg
+          value: "<b>Thank you for participating in the TREWS pilot.</b><br>We are currently upgrading the TREWS system in preparation for a launch in the<br>Howard County General Hospital Emergency Department at the beginning of November.<br>Please contact trews-jhu@opsdx.io for more information."
         - name: release
-          value: "production"
+          value: "epic2017"
+        - name: model_in_use
+          value: "trews-jit"
         - name: db_host
           value: "prod.db.jh.opsdx.io"
         - name: db_port
@@ -119,8 +129,6 @@ spec:
           value: "11"
         - name: order_link_mode
           value: "direct"
-        - name: no_check_for_orders
-          value: "True"
         - name: log_decryption
           value: "true"
         - name: log_user_latency
