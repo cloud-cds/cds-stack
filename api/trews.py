@@ -23,7 +23,8 @@ import urllib.parse
 
 import api, dashan_query
 from constants import bmc_jhh_antibiotics, bmc_jhh_ed_antibiotics, departments_by_hospital, order_key_urls
-from api import pat_cache, api_monitor
+from api import pat_cache, api_monitor, start_gc_order_processing_tasks, stop_gc_order_processing_tasks
+
 from encrypt import encrypt, decrypt, encrypted_query
 import time
 
@@ -540,6 +541,9 @@ app.on_startup.append(init_epic_sync_loop)
 if api_monitor.enabled:
   app.on_startup.append(api_monitor.start_monitor)
   app.on_cleanup.append(api_monitor.stop_monitor)
+
+app.on_startup.append(start_gc_order_processing_tasks)
+app.on_cleanup.append(stop_gc_order_processing_tasks)
 
 app.router.add_route('POST', URL_API, api.TREWSAPI)
 app.router.add_route('POST', URL_LOG, TREWSLog)
