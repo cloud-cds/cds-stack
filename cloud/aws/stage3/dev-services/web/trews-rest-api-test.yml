@@ -42,7 +42,7 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: trews-rest-api-test
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.396
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.408
         resources:
           requests:
             memory: "2816Mi"
@@ -58,6 +58,16 @@ spec:
         env:
         #- name: force_pat_ids
         #  value: "comma_separated_pat_ids"
+        #
+        #- name: user_whitelist
+        #  value: "comma_separated_user_ids"
+        #
+        #- name: disabled_msg
+        #  value: "TREWS: coming soon"
+        #
+        #- name: no_check_for_orders
+        #  value: "True"
+        #
         - name: epic_server
           value: "test"
         - name: release
@@ -124,8 +134,6 @@ spec:
           value: "edge"
         - name: order_link_mode
           value: "direct"
-        # - name: no_check_for_orders
-        #   value: "True"
         - name: log_decryption
           value: "true"
         - name: log_user_latency
