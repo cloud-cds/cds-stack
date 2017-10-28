@@ -133,6 +133,7 @@ diazepam_dose,T,JSON,yes,no,,,,,Medication,1,mg
 diltiazem_dose,T,JSON,yes,no,,,,,Medication,1,mg
 discharge,T,JSON,yes,no,,,,,includes discharge department and disposition,1,no unit
 dobutamine_dose,T,JSON,yes,no,,3,,,Medication,1,mcg/kg/min
+dobutamine_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 dopamine_dose,T,JSON,yes,no,,3,,,Medication,1,mcg/kg/min
 dopamine_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 doxazosin_dose,T,JSON,yes,no,,,,,Medication,1,mg
@@ -244,6 +245,7 @@ metronidazole_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 mi,TWF,int,no,no,,,mi_update,troponin,event,1,no unit
 midazolam_dose,T,JSON,yes,no,,,,,Medication,1,mg
 milrinone_dose,T,JSON,yes,no,,3,,,Medication,1,mcg/kg/min
+milrinone_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 minutes_since_any_antibiotics,TWF,Integer,no,no,,,minutes_since_any_antibiotics_update,any_antibiotics,feature,1,min
 minutes_since_any_organ_fail,TWF,Integer,no,no,,,minutes_since_organ_fail_update,any_organ_failure,"lab-based feature,  it should not be sparse",1,min
 moxifloxacin_dose,T,JSON,yes,no,,,,,Medication,1,mg
@@ -257,11 +259,13 @@ neosynephrine_dose,T,JSON,yes,no,,3,,,Medication,1,mg
 neosynephrine_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 neurologic_sofa,TWF,Integer,no,no,,,neurologic_sofa_update,gcs,"vital-sign based,  it should not be sparse",1,no unit
 norepinephrine_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+norepinephrine_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 note,N,String,yes,no,,,,,provider notes,1,no unit
 obstructive_pe_shock,TWF,Integer,no,no,,,obstructive_pe_shock_update,"lactate, ddimer, spo2, heart_rate",screening label,1,no unit
 organ_insufficiency_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
 organ_insufficiency_hist,S,Boolean,yes,no,,,,,history,1,no unit
 oxacillin_dose,T,JSON,yes,no,,3,,,Medication,1,mg
+oxacillin_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 paco2,TWF,Real,yes,no,last_value_in_window,28,,,Labs,1,mmHg
 patient_class,S,String,yes,no,,,,,patient class,1,no unit
 pancreatitis_chronic_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
@@ -323,6 +327,7 @@ sirs_resp_oor,TWF,Boolean,no,no,,,sirs_resp_oor_update,resp_rate,"vital signs ba
 sirs_temperature_oor,TWF,Boolean,no,no,,,sirs_temperature_oor_update,temperature,it should not be sparse,1,no unit
 sirs_wbc_oor,TWF,Boolean,no,no,,,sirs_wbc_oor_update,"wbc, bands",it should not be sparse,1,no unit
 sodium,TWF,Real,yes,no,last_value_in_window,28,,,Lab,1,mmol/L
+sodium_bicarbonate,T,JSON,yes,no,,,,,Medication,1,TBD
 sodium_bicarbonate_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 sodium_chloride,T,JSON,yes,no,,,,,Medication,1,mg
 sodium_chloride_order,T,String,yes,no,,,,,Medication Orders,1,no unit
@@ -335,6 +340,7 @@ temperature,TWF,Real,yes,no,last_value_in_window,28,,,Physiologic,1,Fahrenheit
 theophylline_dose,T,JSON,yes,no,,,,,Medication,1,mg
 tiotropium_dose,T,JSON,yes,no,,,,,Medication,1,mg
 tobramycin_dose,T,JSON,yes,no,,3,,,Medication,1,mg
+tobramycin_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 transfuse_cryoprecipitate,T,Boolean,yes,no,,,,,Whether patient received transfusion,1,no unit
 transfuse_plasma,T,Boolean,yes,no,,,,,Whether patient received transfusion,1,no unit
 transfuse_platelets,T,Boolean,yes,no,,,,,Whether patient received transfusion,1,no unit

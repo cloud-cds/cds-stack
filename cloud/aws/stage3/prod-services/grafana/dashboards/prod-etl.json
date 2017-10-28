@@ -6,8 +6,9 @@
   "gnetId": null,
   "graphTooltip": 0,
   "hideControls": false,
-  "id": 3,
+  "id": 1,
   "links": [],
+  "refresh": "30s",
   "rows": [
     {
       "collapse": false,
@@ -60,7 +61,7 @@
               "to": "null"
             }
           ],
-          "span": 4,
+          "span": 3,
           "sparkline": {
             "fillColor": "rgba(31, 118, 189, 0.18)",
             "full": false,
@@ -147,7 +148,7 @@
               "to": "null"
             }
           ],
-          "span": 4,
+          "span": 3,
           "sparkline": {
             "fillColor": "rgba(31, 118, 189, 0.18)",
             "full": false,
@@ -231,7 +232,7 @@
               "to": "null"
             }
           ],
-          "span": 4,
+          "span": 3,
           "sparkline": {
             "fillColor": "rgba(31, 118, 189, 0.18)",
             "full": false,
@@ -257,6 +258,174 @@
           ],
           "thresholds": "",
           "title": "HCGH ETL Jobs / Hour",
+          "transparent": true,
+          "type": "singlestat",
+          "valueFontSize": "80%",
+          "valueMaps": [
+            {
+              "op": "=",
+              "text": "N/A",
+              "value": "null"
+            }
+          ],
+          "valueName": "current"
+        },
+        {
+          "cacheTimeout": null,
+          "colorBackground": false,
+          "colorValue": false,
+          "colors": [
+            "rgba(245, 54, 54, 0.9)",
+            "rgba(237, 129, 40, 0.89)",
+            "rgba(50, 172, 45, 0.97)"
+          ],
+          "datasource": null,
+          "format": "none",
+          "gauge": {
+            "maxValue": 100,
+            "minValue": 0,
+            "show": false,
+            "thresholdLabels": false,
+            "thresholdMarkers": true
+          },
+          "id": 15,
+          "interval": null,
+          "links": [],
+          "mappingType": 1,
+          "mappingTypes": [
+            {
+              "name": "value to text",
+              "value": 1
+            },
+            {
+              "name": "range to text",
+              "value": 2
+            }
+          ],
+          "maxDataPoints": 100,
+          "nullPointMode": "connected",
+          "nullText": null,
+          "postfix": "",
+          "postfixFontSize": "50%",
+          "prefix": "",
+          "prefixFontSize": "50%",
+          "rangeMaps": [
+            {
+              "from": "null",
+              "text": "N/A",
+              "to": "null"
+            }
+          ],
+          "span": 3,
+          "sparkline": {
+            "fillColor": "rgba(31, 118, 189, 0.18)",
+            "full": false,
+            "lineColor": "rgb(31, 120, 193)",
+            "show": false
+          },
+          "tableColumn": "",
+          "targets": [
+            {
+              "alias": "",
+              "dimensions": {
+                "LMCPredictors": "prod"
+              },
+              "metricName": "total_time_long",
+              "namespace": "OpsDX",
+              "period": "3600",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "SampleCount"
+              ]
+            }
+          ],
+          "thresholds": "",
+          "title": "HCGH Predictor Jobs / Hour",
+          "transparent": true,
+          "type": "singlestat",
+          "valueFontSize": "80%",
+          "valueMaps": [
+            {
+              "op": "=",
+              "text": "N/A",
+              "value": "null"
+            }
+          ],
+          "valueName": "current"
+        },
+        {
+          "cacheTimeout": null,
+          "colorBackground": false,
+          "colorValue": false,
+          "colors": [
+            "rgba(245, 54, 54, 0.9)",
+            "rgba(237, 129, 40, 0.89)",
+            "rgba(50, 172, 45, 0.97)"
+          ],
+          "datasource": null,
+          "format": "none",
+          "gauge": {
+            "maxValue": 100,
+            "minValue": 0,
+            "show": false,
+            "thresholdLabels": false,
+            "thresholdMarkers": true
+          },
+          "id": 22,
+          "interval": null,
+          "links": [],
+          "mappingType": 1,
+          "mappingTypes": [
+            {
+              "name": "value to text",
+              "value": 1
+            },
+            {
+              "name": "range to text",
+              "value": 2
+            }
+          ],
+          "maxDataPoints": 100,
+          "nullPointMode": "connected",
+          "nullText": null,
+          "postfix": "",
+          "postfixFontSize": "50%",
+          "prefix": "",
+          "prefixFontSize": "50%",
+          "rangeMaps": [
+            {
+              "from": "null",
+              "text": "N/A",
+              "to": "null"
+            }
+          ],
+          "span": 3,
+          "sparkline": {
+            "fillColor": "rgba(31, 118, 189, 0.18)",
+            "full": false,
+            "lineColor": "rgb(31, 120, 193)",
+            "show": false
+          },
+          "tableColumn": "",
+          "targets": [
+            {
+              "alias": "",
+              "dimensions": {
+                "AlertServer": "prod"
+              },
+              "metricName": "e2e_time_HCGH",
+              "namespace": "OpsDX",
+              "period": "3600",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "SampleCount"
+              ]
+            }
+          ],
+          "thresholds": "",
+          "title": "HCGH E2E Jobs / Hour",
           "transparent": true,
           "type": "singlestat",
           "valueFontSize": "80%",
@@ -318,7 +487,7 @@
               "alias": "db:opsdx_prod",
               "datasource": "cloudwatch",
               "dimensions": {
-                "DBInstanceIdentifier": "opsdx-prod"
+                "DBInstanceIdentifier": "opsdx-jh-prod"
               },
               "expr": "sum(label_replace(rate(container_cpu_usage_seconds_total{pod_name=~\"epic2op-[a-z]*-prod.*\", image=~\".*trews-etl.*\"}[2m]), \"pod_lbl\", \"epic2op-$1-prod\", \"pod_name\", \"epic2op-([a-z]*)-prod-(.*)\")\n) by (pod_lbl)",
               "format": "time_series",
@@ -343,7 +512,7 @@
               "intervalFactor": 2,
               "legendFormat": "{{ pod_lbl }}",
               "refId": "B",
-              "step": 30
+              "step": 10
             }
           ],
           "thresholds": [],
@@ -614,7 +783,7 @@
             {
               "alias": "HCGH",
               "dimensions": {
-                "FunctionName": "opsdx-prod-etl-lambda-HCGH"
+                "FunctionName": "opsdx-jh-prod-etl-lambda-HCGH"
               },
               "expr": "",
               "intervalFactor": 2,
@@ -630,7 +799,7 @@
             {
               "alias": "BMC",
               "dimensions": {
-                "FunctionName": "opsdx-prod-etl-lambda-BMC"
+                "FunctionName": "opsdx-jh-prod-etl-lambda-BMC"
               },
               "metricName": "Invocations",
               "namespace": "AWS/Lambda",
@@ -644,7 +813,7 @@
             {
               "alias": "JHH",
               "dimensions": {
-                "FunctionName": "opsdx-prod-etl-lambda-JHH"
+                "FunctionName": "opsdx-jh-prod-etl-lambda-JHH"
               },
               "metricName": "Invocations",
               "namespace": "AWS/Lambda",
@@ -1544,6 +1713,124 @@
               "show": false
             }
           ]
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "cloudwatch",
+          "fill": 1,
+          "id": 23,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "rightSide": true,
+            "show": true,
+            "sideWidth": 55,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "connected",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 4,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "alias": "JHH",
+              "dimensions": {
+                "ETL": "opsdx_prod"
+              },
+              "expr": "",
+              "intervalFactor": 2,
+              "metricName": "JHH_NumActiveProcedures",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "alias": "BMC",
+              "dimensions": {
+                "ETL": "opsdx_prod"
+              },
+              "expr": "",
+              "intervalFactor": 2,
+              "metricName": "BMC_NumActiveProcedures",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "alias": "HCGH",
+              "dimensions": {
+                "ETL": "opsdx_prod"
+              },
+              "expr": "",
+              "intervalFactor": 2,
+              "metricName": "HCGH_NumActiveProcedures",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "C",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Active Procedures",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": false
+            }
+          ]
         }
       ],
       "repeat": null,
@@ -1551,6 +1838,1001 @@
       "repeatRowId": null,
       "showTitle": true,
       "title": "ETL Types",
+      "titleSize": "h6"
+    },
+    {
+      "collapse": false,
+      "height": 268,
+      "panels": [
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fill": 0,
+          "id": 16,
+          "legend": {
+            "alignAsTable": false,
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "rightSide": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 2,
+          "links": [],
+          "nullPointMode": "connected",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 4,
+          "stack": false,
+          "steppedLine": true,
+          "targets": [
+            {
+              "alias": "Average Total Time",
+              "dimensions": {
+                "LMCPredictors": "prod"
+              },
+              "hide": false,
+              "metricName": "avg_total_time_long",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Sum"
+              ]
+            },
+            {
+              "alias": "Average Optimization Time",
+              "dimensions": {
+                "LMCPredictors": "prod"
+              },
+              "hide": false,
+              "metricName": "avg_optimization_time_long",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Sum"
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Prediction Time Per Enc",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "s",
+              "label": "",
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": false
+            }
+          ]
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fill": 0,
+          "id": 18,
+          "legend": {
+            "alignAsTable": false,
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "rightSide": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 2,
+          "links": [],
+          "nullPointMode": "connected",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 4,
+          "stack": false,
+          "steppedLine": true,
+          "targets": [
+            {
+              "alias": "Total Time",
+              "dimensions": {
+                "LMCPredictors": "prod"
+              },
+              "hide": false,
+              "metricName": "total_time_long",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "alias": "Optimization Time",
+              "dimensions": {
+                "LMCPredictors": "prod"
+              },
+              "hide": false,
+              "metricName": "optimization_time_long",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Prediction Time Per Task",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "s",
+              "label": "",
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": false
+            }
+          ]
+        },
+        {
+          "aliasColors": {},
+          "bars": true,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fill": 0,
+          "id": 17,
+          "legend": {
+            "alignAsTable": false,
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "rightSide": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": false,
+          "linewidth": 2,
+          "links": [],
+          "nullPointMode": "null",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 4,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "alias": "Predictor 0 Long Status",
+              "dimensions": {
+                "LMCPredictors": "prod"
+              },
+              "hide": false,
+              "metricName": "predictor_0_long_True_status",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Minimum"
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Predictor Status (IDLE: 1, BUSY: 2, CATCHUP: 3, DEAD: 4)",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "none",
+              "label": "",
+              "logBase": 1,
+              "max": "4",
+              "min": "0",
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": false
+            }
+          ]
+        }
+      ],
+      "repeat": null,
+      "repeatIteration": null,
+      "repeatRowId": null,
+      "showTitle": true,
+      "title": "Prediction",
+      "titleSize": "h6"
+    },
+    {
+      "collapse": false,
+      "height": 250,
+      "panels": [
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fill": 1,
+          "id": 19,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "connected",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 4,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "dimensions": {
+                "AlertServer": "prod"
+              },
+              "metricName": "e2e_time_HCGH",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "AlertServer": "prod"
+              },
+              "metricName": "criteria_time_HCGH",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "AlertServer": "prod"
+              },
+              "metricName": "prediction_time_HCGH",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "C",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "AlertServer": "prod"
+              },
+              "metricName": "e2e_time_BMC",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "D",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "AlertServer": "prod"
+              },
+              "metricName": "e2e_time_JHH",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "E",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "AlertServer": "prod"
+              },
+              "metricName": "criteria_time_BMC",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "F",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "AlertServer": "prod"
+              },
+              "metricName": "criteria_time_JHH",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "G",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Job Time",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "s",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ]
+        },
+        {
+          "aliasColors": {},
+          "bars": true,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fill": 1,
+          "id": 20,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": false,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 4,
+          "stack": true,
+          "steppedLine": false,
+          "targets": [
+            {
+              "dimensions": {
+                "AlertServer": "prod"
+              },
+              "metricName": "etl_done_HCGH",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "SampleCount"
+              ]
+            },
+            {
+              "dimensions": {
+                "AlertServer": "prod"
+              },
+              "metricName": "etl_done_BMC",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "SampleCount"
+              ]
+            },
+            {
+              "dimensions": {
+                "AlertServer": "prod"
+              },
+              "metricName": "etl_done_JHH",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "C",
+              "region": "us-east-1",
+              "statistics": [
+                "SampleCount"
+              ]
+            },
+            {
+              "dimensions": {
+                "AlertServer": "prod"
+              },
+              "metricName": "e2e_time_HCGH",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "D",
+              "region": "us-east-1",
+              "statistics": [
+                "SampleCount"
+              ]
+            },
+            {
+              "dimensions": {
+                "AlertServer": "prod"
+              },
+              "metricName": "e2e_time_BMC",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "E",
+              "region": "us-east-1",
+              "statistics": [
+                "SampleCount"
+              ]
+            },
+            {
+              "dimensions": {
+                "AlertServer": "prod"
+              },
+              "metricName": "e2e_time_JHH",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "F",
+              "region": "us-east-1",
+              "statistics": [
+                "SampleCount"
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Events",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": "0",
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": "0",
+              "show": true
+            }
+          ]
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fill": 1,
+          "id": 21,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "connected",
+          "percentage": false,
+          "pointradius": 5,
+          "points": true,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 4,
+          "stack": true,
+          "steppedLine": false,
+          "targets": [
+            {
+              "dimensions": {
+                "AlertServer": "prod"
+              },
+              "metricName": "prediction_enc_cnt_HCGH",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Predicted Enc IDs",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": "0",
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": "0",
+              "show": true
+            }
+          ]
+        }
+      ],
+      "repeat": null,
+      "repeatIteration": null,
+      "repeatRowId": null,
+      "showTitle": true,
+      "title": "Alert Server",
+      "titleSize": "h6"
+    },
+    {
+      "collapse": false,
+      "height": 250,
+      "panels": [
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fill": 1,
+          "id": 24,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "connected",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 4,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "alias": "any_trews_ED",
+              "dimensions": {
+                "analysis": "opsdx-jh-prod"
+              },
+              "metricName": "alert_count_any_trews_HCGH_EMERGENCY-ADULTS",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "alias": "any_cms_ED",
+              "dimensions": {
+                "analysis": "opsdx-jh-prod"
+              },
+              "metricName": "alert_count_any_cms_HCGH_EMERGENCY-ADULTS",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "alias": "any_trews_ICU",
+              "dimensions": {
+                "analysis": "opsdx-jh-prod"
+              },
+              "metricName": "alert_count_any_trews_HCGH_3C_ICU",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "C",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "alias": "any_cms_ICU",
+              "dimensions": {
+                "analysis": "opsdx-jh-prod"
+              },
+              "metricName": "alert_count_any_cms_HCGH_3C_ICU",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "D",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Trews and CMS Alert Counts in 48 hours",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ]
+        },
+        {
+          "cacheTimeout": null,
+          "colorBackground": false,
+          "colorValue": false,
+          "colors": [
+            "rgba(245, 54, 54, 0.9)",
+            "rgba(237, 129, 40, 0.89)",
+            "rgba(50, 172, 45, 0.97)"
+          ],
+          "datasource": null,
+          "format": "none",
+          "gauge": {
+            "maxValue": 100,
+            "minValue": 0,
+            "show": false,
+            "thresholdLabels": false,
+            "thresholdMarkers": true
+          },
+          "id": 25,
+          "interval": null,
+          "links": [],
+          "mappingType": 1,
+          "mappingTypes": [
+            {
+              "name": "value to text",
+              "value": 1
+            },
+            {
+              "name": "range to text",
+              "value": 2
+            }
+          ],
+          "maxDataPoints": 100,
+          "nullPointMode": "connected",
+          "nullText": null,
+          "postfix": "",
+          "postfixFontSize": "50%",
+          "prefix": "",
+          "prefixFontSize": "50%",
+          "rangeMaps": [
+            {
+              "from": "null",
+              "text": "N/A",
+              "to": "null"
+            }
+          ],
+          "span": 4,
+          "sparkline": {
+            "fillColor": "rgba(31, 118, 189, 0.18)",
+            "full": false,
+            "lineColor": "rgb(31, 120, 193)",
+            "show": false
+          },
+          "tableColumn": "",
+          "targets": [
+            {
+              "dimensions": {
+                "analysis": "opsdx-jh-prod"
+              },
+              "metricName": "alert_count_trews_8hr",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            }
+          ],
+          "thresholds": "",
+          "title": "# TREWS Alert in 8 hours",
+          "type": "singlestat",
+          "valueFontSize": "80%",
+          "valueMaps": [
+            {
+              "op": "=",
+              "text": "N/A",
+              "value": "null"
+            }
+          ],
+          "valueName": "avg"
+        },
+        {
+          "cacheTimeout": null,
+          "colorBackground": false,
+          "colorValue": false,
+          "colors": [
+            "rgba(245, 54, 54, 0.9)",
+            "rgba(237, 129, 40, 0.89)",
+            "rgba(50, 172, 45, 0.97)"
+          ],
+          "datasource": null,
+          "format": "none",
+          "gauge": {
+            "maxValue": 100,
+            "minValue": 0,
+            "show": false,
+            "thresholdLabels": false,
+            "thresholdMarkers": true
+          },
+          "id": 26,
+          "interval": null,
+          "links": [],
+          "mappingType": 1,
+          "mappingTypes": [
+            {
+              "name": "value to text",
+              "value": 1
+            },
+            {
+              "name": "range to text",
+              "value": 2
+            }
+          ],
+          "maxDataPoints": 100,
+          "nullPointMode": "connected",
+          "nullText": null,
+          "postfix": "",
+          "postfixFontSize": "50%",
+          "prefix": "",
+          "prefixFontSize": "50%",
+          "rangeMaps": [
+            {
+              "from": "null",
+              "text": "N/A",
+              "to": "null"
+            }
+          ],
+          "span": 4,
+          "sparkline": {
+            "fillColor": "rgba(31, 118, 189, 0.18)",
+            "full": false,
+            "lineColor": "rgb(31, 120, 193)",
+            "show": false
+          },
+          "tableColumn": "",
+          "targets": [
+            {
+              "dimensions": {
+                "analysis": "opsdx-jh-prod"
+              },
+              "metricName": "alert_count_cms_8hr",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            }
+          ],
+          "thresholds": "",
+          "title": "# CMS Alert in 8 hours",
+          "type": "singlestat",
+          "valueFontSize": "80%",
+          "valueMaps": [
+            {
+              "op": "=",
+              "text": "N/A",
+              "value": "null"
+            }
+          ],
+          "valueName": "avg"
+        }
+      ],
+      "repeat": null,
+      "repeatIteration": null,
+      "repeatRowId": null,
+      "showTitle": true,
+      "title": "Alerts",
       "titleSize": "h6"
     }
   ],
@@ -1563,7 +2845,7 @@
     "list": []
   },
   "time": {
-    "from": "now-6h",
+    "from": "now-3h",
     "to": "now"
   },
   "timepicker": {
@@ -1592,6 +2874,6 @@
     ]
   },
   "timezone": "browser",
-  "title": "OpsDX Prod ETL",
-  "version": 11
+  "title": "OpsDX JH Prod ETL",
+  "version": 15
 }

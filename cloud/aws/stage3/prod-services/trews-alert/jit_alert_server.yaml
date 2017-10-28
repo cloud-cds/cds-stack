@@ -43,7 +43,7 @@ spec:
             }
     spec:
       nodeSelector:
-        opsdx_nodegroup: spot-nodes
+        opsdx_nodegroup: nodes
       containers:
       - name: jit-alerts
         image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.388
@@ -65,7 +65,7 @@ spec:
         - name: SUPPRESS_CLOUDWATCH
           value: "0"
         - name: etl_channel
-          value: "on_opsdx_dev_etl"
+          value: "on_opsdx_prod_etl"
         - name: suppression_model
           value: "trews-jit"
         - name: TREWS_ETL_SUPPRESSION
@@ -77,11 +77,11 @@ spec:
         - name: notify_web
           value: "1"
         - name: db_host
-          value: "dev.db.jh.opsdx.io"
+          value: "prod.db.jh.opsdx.io"
         - name: db_port
           value: "5432"
         - name: db_name
-          value: "opsdx_dev"
+          value: "opsdx_prod"
         - name: db_user
           valueFrom:
             secretKeyRef:
