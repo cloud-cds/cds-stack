@@ -43,6 +43,7 @@ variable "k8s_dev_key" {
 
 variable "k8s_dev_image" {}
 variable "k8s_dev_utilities_image" {}
+variable "k8s_dev_ml_trews_image" {}
 
 variable "k8s_prod_server_host" {
   description = "Kubernetes master host"
@@ -81,14 +82,14 @@ variable "k8s_prod_key" {
 }
 
 variable "k8s_prod_image" {}
-
+variable "k8s_prod_utilities_image" {}
+variable "k8s_prod_ml_trews_image" {}
 
 variable "k8s_dev_ml_name" {}
 variable "k8s_dev_ml_server" {}
 variable "k8s_dev_ml_user" {}
 variable "k8s_dev_ml_pass" {}
 variable "k8s_dev_ml_cert_auth" {}
-variable "k8s_dev_ml_trews_image" {}
 
 
 ####################################

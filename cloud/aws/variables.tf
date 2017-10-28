@@ -266,6 +266,8 @@ variable "k8s_prod_key" {
 }
 
 variable "k8s_prod_image" {}
+variable "k8s_prod_utilities_image" {}
+variable "k8s_prod_ml_trews_image" {}
 
 ###################################
 # K8s dev ml
