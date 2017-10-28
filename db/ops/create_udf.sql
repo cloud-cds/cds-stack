@@ -4252,6 +4252,7 @@ where pe.enc_id is null;
 INSERT INTO cdm_s (enc_id, fid, value, confidence)
 select pe.enc_id, ''age'', bp.age, 1 as c from workspace.' || job_id || '_bedded_patients_transformed bp
     inner join pat_enc pe on pe.visit_id = bp.visit_id
+    where bp.age <> ''nan''
 ON CONFLICT (enc_id, fid)
 DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
 
@@ -4286,7 +4287,8 @@ INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
 select * from
 (select pe.enc_id, admittime::timestamptz tsp, json_object_keys(problem_all::json) fid, ''True'', 1
 from workspace.' || job_id || '_bedded_patients_transformed bp
-    inner join pat_enc pe on pe.visit_id = bp.visit_id) PL
+    inner join pat_enc pe on pe.visit_id = bp.visit_id
+    where bp.admittime <> ''nan'') PL
 where fid in (''gi_bleed_inhosp'',''stroke_inhosp'')
 ON CONFLICT (enc_id, tsp, fid)
 DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
@@ -4312,6 +4314,7 @@ INSERT INTO cdm_s (enc_id, fid, value, confidence)
 select pe.enc_id, ''admittime'', admittime, 1
 from workspace.' || job_id || '_bedded_patients_transformed bp
     inner join pat_enc pe on pe.visit_id = bp.visit_id
+    where admittime <> ''nan''
 ON CONFLICT (enc_id, fid)
 DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
 
