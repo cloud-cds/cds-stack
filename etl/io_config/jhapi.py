@@ -18,6 +18,9 @@ import logging
 import pytz
 import random
 
+from dateutil.parser import parse
+from datetime import date
+
 class JHAPIConfig:
   def __init__(self, hospital, lookback_hours, jhapi_server, jhapi_id,
                jhapi_secret, lookback_days=None):
@@ -42,14 +45,10 @@ class JHAPIConfig:
 
 
 
-  def make_requests(self, ctxt, endpoint, payloads, http_method='GET'):
-    # Check inputs
-    if type(payloads) != list:
-      raise TypeError("Must pass in a list of payloads")
-
+  def make_requests(self, ctxt, endpoint, payloads, http_method='GET', url_type=None):
     # Define variables
     url = "{}{}".format(self.server, endpoint)
-    request_settings = self.generate_request_settings(http_method, url, payloads)
+    request_settings = self.generate_request_settings(http_method, url, payloads, url_type)
     semaphore = asyncio.Semaphore(ctxt.flags.JHAPI_SEMAPHORE, loop=ctxt.loop)
     base = ctxt.flags.JHAPI_BACKOFF_BASE
     max_backoff = ctxt.flags.JHAPI_BACKOFF_MAX
@@ -132,17 +131,22 @@ class JHAPIConfig:
 
 
 
-  def generate_request_settings(self, http_method, url, payloads=None):
+  def generate_request_settings(self, http_method, url, payloads=None, url_type=None):
     request_settings = []
-    for payload in payloads:
-      setting = {
-        'method': http_method,
-        'url': url
-      }
-      if payload is not None:
-        key = 'params' if http_method == 'GET' else 'json'
-        setting[key] = payload
-      request_settings.append(setting)
+    if url_type == 'rest' and http_method == 'GET':
+      for payload in payloads:
+        u = url + payload
+        request_settings.append({'method': http_method,'url': u})
+    else:
+      for payload in payloads:
+        setting = {
+          'method': http_method,
+          'url': url
+        }
+        if payload is not None:
+          key = 'params' if http_method == 'GET' else 'json'
+          setting[key] = payload
+        request_settings.append(setting)
 
     return request_settings
 
@@ -156,7 +160,7 @@ class JHAPIConfig:
     return df.assign(hospital = hospital)
 
   def extract_ed_patients(self, ctxt, hospital, limit=None):
-    resource = '/facilities/hospital/' + self.hospital + '/edptntlist'
+    resource = '/facilities/hospital/' + self.hospital + '/edptntlist?edDept=ADULT'
     responses = self.make_requests(ctxt, resource, [None], 'GET')
     if limit:
       logging.info("max_num_pats = {}".format(limit))
@@ -174,6 +178,25 @@ class JHAPIConfig:
       return dfs
     return pd.merge(dfs, to_merge, how='inner', left_on='index_col',
             right_index=True, sort=False).drop('index_col', axis=1)
+
+  def extract_ed_patients_mrn(self, ctxt, ed_patients):
+    resource = '/patients/mrn/'
+    payloads = [row['pat_id'] for i, row in ed_patients.iterrows()]
+    responses = self.make_requests(ctxt, resource, payloads, 'GET', url_type='rest')
+    def calculate_age(born):
+      today = date.today()
+      return today.year - born.year - ((today.month, today.day) < (born.month, born.day))
+
+    for r in responses:
+      pat_id = [pid["ID"] for pid in r[0]['IDs'] if pid['Type'] == 'EMRN'][0]
+      sex = r[0]['Sex']
+      gender = 0 if sex == 'Female' else 1
+      dob = parse(r[0]["DateOfBirth"])
+      age = calculate_age(dob)
+      ed_patients.loc[ed_patients.pat_id == pat_id,'age'] = age
+      ed_patients.loc[ed_patients.pat_id == pat_id,'gender'] = gender
+    return ed_patients
+
 
 
   def extract_flowsheets(self, ctxt, bedded_patients):

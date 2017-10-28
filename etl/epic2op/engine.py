@@ -19,7 +19,7 @@ import boto3, botocore
 import argparse
 from time import sleep
 import IPython
-
+import numpy as np
 
 MODE = {
   1: 'real',
@@ -334,8 +334,17 @@ def patients_combine(ctxt, df, df2):
   if df2 is None:
     df2 = pd.DataFrame()
   df2 = df2[~df2.visit_id.isin(df.visit_id)]
+  df2['patient_class'] = None
+  df2['diagnosis'] = None
+  df2['history'] = None
+  df2['problem'] = None
+  df2['problem_all'] = None
+  df2['patient_class'] = 'Emergency NB'
+  df2['diagnosis'] = df2['diagnosis'].apply(lambda x: {})
+  df2['history'] = df2['history'].apply(lambda x: {})
+  df2['problem'] = df2['problem'].apply(lambda x: {})
+  df2['problem_all'] = df2['problem_all'].apply(lambda x: {})
   df = df.append(df2)
-  df.fillna(value=None, inplace=True)
   ctxt.log.info(df)
   return df
 
@@ -364,9 +373,15 @@ def get_extraction_tasks(extractor, max_pats=None):
       'args': ['ed_patients_transforms'],
     },
     {
+      'name': 'ed_patients_mrn_extract',
+      'deps': ['ed_patients_transform'],
+      'fn':   extractor.extract_ed_patients_mrn,
+      'args': [],
+    },
+    {
       'name': 'patients_combine',
       'fn':   patients_combine,
-      'deps': ['bedded_patients_transform', 'ed_patients_transform'],
+      'deps': ['bedded_patients_transform', 'ed_patients_mrn_extract'],
       'args': []
     },
     { # Barrier 2
