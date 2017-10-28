@@ -215,6 +215,10 @@ class TREWSAPI(web.View):
       # Immediately invalidate cache.
       await self.invalidate_cache(db_pool, eid)
 
+    elif task_key in pending_orders and not pending_orders[task_key]:
+      # Domain maintenance for pending orders
+      pending_orders.pop(task_key, None)
+
     logging.info('Order checking task completed for %s %s, pending_orders(%s)=%s' \
                     % (eid, task_key, task_key in pending_orders, len(pending_orders.get(task_key, []))))
 

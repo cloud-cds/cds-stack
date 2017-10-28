@@ -549,39 +549,39 @@ async def find_active_orders(db_pool, eid, orders):
   jhapi_loader = JHAPI(EPIC_SERVER, client_id, client_secret)
   lab_orders, med_orders = jhapi_loader.extract_orders(eid, csn, hospital)
 
-  logging.info("Patient %s visit %s pre-transform lab_orders: %s" % (eid, csn, lab_orders))
-  logging.info("Patient %s visit %s pre-transform med_orders: %s" % (eid, csn, med_orders))
+  logging.debug("Patient %s visit %s pre-transform lab_orders: %s" % (eid, csn, lab_orders))
+  logging.debug("Patient %s visit %s pre-transform med_orders: %s" % (eid, csn, med_orders))
 
   lab_orders = transforms.transform_lab_orders(lab_orders)
   med_orders = transforms.transform_med_orders(med_orders)
   all_orders = {**lab_orders, **med_orders}
 
-  logging.info("Patient %s visit %s post-transform lab_orders: %s" % (eid, csn, lab_orders))
-  logging.info("Patient %s visit %s post-transform med_orders: %s" % (eid, csn, med_orders))
-  logging.info("Patient %s visit %s post-transform all_orders: %s" % (eid, csn, all_orders))
+  logging.debug("Patient %s visit %s post-transform lab_orders: %s" % (eid, csn, lab_orders))
+  logging.debug("Patient %s visit %s post-transform med_orders: %s" % (eid, csn, med_orders))
+  logging.debug("Patient %s visit %s post-transform all_orders: %s" % (eid, csn, all_orders))
 
   active_orders = []
 
   for (order_type, order_time) in validated_orders:
     order_key = order_type.replace('_order', '').replace('repeat_', '').replace('initial_', '')
     if order_key in all_orders:
-      logging.info('Checking %s / %s with tsp: %s in %s' % (order_type, order_key, order_time, all_orders[order_key]))
+      logging.debug('Checking %s / %s with tsp: %s in %s' % (order_type, order_key, order_time, all_orders[order_key]))
       for tsp in all_orders[order_key]:
 
-        logging.info('Processing TSP %s' % tsp)
+        logging.debug('Processing TSP %s' % tsp)
         tsp = tsp[:-3]+tsp[-2:] if ":" == tsp[-3:-2] else tsp # Format tz for parsing
         tsp = datetime.datetime.strptime(tsp, '%Y-%m-%dT%H:%M:%S%z')
-        logging.info('Parsed TSP %s' % tsp)
+        logging.debug('Parsed TSP %s' % tsp)
 
         order_time_tz = order_time.replace(tzinfo=pytz.UTC)
-        logging.info('Checking %s / %s : %s > %s = %s and %s' \
+        logging.debug('Checking %s / %s : %s > %s = %s and %s' \
           % (order_type, order_key, tsp, order_time_tz, tsp > order_time_tz, (order_type, order_time) not in active_orders))
 
         if tsp > order_time_tz and (order_type, order_time) not in active_orders:
-          logging.info("Found an active %s: %s is past the order time of %s" % (order_type, tsp, order_time))
+          logging.debug("Found an active %s: %s is past the order time of %s" % (order_type, tsp, order_time))
           active_orders.append((order_type, order_time))
 
-  logging.info('find_active_orders result for %s %s: %s' % (eid, csn, active_orders))
+  logging.info('find_active_orders result for %s %s: in=%s out=%s' % (eid, csn, orders, active_orders))
 
   return active_orders
 
