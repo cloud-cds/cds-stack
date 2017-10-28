@@ -165,6 +165,8 @@ module "prod_behavior_monitors" {
   s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
   aws_behamon_lambda_package  = "${var.aws_behamon_lambda_package}"
   aws_behamon_lambda_role_arn = "${var.aws_behamon_lambda_role_arn}"
+  aws_klaunch_lambda_package  = "${var.aws_klaunch_lambda_package}"
+  aws_klaunch_lambda_role_arn = "${var.aws_klaunch_lambda_role_arn}"
 
   db_host     = "${var.prod_db_host}"
   db_name     = "${var.prod_db_name}"
@@ -177,6 +179,25 @@ module "prod_behavior_monitors" {
 
   behamon_log_group_name = "${var.prod_behamon_log_group_name}"
   behamon_log_group_arn  = "${var.prod_behamon_log_group_arn}"
+
+  k8s_server_host = "${var.k8s_prod_server_host}"
+  k8s_server_port = "${var.k8s_prod_server_port}"
+
+  k8s_name      = "${var.k8s_prod_name}"
+  k8s_server    = "${var.k8s_prod_server}"
+  k8s_user      = "${var.k8s_prod_user}"
+  k8s_pass      = "${var.k8s_prod_pass}"
+  k8s_cert_auth = "${var.k8s_prod_cert_auth}"
+
+  k8s_scorecard_report_image = "${var.k8s_prod_image}"
+
+  scorecard_report_firing_rate_min  = "${var.scorecard_report_firing_rate_min}"
+  scorecard_report_firing_rate_expr = "${var.scorecard_report_firing_rate_expr}"
+
+  k8s_scorecard_metric_image = "${var.k8s_prod_image}"
+
+  scorecard_metric_firing_rate_min  = "${var.scorecard_metric_firing_rate_min}"
+  scorecard_metric_firing_rate_expr = "${var.scorecard_metric_firing_rate_expr}"
 }
 
 
