@@ -545,3 +545,71 @@ create unlogged table locust_stats (
   load          jsonb,
   locust_stats  jsonb
 );
+
+
+
+DROP TABLE IF EXISTS cdm_labels;
+CREATE TABLE cdm_labels (
+    dataset_id integer,
+    label_id   integer,
+    enc_id     integer,
+    tsp        timestamp with time zone,
+    label_type text,
+    label      integer
+);
+
+
+DROP TABLE IF EXISTS sep2_label_details;
+CREATE TABLE sep2_label_details(
+    dataset_id          integer,
+    enc_id              integer,
+    sepsis_onset        timestamp with time zone,
+    infection1_tsp      timestamp with time zone,
+    infection1_name     text,
+    infection2_tsp      timestamp with time zone,
+    infection2_name     text,
+    orgdf_tsp           timestamp with time zone,
+    vent_orgdf          real,
+    creatinine_orgdf    real,
+    bilirubin_orgdf     real,
+    platelets_orgdf     real,
+    gcs_orgdf           real,
+    inr_orgdf           real,
+    hypotension_orgdf   real,
+    vasopressors_orgdf  real,
+    lactate_orgdf       real,
+    sbpm_hypotension    real,
+    delta_hypotension   real,
+    map_hypotension     real,
+    baseline_inr        real,
+    baseline_creatinine real,
+    baseline_platelets  real,
+    baseline_bilirubin  real,
+    created             timestamp with time zone
+);
+
+DROP TABLE IF EXISTS sep2_label_sirs;
+CREATE TABLE sep2_label_sirs(
+    dataset_id       integer,
+    enc_id           integer,
+    tsp              timestamp with time zone,
+    heart_rate_sirs  integer,
+    resp_rate_sirs   integer,
+    wbc_sirs         integer,
+    temperature_sirs integer
+);
+
+DROP TABLE IF EXISTS sep2_suspicion_of_infection;
+CREATE TABLE sep2_suspicion_of_infection(
+    dataset_id       integer,
+    enc_id           integer,
+    infection1_tsp   timestamp with time zone,
+    infection1_name  text,
+    infection2_tsp   timestamp with time zone,
+    infection2_name  text,
+    created          timestamp with time zone,
+    heart_rate_sirs  integer,
+    resp_rate_sirs   integer,
+    wbc_sirs         integer,
+    temperature_sirs integer
+);
