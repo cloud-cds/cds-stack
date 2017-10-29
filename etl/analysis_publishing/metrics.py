@@ -248,8 +248,10 @@ class alert_performance_metrics(metric):
     def get_alert_counts(main_df, alert_type, window=6):
         init_time = (self.now - pd.to_timedelta(window, unit='h'))#.tz_localize(timezone('utc'))
 
-        tmp_df = merge_with_care_unit(main_df.loc[(main_df['tsp']>=init_time)&(main_df[alert_type]==1)])
-        num_unq_enc_ids = len(tmp_df['enc_id'].unique())
+        df = main_df.loc[(main_df['tsp']>=init_time)&(main_df[alert_type]==1)]
+        num_unq_enc_ids = len(df['enc_id'].unique())
+        tmp_df = merge_with_care_unit(df)
+
 
         df = tmp_df.groupby('care_unit')['enc_id'].nunique()
         return num_unq_enc_ids, df
@@ -267,13 +269,13 @@ class alert_performance_metrics(metric):
     total_cnts_dict['total # of enc_ids'] = int(len(df['enc_id'].unique()))
 
     ## 2) total number of patients with alerts on
-    total_cnts_dict['# encids with alert ON'], cnts_by_unit_df = get_alert_counts(alerts_df, 'union_alert', window=self.window)
+    total_cnts_dict['# encids with alert present'], cnts_by_unit_df = get_alert_counts(alerts_df, 'union_alert', window=self.window)
     aggregate_df = pd.merge(aggregate_df, cnts_by_unit_df.reset_index(level=0), how='left', on='care_unit')
     aggregate_df['enc_id'] = aggregate_df['enc_id'].fillna(0).astype(int)
     aggregate_df.rename(columns={'enc_id':'# encids with alert present'}, inplace=True)
 
     ## 3) total number of patients with trews alerts on
-    total_cnts_dict['# encids with TREWS alert ON'], cnts_by_unit_df = get_alert_counts(alerts_df, 'jit_alert', window=self.window)
+    total_cnts_dict['# encids with TREWS alert present'], cnts_by_unit_df = get_alert_counts(alerts_df, 'jit_alert', window=self.window)
     aggregate_df = pd.merge(aggregate_df, cnts_by_unit_df.reset_index(level=0), how='left', on='care_unit')
     aggregate_df['enc_id'] = aggregate_df['enc_id'].fillna(0).astype(int)
     aggregate_df.rename(columns={'enc_id':'# encids with TREWS alert present'}, inplace=True)
@@ -284,7 +286,7 @@ class alert_performance_metrics(metric):
     enc_ids_with_only_cms = np.setdiff1d(enc_ids_with_any_alert, enc_ids_with_trews_alert)
 
     ## 4) total number of patients with alerts on  only due to CMS
-    total_cnts_dict['# encids with only CMS alert ON'], cnts_by_unit_df = \
+    total_cnts_dict['# encids with only CMS alert present'], cnts_by_unit_df = \
                         get_alert_counts(alerts_df.loc[alerts_df['enc_id'].isin(enc_ids_with_only_cms)],
                                                                 'union_alert', window=self.window)
     aggregate_df = pd.merge(aggregate_df, cnts_by_unit_df.reset_index(level=0), how='left', on='care_unit')
