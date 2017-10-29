@@ -547,6 +547,15 @@ create unlogged table locust_stats (
 );
 
 
+----------------------------------
+-- Labeling
+--
+DROP TABLE IF EXISTS label_version CASCADE;
+CREATE TABLE label_version (
+    label_id        serial primary key,
+    created         timestamptz,
+    description     text
+);
 
 DROP TABLE IF EXISTS cdm_labels;
 CREATE TABLE cdm_labels (
