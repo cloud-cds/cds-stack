@@ -136,7 +136,7 @@ spec:
         - name: trews_open_access
           value: "false"
         - name: epic_notifications
-          value: "1"
+          value: "0"
         - name: logging
           value: "1"
         - name: logging_period
