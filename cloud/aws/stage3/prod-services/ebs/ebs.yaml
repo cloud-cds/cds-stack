@@ -7,4 +7,4 @@ provisioner: kubernetes.io/aws-ebs
 parameters:
   type: gp2
   encrypted: "true"
-  zone: us-east-1d
+  zones: us-east-1a, us-east-1c

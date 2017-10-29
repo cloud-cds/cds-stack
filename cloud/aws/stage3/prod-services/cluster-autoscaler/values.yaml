@@ -5,11 +5,14 @@ autoscalingGroups:
   - name: etl.cluster-prod.jh.opsdx.io
     minSize: 1
     maxSize: 10
-  #- name: nodes.cluster-prod.jh.opsdx.io
-  #  minSize: 1
-  #  maxSize: 10
+  - name: nodes.cluster-prod.jh.opsdx.io
+    minSize: 2
+    maxSize: 10
+  - name: spot-nodes.cluster-prod.jh.opsdx.io
+    minSize: 2
+    maxSize: 10
 nodeSelector:
-  opsdx_nodegroup: web
+  opsdx_nodegroup: nodes
 replicaCount: 2
 resources:
   limits:
