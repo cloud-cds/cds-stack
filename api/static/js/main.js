@@ -1553,6 +1553,14 @@ var severeSepsisComponent = new function() {
     var trews_alerting = 'trews_subalert' in json ? json['trews_subalert']['is_met'] : false;
     var cms_alerting = json['sirs']['is_met'] && json['organ_dysfunction']['is_met'];
 
+    var trews_org_ovr = trews.data['severe_sepsis']['trews_organ_dysfunction']['num_met'] == 0
+                          && trews.data['severe_sepsis']['trews_organ_dysfunction']['num_overridden'] > 0;
+
+    var cms_org_ovr = trews.data['severe_sepsis']['organ_dysfunction']['num_met'] == 0
+                        && trews.data['severe_sepsis']['organ_dysfunction']['num_overridden'] > 0;
+
+    var not_acute_orgdf = trews_org_ovr || (trews.data['severe_sepsis']['sirs']['is_met'] && cms_org_ovr);
+
     this.ctn.removeClass('complete complete-no-infection');
     if (json['is_met']) {
       this.ctn.addClass('complete');
@@ -1576,8 +1584,11 @@ var severeSepsisComponent = new function() {
       orgdf_ctn.addClass('highlight-unexpired');
     }
 
-    var alert_as_cms = (!trews_alerting && cms_alerting)
-                          || (!trews.data['severe_sepsis']['is_trews'] && trews.data['severe_sepsis']['is_cms'])
+    // Show CMS Org DF criteria when TREWS Org DF has not been deactivated (for UI stability)
+    // or when cms is the exclusive cause of alerting or sepsis onset.
+    var only_cms_alerting = !trews_alerting && cms_alerting;
+    var only_cms_is_sepsis = !trews.data['severe_sepsis']['is_trews'] && trews.data['severe_sepsis']['is_cms'];
+    var alert_as_cms = !trews_org_ovr && ( only_cms_alerting || only_cms_is_sepsis );
 
     this.orgSlot.r(alert_as_cms ? json['organ_dysfunction'] : json['trews_organ_dysfunction'],
                    alert_as_cms ? severe_sepsis['organ_dysfunction'] : severe_sepsis['trews_organ_dysfunction'],

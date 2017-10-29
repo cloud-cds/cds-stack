@@ -9,7 +9,7 @@ server:
   image: "grafana/grafana:latest"
 
   nodeSelector:
-    opsdx_nodegroup: nodes
+    opsdx_nodegroup: spot-nodes
 
   ingress:
     ## If true, Grafana Ingress will be created

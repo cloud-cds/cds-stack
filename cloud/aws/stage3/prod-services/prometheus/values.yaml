@@ -73,7 +73,7 @@ alertmanager:
   ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
   ##
   nodeSelector:
-    opsdx_nodegroup: nodes
+    opsdx_nodegroup: spot-nodes
 
   persistentVolume:
     ## If true, alertmanager will create/use a Persistent Volume Claim
@@ -198,7 +198,7 @@ kubeStateMetrics:
   ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
   ##
   nodeSelector:
-    opsdx_nodegroup: nodes
+    opsdx_nodegroup: spot-nodes
 
   ## Annotations to be added to kube-state-metrics pods
   ##
@@ -401,7 +401,7 @@ server:
   ## Node labels for Prometheus server pod assignment
   ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
   nodeSelector:
-    opsdx_nodegroup: nodes
+    opsdx_nodegroup: spot-nodes
 
   persistentVolume:
     ## If true, Prometheus server will create/use a Persistent Volume Claim
@@ -539,7 +539,8 @@ pushgateway:
   ## Node labels for pushgateway pod assignment
   ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
   ##
-  nodeSelector: {}
+  nodeSelector:
+    opsdx_nodegroup: spot-nodes
 
   ## Annotations to be added to pushgateway pods
   ##

@@ -353,6 +353,94 @@ resource "aws_autoscaling_group" "predictor-cluster-prod-jh-opsdx-io" {
   }
 }
 
+resource "aws_autoscaling_group" "spot-nodes-cluster-prod-jh-opsdx-io" {
+  name                 = "spot-nodes.cluster-prod.jh.opsdx.io"
+  launch_configuration = "${aws_launch_configuration.spot-nodes-cluster-prod-jh-opsdx-io.id}"
+  max_size             = 10
+  min_size             = 0
+  vpc_zone_identifier  = ["subnet-b8b3e1e2", "subnet-89c49da5", "subnet-52acb31a"]
+
+  tag = {
+    key                 = "Component"
+    value               = "Spot Node"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "KubernetesCluster"
+    value               = "cluster-prod.jh.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Name"
+    value               = "spot-nodes.cluster-prod.jh.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Stack"
+    value               = "Production"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "k8s.io/cluster-autoscaler/node-template/label/opsdx_nodegroup"
+    value               = "spot-nodes"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "k8s.io/role/node"
+    value               = "1"
+    propagate_at_launch = true
+  }
+}
+
+resource "aws_autoscaling_group" "spot-predictor-cluster-prod-jh-opsdx-io" {
+  name                 = "spot-predictor.cluster-prod.jh.opsdx.io"
+  launch_configuration = "${aws_launch_configuration.spot-predictor-cluster-prod-jh-opsdx-io.id}"
+  max_size             = 64
+  min_size             = 0
+  vpc_zone_identifier  = ["subnet-b8b3e1e2", "subnet-89c49da5", "subnet-52acb31a"]
+
+  tag = {
+    key                 = "Component"
+    value               = "Spot Predictor Node"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "KubernetesCluster"
+    value               = "cluster-prod.jh.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Name"
+    value               = "spot-predictor.cluster-prod.jh.opsdx.io"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "Stack"
+    value               = "Production"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "k8s.io/cluster-autoscaler/node-template/label/opsdx_nodegroup"
+    value               = "spot-predictor"
+    propagate_at_launch = true
+  }
+
+  tag = {
+    key                 = "k8s.io/role/node"
+    value               = "1"
+    propagate_at_launch = true
+  }
+}
+
 resource "aws_autoscaling_group" "web-cluster-prod-jh-opsdx-io" {
   name                 = "web.cluster-prod.jh.opsdx.io"
   launch_configuration = "${aws_launch_configuration.web-cluster-prod-jh-opsdx-io.id}"
@@ -713,7 +801,7 @@ resource "aws_launch_configuration" "master-us-east-1d-masters-cluster-prod-jh-o
 resource "aws_launch_configuration" "nodes-cluster-prod-jh-opsdx-io" {
   name_prefix                 = "nodes.cluster-prod.jh.opsdx.io-"
   image_id                    = "ami-08431d73"
-  instance_type               = "t2.large"
+  instance_type               = "t2.medium"
   key_name                    = "${aws_key_pair.kubernetes-cluster-prod-jh-opsdx-io-551d14812028ed6fac475b92d6893824.id}"
   iam_instance_profile        = "${aws_iam_instance_profile.nodes-cluster-prod-jh-opsdx-io.id}"
   security_groups             = ["${aws_security_group.nodes-cluster-prod-jh-opsdx-io.id}"]
@@ -750,6 +838,52 @@ resource "aws_launch_configuration" "predictor-cluster-prod-jh-opsdx-io" {
   lifecycle = {
     create_before_destroy = true
   }
+}
+
+resource "aws_launch_configuration" "spot-nodes-cluster-prod-jh-opsdx-io" {
+  name_prefix                 = "spot-nodes.cluster-prod.jh.opsdx.io-"
+  image_id                    = "ami-08431d73"
+  instance_type               = "r4.large"
+  key_name                    = "${aws_key_pair.kubernetes-cluster-prod-jh-opsdx-io-551d14812028ed6fac475b92d6893824.id}"
+  iam_instance_profile        = "${aws_iam_instance_profile.nodes-cluster-prod-jh-opsdx-io.id}"
+  security_groups             = ["${aws_security_group.nodes-cluster-prod-jh-opsdx-io.id}"]
+  associate_public_ip_address = false
+  user_data                   = "${file("${path.module}/data/aws_launch_configuration_spot-nodes.cluster-prod.jh.opsdx.io_user_data")}"
+
+  root_block_device = {
+    volume_type           = "gp2"
+    volume_size           = 128
+    delete_on_termination = true
+  }
+
+  lifecycle = {
+    create_before_destroy = true
+  }
+
+  spot_price = "0.1330"
+}
+
+resource "aws_launch_configuration" "spot-predictor-cluster-prod-jh-opsdx-io" {
+  name_prefix                 = "spot-predictor.cluster-prod.jh.opsdx.io-"
+  image_id                    = "ami-08431d73"
+  instance_type               = "c4.2xlarge"
+  key_name                    = "${aws_key_pair.kubernetes-cluster-prod-jh-opsdx-io-551d14812028ed6fac475b92d6893824.id}"
+  iam_instance_profile        = "${aws_iam_instance_profile.nodes-cluster-prod-jh-opsdx-io.id}"
+  security_groups             = ["${aws_security_group.nodes-cluster-prod-jh-opsdx-io.id}"]
+  associate_public_ip_address = false
+  user_data                   = "${file("${path.module}/data/aws_launch_configuration_spot-predictor.cluster-prod.jh.opsdx.io_user_data")}"
+
+  root_block_device = {
+    volume_type           = "gp2"
+    volume_size           = 128
+    delete_on_termination = true
+  }
+
+  lifecycle = {
+    create_before_destroy = true
+  }
+
+  spot_price = "0.2"
 }
 
 resource "aws_launch_configuration" "web-cluster-prod-jh-opsdx-io" {

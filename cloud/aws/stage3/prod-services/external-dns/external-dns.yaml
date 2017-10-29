@@ -3,6 +3,7 @@ kind: Deployment
 metadata:
   name: external-dns
 spec:
+  replicas: 2
   strategy:
     type: Recreate
   template:
