@@ -1,8 +1,8 @@
 Name: locust
 
 image:
-  repository: quay.io/honestbee/locust
-  tag: 0.7.5
+  repository: 359300513585.dkr.ecr.us-east-1.amazonaws.com/utilities
+  tag: trews-locust.0.1.2
   pullPolicy: IfNotPresent
 
 service:
@@ -13,10 +13,17 @@ service:
   nodePort: 0
 master:
   config:
-    target-host: https://trews.dev.opsdx.io
+    target-host: https://trews-prod.jh.opsdx.io
     # set secrets from helm command line
     trews_pats: ""
     trews_admin_key: ""
+    db_host: ""
+    db_port: ""
+    db_name: ""
+    db_user: ""
+    db_password: ""
+    job_id: "1"
+    batch_sz: "1000"
   nodeSelector:
     opsdx_nodegroup: locust
   resources:
@@ -33,9 +40,16 @@ worker:
     # set secrets from helm command line
     trews_pats: ""
     trews_admin_key: ""
+    db_host: ""
+    db_port: ""
+    db_name: ""
+    db_user: ""
+    db_password: ""
+    job_id: "1"
+    batch_sz: "1000"
   nodeSelector:
     opsdx_nodegroup: locust
-  replicaCount: 3
+  replicaCount: 8
   resources:
     limits:
       cpu: 100m

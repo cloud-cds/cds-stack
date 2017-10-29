@@ -394,10 +394,14 @@ div.manual-override h4.inactive {
     border-bottom: 1px solid #ddd;
 }
 #right-column .slot.in-action,
-#right-column .slot.in-progress,
 #right-column .slot.complete {
     border-left: 5px solid #aaa;
     position: relative;
+}
+#right-column .slot.in-progress {
+    border-left: 5px solid #aaa;
+    position: relative;
+    background: #f9f9f9;
 }
 #right-column .slot.in-action:before {
     content: 'signing';

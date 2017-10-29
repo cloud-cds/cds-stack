@@ -102,7 +102,8 @@ def extract_user_interactions(events):
 
         session_prefix = "route="
         session_id = evt_msg['resp']['headers']['Cookie'] if 'Cookie' in evt_msg['resp']['headers'] else None
-        session_id = next((s for s in map(lambda x: x.strip(), session_id.split(';')) if s.startswith(session_prefix)), None)
+        candidates = session_id.split(';') if session_id else []
+        session_id = next((s for s in map(lambda x: x.strip(), candidates) if s.startswith(session_prefix)), None)
         query_params['host_session'] = session_id[len(session_prefix):] if session_id and session_id.startswith(session_prefix) else session_id
 
         #interactions.append([query_params[i] for i in attr_order])

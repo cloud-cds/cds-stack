@@ -84,7 +84,6 @@ function refreshHeaderHeight(tag) {
   $('#right-column').css('top', newTop['total']);
   $('#notifications').css('top', newTop['total']);
   $('#activity').css('top', newTop['total']);
-  appendToConsole('New column top on ' + tag + ': ' + newTop['total']);
 }
 
 /**
@@ -439,7 +438,6 @@ var endpoints = new function() {
             var refreshMsg = 'Last refreshed from Epic at ' + strToTime(new Date(trews.data.profile['refresh_time']*1000), true, true) + '.';
             $('h1 #header-refresh-time').text(refreshMsg);
           }
-          logSuspicion('set'); // Suspicion debugging.
           controller.refresh();
           controller.refreshOrderDetails('antibiotics-details'); // Refresh order details due to clinically inappropriate updates.
           deterioration.dirty = false
@@ -553,9 +551,6 @@ var controller = new function() {
     if ( hdrHeight != lcolTop ) {
       refreshHeaderHeight('onrefresh');
     }
-
-    // Suspicion debugging.
-    logSuspicion('rfs');
   }
 
   this.refreshNotifications = function() {
@@ -2312,7 +2307,10 @@ var criteriaComponent = function(c, constants, key, hidden, criteria_mapping, cr
     var lapsed = timeLapsed(new Date(c['measurement_time']*1000));
     var strTime = strToTime(new Date(c['measurement_time']*1000));
 
-    if (c['name'] == 'respiratory_failure' || c['name'] == 'trews_vent' || c['name'] == 'trews_vasopressors') {
+    if (c['name'] == 'trews_vasopressors') {
+      this.status += "Vasopressors given <span title='" + strTime + "'>" + lapsed + "</span>";
+    }
+    else if (c['name'] == 'respiratory_failure' || c['name'] == 'trews_vent') {
       this.status += (this.criteria_source ? this.criteria_source + ' ' : '') + "Criteria met <span title='" + strTime + "'>" + lapsed + "</span>"
         + (skip_threshold_and_value ? '' : " with <span class='value'>" + displayValue + "</span>");
     }

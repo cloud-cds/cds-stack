@@ -349,7 +349,7 @@
           "tableColumn": "",
           "targets": [
             {
-              "expr": "sum (container_fs_usage_bytes{device=~\"^/dev/[xv]*da.*\",id=\"/\",kubernetes_io_hostname=~\"^ip.*\"}) / sum (container_fs_limit_bytes{device=~\"^/dev/[xv]*da.*\",id=\"/\",kubernetes_io_hostname=~\"^ip.*\"}) * 100",
+              "expr": "sum (container_fs_usage_bytes{device=~\"^/prod/[xv]*da.*\",id=\"/\",kubernetes_io_hostname=~\"^ip.*\"}) / sum (container_fs_limit_bytes{device=~\"^/prod/[xv]*da.*\",id=\"/\",kubernetes_io_hostname=~\"^ip.*\"}) * 100",
               "format": "time_series",
               "interval": "10s",
               "intervalFactor": 1,
@@ -754,7 +754,7 @@
           "tableColumn": "",
           "targets": [
             {
-              "expr": "sum (container_fs_usage_bytes{device=~\"^/dev/[xv]*da.*\",id=\"/\",kubernetes_io_hostname=~\"^ip.*\"})",
+              "expr": "sum (container_fs_usage_bytes{device=~\"^/prod/[xv]*da.*\",id=\"/\",kubernetes_io_hostname=~\"^ip.*\"})",
               "format": "time_series",
               "interval": "10s",
               "intervalFactor": 1,
@@ -836,7 +836,7 @@
           "tableColumn": "",
           "targets": [
             {
-              "expr": "sum (container_fs_limit_bytes{device=~\"^/dev/[xv]*da.*\",id=\"/\",kubernetes_io_hostname=~\"^ip.*\"})",
+              "expr": "sum (container_fs_limit_bytes{device=~\"^/prod/[xv]*da.*\",id=\"/\",kubernetes_io_hostname=~\"^ip.*\"})",
               "format": "time_series",
               "interval": "10s",
               "intervalFactor": 1,

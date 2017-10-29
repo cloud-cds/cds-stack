@@ -5,6 +5,9 @@ autoscalingGroups:
   - name: etl.cluster-prod.jh.opsdx.io
     minSize: 1
     maxSize: 10
+  #- name: nodes.cluster-prod.jh.opsdx.io
+  #  minSize: 1
+  #  maxSize: 10
 nodeSelector:
   opsdx_nodegroup: web
 replicaCount: 2
@@ -15,5 +18,7 @@ resources:
   requests:
     cpu: 100m
     memory: 300Mi
-skipNodes:
-  withSystemPods: false
+extraArgs:
+  skip-nodes-with-system-pods: false
+  stderrthreshold: info
+  v: 4

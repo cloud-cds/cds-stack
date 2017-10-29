@@ -1593,10 +1593,10 @@ CREATE OR REPLACE FUNCTION calculate_criteria(this_enc_id int, ts_start timestam
 AS $function$
 DECLARE
   -- Criteria Lookbacks.
-  initial_lactate_order_lookback       interval := interval '6 hours';
-  orders_lookback                interval := interval '6 hours';
-  blood_culture_order_lookback   interval := interval '48 hours';
-  antibiotics_order_lookback     interval := interval '24 hours';
+  initial_lactate_order_lookback       interval := get_parameter('initial_lactate_order_lookback');
+  orders_lookback                interval := get_parameter('orders_lookback');
+  blood_culture_order_lookback   interval := get_parameter('blood_culture_order_lookback');
+  antibiotics_order_lookback     interval := get_parameter('antibiotics_order_lookback');
 BEGIN
 raise notice 'enc_id:%', this_enc_id;
 return query
@@ -4442,10 +4442,11 @@ end if;
 if to_regclass('workspace.' || job_id || '_notes_transformed') is not null then
     execute
     'insert into cdm_notes
-    select enc_id, N.note_id, N.note_type, N.note_status, NT.note_body, N.dates::json, N.providers::json
+    select enc_id, N.note_id, N.note_type, N.note_status, first(NT.note_body) note_body, first(N.dates::json) dates, first(N.providers::json) providers
     from workspace.' || job_id || '_notes_transformed N
     inner join pat_enc p on p.visit_id = N.visit_id
     left join workspace.' || job_id || '_note_texts_transformed NT on N.note_id = NT.note_id
+    group by enc_id, N.note_id, N.note_type, N.note_status
     on conflict (enc_id, note_id, note_type, note_status) do update
     set note_body = excluded.note_body,
         dates = excluded.dates,
