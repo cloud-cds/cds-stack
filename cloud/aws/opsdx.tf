@@ -191,6 +191,7 @@ module "stage3" {
   ######################################
   # TREWS Capture
   k8s_dev_utilities_image = "${var.k8s_dev_utilities_image}"
+  k8s_prod_utilities_image = "${var.k8s_prod_utilities_image}"
 
   trews_capture_url  = "${var.trews_capture_url}"
   trews_capture_firing_rate_min  = "${var.trews_capture_firing_rate_min}"
@@ -199,6 +200,7 @@ module "stage3" {
   ######################################
   # TREWS Labeler
   k8s_dev_ml_trews_image = "${var.k8s_dev_ml_trews_image}"
+  k8s_prod_ml_trews_image = "${var.k8s_prod_ml_trews_image}"
 
   trews_labeler_firing_rate_min  = "${var.trews_labeler_firing_rate_min}"
   trews_labeler_firing_rate_expr = "${var.trews_labeler_firing_rate_expr}"
