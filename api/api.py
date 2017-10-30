@@ -24,12 +24,14 @@ logging.basicConfig(format='%(levelname)s|%(asctime)s.%(msecs)03d|%(message)s', 
 
 ##############################
 # Constants.
-no_check_for_orders    = str(os.environ.get('no_check_for_orders', '')).lower() == 'true'
-chart_sample_start_hrs = int(os.environ['chart_sample_start_hrs']) if 'chart_sample_start_hrs' in os.environ else 6
-chart_sample_start_day = int(os.environ['chart_sample_start_day']) if 'chart_sample_start_day' in os.environ else 2
-chart_sample_end_day   = int(os.environ['chart_sample_end_day']) if 'chart_sample_end_day' in os.environ else 7
-chart_sample_mins      = int(os.environ['chart_sample_mins']) if 'chart_sample_mins' in os.environ else 30
-chart_sample_hrs       = int(os.environ['chart_sample_hrs']) if 'chart_sample_hrs' in os.environ else 6
+no_check_for_orders        = str(os.environ.get('no_check_for_orders', '')).lower() == 'true'
+order_signing_timeout_secs = int(os.environ['order_signing_timeout_secs']) if 'order_signing_timeout_secs' in os.environ else 300
+order_poll_rate_secs       = int(os.environ['order_poll_rate_secs']) if 'order_poll_rate_secs' in os.environ else 10
+chart_sample_start_hrs     = int(os.environ['chart_sample_start_hrs']) if 'chart_sample_start_hrs' in os.environ else 6
+chart_sample_start_day     = int(os.environ['chart_sample_start_day']) if 'chart_sample_start_day' in os.environ else 2
+chart_sample_end_day       = int(os.environ['chart_sample_end_day']) if 'chart_sample_end_day' in os.environ else 7
+chart_sample_mins          = int(os.environ['chart_sample_mins']) if 'chart_sample_mins' in os.environ else 30
+chart_sample_hrs           = int(os.environ['chart_sample_hrs']) if 'chart_sample_hrs' in os.environ else 6
 
 # User-based access control.
 user_whitelist = list(map(lambda u: u.lower(), os.environ['user_whitelist'].split(','))) \
@@ -310,9 +312,9 @@ class TREWSAPI(web.View):
         # Fall through to cache invaldation at the end of this block to push the new Ordering status.
         await query.override_criteria(db_pool, eid, order_type, value='[{ "text": "Ordering" }]', user=uid)
 
-        # Check if an order has been signed for 5 minutes, at 10 second intervals.
-        order_task_timeout = 300
-        order_task_rate = 10
+        # Check if an order has been signed for (by default) 5 minutes, at 10 second intervals.
+        order_task_timeout = order_signing_timeout_secs
+        order_task_rate = order_poll_rate_secs
 
         # If we do not have a request key, the user will wait until the next ETL to see the Ordered status.
         if action_key and len(action_key) > 1:
