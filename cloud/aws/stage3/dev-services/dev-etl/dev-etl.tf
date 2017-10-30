@@ -87,7 +87,7 @@ resource "aws_lambda_function" "test_etl_lambda_HCGH" {
         k8s_job_jhapi_client_secret = "${var.dev_jhapi_client_secret}"
         k8s_job_etl_channel         = "${var.dev_etl_channel}"
 
-        k8s_job_TREWS_ETL_SERVER             = "${var.DEV_ETL_SERVER}"
+        k8s_job_TREWS_ETL_SERVER             = "test"
         k8s_job_TREWS_ETL_HOSPITAL           = "HCGH"
         k8s_job_TREWS_ETL_HOURS              = "${var.DEV_ETL_HOURS}"
         k8s_job_TREWS_ETL_ARCHIVE            = "${var.DEV_ETL_ARCHIVE}"
