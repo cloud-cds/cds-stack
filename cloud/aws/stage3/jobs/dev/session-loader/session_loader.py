@@ -76,23 +76,25 @@ def push_sessions_to_epic(t_in):
       where tsp > '%(t_start)s'::timestamptz and uid <> 'CAPTUREUSER'
       group by pat_id, visit_id, user_session, uid
     ) R
-  ) R;
+  ) R
+  order by tsp desc
+  limit 1;
   ''' % {'t_start': t_start}
 
   engine = get_db_engine()
   conn = engine.connect()
 
   flowsheet_ids = {
-    'username'               : 1,
-    'session_start'          : 2,
-    'session_end'            : 3,
-    'soi_yn'                 : 4,
-    'soi'                    : 5,
-    'orgdf'                  : 6,
-    'manual_override_flag'   : 7,
-    'score'                  : 8,
-    'mortality_est'          : 9,
-    'sepsis_est'             : 10,
+    'username'               : 94854,
+    'session_start'          : 94855,
+    'session_end'            : 94856,
+    'soi_yn'                 : 94857,
+    'soi'                    : 94858,
+    'orgdf'                  : 94859,
+    'manual_override_flag'   : 94860,
+    'score'                  : 94861,
+    'mortality_est'          : 94862,
+    'sepsis_est'             : 94863,
   }
   fields = list(flowsheet_ids.keys())
   flowsheets = {}
