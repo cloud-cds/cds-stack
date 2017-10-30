@@ -7,6 +7,12 @@ SERVERS = {
     'test': 'https://api-test.jh.edu/internal/v2/clinical',
     'stage': 'https://api-stage.jh.edu/internal/v2/clinical',
     'prod': 'https://api.jh.edu/internal/v2/clinical',
+
+    # POST-only internal servers
+    'internal-test': 'https://trews-dev.jh.opsdx.io/clinical',
+    'internal-stage': 'https://trews-stage.jh.opsdx.io/clinical',
+    'internal-prod': 'https://trews-prod.jh.opsdx.io/clinical',
+    'localhost': 'http://localhost:8000/clinical',
 }
 
 class JHAPI:

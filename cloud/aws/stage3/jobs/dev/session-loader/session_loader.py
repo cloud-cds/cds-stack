@@ -1,8 +1,10 @@
 import os, sys, traceback
 import logging
-from datetime import datetime
-
+import argparse
+import datetime
+from pytz import timezone
 import boto3
+import requests
 import grequests
 import sqlalchemy
 from sqlalchemy import text
@@ -71,7 +73,7 @@ def push_sessions_to_epic(t_in):
              last(render_data order by tsp) filter (where action = 'page-load') as final_state
       from user_interactions U
       inner join pat_enc P on U.enc_id = P.enc_id
-      where tsp > '%(t_start)s'::timestamptz uid <> 'CAPTUREUSER'
+      where tsp > '%(t_start)s'::timestamptz and uid <> 'CAPTUREUSER'
       group by pat_id, visit_id, user_session, uid
     ) R
   ) R;
@@ -82,15 +84,15 @@ def push_sessions_to_epic(t_in):
 
   flowsheet_ids = {
     'username'               : 1,
-    'session_start'          : 1,
-    'session_end'            : 1,
-    'soi_yn'                 : 1,
-    'soi'                    : 1,
-    'orgdf'                  : 1,
-    'manual_override_flag'   : 1,
-    'score'                  : 1,
-    'mortality_est'          : 1,
-    'sepsis_est'             : 1,
+    'session_start'          : 2,
+    'session_end'            : 3,
+    'soi_yn'                 : 4,
+    'soi'                    : 5,
+    'orgdf'                  : 6,
+    'manual_override_flag'   : 7,
+    'score'                  : 8,
+    'mortality_est'          : 9,
+    'sepsis_est'             : 10,
   }
   fields = list(flowsheet_ids.keys())
   flowsheets = {}
@@ -121,7 +123,7 @@ def push_sessions_to_epic(t_in):
     failures = 0
     for fs, resp in zip(flowsheets[k], responses):
       if resp is None:
-        falures += 1
+        failures += 1
         logging.error('Failed to push session flowsheet %s: %s %s %s' % (k, fs['pat_id'], fs['visit_id'], fs['value']))
       elif resp.status_code != requests.codes.ok:
         failures += 1
@@ -133,13 +135,13 @@ def push_sessions_to_epic(t_in):
 
     cwm_status = [{
       'MetricName' : 'fs_session_push_successes',
-      'Timestamp'  : datetime.utcnow(),
+      'Timestamp'  : datetime.datetime.utcnow(),
       'Value'      : successes,
       'Unit'       : 'Count',
       'Dimensions' : [{'Name': 'FSSessionLoaderType', 'Value': k}]
     }, {
       'MetricName' : 'fs_session_push_failures',
-      'Timestamp'  : datetime.utcnow(),
+      'Timestamp'  : datetime.datetime.utcnow(),
       'Value'      : failures,
       'Unit'       : 'Count',
       'Dimensions' : [{'Name': 'FSSessionLoaderType', 'Value': k}]
@@ -156,5 +158,5 @@ def parse_arguments():
 
 if __name__ == '__main__':
   args = parse_arguments()
-  t_start = datetime.now() - timedelta(minutes=args.window_in_minutes)
+  t_start = datetime.datetime.now() - datetime.timedelta(minutes=args.window_in_minutes)
   push_sessions_to_epic(t_start)
