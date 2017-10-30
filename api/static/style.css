@@ -404,7 +404,7 @@ div.manual-override h4.inactive {
     background: #f9f9f9;
 }
 #right-column .slot.in-action:before {
-    content: 'signing';
+    content: 'order in progress';
     display: block;
     position: absolute;
     right: 10px;

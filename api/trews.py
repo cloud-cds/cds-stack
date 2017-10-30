@@ -91,6 +91,8 @@ logging.info('''TREWS Configuration::
   log_user_latency: %s
   ie_mode: %s
   order_link_mode: %s
+  order_signing_timeout_secs: %s
+  order_poll_rate_secs: %s
   force_server_loc: %s
   force_server_dep: %s
   force_pat_ids: %s
@@ -103,6 +105,7 @@ logging.info('''TREWS Configuration::
          'on' if log_decryption else 'off',
          'on' if log_user_latency else 'off',
          ie_mode, order_link_mode,
+         api.order_signing_timeout_secs, api.order_poll_rate_secs,
          force_server_loc, force_server_dep,
          ','.join(force_pat_ids) if force_pat_ids else '',
          model_in_use)
