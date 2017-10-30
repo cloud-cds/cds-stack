@@ -166,7 +166,7 @@ resource "aws_cloudwatch_metric_alarm" "hcgh_etl_up" {
   period                    = "3600"
   statistic                 = "SampleCount"
   threshold                 = "3"
-  alarm_description         = "HCGH Dev ETL invocations in the past hour"
+  alarm_description         = "HCGH Prod ETL invocations in the past hour"
   alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
 
@@ -184,7 +184,7 @@ resource "aws_cloudwatch_metric_alarm" "bmc_etl_up" {
   period                    = "3600"
   statistic                 = "SampleCount"
   threshold                 = "3"
-  alarm_description         = "BMC Dev ETL invocations in the past hour"
+  alarm_description         = "BMC Prod ETL invocations in the past hour"
   alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
 
@@ -202,7 +202,7 @@ resource "aws_cloudwatch_metric_alarm" "jhh_etl_up" {
   period                    = "3600"
   statistic                 = "SampleCount"
   threshold                 = "3"
-  alarm_description         = "JHH Dev ETL invocations in the past hour"
+  alarm_description         = "JHH Prod ETL invocations in the past hour"
   alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
 
@@ -367,3 +367,167 @@ resource "aws_cloudwatch_metric_alarm" "db_low_space" {
   }
 }
 
+# Predictor and alert server alarms.
+resource "aws_cloudwatch_metric_alarm" "hcgh_predictor_up" {
+  alarm_name                = "${var.deploy_prefix}-prod-hcgh-predictor-up"
+  comparison_operator       = "LessThanThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "total_time_long"
+  namespace                 = "OpsDX"
+  period                    = "3600"
+  statistic                 = "SampleCount"
+  threshold                 = "3"
+  alarm_description         = "HCGH Prod Predictor invocations in the past hour"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    LMCPredictor = "prod"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "hcgh_e2e_up" {
+  alarm_name                = "${var.deploy_prefix}-prod-hcgh-e2e-up"
+  comparison_operator       = "LessThanThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "e2e_time_HCGH"
+  namespace                 = "OpsDX"
+  period                    = "3600"
+  statistic                 = "SampleCount"
+  threshold                 = "3"
+  alarm_description         = "HCGH Prod Predictor invocations in the past hour"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    AlertServer = "prod"
+  }
+}
+
+# JH API request alarms.
+resource "aws_cloudwatch_metric_alarm" "jh_api_request_error" {
+  alarm_name                = "${var.deploy_prefix}-prod-jh-api-request-error"
+  comparison_operator       = "GreaterThanOrEqualToThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "jh_api_request_error"
+  namespace                 = "OpsDX"
+  period                    = "3600"
+  statistic                 = "Maximum"
+  threshold                 = "1"
+  alarm_description         = "Prod JH API request error in the past hour"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    ETL = "prod"
+  }
+}
+
+
+resource "aws_cloudwatch_metric_alarm" "trews_alert_count_on_hcgh_ed" {
+  alarm_name                = "${var.deploy_prefix}-prod-trews-alert-count-hcgh-ed"
+  comparison_operator       = "LessThanOrEqualToThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "alert_count_any_trews_HCGH_EMERGENCY-ADULTS"
+  namespace                 = "OpsDX"
+  period                    = "3600"
+  statistic                 = "Minimum"
+  threshold                 = "12"
+  alarm_description         = "The number of Trews alerts fired at HCGH ED in the past hour"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    analysis = "opsdx-jh-prod"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "cms_alert_count_on_hcgh_ed" {
+  alarm_name                = "${var.deploy_prefix}-prod-cms-alert-count-hcgh-ed"
+  comparison_operator       = "LessThanOrEqualToThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "alert_count_any_cms_HCGH_EMERGENCY-ADULTS"
+  namespace                 = "OpsDX"
+  period                    = "3600"
+  statistic                 = "Minimum"
+  threshold                 = "4"
+  alarm_description         = "The number of CMS alerts fired at HCGH ED in the past hour"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    analysis = "opsdx-jh-prod"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "trews_alert_count_on_hcgh_3c_icu" {
+  alarm_name                = "${var.deploy_prefix}-prod-trews-alert-count-hcgh-3c-icu"
+  comparison_operator       = "LessThanOrEqualToThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "alert_count_any_trews_HCGH_3C_ICU"
+  namespace                 = "OpsDX"
+  period                    = "3600"
+  statistic                 = "Minimum"
+  threshold                 = "4"
+  alarm_description         = "The number of Trews alerts fired at HCGH 3C ICU in the past hour"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    analysis = "opsdx-jh-prod"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "cms_alert_count_on_hcgh_3c_icu" {
+  alarm_name                = "${var.deploy_prefix}-prod-cms-alert-count-hcgh-3c-icu"
+  comparison_operator       = "LessThanOrEqualToThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "alert_count_any_cms_HCGH_3C_ICU"
+  namespace                 = "OpsDX"
+  period                    = "3600"
+  statistic                 = "Minimum"
+  threshold                 = "4"
+  alarm_description         = "The number of CMS alerts fired at HCGH 3C ICU in the past hour"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    analysis = "opsdx-jh-prod"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "cms_alert_count_8hr" {
+  alarm_name                = "${var.deploy_prefix}-prod-cms-alert-count-8hr"
+  comparison_operator       = "LessThanOrEqualToThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "alert_count_cms_8hr"
+  namespace                 = "OpsDX"
+  period                    = "3600"
+  statistic                 = "Minimum"
+  threshold                 = "1"
+  alarm_description         = "The number of CMS alerts fired in the past 8 hours"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    analysis = "opsdx-jh-prod"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "trews_alert_count_8hr" {
+  alarm_name                = "${var.deploy_prefix}-prod-trews-alert-count-8hr"
+  comparison_operator       = "LessThanOrEqualToThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "alert_count_trews_8hr"
+  namespace                 = "OpsDX"
+  period                    = "3600"
+  statistic                 = "Minimum"
+  threshold                 = "1"
+  alarm_description         = "The number of Trews alerts fired in the past 8 hours"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    analysis = "opsdx-jh-prod"
+  }
+}
