@@ -160,7 +160,7 @@ class JHAPIConfig:
     return df.assign(hospital = hospital)
 
   def extract_ed_patients(self, ctxt, hospital, limit=None):
-    resource = '/facilities/hospital/' + self.hospital + '/edptntlist?edDept=ADULT'
+    resource = '/facilities/hospital/' + self.hospital + '/edptntlist?eddept=ADULT'
     responses = self.make_requests(ctxt, resource, [None], 'GET')
     if limit:
       logging.info("max_num_pats = {}".format(limit))

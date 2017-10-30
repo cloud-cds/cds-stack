@@ -345,6 +345,7 @@ def patients_combine(ctxt, df, df2):
   df2['problem'] = df2['problem'].apply(lambda x: {})
   df2['problem_all'] = df2['problem_all'].apply(lambda x: {})
   df = df.append(df2)
+  df = df.reset_index()
   ctxt.log.info(df)
   return df
 
