@@ -597,8 +597,8 @@ CREATE TABLE sep2_label_details(
     created             timestamp with time zone
 );
 
-DROP TABLE IF EXISTS sep2_label_sirs;
-CREATE TABLE sep2_label_sirs(
+DROP TABLE IF EXISTS sep2_sirs;
+CREATE TABLE sep2_sirs(
     dataset_id       integer,
     enc_id           integer,
     tsp              timestamp with time zone,
