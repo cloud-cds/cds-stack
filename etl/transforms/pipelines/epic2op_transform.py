@@ -193,6 +193,8 @@ med_orders_transforms = [
         'OrderedDoseUnit':      'dose_unit',
         'Frequency':            'frequency',
         'IDs':                  'ids',
+        'DiscontinueInstant':   'discontinue_tsp',
+        'EndDateTime':          'end_tsp'
     }),
     lambda mo: restructure.extract(mo, 'dose_unit', {'Title': 'dose_unit'}),
     lambda mo: restructure.extract(mo, 'frequency', {'Name': 'frequency'}),
