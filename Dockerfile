@@ -5,6 +5,7 @@ COPY dashan-universe/etl /etl
 COPY dashan-universe/api /api
 COPY dashan-universe/db /db
 COPY dashan-universe/bin /bin
+COPY dashan-universe/cloud/aws/stage3/jobs /jobs
 ADD dashan-universe/requirements.txt /
 
 # Get pip to download and install requirements:
