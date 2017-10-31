@@ -37,7 +37,7 @@ etl/
 
 - Make sure every feature listed in **feature_mapping.csv** and **feature_mapping_cardiac.csv** is loaded onto table *cdm_feature* with corresponding dataset_id (e.g., 1000). If not, use the following command to add.
 
-      `insert into cdm_feature(...) values(...)`
+      insert into cdm_feature(...) values(...)
         
 ### Steps of running ETL with Amazon Web Services    
 
@@ -58,12 +58,12 @@ etl/
 5. Run ETL  
         Use the following kubectl command to control ETL process.    
  
-        ```
+        
         kubectl create -f <file.yaml>            
         kubectl get po   
         kubectl logs <running-job-name-got-from-previous-command>  
         kubectl delete jobs/cardiac-etl-job   
-        ```
+        
 
 6. Turn off Auto Scaling Groups after ETL is finished  
     
