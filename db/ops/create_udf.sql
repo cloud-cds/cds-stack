@@ -841,7 +841,10 @@ RETURNS table( enc_id                               int,
                septic_shock_onset                   timestamptz,
                severe_sepsis_wo_infection_onset     timestamptz,
                severe_sepsis_wo_infection_initial   timestamptz,
-               severe_sepsis_lead_time              timestamptz
+               severe_sepsis_lead_time              timestamptz,
+               trewscore                            text,
+               trewscore_threshold                  text,
+               alert_flag                            int
              )
 AS $func$ BEGIN
 
@@ -866,7 +869,9 @@ AS $func$ BEGIN
          (case when coalesce(CE.flag, 0) in (11,14,15,25,26,27,28,29) or coalesce(CE.flag, 0) >= 40 then CE.trews_severe_sepsis_wo_infection_initial
             else CE.severe_sepsis_wo_infection_initial end) as severe_sepsis_wo_infection_initial,
          (case when coalesce(CE.flag, 0) in (11,14,15,25,26,27,28,29) or coalesce(CE.flag, 0) >= 40 then CE.trews_severe_sepsis_lead_time
-            else CE.severe_sepsis_lead_time end) as severe_sepsis_lead_time
+            else CE.severe_sepsis_lead_time end) as severe_sepsis_lead_time,
+         CE.trewscore, CE.trewscore_threshold,
+         (case when CE.flag = 10 then 2 when CE.flag = 11 then 1 else 0 end) alert_flag
   from max_events_by_pat MEV
   left join lateral (
     select
@@ -898,24 +903,26 @@ AS $func$ BEGIN
       as severe_sepsis_lead_time,
       -- new trews timestamp
       GREATEST( max(case when name = 'suspicion_of_infection' then override_time else null end),
-                min(measurement_time) filter (where name = 'trews' and is_met),
+                min(measurement_time) filter (where name = 'trews_subalert' and is_met),
                 min(measurement_time) filter (where name in ('trews_bilirubin','trews_creatinine','trews_gcs','trews_inr','trews_lactate','trews_platelet','trews_vent') and is_met ))
       as trews_severe_sepsis_onset,
 
       GREATEST(
-          min(measurement_time) filter (where name = 'trews' and is_met),
+          min(measurement_time) filter (where name = 'trews_subalert' and is_met),
           min(measurement_time) filter (where name in ('trews_bilirubin','trews_creatinine','trews_gcs','trews_inr','trews_lactate','trews_platelet','trews_vent') and is_met ))
       as trews_severe_sepsis_wo_infection_onset,
 
       LEAST(
-          min(measurement_time) filter (where name = 'trews' and is_met),
+          min(measurement_time) filter (where name = 'trews_subalert' and is_met),
           min(measurement_time) filter (where name in ('trews_bilirubin','trews_creatinine','trews_gcs','trews_inr','trews_lactate','trews_platelet','trews_vent') and is_met ))
       as trews_severe_sepsis_wo_infection_initial,
 
       LEAST( max(case when name = 'suspicion_of_infection' then override_time else null end),
-             min(measurement_time) filter (where name = 'trews' and is_met),
+             min(measurement_time) filter (where name = 'trews_subalert' and is_met),
              min(measurement_time) filter (where name in ('trews_bilirubin','trews_creatinine','trews_gcs','trews_inr','trews_lactate','trews_platelet','trews_vent') and is_met ))
-      as trews_severe_sepsis_lead_time
+      as trews_severe_sepsis_lead_time,
+      first((value::json)#>>'{score}') filter (where name = 'trews_subalert') trewscore,
+      first((value::json)#>>'{threshold}') filter (where name = 'trews_subalert') trewscore_threshold
     from
     criteria_events ICE
     where ICE.enc_id   = MEV.enc_id
@@ -1492,30 +1499,51 @@ create or replace function order_met(order_name text, order_value text)
 BEGIN
     return case when order_name = 'blood_culture_order'
                     then
-                      order_value in (
-                        'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result',
-                        'Final', 'Final result', 'Edited Result - FINAL',
-                        'Completed', 'Corrected', 'Not Indicated'
+                      order_value ~* 'Clinically Inappropriate'
+                      or
+                      (
+                          order_value in (
+                            'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result',
+                            'Final', 'Final result', 'Edited Result - FINAL',
+                            'Completed', 'Corrected', 'Not Indicated'
+                          )
+                          or (order_value ~ 'status' and
+                            (order_value::json)#>>'{status}' in (
+                                'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result',
+                                'Final', 'Final result', 'Edited Result - FINAL',
+                                'Completed', 'Corrected', 'Not Indicated'
+                              ) and (order_value::json)#>>'{discontinue_tsp}' is null and (order_value::json)#>>'{end_tsp}' is null
+                            )
                       )
-                      or order_value ~* 'Clinically Inappropriate'
 
                 when order_name = 'initial_lactate_order' or order_name = 'repeat_lactate_order'
                     then
+                    order_value ~* 'Clinically Inappropriate'
+                    or (
                       order_value in (
                         'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result',
                         'Final', 'Final result', 'Edited Result - FINAL',
                         'Completed', 'Corrected', 'Not Indicated'
                       )
-                      or order_value ~* 'Clinically Inappropriate'
+                      or (order_value ~ 'status' and
+                            (order_value::json)#>>'{status}' in (
+                                'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result',
+                                'Final', 'Final result', 'Edited Result - FINAL',
+                                'Completed', 'Corrected', 'Not Indicated'
+                              ) and (order_value::json)#>>'{discontinue_tsp}' is null and (order_value::json)#>>'{end_tsp}' is null
+                      )
+                    )
                 else false
             end;
 END; $func$;
 
-create or replace function dose_order_status(order_fid text, override_value_text text)
+create or replace function dose_order_status(order_fid text, order_value text, override_value_text text)
     returns text language plpgsql as $func$
 BEGIN
     return case when override_value_text = 'Not Indicated' then 'Completed'
                 when override_value_text ~* 'Clinically Inappropriate' then 'Completed'
+                when order_fid in ('cms_antibiotics_order', 'crystalloid_fluid_order', 'vasopressors_dose_order') and (order_value ~ 'discontinue_tsp' and (order_value::json)#>>'{discontinue_tsp}' is not null) then 'Discontinued'
+                when order_fid in ('cms_antibiotics_order', 'crystalloid_fluid_order', 'vasopressors_dose_order') and (order_value ~ 'end_tsp' and (order_value::json)#>>'{end_tsp}' is not null) then 'Ended'
                 when order_fid in ('cms_antibiotics_order', 'crystalloid_fluid_order', 'vasopressors_dose_order') then 'Ordered'
                 when order_fid in ('cms_antibiotics', 'crystalloid_fluid', 'vasopressors_dose') then 'Completed'
                 else null
@@ -1531,36 +1559,50 @@ BEGIN
     return case when override_value_text = 'Not Indicated' then 'Completed'
                 when override_value_text ~* 'Clinically Inappropriate' then 'Completed'
                 when order_fid = 'lactate_order' and (
+                    value_text ~* 'Clinically Inappropriate'
+                    or
                         value_text in (
                           'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result',
                           'Final', 'Final result', 'Edited Result - FINAL',
                           'Completed', 'Corrected', 'Not Indicated'
                         )
-                        or value_text ~* 'Clinically Inappropriate'
-                      )
+                    or (value_text ~ 'status' and (value_text::json)#>>'{status}' in (
+                          'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result',
+                          'Final', 'Final result', 'Edited Result - FINAL',
+                          'Completed', 'Corrected', 'Not Indicated'
+                        ))
+                  )
                   then 'Completed'
-
-                when order_fid = 'lactate_order' and value_text in ('None', 'Signed') then 'Ordered'
-
+                when order_fid = 'lactate_order' and (value_text ~ 'status' and (value_text::json)#>>'{discontinued_tsp}' is not null) then 'Discontinued'
+                when order_fid = 'lactate_order' and (value_text ~ 'status' and (value_text::json)#>>'{end_tsp}' is not null) then 'Ended'
+                when order_fid = 'lactate_order' and (value_text ~ 'status' and (value_text::json)#>>'{status}' in ('None', 'Signed') or (value_text::json)#>>'{status}' is null) then 'Ordered'
                 when order_fid = 'blood_culture_order' and (
+                    value_text ~* 'Clinically Inappropriate'
+                    or
                         value_text in (
                           'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result',
                           'Final', 'Final result', 'Edited Result - FINAL',
                           'Completed', 'Corrected', 'Not Indicated'
                         )
-                        or value_text ~* 'Clinically Inappropriate'
-                      )
+                    or
+                        (value_text ~ 'status' and (value_text::json)#>>'{status}' in (
+                          'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result',
+                          'Final', 'Final result', 'Edited Result - FINAL',
+                          'Completed', 'Corrected', 'Not Indicated'
+                        ))
+                  )
                   then 'Completed'
-
-                when order_fid = 'blood_culture_order' and value_text in ('None', 'Signed') then 'Ordered'
+                when order_fid = 'blood_culture_order' and (value_text ~ 'status' and (value_text::json)#>>'{discontinued_tsp}' is not null) then 'Discontinued'
+                when order_fid = 'blood_culture_order' and (value_text ~ 'status' and (value_text::json)#>>'{status}' in ('None', 'Signed') or (value_text::json)#>>'{status}' is null) then 'Ordered'
                 else null
             end;
 END; $func$;
 
-create or replace function dose_order_met(order_fid text, override_value_text text, dose_value numeric, dose_limit numeric)
+create or replace function dose_order_met(order_fid text, override_value_text text, value text, dose_limit numeric)
     returns boolean language plpgsql as $func$
 DECLARE
-    order_status text := dose_order_status(order_fid, override_value_text);
+    order_status text := dose_order_status(order_fid, value, override_value_text);
+    dose_value numeric := (case when value ~ 'dose' then ((value::json)#>>'{dose}')::numeric else value::numeric end);
 BEGIN
     return case when override_value_text = 'Not Indicated' or override_value_text ~* 'Clinically Inappropriate' then true
                 when order_status = 'Completed' then dose_value > dose_limit
@@ -2369,7 +2411,7 @@ return query
                     pat_cvalues.name,
                     pat_cvalues.tsp as measurement_time,
                     (case when pat_cvalues.category in ('after_severe_sepsis_dose', 'after_septic_shock_dose')
-                            then dose_order_status(pat_cvalues.fid, pat_cvalues.c_ovalue#>>'{0,text}')
+                            then dose_order_status(pat_cvalues.fid, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}')
                           else order_status(pat_cvalues.fid, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}')
                      end) as value,
                     pat_cvalues.c_otime,
@@ -2382,7 +2424,7 @@ return query
 
                         when pat_cvalues.category = 'after_severe_sepsis_dose' then
                             ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > (case when pat_cvalues.name = 'initial_lactate_order' then OLT.severe_sepsis_onset_for_initial_lactate_order when pat_cvalues.name = 'blood_culture_order' then OLT.severe_sepsis_onset_for_blood_culture_order when pat_cvalues.name = 'antibiotics_order' then OLT.severe_sepsis_onset_for_antibiotics_order else OLT.severe_sepsis_onset_for_order end), false) )
-                            and ( dose_order_met(pat_cvalues.fid, pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value::numeric,
+                            and ( dose_order_met(pat_cvalues.fid, pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value,
                                     coalesce((pat_cvalues.c_ovalue#>>'{0,lower}')::numeric,
                                              (pat_cvalues.d_ovalue#>>'{lower}')::numeric)) )
 
@@ -2392,7 +2434,7 @@ return query
 
                         when pat_cvalues.category = 'after_septic_shock_dose' then
                             ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > OST.septic_shock_onset, false) )
-                            and ( dose_order_met(pat_cvalues.fid, pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value::numeric,
+                            and ( dose_order_met(pat_cvalues.fid, pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value,
                                     coalesce((pat_cvalues.c_ovalue#>>'{0,lower}')::numeric,
                                              (pat_cvalues.d_ovalue#>>'{lower}')::numeric)) )
 
@@ -3113,7 +3155,10 @@ RETURNS table(
     pat_id              varchar(50),
     visit_id            varchar(50),
     enc_id              int,
-    count               int
+    count               int,
+    score               text,
+    threshold           text,
+    flag                int
 ) AS $func$ #variable_conflict use_column
 BEGIN RETURN QUERY
   with prev as (
@@ -3139,7 +3184,7 @@ BEGIN RETURN QUERY
                 when state in (23,28,53) then 5
                 when state in (35,45,65) then 7
               else 1
-            end) count
+            end) count, gss.trewscore, gss.trewscore_threshold, gss.alert_flag
       from prev
       left join pat_status on prev.enc_id = pat_status.enc_id
       left join lateral get_states_snapshot(prev.enc_id) gss on gss.enc_id = prev.enc_id
@@ -3151,7 +3196,7 @@ BEGIN RETURN QUERY
     on conflict (tsp, enc_id) do update set count = Excluded.count
     returning *
   )
-  select c.pat_id, c.visit_id, c.enc_id, c.count from compare c inner join update_history uh on c.enc_id = uh.enc_id;
+  select c.pat_id, c.visit_id, c.enc_id, c.count, c.trewscore, c.trewscore_threshold, c.alert_flag from compare c inner join update_history uh on c.enc_id = uh.enc_id;
 END $func$ LANGUAGE plpgsql;
 
 
@@ -4373,18 +4418,50 @@ ON CONFLICT (enc_id, tsp, fid)
 DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
 
 -- active_procedures
+-- modify existing but inactive ones
+
 INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
-select enc_id, tsp::timestamptz, fid, last(lo.status), 0
+select t.enc_id, t.tsp, t.fid,
+    jsonb_build_object(''stats'',
+        last(case when t.value ~ ''status'' then (t.value::json)#>>''{status}'' else t.value end), ''discontinue_tsp'', now(), ''end_tsp'', now()),
+0
+from cdm_t t inner join pat_enc p on t.enc_id = p.enc_id
+left join workspace.' || job_id || '_active_procedures_transformed lo
+    on lo.visit_id = p.visit_id and lo.fid = t.fid and lo.tsp::timestamptz = t.tsp
+where lo.tsp is null and (t.value !~ ''end_tsp'' or (t.value::json)#>>''{end_tsp}'' is null)
+and t.fid in (''lactate_order'', ''blood_culture_order'')
+group by t.enc_id, t.tsp, t.fid
+ON CONFLICT (enc_id, tsp, fid)
+DO UPDATE SET value = EXCLUDED.value, confidence=0;
+
+-- insert currently acitve ones
+INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+select enc_id, tsp::timestamptz, fid, jsonb_build_object(''stats'', last(lo.status order by lo.tsp)), 0
 from workspace.' || job_id || '_active_procedures_transformed lo
 inner join pat_enc p on lo.visit_id = p.visit_id
-where tsp <> ''NaT'' and tsp::timestamptz < now()
+where tsp <> ''NaT'' and tsp::timestamptz < now() and fid in (''lactate_order'', ''blood_culture_order'')
+group by enc_id, tsp, fid
+ON CONFLICT (enc_id, tsp, fid)
+DO UPDATE SET value = EXCLUDED.value, confidence=0;
+
+INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+select enc_id, tsp::timestamptz, fid, last(lo.status order by lo.tsp), 0
+from workspace.' || job_id || '_active_procedures_transformed lo
+inner join pat_enc p on lo.visit_id = p.visit_id
+where tsp <> ''NaT'' and tsp::timestamptz < now() and fid not in (''lactate_order'', ''blood_culture_order'')
 group by enc_id, tsp, fid
 ON CONFLICT (enc_id, tsp, fid)
 DO UPDATE SET value = EXCLUDED.value, confidence=0;
 
 -- med_orders
 INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
-select enc_id, tsp::timestamptz, fid, last(mo.dose), 0
+select enc_id, tsp::timestamptz, fid,
+json_build_object(
+    ''dose'', last(mo.dose order by mo.tsp),
+    ''discontinue_tsp'', last((case when mo.discontinue_tsp = ''None'' then null else mo.discontinue_tsp end) order by mo.tsp),
+    ''end_tsp'', last((case when mo.end_tsp = ''None'' then null else mo.end_tsp end) order by mo.tsp)
+),
+0
 from workspace.' || job_id || '_med_orders_transformed mo
 inner join pat_enc p on mo.visit_id = p.visit_id
 where tsp <> ''NaT'' and tsp::timestamptz < now() and mo.dose is not null and mo.dose <> ''''
