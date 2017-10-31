@@ -98,6 +98,7 @@ dataset_id,FUNC_ID,FUNC_TYPE,DESCRIPTION
 1001,threshold_co2,transform,"threshold(0.1, 55)"
 1001,convert_to_given_dose,transform,directly load the dose when the action is in the default given action set
 1001,change_since_last_measured,derive,calculate measurement change since last measured value
+1001,convert_to_mg,transform,if MedUnit =='g' then Dose = Dose * 1000 ------- if MedUnit == 'mcg' then Dose = Dose / 1000 --- if MedUnit =='mg of piperacillin' then Dose = Dose
 1001,mi_update,derive,calculate mi
 1001,threshold_pao2,transform,"threshold(0.1, 500)"
 1001,suspicion_of_infection_update,derive,ref Arch folder
@@ -149,7 +150,4 @@ dataset_id,FUNC_ID,FUNC_TYPE,DESCRIPTION
 1001,calc_cardiogenic_shock,derive,Determine which patients suffered cardiogenic shock
 1001,code_doc_note_update,derive,Determine which patients had a Code Documentation Note
 1001,hosp_admit_update,derive,Determine which patients were admitted into the hospital
-1001,convert_to_mg,transform,if MedUnit =='g' then Dose = Dose * 1000 ------- if MedUnit == 'mcg' then Dose = Dose / 1000 --- if MedUnit =='mg of piperacillin' then Dose = Dose;
-1001,transform_ddimer,transform,turn unit mg/L to mg/L REU
-1001,threshold_fluids_intake,transform,"threshold(0,500000)"
 1001,organ_dysfunction_update,derive,new defined sepsis 3 based organ dysfunction
