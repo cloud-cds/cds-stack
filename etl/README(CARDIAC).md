@@ -46,21 +46,28 @@ etl/
         `kubectl config get-contexts`  
     
 2. Turn on Auto Scaling Groups on AWS  
-        Go to Auto Scaling Groups pages on AWS. For now, ETL uses **c2dw-etl.cluster-dev-ml.jh.opsdx.io** to perform ETL process.   Edit it and change the minimum number to 1.  
+  Go to Auto Scaling Groups pages on AWS. For now, ETL uses **c2dw-etl.cluster-dev-ml.jh.opsdx.io** to perform ETL process.
+        Edit it and change the minimum number to 1.  
 
 3. Edit .yaml file for setting environment variables   
-        For reference, go to `dashan-universe/cloud/aws/stage3/dev-ml-services/c2dw-etl/` and look for **cardiac_1001.yaml**.  
+       For reference, go to `dashan-universe/cloud/aws/stage3/dev-ml-services/c2dw-etl/` and look for **cardiac_1001.yaml**. Such as *dataset_id*, *database*, *min_tsp* and so on.
 
 4. c2dw-etl-secrets (optional)  
        Sometimes, the secrets file is missing. Use kubectl command kubectl get secret to check if **c2dw-etl-secrets** is present. If not, look for it in `/c2dw-etl/` and add it.  
  
 5. Run ETL  
         Use the following kubectl command to control ETL process.    
- 
-        
+
+        Create an ETL job   
         kubectl create -f <file.yaml>            
+
+        Check ETL process and task name    
         kubectl get po   
+
+        Check log of ETL 
         kubectl logs <running-job-name-got-from-previous-command>  
+
+        Terminate an ETL job  
         kubectl delete jobs/cardiac-etl-job   
         
 
