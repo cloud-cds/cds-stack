@@ -468,4 +468,4 @@ cardiogenic_shock_icd9_prob,S,Boolean,yes,no,,,,,ProblemList,1,no unit
 other_shock_icd9_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
 other_shock_icd9_hist,S,Boolean,yes,no,,,,,History,1,no unit
 other_shock_icd9_prob,S,Boolean,yes,no,,,,,ProblemList,1,no unit
-vancomycin,TWF,Real,yes,no,,,,,Lab,1,mic/mL
+vancomycin_trough,T,Real,yes,no,,,,,Lab,1,mcg/mL

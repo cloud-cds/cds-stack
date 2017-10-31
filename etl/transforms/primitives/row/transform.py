@@ -1269,6 +1269,23 @@ def _calculate_volume_in_ml(volumes, entry_cur, entry_nxt, remain_vol_pre, \
     else:
         log.warn("Invalid unit: %s" % unit)
 
+def convert_vancomycin_to_real(entry, log):
+    value = entry['ResultValue']
+    tsp = entry['RESULT_TIME']
+
+    if value.startswith('<') or value.startswith('>'):        
+        return [tsp, float(value[1:]), confidence.NO_TRANSFORM]
+    else:
+        try:
+            value = float(value)
+            return [tsp, float(value), confidence.NO_TRANSFORM]
+        except:
+            log.warn("Invalid vancomycin_trough entry: %s" % entry)                    
+            return None
+
+        
+
+
 
 #############################################################################
 ########  FUNCTIONS FOR threshold
@@ -1792,3 +1809,4 @@ def _convert_to_ml(entry, log):
                     'order_tsp':order_tsp.strftime("%Y-%m-%d %H:%M:%S"),
                     'action': entry['ActionTaken']}),
                 confidence.UNIT_TRANSFORMED]
+
