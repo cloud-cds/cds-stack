@@ -324,4 +324,4 @@ cardiogenic_shock_icd9_prob,yes,no,"""ProblemList""","""csn_id"" visit_id, code"
 other_shock_icd9_diag,yes,no,"""Diagnoses""","""Code""","where ""Code"" like '785.50' or ""Code"" like '785.59'",,
 other_shock_icd9_hist,yes,no,"""MedicalHistory""","""Code""","where ""Code"" like '785.50' or ""Code"" like '785.59'",,
 other_shock_icd9_prob,yes,no,"""ProblemList""","""csn_id"" visit_id, code",where code like '785.50' or code like '785.59',,
-vancomycin,yes,no,"""Labs""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue"", ""REFERENCE_UNIT""","where ""NAME"" ilike '%vancomycin%'",,
+vancomycin_trough,yes,no,"""Labs""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue""","where ""NAME"" ilike '%vancomycin%' ",convert_vancomycin_to_real,
