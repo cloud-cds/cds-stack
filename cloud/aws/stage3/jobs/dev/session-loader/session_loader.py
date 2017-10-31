@@ -68,18 +68,21 @@ def push_sessions_to_epic(t_in):
              visit_id,
              user_session,
              uid as username,
-             min(tsp) as session_start,
-             max(tsp) as session_end,
+             min(tsp) filter (where action = 'page-get') as session_start,
+             max(tsp) filter (where action = 'close_session') as session_end,
              array_agg(action order by tsp),
              last(render_data order by tsp) filter (where action = 'page-load') as final_state
       from user_interactions U
       inner join pat_enc P on U.enc_id = P.enc_id
-      where tsp > '%(t_start)s'::timestamptz and uid <> 'CAPTUREUSER'
+      where tsp > now () - interval '1 week' and uid <> 'CAPTUREUSER'
       group by pat_id, visit_id, user_session, uid
     ) R
+    where
+      session_start is not null
+      and session_end is not null
+      and session_end > '%(t_start)s'::timestamptz
   ) R
-  order by tsp desc
-  limit 1;
+  ;
   ''' % {'t_start': t_start}
 
   engine = get_db_engine()
