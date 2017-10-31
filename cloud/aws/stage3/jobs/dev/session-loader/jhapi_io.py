@@ -44,7 +44,7 @@ class JHAPI:
             'ContactIDType':        'CSN',
             'UserID':               'WSEPSIS',
             'FlowsheetID':          flowsheet_id,
-            'Value':                "null" if not pat['value'] else str(pat['value']),
+            'Value':                pat['value'],
             'InstantValueTaken':    str(pat['tsp'].astimezone(pytz.timezone((load_tz)))) if 'tsp' in pat else now,
             'FlowsheetTemplateID':  '304700006',
         } for pat in patients]

@@ -89,16 +89,16 @@ def push_sessions_to_epic(t_in):
   conn = engine.connect()
 
   flowsheet_ids = {
-    'username'               : ('94854', lambda x: x),
+    'username'               : ('94854', lambda x: str(x) if x else 'UNKNOWN'),
     'session_start'          : ('94855', lambda x: mk_time(x)),
     'session_end'            : ('94856', lambda x: mk_time(x)),
-    'soi_yn'                 : ('94857', lambda x: "1" if x else "0"),
-    'soi'                    : ('94858', lambda x: "" if not x else x),
-    'orgdf'                  : ('94859', lambda x: "" if not x else x),
-    'manual_override_flag'   : ('94860', lambda x: str(x)),
-    'score'                  : ('94861', lambda x: str(round(x, 4))),
-    'mortality_est'          : ('94862', lambda x: str(round(x, 2))),
-    'sepsis_est'             : ('94863', lambda x: str(round(x, 2))),
+    'soi_yn'                 : ('94857', lambda x: '1' if x else '0'),
+    'soi'                    : ('94858', lambda x: "null" if not x else str(x)),
+    'orgdf'                  : ('94859', lambda x: "null" if not x else str(x)),
+    'manual_override_flag'   : ('94860', lambda x: str(x) if x else '0'),
+    'score'                  : ('94861', lambda x: str(round(x, 4)) if x else '-1.0'),
+    'mortality_est'          : ('94862', lambda x: str(round(x, 2)) if x else '-1.0'),
+    'sepsis_est'             : ('94863', lambda x: str(round(x, 2)) if x else '-1.0'),
   }
 
   fields = list(flowsheet_ids.keys())
