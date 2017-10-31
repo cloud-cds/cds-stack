@@ -1271,8 +1271,8 @@ var careSummaryComponent = new function() {
 
         if ( trews_subalert_json != null ) {
           trews_subalert_json = JSON.parse(trews_subalert_json);
-          pct_mortality = Number(trews_subalert_json.pct_mortality).toFixed(2);
-          pct_sevsep = Number(trews_subalert_json.pct_sevsep).toFixed(2);
+          pct_mortality = Number(trews_subalert_json.pct_mortality).toFixed(0);
+          pct_sevsep = Number(trews_subalert_json.pct_sevsep).toFixed(0);
           heart_rate = trews_subalert_json.heart_rate != null && 'value' in trews_subalert_json.heart_rate ? trews_subalert_json.heart_rate.value : null;
           if ( 'lactate' in trews_subalert_json && trews_subalert_json.lactate != null ) {
             lactate = trews_subalert_json.lactate.value;
