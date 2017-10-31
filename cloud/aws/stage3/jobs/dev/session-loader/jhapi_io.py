@@ -1,4 +1,5 @@
 import grequests
+import json
 import datetime as dt
 import logging
 import pytz
@@ -38,10 +39,12 @@ class JHAPI:
         now = str(t_utc.astimezone(pytz.timezone(load_tz)))
         payloads = [{
             'PatientID':            pat['pat_id'],
+            'PatientIDType':        'EMRN',
             'ContactID':            pat['visit_id'],
+            'ContactIDType':        'CSN',
             'UserID':               'WSEPSIS',
             'FlowsheetID':          flowsheet_id,
-            'Value':                pat['value'],
+            'Value':                "null" if not pat['value'] else str(pat['value']),
             'InstantValueTaken':    str(pat['tsp'].astimezone(pytz.timezone((load_tz)))) if 'tsp' in pat else now,
             'FlowsheetTemplateID':  '304700006',
         } for pat in patients]

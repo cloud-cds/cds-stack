@@ -4,8 +4,8 @@ import argparse
 import datetime
 from pytz import timezone
 import boto3
-import requests
 import grequests
+import requests # Must be imported after grequests: https://github.com/kennethreitz/grequests/issues/103
 import sqlalchemy
 from sqlalchemy import text
 from jhapi_io import JHAPI
@@ -26,12 +26,13 @@ def get_db_engine():
   engine = sqlalchemy.create_engine(conn_str)
   return engine
 
+def mk_time(t):
+  tz = timezone('US/Eastern')
+  return str(t.astimezone(tz))
+
 def push_sessions_to_epic(t_in):
   # Get sessions.
-  out_tsp_fmt_tmp = '%Y-%m-%dT%H:%M:%S{}:00'
-  tz = timezone('US/Eastern')
-  out_tsp_fmt = out_tsp_fmt_tmp.format( int(round(tz._utcoffset.total_seconds() / (60 * 60))) )
-  t_start = (t_in + tz._utcoffset).strftime(out_tsp_fmt)
+  t_start = mk_time(t_in)
 
   user_sessions_sql = \
   '''
@@ -47,9 +48,9 @@ def push_sessions_to_epic(t_in):
                   final_state#>>'{severe_sepsis, organ_dysfunction, overridden}'
                   ) as orgdf,
          (case when override_shk then 2 when override_sep then 1 else 0 end) as manual_override_flag,
-         subalert_state#>>'{score}' as score,
-         subalert_state#>>'{pct_mortality}' as mortality_est,
-         subalert_state#>>'{pct_sevsep}' as sepsis_est
+         (subalert_state#>>'{score}')::numeric as score,
+         (subalert_state#>>'{pct_mortality}')::numeric as mortality_est,
+         (subalert_state#>>'{pct_sevsep}')::numeric as sepsis_est
   from (
     select pat_id,
            visit_id,
@@ -85,17 +86,18 @@ def push_sessions_to_epic(t_in):
   conn = engine.connect()
 
   flowsheet_ids = {
-    'username'               : 94854,
-    'session_start'          : 94855,
-    'session_end'            : 94856,
-    'soi_yn'                 : 94857,
-    'soi'                    : 94858,
-    'orgdf'                  : 94859,
-    'manual_override_flag'   : 94860,
-    'score'                  : 94861,
-    'mortality_est'          : 94862,
-    'sepsis_est'             : 94863,
+    'username'               : ('94854', lambda x: x),
+    'session_start'          : ('94855', lambda x: mk_time(x)),
+    'session_end'            : ('94856', lambda x: mk_time(x)),
+    'soi_yn'                 : ('94857', lambda x: "1" if x else "0"),
+    'soi'                    : ('94858', lambda x: "" if not x else x),
+    'orgdf'                  : ('94859', lambda x: "" if not x else x),
+    'manual_override_flag'   : ('94860', lambda x: str(x)),
+    'score'                  : ('94861', lambda x: str(round(x, 4))),
+    'mortality_est'          : ('94862', lambda x: str(round(x, 2))),
+    'sepsis_est'             : ('94863', lambda x: str(round(x, 2))),
   }
+
   fields = list(flowsheet_ids.keys())
   flowsheets = {}
 
@@ -104,11 +106,12 @@ def push_sessions_to_epic(t_in):
     for f in fields:
       if f not in flowsheets:
         flowsheets[f] = []
+
       flowsheets[f].append({
         'pat_id'   : row['pat_id'],
         'visit_id' : row['visit_id'],
         'tsp'      : row['tsp'],
-        'value'    : row[f]
+        'value'    : flowsheet_ids[f][1](row[f])
       })
 
   conn.close()
@@ -119,7 +122,8 @@ def push_sessions_to_epic(t_in):
   boto_cloudwatch_client = boto3.client('cloudwatch')
 
   for k in flowsheets:
-    responses = jhapi_loader.load_flowsheet(flowsheets[k], flowsheet_id=flowsheet_ids[k])
+    logging.info('Pushing flowsheet %s %s' %(k, flowsheet_ids[k][0]))
+    responses = jhapi_loader.load_flowsheet(flowsheets[k], flowsheet_id=flowsheet_ids[k][0])
 
     successes = 0
     failures = 0
@@ -149,7 +153,7 @@ def push_sessions_to_epic(t_in):
       'Dimensions' : [{'Name': 'FSSessionLoaderType', 'Value': k}]
     }]
 
-    logging.info("FSSessionLoader pushed to CW: %s - %s" % (k, str(cwm_status)))
+    logging.info("FSSessionLoader pushed to CW: %s" % k)
 
 
 def parse_arguments():
