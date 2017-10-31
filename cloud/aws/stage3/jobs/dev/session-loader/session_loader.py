@@ -15,6 +15,7 @@ logging.basicConfig(level=logging.INFO)
 EPIC_SERVER   = os.environ['epic_server'] if 'epic_server' in os.environ else 'prod'
 client_id     = os.environ['jhapi_client_id']
 client_secret = os.environ['jhapi_client_secret']
+drop_if_empty = os.environ['drop_if_empty'].lower() == 'true' if 'drop_if_empty' in os.environ else False
 
 def get_db_engine():
   host          = os.environ['db_host']
@@ -110,12 +111,13 @@ def push_sessions_to_epic(t_in):
       if f not in flowsheets:
         flowsheets[f] = []
 
-      flowsheets[f].append({
-        'pat_id'   : row['pat_id'],
-        'visit_id' : row['visit_id'],
-        'tsp'      : row['tsp'],
-        'value'    : flowsheet_ids[f][1](row[f])
-      })
+      if not drop_if_empty or row[f] is not None:
+        flowsheets[f].append({
+          'pat_id'   : row['pat_id'],
+          'visit_id' : row['visit_id'],
+          'tsp'      : row['tsp'],
+          'value'    : flowsheet_ids[f][1](row[f])
+        })
 
   conn.close()
   engine.dispose()
