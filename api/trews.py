@@ -44,12 +44,12 @@ URL_PROMETHEUS_METRICS = URL + "metrics"
 INDEX_FILENAME = 'index.html'
 ORDER_FILENAME = 'orders.html'
 
-# default keys for JHH
+# default keys for JHH-BMC
 KEYS = {
   'lactate'       : '2',
   'blood_culture' : '4',
   'fluid'         : '1',
-  'antibiotics'   : '14',
+  'antibiotics'   : '12',
   'vasopressors'  : '13'
 }
 
@@ -176,7 +176,7 @@ class TREWSStaticResource(web.View):
       custom_antibiotics = bmc_jhh_ed_antibiotics if dep == 'ED' else bmc_jhh_antibiotics
 
     elif loc == 'HCGH':
-      KEYS['antibiotics'] = '3'
+      KEYS['antibiotics'] = '14' if dep == 'ED' else '3'
       KEYS['vasopressors'] = '7'
 
     # TODO: order customizations for SH, SMH, KKI
