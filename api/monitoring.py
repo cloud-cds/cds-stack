@@ -370,6 +370,7 @@ do_bg_log_flush = True
 bg_log_flush_task = None
 
 async def run_bg_log_flush():
+  global cwlog_enabled, cwlog_handler
   global last_path_handled, last_log_flush, log_period
   global logged_bytes_since_flush, logged_bytes_packet_limit, logged_bytes_flush_factor
 
@@ -382,20 +383,22 @@ async def run_bg_log_flush():
     do_flush = elapsed_handler and log_has_bytes
 
     if do_flush:
-      logtup = (do_timed_flush, do_size_flush, logged_bytes_since_flush, logged_bytes_since_flush / logged_bytes_packet_limit)
-      logging.info('CW LOG FLUSH: timed: %s size: %s bytes: %s (%s)' % logtup)
+      logtup = (elapsed_handler, log_has_bytes, logged_bytes_since_flush, logged_bytes_since_flush / logged_bytes_packet_limit)
+      logging.info('CW LOG FLUSH: elapsed_handler: %s log_has_bytes: %s bytes: %s (%s)' % logtup)
 
       cwlog_handler.flush()
       last_log_flush = srvnow
       logged_bytes_since_flush = 0
 
-    asyncio.sleep(log_period)
+    await asyncio.sleep(log_period)
 
 async def start_bg_log_flush(app):
+  global cwlog_enabled, bg_log_flush_task
   if cwlog_enabled:
     bg_log_flush_task = asyncio.ensure_future(run_bg_log_flush())
 
 async def stop_bg_log_flush(app):
+  global cwlog_enabled, do_bg_log_flush, bg_log_flush_task
   if cwlog_enabled:
     do_bg_log_flush = False
     if bg_log_flush_task and not bg_log_flush_task.done():
