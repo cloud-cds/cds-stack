@@ -86,6 +86,8 @@ def push_sessions_to_epic(t_in):
   ;
   ''' % {'t_start': t_start}
 
+  logging.info(user_sessions_sql)
+
   engine = get_db_engine()
   conn = engine.connect()
 
@@ -106,7 +108,10 @@ def push_sessions_to_epic(t_in):
   flowsheets = {}
 
   results = conn.execute(text(user_sessions_sql))
+  logging.info('# Results: %s' % len(results))
+
   for row in results:
+    logging.info('Session: %s' % str(row))
     for f in fields:
       if f not in flowsheets:
         flowsheets[f] = []

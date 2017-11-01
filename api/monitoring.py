@@ -303,6 +303,7 @@ async def post_log_object(request, response):
 
 # Time-based CW log flushing
 last_log_flush = datetime.datetime.utcnow()
+last_path_handled = datetime.datetime.utcnow()
 try:
   log_period = int(os.environ['logging_period']) if 'logging_period' in os.environ else 30
 except ValueError:
@@ -340,6 +341,7 @@ async def cloudwatch_logger_middleware(app, handler):
 
         # Time-based or size-based manual flush
         srvnow = datetime.datetime.utcnow()
+        last_path_handled = srvnow
         do_timed_flush = (srvnow - last_log_flush).total_seconds() > log_period
 
         logged_bytes_since_flush += len(msg)
@@ -362,3 +364,36 @@ async def cloudwatch_logger_middleware(app, handler):
     return response
 
   return middleware_handler
+
+# Background log flushing
+do_bg_log_flush = True
+bg_log_flush_task = None
+
+async def run_bg_log_flush():
+  while do_bg_log_flush:
+    srvnow = datetime.datetime.utcnow()
+    elapsed_handler = (srvnow - last_path_handled).total_seconds() > log_period
+
+    log_has_bytes = logged_bytes_since_flush > 0
+
+    do_flush = elapsed_handler and log_has_bytes
+
+    if do_flush:
+      logtup = (do_timed_flush, do_size_flush, logged_bytes_since_flush, logged_bytes_since_flush / logged_bytes_packet_limit)
+      logging.info('CW LOG FLUSH: timed: %s size: %s bytes: %s (%s)' % logtup)
+
+      cwlog_handler.flush()
+      last_log_flush = srvnow
+      logged_bytes_since_flush = 0
+
+    asyncio.sleep(log_period)
+
+async def start_bg_log_flush(app):
+  if cwlog_enabled:
+    bg_log_flush_task = asyncio.ensure_future(run_bg_log_flush())
+
+async def stop_bg_log_flush(app):
+  if cwlog_enabled:
+    do_bg_log_flush = False
+    if bg_log_flush_task and not bg_log_flush_task.done():
+      bg_log_flush_task.cancel()

@@ -17,7 +17,7 @@ from aiohttp import web
 from aiohttp.web import Response, json_response
 
 from jinja2 import Environment, FileSystemLoader
-from monitoring import TREWSPrometheusMetrics, cloudwatch_logger_middleware, cwlog_enabled
+from monitoring import TREWSPrometheusMetrics, cloudwatch_logger_middleware, cwlog_enabled, start_bg_log_flush, stop_bg_log_flush
 
 import urllib.parse
 
@@ -547,6 +547,9 @@ if api_monitor.enabled:
 
 app.on_startup.append(start_gc_order_processing_tasks)
 app.on_cleanup.append(stop_gc_order_processing_tasks)
+
+app.on_startup.append(start_bg_log_flush)
+app.on_cleanup.append(stop_bg_log_flush)
 
 app.router.add_route('POST', URL_API, api.TREWSAPI)
 app.router.add_route('POST', URL_LOG, TREWSLog)
