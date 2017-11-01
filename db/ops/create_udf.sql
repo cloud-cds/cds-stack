@@ -871,7 +871,7 @@ AS $func$ BEGIN
          (case when coalesce(CE.flag, 0) in (11,14,15,25,26,27,28,29) or coalesce(CE.flag, 0) >= 40 then CE.trews_severe_sepsis_lead_time
             else CE.severe_sepsis_lead_time end) as severe_sepsis_lead_time,
          CE.trewscore, CE.trewscore_threshold,
-         (case when CE.flag = 10 then 2 when CE.flag = 11 then 1 else 0 end) alert_flag
+         (case when CE.flag > 9 then 1 else 0 end) alert_flag
   from max_events_by_pat MEV
   left join lateral (
     select
@@ -1512,8 +1512,7 @@ BEGIN
                                 'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result',
                                 'Final', 'Final result', 'Edited Result - FINAL',
                                 'Completed', 'Corrected', 'Not Indicated'
-                              ) and (order_value::json)#>>'{discontinue_tsp}' is null and (order_value::json)#>>'{end_tsp}' is null
-                            )
+                              ))
                       )
 
                 when order_name = 'initial_lactate_order' or order_name = 'repeat_lactate_order'
@@ -1530,8 +1529,7 @@ BEGIN
                                 'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result',
                                 'Final', 'Final result', 'Edited Result - FINAL',
                                 'Completed', 'Corrected', 'Not Indicated'
-                              ) and (order_value::json)#>>'{discontinue_tsp}' is null and (order_value::json)#>>'{end_tsp}' is null
-                      )
+                              ))
                     )
                 else false
             end;
@@ -1573,7 +1571,7 @@ BEGIN
                         ))
                   )
                   then 'Completed'
-                when order_fid = 'lactate_order' and (value_text ~ 'status' and (value_text::json)#>>'{discontinued_tsp}' is not null) then 'Discontinued'
+                when order_fid = 'lactate_order' and (value_text ~ 'status' and (value_text::json)#>>'{discontinue_tsp}' is not null) then 'Discontinued'
                 when order_fid = 'lactate_order' and (value_text ~ 'status' and (value_text::json)#>>'{end_tsp}' is not null) then 'Ended'
                 when order_fid = 'lactate_order' and (value_text ~ 'status' and (value_text::json)#>>'{status}' in ('None', 'Signed') or (value_text::json)#>>'{status}' is null) then 'Ordered'
                 when order_fid = 'blood_culture_order' and (
@@ -1592,7 +1590,7 @@ BEGIN
                         ))
                   )
                   then 'Completed'
-                when order_fid = 'blood_culture_order' and (value_text ~ 'status' and (value_text::json)#>>'{discontinued_tsp}' is not null) then 'Discontinued'
+                when order_fid = 'blood_culture_order' and (value_text ~ 'status' and (value_text::json)#>>'{discontinue_tsp}' is not null) then 'Discontinued'
                 when order_fid = 'blood_culture_order' and (value_text ~ 'status' and (value_text::json)#>>'{status}' in ('None', 'Signed') or (value_text::json)#>>'{status}' is null) then 'Ordered'
                 else null
             end;
@@ -4422,7 +4420,7 @@ DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
 
 INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
 select t.enc_id, t.tsp, t.fid,
-    jsonb_build_object(''stats'',
+    jsonb_build_object(''status'',
         last(case when t.value ~ ''status'' then (t.value::json)#>>''{status}'' else t.value end), ''discontinue_tsp'', now(), ''end_tsp'', now()),
 0
 from cdm_t t inner join pat_enc p on t.enc_id = p.enc_id
@@ -4436,7 +4434,7 @@ DO UPDATE SET value = EXCLUDED.value, confidence=0;
 
 -- insert currently acitve ones
 INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
-select enc_id, tsp::timestamptz, fid, jsonb_build_object(''stats'', last(lo.status order by lo.tsp)), 0
+select enc_id, tsp::timestamptz, fid, jsonb_build_object(''status'', last(lo.status order by lo.tsp)), 0
 from workspace.' || job_id || '_active_procedures_transformed lo
 inner join pat_enc p on lo.visit_id = p.visit_id
 where tsp <> ''NaT'' and tsp::timestamptz < now() and fid in (''lactate_order'', ''blood_culture_order'')
@@ -4458,7 +4456,7 @@ INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
 select enc_id, tsp::timestamptz, fid,
 json_build_object(
     ''dose'', last(mo.dose order by mo.tsp),
-    ''discontinue_tsp'', last((case when mo.discontinue_tsp = ''None'' then null else mo.discontinue_tsp end) order by mo.tsp),
+    ''discontinue_tsp'', last((case when mo.discontinue_tsp = ''None'' then null else mo.end_tsp end) order by mo.tsp),
     ''end_tsp'', last((case when mo.end_tsp = ''None'' then null else mo.end_tsp end) order by mo.tsp)
 ),
 0
