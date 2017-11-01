@@ -370,6 +370,9 @@ do_bg_log_flush = True
 bg_log_flush_task = None
 
 async def run_bg_log_flush():
+  global last_path_handled, last_log_flush, log_period
+  global logged_bytes_since_flush, logged_bytes_packet_limit, logged_bytes_flush_factor
+
   while do_bg_log_flush:
     srvnow = datetime.datetime.utcnow()
     elapsed_handler = (srvnow - last_path_handled).total_seconds() > log_period
