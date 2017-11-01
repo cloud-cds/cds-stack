@@ -442,7 +442,7 @@ div.manual-override h4.inactive {
     color: #aaa;
 }
 #right-column .slot.expired:before {
-    content: 'expired';
+    content: 'order ended';
     display: block;
     position: absolute;
     right: 10px;

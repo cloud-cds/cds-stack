@@ -83,6 +83,8 @@ departments_by_hospital = {
   }
 }
 
+############################################################
+# TODO: CRITICAL: rebuild due to HCGH launch changes as of 11/1/2017 for Epic 2014.
 order_key_urls = {
   '2'  : 'http://OrderTemplate?Name=Lactic+Acid%2C+Plasma|OTLID=3679441|ORXID=116652|OSQID=|ORDMODE=2|KEY=2|DEFAULTS=|'                                                        ,
   '4'  : 'http://OrderTemplate?Name=BLOOD+CULTURES+X2|OTLID=3679442|ORXID=367066|OSQID=201789|ORDMODE=2|KEY=4|DEFAULTS=|'                                                      ,
