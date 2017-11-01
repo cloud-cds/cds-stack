@@ -45,8 +45,8 @@ def push_sessions_to_epic(t_in):
          session_end,
          not (soi is null or soi = 'No Infection') as soi_yn,
          soi,
-         coalesce(final_state#>>'{severe_sepsis, trews_organ_dysfunction, overridden}',
-                  final_state#>>'{severe_sepsis, organ_dysfunction, overridden}'
+         coalesce((select string_agg(o, '|') from jsonb_array_elements_text(final_state#>'{severe_sepsis, trews_organ_dysfunction, overridden}') R(o)),
+                  (select string_agg(o, '|') from jsonb_array_elements_text(final_state#>'{severe_sepsis, organ_dysfunction, overridden}') R(o))
                   ) as orgdf,
          (case when override_shk then 2 when override_sep then 1 else 0 end) as manual_override_flag,
          (subalert_state#>>'{score}')::numeric as score,
@@ -72,7 +72,7 @@ def push_sessions_to_epic(t_in):
              min(tsp) filter (where action = 'page-get') as session_start,
              max(tsp) filter (where action = 'close_session') as session_end,
              array_agg(action order by tsp),
-             last(render_data order by tsp) filter (where action = 'page-load') as final_state
+             last(render_data order by tsp) filter (where action in ('page-load', 'override', 'override_many')) as final_state
       from user_interactions U
       inner join pat_enc P on U.enc_id = P.enc_id
       where tsp > now () - interval '1 week' and uid <> 'CAPTUREUSER'
