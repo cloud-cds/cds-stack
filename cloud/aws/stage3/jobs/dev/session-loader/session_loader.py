@@ -108,9 +108,9 @@ def push_sessions_to_epic(t_in):
   flowsheets = {}
 
   results = conn.execute(text(user_sessions_sql))
-  logging.info('# Results: %s' % len(results))
-
+  num_results = 0
   for row in results:
+    num_results += 1
     logging.info('Session: %s' % str(row))
     for f in fields:
       if f not in flowsheets:
@@ -123,6 +123,8 @@ def push_sessions_to_epic(t_in):
           'tsp'      : row['tsp'],
           'value'    : flowsheet_ids[f][1](row[f])
         })
+
+  logging.info('# Results: %s' % num_results)
 
   conn.close()
   engine.dispose()
