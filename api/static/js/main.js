@@ -2491,12 +2491,15 @@ var taskComponent = function(json, elem, constants, doseLimit) {
   else if ( json['status'] == 'Ordered' ) {
     elem.addClass('in-progress');
   }
+  /*
+  // Yanif: disabling discontinued/ended for now based on dt's feedback on 11/1/17.
   else if ( json['status'] == 'Discontinued' ) {
     elem.addClass('discontinued');
   }
   else if ( json['status'] == 'Ended' ) {
     elem.addClass('expired');
   }
+  */
   else if ( orderStatusCompleted(json) ) {
     elem.addClass('complete');
   }
