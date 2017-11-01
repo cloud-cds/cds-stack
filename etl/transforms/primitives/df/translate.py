@@ -77,14 +77,17 @@ def extract_sys_dias_from_bp(df, fid_col, value_col, bp):
 
     bp_rows = (df[fid_col] == bp)
     bp_df = df[bp_rows]
-    bp_sys = bp_df[value_col].str.split("/").apply(get_sys, 1)
-    bp_dias = bp_df[value_col].str.split("/").apply(get_dias, 1)
-    bp_df = bp_df.drop([value_col, fid_col], axis=1)
-    bp_sys.name = value_col
-    bp_dias.name = value_col
-    bp_sys = bp_df.copy().join(bp_sys).assign(fid="{}_sys".format(bp))
-    bp_dias = bp_df.copy().join(bp_dias).assign(fid="{}_dias".format(bp))
-    df = df[~bp_rows].append([bp_sys, bp_dias])
+    if not bp_df.empty:
+        bp_sys = bp_df[value_col].str.split("/").apply(get_sys, 1)
+        bp_dias = bp_df[value_col].str.split("/").apply(get_dias, 1)
+        bp_df = bp_df.drop([value_col, fid_col], axis=1)
+        bp_sys.name = value_col
+        bp_dias.name = value_col
+        bp_sys = bp_df.copy().join(bp_sys).assign(fid="{}_sys".format(bp))
+        bp_dias = bp_df.copy().join(bp_dias).assign(fid="{}_dias".format(bp))
+        df = df[~bp_rows].append([bp_sys, bp_dias])
+    else:
+        logging.warn("bp_df is empty {}".format(bp))
     # # also assign to a new feature called bp -- combine nbp and abp
     # bp_sys = bp_sys.copy().assign(fid="bp_sys")
     # bp_dias = bp_dias.copy().assign(fid="bp_dias")
