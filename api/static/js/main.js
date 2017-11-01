@@ -1008,7 +1008,7 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
 
       if ( shock_onset != null ) {
         if ( trews.data['ui']['ui_septic_shock']['is_met'] ) {
-          care_status = 'Patient manually overriden at ' + strToTime(new Date(shock_onset*1000), true, false) + '. ';
+          care_status = 'Patient manually overridden at ' + strToTime(new Date(shock_onset*1000), true, false) + '. ';
         } else if ( with_alert ) {
           care_status = '';
           if ( trews.data['severe_sepsis']['is_trews'] ) {
@@ -1034,7 +1034,7 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
       }
       else if ( sepsis_onset != null ) {
         if ( trews.data['ui']['ui_severe_sepsis']['is_met'] ) {
-          care_status = 'Patient manually overriden at ' + strToTime(new Date(sepsis_onset*1000), true, false) + '. ';
+          care_status = 'Patient manually overridden at ' + strToTime(new Date(sepsis_onset*1000), true, false) + '. ';
         }
         else if ( with_alert ) {
           care_status = '';

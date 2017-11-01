@@ -909,12 +909,12 @@ class TREWSAPI(web.View):
                                                     'sirs'                    : { 'is_met': data['severe_sepsis']['sirs']['is_met'] },
                                                     'organ_dysfunction'       : { 'is_met': data['severe_sepsis']['organ_dysfunction']['is_met'],
                                                                                   'num_met': data['severe_sepsis']['organ_dysfunction']['num_met'],
-                                                                                  'overriden': [i['name'] for i in data['severe_sepsis']['organ_dysfunction']['criteria'] if i['override_time'] is not None]
+                                                                                  'overridden': [i['name'] for i in data['severe_sepsis']['organ_dysfunction']['criteria'] if i['override_time'] is not None]
                                                                                 },
                                                     'trews_subalert'          : data['severe_sepsis']['trews_subalert'],
                                                     'trews_organ_dysfunction' : { 'is_met': data['severe_sepsis']['trews_organ_dysfunction']['is_met'],
                                                                                   'num_met': data['severe_sepsis']['trews_organ_dysfunction']['num_met'],
-                                                                                  'overriden': [i['name'] for i in data['severe_sepsis']['trews_organ_dysfunction']['criteria'] if i['override_time'] is not None]
+                                                                                  'overridden': [i['name'] for i in data['severe_sepsis']['trews_organ_dysfunction']['criteria'] if i['override_time'] is not None]
                                                                                 },
                                                   },
                       'septic_shock'            : { 'is_met'            : data['septic_shock']['is_met'],
