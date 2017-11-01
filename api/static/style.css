@@ -398,6 +398,8 @@ div.manual-override h4.inactive {
     border-left: 5px solid #aaa;
     position: relative;
 }
+#right-column .slot.discontinued,
+#right-column .slot.expired,
 #right-column .slot.in-progress {
     border-left: 5px solid #aaa;
     position: relative;
@@ -417,6 +419,30 @@ div.manual-override h4.inactive {
 }
 #right-column .slot.in-progress:before {
     content: 'ordered';
+    display: block;
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    font-size: 12px;
+    font-style: italic;
+    font-weight: bold;
+    font-family: Helvetica, Arial, sans-serif;
+    color: #aaa;
+}
+#right-column .slot.discontinued:before {
+    content: 'discontinued';
+    display: block;
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    font-size: 12px;
+    font-style: italic;
+    font-weight: bold;
+    font-family: Helvetica, Arial, sans-serif;
+    color: #aaa;
+}
+#right-column .slot.expired:before {
+    content: 'expired';
     display: block;
     position: absolute;
     right: 10px;

@@ -2484,12 +2484,18 @@ var taskComponent = function(json, elem, constants, doseLimit) {
   } else {
     elem.find('h3').html(constants['display_name']);
   }
-  elem.removeClass('in-action in-progress complete');
+  elem.removeClass('in-action in-progress discontinued expired complete');
   if ( json['status'] == 'Ordering' ) {
     elem.addClass('in-action');
   }
   else if ( json['status'] == 'Ordered' ) {
     elem.addClass('in-progress');
+  }
+  else if ( json['status'] == 'Discontinued' ) {
+    elem.addClass('discontinued');
+  }
+  else if ( json['status'] == 'Ended' ) {
+    elem.addClass('expired');
   }
   else if ( orderStatusCompleted(json) ) {
     elem.addClass('complete');
