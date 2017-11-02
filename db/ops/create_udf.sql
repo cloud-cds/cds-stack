@@ -3278,17 +3278,17 @@ END $func$ LANGUAGE plpgsql;
 --  deactivate functionality for patients
 ----------------------------------------------------
 
-create or replace function deactivate(enc_id int, deactivated boolean, event_type text default null) returns void language plpgsql
+create or replace function deactivate(this_enc_id int, deactivated boolean, event_type text default null) returns void language plpgsql
 as $$ begin
     insert into pat_status (enc_id, deactivated, deactivated_tsp)
         values (
-            enc_id, deactivated, now()
+            this_enc_id, deactivated, now()
         )
     on conflict (enc_id) do update
     set deactivated = excluded.deactivated, deactivated_tsp = now();
     if event_type is not null then
         insert into criteria_log (enc_id, tsp, event, update_date)
-        values (enc_id,
+        values (this_enc_id,
                 now(),
                 json_build_object('event_type', event_type, 'uid', 'dba', 'deactivated', deactivated),
                 now()
@@ -3296,9 +3296,9 @@ as $$ begin
     end if;
     -- if false then reset patient automatically
     if not deactivated then
-        perform reset_patient(enc_id);
+        perform reset_patient(this_enc_id);
         insert into criteria_log (enc_id, tsp, event, update_date)
-        values (enc_id,
+        values (this_enc_id,
                 now(),
                 json_build_object('event_type', 'reset', 'uid', 'dba', 'deactivated', deactivated),
                 now()
