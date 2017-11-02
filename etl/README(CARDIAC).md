@@ -33,14 +33,6 @@ etl/
         └── **clarity_2_cdm_pd.py**
 ```
 
-
-## Note
-
-Running a complete ETL will first delete every records in cdm tables with corresponding dataset_id, and then perform many subtasks specifying in **planner.py** to transform/extract data from staging tables<sup>1</sup>. After extraction, each record will be inserted into corresponding cdm tables such as cdm_t, cdm_s, cdm_twf.
-
-<sup>1</sup>: Staging tables. The tables that start with a capital letter when listing all tables by `\d` in PostgreSQL.
-
-
 ## Steps of running ETL with Amazon Web Services    
 
 0. Make sure every feature listed in **feature_mapping.csv** and **feature_mapping_cardiac.csv** is loaded onto table *cdm_feature* with corresponding dataset_id (e.g., 1000). If not, use the following command to add.
@@ -50,8 +42,10 @@ Running a complete ETL will first delete every records in cdm tables with corres
 1. Make sure your AWS configuration is correct.  
  For now, ETL uses the cluster **cluster-dev-ml.jh**. Use  
   `kubectl config get-contexts`  
+    
    to confirm. If not setting correctly, use  
   `kubectl config use-context cluster-dev-ml.jh.opsdx.io`  
+    
   to change. Also, remember to specify the kubectl config file first. Look for the kubectl config file on `/home/ubuntu/yanif/kubeconfig` on dev controller.
        
 2. Turn on Auto Scaling Groups on AWS.  
@@ -106,7 +100,7 @@ Running a complete ETL will first delete every records in cdm tables with corres
         List all screens   
         screen -list  
     
-6. Make sure the environment variables are set correctly ***in a screen***.
+6. Make sure the environment variables are set correctly ***in a screen***. Other specifiable parameters can be found in .ymal file in `dashan-universe/cloud/aws/stage3/dev-ml-services/c2dw-etl/`. 
 
         export min_tsp="2016-04-27"  
         export dataset_id="1"  
@@ -134,5 +128,14 @@ Running a complete ETL will first delete every records in cdm tables with corres
         Without pipeline to a log file.  
         python etl/clarity2dw/planner.py 
         
-
  
+## Note
+
+ETL consists of many subtasks, including *extract_init*, *populate_patients* and other general extraction/transform. Setting *extract_init* as True will erase every record in cdm tables with corresponding dataset_id. *populate_patients* encodes enc_id by pat_id<sup>1</sup> for each dataset_id.  
+
+Running a complete ETL will delete every record in cdm tables with corresponding dataset_id, and then do feature extraction according to *feature_mapping.csv* and *feature_mapping_cardiac.csv* (and other mapping files). After feature extraction/tranfomation, the loaded records will be filled into corresponding cdm tables based on *cdm_feature.csv*. To avoid incorrect filling in, constraints are specified in tabl *cdm_feature* in PostgreSQL.
+
+For more details about ETL, please look it up in **planner.py**.
+
+<sup>1</sup>pat_id: pat_id uniquely identifies patients among all dataset_id while enc_id is used repetitively for each dataset_id. Cross reference between pat_id and (dataset_id, enc_id) with pat_enc in PostgreSQL.  
+<sup>2</sup>Staging tabless: The tables that start with a capital letter when listing all tables by `\d` in PostgreSQL.
