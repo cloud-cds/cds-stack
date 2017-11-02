@@ -87,47 +87,47 @@ etl/
 
 5. Create a screen for setting environment variable and virtual environment.
     
-    Create a new screen
-    screen -S <name>
+        Create a new screen  
+        screen -S <name>  
 
-    Reattach to a detached screen
-    screen -r <name>
+        Reattach to a detached screen  
+        screen -r <name>  
 
-    Kill a screen
-    screen -X -S <name> quit    
+        Kill a screen  
+        screen -X -S <name> quit      
 
-    List all screens 
-    screen -list
+        List all screens   
+        screen -list  
     
 6. Make sure the environment variables are set correctly **in a screen**.
 
-    export min_tsp="2016-04-27"
-    export dataset_id="1"
-    export clarity_workspace="clarity_1y"
-    export nprocs="8"
-    export num_derive_groups="8"
-    export vacuum_temp_table="True"
-    export db_host=$dw_host
-    export db_port="5432"
-    export db_name=$dw_name
-    export db_password=$dw_password
-    export feature_mapping="feature_mapping.csv"
-    
-    export extract_init=False
-    export populate_patients=False
-    export fillin=False
-    export derive=False
-    export offline_criteria_processing=False
+        export min_tsp="2016-04-27"  
+        export dataset_id="1"  
+        export clarity_workspace="clarity_1y"  
+        export nprocs="8"  
+        export num_derive_groups="8"  
+        export vacuum_temp_table="True"  
+        export db_host=$dw_host  
+        export db_port="5432"  
+        export db_name=$dw_name  
+        export db_password=$dw_password  
+        export feature_mapping="feature_mapping.csv"  
 
-    export transform_fids="amlodipine_valsartan_dose" 
+        export extract_init=False  
+        export populate_patients=False  
+        export fillin=False  
+        export derive=False  
+        export offline_criteria_processing=False  
+
+        export transform_fids="amlodipine_valsartan_dose"   
 
 7. Run ETL. 
 
-    With pipeline to a log file.
-    python etl/clarity2dw/planner.py 2>&1 | tee logfile.log  
+        With pipeline to a log file.  
+        python etl/clarity2dw/planner.py 2>&1 | tee logfile.log    
 
-    Without pipeline to a log file.
-    python etl/clarity2dw/planner.py 2>&1
+        Without pipeline to a log file.  
+        python etl/clarity2dw/planner.py 2>&1  
         
     
 
