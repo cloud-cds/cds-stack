@@ -33,8 +33,12 @@ etl/
         └── **clarity_2_cdm_pd.py**
 ```
 
-        
-### Steps of running ETL with Amazon Web Services    
+## Note
+
+Running a complete ETL will first delete every records in cdm_* tables with corresponding dataset_id, and then perform many subtasks specifying in **planner.py** to extract data from staging tables<sup>1</sup>. 
+
+
+## Steps of running ETL with Amazon Web Services    
 
 0. Make sure every feature listed in **feature_mapping.csv** and **feature_mapping_cardiac.csv** is loaded onto table *cdm_feature* with corresponding dataset_id (e.g., 1000). If not, use the following command to add.
 
@@ -75,7 +79,7 @@ etl/
 6. Turn off Auto Scaling Groups after ETL is finished.  
     
 
-### Steps of running ETL with Dev comtroller (less efficient)
+## Steps of running ETL with Dev comtroller (less efficient)
 
 1. Copy dahsan-universe/etl and dahsan-universe/db to dev controller by scp.
 
@@ -113,13 +117,11 @@ etl/
         export db_password=$dw_password  
         export feature_mapping="feature_mapping.csv"  
 
-        export extract_init=False  
-        export populate_patients=False  
-        export fillin=False  
-        export derive=False  
         export offline_criteria_processing=False  
-
-        export transform_fids="amlodipine_valsartan_dose"   
+        export extract_init=True  
+        export populate_patients=True  
+        export fillin=True  
+        export derive=True  
 
 7. Run ETL. 
 
@@ -127,7 +129,7 @@ etl/
         python etl/clarity2dw/planner.py 2>&1 | tee logfile.log    
 
         Without pipeline to a log file.  
-        python etl/clarity2dw/planner.py 2>&1  
+        python etl/clarity2dw/planner.py 
         
     
 
