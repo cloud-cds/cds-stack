@@ -38,30 +38,26 @@ etl/
 
 Running a complete ETL will first delete every records in cdm tables with corresponding dataset_id, and then perform many subtasks specifying in **planner.py** to transform/extract data from staging tables<sup>1</sup>. After extraction, each record will be inserted into corresponding cdm tables such as cdm_t, cdm_s, cdm_twf.
 
-<sup>1</sup>. Staging tables. The tables that start with a capital letter when listing all tables by `\d` in PostgreSQL.
+<sup>1</sup>: Staging tables. The tables that start with a capital letter when listing all tables by `\d` in PostgreSQL.
 
 
 ## Steps of running ETL with Amazon Web Services    
 
 0. Make sure every feature listed in **feature_mapping.csv** and **feature_mapping_cardiac.csv** is loaded onto table *cdm_feature* with corresponding dataset_id (e.g., 1000). If not, use the following command to add.
 
-      insert into cdm_feature(...) values(...)
+      `insert into cdm_feature(...) values(...)`
 
-1. Make sure your AWS configuration is correct.
-        For now, ETL uses the cluster **cluster-dev-ml.jh**. Use the following kubectl command to comfirm.  
-        `kubectl config get-contexts`  
-
-   If not setting correctly, you can use `kubectl config use-context cluster-dev-ml.jh.opsdx.io` to change. Also, remember to specify your AWS CONFIG first. Look for CONFIG file on /home/ubuntu/yanif/kubeconfig on dev controller.
+1. Make sure your AWS configuration is correct.  
+ For now, ETL uses the cluster **cluster-dev-ml.jh**. Use `kubectl config get-contexts` to confirm. If not setting correctly, you can use `kubectl config use-context cluster-dev-ml.jh.opsdx.io` to change. Also, remember to specify your AWS CONFIG first. Look for CONFIG file on `/home/ubuntu/yanif/kubeconfig` on dev controller.
        
 2. Turn on Auto Scaling Groups on AWS.  
-  Go to Auto Scaling Groups pages on AWS. For now, ETL uses **c2dw-etl.cluster-dev-ml.jh.opsdx.io** to perform ETL process.
-        Edit it and change the minimum number to 1.  
+  Go to Auto Scaling Groups pages on AWS. For now, ETL uses **c2dw-etl.cluster-dev-ml.jh.opsdx.io** to do the ETL process. Edit this node group and change the minimum number to 1.  
 
 3. Edit .yaml file for setting environment variables.   
        For reference, go to `dashan-universe/cloud/aws/stage3/dev-ml-services/c2dw-etl/` and look for **cardiac_1001.yaml**. Such as *dataset_id*, *database*, *min_tsp* and so on.
 
 4. c2dw-etl-secrets (optional).  
-       Sometimes, the secrets file is missing. Use kubectl command kubectl get secret to check if **c2dw-etl-secrets** is present. If not, look for it in `/c2dw-etl/` and add it.  
+       Sometimes, the secrets file is missing. Use kubectl command kubectl get secret to check if **c2dw-etl-secrets** is present. If not, look for it in `dashan-universe/cloud/aws/stage3/dev-ml-services/c2dw-etl/` and add it.  
  
 5. Run ETL.  
         Use the following kubectl command to control ETL process.    
@@ -86,9 +82,9 @@ Running a complete ETL will first delete every records in cdm tables with corres
 
 1. Copy dahsan-universe/etl and dahsan-universe/db to dev controller by scp.
 
-2. Make a virtual environment of python 3 with virtualenverapper (or equivalent).
+2. Make a virtual environment of Python 3 with virtualenverapper (or equivalent).
 
-3. Install requirement (dashan-emr/dashan-universe/requirement.txt).
+3. Install requirement (`dashan-emr/dashan-universe/requirement.txt`).
 
 4. Install etl using `pip install etl`.
 
