@@ -33,10 +33,13 @@ etl/
         └── **clarity_2_cdm_pd.py**
 ```
 
+* * *
+
 ## Note
 
-Running a complete ETL will first delete every records in cdm_* tables with corresponding dataset_id, and then perform many subtasks specifying in **planner.py** to extract data from staging tables<sup>1</sup>. 
+Running a complete ETL will first delete every records in cdm tables with corresponding dataset_id, and then perform many subtasks specifying in **planner.py** to extract data from staging tables<sup>1</sup>. 
 
+* * *
 
 ## Steps of running ETL with Amazon Web Services    
 
@@ -78,6 +81,7 @@ Running a complete ETL will first delete every records in cdm_* tables with corr
 
 6. Turn off Auto Scaling Groups after ETL is finished.  
     
+* * *
 
 ## Steps of running ETL with Dev comtroller (less efficient)
 
@@ -103,7 +107,7 @@ Running a complete ETL will first delete every records in cdm_* tables with corr
         List all screens   
         screen -list  
     
-6. Make sure the environment variables are set correctly **in a screen**.
+6. Make sure the environment variables are set correctly ***in a screen***.
 
         export min_tsp="2016-04-27"  
         export dataset_id="1"  
@@ -131,7 +135,8 @@ Running a complete ETL will first delete every records in cdm_* tables with corr
         Without pipeline to a log file.  
         python etl/clarity2dw/planner.py 
         
-    
+* * *
 
+1. Staging tables. The tables that start with a capital letter when listing all tables by `\d` in PostgreSQL.
 
  
