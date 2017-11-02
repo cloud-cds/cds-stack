@@ -48,7 +48,11 @@ Running a complete ETL will first delete every records in cdm tables with corres
       `insert into cdm_feature(...) values(...)`
 
 1. Make sure your AWS configuration is correct.  
- For now, ETL uses the cluster **cluster-dev-ml.jh**. Use `kubectl config get-contexts` to confirm. If not setting correctly, you can use `kubectl config use-context cluster-dev-ml.jh.opsdx.io` to change. Also, remember to specify your AWS CONFIG first. Look for CONFIG file on `/home/ubuntu/yanif/kubeconfig` on dev controller.
+ For now, ETL uses the cluster **cluster-dev-ml.jh**. Use  
+  `kubectl config get-contexts`  
+   to confirm. If not setting correctly, use  
+  `kubectl config use-context cluster-dev-ml.jh.opsdx.io`  
+  to change. Also, remember to specify the kubectl config file first. Look for the kubectl config file on `/home/ubuntu/yanif/kubeconfig` on dev controller.
        
 2. Turn on Auto Scaling Groups on AWS.  
   Go to Auto Scaling Groups pages on AWS. For now, ETL uses **c2dw-etl.cluster-dev-ml.jh.opsdx.io** to do the ETL process. Edit this node group and change the minimum number to 1.  
