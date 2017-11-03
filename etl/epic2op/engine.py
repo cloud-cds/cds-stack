@@ -331,21 +331,20 @@ def transform(ctxt, df, transform_list_name):
   return df
 
 def patients_combine(ctxt, df, df2):
-  if df2 is None:
-    df2 = pd.DataFrame()
-  df2 = df2[~df2.visit_id.isin(df.visit_id)]
-  df2['patient_class'] = None
-  df2['diagnosis'] = None
-  df2['history'] = None
-  df2['problem'] = None
-  df2['problem_all'] = None
-  df2['patient_class'] = 'Emergency NB'
-  df2['diagnosis'] = df2['diagnosis'].apply(lambda x: {})
-  df2['history'] = df2['history'].apply(lambda x: {})
-  df2['problem'] = df2['problem'].apply(lambda x: {})
-  df2['problem_all'] = df2['problem_all'].apply(lambda x: {})
-  df = df.append(df2)
-  df = df.reset_index()
+  if df2 is not None:
+    df2 = df2[~df2.visit_id.isin(df.visit_id)]
+    df2['patient_class'] = None
+    df2['diagnosis'] = None
+    df2['history'] = None
+    df2['problem'] = None
+    df2['problem_all'] = None
+    df2['patient_class'] = 'Emergency NB'
+    df2['diagnosis'] = df2['diagnosis'].apply(lambda x: {})
+    df2['history'] = df2['history'].apply(lambda x: {})
+    df2['problem'] = df2['problem'].apply(lambda x: {})
+    df2['problem_all'] = df2['problem_all'].apply(lambda x: {})
+    df = df.append(df2)
+    df = df.reset_index()
   return df
 
 def get_extraction_tasks(extractor, max_pats=None):
