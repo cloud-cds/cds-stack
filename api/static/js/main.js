@@ -73,13 +73,21 @@ function orderStatusCompleted(objWithStatus) {
 function getHeaderHeight() {
   var hdrHeight = parseInt($('#header').css('height'), 10);
   var stsHeight = parseInt($('#status-header').css('height'), 10);
-  return {'status': hdrHeight + 'px', 'total': (hdrHeight + stsHeight) + 'px'};
+  var discHeight = parseInt($('#disclaimer-header').css('height'), 10);
+  discHeight = discHeight == null ? 0 : discHeight;
+
+  return {
+    'status': hdrHeight + 'px',
+    'disclaimer': (hdrHeight + stsHeight) + 'px',
+    'total': (hdrHeight + stsHeight + discHeight) + 'px'
+  };
 }
 
 function refreshHeaderHeight(tag) {
   // Configure column positioning.
   var newTop = getHeaderHeight();
   $('#status-header').css('top', newTop['status']);
+  $('#disclaimer-header').css('top', newTop['disclaimer']);
   $('#left-column').css('top', newTop['total']);
   $('#right-column').css('top', newTop['total']);
   $('#notifications').css('top', newTop['total']);
@@ -3403,6 +3411,8 @@ var toolbar = new function() {
   this.feedback = $('#feedback');
   this.feedbackSuccessHideDelay = 3500;
   this.statusBar = $('#status-header');
+  this.disclaimerBar = $('#disclaimer-header');
+  this.disclaimerTimeout = null;
 
   this.init = function() {
     // 'Reset patient' button initialization.
@@ -3448,6 +3458,21 @@ var toolbar = new function() {
       }
       controller.sendFeedback(postBody);
     })
+
+    // Initialize disclaimer bar, and add timer to hide it.
+    var dept = (getQueryVariable('DEP') === false) ? null : getQueryVariable('DEP');
+    var dept_is_ed = dept == '110300460' || dept == '110300470';
+    var disclaimer_enabled = false; // TODO: enable as needed
+    if ( disclaimer_enabled && !dept_is_ed ) {
+      this.disclaimerTimeout = window.setTimeout(function() {
+        $('#disclaimer-header').fadeOut(1000, function() {
+          $('#disclaimer-header').css('height', '0px');
+          $('#disclaimer-header').css('border', '0');
+          refreshHeaderHeight('disclaimer-timeout');
+          toolbar.disclaimerTimeout = null;
+        });
+      }, 30*1000);
+    }
   }
   this.feedbackSuccess = function() {
     this.feedback.find('p').html('<b class="success">Feedback Submitted!</b>')
@@ -3481,6 +3506,16 @@ var toolbar = new function() {
     this.statusBar.removeClass('high-priority low-priority no-priority');
     if ( patient_summary.care_status_priority != null ) {
       this.statusBar.addClass(patient_summary.care_status_priority);
+    }
+
+    // Render disclaimer bar.
+    if ( this.disclaimerTimeout != null ) {
+      var msg = '<b><u>Do NOT rely on TREWS for inpatient alerts.</u></b> '
+                + 'The current version scores and alerts for patients only in the Emergency Department. '
+                + 'The next version will target inpatients as well.';
+
+      this.disclaimerBar.html('<h5>' + msg + '</h5>');
+      this.disclaimerBar.show();
     }
   }
 }
