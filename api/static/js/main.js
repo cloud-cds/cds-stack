@@ -1718,7 +1718,7 @@ var septicShockComponent = new function() {
     }
     */
 
-    if ( trews.data.profile['deactivated'] || !severeSepsis || (workflowsComponent.sev36Override || workflowsComponent.sep6Override) ) {
+    if ( trews.data.profile['deactivated'] || !severeSepsis || workflowsComponent.sep6Override ) {
       this.ctn.addClass('inactive');
     } else {
       this.ctn.removeClass('inactive');
