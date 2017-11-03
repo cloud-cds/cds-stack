@@ -331,7 +331,7 @@ def transform(ctxt, df, transform_list_name):
   return df
 
 def patients_combine(ctxt, df, df2):
-  if df2 is not None or df2.empty():
+  if df2 is not None or not df2.empty():
     df2 = df2[~df2.visit_id.isin(df.visit_id)]
     df2['patient_class'] = None
     df2['diagnosis'] = None
