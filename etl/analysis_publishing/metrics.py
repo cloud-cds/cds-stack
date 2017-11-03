@@ -248,7 +248,7 @@ class alert_performance_metrics(metric):
         def get_alert_counts(main_df, alert_type, end_time=None, window=6):
 
             window_end_time = self.now if end_time is None else end_time ## either current time or go back to see historic data
-            init_time = (end_time - pd.to_timedelta(window, unit='h')) # end_time - window_length
+            init_time = (window_end_time - pd.to_timedelta(window, unit='h')) # end_time - window_length
 
             df = main_df.loc[(main_df['tsp']>=init_time)&(main_df['tsp']<=window_end_time)&
                             (main_df[alert_type]==1)]
