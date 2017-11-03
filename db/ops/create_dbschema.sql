@@ -523,7 +523,8 @@ lactate_orgdf      double precision        ,
 orgdf_details      text                    ,
 vent_orgdf         integer                 ,
 alert_state        integer                 DEFAULT -1,
-orgdf_state        bigint                 DEFAULT -1,
+orgdf_state        bigint                  DEFAULT -1,
+feature_relevance  text                    , 
 PRIMARY KEY (model_id, enc_id, tsp, alert_state, orgdf_state)
 );
 
