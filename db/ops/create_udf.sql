@@ -1494,12 +1494,15 @@ END; $func$;
 -- 'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result'
 -- 'Final', 'Final result', 'Edited Result - FINAL',
 -- 'Completed', 'Corrected', 'Not Indicated'
-create or replace function order_met(order_name text, order_value text)
+create or replace function order_met(order_name text, order_value text, override_value text)
     returns boolean language plpgsql as $func$
 BEGIN
     return case when order_name = 'blood_culture_order'
                     then
-                      order_value ~* 'Clinically Inappropriate'
+                      (override_value is not null and
+                            (override_value ~* 'Clinically Inappropriate'
+                                or override_value ~* 'Not Indicated')
+                        )
                       or
                       (
                           order_value in (
@@ -1518,7 +1521,10 @@ BEGIN
 
                 when order_name = 'initial_lactate_order' or order_name = 'repeat_lactate_order'
                     then
-                    order_value ~* 'Clinically Inappropriate'
+                    (override_value is not null and
+                            (override_value ~* 'Clinically Inappropriate'
+                                or override_value ~* 'Not Indicated')
+                        )
                     or (
                       order_value in (
                         'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result',
@@ -2420,17 +2426,17 @@ return query
                     (case
                         when pat_cvalues.category = 'after_severe_sepsis' then
                             ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > (case when pat_cvalues.name = 'initial_lactate_order' then OLT.severe_sepsis_onset_for_initial_lactate_order when pat_cvalues.name = 'blood_culture_order' then OLT.severe_sepsis_onset_for_blood_culture_order when pat_cvalues.name = 'antibiotics_order' then OLT.severe_sepsis_onset_for_antibiotics_order else OLT.severe_sepsis_onset_for_order end), false) )
-                            and ( order_met(pat_cvalues.name, coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value)) )
+                            and ( order_met(pat_cvalues.name, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}'))
 
                         when pat_cvalues.category = 'after_severe_sepsis_dose' then
                             ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > (case when pat_cvalues.name = 'initial_lactate_order' then OLT.severe_sepsis_onset_for_initial_lactate_order when pat_cvalues.name = 'blood_culture_order' then OLT.severe_sepsis_onset_for_blood_culture_order when pat_cvalues.name = 'antibiotics_order' then OLT.severe_sepsis_onset_for_antibiotics_order else OLT.severe_sepsis_onset_for_order end), false) )
                             and ( dose_order_met(pat_cvalues.fid, pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value,
                                     coalesce((pat_cvalues.c_ovalue#>>'{0,lower}')::numeric,
-                                             (pat_cvalues.d_ovalue#>>'{lower}')::numeric)) )
+                                             (pat_cvalues.d_ovalue#>>'{lower}')::numeric)))
 
                         when pat_cvalues.category = 'after_septic_shock' then
                             ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > OST.septic_shock_onset, false) )
-                            and ( order_met(pat_cvalues.name, coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value)) )
+                            and ( order_met(pat_cvalues.name, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}'))
 
                         when pat_cvalues.category = 'after_septic_shock_dose' then
                             ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > OST.septic_shock_onset, false) )
@@ -2481,7 +2487,7 @@ return query
                         and (
                             not lactate_results.is_met or
                             (
-                                order_met(pat_cvalues.name, coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value))
+                                order_met(pat_cvalues.name, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}')
                                 and pat_cvalues.tsp > initial_lactate_order.tsp
                                 and pat_cvalues.tsp > lactate_results.tsp
                             )
@@ -3272,17 +3278,17 @@ END $func$ LANGUAGE plpgsql;
 --  deactivate functionality for patients
 ----------------------------------------------------
 
-create or replace function deactivate(enc_id int, deactivated boolean, event_type text default null) returns void language plpgsql
+create or replace function deactivate(this_enc_id int, deactivated boolean, event_type text default null) returns void language plpgsql
 as $$ begin
     insert into pat_status (enc_id, deactivated, deactivated_tsp)
         values (
-            enc_id, deactivated, now()
+            this_enc_id, deactivated, now()
         )
     on conflict (enc_id) do update
     set deactivated = excluded.deactivated, deactivated_tsp = now();
     if event_type is not null then
         insert into criteria_log (enc_id, tsp, event, update_date)
-        values (enc_id,
+        values (this_enc_id,
                 now(),
                 json_build_object('event_type', event_type, 'uid', 'dba', 'deactivated', deactivated),
                 now()
@@ -3290,9 +3296,9 @@ as $$ begin
     end if;
     -- if false then reset patient automatically
     if not deactivated then
-        perform reset_patient(enc_id);
+        perform reset_patient(this_enc_id);
         insert into criteria_log (enc_id, tsp, event, update_date)
-        values (enc_id,
+        values (this_enc_id,
                 now(),
                 json_build_object('event_type', 'reset', 'uid', 'dba', 'deactivated', deactivated),
                 now()

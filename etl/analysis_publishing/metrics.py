@@ -303,6 +303,7 @@ class alert_performance_metrics(metric):
 
     ##### output
     self.cnts_by_unit = aggregate_df
+    self.total_cnt_dict = total_cnts_dict
     self.total_counts = pd.DataFrame.from_dict(total_cnts_dict, orient='index')
     self.total_counts.rename(columns={0:'count'}, inplace=True)
 
@@ -398,7 +399,7 @@ class alert_performance_metrics(metric):
     init_time = (self.now - pd.to_timedelta(self.sepsis_performance_window, unit='h'))#.tz_localize(timezone('utc'))
     cnts, performance_cnt_df = get_alert_performance(myalert_df.loc[myalert_df['tsp']>init_time],
                                                   sep_df=first_sepsis.loc[first_sepsis['sepsis_onset']>init_time])
-
+    self.performance_metrics_dict = cnts
     self.performance_metrics = pd.DataFrame.from_dict(cnts, orient='index').rename(columns={0:''}) # output
     self.performance_cnt_df = performance_cnt_df
 
@@ -413,6 +414,55 @@ class alert_performance_metrics(metric):
 
       return txt
 
+  def to_cwm(self):
+    out = list()
+
+    # total_counts
+    for key in self.total_cnt_dict:
+      out.append({
+          'MetricName': key.replace(" ", "_"),
+          'Timestamp': dt.utcnow(),
+          'Value': self.total_cnt_dict[key],
+          'Unit': 'Count',
+        })
+
+    # cnts_by_unit
+    cols = self.cnts_by_unit.columns.tolist()
+    for i, row in self.cnts_by_unit.iterrows():
+      for col in cols:
+        if col != 'care_unit':
+          key = col + '_' + row['care_unit']
+          val = row[col]
+          out.append({
+            'MetricName': key.replace(" ", "_"),
+            'Timestamp': dt.utcnow(),
+            'Value': val,
+            'Unit': 'Count',
+          })
+
+    # performance_metrics
+    for key in self.performance_metrics_dict:
+      out.append({
+          'MetricName': key.replace(" ", "_"),
+          'Timestamp': dt.utcnow(),
+          'Value': float(self.performance_metrics_dict[key]),
+          'Unit': 'None',
+        })
+
+    # performance_cnt_df
+    cols = self.performance_cnt_df.columns.tolist()
+    for i, row in self.performance_cnt_df.iterrows():
+      for col in cols:
+        if col != 'care_unit':
+          key = col + '_' + row['care_unit']
+          val = row[col]
+          out.append({
+            'MetricName': key.replace(" ", "_"),
+            'Timestamp': dt.utcnow(),
+            'Value': val,
+            'Unit': 'Count',
+          })
+    return out
 
 
 class suspicion_of_infection_modified(metric):
