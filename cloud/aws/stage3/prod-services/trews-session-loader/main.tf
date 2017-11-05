@@ -12,8 +12,8 @@ variable "db_name" {}
 variable "db_username" {}
 variable "db_password" {}
 
-variable dev_jhapi_client_id {}
-variable dev_jhapi_client_secret {}
+variable prod_jhapi_client_id {}
+variable prod_jhapi_client_secret {}
 
 variable "lambda_subnet1_id" {}
 variable "lambda_subnet2_id" {}
@@ -50,9 +50,9 @@ data "aws_security_group" "lambda_sg" {
 #########################################
 # Session loader job runner.
 #
-resource "aws_lambda_function" "test_session_loader_lambda" {
+resource "aws_lambda_function" "session_loader_lambda" {
 
-    function_name    = "${var.deploy_prefix}_test_session_loader_lambda"
+    function_name    = "${var.deploy_prefix}_prod_session_loader_lambda"
     handler          = "service.handler"
     s3_bucket        = "${var.s3_opsdx_lambda}"
     s3_key           = "${var.aws_klaunch_lambda_package}"
@@ -65,7 +65,7 @@ resource "aws_lambda_function" "test_session_loader_lambda" {
         PYKUBE_KUBERNETES_SERVICE_HOST = "${var.k8s_server_host}"
         PYKUBE_KUBERNETES_SERVICE_PORT = "${var.k8s_server_port}"
 
-        kube_job_name  = "session-loader-test"
+        kube_job_name  = "session-loader-prod"
         kube_name      = "${var.k8s_name}"
         kube_server    = "${var.k8s_server}"
         kube_cert_auth = "${var.k8s_cert_auth}"
@@ -80,36 +80,36 @@ resource "aws_lambda_function" "test_session_loader_lambda" {
         kube_cmd_2 = "/usr/local/bin/python3 /jobs/dev/session-loader/session_loader.py 10"
 
         # ETL Environment Variables
-        k8s_job_epic_server                      = "test"
+        k8s_job_epic_server                      = "prod"
         k8s_job_drop_if_empty                    = "false"
-        k8s_job_push_to_epic                     = "true"
+        k8s_job_push_to_epic                     = "false"
         k8s_job_db_host                          = "${var.db_host}"
         k8s_job_db_port                          = "${var.db_port}"
         k8s_job_db_name                          = "${var.db_name}"
         k8s_job_db_user                          = "${var.db_username}"
         k8s_job_db_password                      = "${var.db_password}"
-        k8s_job_jhapi_client_id                  = "${var.dev_jhapi_client_id}"
-        k8s_job_jhapi_client_secret              = "${var.dev_jhapi_client_secret}"
+        k8s_job_jhapi_client_id                  = "${var.prod_jhapi_client_id}"
+        k8s_job_jhapi_client_secret              = "${var.prod_jhapi_client_secret}"
       }
     }
 }
 
-resource "aws_cloudwatch_event_rule" "test_session_loader_lambda_schedule_rule" {
-    name = "${var.deploy_prefix}_test_session_loader_schedule_rule"
+resource "aws_cloudwatch_event_rule" "session_loader_lambda_schedule_rule" {
+    name = "${var.deploy_prefix}_prod_session_loader_schedule_rule"
     description = "Fires every ${var.session_loader_firing_rate_min} minutes"
     schedule_expression = "rate(${var.session_loader_firing_rate_expr})"
 }
 
-resource "aws_cloudwatch_event_target" "test_session_loader_lambda_schedule_rule_target" {
-    rule      = "${aws_cloudwatch_event_rule.test_session_loader_lambda_schedule_rule.name}"
-    target_id = "${var.deploy_prefix}_test_session_loader_lambda"
-    arn       = "${aws_lambda_function.test_session_loader_lambda.arn}"
+resource "aws_cloudwatch_event_target" "session_loader_lambda_schedule_rule_target" {
+    rule      = "${aws_cloudwatch_event_rule.session_loader_lambda_schedule_rule.name}"
+    target_id = "${var.deploy_prefix}_prod_session_loader_lambda"
+    arn       = "${aws_lambda_function.session_loader_lambda.arn}"
 }
 
-resource "aws_lambda_permission" "test_session_loader_cloudwatch_permissions" {
+resource "aws_lambda_permission" "session_loader_cloudwatch_permissions" {
     statement_id  = "SessionLoaderSchedule"
     action        = "lambda:InvokeFunction"
-    function_name = "${aws_lambda_function.test_session_loader_lambda.function_name}"
+    function_name = "${aws_lambda_function.session_loader_lambda.function_name}"
     principal     = "events.amazonaws.com"
-    source_arn    = "${aws_cloudwatch_event_rule.test_session_loader_lambda_schedule_rule.arn}"
+    source_arn    = "${aws_cloudwatch_event_rule.session_loader_lambda_schedule_rule.arn}"
 }

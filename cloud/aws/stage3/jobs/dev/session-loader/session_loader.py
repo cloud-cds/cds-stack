@@ -16,6 +16,7 @@ EPIC_SERVER   = os.environ['epic_server'] if 'epic_server' in os.environ else 'p
 client_id     = os.environ['jhapi_client_id']
 client_secret = os.environ['jhapi_client_secret']
 drop_if_empty = os.environ['drop_if_empty'].lower() == 'true' if 'drop_if_empty' in os.environ else False
+push_to_epic  = os.environ['push_to_epic'].lower() == 'true' if 'push_to_epic' in os.environ else False
 
 def get_db_engine():
   host          = os.environ['db_host']
@@ -130,42 +131,47 @@ def push_sessions_to_epic(t_in):
   engine.dispose()
 
   # Push sessions data to flowsheets, and metrics to Cloudwatch
-  jhapi_loader = JHAPI(EPIC_SERVER, client_id, client_secret)
-  boto_cloudwatch_client = boto3.client('cloudwatch')
+  if push_to_epic:
+    jhapi_loader = JHAPI(EPIC_SERVER, client_id, client_secret)
+    boto_cloudwatch_client = boto3.client('cloudwatch')
 
-  for k in flowsheets:
-    logging.info('Pushing flowsheet %s %s' %(k, flowsheet_ids[k][0]))
-    responses = jhapi_loader.load_flowsheet(flowsheets[k], flowsheet_id=flowsheet_ids[k][0])
+    for k in flowsheets:
+      logging.info('Pushing flowsheet %s %s' %(k, flowsheet_ids[k][0]))
+      responses = jhapi_loader.load_flowsheet(flowsheets[k], flowsheet_id=flowsheet_ids[k][0])
 
-    successes = 0
-    failures = 0
-    for fs, resp in zip(flowsheets[k], responses):
-      if resp is None:
-        failures += 1
-        logging.error('Failed to push session flowsheet %s: %s %s %s' % (k, fs['pat_id'], fs['visit_id'], fs['value']))
-      elif resp.status_code != requests.codes.ok:
-        failures += 1
-        logging.error('Failed to push session flowsheet %s: %s %s %s HTTP %s' % (k, fs['pat_id'], fs['visit_id'], fs['value'], resp.status_code))
-      elif resp.status_code == requests.codes.ok:
-        successes += 1
+      successes = 0
+      failures = 0
+      for fs, resp in zip(flowsheets[k], responses):
+        if resp is None:
+          failures += 1
+          logging.error('Failed to push session flowsheet %s: %s %s %s' % (k, fs['pat_id'], fs['visit_id'], fs['value']))
+        elif resp.status_code != requests.codes.ok:
+          failures += 1
+          logging.error('Failed to push session flowsheet %s: %s %s %s HTTP %s' % (k, fs['pat_id'], fs['visit_id'], fs['value'], resp.status_code))
+        elif resp.status_code == requests.codes.ok:
+          successes += 1
 
-    logging.info("Flowsheet loader stats: %s: %s successes / %s failures" % (k, successes, failures))
+      logging.info("Flowsheet loader stats: %s: %s successes / %s failures" % (k, successes, failures))
 
-    cwm_status = [{
-      'MetricName' : 'fs_session_push_successes',
-      'Timestamp'  : datetime.datetime.utcnow(),
-      'Value'      : successes,
-      'Unit'       : 'Count',
-      'Dimensions' : [{'Name': 'FSSessionLoaderType', 'Value': k}]
-    }, {
-      'MetricName' : 'fs_session_push_failures',
-      'Timestamp'  : datetime.datetime.utcnow(),
-      'Value'      : failures,
-      'Unit'       : 'Count',
-      'Dimensions' : [{'Name': 'FSSessionLoaderType', 'Value': k}]
-    }]
+      cwm_status = [{
+        'MetricName' : 'fs_session_push_successes',
+        'Timestamp'  : datetime.datetime.utcnow(),
+        'Value'      : successes,
+        'Unit'       : 'Count',
+        'Dimensions' : [{'Name': 'FSSessionLoaderType', 'Value': k}]
+      }, {
+        'MetricName' : 'fs_session_push_failures',
+        'Timestamp'  : datetime.datetime.utcnow(),
+        'Value'      : failures,
+        'Unit'       : 'Count',
+        'Dimensions' : [{'Name': 'FSSessionLoaderType', 'Value': k}]
+      }]
 
-    logging.info("FSSessionLoader pushed to CW: %s" % k)
+      logging.info("FSSessionLoader pushed to CW: %s" % k)
+
+  else:
+    for k in flowsheets:
+      logging.info('Skipping push for %s %s (%s values)' % (k, flowsheet_ids[k][0], len(flowsheets[k])))
 
 
 def parse_arguments():
