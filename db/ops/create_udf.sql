@@ -2242,7 +2242,9 @@ return query
                    PC.c_otime,
                    PC.c_ouser,
                    PC.c_ovalue,
-                   (SSPN.severe_sepsis_is_met and coalesce(PC.c_otime, PC.tsp) >= SSPN.severe_sepsis_onset)
+                   (case when SNP.state >= 20
+                        then coalesce(PC.c_otime, PC.tsp) >= SNP.severe_sepsis_onset
+                    else (SSPN.severe_sepsis_is_met and coalesce(PC.c_otime, PC.tsp) >= SSPN.severe_sepsis_onset) end)
                    and
                    (case when PC.category = 'hypotension' then
                            (PFL.is_met and PFL.tsp < PC.tsp and NEXT.tsp < PFL.tsp + interval '1 hour')
@@ -2258,7 +2260,7 @@ return query
                     end) as is_met
             from pat_cvalues PC
             left join severe_sepsis_now SSPN on PC.enc_id = SSPN.enc_id
-
+            left join lateral get_states_snapshot(PC.enc_id) SNP on PC.enc_id = SNP.enc_id
             left join pats_fluid_after_severe_sepsis PFL
               on PC.enc_id = PFL.enc_id
 
@@ -2302,11 +2304,14 @@ return query
                     pat_cvalues.c_ouser,
                     pat_cvalues.c_ovalue,
                     criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
-                        and (ssn.severe_sepsis_is_met
-                                and coalesce(pat_cvalues.c_otime, pat_cvalues.tsp) >= ssn.severe_sepsis_onset)
-                        as is_met
+                        and (case when SNP.state >= 20
+                                then coalesce(pat_cvalues.c_otime, pat_cvalues.tsp) >= SNP.severe_sepsis_onset
+                               else ssn.severe_sepsis_is_met
+                                and coalesce(pat_cvalues.c_otime, pat_cvalues.tsp) >= ssn.severe_sepsis_onset end)
+                    as is_met
             from pat_cvalues
             left join severe_sepsis_now ssn on pat_cvalues.enc_id = ssn.enc_id
+            left join lateral get_states_snapshot(pat_cvalues.enc_id) SNP on pat_cvalues.enc_id = SNP.enc_id
             where pat_cvalues.name = 'initial_lactate'
             order by pat_cvalues.tsp
         ) as ordered
