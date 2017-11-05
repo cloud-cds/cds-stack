@@ -3387,9 +3387,18 @@ var activity = new function() {
       return a['timestamp'] == b['timestamp'] ? 0 : (a['timestamp'] < b['timestamp'] ? -1 : 1);
     });
 
+    var last_cms_expired_idx = null;
     for (var i = 0; i < activities.length; i++) {
+      if ( activities[i]['event_type'] == 'reset_soi_pats' ) {
+        last_cms_expired_idx = i;
+      }
+    }
 
+    for (var i = 0; i < activities.length; i++) {
       var time = new Date(activities[i]['timestamp'] * 1000);
+
+      // Skip CMS expiry entries except the last one.
+      if ( activities[i]['event_type'] == 'reset_soi_pats' && i != last_cms_expired_idx ) { continue; }
 
       // Skip messages if there is no content (used to short-circuit empty interventions).
       var msg = this.getLogMsg(activities[i]);
