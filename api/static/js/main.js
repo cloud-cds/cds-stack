@@ -402,7 +402,7 @@ var endpoints = new function() {
     }
     // Ensure a valid Patient ID.
     if (postBody['q'] == null) {
-      $('#loading p').html("No Patient Identifier entered. Please restart application or contact trews-jhu@opsdx.io<br/>" + window.location);
+      $('#loading p').html("No Patient Identifier entered. Please restart application or contact trews-helpdesk@opsdx.io<br/>" + window.location);
       return;
     }
     $.ajax({
@@ -435,7 +435,7 @@ var endpoints = new function() {
         var exclusion_reason = "<b>Patient is less than 18 years old, or has been treated in an excluded hospital unit.</b>";
         var msg = "<b>Disabling TREWS, this patient meets our exclusion criteria.</b>" +
                   "<br/>" + exclusion_reason +
-                  "<br/>Please contact trews-jhu@opsdx.io for more information.";
+                  "<br/>Please contact trews-helpdesk@opsdx.io for more information.";
         $('#loading p').html(msg);
       }
       else {
@@ -471,7 +471,7 @@ var endpoints = new function() {
       if (result.status == 400) {
         var msg = result.responseJSON['message'];
         if ( result.responseJSON['standalone'] == null || !result.responseJSON['standalone'] ) {
-          msg += ".<br/>  Connection Failed<span id='test-data'>.</span> Please rest<span id='see-blank'>a</span>rt application or contact trews-jhu@opsdx.io";
+          msg += ".<br/>  Connection Failed<span id='test-data'>.</span> Please rest<span id='see-blank'>a</span>rt application or contact trews-helpdesk@opsdx.io";
         }
         $('#loading p').html(msg);
         $('#test-data').click(function() {
@@ -481,7 +481,7 @@ var endpoints = new function() {
       }
       endpoints.numTries += 1;
       if (endpoints.numTries > 3) {
-        $('#loading p').html("Connection Failed<span id='test-data'>.</span> Please rest<span id='see-blank'>a</span>rt application or contact trews-jhu@opsdx.io");
+        $('#loading p').html("Connection Failed<span id='test-data'>.</span> Please rest<span id='see-blank'>a</span>rt application or contact trews-helpdesk@opsdx.io");
         $('#test-data').click(function() {
           endpoints.test();
         });
@@ -638,7 +638,7 @@ var controller = new function() {
     dataRefresher.terminate();
     notificationRefresher.terminate();
     $('#loading').removeClass('done');
-    $('#loading p').html("Javascript Error<span id='test-data'>.</span> Please rest<span id='see-blank'>a</span>rt application or contact trews-jhu@opsdx.io");
+    $('#loading p').html("Javascript Error<span id='test-data'>.</span> Please rest<span id='see-blank'>a</span>rt application or contact trews-helpdesk@opsdx.io");
     $('#test-data').click(function() {
       endpoints.test();
     });
@@ -3496,7 +3496,7 @@ var toolbar = new function() {
     window.setTimeout(function() { toolbar.feedback.fadeOut(500); }, toolbar.feedbackSuccessHideDelay);
   }
   this.feedbackError = function() {
-    this.feedback.find('p').html('<b class="error">There was an error, please try again or email trews-jhu@opsdx.io</b>')
+    this.feedback.find('p').html('<b class="error">There was an error, please try again or email trews-helpdesk@opsdx.io</b>')
   }
   this.render = function(json) {
     this.resetNav.show()
