@@ -50,7 +50,7 @@ class alert_performance_metrics(metric):
     self.sepsis_performance_window = 24*7#long_window ## 24*7 hours window
     self.connection = connection
     # self.now = pd.to_datetime('now').tz_localize(timezone('utc'))
-    self.now = pd.to_datetime(self.last_time_str).tz_localize(timezone('utc'))
+    self.now = pd.to_datetime(self.last_time_str).tz_localize(timezone('utc'), ambiguous='infer')
 
     self.window = (pd.to_datetime(last_time_str) - pd.to_datetime(first_time_str)) / pd.to_timedelta("1 hour")
 
@@ -131,7 +131,7 @@ class alert_performance_metrics(metric):
 
   def calc(self):
         ## this is the time we started running trews -- don't go before this date.
-        start_tsp = pd.to_datetime('2017-10-19 16:00:00+00:00').tz_localize(timezone('utc'))
+        start_tsp = pd.to_datetime('2017-10-19 16:00:00+00:00').tz_localize(timezone('utc'), ambiguous='infer')
 
         ## get trews_model_id
         model_id_query = "select value from trews_parameters where name='trews_jit_model_id';"
