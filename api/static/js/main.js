@@ -1348,10 +1348,11 @@ var careSummaryComponent = new function() {
     var trews_alerting = 'trews_subalert' in trews.data['severe_sepsis'] ? trews.data['severe_sepsis']['trews_subalert']['is_met'] : false;
     var cms_alerting = trews.data['severe_sepsis']['sirs']['is_met'] && trews.data['severe_sepsis']['organ_dysfunction']['is_met'];
 
-    var alert_as_cms = (!trews_alerting && cms_alerting)
-                          || (!trews.data['severe_sepsis']['is_trews'] && trews.data['severe_sepsis']['is_cms']);
+    var only_cms_alerting = !trews_alerting && cms_alerting;
+    var only_cms_is_sepsis = !trews.data['severe_sepsis']['is_trews'] && trews.data['severe_sepsis']['is_cms'];
 
     var has_any_alert = trews_alerting || cms_alerting;
+    var alert_as_cms = only_cms_alerting || only_cms_is_sepsis;
 
     // longPatientSummary args: with_alert, action_type, with_treatment, with_reset, with_no_risk, with_separate_cms, more_detail_html
     var more_detail_html = '&nbsp;&nbsp;<span class="summary-more-detail">More Detail</span>';
@@ -1596,14 +1597,17 @@ var severeSepsisComponent = new function() {
     // or when cms is the exclusive cause of alerting or sepsis onset.
     var only_cms_alerting = !trews_alerting && cms_alerting;
     var only_cms_is_sepsis = !trews.data['severe_sepsis']['is_trews'] && trews.data['severe_sepsis']['is_cms'];
-    var alert_as_cms = !trews_org_ovr && ( only_cms_alerting || only_cms_is_sepsis );
 
-    this.orgSlot.r(alert_as_cms ? json['organ_dysfunction'] : json['trews_organ_dysfunction'],
-                   alert_as_cms ? severe_sepsis['organ_dysfunction'] : severe_sepsis['trews_organ_dysfunction'],
-                   alert_as_cms ? severe_sepsis['organ_dysfunction']['criteria_mapping'] : severe_sepsis['trews_organ_dysfunction']['criteria_mapping']);
+    var alert_only_as_cms = only_cms_alerting || only_cms_is_sepsis;
+    var not_acute_orgdf_only_as_cms = !trews_alerting && ( trews.data['severe_sepsis']['sirs']['is_met'] && cms_org_ovr );
+    var orgdf_as_cms = !trews_org_ovr && (not_acute_orgdf_only_as_cms || alert_only_as_cms);
 
-    var num_orgdf = alert_as_cms ? json['organ_dysfunction']['num_met'] : json['trews_organ_dysfunction']['num_met'];
-    var num_orgdf_ovr = alert_as_cms ? json['organ_dysfunction']['num_overridden'] : json['trews_organ_dysfunction']['num_overridden'];
+    this.orgSlot.r(orgdf_as_cms ? json['organ_dysfunction'] : json['trews_organ_dysfunction'],
+                   orgdf_as_cms ? severe_sepsis['organ_dysfunction'] : severe_sepsis['trews_organ_dysfunction'],
+                   orgdf_as_cms ? severe_sepsis['organ_dysfunction']['criteria_mapping'] : severe_sepsis['trews_organ_dysfunction']['criteria_mapping']);
+
+    var num_orgdf = orgdf_as_cms ? json['organ_dysfunction']['num_met'] : json['trews_organ_dysfunction']['num_met'];
+    var num_orgdf_ovr = orgdf_as_cms ? json['organ_dysfunction']['num_overridden'] : json['trews_organ_dysfunction']['num_overridden'];
     if (!(num_orgdf > 0 || num_orgdf_ovr > 0
             || trews.data['ui']['ui_severe_sepsis']['is_met']
             || trews.data['ui']['ui_septic_shock']['is_met'] ))
