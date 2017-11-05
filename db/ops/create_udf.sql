@@ -1025,7 +1025,7 @@ format('select stats.enc_id,
                 when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 63 -- trews_sev_sep_6hr_com
                 when sev_sep_3hr_count = 4 then 61 -- trews_sev_sep_3hr_com
                 else
-                40 end)
+                60 end)
         when now() - ui_severe_sepsis_onset > ''3 hours''::interval and sev_sep_3hr_count < 4 then 52 -- ui_sev_sep_3hr_exp
         when now() - ui_severe_sepsis_onset > ''6 hours''::interval and sev_sep_6hr_count = 0 then 54 -- ui_sev_sep_6hr_exp
         when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 53 -- ui_sev_sep_6hr_com
@@ -1918,7 +1918,7 @@ return query
 
                         when pat_cvalues.category = 'decrease_in_sbp' then
                             decrease_in_sbp_met(
-                                (select max(pat_bp_sys.value) from pat_bp_sys where pat_bp_sys.enc_id = pat_cvalues.enc_id),
+                                (select max(pat_bp_sys.value::numeric) from pat_bp_sys where pat_bp_sys.enc_id = pat_cvalues.enc_id),
                                 pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
 
                         when pat_cvalues.category = 'urine_output' then
@@ -2271,7 +2271,7 @@ return query
             ) NEXT on PC.enc_id = NEXT.enc_id and PC.fid = NEXT.fid
 
             left join lateral (
-              select BP.enc_id, max(BP.value) as value
+              select BP.enc_id, max(BP.value::numeric) as value
               from pat_bp_sys BP where PC.enc_id = BP.enc_id
               group by BP.enc_id
             ) PBPSYS on PC.enc_id = PBPSYS.enc_id
@@ -2345,7 +2345,7 @@ return query
          group by ui_septic_shock.enc_id) ui on stats.enc_id = ui.enc_id
         group by stats.enc_id
     ),
-    orders_criteria as (
+    orders_criteria_raw as (
         select
             ordered.enc_id,
             ordered.name,
@@ -2366,7 +2366,8 @@ return query
                 last(ordered.c_ovalue order by ordered.measurement_time)
             ) as override_value,
             coalesce(bool_or(ordered.is_met), false) as is_met,
-            now() as update_date
+            now() as update_date,
+            max(ordered.measurement_time) max_meas_time
         from
         (
             with past_criteria as (
@@ -2463,7 +2464,15 @@ return query
         ) as ordered
         group by ordered.enc_id, ordered.name
     ),
-    repeat_lactate as (
+    orders_criteria as (
+        select ocr.enc_id, ocr.name, ocr.measurement_time, ocr.value,
+        (case when ocr.override_value#>>'{0,text}' = 'Ordered' and ocr.override_time < ocr.max_meas_time then null else ocr.override_time end) override_time,
+        (case when ocr.override_value#>>'{0,text}' = 'Ordered' and ocr.override_time < ocr.max_meas_time then null else ocr.override_user end) override_user,
+        (case when ocr.override_value#>>'{0,text}' = 'Ordered' and ocr.override_time < ocr.max_meas_time then null else ocr.override_value end) override_value,
+        ocr.is_met, ocr.update_date
+        from orders_criteria_raw ocr
+    ),
+    repeat_lactate_raw as (
         select
             ordered.enc_id,
             ordered.name,
@@ -2473,6 +2482,7 @@ return query
             (first(ordered.c_ouser order by ordered.measurement_time) filter (where ordered.is_met)) as override_user,
             (first(ordered.c_ovalue order by ordered.measurement_time) filter (where ordered.is_met)) as override_value,
             coalesce(bool_or(ordered.is_met), false) as is_met,
+            max(ordered.measurement_time) max_meas_time,
             now() as update_date
         from
         (
@@ -2518,6 +2528,14 @@ return query
         )
         as ordered
         group by ordered.enc_id, ordered.name
+    ),
+    repeat_lactate as (
+        select rlr.enc_id, rlr.name, rlr.measurement_time, rlr.value,
+        (case when rlr.override_value#>>'{0,text}' = 'Ordered' and rlr.override_time < rlr.max_meas_time then null else rlr.override_time end) override_time,
+        (case when rlr.override_value#>>'{0,text}' = 'Ordered' and rlr.override_time < rlr.max_meas_time then null else rlr.override_user end) override_user,
+        (case when rlr.override_value#>>'{0,text}' = 'Ordered' and rlr.override_time < rlr.max_meas_time then null else rlr.override_value end) override_value,
+        rlr.is_met, rlr.update_date
+        from repeat_lactate_raw rlr
     )
     select new_criteria.*,
            severe_sepsis_now.severe_sepsis_onset,
@@ -2612,7 +2630,10 @@ BEGIN
             measurement_time    = excluded.measurement_time,
             value               = excluded.value,
             update_date         = excluded.update_date,
-            is_acute            = excluded.is_acute
+            is_acute            = excluded.is_acute,
+            override_time       = (case when criteria.override_value#>>'{0,text}' = 'Ordered' then excluded.override_time else criteria.override_time end),
+            override_user       = (case when criteria.override_value#>>'{0,text}' = 'Ordered' then excluded.override_user else criteria.override_user end),
+            override_value      = (case when criteria.override_value#>>'{0,text}' = 'Ordered' then excluded.override_value else criteria.override_value end)
         returning *
     ),
     state_change as
