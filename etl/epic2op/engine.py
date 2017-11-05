@@ -303,7 +303,7 @@ def add_column(ctxt, df, col_name, col_data):
 
 def tz_hack(ctxt, df):
   if not df.empty:
-    df['tsp'] = df['tsp'].str.replace('-04:00', '+00:00')
+    df['tsp'] = df['tsp'].str.replace('-04:00', '+00:00').replace('-05:00', '+00:00')
   return df
 
 def skip_none(df, transform_function):
