@@ -751,17 +751,18 @@ async def load_epic_notifications(notifications):
   if total == 0:
     logging.info("No notification need to be updated to Epic")
     return
+
+  flowsheet_ids = {
+    'count'    : ('9490',  lambda x: str(x) if x is not None else '1'),
+    'score'    : ('9485',  lambda x: format(float(x), '.4f').lstrip('0') if x is not None else '-1.0'),
+    'threshold': ('94851', lambda x: format(float(x), '.4f').lstrip('0') if x is not None else '-1.0'),
+    'flag'     : ('94852', lambda x: str(x) if x is not None else '0'),
+    'version'  : ('94853', lambda x: model_in_use + '-v9' if model_in_use is not None else 'N/A')
+  }
+
+  success = { k: 0 for k in flowsheet_ids }
+
   if epic_notifications is not None and int(epic_notifications):
-    flowsheet_ids = {
-      'count'    : ('9490',  lambda x: str(x) if x is not None else '1'),
-      'score'    : ('9485',  lambda x: format(float(x), '.4f').lstrip('0') if x is not None else '-1.0'),
-      'threshold': ('94851', lambda x: format(float(x), '.4f').lstrip('0') if x is not None else '-1.0'),
-      'flag'     : ('94852', lambda x: str(x) if x is not None else '0'),
-      'version'  : ('94853', lambda x: model_in_use + '-v9' if model_in_use is not None else 'N/A')
-    }
-
-    success = { k: 0 for k in flowsheet_ids }
-
     push_tz = pytz.timezone('US/Eastern')
     push_tsp = datetime.datetime.utcnow().astimezone(push_tz)
 
@@ -777,16 +778,15 @@ async def load_epic_notifications(notifications):
       responses = jhapi_loader.load_flowsheet(flowsheet_values, flowsheet_id=flowsheet_ids[k][0])
 
       for val, response in zip(flowsheet_values, responses):
-       if response is None:
-         logging.error('Failed to push notifications: %s %s %s' % (val['pat_id'], val['visit_id'], val['value']))
-       elif response.status_code != requests.codes.ok:
-         logging.error('Failed to push notifications: %s %s %s HTTP %s' % (val['pat_id'], val['visit_id'], val['value'], response.status_code))
-       elif response.status_code == requests.codes.ok:
-         success[k] += 1
+        if response is None:
+          logging.error('Failed to push notifications: %s %s %s' % (val['pat_id'], val['visit_id'], val['value']))
+        elif response.status_code != requests.codes.ok:
+          logging.error('Failed to push notifications: %s %s %s HTTP %s' % (val['pat_id'], val['visit_id'], val['value'], response.status_code))
+        elif response.status_code == requests.codes.ok:
+          success[k] += 1
 
   else:
     logging.info("Skipped pushing to Epic flowsheets")
-    success = notifications
 
   for k in success:
     api_monitor.add_metric('FSPush%sSuccess'  % k.capitalize(), value=success[k])

@@ -2294,11 +2294,15 @@ var criteriaComponent = function(c, constants, key, hidden, criteria_mapping, cr
   }
 
   // Local conversions.
-  if ( c['name'] == 'sirs_temp' ) {
+  if ( c['name'] == 'sirs_temp' && displayValue != null
+        && ( isNumber(displayValue) || !isNaN(Number(displayValue)) ) )
+  {
     displayValue = ((Number(displayValue) - 32) / 1.8).toPrecision(3);
   }
 
-  if  ( c['name'] == 'platelet' || c['name'] == 'trews_platelet' ) {
+  if  ( (c['name'] == 'platelet' || c['name'] == 'trews_platelet') && displayValue != null
+          && ( isNumber(displayValue) || !isNaN(Number(displayValue)) ) )
+  {
     displayValue = (Number(displayValue) * 1000).toLocaleString(); // Platelets are stored in units of 1,000.
   }
 
@@ -3068,6 +3072,7 @@ var notifications = new function() {
         suppressions.prepend(notif);
       }
       else {
+        /*
         var readLink = $("<a data-trews='" + data[i]['id'] + "'></a>");
         readLink.unbind();
         if (data[i]['read']) {
@@ -3092,6 +3097,8 @@ var notifications = new function() {
           })
         }
         subtext.append(readLink);
+        */
+        numUnread++; // TODO: remove when re-enabling mark-as-read functionality.
         notif.append(subtext);
         this.n.prepend(notif);
       }
