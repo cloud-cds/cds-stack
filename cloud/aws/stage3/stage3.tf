@@ -354,3 +354,40 @@ module "test_session_loader" {
   session_loader_firing_rate_min  = "10"
   session_loader_firing_rate_expr = "10 minutes"
 }
+
+
+module "prod_session_loader" {
+  source = "./prod-services/trews-session-loader"
+  aws_region = "${var.aws_region}"
+  deploy_prefix = "${var.deploy_prefix}"
+
+  s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
+  aws_klaunch_lambda_package  = "${var.aws_klaunch_lambda_package}"
+  aws_klaunch_lambda_role_arn = "${var.aws_klaunch_lambda_role_arn}"
+
+  db_host     = "${var.prod_db_host}"
+  db_name     = "${var.prod_db_name}"
+  db_username = "${var.prod_db_username}"
+  db_password = "${var.prod_db_password}"
+
+  prod_jhapi_client_id     = "${var.prod_jhapi_client_id}"
+  prod_jhapi_client_secret = "${var.prod_jhapi_client_secret}"
+
+  lambda_subnet1_id = "${var.lambda_subnet1_id}"
+  lambda_subnet2_id = "${var.lambda_subnet2_id}"
+  lambda_sg_id      = "${var.lambda_sg_id}"
+
+  k8s_server_host = "${var.k8s_prod_server_host}"
+  k8s_server_port = "${var.k8s_prod_server_port}"
+
+  k8s_name      = "${var.k8s_prod_name}"
+  k8s_server    = "${var.k8s_prod_server}"
+  k8s_user      = "${var.k8s_prod_user}"
+  k8s_pass      = "${var.k8s_prod_pass}"
+  k8s_cert_auth = "${var.k8s_prod_cert_auth}"
+
+  k8s_session_loader_image = "${var.k8s_prod_image}"
+
+  session_loader_firing_rate_min  = "10"
+  session_loader_firing_rate_expr = "10 minutes"
+}
