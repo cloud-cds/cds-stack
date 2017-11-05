@@ -705,7 +705,12 @@ class TREWSAPI(web.View):
         data['septic_shock']['is_met'] = True
         # setup onset time
         if data['septic_shock']['crystalloid_fluid']['is_met'] == 1 and hp_cnt > 0:
-          max_fluid_time = max(data['septic_shock']['crystalloid_fluid']['override_time'], data['septic_shock']['crystalloid_fluid']['measurement_time'])
+
+          fluid_criterion = data['septic_shock']['crystalloid_fluid']
+          max_fluid_time = fluid_criterion['measurement_time']
+          if fluid_criterion['override_time'] and fluid_criterion['override_time'] > max_fluid_time:
+            max_fluid_time = fluid_criterion['override_time']
+
           data['septic_shock']['onset_time'] = sorted(shock_onsets_hypotension + [max_fluid_time])[-1]
           if hpf_cnt > 0:
             data['septic_shock']['onset_time'] = sorted([data['septic_shock']['onset_time']] +shock_onsets_hypoperfusion)[0]
