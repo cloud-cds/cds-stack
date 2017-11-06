@@ -1,11 +1,11 @@
+# mount rambo for space on disk
+sshfs -o IdentityFile=/home/nfinkel1/keys/noam_rsa noam@rambo.isi.jhu.edu:/udata/noam /home/nfinkel1/mnt/rambo/
+
 # open ssh tunnel through opsdx dev controller
 ssh -i ~/keys/tf-opsdx -N -p 22 ubuntu@controller.jh.opsdx.io -L localhost:5432:dw.jh.opsdx.io:5432 &
 TUNNEL_PID=$!
 
-# mount rambo for space on disk
-sshfs -o IdentityFile=~/keys/noam_rsa noam@rambo:/udata/noam /home/nfinkel1/mnt/rambo/ &
-
-# give the mount time to happen before dumping
+# wait for tunnel
 sleep 2
 
 # define dump file path
@@ -17,7 +17,7 @@ pg_dump -h 127.0.0.1 -U opsdx_root --schema=$1 -d opsdx_dev_dw > $(echo $DUMP_PA
 
 # restore schema to cardiac_db_small
 echo "Enter database password"
- psql -h 127.0.0.1 -U opsdx_root -d cardiac_db_small < $(echo $DUMP_PATH)
+psql -h 127.0.0.1 -U opsdx_root -d cardiac_db_small < $(echo $DUMP_PATH)
 
 export clarity_workspace="$1"
 export dataset_id="$2"
@@ -35,8 +35,8 @@ export db_name='cardiac_db_small'
 export feature_mapping="feature_mapping.csv,feature_mapping_cardiac.csv"
 export offline_criteria_processing='False'
 
-python ../clarity2dw/planner.py
+python $(dirname $0)/../clarity2dw/planner.py
 
 # close tunnel
 kill $TUNNEL_PID
-sudo umount ~/mnt/rambo
+sudo umount /home/nfinkel1/mnt/rambo
