@@ -6,11 +6,14 @@ TUNNEL_PID=$!
 sshfs -o IdentityFile=~/keys/noam_rsa noam@rambo.isi.jhu.edu:/udata/noam ~/mnt/rambo/ &
 MOUNT_ID=$!
 
+# define dump file path
+DUMP_PATH="~/mnt/rambo/$1.dump"
+
 # dump relevant schema from opsdx_dev_dw
-pg_dump -h 127.0.0.1 -U opsdx_root --schema=schema -d opsdx_dev_dw > ~/mnt/rambo/$1.dump
+pg_dump -h 127.0.0.1 -U opsdx_root --schema=schema -d opsdx_dev_dw > $(echo $DUMP_PATH)
 
 # restore schema to cardiac_db_small
-pg_restore -h 127.0.0.1 -U opsdx_root -d cardiac_db_small ~/mnt/rambo/$1.dump
+pg_restore -h 127.0.0.1 -U opsdx_root -d cardiac_db_small $(echo $DUMP_PATH)
 
 export clarity_workspace=$1
 export dataset_is=$2
