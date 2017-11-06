@@ -1447,7 +1447,7 @@ BEGIN
                                 'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result',
                                 'Final', 'Final result', 'Edited Result - FINAL',
                                 'Completed', 'Corrected', 'Not Indicated'
-                              ) and (order_value::json)#>>'{discontinue_tsp}' is null and (order_value::json)#>>'{end_tsp}' is null
+                              )
                       )
                     )
                 else false
@@ -4362,6 +4362,8 @@ select t.enc_id, t.tsp, t.fid,
         last(case when t.value ~ ''status'' then (t.value::json)#>>''{status}'' else t.value end), ''discontinue_tsp'', now(), ''end_tsp'', now()),
 0
 from cdm_t t inner join pat_enc p on t.enc_id = p.enc_id
+inner join workspace.' || job_id || '_active_procedures_transformed p2
+    on p.visit_id = p2.visit_id
 left join workspace.' || job_id || '_active_procedures_transformed lo
     on lo.visit_id = p.visit_id and lo.fid = t.fid and lo.tsp::timestamptz = t.tsp
 where lo.tsp is null and (t.value !~ ''end_tsp'' or (t.value::json)#>>''{end_tsp}'' is null)
