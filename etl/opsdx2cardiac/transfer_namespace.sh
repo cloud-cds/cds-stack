@@ -11,6 +11,9 @@ sleep 2
 # define dump file path
 DUMP_PATH="/home/nfinkel1/mnt/rambo/$1.dump"
 
+# put password in environment
+export PGPASSWORD="$3"
+
 # dump relevant schema from opsdx_dev_dw
 echo "Enter database password"
 pg_dump -h 127.0.0.1 -U opsdx_root --schema=$1 -d opsdx_dev_dw > $(echo $DUMP_PATH)
