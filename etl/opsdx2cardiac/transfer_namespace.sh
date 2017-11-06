@@ -3,8 +3,7 @@ ssh -i ~/keys/tf-opsdx -N -p 22 ubuntu@controller.jh.opsdx.io -L localhost:5432:
 TUNNEL_PID=$!
 
 # mount rambo for space on disk
-sshfs -o IdentityFile=~/keys/noam_rsa noam@rambo.isi.jhu.edu:/udata/noam ~/mnt/rambo/ &
-MOUNT_ID=$!
+# sshfs -o IdentityFile=~/keys/noam_rsa noam@rambo:/udata/noam ~/mnt/rambo/
 
 # define dump file path
 DUMP_PATH="~/mnt/rambo/$1.dump"
@@ -40,4 +39,4 @@ python ../etl/clarity2dw/planner.py
 kill $TUNNEL_PID
 
 # unmount rambo
-kill $MOUNT_ID
+sudo umount ~/mnt/rambo
