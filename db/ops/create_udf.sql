@@ -948,7 +948,7 @@ format('select stats.enc_id,
             when now() - GREATEST(sus_onset, trews_subalert_onset)  > ''3 hours''::interval and sev_sep_3hr_count < 4 then 62 -- ui_sev_sep_3hr_exp
             when now() - GREATEST(sus_onset, trews_subalert_onset)  > ''6 hours''::interval and sev_sep_6hr_count = 0 then 64 -- ui_sev_sep_6hr_exp
             when now() - ui_septic_shock_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 66 -- trews_sep_sho_6hr_exp
-            when sep_sho_6hr_count = 1 then 65 -- trews_sep_sho_6hr_com
+            when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 and sep_sho_6hr_count = 1 then 65 -- trews_sep_sho_6hr_com
             when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 63 -- ui_sev_sep_6hr_com
             when sev_sep_3hr_count = 4 then 61 -- ui_sev_sep_3hr_com
             else
@@ -961,7 +961,7 @@ format('select stats.enc_id,
             when now() - GREATEST(sus_onset, sirs_onset, organ_onset)  > ''3 hours''::interval and sev_sep_3hr_count < 4 then 62 -- ui_sev_sep_3hr_exp
             when now() - GREATEST(sus_onset, sirs_onset, organ_onset)  > ''6 hours''::interval and sev_sep_6hr_count = 0 then 64 -- ui_sev_sep_6hr_exp
             when now() - ui_septic_shock_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 66 -- trews_sep_sho_6hr_exp
-            when sep_sho_6hr_count = 1 then 65 -- trews_sep_sho_6hr_com
+            when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 and sep_sho_6hr_count = 1 then 65 -- trews_sep_sho_6hr_com
             when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 63 -- ui_sev_sep_6hr_com
             when sev_sep_3hr_count = 4 then 61 -- ui_sev_sep_3hr_com
             else
@@ -972,7 +972,7 @@ format('select stats.enc_id,
             when now() - ui_septic_shock_onset  > ''3 hours''::interval and sev_sep_3hr_count < 4 then 62 -- ui_sev_sep_3hr_exp
             when now() - ui_septic_shock_onset  > ''6 hours''::interval and sev_sep_6hr_count = 0 then 64 -- ui_sev_sep_6hr_exp
             when now() - ui_septic_shock_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 66 -- trews_sep_sho_6hr_exp
-            when sep_sho_6hr_count = 1 then 65 -- trews_sep_sho_6hr_com
+            when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 and sep_sho_6hr_count = 1 then 65 -- trews_sep_sho_6hr_com
             when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 63 -- ui_sev_sep_6hr_com
             when sev_sep_3hr_count = 4 then 61 -- ui_sev_sep_3hr_com
             else
@@ -988,7 +988,7 @@ format('select stats.enc_id,
             when now() - ui_severe_sepsis_onset  > ''3 hours''::interval and sev_sep_3hr_count < 4 then 62 -- ui_sev_sep_3hr_exp
             when now() - ui_severe_sepsis_onset  > ''6 hours''::interval and sev_sep_6hr_count = 0 then 64 -- ui_sev_sep_6hr_exp
             when now() - ui_septic_shock_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 66 -- trews_sep_sho_6hr_exp
-            when sep_sho_6hr_count = 1 then 65 -- trews_sep_sho_6hr_com
+            when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 and sep_sho_6hr_count = 1 then 65 -- trews_sep_sho_6hr_com
             when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 63 -- ui_sev_sep_6hr_com
             when sev_sep_3hr_count = 4 then 61 -- ui_sev_sep_3hr_com
             else
@@ -999,7 +999,7 @@ format('select stats.enc_id,
                 when now() - ui_severe_sepsis_onset  > ''3 hours''::interval and sev_sep_3hr_count < 4 then 62 -- ui_sev_sep_3hr_exp
                 when now() - ui_severe_sepsis_onset  > ''6 hours''::interval and sev_sep_6hr_count = 0 then 64 -- ui_sev_sep_6hr_exp
                 when now() - LEAST(hypotension_onset, hypoperfusion_onset) > ''6 hours''::interval and sep_sho_6hr_count = 0 then 66 -- trews_sep_sho_6hr_exp
-                when sep_sho_6hr_count = 1 then 65 -- trews_sep_sho_6hr_com
+                when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 and sep_sho_6hr_count = 1 then 65 -- trews_sep_sho_6hr_com
                 when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 63 -- ui_sev_sep_6hr_com
                 when sev_sep_3hr_count = 4 then 61 -- ui_sev_sep_3hr_com
                 else
@@ -1010,7 +1010,7 @@ format('select stats.enc_id,
                 when now() - ui_severe_sepsis_onset > ''3 hours''::interval and sev_sep_3hr_count < 4 then 62 -- ui_sev_sep_3hr_exp
                 when now() - ui_severe_sepsis_onset > ''6 hours''::interval and sev_sep_6hr_count = 0 then 64 -- ui_sev_sep_6hr_exp
                 when now() - hypotension_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 66 -- trews_sep_sho_6hr_exp
-                when sep_sho_6hr_count = 1 then 65 -- trews_sep_sho_6hr_com
+                when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 and sep_sho_6hr_count = 1 then 65 -- trews_sep_sho_6hr_com
                 when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 63 -- ui_sev_sep_6hr_com
                 when sev_sep_3hr_count = 4 then 61 -- ui_sev_sep_3hr_com
                 else
@@ -1021,7 +1021,7 @@ format('select stats.enc_id,
                 when now() - ui_severe_sepsis_onset > ''3 hours''::interval and sev_sep_3hr_count < 4 then 62 -- trews_sev_sep_3hr_exp
                 when now() - ui_severe_sepsis_onset > ''6 hours''::interval and sev_sep_6hr_count = 0 then 64 -- trews_sev_sep_6hr_exp
                 when now() - hypoperfusion_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 66 -- trews_sep_sho_6hr_exp
-                when sep_sho_6hr_count = 1 then 65 -- trews_sep_sho_6hr_com
+                when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 and sep_sho_6hr_count = 1 then 65 -- trews_sep_sho_6hr_com
                 when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 63 -- trews_sev_sep_6hr_com
                 when sev_sep_3hr_count = 4 then 61 -- trews_sev_sep_3hr_com
                 else
@@ -1046,7 +1046,7 @@ format('select stats.enc_id,
                     when now() - GREATEST(sus_onset, trews_subalert_onset)  > ''3 hours''::interval and sev_sep_3hr_count < 4 then 42 -- trews_sev_sep_3hr_exp
                     when now() - GREATEST(sus_onset, trews_subalert_onset)  > ''6 hours''::interval and sev_sep_6hr_count = 0 then 44 -- trews_sev_sep_6hr_exp
                     when now() - LEAST(hypotension_onset, hypoperfusion_onset) > ''6 hours''::interval and sep_sho_6hr_count = 0 then 46 -- trews_sep_sho_6hr_exp
-                    when sep_sho_6hr_count = 1 then 45 -- trews_sep_sho_6hr_com
+                    when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 and sep_sho_6hr_count = 1 then 45 -- trews_sep_sho_6hr_com
                     when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 43 -- trews_sev_sep_6hr_com
                     when sev_sep_3hr_count = 4 then 41 -- trews_sev_sep_3hr_com
                     else
@@ -1057,7 +1057,7 @@ format('select stats.enc_id,
                     when now() - GREATEST(sus_onset, trews_subalert_onset) > ''3 hours''::interval and sev_sep_3hr_count < 4 then 42 -- trews_sev_sep_3hr_exp
                     when now() - GREATEST(sus_onset, trews_subalert_onset) > ''6 hours''::interval and sev_sep_6hr_count = 0 then 44 -- trews_sev_sep_6hr_exp
                     when now() - hypotension_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 46 -- trews_sep_sho_6hr_exp
-                    when sep_sho_6hr_count = 1 then 45 -- trews_sep_sho_6hr_com
+                    when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 and sep_sho_6hr_count = 1 then 45 -- trews_sep_sho_6hr_com
                     when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 43 -- trews_sev_sep_6hr_com
                     when sev_sep_3hr_count = 4 then 41 -- trews_sev_sep_3hr_com
                     else
@@ -1068,7 +1068,7 @@ format('select stats.enc_id,
                     when now() - GREATEST(sus_onset, trews_subalert_onset) > ''3 hours''::interval and sev_sep_3hr_count < 4 then 42 -- trews_sev_sep_3hr_exp
                     when now() - GREATEST(sus_onset, trews_subalert_onset) > ''6 hours''::interval and sev_sep_6hr_count = 0 then 44 -- trews_sev_sep_6hr_exp
                     when now() - hypoperfusion_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 46 -- trews_sep_sho_6hr_exp
-                    when sep_sho_6hr_count = 1 then 45 -- trews_sep_sho_6hr_com
+                    when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 and sep_sho_6hr_count = 1 then 45 -- trews_sep_sho_6hr_com
                     when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 43 -- trews_sev_sep_6hr_com
                     when sev_sep_3hr_count = 4 then 41 -- trews_sev_sep_3hr_com
                     else
@@ -1091,7 +1091,7 @@ format('select stats.enc_id,
                     when now() - GREATEST(sus_onset, sirs_onset, organ_onset)  > ''3 hours''::interval and sev_sep_3hr_count < 4 then 32 -- sev_sep_3hr_exp
                     when now() - GREATEST(sus_onset, sirs_onset, organ_onset)  > ''6 hours''::interval and sev_sep_6hr_count = 0 then 34 -- sev_sep_6hr_exp
                     when now() - LEAST(hypotension_onset, hypoperfusion_onset) > ''6 hours''::interval and sep_sho_6hr_count = 0 then 36 -- sep_sho_6hr_exp
-                    when sep_sho_6hr_count = 1 then 35 -- sep_sho_6hr_com
+                    when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 and sep_sho_6hr_count = 1 then 35 -- sep_sho_6hr_com
                     when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 33 -- sev_sep_6hr_com
                     when sev_sep_3hr_count = 4 then 31 -- sev_sep_3hr_com
                     else
@@ -1102,7 +1102,7 @@ format('select stats.enc_id,
                     when now() - GREATEST(sus_onset, sirs_onset, organ_onset) > ''3 hours''::interval and sev_sep_3hr_count < 4 then 32 -- sev_sep_3hr_exp
                     when now() - GREATEST(sus_onset, sirs_onset, organ_onset) > ''6 hours''::interval and sev_sep_6hr_count = 0 then 34 -- sev_sep_6hr_exp
                     when now() - hypotension_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 36 -- sep_sho_6hr_exp
-                    when sep_sho_6hr_count = 1 then 35 -- sep_sho_6hr_com
+                    when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 and sep_sho_6hr_count = 1 then 35 -- sep_sho_6hr_com
                     when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 33 -- sev_sep_6hr_com
                     when sev_sep_3hr_count = 4 then 31 -- sev_sep_3hr_com
                     else
@@ -1113,7 +1113,7 @@ format('select stats.enc_id,
                     when now() - GREATEST(sus_onset, sirs_onset, organ_onset) > ''3 hours''::interval and sev_sep_3hr_count < 4 then 32 -- sev_sep_3hr_exp
                     when now() - GREATEST(sus_onset, sirs_onset, organ_onset) > ''6 hours''::interval and sev_sep_6hr_count = 0 then 34 -- sev_sep_6hr_exp
                     when now() - hypoperfusion_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 36 -- sep_sho_6hr_exp
-                    when sep_sho_6hr_count = 1 then 35 -- sep_sho_6hr_com
+                    when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 and sep_sho_6hr_count = 1 then 35 -- sep_sho_6hr_com
                     when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 33 -- sev_sep_6hr_com
                     when sev_sep_3hr_count = 4 then 31 -- sev_sep_3hr_com
                     else
@@ -1151,7 +1151,7 @@ select %I.enc_id,
     count(*) filter (where name in (''blood_pressure'',''mean_arterial_pressure'',''decrease_in_sbp'',''respiratory_failure'',''creatinine'',''bilirubin'',''platelet'',''inr'',''lactate'') and is_met ) as organ_count,
     count(*) filter (where name in (''systolic_bp'',''hypotension_map'',''hypotension_dsbp'') and is_met ) as hypotension_count,
     count(*) filter (where name in (''initial_lactate_order'',''blood_culture_order'',''antibiotics_order'', ''crystalloid_fluid_order'') and is_met ) as sev_sep_3hr_count,
-    count(*) filter (where name = ''repeat_lactate_order'' and is_met ) as sev_sep_6hr_count,
+    count(*) filter (where name = ''repeat_lactate_order'' and is_met) as sev_sep_6hr_count,
     count(*) filter (where name = ''vasopressors_order'' and is_met ) as sep_sho_6hr_count,
     first(override_time) filter (where name = ''suspicion_of_infection'' and is_met) as sus_onset,
     (array_agg(measurement_time order by measurement_time)  filter (where name in (''sirs_temp'',''heart_rate'',''respiratory_rate'',''wbc'') and is_met ) )[2]   as sirs_onset,
@@ -1170,95 +1170,6 @@ where %I.enc_id = coalesce($1, %I.enc_id)
 group by %I.enc_id
 ) stats', table_name, table_name, table_name, table_name, where_clause, table_name)
 USING this_enc_id
-; END $func$ LANGUAGE plpgsql;
-
-
-CREATE OR REPLACE FUNCTION get_window_states(table_name text, this_pat_id text)
-RETURNS table( ts timestamptz, pat_id varchar(50), state int) AS $func$ BEGIN RETURN QUERY EXECUTE
-format('select stats.ts, stats.pat_id,
-    (
-    case
-    when sus_count = 1 then
-        (
-        case when sirs_count > 1 and organ_count > 0 then (
-            (
-            case
-            when (fluid_count = 1 and hypotension_count > 0) and hypoperfusion_count = 1 then
-                (case
-                    -- septic shock
-                    when now() - GREATEST(sus_onset, sirs_onset, organ_onset)  > ''3 hours''::interval and sev_sep_3hr_count < 4 then 32 -- sev_sep_3hr_exp
-                    when now() - GREATEST(sus_onset, sirs_onset, organ_onset)  > ''6 hours''::interval and sev_sep_6hr_count = 0 then 34 -- sev_sep_6hr_exp
-                    when now() - LEAST(hypotension_onset, hypoperfusion_onset) > ''6 hours''::interval and sep_sho_6hr_count = 0 then 36 -- sep_sho_6hr_exp
-                    when now() - LEAST(hypotension_onset, hypoperfusion_onset) > ''6 hours''::interval and sep_sho_6hr_count = 1 then 35 -- sep_sho_6hr_com
-                    when now() - GREATEST(sus_onset, sirs_onset, organ_onset)  > ''6 hours''::interval and sev_sep_6hr_count = 1 then 33 -- sev_sep_6hr_com
-                    when now() - GREATEST(sus_onset, sirs_onset, organ_onset)  > ''3 hours''::interval and sev_sep_3hr_count = 4 then 31 -- sev_sep_3hr_com
-                    else
-                    30 end)
-            when (fluid_count = 1 and hypotension_count > 0) then
-                (case
-                    -- septic shock
-                    when now() - GREATEST(sus_onset, sirs_onset, organ_onset) > ''3 hours''::interval and sev_sep_3hr_count < 4 then 32 -- sev_sep_3hr_exp
-                    when now() - GREATEST(sus_onset, sirs_onset, organ_onset) > ''6 hours''::interval and sev_sep_6hr_count = 0 then 34 -- sev_sep_6hr_exp
-                    when now() - hypotension_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 36 -- sep_sho_6hr_exp
-                    when now() - hypotension_onset > ''6 hours''::interval and sep_sho_6hr_count = 1 then 35 -- sep_sho_6hr_com
-                    when now() - GREATEST(sus_onset, sirs_onset, organ_onset) > ''6 hours''::interval and sev_sep_6hr_count = 1 then 33 -- sev_sep_6hr_com
-                    when now() - GREATEST(sus_onset, sirs_onset, organ_onset) > ''3 hours''::interval and sev_sep_3hr_count = 4 then 31 -- sev_sep_3hr_com
-                    else
-                    30 end)
-            when hypoperfusion_count = 1 then
-                (case
-                    -- septic shock
-                    when now() - GREATEST(sus_onset, sirs_onset, organ_onset) > ''3 hours''::interval and sev_sep_3hr_count < 4 then 32 -- sev_sep_3hr_exp
-                    when now() - GREATEST(sus_onset, sirs_onset, organ_onset) > ''6 hours''::interval and sev_sep_6hr_count = 0 then 34 -- sev_sep_6hr_exp
-                    when now() - hypoperfusion_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 36 -- sep_sho_6hr_exp
-                    when now() - hypoperfusion_onset > ''6 hours''::interval and sep_sho_6hr_count = 1 then 35 -- sep_sho_6hr_com
-                    when now() - GREATEST(sus_onset, sirs_onset, organ_onset) > ''6 hours''::interval and sev_sep_6hr_count = 1 then 33 -- sev_sep_6hr_com
-                    when now() - GREATEST(sus_onset, sirs_onset, organ_onset) > ''3 hours''::interval and sev_sep_3hr_count = 4 then 31 -- sev_sep_3hr_com
-                    else
-                    30 end)
-            when now() - GREATEST(sus_onset, sirs_onset, organ_onset) > ''3 hours''::interval and sev_sep_3hr_count < 4 then 22 -- sev_sep_3hr_exp
-            when now() - GREATEST(sus_onset, sirs_onset, organ_onset) > ''6 hours''::interval and sev_sep_6hr_count = 0 then 24 -- sev_sep_6hr_exp
-            when now() - GREATEST(sus_onset, sirs_onset, organ_onset) > ''6 hours''::interval and sev_sep_6hr_count = 1 then 23 -- sev_sep_6hr_com
-            when now() - GREATEST(sus_onset, sirs_onset, organ_onset) > ''3 hours''::interval and sev_sep_3hr_count = 4 then 21 -- sev_sep_3hr_com
-            else
-            -- severe sepsis
-            20
-            end)
-        )
-        else
-            -- inactive
-            0
-        end
-        )
-    -- no sus
-    when sirs_count > 1 and organ_count > 0 and sus_null_count = 1 then 10 -- sev_sep w.o. sus
-    when sirs_count > 1 and organ_count > 0 and sus_noinf_count = 1 then 12 -- sev_sep w.o. sus
-    else 0 -- health case
-    end) as state
-from
-(
-select %I.ts, %I.pat_id,
-    count(*) filter (where name = ''suspicion_of_infection'' and is_met) as sus_count,
-    count(*) filter (where name = ''suspicion_of_infection'' and (not is_met) and override_value#>>''{0,text}'' = ''No Infection'') as sus_noinf_count,
-    count(*) filter (where name = ''suspicion_of_infection'' and (not is_met) and override_value is null) as sus_null_count,
-    count(*) filter (where name = ''crystalloid_fluid'' and is_met) as fluid_count,
-    count(*) filter (where name = ''initial_lactate'' and is_met) as hypoperfusion_count,
-    count(*) filter (where name in (''sirs_temp'',''heart_rate'',''respiratory_rate'',''wbc'') and is_met ) as sirs_count,
-    count(*) filter (where name in (''blood_pressure'',''mean_arterial_pressure'',''decrease_in_sbp'',''respiratory_failure'',''creatinine'',''bilirubin'',''platelet'',''inr'',''lactate'') and is_met ) as organ_count,
-    count(*) filter (where name in (''systolic_bp'',''hypotension_map'',''hypotension_dsbp'') and is_met ) as hypotension_count,
-    count(*) filter (where name in (''initial_lactate_order'',''blood_culture_order'',''antibiotics_order'', ''crystalloid_fluid_order'') and is_met ) as sev_sep_3hr_count,
-    count(*) filter (where name = ''repeat_lactate_order'' and is_met ) as sev_sep_6hr_count,
-    count(*) filter (where name = ''vasopressors_order'' and is_met ) as sep_sho_6hr_count,
-    first(override_time) filter (where name = ''suspicion_of_infection'' and is_met) as sus_onset,
-    (array_agg(measurement_time order by measurement_time)  filter (where name in (''sirs_temp'',''heart_rate'',''respiratory_rate'',''wbc'') and is_met ) )[2]   as sirs_onset,
-    min(measurement_time) filter (where name in (''blood_pressure'',''mean_arterial_pressure'',''decrease_in_sbp'',''respiratory_failure'',''creatinine'',''bilirubin'',''platelet'',''inr'',''lactate'') and is_met ) as organ_onset,
-    min(measurement_time) filter (where name in (''systolic_bp'',''hypotension_map'',''hypotension_dsbp'') and is_met ) as hypotension_onset,
-    min(measurement_time) filter (where name = ''initial_lactate'' and is_met) as hypoperfusion_onset
-from %I
-where %I.pat_id = coalesce($1, %I.pat_id)
-group by %I.ts, %I.pat_id
-) stats', table_name, table_name, table_name, table_name, table_name, table_name, table_name)
-USING this_pat_id
 ; END $func$ LANGUAGE plpgsql;
 
 -------------------------------------------------
@@ -1703,7 +1614,7 @@ return query
             on enc_ids.enc_id = t.enc_id and t.fid = cd.fid
             and (
                 t.tsp is null
-                or (cd.name = 'initial_lactate_order' and t.tsp between least(ts_start, ts_end - initial_lactate_order_lookback) and ts_end)
+                or (cd.name in ('initial_lactate', 'initial_lactate_order') and t.tsp between least(ts_start, ts_end - initial_lactate_order_lookback) and ts_end)
                 or (cd.name = 'blood_culture_order' and t.tsp between least(ts_start, ts_end - blood_culture_order_lookback) and ts_end)
                 or (cd.name = 'antibiotics_order' and t.tsp between least(ts_start, ts_end - antibiotics_order_lookback) and ts_end)
                 or (cd.name ~ '_order' and t.tsp between least(ts_start, ts_end - orders_lookback) and ts_end)
@@ -2073,7 +1984,7 @@ return query
     ),
     severe_sepsis_now as (
       select sspm.enc_id,
-             sspm.ui_ss2_is_met, sspm.ui_ss1_is_met or sspm.trews_severe_sepsis_is_met or sspm.severe_sepsis_is_met severe_sepsis_is_met,
+             sspm.ui_ss2_is_met or sspm.ui_ss1_is_met or sspm.trews_severe_sepsis_is_met or sspm.severe_sepsis_is_met severe_sepsis_is_met,
              (case when sspm.ui_ss1_is_met then sspm.ui_ss1_onset
               when not sspm.severe_sepsis_is_met and not sspm.trews_severe_sepsis_is_met and sspm.ui_ss2_is_met
                 then sspm.ui_ss2_onset
@@ -2302,8 +2213,9 @@ return query
                     pat_cvalues.c_ouser,
                     pat_cvalues.c_ovalue,
                     criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
-                        and (ssn.severe_sepsis_is_met
-                                and coalesce(pat_cvalues.c_otime, pat_cvalues.tsp) >= ssn.severe_sepsis_onset)
+                        and (ssn.severe_sepsis_is_met and
+                            coalesce(pat_cvalues.c_otime, pat_cvalues.tsp)
+                                    between ssn.severe_sepsis_onset - initial_lactate_order_lookback and ssn.severe_sepsis_onset + '3 hours'::interval)
                         as is_met
             from pat_cvalues
             left join severe_sepsis_now ssn on pat_cvalues.enc_id = ssn.enc_id
@@ -3535,13 +3447,10 @@ begin
         update criteria_events set flag = flag - 1000
         where enc_id = this_enc_id and event_id = _event_id and flag >= 0;
     end if;
-    -- insert into criteria_log (enc_id, tsp, event, update_date)
-    -- values (
-    --       this_enc_id,
-    --       now(),
-    --       json_build_object('event_type', 'reset', 'uid', 'dba', 'tag', _tag),
-    --       now()
-    --   );
+    insert into pat_status (enc_id, deactivated, deactivated_tsp)
+    select enc_id, 'f', now() from pat_status where enc_id = this_enc_id and deactivated
+    on conflict (enc_id) do update
+    set deactivated = excluded.deactivated, deactivated_tsp = now();
     delete from notifications where enc_id = this_enc_id;
     perform advance_criteria_snapshot(this_enc_id, 'reset');
 end; $$;
@@ -4449,7 +4358,7 @@ DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
 
 INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
 select t.enc_id, t.tsp, t.fid,
-    jsonb_build_object(''stats'',
+    jsonb_build_object(''status'',
         last(case when t.value ~ ''status'' then (t.value::json)#>>''{status}'' else t.value end), ''discontinue_tsp'', now(), ''end_tsp'', now()),
 0
 from cdm_t t inner join pat_enc p on t.enc_id = p.enc_id
@@ -4463,7 +4372,7 @@ DO UPDATE SET value = EXCLUDED.value, confidence=0;
 
 -- insert currently acitve ones
 INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
-select enc_id, tsp::timestamptz, fid, jsonb_build_object(''stats'', last(lo.status order by lo.tsp)), 0
+select enc_id, tsp::timestamptz, fid, jsonb_build_object(''status'', last(lo.status order by lo.tsp)), 0
 from workspace.' || job_id || '_active_procedures_transformed lo
 inner join pat_enc p on lo.visit_id = p.visit_id
 where tsp <> ''NaT'' and tsp::timestamptz < now() and fid in (''lactate_order'', ''blood_culture_order'')
