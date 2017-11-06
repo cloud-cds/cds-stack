@@ -6,7 +6,7 @@ TUNNEL_PID=$!
 # sshfs -o IdentityFile=~/keys/noam_rsa noam@rambo:/udata/noam ~/mnt/rambo/
 
 # define dump file path
-DUMP_PATH="~/mnt/rambo/$1.dump"
+DUMP_PATH="/home/nfinkel1/mnt/rambo/$1.dump"
 
 # dump relevant schema from opsdx_dev_dw
 pg_dump -h 127.0.0.1 -U opsdx_root --schema=schema -d opsdx_dev_dw > $(echo $DUMP_PATH)
@@ -21,7 +21,7 @@ export num_derive_groups="8"
 
 export min_tsp='1990-01-01'
 export vacuum_temp_table='True'
-export db_host='dw.jh.opsdx.io'
+export db_host='127.0.0.1'
 export db_port='5432'
 export db_name='cardiac_db_small'
 
@@ -33,7 +33,7 @@ export populate_patients='True'
 export fillin='True'
 export derive='True'
 
-python ../etl/clarity2dw/planner.py
+python ../clarity2dw/planner.py
 
 # close tunnel
 kill $TUNNEL_PID
