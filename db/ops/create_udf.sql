@@ -1151,7 +1151,7 @@ select %I.enc_id,
     count(*) filter (where name in (''blood_pressure'',''mean_arterial_pressure'',''decrease_in_sbp'',''respiratory_failure'',''creatinine'',''bilirubin'',''platelet'',''inr'',''lactate'') and is_met ) as organ_count,
     count(*) filter (where name in (''systolic_bp'',''hypotension_map'',''hypotension_dsbp'') and is_met ) as hypotension_count,
     count(*) filter (where name in (''initial_lactate_order'',''blood_culture_order'',''antibiotics_order'', ''crystalloid_fluid_order'') and is_met ) as sev_sep_3hr_count,
-    count(*) filter (where (name = ''repeat_lactate_order'' and is_met) or (name = ''initial_lactate'' and not is_met)) as sev_sep_6hr_count,
+    count(*) filter (where name = ''repeat_lactate_order'' and is_met) as sev_sep_6hr_count,
     count(*) filter (where name = ''vasopressors_order'' and is_met ) as sep_sho_6hr_count,
     first(override_time) filter (where name = ''suspicion_of_infection'' and is_met) as sus_onset,
     (array_agg(measurement_time order by measurement_time)  filter (where name in (''sirs_temp'',''heart_rate'',''respiratory_rate'',''wbc'') and is_met ) )[2]   as sirs_onset,
@@ -1614,7 +1614,7 @@ return query
             on enc_ids.enc_id = t.enc_id and t.fid = cd.fid
             and (
                 t.tsp is null
-                or (cd.name = 'initial_lactate_order' and t.tsp between least(ts_start, ts_end - initial_lactate_order_lookback) and ts_end)
+                or (cd.name in ('initial_lactate', 'initial_lactate_order') and t.tsp between least(ts_start, ts_end - initial_lactate_order_lookback) and ts_end)
                 or (cd.name = 'blood_culture_order' and t.tsp between least(ts_start, ts_end - blood_culture_order_lookback) and ts_end)
                 or (cd.name = 'antibiotics_order' and t.tsp between least(ts_start, ts_end - antibiotics_order_lookback) and ts_end)
                 or (cd.name ~ '_order' and t.tsp between least(ts_start, ts_end - orders_lookback) and ts_end)
@@ -1984,7 +1984,7 @@ return query
     ),
     severe_sepsis_now as (
       select sspm.enc_id,
-             sspm.ui_ss2_is_met, sspm.ui_ss1_is_met or sspm.trews_severe_sepsis_is_met or sspm.severe_sepsis_is_met severe_sepsis_is_met,
+             sspm.ui_ss2_is_met or sspm.ui_ss1_is_met or sspm.trews_severe_sepsis_is_met or sspm.severe_sepsis_is_met severe_sepsis_is_met,
              (case when sspm.ui_ss1_is_met then sspm.ui_ss1_onset
               when not sspm.severe_sepsis_is_met and not sspm.trews_severe_sepsis_is_met and sspm.ui_ss2_is_met
                 then sspm.ui_ss2_onset
@@ -2213,8 +2213,9 @@ return query
                     pat_cvalues.c_ouser,
                     pat_cvalues.c_ovalue,
                     criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
-                        and (ssn.severe_sepsis_is_met
-                                and coalesce(pat_cvalues.c_otime, pat_cvalues.tsp) >= ssn.severe_sepsis_onset)
+                        and (ssn.severe_sepsis_is_met and
+                            coalesce(pat_cvalues.c_otime, pat_cvalues.tsp)
+                                    between ssn.severe_sepsis_onset - initial_lactate_order_lookback and ssn.severe_sepsis_onset + '3 hours'::interval)
                         as is_met
             from pat_cvalues
             left join severe_sepsis_now ssn on pat_cvalues.enc_id = ssn.enc_id
