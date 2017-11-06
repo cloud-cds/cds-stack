@@ -939,7 +939,8 @@ class TREWSAPI(web.View):
                     }
 
                 else:
-                  raise web.HTTPBadRequest(body=json.dumps({'message': 'No patient found'}))
+                  msg = 'This patient recently entered Epic and is not yet available in TREWS. Please check back soon.'
+                  raise web.HTTPBadRequest(body=json.dumps({'message': msg}))
 
               # Track summary object for user interaction logs.
               elif actionType == u'poll_notifications' and request_key:
@@ -951,7 +952,7 @@ class TREWSAPI(web.View):
           return json_response(response_body)
 
         else:
-          raise web.HTTPBadRequest(body=json.dumps({'message': 'No patient identifier supplied in request'}))
+          raise web.HTTPBadRequest(body=json.dumps({'message': 'No patient identifier supplied in TREWS request'}))
 
     except web.HTTPException:
       raise
