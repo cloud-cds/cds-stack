@@ -30,6 +30,8 @@ epic_notifications = os.environ['epic_notifications']
 client_id          = os.environ['jhapi_client_id']
 client_secret      = os.environ['jhapi_client_secret']
 model_in_use       = os.environ['model_in_use']
+v1_flowsheets      = os.environ['v1_flowsheets'].lower() == 'true' if 'v1_flowsheets' in os.environ else False
+
 excluded_units     = os.environ['excluded_units'].split(',') \
                       if 'excluded_units' in os.environ \
                       else ['HCGH LABOR & DELIVERY', 'HCGH EMERGENCY-PEDS', 'HCGH 2C NICU', 'HCGH 1CX PEDIATRICS', 'HCGH 2N MCU']
@@ -752,13 +754,19 @@ async def load_epic_notifications(notifications):
     logging.info("No notification need to be updated to Epic")
     return
 
-  flowsheet_ids = {
-    'count'    : ('9490',  lambda x: str(x) if x is not None else '1'),
-    'score'    : ('9485',  lambda x: format(float(x), '.4f').lstrip('0') if x is not None else '-1.0'),
-    'threshold': ('94851', lambda x: format(float(x), '.4f').lstrip('0') if x is not None else '-1.0'),
-    'flag'     : ('94852', lambda x: str(x) if x is not None else '0'),
-    'version'  : ('94853', lambda x: model_in_use + '-v9' if model_in_use is not None else 'N/A')
-  }
+  if v1_flowsheets:
+    flowsheet_ids = {
+      'count'    : ('9490',  lambda x: str(x) if x is not None else '1'),
+      'score'    : ('9485',  lambda x: format(float(x), '.4f').lstrip('0') if x is not None else '-1.0'),
+      'threshold': ('94851', lambda x: format(float(x), '.4f').lstrip('0') if x is not None else '-1.0'),
+      'flag'     : ('94852', lambda x: str(x) if x is not None else '0'),
+      'version'  : ('94853', lambda x: model_in_use + '-v9' if model_in_use is not None else 'N/A')
+    }
+  else:
+    flowsheet_ids = {
+      'count'    : ('9490',  lambda x: str(x) if x is not None else '1'),
+      'score'    : ('9485',  lambda x: format(float(x), '.4f').lstrip('0') if x is not None else '-1.0')
+    }
 
   success = { k: 0 for k in flowsheet_ids }
 
