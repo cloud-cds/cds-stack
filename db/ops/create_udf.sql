@@ -3115,7 +3115,7 @@ BEGIN RETURN QUERY
   compare as
   (
       select prev.pat_id, prev.visit_id, prev.enc_id, prev.count_prev,
-            (case when deactivated then 1
+            (case
                 when state = 11 then 2
                 when state = 10 then 3
                 when state in (20,21,22,24,25,26,27,29,50,51,52,54) then 4
