@@ -930,10 +930,6 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
     var sev6_expired = sev6.indexOf('expired') >= 0;
     var sep6_expired = sep6.indexOf('expired') >= 0;
 
-    var sev3_active = sepsis_onset != null && !(sev3_completed || sev3_expired);
-    var sev6_active = sepsis_onset != null && !(sev6_completed || sev6_expired);
-    var sep6_active = shock_onset != null && !(sep6_completed || sep6_expired);
-
     var care_completed = sev6_completed || sep6_completed;
     var care_expired = sev3_expired || sev6_expired || sep6_expired;
 
@@ -1011,8 +1007,8 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
         auto_reset_date = new Date(expired_date);
       }
 
-      var expected_treatments = sep6_active ? 6 : 5;
-      var actual_treatments = sep6_active ? num_sep6_complete : num_sev6_complete;
+      var expected_treatments = shock_onset != null ? 6 : 5;
+      var actual_treatments = shock_onset != null ? num_sep6_complete : num_sev6_complete;
 
       if ( shock_onset != null ) {
         if ( trews.data['ui']['ui_septic_shock']['is_met'] ) {
