@@ -39,4 +39,4 @@ python ../etl/clarity2dw/planner.py
 kill $TUNNEL_PID
 
 # unmount rambo
-sudo umount ~/mnt/rambo
+# sudo umount ~/mnt/rambo
