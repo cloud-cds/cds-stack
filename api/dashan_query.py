@@ -867,11 +867,9 @@ async def invalidate_cache_batch(db_pool, pid, channel, serial_id, pat_cache):
     select n.* from
     (select jsonb_array_elements_text(pats) pat_id from refreshed_pats where id = {serial_id}) p
     inner join (select * from get_notifications_for_epic(null, '{model}')) n on n.pat_id = p.pat_id
-  ),
-  notify_future as (
-    select notify_future_notification('{channel}', pat_id) from notifications
   )
-  select n.* from notifications n cross join notify_future;
+  select pat_id, visit_id, enc_id, count from
+  (select n.*, notify_future_notification('{channel}', pat_id) from notifications n) M;
   '''.format(serial_id=serial_id, model=model_in_use, channel=channel)
   pat_sql = 'select jsonb_array_elements_text(pats) pat_id from refreshed_pats where id = {}'.format(serial_id)
   async with db_pool.acquire() as conn:
