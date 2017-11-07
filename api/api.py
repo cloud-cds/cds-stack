@@ -708,7 +708,9 @@ class TREWSAPI(web.View):
 
           fluid_criterion = data['septic_shock']['crystalloid_fluid']
           max_fluid_time = fluid_criterion['measurement_time']
-          if fluid_criterion['override_time'] and fluid_criterion['override_time'] > max_fluid_time:
+          if max_fluid_time is None:
+            max_fluid_time = fluid_criterion['override_time']
+          elif fluid_criterion['override_time'] and fluid_criterion['override_time'] > max_fluid_time:
             max_fluid_time = fluid_criterion['override_time']
 
           data['septic_shock']['onset_time'] = sorted(shock_onsets_hypotension + [max_fluid_time])[-1]
