@@ -1037,7 +1037,68 @@ format('select stats.enc_id,
     )
     when sus_count = 1 then
         (
-        case when trews_subalert_met > 0 then (
+        -- trews severe sepsis already on
+        case when state between 25 and 29 then (
+            (
+            case
+            when (fluid_count = 1 and hypotension_count > 0) and hypoperfusion_count = 1 then
+                (case
+                    -- septic shock
+                    when now() - severe_sepsis_onset  > ''3 hours''::interval and sev_sep_3hr_count < 4 then 42 -- trews_sev_sep_3hr_exp
+                    when now() - severe_sepsis_onset  > ''6 hours''::interval and sev_sep_6hr_count = 0 then 44 -- trews_sev_sep_6hr_exp
+                    when now() - LEAST(hypotension_onset, hypoperfusion_onset) > ''6 hours''::interval and sep_sho_6hr_count = 0 then 46 -- trews_sep_sho_6hr_exp
+                    when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 and sep_sho_6hr_count = 1 then 45 -- trews_sep_sho_6hr_com
+                    when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 43 -- trews_sev_sep_6hr_com
+                    when sev_sep_3hr_count = 4 then 41 -- trews_sev_sep_3hr_com
+                    else
+                    40 end)
+            when (fluid_count = 1 and hypotension_count > 0) then
+                (case
+                    -- septic shock
+                    when now() - severe_sepsis_onset > ''3 hours''::interval and sev_sep_3hr_count < 4 then 42 -- trews_sev_sep_3hr_exp
+                    when now() - severe_sepsis_onset > ''6 hours''::interval and sev_sep_6hr_count = 0 then 44 -- trews_sev_sep_6hr_exp
+                    when now() - hypotension_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 46 -- trews_sep_sho_6hr_exp
+                    when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 and sep_sho_6hr_count = 1 then 45 -- trews_sep_sho_6hr_com
+                    when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 43 -- trews_sev_sep_6hr_com
+                    when sev_sep_3hr_count = 4 then 41 -- trews_sev_sep_3hr_com
+                    else
+                    40 end)
+            when hypoperfusion_count = 1 then
+                (case
+                    -- septic shock
+                    when now() - severe_sepsis_onset > ''3 hours''::interval and sev_sep_3hr_count < 4 then 42 -- trews_sev_sep_3hr_exp
+                    when now() - severe_sepsis_onset > ''6 hours''::interval and sev_sep_6hr_count = 0 then 44 -- trews_sev_sep_6hr_exp
+                    when now() - hypoperfusion_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 46 -- trews_sep_sho_6hr_exp
+                    when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 and sep_sho_6hr_count = 1 then 45 -- trews_sep_sho_6hr_com
+                    when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 43 -- trews_sev_sep_6hr_com
+                    when sev_sep_3hr_count = 4 then 41 -- trews_sev_sep_3hr_com
+                    else
+                    40 end)
+            when now() - severe_sepsis_onset > ''3 hours''::interval and sev_sep_3hr_count < 4 then 27 -- trews_sev_sep_3hr_exp
+            when now() - severe_sepsis_onset > ''6 hours''::interval and sev_sep_6hr_count = 0 then 29 -- trews_sev_sep_6hr_exp
+            when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 28 -- trews_sev_sep_6hr_com
+            when sev_sep_3hr_count = 4 then 26 -- trews_sev_sep_3hr_com
+            else
+            -- severe sepsis
+            25
+            end)
+        )
+        -- trews septic shock already on
+        when state between 40 and 46 then (
+            (
+            case
+            -- septic shock
+            when now() - severe_sepsis_onset > ''3 hours''::interval and sev_sep_3hr_count < 4 then 42 -- trews_sev_sep_3hr_exp
+            when now() - severe_sepsis_onset > ''6 hours''::interval and sev_sep_6hr_count = 0 then 44 -- trews_sev_sep_6hr_exp
+            when now() - septic_shock_onset > ''6 hours''::interval and sep_sho_6hr_count = 0 then 46 -- trews_sep_sho_6hr_exp
+            when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 and sep_sho_6hr_count = 1 then 45 -- trews_sep_sho_6hr_com
+            when sev_sep_6hr_count = 1 and sev_sep_3hr_count = 4 then 43 -- trews_sev_sep_6hr_com
+            when sev_sep_3hr_count = 4 then 41 -- trews_sev_sep_3hr_com
+            else
+            40 end
+            )
+        )
+        when trews_subalert_met > 0 then (
             (
             case
             when (fluid_count = 1 and hypotension_count > 0) and hypoperfusion_count = 1 then
@@ -1163,12 +1224,19 @@ select %I.enc_id,
     count(*) filter (where name = ''ui_severe_sepsis'' and is_met) as ui_severe_sepsis_cnt,
     min(override_time) filter (where name = ''ui_severe_sepsis'' and is_met) as ui_severe_sepsis_onset,
     count(*) filter (where name = ''ui_septic_shock'' and is_met) as ui_septic_shock_cnt,
-    min(override_time) filter (where name = ''ui_septic_shock'' and is_met) as ui_septic_shock_onset
+    min(override_time) filter (where name = ''ui_septic_shock'' and is_met) as ui_septic_shock_onset,
+    first(GSS.state) state,
+    first(GSS.severe_sepsis_onset) severe_sepsis_onset,
+    first(GSS.septic_shock_onset) septic_shock_onset,
+    first(GSS.severe_sepsis_wo_infection_onset) severe_sepsis_wo_infection_onset,
+    first(GSS.severe_sepsis_wo_infection_initial) severe_sepsis_wo_infection_initial,
+    first(GSS.severe_sepsis_lead_time) severe_sepsis_lead_time
 from %I
+left join get_states_snapshot(%I.enc_id) GSS on GSS.enc_id = %I.enc_id
 where %I.enc_id = coalesce($1, %I.enc_id)
 %s
 group by %I.enc_id
-) stats', table_name, table_name, table_name, table_name, where_clause, table_name)
+) stats', table_name, table_name, table_name, table_name, table_name, table_name, where_clause, table_name)
 USING this_enc_id
 ; END $func$ LANGUAGE plpgsql;
 
@@ -1740,10 +1808,23 @@ return query
         ) ordered
         group by ordered.enc_id, ordered.name
     ),
-    trews as (
+    trews_live as (
         select * from trews_subalert
         union all
         select * from trews_orgdf
+    ),
+    trews as (
+        select trews_live.enc_id, trews_live.name,
+        coalesce(ce.measurement_time, trews_live.measurement_time) measurement_time,
+        coalesce(ce.value, trews_live.value) as value,
+        coalesce(ce.override_time, trews_live.override_time) override_time,
+        coalesce(ce.override_user, trews_live.override_user) override_user,
+        coalesce(ce.override_value, trews_live.override_value) override_value,
+        coalesce(ce.is_met, trews_live.is_met) is_met,
+        trews_live.update_date,
+        trews_live.is_acute
+        from trews_live left join criteria_events ce on ce.enc_id = trews_live.enc_id and ce.name = trews_live.name
+        and ce.flag in (25,26,27,28,29,40,41,42,43,44,45,46)
     ),
     sirs as (
         select
