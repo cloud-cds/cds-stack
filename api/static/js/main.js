@@ -1106,7 +1106,23 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
       care_status_priority = 'low-priority';
     }
     else if ( with_no_risk ) {
-      care_status = 'TREWS does not indicate high risk of severe sepsis as of ' + strToTime(Date.now(), true, false);
+      var data_ready = true;
+      var trews_subalert_json = 'trews_subalert' in trews.data['severe_sepsis'] ? trews.data['severe_sepsis']['trews_subalert'].value : null;
+      if ( trews_subalert_json != null ) {
+        trews_subalert_json = JSON.parse(trews_subalert_json);
+        if ( 'no_lab' in trews_subalert_json && trews_subalert_json['no_lab'] != null
+                && typeof(trews_subalert_json['no_lab']) === 'boolean')
+        {
+          data_ready = !trews_subalert_json['no_lab'];
+        }
+      }
+      if ( data_ready ) {
+        care_status = 'TREWS does not indicate high risk of severe sepsis as of ' + strToTime(Date.now(), true, false);
+      } else {
+        care_status =
+          'TREWS does not yet have sufficient data to calculate if this patient is at risk of severe sepsis as of ' + strToTime(Date.now(), true, false) +
+          '.<br>If you believe the patient is currently experiencing sepsis, please click Skip to bundle below to enable patient tracking.';
+      }
       care_status_priority = 'no-priority';
     }
 
