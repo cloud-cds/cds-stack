@@ -942,7 +942,7 @@ class TREWSAPI(web.View):
 
                 else:
                   msg = 'This patient recently entered Epic and is not yet available in TREWS. Please check back soon.'
-                  raise web.HTTPBadRequest(body=json.dumps({'message': msg}))
+                  raise web.HTTPBadRequest(body=json.dumps({'message': msg, 'standalone': True}))
 
               # Track summary object for user interaction logs.
               elif actionType == u'poll_notifications' and request_key:
