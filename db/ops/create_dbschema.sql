@@ -177,6 +177,9 @@ CREATE  TABLE epic_notifications_history
     tsp         timestamptz     not null,
     enc_id      int             not null,
     count       int             not null,
+    trewscore   text,
+    threshold   text,
+    flag        int,
     PRIMARY KEY(tsp, enc_id)
 );
 

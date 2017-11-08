@@ -870,8 +870,9 @@ AS $func$ BEGIN
             else CE.severe_sepsis_wo_infection_initial end) as severe_sepsis_wo_infection_initial,
          (case when coalesce(CE.flag, 0) in (11,14,15,25,26,27,28,29) or coalesce(CE.flag, 0) >= 40 then CE.trews_severe_sepsis_lead_time
             else CE.severe_sepsis_lead_time end) as severe_sepsis_lead_time,
-         CE.trewscore, CE.trewscore_threshold,
-         (case when CE.flag = 10 then 2 when CE.flag = 11 then 1 else 0 end) alert_flag
+         CE.trewscore,
+         (case when CE.trewscore is null then null else CE.trewscore_threshold end) as trewscore_threshold,
+         (case when CE.trewscore is null then null else trews_subalert_met::int end) alert_flag
   from max_events_by_pat MEV
   left join lateral (
     select
@@ -922,7 +923,8 @@ AS $func$ BEGIN
              min(measurement_time) filter (where name in ('trews_bilirubin','trews_creatinine','trews_gcs','trews_inr','trews_lactate','trews_platelet','trews_vent') and is_met ))
       as trews_severe_sepsis_lead_time,
       first((value::json)#>>'{score}') filter (where name = 'trews_subalert') trewscore,
-      first((value::json)#>>'{threshold}') filter (where name = 'trews_subalert') trewscore_threshold
+      first((value::json)#>>'{threshold}') filter (where name = 'trews_subalert') trewscore_threshold,
+      count(*) filter (where name = 'trews_subalert' and is_met) trews_subalert_met
     from
     criteria_events ICE
     where ICE.enc_id   = MEV.enc_id
@@ -1038,7 +1040,7 @@ format('select stats.enc_id,
     when sus_count = 1 then
         (
         -- trews severe sepsis already on
-        case when state between 25 and 29 then (
+        case when state between 25 and 29 and not (trews_orgdf_met = 0 and trews_orgdf_override > 0) then (
             (
             case
             when (fluid_count = 1 and hypotension_count > 0) and hypoperfusion_count = 1 then
@@ -1084,7 +1086,7 @@ format('select stats.enc_id,
             end)
         )
         -- trews septic shock already on
-        when state between 40 and 46 then (
+        when state between 40 and 46 and not (trews_orgdf_met = 0 and trews_orgdf_override > 0) then (
             (
             case
             -- septic shock
@@ -1220,6 +1222,8 @@ select %I.enc_id,
     min(measurement_time) filter (where name in (''systolic_bp'',''hypotension_map'',''hypotension_dsbp'') and is_met ) as hypotension_onset,
     min(measurement_time) filter (where name = ''initial_lactate'' and is_met) as hypoperfusion_onset,
     count(*) filter (where name = ''trews_subalert'' and is_met) as trews_subalert_met,
+    count(*) filter (where name ~ ''trews_'' and name <> ''trews_subalert'' and is_met) as trews_orgdf_met,
+    count(*) filter (where name ~ ''trews_'' and name <> ''trews_subalert'' and not is_met and override_value#>>''{0,text}'' = ''No Infection'') as trews_orgdf_override,
     min(measurement_time) filter (where name = ''trews_subalert'' and is_met) as trews_subalert_onset,
     count(*) filter (where name = ''ui_severe_sepsis'' and is_met) as ui_severe_sepsis_cnt,
     min(override_time) filter (where name = ''ui_severe_sepsis'' and is_met) as ui_severe_sepsis_onset,
@@ -1770,8 +1774,8 @@ return query
             ts.bilirubin_orgdf, ts.platelets_orgdf, ts.gcs_orgdf, ts.inr_orgdf, ts.sbpm_hypotension, ts.map_hypotension, ts.delta_hypotension, ts.vasopressors_orgdf, ts.lactate_orgdf, ts.vent_orgdf,ts.orgdf_details
             from pat_cvalues pc
             left join trews_jit_score ts on pc.enc_id = ts.enc_id
-            and ts.model_id = get_trews_parameter('trews_jit_model_id')
-            where pc.name ~* 'trews_' and pc.name <> 'trews_subalert' and orgdf_details !~ '"tsp":"null"'
+            and ts.model_id = get_trews_parameter('trews_jit_model_id') and orgdf_details !~ '"tsp":"null"'
+            where pc.name ~* 'trews_' and pc.name <> 'trews_subalert'
         ) ordered
         group by ordered.enc_id, ordered.name
     ),
@@ -1781,8 +1785,15 @@ return query
             ordered.name,
             last(ordered.tsp ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
                 as measurement_time,
-            last(json_build_object('score', ordered.score, 'threshold', (ordered.orgdf_details::jsonb)#>'{th}',
-            'alert', (ordered.orgdf_details::jsonb)#>'{alert}', 'pct_mortality', (ordered.orgdf_details::jsonb)#>'{percent_mortality}', 'pct_sevsep', (ordered.orgdf_details::jsonb)#>'{percent_sevsep}', 'heart_rate', (ordered.orgdf_details::jsonb)#>'{heart_rate}', 'lactate', (ordered.orgdf_details::jsonb)#>'{lactate}', 'sbpm', (ordered.orgdf_details::jsonb)#>'{sbpm}')::text ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
+            last(json_build_object('score', ordered.score,
+                                   'threshold', (ordered.orgdf_details::jsonb)#>'{th}',
+                                   'alert', (ordered.orgdf_details::jsonb)#>'{alert}',
+                                   'pct_mortality', (ordered.orgdf_details::jsonb)#>'{percent_mortality}',
+                                   'pct_sevsep', (ordered.orgdf_details::jsonb)#>'{percent_sevsep}',
+                                   'heart_rate', (ordered.orgdf_details::jsonb)#>'{heart_rate}',
+                                   'lactate', (ordered.orgdf_details::jsonb)#>'{lactate}',
+                                   'no_lab', (ordered.orgdf_details::jsonb)#>'{no_lab}',
+                                   'sbpm', (ordered.orgdf_details::jsonb)#>'{sbpm}')::text ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
                 as value,
             (last(ordered.c_otime ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)) as override_time,
             (last(ordered.c_ouser ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)) as override_user,
@@ -1803,8 +1814,8 @@ return query
             from pat_cvalues pc
             left join trews_orgdf on pc.enc_id = trews_orgdf.enc_id
             left join trews_jit_score ts on pc.enc_id = ts.enc_id
-            and ts.model_id = get_trews_parameter('trews_jit_model_id')
-            where pc.name = 'trews_subalert' and orgdf_details !~ '"tsp":"null"'
+            and ts.model_id = get_trews_parameter('trews_jit_model_id') and orgdf_details !~ '"tsp":"null"'
+            where pc.name = 'trews_subalert'
         ) ordered
         group by ordered.enc_id, ordered.name
     ),
@@ -1817,14 +1828,19 @@ return query
         select trews_live.enc_id, trews_live.name,
         coalesce(ce.measurement_time, trews_live.measurement_time) measurement_time,
         coalesce(ce.value, trews_live.value) as value,
-        coalesce(ce.override_time, trews_live.override_time) override_time,
-        coalesce(ce.override_user, trews_live.override_user) override_user,
-        coalesce(ce.override_value, trews_live.override_value) override_value,
+        trews_live.override_time,
+        trews_live.override_user,
+        trews_live.override_value,
         coalesce(ce.is_met, trews_live.is_met) is_met,
         trews_live.update_date,
         trews_live.is_acute
         from trews_live left join criteria_events ce on ce.enc_id = trews_live.enc_id and ce.name = trews_live.name
-        and ce.flag in (25,26,27,28,29,40,41,42,43,44,45,46)
+        and ce.flag in (25,26,27,28,29,40,41,42,43,44,45,46) and not (
+            -- not all trews_orgdf is overrided with No Infection
+            select (count(*) filter (where TOR.is_met)) = 0
+                and (count(*) filter (where TOR.override_value#>>'{0,text}' = 'No Infection')) > 0
+             from trews_orgdf TOR
+        )
     ),
     sirs as (
         select
@@ -2737,7 +2753,7 @@ BEGIN
         from new_criteria
         where criteria_events.event_id = (
             select max(event_id) from criteria_events ce
-            where ce.enc_id = new_criteria.enc_id and ce.flag > 0
+            where ce.enc_id = new_criteria.enc_id and ce.flag >= 0
         )
         and criteria_events.enc_id = new_criteria.enc_id
     ),
@@ -3210,8 +3226,8 @@ BEGIN RETURN QUERY
       left join lateral get_states_snapshot(prev.enc_id) gss on gss.enc_id = prev.enc_id
   ),
   update_history as (
-    insert into epic_notifications_history (tsp, enc_id, count)
-    select now() tsp, c.enc_id, c.count from compare c
+    insert into epic_notifications_history (tsp, enc_id, count, trewscore, threshold, flag)
+    select now() tsp, c.enc_id, c.count, c.trewscore, c.trewscore_threshold, c.alert_flag from compare c
     where c.count <> c.count_prev
     on conflict (tsp, enc_id) do update set count = Excluded.count
     returning *
@@ -3455,13 +3471,13 @@ end; $$;
 create or replace function reset_noinf_expired_pats(this_enc_id int default null)
 returns void language plpgsql as $$
 declare res text;
--- reset patients who are in state 10 and expired for lookbackhours
+-- reset patients who are in state 12,13,14 and expired for lookbackhours
 begin
     with pats as (
     select distinct e.enc_id
         from criteria_events e
         inner join criteria c on e.enc_id = c.enc_id
-        where flag in (12,14) and c.name = 'suspicion_of_infection'
+        where flag in (12,13,14) and c.name = 'suspicion_of_infection'
         and now() - c.override_time::timestamptz
             > get_parameter('deactivate_expire_hours')::interval
         and e.enc_id = coalesce(this_enc_id, e.enc_id)
