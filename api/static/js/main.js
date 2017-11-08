@@ -1106,7 +1106,7 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
       care_status_priority = 'low-priority';
     }
     else if ( with_no_risk ) {
-      var data_ready = true;
+      var data_ready = false;
       var trews_subalert_json = 'trews_subalert' in trews.data['severe_sepsis'] ? trews.data['severe_sepsis']['trews_subalert'].value : null;
       if ( trews_subalert_json != null ) {
         trews_subalert_json = JSON.parse(trews_subalert_json);
