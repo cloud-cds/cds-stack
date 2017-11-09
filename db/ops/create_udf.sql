@@ -2723,7 +2723,10 @@ BEGIN
     insert into criteria_events (event_id, enc_id, name, measurement_time, value,
                                  override_time, override_user, override_value, is_met, update_date, is_acute, flag)
     select s.event_id, c.enc_id, c.name, c.measurement_time, c.value,
-           c.override_time, c.override_user, c.override_value, c.is_met, c.update_date, c.is_acute,
+           (case when c.override_value#>>'{0,text}' in ('Ordering', 'Ordered') then null else c.override_time end),
+           (case when c.override_value#>>'{0,text}' in ('Ordering', 'Ordered') then null else c.override_user end),
+           (case when c.override_value#>>'{0,text}' in ('Ordering', 'Ordered') then null else c.override_value end),
+           c.is_met, c.update_date, c.is_acute,
            s.state_to as flag
     from ( select ssid.event_id, si.enc_id, si.state_to
            from state_change si
@@ -2799,7 +2802,10 @@ BEGIN
     insert into criteria_events (event_id, enc_id, name, measurement_time, value,
                                  override_time, override_user, override_value, is_met, update_date, is_acute, flag)
     select ssid.event_id, NC.enc_id, NC.name, NC.measurement_time, NC.value,
-           NC.override_time, NC.override_user, NC.override_value, NC.is_met, NC.update_date, NC.is_acute,
+           (case when NC.override_value#>>'{0,text}' in ('Ordering', 'Ordered') then null else NC.override_time end),
+           (case when NC.override_value#>>'{0,text}' in ('Ordering', 'Ordered') then null else NC.override_user end),
+           (case when NC.override_value#>>'{0,text}' in ('Ordering', 'Ordered') then null else NC.override_value end),
+           NC.is_met, NC.update_date, NC.is_acute,
            pat_states.state as flag
     from new_criteria NC
     cross join (select nextval('criteria_event_ids') event_id) ssid
