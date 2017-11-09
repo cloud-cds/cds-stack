@@ -1,4 +1,5 @@
 var INFECTIONS = [
+	"Unknown Source",
 	"Endocarditis",
 	"Meningitis",
 	"Bacteremia",
@@ -6,7 +7,6 @@ var INFECTIONS = [
 	"UTI",
 	"Pneumonia",
 	"Multiple Sources of Infection",
-	"Unknown",
 	"Reset"
 ]
 
@@ -318,7 +318,8 @@ var severe_sepsis = {
 				"acute_cmp": null,
 				"acute_arrow": null
 			}],
-			"precision": 3
+			//"precision": 3
+			"fixed": 1
 		}, {
 			"key": "heart_rate",
 			"criteria_display_name": "Heart Rate (Pulse) > 90/min",
@@ -337,7 +338,8 @@ var severe_sepsis = {
 				"acute_cmp": null,
 				"acute_arrow": null
 			}],
-			"precision": 4
+			//"precision": 4
+			"fixed": 1
 		}, {
 			"key": "respiratory_rate",
 			"criteria_display_name": "Respiratory Rate > 20/min",
@@ -356,7 +358,8 @@ var severe_sepsis = {
 				"acute_cmp": null,
 				"acute_arrow": null
 			}],
-			"precision": 3
+			//"precision": 3
+			"fixed": 1
 		}, {
 			"key": "wbc",
 			"criteria_display_name": "WBC < 4K/uL or > 12K/uL or >10% bands",
@@ -388,7 +391,8 @@ var severe_sepsis = {
 				"acute_cmp": null,
 				"acute_arrow": null
 			}],
-			"precision": 3
+			//"precision": 3
+			"fixed": 1
 		}]
 	},
 	"organ_dysfunction": {
@@ -412,7 +416,8 @@ var severe_sepsis = {
 				"acute_cmp": null,
 				"acute_arrow": null
 			}],
-			"precision": 4
+			//"precision": 4
+			"fixed": 1
 		}, {
 			"key": "mean_arterial_pressure",
 			"criteria_display_name": "Mean arterial pressure < 65",
@@ -431,7 +436,8 @@ var severe_sepsis = {
 				"acute_cmp": null,
 				"acute_arrow": null
 			}],
-			"precision": 3
+			//"precision": 3
+			"fixed": 1
 		}, {
 			"key": "decrease_in_sbp",
 			"criteria_display_name": "Decrease in SBP by > 40 mmHg from the last recorded SBP considered normal for given patient",
@@ -450,7 +456,8 @@ var severe_sepsis = {
 				"acute_cmp": null,
 				"acute_arrow": null
 			}],
-			"precision": 3
+			//"precision": 3
+			"fixed": 1
 		}, {
 			"key": "respiratory_failure",
 			"criteria_display_name": "Acute respiratory failure evidenced by invasive or non-invasive ventiliation",
@@ -469,7 +476,7 @@ var severe_sepsis = {
 				"acute_cmp": null,
 				"acute_arrow": null
 			}],
-			"precision": 4
+			"precision": 1
 		}, {
 			"key": "creatinine",
 			"criteria_display_name": "Creatinine > 2.0 or Urine Output < 0.5 mL/kg/hour for 2 hours",
@@ -501,7 +508,8 @@ var severe_sepsis = {
 				"acute_cmp": null,
 				"acute_arrow": null
 			}],
-			"precision": 3
+			//"precision": 3
+			"fixed": 1
 		}, {
 			"key": "bilirubin",
 			"criteria_display_name": "Bilirubin > 2 mg/dL (34.2 mmol/L)",
@@ -520,7 +528,8 @@ var severe_sepsis = {
 				"acute_cmp": "GT",
 				"acute_arrow": "up"
 			}],
-			"precision": 3
+			//"precision": 3
+			"fixed": 1
 		}, {
 			"key": "platelet",
 			"criteria_display_name": "Platelet count < 100,000",
@@ -539,7 +548,8 @@ var severe_sepsis = {
 				"acute_cmp": "LT",
 				"acute_arrow": "down"
 			}],
-			"precision": 6
+			//"precision": 6
+			"fixed": 0
 		}, {
 			"key": "inr",
 			"criteria_display_name": "INR > 1.5 or PTT > 60 sec",
@@ -571,7 +581,8 @@ var severe_sepsis = {
 				"acute_cmp": null,
 				"acute_arrow": null
 			}],
-			"precision": 5
+			//"precision": 4
+			"fixed": 1
 		}, {
 			"key": "lactate",
 			"criteria_display_name": "Lactate > 2mmol/L: (18.0 mg/dL)",
@@ -590,7 +601,8 @@ var severe_sepsis = {
 				"acute_cmp": "GT",
 				"acute_arrow": "up"
 			}],
-			"precision": 3
+			//"precision": 3
+			"fixed": 1
 		}],
 		"criteria_mapping": [{
 			"src": "blood_pressure",
@@ -665,7 +677,8 @@ var severe_sepsis = {
 				"acute_cmp": null,
 				"acute_arrow": null
 			}],
-			"precision": 4
+			//"precision": 4
+			"fixed": 1
 		}, {
 			"key": "trews_map",
 			"criteria_display_name": "Mean arterial pressure < 65",
@@ -684,7 +697,8 @@ var severe_sepsis = {
 				"acute_cmp": null,
 				"acute_arrow": null
 			}],
-			"precision": 3
+			//"precision": 3
+			"fixed": 1
 		}, {
 			"key": "trews_dsbp",
 			"criteria_display_name": "Decrease in SBP by > 40 mmHg from the last recorded SBP considered normal for given patient",
@@ -703,7 +717,8 @@ var severe_sepsis = {
 				"acute_cmp": null,
 				"acute_arrow": null
 			}],
-			"precision": 3
+			//"precision": 3
+			"fixed": 1
 		}, {
 			"key": "trews_vent",
 			"criteria_display_name": "Acute respiratory failure evidenced by invasive or non-invasive ventiliation",
@@ -744,7 +759,8 @@ var severe_sepsis = {
 				"acute_cmp": "GT",
 				"acute_arrow": "up"
 			}],
-			"precision": 3
+			//"precision": 3
+			"fixed": 1
 		}, {
 			"key": "trews_bilirubin",
 			"baseline_key": "baseline_bilirubin",
@@ -766,7 +782,8 @@ var severe_sepsis = {
 				"acute_cmp": "GT",
 				"acute_arrow": "up"
 			}],
-			"precision": 3
+			//"precision": 3
+			"fixed": 1
 		}, {
 			"key": "trews_platelet",
 			"baseline_key": "baseline_platelets",
@@ -788,7 +805,8 @@ var severe_sepsis = {
 				"acute_cmp": "LT",
 				"acute_arrow": "down"
 			}],
-			"precision": 6
+			//"precision": 6
+			"fixed": 0
 		}, {
 			"key": "trews_inr",
 			"baseline_key": "baseline_inr",
@@ -823,7 +841,8 @@ var severe_sepsis = {
 				"acute_cmp": null,
 				"acute_arrow": null
 			}],
-			"precision": 5
+			//"precision": 4
+			"fixed": 1
 		}, {
 			"key": "trews_lactate",
 			"criteria_display_name": "Lactate > 2mmol/L: (18.0 mg/dL)",
@@ -842,7 +861,8 @@ var severe_sepsis = {
 				"acute_cmp": "GT",
 				"acute_arrow": "up"
 			}],
-			"precision": 3
+			//"precision": 3
+			"fixed": 1
 		}, {
 			"key": "trews_gcs",
 			"criteria_display_name": "GCS < 13",
@@ -942,7 +962,7 @@ var septic_shock = {
 			"precision": 4
 		}, {
 			"key": "hypotension_map",
-			"criteria_display_name": "Mean arterial pressue < 65",
+			"criteria_display_name": "Mean arterial pressure < 65",
 			"dropdown": "Mean Arterial Pressure is normal",
 			"overrideModal": [{
 				"id": "override_mean_arterial_pressure",

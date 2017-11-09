@@ -2274,6 +2274,7 @@ var criteriaComponent = function(c, constants, key, hidden, criteria_mapping, cr
 
   var displayValue = c['value'];
   var displayBaselineValue = null;
+  var fixed = constants['fixed'] == undefined ? null : constants['fixed'];
   var precision = constants['precision'] == undefined ? 5 : constants['precision'];
 
   // Baseline.
@@ -2281,14 +2282,6 @@ var criteriaComponent = function(c, constants, key, hidden, criteria_mapping, cr
           && trews.data['orgdf_baselines'][constants.baseline_key] != null )
   {
     displayBaselineValue = trews.data['orgdf_baselines'][constants.baseline_key];
-  }
-
-  if ( displayValue && ( isNumber(displayValue) || !isNaN(Number(displayValue)) ) ) {
-    displayValue = Number(displayValue).toPrecision(precision);
-  }
-
-  if ( displayBaselineValue && ( isNumber(displayBaselineValue) || !isNaN(Number(displayBaselineValue)) ) ) {
-    displayBaselineValue = Number(displayBaselineValue).toPrecision(precision);
   }
 
   // Handle TREWS organ dysfunction values as JSON objects.
@@ -2307,13 +2300,26 @@ var criteriaComponent = function(c, constants, key, hidden, criteria_mapping, cr
 
       if ( 'baseline' in jsonValue ) {
         displayBaselineValue = (jsonValue.baseline == null || jsonValue.baseline < 0) ? null : jsonValue.baseline;
-        if ( displayBaselineValue && ( isNumber(displayBaselineValue) || !isNaN(Number(displayValue)) ) ) {
-          displayBaselineValue = Number(displayBaselineValue).toPrecision(precision);
-        }
       }
     } catch(e) {
       displayValue = 'N/A';
       displayBaselineValue = null;
+    }
+  }
+
+  if ( displayValue && ( isNumber(displayValue) || !isNaN(Number(displayValue)) ) ) {
+    if ( fixed == null ) {
+      displayValue = Number(displayValue).toPrecision(precision);
+    } else {
+      displayValue = Number(displayValue).toFixed(fixed);
+    }
+  }
+
+  if ( displayBaselineValue && ( isNumber(displayBaselineValue) || !isNaN(Number(displayBaselineValue)) ) ) {
+    if ( fixed == null ) {
+      displayBaselineValue = Number(displayBaselineValue).toPrecision(precision);
+    } else {
+      displayBaselineValue = Number(displayBaselineValue).toFixed(fixed);
     }
   }
 
@@ -2327,7 +2333,11 @@ var criteriaComponent = function(c, constants, key, hidden, criteria_mapping, cr
   if  ( (c['name'] == 'platelet' || c['name'] == 'trews_platelet') && displayValue != null
           && ( isNumber(displayValue) || !isNaN(Number(displayValue)) ) )
   {
-    displayValue = (Number(displayValue) * 1000).toLocaleString(); // Platelets are stored in units of 1,000.
+    // Scale platelets (stored in units of 1,000).
+    displayValue = (Number(displayValue) * 1000).toLocaleString();
+    if ( displayBaselineValue != null && ( isNumber(displayBaselineValue) || !isNaN(Number(displayBaselineValue)) ) ) {
+      displayBaselineValue = (Number(displayBaselineValue) * 1000).toLocaleString();
+    }
   }
 
   if ( c['is_met'] && (c['name'] == 'respiratory_failure' || c['name'] == 'trews_vent') ) {
