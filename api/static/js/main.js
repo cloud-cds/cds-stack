@@ -913,7 +913,7 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
     num_sev3_complete += orderStatusCompleted(trews.data['crystalloid_fluid_order']) ? 1 : 0;
 
     var num_sev6_complete = num_sev3_complete;
-    num_sev6_complete += orderStatusCompleted(trews.data['repeat_lactate_order']) ? 1 : 0;
+    num_sev6_complete += (trews.data['repeat_lactate_order']['is_met'] || orderStatusCompleted(trews.data['repeat_lactate_order'])) ? 1 : 0;
 
     var num_sep6_complete = num_sev6_complete;
     num_sep6_complete += orderStatusCompleted(trews.data['vasopressors_order']) ? 1 : 0;
@@ -1904,7 +1904,7 @@ var workflowsComponent = new function() {
                        orderStatusCompleted(fJSON);
 
     var sev6LastOrder = Math.max(sev3LastOrder, rJSON['time'])
-    var sev6Complete = sev3Complete && orderStatusCompleted(rJSON);
+    var sev6Complete = sev3Complete && (rJSON['is_met'] || orderStatusCompleted(rJSON));
 
     var shk6LastOrder = Math.max(sev6LastOrder, vJSON['time'])
     var shk6Complete = sev6Complete && orderStatusCompleted(vJSON);
@@ -2522,7 +2522,9 @@ var taskComponent = function(json, elem, constants, doseLimit) {
   } else {
     elem.find('h3').html(constants['display_name']);
   }
-  elem.removeClass('in-action in-progress discontinued expired complete');
+  elem.removeClass('in-action in-progress discontinued expired complete not-needed');
+
+  var status_completed = orderStatusCompleted(json);
   if ( json['status'] == 'Ordering' ) {
     elem.addClass('in-action');
   }
@@ -2538,8 +2540,30 @@ var taskComponent = function(json, elem, constants, doseLimit) {
     elem.addClass('expired');
   }
   */
-  else if ( orderStatusCompleted(json) ) {
+  else if ( json['name'] == 'repeat_lactate_order' && json['is_met'] &&
+        (trews.data['initial_lactate_order']['status'] == 'Completed'
+          && json['time'] == trews.data['initial_lactate_order']['time']) )
+  {
+    // No-op for repeat lactates that complete at the same time as an initial lactate.
+  }
+  else if ( status_completed ) {
     elem.addClass('complete');
+  }
+
+  // For repeat lactates, use the appropriate class if an order has been placed
+  // and append 'not needed' to its status.
+  // Otherwise if no order is present, and a 'not-needed' class.
+  if ( json['name'] == 'repeat_lactate_order' && json['is_met'] &&
+        (!status_completed ||
+          (trews.data['initial_lactate_order']['status'] == 'Completed'
+            && json['time'] == trews.data['initial_lactate_order']['time']) ) )
+  {
+    if ( elem.is('.in-action,.in-progress,.complete') ) {
+      var current_content = elem.css('content');
+      elem.attr('not-needed', ' (not needed)');
+    } else {
+      elem.addClass('not-needed');
+    }
   }
 
   // Add clinically inappropriate reason.
@@ -4180,7 +4204,9 @@ var toolbar = new function() {
         t_action = new Date(json[k2]['time'] * 1000);
 
         // Care completed maintenance.
-        var order_complete = orderStatusCompleted(json[k2]) && t_deadline != null && t_action <= t_deadline;
+        var order_complete =
+          (k2 == 'repeat_lactate_order' ? (json[k2]['is_met'] || orderStatusCompleted(json[k2])) : orderStatusCompleted(json[k2]))
+            && t_deadline != null && t_action <= t_deadline;
 
         if ( k != 'vasopressors' ) {
           severe_sepsis_completed['status'] = severe_sepsis_completed['status'] && order_complete;
@@ -4216,7 +4242,7 @@ var toolbar = new function() {
           style: greenItemStyle
         };
 
-        if ( !orderStatusCompleted(json[k2]) ) {
+        if ( !(k2 == 'repeat_lactate_order' ? (json[k2]['is_met'] || orderStatusCompleted(json[k2])) : orderStatusCompleted(json[k2])) ) {
           itemBase = $.extend({}, itemBase, { className: 'vis_item_order_incomplete' });
         }
 

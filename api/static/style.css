@@ -410,7 +410,8 @@ div.manual-override h4.inactive {
     border-bottom: 1px solid #ddd;
 }
 #right-column .slot.in-action,
-#right-column .slot.complete {
+#right-column .slot.complete,
+#right-column .slot.not-needed {
     border-left: 5px solid #aaa;
     position: relative;
 }
@@ -422,7 +423,7 @@ div.manual-override h4.inactive {
     background: #f9f9f9;
 }
 #right-column .slot.in-action:before {
-    content: 'order in progress';
+    content: 'order in progress' attr(not-needed);
     display: block;
     position: absolute;
     right: 10px;
@@ -434,7 +435,7 @@ div.manual-override h4.inactive {
     color: #aaa;
 }
 #right-column .slot.in-progress:before {
-    content: 'ordered';
+    content: 'ordered' attr(not-needed);
     display: block;
     position: absolute;
     right: 10px;
@@ -446,7 +447,7 @@ div.manual-override h4.inactive {
     color: #aaa;
 }
 #right-column .slot.discontinued:before {
-    content: 'discontinued';
+    content: 'discontinued' attr(not-needed);
     display: block;
     position: absolute;
     right: 10px;
@@ -458,7 +459,7 @@ div.manual-override h4.inactive {
     color: #aaa;
 }
 #right-column .slot.expired:before {
-    content: 'order ended';
+    content: 'order ended' attr(not-needed);
     display: block;
     position: absolute;
     right: 10px;
@@ -470,7 +471,19 @@ div.manual-override h4.inactive {
     color: #aaa;
 }
 #right-column .slot.complete:before {
-    content: 'complete';
+    content: 'complete' attr(not-needed);
+    display: block;
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    font-size: 12px;
+    font-style: italic;
+    font-weight: bold;
+    font-family: Helvetica, Arial, sans-serif;
+    color: #aaa;
+}
+#right-column .slot.not-needed:before {
+    content: 'not needed';
     display: block;
     position: absolute;
     right: 10px;
@@ -507,6 +520,10 @@ div.manual-override h4.inactive {
     border: 3px solid #ca011a;
 }
 .slot.complete {
+    background-color: #eee;
+    border-left: 5px solid #aaa;
+}
+.slot.not-needed {
     background-color: #eee;
     border-left: 5px solid #aaa;
 }
