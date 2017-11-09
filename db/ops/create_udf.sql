@@ -860,10 +860,10 @@ AS $func$ BEGIN
   select MEV.enc_id,
          MEV.event_id,
          coalesce(CE.flag, 0) as state,
-         (case when ui_severe_sepsis_onset then ui_severe_sepsis_onset
+         (case when ui_severe_sepsis_onset is not null then ui_severe_sepsis_onset
             when coalesce(CE.flag, 0) in (11,14,15,25,26,27,28,29) or coalesce(CE.flag, 0) >= 40 then CE.trews_severe_sepsis_onset
             else CE.severe_sepsis_onset end) as severe_sepsis_onset,
-         (case when ui_septic_shock_onset then ui_septic_shock_onset
+         (case when ui_septic_shock_onset is not null then ui_septic_shock_onset
             when coalesce(CE.flag, 0) in (11,14,15,25,26,27,28,29) or coalesce(CE.flag, 0) >= 40 then CE.septic_shock_onset
             else CE.septic_shock_onset end) as septic_shock_onset,
          (case when coalesce(CE.flag, 0) in (11,14,15,25,26,27,28,29) or coalesce(CE.flag, 0) >= 40 then CE.trews_severe_sepsis_wo_infection_onset
@@ -2514,6 +2514,7 @@ return query
                                 order_met(pat_cvalues.name, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}')
                                 and pat_cvalues.tsp > initial_lactate_order.tsp
                                 and pat_cvalues.tsp > lactate_results.tsp
+                                and pat_cvalues.tsp > SSPN.severe_sepsis_onset
                             )
 
                         )
@@ -2537,6 +2538,7 @@ return query
                 where p3.name = 'initial_lactate'
                 group by p3.enc_id
             ) lactate_results on pat_cvalues.enc_id = lactate_results.enc_id
+            left join severe_sepsis_now SSPN on SSPN.enc_id = pat_cvalues.enc_id
             where pat_cvalues.name = 'repeat_lactate_order'
             order by pat_cvalues.tsp
         )
