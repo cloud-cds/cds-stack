@@ -868,7 +868,7 @@ async def invalidate_cache_batch(db_pool, pid, channel, serial_id, pat_cache):
     (select jsonb_array_elements_text(pats) pat_id from refreshed_pats where id = {serial_id}) p
     inner join (select * from get_notifications_for_epic(null, '{model}')) n on n.pat_id = p.pat_id
   )
-  select pat_id, visit_id, enc_id, count from
+  select pat_id, visit_id, enc_id, count, score, threshold, flag from
   (select n.*, notify_future_notification('{channel}', pat_id) from notifications n) M;
   '''.format(serial_id=serial_id, model=model_in_use, channel=channel)
   pat_sql = 'select jsonb_array_elements_text(pats) pat_id from refreshed_pats where id = {}'.format(serial_id)
@@ -879,16 +879,3 @@ async def invalidate_cache_batch(db_pool, pid, channel, serial_id, pat_cache):
     logging.info("Invalidating cache for %s" % ','.join(pat_id['pat_id'] for pat_id in pats))
     for pat_id in pats:
       asyncio.ensure_future(pat_cache.delete(pat_id['pat_id']))
-
-async def update_epic_trewscore(db_pool, pid, channel, serial_id, pat_cache):
-  # run push_notifications_to_epic in a batch way
-  logging.info('Updating epic trewscore with serial_id %s (via channel %s)' % (serial_id, channel))
-  if model_in_use == 'trews-jit':
-    sql = '''
-      select * from get_trewscores_for_epic();
-    '''
-    async with db_pool.acquire() as conn:
-      trewscores = await conn.fetch(sql)
-      await load_epic_trewscores(trewscores)
-  else:
-    logging.error("Model is not implemented for update_epic_trewscore")
