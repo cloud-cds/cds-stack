@@ -2582,16 +2582,16 @@ begin
            c.name,
            c.is_met,
            c.measurement_time,
-           c.override_time,
-           c.override_user,
-           c.override_value,
+           (case when c.override_value#>>'{0,text}' in ('Ordering', 'Ordered') then null else c.override_time end),
+           (case when c.override_value#>>'{0,text}' in ('Ordering', 'Ordered') then null else c.override_user end),
+           (case when c.override_value#>>'{0,text}' in ('Ordering', 'Ordered') then null else c.override_value end),
            c.value,
            c.update_date,
            gss.state
     from get_states_snapshot(this_enc_id) gss
     inner join criteria c on gss.enc_id = c.enc_id and c.name ~ '_order'
     left join criteria_events e on e.enc_id = gss.enc_id and e.event_id = gss.event_id and e.name = c.name
-    where gss.state in (23,24,28,29,35,36,45,46) and c.is_met and not coalesce(e.is_met, false)
+    where gss.state in (23,24,28,29,35,36,45,46,53,54,65,66) and c.is_met and not coalesce(e.is_met, false)
     -- (
     --     -- (
     --     --     -- normal sepsis states: update met orders from criteria
@@ -2647,9 +2647,21 @@ BEGIN
             value               = excluded.value,
             update_date         = excluded.update_date,
             is_acute            = excluded.is_acute,
-            override_time       = (case when criteria.override_value#>>'{0,text}' = 'Ordered' then excluded.override_time else criteria.override_time end),
-            override_user       = (case when criteria.override_value#>>'{0,text}' = 'Ordered' then excluded.override_user else criteria.override_user end),
-            override_value      = (case when criteria.override_value#>>'{0,text}' = 'Ordered' then excluded.override_value else criteria.override_value end)
+            override_time       = (case when criteria.override_value#>>'{0,text}' = 'Ordered'
+                                     then excluded.override_time
+                                    when criteria.override_value#>>'{0,text}' = 'Ordering' and now() - criteria.override_time > '5 minutes'::interval
+                                     then null
+                                    else criteria.override_time end),
+            override_user       = (case when criteria.override_value#>>'{0,text}' = 'Ordered'
+                                     then excluded.override_user
+                                    when criteria.override_value#>>'{0,text}' = 'Ordering' and now() - criteria.override_time > '5 minutes'::interval
+                                     then null
+                                    else criteria.override_user end),
+            override_value      = (case when criteria.override_value#>>'{0,text}' = 'Ordered'
+                                     then excluded.override_value
+                                    when criteria.override_value#>>'{0,text}' = 'Ordering' and now() - criteria.override_time > '5 minutes'::interval
+                                     then null
+                                    else criteria.override_value end)
         returning *
     ),
     state_change as
@@ -2711,7 +2723,10 @@ BEGIN
     insert into criteria_events (event_id, enc_id, name, measurement_time, value,
                                  override_time, override_user, override_value, is_met, update_date, is_acute, flag)
     select s.event_id, c.enc_id, c.name, c.measurement_time, c.value,
-           c.override_time, c.override_user, c.override_value, c.is_met, c.update_date, c.is_acute,
+           (case when c.override_value#>>'{0,text}' in ('Ordering', 'Ordered') then null else c.override_time end),
+           (case when c.override_value#>>'{0,text}' in ('Ordering', 'Ordered') then null else c.override_user end),
+           (case when c.override_value#>>'{0,text}' in ('Ordering', 'Ordered') then null else c.override_value end),
+           c.is_met, c.update_date, c.is_acute,
            s.state_to as flag
     from ( select ssid.event_id, si.enc_id, si.state_to
            from state_change si
@@ -2787,7 +2802,10 @@ BEGIN
     insert into criteria_events (event_id, enc_id, name, measurement_time, value,
                                  override_time, override_user, override_value, is_met, update_date, is_acute, flag)
     select ssid.event_id, NC.enc_id, NC.name, NC.measurement_time, NC.value,
-           NC.override_time, NC.override_user, NC.override_value, NC.is_met, NC.update_date, NC.is_acute,
+           (case when NC.override_value#>>'{0,text}' in ('Ordering', 'Ordered') then null else NC.override_time end),
+           (case when NC.override_value#>>'{0,text}' in ('Ordering', 'Ordered') then null else NC.override_user end),
+           (case when NC.override_value#>>'{0,text}' in ('Ordering', 'Ordered') then null else NC.override_value end),
+           NC.is_met, NC.update_date, NC.is_acute,
            pat_states.state as flag
     from new_criteria NC
     cross join (select nextval('criteria_event_ids') event_id) ssid
