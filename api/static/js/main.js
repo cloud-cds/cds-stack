@@ -2540,12 +2540,6 @@ var taskComponent = function(json, elem, constants, doseLimit) {
     elem.addClass('expired');
   }
   */
-  else if ( json['name'] == 'repeat_lactate_order' && json['is_met'] &&
-        (trews.data['initial_lactate_order']['status'] == 'Completed'
-          && json['time'] == trews.data['initial_lactate_order']['time']) )
-  {
-    // No-op for repeat lactates that complete at the same time as an initial lactate.
-  }
   else if ( status_completed ) {
     elem.addClass('complete');
   }
@@ -2553,10 +2547,7 @@ var taskComponent = function(json, elem, constants, doseLimit) {
   // For repeat lactates, use the appropriate class if an order has been placed
   // and append 'not needed' to its status.
   // Otherwise if no order is present, and a 'not-needed' class.
-  if ( json['name'] == 'repeat_lactate_order' && json['is_met'] &&
-        (!status_completed ||
-          (trews.data['initial_lactate_order']['status'] == 'Completed'
-            && json['time'] == trews.data['initial_lactate_order']['time']) ) )
+  if ( json['name'] == 'repeat_lactate_order' && json['is_met'] )
   {
     if ( elem.is('.in-action,.in-progress,.complete') ) {
       var current_content = elem.css('content');
