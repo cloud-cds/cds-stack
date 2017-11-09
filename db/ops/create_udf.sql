@@ -860,9 +860,11 @@ AS $func$ BEGIN
   select MEV.enc_id,
          MEV.event_id,
          coalesce(CE.flag, 0) as state,
-         (case when coalesce(CE.flag, 0) in (11,14,15,25,26,27,28,29) or coalesce(CE.flag, 0) >= 40 then CE.trews_severe_sepsis_onset
+         (case when ui_severe_sepsis_onset is not null then ui_severe_sepsis_onset
+            when coalesce(CE.flag, 0) in (11,14,15,25,26,27,28,29) or coalesce(CE.flag, 0) >= 40 then CE.trews_severe_sepsis_onset
             else CE.severe_sepsis_onset end) as severe_sepsis_onset,
-         (case when coalesce(CE.flag, 0) in (11,14,15,25,26,27,28,29) or coalesce(CE.flag, 0) >= 40 then CE.septic_shock_onset
+         (case when ui_septic_shock_onset is not null then ui_septic_shock_onset
+            when coalesce(CE.flag, 0) in (11,14,15,25,26,27,28,29) or coalesce(CE.flag, 0) >= 40 then CE.septic_shock_onset
             else CE.septic_shock_onset end) as septic_shock_onset,
          (case when coalesce(CE.flag, 0) in (11,14,15,25,26,27,28,29) or coalesce(CE.flag, 0) >= 40 then CE.trews_severe_sepsis_wo_infection_onset
             else CE.severe_sepsis_wo_infection_onset end) as severe_sepsis_wo_infection_onset,
@@ -882,7 +884,8 @@ AS $func$ BEGIN
                 (array_agg(measurement_time order by measurement_time)  filter (where name in ('sirs_temp','heart_rate','respiratory_rate','wbc') and is_met ) )[2],
                 min(measurement_time) filter (where name in ('blood_pressure','mean_arterial_pressure','decrease_in_sbp','respiratory_failure','creatinine','bilirubin','platelet','inr','lactate') and is_met ))
       as severe_sepsis_onset,
-
+      max(override_time) filter (where name = 'ui_severe_sepsis') ui_severe_sepsis_onset,
+      max(override_time) filter (where name = 'ui_septic_shock') ui_septic_shock_onset,
       LEAST(
           min(measurement_time) filter (where name in ('systolic_bp','hypotension_map','hypotension_dsbp') and is_met ),
           min(measurement_time) filter (where name = 'initial_lactate' and is_met)
@@ -1686,10 +1689,12 @@ return query
             on enc_ids.enc_id = t.enc_id and t.fid = cd.fid
             and (
                 t.tsp is null
-                or (cd.name in ('initial_lactate', 'initial_lactate_order') and t.tsp between least(ts_start, ts_end - initial_lactate_order_lookback) and ts_end)
-                or (cd.name = 'blood_culture_order' and t.tsp between least(ts_start, ts_end - blood_culture_order_lookback) and ts_end)
-                or (cd.name = 'antibiotics_order' and t.tsp between least(ts_start, ts_end - antibiotics_order_lookback) and ts_end)
-                or (cd.name ~ '_order' and t.tsp between least(ts_start, ts_end - orders_lookback) and ts_end)
+                or (cd.name = 'vasopressors_dose_order' and t.tsp between ts_start - orders_lookback and ts_end)
+                or (cd.name in ('initial_lactate', 'initial_lactate_order', 'repeat_lactate_order')
+                    and t.tsp between ts_start - initial_lactate_order_lookback and ts_end)
+                or (cd.name = 'blood_culture_order' and t.tsp between ts_start - blood_culture_order_lookback and ts_end)
+                or (cd.name = 'antibiotics_order' and t.tsp between ts_start - antibiotics_order_lookback and ts_end)
+                or (cd.name ~ '_order' and t.tsp between ts_start - orders_lookback and ts_end)
                 or (cd.name !~ '_order' and t.tsp between ts_start and ts_end)
                 )
     ),
@@ -2509,6 +2514,7 @@ return query
                                 order_met(pat_cvalues.name, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}')
                                 and pat_cvalues.tsp > initial_lactate_order.tsp
                                 and pat_cvalues.tsp > lactate_results.tsp
+                                and pat_cvalues.tsp > SSPN.severe_sepsis_onset
                             )
 
                         )
@@ -2532,6 +2538,7 @@ return query
                 where p3.name = 'initial_lactate'
                 group by p3.enc_id
             ) lactate_results on pat_cvalues.enc_id = lactate_results.enc_id
+            left join severe_sepsis_now SSPN on SSPN.enc_id = pat_cvalues.enc_id
             where pat_cvalues.name = 'repeat_lactate_order'
             order by pat_cvalues.tsp
         )
