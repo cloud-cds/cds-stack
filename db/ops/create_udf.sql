@@ -2582,9 +2582,9 @@ begin
            c.name,
            c.is_met,
            c.measurement_time,
-           c.override_time,
-           c.override_user,
-           c.override_value,
+           (case when c.override_value#>>'{0,text}' = 'Ordering' then null else c.override_time end),
+           (case when c.override_value#>>'{0,text}' = 'Ordering' then null else c.override_user end),
+           (case when c.override_value#>>'{0,text}' = 'Ordering' then null else c.override_value end),
            c.value,
            c.update_date,
            gss.state
@@ -2647,9 +2647,21 @@ BEGIN
             value               = excluded.value,
             update_date         = excluded.update_date,
             is_acute            = excluded.is_acute,
-            override_time       = (case when criteria.override_value#>>'{0,text}' = 'Ordered' then excluded.override_time else criteria.override_time end),
-            override_user       = (case when criteria.override_value#>>'{0,text}' = 'Ordered' then excluded.override_user else criteria.override_user end),
-            override_value      = (case when criteria.override_value#>>'{0,text}' = 'Ordered' then excluded.override_value else criteria.override_value end)
+            override_time       = (case when criteria.override_value#>>'{0,text}' = 'Ordered'
+                                     then excluded.override_time
+                                    when criteria.override_value#>>'{0,text}' = 'Ordering' and now() - criteria.override_time > '5 minutes'::interval
+                                     then null
+                                    else criteria.override_time end),
+            override_user       = (case when criteria.override_value#>>'{0,text}' = 'Ordered'
+                                     then excluded.override_user
+                                    when criteria.override_value#>>'{0,text}' = 'Ordering' and now() - criteria.override_time > '5 minutes'::interval
+                                     then null
+                                    else criteria.override_user end),
+            override_value      = (case when criteria.override_value#>>'{0,text}' = 'Ordered'
+                                     then excluded.override_value
+                                    when criteria.override_value#>>'{0,text}' = 'Ordering' and now() - criteria.override_time > '5 minutes'::interval
+                                     then null
+                                    else criteria.override_value end)
         returning *
     ),
     state_change as
