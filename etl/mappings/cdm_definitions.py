@@ -205,7 +205,7 @@ cdm_defs = {
         'value':    float,
         'thresh':   (None, None),
         'human_readable':   'Dopamine'
-    }
+    },
     'dextrose_water': {
         'unit':     'ml',
         'value':    float,
@@ -283,7 +283,7 @@ cdm_defs = {
         'value':    float,
         'thresh':   (None, None),
         'human_readable':   'Glycopeptides'
-    }
+    },
     'heart_rate': {
         'unit':     'beats per min',
         'value':    float,
@@ -349,13 +349,13 @@ cdm_defs = {
         'value':    float,
         'thresh':   (None, None),
         'human_readable':   'Linezolid'
-    }
+    },
     'macrolides_dose': {
         'unit':     '',
         'value':    float,
         'thresh':   (None, None),
         'human_readable':   'Macrolides'
-    }
+    },
     'map': {
         'unit':     'mmHg',
         'value':    float,

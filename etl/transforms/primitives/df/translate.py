@@ -4,6 +4,8 @@ from etl.mappings.med_regex import med_regex
 import pandas as pd
 import re
 import logging
+import etl.transforms.primitives.df.filter_rows as filter_rows
+import functools
 
 def translate_epic_id_to_fid(df, col, new_col, config_map, drop_original=False,
         add_string='', add_string_fid=None, remove_if_not_found=False):
@@ -32,26 +34,47 @@ def translate_epic_id_to_fid(df, col, new_col, config_map, drop_original=False,
     return df
 
 
+# def translate_med_name_to_fid(med_data):
+#     good_meds = str("|").join(med['pos'] for med in med_regex)
+
+#     def find_fid_with_regex(med_name):
+#         if not re.search(good_meds, med_name, flags=re.I):
+#             return 'Unknown Medication'
+#         for med in med_regex:
+#             if re.search(med['pos'], med_name, flags=re.I):
+#                 if 'neg' in med and len(med['neg']) > 0 and re.search(med['neg'], med_name, flags=re.I):
+#                     return 'Invalid Medication'
+#                 return med['fid']
+#         raise TransformError(
+#             'translate.translate_med_name_to_fid',
+#             'Error in medication regex. Medication neither good nor bad.',
+#             med_name
+#         )
+
+#     med_data['fid'] = med_data['full_name'].apply(find_fid_with_regex)
+#     return med_data
+
 def translate_med_name_to_fid(med_data):
-    good_meds = str("|").join(med['pos'] for med in med_regex)
-
-    def find_fid_with_regex(med_name):
-        if not re.search(good_meds, med_name, flags=re.I):
+    def find_fid_with_regex(med_name, med):
+        if re.search(med['pos'], med_name, flags=re.I):
+            if 'neg' in med and len(med['neg']) > 0 and re.search(med['neg'], med_name, flags=re.I):
+                return 'Invalid Medication'
+            return med['fid']
+        else:
             return 'Unknown Medication'
-        for med in med_regex:
-            if re.search(med['pos'], med_name, flags=re.I):
-                if 'neg' in med and len(med['neg']) > 0 and re.search(med['neg'], med_name, flags=re.I):
-                    return 'Invalid Medication'
-                return med['fid']
-        raise TransformError(
-            'translate.translate_med_name_to_fid',
-            'Error in medication regex. Medication neither good nor bad.',
-            med_name
-        )
-
-    med_data['fid'] = med_data['full_name'].apply(find_fid_with_regex)
-    return med_data
-
+    res = None
+    for med in med_regex:
+        this_med_data = med_data.copy()
+        this_med_data['fid'] = this_med_data['full_name'].apply(functools.partial(find_fid_with_regex, med=med))
+        this_med_data = filter_rows.filter_medications(this_med_data)
+        print(this_med_data.head(10))
+        if not this_med_data.empty:
+            if res is None:
+                res = this_med_data
+            else:
+                res = pd.concat([res, this_med_data], ignore_index=True)
+    print(res.head(100))
+    return res
 
 def override_empty_doses_with_rates(med_data, fid_col, fids):
     med_idx = med_data[fid_col].isin(fids) & \
