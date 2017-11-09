@@ -5,9 +5,8 @@ med_regex = [
         'neg': 'injection|flush syringe|nebulizer',
     }, {
         'fid': 'aminoglycosides_dose',
-        'pos': '^(amikacin|amikin|bethkis|garamycin|gentamicin|kanamycin|kantrex|kitabis|nebcin|neo-fradin|neomycin|netilmicin|streptomycin|tobi|tobramycin|)'
-    }
-    {
+        'pos': '^(amikacin|amikin|bethkis|garamycin|gentamicin|kanamycin|kantrex|kitabis|nebcin|neo-fradin|neomycin|netilmicin|streptomycin|tobi|tobramycin)'
+    }, {
         'fid': 'amoxicillin_dose',
         'pos': '^amoxicillin',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
@@ -94,7 +93,6 @@ med_regex = [
         'pos': '^gentamicin',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
         'part_of': ['cms_antibiotics'],
-    },  'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
     }, {
         'fid': 'glycopeptides_dose',
         'pos': '^(vancocin|dalvanc|orbactiv|vibativ)',

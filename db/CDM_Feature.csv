@@ -243,6 +243,8 @@ lisinopril_dose,T,JSON,yes,no,,,,,Medication,1,mg
 liver_disease_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
 liver_disease_hist,S,Boolean,yes,no,,,,,history,1,no unit
 lorazepam_dose,T,JSON,yes,no,,,,,Medication,1,mg
+macrolides_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+macrolides_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 magnesium,TWF,Real,yes,no,last_value_in_window,28,,,Physiologic,1,mg/dL
 map,TWF,Real,yes,no,last_value_in_window,4,,,Phyiologic,1,mmHg
 mapm,TWF,Real,no,no,,,mapm_update,"abp_mean, nbp_mean","BP-based, Mean arterial pressure (MAP), it should not be sparse",1,mmHg
@@ -290,6 +292,7 @@ pao2_to_fio2,TWF,Real,no,no,,,pao2_to_fio2_update,"pao2, fio2","vital sign based
 penicillin_dose,T,JSON,yes,no,,3,,,Medication,1,Million Units
 penicillin_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 penicillin_g_dose,T,JSON,yes,no,,3,,,Medication,1,Million Units
+penicillin_g_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 peritonitis_approx,T,String,yes,no,,,,,,,
 phenytoin_dose,T,JSON,yes,no,,,,,Medication,1,mg
 piperacillin_tazobac_dose,T,JSON,yes,no,,3,,,Medication,1,mg
