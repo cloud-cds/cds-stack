@@ -2582,16 +2582,16 @@ begin
            c.name,
            c.is_met,
            c.measurement_time,
-           (case when c.override_value#>>'{0,text}' = 'Ordering' then null else c.override_time end),
-           (case when c.override_value#>>'{0,text}' = 'Ordering' then null else c.override_user end),
-           (case when c.override_value#>>'{0,text}' = 'Ordering' then null else c.override_value end),
+           (case when c.override_value#>>'{0,text}' in ('Ordering', 'Ordered') then null else c.override_time end),
+           (case when c.override_value#>>'{0,text}' in ('Ordering', 'Ordered') then null else c.override_user end),
+           (case when c.override_value#>>'{0,text}' in ('Ordering', 'Ordered') then null else c.override_value end),
            c.value,
            c.update_date,
            gss.state
     from get_states_snapshot(this_enc_id) gss
     inner join criteria c on gss.enc_id = c.enc_id and c.name ~ '_order'
     left join criteria_events e on e.enc_id = gss.enc_id and e.event_id = gss.event_id and e.name = c.name
-    where gss.state in (23,24,28,29,35,36,45,46) and c.is_met and not coalesce(e.is_met, false)
+    where gss.state in (23,24,28,29,35,36,45,46,53,54,65,66) and c.is_met and not coalesce(e.is_met, false)
     -- (
     --     -- (
     --     --     -- normal sepsis states: update met orders from criteria
