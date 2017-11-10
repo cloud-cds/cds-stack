@@ -1505,7 +1505,7 @@ BEGIN
                                 'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result',
                                 'Final', 'Final result', 'Edited Result - FINAL',
                                 'Completed', 'Corrected', 'Not Indicated'
-                              ) and (order_value::json)#>>'{discontinue_tsp}' is null and (order_value::json)#>>'{end_tsp}' is null
+                              )
                             )
                       )
 
@@ -1517,13 +1517,13 @@ BEGIN
                         )
                     or (
                       order_value in (
-                        'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result',
+                        'Preliminary', 'Preliminary result',
                         'Final', 'Final result', 'Edited Result - FINAL',
                         'Completed', 'Corrected', 'Not Indicated'
                       )
                       or (order_value ~ 'status' and
                             (order_value::json)#>>'{status}' in (
-                                'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result',
+                                'Preliminary', 'Preliminary result',
                                 'Final', 'Final result', 'Edited Result - FINAL',
                                 'Completed', 'Corrected', 'Not Indicated'
                               )
@@ -1558,20 +1558,25 @@ BEGIN
                     value_text ~* 'Clinically Inappropriate'
                     or
                         value_text in (
-                          'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result',
+                          'Preliminary', 'Preliminary result',
                           'Final', 'Final result', 'Edited Result - FINAL',
                           'Completed', 'Corrected', 'Not Indicated'
                         )
                     or (value_text ~ 'status' and (value_text::json)#>>'{status}' in (
-                          'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result',
+                          'Preliminary', 'Preliminary result',
                           'Final', 'Final result', 'Edited Result - FINAL',
                           'Completed', 'Corrected', 'Not Indicated'
                         ))
                   )
                   then 'Completed'
-                when order_fid = 'lactate_order' and (value_text ~ 'status' and (value_text::json)#>>'{discontinued_tsp}' is not null) then 'Discontinued'
-                when order_fid = 'lactate_order' and (value_text ~ 'status' and (value_text::json)#>>'{end_tsp}' is not null) then 'Ended'
-                when order_fid = 'lactate_order' and (value_text ~ 'status' and (value_text::json)#>>'{status}' in ('None', 'Signed') or (value_text::json)#>>'{status}' is null) then 'Ordered'
+                when order_fid = 'lactate_order' and
+                    ((value_text ~ 'status'
+                        and (value_text::json)#>>'{status}' in ('None', 'Signed', 'In process', 'In  process', 'Sent')
+                     or (value_text::json)#>>'{status}' is null
+                     ) or (
+                      value_text in ('None', 'Signed', 'In process', 'In  process', 'Sent')
+                     ))
+                then 'Ordered'
                 when order_fid = 'blood_culture_order' and (
                     value_text ~* 'Clinically Inappropriate'
                     or
@@ -1588,7 +1593,6 @@ BEGIN
                         ))
                   )
                   then 'Completed'
-                when order_fid = 'blood_culture_order' and (value_text ~ 'status' and (value_text::json)#>>'{discontinued_tsp}' is not null) then 'Discontinued'
                 when order_fid = 'blood_culture_order' and (value_text ~ 'status' and (value_text::json)#>>'{status}' in ('None', 'Signed') or (value_text::json)#>>'{status}' is null) then 'Ordered'
                 else null
             end;
