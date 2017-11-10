@@ -433,7 +433,6 @@ def etl_channel_recv(conn, proc_id, channel, payload):
         if model_in_use == model:
           global pat_cache
           asyncio.ensure_future(dashan_query.invalidate_cache_batch(app['db_pool'], proc_id, channel, serial_id, pat_cache))
-          asyncio.ensure_future(dashan_query.update_epic_trewscore(app['db_pool'], proc_id, channel, serial_id, pat_cache))
       else:
         logging.error("ETL Channel Error: Unknown payload {}".format(payload))
     elif payload.startswith('future_epic_sync:'):
