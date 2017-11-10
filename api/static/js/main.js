@@ -2544,17 +2544,9 @@ var taskComponent = function(json, elem, constants, doseLimit) {
     elem.addClass('complete');
   }
 
-  // For repeat lactates, use the appropriate class if an order has been placed
-  // and append 'not needed' to its status.
-  // Otherwise if no order is present, and a 'not-needed' class.
-  if ( json['name'] == 'repeat_lactate_order' && json['is_met'] )
-  {
-    if ( elem.is('.in-action,.in-progress,.complete') ) {
-      var current_content = elem.css('content');
-      elem.attr('not-needed', ' (not needed)');
-    } else {
-      elem.addClass('not-needed');
-    }
+  // For repeat lactates, append 'not needed' to its status as appropriate.
+  if ( json['name'] == 'repeat_lactate_order' && json['is_met'] && !elem.is('.in-action,.in-progress,.complete') ) {
+    elem.addClass('not-needed');
   }
 
   // Add clinically inappropriate reason.

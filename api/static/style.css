@@ -423,7 +423,7 @@ div.manual-override h4.inactive {
     background: #f9f9f9;
 }
 #right-column .slot.in-action:before {
-    content: 'order in progress' attr(not-needed);
+    content: 'order in progress';
     display: block;
     position: absolute;
     right: 10px;
@@ -435,7 +435,7 @@ div.manual-override h4.inactive {
     color: #aaa;
 }
 #right-column .slot.in-progress:before {
-    content: 'ordered' attr(not-needed);
+    content: 'ordered';
     display: block;
     position: absolute;
     right: 10px;
@@ -447,7 +447,7 @@ div.manual-override h4.inactive {
     color: #aaa;
 }
 #right-column .slot.discontinued:before {
-    content: 'discontinued' attr(not-needed);
+    content: 'discontinued';
     display: block;
     position: absolute;
     right: 10px;
@@ -459,7 +459,7 @@ div.manual-override h4.inactive {
     color: #aaa;
 }
 #right-column .slot.expired:before {
-    content: 'order ended' attr(not-needed);
+    content: 'order ended';
     display: block;
     position: absolute;
     right: 10px;
@@ -471,7 +471,7 @@ div.manual-override h4.inactive {
     color: #aaa;
 }
 #right-column .slot.complete:before {
-    content: 'complete' attr(not-needed);
+    content: 'complete';
     display: block;
     position: absolute;
     right: 10px;
