@@ -1540,8 +1540,26 @@ BEGIN
                 when override_value_text ~* 'Clinically Inappropriate' then 'Completed'
                 when order_fid in ('cms_antibiotics_order', 'crystalloid_fluid_order', 'vasopressors_dose_order') and (order_value ~ 'discontinue_tsp' and (order_value::json)#>>'{discontinue_tsp}' is not null) then 'Discontinued'
                 when order_fid in ('cms_antibiotics_order', 'crystalloid_fluid_order', 'vasopressors_dose_order') and (order_value ~ 'end_tsp' and (order_value::json)#>>'{end_tsp}' is not null) then 'Ended'
-                when order_fid in ('cms_antibiotics_order', 'crystalloid_fluid_order', 'vasopressors_dose_order') then 'Ordered'
-                when order_fid in ('cms_antibiotics', 'crystalloid_fluid', 'vasopressors_dose') then 'Completed'
+                when order_fid in ('cms_antibiotics_order', 'crystalloid_fluid_order', 'vasopressors_dose_order',
+                                   'aminoglycosides_dose_order', 'aztreonam_dose_order', 'ciprofloxacin_dose_order',
+                                   'cephalosporins_1st_gen_dose_order',
+                                   'cephalosporins_2nd_gen_dose_order',
+                                   'clindamycin_dose_order',
+                                   'daptomycin_dose_order',
+                                   'glycopeptides_dose_order',
+                                   'linezolid_dose_order',
+                                   'macrolides_dose_order',
+                                   'penicillin_dose_order') then 'Ordered'
+                when order_fid in ('cms_antibiotics', 'crystalloid_fluid', 'vasopressors_dose',
+                                   'aminoglycosides_dose', 'aztreonam_dose', 'ciprofloxacin_dose',
+                                   'cephalosporins_1st_gen_dose',
+                                   'cephalosporins_2nd_gen_dose',
+                                   'clindamycin_dose',
+                                   'daptomycin_dose',
+                                   'glycopeptides_dose',
+                                   'linezolid_dose',
+                                   'macrolides_dose',
+                                   'penicillin_dose') then 'Completed'
                 else null
             end;
 END; $func$;
@@ -2440,6 +2458,70 @@ return query
                         group by PC.enc_id
                 ) ONST
                 group by ONST.enc_id
+            ),
+            antibiotics_comb as (
+                with antibiotics_comb_therapy as (
+                    select  pat_cvalues.enc_id,
+                            (case when pat_cvalues.fid in ('aminoglycosides_dose',
+                                                           'aztreonam_dose',
+                                                           'ciprofloxacin_dose') then 'comb1'
+                                  when pat_cvalues.fid in ('cephalosporins_1st_gen_dose',
+                                                           'cephalosporins_2nd_gen_dose',
+                                                           'clindamycin_dose',
+                                                           'daptomycin_dose',
+                                                           'glycopeptides_dose',
+                                                           'linezolid_dose',
+                                                           'macrolides_dose',
+                                                           'penicillin_dose') then 'comb2'
+                             else null end)::text as name,
+                            pat_cvalues.tsp as measurement_time,
+                            dose_order_status(pat_cvalues.fid, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}') as value,
+                            pat_cvalues.c_otime,
+                            pat_cvalues.c_ouser,
+                            pat_cvalues.c_ovalue,
+                            coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > OLT.severe_sepsis_onset_for_antibiotics_order
+                                    and ( dose_order_met(pat_cvalues.fid, pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value,
+                                            coalesce(
+                                                (pat_cvalues.c_ovalue#>>'{0,lower}')::numeric,
+                                                (pat_cvalues.d_ovalue#>>'{lower}')::numeric
+                                            )
+                                        )), false) as is_met
+                    from pat_cvalues
+                        left join orders_severe_sepsis_onsets OLT
+                            on pat_cvalues.enc_id = OLT.enc_id
+                    where pat_cvalues.name = 'antibiotics_order' and pat_cvalues.category = 'antibiotics_comb')
+                select  act.enc_id,
+                        'antibiotics_order'::text as name,
+                        (case when (count(*) filter (where act.name = 'comb1' and act.is_met)) > 0
+                                and (count(*) filter (where act.name = 'comb2' and act.is_met)) > 0 -- Completed
+                            then greatest(
+                                    min(act.measurement_time) filter (where act.name = 'comb1' and act.is_met),
+                                    min(act.measurement_time) filter (where act.name = 'comb2' and act.is_met)
+                                )
+                          when (count(*) filter (where act.name = 'comb1' and act.value is not null)) > 0
+                            and (count(*) filter (where act.name = 'comb2' and act.value is not null)) > 0 -- Ordered
+                            then greatest(
+                                    min(act.measurement_time) filter (where act.name = 'comb1' and act.value is not null),
+                                    min(act.measurement_time) filter (where act.name = 'comb2' and act.value is not null)
+                                )
+                          else null end
+                            ) as measurement_time, -- todo
+                        (case when (count(*) filter (where act.name = 'comb1' and act.is_met)) > 0
+                                and (count(*) filter (where act.name = 'comb2' and act.is_met)) > 0
+                            then 'Completed'
+                          when (count(*) filter (where act.name = 'comb1' and act.value is not null)) > 0
+                            and (count(*) filter (where act.name = 'comb2' and act.value is not null)) > 0
+                            then 'Ordered'
+                          else null end
+                            ) as value,
+                        last(act.c_otime),
+                        last(act.c_ouser),
+                        last(act.c_ovalue),
+                        (count(*) filter (where act.name = 'comb1' and act.is_met)) > 0
+                            and (count(*) filter (where act.name = 'comb2' and act.is_met)) > 0 as is_met
+                from antibiotics_comb_therapy act
+                where act.name is not null
+                group by act.enc_id
             )
             select  pat_cvalues.enc_id,
                     pat_cvalues.name,
@@ -2495,11 +2577,10 @@ return query
             where pat_cvalues.name in (
                 'initial_lactate_order',
                 'blood_culture_order',
-                'antibiotics_order',
                 'crystalloid_fluid_order',
                 'vasopressors_order'
-            )
-            order by pat_cvalues.tsp
+            ) or (pat_cvalues.name = 'antibiotics_order' and pat_cvalues.category = 'after_severe_sepsis_dose')
+            union all select * from antibiotics_comb
         ) as ordered
         group by ordered.enc_id, ordered.name
     ),
