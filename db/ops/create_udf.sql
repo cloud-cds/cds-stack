@@ -2473,7 +2473,7 @@ return query
                              else null end)::text as name,
                             pat_cvalues.tsp as measurement_time,
                             json_build_object('status', dose_order_status(pat_cvalues.fid, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}'),
-                                               'fid', pat_cvalues.fid, 'result', pat_cvalues.value)::text as value,
+                                               'fid', pat_cvalues.fid, 'result', pat_cvalues.value, 'tsp', pat_cvalues.tsp)::text as value,
                             pat_cvalues.c_otime,
                             pat_cvalues.c_ouser,
                             pat_cvalues.c_ovalue,
@@ -2510,14 +2510,20 @@ return query
                                         'fid', json_build_array(first((act.value::json)#>>'{fid}' order by act.measurement_time) filter (where act.name = 'comb1' and act.is_met),
                                                                 first((act.value::json)#>>'{fid}' order by act.measurement_time) filter (where act.name = 'comb2' and act.is_met)),
                                         'result', json_build_array(first((act.value::json)#>>'{result}' order by act.measurement_time) filter (where act.name = 'comb1' and act.is_met),
-                                                                   first((act.value::json)#>>'{result}' order by act.measurement_time) filter (where act.name = 'comb2' and act.is_met)))
+                                                                   first((act.value::json)#>>'{result}' order by act.measurement_time) filter (where act.name = 'comb2' and act.is_met)),
+                                        'tsp', json_build_array(first((act.value::json)#>>'{tsp}' order by act.measurement_time) filter (where act.name = 'comb1' and act.is_met),
+                                                                   first((act.value::json)#>>'{tsp}' order by act.measurement_time) filter (where act.name = 'comb2' and act.is_met))
+                                                                    )
                           when (count(*) filter (where act.name = 'comb1' and (act.value::json)#>>'{status}' is not null)) > 0
                             and (count(*) filter (where act.name = 'comb2' and (act.value::json)#>>'{status}' is not null)) > 0
                             then    json_build_object('status', 'Ordered',
                                         'fid', json_build_array(first((act.value::json)#>>'{fid}' order by act.measurement_time) filter (where act.name = 'comb1' and (act.value::json)#>>'{status}' is not null),
                                                                 first((act.value::json)#>>'{fid}' order by act.measurement_time) filter (where act.name = 'comb2' and (act.value::json)#>>'{status}' is not null)),
                                         'result', json_build_array(first((act.value::json)#>>'{result}' order by act.measurement_time) filter (where act.name = 'comb1' and (act.value::json)#>>'{status}' is not null),
-                                                                   first((act.value::json)#>>'{result}' order by act.measurement_time) filter (where act.name = 'comb2' and (act.value::json)#>>'{status}' is not null)))
+                                                                   first((act.value::json)#>>'{result}' order by act.measurement_time) filter (where act.name = 'comb2' and (act.value::json)#>>'{status}' is not null)),
+                                        'tsp', json_build_array(first((act.value::json)#>>'{tsp}' order by act.measurement_time) filter (where act.name = 'comb1' and (act.value::json)#>>'{status}' is not null),
+                                                                   first((act.value::json)#>>'{tsp}' order by act.measurement_time) filter (where act.name = 'comb2' and (act.value::json)#>>'{status}' is not null))
+                                                                    )
                           else null end
                             )::text as value,
                         last(act.c_otime),
