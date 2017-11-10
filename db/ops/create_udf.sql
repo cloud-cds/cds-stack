@@ -2371,16 +2371,22 @@ return query
         select
             ordered.enc_id,
             ordered.name,
-            first(ordered.measurement_time order by ordered.measurement_time) filter (where ordered.is_met)
-            as measurement_time,
-            (first(ordered.value order by ordered.measurement_time) filter (where ordered.is_met))::text
-            as value,
-            first(ordered.c_otime order by ordered.measurement_time) filter (where ordered.is_met)
-            as override_time,
-            first(ordered.c_ouser order by ordered.measurement_time) filter (where ordered.is_met)
-            as override_user,
-            first(ordered.c_ovalue order by ordered.measurement_time) filter (where ordered.is_met)
-            as override_value,
+            coalesce(   (first(ordered.measurement_time order by ordered.measurement_time) filter (where ordered.is_met)),
+                        last(ordered.measurement_time order by ordered.measurement_time)
+            ) as measurement_time,
+            coalesce(   (first(ordered.value order by ordered.measurement_time) filter (where ordered.is_met))::text,
+                        last(ordered.value order by ordered.measurement_time)::text
+            ) as value,
+            coalesce(   (first(ordered.c_otime order by ordered.measurement_time) filter (where ordered.is_met)),
+                        last(ordered.c_otime order by ordered.measurement_time)
+            ) as override_time,
+            coalesce(   (first(ordered.c_ouser order by ordered.measurement_time) filter (where ordered.is_met)),
+                        last(ordered.c_ouser order by ordered.measurement_time)
+            ) as override_user,
+            coalesce(
+                (first(ordered.c_ovalue order by ordered.measurement_time) filter (where ordered.is_met)),
+                last(ordered.c_ovalue order by ordered.measurement_time)
+            ) as override_value,
             coalesce(bool_or(ordered.is_met), false) as is_met,
             now() as update_date,
             max(ordered.measurement_time) max_meas_time
