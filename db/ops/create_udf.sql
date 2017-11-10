@@ -863,9 +863,13 @@ AS $func$ BEGIN
          (case when ui_severe_sepsis_onset is not null then ui_severe_sepsis_onset
             when coalesce(CE.flag, 0) in (11,14,15,25,26,27,28,29) or coalesce(CE.flag, 0) >= 40 then CE.trews_severe_sepsis_onset
             else CE.severe_sepsis_onset end) as severe_sepsis_onset,
-         (case when ui_septic_shock_onset is not null then ui_septic_shock_onset
+         greatest((case when ui_septic_shock_onset is not null then ui_septic_shock_onset
             when coalesce(CE.flag, 0) in (11,14,15,25,26,27,28,29) or coalesce(CE.flag, 0) >= 40 then CE.septic_shock_onset
-            else CE.septic_shock_onset end) as septic_shock_onset,
+            else CE.septic_shock_onset end),
+            (case when ui_severe_sepsis_onset is not null then ui_severe_sepsis_onset
+                when coalesce(CE.flag, 0) in (11,14,15,25,26,27,28,29) or coalesce(CE.flag, 0) >= 40 then CE.trews_severe_sepsis_onset
+                else CE.severe_sepsis_onset end)
+         ) as septic_shock_onset,
          (case when coalesce(CE.flag, 0) in (11,14,15,25,26,27,28,29) or coalesce(CE.flag, 0) >= 40 then CE.trews_severe_sepsis_wo_infection_onset
             else CE.severe_sepsis_wo_infection_onset end) as severe_sepsis_wo_infection_onset,
          (case when coalesce(CE.flag, 0) in (11,14,15,25,26,27,28,29) or coalesce(CE.flag, 0) >= 40 then CE.trews_severe_sepsis_wo_infection_initial
@@ -2363,22 +2367,16 @@ return query
         select
             ordered.enc_id,
             ordered.name,
-            coalesce(   (first(ordered.measurement_time order by ordered.measurement_time) filter (where ordered.is_met)),
-                        last(ordered.measurement_time order by ordered.measurement_time)
-            ) as measurement_time,
-            coalesce(   (first(ordered.value order by ordered.measurement_time) filter (where ordered.is_met))::text,
-                        last(ordered.value order by ordered.measurement_time)::text
-            ) as value,
-            coalesce(   (first(ordered.c_otime order by ordered.measurement_time) filter (where ordered.is_met)),
-                        last(ordered.c_otime order by ordered.measurement_time)
-            ) as override_time,
-            coalesce(   (first(ordered.c_ouser order by ordered.measurement_time) filter (where ordered.is_met)),
-                        last(ordered.c_ouser order by ordered.measurement_time)
-            ) as override_user,
-            coalesce(
-                (first(ordered.c_ovalue order by ordered.measurement_time) filter (where ordered.is_met)),
-                last(ordered.c_ovalue order by ordered.measurement_time)
-            ) as override_value,
+            first(ordered.measurement_time order by ordered.measurement_time) filter (where ordered.is_met)
+            as measurement_time,
+            (first(ordered.value order by ordered.measurement_time) filter (where ordered.is_met))::text
+            as value,
+            first(ordered.c_otime order by ordered.measurement_time) filter (where ordered.is_met)
+            as override_time,
+            first(ordered.c_ouser order by ordered.measurement_time) filter (where ordered.is_met)
+            as override_user,
+            first(ordered.c_ovalue order by ordered.measurement_time) filter (where ordered.is_met)
+            as override_value,
             coalesce(bool_or(ordered.is_met), false) as is_met,
             now() as update_date,
             max(ordered.measurement_time) max_meas_time
@@ -2502,19 +2500,18 @@ return query
         (
             select  pat_cvalues.enc_id,
                     pat_cvalues.name,
-                    pat_cvalues.tsp as measurement_time,
-                    order_status(pat_cvalues.fid, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}') as value,
+                    (case when initial_lactate_order.tsp < pat_cvalues.tsp then pat_cvalues.tsp else null end) as measurement_time,
+                    (case when initial_lactate_order.tsp < pat_cvalues.tsp then order_status(pat_cvalues.fid, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}') else null end) as value,
                     pat_cvalues.c_otime,
                     pat_cvalues.c_ouser,
                     pat_cvalues.c_ovalue,
                     (case when initial_lactate_order.is_met
                         and (
-                            not lactate_results.is_met or
+                            not initial_lactate_order.res_is_met or
                             (
                                 order_met(pat_cvalues.name, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}')
                                 and pat_cvalues.tsp > initial_lactate_order.tsp
-                                and pat_cvalues.tsp > lactate_results.tsp
-                                and pat_cvalues.tsp > SSPN.severe_sepsis_onset
+                                and pat_cvalues.tsp > coalesce(initial_lactate_order.res_tsp, pat_cvalues.tsp)
                             )
 
                         )
@@ -2525,20 +2522,15 @@ return query
                 select oc.enc_id,
                        max(case when oc.is_met then oc.measurement_time else null end) as tsp,
                        bool_or(oc.is_met) as is_met,
-                       coalesce(min(oc.value) = 'Completed', false) as is_completed
-                from orders_criteria oc
+                       coalesce(min(oc.value) = 'Completed', false) as is_completed,
+                       first(p3.tsp order by p3.tsp) res_tsp,
+                       coalesce(first(p3.value::numeric order by p3.tsp) > 2.0, false) res_is_met
+                from orders_criteria oc left join pat_cvalues p3
+                    on oc.enc_id = p3.enc_id and p3.name = 'initial_lactate'
+                        and p3.tsp >= oc.measurement_time
                 where oc.name = 'initial_lactate_order'
                 group by oc.enc_id
             ) initial_lactate_order on pat_cvalues.enc_id = initial_lactate_order.enc_id
-            left join (
-                select p3.enc_id,
-                       min(case when p3.value::numeric > 2.0 then p3.tsp else null end) tsp,
-                       coalesce(bool_or(p3.value::numeric > 2.0), false) is_met
-                from pat_cvalues p3
-                where p3.name = 'initial_lactate'
-                group by p3.enc_id
-            ) lactate_results on pat_cvalues.enc_id = lactate_results.enc_id
-            left join severe_sepsis_now SSPN on SSPN.enc_id = pat_cvalues.enc_id
             where pat_cvalues.name = 'repeat_lactate_order'
             order by pat_cvalues.tsp
         )
