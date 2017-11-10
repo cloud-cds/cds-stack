@@ -1570,12 +1570,17 @@ BEGIN
                   )
                   then 'Completed'
                 when order_fid = 'lactate_order' and
-                    ((value_text ~ 'status'
-                        and (value_text::json)#>>'{status}' in ('None', 'Signed', 'In process', 'In  process', 'Sent')
-                     or (value_text::json)#>>'{status}' is null
-                     ) or (
-                      value_text in ('None', 'Signed', 'In process', 'In  process', 'Sent')
-                     ))
+                    (
+                        value_text in ('None', 'Signed', 'In process', 'In  process', 'Sent')
+                        or
+                        (
+                            value_text ~ 'status'
+                            and (
+                                (value_text::json)#>>'{status}' in ('None', 'Signed', 'In process', 'In  process', 'Sent')
+                                or (value_text::json)#>>'{status}' is null
+                                )
+                        )
+                    )
                 then 'Ordered'
                 when order_fid = 'blood_culture_order' and (
                     value_text ~* 'Clinically Inappropriate'
@@ -2438,11 +2443,23 @@ return query
             )
             select  pat_cvalues.enc_id,
                     pat_cvalues.name,
-                    pat_cvalues.tsp as measurement_time,
-                    (case when pat_cvalues.category in ('after_severe_sepsis_dose', 'after_septic_shock_dose')
-                            then dose_order_status(pat_cvalues.fid, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}')
-                          else order_status(pat_cvalues.fid, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}')
-                     end) as value,
+                    (case when (pat_cvalues.name = 'initial_lactate_order' and pat_cvalues.tsp > OLT.severe_sepsis_onset_for_initial_lactate_order)
+                        or (pat_cvalues.name = 'blood_culture_order' and pat_cvalues.tsp > OLT.severe_sepsis_onset_for_blood_culture_order)
+                        or (pat_cvalues.name = 'antibiotics_order' and pat_cvalues.tsp > OLT.severe_sepsis_onset_for_antibiotics_order)
+                        or (pat_cvalues.name = 'crystalloid_fluid_order' and pat_cvalues.tsp > OLT.severe_sepsis_onset_for_order)
+                        or (pat_cvalues.name = 'vasopressors_order' and pat_cvalues.tsp > OST.septic_shock_onset)
+                            then pat_cvalues.tsp
+                        else null end) as measurement_time,
+                    (case when (pat_cvalues.name = 'initial_lactate_order' and pat_cvalues.tsp > OLT.severe_sepsis_onset_for_initial_lactate_order)
+                        or (pat_cvalues.name = 'blood_culture_order' and pat_cvalues.tsp > OLT.severe_sepsis_onset_for_blood_culture_order)
+                        or (pat_cvalues.name = 'antibiotics_order' and pat_cvalues.tsp > OLT.severe_sepsis_onset_for_antibiotics_order)
+                        or (pat_cvalues.name = 'crystalloid_fluid_order' and pat_cvalues.tsp > OLT.severe_sepsis_onset_for_order)
+                        or (pat_cvalues.name = 'vasopressors_order' and pat_cvalues.tsp > OST.septic_shock_onset)
+                            then (case when pat_cvalues.category in ('after_severe_sepsis_dose', 'after_septic_shock_dose')
+                                        then dose_order_status(pat_cvalues.fid, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}')
+                                      else order_status(pat_cvalues.fid, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}')
+                                 end)
+                        else null end) as value,
                     pat_cvalues.c_otime,
                     pat_cvalues.c_ouser,
                     pat_cvalues.c_ovalue,
@@ -2498,11 +2515,22 @@ return query
         select
             ordered.enc_id,
             ordered.name,
-            (first(ordered.measurement_time order by ordered.measurement_time) filter (where ordered.is_met)) as measurement_time,
-            (first(ordered.value order by ordered.measurement_time) filter (where ordered.is_met))::text as value,
-            (first(ordered.c_otime order by ordered.measurement_time) filter (where ordered.is_met)) as override_time,
-            (first(ordered.c_ouser order by ordered.measurement_time) filter (where ordered.is_met)) as override_user,
-            (first(ordered.c_ovalue order by ordered.measurement_time) filter (where ordered.is_met)) as override_value,
+            coalesce(   (first(ordered.measurement_time order by ordered.measurement_time) filter (where ordered.is_met)),
+                        last(ordered.measurement_time order by ordered.measurement_time)
+            ) as measurement_time,
+            coalesce(   (first(ordered.value order by ordered.measurement_time) filter (where ordered.is_met))::text,
+                        last(ordered.value order by ordered.measurement_time)::text
+            ) as value,
+            coalesce(   (first(ordered.c_otime order by ordered.measurement_time) filter (where ordered.is_met)),
+                        last(ordered.c_otime order by ordered.measurement_time)
+            ) as override_time,
+            coalesce(   (first(ordered.c_ouser order by ordered.measurement_time) filter (where ordered.is_met)),
+                        last(ordered.c_ouser order by ordered.measurement_time)
+            ) as override_user,
+            coalesce(
+                (first(ordered.c_ovalue order by ordered.measurement_time) filter (where ordered.is_met)),
+                last(ordered.c_ovalue order by ordered.measurement_time)
+            ) as override_value,
             coalesce(bool_or(ordered.is_met), false) as is_met,
             max(ordered.measurement_time) max_meas_time,
             now() as update_date
