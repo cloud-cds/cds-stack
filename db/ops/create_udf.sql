@@ -2462,20 +2462,23 @@ return query
             antibiotics_comb as (
                 with antibiotics_comb_therapy as (
                     select  pat_cvalues.enc_id,
-                            (case when pat_cvalues.fid in ('aminoglycosides_dose',
-                                                           'aztreonam_dose',
-                                                           'ciprofloxacin_dose') then 'comb1'
-                                  when pat_cvalues.fid in ('cephalosporins_1st_gen_dose',
-                                                           'cephalosporins_2nd_gen_dose',
-                                                           'clindamycin_dose',
-                                                           'daptomycin_dose',
-                                                           'glycopeptides_dose',
-                                                           'linezolid_dose',
-                                                           'macrolides_dose',
-                                                           'penicillin_dose') then 'comb2'
+                            (case when pat_cvalues.fid in ('aminoglycosides_dose','aminoglycosides_dose_order',
+                                                           'aztreonam_dose','aztreonam_dose_order',
+                                                           'ciprofloxacin_dose','ciprofloxacin_dos_ordere'
+                                                           ) then 'comb1'
+                                  when pat_cvalues.fid in ('cephalosporins_1st_gen_dose','cephalosporins_1st_gen_dose_order',
+                                                           'cephalosporins_2nd_gen_dose','cephalosporins_2nd_gen_dose_order',
+                                                           'clindamycin_dose','clindamycin_dose_order',
+                                                           'daptomycin_dose','daptomycin_dose_order',
+                                                           'glycopeptides_dose','glycopeptides_dose_order',
+                                                           'linezolid_dose','linezolid_dose_order',
+                                                           'macrolides_dose','macrolides_dose_order',
+                                                           'penicillin_d_orderose','penicillin_dose'
+                                                           ) then 'comb2'
                              else null end)::text as name,
                             pat_cvalues.tsp as measurement_time,
-                            dose_order_status(pat_cvalues.fid, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}') as value,
+                            json_build_object('status', dose_order_status(pat_cvalues.fid, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}'),
+                                               'fid', pat_cvalues.fid, 'result', pat_cvalues.value)::text as value,
                             pat_cvalues.c_otime,
                             pat_cvalues.c_ouser,
                             pat_cvalues.c_ovalue,
@@ -2498,22 +2501,30 @@ return query
                                     min(act.measurement_time) filter (where act.name = 'comb1' and act.is_met),
                                     min(act.measurement_time) filter (where act.name = 'comb2' and act.is_met)
                                 )
-                          when (count(*) filter (where act.name = 'comb1' and act.value is not null)) > 0
-                            and (count(*) filter (where act.name = 'comb2' and act.value is not null)) > 0 -- Ordered
+                          when (count(*) filter (where act.name = 'comb1' and (act.value::json)#>>'{status}' is not null)) > 0
+                            and (count(*) filter (where act.name = 'comb2' and (act.value::json)#>>'{status}' is not null)) > 0 -- Ordered
                             then greatest(
-                                    min(act.measurement_time) filter (where act.name = 'comb1' and act.value is not null),
-                                    min(act.measurement_time) filter (where act.name = 'comb2' and act.value is not null)
+                                    min(act.measurement_time) filter (where act.name = 'comb1' and (act.value::json)#>>'{status}' is not null),
+                                    min(act.measurement_time) filter (where act.name = 'comb2' and (act.value::json)#>>'{status}' is not null)
                                 )
                           else null end
-                            ) as measurement_time, -- todo
+                            ) as measurement_time,
                         (case when (count(*) filter (where act.name = 'comb1' and act.is_met)) > 0
                                 and (count(*) filter (where act.name = 'comb2' and act.is_met)) > 0
-                            then 'Completed'
-                          when (count(*) filter (where act.name = 'comb1' and act.value is not null)) > 0
-                            and (count(*) filter (where act.name = 'comb2' and act.value is not null)) > 0
-                            then 'Ordered'
+                            then    json_build_object('status', 'Completed',
+                                        'fid', json_build_array(first((act.value::json)#>>'{fid}' order by act.measurement_time) filter (where act.name = 'comb1' and act.is_met),
+                                                                first((act.value::json)#>>'{fid}' order by act.measurement_time) filter (where act.name = 'comb2' and act.is_met)),
+                                        'result', json_build_array(first((act.value::json)#>>'{result}' order by act.measurement_time) filter (where act.name = 'comb1' and act.is_met),
+                                                                   first((act.value::json)#>>'{result}' order by act.measurement_time) filter (where act.name = 'comb2' and act.is_met)))
+                          when (count(*) filter (where act.name = 'comb1' and (act.value::json)#>>'{status}' is not null)) > 0
+                            and (count(*) filter (where act.name = 'comb2' and (act.value::json)#>>'{status}' is not null)) > 0
+                            then    json_build_object('status', 'Ordered',
+                                        'fid', json_build_array(first((act.value::json)#>>'{fid}' order by act.measurement_time) filter (where act.name = 'comb1' and (act.value::json)#>>'{status}' is not null),
+                                                                first((act.value::json)#>>'{fid}' order by act.measurement_time) filter (where act.name = 'comb2' and (act.value::json)#>>'{status}' is not null)),
+                                        'result', json_build_array(first((act.value::json)#>>'{result}' order by act.measurement_time) filter (where act.name = 'comb1' and (act.value::json)#>>'{status}' is not null),
+                                                                   first((act.value::json)#>>'{result}' order by act.measurement_time) filter (where act.name = 'comb2' and (act.value::json)#>>'{status}' is not null)))
                           else null end
-                            ) as value,
+                            )::text as value,
                         last(act.c_otime),
                         last(act.c_ouser),
                         last(act.c_ovalue),
