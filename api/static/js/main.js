@@ -307,7 +307,7 @@ var trews = new function() {
   }
   this.orderIsDone = function(order_name) {
     if (this.data[order_name]) {
-      return orderStatusCompleted(this.data[order_name]);
+      return this.data[order_name]['is_met'] && orderStatusCompleted(this.data[order_name]);
     }
     return false;
   }
@@ -907,16 +907,16 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
     var sirs_and_orgdf = cms_alerting && (sepsis_onset == null && shock_onset == null);
 
     var num_sev3_complete = 0;
-    num_sev3_complete += orderStatusCompleted(trews.data['initial_lactate_order'])   ? 1 : 0;
-    num_sev3_complete += orderStatusCompleted(trews.data['blood_culture_order'])     ? 1 : 0;
-    num_sev3_complete += orderStatusCompleted(trews.data['antibiotics_order'])       ? 1 : 0;
-    num_sev3_complete += orderStatusCompleted(trews.data['crystalloid_fluid_order']) ? 1 : 0;
+    num_sev3_complete += trews.orderIsDone('initial_lactate_order')   ? 1 : 0;
+    num_sev3_complete += trews.orderIsDone('blood_culture_order')     ? 1 : 0;
+    num_sev3_complete += trews.orderIsDone('antibiotics_order')       ? 1 : 0;
+    num_sev3_complete += trews.orderIsDone('crystalloid_fluid_order') ? 1 : 0;
 
     var num_sev6_complete = num_sev3_complete;
     num_sev6_complete += (trews.data['repeat_lactate_order']['is_met'] || orderStatusCompleted(trews.data['repeat_lactate_order'])) ? 1 : 0;
 
     var num_sep6_complete = num_sev6_complete;
-    num_sep6_complete += orderStatusCompleted(trews.data['vasopressors_order']) ? 1 : 0;
+    num_sep6_complete += trews.orderIsDone('vasopressors_order') ? 1 : 0;
 
     var sev3 = $("[data-trews='sev3'] .card-subtitle").html();
     var sev6 = $("[data-trews='sev6'] .card-subtitle").html();
@@ -1898,16 +1898,16 @@ var workflowsComponent = new function() {
     }
 
     var sev3LastOrder = Math.max(iJSON['time'], bJSON['time'], aJSON['time'], fJSON['time']);
-    var sev3Complete = orderStatusCompleted(iJSON) &&
-                       orderStatusCompleted(bJSON) &&
-                       orderStatusCompleted(aJSON) &&
-                       orderStatusCompleted(fJSON);
+    var sev3Complete = ( iJSON['is_met'] && orderStatusCompleted(iJSON) ) &&
+                       ( bJSON['is_met'] && orderStatusCompleted(bJSON) ) &&
+                       ( aJSON['is_met'] && orderStatusCompleted(aJSON) ) &&
+                       ( fJSON['is_met'] && orderStatusCompleted(fJSON) );
 
     var sev6LastOrder = Math.max(sev3LastOrder, rJSON['time'])
     var sev6Complete = sev3Complete && (rJSON['is_met'] || orderStatusCompleted(rJSON));
 
     var shk6LastOrder = Math.max(sev6LastOrder, vJSON['time'])
-    var shk6Complete = sev6Complete && orderStatusCompleted(vJSON);
+    var shk6Complete = sev6Complete && (vJSON['is_met'] && orderStatusCompleted(vJSON) );
 
     this.sev3Ctn.find('.card-subtitle').html(this.workflowStatus('sev3', severeOnset, sev3LastOrder, sev3Complete));
     this.sev6Ctn.find('.card-subtitle').html(this.workflowStatus('sev6', severeOnset, sev6LastOrder, sev6Complete));
@@ -2524,7 +2524,7 @@ var taskComponent = function(json, elem, constants, doseLimit) {
   }
   elem.removeClass('in-action in-progress discontinued expired complete not-needed');
 
-  var status_completed = orderStatusCompleted(json);
+  var status_completed = json['is_met'] && orderStatusCompleted(json);
   if ( json['status'] == 'Ordering' ) {
     elem.addClass('in-action');
   }
@@ -4188,7 +4188,9 @@ var toolbar = new function() {
 
         // Care completed maintenance.
         var order_complete =
-          (k2 == 'repeat_lactate_order' ? (json[k2]['is_met'] || orderStatusCompleted(json[k2])) : orderStatusCompleted(json[k2]))
+          (k2 == 'repeat_lactate_order' ?
+                (json[k2]['is_met'] || orderStatusCompleted(json[k2]))
+              : (json[k2]['is_met'] && orderStatusCompleted(json[k2])))
             && t_deadline != null && t_action <= t_deadline;
 
         if ( k != 'vasopressors' ) {
@@ -4225,7 +4227,9 @@ var toolbar = new function() {
           style: greenItemStyle
         };
 
-        if ( !(k2 == 'repeat_lactate_order' ? (json[k2]['is_met'] || orderStatusCompleted(json[k2])) : orderStatusCompleted(json[k2])) ) {
+        if ( !(k2 == 'repeat_lactate_order' ?
+                    (json[k2]['is_met'] || orderStatusCompleted(json[k2]))
+                  : (json[k2]['is_met'] && orderStatusCompleted(json[k2]))) ) {
           itemBase = $.extend({}, itemBase, { className: 'vis_item_order_incomplete' });
         }
 
