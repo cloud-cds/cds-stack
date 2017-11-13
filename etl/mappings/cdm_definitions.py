@@ -31,6 +31,7 @@ cdm_defs = {
         'value':    float,
         'thresh':   (None, None),
         'human_readable':   'Acebutolol',
+    },
     'aminoglycosides_dose': {
         'unit':     '',
         'value':    float,
@@ -414,6 +415,7 @@ cdm_defs = {
         'value':    float,
         'thresh':   (None, None),
         'human_readable':   'Lisinopril',
+    },
     'linezolid_dose': {
         'unit':     '',
         'value':    float,
