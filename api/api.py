@@ -860,7 +860,7 @@ class TREWSAPI(web.View):
 
           else:
             msg = '<b>Unauthorized access:</b> You are not registered to use TREWS.<br>' + \
-                  'Please contact trews-jhu@opsdx.io for more information'
+                  'Please contact trews-helpdesk@opsdx.io for more information'
 
             logging.info('Unauthorized access by %s' % uid)
             raise web.HTTPBadRequest(body=json.dumps({'message': msg, 'standalone': True}))
@@ -880,7 +880,7 @@ class TREWSAPI(web.View):
         if (not loc_matched) or deactivated_loc_matched:
           active_locs = [locations[k] for k in locations if k not in deactivated_locs]
           msg = 'TREWS is in beta testing, and is only available at {}.<br/>'.format(', '.join(active_locs)) \
-                + 'Please contact trews-jhu@opsdx.io for more information on availability at your location.'
+                + 'Please contact trews-helpdesk@opsdx.io for more information on availability at your location.'
           raise web.HTTPBadRequest(body=json.dumps({'message': msg, 'standalone': True}))
 
         # Start of request handling.
