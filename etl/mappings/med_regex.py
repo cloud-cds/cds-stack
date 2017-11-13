@@ -3,7 +3,9 @@ med_regex = [
         'fid': 'albumin_dose',
         'pos': '^albumin human \(PLASBUMIN\)',
         'neg': 'injection|flush syringe|nebulizer',
-        # 'part_of': ['fluids_intake'],
+    }, {
+        'fid': 'aminoglycosides_dose',
+        'pos': '^(amikacin|amikin|bethkis|garamycin|gentamicin|kanamycin|kantrex|kitabis|nebcin|neo-fradin|neomycin|netilmicin|streptomycin|tobi|tobramycin)'
     }, {
         'fid': 'amoxicillin_dose',
         'pos': '^amoxicillin',
@@ -41,6 +43,12 @@ med_regex = [
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
         'part_of': ['cms_antibiotics'],
     }, {
+        'fid': 'cephalosporins_1st_gen_dose',
+        'pos': '^(ancef|cefadroxil|cefazolin|cephalexin|cephalothin|cephapirin|cephradine|daxbia|duricef|irb|keflex|keftab|kefzol|panixine|velosef)',
+    }, {
+        'fid': 'cephalosporins_2nd_gen_dose',
+        'pos': '^(ceclor|cefaclor|cefamandole|cefonicid|cefotan|cefotetan|cefoxitin|cefprozil|ceftin|cefuroxime|cefzil|kefurox|lorabid|loracarbef|mandol|mefoxin|raniclor|zinacef)',
+    }, {
         'fid': 'ciprofloxacin_dose',
         'pos': '^ciprofloxacin',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
@@ -49,6 +57,9 @@ med_regex = [
         'fid': 'clindamycin_dose',
         'pos': '^clindamycin',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop'
+    }, {
+        'fid': 'daptomycin_dose',
+        'pos': '^daptomycin',
     }, {
         'fid': 'dextrose_water',
         'pos': '^dextrose (5|10)( %|%) in water',
@@ -83,6 +94,9 @@ med_regex = [
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
         'part_of': ['cms_antibiotics'],
     }, {
+        'fid': 'glycopeptides_dose',
+        'pos': '^(vancocin|dalvanc|orbactiv|vibativ)',
+    },{
         'fid': 'heparin_dose',
         'pos': 'heparin'
     }, {
@@ -107,6 +121,12 @@ med_regex = [
         'neg': 'injection|gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
         'part_of': ['vasopressors_dose']
     }, {
+        'fid': 'linezolid_dose',
+        'pos': '^linezolid',
+    }, {
+        'fid': 'macrolides_dose',
+        'pos': '^(azithromycin|biaxin|clarithromycin|dificid|dirithromycin|dynabac|e\.e\.s\.|e-mycin|ery|eryc|eryped|ery-tab|erythrocin|erythrocot|erythromycin|eryzole|fidaxomicin|pce|pediazole|tao|troleandomycin|zithromax|zmax)'
+    }, {
         'fid': 'norepinephrine_dose',
         'pos': '^norepinephrine',
         'part_of': ['vasopressors_dose']
@@ -114,6 +134,7 @@ med_regex = [
         'fid': 'meropenem_dose',
         'pos': '^meropenem',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
+        'part_of': ['cms_antibiotics']
     }, {
         'fid': 'metronidazole_dose',
         'pos': '^metronidazole',

@@ -26,6 +26,12 @@ cdm_defs = {
         'thresh':   (None, None),
         'human_readable':   'Albumin',
     },
+    'aminoglycosides_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Aminoglycosides',
+    },
     'alt_liver_enzymes': {
         'unit':     'Units/L',
         'value':    float,
@@ -140,6 +146,18 @@ cdm_defs = {
         'thresh':   (None, None),
         'human_readable':   'Ceftriaxone',
     },
+    'cephalosporins_1st_gen_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Cephalosporins 1ST Generation',
+    },
+    'cephalosporins_2nd_gen_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Cephalosporins 2ND Generation',
+    },
     'ciprofloxacin_dose': {
         'unit':     'mg',
         'value':    float,
@@ -181,6 +199,12 @@ cdm_defs = {
         'value':    float,
         'thresh':   (None, None),
         'human_readable':   'Total Crystalloid Fluid',
+    },
+    'daptomycin_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Dopamine'
     },
     'dextrose_water': {
         'unit':     'ml',
@@ -254,6 +278,12 @@ cdm_defs = {
         'thresh':   (None, None),
         'human_readable':   'Gentamicin',
     },
+    'glycopeptides_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Glycopeptides'
+    },
     'heart_rate': {
         'unit':     'beats per min',
         'value':    float,
@@ -313,6 +343,18 @@ cdm_defs = {
         'value':    float,
         'thresh':   (None, None),
         'human_readable':   'Lipase',
+    },
+    'linezolid_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Linezolid'
+    },
+    'macrolides_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Macrolides'
     },
     'map': {
         'unit':     'mmHg',
