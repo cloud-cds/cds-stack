@@ -14,23 +14,35 @@ from jhapi_io import JHAPI
 from monitoring import APIMonitor
 
 import dashan_universe.transforms as transforms
+from time import sleep
+import random
 
 # Globals.
 EPIC_SERVER = os.environ['epic_server'] if 'epic_server' in os.environ else 'prod'
 NOTIFICATION_SERVER = os.environ['notification_server'] if 'notification_server' in os.environ else None
+v1_flowsheets      = os.environ['v1_flowsheets'].lower() == 'true' if 'v1_flowsheets' in os.environ else False
 
 api_monitor = APIMonitor()
 if api_monitor.enabled:
   api_monitor.register_metric('EpicNotificationSuccess', 'Count', [('API', api_monitor.monitor_target)])
   api_monitor.register_metric('EpicNotificationFailures', 'Count', [('API', api_monitor.monitor_target)])
+  if v1_flowsheets:
+    flowsheet_names = ['count','score','threshold','flag','version']
+  else:
+    flowsheet_names = ['count','score']
+  for flowsheet_name in flowsheet_names:
+    api_monitor.register_metric('FSPush%sSuccess'  % flowsheet_name.capitalize(), 'Count', [('API', api_monitor.monitor_target)])
 
 logging.basicConfig(format='%(levelname)s|%(asctime)s.%(msecs)03d|%(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
 
 epic_notifications = os.environ['epic_notifications']
 client_id          = os.environ['jhapi_client_id']
 client_secret      = os.environ['jhapi_client_secret']
+NUM_RETRY          = int(os.environ['JHAPI_NUM_RETRY']) if 'JHAPI_NUM_RETRY' in os.environ else 5
+BASE               = int(os.environ['JHAPI_BACKOFF_BASE']) if 'JHAPI_BACKOFF_BASE' in os.environ else 2
+MAX_BACKOFF        = int(os.environ['JHAPI_BACKOFF_MAX']) if 'JHAPI_BACKOFF_MAX' in os.environ else 60
+
 model_in_use       = os.environ['model_in_use']
-v1_flowsheets      = os.environ['v1_flowsheets'].lower() == 'true' if 'v1_flowsheets' in os.environ else False
 
 excluded_units     = os.environ['excluded_units'].split(',') \
                       if 'excluded_units' in os.environ \
@@ -768,37 +780,47 @@ async def load_epic_notifications(notifications):
       'score'    : ('9485',  lambda x: format(float(x), '.4f').lstrip('0') if x is not None else '-1.0')
     }
 
-  success = { k: 0 for k in flowsheet_ids }
-
   if epic_notifications is not None and int(epic_notifications):
+    success = { k: 0 for k in flowsheet_ids }
+    num_retry = 0
     push_tz = pytz.timezone('US/Eastern')
     push_tsp = datetime.datetime.utcnow().astimezone(push_tz)
 
-    for k in flowsheet_ids:
-      flowsheet_values = [{
-          'pat_id'   : n['pat_id'],
-          'visit_id' : n['visit_id'],
-          'tsp'      : push_tsp,
-          'value'    : flowsheet_ids[k][1](n[k] if k in n else None)
-      } for n in notifications]
+    while min(success.values()) == 0 and num_retry < NUM_RETRY:
+      for k in flowsheet_ids:
+        if success[k] == 0:
+          flowsheet_values = [{
+              'pat_id'   : n['pat_id'],
+              'visit_id' : n['visit_id'],
+              'tsp'      : push_tsp,
+              'value'    : flowsheet_ids[k][1](n[k] if k in n else None)
+          } for n in notifications]
 
-      jhapi_loader = JHAPI(NOTIFICATION_SERVER if NOTIFICATION_SERVER else EPIC_SERVER, client_id, client_secret)
-      responses = jhapi_loader.load_flowsheet(flowsheet_values, flowsheet_id=flowsheet_ids[k][0])
+          jhapi_loader = JHAPI(NOTIFICATION_SERVER if NOTIFICATION_SERVER else EPIC_SERVER, client_id, client_secret)
+          responses = jhapi_loader.load_flowsheet(flowsheet_values, flowsheet_id=flowsheet_ids[k][0])
 
-      for val, response in zip(flowsheet_values, responses):
-        if response is None:
-          logging.error('Failed to push notifications: %s %s %s' % (val['pat_id'], val['visit_id'], val['value']))
-        elif response.status_code != requests.codes.ok:
-          logging.error('Failed to push notifications: %s %s %s HTTP %s' % (val['pat_id'], val['visit_id'], val['value'], response.status_code))
-        elif response.status_code == requests.codes.ok:
-          success[k] += 1
+          for val, response in zip(flowsheet_values, responses):
+            if response is None:
+              logging.error('Failed to push notifications: %s %s %s' % (val['pat_id'], val['visit_id'], val['value']))
+            elif response.status_code != requests.codes.ok:
+              logging.error('Failed to push notifications: %s %s %s HTTP %s' % (val['pat_id'], val['visit_id'], val['value'], response.status_code))
+            elif response.status_code == requests.codes.ok:
+              success[k] += 1
+      if min(success.values()) > 0:
+        break
+      else:
+        num_retry = num_retry + 1
+        wait_time = min(((BASE**num_retry) + random.uniform(0, 1)), MAX_BACKOFF)
+        logging.warn("retry jhapi to push notifications (%s s)".format(wait_time))
+        sleep(wait_time)
+
+    for k in success:
+      api_monitor.add_metric('FSPush%sSuccess'  % k.capitalize(), value=success[k])
+      api_monitor.add_metric('FSPush%sFailures' % k.capitalize(), value=total-success[k])
 
   else:
     logging.info("Skipped pushing to Epic flowsheets")
 
-  for k in success:
-    api_monitor.add_metric('FSPush%sSuccess'  % k.capitalize(), value=success[k])
-    api_monitor.add_metric('FSPush%sFailures' % k.capitalize(), value=total-success[k])
 
 async def load_epic_trewscores(trewscores):
   total = len(trewscores)
