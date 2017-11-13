@@ -128,7 +128,7 @@ def g_per_l_to_g_per_dl(value):
     return float(value)/10.0
 
 def g_to_mg(value):
-    return float(value)/10.0
+    return float(value)*1000.0
 
 def ml_to_boolean(value):
     return True if float(value) > 0 else False
