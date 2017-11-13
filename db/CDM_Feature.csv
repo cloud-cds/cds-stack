@@ -21,6 +21,8 @@ albumin_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 albuterol_dose,T,json,yes,no,,,,,Medication,,mg
 alt_liver_enzymes,TWF,Real,yes,no,last_value_in_window,28,,,Physiologic,1,
 amiodarone_dose,T,JSON,yes,no,,,,,Medication,1,mg or mg/min if given by IV
+aminoglycosides_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+aminoglycosides_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 amoxicillin_dose,T,JSON,yes,no,,3,,,Medication,1,mg
 amoxicillin_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 ampicillin_dose,T,JSON,yes,no,,3,,,Medication,1,mg
@@ -86,6 +88,10 @@ ceftazidime_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 ceftriaxone_dose,T,JSON,yes,no,,,,,Medication,1,mg
 ceftriaxone_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 cellulitis_approx,T,String,yes,no,,,,,,,
+cephalosporins_1st_gen_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+cephalosporins_1st_gen_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
+cephalosporins_2nd_gen_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+cephalosporins_2nd_gen_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 chest_xray,T,Boolean,yes,no,,,,,"Procedure, true if chest x-ray performed",1,
 chief_complaint,T,JSON,yes,no,,,,,chief complaint,1,no unit
 chloride,TWF,Real,yes,no,last_value_in_window,28,,,Physiologic,1,mg/dL
@@ -116,6 +122,8 @@ crystalloid_fluid_order,T,String,yes,no,,,,,crystaloid fluid order as used for t
 ct_proc,T,String,yes,no,,,,,"Procedure, name of CT scan performed",1,
 culture_order,T,JSON,yes,no,,,,,Procedure,1,
 dabigatran_dose,T,JSON,yes,no,,,,,Medication,1,
+daptomycin_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+daptomycin_dose_order,T,String,yes,no,,,,,Medication Order,1,no unit
 dbpm,TWF,Real,no,no,,,dbpm_update,"abp_dias, nbp_dias","feaure based on BP dias, Diastolic blood pressure (combines invasive and noninvasive), it should not be sparse",1,mmHg
 ddimer,TWF,Real,yes,no,last_value_in_window,28,,,Lab,1,mg/L REU
 dexamethasone_dose,T,JSON,yes,no,,,,,Medication,1,
@@ -176,6 +184,8 @@ gentamicin_dose,T,JSON,yes,no,,3,,,Medication,1,mg
 gentamicin_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 gi_bleed,T,Boolean,no,no,,,gi_bleed_update,"gi_bleed_inhosp, ct_proc, mri_proc",,1,
 gi_bleed_inhosp,T,String,yes,no,,,,,,,
+glycopeptides_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+glycopeptides_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 heart_arrhythmias_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
 heart_arrhythmias_hist,S,Boolean,yes,no,,,,,History,1,no unit
 heart_arrhythmias_prob,S,Boolean,yes,no,,,,,ProblemList,1,no unit
@@ -234,12 +244,16 @@ levophed_injection_dose,T,JSON,yes,no,,3,,,Medication,1,mcg/kg/min
 lidocaine_dose,T,JSON,yes,no,,,,,Medication,1,mg
 line_sepsis,T,String,yes,no,,,,,,,
 line_sepsis_approx,T,String,yes,no,,,,,,,
+linezolid_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+linezolid_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 lipase,TWF,Real,yes,no,last_value_in_window,28,,,Lab,1,Units/L
 lisinopril_dose,T,JSON,yes,no,,,,,Medication,1,mg
 lisinopril_dose_order,T,String,yes,no,,,,,Medication Order,1,no unit
 liver_disease_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
 liver_disease_hist,S,Boolean,yes,no,,,,,history,1,no unit
 lorazepam_dose,T,JSON,yes,no,,,,,Medication,1,mg
+macrolides_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+macrolides_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 magnesium,TWF,Real,yes,no,last_value_in_window,28,,,Physiologic,1,mg/dL
 map,TWF,Real,yes,no,last_value_in_window,4,,,Phyiologic,1,mmHg
 mapm,TWF,Real,no,no,,,mapm_update,"abp_mean, nbp_mean","BP-based, Mean arterial pressure (MAP), it should not be sparse",1,mmHg
@@ -289,6 +303,7 @@ pao2_to_fio2,TWF,Real,no,no,,,pao2_to_fio2_update,"pao2, fio2","vital sign based
 penicillin_dose,T,JSON,yes,no,,3,,,Medication,1,Million Units
 penicillin_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 penicillin_g_dose,T,JSON,yes,no,,3,,,Medication,1,Million Units
+penicillin_g_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 peritonitis_approx,T,String,yes,no,,,,,,,
 phenytoin_dose,T,JSON,yes,no,,,,,Medication,1,mg
 piperacillin_tazobac_dose,T,JSON,yes,no,,3,,,Medication,1,mg
