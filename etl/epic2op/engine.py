@@ -292,7 +292,7 @@ def submit_time_to_cloudwatch(aws_region, prod_or_dev, hospital):
 
 
 def build_med_admin_request_data(ctxt, med_orders):
-  return med_orders[['pat_id', 'visit_id', 'ids']]\
+  return med_orders[med_orders.order_mode == 'Inpatient'][['pat_id', 'visit_id', 'ids']]\
     .groupby(['pat_id', 'visit_id'])['ids']\
     .apply(list)\
     .reset_index()

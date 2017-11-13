@@ -278,7 +278,6 @@ class JHAPIConfig:
     resource = '/patients/medications'
     payloads = [{
       'id':           pat['pat_id'],
-      'searchtype':   'IP',
       'dayslookback': str(self.lookback_days)
     } for _, pat in bedded_patients.iterrows()]
     responses = self.make_requests(ctxt, resource, payloads, 'GET')
