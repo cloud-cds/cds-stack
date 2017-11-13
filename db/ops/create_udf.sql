@@ -4648,7 +4648,7 @@ json_build_object(
     ''dose'', last(mo.dose order by mo.tsp),
     ''discontinue_tsp'', last((case when mo.discontinue_tsp = ''None'' then null else mo.discontinue_tsp end) order by mo.tsp),
     ''end_tsp'', last((case when mo.end_tsp = ''None'' then null else mo.end_tsp end) order by mo.tsp),
-    ''order_mode'', last(mo.order_mode by mo.tsp)
+    ''order_mode'', last(mo.order_mode order by mo.tsp)
 ),
 0
 from workspace.' || job_id || '_med_orders_transformed mo
