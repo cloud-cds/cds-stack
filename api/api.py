@@ -34,6 +34,9 @@ chart_sample_mins          = int(os.environ['chart_sample_mins']) if 'chart_samp
 chart_sample_hrs           = int(os.environ['chart_sample_hrs']) if 'chart_sample_hrs' in os.environ else 6
 
 # User-based access control.
+admin_whitelist = list(map(lambda u: u.lower(), os.environ['admin_whitelist'].split(','))) \
+                    if 'admin_whitelist' in os.environ else None
+
 user_whitelist = list(map(lambda u: u.lower(), os.environ['user_whitelist'].split(','))) \
                     if 'user_whitelist' in os.environ else None
 
@@ -447,7 +450,8 @@ class TREWSAPI(web.View):
              ]
 
     UI = [ "ui_septic_shock",
-           "ui_severe_sepsis" ]
+           "ui_severe_sepsis",
+           "ui_deactivate" ]
 
     sirs_cnt     = 0
     od_cnt       = 0
@@ -878,10 +882,12 @@ class TREWSAPI(web.View):
         deactivated_loc_matched = readable_loc in deactivated_locs
 
         if (not loc_matched) or deactivated_loc_matched:
-          active_locs = [locations[k] for k in locations if k not in deactivated_locs]
-          msg = 'TREWS is in beta testing, and is only available at {}.<br/>'.format(', '.join(active_locs)) \
-                + 'Please contact trews-helpdesk@opsdx.io for more information on availability at your location.'
-          raise web.HTTPBadRequest(body=json.dumps({'message': msg, 'standalone': True}))
+          admin_matched = admin_whitelist and uid and uid in admin_whitelist
+          if not admin_matched:
+            active_locs = [locations[k] for k in locations if k not in deactivated_locs]
+            msg = 'TREWS is in beta testing, and is only available at {}.<br/>'.format(', '.join(active_locs)) \
+                  + 'Please contact trews-helpdesk@opsdx.io for more information on availability at your location.'
+            raise web.HTTPBadRequest(body=json.dumps({'message': msg, 'standalone': True}))
 
         # Start of request handling.
         data = copy.deepcopy(data_example.patient_data_example)
