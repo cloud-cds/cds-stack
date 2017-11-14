@@ -447,7 +447,8 @@ class TREWSAPI(web.View):
              ]
 
     UI = [ "ui_septic_shock",
-           "ui_severe_sepsis" ]
+           "ui_severe_sepsis",
+           "ui_deactivate" ]
 
     sirs_cnt     = 0
     od_cnt       = 0

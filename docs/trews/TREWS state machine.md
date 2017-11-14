@@ -18,6 +18,7 @@ TREWS-based State Machine v2.0 2017-09-29
 | 13 | severe sepsis not present; trews_subalert present, no infection marked by provider |  NEW  |
 | 14 | severe sepsis not present; 2 sirs & 1 orgdf present, note present (implies sirs&orgdf and note not within 6 hrs) |  UNUSE@OL  |
 | 15 | severe sepsis not present; trews_subalert present, note present (implies trews&orgdf and note not within 6 hrs) |  NEW & UNUSE@OL |
+| 16 | ui uncertain (no notification for 1 hour) |  v1  |
 | 20 | CMS-based severe sepsis present |  v1  |
 | 21 | CMS-based severe sepsis present; 3hr bundle completed |  v1  |
 | 22 | CMS-based severe sepsis present; 3hr bundle expired |  v1  |
