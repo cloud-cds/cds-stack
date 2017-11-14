@@ -949,6 +949,7 @@ RETURNS table( enc_id int, state int) AS $func$ BEGIN RETURN QUERY EXECUTE
 format('select stats.enc_id,
     (
     case
+    when ui_deactivate_cnt = 1 then 16
     when ui_severe_sepsis_cnt = 0 and ui_septic_shock_cnt = 1 then (
         -- trews severe sepsis ON
         case when sus_count = 1 and trews_subalert_met > 0 then
@@ -1236,6 +1237,7 @@ select %I.enc_id,
     min(override_time) filter (where name = ''ui_severe_sepsis'' and is_met) as ui_severe_sepsis_onset,
     count(*) filter (where name = ''ui_septic_shock'' and is_met) as ui_septic_shock_cnt,
     min(override_time) filter (where name = ''ui_septic_shock'' and is_met) as ui_septic_shock_onset,
+    count(*) filter (where name = ''ui_deactivate'' and is_met) as ui_deactivate_cnt,
     first(GSS.state) state,
     first(GSS.severe_sepsis_onset) severe_sepsis_onset,
     first(GSS.septic_shock_onset) septic_shock_onset,
@@ -1985,6 +1987,34 @@ return query
         ) as ordered
         group by ordered.enc_id, ordered.name
     ),
+    ui_deactivate as (
+        select
+            ordered.enc_id,
+            ordered.name,
+            (first(ordered.measurement_time order by ordered.measurement_time) filter (where ordered.is_met)) as measurement_time,
+            (first(ordered.value order by ordered.measurement_time) filter (where ordered.is_met))::text as value,
+            (first(ordered.c_otime order by ordered.measurement_time) filter (where ordered.is_met)) as override_time,
+            (first(ordered.c_ouser order by ordered.measurement_time) filter (where ordered.is_met)) as override_user,
+            (first(ordered.c_ovalue order by ordered.measurement_time) filter (where ordered.is_met)) as override_value,
+            coalesce(bool_or(ordered.is_met), false) as is_met,
+            now() as update_date
+        from (
+            select  pat_cvalues.enc_id,
+                    pat_cvalues.name,
+                    pat_cvalues.tsp as measurement_time,
+                    pat_cvalues.value as value,
+                    pat_cvalues.c_otime,
+                    pat_cvalues.c_ouser,
+                    pat_cvalues.c_ovalue,
+                    (case when pat_cvalues.c_ovalue#>>'{0,type}' = 'uncertain'
+                        then now() < (pat_cvalues.c_ovalue#>>'{0,until}')::timestamptz
+                        else false end) as is_met
+            from pat_cvalues
+            where pat_cvalues.name = 'ui_deactivate'
+            order by pat_cvalues.tsp
+        ) as ordered
+        group by ordered.enc_id, ordered.name
+    ),
     ui_severe_sepsis as (
         select
             ordered.enc_id,
@@ -2044,6 +2074,7 @@ return query
         union all select *, null::boolean as is_acute from organ_dysfunction_except_rf
         union all select * from trews
         union all select *, null::boolean as is_acute from ui_severe_sepsis
+        union all select *, null::boolean as is_acute from ui_deactivate
     ),
     severe_sepsis_criteria as (
         with organ_dysfunction as (
@@ -2804,7 +2835,9 @@ BEGIN
         from get_states('new_criteria', this_enc_id) live
         left join get_states_snapshot(this_enc_id) snapshot on snapshot.enc_id = live.enc_id
         where snapshot.state is null
+        or ( snapshot.state = 16 and live.state <> snapshot.state)
         or ( snapshot.state = 10 and snapshot.severe_sepsis_wo_infection_onset < now() - window_size)
+        or ( snapshot.state = 10 and live.state = 16)
         or ( snapshot.state = 11 and live.state <> snapshot.state)
         -- once on cms severe sepsis path way, keep in cms path way
         or ( snapshot.state between 20 and 24 and ((live.state between 30 and 36) or (live.state between 20 and 24) or (live.state between 60 and 66)) and snapshot.state < live.state)
@@ -3369,6 +3402,7 @@ BEGIN RETURN QUERY
   (
       select prev.pat_id, prev.visit_id, prev.enc_id, prev.count_prev,
             (case
+                when state = 16 then 8
                 when state = 11 then 2
                 when state = 10 then 3
                 when state in (20,21,22,24,25,26,27,29,50,51,52,54) then 4
@@ -3378,7 +3412,6 @@ BEGIN RETURN QUERY
               else 1
             end) count, gss.trewscore, gss.trewscore_threshold, gss.alert_flag
       from prev
-      left join pat_status on prev.enc_id = pat_status.enc_id
       left join lateral get_states_snapshot(prev.enc_id) gss on gss.enc_id = prev.enc_id
   ),
   update_history as (
