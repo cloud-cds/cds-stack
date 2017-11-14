@@ -481,13 +481,19 @@ async def get_order_detail(db_pool, eid):
   # NOTE: currently, we only query all cms_antibiotics
   get_order_detail_sql = \
   '''
-  select tsp, initcap(regexp_replace(regexp_replace(fid, '_dose', ''), '_', ' ')) as fid, value from cdm_t
-  where enc_id = (select * from pat_id_to_enc_id('%s'::text)) and
-  fid in (
-    'azithromycin_dose','aztreonam_dose','cefepime_dose','ceftriaxone_dose','ciprofloxacin_dose','gentamicin_dose','levofloxacin_dose',
-    'metronidazole_dose','moxifloxacin_dose','piperacillin_tazobac_dose','vancomycin_dose'
+  select T.tsp, initcap(regexp_replace(regexp_replace(T.fid, '_dose', ''), '_', ' ', 'g')) as fid, T.value
+  from get_criteria(pat_id_to_enc_id('%s'::text)) C
+  inner join cdm_t T on C.enc_id = T.enc_id
+  where
+  C.name = 'antibiotics_order'
+  and T.fid in (
+    'azithromycin_dose','aztreonam_dose','cefepime_dose','ceftriaxone_dose','gentamicin_dose','levofloxacin_dose',
+    'metronidazole_dose','moxifloxacin_dose','piperacillin_tazobac_dose','vancomycin_dose',
+    'aminoglycosides_dose', 'cephalosporins_1st_gen_dose', 'cephalosporins_2nd_gen_dose',
+    'ciprofloxacin_dose', 'clindamycin_dose', 'daptomycin_dose',
+    'glycopeptides_dose', 'linezolid_dose', 'macrolides_dose', 'penicillin_g_dose'
   )
-  and now() - tsp <= interval '24 hours';
+  and coalesce(C.measurement_time, C.override_time, now()) - T.tsp <= interval '27 hours';
   ''' % eid
 
   async with db_pool.acquire() as conn:

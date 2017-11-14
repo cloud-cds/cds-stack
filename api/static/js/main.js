@@ -597,6 +597,7 @@ var controller = new function() {
     var unique_order_elems = [];
 
     // Add clincially inappropriate as a status.
+    // By performing string matching, we are fine if the status field is a json-as-text value.
     var naMsg = '';
     var naPrefix = 'Clinically Inappropriate';
     if ( trews.data && trews.data[orderType]
@@ -2524,38 +2525,50 @@ var taskComponent = function(json, elem, constants, doseLimit) {
   }
   elem.removeClass('in-action in-progress discontinued expired complete not-needed');
 
-  var status_completed = json['is_met'] && orderStatusCompleted(json);
-  if ( json['status'] == 'Ordering' ) {
-    elem.addClass('in-action');
-  }
-  else if ( json['status'] == 'Ordered' ) {
-    elem.addClass('in-progress');
-  }
-  /*
-  // Yanif: disabling discontinued/ended for now based on dt's feedback on 11/1/17.
-  else if ( json['status'] == 'Discontinued' ) {
-    elem.addClass('discontinued');
-  }
-  else if ( json['status'] == 'Ended' ) {
-    elem.addClass('expired');
-  }
-  */
-  else if ( status_completed ) {
-    elem.addClass('complete');
+  var obj_with_status = null;
+  try {
+    obj_with_status = JSON.parse(json['status']);
+    if ( !('status' in obj_with_status) ) {
+      obj_with_status = json;
+    }
+  } catch (e) {
+    obj_with_status = json;
   }
 
-  // For repeat lactates, append 'not needed' to its status as appropriate.
-  if ( json['name'] == 'repeat_lactate_order' && json['is_met'] && !elem.is('.in-action,.in-progress,.complete') ) {
-    elem.addClass('not-needed');
-  }
+  if ( obj_with_status != null ) {
+    var status_completed = json['is_met'] && orderStatusCompleted(obj_with_status);
+    if ( obj_with_status['status'] == 'Ordering' ) {
+      elem.addClass('in-action');
+    }
+    else if ( obj_with_status['status'] == 'Ordered' ) {
+      elem.addClass('in-progress');
+    }
+    /*
+    // Yanif: disabling discontinued/ended for now based on dt's feedback on 11/1/17.
+    else if ( obj_with_status['status'] == 'Discontinued' ) {
+      elem.addClass('discontinued');
+    }
+    else if ( obj_with_status['status'] == 'Ended' ) {
+      elem.addClass('expired');
+    }
+    */
+    else if ( status_completed ) {
+      elem.addClass('complete');
+    }
 
-  // Add clinically inappropriate reason.
-  var naMsg = '';
-  var naPrefix = 'Clinically Inappropriate';
-  if ( json['status'] != null && json['status'].startsWith(naPrefix) ) {
-    naMsg = naPrefix;
-    if (json['status'].length > naPrefix.length + 1) {
-      naMsg += ': ' + json['status'].substr(naPrefix.length + 1);
+    // For repeat lactates, append 'not needed' to its status as appropriate.
+    if ( json['name'] == 'repeat_lactate_order' && json['is_met'] && !elem.is('.in-action,.in-progress,.complete') ) {
+      elem.addClass('not-needed');
+    }
+
+    // Add clinically inappropriate reason.
+    var naMsg = '';
+    var naPrefix = 'Clinically Inappropriate';
+    if ( obj_with_status['status'] != null && obj_with_status['status'].startsWith(naPrefix) ) {
+      naMsg = naPrefix;
+      if (obj_with_status['status'].length > naPrefix.length + 1) {
+        naMsg += ': ' + obj_with_status['status'].substr(naPrefix.length + 1);
+      }
     }
   }
 
@@ -4175,6 +4188,7 @@ var toolbar = new function() {
       var g = this.groups[k];
       var g_class = null;
 
+      var obj_with_status = null;
       var deadline_exceeded = false;
 
       var t_action = null;
@@ -4187,11 +4201,21 @@ var toolbar = new function() {
         t_action = new Date(json[k2]['time'] * 1000);
 
         // Care completed maintenance.
-        var order_complete =
+        try {
+          obj_with_status = JSON.parse(json[k2]['status']);
+          if ( !('status' in obj_with_status) ) {
+            obj_with_status = json[k2];
+          }
+        } catch(e) {
+          obj_with_status = json[k2];
+        }
+
+        var order_status_complete =
           (k2 == 'repeat_lactate_order' ?
-                (json[k2]['is_met'] || orderStatusCompleted(json[k2]))
-              : (json[k2]['is_met'] && orderStatusCompleted(json[k2])))
-            && t_deadline != null && t_action <= t_deadline;
+                  (json[k2]['is_met'] || orderStatusCompleted(obj_with_status))
+                : (json[k2]['is_met'] && orderStatusCompleted(obj_with_status)));
+
+        var order_complete = order_status_complete && t_deadline != null && t_action <= t_deadline;
 
         if ( k != 'vasopressors' ) {
           severe_sepsis_completed['status'] = severe_sepsis_completed['status'] && order_complete;
@@ -4202,16 +4226,16 @@ var toolbar = new function() {
         septic_shock_completed['t'] = Math.max(septic_shock_completed['t'], t_action)
 
         // Tooltip.
-        var tipPrefix = json[k2]['status'] + ' at ' + strToTime(t_action, true, true);
+        var tipPrefix = obj_with_status['status'] + ' at ' + strToTime(t_action, true, true);
         var tipPreDeadline = 'Need to complete by ' + strToTime(t_deadline, true, true);
         var tipPostDeadline = 'Deadline passed at ' + strToTime(t_deadline, true, true);
 
         var tooltip = tipPrefix;
 
-        if ( json[k2]['status'] == 'Ordered' && t_deadline != null && t_action <= t_deadline ) {
+        if ( obj_with_status['status'] == 'Ordered' && t_deadline != null && t_action <= t_deadline ) {
           tooltip = tipPrefix +  ' but not completed. ' +  tipPreDeadline;
         }
-        else if ( json[k2]['status'] == 'Ordered' && t_deadline != null && t_action > t_deadline ) {
+        else if ( obj_with_status['status'] == 'Ordered' && t_deadline != null && t_action > t_deadline ) {
           tooltip = 'Order must be completed. ' + tipPostDeadline;
         }
         else if ( t_deadline != null && t_action > t_deadline ) {
@@ -4234,7 +4258,7 @@ var toolbar = new function() {
         }
 
         if ( t_condition != null ) {
-          g_class = json[k2]['status'] == 'Ordered' ? 'vis_g_' + k + '_incomplete' : null;
+          g_class = obj_with_status['status'] == 'Ordered' ? 'vis_g_' + k + '_incomplete' : null;
 
           // Action range.
           if ( t_action < t_condition ) {
@@ -4276,7 +4300,7 @@ var toolbar = new function() {
           }));
         }
 
-        aggregateItems[json[k2]['status'] == 'Ordered' ? 'Ordered' : 'Completed'].push({
+        aggregateItems[obj_with_status['status'] == 'Ordered' ? 'Ordered' : 'Completed'].push({
           t_action: t_action,
           t_condition: t_condition,
           t_deadline: t_deadline
@@ -4302,7 +4326,7 @@ var toolbar = new function() {
         if ( t_compare == null ) { t_compare = new Date(); }
 
         var tooltip = t_compare <= t_deadline ? tipPreDeadline : tipPostDeadline;
-        if ( t_action != null && json[k2]['status'] == 'Completed' && t_action <= t_deadline ) {
+        if ( t_action != null && obj_with_status != null && obj_with_status['status'] == 'Completed' && t_action <= t_deadline ) {
           tooltip = 'Order completed before deadline passed at ' + strToTime(t_deadline, true, true);
         }
 
