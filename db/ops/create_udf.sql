@@ -1561,7 +1561,11 @@ BEGIN
                                    'glycopeptides_dose',
                                    'linezolid_dose',
                                    'macrolides_dose',
-                                   'penicillin_dose') then 'Completed'
+                                   'penicillin_dose')
+                        and (order_value::json)#>>'{status}' !~* 'cancel|stop'
+                        and (order_value::json)#>>'{dose}' <> 'NaN'
+                        and ((order_value::json)#>>'{dose}')::numeric > 0
+                        then 'Completed'
                 else null
             end;
 END; $func$;
@@ -1630,7 +1634,7 @@ DECLARE
     dose_value numeric := (case when value ~ 'dose' then ((value::json)#>>'{dose}')::numeric else value::numeric end);
 BEGIN
     return case when override_value_text = 'Not Indicated' or override_value_text ~* 'Clinically Inappropriate' then true
-                when order_status = 'Completed' then dose_value > dose_limit
+                when order_status = 'Completed' then dose_value > dose_limit and dose_value <> 'NaN'::numeric
                 else false
             end;
 END; $func$;
@@ -2509,7 +2513,7 @@ return query
                              else null end)::text as name,
                             pat_cvalues.tsp as measurement_time,
                             json_build_object('status', dose_order_status(pat_cvalues.fid, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}'),
-                                               'fid', pat_cvalues.fid, 'result', pat_cvalues.value, 'tsp', pat_cvalues.tsp)::text as value,
+                                               'fid', pat_cvalues.fid, 'result', pat_cvalues.value::json, 'tsp', pat_cvalues.tsp) as value,
                             pat_cvalues.c_otime,
                             pat_cvalues.c_ouser,
                             pat_cvalues.c_ovalue,
@@ -2532,10 +2536,10 @@ return query
                                     min(act.measurement_time) filter (where act.name = 'comb1' and act.is_met),
                                     min(act.measurement_time) filter (where act.name = 'comb2' and act.is_met)
                                 )
-                          when (count(*) filter (where act.name = 'comb1' and (act.value::json)#>>'{status}' is not null)) > 0
-                            and (count(*) filter (where act.name = 'comb2' and (act.value::json)#>>'{status}' is not null)) > 0 -- Ordered
+                          when (count(*) filter (where act.name = 'comb1' and act.value#>>'{status}' is not null)) > 0
+                            and (count(*) filter (where act.name = 'comb2' and act.value#>>'{status}' is not null)) > 0 -- Ordered
                             then greatest(
-                                    min(act.measurement_time) filter (where act.name = 'comb1' and (act.value::json)#>>'{status}' is not null),
+                                    min(act.measurement_time) filter (where act.name = 'comb1' and act.value#>>'{status}' is not null),
                                     min(act.measurement_time) filter (where act.name = 'comb2' and (act.value::json)#>>'{status}' is not null)
                                 )
                           else null end
@@ -2543,22 +2547,22 @@ return query
                         (case when (count(*) filter (where act.name = 'comb1' and act.is_met)) > 0
                                 and (count(*) filter (where act.name = 'comb2' and act.is_met)) > 0
                             then    json_build_object('status', 'Completed',
-                                        'fid', json_build_array(first((act.value::json)#>>'{fid}' order by act.measurement_time) filter (where act.name = 'comb1' and act.is_met),
-                                                                first((act.value::json)#>>'{fid}' order by act.measurement_time) filter (where act.name = 'comb2' and act.is_met)),
-                                        'result', json_build_array(first((act.value::json)#>>'{result}' order by act.measurement_time) filter (where act.name = 'comb1' and act.is_met),
-                                                                   first((act.value::json)#>>'{result}' order by act.measurement_time) filter (where act.name = 'comb2' and act.is_met)),
-                                        'tsp', json_build_array(first((act.value::json)#>>'{tsp}' order by act.measurement_time) filter (where act.name = 'comb1' and act.is_met),
-                                                                   first((act.value::json)#>>'{tsp}' order by act.measurement_time) filter (where act.name = 'comb2' and act.is_met))
+                                        'fid', json_build_array(first(act.value#>>'{fid}' order by act.measurement_time) filter (where act.name = 'comb1' and act.is_met),
+                                                                first(act.value#>>'{fid}' order by act.measurement_time) filter (where act.name = 'comb2' and act.is_met)),
+                                        'result', json_build_array(first(act.value#>'{result}' order by act.measurement_time) filter (where act.name = 'comb1' and act.is_met)::json,
+                                                                   first(act.value#>'{result}' order by act.measurement_time) filter (where act.name = 'comb2' and act.is_met))::json,
+                                        'tsp', json_build_array(first(act.value#>>'{tsp}' order by act.measurement_time) filter (where act.name = 'comb1' and act.is_met),
+                                                                   first(act.value#>>'{tsp}' order by act.measurement_time) filter (where act.name = 'comb2' and act.is_met))
                                                                     )
-                          when (count(*) filter (where act.name = 'comb1' and (act.value::json)#>>'{status}' is not null)) > 0
-                            and (count(*) filter (where act.name = 'comb2' and (act.value::json)#>>'{status}' is not null)) > 0
+                          when (count(*) filter (where act.name = 'comb1' and act.value#>>'{status}' is not null)) > 0
+                            and (count(*) filter (where act.name = 'comb2' and act.value#>>'{status}' is not null)) > 0
                             then    json_build_object('status', 'Ordered',
-                                        'fid', json_build_array(first((act.value::json)#>>'{fid}' order by act.measurement_time) filter (where act.name = 'comb1' and (act.value::json)#>>'{status}' is not null),
-                                                                first((act.value::json)#>>'{fid}' order by act.measurement_time) filter (where act.name = 'comb2' and (act.value::json)#>>'{status}' is not null)),
-                                        'result', json_build_array(first((act.value::json)#>>'{result}' order by act.measurement_time) filter (where act.name = 'comb1' and (act.value::json)#>>'{status}' is not null),
-                                                                   first((act.value::json)#>>'{result}' order by act.measurement_time) filter (where act.name = 'comb2' and (act.value::json)#>>'{status}' is not null)),
-                                        'tsp', json_build_array(first((act.value::json)#>>'{tsp}' order by act.measurement_time) filter (where act.name = 'comb1' and (act.value::json)#>>'{status}' is not null),
-                                                                   first((act.value::json)#>>'{tsp}' order by act.measurement_time) filter (where act.name = 'comb2' and (act.value::json)#>>'{status}' is not null))
+                                        'fid', json_build_array(first(act.value#>>'{fid}' order by act.measurement_time) filter (where act.name = 'comb1' and act.value#>>'{status}' is not null),
+                                                                first(act.value#>>'{fid}' order by act.measurement_time) filter (where act.name = 'comb2' and act.value#>>'{status}' is not null)),
+                                        'result', json_build_array(first(act.value#>>'{result}' order by act.measurement_time) filter (where act.name = 'comb1' and act.value#>>'{status}' is not null),
+                                                                   first(act.value#>>'{result}' order by act.measurement_time) filter (where act.name = 'comb2' and act.value#>>'{status}' is not null)),
+                                        'tsp', json_build_array(first(act.value#>>'{tsp}' order by act.measurement_time) filter (where act.name = 'comb1' and act.value#>>'{status}' is not null),
+                                                                   first(act.value#>>'{tsp}' order by act.measurement_time) filter (where act.name = 'comb2' and act.value#>>'{status}' is not null))
                                                                     )
                           else null end
                             )::text as value,
