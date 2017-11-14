@@ -1564,7 +1564,7 @@ BEGIN
                                    'penicillin_dose')
                         and (
                                 (order_fid ~ '_dose$'
-                                and (order_value::json)#>>'{status}' !~* 'cancel|stop'
+                                and (order_value::json)#>>'{action}' !~* 'cancel|stop'
                                 and (order_value::json)#>>'{dose}' <> 'NaN'
                                 and ((order_value::json)#>>'{dose}')::numeric > 0)
                             or
@@ -3394,7 +3394,8 @@ RETURNS table(
     threshold           text,
     flag                int
 ) AS $func$ #variable_conflict use_column
-BEGIN RETURN QUERY
+BEGIN
+  RETURN QUERY
   with prev as (
     select p.pat_id, p.visit_id, p.enc_id, coalesce(
         last(h.count order by h.tsp),
