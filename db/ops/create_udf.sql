@@ -1562,9 +1562,14 @@ BEGIN
                                    'linezolid_dose',
                                    'macrolides_dose',
                                    'penicillin_dose')
-                        and (order_value::json)#>>'{status}' !~* 'cancel|stop'
-                        and (order_value::json)#>>'{dose}' <> 'NaN'
-                        and ((order_value::json)#>>'{dose}')::numeric > 0
+                        and (
+                                (order_fid ~ '_dose$'
+                                and (order_value::json)#>>'{status}' !~* 'cancel|stop'
+                                and (order_value::json)#>>'{dose}' <> 'NaN'
+                                and ((order_value::json)#>>'{dose}')::numeric > 0)
+                            or
+                                (order_fid !~ '_dose$' and order_value <> 'NaN')
+                            )
                         then 'Completed'
                 else null
             end;
