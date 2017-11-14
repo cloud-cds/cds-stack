@@ -38,9 +38,9 @@ var ALERT_CODES = {
 	"205": "<b>6hrs</b> have passed since Suspicion of Infection should have been entered, CMS Severe Sepsis criteria have been reset",
 	"206": "<span class='suppressed'><b>6hrs</b> have passed since Suspicion of Infection should have been entered, CMS Severe Sepsis Criteria have been reset</span>",
 	"300": "Enter Suspicion of Infection: 2/3 CMS Severe Sepsis Criteria (SIRS and Organ Dysfunction) met",
-	"301": "Severe Sepsis 3hr bundle intervention(s) need to be ordered", 										// Should be prefixed with count of number of severe sepsis 3hr interventions pending.
-	"302": "Severe Sepsis 6hr bundle intervention(s) need to be ordered", 										// Should be prefixed with count of number of severe sepsis 6hr interventions pending.
-	"303": "Septic Shock 6hr bundle intervention(s) need to be ordered", 										  // Should be prefixed with count of number of septic shock interventions pending.
+	"301": "Severe Sepsis 3hr bundle intervention(s) need to be completed", 										// Should be prefixed with count of number of severe sepsis 3hr interventions pending.
+	"302": "Severe Sepsis 6hr bundle intervention(s) need to be completed", 										// Should be prefixed with count of number of severe sepsis 6hr interventions pending.
+	"303": "Septic Shock 6hr bundle intervention(s) need to be completed", 										  // Should be prefixed with count of number of septic shock interventions pending.
 	"304": "Severe Sepsis 3hr bundle intervention(s) need to be completed in the next hour",  // Should be prefixed with the number of severe sepsis interventions to be completed before the 3hr window expires.
 	"305": "Severe Sepsis 6hr bundle intervention(s) need to be completed in the next hour",  // Should be prefixed with the number of severe sepsis interventions to be completed before the 6hr window expires.
 	"306": "Septic Shock 6hr bundle intervention(s) need to be completed in the next hour",    // Should be prefixed with the number of septic shock interventions to be completed before the 6hr window expires.
@@ -53,9 +53,9 @@ var ALERT_CODES = {
 	"405": "<b>6hrs</b> have passed since Suspicion of Infection should have been entered, TREWS Severe Sepsis Alert has been reset",
 	"406": "<span class='suppressed'><b>6hrs</b> have passed since Suspicion of Infection should have been entered, TREWS Severe Sepsis Alert has been reset</span>",
 	"500": "Enter Suspicion of Infection: TREWS Severe Sepsis Alert met",
-	"501": "Severe Sepsis 3hr bundle intervention(s) need to be ordered", 										// Should be prefixed with count of number of severe sepsis 3hr interventions pending.
-	"502": "Severe Sepsis 6hr bundle intervention(s) need to be ordered", 										// Should be prefixed with count of number of severe sepsis 6hr interventions pending.
-	"503": "Septic Shock 6hr bundle intervention(s) need to be ordered", 										  // Should be prefixed with count of number of septic shock interventions pending.
+	"501": "Severe Sepsis 3hr bundle intervention(s) need to be completed", 										// Should be prefixed with count of number of severe sepsis 3hr interventions pending.
+	"502": "Severe Sepsis 6hr bundle intervention(s) need to be completed", 										// Should be prefixed with count of number of severe sepsis 6hr interventions pending.
+	"503": "Septic Shock 6hr bundle intervention(s) need to be completed", 										  // Should be prefixed with count of number of septic shock interventions pending.
 	"504": "Severe Sepsis 3hr bundle intervention(s) need to be completed in the next hour",  // Should be prefixed with the number of severe sepsis interventions to be completed before the 3hr window expires.
 	"505": "Severe Sepsis 6hr bundle intervention(s) need to be completed in the next hour",  // Should be prefixed with the number of severe sepsis interventions to be completed before the 6hr window expires.
 	"506": "Septic Shock 6hr bundle intervention(s) need to be completed in the next hour",    // Should be prefixed with the number of septic shock interventions to be completed before the 6hr window expires.
@@ -65,9 +65,9 @@ var ALERT_CODES = {
 	"602":	"3hrs have passed since Severe Sepsis Manual Override",
 	"603":	"6hrs have passed since Severe Sepsis Manual Override",
 	"604":	"6hrs have passed since Septic Shock Manual Override",
-	"701":	"Severe Sepsis 3hr bundle intervention(s) need to be ordered",
-	"702":	"Severe Sepsis 6hr bundle intervention(s) need to be ordered",
-	"703":	"Septic Shock 6hr bundle intervention(s) need to be ordered",
+	"701":	"Severe Sepsis 3hr bundle intervention(s) need to be completed",
+	"702":	"Severe Sepsis 6hr bundle intervention(s) need to be completed",
+	"703":	"Septic Shock 6hr bundle intervention(s) need to be completed",
 	"704":	"Severe Sepsis 3hr bundle intervention(s) need to be completed in the next hour",
 	"705":	"Severe Sepsis 6hr bundle intervention(s) need to be completed in the next hour",
 	"706":	"Septic Shock 6hr bundle intervention(s) need to be completed in the next hour",
