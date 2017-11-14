@@ -557,12 +557,60 @@ class user_engagement(metric):
     self.name = 'User Engagement'
 
   def calc(self):
+    '''
+    1. enter infection
+    2. enter no infection
+    3. enter other infection
+    4. enter fluids inappropriate
+    5. enter abx inappropriate
+    6. skip to sepsis bundle
+    7. skip to shock bundle
+    8. enter uncertain/keep monitoring (TBD)
+    '''
     user_engag_q = """
     with a1 as (
       select p.pat_id, l.tsp, l.event,
              l.event#>>'{{name}}' as name,
-             l.event#>>'{{event_type}}' as type,
-             l.event#>>'{{override_value}}' as overide_value,
+             (case when l.event#>>'{{event_type}}' = 'override'
+                    and l.event#>>'{{name}}' = 'suspicion_of_infection'
+                    and l.event#>>'{{override_value, 0, text}}' in
+                            ('Unknown Source',
+                             'Endocarditis',
+                             'Meningitis',
+                             'Bacteremia',
+                             'Cellulitis',
+                             'UTI',
+                             'Pneumonia',
+                             'Multiple Sources of Infection'
+                             )
+                then 'enter infection'
+                when l.event#>>'{{event_type}}' = 'override'
+                    and l.event#>>'{{name}}' = 'suspicion_of_infection'
+                    and l.event#>>'{{override_value, 0, other}}' = 'true'
+                then 'enter other infection'
+                when l.event#>>'{{event_type}}' = 'override'
+                    and l.event#>>'{{name}}' = 'suspicion_of_infection'
+                    and l.event#>>'{{override_value, 0, text}}' = 'No Infection'
+                then 'enter no infection'
+                when l.event#>>'{{event_type}}' = 'override'
+                    and l.event#>>'{{name}}' = 'crystalloid_fluid_order'
+                    and l.event#>>'{{override_value, 0, text}}' ~ '^Clinically Inappropriate'
+                    and l.event#>>'{{clear}}' = 'false'
+                then 'enter fluids inappropriate'
+                when l.event#>>'{{event_type}}' = 'override'
+                    and l.event#>>'{{name}}' = 'antibiotics_order'
+                    and l.event#>>'{{override_value, 0, text}}' ~ '^Clinically Inappropriate'
+                    and l.event#>>'{{clear}}' = 'false'
+                then 'enter abx inappropriate'
+                when l.event#>>'{{event_type}}' = 'override'
+                    and l.event#>>'{{name}}' = 'ui_severe_sepsis'
+                    and l.event#>>'{{clear}}' = 'false'
+                then 'skip to sepsis bundle'
+                when l.event#>>'{{event_type}}' = 'override'
+                    and l.event#>>'{{name}}' = 'ui_septic_shock'
+                    and l.event#>>'{{clear}}' = 'false'
+                then 'skip to shock bundle'
+                else l.event#>>'{{event_type}}' end) as type
              l.event#>>'{{uid}}' as doc_id
       from criteria_log l
       inner join pat_enc p on l.enc_id = p.enc_id
