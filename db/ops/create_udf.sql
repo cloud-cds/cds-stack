@@ -2539,64 +2539,67 @@ return query
                 from antibiotics_comb_therapy act
                 where act.name is not null
                 group by act.enc_id
+            ),
+            orders as (
+                select  pat_cvalues.enc_id,
+                        pat_cvalues.name,
+                        (case when (pat_cvalues.name = 'initial_lactate_order' and pat_cvalues.tsp > OLT.severe_sepsis_onset_for_initial_lactate_order)
+                            or (pat_cvalues.name = 'blood_culture_order' and pat_cvalues.tsp > OLT.severe_sepsis_onset_for_blood_culture_order)
+                            or (pat_cvalues.name = 'antibiotics_order' and pat_cvalues.tsp > OLT.severe_sepsis_onset_for_antibiotics_order)
+                            or (pat_cvalues.name = 'crystalloid_fluid_order' and pat_cvalues.tsp > OLT.severe_sepsis_onset_for_order)
+                            or (pat_cvalues.name = 'vasopressors_order' and pat_cvalues.tsp > OST.septic_shock_onset)
+                                then pat_cvalues.tsp
+                            else null end) as measurement_time,
+                        (case when (pat_cvalues.name = 'initial_lactate_order' and pat_cvalues.tsp > OLT.severe_sepsis_onset_for_initial_lactate_order)
+                            or (pat_cvalues.name = 'blood_culture_order' and pat_cvalues.tsp > OLT.severe_sepsis_onset_for_blood_culture_order)
+                            or (pat_cvalues.name = 'antibiotics_order' and pat_cvalues.tsp > OLT.severe_sepsis_onset_for_antibiotics_order)
+                            or (pat_cvalues.name = 'crystalloid_fluid_order' and pat_cvalues.tsp > OLT.severe_sepsis_onset_for_order)
+                            or (pat_cvalues.name = 'vasopressors_order' and pat_cvalues.tsp > OST.septic_shock_onset)
+                                then (case when pat_cvalues.category in ('after_severe_sepsis_dose', 'after_septic_shock_dose')
+                                            then dose_order_status(pat_cvalues.fid, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}')
+                                          else order_status(pat_cvalues.fid, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}')
+                                     end)
+                            else null end) as value,
+                        pat_cvalues.c_otime,
+                        pat_cvalues.c_ouser,
+                        pat_cvalues.c_ovalue,
+                        (case
+                            when pat_cvalues.category = 'after_severe_sepsis' then
+                                ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > (case when pat_cvalues.name = 'initial_lactate_order' then OLT.severe_sepsis_onset_for_initial_lactate_order when pat_cvalues.name = 'blood_culture_order' then OLT.severe_sepsis_onset_for_blood_culture_order when pat_cvalues.name = 'antibiotics_order' then OLT.severe_sepsis_onset_for_antibiotics_order else OLT.severe_sepsis_onset_for_order end), false) )
+                                and ( order_met(pat_cvalues.name, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}'))
+
+                            when pat_cvalues.category = 'after_severe_sepsis_dose' then
+                                ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > (case when pat_cvalues.name = 'initial_lactate_order' then OLT.severe_sepsis_onset_for_initial_lactate_order when pat_cvalues.name = 'blood_culture_order' then OLT.severe_sepsis_onset_for_blood_culture_order when pat_cvalues.name = 'antibiotics_order' then OLT.severe_sepsis_onset_for_antibiotics_order else OLT.severe_sepsis_onset_for_order end), false) )
+                                and ( dose_order_met(pat_cvalues.fid, pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value,
+                                        coalesce((pat_cvalues.c_ovalue#>>'{0,lower}')::numeric,
+                                                 (pat_cvalues.d_ovalue#>>'{lower}')::numeric)))
+
+                            when pat_cvalues.category = 'after_septic_shock' then
+                                ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > OST.septic_shock_onset, false) )
+                                and ( order_met(pat_cvalues.name, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}'))
+
+                            when pat_cvalues.category = 'after_septic_shock_dose' then
+                                ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > OST.septic_shock_onset, false) )
+                                and ( dose_order_met(pat_cvalues.fid, pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value,
+                                        coalesce((pat_cvalues.c_ovalue#>>'{0,lower}')::numeric,
+                                                 (pat_cvalues.d_ovalue#>>'{lower}')::numeric)) )
+
+                            else criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
+                            end
+                        ) as is_met
+                from pat_cvalues
+                  left join orders_severe_sepsis_onsets OLT
+                    on pat_cvalues.enc_id = OLT.enc_id
+                  left join orders_septic_shock_onsets OST
+                    on pat_cvalues.enc_id = OST.enc_id
+                where pat_cvalues.name in (
+                    'initial_lactate_order',
+                    'blood_culture_order',
+                    'crystalloid_fluid_order',
+                    'vasopressors_order'
+                ) or (pat_cvalues.name = 'antibiotics_order' and pat_cvalues.category = 'after_severe_sepsis_dose')
             )
-            select  pat_cvalues.enc_id,
-                    pat_cvalues.name,
-                    (case when (pat_cvalues.name = 'initial_lactate_order' and pat_cvalues.tsp > OLT.severe_sepsis_onset_for_initial_lactate_order)
-                        or (pat_cvalues.name = 'blood_culture_order' and pat_cvalues.tsp > OLT.severe_sepsis_onset_for_blood_culture_order)
-                        or (pat_cvalues.name = 'antibiotics_order' and pat_cvalues.tsp > OLT.severe_sepsis_onset_for_antibiotics_order)
-                        or (pat_cvalues.name = 'crystalloid_fluid_order' and pat_cvalues.tsp > OLT.severe_sepsis_onset_for_order)
-                        or (pat_cvalues.name = 'vasopressors_order' and pat_cvalues.tsp > OST.septic_shock_onset)
-                            then pat_cvalues.tsp
-                        else null end) as measurement_time,
-                    (case when (pat_cvalues.name = 'initial_lactate_order' and pat_cvalues.tsp > OLT.severe_sepsis_onset_for_initial_lactate_order)
-                        or (pat_cvalues.name = 'blood_culture_order' and pat_cvalues.tsp > OLT.severe_sepsis_onset_for_blood_culture_order)
-                        or (pat_cvalues.name = 'antibiotics_order' and pat_cvalues.tsp > OLT.severe_sepsis_onset_for_antibiotics_order)
-                        or (pat_cvalues.name = 'crystalloid_fluid_order' and pat_cvalues.tsp > OLT.severe_sepsis_onset_for_order)
-                        or (pat_cvalues.name = 'vasopressors_order' and pat_cvalues.tsp > OST.septic_shock_onset)
-                            then (case when pat_cvalues.category in ('after_severe_sepsis_dose', 'after_septic_shock_dose')
-                                        then dose_order_status(pat_cvalues.fid, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}')
-                                      else order_status(pat_cvalues.fid, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}')
-                                 end)
-                        else null end) as value,
-                    pat_cvalues.c_otime,
-                    pat_cvalues.c_ouser,
-                    pat_cvalues.c_ovalue,
-                    (case
-                        when pat_cvalues.category = 'after_severe_sepsis' then
-                            ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > (case when pat_cvalues.name = 'initial_lactate_order' then OLT.severe_sepsis_onset_for_initial_lactate_order when pat_cvalues.name = 'blood_culture_order' then OLT.severe_sepsis_onset_for_blood_culture_order when pat_cvalues.name = 'antibiotics_order' then OLT.severe_sepsis_onset_for_antibiotics_order else OLT.severe_sepsis_onset_for_order end), false) )
-                            and ( order_met(pat_cvalues.name, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}'))
-
-                        when pat_cvalues.category = 'after_severe_sepsis_dose' then
-                            ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > (case when pat_cvalues.name = 'initial_lactate_order' then OLT.severe_sepsis_onset_for_initial_lactate_order when pat_cvalues.name = 'blood_culture_order' then OLT.severe_sepsis_onset_for_blood_culture_order when pat_cvalues.name = 'antibiotics_order' then OLT.severe_sepsis_onset_for_antibiotics_order else OLT.severe_sepsis_onset_for_order end), false) )
-                            and ( dose_order_met(pat_cvalues.fid, pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value,
-                                    coalesce((pat_cvalues.c_ovalue#>>'{0,lower}')::numeric,
-                                             (pat_cvalues.d_ovalue#>>'{lower}')::numeric)))
-
-                        when pat_cvalues.category = 'after_septic_shock' then
-                            ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > OST.septic_shock_onset, false) )
-                            and ( order_met(pat_cvalues.name, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}'))
-
-                        when pat_cvalues.category = 'after_septic_shock_dose' then
-                            ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > OST.septic_shock_onset, false) )
-                            and ( dose_order_met(pat_cvalues.fid, pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value,
-                                    coalesce((pat_cvalues.c_ovalue#>>'{0,lower}')::numeric,
-                                             (pat_cvalues.d_ovalue#>>'{lower}')::numeric)) )
-
-                        else criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
-                        end
-                    ) as is_met
-            from pat_cvalues
-              left join orders_severe_sepsis_onsets OLT
-                on pat_cvalues.enc_id = OLT.enc_id
-              left join orders_septic_shock_onsets OST
-                on pat_cvalues.enc_id = OST.enc_id
-            where pat_cvalues.name in (
-                'initial_lactate_order',
-                'blood_culture_order',
-                'crystalloid_fluid_order',
-                'vasopressors_order'
-            ) or (pat_cvalues.name = 'antibiotics_order' and pat_cvalues.category = 'after_severe_sepsis_dose')
+            select * from orders
             union all select * from antibiotics_comb
         ) as ordered
         group by ordered.enc_id, ordered.name
