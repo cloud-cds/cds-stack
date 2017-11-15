@@ -565,7 +565,7 @@ class user_engagement(metric):
     5. enter abx inappropriate
     6. skip to sepsis bundle
     7. skip to shock bundle
-    8. enter uncertain/keep monitoring (TBD)
+    8. enter uncertain/keep monitoring
     '''
     user_engag_q = """
     with a1 as (
@@ -610,6 +610,10 @@ class user_engagement(metric):
                     and l.event#>>'{{name}}' = 'ui_septic_shock'
                     and l.event#>>'{{clear}}' = 'false'
                 then 'skip to shock bundle'
+                when l.event#>>'{{event_type}}' = 'override'
+                    and l.event#>>'{{name}}' = 'ui_deactivate'
+                    and l.event#>>'{{clear}}' = 'false'
+                then 'enter uncertain/keep monitoring'
                 else l.event#>>'{{event_type}}' end) as type
              l.event#>>'{{uid}}' as doc_id
       from criteria_log l
