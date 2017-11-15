@@ -1,6 +1,6 @@
 /**
- * Checks if object is empty
-*/
+ * Shims/polyfills.
+ */
 function isEmpty(object) {
   for(var i in object) {
     return true;
@@ -21,6 +21,30 @@ if (!String.prototype.startsWith) {
       position = position || 0;
       return this.substr(position, searchString.length) === searchString;
   };
+}
+
+if (!Date.prototype.toISOString) {
+  (function() {
+
+    function pad(number) {
+      if (number < 10) {
+        return '0' + number;
+      }
+      return number;
+    }
+
+    Date.prototype.toISOString = function() {
+      return this.getUTCFullYear() +
+        '-' + pad(this.getUTCMonth() + 1) +
+        '-' + pad(this.getUTCDate()) +
+        'T' + pad(this.getUTCHours()) +
+        ':' + pad(this.getUTCMinutes()) +
+        ':' + pad(this.getUTCSeconds()) +
+        '.' + (this.getUTCMilliseconds() / 1000).toFixed(3).slice(2, 5) +
+        'Z';
+    };
+
+  }());
 }
 
 (function($) {
@@ -882,6 +906,8 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
     var trews_alerting = 'trews_subalert' in trews.data['severe_sepsis'] ? trews.data['severe_sepsis']['trews_subalert']['is_met'] : false;
     var cms_alerting = trews.data['severe_sepsis']['sirs']['is_met'] && trews.data['severe_sepsis']['organ_dysfunction']['is_met'];
 
+    var alert_disabled = trews.data['ui']['ui_deactivate']['is_met'];
+
     var not_infected = trews.data['severe_sepsis']['suspicion_of_infection']['update_time'] != null
                         && trews.data['severe_sepsis']['suspicion_of_infection']['value'] == 'No Infection';
 
@@ -1073,7 +1099,7 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
       }
       care_status_priority = !care_completed ? 'high-priority' : 'low-priority';
     }
-    else if ( trews_subalert || sirs_and_orgdf ) {
+    else if ( !alert_disabled && (trews_subalert || sirs_and_orgdf) ) {
       var trews_subalert_onset = new Date(trews.data['severe_sepsis']['trews_subalert']['onset_time'] * 1000);
       var sirs_and_orgdf_onset = new Date(Math.max(trews.data['severe_sepsis']['sirs']['onset_time'], trews.data['severe_sepsis']['organ_dysfunction']['onset_time']) * 1000);
 
@@ -1105,6 +1131,23 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
         care_status +=  (last_as_comma ? ' please' : ' Please') + ' complete the severe sepsis evaluation.';
       }
       care_status_priority = 'low-priority';
+    }
+    else if ( alert_disabled ) {
+      if ( trews.data['ui']['ui_deactivate']['override_value'] != null
+            && trews.data['ui']['ui_deactivate']['override_value'].length > 0 )
+      {
+        if ( trews.data['ui']['ui_deactivate']['override_value'][0]['type'] == 'uncertain' ) {
+          if ( with_alert ) {
+            care_status = "Patient's sepsis state indicated as uncertain, and further monitoring requested by " + (trews.data['ui']['ui_deactivate']['override_user'] == null ? 'user' : trews.data['ui']['ui_deactivate']['override_user']);
+          } else {
+            care_status = 'Notifications snoozed, please keep monitoring the patient';
+          }
+
+          var reactivate_tsp = new Date(trews.data['ui']['ui_deactivate']['override_value'][0]['until']);
+          care_status += '. Notifications will turn on at ' + strToTime(reactivate_tsp, true, false);
+          care_status_priority = 'low-priority';
+        }
+      }
     }
     else if ( with_no_risk ) {
       var data_ready = false;
@@ -1361,10 +1404,12 @@ var careSummaryComponent = new function() {
     var trews_alerting = 'trews_subalert' in trews.data['severe_sepsis'] ? trews.data['severe_sepsis']['trews_subalert']['is_met'] : false;
     var cms_alerting = trews.data['severe_sepsis']['sirs']['is_met'] && trews.data['severe_sepsis']['organ_dysfunction']['is_met'];
 
+    var alert_disabled = trews.data['ui']['ui_deactivate']['is_met'];
+
     var only_cms_alerting = !trews_alerting && cms_alerting;
     var only_cms_is_sepsis = !trews.data['severe_sepsis']['is_trews'] && trews.data['severe_sepsis']['is_cms'];
 
-    var has_any_alert = trews_alerting || cms_alerting;
+    var has_any_alert = !alert_disabled && (trews_alerting || cms_alerting);
     var alert_as_cms = only_cms_alerting || only_cms_is_sepsis;
 
     // longPatientSummary args: with_alert, action_type, with_treatment, with_reset, with_no_risk, with_separate_cms, more_detail_html
@@ -1410,6 +1455,9 @@ var careSummaryComponent = new function() {
  * Allows users to enable the interventions by directly clicking a toggle slider.
  */
 var treatmentOverrideComponent = new function() {
+  this.uncertain_sevsep_ctn = $('[data-trews="uncertain-sepsis"]');
+  this.uncertain_sevsep_btn = null;
+
   this.sevsep_override_ctn = $('[data-trews="treat-sepsis"]');
   this.sevsep_override_btn = null;
 
@@ -1417,10 +1465,24 @@ var treatmentOverrideComponent = new function() {
   this.sepshk_override_btn = null;
 
   this.init = function() {
+    this.uncertain_sevsep_btn = $('#uncertain-sepsis-toggle');
     this.sevsep_override_btn = $('#severe-sepsis-toggle');
     this.sepshk_override_btn = $('#septic-shock-toggle');
 
     // Add click handlers. Note these will be ignored by the parent's inactive class as present.
+    // this.uncertain_sevsep_btn.unbind();
+    this.uncertain_sevsep_btn.click(function(e) {
+      $('#loading').addClass('waiting').spin(); // Add spinner to page
+      var action = { "actionName": 'ui_deactivate', 'is_met': e.target.checked };
+      if ( e.target.checked ) {
+        var x = new Date(Date.now() + 3600*1000);
+        action['value'] = [{'type': 'uncertain', 'until': x.toISOString()}];
+      } else {
+        action['clear'] = true;
+      }
+      endpoints.getPatientData("override", action);
+    });
+
     // this.sevsep_override_btn.unbind();
     this.sevsep_override_btn.click(function(e) {
       $('#loading').addClass('waiting').spin(); // Add spinner to page
@@ -1448,6 +1510,10 @@ var treatmentOverrideComponent = new function() {
 
   this.render = function(sspJSON, sshJSON, uiJSON) {
 
+    // Reset uncertain sepsis button.
+    this.uncertain_sevsep_ctn.find('h4').removeClass('inactive');
+    this.uncertain_sevsep_ctn.find('.onoffswitch').removeClass('inactive');
+
     // Reset severe sepsis manual override.
     this.sevsep_override_ctn.find('h4').removeClass('inactive');
     this.sevsep_override_ctn.find('.onoffswitch').removeClass('inactive');
@@ -1456,9 +1522,23 @@ var treatmentOverrideComponent = new function() {
     this.sepshk_override_ctn.find('h4').removeClass('inactive');
     this.sepshk_override_ctn.find('.onoffswitch').removeClass('inactive');
 
+    // Disable uncertain toggle button if an infection is present.
     var any_override = uiJSON['ui_severe_sepsis']['is_met'] || uiJSON['ui_septic_shock']['is_met'];
 
-    if ( uiJSON['ui_septic_shock']['is_met'] || ( !any_override && (sspJSON['is_met'] || sshJSON['is_met']) ) ) {
+    var uncertain_inactive = any_override || sspJSON['is_met'] || sshJSON['is_met']
+                              || trews.data['severe_sepsis']['suspicion_of_infection']['value'] != null;
+
+    var ui_deactivated = !uncertain_inactive && uiJSON['ui_deactivate']['is_met'];
+
+    if ( uncertain_inactive ) {
+      this.uncertain_sevsep_ctn.find('h4').addClass('inactive');
+      this.uncertain_sevsep_ctn.find('.onoffswitch').addClass('inactive');
+    }
+    else {
+      this.uncertain_sevsep_btn.attr('checked', uiJSON['ui_deactivate']['is_met']);
+    }
+
+    if ( ui_deactivated || uiJSON['ui_septic_shock']['is_met'] || ( !any_override && (sspJSON['is_met'] || sshJSON['is_met']) ) ) {
       this.sevsep_override_ctn.find('h4').addClass('inactive');
       this.sevsep_override_ctn.find('.onoffswitch').addClass('inactive');
     }
@@ -1466,7 +1546,7 @@ var treatmentOverrideComponent = new function() {
       this.sevsep_override_btn.attr('checked', uiJSON['ui_severe_sepsis']['is_met']);
     }
 
-    if ( !any_override && sshJSON['is_met'] ) {
+    if ( ui_deactivated || (!any_override && sshJSON['is_met']) ) {
       this.sepshk_override_ctn.find('h4').addClass('inactive');
       this.sepshk_override_ctn.find('.onoffswitch').addClass('inactive');
     }
@@ -1535,8 +1615,13 @@ var severeSepsisComponent = new function() {
 
   this.suspicion = function(json) {
     this.susCtn.find('h3').text(json['display_name']);
-    this.susCtn.removeClass('complete complete-with-status complete-no-infection');
-    if (this.sus['value'] == null) {
+    this.susCtn.removeClass('inactive complete complete-with-status complete-no-infection highlight-expired highlight-unexpired');
+    var alert_snoozed = trews.data['ui']['ui_deactivate']['is_met'];
+
+    if ( this.sus['value'] == null && alert_snoozed ) {
+      this.susCtn.addClass('inactive');
+    }
+    else if (this.sus['value'] == null) {
       var highlightCls = this.highlightSuspicionClass();
       if ( highlightCls != null ) {
         this.susCtn.addClass(highlightCls);
@@ -1544,12 +1629,10 @@ var severeSepsisComponent = new function() {
         this.susCtn.find('.status h4').text('');
         //this.susCtn.find('.status h4').text('Please indicate whether infection is suspected');
       } else {
-        this.susCtn.removeClass('highlight-expired highlight-unexpired');
         this.susCtn.find('.status').hide();
       }
       this.susCtn.find('.status h5').html('');
     } else {
-      this.susCtn.removeClass('highlight-expired highlight-unexpired');
       if (this.sus['value'] != 'No Infection') {
         this.susCtn.addClass('complete-with-status');
       }
@@ -1621,10 +1704,13 @@ var severeSepsisComponent = new function() {
 
     var num_orgdf = orgdf_as_cms ? json['organ_dysfunction']['num_met'] : json['trews_organ_dysfunction']['num_met'];
     var num_orgdf_ovr = orgdf_as_cms ? json['organ_dysfunction']['num_overridden'] : json['trews_organ_dysfunction']['num_overridden'];
-    if (!(num_orgdf > 0 || num_orgdf_ovr > 0
-            || trews.data['ui']['ui_severe_sepsis']['is_met']
-            || trews.data['ui']['ui_septic_shock']['is_met'] ))
-    {
+
+    var any_ui_ovr = trews.data['ui']['ui_severe_sepsis']['is_met']
+                      || trews.data['ui']['ui_septic_shock']['is_met'];
+
+    var alert_snoozed = trews.data['ui']['ui_deactivate']['is_met'];
+
+    if ( (num_orgdf == 0 && num_orgdf_ovr == 0 && !any_ui_ovr) || alert_snoozed ) {
       orgdf_ctn.addClass('inactive');
     }
 

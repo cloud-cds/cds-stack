@@ -734,7 +734,12 @@ async def push_notifications_to_epic(db_pool, eid, notify_future_notification=Tr
     '''
     select * from get_notifications_for_epic('%s', '%s');
     ''' % (eid, model)
-    notifications = await conn.fetch(notifications_sql)
+    try:
+      async with conn.transaction(isolation='serializable'):
+        notifications = await conn.fetch(notifications_sql)
+    except:
+      notifications = None
+
     if notifications:
       logging.info("push notifications to epic (epic_notifications={}) for {}".format(epic_notifications, eid))
       await load_epic_notifications(notifications)
