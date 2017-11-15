@@ -23,7 +23,7 @@ from datetime import date
 
 class JHAPIConfig:
   def __init__(self, hospital, lookback_hours, jhapi_server, jhapi_id,
-               jhapi_secret, lookback_days=None):
+               jhapi_secret, lookback_days=None, op_lookback_days=None):
     if jhapi_server not in servers:
       raise ValueError("Incorrect server provided")
     if int(lookback_hours) > 72:
@@ -32,6 +32,7 @@ class JHAPIConfig:
     self.hospital = hospital
     self.lookback_hours = int(lookback_hours)
     self.lookback_days = int(lookback_days) if lookback_days else int(int(lookback_hours)/24.0 + 1)
+    self.op_lookback_days = op_lookback_days
     self.from_date = (dt.datetime.now() + dt.timedelta(days=1)).strftime('%Y-%m-%d')
     tomorrow = dt.datetime.now() + dt.timedelta(days=1)
     self.dateFrom = (tomorrow - dt.timedelta(days=self.lookback_days)).strftime('%Y-%m-%d')
@@ -278,8 +279,15 @@ class JHAPIConfig:
     resource = '/patients/medications'
     payloads = [{
       'id':           pat['pat_id'],
-      'dayslookback': str(self.lookback_days)
+      'dayslookback': str(self.lookback_days),
+      'searchtype':   'IP'
+    } for _, pat in bedded_patients.iterrows()] + \
+    [{
+      'id':           pat['pat_id'],
+      'dayslookback': str(self.op_lookback_days),
+      'searchtype':   'OP'
     } for _, pat in bedded_patients.iterrows()]
+
     responses = self.make_requests(ctxt, resource, payloads, 'GET')
     dfs = [pd.DataFrame(r) for r in responses]
     return self.combine(dfs, bedded_patients[['pat_id', 'visit_id']])

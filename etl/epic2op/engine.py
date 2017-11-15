@@ -47,6 +47,7 @@ def main(max_pats=None, hospital=None, lookback_hours=None, db_name=None, repl=F
   job_id = "job_etl_{}_{}".format(hospital, dt.datetime.now().strftime('%Y%m%d%H%M%S')).lower()
   archive = int(core.get_environment_var('TREWS_ETL_ARCHIVE', 0))
   lookback_hours = lookback_hours or core.get_environment_var('TREWS_ETL_HOURS')
+  op_lookback_days = int(core.get_environment_var('TREWS_ET_OP_DAYS', 365))
   # Create jhapi_extractor
   extractor = JHAPIConfig(
     hospital       = hospital,
@@ -54,6 +55,7 @@ def main(max_pats=None, hospital=None, lookback_hours=None, db_name=None, repl=F
     jhapi_server   = core.get_environment_var('TREWS_ETL_SERVER', 'prod'),
     jhapi_id       = core.get_environment_var('jhapi_client_id'),
     jhapi_secret   = core.get_environment_var('jhapi_client_secret'),
+    op_lookback_days = op_lookback_days
   )
 
   # Get stuff for boto client
