@@ -281,6 +281,10 @@ var criteriaKeyToName = {
 		"units": ""}
 	],
 	/* UI Components */
+	"ui_deactivate": [
+		{"name": "Notifications to Snooze",
+		"units": ""}
+	],
 	"ui_severe_sepsis": [
 		{"name": "Severe Sepsis Bundle",
 		"units": ""}

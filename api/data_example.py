@@ -364,6 +364,15 @@ vasopressors_order = {
     "note": "note"
 }
 
+ui_deactivate = {
+    "name": "ui_deactivate",
+    "is_met": False,
+    "value": None,
+    "measurement_time": None,
+    "override_time": None,
+    "override_user": None
+}
+
 ui_severe_sepsis = {
     "name": "ui_severe_sepsis",
     "is_met": False,
@@ -428,6 +437,7 @@ patient_data_example = {
     "auditlist": [],
     "trews_intervals": [],
     "ui": {
+        ui_deactivate["name"]: ui_deactivate,
         ui_severe_sepsis["name"]: ui_severe_sepsis,
         ui_septic_shock["name"]: ui_septic_shock,
     }
@@ -479,6 +489,7 @@ empty_patient_data_example = {
     "auditlist": [],
     "trews_intervals": [],
     "ui": {
+        ui_deactivate["name"]: ui_deactivate,
         ui_severe_sepsis["name"]: ui_severe_sepsis,
         ui_septic_shock["name"]: ui_septic_shock,
     }

@@ -332,6 +332,9 @@ div.manual-override h4.inactive {
     -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=45)";
     opacity: 0.45;
 }
+div.manual-override[data-trews="uncertain-sepsis"] {
+    margin-right: 10px;
+}
 .card.inactive h2[data-trews="sev3-action"], .card.inactive h2[data-trews="sep6-action"] {
     opacity: 0.3;
 }
