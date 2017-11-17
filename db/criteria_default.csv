@@ -69,6 +69,7 @@ trews_vasopressors,,,trews_organ_dysfunction
 trews_vent,,,trews_organ_dysfunction
 ui_septic_shock,,,ui
 ui_severe_sepsis,,,ui
+ui_deactivate,,,ui
 vasopressors_order,vasopressors_dose,"{""lower"":0}",after_septic_shock_dose
 vasopressors_order,vasopressors_dose_order,"{""lower"":0}",after_septic_shock_dose
 wbc,bands,"{""upper"":10}",simple
