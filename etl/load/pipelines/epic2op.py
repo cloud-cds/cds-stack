@@ -47,8 +47,8 @@ async def load_discharge_times(ctxt, contacts_df):
     tsp        = row['discharge_date']
     fid        = 'discharge'
     value      = json.dumps({
-      'department':  row['discharge_disposition'],
-      'disposition': row['department']
+      'disposition':  row['discharge_disposition'],
+      'department': row['department']
     })
     confidence = 1
     return [enc_id, tsp, fid, value, confidence]
