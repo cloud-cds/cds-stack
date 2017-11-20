@@ -11,10 +11,10 @@ async def init_epic_sync_loop(app):
   event_loop = asyncio.get_event_loop()
   if not event_loop.is_running():
     try:
-      logging.info('entering event loop')
+      print('entering event loop')
       event_loop.run_forever()
     finally:
-      logging.info('closing event loop')
+      print('closing event loop')
       event_loop.close()
 
 class EventResource(web.View):
@@ -23,6 +23,7 @@ class EventResource(web.View):
       response = Response()
       response.content_type = 'text/html'
       response.body = "epic event notifications"
+      print("get responsed")
       return response
 
     except Exception as ex:
@@ -34,10 +35,10 @@ class EventResource(web.View):
     try:
       req_body = await self.request.text()
       root = etree.fromstring(req_body)
-      logging.info(etree.tostring(root))
-      logging.info(root.tag)
+      print(etree.tostring(root))
+      print(root.tag)
       for child in root:
-        logging.info(child.tag)
+        print(child.tag)
       return json_response({'message': 'success'})
     except Exception as ex:
       logging.warning(ex.message)
