@@ -11,10 +11,10 @@ async def init_epic_sync_loop(app):
   event_loop = asyncio.get_event_loop()
   if not event_loop.is_running():
     try:
-      print('entering event loop')
+      logging.info('entering event loop')
       event_loop.run_forever()
     finally:
-      print('closing event loop')
+      logging.info('closing event loop')
       event_loop.close()
 
 class EventResource(web.View):
@@ -34,10 +34,10 @@ class EventResource(web.View):
     try:
       req_body = await self.request.text()
       root = etree.fromstring(req_body)
-      print(etree.tostring(root))
-      print(root.tag)
+      logging.info(etree.tostring(root))
+      logging.info(root.tag)
       for child in root:
-        print(child.tag)
+        logging.info(child.tag)
       return json_response({'message': 'success'})
     except Exception as ex:
       logging.warning(ex.message)
