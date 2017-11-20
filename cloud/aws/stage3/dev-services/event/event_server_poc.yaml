@@ -45,8 +45,8 @@ spec:
         image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:latest
         resources:
           requests:
-            memory: "2816Mi"
-            cpu: "1000m"
+            memory: "512Mi"
+            cpu: "200m"
         ports:
         - containerPort: 8000
         command: ["/bin/sh","-c"]
