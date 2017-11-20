@@ -48,5 +48,5 @@ class EventResource(web.View):
 app = web.Application()
 app.on_startup.append(init_epic_sync_loop)
 epic_env = os.environ['epic_env'] if 'epic_env' in os.environ else 'poc'
-app.router.add_route('POST', epic_env, EventResource)
-app.router.add_route('GET', epic_env, EventResource)
+app.router.add_route('POST', '/{}'.format(epic_env), EventResource)
+app.router.add_route('GET', '/{}'.format(epic_env), EventResource)
