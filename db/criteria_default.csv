@@ -31,8 +31,8 @@ creatinine,creatinine,"{""upper"":2.0}",simple
 creatinine,urine_output,"{""lower"":0.5}",urine_output
 crystalloid_fluid,crystalloid_fluid,"{""upper"":30}",simple
 crystalloid_fluid,fluids_intake,"{""upper"":0}",simple
-crystalloid_fluid_order,crystalloid_fluid,"{""lower"":30}",after_severe_sepsis_dose
-crystalloid_fluid_order,crystalloid_fluid_order,"{""lower"":30}",after_severe_sepsis_dose
+crystalloid_fluid_order,crystalloid_fluid,"{""lower"":0}",after_severe_sepsis_dose
+crystalloid_fluid_order,crystalloid_fluid_order,"{""lower"":0}",after_severe_sepsis_dose
 decrease_in_sbp,abp_sys,"{""lower"":40}",decrease_in_sbp
 decrease_in_sbp,nbp_sys,"{""lower"":40}",decrease_in_sbp
 heart_rate,heart_rate,"{""upper"": 90}",simple
