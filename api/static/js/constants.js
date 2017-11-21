@@ -885,7 +885,8 @@ var severe_sepsis = {
 				"acute_cmp": "GT",
 				"acute_arrow": "up"
 			}],
-			"precision": 1
+			//"precision": 1
+			"fixed": 0
 		}, {
 			"key": "trews_vasopressors",
 			"criteria_display_name": "Vasopressors Initiated",
