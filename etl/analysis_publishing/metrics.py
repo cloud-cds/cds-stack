@@ -50,7 +50,10 @@ class alert_performance_metrics(metric):
     self.sepsis_performance_window = 24*7#long_window ## 24*7 hours window
     self.connection = connection
     # self.now = pd.to_datetime('now').tz_localize(timezone('utc'))
-    self.now = pd.to_datetime(self.last_time_str).tz_localize(timezone('utc'), ambiguous='infer')
+    try:
+        self.now = pd.to_datetime(self.last_time_str).tz_localize(timezone('utc'), ambiguous='infer')
+    except:
+        self.now = pd.to_datetime(self.last_time_str).tz_localize(timezone('utc'))
 
     self.window = (pd.to_datetime(last_time_str) - pd.to_datetime(first_time_str)) / pd.to_timedelta("1 hour")
 
