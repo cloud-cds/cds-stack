@@ -1140,11 +1140,17 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
           if ( with_alert ) {
             care_status = "Patient's sepsis state indicated as uncertain, and further monitoring requested by " + (trews.data['ui']['ui_deactivate']['override_user'] == null ? 'user' : trews.data['ui']['ui_deactivate']['override_user']);
           } else {
-            care_status = 'Notifications snoozed, please keep monitoring the patient';
+            care_status = 'Notifications paused, please keep monitoring the patient';
           }
 
           var reactivate_tsp = new Date(trews.data['ui']['ui_deactivate']['override_value'][0]['until']);
-          care_status += '. Notifications will turn on at ' + strToTime(reactivate_tsp, true, false);
+          var now = Date.now();
+
+          if ( reactivate_tsp <= now ) {
+            care_status += '. Notifications will resume shortly.';
+          } else {
+            care_status += '. Notifications will resume at ' + strToTime(reactivate_tsp, true, false) + '.';
+          }
           care_status_priority = 'low-priority';
         }
       }
@@ -1536,6 +1542,21 @@ var treatmentOverrideComponent = new function() {
     }
     else {
       this.uncertain_sevsep_btn.attr('checked', uiJSON['ui_deactivate']['is_met']);
+
+      if ( trews.data['ui']['ui_deactivate']['override_value'] != null ) {
+        var until = new Date(trews.data['ui']['ui_deactivate']['override_value'][0]['until']);
+        var now = Date.now();
+
+        var remaining = new Date(until - now);
+        var minutes = remaining.getUTCHours() * 60 + remaining.getUTCMinutes() + 1;
+        var suffix = minutes == 1 ? ' minute' : ' minutes';
+
+        if ( until <= now || minutes == 0 ) {
+          this.uncertain_sevsep_ctn.find('h4').text('Re-evaluate patient');
+        } else {
+          this.uncertain_sevsep_ctn.find('h4').text('Re-evaluate in ' + minutes + suffix);
+        }
+      }
     }
 
     if ( ui_deactivated || uiJSON['ui_septic_shock']['is_met'] || ( !any_override && (sspJSON['is_met'] || sshJSON['is_met']) ) ) {
