@@ -292,7 +292,6 @@ def submit_time_to_cloudwatch(aws_region, prod_or_dev, hospital):
     logging.error('unsuccessfully pushed total time cloudwatch metrics')
     logging.error(e)
 
-
 def build_med_admin_request_data(ctxt, med_orders):
   if not med_orders.empty:
     return med_orders[med_orders.order_mode == 'Inpatient'][['pat_id', 'visit_id', 'ids']]\
