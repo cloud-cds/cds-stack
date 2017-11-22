@@ -716,7 +716,9 @@ div.slot[data-trews="care-summary-detail"] {
     font-weight: 400;
     font-size: 14px;
 }
-.card[data-trews="sev3"] .status h4, .card[data-trews="sev3"] .desc h4 {
+.card[data-trews="sev3"] .status h4, .card[data-trews="sev3"] .desc h4,
+.card[data-trews="sev6"] .status h4, .card[data-trews="sev6"] .desc h4,
+.card[data-trews="sep6"] .status h4, .card[data-trews="sep6"] .desc h4 {
     margin: 0 0 5px 5px;
     font-weight: 400;
     font-size: 12px;
