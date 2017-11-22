@@ -4613,7 +4613,7 @@ ON CONFLICT (enc_id, tsp, fid)
 ';
 
 -- med_orders
-if to_regclass('workspace.' || job_id || '_active_procedures_transformed') is not null then
+if to_regclass('workspace.' || job_id || '_med_orders_transformed') is not null then
     execute
     'INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
     select enc_id, tsp::timestamptz, fid,
