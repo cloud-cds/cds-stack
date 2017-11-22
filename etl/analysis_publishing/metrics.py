@@ -620,7 +620,7 @@ class user_engagement(metric):
                     and l.event#>>'{{name}}' = 'ui_deactivate'
                     and l.event#>>'{{clear}}' = 'false'
                 then 'enter uncertain/keep monitoring'
-                else l.event#>>'{{event_type}}' end) as type
+                else l.event#>>'{{event_type}}' end) as type,
              l.event#>>'{{uid}}' as doc_id
       from criteria_log l
       inner join pat_enc p on l.enc_id = p.enc_id
