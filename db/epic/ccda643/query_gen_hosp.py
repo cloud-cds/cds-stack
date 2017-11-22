@@ -402,7 +402,6 @@ SELECT csn.EXTERNAL_ID CSN_ID
 FROM Analytics.dbo.CCDA643_CSNLookupTable csn
 INNER JOIN dbo.ORDER_RESULTS res ON res.PAT_ENC_CSN_ID = csn.pat_enc_csn_id
 INNER JOIN dbo.CLARITY_COMPONENT COMP ON res.COMPONENT_ID = COMP.COMPONENT_ID
-INNER JOIN Analytics.dbo.CCDA264_ComponentBaseNames basenames ON comp.BASE_NAME = basenames.BASE_NAME
 WHERE res.RESULT_STATUS_C IN (
     3
     ,4,5
@@ -418,7 +417,6 @@ and
   or
   comp.BASE_NAME in
   (
-  'EKG',
   'ACAN',
   'ADENOCULT',
   'AERANACUL',
@@ -455,6 +453,7 @@ and
   'DERMATCULT',
   'EARCULT',
   'ECOLIO157CUL',
+  'EKG',
   'ENTEROVIRCUL',
   'EPIBMFL',
   'EPICULT',
@@ -1031,9 +1030,9 @@ GO
 # 1101 jhh
 # 1102 bmc
 # 1103 hcgh
-hosp = '1103'
-start_date = (2014, 1)
-end_date = (2018, 1)
+hosp = '1101'
+start_date = (2016, 1)
+end_date = (2017, 7)
 num_months = 12
 for year in range(start_date[0], end_date[0]+1):
   for month in range(1,13,num_months):
