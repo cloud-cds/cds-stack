@@ -294,10 +294,14 @@ def submit_time_to_cloudwatch(aws_region, prod_or_dev, hospital):
 
 
 def build_med_admin_request_data(ctxt, med_orders):
-  return med_orders[med_orders.order_mode == 'Inpatient'][['pat_id', 'visit_id', 'ids']]\
-    .groupby(['pat_id', 'visit_id'])['ids']\
-    .apply(list)\
-    .reset_index()
+  if not med_orders.empty:
+    return med_orders[med_orders.order_mode == 'Inpatient'][['pat_id', 'visit_id', 'ids']]\
+      .groupby(['pat_id', 'visit_id'])['ids']\
+      .apply(list)\
+      .reset_index()
+  else:
+    ctxt.log.warn("No medication order.")
+    return None
 
 def add_column(ctxt, df, col_name, col_data):
   df[col_name] = col_data
@@ -334,7 +338,7 @@ def transform(ctxt, df, transform_list_name):
   return df
 
 def patients_combine(ctxt, df, df2):
-  if df2 is not None or not df2.empty():
+  if df2 is not None and not df2.empty:
     df2 = df2[~df2.visit_id.isin(df.visit_id)]
     df2['patient_class'] = None
     df2['diagnosis'] = None
