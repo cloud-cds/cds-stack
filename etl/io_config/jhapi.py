@@ -297,16 +297,19 @@ class JHAPIConfig:
 
 
   def extract_med_admin(self, ctxt, med_orders):
-    resource = '/patients/medicationadministrationhistory'
-    payloads = [{
-      'ContactID':        order['visit_id'],
-      'ContactIDType':    'CSN',
-      'OrderIDs':         list(itertools.chain.from_iterable(order['ids'])),
-      'PatientID':        order['pat_id']
-    } for _, order in med_orders.iterrows()]
-    responses = self.make_requests(ctxt, resource, payloads, 'POST')
-    dfs = [pd.DataFrame(r) for r in responses]
-    return self.combine(dfs, med_orders[['pat_id', 'visit_id']])
+    if med_orders is None or med_orders.empty:
+      return None
+    else:
+      resource = '/patients/medicationadministrationhistory'
+      payloads = [{
+        'ContactID':        order['visit_id'],
+        'ContactIDType':    'CSN',
+        'OrderIDs':         list(itertools.chain.from_iterable(order['ids'])),
+        'PatientID':        order['pat_id']
+      } for _, order in med_orders.iterrows()]
+      responses = self.make_requests(ctxt, resource, payloads, 'POST')
+      dfs = [pd.DataFrame(r) for r in responses]
+      return self.combine(dfs, med_orders[['pat_id', 'visit_id']])
 
 
   def extract_notes(self, ctxt, bedded_patients):
@@ -354,7 +357,10 @@ class JHAPIConfig:
     responses = self.make_requests(ctxt, resource, payloads, 'GET')
     response_dfs = [pd.DataFrame(r['Contacts'] if r else None) for r in responses]
     dfs = pd.concat(response_dfs)
-    return pd.merge(pat_id_df, dfs, left_on='visit_id', right_on='CSN')
+    if dfs.empty:
+      return None
+    else:
+      return pd.merge(pat_id_df, dfs, left_on='visit_id', right_on='CSN')
 
 
   def push_notifications(self, ctxt, notifications):
