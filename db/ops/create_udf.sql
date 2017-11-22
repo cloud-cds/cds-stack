@@ -3412,6 +3412,7 @@ BEGIN
   (
       select prev.pat_id, prev.visit_id, prev.enc_id, prev.count_prev,
             (case
+                when state in (12,13) then 2
                 when state = 16 then 3
                 when state = 11 then 4
                 when state = 10 then 5
