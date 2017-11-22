@@ -156,15 +156,18 @@ class JHAPIConfig:
     resource = '/facilities/hospital/' + self.hospital + '/beddedpatients'
     responses = self.make_requests(ctxt, resource, [None], 'GET')
     if limit:
-      logging.info("max_num_pats = {}".format(limit))
+      ctxt.log.info("max_num_pats = {}".format(limit))
     df = pd.DataFrame(responses[0]).head(limit) if limit else pd.DataFrame(responses[0])
+    if df.empty:
+      ctxt.log.error("No beddedpatients.")
+      sys.exit()
     return df.assign(hospital = hospital)
 
   def extract_ed_patients(self, ctxt, hospital, limit=None):
     resource = '/facilities/hospital/' + self.hospital + '/edptntlist?eddept=ADULT'
     responses = self.make_requests(ctxt, resource, [None], 'GET')
     if limit:
-      logging.info("max_num_pats = {}".format(limit))
+      ctxt.log.info("max_num_pats = {}".format(limit))
     df = pd.DataFrame(responses[0]).head(limit) if limit else pd.DataFrame(responses[0])
     return df.assign(hospital = hospital)
 
