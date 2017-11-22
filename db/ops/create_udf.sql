@@ -3412,13 +3412,13 @@ BEGIN
   (
       select prev.pat_id, prev.visit_id, prev.enc_id, prev.count_prev,
             (case
-                when state = 16 then 8
-                when state = 11 then 2
-                when state = 10 then 3
-                when state in (20,21,22,24,25,26,27,29,50,51,52,54) then 4
-                when state in (30,31,32,33,34,36,40,41,42,43,44,46,60,61,62,63,64,66) then 6
-                when state in (23,28,53) then 5
-                when state in (35,45,65) then 7
+                when state = 16 then 2
+                when state = 11 then 4
+                when state = 10 then 5
+                when state in (20,21,22,24,25,26,27,29,50,51,52,54) then 6
+                when state in (30,31,32,33,34,36,40,41,42,43,44,46,60,61,62,63,64,66) then 8
+                when state in (23,28,53) then 7
+                when state in (35,45,65) then 9
               else 1
             end) count, gss.trewscore, gss.trewscore_threshold, gss.alert_flag
       from prev
