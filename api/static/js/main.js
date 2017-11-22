@@ -1543,8 +1543,8 @@ var treatmentOverrideComponent = new function() {
     else {
       this.uncertain_sevsep_btn.attr('checked', uiJSON['ui_deactivate']['is_met']);
 
-      if ( trews.data['ui']['ui_deactivate']['override_value'] != null ) {
-        var until = new Date(trews.data['ui']['ui_deactivate']['override_value'][0]['until']);
+      if ( uiJSON['ui_deactivate']['override_value'] != null ) {
+        var until = new Date(uiJSON['ui_deactivate']['override_value'][0]['until']);
         var now = Date.now();
 
         var remaining = new Date(until - now);
@@ -1556,6 +1556,9 @@ var treatmentOverrideComponent = new function() {
         } else {
           this.uncertain_sevsep_ctn.find('h4').text('Re-evaluate in ' + minutes + suffix);
         }
+      }
+      else if ( !uiJSON['ui_deactivate']['is_met'] ) {
+        this.uncertain_sevsep_ctn.find('h4').text('Re-evaluate in 1 hr');
       }
     }
 
