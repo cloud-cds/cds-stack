@@ -17,5 +17,5 @@ RUN apt-get update \
     && pip install --upgrade pip \
     && pip install --no-cache-dir setuptools \
     && pip install -r /requirements.txt \
-    && pip install /etl
+    && pip install /etl \
     && npm install  -g  nodemon
