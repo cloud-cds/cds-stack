@@ -10,7 +10,7 @@ ADD dashan-universe/requirements.txt /
 
 # Get pip to download and install requirements:
 RUN apt-get update \
-    && apt-get install -y build-essential libpq-dev rsyslog fuse postgresql-client graphviz npm\
+    && apt-get install -y build-essential libpq-dev rsyslog fuse postgresql-client graphviz npm curl\
         autoconf automake autotools-dev libtool pkg-config sudo strace git \
         # Install pyflame
     && git clone https://github.com/uber/pyflame.git && cd pyflame && ./autogen.sh && ./configure && make && make install && cd \
@@ -18,4 +18,4 @@ RUN apt-get update \
     && pip install --no-cache-dir setuptools \
     && pip install -r /requirements.txt \
     && pip install /etl \
-    && npm install  -g  nodemon
+    && curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.6/install.sh | bash

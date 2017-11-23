@@ -63,7 +63,7 @@
       <documentation>WSDL File for EventService</documentation>
       <!-- defines individual endpoint by a single address-->
       <port binding="tns:EventNotificationBinding" name="EventPort">
-         <soap:address location="http://localhost:3030/" />
+         <soap:address location="https://event-poc.jh.opsdx.io/" />
       </port>
    </wsdl:service>
 </wsdl:definitions>
