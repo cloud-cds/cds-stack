@@ -50,7 +50,7 @@ spec:
         ports:
         - containerPort: 8000
         command: ["/bin/sh","-c"]
-        args: ["cd etl/events;sh start.sh"]
+        args: ["cd etl/events-soap;sh start.sh"]
         securityContext:
           capabilities:
             add:
