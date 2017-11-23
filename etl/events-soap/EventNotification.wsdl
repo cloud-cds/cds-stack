@@ -59,4 +59,11 @@
       </wsdl:output>
     </wsdl:operation>
   </wsdl:binding>
+  <wsdl:service name="EventService">
+      <documentation>WSDL File for EventService</documentation>
+      <!-- defines individual endpoint by a single address-->
+      <port binding="tns:EventNotificationBinding" name="EventPort">
+         <soap:address location="http://localhost:3030/" />
+      </port>
+   </wsdl:service>
 </wsdl:definitions>

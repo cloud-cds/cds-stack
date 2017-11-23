@@ -14,6 +14,24 @@ app.use(bodyParser.xml({
 app.get('/',function(req,res){
     res.sendFile(__dirname + "/" + "/client.html");
 })
+app.get('/test',function(req,res){
+    var url = "http://localhost:3030/?wsdl";
+    var args = {event:0};
+    soap.createClient(url,function(err,client){
+        if(err)
+            console.error(err);
+        else {
+            client.ProcessEvent(args,function(err,response){
+                if(err)
+                    console.error(err);
+                else{
+                    console.log(response);
+                    res.send(response);
+                }
+            })
+        }
+    });
+})
 app.post('/getAge',bodyParser.urlencoded({extended:false}),function(req,res){
     console.log(req.body);
     var input = req.body;
