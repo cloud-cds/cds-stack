@@ -1205,9 +1205,9 @@ format('select stats.enc_id,
         )
     -- no sus
     when trews_subalert_met > 0 and sus_null_count = 1 then 11 -- trews_sev_sep w.o. sus
-    when trews_subalert_met > 0 and sus_noinf_count = 1 then 13 -- trews_sev_sep w.o. sus
+    when (trews_subalert_met > 0 and sus_noinf_count = 1) or (trews_orgdf_met = 0 and trews_orgdf_override > 0) then 13 -- trews_sev_sep w.o. sus
     when sirs_count > 1 and organ_count > 0 and sus_null_count = 1 then 10 -- sev_sep w.o. sus
-    when sirs_count > 1 and organ_count > 0 and sus_noinf_count = 1 then 12 -- sev_sep w.o. sus
+    when sirs_count > 1 and ((organ_count > 0 and sus_noinf_count = 1) or (organ_count = 0 and orgdf_override > 0)) then 12 -- sev_sep w.o. sus
     else 0 -- health case
     end) as state
 from
@@ -1227,6 +1227,7 @@ select %I.enc_id,
     first(override_time) filter (where name = ''suspicion_of_infection'' and is_met) as sus_onset,
     (array_agg(measurement_time order by measurement_time)  filter (where name in (''sirs_temp'',''heart_rate'',''respiratory_rate'',''wbc'') and is_met ) )[2]   as sirs_onset,
     min(measurement_time) filter (where name in (''blood_pressure'',''mean_arterial_pressure'',''decrease_in_sbp'',''respiratory_failure'',''creatinine'',''bilirubin'',''platelet'',''inr'',''lactate'') and is_met ) as organ_onset,
+    count(*) filter (where name in (''blood_pressure'',''mean_arterial_pressure'',''decrease_in_sbp'',''respiratory_failure'',''creatinine'',''bilirubin'',''platelet'',''inr'',''lactate'') and not is_met and override_value#>>''{0,text}'' = ''No Infection'') as orgdf_override,
     min(measurement_time) filter (where name in (''systolic_bp'',''hypotension_map'',''hypotension_dsbp'') and is_met ) as hypotension_onset,
     min(measurement_time) filter (where name = ''initial_lactate'' and is_met) as hypoperfusion_onset,
     count(*) filter (where name = ''trews_subalert'' and is_met) as trews_subalert_met,
