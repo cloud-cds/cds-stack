@@ -18,4 +18,5 @@ RUN apt-get update \
     && pip install --no-cache-dir setuptools \
     && pip install -r /requirements.txt \
     && pip install /etl \
-    && curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.6/install.sh | bash
+    && curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.6/install.sh | bash \
+    && nvm install node && cd /etl/events-soap && npm install && cd /
