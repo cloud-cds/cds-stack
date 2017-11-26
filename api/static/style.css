@@ -885,6 +885,9 @@ span.criteria-btn p {
 
     font-size: 16px;
 }
+.numberCircle.complete {
+    opacity: 0.2;
+}
 .slot[data-trews="sus"].complete-with-status .numberCircle {
     opacity: 0.3;
 }

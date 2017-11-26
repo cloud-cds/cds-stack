@@ -1144,10 +1144,13 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
           }
 
           var reactivate_tsp = new Date(trews.data['ui']['ui_deactivate']['override_value'][0]['until']);
+          var rounding_period = 15*60*1000;
+          reactivate_tsp = new Date(Math.ceil(reactivate_tsp.getTime() / rounding_period) * rounding_period);
           var now = Date.now();
 
           if ( reactivate_tsp <= now ) {
-            care_status += '. Notifications will resume shortly.';
+            reactivate_tsp = new Date(Math.ceil(now.getTime() / rounding_period) * rounding_period);
+            care_status += '. Notifications will resume by ' + strToTime(reactivate_tsp, true, false) + '.';
           } else {
             care_status += '. Notifications will resume at ' + strToTime(reactivate_tsp, true, false) + '.';
           }
@@ -1177,13 +1180,22 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
     }
 
     if ( with_reset && auto_reset_date != null ) {
-      var remaining = new Date(auto_reset_date.getTime() - Date.now());
-      var minutes = (remaining.getUTCMinutes() < 10) ? "0" + remaining.getUTCMinutes() : remaining.getUTCMinutes();
-      var hours = remaining.getUTCHours();
-      var days = remaining.getUTCDate() - 1;
+      var now = Date.now()
+      var remaining = new Date(auto_reset_date.getTime() - now);
 
-      if ( days >= 0 && hours >= 0 && minutes >= 0 ) {
-        care_status += ' TREWS will reset in ' + days + ' days ' + hours + ' hours ' + minutes + ' minutes.';
+      if ( auto_reset_date <= now ) {
+        care_status += ' TREWS will reset in approximately 15 minutes.';
+      } else {
+        var minutes = (remaining.getUTCMinutes() < 10) ? "0" + remaining.getUTCMinutes() : remaining.getUTCMinutes();
+        var hours = remaining.getUTCHours();
+        var days = remaining.getUTCDate() - 1;
+
+        if ( days == 0 && hours == 0 && minutes <= 15 ) {
+          care_status += ' TREWS will reset in approximately 15 minutes.';
+        }
+        else if ( days >= 0 && hours >= 0 && minutes >= 0 ) {
+          care_status += ' TREWS will reset in ' + days + ' days ' + hours + ' hours ' + minutes + ' minutes.';
+        }
       }
     }
   }
@@ -1548,12 +1560,31 @@ var treatmentOverrideComponent = new function() {
         var now = Date.now();
 
         var remaining = new Date(until - now);
-        var minutes = remaining.getUTCHours() * 60 + remaining.getUTCMinutes() + 1;
+        var minutes = remaining.getUTCHours() * 60 + remaining.getUTCMinutes();
         var suffix = minutes == 1 ? ' minute' : ' minutes';
 
-        if ( until <= now || minutes == 0 ) {
-          this.uncertain_sevsep_ctn.find('h4').text('Re-evaluate patient');
+        if ( until <= now || minutes <= 15 ) {
+          var last_etl = new Date(trews['data']['profile']['refresh_time'] * 1000);
+          var etl_remaining_to_target = until.getTime() - last_etl.getTime();
+
+          var num_etls = 2;
+          if ( etl_remaining_to_target <= 15*60*1000 ) {
+            num_etls = 1;
+          }
+
+          var etl_offset = num_etls * 15 * 60 * 1000;
+          var reset_etl = new Date(trews['data']['profile']['refresh_time'] * 1000 + etl_offset);
+          var etl_remaining = new Date(reset_etl.getTime() - now);
+
+          if ( reset_etl <= now ) {
+            this.uncertain_sevsep_ctn.find('h4').text('Re-evaluate in approximately 5 ' + suffix);
+          } else {
+            minutes = etl_remaining.getUTCHours() * 60 + etl_remaining.getUTCMinutes();
+            minutes = Math.ceil(minutes / 5) * 5;
+            this.uncertain_sevsep_ctn.find('h4').text('Re-evaluate in approximately ' + minutes + suffix);
+          }
         } else {
+          minutes = Math.ceil(minutes / 15) * 15;
           this.uncertain_sevsep_ctn.find('h4').text('Re-evaluate in ' + minutes + suffix);
         }
       }
@@ -2023,6 +2054,24 @@ var workflowsComponent = new function() {
     this.sev3Ctn.find('.card-subtitle').html(this.workflowStatus('sev3', severeOnset, sev3LastOrder, sev3Complete));
     this.sev6Ctn.find('.card-subtitle').html(this.workflowStatus('sev6', severeOnset, sev6LastOrder, sev6Complete));
     this.sep6Ctn.find('.card-subtitle').html(this.workflowStatus('sep6', shockOnset, shk6LastOrder, shk6Complete));
+
+    if ( sev3Complete && sev6Complete ) {
+      $('.slot[data-trews="sus"] .numberCircle').addClass('complete');
+      $('.slot[data-trews="eval-acute-orgdf"] .numberCircle').addClass('complete');
+      $('.card[data-trews="sev3"] .numberCircle').addClass('complete');
+    } else {
+      $('.slot[data-trews="sus"] .numberCircle').removeClass('complete');
+      $('.slot[data-trews="eval-acute-orgdf"] .numberCircle').removeClass('complete')
+      $('.card[data-trews="sev3"] .numberCircle').removeClass('complete');
+    }
+
+    if ( shk6Complete ) {
+      $('.card[data-trews="septicShock"] .numberCircle').addClass('complete');
+      $('.card[data-trews="sep6"] .numberCircle').addClass('complete');
+    } else {
+      $('.card[data-trews="septicShock"] .numberCircle').removeClass('complete');
+      $('.card[data-trews="sep6"] .numberCircle').removeClass('complete');
+    }
 
     this.tasks = [
       new taskComponent(iJSON, $("[data-trews='init_lactate']"), workflows['init_lactate'], null),
