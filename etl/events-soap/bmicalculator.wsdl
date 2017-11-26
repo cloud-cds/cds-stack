@@ -1,0 +1,56 @@
+ <definitions name="BMIService"
+   targetNamespace="http://www.examples.com/wsdl/BMIService.wsdl"
+   xmlns="http://schemas.xmlsoap.org/wsdl/"
+   xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+   xmlns:tns="http://www.examples.com/wsdl/BMIService.wsdl"
+   xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+
+   <!-- message tags define data elements for each operation -->
+   <message name="getBMIRequest">
+      <part name="weight" type="xsd:float"/>
+      <part name="height" type="xsd:float"/>
+   </message>
+
+   //message tags define data elements for each operation
+   <message name="getBMIResponse">
+      <part name="bmi" type="xsd:float"/>
+   </message>
+
+   //describes operations performed by a port and the messages involved
+   <portType name="BMI_PortType">
+      <operation name="calculateBMI">
+         <input message="tns:getBMIRequest"/>
+         <output message="tns:getBMIResponse"/>
+      </operation>
+   </portType>
+
+   //defines the protocol and data format for each port type
+   <binding name="BMI_Binding" type="tns:BMI_PortType">
+      <soap:binding style="rpc" transport="http://schemas.xmlsoap.org/soap/http"/>
+
+      <operation name="calculateBMI">
+         <soap:operation soapAction="calculateBMI"/>
+         <input>
+            <soap:body
+               encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
+               namespace="urn:examples:bmiservice"
+               use="encoded"/>
+         </input>
+
+         <output>
+            <soap:body
+               encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
+               namespace="urn:examples:bmiservice"
+               use="encoded"/>
+         </output>
+      </operation>
+   </binding>
+
+   <service name="BMI_Service"> // defines the ports supported by remote service
+      <documentation>WSDL File for BMIService</documentation>
+      <!-- defines individual endpoint by a single address-->
+      <port binding="tns:BMI_Binding" name="BMI_Port">
+         <soap:address location="http://localhost:3030/bmicalculator/" />
+      </port>
+   </service>
+</definitions>

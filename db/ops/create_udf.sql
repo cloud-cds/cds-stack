@@ -1205,9 +1205,9 @@ format('select stats.enc_id,
         )
     -- no sus
     when trews_subalert_met > 0 and sus_null_count = 1 then 11 -- trews_sev_sep w.o. sus
-    when trews_subalert_met > 0 and sus_noinf_count = 1 then 13 -- trews_sev_sep w.o. sus
+    when (trews_subalert_met > 0 and sus_noinf_count = 1) or (trews_orgdf_met = 0 and trews_orgdf_override > 0) then 13 -- trews_sev_sep w.o. sus
     when sirs_count > 1 and organ_count > 0 and sus_null_count = 1 then 10 -- sev_sep w.o. sus
-    when sirs_count > 1 and organ_count > 0 and sus_noinf_count = 1 then 12 -- sev_sep w.o. sus
+    when sirs_count > 1 and ((organ_count > 0 and sus_noinf_count = 1) or (organ_count = 0 and orgdf_override > 0)) then 12 -- sev_sep w.o. sus
     else 0 -- health case
     end) as state
 from
@@ -1227,6 +1227,7 @@ select %I.enc_id,
     first(override_time) filter (where name = ''suspicion_of_infection'' and is_met) as sus_onset,
     (array_agg(measurement_time order by measurement_time)  filter (where name in (''sirs_temp'',''heart_rate'',''respiratory_rate'',''wbc'') and is_met ) )[2]   as sirs_onset,
     min(measurement_time) filter (where name in (''blood_pressure'',''mean_arterial_pressure'',''decrease_in_sbp'',''respiratory_failure'',''creatinine'',''bilirubin'',''platelet'',''inr'',''lactate'') and is_met ) as organ_onset,
+    count(*) filter (where name in (''blood_pressure'',''mean_arterial_pressure'',''decrease_in_sbp'',''respiratory_failure'',''creatinine'',''bilirubin'',''platelet'',''inr'',''lactate'') and not is_met and override_value#>>''{0,text}'' = ''No Infection'') as orgdf_override,
     min(measurement_time) filter (where name in (''systolic_bp'',''hypotension_map'',''hypotension_dsbp'') and is_met ) as hypotension_onset,
     min(measurement_time) filter (where name = ''initial_lactate'' and is_met) as hypoperfusion_onset,
     count(*) filter (where name = ''trews_subalert'' and is_met) as trews_subalert_met,
@@ -3412,6 +3413,7 @@ BEGIN
   (
       select prev.pat_id, prev.visit_id, prev.enc_id, prev.count_prev,
             (case
+                when state in (12,13) then 2
                 when state = 16 then 3
                 when state = 11 then 4
                 when state = 10 then 5
@@ -4610,102 +4612,109 @@ select pat_enc.enc_id, lr.tsp::timestamptz, lr.fid, lr.value, 0 from workspace.'
 where lr.tsp <> ''NaT'' and lr.tsp::timestamptz < now()
 ON CONFLICT (enc_id, tsp, fid)
    DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+';
 
--- workspace_medication_administration_2_cdm_t
-INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
-select pat_enc.enc_id, mar.tsp::timestamptz, mar.fid,
-    json_build_object(''dose'',SUM(mar.dose_value::numeric),''action'',last(mar.action))
-    , 0
-from workspace.' || job_id || '_med_admin_transformed mar
-    inner join pat_enc on pat_enc.visit_id = mar.visit_id
-where isnumeric(mar.dose_value) and mar.tsp <> ''NaT'' and mar.tsp::timestamptz < now() and mar.fid ~ ''dose''
-group by pat_enc.enc_id, tsp, mar.fid
-ON CONFLICT (enc_id, tsp, fid)
-DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
--- others excluded fluids
-INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
-select pat_enc.enc_id, mar.tsp::timestamptz, mar.fid,
-    max(mar.dose_value::numeric), 0
-from workspace.' || job_id || '_med_admin_transformed mar
-    inner join pat_enc on pat_enc.visit_id = mar.visit_id
-where isnumeric(mar.dose_value) and mar.tsp <> ''NaT'' and mar.tsp::timestamptz < now() and mar.fid not ilike ''%_dose'' and mar.fid <> ''fluids_intake''
-group by pat_enc.enc_id, tsp, mar.fid
-ON CONFLICT (enc_id, tsp, fid)
-DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
-
--- workspace_fluids_intake_2_cdm_t
-with u as (
-select pat_enc.enc_id, mar.tsp::timestamptz, mar.fid, mar.dose_value as value
-    from workspace.' || job_id || '_med_admin_transformed mar
-        inner join pat_enc on pat_enc.visit_id = mar.visit_id
-    where isnumeric(mar.dose_value) and mar.tsp <> ''NaT'' and mar.tsp::timestamptz < now() and mar.fid = ''fluids_intake''
-                and mar.dose_value::numeric > 0
-)
-INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
-select u.enc_id, u.tsp, u.fid,
-        sum(u.value::numeric), 0
-from u
-group by u.enc_id, u.tsp, u.fid
-ON CONFLICT (enc_id, tsp, fid)
-DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+-- med_orders
+if to_regclass('workspace.' || job_id || '_med_orders_transformed') is not null then
+    execute
+    'INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+    select enc_id, tsp::timestamptz, fid,
+    json_build_object(
+        ''dose'', last(mo.dose order by mo.tsp),
+        ''discontinue_tsp'', last((case when mo.discontinue_tsp = ''None'' then null else mo.discontinue_tsp end) order by mo.tsp),
+        ''end_tsp'', last((case when mo.end_tsp = ''None'' then null else mo.end_tsp end) order by mo.tsp),
+        ''order_mode'', last(mo.order_mode order by mo.tsp)
+    ),
+    0
+    from workspace.' || job_id || '_med_orders_transformed mo
+    inner join pat_enc p on mo.visit_id = p.visit_id
+    where tsp <> ''NaT'' and tsp::timestamptz < now() and mo.dose is not null and mo.dose <> ''''
+    group by enc_id, tsp, fid
+    ON CONFLICT (enc_id, tsp, fid)
+    DO UPDATE SET value = EXCLUDED.value, confidence=0';
+end if;
 
 -- active_procedures
 -- modify existing but inactive ones
+if to_regclass('workspace.' || job_id || '_active_procedures_transformed') is not null then
+    execute
+    'INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+    select t.enc_id, t.tsp, t.fid,
+        jsonb_build_object(''status'',
+            last(case when t.value ~ ''status'' then (t.value::json)#>>''{status}'' else t.value end), ''discontinue_tsp'', now(), ''end_tsp'', now()),
+    0
+    from cdm_t t inner join pat_enc p on t.enc_id = p.enc_id
+    inner join workspace.' || job_id || '_active_procedures_transformed p2
+        on p.visit_id = p2.visit_id
+    left join workspace.' || job_id || '_active_procedures_transformed lo
+        on lo.visit_id = p.visit_id and lo.fid = t.fid and lo.tsp::timestamptz = t.tsp
+    where lo.tsp is null and (t.value !~ ''end_tsp'' or (t.value::json)#>>''{end_tsp}'' is null)
+    and t.fid in (''lactate_order'', ''blood_culture_order'')
+    group by t.enc_id, t.tsp, t.fid
+    ON CONFLICT (enc_id, tsp, fid)
+    DO UPDATE SET value = EXCLUDED.value, confidence=0;
 
-INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
-select t.enc_id, t.tsp, t.fid,
-    jsonb_build_object(''status'',
-        last(case when t.value ~ ''status'' then (t.value::json)#>>''{status}'' else t.value end), ''discontinue_tsp'', now(), ''end_tsp'', now()),
-0
-from cdm_t t inner join pat_enc p on t.enc_id = p.enc_id
-inner join workspace.' || job_id || '_active_procedures_transformed p2
-    on p.visit_id = p2.visit_id
-left join workspace.' || job_id || '_active_procedures_transformed lo
-    on lo.visit_id = p.visit_id and lo.fid = t.fid and lo.tsp::timestamptz = t.tsp
-where lo.tsp is null and (t.value !~ ''end_tsp'' or (t.value::json)#>>''{end_tsp}'' is null)
-and t.fid in (''lactate_order'', ''blood_culture_order'')
-group by t.enc_id, t.tsp, t.fid
-ON CONFLICT (enc_id, tsp, fid)
-DO UPDATE SET value = EXCLUDED.value, confidence=0;
+    -- insert currently acitve ones
+    INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+    select enc_id, tsp::timestamptz, fid, jsonb_build_object(''status'', last(lo.status order by lo.tsp)), 0
+    from workspace.' || job_id || '_active_procedures_transformed lo
+    inner join pat_enc p on lo.visit_id = p.visit_id
+    where tsp <> ''NaT'' and tsp::timestamptz < now() and fid in (''lactate_order'', ''blood_culture_order'')
+    group by enc_id, tsp, fid
+    ON CONFLICT (enc_id, tsp, fid)
+    DO UPDATE SET value = EXCLUDED.value, confidence=0;
 
--- insert currently acitve ones
-INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
-select enc_id, tsp::timestamptz, fid, jsonb_build_object(''status'', last(lo.status order by lo.tsp)), 0
-from workspace.' || job_id || '_active_procedures_transformed lo
-inner join pat_enc p on lo.visit_id = p.visit_id
-where tsp <> ''NaT'' and tsp::timestamptz < now() and fid in (''lactate_order'', ''blood_culture_order'')
-group by enc_id, tsp, fid
-ON CONFLICT (enc_id, tsp, fid)
-DO UPDATE SET value = EXCLUDED.value, confidence=0;
+    INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+    select enc_id, tsp::timestamptz, fid, last(lo.status order by lo.tsp), 0
+    from workspace.' || job_id || '_active_procedures_transformed lo
+    inner join pat_enc p on lo.visit_id = p.visit_id
+    where tsp <> ''NaT'' and tsp::timestamptz < now() and fid not in (''lactate_order'', ''blood_culture_order'')
+    group by enc_id, tsp, fid
+    ON CONFLICT (enc_id, tsp, fid)
+    DO UPDATE SET value = EXCLUDED.value, confidence=0';
+end if;
 
-INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
-select enc_id, tsp::timestamptz, fid, last(lo.status order by lo.tsp), 0
-from workspace.' || job_id || '_active_procedures_transformed lo
-inner join pat_enc p on lo.visit_id = p.visit_id
-where tsp <> ''NaT'' and tsp::timestamptz < now() and fid not in (''lactate_order'', ''blood_culture_order'')
-group by enc_id, tsp, fid
-ON CONFLICT (enc_id, tsp, fid)
-DO UPDATE SET value = EXCLUDED.value, confidence=0;
 
--- med_orders
-INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
-select enc_id, tsp::timestamptz, fid,
-json_build_object(
-    ''dose'', last(mo.dose order by mo.tsp),
-    ''discontinue_tsp'', last((case when mo.discontinue_tsp = ''None'' then null else mo.discontinue_tsp end) order by mo.tsp),
-    ''end_tsp'', last((case when mo.end_tsp = ''None'' then null else mo.end_tsp end) order by mo.tsp),
-    ''order_mode'', last(mo.order_mode order by mo.tsp)
-),
-0
-from workspace.' || job_id || '_med_orders_transformed mo
-inner join pat_enc p on mo.visit_id = p.visit_id
-where tsp <> ''NaT'' and tsp::timestamptz < now() and mo.dose is not null and mo.dose <> ''''
-group by enc_id, tsp, fid
-ON CONFLICT (enc_id, tsp, fid)
-DO UPDATE SET value = EXCLUDED.value, confidence=0;
-
--- update orgdf baselines
-select * from update_orgdf_baselines(''' || job_id || ''')';
+-- workspace_medication_administration_2_cdm_t
+-- workspace_fluids_intake_2_cdm_t
+if to_regclass('workspace.' || job_id || '_med_admin_transformed') is not null then
+    execute
+    'INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+    select pat_enc.enc_id, mar.tsp::timestamptz, mar.fid,
+        json_build_object(''dose'',SUM(mar.dose_value::numeric),''action'',last(mar.action))
+        , 0
+    from workspace.' || job_id || '_med_admin_transformed mar
+        inner join pat_enc on pat_enc.visit_id = mar.visit_id
+    where isnumeric(mar.dose_value) and mar.tsp <> ''NaT'' and mar.tsp::timestamptz < now() and mar.fid ~ ''dose''
+    group by pat_enc.enc_id, tsp, mar.fid
+    ON CONFLICT (enc_id, tsp, fid)
+    DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+    -- others excluded fluids
+    INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+    select pat_enc.enc_id, mar.tsp::timestamptz, mar.fid,
+        max(mar.dose_value::numeric), 0
+    from workspace.' || job_id || '_med_admin_transformed mar
+        inner join pat_enc on pat_enc.visit_id = mar.visit_id
+    where isnumeric(mar.dose_value) and mar.tsp <> ''NaT'' and mar.tsp::timestamptz < now() and mar.fid not ilike ''%_dose'' and mar.fid <> ''fluids_intake''
+    group by pat_enc.enc_id, tsp, mar.fid
+    ON CONFLICT (enc_id, tsp, fid)
+    DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+    -- workspace_fluids_intake_2_cdm_t
+    with u as (
+    select pat_enc.enc_id, mar.tsp::timestamptz, mar.fid, mar.dose_value as value
+        from workspace.' || job_id || '_med_admin_transformed mar
+            inner join pat_enc on pat_enc.visit_id = mar.visit_id
+        where isnumeric(mar.dose_value) and mar.tsp <> ''NaT'' and mar.tsp::timestamptz < now() and mar.fid = ''fluids_intake''
+                    and mar.dose_value::numeric > 0
+    )
+    INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+    select u.enc_id, u.tsp, u.fid,
+            sum(u.value::numeric), 0
+    from u
+    group by u.enc_id, u.tsp, u.fid
+    ON CONFLICT (enc_id, tsp, fid)
+    DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;';
+end if;
 
 
 -- workspace_flowsheets_2_cdm_t
@@ -4776,6 +4785,10 @@ if to_regclass('workspace.' || job_id || '_lab_results_transformed') is not null
     ON CONFLICT (enc_id, tsp, fid)
     DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;';
 end if;
+
+-- update orgdf baselines
+execute 'select * from update_orgdf_baselines(''' || job_id || ''')';
+
 END $func$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION update_orgdf_baselines(job_id text)
