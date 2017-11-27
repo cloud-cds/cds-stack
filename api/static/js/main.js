@@ -1143,16 +1143,33 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
             care_status = 'Notifications paused, please keep monitoring the patient';
           }
 
-          var reactivate_tsp = new Date(trews.data['ui']['ui_deactivate']['override_value'][0]['until']);
-          var rounding_period = 15*60*1000;
-          reactivate_tsp = new Date(Math.ceil(reactivate_tsp.getTime() / rounding_period) * rounding_period);
+          var etl_period = 15*60*1000;
+          var rounding_period = 5*60*1000;
+          var until = new Date(trews.data['ui']['ui_deactivate']['override_value'][0]['until']);
           var now = Date.now();
 
-          if ( reactivate_tsp <= now ) {
-            reactivate_tsp = new Date(Math.ceil(now.getTime() / rounding_period) * rounding_period);
-            care_status += '. Notifications will resume by ' + strToTime(reactivate_tsp, true, false) + '.';
+          if ( until <= now || (until.getTime() - now) <= etl_period ) {
+            var last_etl = new Date(trews['data']['profile']['refresh_time'] * 1000);
+            var etl_remaining_to_target = until.getTime() - last_etl.getTime();
+
+            var num_etls = 2;
+            if ( etl_remaining_to_target <= etl_period ) {
+              num_etls = 1;
+            }
+
+            var etl_offset = num_etls * etl_period;
+            var reset_etl = new Date(trews['data']['profile']['refresh_time'] * 1000 + etl_offset);
+            var etl_remaining = new Date(reset_etl.getTime() - now);
+
+            if ( reset_etl <= now ) {
+              until = new Date(Math.ceil(now / rounding_period) * rounding_period);
+            } else {
+              until = new Date(Math.ceil(reset_etl.getTime() / rounding_period) * rounding_period);
+            }
+            care_status += '. Notifications will resume by ' + strToTime(until, true, false) + '.';
           } else {
-            care_status += '. Notifications will resume at ' + strToTime(reactivate_tsp, true, false) + '.';
+            until = new Date(Math.ceil(until.getTime() / etl_period) * etl_period);
+            care_status += '. Notifications will resume at ' + strToTime(until, true, false) + '.';
           }
           care_status_priority = 'low-priority';
         }
