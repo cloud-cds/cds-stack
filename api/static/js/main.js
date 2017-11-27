@@ -1143,34 +1143,19 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
             care_status = 'Notifications paused, please keep monitoring the patient';
           }
 
-          var etl_period = 15*60*1000;
+          var etl_approx_period = 10*60*1000;
           var rounding_period = 5*60*1000;
-          var until = new Date(trews.data['ui']['ui_deactivate']['override_value'][0]['until']);
+
           var now = Date.now();
+          var until = new Date(trews.data['ui']['ui_deactivate']['override_value'][0]['until']);
+          until = new Date(Math.ceil((until.getTime() + etl_approx_period) / rounding_period) * rounding_period);
 
-          if ( until <= now || (until.getTime() - now) <= etl_period ) {
-            var last_etl = new Date(trews['data']['profile']['refresh_time'] * 1000);
-            var etl_remaining_to_target = until.getTime() - last_etl.getTime();
-
-            var num_etls = 2;
-            if ( etl_remaining_to_target <= etl_period ) {
-              num_etls = 1;
-            }
-
-            var etl_offset = num_etls * etl_period;
-            var reset_etl = new Date(trews['data']['profile']['refresh_time'] * 1000 + etl_offset);
-            var etl_remaining = new Date(reset_etl.getTime() - now);
-
-            if ( reset_etl <= now ) {
-              until = new Date(Math.ceil(now / rounding_period) * rounding_period);
-            } else {
-              until = new Date(Math.ceil(reset_etl.getTime() / rounding_period) * rounding_period);
-            }
-            care_status += '. Notifications will resume by ' + strToTime(until, true, false) + '.';
-          } else {
-            until = new Date(Math.ceil(until.getTime() / etl_period) * etl_period);
-            care_status += '. Notifications will resume at ' + strToTime(until, true, false) + '.';
+          var when_str = 'at ';
+          if ( until <= now ) {
+            until = new Date(Math.ceil(now / rounding_period) * rounding_period);
+            when_str = 'by ';
           }
+          care_status += '. Notifications will resume ' + when_str + strToTime(until, true, false) + '.';
           care_status_priority = 'low-priority';
         }
       }
@@ -1510,7 +1495,7 @@ var treatmentOverrideComponent = new function() {
       $('#loading').addClass('waiting').spin(); // Add spinner to page
       var action = { "actionName": 'ui_deactivate', 'is_met': e.target.checked };
       if ( e.target.checked ) {
-        var x = new Date(Date.now() + 3600*1000);
+        var x = new Date(Date.now() + 50*60*1000);
         action['value'] = [{'type': 'uncertain', 'until': x.toISOString()}];
       } else {
         action['clear'] = true;
@@ -1572,41 +1557,30 @@ var treatmentOverrideComponent = new function() {
     else {
       this.uncertain_sevsep_btn.attr('checked', uiJSON['ui_deactivate']['is_met']);
 
-      if ( uiJSON['ui_deactivate']['override_value'] != null ) {
-        var until = new Date(uiJSON['ui_deactivate']['override_value'][0]['until']);
+      if ( !uiJSON['ui_deactivate']['is_met'] || uiJSON['ui_deactivate']['override_value'] == null ) {
+        this.uncertain_sevsep_ctn.find('h4').text('Re-evaluate in 1 hr');
+      }
+      else if ( uiJSON['ui_deactivate']['override_value'] != null ) {
         var now = Date.now();
+
+        var etl_approx_period = 10*60*1000;
+        var rounding_period = 5*60*1000;
+
+        var now = Date.now();
+        var until = new Date(uiJSON['ui_deactivate']['override_value'][0]['until']);
+        until = new Date(Math.ceil((until.getTime() + etl_approx_period) / rounding_period) * rounding_period);
+
+        if ( until <= now ) {
+          until = new Date(now + rounding_period);
+        }
 
         var remaining = new Date(until - now);
         var minutes = remaining.getUTCHours() * 60 + remaining.getUTCMinutes();
         var suffix = minutes == 1 ? ' minute' : ' minutes';
 
-        if ( until <= now || minutes <= 15 ) {
-          var last_etl = new Date(trews['data']['profile']['refresh_time'] * 1000);
-          var etl_remaining_to_target = until.getTime() - last_etl.getTime();
-
-          var num_etls = 2;
-          if ( etl_remaining_to_target <= 15*60*1000 ) {
-            num_etls = 1;
-          }
-
-          var etl_offset = num_etls * 15 * 60 * 1000;
-          var reset_etl = new Date(trews['data']['profile']['refresh_time'] * 1000 + etl_offset);
-          var etl_remaining = new Date(reset_etl.getTime() - now);
-
-          if ( reset_etl <= now ) {
-            this.uncertain_sevsep_ctn.find('h4').text('Re-evaluate in approximately 5 ' + suffix);
-          } else {
-            minutes = etl_remaining.getUTCHours() * 60 + etl_remaining.getUTCMinutes();
-            minutes = Math.ceil(minutes / 5) * 5;
-            this.uncertain_sevsep_ctn.find('h4').text('Re-evaluate in approximately ' + minutes + suffix);
-          }
-        } else {
-          minutes = Math.ceil(minutes / 15) * 15;
-          this.uncertain_sevsep_ctn.find('h4').text('Re-evaluate in ' + minutes + suffix);
-        }
-      }
-      else if ( !uiJSON['ui_deactivate']['is_met'] ) {
-        this.uncertain_sevsep_ctn.find('h4').text('Re-evaluate in 1 hr');
+        minutes = Math.ceil(minutes / 5) * 5;
+        var prefix = minutes <= 15 ? 'approximately ' : '';
+        this.uncertain_sevsep_ctn.find('h4').text('Re-evaluate in ' + prefix + minutes + suffix);
       }
     }
 
