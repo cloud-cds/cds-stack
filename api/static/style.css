@@ -1425,6 +1425,10 @@ span.criteria-btn p {
     color: #fff;
     background-color: #BF0F00;
 }
+.vis-label.vis-nested-group.vis_g_repeat_lactate_not_needed {
+    color: #fff;
+    background-color: #777;
+}
 .timeline-zoom-btn {
     cursor: pointer;
     margin: 0 0 0 10px ;

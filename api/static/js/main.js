@@ -4161,6 +4161,7 @@ var toolbar = new function() {
     ];
 
     var greyItemStyle      = 'background-color: #555; color: #fff; border-color: #555;';
+    var midGreyItemStyle   = 'background-color: #777; color: #fff; border-color: #777;';
     var redItemStyle       = 'background-color: #BF0F00; color: #fff; border-color: #BF0F00;';
     var lightRedItemStyle  = 'background-color: #F48B8B; color: #1a1a1a; border-color: #F44444;';
     var blueItemStyle      = 'background-color: #3e92cc; color: #fff; border-color: #3e92cc;';
@@ -4346,7 +4347,15 @@ var toolbar = new function() {
       var t_deadline = k == 'vasopressors' ? septic_shock_deadline :
                         (k == 'repeat_lactate' ? severe_sepsis_deadline6 : severe_sepsis_deadline3);
 
-      if ( json[k2]['status'] != null ) {
+      var unneeded_repeat_lactate_order =
+        k2 == 'repeat_lactate_order' && json[k2]['is_met'] && json[k2]['status'] == null;
+
+      if ( unneeded_repeat_lactate_order ) {
+        if ( t_deadline != null ) {
+          g_class = 'vis_g_' + k + '_not_needed';
+        }
+      }
+      else if ( json[k2]['status'] != null ) {
 
         t_action = new Date(json[k2]['time'] * 1000);
 
@@ -4468,18 +4477,22 @@ var toolbar = new function() {
       }
 
       if ( !deadline_exceeded && t_deadline != null ) {
-        // Deadline range.
-        var tipPreDeadline = 'Need to complete by ' + strToTime(t_deadline, true, true);
-        var tipPostDeadline = 'Deadline passed at ' + strToTime(t_deadline, true, true);
 
-        var t_compare = t_action;
-        if ( t_compare == null ) { t_compare = new Date(); }
+        if ( unneeded_repeat_lactate_order ) {
+          tooltip = 'Order not needed';
+        } else {
+          // Deadline range.
+          var tipPreDeadline = 'Need to complete by ' + strToTime(t_deadline, true, true);
+          var tipPostDeadline = 'Deadline passed at ' + strToTime(t_deadline, true, true);
 
-        var tooltip = t_compare <= t_deadline ? tipPreDeadline : tipPostDeadline;
-        if ( t_action != null && obj_with_status != null && obj_with_status['status'] == 'Completed' && t_action <= t_deadline ) {
-          tooltip = 'Order completed before deadline passed at ' + strToTime(t_deadline, true, true);
+          var t_compare = t_action;
+          if ( t_compare == null ) { t_compare = new Date(); }
+
+          var tooltip = t_compare <= t_deadline ? tipPreDeadline : tipPostDeadline;
+          if ( t_action != null && obj_with_status != null && obj_with_status['status'] == 'Completed' && t_action <= t_deadline ) {
+            tooltip = 'Order completed before deadline passed at ' + strToTime(t_deadline, true, true);
+          }
         }
-
 
         items.add({
           id: json[k2]['name'] + '_deadline',
@@ -4489,7 +4502,7 @@ var toolbar = new function() {
           start: t_deadline,
           end: new Date(t_deadline.getTime() + range_as_point_duration),
           type: 'range',
-          style: redItemStyle
+          style: unneeded_repeat_lactate_order ? midGreyItemStyle : redItemStyle
         });
       }
 
