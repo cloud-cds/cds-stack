@@ -1578,7 +1578,7 @@ var treatmentOverrideComponent = new function() {
         var minutes = remaining.getUTCHours() * 60 + remaining.getUTCMinutes();
         var suffix = minutes == 1 ? ' minute' : ' minutes';
 
-        minutes = Math.ceil(minutes / 5) * 5;
+        minutes = Math.max(Math.ceil(minutes / 5) * 5, 5);
         var prefix = minutes <= 15 ? 'approximately ' : '';
         this.uncertain_sevsep_ctn.find('h4').text('Re-evaluate in ' + prefix + minutes + suffix);
       }
