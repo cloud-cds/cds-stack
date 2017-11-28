@@ -60,7 +60,7 @@ class ed_metrics(metric):
                 from cdm_t EXC
                 inner join cdm_s on cdm_s.enc_id = EXC.enc_id and cdm_s.fid = 'age'
                 inner join cdm_t on cdm_t.enc_id = EXC.enc_id and cdm_t.fid = 'care_unit'
-v                group by EXC.enc_id
+                group by EXC.enc_id
                 having count(*) filter (where cdm_s.value::numeric < 18) > 0 
                 or count(*) filter(where cdm_t.value in ('HCGH LABOR & DELIVERY', 'HCGH EMERGENCY-PEDS', 'HCGH 2C NICU', 'HCGH 1CX PEDIATRICS', 'HCGH 2N MCU')) > 0
             ),
