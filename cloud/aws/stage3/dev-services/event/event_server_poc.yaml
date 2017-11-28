@@ -42,7 +42,7 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: event-server-poc
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.549
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.555
         resources:
           requests:
             memory: "512Mi"
@@ -50,7 +50,7 @@ spec:
         ports:
         - containerPort: 8000
         command: ["/bin/sh","-c"]
-        args: ["cd etl/events-soap;sh start.sh"]
+        args: ["cd /etl/events-soap; . $NVM_DIR/nvm.sh; env; sh start.sh"]
         # args: ["sleep 10000"]
         securityContext:
           capabilities:
@@ -59,6 +59,8 @@ spec:
         env:
         - name: epic_env
           value: "poc"
+        - name: NVM_DIR
+          value: "/root/.nvm"
       volumes:
         - name: config-volume
           configMap:
