@@ -4824,28 +4824,36 @@ select b.pat_id, b.bilirubin, b.bilirubin_tsp, b.creatinine, b.creatinine_tsp, b
 from baseline b
 on conflict (pat_id) do update set
 bilirubin = (case when now() - orgdf_baselines.bilirubin_tsp > ''4 months''::interval
-              or Excluded.bilirubin < orgdf_baselines.bilirubin then Excluded.bilirubin
+              or Excluded.bilirubin < orgdf_baselines.bilirubin
+              or orgdf_baselines.bilirubin is null then Excluded.bilirubin
              else orgdf_baselines.bilirubin end),
 bilirubin_tsp = (case when now() - orgdf_baselines.bilirubin_tsp > ''4 months''::interval
-              or Excluded.bilirubin < orgdf_baselines.bilirubin then Excluded.bilirubin_tsp
+              or Excluded.bilirubin < orgdf_baselines.bilirubin
+              or orgdf_baselines.bilirubin is null then Excluded.bilirubin_tsp
              else orgdf_baselines.bilirubin_tsp end),
 creatinine = (case when now() - orgdf_baselines.creatinine_tsp > ''4 months''::interval
-              or Excluded.creatinine < orgdf_baselines.creatinine then Excluded.creatinine
+              or Excluded.creatinine < orgdf_baselines.creatinine
+              or orgdf_baselines.creatinine is null then Excluded.creatinine
              else orgdf_baselines.creatinine end),
 creatinine_tsp = (case when now() - orgdf_baselines.creatinine_tsp > ''4 months''::interval
-              or Excluded.creatinine < orgdf_baselines.creatinine then Excluded.creatinine_tsp
+              or Excluded.creatinine < orgdf_baselines.creatinine
+              or orgdf_baselines.creatinine is null then Excluded.creatinine_tsp
              else orgdf_baselines.creatinine_tsp end),
 inr = (case when now() - orgdf_baselines.inr_tsp > ''4 months''::interval
-              or Excluded.inr < orgdf_baselines.inr then Excluded.inr
+              or Excluded.inr < orgdf_baselines.inr
+              or orgdf_baselines.inr is null then Excluded.inr
              else orgdf_baselines.inr end),
 inr_tsp = (case when now() - orgdf_baselines.inr_tsp > ''4 months''::interval
-              or Excluded.inr < orgdf_baselines.inr then Excluded.inr_tsp
+              or Excluded.inr < orgdf_baselines.inr
+              or orgdf_baselines.inr is null then Excluded.inr_tsp
              else orgdf_baselines.inr_tsp end),
 platelets = (case when now() - orgdf_baselines.platelets_tsp > ''4 months''::interval
-              or Excluded.platelets > orgdf_baselines.platelets then Excluded.platelets
+              or Excluded.platelets > orgdf_baselines.platelets
+              or orgdf_baselines.platelets is null then Excluded.platelets
              else orgdf_baselines.platelets end),
 platelets_tsp = (case when now() - orgdf_baselines.platelets_tsp > ''4 months''::interval
-              or Excluded.platelets > orgdf_baselines.platelets then Excluded.platelets_tsp
+              or Excluded.platelets > orgdf_baselines.platelets
+              or orgdf_baselines.platelets is null then Excluded.platelets_tsp
              else orgdf_baselines.platelets_tsp end)';
 END $func$ LANGUAGE plpgsql;
 
