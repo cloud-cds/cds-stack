@@ -2,6 +2,7 @@ from datetime import datetime
 import pandas as pd
 import sqlalchemy
 from datetime import datetime as dt
+from datetime import timedelta
 import numpy as np
 from pytz import timezone
 from collections import OrderedDict
@@ -38,6 +39,382 @@ class report_introduction(metric):
     html += 'The following report covers times between {s} and {e}'.format(s=self.first_time_str, e=self.last_time_str)
     html += '</p>'
     return html
+
+class ed_metrics(metric):
+  
+  def __init__(self, connection, first_time_str, last_time_str):
+    super().__init__(connection, first_time_str, last_time_str)
+    self.name = 'ed_metrics'
+    self.window = timedelta(days=2)
+    self.connection = connection
+
+  ## Takes max_time to select for patients in a specific timeframe.
+  def get_enc_ids(self, discharge_time):
+    # Removes:
+    # patients younger than 18.
+    # patients from depts that deal with patients younger than 18 (e.g emergency pediatrics)
+    # Remaining patients are either bedded (still in hospital) or have been discharged after the discharge_time. Currently code works for solely for HCGH.
+      query = """with excluded_encids as (
+
+                select distinct EXC.enc_id
+                from cdm_t EXC
+                inner join cdm_s on cdm_s.enc_id = EXC.enc_id and cdm_s.fid = 'age'
+                inner join cdm_t on cdm_t.enc_id = EXC.enc_id and cdm_t.fid = 'care_unit'
+v                group by EXC.enc_id
+                having count(*) filter (where cdm_s.value::numeric < 18) > 0 
+                or count(*) filter(where cdm_t.value in ('HCGH LABOR & DELIVERY', 'HCGH EMERGENCY-PEDS', 'HCGH 2C NICU', 'HCGH 1CX PEDIATRICS', 'HCGH 2N MCU')) > 0
+            ),
+            bedded as (
+
+                select distinct BP.enc_id
+                from get_latest_enc_ids('HCGH') BP
+                where BP.enc_id not in(
+                    select enc_id from excluded_encids
+                )
+            ),
+            discharged as (
+                select distinct enc_id from cdm_t
+                where fid='discharge' and
+                tsp > '{0}'
+                and enc_id not in (
+                    select enc_id from excluded_encids
+                )
+                and value::json ->> 'department' like '%HCGH%'
+            )
+            select enc_id
+            from (
+                (select d.enc_id from discharged d)
+                union
+                (select b.enc_id from bedded b)
+            ) R1""".format(str(discharge_time))
+
+      encids_df = pd.read_sql(sqlalchemy.text(query), self.connection)
+      enc_ids = encids_df['enc_id'].as_matrix().astype(int)
+      return enc_ids
+
+  ## Currently used to test merge care_unit. Unsure if always necessary
+  def get_cdmt_df(self, valid_enc_ids):
+
+        ### read cdm_t to get min/max_tsp and build care_unit_df
+        query = """select enc_id, tsp, fid, value from cdm_t where enc_id in ({0})
+                        order by enc_id, tsp""".format(', '.join([str(e) for e in valid_enc_ids]))
+        cdmt_df = pd.read_sql(sqlalchemy.text(query), self.connection, columns=['enc_id', 'tsp', 'fid', 'value'])
+        cdmt_df['tsp'] = pd.to_datetime(cdmt_df['tsp']).dt.tz_convert(timezone('utc'))
+        return cdmt_df
+
+  def get_criteria_events_df(self, valid_enc_ids, start_date):
+    start_date = start_date.round('S') # Match that of the start_date.
+
+    ## fetch criteria_events as base table. Keep all columns for now, but may truncate depending on usage.
+    ## Currently using start_date (date that we deployed TREWS) as cutoff. Need to consider patients that may have been admitted earlier and have states that would be missing.
+    query = """ select * from criteria_events where update_date > '{0}' and enc_id in ({1})""".format(str(start_date), ','.join([str(e) for e in valid_enc_ids]))
+    criteria_events_df = pd.read_sql(sqlalchemy.text(query), self.connection, columns=['event_id', ' enc_id', 'name', 'is_met', 'measurement_time', 'override_time','override_user','override_value','value','update_date', 'flag','is_acute'])
+    criteria_events_df['update_date'] = pd.to_datetime(criteria_events_df['update_date']).dt.tz_convert(timezone('utc'))
+    return criteria_events_df
+
+  ## Currently used to test merge care_unit. Should be same as previous code since care_units need to be fetched from cdm_t
+  def get_care_unit(self, cdmt_df):
+      care_unit_df = cdmt_df.loc[cdmt_df['fid']=='care_unit', ['enc_id', 'tsp', 'value']].copy()
+      care_unit_df = care_unit_df.sort_values(by=['enc_id', 'tsp'])
+      care_unit_df.rename(columns={'tsp':'enter_time', 'value':'care_unit'}, inplace=True)
+      care_unit_df['leave_time'] = care_unit_df.groupby('enc_id')['enter_time'].shift(-1)
+
+      # fill in the leave time on the last unit
+      last_unit_tsp = care_unit_df.groupby('enc_id').agg({'enter_time':'max'})
+      last_unit_tsp.reset_index(level=0, inplace=True)
+      last_unit_tsp.rename(columns={'enter_time':'last_unit_tsp'}, inplace=True)
+      discharge_tsp = cdmt_df.loc[cdmt_df['fid']=='discharge', ['enc_id', 'tsp']].copy()
+      df = pd.merge(last_unit_tsp, discharge_tsp, on='enc_id', how='inner')
+
+      # final step
+      if df.shape[0] > 0:
+          care_unit_df = pd.merge(care_unit_df, df, how='outer', on='enc_id')
+          care_unit_df.loc[care_unit_df['last_unit_tsp']==care_unit_df['enter_time'], 'leave_time'] = \
+                                          care_unit_df.loc[care_unit_df['last_unit_tsp']==care_unit_df['enter_time'], 'tsp']
+          care_unit_df.drop(['tsp', 'last_unit_tsp'], axis=1, inplace=True)
+
+      care_unit_df = care_unit_df.loc[care_unit_df['care_unit']!='Discharge']
+      care_unit_df['leave_time'] = pd.to_datetime(care_unit_df['leave_time'], utc=True) ## For fixing issues with timezones
+      return care_unit_df
+
+  def get_cdm_twf_df(self, valid_enc_ids, start_date):
+    start_date = start_date.round('S')
+    query = """select enc_id, tsp, sirs_resp_oor, sirs_hr_oor, sirs_wbc_oor, sirs_temperature_oor from cdm_twf 
+               where tsp > '{0}' and enc_id in ({1})""".format(str(start_date), ','.join([str(e) for e in valid_enc_ids]))
+    cdm_twf_df = pd.read_sql(sqlalchemy.text(query), self.connection, columns = ['enc_id', 'tsp', 'resp', 'hr', 'wbc', 'temperature'])
+    return cdm_twf_df
+    
+  def calc(self):
+    # TREWS Deployment date. Cannot run metrics before this date.
+    deploy_tsp = pd.to_datetime('2017-11-06 16:00:00+00:00').tz_localize(timezone('utc'))
+    
+    # Use timestamp of when script is run. Can potentially hardcode instead but should be okay if running as CRON job.
+    start_tsp = pd.to_datetime(self.last_time_str).tz_localize(timezone('utc'))
+    #start_tsp = pd.to_datetime('now').tz_localize(timezone('utc'))
+    end_tsp = start_tsp - self.window
+
+    ## get_valid_enc_ids. See function for exclusion details.
+    valid_enc_ids = self.get_enc_ids(end_tsp)
+
+    ## get flags from criteria_events. Currently just taking start_tsp but can do better in future
+    criteria_events_df = self.get_criteria_events_df(valid_enc_ids, deploy_tsp)
+    
+    ## get cdm_t table to fetch care units
+    cdmt_df = self.get_cdmt_df(valid_enc_ids)
+
+    ## Fetch care units using cdmt_df
+    care_unit_df = self.get_care_unit(cdmt_df)
+    
+    def merge_with_care_unit(main_df, care_unit_df=care_unit_df):
+      tmp_df = pd.merge(main_df, care_unit_df, how='left', on='enc_id')
+      ind1 = tmp_df['update_date']>tmp_df['enter_time']
+      ind2 = tmp_df['update_date']<tmp_df['leave_time']
+      ind3 = tmp_df['leave_time'].isnull()
+      tmp_df = tmp_df.loc[((ind1)&(ind2))|((ind1)&(ind3)), :]
+      return tmp_df
+
+
+    ## Merge criteria_evens with care_unit_df
+    merged_df = merge_with_care_unit(criteria_events_df)
+    
+    ##### Compute metrics with merged_df #######
+    # Consider better naming scheme for metrics
+
+    
+    # Get rid of all entries not in ED
+    merged_df = merged_df.loc[merged_df.care_unit == 'HCGH EMERGENCY-ADULTS'] ## Check that the name is correct
+    ## TODO: Add time constraint on this metric. Although, this needs to be done for all other metrics too.
+    metric_1 = care_unit_df.loc[care_unit_df['care_unit'] == 'HCGH EMERGENCY-ADULTS']['enc_id'].nunique() # Metric 1: Total number of people in ED
+
+    
+    ## Use merged_df from now on since almost all metrics are for patients that have some TREWS alert
+    merged_df['flag'] = merged_df['flag'].apply(lambda x: x + 1000 if x < 0 else x) ## Want to see history
+    
+    def search_history_flags(metric, flags, merged_df=merged_df):
+      merged_df[metric] = merged_df['flag'].apply(lambda x, flags=flags: True if x in flags else False)
+      result = merged_df[['enc_id',metric]].groupby('enc_id').aggregate(np.sum)
+      result = result.loc[result[metric] > 0].count()
+      return result[metric]
+
+    ## Get all patients that have a TREWS alert in their history
+    metric_2 = search_history_flags('metric_2', [10,11])
+
+    ## Metrics 3,4,5,6 need code sepsis data
+    metric_3 = None
+    metric_4 = None
+    metric_5 = None
+    metric_6 = None
+
+    ## Get all patients that have a manual override in their history
+    metric_7 = search_history_flags('metric_7', [50])
+    
+    ## get trews_model_id
+    model_id_query = "select value from trews_parameters where name='trews_jit_model_id';"
+    model_id_df = pd.read_sql(sqlalchemy.text(model_id_query), self.connection, columns=['value'])
+    model_id = model_id_df['value'].as_matrix().astype(int)[0]
+
+    ## metric 8-9 need trews_jit_scores. Yes join.
+    # read trews_jit_alerts
+    query = """
+                select enc_id, tsp, orgdf_details::json ->> 'alert' as jit_alert
+                from trews_jit_score
+                where model_id={0}
+                and enc_id in ({1})""".format(str(model_id), ', '.join([str(e) for e in valid_enc_ids]))
+    trews_jit_df = pd.read_sql(sqlalchemy.text(query), self.connection, columns=['enc_id', 'tsp', 'jit_alert'])
+    trews_jit_df['tsp'] = pd.to_datetime(trews_jit_df['tsp']).dt.tz_convert(timezone('utc'))
+    trews_jit_df['jit_alert'] = trews_jit_df['jit_alert'].map({'True':1, 'False':0}).astype(float)
+
+
+    # Only take scores that give alerts
+    trews_jit_df = trews_jit_df.loc[trews_jit_df['jit_alert'] == 1]
+    override_flags = [50]
+    first_override_indices = merged_df.loc[merged_df['flag'].isin(override_flags)].groupby('enc_id', as_index=False)['update_date'].idxmin()
+    first_override = merged_df.loc[merged_df.index.isin(first_override_indices)] 
+
+    #ipdb.set_trace()
+
+    if first_override.empty:
+      metric_8 = 0
+      metric_9 = None
+    else:
+      override_with_scores = pd.merge(first_override, trews_jit_df, how='inner', on=['enc_id'])
+      override_with_scores = override_with_scores.loc[override_with_scores['tsp'] >= override_with_scores['update_date']]
+      earliest_jit_alert = override_with_scores.groupby('enc_id', as_index=False)['tsp'].idxmin()
+      override_with_scores = override_with_scores.loc[override_with_scores.index.isin(earliest_jit_alert)]
+      override_with_scores['delta'] = override_with_scores.apply(lambda x: x[-2] - x[9], axis=1) ##TODO: Adjust the column access
+      
+      metric_8 = override_with_scores['enc_id'].nunique()
+      metric_9 = override_with_scores['delta'].median() # Can access this column for the metric but for now just print median
+
+    ## metrics 10,11,12,13 need cdm_t fids. No join.
+
+    # apply function for fetching most recent order.
+    def search_cdm_t(merged_df_row, order):
+      order_dates = cdmt_df.loc[(cdmt_df['enc_id'] == merged_df_row[1]) & (cdmt_df['fid'] == order)]['tsp'] # Need bitwise operator
+      if order_dates.empty:
+        return False
+      else:
+        earliest_id = order_dates.idxmin() 
+        earliest_date = cdmt_df.ix[earliest_id]['tsp']
+        # Currently not enforcing that most recent order must be after first alert.
+        #if earliest_date < merged_df_row[9]: 
+        #  earliest_date = False
+        return earliest_date
+
+    alert_flags = [10,11]
+    first_alert_indices = merged_df.loc[merged_df['flag'].isin(alert_flags)].groupby('enc_id', as_index=False)['update_date'].idxmin()
+    first_alerts = merged_df.loc[merged_df.index.isin(first_alert_indices)] 
+    # Creates warning that value is set on copy of slice of Dataframe. 
+    # This is desired behaviour as first_alerts only used for these metrics and don't want merged_df to be updated with this.
+
+    # Number of patients that are ordered Antibioitics after an alert
+    first_alerts['metric_10'] = first_alerts.apply(search_cdm_t, order='cms_antibiotics_order', axis=1)     
+    metric_10 = first_alerts.shape[0] - first_alerts.loc[first_alerts['metric_10'] == False].shape[0]
+
+    # Number of patients that are ordered blood culture after an alert
+    first_alerts['metric_11'] = first_alerts.apply(search_cdm_t, order='blood_culture_order',axis=1)
+    metric_11 = first_alerts.shape[0] - first_alerts.loc[first_alerts['metric_11'] == False].shape[0]
+
+    # Number of patients that receive lactate after an alert
+    first_alerts['metric_12'] = first_alerts.apply(search_cdm_t, order='lactate_order',axis=1)
+    metric_12 = first_alerts.shape[0] - first_alerts.loc[first_alerts['metric_12'] == False].shape[0]
+
+    # Number of patients that received a second lactate after an alert
+    def search_second_lactate(merged_df_row):
+      if merged_df_row[-1] == False: # no lactate order return false
+        return False
+      else:
+        ordered_dates = cdmt_df.loc[(cdmt_df['enc_id'] == merged_df_row[1]) & (cdmt_df['fid'] == 'lactate_order')]['tsp']
+        ordered_dates = ordered_dates.sort_values()  # Need bitwise operator
+        if ordered_dates.shape[0] < 2: # only 1 lactate order still return False
+          return False
+        else:
+          return ordered_dates[1] ## Second lactate order
+
+    #ipdb.set_trace()
+    first_alerts['metric_13'] = first_alerts.apply(search_second_lactate, axis=1)
+    metric_13 = first_alerts.shape[0] - first_alerts.loc[first_alerts['metric_13'] == False].shape[0]
+
+
+    ## Get all patients that have no infection recorded in their history
+    metric_14 = search_history_flags('metric_14', [12,13])
+
+    ## Get all patients that have been placed on sepsis pathway
+    metric_15 = search_history_flags('metric_15', range(20,67)) 
+
+    ## Get all patients that have no action taken despite TREWS alert. 
+    ## Double check this
+
+    def get_most_recent_alert(row):
+      order_dates = merged_df.loc[(merged_df['enc_id'] == row[1]) & (merged_df['flag'].isin(alert_flags))]['update_date']
+      if order_dates.empty:
+        return False
+      else:
+        latest_id = order_dates.idxmax()
+        latest_date = merged_df.ix[latest_id]['update_date']
+        return latest_date
+
+    def compute_no_action(row):
+      latest_date = get_most_recent_alert(row)
+      if type(latest_date) != 'Timestamp':
+        return False
+      if row[9] > latest_date and row[10] <= 11:
+        return True
+      else:
+        return False
+
+    #ipdb.set_trace()
+    #first_alerts['latest_alert'] = merged_df.apply(get_most_recent_alert, axis=1)
+
+    #merged_df['latest_alert'] = merged_df.apply()
+    ## WARNING: Currently very slow implementation due to inefficient subsetting for most recent_alert. In future, will pre-compute most recent alert and store somewhere.
+    merged_df['no_action'] = merged_df.apply(compute_no_action, axis=1)
+    metric_16 = merged_df[['enc_id', 'no_action']].groupby('enc_id').aggregate(np.sum)
+    metric_16 = metric_16.loc[metric_16['no_action'] == 0].sum()
+    metric_16 = metric_16['no_action']
+    """
+    merged_df['metric_16'] = merged_df.apply(lambda x: x[1] and not x[-1], axis=1) #Must have an alert and no action (metric_15)
+    metric_16 = merged_df[['enc_id', 'metric_16']].groupby('enc_id').aggregate(np.sum)
+    metric_16 = metric_16.loc[metric_16['metric_16'] > 0].count()
+    metric_16 = metric_16['metric_16']
+    """
+    ## min, max, median time from alert to evaluation
+    # Only considered eval-ed if SOI is_met is also true
+    evals = merged_df.loc[(merged_df['name'] == 'suspicion_of_infection') & (merged_df['is_met'] == True)] 
+
+    first_eval_indices = evals.groupby('enc_id', as_index=False)['update_date'].idxmin()
+    first_evals = evals.loc[evals.index.isin(first_eval_indices)][['enc_id','update_date']]
+    first_evals.columns = ['enc_id', 'first_eval']
+    first_alerts = pd.merge(first_alerts, first_evals, how='left', on=['enc_id']) ## Not every alert had an eval
+    
+    ## 111 patients got evaled but only 1 patient didn't have an alert
+    first_alerts['delta'] = first_alerts.apply(lambda x: x[-1] - x[9], axis=1) # first eval time - first alert time
+    metric_17_min = first_alerts['delta'].min()
+    metric_17_max = first_alerts['delta'].max()
+    metric_17_median = first_alerts['delta'].median()
+    # Every patient had a suspicion of infection happening at the same time as first alert?
+
+    ## Get all patients that have a completed bundle
+    completed_bundles = [21,23,26,28,31, 33, 35, 41, 43, 45, 51, 53, 61, 63, 65]
+    metric_18 = search_history_flags('metric_18', completed_bundles)
+
+    ## Get all patients that have an incomplete bundle
+    expired_bundles = [22, 24, 27, 29, 32, 34, 36, 42, 44, 46, 52, 54, 62, 64, 66]
+    metric_19 = search_history_flags('metric_19', expired_bundles)
+
+    #ipdb.set_trace()
+
+    ## Number of people who meet SIRS criteria during first 3 hours of ED presentation.
+    window = timedelta(minutes=3*60)
+    ed = care_unit_df.loc[care_unit_df['care_unit'] == 'HCGH EMERGENCY-ADULTS']
+    ed['duration'] = ed.apply(lambda x: x[-1] - x[1], axis=1) 
+    ed = ed.loc[ed['duration'] >= window]
+    ed['window_end'] = ed.apply(lambda x, w=window: x[1] + w, axis=1)
+    # No need to make ed admits unique if the durations are already longer than 3 hours.
+    #ed = ed.loc[ed.index.isin(ed.groupby('enc_id', as_index=False)['enter_time'].idxmin())]
+    
+    cdm_twf = self.get_cdm_twf_df(valid_enc_ids, deploy_tsp)
+    ed_with_SIRS = pd.merge(ed, cdm_twf, how='left', on=['enc_id'])
+    # Cut out entries where tsp of SIRS measurement not within ED admit to end of 3 hr window
+    ed_with_SIRS = ed_with_SIRS.loc[(ed_with_SIRS['tsp'] >= ed_with_SIRS['enter_time']) & (ed_with_SIRS['tsp'] < ed_with_SIRS['window_end'])]
+    ed_with_SIRS['met_criteria'] = ed_with_SIRS.apply(lambda x: True if x[-4] + x[-3] + x[-2] + x[-1] >= 2 else False, axis=1) 
+    ed_met_SIRS = ed_with_SIRS[['enc_id','met_criteria']].groupby('enc_id').aggregate(np.sum)
+    metric_20 = ed_met_SIRS.loc[ed_met_SIRS['met_criteria'] > 0].count()
+    metric_20 = metric_20['met_criteria']
+
+    #ipdb.set_trace()
+
+    allMetrics = [metric_1, metric_2, metric_7, metric_8, metric_9, metric_10, metric_11, metric_12, metric_13, metric_14, metric_15, metric_16, metric_17_min, metric_17_max, metric_17_median, metric_18, metric_19, metric_20]
+    desc1 = 'Total ED patients'
+    desc2 = '# ED patients with TREWS alert'
+    #desc3 = 'Number of people with code sepsis'
+    #desc4 = 'Number of TREWS alerts that had code sepsis'
+    #desc5 = 'Hours from code sepsis until TREWS'
+    #desc6 = 'Number of code sepsis patients without a TREWS alert'
+    desc7 = '# times manual override used'
+    desc8 = '# manual overrides that later had an alert'
+    desc9 = 'Median hours from manual override to alert'
+    desc10 = '# alerts before antibiotics'
+    desc11 = '# alerts before blood culture'
+    desc12 = '# alerts before lactate'
+    desc13 = '# alerts before repeat lactate'
+    desc14 = '# alerts that have no infection entered'
+    desc15 = '# alerts that are put on sepsis pathway'
+    desc16 = '# alerts that have no action taken'
+    desc17_min = 'min time from alert to evaluation'
+    desc17_max = 'max time from alert to evaluation'
+    desc17_median = 'median time from alert to evaluation'
+    desc18 = '# alerts with complete bundle'
+    desc19 = '# alerts with expired bundle'
+    desc20 = '# ED patients with SIRS within first 3 hours'
+    allDesc = [desc1, desc2, desc7, desc8, desc9, desc10, desc11, desc12, desc13, desc14, desc15, desc16, desc17_min, desc17_max, desc17_median, desc18, desc19, desc20]
+    self.metrics_DF = pd.DataFrame({'Metrics': allDesc, 'Values': allMetrics})
+
+  def to_html(self):
+    txt = "<h3>Emergency Department Metrics</h3>"
+    ipdb.set_trace()
+    txt += self.metrics_DF.to_html()
+    return txt
 
 class alert_performance_metrics(metric):
 

@@ -54,12 +54,12 @@ class Engine:
       metric_list = [
         metrics.report_introduction,
         metrics.pats_seen_by_docs,
-        metrics.user_engagement,
+        metrics.ed_metrics,
+        metrics.suspicion_of_infection_modified,
         metrics.alert_performance_metrics,
         # metrics.alert_stats_totals,
         # metrics.alert_stats_by_unit,
         # metrics.alert_evaluation_stats,
-        metrics.suspicion_of_infection_modified,
         # metrics.get_sepsis_state_stats,
         metrics.notification_stats,
         #metrics.pats_with_threshold_crossings
