@@ -42,7 +42,7 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: trews-rest-api
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.491
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.508
         resources:
           requests:
             memory: "2816Mi"
@@ -67,6 +67,9 @@ spec:
         #
         #- name: no_check_for_orders
         #  value: "True"
+        #
+        - name: location_blacklist
+          value: "BMC,JHH"
         - name: release
           value: "epic2017"
         - name: model_in_use
