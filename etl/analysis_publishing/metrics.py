@@ -412,7 +412,6 @@ class ed_metrics(metric):
 
   def to_html(self):
     txt = "<h3>Emergency Department Metrics</h3>"
-    ipdb.set_trace()
     txt += self.metrics_DF.to_html()
     return txt
 
