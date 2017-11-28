@@ -33,6 +33,25 @@ app.get('/test',function(req,res){
         }
     });
 })
+app.get('/local',function(req,res){
+    var url = "http://localhost:8000/?wsdl";
+    var args = {event:0};
+    soap.createClient(url,function(err,client){
+        if(err)
+            console.error(err);
+        else {
+            console.log(client)
+            client.ProcessEvent(args,function(err,response){
+                if(err)
+                    console.error(err);
+                else{
+                    console.log(response);
+                    res.send(response);
+                }
+            })
+        }
+    });
+})
 // app.post('/getAge',bodyParser.urlencoded({extended:false}),function(req,res){
 //     console.log(req.body);
 //     var input = req.body;

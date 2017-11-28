@@ -7,19 +7,22 @@ var app = express();
 -our service calculates bmi by dividing weight in kilograms by square of height in metres
 **/
 var service = {
-    EventService : {
-        EventPort : {
-            ProcessEvent:function(args){
-                console.log(args);
-                return {};
+    BMI_Service : {
+        BMI_Port :{
+            calculateBMI:function(args){
+                //console.log(Date().getFullYear())
+                var year = new Date().getFullYear();
+                var n = (args.weight)/(args.height*args.height);
+                console.log(n);
+                return {bmi: n};
             }
         }
     }
 };
 // xml data is extracted from wsdl file created
-var xml = require('fs').readFileSync('./EventNotification.wsdl','utf8');
-var server = app.listen(8000,function(){
+var xml = require('fs').readFileSync('./bmicalculator.wsdl','utf8');
+var server = app.listen(3030,function(){
     var host = "127.0.0.1";
     var port = server.address().port;
 });
-soap.listen(server,'/',service,xml);
+soap.listen(server,'/bmicalculator',service,xml);

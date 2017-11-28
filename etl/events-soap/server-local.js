@@ -17,7 +17,7 @@ var service = {
     }
 };
 // xml data is extracted from wsdl file created
-var xml = require('fs').readFileSync('./EventNotification.wsdl','utf8');
+var xml = require('fs').readFileSync('./EventNotificationLocal.wsdl','utf8');
 var server = app.listen(8000,function(){
     var host = "127.0.0.1";
     var port = server.address().port;
