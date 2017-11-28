@@ -134,7 +134,7 @@ resource "aws_lambda_function" "scorecard_report_lambda" {
 
         # ETL Environment Variables
         k8s_job_BEHAMON_STACK                      = "${var.deploy_prefix}-dev"
-        k8s_job_REPORT_RECEIVING_EMAIL_ADDRESS     = "trews-jhu@opsdx.io"
+        k8s_job_REPORT_RECEIVING_EMAIL_ADDRESS     = "hossein@cs.jhu.edu,twang70@jhu.edu"
         k8s_job_db_host                            = "${var.db_host}"
         k8s_job_db_port                            = "${var.db_port}"
         k8s_job_db_name                            = "${var.db_name}"

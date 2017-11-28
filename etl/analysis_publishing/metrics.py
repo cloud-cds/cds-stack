@@ -41,7 +41,7 @@ class report_introduction(metric):
     return html
 
 class ed_metrics(metric):
-  
+
   def __init__(self, connection, first_time_str, last_time_str):
     super().__init__(connection, first_time_str, last_time_str)
     self.name = 'ed_metrics'
@@ -61,7 +61,7 @@ class ed_metrics(metric):
                 inner join cdm_s on cdm_s.enc_id = EXC.enc_id and cdm_s.fid = 'age'
                 inner join cdm_t on cdm_t.enc_id = EXC.enc_id and cdm_t.fid = 'care_unit'
                 group by EXC.enc_id
-                having count(*) filter (where cdm_s.value::numeric < 18) > 0 
+                having count(*) filter (where cdm_s.value::numeric < 18) > 0
                 or count(*) filter(where cdm_t.value in ('HCGH LABOR & DELIVERY', 'HCGH EMERGENCY-PEDS', 'HCGH 2C NICU', 'HCGH 1CX PEDIATRICS', 'HCGH 2N MCU')) > 0
             ),
             bedded as (
@@ -139,15 +139,15 @@ class ed_metrics(metric):
 
   def get_cdm_twf_df(self, valid_enc_ids, start_date):
     start_date = start_date.round('S')
-    query = """select enc_id, tsp, sirs_resp_oor, sirs_hr_oor, sirs_wbc_oor, sirs_temperature_oor from cdm_twf 
+    query = """select enc_id, tsp, sirs_resp_oor, sirs_hr_oor, sirs_wbc_oor, sirs_temperature_oor from cdm_twf
                where tsp > '{0}' and enc_id in ({1})""".format(str(start_date), ','.join([str(e) for e in valid_enc_ids]))
     cdm_twf_df = pd.read_sql(sqlalchemy.text(query), self.connection, columns = ['enc_id', 'tsp', 'resp', 'hr', 'wbc', 'temperature'])
     return cdm_twf_df
-    
+
   def calc(self):
     # TREWS Deployment date. Cannot run metrics before this date.
     deploy_tsp = pd.to_datetime('2017-11-06 16:00:00+00:00').tz_localize(timezone('utc'))
-    
+
     # Use timestamp of when script is run. Can potentially hardcode instead but should be okay if running as CRON job.
     start_tsp = pd.to_datetime(self.last_time_str).tz_localize(timezone('utc'))
     #start_tsp = pd.to_datetime('now').tz_localize(timezone('utc'))
@@ -158,13 +158,13 @@ class ed_metrics(metric):
 
     ## get flags from criteria_events. Currently just taking start_tsp but can do better in future
     criteria_events_df = self.get_criteria_events_df(valid_enc_ids, deploy_tsp)
-    
+
     ## get cdm_t table to fetch care units
     cdmt_df = self.get_cdmt_df(valid_enc_ids)
 
     ## Fetch care units using cdmt_df
     care_unit_df = self.get_care_unit(cdmt_df)
-    
+
     def merge_with_care_unit(main_df, care_unit_df=care_unit_df):
       tmp_df = pd.merge(main_df, care_unit_df, how='left', on='enc_id')
       ind1 = tmp_df['update_date']>tmp_df['enter_time']
@@ -176,20 +176,20 @@ class ed_metrics(metric):
 
     ## Merge criteria_evens with care_unit_df
     merged_df = merge_with_care_unit(criteria_events_df)
-    
+
     ##### Compute metrics with merged_df #######
     # Consider better naming scheme for metrics
 
-    
+
     # Get rid of all entries not in ED
     merged_df = merged_df.loc[merged_df.care_unit == 'HCGH EMERGENCY-ADULTS'] ## Check that the name is correct
     ## TODO: Add time constraint on this metric. Although, this needs to be done for all other metrics too.
     metric_1 = care_unit_df.loc[care_unit_df['care_unit'] == 'HCGH EMERGENCY-ADULTS']['enc_id'].nunique() # Metric 1: Total number of people in ED
 
-    
+
     ## Use merged_df from now on since almost all metrics are for patients that have some TREWS alert
     merged_df['flag'] = merged_df['flag'].apply(lambda x: x + 1000 if x < 0 else x) ## Want to see history
-    
+
     def search_history_flags(metric, flags, merged_df=merged_df):
       merged_df[metric] = merged_df['flag'].apply(lambda x, flags=flags: True if x in flags else False)
       result = merged_df[['enc_id',metric]].groupby('enc_id').aggregate(np.sum)
@@ -207,7 +207,7 @@ class ed_metrics(metric):
 
     ## Get all patients that have a manual override in their history
     metric_7 = search_history_flags('metric_7', [50])
-    
+
     ## get trews_model_id
     model_id_query = "select value from trews_parameters where name='trews_jit_model_id';"
     model_id_df = pd.read_sql(sqlalchemy.text(model_id_query), self.connection, columns=['value'])
@@ -229,7 +229,7 @@ class ed_metrics(metric):
     trews_jit_df = trews_jit_df.loc[trews_jit_df['jit_alert'] == 1]
     override_flags = [50]
     first_override_indices = merged_df.loc[merged_df['flag'].isin(override_flags)].groupby('enc_id', as_index=False)['update_date'].idxmin()
-    first_override = merged_df.loc[merged_df.index.isin(first_override_indices)] 
+    first_override = merged_df.loc[merged_df.index.isin(first_override_indices)]
 
     #ipdb.set_trace()
 
@@ -242,7 +242,7 @@ class ed_metrics(metric):
       earliest_jit_alert = override_with_scores.groupby('enc_id', as_index=False)['tsp'].idxmin()
       override_with_scores = override_with_scores.loc[override_with_scores.index.isin(earliest_jit_alert)]
       override_with_scores['delta'] = override_with_scores.apply(lambda x: x[-2] - x[9], axis=1) ##TODO: Adjust the column access
-      
+
       metric_8 = override_with_scores['enc_id'].nunique()
       metric_9 = override_with_scores['delta'].median() # Can access this column for the metric but for now just print median
 
@@ -254,21 +254,21 @@ class ed_metrics(metric):
       if order_dates.empty:
         return False
       else:
-        earliest_id = order_dates.idxmin() 
+        earliest_id = order_dates.idxmin()
         earliest_date = cdmt_df.ix[earliest_id]['tsp']
         # Currently not enforcing that most recent order must be after first alert.
-        #if earliest_date < merged_df_row[9]: 
+        #if earliest_date < merged_df_row[9]:
         #  earliest_date = False
         return earliest_date
 
     alert_flags = [10,11]
     first_alert_indices = merged_df.loc[merged_df['flag'].isin(alert_flags)].groupby('enc_id', as_index=False)['update_date'].idxmin()
-    first_alerts = merged_df.loc[merged_df.index.isin(first_alert_indices)] 
-    # Creates warning that value is set on copy of slice of Dataframe. 
+    first_alerts = merged_df.loc[merged_df.index.isin(first_alert_indices)]
+    # Creates warning that value is set on copy of slice of Dataframe.
     # This is desired behaviour as first_alerts only used for these metrics and don't want merged_df to be updated with this.
 
     # Number of patients that are ordered Antibioitics after an alert
-    first_alerts['metric_10'] = first_alerts.apply(search_cdm_t, order='cms_antibiotics_order', axis=1)     
+    first_alerts['metric_10'] = first_alerts.apply(search_cdm_t, order='cms_antibiotics_order', axis=1)
     metric_10 = first_alerts.shape[0] - first_alerts.loc[first_alerts['metric_10'] == False].shape[0]
 
     # Number of patients that are ordered blood culture after an alert
@@ -300,9 +300,9 @@ class ed_metrics(metric):
     metric_14 = search_history_flags('metric_14', [12,13])
 
     ## Get all patients that have been placed on sepsis pathway
-    metric_15 = search_history_flags('metric_15', range(20,67)) 
+    metric_15 = search_history_flags('metric_15', range(20,67))
 
-    ## Get all patients that have no action taken despite TREWS alert. 
+    ## Get all patients that have no action taken despite TREWS alert.
     ## Double check this
 
     def get_most_recent_alert(row):
@@ -340,13 +340,13 @@ class ed_metrics(metric):
     """
     ## min, max, median time from alert to evaluation
     # Only considered eval-ed if SOI is_met is also true
-    evals = merged_df.loc[(merged_df['name'] == 'suspicion_of_infection') & (merged_df['is_met'] == True)] 
+    evals = merged_df.loc[(merged_df['name'] == 'suspicion_of_infection') & (merged_df['is_met'] == True)]
 
     first_eval_indices = evals.groupby('enc_id', as_index=False)['update_date'].idxmin()
     first_evals = evals.loc[evals.index.isin(first_eval_indices)][['enc_id','update_date']]
     first_evals.columns = ['enc_id', 'first_eval']
     first_alerts = pd.merge(first_alerts, first_evals, how='left', on=['enc_id']) ## Not every alert had an eval
-    
+
     ## 111 patients got evaled but only 1 patient didn't have an alert
     first_alerts['delta'] = first_alerts.apply(lambda x: x[-1] - x[9], axis=1) # first eval time - first alert time
     metric_17_min = first_alerts['delta'].min()
@@ -367,17 +367,17 @@ class ed_metrics(metric):
     ## Number of people who meet SIRS criteria during first 3 hours of ED presentation.
     window = timedelta(minutes=3*60)
     ed = care_unit_df.loc[care_unit_df['care_unit'] == 'HCGH EMERGENCY-ADULTS']
-    ed['duration'] = ed.apply(lambda x: x[-1] - x[1], axis=1) 
+    ed['duration'] = ed.apply(lambda x: x[-1] - x[1], axis=1)
     ed = ed.loc[ed['duration'] >= window]
     ed['window_end'] = ed.apply(lambda x, w=window: x[1] + w, axis=1)
     # No need to make ed admits unique if the durations are already longer than 3 hours.
     #ed = ed.loc[ed.index.isin(ed.groupby('enc_id', as_index=False)['enter_time'].idxmin())]
-    
+
     cdm_twf = self.get_cdm_twf_df(valid_enc_ids, deploy_tsp)
     ed_with_SIRS = pd.merge(ed, cdm_twf, how='left', on=['enc_id'])
     # Cut out entries where tsp of SIRS measurement not within ED admit to end of 3 hr window
     ed_with_SIRS = ed_with_SIRS.loc[(ed_with_SIRS['tsp'] >= ed_with_SIRS['enter_time']) & (ed_with_SIRS['tsp'] < ed_with_SIRS['window_end'])]
-    ed_with_SIRS['met_criteria'] = ed_with_SIRS.apply(lambda x: True if x[-4] + x[-3] + x[-2] + x[-1] >= 2 else False, axis=1) 
+    ed_with_SIRS['met_criteria'] = ed_with_SIRS.apply(lambda x: True if x[-4] + x[-3] + x[-2] + x[-1] >= 2 else False, axis=1)
     ed_met_SIRS = ed_with_SIRS[['enc_id','met_criteria']].groupby('enc_id').aggregate(np.sum)
     metric_20 = ed_met_SIRS.loc[ed_met_SIRS['met_criteria'] > 0].count()
     metric_20 = metric_20['met_criteria']
@@ -602,13 +602,13 @@ class alert_performance_metrics(metric):
                 df = tmp_df.set_index('tsp').resample(stepsize, closed='right').ffill()
 
                 df['jit_delta'] = df['jit_alert'].diff()
-                df['num_jit_delta'] = np.sum((~df['jit_delta'].isnull())*(df['jit_delta']!=0))
+                df['num_jit_delta'] = np.sum((~df['jit_delta'].isnull())&(df['jit_delta']!=0))
                 df['crit_jit_delta'] = df['criteria_jit'].diff()
-                df['num_crit_jit_delta'] = np.sum((~df['crit_jit_delta'].isnull())*(df['crit_jit_delta']!=0))
+                df['num_crit_jit_delta'] = np.sum((~df['crit_jit_delta'].isnull())&(df['crit_jit_delta']!=0))
                 df['union_alert_delta'] = df['union_alert'].diff()
-                df['num_union_alert_delta'] = np.sum((~df['union_alert_delta'].isnull())*(df['union_alert_delta']!=0))
+                df['num_union_alert_delta'] = np.sum((~df['union_alert_delta'].isnull())&(df['union_alert_delta']!=0))
 
-                df['jit_sim'] = np.sum(df['jit_alert']*df['criteria_jit'])/(np.sum(df['jit_alert']) + 1e-10)
+                df['jit_sim'] = np.sum(df['jit_alert']&df['criteria_jit'])/(np.sum(df['jit_alert']) + 1e-10)
 
                 #### filtering everything by start_tsp
 
