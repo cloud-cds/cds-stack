@@ -323,7 +323,10 @@ class JHAPIConfig:
     logging.info('#NOTES PAYLOADS: %s' % len(payloads))
     logging.info('#NOTES RESPONSES: %s' % len(responses))
     dfs = [pd.DataFrame(r['DocumentListData'] if r else None) for r in responses]
-    return self.combine(dfs, bedded_patients[['pat_id']])
+    df = self.combine(dfs, bedded_patients[['pat_id']])
+    not_empty_idx = df.Key.str.len() > 0
+    df = df[not_empty_idx].reset_index()
+    return df
 
 
   def extract_note_texts(self, ctxt, notes):
