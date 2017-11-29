@@ -622,13 +622,13 @@ class alert_performance_metrics(metric):
                 df = tmp_df.set_index('tsp').resample(stepsize, closed='right').ffill()
 
                 df['jit_delta'] = df['jit_alert'].diff()
-                df['num_jit_delta'] = np.sum((~df['jit_delta'].isnull())&(df['jit_delta']!=0))
+                df['num_jit_delta'] = np.sum((~df['jit_delta'].isnull())*(df['jit_delta']!=0))
                 df['crit_jit_delta'] = df['criteria_jit'].diff()
-                df['num_crit_jit_delta'] = np.sum((~df['crit_jit_delta'].isnull())&(df['crit_jit_delta']!=0))
+                df['num_crit_jit_delta'] = np.sum((~df['crit_jit_delta'].isnull())*(df['crit_jit_delta']!=0))
                 df['union_alert_delta'] = df['union_alert'].diff()
-                df['num_union_alert_delta'] = np.sum((~df['union_alert_delta'].isnull())&(df['union_alert_delta']!=0))
+                df['num_union_alert_delta'] = np.sum((~df['union_alert_delta'].isnull())*(df['union_alert_delta']!=0))
 
-                df['jit_sim'] = np.sum(df['jit_alert']&df['criteria_jit'])/(np.sum(df['jit_alert']) + 1e-10)
+                df['jit_sim'] = np.sum(df['jit_alert']*df['criteria_jit'])/(np.sum(df['jit_alert']) + 1e-10)
 
                 #### filtering everything by start_tsp
 
