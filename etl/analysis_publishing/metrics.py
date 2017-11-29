@@ -757,7 +757,7 @@ class alert_performance_metrics(metric):
         #### also read SOI
         query = """
                 select enc_id from sep2_suspicion_of_infection
-                where created = (select max(created) from sep2_suspicion_of_infection )
+                where label_id =  (select max(label_id) from label_version)
                 and enc_id in ({0});
                 """.format(', '.join([str(e) for e in valid_enc_ids]))
         soi_encids_df = pd.read_sql(sqlalchemy.text(query), self.connection)
