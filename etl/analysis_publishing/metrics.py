@@ -41,7 +41,7 @@ class report_introduction(metric):
     return html
 
 class ed_metrics(metric):
-
+  
   def __init__(self, connection, first_time_str, last_time_str):
     super().__init__(connection, first_time_str, last_time_str)
     self.name = 'ed_metrics'
@@ -360,13 +360,18 @@ class ed_metrics(metric):
     first_eval_indices = evals.groupby('enc_id', as_index=False)['update_date'].idxmin()
     first_evals = evals.loc[evals.index.isin(first_eval_indices)][['enc_id','update_date']]
     first_evals.columns = ['enc_id', 'first_eval']
-    first_alerts = pd.merge(first_alerts, first_evals, how='left', on=['enc_id']) ## Not every alert had an eval
 
-    first_alerts['delta'] = (first_alerts['first_eval'] - first_alerts['update_date']) / pd.to_timedelta('1hr')
-    #first_alerts['delta'] = first_alerts.apply(lambda x: x[-1] - x[9], axis=1) # first eval time - first alert time
-    metric_17_min = first_alerts['delta'].min()
-    metric_17_max = first_alerts['delta'].max()
-    metric_17_median = first_alerts['delta'].median()
+    ## If there are no evaluations, then report None for time from alert to eval.
+    if first_evals.empty:
+      metric_17_min = None
+      metric_17_max = None
+      metric_17_median = None
+    else:
+      first_alerts = pd.merge(first_alerts, first_evals, how='left', on=['enc_id']) ## Not every alert had an eval
+      first_alerts['delta'] = (first_alerts['first_eval'] - first_alerts['update_date']) / pd.to_timedelta('1hr')
+      metric_17_min = first_alerts['delta'].min()
+      metric_17_max = first_alerts['delta'].max()
+      metric_17_median = first_alerts['delta'].median()
 
     ## Get all patients that have a completed bundle
     completed_bundles = [21,23,26,28,31, 33, 35, 41, 43, 45, 51, 53, 61, 63, 65]
