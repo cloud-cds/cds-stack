@@ -45,9 +45,7 @@ variable "local_shell" {}
 
 
 # A Lambda function for periodic ETL.
-
 resource "aws_lambda_function" "test_etl_lambda_HCGH" {
-
     function_name    = "${var.deploy_prefix}-test-etl-lambda-HCGH"
     handler          = "service.handler"
     s3_bucket        = "${var.s3_opsdx_lambda}"
@@ -55,12 +53,10 @@ resource "aws_lambda_function" "test_etl_lambda_HCGH" {
     role             = "${var.aws_klaunch_lambda_role_arn}"
     runtime          = "python2.7"
     timeout          = 300
-
     environment {
       variables {
         PYKUBE_KUBERNETES_SERVICE_HOST = "${var.k8s_dev_server_host}"
         PYKUBE_KUBERNETES_SERVICE_PORT = "${var.k8s_dev_server_port}"
-
         kube_job_name  = "epic2op-hcgh-test"
         kube_nodegroup = "spot-nodes"
         kube_cpu_requests = "250m"
@@ -72,21 +68,17 @@ resource "aws_lambda_function" "test_etl_lambda_HCGH" {
         kube_pass      = "${var.k8s_dev_pass}"
         kube_image     = "${var.k8s_dev_image}"
         kube_active_deadline_seconds = "300"
-
         kube_cmd_0 = "sh"
         kube_cmd_1 = "-c"
         kube_cmd_2 = "/usr/local/bin/python3 /etl/epic2op/engine.py --hospital=HCGH"
-
         k8s_job_db_host     = "${var.dev_db_host}"
         k8s_job_db_port     = "${var.dev_db_port}"
         k8s_job_db_name     = "opsdx_test"
         k8s_job_db_user     = "${var.dev_db_username}"
         k8s_job_db_password = "${var.dev_db_password}"
-
         k8s_job_jhapi_client_id     = "${var.dev_jhapi_client_id}"
         k8s_job_jhapi_client_secret = "${var.dev_jhapi_client_secret}"
         k8s_job_etl_channel         = "${var.dev_etl_channel}"
-
         k8s_job_TREWS_ETL_SERVER             = "test"
         k8s_job_TREWS_ETL_HOSPITAL           = "HCGH"
         k8s_job_TREWS_ETL_HOURS              = "${var.DEV_ETL_HOURS}"
