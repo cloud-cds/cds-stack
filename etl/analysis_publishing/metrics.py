@@ -114,27 +114,46 @@ class ed_metrics(metric):
 
   ## Currently used to test merge care_unit. Should be same as previous code since care_units need to be fetched from cdm_t
   def get_care_unit(self, cdmt_df):
+
       care_unit_df = cdmt_df.loc[cdmt_df['fid']=='care_unit', ['enc_id', 'tsp', 'value']].copy()
       care_unit_df = care_unit_df.sort_values(by=['enc_id', 'tsp'])
       care_unit_df.rename(columns={'tsp':'enter_time', 'value':'care_unit'}, inplace=True)
       care_unit_df['leave_time'] = care_unit_df.groupby('enc_id')['enter_time'].shift(-1)
-
-      # fill in the leave time on the last unit
-      last_unit_tsp = care_unit_df.groupby('enc_id').agg({'enter_time':'max'})
-      last_unit_tsp.reset_index(level=0, inplace=True)
-      last_unit_tsp.rename(columns={'enter_time':'last_unit_tsp'}, inplace=True)
-      discharge_tsp = cdmt_df.loc[cdmt_df['fid']=='discharge', ['enc_id', 'tsp']].copy()
-      df = pd.merge(last_unit_tsp, discharge_tsp, on='enc_id', how='inner')
-
-      # final step
-      if df.shape[0] > 0:
-          care_unit_df = pd.merge(care_unit_df, df, how='outer', on='enc_id')
-          care_unit_df.loc[care_unit_df['last_unit_tsp']==care_unit_df['enter_time'], 'leave_time'] = \
-                                          care_unit_df.loc[care_unit_df['last_unit_tsp']==care_unit_df['enter_time'], 'tsp']
-          care_unit_df.drop(['tsp', 'last_unit_tsp'], axis=1, inplace=True)
-
       care_unit_df = care_unit_df.loc[care_unit_df['care_unit']!='Discharge']
-      care_unit_df['leave_time'] = pd.to_datetime(care_unit_df['leave_time'], utc=True) ## For fixing issues with timezones
+
+      with_care_unit_cdmt = cdmt_df.loc[cdmt_df['enc_id'].isin(care_unit_df['enc_id']), ['enc_id', 'tsp']]
+      max_min_tsp_df = with_care_unit_cdmt.groupby('enc_id', as_index=False)['tsp'].agg({'max_tsp':max, 'min_tsp':min})
+
+      care_unit_df = pd.merge(care_unit_df, max_min_tsp_df, how='left', on='enc_id')
+      idx_max = care_unit_df.groupby('enc_id', as_index=False)['enter_time'].idxmax()
+      idx_min = care_unit_df.groupby('enc_id', as_index=False)['enter_time'].idxmin()
+      care_unit_df.loc[idx_min, 'enter_time'] = care_unit_df.loc[idx_min, 'min_tsp'] - pd.to_timedelta('1min')
+      care_unit_df.loc[idx_max, 'leave_time'] = care_unit_df.loc[idx_max, 'max_tsp'] + pd.to_timedelta('1min')
+      care_unit_df.drop(['min_tsp', 'max_tsp'], axis=1, inplace=True)
+
+      care_unit_df['leave_time'] = pd.to_datetime(care_unit_df['leave_time']).dt.tz_localize(timezone('utc'))
+      # care_unit_df = cdmt_df.loc[cdmt_df['fid']=='care_unit', ['enc_id', 'tsp', 'value']].copy()
+      # care_unit_df = care_unit_df.sort_values(by=['enc_id', 'tsp'])
+      # care_unit_df.rename(columns={'tsp':'enter_time', 'value':'care_unit'}, inplace=True)
+      # care_unit_df['leave_time'] = care_unit_df.groupby('enc_id')['enter_time'].shift(-1)
+
+      # # fill in the leave time on the last unit
+      # last_unit_tsp = care_unit_df.groupby('enc_id').agg({'enter_time':'max'})
+      # last_unit_tsp.reset_index(level=0, inplace=True)
+      # last_unit_tsp.rename(columns={'enter_time':'last_unit_tsp'}, inplace=True)
+      # discharge_tsp = cdmt_df.loc[cdmt_df['fid']=='discharge', ['enc_id', 'tsp']].copy()
+      # df = pd.merge(last_unit_tsp, discharge_tsp, on='enc_id', how='inner')
+
+      # # final step
+      # if df.shape[0] > 0:
+      #     care_unit_df = pd.merge(care_unit_df, df, how='outer', on='enc_id')
+      #     care_unit_df.loc[care_unit_df['last_unit_tsp']==care_unit_df['enter_time'], 'leave_time'] = \
+      #                                     care_unit_df.loc[care_unit_df['last_unit_tsp']==care_unit_df['enter_time'], 'tsp']
+      #     care_unit_df.drop(['tsp', 'last_unit_tsp'], axis=1, inplace=True)
+
+      # care_unit_df = care_unit_df.loc[care_unit_df['care_unit']!='Discharge']
+      # care_unit_df['leave_time'] = pd.to_datetime(care_unit_df['leave_time'], utc=True) ## For fixing issues with timezones
+
       return care_unit_df
 
   def get_cdm_twf_df(self, valid_enc_ids, start_date):
@@ -149,8 +168,8 @@ class ed_metrics(metric):
     deploy_tsp = pd.to_datetime('2017-11-06 16:00:00+00:00').tz_localize(timezone('utc'))
 
     # Use timestamp of when script is run. Can potentially hardcode instead but should be okay if running as CRON job.
-    start_tsp = pd.to_datetime(self.last_time_str).tz_localize(timezone('utc'))
-    #start_tsp = pd.to_datetime('now').tz_localize(timezone('utc'))
+    # start_tsp = pd.to_datetime(self.last_time_str).tz_localize(timezone('utc'))
+    start_tsp = pd.to_datetime('now').tz_localize(timezone('utc'))
     end_tsp = start_tsp - self.window
 
     ## get_valid_enc_ids. See function for exclusion details.
@@ -365,11 +384,17 @@ class ed_metrics(metric):
     #ipdb.set_trace()
 
     ## Number of people who meet SIRS criteria during first 3 hours of ED presentation.
-    window = timedelta(minutes=3*60)
+    # window = timedelta(minutes=3*60)
     ed = care_unit_df.loc[care_unit_df['care_unit'] == 'HCGH EMERGENCY-ADULTS']
-    ed['duration'] = ed.apply(lambda x: x[-1] - x[1], axis=1)
-    ed = ed.loc[ed['duration'] >= window]
-    ed['window_end'] = ed.apply(lambda x, w=window: x[1] + w, axis=1)
+    tmp_df = ed.groupby('enc_id', as_index=False).agg({'enter_time':min, 'leave_time':max})
+    tmp_df['duration'] = (tmp_df['leave_time'] - tmp_df['enter_time'])/pd.to_timedelta('1min')
+    tmp_df.rename(columns={'enter_time':'window_end'}, inplace=True)
+    ed = pd.merge(ed, tmp_df[['enc_id', 'duration', 'window_end']], how='inner', on='enc_id')
+    ed['window_end'] = ed['window_end'] + pd.to_timedelta(3*60, unit='m')
+
+    #ed['duration'] = ed.apply(lambda x: x[-1] - x[1], axis=1)
+    # ed = ed.loc[ed['duration'] >= window]
+    # ed['window_end'] = ed.apply(lambda x, w=window: x[1] + w, axis=1)
     # No need to make ed admits unique if the durations are already longer than 3 hours.
     #ed = ed.loc[ed.index.isin(ed.groupby('enc_id', as_index=False)['enter_time'].idxmin())]
 
