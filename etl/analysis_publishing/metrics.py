@@ -132,8 +132,8 @@ class ed_metrics(metric):
       care_unit_df.loc[idx_max, 'leave_time'] = care_unit_df.loc[idx_max, 'max_tsp'] + pd.to_timedelta('1min')
       care_unit_df.drop(['min_tsp', 'max_tsp'], axis=1, inplace=True)
 
-      care_unit_df['leave_time'] = pd.to_datetime(care_unit_df['leave_time'], utc=True)
-      #care_unit_df['leave_time'] = pd.to_datetime(care_unit_df['leave_time']).dt.tz_localize(timezone('utc'))
+      #care_unit_df['leave_time'] = pd.to_datetime(care_unit_df['leave_time'], utc=True)
+      care_unit_df['leave_time'] = pd.to_datetime(care_unit_df['leave_time']).dt.tz_localize(timezone('utc'))
       #care_unit_df['leave_time'] = pd.to_datetime(care_unit_df['leave_time']).dt.tz_convert(timezone('utc'))
       # care_unit_df = cdmt_df.loc[cdmt_df['fid']=='care_unit', ['enc_id', 'tsp', 'value']].copy()
       # care_unit_df = care_unit_df.sort_values(by=['enc_id', 'tsp'])
