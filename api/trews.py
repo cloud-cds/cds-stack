@@ -176,6 +176,7 @@ class TREWSStaticResource(web.View):
       custom_antibiotics = bmc_jhh_ed_antibiotics if dep == 'ED' else bmc_jhh_antibiotics
 
     elif loc == 'HCGH':
+      KEYS['lactate'] = '6' if dep == 'ED' else '2'
       KEYS['antibiotics'] = '14' if dep == 'ED' else '3'
       KEYS['vasopressors'] = '7'
 
