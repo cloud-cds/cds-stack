@@ -626,3 +626,11 @@ CREATE TABLE sep2_suspicion_of_infection(
     wbc_sirs         integer,
     temperature_sirs integer
 );
+
+DROP TABLE IF EXISTS etl_job;
+CREATE TABLE etl_job(
+    serial_id       serial primary key,
+    job_id          text,
+    tsp             timestamptz,
+    hospital        text
+);
