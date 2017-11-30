@@ -227,11 +227,12 @@ class JHAPIConfig:
     } for _, pat in beddedpatients.iterrows()]
     responses = self.make_requests(ctxt, resource, payloads, 'POST', server_type='epic')
     for r in responses:
-      raw_items = r['Items'][0]
-      new_items = '[' + ','.join(["{{\"reason\" : \"{}\"}}".format(reason) for reason in [item['Value'] for item in raw_items['Lines'] if item['LineNumber'] > 0]]) + ']'
-      r['Items'] = new_items
-      r['RecordIDs'] = None
-      r['ContactIDs'] = [id for id in r['ContactIDs'] if id['Type'] == 'CSN']
+      if r:
+        raw_items = r['Items'][0]
+        new_items = '[' + ','.join(["{{\"reason\" : \"{}\"}}".format(reason) for reason in [item['Value'] for item in raw_items['Lines'] if item['LineNumber'] > 0]]) + ']'
+        r['Items'] = new_items
+        r['RecordIDs'] = None
+        r['ContactIDs'] = [id for id in r['ContactIDs'] if id['Type'] == 'CSN']
     dfs = [pd.DataFrame(r) for r in responses]
     df = self.combine(dfs, beddedpatients[['pat_id', 'visit_id']])
     return df
