@@ -10,7 +10,7 @@ var service = {
     EventService : {
         EventPort : {
             ProcessEvent:function(args){
-                console.log(args);
+                console.log(JSON.stringify(args));
                 return {};
             }
         }
