@@ -531,3 +531,39 @@ resource "aws_cloudwatch_metric_alarm" "trews_alert_count_8hr" {
     analysis = "opsdx-jh-prod"
   }
 }
+
+resource "aws_cloudwatch_metric_alarm" "epic_push_notification_failure" {
+  alarm_name                = "${var.deploy_prefix}-prod-epic-push-notification-failure"
+  comparison_operator       = "GreaterThanOrEqualToThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "FSPushCountFailures"
+  namespace                 = "OpsDX"
+  period                    = "3600"
+  statistic                 = "Minimum"
+  threshold                 = "1"
+  alarm_description         = "The number of notification counts failed to push to Epic"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    API = "opsdx-prod"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "epic_push_notification_success" {
+  alarm_name                = "${var.deploy_prefix}-prod-epic-push-notification-success"
+  comparison_operator       = "LessThanOrEqualToThreshold"
+  evaluation_periods        = "8"
+  metric_name               = "FSPushCountFailures"
+  namespace                 = "OpsDX"
+  period                    = "3600"
+  statistic                 = "Minimum"
+  threshold                 = "0"
+  alarm_description         = "The number of notification counts succeed to push to Epic"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    API = "opsdx-prod"
+  }
+}
