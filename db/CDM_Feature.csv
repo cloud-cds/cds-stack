@@ -93,7 +93,7 @@ cephalosporins_1st_gen_dose_order,T,String,yes,no,,,,,Medication Orders,1,no uni
 cephalosporins_2nd_gen_dose,T,JSON,yes,no,,,,,Medication,1,TBD
 cephalosporins_2nd_gen_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 chest_xray,T,Boolean,yes,no,,,,,"Procedure, true if chest x-ray performed",1,
-chief_complaint,T,JSON,yes,no,,,,,chief complaint,1,no unit
+chief_complaint,S,JSON,yes,no,,,,,chief complaint,1,no unit
 chloride,TWF,Real,yes,no,last_value_in_window,28,,,Physiologic,1,mg/dL
 chronic_airway_obstruction_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
 chronic_airway_obstruction_hist,S,Boolean,yes,no,,,,,History,1,no unit
