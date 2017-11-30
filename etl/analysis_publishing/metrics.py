@@ -321,13 +321,14 @@ class ed_metrics(metric):
 
     ## Get all patients that have no action taken despite TREWS alert.
     states_after_first_alert = merged_df[['enc_id', 'update_date', 'flag']]
-    states_after_first_alert = pd.merge(states_after_first_alert, first_alerts, how='left')
+    states_after_first_alert = pd.merge(states_after_first_alert, first_alerts[['enc_id','1st_alert_date']], how='left')
     
     ## Could be that update date is the first alert date since cdm_t only tracks when something happens.
     states_after_first_alert = states_after_first_alert.loc[states_after_first_alert['update_date'] >= states_after_first_alert['1st_alert_date']]
-    states_after_first_alert = states_after_first_alert.loc[states_after_first_alert['flag'] <= 11]
-    metric_16 = states_after_first_alert['enc_id'].nunique()
-
+    states_after_first_alert['action'] = states_after_first_alert['flag'] > 11
+    states_after_first_alert = states_after_first_alert.groupby('enc_id', as_index=False)['action'].aggregate(np.sum)
+    metric_16 = states_after_first_alert.loc[states_after_first_alert['action'] == 0].shape[0]
+    
     ## min, max, median time from alert to evaluation
     # Only considered eval-ed if SOI is_met is also true
     evals = merged_df.loc[(merged_df['name'] == 'suspicion_of_infection') & (merged_df['is_met'] == True)]
