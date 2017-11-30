@@ -222,7 +222,8 @@ class ed_metrics(metric):
       return result[metric]
 
     ## Get all patients that have a TREWS alert in their history
-    metric_2 = search_history_flags('TREWS_alert', [10,11])
+    alert_flags = [10,11]
+    metric_2 = search_history_flags('TREWS_alert', alert_flags)
 
     ## Metrics 3,4,5,6 need code sepsis data
     metric_3 = None
@@ -231,7 +232,8 @@ class ed_metrics(metric):
     metric_6 = None
 
     ## Get all patients that have a manual override in their history
-    metric_7 = search_history_flags('has_manual_override', [50])
+    override_flags = range(50,67)
+    metric_7 = search_history_flags('has_manual_override', override_flags)
 
     ## get trews_model_id
     model_id_query = "select value from trews_parameters where name='trews_jit_model_id';"
@@ -252,7 +254,7 @@ class ed_metrics(metric):
     trews_jit_df = trews_jit_df.loc[trews_jit_df['jit_alert'] == 1]
 
     # Select manual overrides
-    override_flags = [50]
+
     first_override_indices = merged_df.loc[merged_df['flag'].isin(override_flags)].groupby('enc_id', as_index=False)['update_date'].idxmin()
     first_override = merged_df.loc[merged_df.index.isin(first_override_indices)]
 
@@ -282,7 +284,7 @@ class ed_metrics(metric):
         #  earliest_date = False
         return earliest_date
 
-    alert_flags = [10,11]
+
     first_alert_indices = merged_df.loc[merged_df['flag'].isin(alert_flags)].groupby('enc_id', as_index=False)['update_date'].idxmin()
     first_alerts = merged_df.loc[merged_df.index.isin(first_alert_indices)]
     first_alerts = first_alerts.rename(columns = {'update_date':'1st_alert_date'})
@@ -321,13 +323,14 @@ class ed_metrics(metric):
 
     ## Get all patients that have no action taken despite TREWS alert.
     states_after_first_alert = merged_df[['enc_id', 'update_date', 'flag']]
-    states_after_first_alert = pd.merge(states_after_first_alert, first_alerts, how='left')
+    states_after_first_alert = pd.merge(states_after_first_alert, first_alerts[['enc_id','1st_alert_date']], how='left')
     
     ## Could be that update date is the first alert date since cdm_t only tracks when something happens.
     states_after_first_alert = states_after_first_alert.loc[states_after_first_alert['update_date'] >= states_after_first_alert['1st_alert_date']]
-    states_after_first_alert = states_after_first_alert.loc[states_after_first_alert['flag'] <= 11]
-    metric_16 = states_after_first_alert['enc_id'].nunique()
-
+    states_after_first_alert['action'] = states_after_first_alert['flag'] > 11
+    states_after_first_alert = states_after_first_alert.groupby('enc_id', as_index=False)['action'].aggregate(np.sum)
+    metric_16 = states_after_first_alert.loc[states_after_first_alert['action'] == 0].shape[0]
+    
     ## min, max, median time from alert to evaluation
     # Only considered eval-ed if SOI is_met is also true
     evals = merged_df.loc[(merged_df['name'] == 'suspicion_of_infection') & (merged_df['is_met'] == True)]
