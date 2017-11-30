@@ -28,6 +28,7 @@ class JHAPIConfig:
       raise ValueError("Incorrect server provided")
     if int(lookback_hours) > 72:
       raise ValueError("Lookback hours must be less than 72 hours")
+    self.jhapi_server = jhapi_server
     self.server = servers[jhapi_server]
     self.hospital = hospital
     self.lookback_hours = int(lookback_hours)
@@ -46,9 +47,10 @@ class JHAPIConfig:
 
 
 
-  def make_requests(self, ctxt, endpoint, payloads, http_method='GET', url_type=None):
+  def make_requests(self, ctxt, endpoint, payloads, http_method='GET', url_type=None, server_type='internal'):
     # Define variables
-    url = "{}{}".format(self.server, endpoint)
+    server = self.server if server_type == 'internal' else servers['{}-{}'.format(self.jhapi_server, server_type)]
+    url = "{}{}".format(server, endpoint)
     request_settings = self.generate_request_settings(http_method, url, payloads, url_type)
     semaphore = asyncio.Semaphore(ctxt.flags.JHAPI_SEMAPHORE, loop=ctxt.loop)
     base = ctxt.flags.JHAPI_BACKOFF_BASE
@@ -201,7 +203,38 @@ class JHAPIConfig:
       ed_patients.loc[ed_patients.pat_id == pat_id,'gender'] = gender
     return ed_patients
 
-
+  def extract_chiefcomplaint(self, ctxt, beddedpatients):
+    resource = '/patients/getdata/chiefcomplaint'
+    payloads = [{
+      "ContactID": {
+        "ID": pat['visit_id'],
+        "Type": "CSN"
+      },
+      "DataFormat": None,
+      "Items": [
+        {
+          "ItemNumber": "18100",
+          "LineRange": {
+            "From": 1,
+            "To": 10
+          }
+        }
+      ],
+      "RecordID": {
+        "ID": pat['pat_id'],
+        "Type":"EMRN"
+      }
+    } for _, pat in beddedpatients.iterrows()]
+    responses = self.make_requests(ctxt, resource, payloads, 'POST', server_type='epic')
+    for r in responses:
+      raw_items = r['Items'][0]
+      new_items = '[' + ','.join(["{{\"reason\" : \"{}\"}}".format(reason) for reason in [item['Value'] for item in raw_items['Lines'] if item['LineNumber'] > 0]]) + ']'
+      r['Items'] = new_items
+      r['RecordIDs'] = None
+      r['ContactIDs'] = [id for id in r['ContactIDs'] if id['Type'] == 'CSN']
+    dfs = [pd.DataFrame(r) for r in responses]
+    df = self.combine(dfs, beddedpatients[['pat_id', 'visit_id']])
+    return df
 
   def extract_flowsheets(self, ctxt, bedded_patients):
     resource = '/patients/flowsheetrows'
@@ -324,8 +357,9 @@ class JHAPIConfig:
     logging.info('#NOTES RESPONSES: %s' % len(responses))
     dfs = [pd.DataFrame(r['DocumentListData'] if r else None) for r in responses]
     df = self.combine(dfs, bedded_patients[['pat_id']])
-    not_empty_idx = df.Key.str.len() > 0
-    df = df[not_empty_idx].reset_index()
+    if not df.empty:
+      not_empty_idx = df.Key.str.len() > 0
+      df = df[not_empty_idx].reset_index()
     return df
 
 

@@ -38,6 +38,14 @@ ed_patients_transforms = [
     lambda bp: restructure.extract_id_from_list(bp, 'pat_id', 'EMRN')
 ]
 
+chiefcomplaint_transforms = [
+    lambda cc: restructure.select_columns(cc, {
+        'pat_id':   'pat_id',
+        'visit_id': 'visit_id',
+        'Items':    'value'
+    }),
+]
+
 flowsheet_transforms = [
     lambda fs: restructure.select_columns(fs, {
         'pat_id':           'pat_id',
