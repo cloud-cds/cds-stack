@@ -44,7 +44,7 @@ class ed_metrics(metric):
   
   def __init__(self, connection, first_time_str, last_time_str):
     super().__init__(connection, first_time_str, last_time_str)
-    self.name = 'ed_metrics'
+    self.name = 'Emergency Department Metrics'
     self.window = timedelta(days=2)
     #self.window = timedelta(days=7) ## For debugging only
     self.connection = connection
@@ -172,9 +172,14 @@ class ed_metrics(metric):
 
     # Use timestamp of when script is run. Can potentially hardcode instead but should be okay if running as CRON job.
     start_tsp = pd.to_datetime(self.last_time_str).tz_localize(timezone('utc'))
+
     #start_tsp = pd.to_datetime('now').tz_localize(timezone('utc'))
     end_tsp = start_tsp - self.window
-    
+
+    # For generating HTML only
+    self.report_start = str(end_tsp)
+    self.report_end = str(start_tsp)
+
     ## get_valid_enc_ids. See function for exclusion details.
     valid_enc_ids = self.get_enc_ids(end_tsp)
 
@@ -432,7 +437,8 @@ class ed_metrics(metric):
     self.metrics_DF = pd.DataFrame({'Metrics': allDesc, 'Values': allMetrics})
 
   def to_html(self):
-    txt = "<h3>Emergency Department Metrics</h3>"
+    txt = 'The following report covers times between {s} and {e}'.format(s=self.report_start, e=self.report_end)
+    #txt = "<h3>Emergency Department Metrics</h3>"
     txt += self.metrics_DF.to_html()
     return txt
 
