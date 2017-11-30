@@ -265,12 +265,9 @@ class ed_metrics(metric):
       earliest_jit_alert = override_with_scores.groupby('enc_id', as_index=False)['tsp'].idxmin()
       override_with_scores = override_with_scores.loc[override_with_scores.index.isin(earliest_jit_alert)]
       override_with_scores['delta'] = (override_with_scores['tsp'] - override_with_scores['update_date']) / pd.to_timedelta('1hr')
-      #override_with_scores['delta'] = override_with_scores.apply(lambda x: x[-2] - x[9], axis=1) ##TODO: Adjust the column access
 
       metric_8 = override_with_scores['enc_id'].nunique()
       metric_9 = override_with_scores['delta'].median() # Can access this column for the metric but for now just print median
-
-    ## metrics 10,11,12,13 need cdm_t fids. No join.
 
     # apply function for fetching most recent order.
     def search_cdm_t(merged_df_row, order):
@@ -288,7 +285,7 @@ class ed_metrics(metric):
     alert_flags = [10,11]
     first_alert_indices = merged_df.loc[merged_df['flag'].isin(alert_flags)].groupby('enc_id', as_index=False)['update_date'].idxmin()
     first_alerts = merged_df.loc[merged_df.index.isin(first_alert_indices)]
-
+    first_alerts = first_alerts.rename(columns = {'update_date':'1st_alert_date'})
     # Number of patients that are ordered Antibioitics after an alert
     first_alerts['1st_abx_date'] = first_alerts.apply(search_cdm_t, order='cms_antibiotics_order', axis=1)
     metric_10 = first_alerts.shape[0] - first_alerts.loc[first_alerts['1st_abx_date'] == False].shape[0]
@@ -323,41 +320,14 @@ class ed_metrics(metric):
     metric_15 = search_history_flags('on_sepsis_path', range(20,67))
 
     ## Get all patients that have no action taken despite TREWS alert.
-
-    def get_most_recent_alert(row):
-      order_dates = merged_df.loc[(merged_df['enc_id'] == row['enc_id']) & (merged_df['flag'].isin(alert_flags))]['update_date']
-      if order_dates.empty:
-        return False
-      else:
-        latest_id = order_dates.idxmax()
-        latest_date = merged_df.ix[latest_id]['update_date']
-        return latest_date
-
-    def compute_no_action(row):
-      latest_date = get_most_recent_alert(row)
-      if type(latest_date) != 'Timestamp':
-        return False
-      if row['update_date'] > latest_date and row['flag'] <= 11:
-        return True
-      else:
-        return False
-
+    states_after_first_alert = merged_df[['enc_id', 'update_date', 'flag']]
+    states_after_first_alert = pd.merge(states_after_first_alert, first_alerts, how='left')
     
-    #first_alerts['latest_alert'] = merged_df.apply(get_most_recent_alert, axis=1)
+    ## Could be that update date is the first alert date since cdm_t only tracks when something happens.
+    states_after_first_alert = states_after_first_alert.loc[states_after_first_alert['update_date'] >= states_after_first_alert['1st_alert_date']]
+    states_after_first_alert = states_after_first_alert.loc[states_after_first_alert['flag'] <= 11]
+    metric_16 = states_after_first_alert['enc_id'].nunique()
 
-    #merged_df['latest_alert'] = merged_df.apply()
-
-    ## WARNING: Currently slow implementation due to inefficient subsetting for most recent_alert. In future, will pre-compute most recent alert and store somewhere.
-    merged_df['no_action'] = merged_df.apply(compute_no_action, axis=1)
-    metric_16 = merged_df[['enc_id', 'no_action']].groupby('enc_id').aggregate(np.sum)
-    metric_16 = metric_16.loc[metric_16['no_action'] == 0].sum()
-    metric_16 = metric_16['no_action']
-    """
-    merged_df['metric_16'] = merged_df.apply(lambda x: x[1] and not x[-1], axis=1) #Must have an alert and no action (metric_15)
-    metric_16 = merged_df[['enc_id', 'metric_16']].groupby('enc_id').aggregate(np.sum)
-    metric_16 = metric_16.loc[metric_16['metric_16'] > 0].count()
-    metric_16 = metric_16['metric_16']
-    """
     ## min, max, median time from alert to evaluation
     # Only considered eval-ed if SOI is_met is also true
     evals = merged_df.loc[(merged_df['name'] == 'suspicion_of_infection') & (merged_df['is_met'] == True)]
@@ -373,7 +343,7 @@ class ed_metrics(metric):
       metric_17_median = None
     else:
       first_alerts = pd.merge(first_alerts, first_evals, how='left', on=['enc_id']) ## Not every alert had an eval
-      first_alerts['delta'] = (first_alerts['first_eval'] - first_alerts['update_date']) / pd.to_timedelta('1hr')
+      first_alerts['delta'] = (first_alerts['first_eval'] - first_alerts['1st_alert_date']) / pd.to_timedelta('1hr')
       metric_17_min = first_alerts['delta'].min()
       metric_17_max = first_alerts['delta'].max()
       metric_17_median = first_alerts['delta'].median()
@@ -394,17 +364,12 @@ class ed_metrics(metric):
     ed = pd.merge(ed, tmp_df[['enc_id', 'duration', 'window_end']], how='inner', on='enc_id')
     ed['window_end'] = ed['window_end'] + pd.to_timedelta(3*60, unit='m')
 
-    #ed['duration'] = ed.apply(lambda x: x[-1] - x[1], axis=1)
-    # ed = ed.loc[ed['duration'] >= window]
-    # ed['window_end'] = ed.apply(lambda x, w=window: x[1] + w, axis=1)
-    # No need to make ed admits unique if the durations are already longer than 3 hours.
-    #ed = ed.loc[ed.index.isin(ed.groupby('enc_id', as_index=False)['enter_time'].idxmin())]
-
+    ## Import cdm_twf table for SIRS criterias
     cdm_twf = self.get_cdm_twf_df(valid_enc_ids, deploy_tsp)
     ed_with_SIRS = pd.merge(ed, cdm_twf, how='left', on=['enc_id'])
     # Cut out entries where tsp of SIRS measurement not within ED admit to end of 3 hr window
     ed_with_SIRS = ed_with_SIRS.loc[(ed_with_SIRS['tsp'] >= ed_with_SIRS['enter_time']) & (ed_with_SIRS['tsp'] < ed_with_SIRS['window_end'])]
-    
+    ## Evaluate how many times >= 2 SIRS criteria were met
     ed_with_SIRS['met_criteria'] = ed_with_SIRS.apply(lambda x: True if x['sirs_resp_oor'] + x['sirs_hr_oor'] + x['sirs_wbc_oor'] + x['sirs_temperature_oor'] >= 2 else False, axis=1)
     ed_met_SIRS = ed_with_SIRS[['enc_id','met_criteria']].groupby('enc_id').aggregate(np.sum)
     metric_20 = ed_met_SIRS.loc[ed_met_SIRS['met_criteria'] > 0].count()
@@ -437,7 +402,7 @@ class ed_metrics(metric):
     self.metrics_DF = pd.DataFrame({'Metrics': allDesc, 'Values': allMetrics})
 
   def to_html(self):
-    txt = 'The following report covers times between {s} and {e}'.format(s=self.report_start, e=self.report_end)
+    txt = 'This section of the report covers times between {s} and {e}'.format(s=self.report_start, e=self.report_end)
     #txt = "<h3>Emergency Department Metrics</h3>"
     txt += self.metrics_DF.to_html()
     return txt
