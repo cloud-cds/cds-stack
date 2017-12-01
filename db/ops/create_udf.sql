@@ -4520,7 +4520,13 @@ ORDER BY now() - value::timestamptz
 create or replace function workspace_to_cdm(job_id text)
 returns void as $func$ BEGIN
 execute
-'--insert_new_patients
+'--insert new jobs
+insert into etl_job (job_id, tsp, hospital)
+    values (''' || job_id ||''',
+            to_timestamp(''' || split_part(job_id, '_', 4) || ''', ''YYYYMMDDHH24MISS''),
+            ''' || split_part(job_id, '_', 3) || ''');
+
+--insert_new_patients
 insert into pat_enc (pat_id, visit_id)
 select bp.pat_id, bp.visit_id
 from workspace.' || job_id || '_bedded_patients_transformed bp

@@ -327,7 +327,10 @@ class JHAPIConfig:
 
     responses = self.make_requests(ctxt, resource, payloads, 'GET')
     dfs = [pd.DataFrame(r) for r in responses]
-    return self.combine(dfs, bedded_patients[['pat_id', 'visit_id']])
+    half = len(dfs)//2
+    med_ip = self.combine(dfs[:half], bedded_patients[['pat_id', 'visit_id']])
+    med_op = self.combine(dfs[half:], bedded_patients[['pat_id', 'visit_id']])
+    return pd.concat([med_ip, med_op]).reset_index(drop=True)
 
 
   def extract_med_admin(self, ctxt, med_orders):
