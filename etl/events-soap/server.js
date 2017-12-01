@@ -15,7 +15,7 @@ var service = {
                 var request = require('request');
 
                 var options = {
-                  uri: 'https://trews-dev.jh.opsdx.io/event',
+                  uri: 'https://event-dev.jh.opsdx.io',
                   method: 'POST',
                   json: args
                 };
