@@ -177,8 +177,8 @@ class ed_metrics(metric):
     end_tsp = start_tsp - self.window
 
     # For generating HTML only
-    self.report_start = str(end_tsp)
-    self.report_end = str(start_tsp)
+    self.report_start = end_tsp.strftime('%x %X %Z')
+    self.report_end = start_tsp.strftime('%x %X %Z')
 
     ## get_valid_enc_ids. See function for exclusion details.
     valid_enc_ids = self.get_enc_ids(end_tsp)
@@ -210,7 +210,7 @@ class ed_metrics(metric):
     merged_df = merged_df.loc[merged_df.care_unit == 'HCGH EMERGENCY-ADULTS'] ## Check that the name is correct
 
     # Metric 1: Total number of people in ED
-    metric_1 = care_unit_df.loc[care_unit_df['care_unit'] == 'HCGH EMERGENCY-ADULTS']['enc_id'].nunique() 
+    metric_1 = str(care_unit_df.loc[care_unit_df['care_unit'] == 'HCGH EMERGENCY-ADULTS']['enc_id'].nunique())
 
     ## Use merged_df from now on since almost all metrics are for patients that have some TREWS alert
     merged_df['flag'] = merged_df['flag'].apply(lambda x: x + 1000 if x < 0 else x) ## Want to see history
@@ -223,7 +223,7 @@ class ed_metrics(metric):
 
     ## Get all patients that have a TREWS alert in their history
     alert_flags = [10,11]
-    metric_2 = search_history_flags('TREWS_alert', alert_flags)
+    metric_2 = str(search_history_flags('TREWS_alert', alert_flags))
 
     ## Metrics 3,4,5,6 need code sepsis data
     metric_3 = None
@@ -233,7 +233,7 @@ class ed_metrics(metric):
 
     ## Get all patients that have a manual override in their history
     override_flags = range(50,67)
-    metric_7 = search_history_flags('has_manual_override', override_flags)
+    metric_7 = str(search_history_flags('has_manual_override', override_flags))
 
     ## get trews_model_id
     model_id_query = "select value from trews_parameters where name='trews_jit_model_id';"
@@ -259,8 +259,8 @@ class ed_metrics(metric):
     first_override = merged_df.loc[merged_df.index.isin(first_override_indices)]
 
     if first_override.empty:
-      metric_8 = 0
-      metric_9 = None
+      metric_8 = str(0)
+      metric_9 = str(None)
     else:
       override_with_scores = pd.merge(first_override, trews_jit_df, how='inner', on=['enc_id'])
       override_with_scores = override_with_scores.loc[override_with_scores['tsp'] >= override_with_scores['update_date']]
@@ -268,8 +268,8 @@ class ed_metrics(metric):
       override_with_scores = override_with_scores.loc[override_with_scores.index.isin(earliest_jit_alert)]
       override_with_scores['delta'] = (override_with_scores['tsp'] - override_with_scores['update_date']) / pd.to_timedelta('1hr')
 
-      metric_8 = override_with_scores['enc_id'].nunique()
-      metric_9 = override_with_scores['delta'].median() # Can access this column for the metric but for now just print median
+      metric_8 = str(override_with_scores['enc_id'].nunique())
+      metric_9 = '{0:.3f}'.format(override_with_scores['delta'].median()) # Can access this column for the metrbic but for now just print median
 
     # apply function for fetching most recent order.
     def search_cdm_t(merged_df_row, order):
@@ -290,15 +290,15 @@ class ed_metrics(metric):
     first_alerts = first_alerts.rename(columns = {'update_date':'1st_alert_date'})
     # Number of patients that are ordered Antibioitics after an alert
     first_alerts['1st_abx_date'] = first_alerts.apply(search_cdm_t, order='cms_antibiotics_order', axis=1)
-    metric_10 = first_alerts.shape[0] - first_alerts.loc[first_alerts['1st_abx_date'] == False].shape[0]
+    metric_10 = str(first_alerts.shape[0] - first_alerts.loc[first_alerts['1st_abx_date'] == False].shape[0])
 
     # Number of patients that are ordered blood culture after an alert
     first_alerts['1st_blood_culture_date'] = first_alerts.apply(search_cdm_t, order='blood_culture_order',axis=1)
-    metric_11 = first_alerts.shape[0] - first_alerts.loc[first_alerts['1st_blood_culture_date'] == False].shape[0]
+    metric_11 = str(first_alerts.shape[0] - first_alerts.loc[first_alerts['1st_blood_culture_date'] == False].shape[0])
 
     # Number of patients that receive lactate after an alert
     first_alerts['1st_lactate_date'] = first_alerts.apply(search_cdm_t, order='lactate_order',axis=1)
-    metric_12 = first_alerts.shape[0] - first_alerts.loc[first_alerts['1st_lactate_date'] == False].shape[0]
+    metric_12 = str(first_alerts.shape[0] - first_alerts.loc[first_alerts['1st_lactate_date'] == False].shape[0])
 
     # Number of patients that received a second lactate after an alert
     def search_second_lactate(merged_df_row):
@@ -313,13 +313,13 @@ class ed_metrics(metric):
           return ordered_dates[1] ## Second lactate order
 
     first_alerts['2nd_lactate_date'] = first_alerts.apply(search_second_lactate, axis=1)
-    metric_13 = first_alerts.shape[0] - first_alerts.loc[first_alerts['2nd_lactate_date'] == False].shape[0]
+    metric_13 = str(first_alerts.shape[0] - first_alerts.loc[first_alerts['2nd_lactate_date'] == False].shape[0])
 
     ## Get all patients that have no infection recorded in their history
-    metric_14 = search_history_flags('no_SOI_entered', [12,13])
+    metric_14 = str(search_history_flags('no_SOI_entered', [12,13]))
 
     ## Get all patients that have been placed on sepsis pathway
-    metric_15 = search_history_flags('on_sepsis_path', range(20,67))
+    metric_15 = str(search_history_flags('on_sepsis_path', range(20,67)))
 
     ## Get all patients that have no action taken despite TREWS alert.
     states_after_first_alert = merged_df[['enc_id', 'update_date', 'flag']]
@@ -329,8 +329,8 @@ class ed_metrics(metric):
     states_after_first_alert = states_after_first_alert.loc[states_after_first_alert['update_date'] >= states_after_first_alert['1st_alert_date']]
     states_after_first_alert['action'] = states_after_first_alert['flag'] > 11
     states_after_first_alert = states_after_first_alert.groupby('enc_id', as_index=False)['action'].aggregate(np.sum)
-    metric_16 = states_after_first_alert.loc[states_after_first_alert['action'] == 0].shape[0]
-    
+    metric_16 = str(states_after_first_alert.loc[states_after_first_alert['action'] == 0].shape[0])
+
     ## min, max, median time from alert to evaluation
     # Only considered eval-ed if SOI is_met is also true
     evals = merged_df.loc[(merged_df['name'] == 'suspicion_of_infection') & (merged_df['is_met'] == True)]
@@ -341,23 +341,23 @@ class ed_metrics(metric):
 
     ## If there are no evaluations, then report None for time from alert to eval.
     if first_evals.empty:
-      metric_17_min = None
-      metric_17_max = None
-      metric_17_median = None
+      metric_17_min = str(None)
+      metric_17_max = str(None)
+      metric_17_median = str(None)
     else:
       first_alerts = pd.merge(first_alerts, first_evals, how='left', on=['enc_id']) ## Not every alert had an eval
       first_alerts['delta'] = (first_alerts['first_eval'] - first_alerts['1st_alert_date']) / pd.to_timedelta('1hr')
-      metric_17_min = first_alerts['delta'].min()
-      metric_17_max = first_alerts['delta'].max()
-      metric_17_median = first_alerts['delta'].median()
+      metric_17_min = '{0:.3f}'.format(first_alerts['delta'].min())
+      metric_17_max = '{0:.3f}'.format(first_alerts['delta'].max())
+      metric_17_median = '{0:.3f}'.format(first_alerts['delta'].median())
 
     ## Get all patients that have a completed bundle
     completed_bundles = [21,23,26,28,31, 33, 35, 41, 43, 45, 51, 53, 61, 63, 65]
-    metric_18 = search_history_flags('completed_bundle', completed_bundles)
+    metric_18 = str(search_history_flags('completed_bundle', completed_bundles))
 
     ## Get all patients that have an incomplete bundle
     expired_bundles = [22, 24, 27, 29, 32, 34, 36, 42, 44, 46, 52, 54, 62, 64, 66]
-    metric_19 = search_history_flags('expired_bundle', expired_bundles)
+    metric_19 = str(search_history_flags('expired_bundle', expired_bundles))
 
     ## Number of people who meet SIRS criteria during first 3 hours of ED presentation.
     ed = care_unit_df.loc[care_unit_df['care_unit'] == 'HCGH EMERGENCY-ADULTS']
@@ -376,7 +376,7 @@ class ed_metrics(metric):
     ed_with_SIRS['met_criteria'] = ed_with_SIRS.apply(lambda x: True if x['sirs_resp_oor'] + x['sirs_hr_oor'] + x['sirs_wbc_oor'] + x['sirs_temperature_oor'] >= 2 else False, axis=1)
     ed_met_SIRS = ed_with_SIRS[['enc_id','met_criteria']].groupby('enc_id').aggregate(np.sum)
     metric_20 = ed_met_SIRS.loc[ed_met_SIRS['met_criteria'] > 0].count()
-    metric_20 = metric_20['met_criteria']
+    metric_20 = str(metric_20['met_criteria'])
 
     allMetrics = [metric_1, metric_2, metric_7, metric_8, metric_9, metric_10, metric_11, metric_12, metric_13, metric_14, metric_15, metric_16, metric_17_min, metric_17_max, metric_17_median, metric_18, metric_19, metric_20]
     desc1 = 'Total ED patients'
