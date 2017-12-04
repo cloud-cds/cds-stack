@@ -173,6 +173,8 @@ etomidate_dose,T,JSON,yes,no,,,,,Medication,1,mg
 fio2,TWF,Real,yes,no,last_value_in_window,28,,,Physiologic,1,%
 fludrocortisone_dose,T,JSON,yes,no,,,,,Medication,1,
 fluid_resuscitation,TWF,Boolean,no,no,,,fluid_resuscitation_update,"fluids_intake_3hr,weight",,1,no unit
+hetastarch,T,Real,yes,no,,,,,hetastarch,1,ml
+hetastarch_order,T,JSON,yes,no,,,,,Medication Order,1,no unit
 fluids_intake,T,Real,yes,no,,,,,all fluids intake,1,ml
 fluids_intake_1hr,TWF,Real,no,no,,,fluids_intake_1hr,fluids_intake,,1,ml
 fluids_intake_24hr,TWF,Real,no,no,,,fluids_intake_24hr,fluids_intake,,1,ml
