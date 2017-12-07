@@ -6,6 +6,7 @@ from datetime import timedelta
 import numpy as np
 from pytz import timezone
 from collections import OrderedDict
+import ipdb
 
 #---------------------------------
 ## Metric Classes
@@ -93,15 +94,15 @@ class ed_metrics(metric):
       enc_ids = encids_df['enc_id'].as_matrix().astype(int)
       return enc_ids
 
-  ## Currently used to test merge care_unit. Unsure if always necessary
+  ## Modified to remove home medication cases.
   def get_cdmt_df(self, valid_enc_ids):
-
-        ### read cdm_t to get min/max_tsp and build care_unit_df
-        query = """select enc_id, tsp, fid, value from cdm_t where enc_id in ({0})
-                        order by enc_id, tsp""".format(', '.join([str(e) for e in valid_enc_ids]))
-        cdmt_df = pd.read_sql(sqlalchemy.text(query), self.connection, columns=['enc_id', 'tsp', 'fid', 'value'])
-        cdmt_df['tsp'] = pd.to_datetime(cdmt_df['tsp']).dt.tz_convert(timezone('utc'))
-        return cdmt_df
+      
+    ### read cdm_t to get min/max_tsp and build care_unit_df
+    query = """select enc_id, tsp, fid, value from cdm_t where enc_id in ({0})
+               order by enc_id, tsp""".format(', '.join([str(e) for e in valid_enc_ids]))
+    cdmt_df = pd.read_sql(sqlalchemy.text(query), self.connection, columns=['enc_id', 'tsp', 'fid', 'value'])
+    cdmt_df['tsp'] = pd.to_datetime(cdmt_df['tsp']).dt.tz_convert(timezone('utc'))
+    return cdmt_df
 
   def get_criteria_events_df(self, valid_enc_ids, start_date):
     start_date = start_date.round('S') # Match that of the start_date.
@@ -112,6 +113,39 @@ class ed_metrics(metric):
     criteria_events_df = pd.read_sql(sqlalchemy.text(query), self.connection, columns=['event_id', ' enc_id', 'name', 'is_met', 'measurement_time', 'override_time','override_user','override_value','value','update_date', 'flag','is_acute'])
     criteria_events_df['update_date'] = pd.to_datetime(criteria_events_df['update_date']).dt.tz_convert(timezone('utc'))
     return criteria_events_df
+
+
+  ## Modified get_care_unit to remove home med. Also returns update cdmt_df that removes home med entries.
+  def get_care_unit_remove_homeMed(self, cdmt_df):
+
+      care_unit_df = cdmt_df.loc[cdmt_df['fid']=='care_unit', ['enc_id', 'tsp', 'value']].copy()
+      care_unit_df = care_unit_df.sort_values(by=['enc_id', 'tsp'])
+      care_unit_df.rename(columns={'tsp':'enter_time', 'value':'care_unit'}, inplace=True)
+      ## At this point in code, home medication patients have correct time.
+      care_unit_df['leave_time'] = care_unit_df.groupby('enc_id')['enter_time'].shift(-1)
+      care_unit_df = care_unit_df.loc[care_unit_df['care_unit']!='Discharge']
+
+      ## Find all orders in cdm_t
+      all_orders = cdmt_df.loc[cdmt_df['fid'].str.contains('[a-zA-Z]+_order')]
+      ## Now need to groupby for first admission for each patient.
+      first_admits = care_unit_df.groupby('enc_id', as_index=False)['enter_time'].idxmin()
+      first_admits = care_unit_df.ix[first_admits]
+      first_admits.rename(columns={'enter_time':'1st_enter_time'}, inplace=True)
+      cdmt_df_no_home_med = pd.merge(cdmt_df, first_admits[['enc_id','1st_enter_time']], how='left', on='enc_id')
+      cdmt_df_no_home_med = cdmt_df_no_home_med.loc[~(cdmt_df['fid'].str.contains('[a-zA-Z]+_order') & (cdmt_df_no_home_med['tsp'] < cdmt_df_no_home_med['1st_enter_time']))]
+            
+      with_care_unit_cdmt = cdmt_df_no_home_med.loc[cdmt_df_no_home_med['enc_id'].isin(care_unit_df['enc_id']), ['enc_id', 'tsp']]
+      max_min_tsp_df = with_care_unit_cdmt.groupby('enc_id', as_index=False)['tsp'].agg({'max_tsp':max, 'min_tsp':min})
+
+      care_unit_df = pd.merge(care_unit_df, max_min_tsp_df, how='left', on='enc_id')
+      idx_max = care_unit_df.groupby('enc_id', as_index=False)['enter_time'].idxmax()
+      idx_min = care_unit_df.groupby('enc_id', as_index=False)['enter_time'].idxmin()
+      care_unit_df.loc[idx_min, 'enter_time'] = care_unit_df.loc[idx_min, 'min_tsp'] - pd.to_timedelta('1min')
+      care_unit_df.loc[idx_max, 'leave_time'] = care_unit_df.loc[idx_max, 'max_tsp'] + pd.to_timedelta('1min')
+      care_unit_df.drop(['min_tsp', 'max_tsp'], axis=1, inplace=True)
+
+      care_unit_df['leave_time'] = pd.to_datetime(care_unit_df['leave_time']).dt.tz_localize(timezone('utc'))
+      return (care_unit_df, cdmt_df_no_home_med)
 
   ## Currently used to test merge care_unit. Should be same as previous code since care_units need to be fetched from cdm_t
   def get_care_unit(self, cdmt_df):
@@ -190,7 +224,8 @@ class ed_metrics(metric):
     cdmt_df = self.get_cdmt_df(valid_enc_ids)
 
     ## Fetch care units using cdmt_df
-    care_unit_df = self.get_care_unit(cdmt_df)
+    #care_unit_df = self.get_care_unit(cdmt_df)
+    care_unit_df, cdmt_df = self.get_care_unit_remove_homeMed(cdmt_df)
 
     def merge_with_care_unit(main_df, care_unit_df=care_unit_df):
       tmp_df = pd.merge(main_df, care_unit_df, how='left', on='enc_id')
@@ -262,7 +297,8 @@ class ed_metrics(metric):
       metric_8 = str(0)
       metric_9 = str(None)
     else:
-      override_with_scores = pd.merge(first_override, trews_jit_df, how='inner', on=['enc_id'])
+      ## Need right join in order to add first_override to every trews_jit_df entry to select for min tsp. Inner will delete.
+      override_with_scores = pd.merge(first_override, trews_jit_df, how='right', on=['enc_id']) 
       override_with_scores = override_with_scores.loc[override_with_scores['tsp'] >= override_with_scores['update_date']]
       earliest_jit_alert = override_with_scores.groupby('enc_id', as_index=False)['tsp'].idxmin()
       override_with_scores = override_with_scores.loc[override_with_scores.index.isin(earliest_jit_alert)]
@@ -270,35 +306,36 @@ class ed_metrics(metric):
 
       metric_8 = str(override_with_scores['enc_id'].nunique())
       metric_9 = '{0:.3f}'.format(override_with_scores['delta'].median()) # Can access this column for the metrbic but for now just print median
-
-    # apply function for fetching most recent order.
-    def search_cdm_t(merged_df_row, order):
-      order_dates = cdmt_df.loc[(cdmt_df['enc_id'] == merged_df_row['enc_id']) & (cdmt_df['fid'] == order)]['tsp'] # Need bitwise operator
-      if order_dates.empty:
-        return False
-      else:
-        earliest_id = order_dates.idxmin()
-        earliest_date = cdmt_df.ix[earliest_id]['tsp']
-        # Currently not enforcing that most recent order must be after first alert.
-        #if earliest_date < merged_df_row[9]:
-        #  earliest_date = False
-        return earliest_date
-
+      
+    ipdb.set_trace()
 
     first_alert_indices = merged_df.loc[merged_df['flag'].isin(alert_flags)].groupby('enc_id', as_index=False)['update_date'].idxmin()
     first_alerts = merged_df.loc[merged_df.index.isin(first_alert_indices)]
     first_alerts = first_alerts.rename(columns = {'update_date':'1st_alert_date'})
+
+    ## Adds columns in first_alert to compute the metrics.
+    def search_cdm_t(order, first_alerts=first_alerts):
+      # col names to appear in first_alerts.
+      min_order = 'min_tsp_{0}'.format(order)
+      max_order = 'max_tsp_{0}'.format(order)
+      order_tsps = (cdmt_df.loc[(cdmt_df['fid'] == order) & 
+                                   (cdmt_df['enc_id'].isin(first_alerts['enc_id']))]
+                       .groupby('enc_id', as_index=False)['tsp']
+                       .aggregate({min_order:min, max_order:max}))
+      first_alerts = pd.merge(first_alerts, order_tsps, on='enc_id', how='left')
+      return first_alerts
+
     # Number of patients that are ordered Antibioitics after an alert
-    first_alerts['1st_abx_date'] = first_alerts.apply(search_cdm_t, order='cms_antibiotics_order', axis=1)
-    metric_10 = str(first_alerts.shape[0] - first_alerts.loc[first_alerts['1st_abx_date'] == False].shape[0])
+    first_alerts = search_cdm_t('cms_antibiotics_order', first_alerts)
+    metric_10 = first_alerts.loc[(first_alerts['min_tsp_cms_antibiotics_order'] > first_alerts['1st_alert_date']), 'enc_id'].nunique()
 
     # Number of patients that are ordered blood culture after an alert
-    first_alerts['1st_blood_culture_date'] = first_alerts.apply(search_cdm_t, order='blood_culture_order',axis=1)
-    metric_11 = str(first_alerts.shape[0] - first_alerts.loc[first_alerts['1st_blood_culture_date'] == False].shape[0])
+    first_alerts = search_cdm_t('blood_culture_order', first_alerts)
+    metric_11 = first_alerts.loc[(first_alerts['min_tsp_blood_culture_order'] > first_alerts['1st_alert_date']), 'enc_id'].nunique()
 
     # Number of patients that receive lactate after an alert
-    first_alerts['1st_lactate_date'] = first_alerts.apply(search_cdm_t, order='lactate_order',axis=1)
-    metric_12 = str(first_alerts.shape[0] - first_alerts.loc[first_alerts['1st_lactate_date'] == False].shape[0])
+    first_alerts = search_cdm_t('lactate_order', first_alerts)
+    metric_12 = first_alerts.loc[(first_alerts['min_tsp_lactate_order'] > first_alerts['1st_alert_date']), 'enc_id'].nunique()
 
     # Number of patients that received a second lactate after an alert
     def search_second_lactate(merged_df_row):
@@ -312,8 +349,12 @@ class ed_metrics(metric):
         else:
           return ordered_dates[1] ## Second lactate order
 
-    first_alerts['2nd_lactate_date'] = first_alerts.apply(search_second_lactate, axis=1)
-    metric_13 = str(first_alerts.shape[0] - first_alerts.loc[first_alerts['2nd_lactate_date'] == False].shape[0])
+    ## Still need to fix metric_13 for repeat lactates
+    #first_alerts['2nd_lactate_date'] = first_alerts.apply(search_second_lactate, axis=1)
+    #metric_13 = str(first_alerts.shape[0] - first_alerts.loc[first_alerts['2nd_lactate_date'] == False].shape[0])
+    metric_13 = metric_12 ## Placeholder for now
+
+    ipdb.set_trace()
 
     ## Get all patients that have no infection recorded in their history
     metric_14 = str(search_history_flags('no_SOI_entered', [12,13]))
@@ -329,7 +370,15 @@ class ed_metrics(metric):
     states_after_first_alert = states_after_first_alert.loc[states_after_first_alert['update_date'] >= states_after_first_alert['1st_alert_date']]
     states_after_first_alert['action'] = states_after_first_alert['flag'] > 11
     states_after_first_alert = states_after_first_alert.groupby('enc_id', as_index=False)['action'].aggregate(np.sum)
-    metric_16 = str(states_after_first_alert.loc[states_after_first_alert['action'] == 0].shape[0])
+    no_action = states_after_first_alert.loc[states_after_first_alert['action'] == 0]
+    metric_16 = str(no_action['enc_id'].nunique())
+
+    four_day_abx = first_alerts.loc[first_alerts['enc_id'].isin(no_action['enc_id'])]
+    four_day_abx['4_day_abx'] = four_day_abx['max_tsp_cms_antibiotics_order'] - four_day_abx['min_tsp_cms_antibiotics_order']
+    four_day_abx['4_day_abx'] = four_day_abx['4_day_abx'] > pd.to_timedelta('4day')
+    metric_21 = str(four_day_abx['4_day_abx'].sum())
+
+    ipdb.set_trace()
 
     ## min, max, median time from alert to evaluation
     # Only considered eval-ed if SOI is_met is also true
