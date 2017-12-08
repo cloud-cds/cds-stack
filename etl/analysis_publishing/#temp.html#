@@ -1,0 +1,157 @@
+<h1>Emergency Department Metrics</h1><p>This section of the report covers times between 12/05/17 19:00:05 UTC and 12/07/17 19:00:05 UTC
+<table border="1" class="dataframe">                                                                                                  
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>Metrics</th>
+      <th>Values</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>Total ED patients</td>
+      <td>619</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td># ED patients with TREWS alert</td>
+      <td>67</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td># times manual override used</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td># manual overrides that later had an alert</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>Median hours from manual override to alert</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td># alerts before antibiotics</td>
+      <td>33</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td># alerts before blood culture</td>
+      <td>15</td>
+    </tr>
+    <tr>
+      <th>7</th>
+      <td># alerts before lactate</td>
+      <td>10</td>
+    </tr>
+    <tr>
+      <th>8</th>
+      <td># alerts before repeat lactate</td>
+      <td>10</td>
+    </tr>
+    <tr>
+      <th>9</th>
+      <td># alerts that have no infection entered</td>
+      <td>7</td>
+    </tr>
+    <tr>
+      <th>10</th>
+      <td># alerts that are put on sepsis pathway</td>
+      <td>11</td>
+    </tr>
+    <tr>
+      <th>11</th>
+      <td># alerts that have no action taken</td>
+      <td>48</td>
+    </tr>
+    <tr>
+      <th>12</th>
+      <td># alerts with no action for &lt; 1hr</td>
+      <td>32</td>
+    </tr>
+    <tr>
+      <th>13</th>
+      <td># alerts with no action for &gt;= 1hr</td>
+      <td>16</td>
+    </tr>
+    <tr>
+      <th>14</th>
+      <td># alerts with no action for &gt;= 2hrs</td>
+      <td>15</td>
+    </tr>
+    <tr>
+      <th>15</th>
+      <td>min hours from alert to evaluation</td>
+      <td>0.112</td>
+    </tr>
+    <tr>
+      <th>16</th>
+      <td>max hours from alert to evaluation</td>
+      <td>2.155</td>
+    </tr>
+    <tr>
+      <th>17</th>
+      <td>median hours from alert to evaluation</td>
+      <td>0.702</td>
+    </tr>
+    <tr>
+      <th>18</th>
+      <td># alerts with complete bundle</td>
+      <td>10</td>
+    </tr>
+    <tr>
+      <th>19</th>
+      <td># alerts with expired bundle</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <th>20</th>
+      <td># ED patients with SIRS within first 3 hours</td>
+      <td>94</td>
+    </tr>
+    <tr>
+      <th>21</th>
+      <td># alerts that had 4-day abx ordered</td>
+      <td>7</td>
+    </tr>
+    <tr>
+      <th>22</th>
+      <td># alerts with no action but had 4-day abx</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>23</th>
+      <td># alerts for septic shock</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <th>24</th>
+      <td># manual overrides for septic shock</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>25</th>
+      <td># alerts before first lab evaluations</td>
+      <td>9</td>
+    </tr>
+    <tr>
+      <th>26</th>
+      <td># alerts with no action but were disabled</td>
+      <td>17</td>
+    </tr>
+    <tr>
+      <th>27</th>
+      <td># alerts with with no action for &gt;= 1hr and di...</td>
+      <td>16</td>
+    </tr>
+    <tr>
+      <th>28</th>
+      <td># alerts with no action for &gt;= 2hrs and disabled</td>
+      <td>15</td>
+    </tr>
+  </tbody>
+</table></p>
