@@ -27,20 +27,20 @@ controller_url = 'controller.jh.opsdx.io'
 controller_ssh_pkey_path = '/home/twang70/.ssh/tf-opsdx'
 
 ## Specify database
-
+"""
 host = os.environ['prod_db_host']
 port = int(os.environ['db_port'])
 db = os.environ['prod_db_name']
 user = os.environ['db_user']
 pw = os.environ['prod_db_password']
-
 """
+
 host = os.environ['dev_db_host']
 port = int(os.environ['db_port'])
 db = os.environ['dev_db_name']
 user = os.environ['db_user']
 pw = os.environ['dev_db_password']
-"""
+
 def createConn(conn_str):
     conn = 'dbname={} user={} host=127.0.0.1 port=63334 password={}'.format(db, user, pw)
     conn = psycopg2.connect(conn)    

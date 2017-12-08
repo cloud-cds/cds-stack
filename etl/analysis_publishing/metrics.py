@@ -6,7 +6,7 @@ from datetime import timedelta
 import numpy as np
 from pytz import timezone
 from collections import OrderedDict
-import ipdb
+
 
 #---------------------------------
 ## Metric Classes
@@ -307,8 +307,6 @@ class ed_metrics(metric):
       metric_8 = str(override_with_scores['enc_id'].nunique())
       metric_9 = '{0:.3f}'.format(override_with_scores['delta'].median()) # Can access this column for the metrbic but for now just print median
       
-    #ipdb.set_trace()
-
     first_alert_indices = merged_df.loc[merged_df['flag'].isin(alert_flags)].groupby('enc_id', as_index=False)['update_date'].idxmin()
     first_alerts = merged_df.loc[merged_df.index.isin(first_alert_indices)]
     first_alerts = first_alerts.rename(columns = {'update_date':'1st_alert_date'})
@@ -354,8 +352,6 @@ class ed_metrics(metric):
     #metric_13 = str(first_alerts.shape[0] - first_alerts.loc[first_alerts['2nd_lactate_date'] == False].shape[0])
     metric_13 = metric_12 ## Placeholder for now
 
-    #ipdb.set_trace()
-
     ## Get all patients that have no infection recorded in their history
     metric_14 = str(search_history_flags('no_SOI_entered', [12,13]))
 
@@ -374,8 +370,6 @@ class ed_metrics(metric):
     no_action = no_action.loc[no_action['action'] == 0]
     metric_16 = str(no_action['enc_id'].nunique())
 
-    ipdb.set_trace()
-
     states_AFA_1hr = states_after_first_alert.loc[states_after_first_alert['update_date'] >= (states_after_first_alert['1st_alert_date'] + pd.to_timedelta('1hr'))]
 
     no_action_1hr = states_AFA_1hr.groupby('enc_id', as_index=False)['action'].aggregate(np.sum)
@@ -390,7 +384,6 @@ class ed_metrics(metric):
     no_action_2hr = no_action_2hr.loc[no_action_2hr['action'] == 0]
     metric_16_c = str(no_action_2hr['enc_id'].nunique())
 
-    ipdb.set_trace()
     no_action_states = states_after_first_alert.loc[states_after_first_alert['update_date'] > states_after_first_alert['1st_alert_date']]    
     no_action_states = no_action_states.loc[no_action_states['enc_id'].isin(no_action['enc_id'])]
     no_action_states = no_action_states.loc[no_action_states['flag'] == 0]
@@ -461,7 +454,6 @@ class ed_metrics(metric):
       tmp_df = tmp_df.loc[((ind1)&(ind2))|((ind1)&(ind3)), :]
       return tmp_df
 
-    #ipdb.set_trace()
     ed_with_SIRS = merge_with_ed_df(cdm_twf)
     #ed_with_SIRS = pd.merge(ed, cdm_twf, how='left', on=['enc_id'])
     # Cut out entries where tsp of SIRS measurement not within ED admit to end of 3 hr window
@@ -472,21 +464,14 @@ class ed_metrics(metric):
     metric_20 = ed_met_SIRS.loc[ed_met_SIRS['met_criteria'] > 0].count()
     metric_20 = str(metric_20['met_criteria'])
 
-    #ipdb.set_trace()
-
     four_day_abx = first_alerts.loc[first_alerts['enc_id'].isin(no_action['enc_id'])]
     four_day_abx['4_day_abx'] = four_day_abx['max_tsp_cms_antibiotics_order'] - four_day_abx['min_tsp_cms_antibiotics_order']
     four_day_abx['4_day_abx'] = four_day_abx['4_day_abx'] > pd.to_timedelta('4day')
-
 
     ## metric_21: Patients with no action but later turned out to be septic. Using 4-day abx as approx of confirm sepsis.
     ## Not sure if need to subset for patients where min_tsp_cms_abx_order also after alert like in metric 10
     four_day_abx = four_day_abx.loc[four_day_abx['1st_alert_date'] < four_day_abx['min_tsp_cms_antibiotics_order']]
     metric_21 = str(four_day_abx['4_day_abx'].sum())
-
-    ## metric_21_a: Same as 21 but subset on patients that had no action taken.
-    four_day_abx = four_day_abx.loc[four_day_abx['enc_id'].isin(no_action)]
-    metric_21_a = str(four_day_abx['4_day_abx'].sum())
 
     trews_septic_shock_flags = [30,40]
     metric_22 = str(search_history_flags('trews_septic_shock', trews_septic_shock_flags))
@@ -512,16 +497,11 @@ class ed_metrics(metric):
     ## Number of patients that had their first TREWS alert before their first lab evaluation.
     metric_24 = str(first_alerts.loc[first_alerts['1st_alert_date'] < first_alerts['first_lab_eval']]['enc_id'].nunique())
 
-
     ## Num of alerts that had org dysf override but no state change. 
     metric_26 = 'temp'
 
-
-    #trews_jit_df = pd.read_sql(sqlalchemy.text(query), self.connection, columns=['enc_id', 'tsp', 'jit_alert'])
-    #trews_jit_df['tsp'] = pd.to_datetime(trews_jit_df['tsp']).dt.tz_convert(timezone('utc'))
-    #trews_jit_df['jit_alert'] = trews_jit_df['jit_alert'].map({'True':1, 'False':0}).astype(float)
-
-    allMetrics = [metric_1, metric_2, metric_7, metric_8, metric_9, metric_10, metric_11, metric_12, metric_13, metric_14, metric_15, metric_16, metric_16_a, metric_16_b, metric_16_c, metric_17_min, metric_17_max, metric_17_median, metric_18, metric_19, metric_20, metric_21, metric_21_a, metric_22, metric_23, metric_24, metric_25, metric_25_b, metric_25_c]
+    ## Missing metric_13: repeat lactate
+    allMetrics = [metric_1, metric_2, metric_7, metric_8, metric_9, metric_10, metric_11, metric_12, metric_14, metric_15, metric_16, metric_25, metric_16_a, metric_16_b, metric_25_b, metric_16_c, metric_25_c, metric_17_min, metric_17_max, metric_17_median, metric_18, metric_19, metric_20, metric_21, metric_22, metric_23, metric_24]
     desc1 = 'Total ED patients'
     desc2 = '# ED patients with TREWS alert'
     #desc3 = 'Number of people with code sepsis'
@@ -534,29 +514,30 @@ class ed_metrics(metric):
     desc10 = '# alerts before antibiotics'
     desc11 = '# alerts before blood culture'
     desc12 = '# alerts before lactate'
-    desc13 = '# alerts before repeat lactate'
+    ## Still need to implement repeat lactate
+    #desc13 = '# alerts before repeat lactate'
     desc14 = '# alerts that have no infection entered'
     desc15 = '# alerts that are put on sepsis pathway'
     desc16 = '# alerts that have no action taken'
+    desc25 = '# alerts with no action but were deactivated'
     desc16_a = '# alerts with no action for < 1hr'
+    desc25_b = '# alerts w/ no action for >= 1hr and deactivated'
     desc16_b = '# alerts with no action for >= 1hr'
     desc16_c = '# alerts with no action for >= 2hrs'
+    desc25_c = '# alerts w/ no action for >= 2hrs and deactivated'
     desc17_min = 'min hours from alert to evaluation'
     desc17_max = 'max hours from alert to evaluation'
     desc17_median = 'median hours from alert to evaluation'
     desc18 = '# alerts with complete bundle'
     desc19 = '# alerts with expired bundle'
     desc20 = '# ED patients with SIRS within first 3 hours'
-    desc21 = '# alerts that had 4-day abx ordered'
-    desc21_a = '# alerts with no action but had 4-day abx'
+    desc21 = '# alerts with no action but had 4-day abx ordered'
     desc22 = '# alerts for septic shock'
     desc23 = '# manual overrides for septic shock'
     desc24 = '# alerts before first lab evaluations'
-    desc25 = '# alerts with no action but were disabled'
-    desc25_b = '# alerts with with no action for >= 1hr and disabled'
-    desc25_c = '# alerts with no action for >= 2hrs and disabled'
-    allDesc = [desc1, desc2, desc7, desc8, desc9, desc10, desc11, desc12, desc13, desc14, desc15, desc16, desc16_a, desc16_b, desc16_c, desc17_min, desc17_max, desc17_median, desc18, desc19, desc20, desc21, desc21_a, desc22, desc23, desc24, desc25, desc25_b, desc25_c]
-    ipdb.set_trace()
+
+    ## Missing metric_13: repeat lactate
+    allDesc = [desc1, desc2, desc7, desc8, desc9, desc10, desc11, desc12, desc14, desc15, desc16, desc25, desc16_a, desc16_b, desc25_b, desc16_c,  desc25_c, desc17_min, desc17_max, desc17_median, desc18, desc19, desc20, desc21, desc22, desc23, desc24]
     self.metrics_DF = pd.DataFrame({'Metrics': allDesc, 'Values': allMetrics})
 
   def to_html(self):
