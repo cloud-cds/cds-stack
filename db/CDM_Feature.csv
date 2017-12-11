@@ -224,8 +224,8 @@ immuno_comp_hist,S,Boolean,yes,no,,,,,History,1,no unit
 immunodeficiency_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
 immunodeficiency_hist,S,Boolean,yes,no,,,,,History,1,no unit
 immunodeficiency_prob,S,Boolean,yes,no,,,,,ProblemList,1,no unit
-infections_angus_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
-infections_angus_hist,S,Boolean,yes,no,,,,,History,1,no unit
+infections_angus_diag,S,String,yes,no,,,,,Diagnoses,1,no unit
+infections_angus_hist,S,String,yes,no,,,,,History,1,no unit
 inr,TWF,Real,yes,no,last_value_in_window,28,,,Lab,1,no unit
 insulin_dose,T,JSON,yes,no,,,,,Medication,1,
 intra_abdominal_sepsis,T,String,yes,no,,,,,,,
