@@ -17,7 +17,7 @@ import itertools
 import logging
 import pytz
 import random
-import uvloop
+
 from dateutil.parser import parse
 from datetime import date
 
@@ -59,7 +59,6 @@ class JHAPIConfig:
     request_attempts = ctxt.flags.JHAPI_ATTEMPTS_REQUEST
     # Asyncronous task to make a request
     async def fetch(session, sem, setting):
-      logging.info("fetching")
       success = 0
       error = 0
       for i in range(request_attempts):
@@ -95,7 +94,6 @@ class JHAPIConfig:
     # Get the client session and create a task for each request
     async def run(request_settings, semaphore, loop):
       async with ClientSession(headers=self.headers, loop=ctxt.loop) as session:
-        logging.info("running")
         tasks = [asyncio.ensure_future(fetch(session, semaphore, setting),
                                        loop=loop) for setting in request_settings]
         return await asyncio.gather(*tasks)
@@ -104,18 +102,8 @@ class JHAPIConfig:
     for attempt in range(session_attempts):
       try:
         task = run(request_settings, semaphore, ctxt.loop)
-        if not ctxt.loop.is_running():
-          future = asyncio.ensure_future(task, loop=ctxt.loop)
-          ctxt.loop.run_until_complete(future)
-          result = future.result()
-        else:
-          # future = asyncio.run_coroutine_threadsafe(task, loop)
-          future = asyncio.ensure_future(task, loop=ctxt.loop)
-          while not future.done():
-            sleep(5)
-            print('sleep')
-          result = future.result(10)
-          
+        future = asyncio.ensure_future(task, loop=ctxt.loop)
+        ctxt.loop.run_until_complete(future)
         break
       except Exception as e:
         if attempt < session_attempts - 1:
@@ -127,22 +115,22 @@ class JHAPIConfig:
           raise Exception("Session failed for URL {}".format(url))
 
     # Push number of requests to cloudwatch
-    logging.info("Made {} requests".format(sum(x[1] for x in result)))
+    logging.info("Made {} requests".format(sum(x[1] for x in future.result())))
     self.cloudwatch_logger.push(
       dimension_name = 'ETL',
       metric_name    = 'requests_made',
-      value          = sum(x[1] for x in result),
+      value          = sum(x[1] for x in future.result()),
       unit           = 'Count'
     )
     label = self.hospital + '_' + endpoint.replace('/', '_') + '_' + http_method
     self.cloudwatch_logger.push_many(
       dimension_name  = 'ETL',
       metric_names    = ['{}_success'.format(label), '{}_error'.format(label), 'jh_api_request_success', 'jh_api_request_error'],
-      metric_values   = [sum(x[2] for x in result), sum(x[3] for x in result), sum(x[2] for x in result), sum(x[3] for x in result)],
+      metric_values   = [sum(x[2] for x in future.result()), sum(x[3] for x in future.result()), sum(x[2] for x in future.result()), sum(x[3] for x in future.result())],
       metric_units    = ['Count','Count','Count','Count']
     )
     # Return responses
-    return [x[0] for x in result]
+    return [x[0] for x in future.result()]
 
 
 
@@ -197,23 +185,23 @@ class JHAPIConfig:
     return pd.merge(dfs, to_merge, how='inner', left_on='index_col',
             right_index=True, sort=False).drop('index_col', axis=1)
 
-  def extract_mrn(self, ctxt, patients, env=None):
+  def extract_ed_patients_mrn(self, ctxt, ed_patients):
     resource = '/patients/mrn/'
-    payloads = [row['pat_id'] + '?env={}'.format(env) if env else '' for i, row in patients.iterrows()]
+    payloads = [row['pat_id'] for i, row in ed_patients.iterrows()]
     responses = self.make_requests(ctxt, resource, payloads, 'GET', url_type='rest')
     def calculate_age(born):
       today = date.today()
       return today.year - born.year - ((today.month, today.day) < (born.month, born.day))
 
-    for i, r in enumerate(responses):
+    for r in responses:
       pat_id = [pid["ID"] for pid in r[0]['IDs'] if pid['Type'] == 'EMRN'][0]
       sex = r[0]['Sex']
       gender = 0 if sex == 'Female' else 1
       dob = parse(r[0]["DateOfBirth"])
       age = calculate_age(dob)
-      patients.iloc[i,'age'] = age
-      patients.iloc[i,'gender'] = gender
-    return patients
+      ed_patients.loc[ed_patients.pat_id == pat_id,'age'] = age
+      ed_patients.loc[ed_patients.pat_id == pat_id,'gender'] = gender
+    return ed_patients
 
   def extract_chiefcomplaint(self, ctxt, beddedpatients):
     resource = '/patients/getdata/chiefcomplaint'

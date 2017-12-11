@@ -2,7 +2,7 @@ import etl.core.config
 import logging
 import asyncpg
 
-async def data_2_workspace(logger, conn, job_id, df_name, df, dtypes=None, if_exists='replace'):
+async def data_2_workspace(logger, conn, job_id, df_name, df, dtypes=None, if_exists='replace', workspace='workspace'):
     if df is None or df.empty or len(df) == 0:
         logger.error('Failed to load table {} (invalid dataframe)'.format(df_name))
         return
@@ -12,15 +12,15 @@ async def data_2_workspace(logger, conn, job_id, df_name, df, dtypes=None, if_ex
 
     cols = ",".join([ "{} text".format(col) for col in df.columns.values.tolist()])
     prepare_table = \
-    """DROP table if exists workspace.%(tab)s;
-    create table workspace.%(tab)s (
+    """DROP table if exists %(workspace)s.%(tab)s;
+    create table %(workspace)s.%(tab)s (
         %(cols)s
     );
-    """ % {'tab': table_name, 'cols': cols}
+    """ % {'tab': table_name, 'cols': cols, 'workspace': workspace}
     logger.info("create table: {}".format(prepare_table))
     await conn.execute(prepare_table)
     tuples = [tuple([str(y) for y in x]) for x in df.values]
-    await conn.copy_records_to_table(table_name, records=tuples, schema_name="workspace")
+    await conn.copy_records_to_table(table_name, records=tuples, schema_name=workspace)
     logger.info(table_name + " saved: nrows = {}".format(nrows))
 
 async def calculate_historical_criteria(conn):

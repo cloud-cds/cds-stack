@@ -41,7 +41,7 @@ async def init_etl(app):
   app.etl = etllib.ETL(app)
 
 async def init_web_request_buf(app):
-  app.web_req_buf = event.WebRequestBuffer()
+  app.web_req_buf = event.WebRequestBuffer(app)
   event.run_epic_web_requests(app)
 
 logging.info("start event server")

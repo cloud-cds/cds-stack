@@ -632,5 +632,7 @@ CREATE TABLE etl_job(
     serial_id       serial primary key,
     job_id          text,
     tsp             timestamptz,
-    hospital        text
+    hospital        text,
+    workspace       text,
+    unique          (job_id)
 );
