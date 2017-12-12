@@ -116,7 +116,7 @@ class ed_metrics(metric):
 
 
   ## Modified get_care_unit to remove home med. Also returns update cdmt_df that removes home med entries.
-  def get_care_unit_remove_homeMed(self, cdmt_df, start_tsp, end_tsp):
+  def get_care_unit_remove_homeMed(self, cdmt_df, end_tsp, start_tsp):
 
       care_unit_df = cdmt_df.loc[cdmt_df['fid']=='care_unit', ['enc_id', 'tsp', 'value']].copy()
       care_unit_df = care_unit_df.sort_values(by=['enc_id', 'tsp'])
@@ -144,10 +144,16 @@ class ed_metrics(metric):
       care_unit_df.loc[idx_max, 'leave_time'] = care_unit_df.loc[idx_max, 'max_tsp'] + pd.to_timedelta('1min')
       care_unit_df.drop(['min_tsp', 'max_tsp'], axis=1, inplace=True)
 
+      #ipdb.set_trace()
       ## Remove all patients that leave ED before start of window
-      care_unit_df = care_unit_df.loc[care_unit_df['leave_time' < start_tsp] 
+      care_unit_df = care_unit_df.loc[care_unit_df['leave_time'] >= start_tsp]
 
+      ## If enter time is before the report start date, we truncate to the start_tsp to guarantee time window for report metrics.
+      care_unit_df['report_start_date'] = care_unit_df['enter_time'].apply( lambda x, start_tsp=start_tsp: start_tsp if x < start_tsp else x)
       care_unit_df['leave_time'] = pd.to_datetime(care_unit_df['leave_time']).dt.tz_localize(timezone('utc'))
+
+      ## Modify cdmt_df_no_home_med before returning as well
+      cdmt_df_no_home_med = cdmt_df_no_home_med.loc[cdmt_df_no_home_med['tsp'] >= start_tsp]
       return (care_unit_df, cdmt_df_no_home_med)
 
   ## Currently used to test merge care_unit. Should be same as previous code since care_units need to be fetched from cdm_t
@@ -169,30 +175,7 @@ class ed_metrics(metric):
       care_unit_df.loc[idx_max, 'leave_time'] = care_unit_df.loc[idx_max, 'max_tsp'] + pd.to_timedelta('1min')
       care_unit_df.drop(['min_tsp', 'max_tsp'], axis=1, inplace=True)
 
-      #care_unit_df['leave_time'] = pd.to_datetime(care_unit_df['leave_time'], utc=True)
       care_unit_df['leave_time'] = pd.to_datetime(care_unit_df['leave_time']).dt.tz_localize(timezone('utc'))
-      #care_unit_df['leave_time'] = pd.to_datetime(care_unit_df['leave_time']).dt.tz_convert(timezone('utc'))
-      # care_unit_df = cdmt_df.loc[cdmt_df['fid']=='care_unit', ['enc_id', 'tsp', 'value']].copy()
-      # care_unit_df = care_unit_df.sort_values(by=['enc_id', 'tsp'])
-      # care_unit_df.rename(columns={'tsp':'enter_time', 'value':'care_unit'}, inplace=True)
-      # care_unit_df['leave_time'] = care_unit_df.groupby('enc_id')['enter_time'].shift(-1)
-
-      # # fill in the leave time on the last unit
-      # last_unit_tsp = care_unit_df.groupby('enc_id').agg({'enter_time':'max'})
-      # last_unit_tsp.reset_index(level=0, inplace=True)
-      # last_unit_tsp.rename(columns={'enter_time':'last_unit_tsp'}, inplace=True)
-      # discharge_tsp = cdmt_df.loc[cdmt_df['fid']=='discharge', ['enc_id', 'tsp']].copy()
-      # df = pd.merge(last_unit_tsp, discharge_tsp, on='enc_id', how='inner')
-
-      # # final step
-      # if df.shape[0] > 0:
-      #     care_unit_df = pd.merge(care_unit_df, df, how='outer', on='enc_id')
-      #     care_unit_df.loc[care_unit_df['last_unit_tsp']==care_unit_df['enter_time'], 'leave_time'] = \
-      #                                     care_unit_df.loc[care_unit_df['last_unit_tsp']==care_unit_df['enter_time'], 'tsp']
-      #     care_unit_df.drop(['tsp', 'last_unit_tsp'], axis=1, inplace=True)
-
-      # care_unit_df = care_unit_df.loc[care_unit_df['care_unit']!='Discharge']
-      # care_unit_df['leave_time'] = pd.to_datetime(care_unit_df['leave_time'], utc=True) ## For fixing issues with timezones
 
       return care_unit_df
 
@@ -208,19 +191,19 @@ class ed_metrics(metric):
     deploy_tsp = pd.to_datetime('2017-11-06 16:00:00+00:00').tz_localize(timezone('utc'))
 
     # Use timestamp of when script is run. Can potentially hardcode instead but should be okay if running as CRON job.
-    start_tsp = pd.to_datetime(self.last_time_str).tz_localize(timezone('utc'))
+    end_tsp = pd.to_datetime(self.last_time_str).tz_localize(timezone('utc'))
 
-    #start_tsp = pd.to_datetime('now').tz_localize(timezone('utc'))
-    end_tsp = start_tsp - self.window
+    #end_tsp = pd.to_datetime('now').tz_localize(timezone('utc'))
+    start_tsp = end_tsp - self.window
 
     # For generating HTML only
-    self.report_start = end_tsp.strftime('%x %X %Z')
-    self.report_end = start_tsp.strftime('%x %X %Z')
+    self.report_start = start_tsp.strftime('%x %X %Z')
+    self.report_end = end_tsp.strftime('%x %X %Z')
 
     ## get_valid_enc_ids. See function for exclusion details.
-    valid_enc_ids = self.get_enc_ids(end_tsp)
+    valid_enc_ids = self.get_enc_ids(start_tsp)
 
-    ## get flags from criteria_events. Currently just taking start_tsp but can do better in future
+    ## get flags from criteria_events. Currently just taking end_tsp but can do better in future
     criteria_events_df = self.get_criteria_events_df(valid_enc_ids, deploy_tsp)
 
     ## get cdm_t table to fetch care units
@@ -228,7 +211,7 @@ class ed_metrics(metric):
 
     ## Fetch care units using cdmt_df
     #care_unit_df = self.get_care_unit(cdmt_df)
-    care_unit_df, cdmt_df = self.get_care_unit_remove_homeMed(cdmt_df, start_tsp, end_tsp)
+    care_unit_df, cdmt_df = self.get_care_unit_remove_homeMed(cdmt_df, end_tsp, start_tsp)
 
     def merge_with_care_unit(main_df, care_unit_df=care_unit_df):
       tmp_df = pd.merge(main_df, care_unit_df, how='left', on='enc_id')
@@ -283,7 +266,8 @@ class ed_metrics(metric):
                 select enc_id, tsp, orgdf_details::json ->> 'alert' as jit_alert
                 from trews_jit_score
                 where model_id={0}
-                and enc_id in ({1})""".format(str(model_id), ', '.join([str(e) for e in valid_enc_ids]))
+                and enc_id in ({1})
+                and tsp >= '{2}'""".format(str(model_id), ', '.join([str(e) for e in valid_enc_ids]), str(start_tsp))
     trews_jit_df = pd.read_sql(sqlalchemy.text(query), self.connection, columns=['enc_id', 'tsp', 'jit_alert'])
     trews_jit_df['tsp'] = pd.to_datetime(trews_jit_df['tsp']).dt.tz_convert(timezone('utc'))
     trews_jit_df['jit_alert'] = trews_jit_df['jit_alert'].map({'True':1, 'False':0}).astype(float)
@@ -328,15 +312,15 @@ class ed_metrics(metric):
 
     # Number of patients that are ordered Antibioitics after an alert
     first_alerts = search_cdm_t('cms_antibiotics_order', first_alerts)
-    metric_10 = first_alerts.loc[(first_alerts['min_tsp_cms_antibiotics_order'] > first_alerts['1st_alert_date']), 'enc_id'].nunique()
+    metric_10 = str(first_alerts.loc[(first_alerts['min_tsp_cms_antibiotics_order'] > first_alerts['1st_alert_date']), 'enc_id'].nunique())
 
     # Number of patients that are ordered blood culture after an alert
     first_alerts = search_cdm_t('blood_culture_order', first_alerts)
-    metric_11 = first_alerts.loc[(first_alerts['min_tsp_blood_culture_order'] > first_alerts['1st_alert_date']), 'enc_id'].nunique()
+    metric_11 = str(first_alerts.loc[(first_alerts['min_tsp_blood_culture_order'] > first_alerts['1st_alert_date']), 'enc_id'].nunique())
 
     # Number of patients that receive lactate after an alert
     first_alerts = search_cdm_t('lactate_order', first_alerts)
-    metric_12 = first_alerts.loc[(first_alerts['min_tsp_lactate_order'] > first_alerts['1st_alert_date']), 'enc_id'].nunique()
+    metric_12 = str(first_alerts.loc[(first_alerts['min_tsp_lactate_order'] > first_alerts['1st_alert_date']), 'enc_id'].nunique())
 
     # Number of patients that received a second lactate after an alert
     def search_second_lactate(merged_df_row):
@@ -368,7 +352,7 @@ class ed_metrics(metric):
     ## Could be that update date is the first alert date since cdm_t only tracks when something happens.
     states_after_first_alert = states_after_first_alert.loc[states_after_first_alert['update_date'] >= states_after_first_alert['1st_alert_date']]
 
-    ipdb.set_trace()
+    #ipdb.set_trace()
     # has_AFA = states_after_first_alert.loc[states_after_first_alert['update_date'] > states_after_first_alert['1st_alert_date']]
     # merge_1st_alerts = merged_df[['enc_id', 'update_date', 'flag']]
     # merge_1st_alerts = pd.merge(merge_1st_alerts, first_alerts[['enc_id','1st_alert_date']], how='left')
@@ -385,18 +369,18 @@ class ed_metrics(metric):
     no_action = set(no_action.loc[no_action['action'] == 0]['enc_id'].unique())
     metric_16 = str(len(no_action))
 
-    ipdb.set_trace()
+    #ipdb.set_trace()
 
     ## Segment patients into 3 groups: still in ED, admitted to other care_unit, discharged
     discharged_patients = set(cdmt_df.loc[cdmt_df['fid'] == 'discharge']['enc_id'].unique())
     discharged_from_ed = no_action.intersection(discharged_patients)
     metric_26 = str(len(discharged_from_ed))
 
-    first_admits = care_unit_df.groupby('enc_id', as_index=False)['enter_time'].idxmin()
+    first_admits = care_unit_df.groupby('enc_id', as_index=False)['report_start_date'].idxmin()
     first_admits = care_unit_df.ix[first_admits]
     first_admits.rename(columns = {'care_unit':'1st_care_unit'}, inplace=True)
 
-    last_admits = care_unit_df.groupby('enc_id', as_index=False)['enter_time'].idxmax()
+    last_admits = care_unit_df.groupby('enc_id', as_index=False)['report_start_date'].idxmax()
     last_admits = care_unit_df.ix[last_admits]
     last_admits.rename(columns = {'care_unit':'last_care_unit'}, inplace=True)
 
@@ -434,15 +418,17 @@ class ed_metrics(metric):
     dropouts = dropouts.loc[dropouts['not_deactivated'] == 0]
     metric_25 = str(dropouts['enc_id'].nunique())
     
-    ipdb.set_trace()
+    #ipdb.set_trace()
 
     ## Compute how many alerts are ignored for 0 <= t < 1hr
     first_hour_AFA = states_after_first_alert.loc[states_after_first_alert['update_date'] <  states_after_first_alert['1st_alert_date'] + pd.to_timedelta('1hr')] 
+    #ipdb.set_trace()
     first_hour_AFA['still_active'] = ~first_hour_AFA['flag'].isin(alert_flags) 
     first_hour_AFA = first_hour_AFA.groupby('enc_id', as_index=False)['still_active'].agg(np.sum)
     first_hour_AFA = first_hour_AFA.loc[first_hour_AFA['still_active'] == 0]
     remaining_patients = first_hour_AFA['enc_id'].unique()    
     metric_16_a = str(len(remaining_patients))
+
 
     ## Compute how many alerts are ignored for 1 <= t < 2hr
     second_hour_AFA = states_after_first_alert.loc[(states_after_first_alert['update_date'] < states_after_first_alert['1st_alert_date'] + pd.to_timedelta('2hr')) & (states_after_first_alert['update_date'] >= states_after_first_alert['1st_alert_date'] + pd.to_timedelta('1hr'))]
@@ -526,15 +512,17 @@ class ed_metrics(metric):
     metric_20 = ed_met_SIRS.loc[ed_met_SIRS['met_criteria'] > 0].count()
     metric_20 = str(metric_20['met_criteria'])
 
-    four_day_abx = first_alerts.loc[first_alerts['enc_id'].isin(no_action['enc_id'])]
+    ipdb.set_trace()
+    """
+    four_day_abx = first_alerts.loc[first_alerts['enc_id'].isin(no_action)]
     four_day_abx['4_day_abx'] = four_day_abx['max_tsp_cms_antibiotics_order'] - four_day_abx['min_tsp_cms_antibiotics_order']
     four_day_abx['4_day_abx'] = four_day_abx['4_day_abx'] > pd.to_timedelta('4day')
 
     ## metric_21: Patients with no action but later turned out to be septic. Using 4-day abx as approx of confirm sepsis.
     ## Not sure if need to subset for patients where min_tsp_cms_abx_order also after alert like in metric 10
-    four_day_abx = four_day_abx.loc[four_day_abx['1st_alert_date'] < four_day_abx['min_tsp_cms_antibiotics_order']]
-    metric_21 = str(four_day_abx['4_day_abx'].sum())
-
+    #four_day_abx = four_day_abx.loc[four_day_abx['1st_alert_date'] < four_day_abx['min_tsp_cms_antibiotics_order']]
+    #metric_21 = str(four_day_abx['4_day_abx'].sum())
+    """
     trews_septic_shock_flags = [30,40]
     metric_22 = str(search_history_flags('trews_septic_shock', trews_septic_shock_flags))
     
@@ -563,7 +551,7 @@ class ed_metrics(metric):
     metric_26 = 'temp'
 
     ## Missing metric_13: repeat lactate
-    allMetrics = [metric_1, metric_2, metric_7, metric_8, metric_9, metric_10, metric_11, metric_12, metric_14, metric_15, metric_16, metric_25, metric_16_a, metric_16_b, metric_16_c, metric_17_min, metric_17_max, metric_17_median, metric_18, metric_19, metric_20, metric_21, metric_22, metric_23, metric_24]
+    allMetrics = [metric_1, metric_2, metric_7, metric_8, metric_9, metric_10, metric_11, metric_12, metric_14, metric_15, metric_16, metric_25, metric_16_a, metric_16_b, metric_16_c, metric_17_min, metric_17_max, metric_17_median, metric_18, metric_19, metric_20, metric_22, metric_23, metric_24]
     desc1 = 'Total ED patients'
     desc2 = '# ED patients with TREWS alert'
     #desc3 = 'Number of people with code sepsis'
@@ -591,13 +579,13 @@ class ed_metrics(metric):
     desc18 = '# alerts with complete bundle'
     desc19 = '# alerts with expired bundle'
     desc20 = '# ED patients with SIRS within first 3 hours'
-    desc21 = '# alerts with no action but had 4-day abx ordered'
+    #desc21 = '# alerts with no action but had 4-day abx ordered'
     desc22 = '# alerts for septic shock'
     desc23 = '# manual overrides for septic shock'
     desc24 = '# alerts before first lab evaluations'
     desc26 = '# alerts with no action but discharged from ED'
     ## Missing metric_13: repeat lactate
-    allDesc = [desc1, desc2, desc7, desc8, desc9, desc10, desc11, desc12, desc14, desc15, desc16, desc25, desc16_a, desc16_b, desc16_c, desc17_min, desc17_max, desc17_median, desc18, desc19, desc20, desc21, desc22, desc23, desc24]
+    allDesc = [desc1, desc2, desc7, desc8, desc9, desc10, desc11, desc12, desc14, desc15, desc16, desc25, desc16_a, desc16_b, desc16_c, desc17_min, desc17_max, desc17_median, desc18, desc19, desc20, desc22, desc23, desc24]
     self.metrics_DF = pd.DataFrame({'Metrics': allDesc, 'Values': allMetrics})
 
   def to_html(self):
