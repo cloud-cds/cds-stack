@@ -3,6 +3,9 @@
  * create relation database for the dashan instance
  * NOTE: cdm_twf is not created here
  */
+CREATE SCHEMA IF NOT EXISTS event_workspace;
+CREATE SCHEMA IF NOT EXISTS workspace;
+
 
 DROP TABLE IF EXISTS pat_enc CASCADE;
 CREATE TABLE pat_enc (
@@ -57,6 +60,26 @@ CREATE TABLE cdm_s (
     PRIMARY KEY (enc_id, fid)
 );
 
+DROP TABLE IF EXISTS event_workspace.cdm_s;
+CREATE TABLE event_workspace.cdm_s (
+    job_id          text,
+    enc_id          integer REFERENCES pat_enc(enc_id),
+    fid             varchar(50) REFERENCES cdm_feature(fid),
+    value           text,
+    confidence      integer,
+    PRIMARY KEY (job_id, enc_id, fid)
+);
+
+DROP TABLE IF EXISTS workspace.cdm_s;
+CREATE TABLE workspace.cdm_s (
+    job_id          text,
+    enc_id          integer REFERENCES pat_enc(enc_id),
+    fid             varchar(50) REFERENCES cdm_feature(fid),
+    value           text,
+    confidence      integer,
+    PRIMARY KEY (job_id, enc_id, fid)
+);
+
 DROP TABLE IF EXISTS cdm_t;
 CREATE TABLE cdm_t (
     enc_id          integer REFERENCES pat_enc(enc_id),
@@ -65,6 +88,28 @@ CREATE TABLE cdm_t (
     value           text,
     confidence      integer,
     PRIMARY KEY (enc_id, tsp, fid)
+);
+
+DROP TABLE IF EXISTS event_workspace.cdm_t;
+CREATE TABLE event_workspace.cdm_t (
+    job_id          text,
+    enc_id          integer REFERENCES pat_enc(enc_id),
+    tsp             timestamptz,
+    fid             varchar(50) REFERENCES cdm_feature(fid),
+    value           text,
+    confidence      integer,
+    PRIMARY KEY (job_id, enc_id, tsp, fid)
+);
+
+DROP TABLE IF EXISTS workspace.cdm_t;
+CREATE TABLE workspace.cdm_t (
+    job_id          text,
+    enc_id          integer REFERENCES pat_enc(enc_id),
+    tsp             timestamptz,
+    fid             varchar(50) REFERENCES cdm_feature(fid),
+    value           text,
+    confidence      integer,
+    PRIMARY KEY (job_id, enc_id, tsp, fid)
 );
 
 DROP TABLE IF EXISTS cdm_notes;
@@ -362,7 +407,6 @@ CREATE TABLE trews (
 );
 
 
-CREATE SCHEMA IF NOT EXISTS workspace;
 
 DROP TABLE IF EXISTS pat_status;
 CREATE TABLE pat_status (
