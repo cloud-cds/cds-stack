@@ -6,7 +6,7 @@ from datetime import timedelta
 import numpy as np
 from pytz import timezone
 from collections import OrderedDict
-
+import ipdb
 
 #---------------------------------
 ## Metric Classes
@@ -116,7 +116,7 @@ class ed_metrics(metric):
 
 
   ## Modified get_care_unit to remove home med. Also returns update cdmt_df that removes home med entries.
-  def get_care_unit_remove_homeMed(self, cdmt_df):
+  def get_care_unit_remove_homeMed(self, cdmt_df, start_tsp, end_tsp):
 
       care_unit_df = cdmt_df.loc[cdmt_df['fid']=='care_unit', ['enc_id', 'tsp', 'value']].copy()
       care_unit_df = care_unit_df.sort_values(by=['enc_id', 'tsp'])
@@ -143,6 +143,9 @@ class ed_metrics(metric):
       care_unit_df.loc[idx_min, 'enter_time'] = care_unit_df.loc[idx_min, 'min_tsp'] - pd.to_timedelta('1min')
       care_unit_df.loc[idx_max, 'leave_time'] = care_unit_df.loc[idx_max, 'max_tsp'] + pd.to_timedelta('1min')
       care_unit_df.drop(['min_tsp', 'max_tsp'], axis=1, inplace=True)
+
+      ## Remove all patients that leave ED before start of window
+      care_unit_df = care_unit_df.loc[care_unit_df['leave_time' < start_tsp] 
 
       care_unit_df['leave_time'] = pd.to_datetime(care_unit_df['leave_time']).dt.tz_localize(timezone('utc'))
       return (care_unit_df, cdmt_df_no_home_med)
@@ -225,7 +228,7 @@ class ed_metrics(metric):
 
     ## Fetch care units using cdmt_df
     #care_unit_df = self.get_care_unit(cdmt_df)
-    care_unit_df, cdmt_df = self.get_care_unit_remove_homeMed(cdmt_df)
+    care_unit_df, cdmt_df = self.get_care_unit_remove_homeMed(cdmt_df, start_tsp, end_tsp)
 
     def merge_with_care_unit(main_df, care_unit_df=care_unit_df):
       tmp_df = pd.merge(main_df, care_unit_df, how='left', on='enc_id')
@@ -365,43 +368,102 @@ class ed_metrics(metric):
     ## Could be that update date is the first alert date since cdm_t only tracks when something happens.
     states_after_first_alert = states_after_first_alert.loc[states_after_first_alert['update_date'] >= states_after_first_alert['1st_alert_date']]
 
+    ipdb.set_trace()
+    # has_AFA = states_after_first_alert.loc[states_after_first_alert['update_date'] > states_after_first_alert['1st_alert_date']]
+    # merge_1st_alerts = merged_df[['enc_id', 'update_date', 'flag']]
+    # merge_1st_alerts = pd.merge(merge_1st_alerts, first_alerts[['enc_id','1st_alert_date']], how='left')
+    # set_has_AFA = set(has_AFA['enc_id'].unique())
+    # set_all = set(states_after_first_alert['enc_id'].unique())
+    # no_AFA = set_all - set_has_AFA
+    # test = merge_1st_alerts.loc[merge_1st_alerts.enc_id.isin(no_AFA)].groupby('enc_id', as_index=False)['update_date', '1st_alert_date'].agg(['count', 'nunique', 'unique'])
+    # test['update_date']['unique'] == test['1st_alert_date']['unique']
+    
     states_after_first_alert['action'] = states_after_first_alert['flag'] > 11
+    states_after_first_alert['TREWS_active'] = states_after_first_alert['flag'] == 11
+    states_after_first_alert['CMS_active'] = states_after_first_alert['flag'] == 10
     no_action = states_after_first_alert.groupby('enc_id', as_index=False)['action'].aggregate(np.sum)
-    no_action = no_action.loc[no_action['action'] == 0]
-    metric_16 = str(no_action['enc_id'].nunique())
+    no_action = set(no_action.loc[no_action['action'] == 0]['enc_id'].unique())
+    metric_16 = str(len(no_action))
 
-    states_AFA_1hr = states_after_first_alert.loc[states_after_first_alert['update_date'] >= (states_after_first_alert['1st_alert_date'] + pd.to_timedelta('1hr'))]
+    ipdb.set_trace()
 
-    no_action_1hr = states_AFA_1hr.groupby('enc_id', as_index=False)['action'].aggregate(np.sum)
-    no_action_1hr = no_action_1hr.loc[no_action_1hr['action'] == 0]
-    metric_16_b = str(no_action_1hr['enc_id'].nunique())
-    ## Need to validate that these patients did indeed have action == True within 1 hour of first alert.
-    metric_16_a = int(metric_16) - int(metric_16_b)
+    ## Segment patients into 3 groups: still in ED, admitted to other care_unit, discharged
+    discharged_patients = set(cdmt_df.loc[cdmt_df['fid'] == 'discharge']['enc_id'].unique())
+    discharged_from_ed = no_action.intersection(discharged_patients)
+    metric_26 = str(len(discharged_from_ed))
 
-    states_AFA_2hr = states_after_first_alert.loc[states_after_first_alert['update_date'] >= (states_after_first_alert['1st_alert_date'] + pd.to_timedelta('2hr'))]
+    first_admits = care_unit_df.groupby('enc_id', as_index=False)['enter_time'].idxmin()
+    first_admits = care_unit_df.ix[first_admits]
+    first_admits.rename(columns = {'care_unit':'1st_care_unit'}, inplace=True)
 
-    no_action_2hr = states_AFA_2hr.groupby('enc_id', as_index=False)['action'].aggregate(np.sum)
-    no_action_2hr = no_action_2hr.loc[no_action_2hr['action'] == 0]
-    metric_16_c = str(no_action_2hr['enc_id'].nunique())
+    last_admits = care_unit_df.groupby('enc_id', as_index=False)['enter_time'].idxmax()
+    last_admits = care_unit_df.ix[last_admits]
+    last_admits.rename(columns = {'care_unit':'last_care_unit'}, inplace=True)
 
-    no_action_states = states_after_first_alert.loc[states_after_first_alert['update_date'] > states_after_first_alert['1st_alert_date']]    
-    no_action_states = no_action_states.loc[no_action_states['enc_id'].isin(no_action['enc_id'])]
-    no_action_states = no_action_states.loc[no_action_states['flag'] == 0]
-    metric_25 = str(no_action_states['enc_id'].nunique())
-    #disabled_alerts = no_action_states.groupby('enc_id', as_index=False)['flag'].sum()
-    ## Num of alerts that had no action taken that were TREWS deactivating    
-    #metric_25 = str(disabled_alerts.loc[disabled_alerts['flag'] == 0]['enc_id'].nunique())
+    transferred_patients = pd.merge(first_admits[['enc_id', '1st_care_unit']], last_admits[['enc_id', 'last_care_unit']], how='inner')
+    transferred_patients = set(transferred_patients.loc[(transferred_patients['1st_care_unit'] == 'HCGH EMERGENCY-ADULTS') & (transferred_patients['last_care_unit'] != 'HCGH EMERGENCY-ADULTS')]['enc_id'].unique())
+    transferred_from_ed = no_action.intersection(transferred_patients)
 
-    ## Should contain all enc_ids that were disabled TREWS alerts.
-    ## TODO: Implement these metrics 25_[abc]. Num of alerts within these intervals that are disabled.
-    set_all_disabled = set(no_action_states['enc_id'].unique())
+    ## Median time alert was active
 
-    set_1hr_disabled = set(no_action_1hr['enc_id'].unique()).intersection(set_all_disabled)
-    metric_25_b = len(set_1hr_disabled)
+    ## Median time alert active while in ED
 
-    set_2hr_disabled = set(no_action_2hr['enc_id'].unique()).intersection(set_all_disabled)
-    metric_25_c = len(set_2hr_disabled)
+    ## Alerts with at least 1 page visit
 
+    ## Alerts that were TREWS and alerts that were CMS
+
+
+
+    last_TREWS_alerts = merged_df.loc[merged_df['flag'] == 11]
+    last_TREWS_alerts = last_TREWS_alerts.groupby('enc_id', as_index=False)['update_date'].agg({'last_TREWS_alert': max})
+
+    last_CMS_alerts = merged_df.loc[merged_df['flag'] == 10]
+    last_CMS_alerts = last_CMS_alerts.groupby('enc_id', as_index=False)['update_date'].agg({'last_CMS_alert': max})
+
+    states_after_last_alert = merged_df[['enc_id', 'update_date', 'flag']]
+    states_after_last_alert = pd.merge(states_after_last_alert, last_TREWS_alerts[['enc_id','last_TREWS_alert']], how='left')
+    states_after_last_alert = pd.merge(states_after_last_alert, last_CMS_alerts[['enc_id','last_CMS_alert']], how='left')
+    states_after_last_alert = pd.merge(states_after_last_alert, first_alerts[['enc_id','1st_alert_date']], how='inner')
+        
+    ## Find all enc_ids that only have state 0s after their last alert (CMS and TREWS)
+    last_alerts = merged_df.loc[merged_df['flag'].isin([10,11])]
+    last_alerts = last_alerts.groupby('enc_id', as_index=False)['update_date'].agg({'last_alert': max})
+    states_after_last_alert = pd.merge(states_after_last_alert, last_alerts[['enc_id', 'last_alert']], how='left')
+    dropouts = states_after_last_alert.loc[states_after_last_alert['update_date'] > states_after_last_alert['last_alert']]
+    dropouts['not_deactivated'] = dropouts['flag'] != 0 
+    dropouts = dropouts.loc[dropouts['not_deactivated'] == 0]
+    metric_25 = str(dropouts['enc_id'].nunique())
+    
+    ipdb.set_trace()
+
+    ## Compute how many alerts are ignored for 0 <= t < 1hr
+    first_hour_AFA = states_after_first_alert.loc[states_after_first_alert['update_date'] <  states_after_first_alert['1st_alert_date'] + pd.to_timedelta('1hr')] 
+    first_hour_AFA['still_active'] = ~first_hour_AFA['flag'].isin(alert_flags) 
+    first_hour_AFA = first_hour_AFA.groupby('enc_id', as_index=False)['still_active'].agg(np.sum)
+    first_hour_AFA = first_hour_AFA.loc[first_hour_AFA['still_active'] == 0]
+    remaining_patients = first_hour_AFA['enc_id'].unique()    
+    metric_16_a = str(len(remaining_patients))
+
+    ## Compute how many alerts are ignored for 1 <= t < 2hr
+    second_hour_AFA = states_after_first_alert.loc[(states_after_first_alert['update_date'] < states_after_first_alert['1st_alert_date'] + pd.to_timedelta('2hr')) & (states_after_first_alert['update_date'] >= states_after_first_alert['1st_alert_date'] + pd.to_timedelta('1hr'))]
+    ## After an action, they can't be considred no action even if their state drops back to alert_flags.
+    second_hour_AFA['still_active'] = ~second_hour_AFA['flag'].isin(alert_flags) 
+    second_hour_AFA = second_hour_AFA.loc[second_hour_AFA['enc_id'].isin(remaining_patients)]
+    second_hour_AFA = second_hour_AFA.groupby('enc_id', as_index=False)['still_active'].agg(np.sum)
+    second_hour_AFA = second_hour_AFA.loc[second_hour_AFA['still_active'] == 0]
+    remaining_patients = second_hour_AFA['enc_id'].unique()    
+    metric_16_b = str(len(remaining_patients))
+
+    ## Compute how many alerts are ignored after >=2 hours
+    third_hour_AFA = states_after_first_alert.loc[states_after_first_alert['update_date'] >= states_after_first_alert['1st_alert_date'] + pd.to_timedelta('2hr')]
+    ## After an action, they can't be considred no action even if their state drops back to alert_flags.
+    third_hour_AFA['still_active'] = ~third_hour_AFA['flag'].isin(alert_flags) 
+    third_hour_AFA = third_hour_AFA.loc[third_hour_AFA['enc_id'].isin(remaining_patients)]
+    third_hour_AFA = third_hour_AFA.groupby('enc_id', as_index=False)['still_active'].agg(np.sum)
+    third_hour_AFA = third_hour_AFA.loc[third_hour_AFA['still_active'] == 0]
+    remaining_patients = third_hour_AFA['enc_id'].unique()    
+    metric_16_c = str(len(remaining_patients))
+    
     ## min, max, median time from alert to evaluation
     # Only considered eval-ed if SOI is_met is also true
     evals = merged_df.loc[(merged_df['name'] == 'suspicion_of_infection') & (merged_df['is_met'] == True)]
@@ -501,7 +563,7 @@ class ed_metrics(metric):
     metric_26 = 'temp'
 
     ## Missing metric_13: repeat lactate
-    allMetrics = [metric_1, metric_2, metric_7, metric_8, metric_9, metric_10, metric_11, metric_12, metric_14, metric_15, metric_16, metric_25, metric_16_a, metric_16_b, metric_25_b, metric_16_c, metric_25_c, metric_17_min, metric_17_max, metric_17_median, metric_18, metric_19, metric_20, metric_21, metric_22, metric_23, metric_24]
+    allMetrics = [metric_1, metric_2, metric_7, metric_8, metric_9, metric_10, metric_11, metric_12, metric_14, metric_15, metric_16, metric_25, metric_16_a, metric_16_b, metric_16_c, metric_17_min, metric_17_max, metric_17_median, metric_18, metric_19, metric_20, metric_21, metric_22, metric_23, metric_24]
     desc1 = 'Total ED patients'
     desc2 = '# ED patients with TREWS alert'
     #desc3 = 'Number of people with code sepsis'
@@ -521,10 +583,8 @@ class ed_metrics(metric):
     desc16 = '# alerts that have no action taken'
     desc25 = '# alerts with no action but were deactivated'
     desc16_a = '# alerts with no action for < 1hr'
-    desc25_b = '# alerts w/ no action for >= 1hr and deactivated'
     desc16_b = '# alerts with no action for >= 1hr'
     desc16_c = '# alerts with no action for >= 2hrs'
-    desc25_c = '# alerts w/ no action for >= 2hrs and deactivated'
     desc17_min = 'min hours from alert to evaluation'
     desc17_max = 'max hours from alert to evaluation'
     desc17_median = 'median hours from alert to evaluation'
@@ -535,9 +595,9 @@ class ed_metrics(metric):
     desc22 = '# alerts for septic shock'
     desc23 = '# manual overrides for septic shock'
     desc24 = '# alerts before first lab evaluations'
-
+    desc26 = '# alerts with no action but discharged from ED'
     ## Missing metric_13: repeat lactate
-    allDesc = [desc1, desc2, desc7, desc8, desc9, desc10, desc11, desc12, desc14, desc15, desc16, desc25, desc16_a, desc16_b, desc25_b, desc16_c,  desc25_c, desc17_min, desc17_max, desc17_median, desc18, desc19, desc20, desc21, desc22, desc23, desc24]
+    allDesc = [desc1, desc2, desc7, desc8, desc9, desc10, desc11, desc12, desc14, desc15, desc16, desc25, desc16_a, desc16_b, desc16_c, desc17_min, desc17_max, desc17_median, desc18, desc19, desc20, desc21, desc22, desc23, desc24]
     self.metrics_DF = pd.DataFrame({'Metrics': allDesc, 'Values': allMetrics})
 
   def to_html(self):
