@@ -134,6 +134,7 @@ class ed_metrics(metric):
       cdmt_df_no_home_med = pd.merge(cdmt_df, first_admits[['enc_id','1st_enter_time']], how='left', on='enc_id')
       cdmt_df_no_home_med = cdmt_df_no_home_med.loc[~(cdmt_df['fid'].str.contains('[a-zA-Z]+_order') & (cdmt_df_no_home_med['tsp'] < cdmt_df_no_home_med['1st_enter_time']))]
             
+      ipdb.set_trace()
       with_care_unit_cdmt = cdmt_df_no_home_med.loc[cdmt_df_no_home_med['enc_id'].isin(care_unit_df['enc_id']), ['enc_id', 'tsp']]
       max_min_tsp_df = with_care_unit_cdmt.groupby('enc_id', as_index=False)['tsp'].agg({'max_tsp':max, 'min_tsp':min})
 
@@ -149,7 +150,7 @@ class ed_metrics(metric):
       care_unit_df = care_unit_df.loc[care_unit_df['leave_time'] >= start_tsp]
 
       ## If enter time is before the report start date, we truncate to the start_tsp to guarantee time window for report metrics.
-      care_unit_df['report_start_date'] = care_unit_df['enter_time'].apply( lambda x, start_tsp=start_tsp: start_tsp if x < start_tsp else x)
+      care_unit_df['report_start_time'] = care_unit_df['enter_time'].apply( lambda x, start_tsp=start_tsp: start_tsp if x < start_tsp else x)
       care_unit_df['leave_time'] = pd.to_datetime(care_unit_df['leave_time']).dt.tz_localize(timezone('utc'))
 
       ## Modify cdmt_df_no_home_med before returning as well
@@ -215,7 +216,7 @@ class ed_metrics(metric):
 
     def merge_with_care_unit(main_df, care_unit_df=care_unit_df):
       tmp_df = pd.merge(main_df, care_unit_df, how='left', on='enc_id')
-      ind1 = tmp_df['update_date']>tmp_df['enter_time']
+      ind1 = tmp_df['update_date']>tmp_df['report_start_time']
       ind2 = tmp_df['update_date']<tmp_df['leave_time']
       ind3 = tmp_df['leave_time'].isnull()
       tmp_df = tmp_df.loc[((ind1)&(ind2))|((ind1)&(ind3)), :]
@@ -369,26 +370,31 @@ class ed_metrics(metric):
     no_action = set(no_action.loc[no_action['action'] == 0]['enc_id'].unique())
     metric_16 = str(len(no_action))
 
-    #ipdb.set_trace()
-
+    ipdb.set_trace()
+    no_action_patients = no_action
     ## Segment patients into 3 groups: still in ED, admitted to other care_unit, discharged
-    discharged_patients = set(cdmt_df.loc[cdmt_df['fid'] == 'discharge']['enc_id'].unique())
-    discharged_from_ed = no_action.intersection(discharged_patients)
-    metric_26 = str(len(discharged_from_ed))
-
-    first_admits = care_unit_df.groupby('enc_id', as_index=False)['report_start_date'].idxmin()
+    first_admits = care_unit_df.groupby('enc_id', as_index=False)['report_start_time'].idxmin()
     first_admits = care_unit_df.ix[first_admits]
     first_admits.rename(columns = {'care_unit':'1st_care_unit'}, inplace=True)
 
-    last_admits = care_unit_df.groupby('enc_id', as_index=False)['report_start_date'].idxmax()
+    last_admits = care_unit_df.groupby('enc_id', as_index=False)['report_start_time'].idxmax()
     last_admits = care_unit_df.ix[last_admits]
     last_admits.rename(columns = {'care_unit':'last_care_unit'}, inplace=True)
 
     transferred_patients = pd.merge(first_admits[['enc_id', '1st_care_unit']], last_admits[['enc_id', 'last_care_unit']], how='inner')
     transferred_patients = set(transferred_patients.loc[(transferred_patients['1st_care_unit'] == 'HCGH EMERGENCY-ADULTS') & (transferred_patients['last_care_unit'] != 'HCGH EMERGENCY-ADULTS')]['enc_id'].unique())
-    transferred_from_ed = no_action.intersection(transferred_patients)
+    transferred_from_ed = no_action_patients.intersection(transferred_patients)
+    no_action_patients = no_action_patients.difference(transferred_from_ed)
 
+    discharged_patients = set(cdmt_df.loc[cdmt_df['fid'] == 'discharge']['enc_id'].unique())
+    discharged_from_ed = no_action_patients.intersection(discharged_patients)
+    metric_26 = str(len(discharged_from_ed))
+    no_action_patients = no_action_patients.difference(discharged_from_ed)
+    currently_in_ED = no_action_patients
+    
     ## Median time alert was active
+    
+
 
     ## Median time alert active while in ED
 
@@ -396,7 +402,7 @@ class ed_metrics(metric):
 
     ## Alerts that were TREWS and alerts that were CMS
 
-
+    
 
     last_TREWS_alerts = merged_df.loc[merged_df['flag'] == 11]
     last_TREWS_alerts = last_TREWS_alerts.groupby('enc_id', as_index=False)['update_date'].agg({'last_TREWS_alert': max})
@@ -405,30 +411,31 @@ class ed_metrics(metric):
     last_CMS_alerts = last_CMS_alerts.groupby('enc_id', as_index=False)['update_date'].agg({'last_CMS_alert': max})
 
     states_after_last_alert = merged_df[['enc_id', 'update_date', 'flag']]
-    states_after_last_alert = pd.merge(states_after_last_alert, last_TREWS_alerts[['enc_id','last_TREWS_alert']], how='left')
-    states_after_last_alert = pd.merge(states_after_last_alert, last_CMS_alerts[['enc_id','last_CMS_alert']], how='left')
+    #states_after_last_alert = pd.merge(states_after_last_alert, last_TREWS_alerts[['enc_id','last_TREWS_alert']], how='left')
+    #states_after_last_alert = pd.merge(states_after_last_alert, last_CMS_alerts[['enc_id','last_CMS_alert']], how='left')
     states_after_last_alert = pd.merge(states_after_last_alert, first_alerts[['enc_id','1st_alert_date']], how='inner')
         
     ## Find all enc_ids that only have state 0s after their last alert (CMS and TREWS)
     last_alerts = merged_df.loc[merged_df['flag'].isin([10,11])]
     last_alerts = last_alerts.groupby('enc_id', as_index=False)['update_date'].agg({'last_alert': max})
     states_after_last_alert = pd.merge(states_after_last_alert, last_alerts[['enc_id', 'last_alert']], how='left')
-    dropouts = states_after_last_alert.loc[states_after_last_alert['update_date'] > states_after_last_alert['last_alert']]
-    dropouts['not_deactivated'] = dropouts['flag'] != 0 
+    states_after_last_alert = states_after_last_alert.loc[states_after_last_alert['update_date'] > states_after_last_alert['last_alert']]
+    states_after_last_alert['not_deactivated'] = states_after_last_alert['flag'] != 0
+    dropouts = states_after_last_alert.groupby('enc_id', as_index=False)['not_deactivated'].agg(np.sum)
     dropouts = dropouts.loc[dropouts['not_deactivated'] == 0]
     metric_25 = str(dropouts['enc_id'].nunique())
-    
-    #ipdb.set_trace()
+
+    ipdb.set_trace()
 
     ## Compute how many alerts are ignored for 0 <= t < 1hr
-    first_hour_AFA = states_after_first_alert.loc[states_after_first_alert['update_date'] <  states_after_first_alert['1st_alert_date'] + pd.to_timedelta('1hr')] 
+    first_hour_AFA = states_after_first_alert.loc[(states_after_first_alert['update_date'] <  states_after_first_alert['1st_alert_date'] + pd.to_timedelta('1hr')) & (states_after_first_alert['update_date'] >=  states_after_first_alert['1st_alert_date'])] 
     #ipdb.set_trace()
-    first_hour_AFA['still_active'] = ~first_hour_AFA['flag'].isin(alert_flags) 
+    first_hour_AFA['still_active'] = ~first_hour_AFA['flag'].isin(alert_flags)
+    first_hour_AFA = first_hour_AFA.loc[first_hour_AFA['enc_id'].isin(no_action)]
     first_hour_AFA = first_hour_AFA.groupby('enc_id', as_index=False)['still_active'].agg(np.sum)
     first_hour_AFA = first_hour_AFA.loc[first_hour_AFA['still_active'] == 0]
     remaining_patients = first_hour_AFA['enc_id'].unique()    
     metric_16_a = str(len(remaining_patients))
-
 
     ## Compute how many alerts are ignored for 1 <= t < 2hr
     second_hour_AFA = states_after_first_alert.loc[(states_after_first_alert['update_date'] < states_after_first_alert['1st_alert_date'] + pd.to_timedelta('2hr')) & (states_after_first_alert['update_date'] >= states_after_first_alert['1st_alert_date'] + pd.to_timedelta('1hr'))]
@@ -480,23 +487,19 @@ class ed_metrics(metric):
 
     ## Number of people who meet SIRS criteria during first 3 hours of ED presentation.
     ed = care_unit_df.loc[care_unit_df['care_unit'] == 'HCGH EMERGENCY-ADULTS']
-    #first_admits_ED = first_admits_ED.groupby('enc_id', as_index=False)['enter_time'].idxmin()
-    #first_admits = care_unit_df.ix[first_admits]
-    #first_admits.rename(columns={'enter_time':'1st_enter_time'}, inplace=True)
-    tmp_df = ed.groupby('enc_id', as_index=False).agg({'enter_time':min, 'leave_time':max})
-    #tmp_df['duration'] = (tmp_df['leave_time'] - tmp_df['enter_time'])/pd.to_timedelta('1min')
-    #tmp_df.rename(columns={'enter_time':'window_end'}, inplace=True)
-    tmp_df['window_end'] = tmp_df['enter_time'] + pd.to_timedelta(3*60, unit='m')
+    tmp_df = ed.groupby('enc_id', as_index=False).agg({'report_start_time':min, 'leave_time':max})
+    tmp_df['window_end'] = tmp_df['report_start_time'] + pd.to_timedelta(3*60, unit='m')
     ed = tmp_df
     #ed = pd.merge(ed, tmp_df[['enc_id', 'duration', 'window_end']], how='inner', on='enc_id')
     #ed['window_end'] = ed['window_end'] + pd.to_timedelta(3*60, unit='m')
 
     ## Import cdm_twf table for SIRS criterias
-    cdm_twf = self.get_cdm_twf_df(valid_enc_ids, deploy_tsp)
+    cdm_twf = self.get_cdm_twf_df(valid_enc_ids, start_tsp)
+    #cdm_twf = self.get_cdm_twf_df(valid_enc_ids, deploy_tsp)
 
     def merge_with_ed_df(main_df, care_unit_df=ed):
       tmp_df = pd.merge(main_df, care_unit_df, how='left', on='enc_id')
-      ind1 = tmp_df['tsp']>tmp_df['enter_time']
+      ind1 = tmp_df['tsp']>tmp_df['report_start_time']
       ind2 = tmp_df['tsp']<tmp_df['leave_time']
       ind3 = tmp_df['tsp'].isnull()
       tmp_df = tmp_df.loc[((ind1)&(ind2))|((ind1)&(ind3)), :]
@@ -505,12 +508,12 @@ class ed_metrics(metric):
     ed_with_SIRS = merge_with_ed_df(cdm_twf)
     #ed_with_SIRS = pd.merge(ed, cdm_twf, how='left', on=['enc_id'])
     # Cut out entries where tsp of SIRS measurement not within ED admit to end of 3 hr window
-    ed_with_SIRS = ed_with_SIRS.loc[(ed_with_SIRS['tsp'] >= ed_with_SIRS['enter_time']) & (ed_with_SIRS['tsp'] < ed_with_SIRS['window_end'])]
+    ed_with_SIRS = ed_with_SIRS.loc[(ed_with_SIRS['tsp'] >= ed_with_SIRS['report_start_time']) & (ed_with_SIRS['tsp'] < ed_with_SIRS['window_end'])]
     ## Evaluate how many times >= 2 SIRS criteria were met
     ed_with_SIRS['met_criteria'] = ed_with_SIRS.apply(lambda x: True if x['sirs_resp_oor'] + x['sirs_hr_oor'] + x['sirs_wbc_oor'] + x['sirs_temperature_oor'] >= 2 else False, axis=1)
-    ed_met_SIRS = ed_with_SIRS[['enc_id','met_criteria']].groupby('enc_id').aggregate(np.sum)
-    metric_20 = ed_met_SIRS.loc[ed_met_SIRS['met_criteria'] > 0].count()
-    metric_20 = str(metric_20['met_criteria'])
+    ed_met_SIRS = ed_with_SIRS[['enc_id','met_criteria']].groupby('enc_id', as_index=False).aggregate(np.sum)
+    metric_20 = ed_met_SIRS.loc[ed_met_SIRS['met_criteria'] > 0]
+    metric_20 = str(metric_20['enc_id'].nunique())
 
     ipdb.set_trace()
     """
