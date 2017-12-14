@@ -2312,7 +2312,8 @@ return query
                       -- min(1.2L, 30 mL * weight) administered from 6 hours before severe sepsis
                       (coalesce(bool_or(OV.override), false)
                           or coalesce(sum(MFL.value::numeric), 0) > least(1200, 30 * max(PW.value))
-                      ) as is_met
+                      ) as is_met,
+                      coalesce(bool_or(OV.override), false) override_is_met
               from cdm_t MFL
               left join pat_weights PW on MFL.enc_id = PW.enc_id
               left join severe_sepsis_now SSPN on MFL.enc_id = SSPN.enc_id
@@ -2333,12 +2334,19 @@ return query
                    (SSPN.severe_sepsis_is_met and coalesce(PC.c_otime, PC.tsp) >= SSPN.severe_sepsis_onset)
                    and
                    (case when PC.category = 'hypotension' then
-                           (PFL.is_met and PFL.tsp < PC.tsp and NEXT.tsp < PFL.tsp + interval '1 hour')
+                           (PFL.is_met and
+                                ((PFL.override_is_met and SSPN.severe_sepsis_onset < PC.tsp and NEXT.tsp < SSPN.severe_sepsis_onset + interval '1 hour')
+                                or
+                                (not PFL.override_is_met and PFL.tsp < PC.tsp and NEXT.tsp < PFL.tsp + interval '1 hour'))
+                            )
                            and criteria_value_met(PC.value, PC.c_ovalue, PC.d_ovalue)
                            and criteria_value_met(NEXT.value, PC.c_ovalue, PC.d_ovalue)
 
                          when PC.category = 'hypotension_dsbp' then
-                           (PFL.is_met and PFL.tsp < PC.tsp and NEXT.tsp < PFL.tsp + interval '1 hour')
+                           (PFL.is_met and
+                                ((PFL.override_is_met and SSPN.severe_sepsis_onset < PC.tsp and NEXT.tsp < SSPN.severe_sepsis_onset + interval '1 hour')
+                                or
+                                (not PFL.override_is_met and PFL.tsp < PC.tsp and NEXT.tsp < PFL.tsp + interval '1 hour'))
                            and decrease_in_sbp_met(PBPSYS.value, PC.value, PC.c_ovalue, PC.d_ovalue)
                            and decrease_in_sbp_met(PBPSYS.value, NEXT.value, PC.c_ovalue, PC.d_ovalue)
 
