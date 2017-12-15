@@ -2643,14 +2643,16 @@ return query
                                 and ( order_met(pat_cvalues.name, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}'))
 
                             when pat_cvalues.category = 'after_septic_shock_dose' then
-                                -- if septic shock and hypotension is_met, vasopressor is not needed.
-                                not OST.septic_shock_hypotension_is_met
-                                or
-                                (( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > OST.septic_shock_onset, false) )
-                                and ( dose_order_met(pat_cvalues.fid, pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value,
-                                        coalesce((pat_cvalues.c_ovalue#>>'{0,lower}')::numeric,
-                                                 (pat_cvalues.d_ovalue#>>'{lower}')::numeric)) ))
-
+                                (case when OST.septic_shock_onset is null then false
+                                    else
+                                        -- if septic shock and hypotension is_met, vasopressor is not needed.
+                                        not OST.septic_shock_hypotension_is_met
+                                        or
+                                        (( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > OST.septic_shock_onset, false) )
+                                        and ( dose_order_met(pat_cvalues.fid, pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value,
+                                                coalesce((pat_cvalues.c_ovalue#>>'{0,lower}')::numeric,
+                                                         (pat_cvalues.d_ovalue#>>'{lower}')::numeric)) ))
+                                end)
                             else criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
                             end
                         ) as is_met
