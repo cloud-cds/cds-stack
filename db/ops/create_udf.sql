@@ -844,7 +844,8 @@ RETURNS table( enc_id                               int,
                severe_sepsis_lead_time              timestamptz,
                trewscore                            text,
                trewscore_threshold                  text,
-               alert_flag                            int
+               alert_flag                            int,
+               septic_shock_hypotension_is_met      boolean
              )
 AS $func$ BEGIN
 
@@ -878,7 +879,8 @@ AS $func$ BEGIN
             else CE.severe_sepsis_lead_time end) as severe_sepsis_lead_time,
          CE.trewscore,
          (case when CE.trewscore is null then null else CE.trewscore_threshold end) as trewscore_threshold,
-         (case when CE.trewscore is null then null else trews_subalert_met::int end) alert_flag
+         (case when CE.trewscore is null then null else trews_subalert_met::int end) alert_flag,
+         CE.septic_shock_hypotension_cnt > 0 as septic_shock_hypotension_is_met
   from max_events_by_pat MEV
   left join lateral (
     select
@@ -931,7 +933,8 @@ AS $func$ BEGIN
       as trews_severe_sepsis_lead_time,
       first((value::json)#>>'{score}') filter (where name = 'trews_subalert') trewscore,
       first((value::json)#>>'{threshold}') filter (where name = 'trews_subalert') trewscore_threshold,
-      count(*) filter (where name = 'trews_subalert' and is_met) trews_subalert_met
+      count(*) filter (where name = 'trews_subalert' and is_met) trews_subalert_met,
+      count(*) filter (where name in ('systolic_bp','hypotension_map','hypotension_dsbp') and is_met) septic_shock_hypotension_cnt
     from
     criteria_events ICE
     where ICE.enc_id   = MEV.enc_id
@@ -2309,7 +2312,8 @@ return query
                       -- min(1.2L, 30 mL * weight) administered from 6 hours before severe sepsis
                       (coalesce(bool_or(OV.override), false)
                           or coalesce(sum(MFL.value::numeric), 0) > least(1200, 30 * max(PW.value))
-                      ) as is_met
+                      ) as is_met,
+                      coalesce(bool_or(OV.override), false) as override_is_met
               from cdm_t MFL
               left join pat_weights PW on MFL.enc_id = PW.enc_id
               left join severe_sepsis_now SSPN on MFL.enc_id = SSPN.enc_id
@@ -2330,12 +2334,24 @@ return query
                    (SSPN.severe_sepsis_is_met and coalesce(PC.c_otime, PC.tsp) >= SSPN.severe_sepsis_onset)
                    and
                    (case when PC.category = 'hypotension' then
-                           (PFL.is_met and PFL.tsp < PC.tsp and NEXT.tsp < PFL.tsp + interval '1 hour')
+                           PFL.is_met
+                           and
+                           (
+                            (PFL.override_is_met and SSPN.severe_sepsis_onset < PC.tsp and NEXT.tsp < SSPN.severe_sepsis_onset + interval '1 hour')
+                            or
+                            (not PFL.override_is_met and PFL.tsp < PC.tsp and NEXT.tsp < PFL.tsp + interval '1 hour')
+                           )
                            and criteria_value_met(PC.value, PC.c_ovalue, PC.d_ovalue)
                            and criteria_value_met(NEXT.value, PC.c_ovalue, PC.d_ovalue)
 
                          when PC.category = 'hypotension_dsbp' then
-                           (PFL.is_met and PFL.tsp < PC.tsp and NEXT.tsp < PFL.tsp + interval '1 hour')
+                           PFL.is_met
+                           and
+                           (
+                            (PFL.override_is_met and SSPN.severe_sepsis_onset < PC.tsp and NEXT.tsp < SSPN.severe_sepsis_onset + interval '1 hour')
+                            or
+                            (not PFL.override_is_met and PFL.tsp < PC.tsp and NEXT.tsp < PFL.tsp + interval '1 hour')
+                           )
                            and decrease_in_sbp_met(PBPSYS.value, PC.value, PC.c_ovalue, PC.d_ovalue)
                            and decrease_in_sbp_met(PBPSYS.value, NEXT.value, PC.c_ovalue, PC.d_ovalue)
 
@@ -2407,17 +2423,20 @@ return query
     septic_shock_now as (
         select stats.enc_id,
                coalesce(bool_or(ui.ui_cnt > 0), bool_or(stats.cnt > 0)) as septic_shock_is_met,
+               bool_or(stats.hypotension_cnt > 0) septic_shock_hypotension_is_met,
                (case when bool_or(ui.ui_cnt > 0) then min(ui.ui_onset)
                 else greatest(min(stats.onset), max(ssn.severe_sepsis_onset)) end) as septic_shock_onset
         from (
             (select hypotension.enc_id,
                     sum(case when hypotension.is_met then 1 else 0 end) as cnt,
+                    sum(case when hypotension.is_met then 1 else 0 end) as hypotension_cnt,
                     min(hypotension.measurement_time) as onset
              from hypotension
              group by hypotension.enc_id)
             union
             (select hypoperfusion.enc_id,
                     sum(case when hypoperfusion.is_met then 1 else 0 end) as cnt,
+                    0 as hypotension_cnt,
                     min(hypoperfusion.measurement_time) as onset
              from hypoperfusion
              group by hypoperfusion.enc_id)
@@ -2459,7 +2478,8 @@ return query
             with past_criteria as (
                 select  PO.enc_id, SNP.state,
                         min(SNP.severe_sepsis_onset) as severe_sepsis_onset,
-                        min(SNP.septic_shock_onset) as septic_shock_onset
+                        min(SNP.septic_shock_onset) as septic_shock_onset,
+                        bool_or(SNP.septic_shock_hypotension_is_met) as septic_shock_hypotension_is_met
                 from enc_ids PO
                 inner join lateral get_states_snapshot(PO.enc_id) SNP on PO.enc_id = SNP.enc_id
                 where SNP.state >= 20
@@ -2486,14 +2506,17 @@ return query
             ),
             orders_septic_shock_onsets as (
                 select ONST.enc_id, min(ONST.septic_shock_onset) as septic_shock_onset
+                , bool_or(ONST.septic_shock_hypotension_is_met) as septic_shock_hypotension_is_met
                 from (
                     select  SSHN.enc_id,
                             min(case when SSHN.septic_shock_is_met then SSHN.septic_shock_onset else null end)
-                                as septic_shock_onset
+                                as septic_shock_onset,
+                            bool_or(SSHN.septic_shock_hypotension_is_met) as septic_shock_hypotension_is_met
                         from septic_shock_now SSHN
                         group by SSHN.enc_id
                     union all
-                    select PC.enc_id, min(PC.septic_shock_onset) as septic_shock_onset
+                    select PC.enc_id, min(PC.septic_shock_onset) as septic_shock_onset,
+                        bool_or(PC.septic_shock_hypotension_is_met) as septic_shock_hypotension_is_met
                         from past_criteria PC
                         where PC.state >= 30
                         group by PC.enc_id
@@ -2620,11 +2643,16 @@ return query
                                 and ( order_met(pat_cvalues.name, pat_cvalues.value, pat_cvalues.c_ovalue#>>'{0,text}'))
 
                             when pat_cvalues.category = 'after_septic_shock_dose' then
-                                ( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > OST.septic_shock_onset, false) )
-                                and ( dose_order_met(pat_cvalues.fid, pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value,
-                                        coalesce((pat_cvalues.c_ovalue#>>'{0,lower}')::numeric,
-                                                 (pat_cvalues.d_ovalue#>>'{lower}')::numeric)) )
-
+                                (case when OST.septic_shock_onset is null then false
+                                    else
+                                        -- if septic shock and hypotension is_met, vasopressor is not needed.
+                                        not OST.septic_shock_hypotension_is_met
+                                        or
+                                        (( coalesce(greatest(pat_cvalues.c_otime, pat_cvalues.tsp) > OST.septic_shock_onset, false) )
+                                        and ( dose_order_met(pat_cvalues.fid, pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value,
+                                                coalesce((pat_cvalues.c_ovalue#>>'{0,lower}')::numeric,
+                                                         (pat_cvalues.d_ovalue#>>'{lower}')::numeric)) ))
+                                end)
                             else criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
                             end
                         ) as is_met
