@@ -2711,6 +2711,15 @@ var taskComponent = function(json, elem, constants, doseLimit) {
       elem.addClass('not-needed');
     }
 
+    // For vasopressors, also append 'not needed' as appropriate.
+    var vasopressors_met = json['name'] == 'vasopressors_order' && json['is_met'];
+    var no_hypotension = trews.data['septic_shock']['hypotension']['is_met'] != null
+                          && !trews.data['septic_shock']['hypotension']['is_met'];
+
+    if ( vasopressors_met && no_hypotension && !elem.is('.in-action,.in-progress,.complete') ) {
+      elem.addClass('not-needed');
+    }
+
     // Add clinically inappropriate reason.
     var naMsg = '';
     var naPrefix = 'Clinically Inappropriate';
