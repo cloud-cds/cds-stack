@@ -409,6 +409,162 @@ END
 $BODY$
 LANGUAGE plpgsql;
 
+create or replace function workspace_fillin_delta(twf_fids text[], twf_table text, t_table text, job_id text, workspace text default 'workspace')
+returns void
+as $BODY$
+declare
+    enc_ids int[];
+begin
+    execute '
+    --create_job_cdm_twf_table
+    create table IF NOT EXISTS ' || workspace || '.' || job_id || '_cdm_twf as
+    select * from cdm_twf with no data;
+    alter table ' || workspace || '.' || job_id || '_cdm_twf add primary key (enc_id, tsp);
+    ';
+
+    perform load_delta_cdm_twf_from_cdm_t(twf_fids, twf_table, t_table, job_id, workspace);
+    perform last_value_delta(twf_fids, twf_table);
+end
+$BODY$
+LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION load_delta_cdm_twf_from_cdm_t(twf_fids TEXT[], twf_table TEXT, t_table TEXT, job_id text, workspace text, is_exec boolean default true)
+RETURNS VOID
+AS $BODY$
+DECLARE
+    query_str text;
+BEGIN
+    with fid_date_type as (
+        select fid, data_type from unnest(twf_fids) inner join cdm_feature on unnest = fid where category = 'TWF' and is_measured
+        ),
+    select_fid_array as (
+        select '(' || string_agg('''' || fid || '''' , ', ') || ')' as fid_array from fid_date_type
+        ),
+    select_insert_cols as (
+        select string_agg(fid || ', ' || fid || '_c' , ', ') as insert_cols from fid_date_type
+        ),
+    select_from_cols as (
+        select string_agg(
+                '((rec->>''' || fid || ''')::json->>''value'')::' || data_type || ' as ' || fid ||
+                ', ((rec->>''' || fid || ''')::json->>''confidence'')::int as ' || fid || '_c'
+            , ',') from_cols from fid_date_type
+        ) ,
+    select_set_cols as (
+        select string_agg(
+            fid || ' = excluded.' || fid || ', ' || fid || '_c = excluded.' || fid || '_c', ', '
+            ) as set_cols from fid_date_type
+        )
+    select
+        'with idx as (
+            select enc_id, min(tsp) as min_tsp
+            from ' || workspace || '.' || job_id || '_cdm_t
+            group by enc_id
+        )
+        insert into ' || twf_table || ' (enc_id, tsp, ' || insert_cols || ')
+        (
+          select enc_id, tsp, ' || from_cols || '
+          from
+          (
+            select cdm_t.enc_id, cdm_t.tsp, json_object_agg(fid, json_build_object(''value'', value, ''confidence'', confidence)) as rec
+            from ' || t_table || ' as cdm_t inner join idx on cdm_t.enc_id = idx.enc_id and cdm_t.tsp >= idx.min_tsp'
+            || ' where fid in ' || fid_array ||
+            ' group by cdm_t.enc_id, cdm_t.tsp'
+          ||
+          ') as T
+        ) on conflict (enc_id, tsp) do update set ' || set_cols
+    into query_str
+    from select_insert_cols cross join select_from_cols cross join select_set_cols cross join select_fid_array;
+    raise notice '%', query_str;
+    IF is_exec THEN
+        execute query_str;
+    END IF;
+END
+$BODY$
+LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION last_value_delta(twf_fids TEXT[], twf_table TEXT, enc_ids int[] default null, start_tsp timestamptz default null, end_tsp timestamptz default null, is_exec boolean default true)
+RETURNS VOID
+AS $BODY$
+DECLARE
+    query_str text;
+    twf_fids_str text;
+BEGIN
+    raise notice 'Fillin table % for fids: %', twf_table, twf_fids;
+    select string_agg('''' || unnest || '''', ',') from unnest(twf_fids) into twf_fids_str;
+    with fid_win as (
+        select fid, window_size_in_hours from unnest(twf_fids) inner join cdm_feature on unnest = fid where category = 'TWF' and is_measured
+    ),
+    select_enc_id_array as (
+        select '(' || string_agg(enc_id::text, ', ') || ')' as enc_id_array from unnest(enc_ids) as enc_id
+        ),
+    select_insert_col as (
+        select
+            string_agg(fid || ', ' || fid || '_c', ',' || E'\n') as insert_col from fid_win
+    ),
+    select_u_col as (
+        select
+            string_agg(fid || ' = excluded.' || fid || ', ' || fid || '_c = excluded.' || fid || '_c', ',' || E'\n') as u_col from fid_win
+    ),
+    select_r_col as (
+        select
+            string_agg('(case when ' || fid || '_c < 8 then ' || fid || ' else null end) as ' || fid || ', (case when ' || fid || '_c < 8 then ' || fid || '_c else null end) as ' || fid || '_c', ',' || E'\n') as r_col from fid_win
+    ),
+    select_s_col as(
+        SELECT
+            string_agg(fid || ', ' || fid || '_c, coalesce(last(case when ' || fid || ' is null then null else json_build_object(''val'', ' || fid || ', ''ts'', tsp,  ''conf'', '|| fid || '_c) end) over (partition by enc_id order by tsp rows between unbounded preceding and current row), last(oft.value) filter (where fid = ''' || fid || ''')) as prev_' || fid || ', (select value::numeric from cdm_g where fid = ''' || fid || '_popmean'' ) as ' || fid || '_popmean', ',' || E'\n') as s_col
+                    from fid_win
+    ),
+    select_col as (
+        select string_agg('(case when ' || fid || ' is not null then ' || fid || ' when prev_' || fid || ' is not null then (prev_' || fid || '->>''val'')::numeric else ' || fid || '_popmean end ) as ' || fid || ',' || E'\n' || '(case when ' || fid || ' is not null then ' || fid || '_c when prev_' || fid || ' is not null then ((prev_' || fid || '->>''conf'')::int | 8) else 24 end ) as ' || fid || '_c', ',' || E'\n') as col
+            from fid_win
+    )
+    select
+    'INSERT INTO ' || twf_table || '(
+    enc_id, tsp, ' || insert_col || '
+    )
+    (
+        select enc_id, tsp,
+           ' || col || '
+        from (
+            with oft as (
+                select cdm_t.enc_id, fid, last(value order by tsp) as value
+                from cdm_t inner join (select enc_id, min(tsp) as min_tsp from ' || twf_table ||
+                ') as twf on cdm_t.enc_id = twf.enc_id and cdm_t.tsp < twf.min_tsp)
+                where fid in ('|| twf_fids_str ||')
+                group by cdm_t.enc_id, fid
+            )
+            select enc_id, tsp,
+            ' || s_col || '
+            from (
+                select enc_id, tsp,
+                ' || r_col || '
+                from ' || twf_table ||
+                (case when start_tsp is not null or end_tsp is not null or enc_ids is not null then ' where ' else '' end) ||
+                (case
+                    when start_tsp is not null
+                        then ' and tsp >= ''' || start_tsp || '''::timestamptz'
+                    else '' end) ||
+                (case
+                    when end_tsp is not null
+                        then ' and tsp <= ''' || end_tsp || '''::timestamptz'
+                    else '' end) ||
+                (case
+                    when enc_ids is not null
+                        then ' and enc_id in ' || enc_id_array
+                    else '' end) || '
+                order by enc_id, tsp
+            ) R left join oft on R.enc_id = oft.enc_id
+        ) S
+    ) ON CONFLICT (enc_id, tsp) DO UPDATE SET
+    ' || u_col || ';'
+        into query_str from select_r_col cross join select_s_col cross join select_col cross join select_u_col cross join select_enc_id_array cross join select_insert_col;
+    raise notice '%', query_str;
+    IF is_exec THEN
+        execute query_str;
+    END IF;
+END
+$BODY$
+LANGUAGE plpgsql;
 
 create or replace function workspace_fillin(twf_fids text[], twf_table text, t_table text, job_id text, workspace text default 'workspace')
 returns void
