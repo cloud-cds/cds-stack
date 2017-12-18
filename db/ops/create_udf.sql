@@ -3435,7 +3435,7 @@ BEGIN
     left join epic_notifications_history h on h.enc_id = p.enc_id
     where p.pat_id = coalesce(this_pat_id, p.pat_id)
     and p.pat_id like 'E%'
-    group by p.enc_id, p.visit_id, p.enc_id
+    group by p.pat_id, p.visit_id, p.enc_id
   ),
   compare as
   (
