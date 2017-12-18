@@ -118,13 +118,14 @@ class Predictor:
         logging.error("Can't process this message")
 
 
-  async def start_predictor(self, hosp, time):
+  async def start_predictor(self, hosp, time, job_id):
     ''' Start the predictor '''
     logging.info("Starting {}".format(self))
     return await protocol.write_message(self.writer, {
       'type': 'ETL',
       'hosp': hosp,
-      'time': time
+      'time': time,
+      'job_id': job_id
     })
 
 
@@ -238,7 +239,7 @@ class PredictorManager:
       pred = self.predictors.get((partition_id, model_type, active))
       if pred and pred.status != 'DEAD':
         try:
-          predictor_started = await pred.start_predictor(hosp, time)
+          predictor_started = await pred.start_predictor(hosp, time, job_id)
           break
         except (ConnectionRefusedError) as e:
           err = e

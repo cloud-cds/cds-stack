@@ -89,6 +89,22 @@ async def notify_data_ready_to_trews_alert_server(ctxt, *para):
     ctxt.log.exception(e)
     ctxt.log.error("Fail to notify trews alert server")
 
+async def notify_delta_ready_to_trews_alert_server(ctxt, *para):
+  job_id = para[0]
+  message = {
+    'type'  : 'ETL',
+    'time'  : str(dt.datetime.utcnow()),
+    'hosp'  : job_id.split('_')[-2].upper(),
+    'job_id': job_id,
+  }
+  try:
+    logging.info('Notify trews alert server that the push-based ETL is done: {}'.format(message))
+    reader, writer = await asyncio.open_connection(protocol.TREWS_ALERT_SERVER_IP, protocol.TREWS_ALERT_SERVER_PORT, loop=ctxt.loop)
+    await protocol.write_message(writer, message)
+    writer.close()
+  except Exception as e:
+    ctxt.log.exception(e)
+    ctxt.log.error("Fail to notify trews alert server")
 
 # async def notify_criteria_ready_to_alert_server(ctxt, job_id, _):
 #   message = {
@@ -378,7 +394,20 @@ async def workspace_predict(ctxt, prediction_params, job_id, workspace='workspac
 
 
 
-
+async def workspace_submit_delta(ctxt, job_id, workspace='event_workspace'):
+  # submit to cdm_twf
+  # submit to trews
+  ctxt.log.info("submit delta start")
+  ctxt.log.info("{}: submitting results ...".format(job_id))
+  submit_cdm = '''
+  select * from workspace_submit_delta('%(workspace)s.%(job)s_cdm_twf');
+  '''
+  async with ctxt.db_pool.acquire() as conn:
+    ctxt.log.info(submit_cdm % {'job': job_id, 'workspace': workspace} )
+    await conn.execute(submit_cdm % {'job': job_id, 'workspace': workspace} )
+    ctxt.log.info("{}: results submitted".format(job_id))
+    ctxt.log.info("submit completed")
+    return job_id
 
 async def workspace_submit(ctxt, job_id, workspace='workspace', drop_workspace_table=True, trews=True):
   # submit to cdm_twf

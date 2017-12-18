@@ -139,7 +139,8 @@ class ETL():
     prediction_params = await loader.load_online_prediction_parameters(self.ctxt, job_id)
     await loader.workspace_fillin_delta(self.ctxt, prediction_params, job_id, WORKSPACE)
     await loader.workspace_derive(self.ctxt, prediction_params, job_id, WORKSPACE)
-    await loader.workspace_submit(self.ctxt, job_id, WORKSPACE, drop_workspace_table=False, trews=False)
+    await loader.workspace_submit_delta(self.ctxt, job_id, WORKSPACE)
+    await loader.notify_delta_ready_to_trews_alert_server(self.ctxt, job_id, WORKSPACE)
 
   def load_pt_map(self):
     '''
