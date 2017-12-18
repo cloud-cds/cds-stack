@@ -170,8 +170,18 @@ class ed_metrics(metric):
       care_unit_df.loc[idx_max, 'leave_time'] = care_unit_df.loc[idx_max, 'max_tsp'] + pd.to_timedelta('1min')
       care_unit_df.drop(['max_tsp'], axis=1, inplace=True)
 
-      ## Remove all patients that leave ED before start of window
-      care_unit_df = care_unit_df.loc[care_unit_df['leave_time'] >= start_tsp]
+      ## Keep ED care_units that have an additional ED time that was broken up.
+      ED_leave_time = care_unit_df.loc[care_unit_df['care_unit'] == 'HCGH EMERGENCY-ADULTS']
+      ED_leave_time = ED_leave_time.groupby('enc_id', as_index=False)['leave_time'].agg(max)
+      ED_leave_time.rename(columns={'leave_time':'ED_leave_time'}, inplace=True)
+      care_unit_df = pd.merge(care_unit_df, ED_leave_time, on='enc_id', how='left')
+
+      ## Remove all ED care_units that don't have max time after leave time
+      care_unit_df = care_unit_df.loc[~((care_unit_df['care_unit'] == 'HCGH EMERGENCY-ADULTS') & (care_unit_df['ED_leave_time'] < start_tsp))]
+
+      ## Remove all remaining non-ED care_unit stays where patient leaves ED before start of window
+      care_unit_df = care_unit_df.loc[~((care_unit_df['leave_time'] >= start_tsp) & (care_unit_df['care_unit'] != 'HCGH EMERGENCY-ADULTS'))]
+      
 
       ## If enter time is before the report start date, we truncate to the start_tsp to guarantee time window for report metrics.
       care_unit_df['enter_time'] = pd.to_datetime(care_unit_df['enter_time']).dt.tz_localize(timezone('utc'))
@@ -249,29 +259,30 @@ class ed_metrics(metric):
     ## Merge criteria_evens with care_unit_df
     merged_df = merge_with_care_unit(criteria_events_df)
 
+    ## Use merged_df from now on since almost all metrics are for patients that have some TREWS alert
+    merged_df['flag'] = merged_df['flag'].apply(lambda x: x + 1000 if x < 0 else x) ## Want to see history
+
     ##### Compute metrics with merged_df #######
     # Consider better naming scheme for metrics
 
     ## Get rid of all entries not in ED
-    merged_df = merged_df.loc[merged_df['care_unit'] == 'HCGH EMERGENCY-ADULTS'] ## Check that the name is correct
-    ## Get rid of all entries that are before report start date.
-    merged_df = merged_df.loc[merged_df['update_date'] >= merged_df['report_start_time']]
+    merged_df_ED = merged_df.loc[merged_df['care_unit'] == 'HCGH EMERGENCY-ADULTS'] ## Check that the name is correct
+    merged_df_ED.loc[:,'flag'] = merged_df_ED['flag'].apply(lambda x: x + 1000 if x < 0 else x) ## Want to see history
 
     # Metric 1: Total number of people in ED
     metric_1 = str(care_unit_df.loc[care_unit_df['care_unit'] == 'HCGH EMERGENCY-ADULTS']['enc_id'].nunique())
 
-    ## Use merged_df from now on since almost all metrics are for patients that have some TREWS alert
-    merged_df['flag'] = merged_df['flag'].apply(lambda x: x + 1000 if x < 0 else x) ## Want to see history
 
+    ## Pass merged_df_ED to only search through criteria_events where patient was in ED.
     def search_history_flags(metric, flags, merged_df=merged_df):
-      merged_df[metric] = merged_df['flag'].apply(lambda x, flags=flags: True if x in flags else False)
+      merged_df.loc[:,metric] = merged_df['flag'].apply(lambda x, flags=flags: True if x in flags else False)
       result = merged_df[['enc_id',metric]].groupby('enc_id').aggregate(np.sum)
       result = result.loc[result[metric] > 0].count()
       return result[metric]
 
     ## Get all patients that have a TREWS alert in their history
     alert_flags = [10,11]
-    metric_2 = str(search_history_flags('TREWS_alert', alert_flags))
+    metric_2 = str(search_history_flags('TREWS_alert', alert_flags, merged_df_ED))
 
     ## Metrics 3,4,5,6 need code sepsis data
     metric_3 = None
@@ -279,9 +290,9 @@ class ed_metrics(metric):
     metric_5 = None
     metric_6 = None
 
-    ## Get all patients that have a manual override in their history
+    ## Get all patients that have a manual override while in ED
     override_flags = range(50,67)
-    metric_7 = str(search_history_flags('has_manual_override', override_flags))
+    metric_7 = str(search_history_flags('has_manual_override', override_flags, merged_df_ED))
 
     ## get trews_model_id
     model_id_query = "select value from trews_parameters where name='trews_jit_model_id';"
@@ -304,8 +315,8 @@ class ed_metrics(metric):
 
     # Select manual overrides
 
-    first_override_indices = merged_df.loc[merged_df['flag'].isin(override_flags)].groupby('enc_id', as_index=False)['update_date'].idxmin()
-    first_override = merged_df.loc[merged_df.index.isin(first_override_indices)]
+    first_override_indices = merged_df_ED.loc[merged_df_ED['flag'].isin(override_flags)].groupby('enc_id', as_index=False)['update_date'].idxmin()
+    first_override = merged_df_ED.loc[merged_df_ED.index.isin(first_override_indices)]
 
     if first_override.empty:
       metric_8 = str(0)
@@ -321,8 +332,8 @@ class ed_metrics(metric):
       metric_8 = str(override_with_scores['enc_id'].nunique())
       metric_9 = '{0:.3f}'.format(override_with_scores['delta'].median()) # Can access this column for the metrbic but for now just print median
       
-    first_alert_indices = merged_df.loc[merged_df['flag'].isin(alert_flags)].groupby('enc_id', as_index=False)['update_date'].idxmin()
-    first_alerts = merged_df.loc[merged_df.index.isin(first_alert_indices)]
+    first_alert_indices = merged_df_ED.loc[merged_df_ED['flag'].isin(alert_flags)].groupby('enc_id', as_index=False)['update_date'].idxmin()
+    first_alerts = merged_df_ED.loc[merged_df_ED.index.isin(first_alert_indices)]
     first_alerts = first_alerts.rename(columns = {'update_date':'1st_alert_date'})
 
     ## Adds min and max date for arg order to first_alerts df. 
@@ -337,11 +348,11 @@ class ed_metrics(metric):
       first_alerts = pd.merge(first_alerts, order_tsps, on='enc_id', how='left')
       return first_alerts
 
-    # Number of patients that are ordered Antibioitics after an alert
+    # Number of patients that have ordered Antibioitics after an alert
     first_alerts = search_cdm_t('cms_antibiotics_order', first_alerts)
     metric_10 = str(first_alerts.loc[(first_alerts['min_tsp_cms_antibiotics_order'] > first_alerts['1st_alert_date']), 'enc_id'].nunique())
 
-    # Number of patients that are ordered blood culture after an alert
+    # Number of patients that have ordered blood culture after an alert
     first_alerts = search_cdm_t('blood_culture_order', first_alerts)
     metric_11 = str(first_alerts.loc[(first_alerts['min_tsp_blood_culture_order'] > first_alerts['1st_alert_date']), 'enc_id'].nunique())
 
@@ -350,11 +361,11 @@ class ed_metrics(metric):
     metric_12 = str(first_alerts.loc[(first_alerts['min_tsp_lactate_order'] > first_alerts['1st_alert_date']), 'enc_id'].nunique())
 
     # Number of patients that received a second lactate after an alert
-    def search_second_lactate(merged_df_row):
-      if merged_df_row['1st_lactate_date'] == False: # no lactate order return false
+    def search_second_lactate(merged_df_ED_row):
+      if merged_df_ED_row['1st_lactate_date'] == False: # no lactate order return false
         return False
       else:
-        ordered_dates = cdmt_df.loc[(cdmt_df['enc_id'] == merged_df_row['enc_id']) & (cdmt_df['fid'] == 'lactate_order')]['tsp']
+        ordered_dates = cdmt_df.loc[(cdmt_df['enc_id'] == merged_df_ED_row['enc_id']) & (cdmt_df['fid'] == 'lactate_order')]['tsp']
         ordered_dates = ordered_dates.sort_values()  
         if ordered_dates.shape[0] < 2: # only 1 lactate order still return False
           return False
@@ -367,13 +378,13 @@ class ed_metrics(metric):
     metric_13 = metric_12 ## Placeholder for now
 
     ## Get all patients that have no infection recorded in their history
-    metric_14 = str(search_history_flags('no_SOI_entered', [12,13]))
+    metric_14 = str(search_history_flags('no_SOI_entered', [12,13], merged_df_ED))
 
     ## Get all patients that have been placed on sepsis pathway
-    metric_15 = str(search_history_flags('on_sepsis_path', range(20,67)))
+    metric_15 = str(search_history_flags('on_sepsis_path', range(20,67), merged_df_ED))
 
     ## Get all patients that have no action taken despite TREWS alert.
-    states_after_first_alert = merged_df[['enc_id', 'update_date', 'flag']]
+    states_after_first_alert = merged_df_ED[['enc_id', 'update_date', 'flag']]
     states_after_first_alert = pd.merge(states_after_first_alert, first_alerts[['enc_id','1st_alert_date']], how='left')
     
     ## Could be that update date is the first alert date since cdm_t only tracks when something happens.
@@ -381,7 +392,7 @@ class ed_metrics(metric):
 
     #ipdb.set_trace()
     # has_AFA = states_after_first_alert.loc[states_after_first_alert['update_date'] > states_after_first_alert['1st_alert_date']]
-    # merge_1st_alerts = merged_df[['enc_id', 'update_date', 'flag']]
+    # merge_1st_alerts = merged_df_ED[['enc_id', 'update_date', 'flag']]
     # merge_1st_alerts = pd.merge(merge_1st_alerts, first_alerts[['enc_id','1st_alert_date']], how='left')
     # set_has_AFA = set(has_AFA['enc_id'].unique())
     # set_all = set(states_after_first_alert['enc_id'].unique())
@@ -409,51 +420,162 @@ class ed_metrics(metric):
 
     transferred_patients = pd.merge(first_admits[['enc_id', '1st_care_unit']], last_admits[['enc_id', 'last_care_unit']], how='inner')
     transferred_patients = set(transferred_patients.loc[(transferred_patients['1st_care_unit'] == 'HCGH EMERGENCY-ADULTS') & (transferred_patients['last_care_unit'] != 'HCGH EMERGENCY-ADULTS')]['enc_id'].unique())
-    transferred_from_ed = no_action_patients.intersection(transferred_patients)
-    no_action_patients = no_action_patients.difference(transferred_from_ed)
+    transferred_from_ED = no_action_patients.intersection(transferred_patients)
+    no_action_patients = no_action_patients.difference(transferred_from_ED)
 
     discharged_patients = set(cdmt_df.loc[cdmt_df['fid'] == 'discharge']['enc_id'].unique())
-    discharged_from_ed = no_action_patients.intersection(discharged_patients)
-    metric_26 = str(len(discharged_from_ed))
-    no_action_patients = no_action_patients.difference(discharged_from_ed)
+    discharged_from_ED = no_action_patients.intersection(discharged_patients)
+    metric_26 = str(len(discharged_from_ED))
+    no_action_patients = no_action_patients.difference(discharged_from_ED)
     currently_in_ED = no_action_patients
     
     ## Median time alert was active
+    """
+    for group in [transferred_from_ED, discharged_from_ED, currently_in_ED]:
+        first_alerts_group = first_alerts.loc[first_alerts['enc_id'].isin(group)]
+    """
 
+    ## Test on a single group first
+    """
+    ipdb.set_trace()
+    first_alerts_transferred = first_alerts.loc[first_alerts['enc_id'].isin(transferred_from_ED)][['enc_id','1st_alert_date']]
+    first_non_alerts = merged_df_ED.loc[merged_df_ED['enc_id'].isin(transferred_from_ED)]
+    first_non_alerts = pd.merge(first_non_alerts, first_alerts_transferred, on='enc_id', how='left')
+    first_non_alerts = first_non_alerts.loc[first_non_alerts['update_date'] >= first_non_alerts['1st_alert_date']]
+    first_non_alerts = first_non_alerts.loc[~first_non_alerts['flag'].isin(alert_flags)]
+    first_non_alerts = first_non_alerts.groupby('enc_id', as_index = False)['update_date'].min()
+    alert_durations = pd.merge(first_alerts_transferred, first_non_alerts)
+    """
     ipdb.set_trace()
 
-    last_alerts = merged_df.loc[merged_df['flag'].isin([10,11])]
-    last_alerts = last_alerts.groupby('enc_id', as_index=False)['update_date'].agg({'last_alert': max})
-    within_alerts = states_after_first_alert[['enc_id', 'update_date', 'flag']]
-    within_alerts = pd.merge(within_alerts, first_alerts[['enc_id', '1st_alert_date']], how='left')
-    within_alerts = pd.merge(within_alerts, last_alerts[['enc_id', 'last_alert']], how='left')
-    within_alerts = within_alerts.loc[(within_alerts['update_date'] >= within_alerts['1st_alert_date']) & (within_alerts['update_date'] <= within_alerts['last_alert'])]
-    not_alerts_inrange = within_alerts.loc[~within_alerts['flag'].isin(alert_flags)]
-    not_alerts_inrange = not_alerts_inrange.groupby('enc_id', as_index=False)['update_date'].min()
+    #### Compute the metrics for each group ####
+    ## Duration alert active while in ED
+    min_max_alerts = (merged_df.loc[merged_df['flag'].isin(alert_flags)]
+                      .groupby('enc_id', as_index=False)['update_date']
+                      .agg({'first_alert':min, 'last_alert':max}))
+    within_alerts = merged_df[['enc_id', 'update_date', 'flag']]
+    within_alerts = pd.merge(within_alerts, min_max_alerts, how='left')
+    within_alerts = within_alerts.loc[(within_alerts['update_date'] >= within_alerts['first_alert']) & (within_alerts['update_date'] <= within_alerts['last_alert'])]
+    min_non_alerts = within_alerts.loc[~within_alerts['flag'].isin(alert_flags)]
+    min_non_alerts = min_non_alerts.groupby('enc_id', as_index=False)['update_date'].min()
+    min_non_alerts.rename(columns={'update_date':'first_non_alert'}, inplace=True)
 
+    ## No patients have non-alert states that occur in between first and last alert (need to account for people that reach an alert then drop down then back up).
+    duration = pd.merge(min_max_alerts, min_non_alerts, on='enc_id', how='left')
+    duration['alert_end'] = duration.apply(lambda x: x['first_non_alert'] if (not pd.isnull(x['first_non_alert'])) else x['last_alert'], axis=1)
+    duration['alert_duration'] = (duration['alert_end'] - duration['first_alert']) / pd.to_timedelta('1min')
 
-    ## Median time alert active while in ED
+    ## Compute same metric but only on ED care units
+    min_max_alerts_ED = (merged_df_ED.loc[merged_df_ED['flag'].isin(alert_flags)]
+                      .groupby('enc_id', as_index=False)['update_date']
+                      .agg({'first_alert':min, 'last_alert':max}))
+    within_alerts_ED = merged_df_ED[['enc_id', 'update_date', 'flag']]
+    within_alerts_ED = pd.merge(within_alerts_ED, min_max_alerts_ED, how='left')
+    within_alerts_ED = within_alerts_ED.loc[(within_alerts_ED['update_date'] >= within_alerts_ED['first_alert']) & (within_alerts_ED['update_date'] <= within_alerts_ED['last_alert'])]
+    min_non_alerts_ED = within_alerts_ED.loc[~within_alerts_ED['flag'].isin(alert_flags)]
+    min_non_alerts_ED = min_non_alerts_ED.groupby('enc_id', as_index=False)['update_date'].min()
+    min_non_alerts_ED.rename(columns={'update_date':'first_non_alert'}, inplace=True)
 
-    ## Alerts with at least 1 page visit
+    ED_duration = pd.merge(min_max_alerts_ED, min_non_alerts_ED, on='enc_id', how='left')
+    ED_duration['alert_end'] = ED_duration.apply(lambda x: x['first_non_alert'] if (not pd.isnull(x['first_non_alert'])) else x['last_alert'], axis=1)
+    ED_duration['ED_alert_duration'] = (ED_duration['alert_end'] - ED_duration['first_alert']) / pd.to_timedelta('1min')
 
     ## Alerts that were TREWS and alerts that were CMS
-    
+    ## Number of patients that have TREWS vs CMS alerts
+    has_TREWS = (merged_df.loc[merged_df['flag'].isin([11])]
+                 .groupby('enc_id', as_index=False)['update_date'] .agg({'has_TREWS_alert':min}))
+    has_TREWS['has_TREWS_alert'] = 1
+    has_CMS = (merged_df.loc[merged_df['flag'].isin([10])]
+               .groupby('enc_id', as_index=False)['update_date']
+               .agg({'has_CMS_alert':min}))
+    has_CMS['has_CMS_alert'] = 1
+    no_action_metrics = pd.merge(duration[['enc_id','first_alert' ,'alert_duration']], ED_duration[['enc_id', 'ED_alert_duration']], on='enc_id', how='left')
+    no_action_metrics = pd.merge(no_action_metrics, has_TREWS, on='enc_id', how='left')
+    no_action_metrics = pd.merge(no_action_metrics, has_CMS, on='enc_id', how='left')
 
-    last_TREWS_alerts = merged_df.loc[merged_df['flag'] == 11]
+    ipdb.set_trace()
+    ## Alerts with at least 1 page visit
+    query = """
+                select enc_id, tsp, uid
+                from user_interactions
+                where action = 'page-get'
+                and enc_id in ({0})""".format(', '.join([str(e) for e in valid_enc_ids]))
+    page_gets = pd.read_sql(sqlalchemy.text(query), self.connection, columns=['enc_id', 'tsp', 'uid'])
+    dev_group = ['AZHAN2', 'KHENRY22', 'NRAWAT1', 'EHOOGES1']
+    ## Remove all dev group interactions
+    page_gets = page_gets.loc[~page_gets['uid'].isin(dev_group)]
+    page_gets = pd.merge(page_gets, no_action_metrics[['enc_id','first_alert']], on='enc_id', how='left')
+    page_gets = page_gets.loc[page_gets['first_alert'] <= page_gets['tsp']]
+
+    ## Build dictionary of page views by providers for each patient
+    page_views = page_gets['uid'].groupby(page_gets['enc_id']).value_counts().to_frame('page_views')
+
+    ## Add page views to the full metrics.
+    no_action_metrics['page_views'] = no_action_metrics['enc_id'].apply(lambda x, page_views=page_views, page_gets=page_gets: page_views.ix[x].to_dict() if x in page_gets['enc_id'].unique() else False)
+
+    ipdb.set_trace()
+    ## Subset no_action_metrics for each of the 3 groups
+    discharged_metrics_df = no_action_metrics.loc[no_action_metrics['enc_id'].isin(discharged_from_ED)]
+    discharged_metrics_results = [str(len(discharged_from_ED)),
+                                  '{0:.3f}'.format(discharged_metrics_df['alert_duration'].median()), 
+                                  '{0:.3f}'.format(discharged_metrics_df['ED_alert_duration'].median()),
+                                  #discharged_metrics_df['alert_duration'].quantile([0.25, 0.5, 0.75]), 
+                                  #discharged_metrics_df['ED_alert_duration'].quantile([0.25, 0.5, 0.75]),
+                                  str(int(discharged_metrics_df['has_TREWS_alert'].sum())),
+                                  str(int(discharged_metrics_df['has_CMS_alert'].sum()))]
+    
+    transferred_metrics_df = no_action_metrics.loc[no_action_metrics['enc_id'].isin(transferred_from_ED)]
+    transferred_metrics_results = [str(len(transferred_from_ED)),
+                                   '{0:.3f}'.format(transferred_metrics_df['alert_duration'].median()),
+                                   '{0:.3f}'.format(transferred_metrics_df['ED_alert_duration'].median()),
+                                   #transferred_metrics_df['alert_duration'].quantile([0.25, 0.5, 0.75]), 
+                                   #transferred_metrics_df['ED_alert_duration'].quantile([0.25, 0.5, 0.75]),
+                                   str(int(transferred_metrics_df['has_TREWS_alert'].sum())),
+                                   str(int(transferred_metrics_df['has_CMS_alert'].sum()))]
+
+    currentPatient_metrics_df = no_action_metrics.loc[no_action_metrics['enc_id'].isin(currently_in_ED)]
+    currentPatients_results = [str(len(currently_in_ED)),
+                               '{0:.3f}'.format(currentPatient_metrics_df['alert_duration'].median()),
+                               '{0:.3f}'.format(currentPatient_metrics_df['ED_alert_duration'].median()),
+                               #currentPatient_metrics_df['alert_duration'].quantile([0.25, 0.5, 0.75]), 
+                               #currentPatient_metrics_df['ED_alert_duration'].quantile([0.25, 0.5, 0.75]),
+                               str(int(currentPatient_metrics_df['has_TREWS_alert'].sum())),
+                               str(int(currentPatient_metrics_df['has_CMS_alert'].sum()))]
+
+    no_action_results = pd.DataFrame({'discharged_from_ED': discharged_metrics_results,
+                                      'transferred_from_ED': transferred_metrics_results,
+                                      'still_in_ED': currentPatients_results},
+                                     index=['Num of patients','Median alert duration','Median alert duration in ED','Num of TREWS alerts','Num of CMS alerts'])
+    no_action_results = no_action_results.transpose()
+    self.no_action_results = no_action_results
+
+    all_page_views = discharged_metrics_df[['enc_id','page_views']]
+    all_page_views['group'] = 'discharged'
+    temp_transfer = transferred_metrics_df[['enc_id','page_views']]
+    temp_transfer['group'] = 'transferred'
+    all_page_views = all_page_views.append(temp_transfer, ignore_index=True)
+    temp_current = currentPatient_metrics_df[['enc_id','page_views']]
+    temp_current['group'] = 'in_ED'
+    all_page_views = all_page_views.append(temp_current, ignore_index=True)
+    all_page_views = all_page_views.loc[all_page_views['page_views'] != False]
+    self.all_page_views = all_page_views
+
+    ipdb.set_trace()
+    last_TREWS_alerts = merged_df_ED.loc[merged_df_ED['flag'] == 11]
     last_TREWS_alerts = last_TREWS_alerts.groupby('enc_id', as_index=False)['update_date'].agg({'last_TREWS_alert': max})
 
-    last_CMS_alerts = merged_df.loc[merged_df['flag'] == 10]
+    last_CMS_alerts = merged_df_ED.loc[merged_df_ED['flag'] == 10]
     last_CMS_alerts = last_CMS_alerts.groupby('enc_id', as_index=False)['update_date'].agg({'last_CMS_alert': max})
 
-    states_after_last_alert = merged_df[['enc_id', 'update_date', 'flag']]
+    states_after_last_alert = merged_df_ED[['enc_id', 'update_date', 'flag']]
     #states_after_last_alert = pd.merge(states_after_last_alert, last_TREWS_alerts[['enc_id','last_TREWS_alert']], how='left')
     #states_after_last_alert = pd.merge(states_after_last_alert, last_CMS_alerts[['enc_id','last_CMS_alert']], how='left')
     states_after_last_alert = pd.merge(states_after_last_alert, first_alerts[['enc_id','1st_alert_date']], how='inner')
 
-    '''
-    last_alerts = merged_df.loc[merged_df['flag'].isin([10,11])]
+
+    last_alerts = merged_df_ED.loc[merged_df_ED['flag'].isin([10,11])]
     last_alerts = last_alerts.groupby('enc_id', as_index=False)['update_date'].agg({'last_alert': max})
-    '''
+
         
     ## Find all enc_ids that only have state 0s after their last alert (CMS and TREWS)
     states_after_last_alert = pd.merge(states_after_last_alert, last_alerts[['enc_id', 'last_alert']], how='left')
@@ -633,11 +755,13 @@ class ed_metrics(metric):
     self.metrics_DF = pd.DataFrame({'Metrics': allDesc, 'Values': allMetrics})
 
   def to_html(self):
-    txt = 'This section of the report covers times between {s} and {e}'.format(s=self.report_start, e=self.report_end)
+    txt = '<h3>This section of the report metrics for patients who were in the ED between {s} and {e}</h3>'.format(s=self.report_start, e=self.report_end)
     #txt = "<h3>Emergency Department Metrics</h3>"
     txt += self.metrics_DF.to_html()
+    txt += '<h5>This table breaks down the patients that were alerted but had no action (metric 11)</h5>' + self.no_action_results.to_html()
+    txt += '<h5>This table reports the page views for each patient in the three no action categories.</h5>' + self.all_page_views.to_html()
     return txt
-
+    
 class alert_performance_metrics(metric):
 
   def __init__(self,connection, first_time_str, last_time_str):
