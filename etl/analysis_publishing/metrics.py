@@ -6,7 +6,6 @@ from datetime import timedelta
 import numpy as np
 from pytz import timezone
 from collections import OrderedDict
-import ipdb
 
 #---------------------------------
 ## Metric Classes
