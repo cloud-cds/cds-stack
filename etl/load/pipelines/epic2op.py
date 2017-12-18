@@ -253,7 +253,23 @@ async def workspace_fillin(ctxt, prediction_params, job_id, workspace='workspace
     return job_id
 
 
-
+async def workspace_fillin_delta(ctxt, prediction_params, job_id, workspace='workspace'):
+  ctxt.log.info("start fillin pipeline")
+  # we run the optimized fillin in one run, e.g., update set all columns
+  fillin_sql = '''
+    SELECT * from workspace_fillin_delta({fillin_fids}, {twf_table}, 'cdm_t', '{job_id}', '{workspace}');
+    '''.format(
+      fillin_fids = 'array[{}]'.format(','.join(["'{}'".format(x) for x in prediction_params['fillin_features']])),
+      twf_table   = "'{}.{}_cdm_twf'".format(workspace, job_id),
+      job_id      = job_id,
+      workspace   = workspace
+    )
+  async with ctxt.db_pool.acquire() as conn:
+    ctxt.log.info("start fillin: {}".format(fillin_sql))
+    result = await conn.execute(fillin_sql)
+    ctxt.log.info(result)
+    ctxt.log.info("fillin completed")
+    return job_id
 
 
 async def workspace_derive(ctxt, prediction_params, job_id, workspace='workspace'):

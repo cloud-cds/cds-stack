@@ -417,6 +417,7 @@ declare
 begin
     execute '
     --create_job_cdm_twf_table
+    drop table ' || workspace || '.' || job_id || '_cdm_twf;
     create table IF NOT EXISTS ' || workspace || '.' || job_id || '_cdm_twf as
     select * from cdm_twf with no data;
     alter table ' || workspace || '.' || job_id || '_cdm_twf add primary key (enc_id, tsp);
@@ -457,7 +458,7 @@ BEGIN
     select
         'with idx as (
             select enc_id, min(tsp) as min_tsp
-            from ' || workspace || '.' || job_id || '_cdm_t
+            from ' || workspace || '.cdm_t where job_id = ''' || job_id || '''
             group by enc_id
         )
         insert into ' || twf_table || ' (enc_id, tsp, ' || insert_cols || ')
@@ -488,9 +489,13 @@ AS $BODY$
 DECLARE
     query_str text;
     twf_fids_str text;
+    oft_col text;
 BEGIN
     raise notice 'Fillin table % for fids: %', twf_table, twf_fids;
     select string_agg('''' || unnest || '''', ',') from unnest(twf_fids) into twf_fids_str;
+    select string_agg('last(value order by tsp) filter (where fid = ''' || unnest || ''') as ' || unnest || '_last,
+            last(confidence order by tsp) filter (where fid = ''' || unnest || ''') as ' || unnest || '_last_c', ',') from unnest(twf_fids)
+    into oft_col;
     with fid_win as (
         select fid, window_size_in_hours from unnest(twf_fids) inner join cdm_feature on unnest = fid where category = 'TWF' and is_measured
     ),
@@ -511,7 +516,7 @@ BEGIN
     ),
     select_s_col as(
         SELECT
-            string_agg(fid || ', ' || fid || '_c, coalesce(last(case when ' || fid || ' is null then null else json_build_object(''val'', ' || fid || ', ''ts'', tsp,  ''conf'', '|| fid || '_c) end) over (partition by enc_id order by tsp rows between unbounded preceding and current row), last(oft.value) filter (where fid = ''' || fid || ''')) as prev_' || fid || ', (select value::numeric from cdm_g where fid = ''' || fid || '_popmean'' ) as ' || fid || '_popmean', ',' || E'\n') as s_col
+            string_agg(fid || ', ' || fid || '_c, coalesce(last(case when ' || fid || ' is null then null else json_build_object(''val'', ' || fid || ', ''ts'', tsp,  ''conf'', '|| fid || '_c) end) over (partition by R.enc_id order by tsp rows between unbounded preceding and current row), last(case when oft.'|| fid || '_last is null then null else json_build_object(''val'', oft.'|| fid || '_last, ''ts'', tsp, ''conf'', oft.'|| fid || '_last_c) end) over (partition by oft.enc_id) ) as prev_' || fid || ', (select value::numeric from cdm_g where fid = ''' || fid || '_popmean'' ) as ' || fid || '_popmean', ',' || E'\n') as s_col
                     from fid_win
     ),
     select_col as (
@@ -527,13 +532,13 @@ BEGIN
            ' || col || '
         from (
             with oft as (
-                select cdm_t.enc_id, fid, last(value order by tsp) as value
+                select cdm_t.enc_id, ' || oft_col || '
                 from cdm_t inner join (select enc_id, min(tsp) as min_tsp from ' || twf_table ||
-                ') as twf on cdm_t.enc_id = twf.enc_id and cdm_t.tsp < twf.min_tsp)
+                ' group by enc_id) as twf on cdm_t.enc_id = twf.enc_id and cdm_t.tsp < twf.min_tsp
                 where fid in ('|| twf_fids_str ||')
-                group by cdm_t.enc_id, fid
+                group by cdm_t.enc_id
             )
-            select enc_id, tsp,
+            select R.enc_id, R.tsp,
             ' || s_col || '
             from (
                 select enc_id, tsp,

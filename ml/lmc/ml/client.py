@@ -353,7 +353,7 @@ class Session():
 
     def build_sql_string(self, feature_lst, nrows=None, where=None,
                          includeConfidances=False, dataset_id=None,
-                         cdm_table_prefix=''):
+                         workspace=None, job_id=None, online=True, hospital='hcgh'):
         #--------------------------------------------------------------------------
         # setup for requested features
         #--------------------------------------------------------------------------
@@ -400,8 +400,8 @@ class Session():
                 columns.append("cast(%s.value as %s) as %s" % (f, data_types[f], f))
 
         feature_name_lst = twf_features + featureConfidances + s_features
-        cdm_twf = '{}_cdm_twf'.format(cdm_table_prefix) if cdm_table_prefix else 'cdm_twf'
-        cdm_s = '{}_cdm_s'.format(cdm_table_prefix) if cdm_table_prefix else 'cdm_s'
+        cdm_twf = '{}.{}_cdm_twf'.format(workspace, job_id) if job_id else 'cdm_twf'
+        cdm_s = 'cdm_s'
         sql = '''
         SELECT %s
         FROM %s as cdm_twf
@@ -417,6 +417,9 @@ class Session():
             where += " and cdm_twf.dataset_id = {}".format(dataset_id) if dataset_id else ''
         else:
             where = " where cdm_twf.dataset_id = {}".format(dataset_id) if dataset_id else ''
+        if job_id is None and online and hospital:
+            condition = "cdm_twf.enc_id in (select * from get_latest_enc_ids('{}')".format(hospital)
+            where = where + ' and ' + condition if where else ' where ' + condition
         sql += where
         sql += " order by enc_id, tsp"
         if nrows and nrows > 0:

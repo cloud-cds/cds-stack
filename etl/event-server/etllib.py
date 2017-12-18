@@ -137,7 +137,7 @@ class ETL():
     await loader.epic_2_workspace(self.ctxt, buf, self.config.get_db_conn_string_sqlalchemy(), job_id, 'unicode', WORKSPACE)
     await loader.workspace_to_cdm(self.ctxt, job_id, WORKSPACE)
     prediction_params = await loader.load_online_prediction_parameters(self.ctxt, job_id)
-    await loader.workspace_fillin(self.ctxt, prediction_params, job_id, WORKSPACE)
+    await loader.workspace_fillin_delta(self.ctxt, prediction_params, job_id, WORKSPACE)
     await loader.workspace_derive(self.ctxt, prediction_params, job_id, WORKSPACE)
     await loader.workspace_submit(self.ctxt, job_id, WORKSPACE, drop_workspace_table=False, trews=False)
 
