@@ -518,7 +518,6 @@ class ed_metrics(metric):
     no_action_results = no_action_results.transpose()
     self.no_action_results = no_action_results
 
-    ipdb.set_trace()
     ## Build table to show the page_views
     all_page_views = discharged_metrics_df[['enc_id','page_views']]
     all_page_views['group'] = 'discharged'
