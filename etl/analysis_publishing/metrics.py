@@ -179,9 +179,8 @@ class ed_metrics(metric):
       care_unit_df = care_unit_df.loc[~((care_unit_df['care_unit'] == 'HCGH EMERGENCY-ADULTS') & (care_unit_df['ED_leave_time'] < start_tsp))]
 
       ## Remove all remaining non-ED care_unit stays where patient leaves ED before start of window
-      care_unit_df = care_unit_df.loc[~((care_unit_df['leave_time'] >= start_tsp) & (care_unit_df['care_unit'] != 'HCGH EMERGENCY-ADULTS'))]
+      care_unit_df = care_unit_df.loc[~((care_unit_df['leave_time'] < start_tsp) & (care_unit_df['care_unit'] != 'HCGH EMERGENCY-ADULTS'))]
       
-
       ## If enter time is before the report start date, we truncate to the start_tsp to guarantee time window for report metrics.
       care_unit_df['enter_time'] = pd.to_datetime(care_unit_df['enter_time']).dt.tz_localize(timezone('utc'))
       care_unit_df['report_start_time'] = care_unit_df['enter_time'].apply( lambda x, start_tsp=start_tsp: start_tsp if x < start_tsp else x)
