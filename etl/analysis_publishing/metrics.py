@@ -6,7 +6,7 @@ from datetime import timedelta
 import numpy as np
 from pytz import timezone
 from collections import OrderedDict
-
+import ipdb
 #---------------------------------
 ## Metric Classes
 #---------------------------------
@@ -397,11 +397,11 @@ class ed_metrics(metric):
     
     no_action_patients = no_action
     ## Segment patients into 3 groups: still in ED, admitted to other care_unit, discharged
-    first_admits = care_unit_df.groupby('enc_id', as_index=False)['report_start_time'].idxmin()
+    first_admits = care_unit_df.groupby('enc_id', as_index=False)['enter_time'].idxmin()
     first_admits = care_unit_df.ix[first_admits]
     first_admits.rename(columns = {'care_unit':'1st_care_unit'}, inplace=True)
 
-    last_admits = care_unit_df.groupby('enc_id', as_index=False)['report_start_time'].idxmax()
+    last_admits = care_unit_df.groupby('enc_id', as_index=False)['enter_time'].idxmax()
     last_admits = care_unit_df.ix[last_admits]
     last_admits.rename(columns = {'care_unit':'last_care_unit'}, inplace=True)
 
@@ -481,6 +481,16 @@ class ed_metrics(metric):
     ## Add page views to the full metrics.
     no_action_metrics['page_views'] = no_action_metrics['enc_id'].apply(lambda x, page_views=page_views, page_gets=page_gets: page_views.ix[x].to_dict() if x in page_gets['enc_id'].unique() else False)
 
+
+
+    ipdb.set_trace()
+    ## Numpy sum function returns 0 for nan. Since we want integer for counts, use helper func to turn nan to 0.
+    def clean_sum(value):
+      if pd.isnull(value):
+        return 0
+      else:
+        return int(value)
+
     ## Leaving comments in for the quantile version. Not enough data to make meaningful quantiles atm.
     ## Subset no_action_metrics for each of the 3 groups
     discharged_metrics_df = no_action_metrics.loc[no_action_metrics['enc_id'].isin(discharged_from_ED)]
@@ -489,8 +499,8 @@ class ed_metrics(metric):
                                   '{0:.3f}'.format(discharged_metrics_df['ED_alert_duration'].median()),
                                   #discharged_metrics_df['alert_duration'].quantile([0.25, 0.5, 0.75]), 
                                   #discharged_metrics_df['ED_alert_duration'].quantile([0.25, 0.5, 0.75]),
-                                  str(int(discharged_metrics_df['has_TREWS_alert'].sum())),
-                                  str(int(discharged_metrics_df['has_CMS_alert'].sum()))]
+                                  str(clean_sum(discharged_metrics_df['has_TREWS_alert'].sum())),
+                                  str(clean_sum(discharged_metrics_df['has_CMS_alert'].sum()))]
     
     transferred_metrics_df = no_action_metrics.loc[no_action_metrics['enc_id'].isin(transferred_from_ED)]
     transferred_metrics_results = [str(len(transferred_from_ED)),
@@ -498,8 +508,8 @@ class ed_metrics(metric):
                                    '{0:.3f}'.format(transferred_metrics_df['ED_alert_duration'].median()),
                                    #transferred_metrics_df['alert_duration'].quantile([0.25, 0.5, 0.75]), 
                                    #transferred_metrics_df['ED_alert_duration'].quantile([0.25, 0.5, 0.75]),
-                                   str(int(transferred_metrics_df['has_TREWS_alert'].sum())),
-                                   str(int(transferred_metrics_df['has_CMS_alert'].sum()))]
+                                   str(clean_sum(transferred_metrics_df['has_TREWS_alert'].sum())),
+                                   str(clean_sum(transferred_metrics_df['has_CMS_alert'].sum()))]
 
     currentPatient_metrics_df = no_action_metrics.loc[no_action_metrics['enc_id'].isin(currently_in_ED)]
     currentPatients_results = [str(len(currently_in_ED)),
@@ -507,8 +517,8 @@ class ed_metrics(metric):
                                '{0:.3f}'.format(currentPatient_metrics_df['ED_alert_duration'].median()),
                                #currentPatient_metrics_df['alert_duration'].quantile([0.25, 0.5, 0.75]), 
                                #currentPatient_metrics_df['ED_alert_duration'].quantile([0.25, 0.5, 0.75]),
-                               str(int(currentPatient_metrics_df['has_TREWS_alert'].sum())),
-                               str(int(currentPatient_metrics_df['has_CMS_alert'].sum()))]
+                               str(clean_sum(currentPatient_metrics_df['has_TREWS_alert'].sum())),
+                               str(clean_sum(currentPatient_metrics_df['has_CMS_alert'].sum()))]
 
     no_action_results = pd.DataFrame({'discharged_from_ED': discharged_metrics_results,
                                       'transferred_from_ED': transferred_metrics_results,
