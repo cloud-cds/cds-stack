@@ -544,38 +544,6 @@ class ed_metrics(metric):
     dropouts = states_after_last_alert.groupby('enc_id', as_index=False)['not_deactivated'].agg(np.sum)
     dropouts = dropouts.loc[dropouts['not_deactivated'] == 0]
     metric_25 = str(dropouts['enc_id'].nunique())
-
-    
-
-    ## Compute how many alerts are ignored for 0 <= t < 1hr
-    first_hour_AFA = states_after_first_alert.loc[(states_after_first_alert['update_date'] <  states_after_first_alert['1st_alert_date'] + pd.to_timedelta('1hr')) & (states_after_first_alert['update_date'] >=  states_after_first_alert['1st_alert_date'])] 
-    #
-    first_hour_AFA['still_active'] = ~first_hour_AFA['flag'].isin(alert_flags)
-    first_hour_AFA = first_hour_AFA.loc[first_hour_AFA['enc_id'].isin(no_action)]
-    first_hour_AFA = first_hour_AFA.groupby('enc_id', as_index=False)['still_active'].agg(np.sum)
-    first_hour_AFA = first_hour_AFA.loc[first_hour_AFA['still_active'] == 0]
-    remaining_patients = first_hour_AFA['enc_id'].unique()    
-    metric_16_a = str(len(remaining_patients))
-
-    ## Compute how many alerts are ignored for 1 <= t < 2hr
-    second_hour_AFA = states_after_first_alert.loc[(states_after_first_alert['update_date'] < states_after_first_alert['1st_alert_date'] + pd.to_timedelta('2hr')) & (states_after_first_alert['update_date'] >= states_after_first_alert['1st_alert_date'] + pd.to_timedelta('1hr'))]
-    ## After an action, they can't be considred no action even if their state drops back to alert_flags.
-    second_hour_AFA['still_active'] = ~second_hour_AFA['flag'].isin(alert_flags) 
-    second_hour_AFA = second_hour_AFA.loc[second_hour_AFA['enc_id'].isin(remaining_patients)]
-    second_hour_AFA = second_hour_AFA.groupby('enc_id', as_index=False)['still_active'].agg(np.sum)
-    second_hour_AFA = second_hour_AFA.loc[second_hour_AFA['still_active'] == 0]
-    remaining_patients = second_hour_AFA['enc_id'].unique()    
-    metric_16_b = str(len(remaining_patients))
-
-    ## Compute how many alerts are ignored after >=2 hours
-    third_hour_AFA = states_after_first_alert.loc[states_after_first_alert['update_date'] >= states_after_first_alert['1st_alert_date'] + pd.to_timedelta('2hr')]
-    ## After an action, they can't be considred no action even if their state drops back to alert_flags.
-    third_hour_AFA['still_active'] = ~third_hour_AFA['flag'].isin(alert_flags) 
-    third_hour_AFA = third_hour_AFA.loc[third_hour_AFA['enc_id'].isin(remaining_patients)]
-    third_hour_AFA = third_hour_AFA.groupby('enc_id', as_index=False)['still_active'].agg(np.sum)
-    third_hour_AFA = third_hour_AFA.loc[third_hour_AFA['still_active'] == 0]
-    remaining_patients = third_hour_AFA['enc_id'].unique()    
-    metric_16_c = str(len(remaining_patients))
     
     ## min, max, median time from alert to evaluation
     # Only considered eval-ed if SOI is_met is also true
