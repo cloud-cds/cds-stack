@@ -324,12 +324,19 @@ class JHAPIConfig:
       'dayslookback': str(self.op_lookback_days),
       'searchtype':   'OP'
     } for _, pat in bedded_patients.iterrows()]
-
     responses = self.make_requests(ctxt, resource, payloads, 'GET')
     dfs = [pd.DataFrame(r) for r in responses]
     half = len(dfs)//2
     med_ip = self.combine(dfs[:half], bedded_patients[['pat_id', 'visit_id']])
     med_op = self.combine(dfs[half:], bedded_patients[['pat_id', 'visit_id']])
+    def remove_inpatient(val):
+        if val is None or str(val) == 'nan':
+            return val
+        for item in val:
+          if item == 'OrderMode' and val[item] == 'Outpatient':
+            return val
+        return {}
+    med_op['MedicationOrders'] = med_op['MedicationOrders'].apply(remove_inpatient)
     return pd.concat([med_ip, med_op]).reset_index(drop=True)
 
 

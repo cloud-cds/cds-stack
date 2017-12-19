@@ -568,12 +568,14 @@ CREATE TABLE cdm_labels (
     enc_id     integer,
     tsp        timestamp with time zone,
     label_type text,
-    label      integer
+    label      integer,
+    CONSTRAINT cdm_labels_uq UNIQUE (dataset_id, label_type, label, enc_id, tsp)
 );
 
 
 DROP TABLE IF EXISTS sep2_label_details;
 CREATE TABLE sep2_label_details(
+    label_id            integer,
     dataset_id          integer,
     enc_id              integer,
     sepsis_onset        timestamp with time zone,
@@ -598,22 +600,25 @@ CREATE TABLE sep2_label_details(
     baseline_creatinine real,
     baseline_platelets  real,
     baseline_bilirubin  real,
-    created             timestamp with time zone
+    CONSTRAINT sep2_label_details_uq UNIQUE (dataset_id, enc_id, sepsis_onset, infection1_tsp, infection1_name, infection2_tsp, infection2_name, orgdf_tsp, vent_orgdf, creatinine_orgdf, bilirubin_orgdf, platelets_orgdf, gcs_orgdf, inr_orgdf, hypotension_orgdf, vasopressors_orgdf, lactate_orgdf, sbpm_hypotension, delta_hypotension, map_hypotension, baseline_inr, baseline_creatinine, baseline_platelets, baseline_bilirubin)
 );
 
 DROP TABLE IF EXISTS sep2_sirs;
 CREATE TABLE sep2_sirs(
+    label_id         integer,
     dataset_id       integer,
     enc_id           integer,
     tsp              timestamp with time zone,
     heart_rate_sirs  integer,
     resp_rate_sirs   integer,
     wbc_sirs         integer,
-    temperature_sirs integer
+    temperature_sirs integer,
+    CONSTRAINT sep2_sirs_uq UNIQUE (dataset_id, enc_id, tsp, heart_rate_sirs, resp_rate_sirs, wbc_sirs, temperature_sirs)
 );
 
 DROP TABLE IF EXISTS sep2_suspicion_of_infection;
 CREATE TABLE sep2_suspicion_of_infection(
+    label_id         integer,
     dataset_id       integer,
     enc_id           integer,
     infection1_tsp   timestamp with time zone,
@@ -624,7 +629,8 @@ CREATE TABLE sep2_suspicion_of_infection(
     heart_rate_sirs  integer,
     resp_rate_sirs   integer,
     wbc_sirs         integer,
-    temperature_sirs integer
+    temperature_sirs integer,
+    CONSTRAINT sep2_suspicion_of_infection_uq  UNIQUE (dataset_id, enc_id, infection1_tsp, infection1_name, infection2_tsp, infection2_name, heart_rate_sirs, resp_rate_sirs, wbc_sirs, temperature_sirs)
 );
 
 DROP TABLE IF EXISTS etl_job;
