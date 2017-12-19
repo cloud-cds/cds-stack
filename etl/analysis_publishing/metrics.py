@@ -181,7 +181,6 @@ class ed_metrics(metric):
       ## Remove all remaining non-ED care_unit stays where patient leaves ED before start of window
       care_unit_df = care_unit_df.loc[~((care_unit_df['leave_time'] < start_tsp) & (care_unit_df['care_unit'] != 'HCGH EMERGENCY-ADULTS'))]
       
-
       ## If enter time is before the report start date, we truncate to the start_tsp to guarantee time window for report metrics.
       care_unit_df['enter_time'] = pd.to_datetime(care_unit_df['enter_time']).dt.tz_localize(timezone('utc'))
       care_unit_df['report_start_time'] = care_unit_df['enter_time'].apply( lambda x, start_tsp=start_tsp: start_tsp if x < start_tsp else x)
@@ -398,11 +397,12 @@ class ed_metrics(metric):
     
     no_action_patients = no_action
     ## Segment patients into 3 groups: still in ED, admitted to other care_unit, discharged
-    first_admits = care_unit_df.groupby('enc_id', as_index=False)['report_start_time'].idxmin()
+
+    first_admits = care_unit_df.groupby('enc_id', as_index=False)['enter_time'].idxmin()
     first_admits = care_unit_df.ix[first_admits]
     first_admits.rename(columns = {'care_unit':'1st_care_unit'}, inplace=True)
 
-    last_admits = care_unit_df.groupby('enc_id', as_index=False)['report_start_time'].idxmax()
+    last_admits = care_unit_df.groupby('enc_id', as_index=False)['enter_time'].idxmax()
     last_admits = care_unit_df.ix[last_admits]
     last_admits.rename(columns = {'care_unit':'last_care_unit'}, inplace=True)
 
@@ -482,6 +482,13 @@ class ed_metrics(metric):
     ## Add page views to the full metrics.
     no_action_metrics['page_views'] = no_action_metrics['enc_id'].apply(lambda x, page_views=page_views, page_gets=page_gets: page_views.ix[x].to_dict() if x in page_gets['enc_id'].unique() else False)
 
+    ## Numpy sum function returns 0 for nan. Since we want integer for counts, use helper func to turn nan to 0.
+    def clean_sum(value):
+      if pd.isnull(value):
+        return 0
+      else:
+        return int(value)
+
     ## Leaving comments in for the quantile version. Not enough data to make meaningful quantiles atm.
     ## Subset no_action_metrics for each of the 3 groups
     discharged_metrics_df = no_action_metrics.loc[no_action_metrics['enc_id'].isin(discharged_from_ED)]
@@ -490,8 +497,8 @@ class ed_metrics(metric):
                                   '{0:.3f}'.format(discharged_metrics_df['ED_alert_duration'].median()),
                                   #discharged_metrics_df['alert_duration'].quantile([0.25, 0.5, 0.75]), 
                                   #discharged_metrics_df['ED_alert_duration'].quantile([0.25, 0.5, 0.75]),
-                                  str(int(discharged_metrics_df['has_TREWS_alert'].sum())),
-                                  str(int(discharged_metrics_df['has_CMS_alert'].sum()))]
+                                  str(clean_sum(discharged_metrics_df['has_TREWS_alert'].sum())),
+                                  str(clean_sum(discharged_metrics_df['has_CMS_alert'].sum()))]
     
     transferred_metrics_df = no_action_metrics.loc[no_action_metrics['enc_id'].isin(transferred_from_ED)]
     transferred_metrics_results = [str(len(transferred_from_ED)),
@@ -499,8 +506,8 @@ class ed_metrics(metric):
                                    '{0:.3f}'.format(transferred_metrics_df['ED_alert_duration'].median()),
                                    #transferred_metrics_df['alert_duration'].quantile([0.25, 0.5, 0.75]), 
                                    #transferred_metrics_df['ED_alert_duration'].quantile([0.25, 0.5, 0.75]),
-                                   str(int(transferred_metrics_df['has_TREWS_alert'].sum())),
-                                   str(int(transferred_metrics_df['has_CMS_alert'].sum()))]
+                                   str(clean_sum(transferred_metrics_df['has_TREWS_alert'].sum())),
+                                   str(clean_sum(transferred_metrics_df['has_CMS_alert'].sum()))]
 
     currentPatient_metrics_df = no_action_metrics.loc[no_action_metrics['enc_id'].isin(currently_in_ED)]
     currentPatients_results = [str(len(currently_in_ED)),
@@ -508,8 +515,8 @@ class ed_metrics(metric):
                                '{0:.3f}'.format(currentPatient_metrics_df['ED_alert_duration'].median()),
                                #currentPatient_metrics_df['alert_duration'].quantile([0.25, 0.5, 0.75]), 
                                #currentPatient_metrics_df['ED_alert_duration'].quantile([0.25, 0.5, 0.75]),
-                               str(int(currentPatient_metrics_df['has_TREWS_alert'].sum())),
-                               str(int(currentPatient_metrics_df['has_CMS_alert'].sum()))]
+                               str(clean_sum(currentPatient_metrics_df['has_TREWS_alert'].sum())),
+                               str(clean_sum(currentPatient_metrics_df['has_CMS_alert'].sum()))]
 
     no_action_results = pd.DataFrame({'discharged_from_ED': discharged_metrics_results,
                                       'transferred_from_ED': transferred_metrics_results,
@@ -545,38 +552,6 @@ class ed_metrics(metric):
     dropouts = states_after_last_alert.groupby('enc_id', as_index=False)['not_deactivated'].agg(np.sum)
     dropouts = dropouts.loc[dropouts['not_deactivated'] == 0]
     metric_25 = str(dropouts['enc_id'].nunique())
-
-    
-
-    ## Compute how many alerts are ignored for 0 <= t < 1hr
-    first_hour_AFA = states_after_first_alert.loc[(states_after_first_alert['update_date'] <  states_after_first_alert['1st_alert_date'] + pd.to_timedelta('1hr')) & (states_after_first_alert['update_date'] >=  states_after_first_alert['1st_alert_date'])] 
-    #
-    first_hour_AFA['still_active'] = ~first_hour_AFA['flag'].isin(alert_flags)
-    first_hour_AFA = first_hour_AFA.loc[first_hour_AFA['enc_id'].isin(no_action)]
-    first_hour_AFA = first_hour_AFA.groupby('enc_id', as_index=False)['still_active'].agg(np.sum)
-    first_hour_AFA = first_hour_AFA.loc[first_hour_AFA['still_active'] == 0]
-    remaining_patients = first_hour_AFA['enc_id'].unique()    
-    metric_16_a = str(len(remaining_patients))
-
-    ## Compute how many alerts are ignored for 1 <= t < 2hr
-    second_hour_AFA = states_after_first_alert.loc[(states_after_first_alert['update_date'] < states_after_first_alert['1st_alert_date'] + pd.to_timedelta('2hr')) & (states_after_first_alert['update_date'] >= states_after_first_alert['1st_alert_date'] + pd.to_timedelta('1hr'))]
-    ## After an action, they can't be considred no action even if their state drops back to alert_flags.
-    second_hour_AFA['still_active'] = ~second_hour_AFA['flag'].isin(alert_flags) 
-    second_hour_AFA = second_hour_AFA.loc[second_hour_AFA['enc_id'].isin(remaining_patients)]
-    second_hour_AFA = second_hour_AFA.groupby('enc_id', as_index=False)['still_active'].agg(np.sum)
-    second_hour_AFA = second_hour_AFA.loc[second_hour_AFA['still_active'] == 0]
-    remaining_patients = second_hour_AFA['enc_id'].unique()    
-    metric_16_b = str(len(remaining_patients))
-
-    ## Compute how many alerts are ignored after >=2 hours
-    third_hour_AFA = states_after_first_alert.loc[states_after_first_alert['update_date'] >= states_after_first_alert['1st_alert_date'] + pd.to_timedelta('2hr')]
-    ## After an action, they can't be considred no action even if their state drops back to alert_flags.
-    third_hour_AFA['still_active'] = ~third_hour_AFA['flag'].isin(alert_flags) 
-    third_hour_AFA = third_hour_AFA.loc[third_hour_AFA['enc_id'].isin(remaining_patients)]
-    third_hour_AFA = third_hour_AFA.groupby('enc_id', as_index=False)['still_active'].agg(np.sum)
-    third_hour_AFA = third_hour_AFA.loc[third_hour_AFA['still_active'] == 0]
-    remaining_patients = third_hour_AFA['enc_id'].unique()    
-    metric_16_c = str(len(remaining_patients))
     
     ## min, max, median time from alert to evaluation
     # Only considered eval-ed if SOI is_met is also true
