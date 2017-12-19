@@ -6,7 +6,7 @@ from datetime import timedelta
 import numpy as np
 from pytz import timezone
 from collections import OrderedDict
-import ipdb
+
 #---------------------------------
 ## Metric Classes
 #---------------------------------
@@ -397,6 +397,7 @@ class ed_metrics(metric):
     
     no_action_patients = no_action
     ## Segment patients into 3 groups: still in ED, admitted to other care_unit, discharged
+
     first_admits = care_unit_df.groupby('enc_id', as_index=False)['enter_time'].idxmin()
     first_admits = care_unit_df.ix[first_admits]
     first_admits.rename(columns = {'care_unit':'1st_care_unit'}, inplace=True)
@@ -481,9 +482,6 @@ class ed_metrics(metric):
     ## Add page views to the full metrics.
     no_action_metrics['page_views'] = no_action_metrics['enc_id'].apply(lambda x, page_views=page_views, page_gets=page_gets: page_views.ix[x].to_dict() if x in page_gets['enc_id'].unique() else False)
 
-
-
-    ipdb.set_trace()
     ## Numpy sum function returns 0 for nan. Since we want integer for counts, use helper func to turn nan to 0.
     def clean_sum(value):
       if pd.isnull(value):
