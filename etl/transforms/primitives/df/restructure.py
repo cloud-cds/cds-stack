@@ -14,7 +14,7 @@ def unlist(df, unlist_col):
 
 def extract(df, dict_column, selection_dict):
     def fill_none(val):
-        if val is None:
+        if val is None or str(val) == 'nan':
             return {}
         return val
     df[dict_column] = df[dict_column].apply(fill_none)
