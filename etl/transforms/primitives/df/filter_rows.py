@@ -25,7 +25,13 @@ def build_filter_icd9_function(icd9_codes):
         for d in diagnoses:
             for name, pattern in compiled_codes:
                 if pattern.search(d['ICD9']):
-                    relevant_codes[name] = True
+                    if name == 'infections_angus_diag':
+                        if name in relevant_codes:
+                            relevant_codes[name] += ',' + d['ICD9']
+                        else:
+                            relevant_codes[name] = d['ICD9']
+                    else:
+                        relevant_codes[name] = True
         return relevant_codes
 
     return drop_unused_codes

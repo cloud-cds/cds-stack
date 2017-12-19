@@ -136,7 +136,7 @@ lab_orders_transforms = [
         col = 'component_id', new_col = 'fid',
         config_map = component_ids, drop_original = True,
         add_string = '_order', add_string_fid=['blood_culture', 'lactate'],
-        remove_if_not_found=True
+        remove_if_not_found = True
     ),
     lambda lp: format_data.format_tsp(lp, 'tsp'),
     lambda lp: format_data.format_tsp(lp, 'res_tsp'),
