@@ -417,7 +417,7 @@ declare
 begin
     execute '
     --create_job_cdm_twf_table
-    drop table ' || workspace || '.' || job_id || '_cdm_twf;
+    drop table if exists ' || workspace || '.' || job_id || '_cdm_twf;
     create table IF NOT EXISTS ' || workspace || '.' || job_id || '_cdm_twf as
     select * from cdm_twf with no data;
     alter table ' || workspace || '.' || job_id || '_cdm_twf add primary key (enc_id, tsp);
@@ -425,6 +425,23 @@ begin
 
     perform load_delta_cdm_twf_from_cdm_t(twf_fids, twf_table, t_table, job_id, workspace);
     perform last_value_delta(twf_fids, twf_table);
+end
+$BODY$
+LANGUAGE plpgsql;
+
+create or replace function workspace_submit_delta(twf_table text)
+returns void
+as $BODY$
+declare
+    cols text;
+begin
+    SELECT string_agg(column_name || ' = Excluded.' || column_name, ',') into cols
+    FROM information_schema.columns
+    WHERE table_name = 'cdm_twf' and column_name <> 'enc_id' and column_name <> 'tsp';
+    execute '
+    INSERT INTO cdm_twf
+      SELECT * FROM ' || twf_table || '
+    ON conflict (enc_id, tsp) do UPDATE SET ' || cols;
 end
 $BODY$
 LANGUAGE plpgsql;
