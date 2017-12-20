@@ -16,6 +16,10 @@ resource "aws_s3_bucket" "kops-state" {
 
 # Tensorflow and ML container registries.
 
+resource "aws_ecr_repository" "universe-dev" {
+  name = "universe-dev"
+}
+
 resource "aws_ecr_repository" "ml-lmc" {
   name = "ml-lmc"
 }
