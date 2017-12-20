@@ -4579,9 +4579,11 @@ DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
 
 -- diagnosis
 INSERT INTO cdm_s (enc_id, fid, value, confidence)
-select pe.enc_id, json_object_keys(diagnosis::json), ''True'', 1
+select enc_id, fid, (case when value = ''true'' then ''True'' else value end) as value, confidence
+from
+(select pe.enc_id, json_object_keys(diagnosis::json) as fid, (diagnosis::json)->>(json_object_keys(diagnosis::json)) as value, 1 as confidence
 from workspace.' || job_id || '_bedded_patients_transformed bp
-    inner join pat_enc pe on pe.visit_id = bp.visit_id
+    inner join pat_enc pe on pe.visit_id = bp.visit_id) as D
 ON CONFLICT (enc_id, fid)
 DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
 
