@@ -28,6 +28,10 @@ resource "aws_ecr_repository" "ml-trews" {
   name = "ml-trews"
 }
 
+resource "aws_ecr_repository" "ml-trews-dev" {
+  name = "ml-trews-dev"
+}
+
 resource "aws_ecr_repository" "utilities" {
   name = "utilities"
 }
