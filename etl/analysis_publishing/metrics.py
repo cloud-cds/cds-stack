@@ -6,7 +6,6 @@ from datetime import timedelta
 import numpy as np
 from pytz import timezone
 from collections import OrderedDict
-import ipdb
 
 #---------------------------------
 ## Metric Classes
@@ -483,7 +482,6 @@ class ed_metrics(metric):
     ED_duration['alert_end'] = ED_duration.apply(get_alert_end, axis=1)
     ED_duration['ED_alert_duration'] = (ED_duration['alert_end'] - ED_duration['first_alert']) / pd.to_timedelta('1hour')
     
-    ipdb.set_trace()
     ## Alerts that were TREWS and alerts that were CMS
     ## Number of patients that have TREWS vs CMS alerts
     has_TREWS = (merged_df.loc[merged_df['flag'].isin([11])]
