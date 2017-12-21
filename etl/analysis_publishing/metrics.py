@@ -223,7 +223,10 @@ class ed_metrics(metric):
     deploy_tsp = pd.to_datetime('2017-11-06 16:00:00+00:00').tz_localize(timezone('utc'))
 
     # Use timestamp of when script is run. Can potentially hardcode instead but should be okay if running as CRON job.
-    end_tsp = pd.to_datetime(self.last_time_str).tz_localize(timezone('utc'))
+    ## Force timezone to be UTC in the beginning. 
+    self.last_time_str = self.last_time_str.astimezone(timezone('UTC'))
+    end_tsp = pd.to_datetime(self.last_time_str)
+    #end_tsp = pd.to_datetime(self.last_time_str).tz_localize(timezone('utc'))
 
     #end_tsp = pd.to_datetime('now').tz_localize(timezone('utc'))
     start_tsp = end_tsp - self.window
@@ -429,10 +432,37 @@ class ed_metrics(metric):
     min_non_alerts = min_non_alerts.groupby('enc_id', as_index=False)['update_date'].min()
     min_non_alerts.rename(columns={'update_date':'first_non_alert'}, inplace=True)
 
-    ## No patients have non-alert states that occur in between first and last alert (need to account for people that reach an alert then drop down then back up).
+    ## Compute transfer time and discharge time from ED for each patient 
+    next_care_unit = care_unit_df.loc[care_unit_df['care_unit'] != 'HCGH EMERGENCY-ADULTS']
+    # Keep care_unit for future metrics
+    next_care_unit = next_care_unit.groupby('enc_id', as_index = False)[['enter_time', 'care_unit']].agg({'transfer_time': min})
+    next_care_unit = next_care_unit['transfer_time'].loc[next_care_unit['enc_id'].isin(no_action)]
+    next_care_unit.rename(columns={'enter_time':'transfer_time'},inplace=True)
+
+    discharge_time = cdmt_df.loc[cdmt_df['fid'] == 'discharge']
+    discharge_time = discharge_time.groupby('enc_id', as_index = False)['tsp'].agg({'discharge_time':min})
+    discharge_time = discharge_time.loc[discharge_time['enc_id'].isin(no_action)]
+
     duration = pd.merge(min_max_alerts, min_non_alerts, on='enc_id', how='left')
-    duration['alert_end'] = duration.apply(lambda x: x['first_non_alert'] if (not pd.isnull(x['first_non_alert'])) else x['last_alert'], axis=1)
-    duration['alert_duration'] = (duration['alert_end'] - duration['first_alert']) / pd.to_timedelta('1min')
+    duration = pd.merge(duration, next_care_unit, on='enc_id', how='left')
+    duration = pd.merge(duration, discharge_time, on='enc_id', how='left')
+
+    ## No patients have non-alert states that occur in between first and last alert (need to account for people that reach an alert then drop down then back up).
+
+    def get_alert_end(row):
+      if not pd.isnull(row['first_non_alert']):
+        return(row['first_non_alert'])
+      elif not pd.isnull(row['transfer_time']):
+        return row['transfer_time']
+      elif not pd.isnull(row['discharge_time']):
+        return row['discharge_time']
+      elif row['last_alert'] == row['first_alert']:
+        return end_tsp
+      else:
+        return row['last_alert']
+      
+    duration['alert_end'] = duration.apply(get_alert_end, axis=1)
+    duration['alert_duration'] = (duration['alert_end'] - duration['first_alert']) / pd.to_timedelta('1hour')
 
     ## Compute same metric but only on ED care units
     min_max_alerts_ED = (merged_df_ED.loc[merged_df_ED['flag'].isin(alert_flags)]
@@ -446,9 +476,12 @@ class ed_metrics(metric):
     min_non_alerts_ED.rename(columns={'update_date':'first_non_alert'}, inplace=True)
 
     ED_duration = pd.merge(min_max_alerts_ED, min_non_alerts_ED, on='enc_id', how='left')
-    ED_duration['alert_end'] = ED_duration.apply(lambda x: x['first_non_alert'] if (not pd.isnull(x['first_non_alert'])) else x['last_alert'], axis=1)
-    ED_duration['ED_alert_duration'] = (ED_duration['alert_end'] - ED_duration['first_alert']) / pd.to_timedelta('1min')
+    ED_duration = pd.merge(ED_duration, next_care_unit, on='enc_id', how='left')
+    ED_duration = pd.merge(ED_duration, discharge_time, on='enc_id', how='left')
 
+    ED_duration['alert_end'] = ED_duration.apply(get_alert_end, axis=1)
+    ED_duration['ED_alert_duration'] = (ED_duration['alert_end'] - ED_duration['first_alert']) / pd.to_timedelta('1hour')
+    
     ## Alerts that were TREWS and alerts that were CMS
     ## Number of patients that have TREWS vs CMS alerts
     has_TREWS = (merged_df.loc[merged_df['flag'].isin([11])]
@@ -521,7 +554,7 @@ class ed_metrics(metric):
     no_action_results = pd.DataFrame({'discharged_from_ED': discharged_metrics_results,
                                       'transferred_from_ED': transferred_metrics_results,
                                       'still_in_ED': currentPatients_results},
-                                     index=['Num of patients','Median alert duration','Median alert duration in ED','Num of TREWS alerts','Num of CMS alerts'])
+                                     index=['Num of patients','Median alert duration (hrs)','Median alert duration in ED (hrs)','Num of TREWS alerts','Num of CMS alerts'])
     no_action_results = no_action_results.transpose()
     self.no_action_results = no_action_results
 
