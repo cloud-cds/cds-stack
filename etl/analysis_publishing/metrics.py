@@ -6,7 +6,7 @@ from datetime import timedelta
 import numpy as np
 from pytz import timezone
 from collections import OrderedDict
-
+import ipdb
 
 #---------------------------------
 ## Metric Classes
@@ -224,7 +224,10 @@ class ed_metrics(metric):
     deploy_tsp = pd.to_datetime('2017-11-06 16:00:00+00:00').tz_localize(timezone('utc'))
 
     # Use timestamp of when script is run. Can potentially hardcode instead but should be okay if running as CRON job.
-    end_tsp = pd.to_datetime(self.last_time_str).tz_localize(timezone('utc'))
+    ## Force timezone to be UTC in the beginning. 
+    self.last_time_str = self.last_time_str.astimezone(timezone('UTC'))
+    end_tsp = pd.to_datetime(self.last_time_str)
+    #end_tsp = pd.to_datetime(self.last_time_str).tz_localize(timezone('utc'))
 
     #end_tsp = pd.to_datetime('now').tz_localize(timezone('utc'))
     start_tsp = end_tsp - self.window
@@ -480,6 +483,7 @@ class ed_metrics(metric):
     ED_duration['alert_end'] = ED_duration.apply(get_alert_end, axis=1)
     ED_duration['ED_alert_duration'] = (ED_duration['alert_end'] - ED_duration['first_alert']) / pd.to_timedelta('1hour')
     
+    ipdb.set_trace()
     ## Alerts that were TREWS and alerts that were CMS
     ## Number of patients that have TREWS vs CMS alerts
     has_TREWS = (merged_df.loc[merged_df['flag'].isin([11])]
