@@ -291,19 +291,19 @@ jobs:
   - name: build-universe-dev-docker-image
     serial: true
     plan:
-      - get: dashan-universe-dev
+      - get: dashan-universe
+        resource: dashan-universe-dev
         trigger: true
       - get: dashan-universe-dev-version
         params: {bump: patch}
       - put: dashan-dev-docker-image
         params:
           build: .
-          dockerfile: dashan-universe-dev/Dockerfile
+          dockerfile: dashan-universe/Dockerfile
           tag_as_latest: true
           tag: dashan-universe-dev-version/number
       - put: dashan-universe-dev-version
         params: {file: dashan-universe-dev-version/version}
-
 
   - name: build-lmc-docker-image
     serial: true
@@ -349,7 +349,8 @@ jobs:
       - get: LMC-Based-On-GPflow
         resource: trews-dev
         trigger: true
-      - get: dashan-universe-dev
+      - get: dashan-universe
+        resource: dashan-universe-dev
         trigger: false
       - get: trews-dev-version
         params: {bump: patch}

@@ -1,12 +1,12 @@
 FROM python:3.6.1-slim
 
 # Copy the main code base folder inside the container
-COPY dashan-universe*/etl /etl
-COPY dashan-universe*/api /api
-COPY dashan-universe*/db /db
-COPY dashan-universe*/bin /bin
-COPY dashan-universe*/cloud/aws/stage3/jobs /jobs
-ADD dashan-universe*/requirements.txt /
+COPY dashan-universe/etl /etl
+COPY dashan-universe/api /api
+COPY dashan-universe/db /db
+COPY dashan-universe/bin /bin
+COPY dashan-universe/cloud/aws/stage3/jobs /jobs
+ADD dashan-universe/requirements.txt /
 
 # Get pip to download and install requirements:
 RUN apt-get update \
