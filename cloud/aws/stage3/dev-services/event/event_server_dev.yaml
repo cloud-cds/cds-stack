@@ -19,13 +19,13 @@ data:
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: event-server-poc
+  name: event-server-dev
 spec:
   replicas: 1
   template:
     metadata:
       labels:
-        app: event-server-poc
+        app: event-server-dev
     spec:
       nodeSelector:
         opsdx_nodegroup: spot-nodes
@@ -41,7 +41,7 @@ spec:
         volumeMounts:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
-      - name: event-server-poc
+      - name: event-server-dev
         image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:latest
         resources:
           requests:
@@ -58,7 +58,7 @@ spec:
             - "SYS_PTRACE"
         env:
         - name: epic_env
-          value: "poc"
+          value: "dev"
         - name: NVM_DIR
           value: "/root/.nvm"
       volumes:
@@ -72,9 +72,9 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: event-svc-poc
+  name: event-svc-dev
   labels:
-    app: event-server-poc
+    app: event-server-dev
 spec:
   type: NodePort
   ports:
@@ -82,12 +82,12 @@ spec:
     name: http
     targetPort: 80
   selector:
-    app: event-server-poc
+    app: event-server-dev
 ---
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: event-server-ingress-poc
+  name: event-server-ingress-dev
   annotations:
     kubernetes.io/ingress.class: "nginx"
     ingress.kubernetes.io/affinity: "cookie"
@@ -97,10 +97,10 @@ metadata:
     ingrees.kubernetes.io/ingress.allow-http: "false"
 spec:
   rules:
-  - host: event-poc.jh.opsdx.io
+  - host: event-dev.jh.opsdx.io
     http:
       paths:
       - backend:
-          serviceName: event-svc-poc
+          serviceName: event-svc-dev
           servicePort: 80
         path: /

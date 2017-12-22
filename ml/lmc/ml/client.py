@@ -6,6 +6,7 @@ import csv
 import datetime
 from config import Config
 from sqlalchemy import create_engine, text
+import pandas as pd
 
 class DataFrameFactory():
     def load_csv(self, fname):
@@ -346,11 +347,13 @@ class Session():
         cursor = self.conn.execute(sql)
         data = cursor.fetchall()
         if as_data_frame:
-            return DataFrame(np.asarray(data), colnames)
+            return pd.DataFrame(np.asarray(data), colnames)
         else:
             return data
 
-    def build_sql_string(self, feature_lst, nrows=None, where=None, includeConfidances=False, dataset_id=None):
+    def build_sql_string(self, feature_lst, nrows=None, where=None,
+                         includeConfidances=False, dataset_id=None,
+                         workspace=None, job_id=None, online=True, hospital='hcgh'):
         #--------------------------------------------------------------------------
         # setup for requested features
         #--------------------------------------------------------------------------
@@ -397,20 +400,26 @@ class Session():
                 columns.append("cast(%s.value as %s) as %s" % (f, data_types[f], f))
 
         feature_name_lst = twf_features + featureConfidances + s_features
+        cdm_twf = '{}.{}_cdm_twf'.format(workspace, job_id) if job_id else 'cdm_twf'
+        cdm_s = 'cdm_s'
         sql = '''
         SELECT %s
-        FROM cdm_twf
-        ''' % ",".join(columns)
+        FROM %s as cdm_twf
+        ''' % (cdm_twf, ",".join(columns))
         for f in s_features:
             sql += """
-            left outer join cdm_s %(fid)s
+            left outer join %(cdm_s)s as cdm_s %(fid)s
             ON cdm_twf.enc_id = %(fid)s.enc_id
             AND %(fid)s.fid = '%(fid)s' %(dataset_id)s
-            """% {'fid': f, 'dataset_id': " and {}.dataset_id = cdm_twf.dataset_id".format(f) if dataset_id else ''}
+            """% {'fid': f, 'cdm_s': cdm_s
+                  'dataset_id': " and {}.dataset_id = cdm_twf.dataset_id".format(f) if dataset_id else ''}
         if where:
             where += " and cdm_twf.dataset_id = {}".format(dataset_id) if dataset_id else ''
         else:
             where = " where cdm_twf.dataset_id = {}".format(dataset_id) if dataset_id else ''
+        if job_id is None and online and hospital:
+            condition = "cdm_twf.enc_id in (select * from get_latest_enc_ids('{}')".format(hospital)
+            where = where + ' and ' + condition if where else ' where ' + condition
         sql += where
         sql += " order by enc_id, tsp"
         if nrows and nrows > 0:

@@ -89,6 +89,22 @@ async def notify_data_ready_to_trews_alert_server(ctxt, *para):
     ctxt.log.exception(e)
     ctxt.log.error("Fail to notify trews alert server")
 
+async def notify_delta_ready_to_trews_alert_server(ctxt, *para):
+  job_id = para[0]
+  message = {
+    'type'  : 'ETL',
+    'time'  : str(dt.datetime.utcnow()),
+    'hosp'  : job_id.split('_')[-2].upper(),
+    'job_id': job_id,
+  }
+  try:
+    logging.info('Notify trews alert server that the push-based ETL is done: {}'.format(message))
+    reader, writer = await asyncio.open_connection(protocol.TREWS_ALERT_SERVER_IP, protocol.TREWS_ALERT_SERVER_PORT, loop=ctxt.loop)
+    await protocol.write_message(writer, message)
+    writer.close()
+  except Exception as e:
+    ctxt.log.exception(e)
+    ctxt.log.error("Fail to notify trews alert server")
 
 # async def notify_criteria_ready_to_alert_server(ctxt, job_id, _):
 #   message = {
@@ -125,11 +141,11 @@ async def notify_future_notification(ctxt, _):
   else:
     ctxt.log.info("no etl channel found in the environment, skipping etl notifications")
 
-async def epic_2_workspace(ctxt, db_data, sqlalchemy_str, job_id, dtypes=None):
+async def epic_2_workspace(ctxt, db_data, sqlalchemy_str, job_id, dtypes=None, workspace='workspace'):
   ''' Push all the dataframes to a workspace table '''
   async with ctxt.db_pool.acquire() as conn:
     for df_name, df in db_data.items():
-      await primitives.data_2_workspace(ctxt.log, conn, job_id, df_name, df, dtypes=dtypes)
+      await primitives.data_2_workspace(ctxt.log, conn, job_id, df_name, df, dtypes=dtypes, workspace=workspace)
     return job_id
 
 
@@ -150,8 +166,8 @@ def test_data_2_workspace(ctxt, sqlalchemy_str, mode, job_id):
 
 
 
-async def workspace_to_cdm(ctxt, job_id):
-  query = "select * from workspace_to_cdm('{}');".format(job_id)
+async def workspace_to_cdm(ctxt, job_id, workspace='workspace'):
+  query = "select * from workspace_to_cdm('{}','{}');".format(job_id, workspace)
   async with ctxt.db_pool.acquire() as conn:
     try:
       await conn.fetch(query)
@@ -234,15 +250,16 @@ async def load_online_prediction_parameters(ctxt, job_id):
 
 
 
-async def workspace_fillin(ctxt, prediction_params, job_id):
+async def workspace_fillin(ctxt, prediction_params, job_id, workspace='workspace'):
   ctxt.log.info("start fillin pipeline")
   # we run the optimized fillin in one run, e.g., update set all columns
   fillin_sql = '''
-    SELECT * from workspace_fillin({fillin_fids}, {twf_table}, 'cdm_t', '{job_id}');
+    SELECT * from workspace_fillin({fillin_fids}, {twf_table}, 'cdm_t', '{job_id}', '{workspace}');
     '''.format(
       fillin_fids = 'array[{}]'.format(','.join(["'{}'".format(x) for x in prediction_params['fillin_features']])),
-      twf_table   = "'workspace.{}_cdm_twf'".format(job_id),
-      job_id      = job_id
+      twf_table   = "'{}.{}_cdm_twf'".format(workspace, job_id),
+      job_id      = job_id,
+      workspace   = workspace
     )
   async with ctxt.db_pool.acquire() as conn:
     ctxt.log.info("start fillin: {}".format(fillin_sql))
@@ -252,17 +269,33 @@ async def workspace_fillin(ctxt, prediction_params, job_id):
     return job_id
 
 
+async def workspace_fillin_delta(ctxt, prediction_params, job_id, workspace='workspace'):
+  ctxt.log.info("start fillin pipeline")
+  # we run the optimized fillin in one run, e.g., update set all columns
+  fillin_sql = '''
+    SELECT * from workspace_fillin_delta({fillin_fids}, {twf_table}, 'cdm_t', '{job_id}', '{workspace}');
+    '''.format(
+      fillin_fids = 'array[{}]'.format(','.join(["'{}'".format(x) for x in prediction_params['fillin_features']])),
+      twf_table   = "'{}.{}_cdm_twf'".format(workspace, job_id),
+      job_id      = job_id,
+      workspace   = workspace
+    )
+  async with ctxt.db_pool.acquire() as conn:
+    ctxt.log.info("start fillin: {}".format(fillin_sql))
+    result = await conn.execute(fillin_sql)
+    ctxt.log.info(result)
+    ctxt.log.info("fillin completed")
+    return job_id
 
 
-
-async def workspace_derive(ctxt, prediction_params, job_id):
+async def workspace_derive(ctxt, prediction_params, job_id, workspace='workspace'):
   cdm_feature_dict = prediction_params['cdm_feature_dict']
   derive_features = prediction_params['derive_features']
   ctxt.log.info("derive start")
   # get derive order based on the input derive_features
   derive_feature_dict = {fid: cdm_feature_dict[fid] for fid in derive_features}
   derive_feature_order = get_derive_seq(derive_feature_dict)
-  twf_table = 'workspace.{}_cdm_twf'.format(job_id)
+  twf_table = '{}.{}_cdm_twf'.format(workspace, job_id)
 
   # get info for old function
   derive_feature_addr = {}
@@ -308,7 +341,7 @@ async def workspace_derive(ctxt, prediction_params, job_id):
 
 
 
-async def workspace_predict(ctxt, prediction_params, job_id):
+async def workspace_predict(ctxt, prediction_params, job_id, workspace='workspace'):
   ctxt.log.info("predict start")
   feature_weights = prediction_params['feature_weights']
   cdm_feature_dict = prediction_params['cdm_feature_dict']
@@ -335,7 +368,7 @@ async def workspace_predict(ctxt, prediction_params, job_id):
   # select feature values
   # calculate the trewscores
   weight_sum = "+".join(['coalesce(%s,0)'  % col for col in feature_weight_colnames])
-  target    = 'workspace.{}'.format(job_id)
+  target    = '{}.{}'.format(workspace, job_id)
   table     = '{}_trews'.format(target)
   twf_table = '{}_cdm_twf'.format(target)
   sql = """
@@ -361,9 +394,22 @@ async def workspace_predict(ctxt, prediction_params, job_id):
 
 
 
+async def workspace_submit_delta(ctxt, job_id, workspace='event_workspace'):
+  # submit to cdm_twf
+  # submit to trews
+  ctxt.log.info("submit delta start")
+  ctxt.log.info("{}: submitting results ...".format(job_id))
+  submit_cdm = '''
+  select * from workspace_submit_delta('%(workspace)s.%(job)s_cdm_twf');
+  '''
+  async with ctxt.db_pool.acquire() as conn:
+    ctxt.log.info(submit_cdm % {'job': job_id, 'workspace': workspace} )
+    await conn.execute(submit_cdm % {'job': job_id, 'workspace': workspace} )
+    ctxt.log.info("{}: results submitted".format(job_id))
+    ctxt.log.info("submit completed")
+    return job_id
 
-
-async def workspace_submit(ctxt, job_id):
+async def workspace_submit(ctxt, job_id, workspace='workspace', drop_workspace_table=True, trews=True):
   # submit to cdm_twf
   # submit to trews
   ctxt.log.info("submit start")
@@ -375,41 +421,39 @@ async def workspace_submit(ctxt, job_id):
   """
   submit_cdm = """
     INSERT INTO cdm_twf
-      (SELECT * FROM workspace.%(job)s_cdm_twf
+      (SELECT * FROM %(workspace)s.%(job)s_cdm_twf
        where now() - tsp < (select value::interval from parameters where name = 'etl_workspace_submit_hours')
       )
     ON conflict (enc_id, tsp) do UPDATE SET %(set_columns)s;
-    SELECT drop_tables('workspace', '%(job)s_cdm_twf');
-  """
+  """ + ("SELECT drop_tables('%(workspace)s', '%(job)s_cdm_twf');" if drop_workspace_table else '')
   submit_trews = """
-    CREATE TABLE if not exists trews (LIKE workspace.%(job)s_trews,
+    CREATE TABLE if not exists trews (LIKE %(workspace)s.%(job)s_trews,
         unique (enc_id, tsp)
         );
     INSERT into trews (enc_id, tsp, %(columns)s) (
-        SELECT enc_id, tsp, %(columns)s FROM workspace.%(job)s_trews
+        SELECT enc_id, tsp, %(columns)s FROM %(workspace)s.%(job)s_trews
         where now() - tsp < (select value::interval from parameters where name = 'etl_workspace_submit_hours')
         )
     ON conflict (enc_id, tsp)
         do UPDATE SET %(set_columns)s;
-    SELECT drop_tables('workspace', '%(job)s_trews');
-  """
+  """ + ("SELECT drop_tables('%(workspace)s', '%(job)s_trews');" if drop_workspace_table else '')
   async with ctxt.db_pool.acquire() as conn:
     records = await conn.fetch(select_all_colnames % {'table': 'cdm_twf'})
     colnames = [row[0] for row in records if row[0] != 'enc_id' and row[0] != 'tsp']
     twf_set_columns = ",".join([
         "%(col)s = excluded.%(col)s" % {'col': colname} for colname in colnames
     ])
-    ctxt.log.info(submit_cdm % {'job': job_id, 'set_columns': twf_set_columns} )
-    await conn.execute(submit_cdm % {'job': job_id, 'set_columns': twf_set_columns} )
-    records = await conn.fetch(select_all_colnames % {'table': '%s_trews' % job_id})
-    colnames = [row[0] for row in records if row[0] != 'enc_id' and row[0] != 'tsp']
-    trews_set_columns = ",".join([
-        "%(col)s = excluded.%(col)s" % {'col': colname} for colname in colnames
-    ])
-    trews_columns = ",".join(colnames)
-
-    ctxt.log.info(submit_trews % {'job': job_id, 'set_columns': trews_set_columns, 'columns': trews_columns} )
-    await conn.execute(submit_trews % {'job': job_id, 'set_columns': trews_set_columns, 'columns': trews_columns} )
+    ctxt.log.info(submit_cdm % {'job': job_id, 'set_columns': twf_set_columns, 'workspace': workspace} )
+    await conn.execute(submit_cdm % {'job': job_id, 'set_columns': twf_set_columns, 'workspace': workspace} )
+    if trews:
+      records = await conn.fetch(select_all_colnames % {'table': '%s_trews' % job_id})
+      colnames = [row[0] for row in records if row[0] != 'enc_id' and row[0] != 'tsp']
+      trews_set_columns = ",".join([
+          "%(col)s = excluded.%(col)s" % {'col': colname} for colname in colnames
+      ])
+      trews_columns = ",".join(colnames)
+      ctxt.log.info(submit_trews % {'job': job_id, 'set_columns': trews_set_columns, 'columns': trews_columns, 'workspace': workspace} )
+      await conn.execute(submit_trews % {'job': job_id, 'set_columns': trews_set_columns, 'columns': trews_columns, 'workspace': workspace} )
     ctxt.log.info("{}: results submitted".format(job_id))
     ctxt.log.info("submit completed")
     return job_id
