@@ -4516,7 +4516,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION get_latest_enc_ids(hospital text)
+CREATE OR REPLACE FUNCTION get_latest_enc_ids(hospital text, max_tsp text default null)
 RETURNS table (enc_id int)
 LANGUAGE plpgsql
 AS
@@ -4524,7 +4524,12 @@ $$
 DECLARE
     bedded_patients     text;
 begin
-select table_name from information_schema.tables where table_type = 'BASE TABLE' and table_schema = 'workspace' and table_name ilike 'job_etl_' || hospital || '%bedded_patients_transformed' order by table_name desc limit 1 into bedded_patients;
+select table_name from information_schema.tables
+where table_type = 'BASE TABLE'
+    and table_schema = 'workspace'
+    and table_name ilike 'job_etl_' || hospital || '%bedded_patients_transformed'
+    and (max_tsp is null or substring(table_name from 10 + char_length(hospital) for 14) < to_char(max_tsp::timestamptz, 'YYYYMMDDHH24MISS'))
+order by table_name desc limit 1 into bedded_patients;
 return query
 execute 'select enc_id from pat_enc p inner join workspace.' || bedded_patients || ' bp on bp.visit_id = p.visit_id';
 END;

@@ -411,7 +411,7 @@ class Session():
             left outer join %(cdm_s)s as cdm_s %(fid)s
             ON cdm_twf.enc_id = %(fid)s.enc_id
             AND %(fid)s.fid = '%(fid)s' %(dataset_id)s
-            """% {'fid': f, 'cdm_s': cdm_s
+            """% {'fid': f, 'cdm_s': cdm_s,
                   'dataset_id': " and {}.dataset_id = cdm_twf.dataset_id".format(f) if dataset_id else ''}
         if where:
             where += " and cdm_twf.dataset_id = {}".format(dataset_id) if dataset_id else ''
