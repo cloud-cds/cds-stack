@@ -32,6 +32,10 @@ resource "aws_ecr_repository" "ml-trews-dev" {
   name = "ml-trews-dev"
 }
 
+resource "aws_ecr_repository" "ml-trews-stage" {
+  name = "ml-trews-stage"
+}
+
 resource "aws_ecr_repository" "utilities" {
   name = "utilities"
 }
