@@ -2874,22 +2874,39 @@ BEGIN
         left join get_states_snapshot(this_enc_id) snapshot on snapshot.enc_id = live.enc_id
         where snapshot.state is null
         or ( snapshot.state = 16 and live.state <> snapshot.state)
-        or ( snapshot.state = 10 and snapshot.severe_sepsis_wo_infection_onset < now() - window_size)
-        or ( snapshot.state = 10 and live.state = 16)
+        or ( snapshot.state = 10 and (snapshot.severe_sepsis_wo_infection_onset < now() - window_size or live.state > 10))
         or ( snapshot.state = 11 and live.state <> snapshot.state)
         -- once on cms severe sepsis path way, keep in cms path way
-        or ( snapshot.state between 20 and 24 and ((live.state between 30 and 36) or (live.state between 20 and 24) or (live.state between 60 and 66)) and snapshot.state < live.state)
+        or ( snapshot.state between 20 and 24
+            and (
+                    (live.state between 30 and 36) or
+                    (live.state between 20 and 24 and snapshot.state <> 23) or
+                    (live.state between 60 and 66)
+                )
+            and snapshot.state < live.state)
         -- once on cms septic shock path way, keep in cms path way
-        or ( snapshot.state between 30 and 36 and (live.state between 30 and 36) and snapshot.state < live.state)
+        or ( snapshot.state between 30 and 36 and snapshot.state <> 35
+            and live.state between 30 and 36
+            and snapshot.state < live.state)
         -- once on trews severe sepsis path way, keep in trews path way
-        or ( snapshot.state between 25 and 29 and ((live.state between 40 and 46) or (live.state between 25 and 29) or (live.state between 60 and 66)) and snapshot.state < live.state)
+        or ( snapshot.state between 25 and 29
+            and (
+                    (live.state between 40 and 46) or
+                    (live.state between 25 and 29 and snapshot.state <> 28) or
+                    (live.state between 60 and 66))
+            and snapshot.state < live.state)
         -- once on trews septic shock path way, keep in trews path way
-        or ( snapshot.state between 40 and 46 and (live.state between 40 and 46) and snapshot.state < live.state)
+        or ( snapshot.state between 40 and 46 and snapshot.state <> 45
+            and live.state between 40 and 46
+            and snapshot.state < live.state)
         -- once on ui severe sepsis path way, keep in ui path way
-        or ( snapshot.state between 50 and 54 and (live.state between 50 and 66) and snapshot.state < live.state)
+        or ( snapshot.state between 50 and 54
+            and (
+                    (live.state between 50 and 54 and snapshot.state <> 53) or
+                    (live.state between 60 and 66)
+                ) and snapshot.state < live.state)
         -- once on ui septic shock path way, keep in ui path way
-        or ( snapshot.state between 60 and 66 and (live.state between 60 and 66) and snapshot.state < live.state)
-        or snapshot.state < live.state
+        or ( snapshot.state between 60 and 66 and snapshot.state <> 65 and live.state between 60 and 66 and snapshot.state < live.state)
     ),
     deactivate_old_snapshot as
     (
