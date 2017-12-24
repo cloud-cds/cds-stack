@@ -1,0 +1,158 @@
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: event-rest-tst
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: event-rest-tst
+    spec:
+      nodeSelector:
+        opsdx_nodegroup: spot-nodes
+      containers:
+      - name: trews-nginx
+        image: nginx:alpine
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+        ports:
+        - containerPort: 80
+        volumeMounts:
+          - name: config-volume
+            mountPath: "/etc/nginx/conf.d/"
+      - name: event-rest-tst
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:latest
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200"
+        ports:
+        - containerPort: 8000
+        command: ["/bin/sh","-c"]
+        args: ["cd etl/event-server;sh start-tst.sh"]
+        securityContext:
+          capabilities:
+            add:
+            - "SYS_PTRACE"
+        env:
+        - name: model_in_use
+          value: "trews-jit"
+        - name: db_host
+          value: "test.db.jh.opsdx.io"
+        - name: db_port
+          value: "5432"
+        - name: db_name
+          value: "opsdx_dev"
+        - name: db_user
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: db-username
+        - name: db_password
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: db-password
+        - name: jhapi_client_id
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: jhapi-client-id
+        - name: jhapi_client_secret
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: jhapi-client-secret
+        - name: AWS_DEFAULT_REGION
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-region
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-secret-access-key
+        - name: querystring_key
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: querystring-key
+        - name: trews_app_key
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: trews-app-key
+        - name: trews_admin_key
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: trews-admin-key
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - event-rest-tst
+            topologyKey: kubernetes.io/hostname
+      volumes:
+        - name: config-volume
+          configMap:
+            name: nginx-config
+            items:
+              - key: nginx-config
+                path: trews.conf
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: trews-rest-svc
+  labels:
+    app: event-rest-tst
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    name: http
+    targetPort: 80
+  selector:
+    app: event-rest-tst
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: trews-rest-ingress
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    ingress.kubernetes.io/affinity: "cookie"
+    ingress.kubernetes.io/session-cookie-name: "route"
+    ingress.kubernetes.io/session-cookie-hash: "sha1"
+    ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  rules:
+  - host: event-rest-tst.jh.opsdx.io
+    http:
+      paths:
+      - backend:
+          serviceName: trews-rest-svc
+          servicePort: 80
+        path: /
+  - host: event-rest-tst.jh.opsdx.io
+    http:
+      paths:
+      - backend:
+          serviceName: trews-rest-svc
+          servicePort: 80
+        path: /
