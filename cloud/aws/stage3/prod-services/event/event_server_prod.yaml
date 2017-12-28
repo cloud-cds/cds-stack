@@ -87,7 +87,7 @@ spec:
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: event-server-ingress-prod
+  name: event-server-ingress
   annotations:
     kubernetes.io/ingress.class: "nginx"
     ingress.kubernetes.io/affinity: "cookie"
