@@ -4,7 +4,7 @@ kind: Deployment
 metadata:
   name: event-rest-tst
 spec:
-  replicas: 2
+  replicas: 1
   template:
     metadata:
       labels:
@@ -28,8 +28,8 @@ spec:
         image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:latest
         resources:
           requests:
-            memory: "512Mi"
-            cpu: "200"
+            memory: "256Mi"
+            cpu: "100"
         ports:
         - containerPort: 8000
         command: ["/bin/sh","-c"]
@@ -118,7 +118,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: trews-rest-svc
+  name: event-rest-svc
   labels:
     app: event-rest-tst
 spec:
@@ -133,7 +133,7 @@ spec:
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: trews-rest-ingress
+  name: event-rest-ingress
   annotations:
     kubernetes.io/ingress.class: "nginx"
     ingress.kubernetes.io/affinity: "cookie"
@@ -146,13 +146,13 @@ spec:
     http:
       paths:
       - backend:
-          serviceName: trews-rest-svc
+          serviceName: event-rest-svc
           servicePort: 80
         path: /
   - host: event-rest-tst.jh.opsdx.io
     http:
       paths:
       - backend:
-          serviceName: trews-rest-svc
+          serviceName: event-rest-svc
           servicePort: 80
         path: /
