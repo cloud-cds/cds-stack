@@ -10,6 +10,29 @@ import itertools
 import base64
 import json
 
+def initialize_tsp(df):
+    df['tsp'] = pd.to_datetime('now')
+    return df
+
+def format_treatmentteam(df, column='value'):
+    def _format_treatmentteam(row):
+        res = []
+        for member in row:
+            formatted = {
+                'start': row['BeginDateTime'],
+                'end': row['EndDateTime'],
+                'name': row['ProviderName'],
+                'role': row['ProviderRole'],
+                'specialty': row['ProviderSpecialty'],
+            }
+            for id_types in row['ProviderIdTypes']:
+                if id_types['Type'] == 'JHED ID':
+                    formatted['id'] = id_types['Id']
+            res.append(formatted)
+        return res
+    df[column] = df.apply(_format_treatmentteam, axis=1)
+    return df
+
 def add_order_to_fid(df):
     df['fid'] += '_order'
     return df

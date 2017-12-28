@@ -264,6 +264,15 @@ class JHAPIConfig:
     dfs = [pd.DataFrame(r) for r in responses]
     return self.combine(dfs, bedded_patients[['pat_id', 'visit_id']])
 
+  def extract_treatmentteam(self, txt, beddedpatients):
+    resource = '/patients/treatmentteam'
+    payloads = [{
+      'id': pat['visit_id'],
+      'idtype': 'csn'
+    } for _, pat in beddedpatients.iterrows()]
+    responses = self.make_requests(ctxt, resource, payloads, 'GET')
+    dfs = [pd.DataFrame(r) for r in responses]
+    return self.combine(dfs, bedded_patients[['pat_id', 'visit_id']])
 
   def extract_lab_orders(self, ctxt, bedded_patients):
     resource = '/patients/labs/procedure'
