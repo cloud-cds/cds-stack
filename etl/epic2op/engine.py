@@ -202,7 +202,7 @@ def combine_cloudwatch_data(ctxt, pats_t, flowsheets_t, active_procedures_t,
     'loc_history'       : len(loc_history_t.index),
     'notes'             : len(notes_t.index),
     'note_texts'        : len(note_texts_t.index),
-    'chiefcomplaint'    : len(chiefcomplaint_t.index)
+    'chiefcomplaint'    : len(chiefcomplaint_t.index),
     'treatmentteam'     : len(treatmentteam_t.index)
   }
 

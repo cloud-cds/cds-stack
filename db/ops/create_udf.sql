@@ -4678,6 +4678,17 @@ if to_regclass('workspace.' || job_id || '_chiefcomplaint_transformed') is not n
     do update set value = Excluded.value, confidence = excluded.confidence';
 end if;
 
+-- treatment team
+if to_regclass('workspace.' || job_id || '_treatmentteam_transformed') is not null then
+    execute
+    'insert into cdm_t (enc_id, tsp, fid, value, confidence)
+    select pe.enc_id, tt.tsp::timestamptz, ''treatment_team'', tt.value, 1
+    from workspace.' || job_id || '_treatmentteam_transformed tt
+    inner join pat_enc pe on pe.visit_id = tt.visit_id
+    on conflict (enc_id, tsp, fid)
+    do update set value = Excluded.value, confidence = Excluded.confidence';
+end if;
+
 -- med_orders
 if to_regclass('workspace.' || job_id || '_med_orders_transformed') is not null then
     execute

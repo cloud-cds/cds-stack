@@ -15,22 +15,22 @@ def initialize_tsp(df):
     return df
 
 def format_treatmentteam(df, column='value'):
-    def _format_treatmentteam(row):
+    def _format_treatmentteam(val):
         res = []
-        for member in row:
+        for member in val:
             formatted = {
-                'start': row['BeginDateTime'],
-                'end': row['EndDateTime'],
-                'name': row['ProviderName'],
-                'role': row['ProviderRole'],
-                'specialty': row['ProviderSpecialty'],
+                'start': member['BeginDateTime'],
+                'end': member['EndDateTime'],
+                'name': member['ProviderName'],
+                'role': member['ProviderRole'],
+                'specialty': member['ProviderSpecialty'],
             }
-            for id_types in row['ProviderIdTypes']:
+            for id_types in member['ProviderIdTypes']:
                 if id_types['Type'] == 'JHED ID':
                     formatted['id'] = id_types['Id']
             res.append(formatted)
-        return res
-    df[column] = df.apply(_format_treatmentteam, axis=1)
+        return json.dumps(res)
+    df[column] = df[column].apply(lambda x: _format_treatmentteam(x))
     return df
 
 def add_order_to_fid(df):

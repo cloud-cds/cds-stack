@@ -50,11 +50,8 @@ treatmentteam_transforms = [
     lambda tt: restructure.select_columns(tt, {
         'pat_id': 'pat_id',
         'visit_id': 'visit_id',
-        'TreatmentTeam': 'team'
+        'TeamMembers': 'value'
         }),
-    lambda lp: restructure.extract(lp, 'team', {
-        'TeamMembers':          'value',
-    }),
     lambda tt: format_data.initialize_tsp(tt),
     lambda tt: format_data.format_treatmentteam(tt)
 ]
