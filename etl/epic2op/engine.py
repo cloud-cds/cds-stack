@@ -143,7 +143,7 @@ def main(max_pats=None, hospital=None, lookback_hours=None, db_name=None, repl=F
 
 def combine_extract_data(ctxt, pats, ed_pats, flowsheets, active_procedures, lab_orders,
                       lab_results, med_orders, med_admin, loc_history, notes,
-                      note_texts, chiefcomplaint):
+                      note_texts, chiefcomplaint, treatmentteam):
   return {
     'bedded_patients': pats,
     'ed_patients': ed_pats,
@@ -156,13 +156,14 @@ def combine_extract_data(ctxt, pats, ed_pats, flowsheets, active_procedures, lab
     'location_history': loc_history,
     'notes': notes,
     'note_texts': note_texts,
-    'chiefcomplaint': chiefcomplaint
+    'chiefcomplaint': chiefcomplaint,
+    'treatmentteam': treatmentteam
   }
 
 
 def combine_db_data(ctxt, pats_t, flowsheets_t, active_procedures_t, lab_orders_t,
                  lab_results_t, med_orders_t, med_admin_t, loc_history_t,
-                 notes_t, note_texts_t, chiefcomplaint_t):
+                 notes_t, note_texts_t, chiefcomplaint_t, treatmentteam_t):
   pats_t.diagnosis = pats_t.diagnosis.apply(json.dumps)
   pats_t.history = pats_t.history.apply(json.dumps)
   pats_t.problem = pats_t.problem.apply(json.dumps)
@@ -180,7 +181,8 @@ def combine_db_data(ctxt, pats_t, flowsheets_t, active_procedures_t, lab_orders_
     'location_history_transformed': loc_history_t,
     'notes_transformed': notes_t,
     'note_texts_transformed': note_texts_t,
-    'chiefcomplaint_transformed': chiefcomplaint_t
+    'chiefcomplaint_transformed': chiefcomplaint_t,
+    'treatmentteam_transformed': treatmentteam_t
   }
   return db_data
 
@@ -188,7 +190,7 @@ def combine_db_data(ctxt, pats_t, flowsheets_t, active_procedures_t, lab_orders_
 def combine_cloudwatch_data(ctxt, pats_t, flowsheets_t, active_procedures_t,
                             lab_orders_t, lab_results_t, med_orders_t,
                             med_admin_t, loc_history_t, notes_t, note_texts_t,
-                            chiefcomplaint_t):
+                            chiefcomplaint_t, treatmentteam_t):
   return {
     'bedded_pats'       : len(pats_t.index),
     'flowsheets'        : len(flowsheets_t.index),
@@ -200,7 +202,8 @@ def combine_cloudwatch_data(ctxt, pats_t, flowsheets_t, active_procedures_t,
     'loc_history'       : len(loc_history_t.index),
     'notes'             : len(notes_t.index),
     'note_texts'        : len(note_texts_t.index),
-    'chiefcomplaint'    : len(chiefcomplaint_t.index)
+    'chiefcomplaint'    : len(chiefcomplaint_t.index),
+    'treatmentteam'     : len(treatmentteam_t.index)
   }
 
 
@@ -218,7 +221,8 @@ def get_combine_tasks():
       'loc_history_transform',
       'notes_transform',
       'notes_texts_transform',
-      'chiefcomplaint_transform'
+      'chiefcomplaint_transform',
+      'treatmentteam_transform'
     ], # ORDER MATTERS! - because Engine breaks if we use **kwargs'
     'fn':   combine_db_data
   }, {
@@ -234,7 +238,8 @@ def get_combine_tasks():
       'loc_history_transform',
       'notes_transform',
       'notes_texts_transform',
-      'chiefcomplaint_transform'
+      'chiefcomplaint_transform',
+      'treatmentteam_transform'
     ], # ORDER MATTERS! - because Engine breaks if we use **kwargs'
     'fn':   combine_cloudwatch_data
   }, {
@@ -251,7 +256,8 @@ def get_combine_tasks():
       'loc_history_extract',
       'notes_extract',
       'notes_texts_extract',
-      'chiefcomplaint_extract'
+      'chiefcomplaint_extract',
+      'treatmentteam_extract'
     ], # ORDER MATTERS! - because Engine breaks if we use **kwargs'
     'fn':   combine_extract_data
   }]
@@ -428,11 +434,20 @@ def get_extraction_tasks(extractor, max_pats=None):
       'name': 'chiefcomplaint_extract',
       'deps': ['patients_combine'],
       'fn':   extractor.extract_chiefcomplaint,
+    }, {
+      'name': 'treatmentteam_extract',
+      'deps': ['patients_combine'],
+      'fn':   extractor.extract_treatmentteam,
     }, { # Barrier 3
       'name': 'flowsheets_transform',
       'deps': ['flowsheets_extract'],
       'fn':   transform,
       'args': ['flowsheet_transforms'],
+    }, {
+      'name': 'treatmentteam_transform',
+      'deps': ['treatmentteam_extract'],
+      'fn': transform,
+      'args': ['treatmentteam_transforms']
     }, {
       'name': 'chiefcomplaint_transform',
       'deps': ['chiefcomplaint_extract'],
