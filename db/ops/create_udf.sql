@@ -4681,11 +4681,11 @@ end if;
 -- treatment team
 if to_regclass('workspace.' || job_id || '_treatmentteam_transformed') is not null then
     execute
-    'insert into cdm_t (enc_id, tsp, fid, value, confidence)
-    select pe.enc_id, tt.tsp::timestamptz, ''treatment_team'', tt.value, 1
+    'insert into cdm_s (enc_id, fid, value, confidence)
+    select pe.enc_id, ''treatment_team'', tt.value, 1
     from workspace.' || job_id || '_treatmentteam_transformed tt
     inner join pat_enc pe on pe.visit_id = tt.visit_id
-    on conflict (enc_id, tsp, fid)
+    on conflict (enc_id, fid)
     do update set value = Excluded.value, confidence = Excluded.confidence';
 end if;
 
