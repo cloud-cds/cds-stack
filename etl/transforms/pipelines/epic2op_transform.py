@@ -52,7 +52,6 @@ treatmentteam_transforms = [
         'visit_id': 'visit_id',
         'TeamMembers': 'value'
         }),
-    lambda tt: format_data.initialize_tsp(tt),
     lambda tt: format_data.format_treatmentteam(tt)
 ]
 

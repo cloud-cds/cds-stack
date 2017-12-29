@@ -379,7 +379,7 @@ transfuse_cryoprecipitate,T,Boolean,yes,no,,,,,Whether patient received transfus
 transfuse_plasma,T,Boolean,yes,no,,,,,Whether patient received transfusion,1,no unit
 transfuse_platelets,T,Boolean,yes,no,,,,,Whether patient received transfusion,1,no unit
 transfuse_rbc,T,Boolean,yes,no,,,,,Whether patient received transfusion,1,no unit
-treatment_team,T,String,yes,no,,,,,,1,no unit
+treatment_team,S,String,yes,no,,,,,,1,no unit
 troponin,TWF,Real,yes,no,last_value_in_window,28,,,Physiologic,1,ng/mL
 unmeasured_urine_output,T,Real,yes,no,,,,,Phyiologic,1,ml
 urine_output,T,Real,yes,no,,,,,Phyiologic,1,ml
