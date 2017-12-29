@@ -2873,6 +2873,7 @@ BEGIN
         from get_states('new_criteria', this_enc_id) live
         left join get_states_snapshot(this_enc_id) snapshot on snapshot.enc_id = live.enc_id
         where snapshot.state is null
+        or ( snapshot.state < 10 and live.state > snapshot.state)
         or ( snapshot.state = 16 and live.state <> snapshot.state)
         or ( snapshot.state = 10 and (snapshot.severe_sepsis_wo_infection_onset < now() - window_size or live.state > 10))
         or ( snapshot.state = 11 and live.state <> snapshot.state)
