@@ -405,7 +405,7 @@ class Session():
         sql = '''
         SELECT %s
         FROM %s as cdm_twf
-        ''' % (cdm_twf, ",".join(columns))
+        ''' % (",".join(columns), cdm_twf)
         for f in s_features:
             sql += """
             left outer join %(cdm_s)s as cdm_s %(fid)s
