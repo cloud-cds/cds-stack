@@ -42,7 +42,7 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: event-rest-tst
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:latest
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.11
         resources:
           requests:
             memory: "256Mi"
@@ -60,14 +60,16 @@ spec:
           value: "HCGH"
         - name: TREWS_ETL_HOURS
           value: "8"
+        - name: TREWS_ETL_MODE
+          value: "1"
         - name: model_in_use
           value: "trews-jit"
         - name: db_host
-          value: "test.db.jh.opsdx.io"
+          value: "dev.db.jh.opsdx.io"
         - name: db_port
           value: "5432"
         - name: db_name
-          value: "opsdx_dev"
+          value: "opsdx_test"
         - name: db_user
           valueFrom:
             secretKeyRef:
