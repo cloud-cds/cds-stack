@@ -4682,11 +4682,23 @@ end if;
 -- treatment team
 if to_regclass('workspace.' || job_id || '_treatmentteam_transformed') is not null then
     execute
-    'insert into cdm_s (enc_id, fid, value, confidence)
-    select pe.enc_id, ''treatment_team'', tt.value, 1
-    from workspace.' || job_id || '_treatmentteam_transformed tt
-    inner join pat_enc pe on pe.visit_id = tt.visit_id
-    on conflict (enc_id, fid)
+    'with treatment_team_raw as (
+        select pe.enc_id, json_array_elements(tt.value::json) tt_json, tt.value
+        from workspace.' || job_id || '_treatmentteam_transformed tt
+        inner join pat_enc pe on pe.visit_id = tt.visit_id
+        where tt.value <> ''[]''
+    ),
+    treatment_team as (
+        select enc_id, greatest(max((tt_json->>''start'')::timestamptz) filter (where tt_json->>''start'' <> ''''),
+                                max((tt_json->>''end'')::timestamptz) filter (where tt_json->>''end'' <> '''')) tsp,
+            first(value) as value
+        from treatment_team_raw ttr
+        group by enc_id
+    )
+    insert into cdm_t (enc_id, tsp, fid, value, confidence)
+    select enc_id, tsp, ''treatment_team'', value, 1
+    from treatment_team where tsp is not null
+    on conflict (enc_id, tsp, fid)
     do update set value = Excluded.value, confidence = Excluded.confidence';
 end if;
 
