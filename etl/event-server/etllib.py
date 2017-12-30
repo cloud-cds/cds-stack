@@ -40,7 +40,7 @@ MODE = {
   3: 'real&test'
 }
 
-mode = MODE[int(core.get_environment_var('TREWS_ETL_MODE', '0'))]
+mode = MODE[int(core.get_environment_var('TREWS_ETL_MODE', '1'))]
 
 # Get suppression alert mode
 suppression = int(core.get_environment_var('TREWS_ETL_SUPPRESSION', '0'))
