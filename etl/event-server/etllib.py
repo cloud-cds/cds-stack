@@ -18,7 +18,7 @@ WORKSPACE = core.get_environment_var('TREWS_ETL_WORKSPACE', 'event_workspace')
 
 hospital = core.get_environment_var('TREWS_ETL_HOSPITAL')
 # Create data for loader
-lookback_hours = core.get_environment_var('TREWS_ETL_HOURS')
+lookback_hours = core.get_environment_var('TREWS_ETL_HOURS', '8')
 op_lookback_days = int(core.get_environment_var('TREWS_ET_OP_DAYS', 365))
 # Create jhapi_extractor
 extractor = EpicAPIConfig(
@@ -40,10 +40,10 @@ MODE = {
   3: 'real&test'
 }
 
-mode = MODE[int(core.get_environment_var('TREWS_ETL_MODE', 0))]
+mode = MODE[int(core.get_environment_var('TREWS_ETL_MODE', '0'))]
 
 # Get suppression alert mode
-suppression = int(core.get_environment_var('TREWS_ETL_SUPPRESSION', 0))
+suppression = int(core.get_environment_var('TREWS_ETL_SUPPRESSION', '0'))
 
 
 class CDMBuffer():

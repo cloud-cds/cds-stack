@@ -1,4 +1,21 @@
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+data:
+  nginx-config: |-
+    server {
+        listen 80 default_server;
+        listen [::]:80 default_server;
+        root /var/www/html;
+        index index.html index.htm index.nginx-debian.html;
+        server_name _;
+        location / {
+          proxy_pass http://127.0.0.1:8000;
+        }
+    }
+---
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -29,7 +46,7 @@ spec:
         resources:
           requests:
             memory: "256Mi"
-            cpu: "100"
+            cpu: "100m"
         ports:
         - containerPort: 8000
         command: ["/bin/sh","-c"]
@@ -39,6 +56,10 @@ spec:
             add:
             - "SYS_PTRACE"
         env:
+        - name: TREWS_ETL_HOSPITAL
+          value: "HCGH"
+        - name: TREWS_ETL_HOURS
+          value: "8"
         - name: model_in_use
           value: "trews-jit"
         - name: db_host
@@ -97,16 +118,6 @@ spec:
             secretKeyRef:
               name: rest-api-db-secrets
               key: trews-admin-key
-      affinity:
-        podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: app
-                operator: In
-                values:
-                - event-rest-tst
-            topologyKey: kubernetes.io/hostname
       volumes:
         - name: config-volume
           configMap:
@@ -118,7 +129,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: event-rest-svc
+  name: event-rest-svc-tst
   labels:
     app: event-rest-tst
 spec:
@@ -129,30 +140,3 @@ spec:
     targetPort: 80
   selector:
     app: event-rest-tst
----
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: event-rest-ingress
-  annotations:
-    kubernetes.io/ingress.class: "nginx"
-    ingress.kubernetes.io/affinity: "cookie"
-    ingress.kubernetes.io/session-cookie-name: "route"
-    ingress.kubernetes.io/session-cookie-hash: "sha1"
-    ingress.kubernetes.io/ssl-redirect: "true"
-spec:
-  rules:
-  - host: event-rest-tst.jh.opsdx.io
-    http:
-      paths:
-      - backend:
-          serviceName: event-rest-svc
-          servicePort: 80
-        path: /
-  - host: event-rest-tst.jh.opsdx.io
-    http:
-      paths:
-      - backend:
-          serviceName: event-rest-svc
-          servicePort: 80
-        path: /

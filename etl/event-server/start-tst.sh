@@ -11,7 +11,7 @@ do
     FULL_DATE=$(date -u +%Y_%m_%d_%H_%M_%S)
     OUTFILE=$CUR_DIR/$FULL_DATE.svg
     pyflame -s 60 -x $CHILD_PID | $CUR_DIR/utils/flamegraph.pl > $OUTFILE
-    aws s3 cp $OUTFILE s3://opsdx-webservice-flamegraphs/flamegraphs-dev/$FULL_DATE.svg
+    aws s3 cp $OUTFILE s3://opsdx-webservice-flamegraphs/flamegraphs-dev/event_rest_tst.$FULL_DATE.svg
     rm *.svg
   else
     echo "No gunicorn workers"
