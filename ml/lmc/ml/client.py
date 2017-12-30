@@ -408,7 +408,7 @@ class Session():
         ''' % (",".join(columns), cdm_twf)
         for f in s_features:
             sql += """
-            left outer join %(cdm_s)s as cdm_s %(fid)s
+            left outer join %(cdm_s)s as %(fid)s
             ON cdm_twf.enc_id = %(fid)s.enc_id
             AND %(fid)s.fid = '%(fid)s' %(dataset_id)s
             """% {'fid': f, 'cdm_s': cdm_s,
