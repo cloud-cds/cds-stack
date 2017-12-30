@@ -417,9 +417,6 @@ class Session():
             where += " and cdm_twf.dataset_id = {}".format(dataset_id) if dataset_id else ''
         else:
             where = " where cdm_twf.dataset_id = {}".format(dataset_id) if dataset_id else ''
-        if job_id is None and online and hospital:
-            condition = "cdm_twf.enc_id in (select * from get_latest_enc_ids('{}')".format(hospital)
-            where = where + ' and ' + condition if where else ' where ' + condition
         sql += where
         sql += " order by enc_id, tsp"
         if nrows and nrows > 0:
