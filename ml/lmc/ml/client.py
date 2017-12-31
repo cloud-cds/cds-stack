@@ -338,12 +338,11 @@ class Session():
 
     def download_data_frame(self, feature_lst, nrows=None, where=None,
                             as_data_frame=True):
-
         sql = self.build_sql_string(feature_lst, nrows=nrows, where=where)
-        return self.download_sql_string(sql, feature_lst[2:] as_data_frame = as_data_frame)
+        return self.download_sql_string(sql, feature_lst, as_data_frame = as_data_frame)
 
     def download_sql_string(self, sql, colnames, as_data_frame=True):
-        self.log.info('query data frame:' + sql)
+        # self.log.info('query data frame:' + sql)
         cursor = self.conn.execute(sql)
         data = cursor.fetchall()
         if as_data_frame:
