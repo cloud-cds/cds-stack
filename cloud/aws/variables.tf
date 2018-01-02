@@ -328,6 +328,9 @@ variable "scorecard_report_firing_rate_expr" {}
 variable "scorecard_metric_firing_rate_min" {}
 variable "scorecard_metric_firing_rate_expr" {}
 
+variable "s3_weekly_report_firing_rate_min" {}
+variable "s3_weekly_report_firing_rate_expr" {}
+
 ######################################
 # Alarm2Slack
 

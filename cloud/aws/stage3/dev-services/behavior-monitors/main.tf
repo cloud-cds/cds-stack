@@ -38,6 +38,8 @@ variable "scorecard_metric_firing_rate_min" {}
 variable "scorecard_metric_firing_rate_expr" {}
 variable "k8s_scorecard_metric_image" {}
 
+variable "s3_weekly_report_firing_rate_min" {}
+variable "s3_weekly_report_firing_rate_expr" {}
 
 data "aws_subnet" "lambda_subnet1" {
   id = "${var.lambda_subnet1_id}"
@@ -233,7 +235,7 @@ resource "aws_lambda_function" "s3_weekly_report_lambda" {
     s3_key           = "${var.aws_klaunch_lambda_package}"
     role             = "${var.aws_klaunch_lambda_role_arn}"
     runtime          = "python2.7"
-    timeout          = 86400
+    timeout          = 300
 
     environment {
       variables {
@@ -253,7 +255,6 @@ resource "aws_lambda_function" "s3_weekly_report_lambda" {
         kube_cmd_0 = "sh"
         kube_cmd_1 = "-c"
         kube_cmd_2 = "service rsyslog start && sleep 5 && ./bin/goofys jh-opsdx-report /mnt && sleep 5 && /usr/local/bin/python3 /etl/analysis_publishing/engine.py weekly-report 0"
-""
         # ETL Environment Variables
         k8s_job_BEHAMON_STACK                      = "${var.deploy_prefix}-dev"
         k8s_job_REPORT_RECEIVING_EMAIL_ADDRESS     = "trews-jhu@opsdx.io"
@@ -267,9 +268,9 @@ resource "aws_lambda_function" "s3_weekly_report_lambda" {
 }
 
 resource "aws_cloudwatch_event_rule" "s3_weekly_report_lambda_schedule_rule" {
-    name = "${var.deploy_prefix}_dev_scorecard_metric_schedule_rule"
-    description = "Fires every ${var.scorecard_metric_firing_rate_min} minutes"
-    schedule_expression = "rate(${var.scorecard_metric_firing_rate_expr})"
+    name = "${var.deploy_prefix}_dev_s3_weekly_report_schedule_rule"
+    description = "Fires every ${var.s3_weekly_report_firing_rate_min} minutes"
+    schedule_expression = "rate(${var.s3_weekly_report_firing_rate_expr})"
 }
 
 resource "aws_cloudwatch_event_target" "s3_weekly_report_lambda_schedule_rule_target" {
@@ -278,10 +279,10 @@ resource "aws_cloudwatch_event_target" "s3_weekly_report_lambda_schedule_rule_ta
     arn       = "${aws_lambda_function.s3_weekly_report_lambda.arn}"
 }
 
-resource "aws_lambda_permission" "scorecard_metric_cloudwatch_permissions" {
-    statement_id  = "ScorecardReportSchedule"
+resource "aws_lambda_permission" "s3_weekly_report_cloudwatch_permissions" {
+    statement_id  = "S3WeeklyReportSchedule"
     action        = "lambda:InvokeFunction"
     function_name = "${aws_lambda_function.s3_weekly_report_lambda.function_name}"
     principal     = "events.amazonaws.com"
-    source_arn    = "${aws_cloudwatch_event_rule.scorecard_metric_lambda_schedule_rule.arn}"
+    source_arn    = "${aws_cloudwatch_event_rule.s3_weekly_report_lambda_schedule_rule.arn}"
 }

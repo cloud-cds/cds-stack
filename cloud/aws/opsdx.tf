@@ -178,6 +178,9 @@ module "stage3" {
   scorecard_metric_firing_rate_min  = "${var.scorecard_metric_firing_rate_min}"
   scorecard_metric_firing_rate_expr = "${var.scorecard_metric_firing_rate_expr}"
 
+  s3_weekly_report_firing_rate_min  = "${var.s3_weekly_report_firing_rate_min}"
+  s3_weekly_report_firing_rate_expr = "${var.s3_weekly_report_firing_rate_expr}"
+
   ######################################
   # Alarm2slack
 
