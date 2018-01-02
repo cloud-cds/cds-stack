@@ -621,6 +621,35 @@ class ed_metrics(metric):
     tmp_df['window_end'] = tmp_df['enter_time'] + pd.to_timedelta(3*60, unit='m')
     ed = tmp_df
 
+    query = """
+                select * from sep2_sirs
+                where label_id in 
+                (select max(label_id) from sep2_sirs)
+                and enc_id in ({0})""".format(', '.join([str(e) for e in valid_enc_ids]))
+
+    sep2_sirs_df = pd.read_sql(sqlalchemy.text(query), self.connection)
+    sep2_sirs_df['tsp'] = pd.to_datetime(sep2_sirs_df['tsp']).dt.tz_convert(timezone('utc'))
+
+    ## Assign each entry of sep2_sirs a care unit based on tsp and enc_id. Remove all entries w/o 
+    def merge_with_ed_df(target_df, care_unit_df=ed):
+      tmp_df = pd.merge(target_df, care_unit_df, how='left', on='enc_id')
+      ind1 = tmp_df['tsp'] >= tmp_df['enter_time']
+      ind2 = tmp_df['tsp'] < tmp_df['leave_time']
+      ind3 = tmp_df['tsp'].isnull()
+      tmp_df = tmp_df.loc[((ind1) & (ind2)) | ((ind1) & (ind3)), :]
+      return tmp_df
+
+    ed_with_SIRS = merge_with_ed_df(sep2_sirs_df)
+    # Cut out entries where tsp of SIRS measurement not within ED admit to end of 3 hr window
+    ed_with_SIRS = ed_with_SIRS.loc[(ed_with_SIRS['tsp'] >= ed_with_SIRS['enter_time']) & (ed_with_SIRS['tsp'] < ed_with_SIRS['window_end'])]
+
+    ## Evaluate how many times >= 2 SIRS criteria were met
+    ed_with_SIRS['met_criteria'] = ed_with_SIRS.apply(lambda x: True if x['resp_rate_sirs'] + x['heart_rate_sirs'] + x['wbc_sirs'] + x['temperature_sirs'] >= 2 else False, axis=1)
+    ed_met_SIRS = ed_with_SIRS[['enc_id','met_criteria']].groupby('enc_id', as_index=False).aggregate(np.sum)
+    metric_20 = ed_met_SIRS.loc[ed_met_SIRS['met_criteria'] > 0]
+    metric_20 = str(metric_20['enc_id'].nunique())
+
+    """
     ## Import cdm_twf table for SIRS criterias
     cdm_twf = self.get_cdm_twf_df(valid_enc_ids, start_tsp)
 
@@ -641,6 +670,7 @@ class ed_metrics(metric):
     ed_met_SIRS = ed_with_SIRS[['enc_id','met_criteria']].groupby('enc_id', as_index=False).aggregate(np.sum)
     metric_20 = ed_met_SIRS.loc[ed_met_SIRS['met_criteria'] > 0]
     metric_20 = str(metric_20['enc_id'].nunique())
+    """
 
     ## Need to move to performance metrics in future.
     """
