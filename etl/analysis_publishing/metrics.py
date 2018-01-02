@@ -224,9 +224,9 @@ class ed_metrics(metric):
 
     # Use timestamp of when script is run. Can potentially hardcode instead but should be okay if running as CRON job.
     ## Force timezone to be UTC in the beginning. 
-    self.last_time_str = self.last_time_str.astimezone(timezone('UTC'))
-    end_tsp = pd.to_datetime(self.last_time_str)
-    #end_tsp = pd.to_datetime(self.last_time_str).tz_localize(timezone('utc'))
+    #self.last_time_str = self.last_time_str.astimezone(timezone('UTC'))
+    #end_tsp = pd.to_datetime(self.last_time_str)
+    end_tsp = pd.to_datetime(self.last_time_str).tz_localize(timezone('utc'))
 
     #end_tsp = pd.to_datetime('now').tz_localize(timezone('utc'))
     start_tsp = end_tsp - self.window
