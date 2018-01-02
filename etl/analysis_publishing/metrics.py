@@ -607,6 +607,7 @@ class ed_metrics(metric):
       metric_17_max = '{0:.3f}'.format(first_alerts['delta'].max())
       metric_17_median = '{0:.3f}'.format(first_alerts['delta'].median())
 
+    metric_17 = '{0}'.format(', '.join([metric_17_min, metric_17_median, metric_17_max]))
     ## Get all patients that have a completed bundle
     completed_bundles = [21,23,26,28,31, 33, 35, 41, 43, 45, 51, 53, 61, 63, 65]
     metric_18 = str(search_history_flags('completed_bundle', completed_bundles))
@@ -708,7 +709,7 @@ class ed_metrics(metric):
     metric_24 = str(first_alerts.loc[first_alerts['1st_alert_date'] < first_alerts['first_lab_eval']]['enc_id'].nunique())
 
     ## Missing metric_13: repeat lactate
-    allMetrics = [metric_1, metric_2, metric_7, metric_8, metric_9, metric_10, metric_11, metric_12, metric_14, metric_15, metric_16, metric_25, metric_17_min, metric_17_max, metric_17_median, metric_18, metric_19, metric_20, metric_22, metric_23, metric_24]
+    allMetrics = [metric_1, metric_2, metric_7, metric_8, metric_9, metric_10, metric_11, metric_12, metric_14, metric_15, metric_16, metric_25, metric_17, metric_18, metric_19, metric_20, metric_22, metric_23, metric_24]
     desc1 = 'Total ED patients'
     desc2 = '# ED patients with TREWS alert'
     #desc3 = 'Number of people with code sepsis'
@@ -730,9 +731,7 @@ class ed_metrics(metric):
     #desc16_a = '# alerts with no action for < 1hr'
     #desc16_b = '# alerts with no action for >= 1hr'
     #desc16_c = '# alerts with no action for >= 2hrs'
-    desc17_min = 'min hours from alert to evaluation'
-    desc17_max = 'max hours from alert to evaluation'
-    desc17_median = 'median hours from alert to evaluation'
+    desc17 = 'min, median, max hours from alert to evaluation'
     desc18 = '# alerts with complete bundle'
     desc19 = '# alerts with expired bundle'
     desc20 = '# ED patients with SIRS within first 3 hours'
@@ -742,7 +741,7 @@ class ed_metrics(metric):
     desc24 = '# alerts before first lab evaluations'
     desc26 = '# alerts with no action but discharged from ED'
     ## Missing metric_13: repeat lactate
-    allDesc = [desc1, desc2, desc7, desc8, desc9, desc10, desc11, desc12, desc14, desc15, desc16, desc25, desc17_min, desc17_max, desc17_median, desc18, desc19, desc20, desc22, desc23, desc24]
+    allDesc = [desc1, desc2, desc7, desc8, desc9, desc10, desc11, desc12, desc14, desc15, desc16, desc25, desc17, desc18, desc19, desc20, desc22, desc23, desc24]
     self.metrics_DF = pd.DataFrame({'Metrics': allDesc, 'Values': allMetrics})
 
   def to_html(self):
