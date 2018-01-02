@@ -6,7 +6,6 @@ import boto3
 from datetime import datetime, timedelta
 import logging
 
-
 logging.basicConfig()
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -39,6 +38,7 @@ class Engine:
         return default_val
 
     self.BEHAMON_STACK = try_to_read_from_environ('BEHAMON_STACK','Test')
+    self.S3_PATH = try_to_read_from_environ('S3_PATH', '/mnt')
     self.receiving_email_addresses = list(map(lambda x: x.strip(), try_to_read_from_environ('REPORT_RECEIVING_EMAIL_ADDRESS','trews-jhu@opsdx.io').split(',')))
 
 
@@ -77,6 +77,11 @@ class Engine:
         metrics.alert_performance_metrics
       ]
 
+    elif mode == 'weekly-report':
+      metric_list = [
+        metrics.weekly_report
+      ]
+
     else:
       logger.error("Invalid mode: {}".format(mode))
 
@@ -90,6 +95,10 @@ class Engine:
     elif mode == 'metrics':
       cwm_metrics_list = report_metric_factory.get_cwm_output()
       self.push_to_cwm(cwm_metrics_list)
+
+    elif mode == 'weekly-report':
+      out = report_metric_factory.get_output()
+      self.push_to_s3(out)
 
     else:
       logger.error("Invalid mode: {}".format(mode))
@@ -117,6 +126,12 @@ class Engine:
 
     logger.info("Metrics sent to cloudwatch ")
 
+  def push_to_s3(self, data, ext='.csv'):
+    for name, df in data:
+      fname = name + ext
+      fo = '{}/{}/{}'.format(self.S3_PATH, self.BEHAMON_STACK, fname)
+      df.to_csv(fo, index=False)
+    logger.info("Saved data frames to S3")
 
   def send_email(self, build_report_body):
     ''' Build and send an email for the report metrics data '''
@@ -143,7 +158,7 @@ class Engine:
 
 def parse_arguments():
   parser = argparse.ArgumentParser(description='Behavioral monitoring engine')
-  parser.add_argument('mode', type=str, choices=['reports', 'metrics'])
+  parser.add_argument('mode', type=str, choices=['reports', 'metrics', 'weekly-report'])
   parser.add_argument('execution_period_minutes', type=int)
   return parser.parse_args()
 
