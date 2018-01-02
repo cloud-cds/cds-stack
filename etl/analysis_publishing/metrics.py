@@ -41,7 +41,7 @@ class report_introduction(metric):
     return html
 
 class ed_metrics(metric):
-  
+
   def __init__(self, connection, first_time_str, last_time_str):
     super().__init__(connection, first_time_str, last_time_str)
     self.name = 'Emergency Department Metrics'
@@ -95,7 +95,7 @@ class ed_metrics(metric):
 
   ## Modified to remove home medication cases.
   def get_cdmt_df(self, valid_enc_ids):
-      
+
     ### read cdm_t to get min/max_tsp and build care_unit_df
     query = """select enc_id, tsp, fid, value from cdm_t where enc_id in ({0})
                order by enc_id, tsp""".format(', '.join([str(e) for e in valid_enc_ids]))
@@ -122,7 +122,7 @@ class ed_metrics(metric):
       first_CU_admits = cdmt_df.loc[cdmt_df['fid']=='care_unit'].groupby('enc_id', as_index=False)['tsp'].idxmin()
       first_CU_admits = cdmt_df.ix[first_CU_admits]
       first_CU_admits.rename(columns={'tsp':'1st_care_unit'}, inplace=True)
-      
+
       ## Find first lactate/blood/abx_order, (does not include home medication orders)
       first_orders = cdmt_df.loc[cdmt_df['fid'].str.contains('(blood_culture|lactate)_order')].groupby('enc_id', as_index=False)['tsp'].idxmin()
       first_orders = cdmt_df.ix[first_orders]
@@ -132,7 +132,7 @@ class ed_metrics(metric):
       first_vitals = cdmt_df.loc[cdmt_df['fid'].str.contains('heart_rate|temperature|co2')].groupby('enc_id', as_index=False)['tsp'].idxmin()
       first_vitals = cdmt_df.ix[first_vitals]
       first_vitals.rename(columns={'tsp':'1st_vitals'}, inplace=True)
-      
+
       ## Combine and take min
       allMins = pd.merge(first_CU_admits[['enc_id','1st_care_unit']], first_orders[['enc_id', '1st_order']], on='enc_id', how='left')
       allMins = pd.merge(allMins, first_vitals[['enc_id', '1st_vitals']], on='enc_id', how='left')
@@ -141,8 +141,8 @@ class ed_metrics(metric):
       ## Change cdmt_df to remove home meds before returning
       cdmt_df_no_homeMed = pd.merge(cdmt_df, allMins[['enc_id', 'min_enter_time']], on='enc_id', how='left')
       cdmt_df_no_homeMed = cdmt_df_no_homeMed.loc[cdmt_df_no_homeMed['tsp'] >= cdmt_df_no_homeMed['min_enter_time']]
-      
-      ### Build care_unit_df 
+
+      ### Build care_unit_df
       care_unit_df = cdmt_df.loc[cdmt_df['fid']=='care_unit', ['enc_id', 'tsp', 'value']].copy()
       care_unit_df = care_unit_df.sort_values(by=['enc_id', 'tsp'])
       care_unit_df.rename(columns={'tsp':'enter_time', 'value':'care_unit'}, inplace=True)
@@ -180,7 +180,7 @@ class ed_metrics(metric):
 
       ## Remove all remaining non-ED care_unit stays where patient leaves ED before start of window
       care_unit_df = care_unit_df.loc[~((care_unit_df['leave_time'] < start_tsp) & (care_unit_df['care_unit'] != 'HCGH EMERGENCY-ADULTS'))]
-      
+
       ## If enter time is before the report start date, we truncate to the start_tsp to guarantee time window for report metrics.
       care_unit_df['enter_time'] = pd.to_datetime(care_unit_df['enter_time']).dt.tz_localize(timezone('utc'))
       care_unit_df['report_start_time'] = care_unit_df['enter_time'].apply( lambda x, start_tsp=start_tsp: start_tsp if x < start_tsp else x)
@@ -223,6 +223,7 @@ class ed_metrics(metric):
     deploy_tsp = pd.to_datetime('2017-11-06 16:00:00+00:00').tz_localize(timezone('utc'))
 
     # Use timestamp of when script is run. Can potentially hardcode instead but should be okay if running as CRON job.
+
     ## Force timezone to be UTC in the beginning. 
     #self.last_time_str = self.last_time_str.astimezone(timezone('UTC'))
     #end_tsp = pd.to_datetime(self.last_time_str)
@@ -324,7 +325,7 @@ class ed_metrics(metric):
       metric_9 = str(None)
     else:
       ## Need right join in order to add first_override to every trews_jit_df entry to select for min tsp. Inner will delete.
-      override_with_scores = pd.merge(first_override, trews_jit_df, how='right', on=['enc_id']) 
+      override_with_scores = pd.merge(first_override, trews_jit_df, how='right', on=['enc_id'])
       override_with_scores = override_with_scores.loc[override_with_scores['tsp'] >= override_with_scores['update_date']]
       earliest_jit_alert = override_with_scores.groupby('enc_id', as_index=False)['tsp'].idxmin()
       override_with_scores = override_with_scores.loc[override_with_scores.index.isin(earliest_jit_alert)]
@@ -332,17 +333,17 @@ class ed_metrics(metric):
 
       metric_8 = str(override_with_scores['enc_id'].nunique())
       metric_9 = '{0:.3f}'.format(override_with_scores['delta'].median()) # Can access this column for the metrbic but for now just print median
-      
+
     first_alert_indices = merged_df_ED.loc[merged_df_ED['flag'].isin(alert_flags)].groupby('enc_id', as_index=False)['update_date'].idxmin()
     first_alerts = merged_df_ED.loc[merged_df_ED.index.isin(first_alert_indices)]
     first_alerts = first_alerts.rename(columns = {'update_date':'1st_alert_date'})
 
-    ## Adds min and max date for arg order to first_alerts df. 
+    ## Adds min and max date for arg order to first_alerts df.
     def search_cdm_t(order, first_alerts=first_alerts):
       # col names to appear in first_alerts.
       min_order = 'min_tsp_{0}'.format(order)
       max_order = 'max_tsp_{0}'.format(order)
-      order_tsps = (cdmt_df.loc[(cdmt_df['fid'] == order) & 
+      order_tsps = (cdmt_df.loc[(cdmt_df['fid'] == order) &
                                    (cdmt_df['enc_id'].isin(first_alerts['enc_id']))]
                        .groupby('enc_id', as_index=False)['tsp']
                        .aggregate({min_order:min, max_order:max}))
@@ -367,7 +368,7 @@ class ed_metrics(metric):
         return False
       else:
         ordered_dates = cdmt_df.loc[(cdmt_df['enc_id'] == merged_df_ED_row['enc_id']) & (cdmt_df['fid'] == 'lactate_order')]['tsp']
-        ordered_dates = ordered_dates.sort_values()  
+        ordered_dates = ordered_dates.sort_values()
         if ordered_dates.shape[0] < 2: # only 1 lactate order still return False
           return False
         else:
@@ -387,17 +388,17 @@ class ed_metrics(metric):
     ## Get all patients that have no action taken despite TREWS alert.
     states_after_first_alert = merged_df_ED[['enc_id', 'update_date', 'flag']]
     states_after_first_alert = pd.merge(states_after_first_alert, first_alerts[['enc_id','1st_alert_date']], how='left')
-    
+
     ## Could be that update date is the first alert date since cdm_t only tracks when something happens.
     states_after_first_alert = states_after_first_alert.loc[states_after_first_alert['update_date'] >= states_after_first_alert['1st_alert_date']]
-    
+
     states_after_first_alert['action'] = states_after_first_alert['flag'] > 11
     states_after_first_alert['TREWS_active'] = states_after_first_alert['flag'] == 11
     states_after_first_alert['CMS_active'] = states_after_first_alert['flag'] == 10
     no_action = states_after_first_alert.groupby('enc_id', as_index=False)['action'].aggregate(np.sum)
     no_action = set(no_action.loc[no_action['action'] == 0]['enc_id'].unique())
     metric_16 = str(len(no_action))
-    
+
     no_action_patients = no_action
     ## Segment patients into 3 groups: still in ED, admitted to other care_unit, discharged
 
@@ -418,7 +419,7 @@ class ed_metrics(metric):
     discharged_from_ED = no_action_patients.intersection(discharged_patients)
     metric_26 = str(len(discharged_from_ED))
     no_action_patients = no_action_patients.difference(discharged_from_ED)
-    currently_in_ED = no_action_patients        
+    currently_in_ED = no_action_patients
 
     #### Compute the metrics for each group ####
     ## Duration alert active while in ED
@@ -432,7 +433,7 @@ class ed_metrics(metric):
     min_non_alerts = min_non_alerts.groupby('enc_id', as_index=False)['update_date'].min()
     min_non_alerts.rename(columns={'update_date':'first_non_alert'}, inplace=True)
 
-    ## Compute transfer time and discharge time from ED for each patient 
+    ## Compute transfer time and discharge time from ED for each patient
     next_care_unit = care_unit_df.loc[care_unit_df['care_unit'] != 'HCGH EMERGENCY-ADULTS']
     # Keep care_unit for future metrics
     next_care_unit = next_care_unit.groupby('enc_id', as_index = False)[['enter_time', 'care_unit']].agg({'transfer_time': min})
@@ -460,7 +461,7 @@ class ed_metrics(metric):
         return end_tsp
       else:
         return row['last_alert']
-      
+
     duration['alert_end'] = duration.apply(get_alert_end, axis=1)
     duration['alert_duration'] = (duration['alert_end'] - duration['first_alert']) / pd.to_timedelta('1hour')
 
@@ -481,7 +482,7 @@ class ed_metrics(metric):
 
     ED_duration['alert_end'] = ED_duration.apply(get_alert_end, axis=1)
     ED_duration['ED_alert_duration'] = (ED_duration['alert_end'] - ED_duration['first_alert']) / pd.to_timedelta('1hour')
-    
+
     ## Alerts that were TREWS and alerts that were CMS
     ## Number of patients that have TREWS vs CMS alerts
     has_TREWS = (merged_df.loc[merged_df['flag'].isin([11])]
@@ -495,7 +496,7 @@ class ed_metrics(metric):
     no_action_metrics = pd.merge(no_action_metrics, has_TREWS, on='enc_id', how='left')
     no_action_metrics = pd.merge(no_action_metrics, has_CMS, on='enc_id', how='left')
 
-    
+
     ## Alerts with at least 1 page visit
     query = """
                 select enc_id, tsp, uid
@@ -526,18 +527,18 @@ class ed_metrics(metric):
     ## Subset no_action_metrics for each of the 3 groups
     discharged_metrics_df = no_action_metrics.loc[no_action_metrics['enc_id'].isin(discharged_from_ED)]
     discharged_metrics_results = [str(len(discharged_from_ED)),
-                                  '{0:.3f}'.format(discharged_metrics_df['alert_duration'].median()), 
+                                  '{0:.3f}'.format(discharged_metrics_df['alert_duration'].median()),
                                   '{0:.3f}'.format(discharged_metrics_df['ED_alert_duration'].median()),
-                                  #discharged_metrics_df['alert_duration'].quantile([0.25, 0.5, 0.75]), 
+                                  #discharged_metrics_df['alert_duration'].quantile([0.25, 0.5, 0.75]),
                                   #discharged_metrics_df['ED_alert_duration'].quantile([0.25, 0.5, 0.75]),
                                   str(clean_sum(discharged_metrics_df['has_TREWS_alert'].sum())),
                                   str(clean_sum(discharged_metrics_df['has_CMS_alert'].sum()))]
-    
+
     transferred_metrics_df = no_action_metrics.loc[no_action_metrics['enc_id'].isin(transferred_from_ED)]
     transferred_metrics_results = [str(len(transferred_from_ED)),
                                    '{0:.3f}'.format(transferred_metrics_df['alert_duration'].median()),
                                    '{0:.3f}'.format(transferred_metrics_df['ED_alert_duration'].median()),
-                                   #transferred_metrics_df['alert_duration'].quantile([0.25, 0.5, 0.75]), 
+                                   #transferred_metrics_df['alert_duration'].quantile([0.25, 0.5, 0.75]),
                                    #transferred_metrics_df['ED_alert_duration'].quantile([0.25, 0.5, 0.75]),
                                    str(clean_sum(transferred_metrics_df['has_TREWS_alert'].sum())),
                                    str(clean_sum(transferred_metrics_df['has_CMS_alert'].sum()))]
@@ -546,7 +547,7 @@ class ed_metrics(metric):
     currentPatients_results = [str(len(currently_in_ED)),
                                '{0:.3f}'.format(currentPatient_metrics_df['alert_duration'].median()),
                                '{0:.3f}'.format(currentPatient_metrics_df['ED_alert_duration'].median()),
-                               #currentPatient_metrics_df['alert_duration'].quantile([0.25, 0.5, 0.75]), 
+                               #currentPatient_metrics_df['alert_duration'].quantile([0.25, 0.5, 0.75]),
                                #currentPatient_metrics_df['ED_alert_duration'].quantile([0.25, 0.5, 0.75]),
                                str(clean_sum(currentPatient_metrics_df['has_TREWS_alert'].sum())),
                                str(clean_sum(currentPatient_metrics_df['has_CMS_alert'].sum()))]
@@ -569,7 +570,7 @@ class ed_metrics(metric):
     all_page_views = all_page_views.append(temp_current, ignore_index=True)
     all_page_views = all_page_views.loc[all_page_views['page_views'] != False]
     all_page_views['page_views'] = all_page_views['page_views'].apply(lambda x: x['page_views']) ## Remove page_views key from print
-    
+
     self.all_page_views = all_page_views
 
     states_after_last_alert = merged_df_ED[['enc_id', 'update_date', 'flag']]
@@ -577,7 +578,7 @@ class ed_metrics(metric):
 
     last_alerts = merged_df_ED.loc[merged_df_ED['flag'].isin([10,11])]
     last_alerts = last_alerts.groupby('enc_id', as_index=False)['update_date'].agg({'last_alert': max})
-        
+
     ## Find all enc_ids that only have state 0s after their last alert (CMS and TREWS)
     states_after_last_alert = pd.merge(states_after_last_alert, last_alerts[['enc_id', 'last_alert']], how='left')
     states_after_last_alert = states_after_last_alert.loc[states_after_last_alert['update_date'] > states_after_last_alert['last_alert']]
@@ -585,7 +586,7 @@ class ed_metrics(metric):
     dropouts = states_after_last_alert.groupby('enc_id', as_index=False)['not_deactivated'].agg(np.sum)
     dropouts = dropouts.loc[dropouts['not_deactivated'] == 0]
     metric_25 = str(dropouts['enc_id'].nunique())
-    
+
     ## min, max, median time from alert to evaluation
     # Only considered eval-ed if SOI is_met is also true
     evals = merged_df.loc[(merged_df['name'] == 'suspicion_of_infection') & (merged_df['is_met'] == True)]
@@ -654,7 +655,7 @@ class ed_metrics(metric):
     """
     trews_septic_shock_flags = [30,40]
     metric_22 = str(search_history_flags('trews_septic_shock', trews_septic_shock_flags))
-    
+
     manual_septic_shock_flags = [60]
     metric_23 = str(search_history_flags('manual_septic_shock', manual_septic_shock_flags))
 
@@ -721,7 +722,7 @@ class ed_metrics(metric):
     txt += '<h3>This table breaks down the patients that were alerted but had no action (metric 10)</h3>' + self.no_action_results.to_html()
     txt += '<h3>This table reports the page views for each patient in the three no action categories.</h3>' + self.all_page_views.to_html()
     return txt
-    
+
 class alert_performance_metrics(metric):
 
   def __init__(self,connection, first_time_str, last_time_str):
@@ -2083,6 +2084,17 @@ class alert_evaluation_stats(metric):
   def to_html(self):
     return self.data.to_html()
 
+class weekly_report(metric):
+  def __init__(self,connection, first_time_str, last_time_str):
+    super().__init__(connection, first_time_str, last_time_str)
+    self.name = 'weekly-report'
+
+  def calc(self):
+    sql = \
+    '''select * from indv_alert_metrics where sid = (select max(sid) from indv_alert_metrics);
+    '''
+    res_df = pd.read_sql(sqlalchemy.text(sql), self.connection)
+    self.data = res_df
 
 #---------------------------------
 ## Metric Factory
@@ -2122,3 +2134,10 @@ class metric_factory(object):
         raise(Warning("Unclear how to intepret output of {} to_cwm method".format(metric.name)))
 
     return cwm_list
+
+  def get_output(self):
+    output = []
+    for metric in self.metric_list:
+      out = (metric.name, metric.data)
+      output.append(out)
+    return output

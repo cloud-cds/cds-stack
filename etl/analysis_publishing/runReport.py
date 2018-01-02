@@ -43,7 +43,7 @@ pw = os.environ['dev_db_password']
 """
 def createConn(conn_str):
     conn = 'dbname={} user={} host=127.0.0.1 port=63334 password={}'.format(db, user, pw)
-    conn = psycopg2.connect(conn)    
+    conn = psycopg2.connect(conn)
     return conn
 
 with SSHTunnelForwarder(
