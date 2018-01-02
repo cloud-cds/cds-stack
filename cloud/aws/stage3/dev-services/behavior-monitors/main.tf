@@ -233,7 +233,7 @@ resource "aws_lambda_function" "s3_weekly_report_lambda" {
     s3_key           = "${var.aws_klaunch_lambda_package}"
     role             = "${var.aws_klaunch_lambda_role_arn}"
     runtime          = "python2.7"
-    timeout          = 300
+    timeout          = 86400
 
     environment {
       variables {
