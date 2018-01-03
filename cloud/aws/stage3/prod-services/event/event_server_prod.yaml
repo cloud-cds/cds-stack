@@ -61,6 +61,8 @@ spec:
           value: "prod"
         - name: NVM_DIR
           value: "/root/.nvm"
+        - name: metrics_dimension_value
+          value: "opsdx-prod"
       volumes:
         - name: config-volume
           configMap:

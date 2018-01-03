@@ -4,7 +4,7 @@ var app = express();
 var cloudwatchMetrics = require('cloudwatch-metrics');
 var myMetric = new cloudwatchMetrics.Metric('OpsDX', 'Count', [{
   Name: 'API',
-  Value: 'opsdx-test'
+  Value: process.env.metrics_dimension_value;
 }], {
   sendInterval: 10 * 1000, // It's specified in milliseconds.
   sendCallback: (err) => {
