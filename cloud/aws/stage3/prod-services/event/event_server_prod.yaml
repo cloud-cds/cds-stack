@@ -21,7 +21,7 @@ kind: Deployment
 metadata:
   name: event-server-prod
 spec:
-  replicas: 1
+  replicas: 4
   template:
     metadata:
       labels:
@@ -34,8 +34,8 @@ spec:
         image: nginx:alpine
         resources:
           requests:
-            memory: "256Mi"
-            cpu: "100m"
+            memory: "512Mi"
+            cpu: "200m"
         ports:
         - containerPort: 80
         volumeMounts:
@@ -46,7 +46,7 @@ spec:
         resources:
           requests:
             memory: "512Mi"
-            cpu: "200m"
+            cpu: "400m"
         ports:
         - containerPort: 8000
         command: ["/bin/sh","-c"]
@@ -90,9 +90,6 @@ metadata:
   name: event-server-ingress
   annotations:
     kubernetes.io/ingress.class: "nginx"
-    ingress.kubernetes.io/affinity: "cookie"
-    ingress.kubernetes.io/session-cookie-name: "route"
-    ingress.kubernetes.io/session-cookie-hash: "sha1"
     ingress.kubernetes.io/ssl-redirect: "true"
     ingrees.kubernetes.io/ingress.allow-http: "false"
 spec:

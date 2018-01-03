@@ -20,4 +20,4 @@ RUN apt-get update \
     && pip install /etl \
     && curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.6/install.sh | bash \
     && export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" \
-    && nvm install node && cd /etl/events-soap && npm install && cd /
+    && nvm install node && cd /etl/events-soap && npm install && npm install cloudwatch-metrics --save && cd /

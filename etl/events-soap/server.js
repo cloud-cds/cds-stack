@@ -1,6 +1,19 @@
 var soap = require('soap');
 var express = require('express');
 var app = express();
+var cloudwatchMetrics = require('cloudwatch-metrics');
+var myMetric = new cloudwatchMetrics.Metric('OpsDX', 'Count', [{
+  Name: 'API',
+  Value: 'opsdx-test'
+}], {
+  sendInterval: 10 * 1000, // It's specified in milliseconds.
+  sendCallback: (err) => {
+    if (!err) return;
+    // Do your error handling here.
+    console.log(err)
+  }
+});
+
 /**
 -this is remote service defined in this file, that can be accessed by clients, who will supply args
 -response is returned to the calling client
@@ -14,17 +27,20 @@ var service = {
                 console.log(JSON.stringify(args, null, 4));
                 var request = require('request');
 
-                var options = {
-                  uri: 'https://event-dev.jh.opsdx.io',
-                  method: 'POST',
-                  json: args
-                };
+                // TODO: enable event forwarding and use the right URL
+                // var options = {
+                //   uri: 'https://event-dev.jh.opsdx.io',
+                //   method: 'POST',
+                //   json: args
+                // };
 
-                request(options, function (error, response, body) {
-                  if (!error && response.statusCode == 200) {
-                    console.log(body.id) // Print the shortened url.
-                  }
-                });
+                // request(options, function (error, response, body) {
+                //   if (!error && response.statusCode == 200) {
+                //     console.log(body.id) // Print the shortened url.
+                //   }
+                // });
+
+                myMetric.put(1, 'EventCount');
                 return {};
             }
         }
