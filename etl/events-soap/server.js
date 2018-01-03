@@ -6,7 +6,7 @@ var myMetric = new cloudwatchMetrics.Metric('OpsDX', 'Count', [{
   Name: 'API',
   Value: process.env.metrics_dimension_value
 }], {
-  sendInterval: 10 * 1000, // It's specified in milliseconds.
+  sendInterval: 1 * 1000, // It's specified in milliseconds.
   sendCallback: (err) => {
     if (!err) return;
     // Do your error handling here.
