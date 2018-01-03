@@ -13,7 +13,8 @@ var myMetric = new cloudwatchMetrics.Metric('OpsDX', 'Count', [{
     console.log(err)
   }
 });
-
+var count = 0;
+var max_count = process.env.max_count;
 /**
 -this is remote service defined in this file, that can be accessed by clients, who will supply args
 -response is returned to the calling client
@@ -39,8 +40,12 @@ var service = {
                 //     console.log(body.id) // Print the shortened url.
                 //   }
                 // });
-
-                myMetric.put(1, 'EventCount');
+                count = count + 1;
+                if(count == max_count)
+                {
+                  myMetric.put(max_count, 'EventCount');
+                  count = 0;
+                }
                 return {};
             }
         }
