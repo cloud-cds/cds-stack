@@ -41,9 +41,9 @@ var service = {
                 //   }
                 // });
                 count = count + 1;
-                if(count == max_count)
+                if(count >= max_count)
                 {
-                  myMetric.put(max_count, 'EventCount');
+                  myMetric.put(count, 'EventCount');
                   count = 0;
                 }
                 return {};
