@@ -14,7 +14,7 @@ var myMetric = new cloudwatchMetrics.Metric('OpsDX', 'Count', [{
   }
 });
 var count = 0;
-var max_count = int(process.env.max_count);
+var max_count = parseInt(process.env.max_count);
 /**
 -this is remote service defined in this file, that can be accessed by clients, who will supply args
 -response is returned to the calling client

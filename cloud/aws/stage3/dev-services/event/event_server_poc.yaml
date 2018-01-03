@@ -63,6 +63,8 @@ spec:
           value: "/root/.nvm"
         - name: metrics_dimension_value
           value: "opsdx-poc"
+        - name: max_count
+          value: "1"
         - name: AWS_DEFAULT_REGION
           valueFrom:
             secretKeyRef:
