@@ -6,6 +6,7 @@ from datetime import timedelta
 import numpy as np
 from pytz import timezone
 from collections import OrderedDict
+import ipdb
 
 #---------------------------------
 ## Metric Classes
@@ -223,10 +224,6 @@ class ed_metrics(metric):
     deploy_tsp = pd.to_datetime('2017-11-06 16:00:00+00:00').tz_localize(timezone('utc'))
 
     # Use timestamp of when script is run. Can potentially hardcode instead but should be okay if running as CRON job.
-
-    ## Force timezone to be UTC in the beginning. 
-    #self.last_time_str = self.last_time_str.astimezone(timezone('UTC'))
-    #end_tsp = pd.to_datetime(self.last_time_str)
     end_tsp = pd.to_datetime(self.last_time_str).tz_localize(timezone('utc'))
 
     #end_tsp = pd.to_datetime('now').tz_localize(timezone('utc'))
@@ -451,16 +448,22 @@ class ed_metrics(metric):
     ## No patients have non-alert states that occur in between first and last alert (need to account for people that reach an alert then drop down then back up).
 
     def get_alert_end(row):
-      if not pd.isnull(row['first_non_alert']):
-        return(row['first_non_alert'])
-      elif not pd.isnull(row['transfer_time']):
-        return row['transfer_time']
-      elif not pd.isnull(row['discharge_time']):
-        return row['discharge_time']
-      elif row['last_alert'] == row['first_alert']:
+      row = row[['first_alert', 'last_alert', 'first_non_alert', 'transfer_time', 'discharge_time']]
+      if pd.isnull(row['first_non_alert']):
+        row.drop('first_non_alert', inplace=True)
+      if pd.isnull(row['transfer_time']):
+        row.drop('transfer_time', inplace=True)
+      if pd.isnull(row['discharge_time']):
+        row.drop('discharge_time', inplace=True)
+      ## Return end_tsp if first and last alert same and no other info available.
+      if row['last_alert'] == row['first_alert'] and row.shape[0] == 2:
         return end_tsp
+      elif row['last_alert'] == row['first_alert']:
+        row.drop(['first_alert', 'last_alert'], inplace=True)
+        return min(row)
       else:
-        return row['last_alert']
+        row.drop('first_alert', inplace=True)
+        return min(row)
 
     duration['alert_end'] = duration.apply(get_alert_end, axis=1)
     duration['alert_duration'] = (duration['alert_end'] - duration['first_alert']) / pd.to_timedelta('1hour')
@@ -495,7 +498,7 @@ class ed_metrics(metric):
     no_action_metrics = pd.merge(duration[['enc_id','first_alert' ,'alert_duration']], ED_duration[['enc_id', 'ED_alert_duration']], on='enc_id', how='left')
     no_action_metrics = pd.merge(no_action_metrics, has_TREWS, on='enc_id', how='left')
     no_action_metrics = pd.merge(no_action_metrics, has_CMS, on='enc_id', how='left')
-
+    no_action_metrics = pd.merge(no_action_metrics, next_care_unit[['enc_id', 'care_unit']], on='enc_id', how='left')
 
     ## Alerts with at least 1 page visit
     query = """
@@ -523,6 +526,15 @@ class ed_metrics(metric):
       else:
         return int(value)
 
+    ipdb.set_trace()
+    ## Check if enc_ids in no_action_metrics had an abx order or given lactate
+    no_action_metrics = pd.merge(no_action_metrics, first_alerts[['enc_id', 'min_tsp_cms_antibiotics_order']], on='enc_id', how='left')
+    no_action_metrics = pd.merge(no_action_metrics, first_alerts[['enc_id', 'min_tsp_lactate_order']], on='enc_id', how='left')
+    no_action_metrics['has_abx_order'] = no_action_metrics['min_tsp_cms_antibiotics_order'].apply(lambda x: False if pd.isnull(x) else True)
+    no_action_metrics['has_lactate_order'] = no_action_metrics['min_tsp_lactate_order'].apply(lambda x: False if pd.isnull(x) else True)
+    no_action_metrics.drop('min_tsp_cms_antibiotics_order', inplace=True, axis=1)
+    no_action_metrics.drop('min_tsp_lactate_order', inplace=True, axis=1)
+
     ## Leaving comments in for the quantile version. Not enough data to make meaningful quantiles atm.
     ## Subset no_action_metrics for each of the 3 groups
     discharged_metrics_df = no_action_metrics.loc[no_action_metrics['enc_id'].isin(discharged_from_ED)]
@@ -532,7 +544,10 @@ class ed_metrics(metric):
                                   #discharged_metrics_df['alert_duration'].quantile([0.25, 0.5, 0.75]),
                                   #discharged_metrics_df['ED_alert_duration'].quantile([0.25, 0.5, 0.75]),
                                   str(clean_sum(discharged_metrics_df['has_TREWS_alert'].sum())),
-                                  str(clean_sum(discharged_metrics_df['has_CMS_alert'].sum()))]
+                                  str(clean_sum(discharged_metrics_df['has_CMS_alert'].sum())),
+                                  str(clean_sum(discharged_metrics_df['has_abx_order'].sum())),
+                                  str(clean_sum(discharged_metrics_df['has_lactate_order'].sum())),
+                                  str(0)]
 
     transferred_metrics_df = no_action_metrics.loc[no_action_metrics['enc_id'].isin(transferred_from_ED)]
     transferred_metrics_results = [str(len(transferred_from_ED)),
@@ -541,7 +556,10 @@ class ed_metrics(metric):
                                    #transferred_metrics_df['alert_duration'].quantile([0.25, 0.5, 0.75]),
                                    #transferred_metrics_df['ED_alert_duration'].quantile([0.25, 0.5, 0.75]),
                                    str(clean_sum(transferred_metrics_df['has_TREWS_alert'].sum())),
-                                   str(clean_sum(transferred_metrics_df['has_CMS_alert'].sum()))]
+                                   str(clean_sum(transferred_metrics_df['has_CMS_alert'].sum())),
+                                   str(clean_sum(transferred_metrics_df['has_abx_order'].sum())),
+                                   str(clean_sum(transferred_metrics_df['has_lactate_order'].sum())),
+                                   str(transferred_metrics_df.loc[transferred_metrics_df['care_unit'].str.contains('.*ICU')]['enc_id'].nunique())]
 
     currentPatient_metrics_df = no_action_metrics.loc[no_action_metrics['enc_id'].isin(currently_in_ED)]
     currentPatients_results = [str(len(currently_in_ED)),
@@ -550,15 +568,19 @@ class ed_metrics(metric):
                                #currentPatient_metrics_df['alert_duration'].quantile([0.25, 0.5, 0.75]),
                                #currentPatient_metrics_df['ED_alert_duration'].quantile([0.25, 0.5, 0.75]),
                                str(clean_sum(currentPatient_metrics_df['has_TREWS_alert'].sum())),
-                               str(clean_sum(currentPatient_metrics_df['has_CMS_alert'].sum()))]
+                               str(clean_sum(currentPatient_metrics_df['has_CMS_alert'].sum())),
+                               str(clean_sum(currentPatient_metrics_df['has_abx_order'].sum())),
+                               str(clean_sum(currentPatient_metrics_df['has_lactate_order'].sum())),
+                               str(0)]
 
     no_action_results = pd.DataFrame({'discharged_from_ED': discharged_metrics_results,
                                       'transferred_from_ED': transferred_metrics_results,
                                       'still_in_ED': currentPatients_results},
-                                     index=['Num of patients','Median alert duration (hrs)','Median alert duration in ED (hrs)','Num of TREWS alerts','Num of CMS alerts'])
+                                     index=['Num of patients','Median alert duration (hrs)','Median alert duration in ED (hrs)','Num of TREWS alerts','Num of CMS alerts','Num of patients with Abx order','Num of patients with lactate order','Num of patients transferred to ICU'])
     no_action_results = no_action_results.transpose()
     self.no_action_results = no_action_results
 
+    ipdb.set_trace()
     ## Build table to show the page_views
     all_page_views = discharged_metrics_df[['enc_id','page_views']]
     all_page_views['group'] = 'discharged'

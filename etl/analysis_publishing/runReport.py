@@ -8,6 +8,7 @@ from sshtunnel import SSHTunnelForwarder
 import sqlalchemy
 import psycopg2
 import ipdb
+import pandas as pd
 
 logging.basicConfig()
 logger = logging.getLogger()
@@ -59,7 +60,11 @@ with SSHTunnelForwarder(
   conn_str  = 'postgresql+psycopg2://'
   engine = sqlalchemy.create_engine(conn_str, creator=createConn)
   connection = engine.connect()
-  report_metric_factory = metrics.metric_factory(connection, '', datetime.now(), [metrics.ed_metrics])
+
+  end_time = datetime.utcnow()
+  out_tsp_fmt, tz = utils.get_tz_format(tz_in_str='US/Eastern')
+  end_time_str = utils.to_tz_str(end_time, out_tsp_fmt, tz)
+  report_metric_factory = metrics.metric_factory(connection, '', end_time_str, [metrics.ed_metrics])
   #report_metric_factory = metrics.metric_factory(connection, '', '', [metrics.alert_performance_metrics])
   report_metric_factory.calc_all_metrics()
   report_html_body = report_metric_factory.build_report_body()
