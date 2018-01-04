@@ -22,6 +22,7 @@ from dateutil.parser import parse
 from datetime import date
 import traceback
 import etl.io_config.core as core
+import pdb
 
 EPIC_ENV = core.get_environment_var('EPIC_ENV', '')
 

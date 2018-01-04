@@ -34,7 +34,7 @@ spec:
         image: nginx:alpine
         resources:
           requests:
-            memory: "216Mi"
+            memory: "256Mi"
             cpu: "100m"
         ports:
         - containerPort: 80
@@ -63,6 +63,8 @@ spec:
           value: "/root/.nvm"
         - name: metrics_dimension_value
           value: "opsdx-prod"
+        - name: max_count
+          value: "50"
         - name: AWS_DEFAULT_REGION
           valueFrom:
             secretKeyRef:

@@ -166,8 +166,8 @@ def test_data_2_workspace(ctxt, sqlalchemy_str, mode, job_id):
 
 
 
-async def workspace_to_cdm(ctxt, job_id, workspace='workspace'):
-  query = "select * from workspace_to_cdm('{}','{}');".format(job_id, workspace)
+async def workspace_to_cdm(ctxt, job_id, workspace='workspace', keep_delta_table=False):
+  query = "select * from workspace_to_cdm('{}','{}','{}');".format(job_id, workspace, keep_delta_table)
   async with ctxt.db_pool.acquire() as conn:
     try:
       await conn.fetch(query)

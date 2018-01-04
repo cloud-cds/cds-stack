@@ -21,7 +21,7 @@ kind: Deployment
 metadata:
   name: event-server-dev
 spec:
-  replicas: 2
+  replicas: 4
   template:
     metadata:
       labels:
@@ -46,7 +46,7 @@ spec:
         resources:
           requests:
             memory: "512Mi"
-            cpu: "200m"
+            cpu: "500m"
         ports:
         - containerPort: 8000
         command: ["/bin/sh","-c"]
@@ -64,7 +64,7 @@ spec:
         - name: metrics_dimension_value
           value: "opsdx-dev"
         - name: max_count
-          value: "100"
+          value: "50"
         - name: AWS_DEFAULT_REGION
           valueFrom:
             secretKeyRef:

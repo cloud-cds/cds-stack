@@ -135,7 +135,7 @@ class ETL():
   async def load_to_cdm(self, buf):
     job_id = "job_etl_{}_{}".format(hospital, dt.datetime.now().strftime('%Y%m%d%H%M%S')).lower()
     await loader.epic_2_workspace(self.ctxt, buf, self.config.get_db_conn_string_sqlalchemy(), job_id, 'unicode', WORKSPACE)
-    await loader.workspace_to_cdm(self.ctxt, job_id, WORKSPACE)
+    await loader.workspace_to_cdm(self.ctxt, job_id, WORKSPACE, keep_delta_table=True)
     prediction_params = await loader.load_online_prediction_parameters(self.ctxt, job_id)
     await loader.workspace_fillin_delta(self.ctxt, prediction_params, job_id, WORKSPACE)
     await loader.workspace_derive(self.ctxt, prediction_params, job_id, WORKSPACE)
@@ -169,6 +169,7 @@ class ETL():
         else:
           extraction_set[ext] = {'pts': [pt], 'args': [buf[zid]['args']]}
     tasks = [asyncio.ensure_future(ext(self.ctxt, pd.DataFrame(extraction_set[ext]['pts']), extraction_set[ext]['args'])) for ext in extraction_set if ext not in Extraction_With_Deps]
+    logging.info("tasks: {}".format(tasks))
     results = await asyncio.gather(*tasks)
     tasks_with_deps = [asyncio.ensure_future(ext(self.ctxt, pd.DataFrame(extraction_set[ext]['pts']), extraction_set[ext]['args'], results)) for ext in extraction_set if ext in Extraction_With_Deps]
     logging.info("tasks_with_deps: {}".format(tasks_with_deps))
