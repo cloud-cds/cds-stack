@@ -35,7 +35,7 @@ spec:
         resources:
           requests:
             memory: "256Mi"
-            cpu: "100m"
+            cpu: "200m"
         ports:
         - containerPort: 80
         volumeMounts:
@@ -45,8 +45,8 @@ spec:
         image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:latest
         resources:
           requests:
-            memory: "512Mi"
-            cpu: "200m"
+            memory: "2816Mi"
+            cpu: "1000m"
         ports:
         - containerPort: 8000
         command: ["/bin/sh","-c"]

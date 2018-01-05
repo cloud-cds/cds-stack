@@ -26,7 +26,7 @@ var service = {
             ProcessEvent:function(args){
                 console.log('new event message:');
                 console.log(JSON.stringify(args, null, 4));
-                var request = require('request');
+                //var request = require('request');
 
                 // TODO: enable event forwarding and use the right URL
                 // var options = {
@@ -40,12 +40,14 @@ var service = {
                 //     console.log(body.id) // Print the shortened url.
                 //   }
                 // });
-                count = count + 1;
-                if(count >= max_count)
-                {
-                  myMetric.put(count, 'EventCount');
-                  count = 0;
-                }
+
+                // count = count + 1;
+                // if(count >= max_count)
+                // {
+                //   myMetric.put(count, 'EventCount');
+                //   count = 0;
+                // }
+                myMetric.put(1, 'EventCount');
                 return {};
             }
         }

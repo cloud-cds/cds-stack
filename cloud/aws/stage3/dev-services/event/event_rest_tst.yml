@@ -58,6 +58,8 @@ spec:
         env:
         - name: TREWS_ETL_SERVER
           value: "test"
+        - name: TREWS_ALERT_SERVER_IP
+          value: "push-alerts-tst.default.svc.cluster.local"
         - name: TREWS_ETL_HOSPITAL
           value: "HCGH"
         - name: TREWS_ETL_HOURS
