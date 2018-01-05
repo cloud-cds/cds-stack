@@ -6,7 +6,7 @@ from datetime import timedelta
 import numpy as np
 from pytz import timezone
 from collections import OrderedDict
-import ipdb
+#import ipdb
 
 #---------------------------------
 ## Metric Classes
@@ -547,7 +547,7 @@ class ed_metrics(metric):
     has_CMS['has_CMS_alert'] = 1
     ##no_action_metrics = pd.merge(duration[['enc_id','first_alert' ,'alert_duration']], ED_duration[['enc_id', 'ED_alert_duration']], on='enc_id', how='left')
     
-    ipdb.set_trace()
+    #ipdb.set_trace()
     no_action_metrics = pd.merge(duration, has_TREWS, on='enc_id', how='left')
     no_action_metrics = pd.merge(no_action_metrics, has_CMS, on='enc_id', how='left')
     #no_action_metrics = pd.merge(no_action_metrics, next_care_unit[['enc_id', 'care_unit']], on='enc_id', how='left')
@@ -632,7 +632,7 @@ class ed_metrics(metric):
     no_action_results = no_action_results.transpose()
     self.no_action_results = no_action_results
 
-    ipdb.set_trace()
+    #ipdb.set_trace()
     ## Build table to show the page_views
     all_page_views = discharged_metrics_df[['enc_id','page_views']]
     all_page_views['group'] = 'discharged'
