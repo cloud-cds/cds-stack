@@ -432,14 +432,6 @@ class ed_metrics(metric):
     first_non_alerts.drop(['flag', 'first_alert', 'last_alert_ED'], axis=1, inplace=True)
     first_non_alerts.rename(columns={'update_date':'first_non_alert'}, inplace=True)
 
-    """
-    within_alerts = pd.merge(within_alerts, min_max_alerts, how='left')
-    within_alerts = within_alerts.loc[(within_alerts['update_date'] >= within_alerts['first_alert']) & (within_alerts['update_date'] <= within_alerts['last_alert'])]
-    min_non_alerts = within_alerts.loc[~within_alerts['flag'].isin(alert_flags)]
-    min_non_alerts = min_non_alerts.groupby('enc_id', as_index=False)['update_date'].min()
-    min_non_alerts.rename(columns={'update_date':'first_non_alert'}, inplace=True)
-    """
-
     ## Compute transfer time and discharge time from ED for each patient
     next_care_unit = care_unit_df.loc[care_unit_df['care_unit'] != 'HCGH EMERGENCY-ADULTS']
     # Keep care_unit for future metrics
@@ -451,7 +443,6 @@ class ed_metrics(metric):
     discharge_time = discharge_time.groupby('enc_id', as_index = False)['tsp'].agg({'discharge_time':min})
     discharge_time = discharge_time.loc[discharge_time['enc_id'].isin(no_action)]
 
-    ipdb.set_trace()
     duration = pd.merge(min_max_alerts_ED, first_non_alerts, on='enc_id', how='left')
     duration = pd.merge(duration, next_care_unit, on='enc_id', how='left')
     duration = pd.merge(duration, discharge_time, on='enc_id', how='left')
@@ -459,9 +450,9 @@ class ed_metrics(metric):
     ## Only keep patients that have no action taken
     duration = duration.loc[duration['enc_id'].isin(no_action)] 
     def get_subgroup(row):
-      if row['enc_id'] in discharged_patients:
+      if row['enc_id'] in discharged_from_ED:
         return 'discharged'
-      elif row['enc_id'] in transferred_patients:
+      elif row['enc_id'] in transferred_from_ED:
         return 'transferred'
       elif row['enc_id'] in currently_in_ED:
         return 'current'
@@ -493,8 +484,6 @@ class ed_metrics(metric):
           return non_alert
 
     def get_alert_end_ED(row):
-      if row['enc_id'] == 75032:
-        ipdb.set_trace()
       upper_bound = row['transfer_time']
       non_alert = row['first_non_alert_ED']
 
@@ -512,7 +501,7 @@ class ed_metrics(metric):
         else:
           return non_alert
 
-    ipdb.set_trace()
+
     duration['alert_end'] = duration.apply(get_alert_end, axis=1)
     duration['alert_duration'] = (duration['alert_end'] - duration['last_alert_ED']) / pd.to_timedelta('1hour')
 
@@ -589,7 +578,7 @@ class ed_metrics(metric):
       else:
         return int(value)
 
-    ipdb.set_trace()
+    
     ## Check if enc_ids in no_action_metrics had an abx order or given lactate
     no_action_metrics = pd.merge(no_action_metrics, first_alerts[['enc_id', 'min_tsp_cms_antibiotics_order']], on='enc_id', how='left')
     no_action_metrics = pd.merge(no_action_metrics, first_alerts[['enc_id', 'min_tsp_lactate_order']], on='enc_id', how='left')
