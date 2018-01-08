@@ -2231,7 +2231,10 @@ class weekly_report(metric):
 
   def calc(self):
     sql = \
-    '''select * from indv_alert_metrics where sid = (select max(sid) from indv_alert_metrics);
+    '''
+    select * from get_weekly_individual_metrics();
+    select * from update_individual_metrics_for_new_discharges();
+    select * from indv_alert_metrics where sid = (select max(sid) from indv_alert_metrics);
     '''
     res_df = pd.read_sql(sqlalchemy.text(sql), self.connection)
     self.data = res_df
