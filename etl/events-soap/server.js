@@ -30,14 +30,17 @@ var service = {
                 if(event_forward != ''){
                     // enable event forwarding and use the right URL
                     var options = {
-                      uri: 'https://' + event_forward,
+                      uri: event_forward,
                       method: 'POST',
                       json: args
                     };
 
                     request(options, function (error, response, body) {
                       if (!error && response.statusCode == 200) {
-                        console.log(body.id) // Print the shortened url.
+                        console.log("forwarded:" + body.id) // Print the shortened url.
+                      }
+                      else {
+                        console.log("error code:" + response.statusCode);
                       }
                     });
                 }
