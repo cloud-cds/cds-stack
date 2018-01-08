@@ -50,15 +50,15 @@ spec:
         ports:
         - containerPort: 8000
         command: ["/bin/sh","-c"]
-        args: ["cd /etl/events-soap; . $NVM_DIR/nvm.sh; env; sh start.sh"]
-        # args: ["sleep 10000"]
+        # args: ["cd /etl/events-soap; . $NVM_DIR/nvm.sh; env; sh start.sh"]
+        args: ["sleep 10000"]
         securityContext:
           capabilities:
             add:
             - "SYS_PTRACE"
         env:
         - name: event_forward
-          value: "event-rest-tst.jh.opsdx.io/epic"
+          value: "https://event-rest-tst.jh.opsdx.io/epic"
         - name: epic_env
           value: "tst"
         - name: NVM_DIR
