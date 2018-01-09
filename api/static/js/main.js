@@ -1056,7 +1056,7 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
       }
 
       // TODO: subtract 1/0 based on repeat_lactate_unneeded and vasopressors_unneeded when that is implemented.
-      var expected_treatments = shock_onset != null ? (6 - (vasopressors_unneeded ? 1 : 0)) : 5;
+      var expected_treatments = shock_onset != null ? 6 : 5;
       var actual_treatments = shock_onset != null ? num_sep6_complete : num_sev6_complete;
 
       if ( shock_onset != null ) {
