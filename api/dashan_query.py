@@ -905,10 +905,15 @@ async def invalidate_cache_batch(db_pool, pid, channel, serial_id, pat_cache):
   (select n.*, notify_future_notification('{channel}', pat_id) from notifications n) M;
   '''.format(serial_id=serial_id, model=model_in_use, channel=channel)
   pat_sql = 'select jsonb_array_elements_text(pats) pat_id from refreshed_pats where id = {}'.format(serial_id)
-  async with db_pool.acquire() as conn:
-    notifications = await conn.fetch(sql)
-    await load_epic_notifications(notifications)
-    pats = await conn.fetch(pat_sql)
-    logging.info("Invalidating cache for %s" % ','.join(pat_id['pat_id'] for pat_id in pats))
-    for pat_id in pats:
-      asyncio.ensure_future(pat_cache.delete(pat_id['pat_id']))
+
+  try:
+    async with conn.transaction(isolation='serializable'):
+      notifications = await conn.fetch(sql)
+      await load_epic_notifications(notifications)
+      pats = await conn.fetch(pat_sql)
+      logging.info("Invalidating cache for %s" % ','.join(pat_id['pat_id'] for pat_id in pats))
+      for pat_id in pats:
+        asyncio.ensure_future(pat_cache.delete(pat_id['pat_id']))
+  except Exception as ex:
+    logging.warning(str(ex))
+    traceback.print_exc()
