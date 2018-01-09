@@ -933,6 +933,16 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
     var trews_subalert = trews_alerting && (sepsis_onset == null && shock_onset == null);
     var sirs_and_orgdf = cms_alerting && (sepsis_onset == null && shock_onset == null);
 
+    var repeat_status_not_completed = trews.data['repeat_lactate_order']['status'] == null
+                                        || !orderStatusCompleted(trews.data['repeat_lactate_order']);
+
+    var repeat_lactate_unneeded = trews.data['repeat_lactate_order']['is_met'] && repeat_status_not_completed;
+
+    var no_hypotension = trews.data['septic_shock']['hypotension']['is_met'] != null
+                          && !trews.data['septic_shock']['hypotension']['is_met'];
+
+    var vasopressors_unneeded = trews.data['vasopressors_order']['is_met'] && no_hypotension;
+
     var num_sev3_complete = 0;
     num_sev3_complete += trews.orderIsDone('initial_lactate_order')   ? 1 : 0;
     num_sev3_complete += trews.orderIsDone('blood_culture_order')     ? 1 : 0;
@@ -940,10 +950,12 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
     num_sev3_complete += trews.orderIsDone('crystalloid_fluid_order') ? 1 : 0;
 
     var num_sev6_complete = num_sev3_complete;
+    // TODO: guard repeat_lactate_unneeded and vasopressors_order below
+    // when we have an initial_lactate value in the repeat_lactate_order.
     num_sev6_complete += (trews.data['repeat_lactate_order']['is_met'] || orderStatusCompleted(trews.data['repeat_lactate_order'])) ? 1 : 0;
 
     var num_sep6_complete = num_sev6_complete;
-    num_sep6_complete += trews.orderIsDone('vasopressors_order') ? 1 : 0;
+    num_sep6_complete += (vasopressors_unneeded || trews.orderIsDone('vasopressors_order')) ? 1 : 0;
 
     var sev3 = $("[data-trews='sev3'] .card-subtitle").html();
     var sev6 = $("[data-trews='sev6'] .card-subtitle").html();
@@ -1034,7 +1046,8 @@ function longPatientSummary(with_alert, action_type, with_treatment, with_reset,
         auto_reset_date = new Date(expired_date);
       }
 
-      var expected_treatments = shock_onset != null ? 6 : 5;
+      // TODO: subtract 1/0 based on repeat_lactate_unneeded and vasopressors_unneeded when that is implemented.
+      var expected_treatments = shock_onset != null ? (6 - (vasopressors_unneeded ? 1 : 0)) : 5;
       var actual_treatments = shock_onset != null ? num_sep6_complete : num_sev6_complete;
 
       if ( shock_onset != null ) {
