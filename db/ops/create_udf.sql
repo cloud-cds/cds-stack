@@ -3791,7 +3791,27 @@ create or replace function reset_patient(this_enc_id int, _event_id int default 
 returns void language plpgsql as $$
 begin
     -- reset user input
-    delete from criteria where enc_id = this_enc_id and override_value is not null;
+    -- What to do when providers disable an organ_dysfunction:
+
+    -- vent_orgdf:
+    -- suppress -- never alert again
+
+    -- gcs_orgdf
+    -- suppress -- never alert again
+
+    -- lactate_orgdf
+    -- suppress until 6 hours -- can alert after 6 hrs if criteria is met
+
+    -- hypotension (sbpm, sbpm_delta, map)
+    -- suppress until 6 hours -- can alert after 6 hrs if criteria is met
+
+    -- vasopressors_orgdf
+    -- suppress until 6 hours -- can alert after 6 hrs if criteria is met
+    delete from criteria where enc_id = this_enc_id and override_value is not null
+        and not name in ('vent_orgdf', 'gcs_orgdf', 'lactate_orgdf', 'hypotension_map', 'hypotension_dsbp', 'decrease_in_sbp', 'vasopressors_orgdf');
+    delete from criteria where enc_id = this_enc_id and override_value is not null
+        and name in ('lactate_orgdf', 'hypotension_map', 'hypotension_dsbp', 'decrease_in_sbp', 'vasopressors_orgdf')
+        and now() - override_time < interval '6 hours';
     if _event_id is null then
         update criteria_events set flag = flag - 1000
         where enc_id = this_enc_id and flag >= 0;
