@@ -331,7 +331,16 @@ var trews = new function() {
   }
   this.orderIsDone = function(order_name) {
     if (this.data[order_name]) {
-      return this.data[order_name]['is_met'] && orderStatusCompleted(this.data[order_name]);
+      var obj_with_status = null;
+      try {
+        obj_with_status = JSON.parse(this.data[order_name]['status']);
+        if ( !('status' in obj_with_status) ) {
+          obj_with_status = this.data[order_name];
+        }
+      } catch (e) {
+        obj_with_status = this.data[order_name];
+      }
+      return this.data[order_name]['is_met'] && orderStatusCompleted(obj_with_status);
     }
     return false;
   }
