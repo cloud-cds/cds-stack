@@ -527,3 +527,39 @@ resource "aws_cloudwatch_metric_alarm" "trews_alert_count_8hr" {
     analysis = "opsdx-jh-dev"
   }
 }
+
+resource "aws_cloudwatch_metric_alarm" "event_count_tst" {
+  alarm_name                = "${var.deploy_prefix}-event-count-tst"
+  comparison_operator       = "LessThanOrEqualToThreshold"
+  evaluation_periods        = "10"
+  metric_name               = "EventCount"
+  namespace                 = "OpsDX"
+  period                    = "60"
+  statistic                 = "SampleCount"
+  threshold                 = "0"
+  alarm_description         = "The number of event counts from TST fired in the past 10 minutes"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    API = "opsdx-tst"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "event_count_dev" {
+  alarm_name                = "${var.deploy_prefix}-event-count-dev"
+  comparison_operator       = "LessThanOrEqualToThreshold"
+  evaluation_periods        = "10"
+  metric_name               = "EventCount"
+  namespace                 = "OpsDX"
+  period                    = "60"
+  statistic                 = "SampleCount"
+  threshold                 = "400"
+  alarm_description         = "The number of event counts from DEV fired in the past 10 minutes"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+
+  dimensions {
+    API = "opsdx-dev"
+  }
+}
