@@ -44,6 +44,7 @@ var service = {
           });
         }
         myMetric.put(1, 'EventCount');
+        myMetric.put(1, 'EventCount_'+ args['eventInfo']['Type']['$value'].replace('-','_').replace(' ',''));
         return {};
       }
     }
