@@ -80,8 +80,10 @@ class JHAPIConfig:
             wait_time = min(((base**i) + random.uniform(0, 1)), max_backoff)
             sleep(wait_time)
           else:
+            logging.error("Request IOError: Request={}".format(setting))
             raise Exception("Fail to request URL {}".format(url))
         except Exception as e:
+          logging.error("Request exception: Request={}".format(setting))
           if i < request_attempts - 1 and str(e) != 'Session is closed':
             logging.error(e)
             wait_time = min(((base**i) + random.uniform(0, 1)), max_backoff)
