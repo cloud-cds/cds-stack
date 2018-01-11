@@ -57,14 +57,15 @@ spec:
             add:
             - "SYS_PTRACE"
         env:
+        - name: event_forward
+          value: ""
+          # value: "https://event-rest-prod.jh.opsdx.io/epic"
         - name: epic_env
           value: "prod"
         - name: NVM_DIR
           value: "/root/.nvm"
         - name: metrics_dimension_value
           value: "opsdx-prod"
-        - name: max_count
-          value: "50"
         - name: AWS_DEFAULT_REGION
           valueFrom:
             secretKeyRef:
