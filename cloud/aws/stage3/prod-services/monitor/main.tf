@@ -572,13 +572,13 @@ resource "aws_cloudwatch_metric_alarm" "epic_push_notification_success" {
 resource "aws_cloudwatch_metric_alarm" "event_count_prod" {
   alarm_name                = "${var.deploy_prefix}-event-count-prod"
   comparison_operator       = "LessThanOrEqualToThreshold"
-  evaluation_periods        = "10"
+  evaluation_periods        = "5"
   metric_name               = "EventCount"
   namespace                 = "OpsDX"
   period                    = "60"
   statistic                 = "SampleCount"
   threshold                 = "400"
-  alarm_description         = "The number of event counts from prod fired in the past 10 minutes"
+  alarm_description         = "The number of event counts from prod fired in the past 5 minutes"
   alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
 
