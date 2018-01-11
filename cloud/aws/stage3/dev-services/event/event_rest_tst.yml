@@ -50,7 +50,8 @@ spec:
         ports:
         - containerPort: 8000
         command: ["/bin/sh","-c"]
-        args: ["cd etl/event-server;sh start-tst.sh"]
+        # args: ["cd etl/event-server;sh start-tst.sh"]
+        args: ["sleep 10000"]
         securityContext:
           capabilities:
             add:

@@ -37,7 +37,7 @@ full_extraction = {extractor.extract_flowsheets, extractor.extract_chiefcomplain
 EpicEvents = {
   'Flowsheet - Add': {extractor.extract_flowsheets},
   'Flowsheet - Update': {extractor.extract_flowsheets},
-  'Flowsheet - Update': {extractor.extract_flowsheets},
+  'Flowsheet - Delete': {extractor.extract_flowsheets},
   'Admission Notification': {extractor.extract_flowsheets},
   'Discharge Notification': {extractor.extract_flowsheets},
   'Preadmit': full_extraction,
@@ -184,6 +184,7 @@ class Epic(web.View):
         if valid_ids:
           args['flowsheet_ids'] = valid_ids
         else:
+          logging.info("Discard event with invalid flowsheet id: {}".format(event['ids']))
           return None
       elif event_type.startswith('Med Admin Notification'):
         args['med_order_ids'] = event['ids']
