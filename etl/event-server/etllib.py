@@ -135,12 +135,16 @@ class ETL():
   async def load_to_cdm(self, buf):
     job_id = "job_etl_{}_{}".format(hospital, dt.datetime.now().strftime('%Y%m%d%H%M%S')).lower()
     await loader.epic_2_workspace(self.ctxt, buf, self.config.get_db_conn_string_sqlalchemy(), job_id, 'unicode', WORKSPACE)
-    await loader.workspace_to_cdm(self.ctxt, job_id, WORKSPACE, keep_delta_table=True)
-    prediction_params = await loader.load_online_prediction_parameters(self.ctxt, job_id)
-    await loader.workspace_fillin_delta(self.ctxt, prediction_params, job_id, WORKSPACE)
-    await loader.workspace_derive(self.ctxt, prediction_params, job_id, WORKSPACE)
-    await loader.workspace_submit_delta(self.ctxt, job_id, WORKSPACE)
-    await loader.notify_delta_ready_to_trews_alert_server(self.ctxt, job_id, WORKSPACE)
+    num_delta = await loader.workspace_to_cdm_delta(self.ctxt, job_id, WORKSPACE, keep_delta_table=True)
+    logging.info("{} num_delta = {}".format(job_id, num_delta))
+    if num_delta:
+      prediction_params = await loader.load_online_prediction_parameters(self.ctxt, job_id)
+      await loader.workspace_fillin_delta(self.ctxt, prediction_params, job_id, WORKSPACE)
+      await loader.workspace_derive(self.ctxt, prediction_params, job_id, WORKSPACE)
+      await loader.workspace_submit_delta(self.ctxt, job_id, WORKSPACE)
+      await loader.notify_delta_ready_to_trews_alert_server(self.ctxt, job_id, WORKSPACE)
+    else:
+      logging.info("No change for {}. Skip ETL".format(job_id))
 
   def load_pt_map(self):
     '''

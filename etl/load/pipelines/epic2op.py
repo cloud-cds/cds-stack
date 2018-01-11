@@ -176,7 +176,14 @@ async def workspace_to_cdm(ctxt, job_id, workspace='workspace', keep_delta_table
     return job_id
 
 
-
+async def workspace_to_cdm_delta(ctxt, job_id, workspace='workspace', keep_delta_table=False):
+  query = "select * from workspace_to_cdm('{}','{}','{}');".format(job_id, workspace, keep_delta_table)
+  async with ctxt.db_pool.acquire() as conn:
+    try:
+      res = await conn.fetch(query)
+    except asyncpg.exceptions.UndefinedTableError:
+      logging.error("Workspace table does exist for {}".format(query))
+    return res[0][0]
 
 async def load_online_prediction_parameters(ctxt, job_id):
   async with ctxt.db_pool.acquire() as conn:
