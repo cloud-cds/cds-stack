@@ -161,10 +161,10 @@ class PredictorManager:
         ]
         if pred.avg_total_time > 0:
           metric_tuples += [
-            ('avg_total_time_{}'.format(pred.model_type), pred.avg_total_time, 'Seconds'),
-              ('avg_optimization_time_{}'.format(pred.model_type), pred.avg_optimization_time, 'Seconds'),
-              ('total_time_{}'.format(pred.model_type), pred.total_time, 'Seconds'),
-              ('optimization_time_{}'.format(pred.model_type), pred.optimization_time, 'Seconds'),
+            ('push_avg_total_time_{}'.format(pred.model_type), pred.avg_total_time, 'Seconds'),
+            ('push_avg_optimization_time_{}'.format(pred.model_type), pred.avg_optimization_time, 'Seconds'),
+            ('push_total_time_{}'.format(pred.model_type), pred.total_time, 'Seconds'),
+            ('push_optimization_time_{}'.format(pred.model_type), pred.optimization_time, 'Seconds'),
           ]
           pred.avg_total_time = 0
       logging.info("cloudwatch metrics: {}".format(metric_tuples))
