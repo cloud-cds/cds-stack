@@ -6,7 +6,6 @@ from datetime import timedelta
 import numpy as np
 from pytz import timezone
 from collections import OrderedDict
-#import ipdb
 
 #---------------------------------
 ## Metric Classes
@@ -547,7 +546,6 @@ class ed_metrics(metric):
     has_CMS['has_CMS_alert'] = 1
     ##no_action_metrics = pd.merge(duration[['enc_id','first_alert' ,'alert_duration']], ED_duration[['enc_id', 'ED_alert_duration']], on='enc_id', how='left')
 
-    #ipdb.set_trace()
     no_action_metrics = pd.merge(duration, has_TREWS, on='enc_id', how='left')
     no_action_metrics = pd.merge(no_action_metrics, has_CMS, on='enc_id', how='left')
     #no_action_metrics = pd.merge(no_action_metrics, next_care_unit[['enc_id', 'care_unit']], on='enc_id', how='left')
@@ -628,11 +626,10 @@ class ed_metrics(metric):
     no_action_results = pd.DataFrame({'discharged_from_ED': discharged_metrics_results,
                                       'transferred_from_ED': transferred_metrics_results,
                                       'still_in_ED': currentPatients_results},
-                                     index=['Num of patients','Median alert duration (hrs)','Median alert duration in ED (hrs)','Num of TREWS alerts','Num of CMS alerts','Num of patients with Abx order','Num of patients with lactate order','Num of patients transferred to ICU'])
+                                     index=['# of patients','Median alert duration (hrs)','Median alert duration in ED (hrs)','# of TREWS alerts','# of CMS alerts','# of patients with Abx order','# of patients with lactate order','# of patients transferred to ICU'])
     no_action_results = no_action_results.transpose()
     self.no_action_results = no_action_results
 
-    #ipdb.set_trace()
     ## Build table to show the page_views
     all_page_views = discharged_metrics_df[['enc_id','page_views']]
     all_page_views['group'] = 'discharged'
@@ -650,16 +647,30 @@ class ed_metrics(metric):
     states_after_last_alert = merged_df_ED[['enc_id', 'update_date', 'flag']]
     states_after_last_alert = pd.merge(states_after_last_alert, first_alerts[['enc_id','1st_alert_date']], how='inner')
 
+    ## Find all enc_ids that only have state 0s after their last alert (CMS and TREWS)
     last_alerts = merged_df_ED.loc[merged_df_ED['flag'].isin([10,11])]
     last_alerts = last_alerts.groupby('enc_id', as_index=False)['update_date'].agg({'last_alert': max})
 
-    ## Find all enc_ids that only have state 0s after their last alert (CMS and TREWS)
     states_after_last_alert = pd.merge(states_after_last_alert, last_alerts[['enc_id', 'last_alert']], how='left')
     states_after_last_alert = states_after_last_alert.loc[states_after_last_alert['update_date'] > states_after_last_alert['last_alert']]
     states_after_last_alert['not_deactivated'] = states_after_last_alert['flag'] != 0
     dropouts = states_after_last_alert.groupby('enc_id', as_index=False)['not_deactivated'].agg(np.sum)
     dropouts = dropouts.loc[dropouts['not_deactivated'] == 0]
-    metric_25 = str(dropouts['enc_id'].nunique())
+    metric_25_c = str(dropouts['enc_id'].nunique())
+
+    ## Find dropouts that only had CMS alerts
+    contains_trews_alert = merged_df_ED.loc[merged_df_ED['flag'].isin([11])]
+    contains_trews_alert = set(contains_trews_alert['enc_id'].unique())
+    cms_dropouts = dropouts.loc[~dropouts['enc_id'].isin(contains_trews_alert)]['enc_id'].unique()
+    metric_25_a = str(len(cms_dropouts))
+
+    ## Find dropouts that only had TREWS alerts
+    contains_cms_alert = merged_df_ED.loc[merged_df_ED['flag'].isin([10])]
+    contains_cms_alert = set(contains_cms_alert['enc_id'].unique())
+    trews_dropouts = dropouts.loc[~dropouts['enc_id'].isin(contains_cms_alert)]['enc_id'].unique()
+    metric_25_b = str(len(trews_dropouts))
+
+    metric_25 = '{0}'.format(', '.join([metric_25_a, metric_25_b, metric_25_c]))
 
     ## min, max, median time from alert to evaluation
     # Only considered eval-ed if SOI is_met is also true
@@ -779,7 +790,7 @@ class ed_metrics(metric):
     desc14 = '# alerts that have no infection entered'
     desc15 = '# alerts that are put on sepsis pathway'
     desc16 = '# alerts that have no action taken'
-    desc25 = '# alerts with no action but were deactivated'
+    desc25 = '# (CMS, TREWS, any alert) w/ no action, then deactivated'
     #desc16_a = '# alerts with no action for < 1hr'
     #desc16_b = '# alerts with no action for >= 1hr'
     #desc16_c = '# alerts with no action for >= 2hrs'
@@ -797,6 +808,7 @@ class ed_metrics(metric):
     self.metrics_DF = pd.DataFrame({'Metrics': allDesc, 'Values': allMetrics})
 
   def to_html(self):
+    pd.set_option('display.max_colwidth', 75)
     txt = '<h3>This section of the report metrics for patients who were in the ED between {s} and {e}</h3>'.format(s=self.report_start, e=self.report_end)
     #txt = "<h3>Emergency Department Metrics</h3>"
     txt += self.metrics_DF.to_html()
