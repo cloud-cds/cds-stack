@@ -158,14 +158,14 @@ class EpicAPIConfig:
     logging.info("Made {} requests".format(sum(x[1] for x in result)))
     self.cloudwatch_logger.push(
       dimension_name = 'ETL',
-      metric_name    = 'requests_made',
+      metric_name    = 'requests_made_push',
       value          = sum(x[1] for x in result),
       unit           = 'Count'
     )
     label = self.hospital + '_' + endpoint.replace('/', '_') + '_' + http_method
     self.cloudwatch_logger.push_many(
       dimension_name  = 'ETL',
-      metric_names    = ['{}_success'.format(label), '{}_error'.format(label), 'jh_api_request_success', 'jh_api_request_error'],
+      metric_names    = ['{}_success_push'.format(label), '{}_error_push'.format(label), 'jh_api_request_success_push', 'jh_api_request_error_push'],
       metric_values   = [sum(x[2] for x in result), sum(x[3] for x in result), sum(x[2] for x in result), sum(x[3] for x in result)],
       metric_units    = ['Count','Count','Count','Count']
     )
