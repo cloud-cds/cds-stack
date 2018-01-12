@@ -5057,45 +5057,45 @@ if to_regclass('' || workspace || '.' || job_id || '_lab_results_transformed') i
     DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;';
 end if;
 
--- make sure all rows in delta cdm_t tables are real delta rows, i.e., remove existing rows
--- update main tables from workspace delta tables
-execute
-'
-insert into cdm_s (enc_id, fid, value, confidence)
-    select enc_id, fid, value, confidence from ' || workspace || '.cdm_s
-    where job_id = ''' || job_id || ''' and value <> ''DELETE''
-on conflict (enc_id, fid) do update set value = excluded.value, confidence = excluded.confidence;
-delete from cdm_s using (select * from ' || workspace || '.cdm_s
-    where value = ''DELETE'') as del
-where cdm_s.enc_id = del.enc_id and cdm_s.fid = del.fid ;
+if keep_delta_table then
+    -- make sure all rows in delta cdm_t tables are real delta rows, i.e., remove existing rows
+    -- update main tables from workspace delta tables
+    execute
+    '
+    insert into cdm_s (enc_id, fid, value, confidence)
+        select enc_id, fid, value, confidence from ' || workspace || '.cdm_s
+        where job_id = ''' || job_id || ''' and value <> ''DELETE''
+    on conflict (enc_id, fid) do update set value = excluded.value, confidence = excluded.confidence;
+    delete from cdm_s using (select * from ' || workspace || '.cdm_s
+        where value = ''DELETE'') as del
+    where cdm_s.enc_id = del.enc_id and cdm_s.fid = del.fid ;
 
-delete from ' || workspace || '.cdm_t t
-using (
-    select tt.enc_id, tt.tsp, tt.fid
-    from ' || workspace || '.cdm_t tt
-    inner join cdm_t ttt on tt.enc_id = ttt.enc_id and tt.tsp = ttt.tsp and tt.fid = ttt.fid and tt.value = ttt.value
-    where tt.job_id = ''' || job_id || ''';
-) as existing e
-where t.job_id = ''' || job_id || ''' and t.enc_id = e.enc_id and t.tsp = e.tsp and t.fid = e.fid;
+    delete from ' || workspace || '.cdm_t t
+    using (
+        select tt.enc_id, tt.tsp, tt.fid
+        from ' || workspace || '.cdm_t tt
+        inner join cdm_t ttt on tt.enc_id = ttt.enc_id and tt.tsp = ttt.tsp and tt.fid = ttt.fid and tt.value = ttt.value
+        where tt.job_id = ''' || job_id || '''
+    ) as e
+    where t.job_id = ''' || job_id || ''' and t.enc_id = e.enc_id and t.tsp = e.tsp and t.fid = e.fid;
 
-insert into cdm_t (enc_id, tsp, fid, value, confidence)
-    select enc_id, tsp, fid, value, confidence from ' || workspace || '.cdm_t
-    where job_id = ''' || job_id || ''' and value <> ''DELETE''
-on conflict (enc_id, tsp, fid) do update set value = excluded.value, confidence = excluded.confidence ;
-delete from cdm_t using (select * from ' || workspace || '.cdm_t
-    where job_id = ''' || job_id || ''' and  value = ''DELETE'') as del
-where cdm_t.enc_id = del.enc_id and cdm_t.tsp = del.tsp and cdm_t.fid = del.fid ;
+    insert into cdm_t (enc_id, tsp, fid, value, confidence)
+        select enc_id, tsp, fid, value, confidence from ' || workspace || '.cdm_t
+        where job_id = ''' || job_id || ''' and value <> ''DELETE''
+    on conflict (enc_id, tsp, fid) do update set value = excluded.value, confidence = excluded.confidence ;
+    delete from cdm_t using (select * from ' || workspace || '.cdm_t
+        where job_id = ''' || job_id || ''' and  value = ''DELETE'') as del
+    where cdm_t.enc_id = del.enc_id and cdm_t.tsp = del.tsp and cdm_t.fid = del.fid ;
 
-insert into cdm_notes (enc_id, note_id, note_type, note_status, note_body, dates, providers)
-    select enc_id, note_id, note_type, note_status, note_body, dates, providers from ' || workspace || '.cdm_notes
-    where job_id = ''' || job_id || ''' and note_body <> ''DELETE''
-on conflict (enc_id, note_id, note_type, note_status) do update set note_body = excluded.note_body, dates = excluded.dates, providers = excluded.providers ;
-delete from cdm_notes using (select * from ' || workspace || '.cdm_notes
-    where job_id = ''' || job_id || ''' and note_body = ''DELETE'') as del
-where cdm_notes.enc_id = del.enc_id and cdm_notes.note_id = del.note_id and cdm_notes.note_type = del.note_type and cdm_notes.note_status = del.note_status ;
-';
-
-if not keep_delta_table then
+    insert into cdm_notes (enc_id, note_id, note_type, note_status, note_body, dates, providers)
+        select enc_id, note_id, note_type, note_status, note_body, dates, providers from ' || workspace || '.cdm_notes
+        where job_id = ''' || job_id || ''' and note_body <> ''DELETE''
+    on conflict (enc_id, note_id, note_type, note_status) do update set note_body = excluded.note_body, dates = excluded.dates, providers = excluded.providers ;
+    delete from cdm_notes using (select * from ' || workspace || '.cdm_notes
+        where job_id = ''' || job_id || ''' and note_body = ''DELETE'') as del
+    where cdm_notes.enc_id = del.enc_id and cdm_notes.note_id = del.note_id and cdm_notes.note_type = del.note_type and cdm_notes.note_status = del.note_status ;
+    ';
+else
     execute
     'delete from '|| workspace || '.cdm_s where job_id = ''' || job_id || ''';
     delete from '|| workspace || '.cdm_t where job_id = ''' || job_id || ''';
