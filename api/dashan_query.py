@@ -738,6 +738,14 @@ async def get_deterioration_feedback(db_pool, eid):
         "uid": df[0][3]
       }
 
+async def get_explanations(db_pool, eid):
+  get_explanations_sql = \
+  '''
+  select feature_relevance from trews_jit_score where model_id=9 and enc_id = (select * from pat_id_to_enc_id('%s'::text)) order by tsp desc limit 1  
+  ''' % eid
+  async with db_pool.acquire() as conn:
+    df = await conn.fetch(get_explanations_sql)
+    return json.loads(df[0][0])
 
 async def push_notifications_to_epic(db_pool, eid, notify_future_notification=True):
   async with db_pool.acquire() as conn:
@@ -746,6 +754,15 @@ async def push_notifications_to_epic(db_pool, eid, notify_future_notification=Tr
     '''
     select * from get_notifications_for_epic('%s', '%s');
     ''' % (eid, model)
+    try:
+      async with conn.transaction(isolation='serializable'):
+        notifications = await conn.fetch(notifications_sql)
+    except:
+      notifications = None
+
+    if notifications:
+      logging.info("push notifications to epic (epic_notifications={}) for {}".format(epic_notifications, eid))
+      #''' % (eid, model)
     try:
       async with conn.transaction(isolation='serializable'):
         notifications = await conn.fetch(notifications_sql)
@@ -829,15 +846,6 @@ async def load_epic_notifications(notifications):
       api_monitor.add_metric('FSPush%sSuccess'  % k.capitalize(), value=success[k])
       api_monitor.add_metric('FSPush%sFailures' % k.capitalize(), value=total-success[k])
 
-  else:
-    logging.info("Skipped pushing to Epic flowsheets")
-
-
-async def load_epic_trewscores(trewscores):
-  total = len(trewscores)
-  if total == 0:
-    logging.info("No trewscore need to be updated to Epic")
-    return
   if epic_notifications is not None and int(epic_notifications):
     success = []
     patients = [{
