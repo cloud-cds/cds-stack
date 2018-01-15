@@ -152,7 +152,7 @@ class PredictorManager:
       metric_tuples = []
 
       # Get overall predictor info
-      metric_tuples.append(('num_predictors', int(len(self.predictors)), 'Count'))
+      metric_tuples.append(('push_num_predictors', int(len(self.predictors)), 'Count'))
 
       # Send individual predictor info to cloudwatch
       for pred_id, pred in self.predictors.items():
