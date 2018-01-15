@@ -332,7 +332,7 @@ rapamycin_dose,T,JSON,yes,no,,3,,,Medication,1,mg
 rass,TWF,Real,yes,no,last_value_in_window,5,,,Physiologic,1,no unit
 renal_insufficiency_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
 renal_insufficiency_hist,S,Boolean,yes,no,,,,,history,1,no unit
-renal_sofa,TWF,Integer,no,no,,,renal_sofa_update,"creatinine, urine_output_24hr",it should not be sparse,1,no unit
+renal_sofa,TWF,Integer,no,no,,,renal_sofa_update,"creatinine",it should not be sparse,1,no unit
 resp_rate,TWF,Real,yes,no,last_value_in_window,4,,,Physiologic,1,breath per min
 resp_sofa,TWF,Integer,no,no,,,resp_sofa_update,"vent, pao2_to_fio2",,1,no unit
 rifampin_dose,T,JSON,yes,no,,3,,,Medication,1,mg
