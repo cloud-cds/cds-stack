@@ -157,7 +157,7 @@ class PredictorManager:
       # Send individual predictor info to cloudwatch
       for pred_id, pred in self.predictors.items():
         metric_tuples += [
-          ('predictor_{}_{}_{}_status'.format(*pred_id), STATUS_DICT[pred.status], 'None'),
+          ('push_predictor_{}_{}_{}_status'.format(*pred_id), STATUS_DICT[pred.status], 'None'),
         ]
         if pred.avg_total_time > 0:
           metric_tuples += [
