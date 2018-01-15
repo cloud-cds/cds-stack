@@ -1674,9 +1674,10 @@ AS $function$
 DECLARE
   -- Criteria Lookbacks.
   initial_lactate_order_lookback       interval := get_parameter('initial_lactate_order_lookback');
-  orders_lookback                interval := get_parameter('orders_lookback');
-  blood_culture_order_lookback   interval := get_parameter('blood_culture_order_lookback');
-  antibiotics_order_lookback     interval := get_parameter('antibiotics_order_lookback');
+  orders_lookback                      interval := get_parameter('orders_lookback');
+  blood_culture_order_lookback         interval := get_parameter('blood_culture_order_lookback');
+  antibiotics_order_lookback           interval := get_parameter('antibiotics_order_lookback');
+  cms_on                               boolean  := get_parameter('cms_on');
 BEGIN
 raise notice 'enc_id:%', this_enc_id;
 return query
@@ -1917,7 +1918,7 @@ return query
                     pat_cvalues.c_otime,
                     pat_cvalues.c_ouser,
                     pat_cvalues.c_ovalue,
-                    criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue) as is_met
+                    criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue) and cms_on as is_met
             from pat_cvalues
             where pat_cvalues.name in ('sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc')
             order by pat_cvalues.tsp
@@ -1947,7 +1948,7 @@ return query
                 (case
                     when pat_cvalues.c_ovalue#>>'{0,text}' = 'No Infection' then false
                     else coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value) is not null
-                  end) as is_met
+                  end) and cms_on as is_met
             from pat_cvalues
             inner join pat_enc on pat_cvalues.enc_id = pat_enc.enc_id
             where pat_cvalues.category = 'respiratory_failure'
@@ -1996,7 +1997,7 @@ return query
                             criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue) and seizure.enc_id is null -- exclued seizure enc_ids
                         else criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
                         end
-                    ) as is_met
+                    ) and cms_on as is_met
             from pat_cvalues
             left join esrd on pat_cvalues.enc_id = esrd.enc_id
             left join seizure on pat_cvalues.enc_id = seizure.enc_id
