@@ -6,7 +6,7 @@ from datetime import timedelta
 import numpy as np
 from pytz import timezone
 from collections import OrderedDict
-import pdb
+
 #---------------------------------
 ## Metric Classes
 #---------------------------------
@@ -639,8 +639,6 @@ class ed_metrics(metric):
     dropouts = dropouts.loc[dropouts['not_deactivated'] == 0]
     metric_25 = str(dropouts['enc_id'].nunique())
 
-    pdb.set_trace()
-    
     ## min, max, median time from alert to evaluation
     # Only considered eval-ed if SOI is_met is also true
     evals = merged_df.loc[(merged_df['name'] == 'suspicion_of_infection') & (merged_df['is_met'] == True)]
