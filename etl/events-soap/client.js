@@ -15,14 +15,15 @@ app.get('/',function(req,res){
     res.sendFile(__dirname + "/" + "/client.html");
 })
 app.get('/test',function(req,res){
-    var url = "https://event-poc.jh.opsdx.io/?wsdl";
-    var args = {event:0};
+    var url = "https://event-tst.jh.opsdx.io/?wsdl";
+    var args = {eventInfo: {Type: {$value: "Test"}}};
     soap.createClient(url,function(err,client){
         if(err)
             console.error(err);
         else {
             console.log(client)
-            client.ProcessEvent(args,function(err,response){
+            console.log(args)
+            client.EventService.EventPort.ProcessEvent(args,function(err,response){
                 if(err)
                     console.error(err);
                 else{
