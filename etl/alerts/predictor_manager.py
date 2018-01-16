@@ -116,6 +116,7 @@ class Predictor:
           'time': message['time'],
           'hosp': message['hosp'],
           'enc_ids': message['enc_ids'],
+          'job_id': message['job_id']
         })
 
       else:
