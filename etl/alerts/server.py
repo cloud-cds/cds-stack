@@ -168,16 +168,10 @@ class AlertServer:
     # NOTE: I don't turst the enc_ids from FIN msg
     async with self.db_pool.acquire() as conn:
       if self.notify_web:
-        # await self.calculate_criteria_enc(conn, msg['enc_ids'])
         if self.push_based:
           job_id = msg['job_id']
+          await self.calculate_criteria_push(conn, job_id)
           sql = '''
-          select garbage_collection(enc_id)
-          from (select distinct enc_id from {workspace}.cdm_t
-                where job_id = '{job_id}') e;
-          select advance_criteria_snapshot(enc_id)
-          from (select distinct enc_id from {workspace}.cdm_t
-                where job_id = '{job_id}') e;
           with pats as (
             select p.enc_id, p.pat_id from pat_enc p
             where p.enc_id in (select distinct enc_id from {workspace}.cdm_t
@@ -336,11 +330,27 @@ class AlertServer:
     await conn.fetch(sql)
 
   async def calculate_criteria_enc(self, conn, enc_ids):
-    server = 'dev_db' if 'dev' in self.channel else 'prod_db'
     sql = ';'.join(['select garbage_collection({})'.format(enc_id) for enc_id in enc_ids])
     logging.info("calculate_criteria sql: {}".format(sql))
     await conn.fetch(sql)
     sql = ';'.join(['select advance_criteria_snapshot({})'.format(enc_id) for enc_id in enc_ids])
+    logging.info("calculate_criteria sql: {}".format(sql))
+    await conn.fetch(sql)
+    logging.info("complete calculate_criteria_enc")
+
+async def calculate_criteria_push(self, conn, job_id):
+    sql = '''
+    select garbage_collection(enc_id)
+    from (select distinct enc_id from {workspace}.cdm_t
+          where job_id = '{job_id}') e;
+    '''.format(workspace=self.workspace, job_id=job_id)
+    logging.info("calculate_criteria sql: {}".format(sql))
+    await conn.fetch(sql)
+    sql = '''
+    select advance_criteria_snapshot(enc_id)
+    from (select distinct enc_id from {workspace}.cdm_t
+          where job_id = '{job_id}') e;
+    '''.format(workspace=self.workspace, job_id=job_id)
     logging.info("calculate_criteria sql: {}".format(sql))
     await conn.fetch(sql)
     logging.info("complete calculate_criteria_enc")
