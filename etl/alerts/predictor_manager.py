@@ -41,6 +41,8 @@ class Predictor:
     self.avg_optimization_time = 0
     self.total_time = 0
     self.optimization_time = 0
+    self.avg_datainterface_time = 0
+    self.datainterface_time = 0
 
   def __str__(self):
     return predictor_str(self.partition_index, self.model_type, self.is_active)
@@ -104,6 +106,7 @@ class Predictor:
         num_pats = len(message['enc_ids'])
         self.total_time = message['total_time']
         self.optimization_time = message['optimization_time']
+        self.datainterface_time = message['datainterface_time']
         self.avg_total_time = message['total_time'] / (num_pats if num_pats > 0 else 1)
         self.avg_optimization_time = message['optimization_time'] / (num_pats if num_pats > 0 else 1)
         self.avg_datainterface_time = message['datainterface_time'] / (num_pats if num_pats > 0 else 1)
@@ -164,6 +167,7 @@ class PredictorManager:
           metric_tuples += [
             ('push_avg_total_time_{}'.format(pred.model_type), pred.avg_total_time, 'Seconds'),
             ('push_avg_optimization_time_{}'.format(pred.model_type), pred.avg_optimization_time, 'Seconds'),
+            ('push_avg_datainterface_time_{}'.format(pred.model_type), pred.avg_datainterface_time, 'Seconds'),
             ('push_total_time_{}'.format(pred.model_type), pred.total_time, 'Seconds'),
             ('push_optimization_time_{}'.format(pred.model_type), pred.optimization_time, 'Seconds'),
             ('push_datainterface_time_{}'.format(pred.model_type), pred.datainterface_time, 'Seconds'),
