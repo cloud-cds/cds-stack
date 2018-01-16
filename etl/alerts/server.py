@@ -338,7 +338,7 @@ class AlertServer:
     await conn.fetch(sql)
     logging.info("complete calculate_criteria_enc")
 
-async def calculate_criteria_push(self, conn, job_id):
+  async def calculate_criteria_push(self, conn, job_id):
     sql = '''
     select garbage_collection(enc_id)
     from (select distinct enc_id from {workspace}.cdm_t
