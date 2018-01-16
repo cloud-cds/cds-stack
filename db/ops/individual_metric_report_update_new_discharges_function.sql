@@ -165,7 +165,8 @@ join (select ct.enc_id, min(tsp) time_ed_admit
 from cdm_t ct
 where fid='heart_rate'
 and ct.enc_id in (select ia.enc_id from indv_alert_metrics ia where ia.still_in_hospital=1
-group by ct.enc_id)) ad
+group by ia.enc_id) 
+group by ct.enc_id) ad
 on ia.enc_id=ad.enc_id
 left join (select ct.enc_id, tsp discharge_date,
   value::json->>'department' department,
@@ -741,7 +742,7 @@ least(im.orgdf_trews_bilirubin, im.orgdf_trews_creatinine, im.orgdf_trews_lactat
 
 update indv_alert_metrics_temp im set
 cx_prior_to_abx = (im.initial_blood_cx_order <= im.initial_abx_order)::integer,
-alert_in_ed = (im.alert_time < im.time_inhosp_admit)::integer or im.time_inhosp_admit is null,
+alert_in_ed = (im.alert_time < im.time_inhosp_admit)::integer,
 alert_prior_abx_cx = (im.alert_time  < (least(im.initial_abx_order, im.initial_blood_cx_order) - interval '1 hour'))::integer,
 hours_alert_to_discharge = round((extract(epoch from im.discharge_date - im.alert_time)/3600)::numeric, 1),
 hours_alert_to_inpatient_admit = round((extract(epoch from im.time_inhosp_admit - im.alert_time)/3600)::numeric, 1),
