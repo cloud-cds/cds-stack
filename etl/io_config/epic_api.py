@@ -366,9 +366,13 @@ class EpicAPIConfig:
     med_op = self.combine(dfs[half:], bedded_patients[['pat_id', 'visit_id']])
     df_raw = pd.concat([med_ip, med_op]).reset_index(drop=True)
     self.log.debug("med_order df_raw: {}".format(df_raw))
-    self.log.debug('med_order df_raw.med-order: {}'.format(df_raw.MedicationOrders))
-    df_tran = self.transform(ctxt, df_raw, 'med_orders_transforms')
-    self.log.debug("med_order df_tran: {}".format(df_tran))
+    if not df_raw.empty:
+      self.log.debug('med_order df_raw.med-order: {}'.format(df_raw.MedicationOrders))
+      df_tran = self.transform(ctxt, df_raw, 'med_orders_transforms')
+      self.log.debug("med_order df_tran: {}".format(df_tran))
+    else:
+      self.log.debug("empty raw med_orders")
+      df_tran = None
     return {'med_orders_transformed': df_tran}
 
   def tz_hack(self, ctxt, df):
