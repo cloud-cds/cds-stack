@@ -292,7 +292,7 @@ async def workspace_fillin_delta(ctxt, prediction_params, job_id, workspace='wor
     result = await conn.execute(fillin_sql)
     ctxt.log.info(result)
     ctxt.log.info("fillin completed")
-    return job_id
+    return result[0][0]
 
 
 async def workspace_derive(ctxt, prediction_params, job_id, workspace='workspace'):

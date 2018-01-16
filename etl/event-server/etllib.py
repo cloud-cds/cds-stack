@@ -140,10 +140,13 @@ class ETL():
     logging.info("{} num_delta = {}".format(job_id, num_delta))
     if num_delta:
       prediction_params = await loader.load_online_prediction_parameters(self.ctxt, job_id)
-      await loader.workspace_fillin_delta(self.ctxt, prediction_params, job_id, WORKSPACE)
-      await loader.workspace_derive(self.ctxt, prediction_params, job_id, WORKSPACE)
-      await loader.workspace_submit_delta(self.ctxt, job_id, WORKSPACE)
-      await loader.notify_delta_ready_to_trews_alert_server(self.ctxt, job_id, WORKSPACE)
+      num_twf_rows = await loader.workspace_fillin_delta(self.ctxt, prediction_params, job_id, WORKSPACE)
+      if num_twf_rows:
+        await loader.workspace_derive(self.ctxt, prediction_params, job_id, WORKSPACE)
+        await loader.workspace_submit_delta(self.ctxt, job_id, WORKSPACE)
+        await loader.notify_delta_ready_to_trews_alert_server(self.ctxt, job_id, WORKSPACE)
+      else:
+        logging.info("No new or updated rows in TWF. Skip ETL {}".format(job_id))
     else:
       logging.info("No change for {}. Skip ETL".format(job_id))
     end_time = dt.datetime.now()

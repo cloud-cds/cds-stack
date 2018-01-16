@@ -346,7 +346,10 @@ class Session():
         cursor = self.conn.execute(sql)
         data = cursor.fetchall()
         if as_data_frame:
-            return pd.DataFrame(np.asarray(data), columns=colnames)
+            if len(data) == 0:
+                return pd.DataFrame(columns=colnames)
+            else:
+                return pd.DataFrame(np.asarray(data), columns=colnames)
         else:
             return data
 

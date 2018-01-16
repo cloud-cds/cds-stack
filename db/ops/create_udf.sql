@@ -410,10 +410,11 @@ $BODY$
 LANGUAGE plpgsql;
 
 create or replace function workspace_fillin_delta(twf_fids text[], twf_table text, t_table text, job_id text, workspace text default 'workspace')
-returns void
+returns int
 as $BODY$
 declare
     enc_ids int[];
+    num_rows int;
 begin
     execute '
     --create_job_cdm_twf_table
@@ -425,6 +426,8 @@ begin
 
     perform load_delta_cdm_twf_from_cdm_t(twf_fids, twf_table, t_table, job_id, workspace);
     perform last_value_delta(twf_fids, twf_table);
+    execute 'select count(*) from ' || workspace || '.' || job_id || '_cdm_twf;' into num_rows;
+    return num_rows;
 end
 $BODY$
 LANGUAGE plpgsql;
