@@ -6,7 +6,7 @@ from datetime import timedelta
 import numpy as np
 from pytz import timezone
 from collections import OrderedDict
-
+import pdb
 #---------------------------------
 ## Metric Classes
 #---------------------------------
@@ -227,7 +227,7 @@ class ed_metrics(metric):
 
     #end_tsp = pd.to_datetime('now').tz_localize(timezone('utc'))
     start_tsp = end_tsp - self.window
-
+    
     # For generating HTML only
     self.report_start = start_tsp.strftime('%x %X %Z')
     self.report_end = end_tsp.strftime('%x %X %Z')
@@ -517,38 +517,19 @@ class ed_metrics(metric):
     duration['alert_end_ED'] = duration.apply(get_alert_end_ED, axis=1)
     duration['alert_duration_ED'] = (duration['alert_end_ED'] - duration['last_alert_ED']) / pd.to_timedelta('1hour')
 
-    """
-    min_max_alerts_ED = (merged_df_ED.loc[merged_df_ED['flag'].isin(alert_flags)]
-                      .groupby('enc_id', as_index=False)['update_date']
-                      .agg({'first_alert':min, 'last_alert':max}))
-    within_alerts_ED = merged_df_ED[['enc_id', 'update_date', 'flag']]
-    within_alerts_ED = pd.merge(within_alerts_ED, min_max_alerts_ED, how='left')
-    within_alerts_ED = within_alerts_ED.loc[(within_alerts_ED['update_date'] >= within_alerts_ED['first_alert']) & (within_alerts_ED['update_date'] <= within_alerts_ED['last_alert'])]
-    min_non_alerts_ED = within_alerts_ED.loc[~within_alerts_ED['flag'].isin(alert_flags)]
-    min_non_alerts_ED = min_non_alerts_ED.groupby('enc_id', as_index=False)['update_date'].min()
-    min_non_alerts_ED.rename(columns={'update_date':'first_non_alert'}, inplace=True)
-
-    ED_duration = pd.merge(min_max_alerts_ED, min_non_alerts_ED, on='enc_id', how='left')
-    ED_duration = pd.merge(ED_duration, next_care_unit, on='enc_id', how='left')
-    ED_duration = pd.merge(ED_duration, discharge_time, on='enc_id', how='left')
-
-    ED_duration['alert_end'] = ED_duration.apply(get_alert_end, axis=1)
-    ED_duration['ED_alert_duration'] = (ED_duration['alert_end'] - ED_duration['first_alert']) / pd.to_timedelta('1hour')
-    """
     ## Alerts that were TREWS and alerts that were CMS
     ## Number of patients that have TREWS vs CMS alerts
     has_TREWS = (merged_df.loc[merged_df['flag'].isin([11])]
-                 .groupby('enc_id', as_index=False)['update_date'] .agg({'has_TREWS_alert':min}))
+                 .groupby('enc_id', as_index=False)['update_date'] 
+                 .agg({'has_TREWS_alert':min}))
     has_TREWS['has_TREWS_alert'] = 1
     has_CMS = (merged_df.loc[merged_df['flag'].isin([10])]
                .groupby('enc_id', as_index=False)['update_date']
                .agg({'has_CMS_alert':min}))
     has_CMS['has_CMS_alert'] = 1
-    ##no_action_metrics = pd.merge(duration[['enc_id','first_alert' ,'alert_duration']], ED_duration[['enc_id', 'ED_alert_duration']], on='enc_id', how='left')
 
     no_action_metrics = pd.merge(duration, has_TREWS, on='enc_id', how='left')
     no_action_metrics = pd.merge(no_action_metrics, has_CMS, on='enc_id', how='left')
-    #no_action_metrics = pd.merge(no_action_metrics, next_care_unit[['enc_id', 'care_unit']], on='enc_id', how='left')
 
     ## Alerts with at least 1 page visit
     query = """
@@ -557,8 +538,8 @@ class ed_metrics(metric):
                 where action = 'page-get'
                 and enc_id in ({0})""".format(', '.join([str(e) for e in valid_enc_ids]))
     page_gets = pd.read_sql(sqlalchemy.text(query), self.connection, columns=['enc_id', 'tsp', 'uid'])
-    dev_group = ['AZHAN2', 'KHENRY22', 'NRAWAT1', 'EHOOGES1']
-    ## Remove all dev group interactions
+    ## Remove all dev team member interactions
+    dev_group = ['AZHAN2', 'KHENRY22', 'NRAWAT1', 'EHOOGES1'] 
     page_gets = page_gets.loc[~page_gets['uid'].isin(dev_group)]
     page_gets = pd.merge(page_gets, no_action_metrics[['enc_id','first_alert']], on='enc_id', how='left')
     page_gets = page_gets.loc[page_gets['first_alert'] <= page_gets['tsp']]
@@ -576,7 +557,6 @@ class ed_metrics(metric):
       else:
         return int(value)
 
-
     ## Check if enc_ids in no_action_metrics had an abx order or given lactate
     no_action_metrics = pd.merge(no_action_metrics, first_alerts[['enc_id', 'min_tsp_cms_antibiotics_order']], on='enc_id', how='left')
     no_action_metrics = pd.merge(no_action_metrics, first_alerts[['enc_id', 'min_tsp_lactate_order']], on='enc_id', how='left')
@@ -584,6 +564,7 @@ class ed_metrics(metric):
     no_action_metrics['has_lactate_order'] = no_action_metrics['min_tsp_lactate_order'].apply(lambda x: False if pd.isnull(x) else True)
     no_action_metrics.drop('min_tsp_cms_antibiotics_order', inplace=True, axis=1)
     no_action_metrics.drop('min_tsp_lactate_order', inplace=True, axis=1)
+
 
     ## Leaving comments in for the quantile version. Not enough data to make meaningful quantiles atm.
     ## Subset no_action_metrics for each of the 3 groups
@@ -656,22 +637,10 @@ class ed_metrics(metric):
     states_after_last_alert['not_deactivated'] = states_after_last_alert['flag'] != 0
     dropouts = states_after_last_alert.groupby('enc_id', as_index=False)['not_deactivated'].agg(np.sum)
     dropouts = dropouts.loc[dropouts['not_deactivated'] == 0]
-    metric_25_c = str(dropouts['enc_id'].nunique())
+    metric_25 = str(dropouts['enc_id'].nunique())
 
-    ## Find dropouts that only had CMS alerts
-    contains_trews_alert = merged_df_ED.loc[merged_df_ED['flag'].isin([11])]
-    contains_trews_alert = set(contains_trews_alert['enc_id'].unique())
-    cms_dropouts = dropouts.loc[~dropouts['enc_id'].isin(contains_trews_alert)]['enc_id'].unique()
-    metric_25_a = str(len(cms_dropouts))
-
-    ## Find dropouts that only had TREWS alerts
-    contains_cms_alert = merged_df_ED.loc[merged_df_ED['flag'].isin([10])]
-    contains_cms_alert = set(contains_cms_alert['enc_id'].unique())
-    trews_dropouts = dropouts.loc[~dropouts['enc_id'].isin(contains_cms_alert)]['enc_id'].unique()
-    metric_25_b = str(len(trews_dropouts))
-
-    metric_25 = '{0}'.format(', '.join([metric_25_a, metric_25_b, metric_25_c]))
-
+    pdb.set_trace()
+    
     ## min, max, median time from alert to evaluation
     # Only considered eval-ed if SOI is_met is also true
     evals = merged_df.loc[(merged_df['name'] == 'suspicion_of_infection') & (merged_df['is_met'] == True)]
@@ -790,7 +759,7 @@ class ed_metrics(metric):
     desc14 = '# alerts that have no infection entered'
     desc15 = '# alerts that are put on sepsis pathway'
     desc16 = '# alerts that have no action taken'
-    desc25 = '# (CMS, TREWS, any alert) w/ no action, then deactivated'
+    desc25 = '# alerts w/ no action, then deactivated'
     #desc16_a = '# alerts with no action for < 1hr'
     #desc16_b = '# alerts with no action for >= 1hr'
     #desc16_c = '# alerts with no action for >= 2hrs'
@@ -808,7 +777,6 @@ class ed_metrics(metric):
     self.metrics_DF = pd.DataFrame({'Metrics': allDesc, 'Values': allMetrics})
 
   def to_html(self):
-    pd.set_option('display.max_colwidth', 75)
     txt = '<h3>This section of the report metrics for patients who were in the ED between {s} and {e}</h3>'.format(s=self.report_start, e=self.report_end)
     #txt = "<h3>Emergency Department Metrics</h3>"
     txt += self.metrics_DF.to_html()
