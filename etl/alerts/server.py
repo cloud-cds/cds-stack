@@ -45,7 +45,7 @@ class AlertServer:
     self.lookbackhours          = int(os.getenv('TREWS_ETL_HOURS', 24))
     self.nprocs                 = int(os.getenv('nprocs', 2))
     self.hospital_to_predict    = os.getenv('hospital_to_predict', 'HCGH')
-    self.push_based             = boolean(os.getenv('push_based'), 0)
+    self.push_based             = bool(os.getenv('push_based', 0))
     self.cloudwatch_logger      = Cloudwatch()
     self.job_status = {}
 
