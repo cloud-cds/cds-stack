@@ -46,6 +46,7 @@ class AlertServer:
     self.nprocs                 = int(os.getenv('nprocs', 2))
     self.hospital_to_predict    = os.getenv('hospital_to_predict', 'HCGH')
     self.push_based             = bool(os.getenv('push_based', 0))
+    self.workspace              = os.getenv('workspace', 'workspace')
     self.cloudwatch_logger      = Cloudwatch()
     self.job_status = {}
 
@@ -167,12 +168,20 @@ class AlertServer:
     # NOTE: I don't turst the enc_ids from FIN msg
     async with self.db_pool.acquire() as conn:
       if self.notify_web:
-        await self.calculate_criteria_enc(conn, msg['enc_ids'])
+        # await self.calculate_criteria_enc(conn, msg['enc_ids'])
         if self.push_based:
+          job_id = msg['job_id']
           sql = '''
+          select garbage_collection(enc_id)
+          from (select distinct enc_id from {workspace}.cdm_t
+                where job_id = '{job_id}') e;
+          select advance_criteria_snapshot(enc_id)
+          from (select distinct enc_id from {workspace}.cdm_t
+                where job_id = '{job_id}') e;
           with pats as (
             select p.enc_id, p.pat_id from pat_enc p
-            where p.enc_id in ({enc_id_str})
+            where p.enc_id in (select distinct enc_id from {workspace}.cdm_t
+                where job_id = '{job_id}')
           ),
           refreshed as (
             insert into refreshed_pats (refreshed_tsp, pats)
@@ -180,7 +189,7 @@ class AlertServer:
             returning id
           )
           select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
-          '''.format(channel=self.channel, model=self.model, enc_id_str=enc_id_str)
+          '''.format(channel=self.channel, model=self.model, workspace=self.workspace, job_id=job_id)
         else:
           await self.calculate_criteria_hospital(conn, hospital)
           sql = '''
