@@ -71,6 +71,7 @@ EpicEvents = {
   'Med Admin Notification - Push': med_admin_extraction,
   'Med Admin Notification - Paused': med_admin_extraction,
   'UCN Note Updated': note_extraction,
+  'Result Updated': {extractor.extract_lab_results}
 }
 
 
