@@ -133,6 +133,7 @@ class ETL():
     self.log.info("etl end")
 
   async def load_to_cdm(self, buf):
+    start_time = dt.datetime.now()
     job_id = "job_etl_{}_{}".format(hospital, dt.datetime.now().strftime('%Y%m%d%H%M%S')).lower()
     await loader.epic_2_workspace(self.ctxt, buf, self.config.get_db_conn_string_sqlalchemy(), job_id, 'unicode', WORKSPACE)
     num_delta = await loader.workspace_to_cdm_delta(self.ctxt, job_id, WORKSPACE, keep_delta_table=True)
@@ -145,6 +146,13 @@ class ETL():
       await loader.notify_delta_ready_to_trews_alert_server(self.ctxt, job_id, WORKSPACE)
     else:
       logging.info("No change for {}. Skip ETL".format(job_id))
+    end_time = dt.datetime.now()
+    extractor.cloudwatch_logger.push(
+      dimension_name = 'ETL',
+      metric_name    = 'load_to_cdm_time_push',
+      value          = (end_time - start_time).total_seconds(),
+      unit           = 'Seconds'
+    )
 
   def load_pt_map(self):
     '''
@@ -161,6 +169,7 @@ class ETL():
       return pt
 
   async def run_requests(self, buf):
+    start_time = dt.datetime.now()
     extraction_set = {}
     pats = []
     for zid in buf:
@@ -191,6 +200,13 @@ class ETL():
     for k in results_dict:
       self.log.info(k)
     self.cdm_buf.add(results_dict)
+    end_time = dt.datetime.now()
+    extractor.cloudwatch_logger.push(
+      dimension_name = 'ETL',
+      metric_name    = 'run_requests_push',
+      value          = (end_time - start_time).total_seconds(),
+      unit           = 'Seconds'
+    )
 
   def gen_bedded_patients_transformed(self, pats):
     df = pd.DataFrame(pats)

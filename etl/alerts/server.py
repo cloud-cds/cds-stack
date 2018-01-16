@@ -45,6 +45,7 @@ class AlertServer:
     self.lookbackhours          = int(os.getenv('TREWS_ETL_HOURS', 24))
     self.nprocs                 = int(os.getenv('nprocs', 2))
     self.hospital_to_predict    = os.getenv('hospital_to_predict', 'HCGH')
+    self.push_based             = boolean(os.getenv('push_based'), 0)
     self.cloudwatch_logger      = Cloudwatch()
     self.job_status = {}
 
@@ -150,8 +151,8 @@ class AlertServer:
       self.cloudwatch_logger.push_many(
         dimension_name = 'AlertServer',
         metric_names   = [
-                          'prediction_time_{}'.format(msg['hosp']),
-                          'prediction_enc_cnt_{}'.format(msg['hosp'])],
+                          'prediction_time_{}{}'.format(msg['hosp'], '_push' if self.push_based else ''),
+                          'prediction_enc_cnt_{}{}'.format(msg['hosp'], '_push' if self.push_based else '')],
         metric_values  = [
                           (t_fin - t_start).total_seconds(),
                           len(msg['enc_ids'])],
@@ -165,31 +166,34 @@ class AlertServer:
     # calculate criteria here
     # NOTE: I don't turst the enc_ids from FIN msg
     async with self.db_pool.acquire() as conn:
-      await self.calculate_criteria_hospital(conn, hospital)
       if self.notify_web:
-        # sql = '''
-        # with pats as (
-        #   select p.enc_id, p.pat_id from pat_enc p
-        #   where p.enc_id in ({enc_id_str})
-        # ),
-        # refreshed as (
-        #   insert into refreshed_pats (refreshed_tsp, pats)
-        #   select now(), jsonb_agg(pat_id) from pats
-        #   returning id
-        # )
-        # select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
-        # '''.format(channel=self.channel, model=self.model, enc_id_str=enc_id_str)
-        sql = '''
-        with pats as (
-          select p.enc_id, p.pat_id from pat_enc p
-          inner join get_latest_enc_ids('{hosp}') e on p.enc_id = e.enc_id
-        ),
-        refreshed as (
-          insert into refreshed_pats (refreshed_tsp, pats)
-          select now(), jsonb_agg(pat_id) from pats
-          returning id
-        )
-        select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
+        await self.calculate_criteria_enc(conn, msg['enc_ids'])
+        if self.push_based:
+          sql = '''
+          with pats as (
+            select p.enc_id, p.pat_id from pat_enc p
+            where p.enc_id in ({enc_id_str})
+          ),
+          refreshed as (
+            insert into refreshed_pats (refreshed_tsp, pats)
+            select now(), jsonb_agg(pat_id) from pats
+            returning id
+          )
+          select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
+          '''.format(channel=self.channel, model=self.model, enc_id_str=enc_id_str)
+        else:
+          await self.calculate_criteria_hospital(conn, hospital)
+          sql = '''
+          with pats as (
+            select p.enc_id, p.pat_id from pat_enc p
+            inner join get_latest_enc_ids('{hosp}') e on p.enc_id = e.enc_id
+          ),
+          refreshed as (
+            insert into refreshed_pats (refreshed_tsp, pats)
+            select now(), jsonb_agg(pat_id) from pats
+            returning id
+          )
+          select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
         '''.format(channel=self.channel, model=self.model, enc_id_str=enc_id_str, hosp=msg['hosp'])
         logging.info("trews alert sql: {}".format(sql))
         await conn.fetch(sql)
@@ -200,8 +204,8 @@ class AlertServer:
       t_start = self.job_status[msg['hosp']]['t_start']
       self.cloudwatch_logger.push_many(
         dimension_name = 'AlertServer',
-        metric_names   = ['e2e_time_{}'.format(msg['hosp']),
-                          'criteria_time_{}'.format(msg['hosp']),
+        metric_names   = ['e2e_time_{}{}'.format(msg['hosp'], '_push' if self.push_based else ''),
+                          'criteria_time_{}{}'.format(msg['hosp'], '_push' if self.push_based else ''),
                           ],
         metric_values  = [(t_end - t_start).total_seconds(),
                           (t_end - t_fin).total_seconds(),
@@ -322,14 +326,12 @@ class AlertServer:
     logging.info("calculate_criteria sql: {}".format(sql))
     await conn.fetch(sql)
 
-  async def calculate_criteria_enc(self, conn, enc_id_str):
+  async def calculate_criteria_enc(self, conn, enc_ids):
     server = 'dev_db' if 'dev' in self.channel else 'prod_db'
-    sql = 'select garbage_collection();'
+    sql = ';'.join(['select garbage_collection({})'.format(enc_id) for enc_id in enc_ids])
     logging.info("calculate_criteria sql: {}".format(sql))
     await conn.fetch(sql)
-    sql = '''
-    select distribute_advance_criteria_snapshot_for_enc('{server}', {hours}, '{enc_id_str}', {nprocs});
-    '''.format(server=server,hours=self.lookbackhours,enc_id_str=enc_id_str,nprocs=self.nprocs)
+    sql = ';'.join(['select advance_criteria_snapshot({})'.format(enc_id) for enc_id in enc_ids])
     logging.info("calculate_criteria sql: {}".format(sql))
     await conn.fetch(sql)
     logging.info("complete calculate_criteria_enc")
@@ -400,7 +402,7 @@ class AlertServer:
     elif message.get('type') == 'ETL':
       self.cloudwatch_logger.push_many(
         dimension_name = 'AlertServer',
-        metric_names = ['etl_done_{}'.format(message['hosp'])],
+        metric_names = ['etl_done_{}{}'.format(message['hosp'], '_push' if self.push_based else '')],
         metric_values = [1],
         metric_units = ['Count']
       )
@@ -426,8 +428,8 @@ class AlertServer:
           # if message['hosp']+message['time'] in self.job_status:
           self.cloudwatch_logger.push_many(
             dimension_name = 'AlertServer',
-            metric_names   = ['e2e_time_{}'.format(message['hosp']),
-                              'criteria_time_{}'.format(message['hosp']),
+            metric_names   = ['e2e_time_{}{}'.format(message['hosp'], '_push' if self.push_based else ''),
+                              'criteria_time_{}{}'.format(message['hosp'], '_push' if self.push_based else ''),
                               ],
             metric_values  = [(t_end - t_start).total_seconds(),
                               (t_end - t_fin).total_seconds(),
