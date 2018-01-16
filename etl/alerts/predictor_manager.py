@@ -106,6 +106,7 @@ class Predictor:
         self.optimization_time = message['optimization_time']
         self.avg_total_time = message['total_time'] / (num_pats if num_pats > 0 else 1)
         self.avg_optimization_time = message['optimization_time'] / (num_pats if num_pats > 0 else 1)
+        self.avg_datainterface_time = message['datainterface_time'] / (num_pats if num_pats > 0 else 1)
         logging.info("avg_total_time: {}, avg_optimization_time: {}".format(self.avg_total_time, self.avg_optimization_time))
         await queue.put({
           'type': 'FIN',
@@ -165,6 +166,7 @@ class PredictorManager:
             ('push_avg_optimization_time_{}'.format(pred.model_type), pred.avg_optimization_time, 'Seconds'),
             ('push_total_time_{}'.format(pred.model_type), pred.total_time, 'Seconds'),
             ('push_optimization_time_{}'.format(pred.model_type), pred.optimization_time, 'Seconds'),
+            ('push_datainterface_time_{}'.format(pred.model_type), pred.datainterface_time, 'Seconds'),
           ]
           pred.avg_total_time = 0
       logging.info("cloudwatch metrics: {}".format(metric_tuples))
