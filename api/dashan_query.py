@@ -738,7 +738,7 @@ async def get_deterioration_feedback(db_pool, eid):
         "uid": df[0][3]
       }
 
-async def get_explanations(db_pool, eid):
+async def get_feature_relevances(db_pool, eid):
   get_explanations_sql = \
   '''
   select feature_relevance from trews_jit_score where model_id=9 and enc_id = (select * from pat_id_to_enc_id('%s'::text)) order by tsp desc limit 1  
@@ -746,6 +746,9 @@ async def get_explanations(db_pool, eid):
   async with db_pool.acquire() as conn:
     df = await conn.fetch(get_explanations_sql)
     return json.loads(df[0][0])
+
+async def get_measurements(db_pool, eid):
+  return json.loads('{}')
 
 async def push_notifications_to_epic(db_pool, eid, notify_future_notification=True):
   async with db_pool.acquire() as conn:
