@@ -42,7 +42,7 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: event-server-poc
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:latest
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:latest
         resources:
           requests:
             memory: "512Mi"
@@ -57,6 +57,8 @@ spec:
             add:
             - "SYS_PTRACE"
         env:
+        - name: event_forward
+          value: ""
         - name: epic_env
           value: "poc"
         - name: NVM_DIR
