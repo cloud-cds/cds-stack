@@ -1343,6 +1343,30 @@ span.criteria-btn p {
     color: #437c90;
 }
 /* End Suppressions */
+/* Explanations*/
+.explanation-leftcol {
+    float: left;
+    width: 33%;
+}
+.explanation-rightcol {
+    float: right;
+    width: 33%;
+}
+.explanation-centercol{
+    display: inline-block;
+    width: 33%;
+}
+.explanation-labelcol{
+    float: left;
+    width: 33%;
+}
+.explanation-valuecol{
+    float: right;
+    width: 66%;
+}
+/* End Explanations
+
+
 /*End Components*/
 
 /* Graphs */
