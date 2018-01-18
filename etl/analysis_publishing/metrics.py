@@ -808,16 +808,18 @@ class ed_metrics(metric):
     readmits.rename(columns={'enc_id':'encounters'}, inplace=True)
     readmits = set(readmits.loc[readmits['encounters'] > 1]['pat_id'].unique())
 
+    care_unit_df_30, cdmt_df_30 = self.get_care_unit_remove_homeMed(self.get_cdmt_df(valid_enc_ids), start_tsp - pd.to_timedelta('30day'))
     readmits_within_30d = pat_enc_df.loc[pat_enc_df['pat_id'].isin(readmits)]
-    admit_times = (care_unit_df.loc[care_unit_df['enc_id'].isin(set(readmits_within_30d['enc_id'].unique()))]
-                               .groupby('enc_id', as_index=False)['enter_time'].agg('min'))
+    admit_times = (care_unit_df_30.loc[care_unit_df_30['care_unit'] == 'HCGH EMERGENCY-ADULTS']
+                                  .loc[care_unit_df_30['enc_id'].isin(set(readmits_within_30d['enc_id'].unique()))]
+                                  .groupby('enc_id', as_index=False)['enter_time'].agg('min'))
     readmits_within_30d = pd.merge(readmits_within_30d, admit_times, on='enc_id', how='left')
 
     ## Get the two most recent admit enc_ids and admit_times
     grouped = readmits_within_30d.groupby('pat_id', as_index=False).apply(lambda x: x.sort_values(by='enter_time', ascending=False).head(2))
     ##grouped = readmits_within_30d.groupby('pat_id').apply(lambda x: x.sort_values(by='enter_time', ascending=False).head(2))
     ## Find whether or not these readmitted patients had an alert while in ED. 
-    care_unit_df_30, cdmt_df_30 = self.get_care_unit_remove_homeMed(self.get_cdmt_df(valid_enc_ids), start_tsp - pd.to_timedelta('30day'))
+    
     merged_df_30 = merge_with_care_unit(criteria_events_df, care_unit_df_30)
     merged_df_30_ED = merged_df_30.loc[merged_df_30['care_unit'] == 'HCGH EMERGENCY-ADULTS'] ## Check that the name is correct
     merged_df_30_ED.loc[:,'flag'] = merged_df_30_ED['flag'].apply(lambda x: x + 1000 if x < 0 else x) ## Want to see history
@@ -889,7 +891,7 @@ class ed_metrics(metric):
     desc24 = '# alerts before first lab evaluations'
     desc26a = '# alerted patients discharged from the ED'
     desc26b = '# alerted patients w/ no action then discharged from ED'
-    desc26c = '# re-admit patients who had an alert and discharged from ED within 30 days'
+    desc26c = '# re-admit patients who had an alert and discharged from ED within last 30 days'
     ## Missing metric_13: repeat lactate
     allDesc = [desc1, desc2, desc7, desc8, desc9, desc10, desc11, desc12, desc14, desc15, desc16, desc25, desc17, desc18, desc19, desc20, desc22, desc23, desc24, desc26a, desc26b, desc26c]
     self.metrics_DF = pd.DataFrame({'Metrics': allDesc, 'Values': allMetrics})
