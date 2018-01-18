@@ -1356,13 +1356,17 @@ span.criteria-btn p {
     display: inline-block;
     width: 33%;
 }
-.explanation-labelcol{
+.explanation-importcol{
     float: left;
-    width: 33%;
+    width: 5%;
+}
+.explanation-labelcol{
+    display: inline-block;
+    width: 40%;
 }
 .explanation-valuecol{
     float: right;
-    width: 66%;
+    width: 55%;
 }
 /* End Explanations
 
