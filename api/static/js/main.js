@@ -1356,7 +1356,11 @@ var careSummaryComponent = new function() {
     for (var i = 0; i < phys_feats.length; i++) {
         var feat = phys_feats[i];
         phys_label_str += '<li>'+feat+'</li>';
-        phys_value_str += '<li>'+(feat in trews.data['measurements']?trews.data['measurements'][feat]:"No measurement")+'</li>';
+        var value = "No measurement"
+        if (feat in trews.data['measurements']) {
+          value = trews.data['measurements'][feat]['value']+'@'+strToTime(trews.data['measurements'][feat]['tsp']);
+        }
+        phys_value_str += '<li>'+value+'</li>';
         phys_import_str += '<li>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</li>';
     }
     phys_import_str += '</ul></div>'
@@ -1374,7 +1378,11 @@ var careSummaryComponent = new function() {
     for (var i = 0; i < hem_feats.length; i++) {
         var feat = hem_feats[i];
         hem_label_str += '<li>'+feat+'</li>';
-        hem_value_str += '<li>'+(feat in trews.data['measurements']?trews.data['measurements'][feat]:"No measurement")+'</li>';
+        var value = "No measurement"
+        if (feat in trews.data['measurements']) {
+          value = trews.data['measurements'][feat]['value']+'@'+strToTime(trews.data['measurements'][feat]['tsp']);
+        }
+        hem_value_str += '<li>'+value+'</li>';
         hem_import_str += '<li>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</li>';
     }
     hem_import_str += '</ul></div>'
@@ -1392,7 +1400,11 @@ var careSummaryComponent = new function() {
     for (var i = 0; i < chem_feats.length; i++) {
         var feat = chem_feats[i];
         chem_label_str += '<li>'+feat+'</li>';
-        chem_value_str += '<li>'+(feat in trews.data['measurements']?trews.data['measurements'][feat]:"No measurement")+'</li>';
+        var value = "No measurement"
+        if (feat in trews.data['measurements']) {
+          value = trews.data['measurements'][feat]['value']+'@'+trews.data['measurements'][feat]['tsp'];
+        }
+        chem_value_str += '<li>'+value+'</li>';
         chem_import_str += '<li>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</li>';
     }
     chem_import_str += '</ul></div>'
