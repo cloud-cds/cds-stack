@@ -9,6 +9,7 @@ import pytz
 
 import data_example
 import dashan_query as query
+from utils import explain
 
 from aiohttp import web
 from aiohttp.web import Response, json_response
@@ -806,7 +807,7 @@ class TREWSAPI(web.View):
       # update trews intervals
       data['trews_intervals'] = trews_intervals
 
-      data['feature_relevances'] = feature_relevances
+      data['feature_relevances'] = explain.getMappedImportances(feature_relevances,mapping)
       data['measurements'] = measurements
 
       return data
