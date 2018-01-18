@@ -738,6 +738,16 @@ async def get_deterioration_feedback(db_pool, eid):
         "uid": df[0][3]
       }
 
+
+async def get_feature_mapping(db_pool):
+  get_mapping_sql = \
+  '''
+  select value from parameters where name='trews_jit_interpretability_mapping'
+  '''
+  async with db_pool.acquire() as conn:
+    df = await conn.fetch(get_mapping_sql)
+    return json.loads(df[0][0]) 
+
 async def get_feature_relevances(db_pool, eid):
   get_explanations_sql = \
   '''

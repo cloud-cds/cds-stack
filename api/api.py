@@ -745,6 +745,7 @@ class TREWSAPI(web.View):
                       query.get_trews_intervals(db_pool, eid),
                       query.get_feature_relevances(db_pool, eid),
                       query.get_measurements(db_pool, eid),
+                      query.get_feature_mapping(db_pool),
                       #query.get_trews_jit_score(db_pool, eid, start_hrs=chart_sample_start_hrs, start_day=chart_sample_start_day, end_day=chart_sample_end_day, sample_mins=chart_sample_mins, sample_hrs=chart_sample_hrs)
                     )
 
@@ -770,7 +771,8 @@ class TREWSAPI(web.View):
     trews_intervals        = pat_values[3]
     feature_relevances     = pat_values[4]
     measurements           = pat_values[5]
-    #chart_values           = pat_values[6]
+    mapping                = pat_values[6]
+    #chart_values           = pat_values[7]
 
     self.update_criteria(criteria_result_set, data)
 
