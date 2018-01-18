@@ -1,13 +1,19 @@
 from collections import defaultdict
 
 def thresholdImportances(importances):
-    pass
     """
     Args:
         importances: a dictionary of the form {feature:importance}
     Returns:
         top_importances: a dictionary of thresholded importances of the form {feature:importance}
     """
+    top_entries = sorted(importances.items(), key=lambda entry: entry[1], reverse=True)[:5]
+    top_entries = filter(lambda entry: entry[1]>0, top_entries)
+    result = {}
+    for (k,v) in top_entries:
+      result[k] = v
+    return result
+   
     """
     results = {}
     entries = list(importances.iteritems())
