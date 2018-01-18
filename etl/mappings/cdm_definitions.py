@@ -716,4 +716,22 @@ cdm_defs = {
         'thresh':   (0.1, 300),
         'human_readable':   'Weight',
     },
+    'influanat': {
+        'unit':     '',
+        'value':    str,
+        'thresh':   (None, None),
+        'human_readable':   'Influanat',
+    },
+    'influbnat': {
+        'unit':     '',
+        'value':    str,
+        'thresh':   (None, None),
+        'human_readable':   'Influbnat',
+    },
+    'rsvnat': {
+        'unit':     '',
+        'value':    str,
+        'thresh':   (None, None),
+        'human_readable':   'rsvnat',
+    },
 }
