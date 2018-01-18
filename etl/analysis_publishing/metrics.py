@@ -6,7 +6,7 @@ from datetime import timedelta
 import numpy as np
 from pytz import timezone
 from collections import OrderedDict
-
+import json
 #---------------------------------
 ## Metric Classes
 #---------------------------------
@@ -410,7 +410,7 @@ class ed_metrics(metric):
 
     discharged_patients = set(cdmt_df.loc[cdmt_df['fid'] == 'discharge']['enc_id'].unique())
     discharged_from_ED = no_action_patients.intersection(discharged_patients)
-    metric_26 = str(len(discharged_from_ED))
+    metric_26_b = str(len(discharged_from_ED))
     no_action_patients = no_action_patients.difference(discharged_from_ED)
     currently_in_ED = no_action_patients
 
@@ -639,6 +639,68 @@ class ed_metrics(metric):
     dropouts = dropouts.loc[dropouts['not_deactivated'] == 0]
     metric_25 = str(dropouts['enc_id'].nunique())
 
+    ## Get all the patients with ED care units
+    ed = care_unit_df.loc[care_unit_df['care_unit'] == 'HCGH EMERGENCY-ADULTS']
+    tmp_df = ed.groupby('enc_id', as_index=False).agg({'enter_time':min, 'leave_time':max})
+    tmp_df['window_end'] = tmp_df['enter_time'] + pd.to_timedelta(3*60, unit='m') ## Used for SIRS criteria (metric 20).
+    ed = tmp_df
+
+    ''' Assign each entry of target_df a care unit based on tsp and enc_id. Remove all entries w/o a care_unit.
+
+    Args:
+        target_df: dataframe which gains care_unit_information. Must contain column 'tsp'
+        care_unit_df: The desired subset of care_unit_df to use for assigning care_units.
+
+    Returns: 
+        The same target_df but now with added columns of info from care_unit_df.
+    '''
+    def assign_care_units(target_df, care_unit_df):
+      tmp_df = pd.merge(target_df, care_unit_df, how='left', on='enc_id')
+      ind1 = tmp_df['tsp'] >= tmp_df['enter_time']
+      ind2 = tmp_df['tsp'] < tmp_df['leave_time']
+      ind3 = tmp_df['tsp'].isnull()
+      tmp_df = tmp_df.loc[((ind1) & (ind2)) | ((ind1) & (ind3)), :]
+      return tmp_df
+
+    ## Get the patient treatment_team information from most recent cdmt_df entry.
+    tt_df = cdmt_df.loc[cdmt_df['fid'] == 'treatment_team']
+    ## Only take entries of cdmt_df while patients are in the ED.
+    tt_df = assign_care_units(tt_df, ed)
+    tt_indices = tt_df.groupby('enc_id', as_index=False)['tsp'].idxmax()
+    tt_df = tt_df.loc[tt_indices]
+    tt_df = tt_df.loc[tt_df['enc_id'].isin(no_action)]
+    tt_df.drop(['window_end', 'min_enter_time'], axis=1, inplace=True)
+    tt_df['value'] = tt_df['value'].apply(json.loads)
+    """ Function to be `apply`-ed to each row of tt_df to extract the names of the attending physician for each patient.
+
+    """
+    def findProviders(row):
+      json_list = row['value']
+      providers = []
+      for entry in json_list:
+        if entry['role'] != 'Attending Provider':
+          continue
+        if (pd.to_datetime(entry['start']).tz_localize(timezone('utc')) >= row['enter_time']
+            and pd.to_datetime(entry['start']).tz_localize(timezone('utc')) <= row['leave_time']):
+          if entry['end'] == '' or pd.to_datetime(entry['end']).tz_localize(timezone('utc')) <= row['leave_time']:
+            providers.append(entry['name'])
+      return str(providers)
+
+    tt_df['providers'] = tt_df.apply(findProviders, axis=1)
+
+
+    all_Providers = {}
+    for value in tt_df['value']:
+      for entry in value:
+        if entry['role'] == 'Attending Provider':
+          if entry['name'] in all_Providers:
+            all_Providers[entry['name']] += 1
+          else:
+            all_Providers[entry['name']] = 1
+        
+
+    self.all_Providers = all_Providers
+
     ## min, max, median time from alert to evaluation
     # Only considered eval-ed if SOI is_met is also true
     evals = merged_df.loc[(merged_df['name'] == 'suspicion_of_infection') & (merged_df['is_met'] == True)]
@@ -669,10 +731,6 @@ class ed_metrics(metric):
     metric_19 = str(search_history_flags('expired_bundle', expired_bundles))
 
     ## Number of people who meet SIRS criteria during first 3 hours of ED presentation.
-    ed = care_unit_df.loc[care_unit_df['care_unit'] == 'HCGH EMERGENCY-ADULTS']
-    tmp_df = ed.groupby('enc_id', as_index=False).agg({'enter_time':min, 'leave_time':max})
-    tmp_df['window_end'] = tmp_df['enter_time'] + pd.to_timedelta(3*60, unit='m')
-    ed = tmp_df
 
     query = """
                 select * from sep2_sirs
@@ -683,16 +741,7 @@ class ed_metrics(metric):
     sep2_sirs_df = pd.read_sql(sqlalchemy.text(query), self.connection)
     sep2_sirs_df['tsp'] = pd.to_datetime(sep2_sirs_df['tsp']).dt.tz_convert(timezone('utc'))
 
-    ## Assign each entry of sep2_sirs a care unit based on tsp and enc_id. Remove all entries w/o
-    def merge_with_ed_df(target_df, care_unit_df=ed):
-      tmp_df = pd.merge(target_df, care_unit_df, how='left', on='enc_id')
-      ind1 = tmp_df['tsp'] >= tmp_df['enter_time']
-      ind2 = tmp_df['tsp'] < tmp_df['leave_time']
-      ind3 = tmp_df['tsp'].isnull()
-      tmp_df = tmp_df.loc[((ind1) & (ind2)) | ((ind1) & (ind3)), :]
-      return tmp_df
-
-    ed_with_SIRS = merge_with_ed_df(sep2_sirs_df)
+    ed_with_SIRS = assign_care_units(sep2_sirs_df, ed)
     # Cut out entries where tsp of SIRS measurement not within ED admit to end of 3 hr window
     ed_with_SIRS = ed_with_SIRS.loc[(ed_with_SIRS['tsp'] >= ed_with_SIRS['enter_time']) & (ed_with_SIRS['tsp'] < ed_with_SIRS['window_end'])]
 
@@ -738,8 +787,77 @@ class ed_metrics(metric):
     ## Number of patients that had their first TREWS alert before their first lab evaluation.
     metric_24 = str(first_alerts.loc[first_alerts['1st_alert_date'] < first_alerts['first_lab_eval']]['enc_id'].nunique())
 
+    ## Compute metrics regarding discharged patients
+    alerted_patients = set(first_alerts['enc_id'].unique())
+    all_patients = set(care_unit_df.loc[care_unit_df['care_unit'] == 'HCGH EMERGENCY-ADULTS']['enc_id'].unique())
+    transferred_out_ED = alerted_patients.intersection(transferred_patients)
+    alerted_patients = alerted_patients.difference(transferred_out_ED)
+    discharged_out_ED = alerted_patients.intersection(discharged_patients)
+    ## Total num of patients discharged from ED
+    metric_26_a = str(len(discharged_out_ED))
+
+    ## Metric_26_c is finding all patients that were readmitted
+    query = """
+                select enc_id, pat_id
+                from pat_enc
+                where enc_id in ({0})""".format(', '.join([str(e) for e in valid_enc_ids]))
+    pat_enc_df = pd.read_sql(sqlalchemy.text(query), self.connection)
+    pat_enc_df = pat_enc_df.loc[pat_enc_df['enc_id'].isin(all_patients)]
+    ## Get a set of all pat_ids that have more than one encounter/admission.
+    readmits = pat_enc_df.groupby('pat_id', as_index=False).agg('count')
+    readmits.rename(columns={'enc_id':'encounters'}, inplace=True)
+    readmits = set(readmits.loc[readmits['encounters'] > 1]['pat_id'].unique())
+
+    readmits_within_30d = pat_enc_df.loc[pat_enc_df['pat_id'].isin(readmits)]
+    admit_times = (care_unit_df.loc[care_unit_df['enc_id'].isin(set(readmits_within_30d['enc_id'].unique()))]
+                               .groupby('enc_id', as_index=False)['enter_time'].agg('min'))
+    readmits_within_30d = pd.merge(readmits_within_30d, admit_times, on='enc_id', how='left')
+
+    ## Get the two most recent admit enc_ids and admit_times
+    grouped = readmits_within_30d.groupby('pat_id', as_index=False).apply(lambda x: x.sort_values(by='enter_time', ascending=False).head(2))
+    ##grouped = readmits_within_30d.groupby('pat_id').apply(lambda x: x.sort_values(by='enter_time', ascending=False).head(2))
+    ## Find whether or not these readmitted patients had an alert while in ED. 
+    care_unit_df_30, cdmt_df_30 = self.get_care_unit_remove_homeMed(self.get_cdmt_df(valid_enc_ids), start_tsp - pd.to_timedelta('30day'))
+    merged_df_30 = merge_with_care_unit(criteria_events_df, care_unit_df_30)
+    merged_df_30_ED = merged_df_30.loc[merged_df_30['care_unit'] == 'HCGH EMERGENCY-ADULTS'] ## Check that the name is correct
+    merged_df_30_ED.loc[:,'flag'] = merged_df_30_ED['flag'].apply(lambda x: x + 1000 if x < 0 else x) ## Want to see history
+    readmitted_had_alert = merged_df_30_ED.loc[merged_df_30_ED['enc_id'].isin(set(grouped.enc_id.unique()))]
+    search_history_flags('TREWS_alert', alert_flags, readmitted_had_alert)
+    readmitted_had_alert = set(readmitted_had_alert.loc[readmitted_had_alert['TREWS_alert'] == 1]['enc_id'].unique())
+    ## Find which of the remaining readmitted patients were discharged from the ED.
+    ## Find first and last care units
+
+    if len(readmitted_had_alert) == 0:
+      metric_26_c = str(0)
+    else:
+      admits_30 = care_unit_df_30.loc[care_unit_df_30['enc_id'].isin(readmitted_had_alert)].groupby('enc_id', as_index=False)
+      first_admits_30 = admits_30['enter_time'].idxmin()
+      first_admits_30 = care_unit_df_30.ix[first_admits_30]
+      first_admits_30.rename(columns = {'care_unit':'1st_care_unit'}, inplace=True)
+      last_admits_30 = admits_30['enter_time'].idxmax()
+      last_admits_30 = care_unit_df_30.ix[last_admits_30]
+      last_admits_30.rename(columns = {'care_unit':'last_care_unit'}, inplace=True)
+      ## Find and remove all transferred patients from potential list
+      transferred_patients_30 = pd.merge(first_admits_30[['enc_id', '1st_care_unit']], last_admits_30[['enc_id', 'last_care_unit']], how='inner')
+      transferred_patients_30 = set(transferred_patients_30.loc[(transferred_patients_30['1st_care_unit'] == 'HCGH EMERGENCY-ADULTS') & (transferred_patients_30['last_care_unit'] != 'HCGH EMERGENCY-ADULTS')]['enc_id'].unique())
+      discharged_patients_30 = readmitted_had_alert.difference(transferred_patients_30)
+      ## Remove all groups that do not have an enc_id in discharged_patients_30
+      discharged_patients_30 = set(grouped.loc[grouped['enc_id'].isin(discharged_patients_30)]['pat_id'].unique())
+      grouped = grouped.ix[discharged_patients_30]
+      ## Remove all pat_ids that had their 2 most recent encounters more than 30 days ago.
+      results = (grouped.groupby('pat_id')['enter_time'].max() - grouped.groupby('pat_id')['enter_time'].min()) / pd.to_timedelta('1day')
+      results = results.loc[results <= 30]
+      metric_26_c = str(results.index.nunique())
+
+    """
+    most_recent_admit = readmits_within_30d.groupby('pat_id', as_index=False)['enter_time'].agg({'max'})
+    readmits_within_30d = readmits_within_30d.groupby('pat_id', as_index=False)['enter_time'].agg({'min','max'})
+    readmits_within_30d['duration'] = (readmits_within_30d['max'] - readmits_within_30d['min']) / pd.to_timedelta('1day')
+    readmits_within_30d = readmits_within_30d.loc[readmits_within_30d['duration'] <     
+    metric_26_c = str(readmits_within_30d['pat_id'].nunique())
+    """
     ## Missing metric_13: repeat lactate
-    allMetrics = [metric_1, metric_2, metric_7, metric_8, metric_9, metric_10, metric_11, metric_12, metric_14, metric_15, metric_16, metric_25, metric_17, metric_18, metric_19, metric_20, metric_22, metric_23, metric_24]
+    allMetrics = [metric_1, metric_2, metric_7, metric_8, metric_9, metric_10, metric_11, metric_12, metric_14, metric_15, metric_16, metric_25, metric_17, metric_18, metric_19, metric_20, metric_22, metric_23, metric_24, metric_26_a, metric_26_b, metric_26_c]
     desc1 = 'Total ED patients'
     desc2 = '# ED patients with TREWS alert'
     #desc3 = 'Number of people with code sepsis'
@@ -769,17 +887,22 @@ class ed_metrics(metric):
     desc22 = '# alerts for septic shock'
     desc23 = '# manual overrides for septic shock'
     desc24 = '# alerts before first lab evaluations'
-    desc26 = '# alerts with no action but discharged from ED'
+    desc26a = '# alerted patients discharged from the ED'
+    desc26b = '# alerted patients w/ no action then discharged from ED'
+    desc26c = '# re-admit patients who had an alert and discharged from ED within 30 days'
     ## Missing metric_13: repeat lactate
-    allDesc = [desc1, desc2, desc7, desc8, desc9, desc10, desc11, desc12, desc14, desc15, desc16, desc25, desc17, desc18, desc19, desc20, desc22, desc23, desc24]
+    allDesc = [desc1, desc2, desc7, desc8, desc9, desc10, desc11, desc12, desc14, desc15, desc16, desc25, desc17, desc18, desc19, desc20, desc22, desc23, desc24, desc26a, desc26b, desc26c]
     self.metrics_DF = pd.DataFrame({'Metrics': allDesc, 'Values': allMetrics})
 
   def to_html(self):
+    pd.set_option('display.max_colwidth', 75)
     txt = '<h3>This section of the report metrics for patients who were in the ED between {s} and {e}</h3>'.format(s=self.report_start, e=self.report_end)
     #txt = "<h3>Emergency Department Metrics</h3>"
     txt += self.metrics_DF.to_html()
     txt += '<h3>This table breaks down the patients that were alerted but had no action (metric 10)</h3>' + self.no_action_results.to_html()
     txt += '<h3>This table reports the page views for each patient in the three no action categories.</h3>' + self.all_page_views.to_html()
+    txt += '<h3>The following is a list of the (name: # patients) of all {0} attending providers of the no action patients </h3>'.format(str(len(self.all_Providers)))
+    txt += str(self.all_Providers)
     return txt
 
 class alert_performance_metrics(metric):
