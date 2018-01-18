@@ -1354,9 +1354,10 @@ var careSummaryComponent = new function() {
     var phys_value_str = '<div class="explanation-valuecol"><ul style="list-style:none;padding:0;">';
     var phys_import_str ='<div class="explanation-importcol"><ul style="list-style:none;padding:0;">';
     for (var i = 0; i < phys_feats.length; i++) {
-        phys_label_str += '<li>'+phys_feats[i]+'</li>';
-        phys_value_str += '<li>'+phys_feats[i]+'</li>';
-        phys_import_str += '<li>' +(phys_feats[i] in trews.data['feature_relevances']? mark:"&nbsp")+'</li>';
+        var feat = phys_feats[i];
+        phys_label_str += '<li>'+feat+'</li>';
+        phys_value_str += '<li>'+(feat in trews.data['measurements']?trews.data['measurements'][feat]:"No measurement")+'</li>';
+        phys_import_str += '<li>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</li>';
     }
     phys_import_str += '</ul></div>'
     phys_label_str += '</ul></div>'
@@ -1371,9 +1372,10 @@ var careSummaryComponent = new function() {
     var hem_value_str = '<div class = "explanation-valuecol"><ul style = "list-style:none;padding:0">'
     var hem_import_str ='<div class="explanation-importcol"><ul style="list-style:none;padding:0;">';
     for (var i = 0; i < hem_feats.length; i++) {
-        hem_label_str += '<li>'+hem_feats[i]+'</li>';
-        hem_value_str += '<li>'+hem_feats[i]+'</li>';
-        hem_import_str += '<li>' +(hem_feats[i] in trews.data['feature_relevances']? mark:"&nbsp")+'</li>';
+        var feat = hem_feats[i];
+        hem_label_str += '<li>'+feat+'</li>';
+        hem_value_str += '<li>'+(feat in trews.data['measurements']?trews.data['measurements'][feat]:"No measurement")+'</li>';
+        hem_import_str += '<li>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</li>';
     }
     hem_import_str += '</ul></div>'
     hem_label_str += '</ul></div>'
@@ -1388,9 +1390,10 @@ var careSummaryComponent = new function() {
     var chem_value_str = '<div class = "explanation-valuecol"><ul style = "list-style:none;padding:0;">'
     var chem_import_str ='<div class="explanation-importcol"><ul style="list-style:none;padding:0;">';
     for (var i = 0; i < chem_feats.length; i++) {
-        chem_label_str += '<li>'+chem_feats[i]+'</li>';
-        chem_value_str += '<li>'+chem_feats[i]+'</li>';
-        chem_import_str += '<li>' +(chem_feats[i] in trews.data['feature_relevances']? mark:"&nbsp")+'</li>';
+        var feat = chem_feats[i];
+        chem_label_str += '<li>'+feat+'</li>';
+        chem_value_str += '<li>'+(feat in trews.data['measurements']?trews.data['measurements'][feat]:"No measurement")+'</li>';
+        chem_import_str += '<li>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</li>';
     }
     chem_import_str += '</ul></div>'
     chem_label_str += '</ul></div>'
@@ -1405,7 +1408,6 @@ var careSummaryComponent = new function() {
                    + phys_str
                    + hem_str
                    + chem_str;
-    //this.detailSlot.elem.find('.sirs-criteria').html(sirs_html);
     this.detailSlot.elem.find('.trews-criteria').html(trews_html);
   }
 
