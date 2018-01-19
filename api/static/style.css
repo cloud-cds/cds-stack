@@ -579,7 +579,7 @@ div.slot[data-trews="care-summary-detail"] {
     padding-top: 0px;
     padding-bottom: 0px;
     opacity: 0;
-    visibility: hidden;
+    display:none;
 }
 .slot[data-trews="care-summary-detail"].unhidden {
 }
