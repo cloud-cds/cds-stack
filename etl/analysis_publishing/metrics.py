@@ -444,7 +444,10 @@ class ed_metrics(metric):
 
     duration = pd.merge(min_max_alerts_ED, first_non_alerts, on='enc_id', how='left')
     duration = pd.merge(duration, next_care_unit, on='enc_id', how='left')
-    duration = pd.merge(duration, discharge_time, on='enc_id', how='left')
+    try:
+      duration = pd.merge(duration, discharge_time, on='enc_id', how='left')
+    except IndexError:
+      duration = duration
 
     ## Only keep patients that have no action taken
     duration = duration.loc[duration['enc_id'].isin(no_action)]
@@ -541,14 +544,15 @@ class ed_metrics(metric):
     ## Remove all dev team member interactions
     dev_group = ['AZHAN2', 'KHENRY22', 'NRAWAT1', 'EHOOGES1'] 
     page_gets = page_gets.loc[~page_gets['uid'].isin(dev_group)]
-    page_gets = pd.merge(page_gets, no_action_metrics[['enc_id','first_alert']], on='enc_id', how='left')
-    page_gets = page_gets.loc[page_gets['first_alert'] <= page_gets['tsp']]
+    all_page_gets = page_gets
+    alerted_page_gets = pd.merge(page_gets, no_action_metrics[['enc_id','first_alert']], on='enc_id', how='left')
+    alerted_page_gets = alerted_page_gets.loc[alerted_page_gets['first_alert'] <= alerted_page_gets['tsp']]
 
     ## Build dictionary of page views by providers for each patient
-    page_views = page_gets['uid'].groupby(page_gets['enc_id']).value_counts().to_frame('page_views')
+    page_views = alerted_page_gets['uid'].groupby(alerted_page_gets['enc_id']).value_counts().to_frame('page_views')
 
     ## Add page views to the full metrics.
-    no_action_metrics['page_views'] = no_action_metrics['enc_id'].apply(lambda x, page_views=page_views, page_gets=page_gets: page_views.ix[x].to_dict() if x in page_gets['enc_id'].unique() else False)
+    no_action_metrics['page_views'] = no_action_metrics['enc_id'].apply(lambda x, page_views=page_views, alerted_page_gets=alerted_page_gets: page_views.ix[x].to_dict() if x in alerted_page_gets['enc_id'].unique() else False)
 
     ## Numpy sum function returns 0 for nan. Since we want integer for counts, use helper func to turn nan to 0.
     def clean_sum(value):
@@ -701,6 +705,7 @@ class ed_metrics(metric):
 
     self.all_Providers = all_Providers
 
+    
     ## min, max, median time from alert to evaluation
     # Only considered eval-ed if SOI is_met is also true
     evals = merged_df.loc[(merged_df['name'] == 'suspicion_of_infection') & (merged_df['is_met'] == True)]
@@ -851,13 +856,21 @@ class ed_metrics(metric):
       results = results.loc[results <= 30]
       metric_26_c = str(results.index.nunique())
 
+
+    query = """
+                select * from user_role
+                where role = 'Registered Nurse'
     """
-    most_recent_admit = readmits_within_30d.groupby('pat_id', as_index=False)['enter_time'].agg({'max'})
-    readmits_within_30d = readmits_within_30d.groupby('pat_id', as_index=False)['enter_time'].agg({'min','max'})
-    readmits_within_30d['duration'] = (readmits_within_30d['max'] - readmits_within_30d['min']) / pd.to_timedelta('1day')
-    readmits_within_30d = readmits_within_30d.loc[readmits_within_30d['duration'] <     
-    metric_26_c = str(readmits_within_30d['pat_id'].nunique())
-    """
+    user_roles_df = pd.read_sql(sqlalchemy.text(query), self.connection)
+    
+    user_roles_df.rename(columns={'id':'uid'}, inplace=True)
+    merged_users = pd.merge(all_page_gets, user_roles_df, on='uid', how='inner')
+    merged_users = merged_users.loc[merged_users['enc_id'].isin(all_patients)]
+    merged_users = merged_users.loc[(merged_users['tsp'] >= start_tsp) & (merged_users['tsp'] <= end_tsp)]
+    merged_users = merged_users.groupby('enc_id', as_index=False)['uid'].agg('count')
+    merged_users = merged_users.loc[merged_users['uid'] > 0]
+    metric_27 = '{0:.3f}'.format(merged_users['enc_id'].nunique() / int(metric_1))
+      
     ## Missing metric_13: repeat lactate
     allMetrics = [metric_1, metric_2, metric_7, metric_8, metric_9, metric_10, metric_11, metric_12, metric_14, metric_15, metric_16, metric_25, metric_17, metric_18, metric_19, metric_20, metric_22, metric_23, metric_24, metric_26_a, metric_26_b, metric_26_c]
     desc1 = 'Total ED patients'
