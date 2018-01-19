@@ -99,7 +99,7 @@ FROM
 ) A (pat_id, pat_mrn_id, identity_id);
 GO
 
-:OUT \\\\Client\F$\clarity\\adt.{idx}.rpt
+:OUT \\\\Client\F$\clarity\\adt{idx}.rpt
 SET NOCOUNT ON
 SELECT CSN.EXTERNAL_ID CSN_ID
   ,CASE
@@ -130,7 +130,7 @@ WHERE CLARITY_ADT.EVENT_TYPE_C < 5
     );
 GO
 
-:OUT \\\\Client\F$\clarity\demo.{idx}.rpt
+:OUT \\\\Client\F$\clarity\demo{idx}.rpt
 SET NOCOUNT ON
 SELECT DISTINCT csn.EXTERNAL_ID CSN_ID
   ,pat.EXTERNAL_ID pat_id
@@ -170,7 +170,7 @@ LEFT JOIN CLARITY.dbo.zc_disch_disp zc_disch_disp ON PAT_ENC_HSP_1.disch_disp_c 
 ORDER BY csn.EXTERNAL_ID;
 GO
 
-:OUT \\\\Client\F$\clarity\diag.{idx}.rpt
+:OUT \\\\Client\F$\clarity\diag{idx}.rpt
 SET NOCOUNT ON
 SELECT DISTINCT CSN.EXTERNAL_ID CSN_ID
   ,edg.DX_ID
@@ -192,7 +192,7 @@ INNER JOIN Analytics.dbo.CCDA264_ICD9Codes icdIndex ON ISNUMERIC(icd9.Code) = 1
   AND icd9.Code < icdIndex."High Cutoff";
 GO
 
-:OUT \\\\Client\F$\clarity\\flt_lda.{idx}.rpt
+:OUT \\\\Client\F$\clarity\\flt_lda{idx}.rpt
 SET NOCOUNT ON
 SELECT DISTINCT csn.EXTERNAL_ID CSN_ID
   ,IP_FLO_GP_DATA.FLO_MEAS_NAME
@@ -243,7 +243,7 @@ WHERE
     );
 GO
 
-:OUT \\\\Client\F$\clarity\\flt_new.{idx}.rpt
+:OUT \\\\Client\F$\clarity\\flt_new{idx}.rpt
 SET NOCOUNT ON
 SELECT DISTINCT  csn.EXTERNAL_ID CSN_ID
   ,IP_FLO_GP_DATA.FLO_MEAS_NAME
@@ -312,7 +312,7 @@ WHERE
 );
 GO
 
-:OUT \\\\Client\F$\clarity\\flt.{idx}.rpt
+:OUT \\\\Client\F$\clarity\\flt{idx}.rpt
 SET NOCOUNT ON
 SELECT DISTINCT  csn.EXTERNAL_ID CSN_ID
   ,IP_FLO_GP_DATA.FLO_MEAS_NAME
@@ -362,7 +362,7 @@ GO
 
 USE CLARITY;
 
-:OUT \\\\Client\F$\clarity\labs.{idx}.rpt
+:OUT \\\\Client\F$\clarity\labs{idx}.rpt
 SET NOCOUNT ON
 SELECT csn.EXTERNAL_ID CSN_ID
   ,COMP.COMPONENT_ID
@@ -387,7 +387,7 @@ GO
 
 USE CLARITY;
 
-:OUT \\\\Client\F$\clarity\labs_new.{idx}.rpt
+:OUT \\\\Client\F$\clarity\labs_new{idx}.rpt
 SET NOCOUNT ON
 SELECT csn.EXTERNAL_ID CSN_ID
   ,COMP.COMPONENT_ID
@@ -517,7 +517,7 @@ and
 GO
 
 /****** Script for SelectTopNRows command from SSMS  ******/
-:OUT \\\\Client\F$\clarity\lda.{idx}.rpt
+:OUT \\\\Client\F$\clarity\lda{idx}.rpt
 SET NOCOUNT ON
 SELECT pat.EXTERNAL_ID PAT_ID
       ,[PLACEMENT_INSTANT]
@@ -533,7 +533,7 @@ SELECT pat.EXTERNAL_ID PAT_ID
 GO
 
 USE CLARITY;
-:OUT \\\\Client\F$\clarity\mar.{idx}.rpt
+:OUT \\\\Client\F$\clarity\mar{idx}.rpt
 SET NOCOUNT ON
 SELECT
   csn.EXTERNAL_ID CSN_ID,
@@ -580,7 +580,7 @@ WHERE (
 ORDER BY mar.TAKEN_TIME;
 GO
 
-:OUT \\\\Client\F$\clarity\hist.{idx}.rpt
+:OUT \\\\Client\F$\clarity\hist{idx}.rpt
 SET NOCOUNT ON
 SELECT DISTINCT csn.EXTERNAL_ID CSN_ID
   ,pat.EXTERNAL_ID PATIENTID
@@ -621,7 +621,7 @@ INNER JOIN Analytics.dbo.CCDA264_ICD9Codes icdIndex ON ISNUMERIC(icd9.Code) = 1
 GO
 
 USE Analytics;
-:OUT \\\\Client\F$\clarity\ordermed.{idx}.rpt
+:OUT \\\\Client\F$\clarity\ordermed{idx}.rpt
 SET NOCOUNT ON
 SELECT DISTINCT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
   ,med.display_name
@@ -669,7 +669,7 @@ WHERE (
 GO
 
 USE Analytics;
-:OUT \\\\Client\F$\clarity\ordermed_home.{idx}.rpt
+:OUT \\\\Client\F$\clarity\ordermed_home{idx}.rpt
 SET NOCOUNT ON
 SELECT DISTINCT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
   ,med.display_name
@@ -715,7 +715,7 @@ GO
 
 
 USE Analytics;
-:OUT \\\\Client\F$\clarity\orderproc.{idx}.rpt
+:OUT \\\\Client\F$\clarity\orderproc{idx}.rpt
 SET NOCOUNT ON
 SELECT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
   ,procs.PROC_ID OrderProcId
@@ -749,7 +749,7 @@ GO
 
 
 USE Analytics;
-:OUT \\\\Client\F$\clarity\orderproc_img.{idx}.rpt
+:OUT \\\\Client\F$\clarity\orderproc_img{idx}.rpt
 SET NOCOUNT ON
 SELECT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
   ,procs.ORDER_PROC_ID
@@ -777,7 +777,7 @@ where img.proc_name like '%MRI%' or img.proc_name like '%CT%';
 GO
 
 USE Analytics;
-:OUT \\\\Client\F$\clarity\orderproc_new.{idx}.rpt
+:OUT \\\\Client\F$\clarity\orderproc_new{idx}.rpt
 SET NOCOUNT ON
 SELECT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
   ,procs.proc_id OrderProcId
@@ -841,13 +841,14 @@ eap.proc_name = 'BIPAP'
 or
 lower(eap.proc_name) like 'wall cpap - adult%' or
 lower(eap.proc_name) like 'cpap continuous%' or
-lower(eap.proc_name) like 'mechanical ventilation - adult cpap%' or
+lower(eap.proc_name) like 'mechanical ventilation%' or
+lower(eap.proc_name) like 'non-invasive ventilation%' or
 eap.proc_name = 'ULTRAFILTRATION' or
 eap.proc_name in ('CONTINUOUS VENOVENOUS HEMODIALYSIS', 'HC INPATIENT HEMODIALYSIS', 'HEMODIALYSIS', 'HEMODIALYSIS INPATIENT', 'HEMODIALYSIS OUTPATIENT', 'HEMODIALYSIS INPATIENT - ACADEMIC')
 ;
 GO
 
-:OUT \\\\Client\F$\clarity\prob.{idx}.rpt
+:OUT \\\\Client\F$\clarity\prob{idx}.rpt
 SET NOCOUNT ON
 SELECT DISTINCT pat.EXTERNAL_ID PAT_ID
   ,CSN.EXTERNAL_ID CSN_ID
@@ -909,7 +910,7 @@ GO
 
 
 USE CLARITY;
-:OUT \\\\Client\F$\clarity\\note.{idx}.rpt
+:OUT \\\\Client\F$\clarity\\note{idx}.rpt
 SET NOCOUNT ON
 SELECT DISTINCT csn.EXTERNAL_ID CSN_ID
   ,info.NOTE_ID
@@ -945,7 +946,7 @@ WHERE info.DELETE_USER_ID IS NULL
     and (noteEncs.NOTE_STATUS_C NOT IN (1,4,8) OR noteEncs.NOTE_STATUS_C IS NULL);
 GO
 
-:OUT \\\\Client\F$\clarity\\chief_complaint.{idx}.rpt
+:OUT \\\\Client\F$\clarity\\chief_complaint{idx}.rpt
 SET NOCOUNT ON
 SELECT DISTINCT CSN.EXTERNAL_ID CSN_ID
   ,LINE
@@ -959,7 +960,7 @@ inner join clarity.dbo.PAT_ENC_RSN_VISIT rv on csn.PAT_ENC_CSN_ID = rv.PAT_ENC_C
 inner join CL_RSN_FOR_VISIT v2 on rv.ENC_REASON_ID = v2.REASON_VISIT_ID ;
 GO
 
-:OUT \\\\Client\F$\clarity\\ed_events.{idx}.rpt
+:OUT \\\\Client\F$\clarity\\ed_events{idx}.rpt
 SET NOCOUNT ON
 SELECT DISTINCT CSN.EXTERNAL_ID CSN_ID
   ,ein.EVENT_ID
@@ -974,7 +975,7 @@ where EVENT_RECORD_TIME is not null;
 GO
 
 
-:OUT \\\\Client\F$\clarity\\final_dx.{idx}.rpt
+:OUT \\\\Client\F$\clarity\\final_dx{idx}.rpt
 SET NOCOUNT ON
 select
   CSN.EXTERNAL_ID CSN_ID
@@ -1036,22 +1037,28 @@ GO
 hosp = '1102'
 start_date = (2016, 1)
 end_date = (2017, 1)
-num_months = 12
-for year in range(start_date[0], end_date[0]+1):
-  for month in range(1,13,num_months):
-    if year == start_date[0] and month < start_date[1]:
-      continue
-    if year == end_date[0] and month >= end_date[1]:
-      break
-    this_start_date = "{year}-{month}-01".format(year=year, month=str(month).zfill(2))
-    idx = "{year}{month}".format(year=year, month=str(month).zfill(2))
-    if month == 13 - num_months:
-      this_end_date = "{year}-{month}-01".format(year=year+1, month=str(1).zfill(2))
-    else:
-      this_end_date = "{year}-{month}-01".format(year=year, month=str(month + num_months).zfill(2))
-    if hosp == '1103':
-      hcgh_specific = HCGH_SPECIFIC
-    else:
-      hcgh_specific = ''
-    print(template.format(start_date=this_start_date, end_date=this_end_date, idx=idx, hosp=hosp, hcgh_specific=hcgh_specific))
+num_months = -1
+if hosp == '1103':
+  hcgh_specific = HCGH_SPECIFIC
+else:
+  hcgh_specific = ''
+
+if num_months > 0:
+  for year in range(start_date[0], end_date[0]+1):
+    for month in range(1,13,num_months):
+      if year == start_date[0] and month < start_date[1]:
+        continue
+      if year == end_date[0] and month >= end_date[1]:
+        break
+      this_start_date = "{year}-{month}-01".format(year=year, month=str(month).zfill(2))
+      idx = ".{year}{month}".format(year=year, month=str(month).zfill(2))
+      if month == 13 - num_months:
+        this_end_date = "{year}-{month}-01".format(year=year+1, month=str(1).zfill(2))
+      else:
+        this_end_date = "{year}-{month}-01".format(year=year, month=str(month + num_months).zfill(2))
+      print(template.format(start_date=this_start_date, end_date=this_end_date, idx=idx, hosp=hosp, hcgh_specific=hcgh_specific))
+else:
+  this_start_date = "{year}-{month}-01".format(year=start_date[0], month=str(start_date[1]).zfill(2))
+  this_end_date = "{year}-{month}-01".format(year=end_date[0], month=str(end_date[1]).zfill(2))
+  print(template.format(start_date=this_start_date, end_date=this_end_date, idx='', hosp=hosp, hcgh_specific=hcgh_specific))
 print(dict)
