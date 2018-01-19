@@ -1349,7 +1349,7 @@ var careSummaryComponent = new function() {
       trews.data['feature_relevances']['resp rate'] = trews.data['feature_relevances']['respiratory rate'];
     }
     trews.data['feature_relevances']
-    var mark = "<font color='red'><b>!</b></font>";
+    var mark = "<font color='red' size=10><b>!</b></font>";
     var phys_feats = ["BP", "temperature", "heart rate", "SpO2", "PaO2", "PaCO2", "resp rate", "FiO2", "GCS", "RASS"];
     var hem_feats = ["platelets", "WBC", "INR", "hematocrit", "hemoglobin"];
     var chem_feats = ["sodium", "creatinine", "bilirubin", "amylase", "lactate", "BUN", "ALT liver enzymes", "arterial ph", "bicarbonate", "CO2", "AST liver enzymes", "potassium", "lipase"];
@@ -1374,7 +1374,7 @@ var careSummaryComponent = new function() {
         phys_table_str += '<td>'+value+'</td>';
         phys_table_str += '</tr>';
     }
-    var phys_str = '<div class="explanation-leftcol"><h4 style="text-align:center">Physiology</h4>'+phys_table_str+'</table></div>'
+    //var phys_str = '<div class="explanation-leftcol"><h4 style="text-align:center">Physiology</h4>'+phys_table_str+'</table></div>'
 
     var hem_table_str = '<table style="width:100%">'
     for (var i = 0; i < hem_feats.length; i++) {
@@ -1390,7 +1390,7 @@ var careSummaryComponent = new function() {
         hem_table_str += '<td>'+value+'</td>';
         hem_table_str += '</tr>';
     }
-   var hem_str = '<div class="explanation-centercol"><h4 style="text-align:center">Hematology and coagulation</h4>'+hem_table_str+'</table></div>'
+   //var hem_str = '<div class="explanation-centercol"><h4 style="text-align:center">Hematology and coagulation</h4>'+hem_table_str+'</table></div>'
 
     var chem_table_str = '<table style="width:100%">'
     for (var i = 0; i < chem_feats.length; i++) {
@@ -1407,13 +1407,31 @@ var careSummaryComponent = new function() {
         chem_table_str += '<td>'+value+'</td>';
         chem_table_str += '</tr>';
     }
-    var chem_str = '<div class="explanation-rightcol"><h4 style="text-align:center">Chemistry</h4>'+chem_table_str+'</table></div>'
-
-    var trews_html = '<h3> TREWS Criteria </h3>'
+    //var chem_str = '<div class="explanation-rightcol"><h4 style="text-align:center">Chemistry</h4>'+chem_table_str+'</table></div>'
+    
+    var static_table_str = '<table style="width:100%">';
+    for (var feat in trews.data['static_features']) {
+      static_table_str += '<tr>'
+      static_table_str += '<td>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</td>';
+      static_table_str += '<td>'+ feat.replace(/_/g," ")+'</td>';
+      static_table_str += '<td>' + trews.data['static_features'][feat] + '</td>';
+      static_table_str += '</tr>'
+    }
+   
+   /* var trews_html = '<h3> TREWS Criteria </h3>'
                    + no_features_str
                    + phys_str
                    + hem_str
-                   + chem_str;
+                   + chem_str;*/
+    var trews_html = '<h3> TREWS Criteria </h3><table style="width:100%">'
+                   + no_features_str
+                   + '<tr><th>Physiology</th><th>Hematology and coagulation</th><th>Chemistry</th><th>Demographics and History</th></tr>'
+                   + '<tr>'
+                   + '<td style="vertical-align:top">' + phys_table_str + '</table></td>'
+                   + '<td style="vertical-align:top">'+hem_table_str + '</table></td>'
+                   + '<td style="vertical-align:top">'+chem_table_str + '</table></td>'
+                   + '<td style="vertical-align:top">'+static_table_str + '</table></td>'
+                   + '</tr></table>'
     this.detailSlot.elem.find('.trews-criteria').html(trews_html);
   }
 
