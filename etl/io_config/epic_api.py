@@ -501,7 +501,7 @@ class EpicAPIConfig:
       logging.info(responses)
       for r in responses:
         if r:
-          rec = {'CSN': r['Contacts'][0]['CSN']}
+          rec = {'CSN': r['Contacts'][0]['CSN'], 'DepartmentName': r['Contacts'][0]['DepartmentName']}
           for item in r['PatientIDs']:
             if item['IDType'] == 'EMRN':
               rec['pat_id'] = item['ID']

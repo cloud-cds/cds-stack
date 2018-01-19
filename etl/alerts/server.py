@@ -376,7 +376,7 @@ class AlertServer:
 
   async def run_trews_alert(self, job_id, hospital, excluded_enc_ids=None):
     async with self.db_pool.acquire() as conn:
-      if self.push_based and hospital == 'push':
+      if self.push_based and hospital == 'PUSH':
         # calculate criteria here
         excluded = ''
         if excluded:
@@ -472,7 +472,7 @@ class AlertServer:
       #   'msg': message, 't_start': dt.datetime.now()
       # }
       if self.model == 'lmc' or self.model == 'trews-jit':
-        if message.get('hosp') == 'push' and self.push_based:
+        if message.get('hosp') == 'PUSH' and self.push_based:
           # TODO: create predict task for predictor
           predict_enc_ids = await self.get_enc_ids_to_predict(message['job_id'])
           t_start = parser.parse(message['job_id'].split('_')[-1])

@@ -229,6 +229,6 @@ class ETL():
     pt = await extractor.extract_mrn_by_zid(self.ctxt, zid)
     contacts = await extractor.extract_contacts(self.ctxt, [pt], None, idtype='patient')
     pt['visit_id'] = contacts.iloc[0]['CSN']
-    pt['hospital'] = contacts.iloc[0]['hosptial']
+    pt['hospital'] = contacts.iloc[0]['hospital']
     self.log.info("extract_mrn_by_zid: {}".format(pt))
     return pt
