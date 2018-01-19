@@ -582,6 +582,7 @@ div.slot[data-trews="care-summary-detail"] {
     display:none;
 }
 .slot[data-trews="care-summary-detail"].unhidden {
+  display:inline-block;
 }
 .csstransitions .slot[data-trews="care-summary-detail"] {
     -ms-transition: opacity .3s, visibility .3s, max-height .3s, margin-top .3s, padding-top .3s, padding-bottom .3s;
