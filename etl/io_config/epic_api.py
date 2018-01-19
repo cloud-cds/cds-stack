@@ -485,6 +485,44 @@ class EpicAPIConfig:
       else:
         return pd.merge(pat_id_df, dfs, left_on='pat_id', right_on='pat_id')
 
+  async def extract_discharge(self, ctxt, pts, args):
+    if pts is None or pts.empty:
+      return {'discharged': None}
+    resource = '/patients/contacts'
+    # Get rid of fake patients by filtering out incorrect pat_ids
+    payloads = [{
+      'id'       : pat['visit_id'],
+      'idtype'   : 'csn',
+      'dateFrom' : self.dateFrom,
+      'dateTo'   : self.dateTo,
+    } for _, pat in pts.iterrows()]
+    responses = await self.make_requests(ctxt, resource, payloads, 'GET')
+    response_dfs = [pd.DataFrame(r['Contacts'] if r else None) for r in responses]
+    dfs = pd.concat(response_dfs)
+    if dfs.empty:
+      return {'discharged': None}
+    else:
+      contacts = pd.merge(pts, dfs, left_on='visit_id', right_on='CSN')
+      discharged = await self.create_discharge_times(ctxt, contacts)
+      return {'discharged': discharged}
+
+  async def create_discharge_times(ctxt, contacts_df):
+    if contacts_df.empty:
+      return
+    discharged_df = contacts_df[contacts_df['discharge_date'] != '']
+    if discharged_df.empty:
+      return None
+    def build_value(row):
+      value      = json.dumps({
+        'disposition':  row['discharge_disposition'],
+        'department': row['department']
+      })
+      return value
+    discharged_df['confidence'] = 1
+    discharged_df['fid'] = 'discharged'
+    discharged_df['value'] = discharged_df.apply(build_value, axis=1)
+    return discharged_df
+
   def skip_none(self, df, transform_function):
     if df is None or df.empty:
       return None

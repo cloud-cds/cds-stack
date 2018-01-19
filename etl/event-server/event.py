@@ -13,8 +13,6 @@ import pandas as pd
 
 EPIC_WEB_REQUEST_INTERVAL_SECS = core.get_environment_var('EPIC_WEB_REQUEST_INTERVAL_SECS', 10)
 
-# NOTE: currently we didn't extract fid:discharge in this push-based ETL
-
 order_extraction = {
   extractor.extract_active_procedures,
   extractor.extract_lab_orders,
@@ -39,11 +37,11 @@ EpicEvents = {
   'Flowsheet - Update': {extractor.extract_flowsheets},
   'Flowsheet - Delete': {extractor.extract_flowsheets},
   'Admission Notification': {extractor.extract_flowsheets},
-  'Discharge Notification': {extractor.extract_flowsheets},
+  'Discharge Notification': {extractor.extract_discharge},
   'Preadmit': full_extraction,
   'Admit': full_extraction,
   'L&D Arrival': full_extraction,
-  'Discharge': full_extraction,
+  'Discharge': {extractor.extract_discharge},,
   'Undo Admit': full_extraction,
   'Undo Discharge': full_extraction,
   'Undo Preadmit': full_extraction,
@@ -59,6 +57,7 @@ EpicEvents = {
   'ADT - ED Encounter Creation': full_extraction,
   'ADT - ED Undo Arrival': full_extraction,
   'ADT - ED Undo Dismiss': full_extraction,
+  'ADT - Discharge': {extractor.extract_discharge},
   'Sign Order': order_extraction,
   'Cancel Order': order_extraction,
   'Med Admin Notification - Given': med_admin_extraction,
