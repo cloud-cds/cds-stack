@@ -855,21 +855,6 @@ class ed_metrics(metric):
       results = (grouped.groupby('pat_id')['enter_time'].max() - grouped.groupby('pat_id')['enter_time'].min()) / pd.to_timedelta('1day')
       results = results.loc[results <= 30]
       metric_26_c = str(results.index.nunique())
-
-
-    query = """
-                select * from user_role
-                where role = 'Registered Nurse'
-    """
-    user_roles_df = pd.read_sql(sqlalchemy.text(query), self.connection)
-    
-    user_roles_df.rename(columns={'id':'uid'}, inplace=True)
-    merged_users = pd.merge(all_page_gets, user_roles_df, on='uid', how='inner')
-    merged_users = merged_users.loc[merged_users['enc_id'].isin(all_patients)]
-    merged_users = merged_users.loc[(merged_users['tsp'] >= start_tsp) & (merged_users['tsp'] <= end_tsp)]
-    merged_users = merged_users.groupby('enc_id', as_index=False)['uid'].agg('count')
-    merged_users = merged_users.loc[merged_users['uid'] > 0]
-    metric_27 = '{0:.3f}'.format(merged_users['enc_id'].nunique() / int(metric_1))
       
     ## Missing metric_13: repeat lactate
     allMetrics = [metric_1, metric_2, metric_7, metric_8, metric_9, metric_10, metric_11, metric_12, metric_14, metric_15, metric_16, metric_25, metric_17, metric_18, metric_19, metric_20, metric_22, metric_23, metric_24, metric_26_a, metric_26_b, metric_26_c]
