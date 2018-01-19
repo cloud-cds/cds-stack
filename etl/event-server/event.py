@@ -10,8 +10,13 @@ from etl.mappings.flowsheet_ids import flowsheet_ids
 import etl.io_config.core as core
 import json
 import pandas as pd
+from etl.io_config.cloudwatch import Cloudwatch
+
 
 EPIC_WEB_REQUEST_INTERVAL_SECS = core.get_environment_var('EPIC_WEB_REQUEST_INTERVAL_SECS', 10)
+SWITCH_WEB_REQUEST = int(core.get_environment_var('SWITCH_WEB_REQUEST', 1))
+
+cloudwatch_logger = Cloudwatch()
 
 order_extraction = {
   extractor.extract_active_procedures,
@@ -132,7 +137,7 @@ class Epic(web.View):
     try:
         message = await self.request.json()
         event = self.parse_epic_event(message)
-        if event:
+        if event and SWITCH_WEB_REQUEST:
           requests = await self.get_web_requests(event)
           if requests and len(requests) > 0:
             self.request.app.web_req_buf.add_requests(requests)
@@ -158,6 +163,13 @@ class Epic(web.View):
     '''
     try:
       event_type = message['eventInfo']['Type']['$value']
+      label = event_type.replace('-','_').replace(' ','')
+      cloudwatch_logger.push_many(
+        dimension_name  = 'ETL',
+        metric_names    = ['EventCount', 'EventCount_{}'.format(label)],
+        metric_values   = [1,1],
+        metric_units    = ['Count','Count']
+      )
       ids = None
       if 'OtherEntities' in message['eventInfo']:
         entity = message['eventInfo']['OtherEntities'][0]['Entity']
