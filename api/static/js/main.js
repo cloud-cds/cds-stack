@@ -1346,75 +1346,64 @@ var careSummaryComponent = new function() {
 
   this.renderDetail = function(alert_as_cms, cms_status) {
     var mark = "<font color='red'><b>!</b></font>";
-    var phys_feats = ["blood pressure", "temperature", "heart rate", "spo2", "PaO2", "PaCO2", "respiratory rate", "FiO2", "GCS", "RASS"];
+    var phys_feats = ["BP", "temperature", "heart rate", "SpO2", "PaO2", "PaCO2", "resp rate", "FiO2", "GCS", "RASS"];
     var hem_feats = ["platelets", "WBC", "INR", "hematocrit", "hemoglobin"];
     var chem_feats = ["sodium", "creatinine", "bilirubin", "amylase", "lactate", "BUN", "ALT liver enzymes", "arterial ph", "bicarbonate", "CO2", "AST liver enzymes", "potassium", "lipase"];
+    var displayNames = {"ALT liver enzymes": "ALT", "AST liver enzymes": "AST"};
      
-    var phys_label_str = '<div class="explanation-labelcol"><ul style="list-style:none;padding:0;">';
-    var phys_value_str = '<div class="explanation-valuecol"><ul style="list-style:none;padding:0;">';
-    var phys_import_str ='<div class="explanation-importcol"><ul style="list-style:none;padding:0;">';
+
+    var phys_table_str = '<table style="width:100%;background-color:white;">'
     for (var i = 0; i < phys_feats.length; i++) {
+        phys_table_str += '<tr>'
         var feat = phys_feats[i];
-        phys_label_str += '<li>'+feat+'</li>';
-        var value = "No measurement"
+        phys_table_str += '<td>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</td>';
+        phys_table_str += '<td>'+(feat in displayNames ? displayNames[feat]:feat)+'</td>';
+        
+        var value = "Not available"
+        feat = feat.toLowerCase().replace(/ /g, "_");
         if (feat in trews.data['measurements']) {
-          value = trews.data['measurements'][feat]['value']+'@'+strToTime(trews.data['measurements'][feat]['tsp']);
+          value = trews.data['measurements'][feat]['value']+'@'+trews.data['measurements'][feat]['tsp'].split("+")[0];
         }
-        phys_value_str += '<li>'+value+'</li>';
-        phys_import_str += '<li>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</li>';
+        phys_table_str += '<td>'+value+'</td>';
+        phys_table_str += '</tr>';
     }
-    phys_import_str += '</ul></div>'
-    phys_label_str += '</ul></div>'
-    phys_value_str += '</ul></div>'
-    var phys_str = '<div class="explanation-leftcol"><h4>Phys.</h4>'
-                 + phys_import_str
-                 + phys_label_str
-                 + phys_value_str
-                 + '</div>';
+    var phys_str = '<div class="explanation-leftcol"><h4 style="text-align:center">Physiology</h4>'+phys_table_str+'</table></div>'
 
-    var hem_label_str = '<div class="explanation-labelcol"><ul style="list-style:none;padding:0;">'
-    var hem_value_str = '<div class = "explanation-valuecol"><ul style = "list-style:none;padding:0">'
-    var hem_import_str ='<div class="explanation-importcol"><ul style="list-style:none;padding:0;">';
+    var hem_table_str = '<table style="width:100%">'
     for (var i = 0; i < hem_feats.length; i++) {
+        hem_table_str += '<tr>'
         var feat = hem_feats[i];
-        hem_label_str += '<li>'+feat+'</li>';
-        var value = "No measurement"
+        hem_table_str += '<td>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</td>';
+        hem_table_str += '<td>'+(feat in displayNames ? displayNames[feat]:feat)+'</td>';
+        var value = "Not available"
+        feat = feat.toLowerCase().replace(/ /g, "_");
         if (feat in trews.data['measurements']) {
-          value = trews.data['measurements'][feat]['value']+'@'+strToTime(trews.data['measurements'][feat]['tsp']);
+          value = trews.data['measurements'][feat]['value']+'@'+trews.data['measurements'][feat]['tsp'].split("+")[0];
         }
-        hem_value_str += '<li>'+value+'</li>';
-        hem_import_str += '<li>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</li>';
+        hem_table_str += '<td>'+value+'</td>';
+        hem_table_str += '</tr>';
     }
-    hem_import_str += '</ul></div>'
-    hem_label_str += '</ul></div>'
-    hem_value_str += '</ul></div>'
-    var hem_str = '<div class="explanation-centercol"><h4>Hem. and coag.</h4>'
-                 + hem_import_str
-                 + hem_label_str
-                 + hem_value_str
-                 + '</div>';
+   var hem_str = '<div class="explanation-centercol"><h4 style="text-align:center">Hematology and coagulation</h4>'+hem_table_str+'</table></div>'
 
-    var chem_label_str = '<div class="explanation-labelcol"><ul style="list-style:none;padding:0;">'
-    var chem_value_str = '<div class = "explanation-valuecol"><ul style = "list-style:none;padding:0;">'
-    var chem_import_str ='<div class="explanation-importcol"><ul style="list-style:none;padding:0;">';
+    var chem_table_str = '<table style="width:100%">'
     for (var i = 0; i < chem_feats.length; i++) {
+        chem_table_str += '<tr>'
         var feat = chem_feats[i];
-        chem_label_str += '<li>'+feat+'</li>';
-        var value = "No measurement"
+        chem_table_str += '<td>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</td>';
+        chem_table_str += '<td>'+(feat in displayNames ? displayNames[feat]:feat)+'</td>';
+        
+        var value = "Not available"
+        feat = feat.toLowerCase().replace(/ /g, "_");
         if (feat in trews.data['measurements']) {
-          value = trews.data['measurements'][feat]['value']+'@'+trews.data['measurements'][feat]['tsp'];
+          value = trews.data['measurements'][feat]['value']+'@'+trews.data['measurements'][feat]['tsp'].split("+")[0];
         }
-        chem_value_str += '<li>'+value+'</li>';
-        chem_import_str += '<li>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</li>';
+        chem_table_str += '<td>'+value+'</td>';
+        chem_table_str += '</tr>';
     }
-    chem_import_str += '</ul></div>'
-    chem_label_str += '</ul></div>'
-    chem_value_str += '</ul></div>'
-    var chem_str = '<div class="explanation-rightcol"><h4>Chem.</h4>'
-                 + chem_import_str
-                 + chem_label_str
-                 + chem_value_str
-                 + '</div>';
+    var chem_str = '<div class="explanation-rightcol"><h4 style="text-align:center">Chemistry</h4>'+chem_table_str+'</table></div>'
+ 
+
+
 
     var trews_html = '<h3> TREWS Criteria </h3>'
                    + phys_str

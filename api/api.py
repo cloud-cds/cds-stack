@@ -735,7 +735,8 @@ class TREWSAPI(web.View):
     # cache lookup
     pat_values = await pat_cache.get(eid)
 
-    if pat_values is None:
+    #if pat_values is None:
+    if True:
       api_monitor.add_metric('CacheMisses')
 
       # parallel query execution

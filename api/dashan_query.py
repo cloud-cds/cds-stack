@@ -762,10 +762,12 @@ async def get_measurements(db_pool, eid):
   '''
   select twf_raw_values from trews_jit_score where (model_id=9 or model_id=-9) and enc_id = (select * from pat_id_to_enc_id('%s'::text)) and twf_raw_values is not null and feature_relevance is not null order by tsp desc limit 1  
   ''' % eid
-  print(get_measurements_sql)
-  async with db_pool.acquire() as conn:
-    df = await conn.fetch(get_measurements_sql)
-    return json.loads(df[0][0])
+  try:
+    async with db_pool.acquire() as conn:
+      df = await conn.fetch(get_measurements_sql)
+      return json.loads(df[0][0])
+  except:
+    return {}
 
 
 async def push_notifications_to_epic(db_pool, eid, notify_future_notification=True):
