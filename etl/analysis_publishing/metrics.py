@@ -7,6 +7,7 @@ import numpy as np
 from pytz import timezone
 from collections import OrderedDict
 import json
+
 #---------------------------------
 ## Metric Classes
 #---------------------------------
@@ -280,6 +281,13 @@ class ed_metrics(metric):
     alert_flags = [10,11]
     metric_2 = str(search_history_flags('TREWS_alert', alert_flags, merged_df_ED))
 
+    ## Exit calc if there are no TREWS alerts. Need to manually examine data if there are no alerts.
+    if metric_2 == '0':
+      self.no_alerts = True
+      return
+    else:
+      self.no_alerts = False
+      
     ## Metrics 3,4,5,6 need code sepsis data
     metric_3 = None
     metric_4 = None
@@ -328,6 +336,7 @@ class ed_metrics(metric):
       metric_9 = '{0:.3f}'.format(override_with_scores['delta'].median())
 
     first_alert_indices = merged_df_ED.loc[merged_df_ED['flag'].isin(alert_flags)].groupby('enc_id', as_index=False)['update_date'].idxmin()
+
     first_alerts = merged_df_ED.loc[merged_df_ED.index.isin(first_alert_indices)]
     first_alerts = first_alerts.rename(columns = {'update_date':'1st_alert_date'})
 
@@ -751,10 +760,13 @@ class ed_metrics(metric):
     ed_with_SIRS = ed_with_SIRS.loc[(ed_with_SIRS['tsp'] >= ed_with_SIRS['enter_time']) & (ed_with_SIRS['tsp'] < ed_with_SIRS['window_end'])]
 
     ## Evaluate how many times >= 2 SIRS criteria were met
-    ed_with_SIRS['met_criteria'] = ed_with_SIRS.apply(lambda x: True if x['resp_rate_sirs'] + x['heart_rate_sirs'] + x['wbc_sirs'] + x['temperature_sirs'] >= 2 else False, axis=1)
-    ed_met_SIRS = ed_with_SIRS[['enc_id','met_criteria']].groupby('enc_id', as_index=False).aggregate(np.sum)
-    metric_20 = ed_met_SIRS.loc[ed_met_SIRS['met_criteria'] > 0]
-    metric_20 = str(metric_20['enc_id'].nunique())
+    try:
+      ed_with_SIRS['met_criteria'] = ed_with_SIRS.apply(lambda x: True if x['resp_rate_sirs'] + x['heart_rate_sirs'] + x['wbc_sirs'] + x['temperature_sirs'] >= 2 else False, axis=1)
+      ed_met_SIRS = ed_with_SIRS[['enc_id','met_criteria']].groupby('enc_id', as_index=False).aggregate(np.sum)
+      metric_20 = ed_met_SIRS.loc[ed_met_SIRS['met_criteria'] > 0]
+      metric_20 = str(metric_20['enc_id'].nunique())
+    except ValueError:
+      metric_20 = str(0)
 
     ## Need to move to performance metrics in future.
     """
@@ -818,43 +830,47 @@ class ed_metrics(metric):
     admit_times = (care_unit_df_30.loc[care_unit_df_30['care_unit'] == 'HCGH EMERGENCY-ADULTS']
                                   .loc[care_unit_df_30['enc_id'].isin(set(readmits_within_30d['enc_id'].unique()))]
                                   .groupby('enc_id', as_index=False)['enter_time'].agg('min'))
-    readmits_within_30d = pd.merge(readmits_within_30d, admit_times, on='enc_id', how='left')
+    try:
+      readmits_within_30d = pd.merge(readmits_within_30d, admit_times, on='enc_id', how='left')
+      
+      ## Get the two most recent admit enc_ids and admit_times
+      grouped = readmits_within_30d.groupby('pat_id', as_index=False).apply(lambda x: x.sort_values(by='enter_time', ascending=False).head(2))
+      ##grouped = readmits_within_30d.groupby('pat_id').apply(lambda x: x.sort_values(by='enter_time', ascending=False).head(2))
+      ## Find whether or not these readmitted patients had an alert while in ED. 
 
-    ## Get the two most recent admit enc_ids and admit_times
-    grouped = readmits_within_30d.groupby('pat_id', as_index=False).apply(lambda x: x.sort_values(by='enter_time', ascending=False).head(2))
-    ##grouped = readmits_within_30d.groupby('pat_id').apply(lambda x: x.sort_values(by='enter_time', ascending=False).head(2))
-    ## Find whether or not these readmitted patients had an alert while in ED. 
-    
-    merged_df_30 = merge_with_care_unit(criteria_events_df, care_unit_df_30)
-    merged_df_30_ED = merged_df_30.loc[merged_df_30['care_unit'] == 'HCGH EMERGENCY-ADULTS'] ## Check that the name is correct
-    merged_df_30_ED.loc[:,'flag'] = merged_df_30_ED['flag'].apply(lambda x: x + 1000 if x < 0 else x) ## Want to see history
-    readmitted_had_alert = merged_df_30_ED.loc[merged_df_30_ED['enc_id'].isin(set(grouped.enc_id.unique()))]
-    search_history_flags('TREWS_alert', alert_flags, readmitted_had_alert)
-    readmitted_had_alert = set(readmitted_had_alert.loc[readmitted_had_alert['TREWS_alert'] == 1]['enc_id'].unique())
-    ## Find which of the remaining readmitted patients were discharged from the ED.
-    ## Find first and last care units
+      merged_df_30 = merge_with_care_unit(criteria_events_df, care_unit_df_30)
+      merged_df_30_ED = merged_df_30.loc[merged_df_30['care_unit'] == 'HCGH EMERGENCY-ADULTS'] ## Check that the name is correct
+      merged_df_30_ED.loc[:,'flag'] = merged_df_30_ED['flag'].apply(lambda x: x + 1000 if x < 0 else x) ## Want to see history
+      readmitted_had_alert = merged_df_30_ED.loc[merged_df_30_ED['enc_id'].isin(set(grouped.enc_id.unique()))]
+      search_history_flags('TREWS_alert', alert_flags, readmitted_had_alert)
+      readmitted_had_alert = set(readmitted_had_alert.loc[readmitted_had_alert['TREWS_alert'] == 1]['enc_id'].unique())
+      ## Find which of the remaining readmitted patients were discharged from the ED.
+      ## Find first and last care units
 
-    if len(readmitted_had_alert) == 0:
+      if len(readmitted_had_alert) == 0:
+        metric_26_c = str(0)
+      else:
+        admits_30 = care_unit_df_30.loc[care_unit_df_30['enc_id'].isin(readmitted_had_alert)].groupby('enc_id', as_index=False)
+        first_admits_30 = admits_30['enter_time'].idxmin()
+        first_admits_30 = care_unit_df_30.ix[first_admits_30]
+        first_admits_30.rename(columns = {'care_unit':'1st_care_unit'}, inplace=True)
+        last_admits_30 = admits_30['enter_time'].idxmax()
+        last_admits_30 = care_unit_df_30.ix[last_admits_30]
+        last_admits_30.rename(columns = {'care_unit':'last_care_unit'}, inplace=True)
+        ## Find and remove all transferred patients from potential list
+        transferred_patients_30 = pd.merge(first_admits_30[['enc_id', '1st_care_unit']], last_admits_30[['enc_id', 'last_care_unit']], how='inner')
+        transferred_patients_30 = set(transferred_patients_30.loc[(transferred_patients_30['1st_care_unit'] == 'HCGH EMERGENCY-ADULTS') & (transferred_patients_30['last_care_unit'] != 'HCGH EMERGENCY-ADULTS')]['enc_id'].unique())
+        discharged_patients_30 = readmitted_had_alert.difference(transferred_patients_30)
+        ## Remove all groups that do not have an enc_id in discharged_patients_30
+        discharged_patients_30 = set(grouped.loc[grouped['enc_id'].isin(discharged_patients_30)]['pat_id'].unique())
+        grouped = grouped.ix[discharged_patients_30]
+        ## Remove all pat_ids that had their 2 most recent encounters more than 30 days ago.
+        results = (grouped.groupby('pat_id')['enter_time'].max() - grouped.groupby('pat_id')['enter_time'].min()) / pd.to_timedelta('1day')
+        results = results.loc[results <= 30]
+        metric_26_c = str(results.index.nunique())
+
+    except IndexError:
       metric_26_c = str(0)
-    else:
-      admits_30 = care_unit_df_30.loc[care_unit_df_30['enc_id'].isin(readmitted_had_alert)].groupby('enc_id', as_index=False)
-      first_admits_30 = admits_30['enter_time'].idxmin()
-      first_admits_30 = care_unit_df_30.ix[first_admits_30]
-      first_admits_30.rename(columns = {'care_unit':'1st_care_unit'}, inplace=True)
-      last_admits_30 = admits_30['enter_time'].idxmax()
-      last_admits_30 = care_unit_df_30.ix[last_admits_30]
-      last_admits_30.rename(columns = {'care_unit':'last_care_unit'}, inplace=True)
-      ## Find and remove all transferred patients from potential list
-      transferred_patients_30 = pd.merge(first_admits_30[['enc_id', '1st_care_unit']], last_admits_30[['enc_id', 'last_care_unit']], how='inner')
-      transferred_patients_30 = set(transferred_patients_30.loc[(transferred_patients_30['1st_care_unit'] == 'HCGH EMERGENCY-ADULTS') & (transferred_patients_30['last_care_unit'] != 'HCGH EMERGENCY-ADULTS')]['enc_id'].unique())
-      discharged_patients_30 = readmitted_had_alert.difference(transferred_patients_30)
-      ## Remove all groups that do not have an enc_id in discharged_patients_30
-      discharged_patients_30 = set(grouped.loc[grouped['enc_id'].isin(discharged_patients_30)]['pat_id'].unique())
-      grouped = grouped.ix[discharged_patients_30]
-      ## Remove all pat_ids that had their 2 most recent encounters more than 30 days ago.
-      results = (grouped.groupby('pat_id')['enter_time'].max() - grouped.groupby('pat_id')['enter_time'].min()) / pd.to_timedelta('1day')
-      results = results.loc[results <= 30]
-      metric_26_c = str(results.index.nunique())
       
     ## Missing metric_13: repeat lactate
     allMetrics = [metric_1, metric_2, metric_7, metric_8, metric_9, metric_10, metric_11, metric_12, metric_14, metric_15, metric_16, metric_25, metric_17, metric_18, metric_19, metric_20, metric_22, metric_23, metric_24, metric_26_a, metric_26_b, metric_26_c]
@@ -897,7 +913,12 @@ class ed_metrics(metric):
   def to_html(self):
     pd.set_option('display.max_colwidth', 75)
     txt = '<h3>This section of the report metrics for patients who were in the ED between {s} and {e}</h3>'.format(s=self.report_start, e=self.report_end)
-    #txt = "<h3>Emergency Department Metrics</h3>"
+    
+    ## Exit if there were no alerts given during the timeframe (metric_2 == 0).
+    if self.no_alerts:
+      txt += "No alerts were given for TREWS during this time period."
+      return txt
+    
     txt += self.metrics_DF.to_html()
     txt += '<h3>This table breaks down the patients that were alerted but had no action (metric 10)</h3>' + self.no_action_results.to_html()
     txt += '<h3>This table reports the page views for each patient in the three no action categories.</h3>' + self.all_page_views.to_html()
