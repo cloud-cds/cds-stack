@@ -1349,7 +1349,7 @@ var careSummaryComponent = new function() {
       trews.data['feature_relevances']['resp rate'] = trews.data['feature_relevances']['respiratory rate'];
     }
     trews.data['feature_relevances']
-    var mark = "<font color='red' size=10><b>!</b></font>";
+    var mark = "<font color='red' size=5><b>!</b></font>";
     var phys_feats = ["BP", "temperature", "heart rate", "SpO2", "PaO2", "PaCO2", "resp rate", "FiO2", "GCS", "RASS"];
     var hem_feats = ["platelets", "WBC", "INR", "hematocrit", "hemoglobin"];
     var chem_feats = ["sodium", "creatinine", "bilirubin", "amylase", "lactate", "BUN", "ALT liver enzymes", "arterial ph", "bicarbonate", "CO2", "AST liver enzymes", "potassium", "lipase"];
