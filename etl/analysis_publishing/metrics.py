@@ -587,8 +587,6 @@ class ed_metrics(metric):
                                   '{0:.3f}'.format(discharged_metrics_df['alert_duration_ED'].median()),
                                   #discharged_metrics_df['alert_duration'].quantile([0.25, 0.5, 0.75]),
                                   #discharged_metrics_df['alert_duration_ED'].quantile([0.25, 0.5, 0.75]),
-                                  str(clean_sum(discharged_metrics_df['has_TREWS_alert'].sum())),
-                                  str(clean_sum(discharged_metrics_df['has_CMS_alert'].sum())),
                                   str(clean_sum(discharged_metrics_df['has_abx_order'].sum())),
                                   str(clean_sum(discharged_metrics_df['has_lactate_order'].sum())),
                                   str(0)]
@@ -599,8 +597,6 @@ class ed_metrics(metric):
                                    '{0:.3f}'.format(transferred_metrics_df['alert_duration_ED'].median()),
                                    #transferred_metrics_df['alert_duration'].quantile([0.25, 0.5, 0.75]),
                                    #transferred_metrics_df['alert_duration_ED'].quantile([0.25, 0.5, 0.75]),
-                                   str(clean_sum(transferred_metrics_df['has_TREWS_alert'].sum())),
-                                   str(clean_sum(transferred_metrics_df['has_CMS_alert'].sum())),
                                    str(clean_sum(transferred_metrics_df['has_abx_order'].sum())),
                                    str(clean_sum(transferred_metrics_df['has_lactate_order'].sum())),
                                    str(transferred_metrics_df.loc[transferred_metrics_df['care_unit'].str.contains('.*ICU')]['enc_id'].nunique())]
@@ -611,8 +607,6 @@ class ed_metrics(metric):
                                '{0:.3f}'.format(currentPatient_metrics_df['alert_duration_ED'].median()),
                                #currentPatient_metrics_df['alert_duration'].quantile([0.25, 0.5, 0.75]),
                                #currentPatient_metrics_df['alert_duration_ED'].quantile([0.25, 0.5, 0.75]),
-                               str(clean_sum(currentPatient_metrics_df['has_TREWS_alert'].sum())),
-                               str(clean_sum(currentPatient_metrics_df['has_CMS_alert'].sum())),
                                str(clean_sum(currentPatient_metrics_df['has_abx_order'].sum())),
                                str(clean_sum(currentPatient_metrics_df['has_lactate_order'].sum())),
                                str(0)]
@@ -620,7 +614,7 @@ class ed_metrics(metric):
     no_action_results = pd.DataFrame({'discharged_from_ED': discharged_metrics_results,
                                       'transferred_from_ED': transferred_metrics_results,
                                       'still_in_ED': currentPatients_results},
-                                     index=['# of patients','Median alert duration (hrs)','Median alert duration in ED (hrs)','# of TREWS alerts','# of CMS alerts','# of patients with Abx order','# of patients with lactate order','# of patients transferred to ICU'])
+                                     index=['# of patients','Median alert duration (hrs)','Median alert duration in ED (hrs)','# of patients with Abx order','# of patients with lactate order','# of patients transferred to ICU'])
     no_action_results = no_action_results.transpose()
     self.no_action_results = no_action_results
 
@@ -905,7 +899,7 @@ class ed_metrics(metric):
     desc24 = '# alerts before first lab evaluations'
     desc26a = '# alerted patients discharged from the ED'
     desc26b = '# alerted patients w/ no action then discharged from ED'
-    desc26c = '# re-admit patients who had an alert and discharged from ED within last 30 days'
+    desc26c = '# re-admits w/ alert and was discharged from ED within last 30 days'
     ## Missing metric_13: repeat lactate
     allDesc = [desc1, desc2, desc7, desc8, desc9, desc10, desc11, desc12, desc14, desc15, desc16, desc25, desc17, desc18, desc19, desc20, desc22, desc23, desc24, desc26a, desc26b, desc26c]
     self.metrics_DF = pd.DataFrame({'Metrics': allDesc, 'Values': allMetrics})
