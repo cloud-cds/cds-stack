@@ -338,26 +338,69 @@ class AlertServer:
     await conn.fetch(sql)
     logging.info("complete calculate_criteria_enc")
 
-  async def calculate_criteria_push(self, conn, job_id):
+  async def calculate_criteria_push(self, conn, job_id, excluded=None):
     sql = '''
     select garbage_collection(enc_id)
     from (select distinct enc_id from {workspace}.cdm_t
-          where job_id = '{job_id}') e;
-    '''.format(workspace=self.workspace, job_id=job_id)
+          where job_id = '{job_id}') e
+    {where};
+    '''.format(workspace=self.workspace, job_id=job_id, where=excluded)
     logging.info("calculate_criteria sql: {}".format(sql))
     await conn.fetch(sql)
     sql = '''
     select advance_criteria_snapshot(enc_id)
     from (select distinct enc_id from {workspace}.cdm_t
-          where job_id = '{job_id}') e;
-    '''.format(workspace=self.workspace, job_id=job_id)
+          where job_id = '{job_id}') e
+    {where};
+    '''.format(workspace=self.workspace, job_id=job_id, where=excluded)
     logging.info("calculate_criteria sql: {}".format(sql))
     await conn.fetch(sql)
     logging.info("complete calculate_criteria_enc")
 
-  async def run_trews_alert(self, job_id, hospital):
+  async def get_enc_ids_to_predict(self, job_id):
     async with self.db_pool.acquire() as conn:
-      if self.TREWS_ETL_SUPPRESSION == 2:
+      # rule to select predictable enc_ids:
+      # 1. has changes delta twf > 0
+      # 2. adult
+      # 3. HCGH patients only
+      sql = '''
+        select distinct twf.enc_id
+        from {workspace}.{job_id}_cdm_twf twf
+        inner join cdm_s s on twf.enc_id = s.enc_id
+        inner join cdm_s s2 on twf.enc_id = s2.enc_id
+        where s.fid = 'age' and s.value:::float >= 18.0
+        and s2.fid = 'hospital' and s2.value = 'HCGH'
+      '''
+      predict_enc_ids = await conn.fetch(sql)
+      return predict_enc_ids
+
+  async def run_trews_alert(self, job_id, hospital, excluded_enc_ids=None):
+    async with self.db_pool.acquire() as conn:
+      if self.push_based and hospital == 'push':
+        # calculate criteria here
+        excluded = ''
+        if excluded:
+          excluded = 'where e.enc_id not in {}'.format(','.join(excluded))
+        await self.calculate_criteria_push(conn, hospital, excluded=excluded)
+        if self.notify_web:
+          sql = '''
+          with pats as (
+            select e.enc_id, p.pat_id from (select distinct enc_id from {workspace}.cdm_t
+            where job_id = '{job_id}') e
+            inner join pat_enc p on e.enc_id = p.enc_id
+            {where}
+          ),
+          refreshed as (
+            insert into refreshed_pats (refreshed_tsp, pats)
+            select now(), jsonb_agg(pat_id) from pats
+            returning id
+          )
+          select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
+          '''.format(channel=self.channel, model=self.model, where=excluded)
+          logging.info("trews alert sql: {}".format(sql))
+          await conn.fetch(sql)
+          logging.info("generated trews alert for {} without prediction".format(hospital))
+      elif self.TREWS_ETL_SUPPRESSION == 2:
         # calculate criteria here
         await self.calculate_criteria_hospital(conn, hospital)
         if self.notify_web:
@@ -421,7 +464,7 @@ class AlertServer:
     elif message.get('type') == 'ETL':
       self.cloudwatch_logger.push_many(
         dimension_name = 'AlertServer',
-        metric_names = ['etl_done_{}{}'.format(message['hosp'], '_push' if self.push_based else '')],
+        metric_names = ['etl_done_{}'.format(message['hosp'])],
         metric_values = [1],
         metric_units = ['Count']
       )
@@ -429,15 +472,28 @@ class AlertServer:
       #   'msg': message, 't_start': dt.datetime.now()
       # }
       if self.model == 'lmc' or self.model == 'trews-jit':
-        if message.get('hosp') in self.hospital_to_predict:
+        if message.get('hosp') == 'push' and self.push_based:
+          # TODO: create predict task for predictor
+          predict_enc_ids = await self.get_enc_ids_to_predict(message['job_id'])
+          t_start = parser.parse(message['job_id'].split('_')[-1])
+          if predict_enc_ids:
+            self.job_status[message['hosp']] = {'t_start': t_start}
+            self.predictor_manager.cancel_predict_tasks(hosp=message['hosp'])
+            self.predictor_manager.create_predict_tasks(hosp=message['hosp'],
+                                                        time=message['time'],
+                                                        job_id=message['job_id'],
+                                                        active_encids=predict_enc_ids)
+          # TODO: create criteria update task for patients who do not need to predict
+          await self.run_trews_alert(message['job_id'],message['hosp'], excluded_enc_ids=predict_enc_ids)
+        elif message.get('hosp') in self.hospital_to_predict:
           if self.model == 'lmc':
             self.garbage_collect_suppression_tasks(message['hosp'])
           t_start = parser.parse(message['job_id'].split('_')[-1])
           self.job_status[message['hosp']] = {'t_start': t_start}
           self.predictor_manager.cancel_predict_tasks(hosp=message['hosp'])
           self.predictor_manager.create_predict_tasks(hosp=message['hosp'],
-                                                    time=message['time'],
-                                                    job_id=message['job_id'])
+                                                      time=message['time'],
+                                                      job_id=message['job_id'])
         else:
           logging.info("skip prediction for msg: {}".format(message))
           t_start = parser.parse(message['job_id'].split('_')[-1])

@@ -123,14 +123,15 @@ class Predictor:
         logging.error("Can't process this message")
 
 
-  async def start_predictor(self, hosp, time, job_id):
+  async def start_predictor(self, hosp, time, job_id, active_encids):
     ''' Start the predictor '''
     logging.info("Starting {}".format(self))
     return await protocol.write_message(self.writer, {
       'type': 'ETL',
       'hosp': hosp,
       'time': time,
-      'job_id': job_id
+      'job_id': job_id,
+      'active_encids': active_encids
     })
 
 
@@ -222,13 +223,13 @@ class PredictorManager:
       logging.info("{} cancelled".format(future))
 
 
-  def create_predict_tasks(self, hosp, time, job_id):
+  def create_predict_tasks(self, hosp, time, job_id, active_encids=None):
     ''' Start all predictors '''
-    logging.info("Starting all predictors for ETL {} {} {}".format(hosp, time, job_id))
+    logging.info("Starting all predictors for ETL {} {} {} {}".format(hosp, time, job_id, active_encids))
     self.predict_task_futures[hosp] = []
     for pid in self.get_partition_ids():
       for model in self.get_model_types():
-        future = asyncio.ensure_future(self.run_predict(pid, model, hosp, time, job_id),
+        future = asyncio.ensure_future(self.run_predict(pid, model, hosp, time, job_id, active_encids),
                                        loop=self.loop)
         self.predict_task_futures[hosp].append(future)
     logging.info("Started {} predictors".format(len(self.predict_task_futures[hosp])))
@@ -236,7 +237,7 @@ class PredictorManager:
 
 
 
-  async def run_predict(self, partition_id, model_type, hosp, time, job_id, active=True):
+  async def run_predict(self, partition_id, model_type, hosp, time, job_id, active_encids, active=True):
     ''' Start a predictor for a given partition id and model '''
     backoff = 1
 
@@ -246,7 +247,7 @@ class PredictorManager:
       pred = self.predictors.get((partition_id, model_type, active))
       if pred and pred.status != 'DEAD':
         try:
-          predictor_started = await pred.start_predictor(hosp, time, job_id)
+          predictor_started = await pred.start_predictor(hosp, time, job_id, active_encids)
           break
         except (ConnectionRefusedError) as e:
           err = e
@@ -281,7 +282,7 @@ class PredictorManager:
         logging.error("{} not getting updated - timeout - restart run_predict".format(pred))
         pred.stop()
         self.loop.create_task(self.run_predict(partition_id, model_type, hosp,
-                                               time, job_id, not active))
+                                               time, job_id, active_encids, not active))
         return
 
       # BUSY - all ok, keep monitoring

@@ -27,7 +27,7 @@ import pdb
 EPIC_ENV = core.get_environment_var('EPIC_ENV', '')
 
 class EpicAPIConfig:
-  def __init__(self, hospital, lookback_hours, jhapi_server, jhapi_id,
+  def __init__(self, lookback_hours, jhapi_server, jhapi_id,
                jhapi_secret, lookback_days=None, op_lookback_days=None):
     if jhapi_server not in servers:
       raise ValueError("Incorrect server provided")
@@ -35,7 +35,6 @@ class EpicAPIConfig:
       raise ValueError("Lookback hours must be less than 72 hours")
     self.jhapi_server = jhapi_server
     self.server = servers[jhapi_server]
-    self.hospital = hospital
     self.lookback_hours = int(lookback_hours)
     self.lookback_days = int(lookback_days) if lookback_days else int(int(lookback_hours)/24.0 + 1)
     self.op_lookback_days = op_lookback_days
@@ -52,24 +51,44 @@ class EpicAPIConfig:
 
   def generate_request_settings(self, http_method, url, payloads=None, url_type=None):
     request_settings = []
-    if url_type == 'rest' and http_method == 'GET':
-      for payload in payloads:
-        url = url + payload
+    if isinstance(url, list):
+      if url_type == 'rest' and http_method == 'GET':
+        for u, payload in zip(url, payloads):
+          u = u + payload
+          if 'api-test' in u and EPIC_ENV:
+            u += ('&' if '&' in u else '?') + 'env=' + EPIC_ENV
+          request_settings.append({'method': http_method,'url': u})
+      else:
         if 'api-test' in url and EPIC_ENV:
           url += ('&' if '&' in url else '?') + 'env=' + EPIC_ENV
-        request_settings.append({'method': http_method,'url': url})
+        for u, payload in zip(url, payloads):
+          setting = {
+            'method': http_method,
+            'url': u + ('&' if '&' in u else '?') + 'env=' + EPIC_ENV if 'api-test' in u and EPIC_ENV else u
+          }
+          if payload is not None:
+            key = 'params' if http_method == 'GET' else 'json'
+            setting[key] = payload
+          request_settings.append(setting)
     else:
-      if 'api-test' in url and EPIC_ENV:
-        url += ('&' if '&' in url else '?') + 'env=' + EPIC_ENV
-      for payload in payloads:
-        setting = {
-          'method': http_method,
-          'url': url
-        }
-        if payload is not None:
-          key = 'params' if http_method == 'GET' else 'json'
-          setting[key] = payload
-        request_settings.append(setting)
+      if url_type == 'rest' and http_method == 'GET':
+        for payload in payloads:
+          url = url + payload
+          if 'api-test' in url and EPIC_ENV:
+            url += ('&' if '&' in url else '?') + 'env=' + EPIC_ENV
+          request_settings.append({'method': http_method,'url': url})
+      else:
+        if 'api-test' in url and EPIC_ENV:
+          url += ('&' if '&' in url else '?') + 'env=' + EPIC_ENV
+        for payload in payloads:
+          setting = {
+            'method': http_method,
+            'url': url
+          }
+          if payload is not None:
+            key = 'params' if http_method == 'GET' else 'json'
+            setting[key] = payload
+          request_settings.append(setting)
 
     return request_settings
 
@@ -88,7 +107,10 @@ class EpicAPIConfig:
   async def make_requests(self, ctxt, endpoint, payloads, http_method='GET', url_type=None, server_type='internal'):
     # Define variables
     server = self.server if server_type == 'internal' else servers['{}-{}'.format(self.jhapi_server, server_type)]
-    url = "{}{}".format(server, endpoint)
+    if isinstance(endpoint, list):
+      url = ["{}{}".format(server, e) for e in endpoint]
+    else:
+      url = "{}{}".format(server, endpoint)
     request_settings = self.generate_request_settings(http_method, url, payloads, url_type)
     semaphore = asyncio.Semaphore(ctxt.flags.JHAPI_SEMAPHORE, loop=ctxt.loop)
     base = ctxt.flags.JHAPI_BACKOFF_BASE
@@ -162,7 +184,7 @@ class EpicAPIConfig:
       value          = sum(x[1] for x in result),
       unit           = 'Count'
     )
-    label = self.hospital + '_' + endpoint.replace('/', '_') + '_' + http_method
+    label = 'push_' + endpoint.replace('/', '_') + '_' + http_method
     self.cloudwatch_logger.push_many(
       dimension_name  = 'ETL',
       metric_names    = ['{}_success_push'.format(label), '{}_error_push'.format(label), 'jh_api_request_success_push', 'jh_api_request_error_push'],
@@ -211,7 +233,7 @@ class EpicAPIConfig:
     return ed_patients
 
   async def extract_active_procedures(self, ctxt, bedded_patients, args):
-    resource = '/facilities/hospital/' + self.hospital + '/orders/activeprocedures'
+    resource = ['/facilities/hospital/{hosp}/orders/activeprocedures'.format(pat['hospital']) for _, pat in beddedpatients.iterrows()]
     payloads = [{'csn': pat['visit_id']} for _, pat in bedded_patients.iterrows()]
     responses = await self.make_requests(ctxt, resource, payloads, 'GET')
     dfs = [pd.DataFrame(r) for r in responses]
@@ -441,6 +463,16 @@ class EpicAPIConfig:
       return {'flowsheets_transformed': self.tz_hack(ctxt, self.transform(ctxt, df_raw, 'flowsheet_transforms'))}
 
   async def extract_contacts(self, ctxt, pat_id_list, args, idtype='csn'):
+    def get_hospital(row):
+      dept = row['DepartmentName']
+      if dept is not None and len(dept) > 0:
+        if 'HCGH' in dept:
+          return 'HCGH'
+        elif 'JHH' in dept:
+          return 'JHH'
+        elif 'BMC' in dept:
+          return 'BMC'
+
     if not pat_id_list:
       return None
     resource = '/patients/contacts'
@@ -457,10 +489,6 @@ class EpicAPIConfig:
       responses = await self.make_requests(ctxt, resource, payloads, 'GET')
       response_dfs = [pd.DataFrame(r['Contacts'] if r else None) for r in responses]
       dfs = pd.concat(response_dfs)
-      if dfs.empty:
-        return None
-      else:
-        return pd.merge(pat_id_df, dfs, left_on='visit_id', right_on='CSN')
     elif idtype == 'patient':
       payloads = [{
         'id'       : pat['pat_id'],
@@ -480,10 +508,11 @@ class EpicAPIConfig:
           logging.info(rec)
           response_dfs.append(pd.DataFrame([rec]))
       dfs = pd.concat(response_dfs)
-      if dfs.empty:
-        return None
-      else:
-        return pd.merge(pat_id_df, dfs, left_on='pat_id', right_on='pat_id')
+    if dfs.empty:
+      return None
+    else:
+      dfs['hospital'] = dfs.apply(get_hospital, axis=1)
+      return pd.merge(pat_id_df, dfs, left_on='pat_id', right_on='pat_id')
 
   async def extract_discharge(self, ctxt, pts, args):
     if pts is None or pts.empty:

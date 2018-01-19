@@ -16,13 +16,11 @@ ETL_INTERVAL_SECS = int(os.environ['ETL_INTERVAL_SECS']) if 'ETL_INTERVAL_SECS' 
 
 WORKSPACE = core.get_environment_var('TREWS_ETL_WORKSPACE', 'event_workspace')
 
-hospital = core.get_environment_var('TREWS_ETL_HOSPITAL')
 # Create data for loader
 lookback_hours = core.get_environment_var('TREWS_ETL_HOURS', '8')
 op_lookback_days = int(core.get_environment_var('TREWS_ET_OP_DAYS', 365))
 # Create jhapi_extractor
 extractor = EpicAPIConfig(
-  hospital       = hospital,
   lookback_hours = lookback_hours,
   jhapi_server   = core.get_environment_var('TREWS_ETL_SERVER', 'prod'),
   jhapi_id       = core.get_environment_var('jhapi_client_id'),
@@ -134,11 +132,12 @@ class ETL():
 
   async def load_to_cdm(self, buf):
     start_time = dt.datetime.now()
-    job_id = "job_etl_{}_{}".format(hospital, dt.datetime.now().strftime('%Y%m%d%H%M%S')).lower()
+    job_id = "job_etl_push_{}".format(dt.datetime.now().strftime('%Y%m%d%H%M%S')).lower()
     await loader.epic_2_workspace(self.ctxt, buf, self.config.get_db_conn_string_sqlalchemy(), job_id, 'unicode', WORKSPACE)
-    num_delta = await loader.workspace_to_cdm_delta(self.ctxt, job_id, WORKSPACE, keep_delta_table=True)
-    logging.info("{} num_delta = {}".format(job_id, num_delta))
-    if num_delta:
+    # return number of delta entries in cdm_t
+    num_delta_t = await loader.workspace_to_cdm_delta(self.ctxt, job_id, WORKSPACE, keep_delta_table=True)
+    logging.info("{} num_delta_t = {}".format(job_id, num_delta_t))
+    if num_delta_t:
       prediction_params = await loader.load_online_prediction_parameters(self.ctxt, job_id)
       num_twf_rows = await loader.workspace_fillin_delta(self.ctxt, prediction_params, job_id, WORKSPACE)
       if num_twf_rows:
@@ -213,15 +212,13 @@ class ETL():
 
   def gen_bedded_patients_transformed(self, pats):
     df = pd.DataFrame(pats)
-    # df['age'] = np.nan
+    # append empty columns
     df['admittime'] = np.nan
-    # df['gender'] = np.nan
     df['patient_class'] = np.nan
     df['diagnosis'] = np.nan
     df['history'] = np.nan
     df['problem_all'] = np.nan
     df['problem'] = np.nan
-    df['hospital'] = hospital
     logging.info(df)
     return df
 
@@ -230,9 +227,8 @@ class ETL():
     TODO: extract eid by using contact api
     '''
     pt = await extractor.extract_mrn_by_zid(self.ctxt, zid)
-    # NOTE: for testing
-    # pt = {'zid': 'Z14184', 'pat_id': 'E100069114', 'age': None, 'gender': None}
     contacts = await extractor.extract_contacts(self.ctxt, [pt], None, idtype='patient')
     pt['visit_id'] = contacts.iloc[0]['CSN']
+    pt['hospital'] = contacts.iloc[0]['hosptial']
     self.log.info("extract_mrn_by_zid: {}".format(pt))
     return pt
