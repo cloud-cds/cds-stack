@@ -1356,7 +1356,7 @@ var careSummaryComponent = new function() {
     var displayNames = {"ALT liver enzymes": "ALT", "AST liver enzymes": "AST"};
     var no_features_str = "";
     if (Object.keys(trews.data['feature_relevances']).length == 0) {
-      no_features_str = '<div style="background-color:yellow"><h3 style="color:black">No relevant features</h3></div>';
+      no_features_str = '<div style="background-color:yellow"><h3 style="color:black">TREWS alerted based on many factors without a dominant feature</h3></div>';
     } 
 
     var phys_table_str = '<table style="width:100%;background-color:white;">'

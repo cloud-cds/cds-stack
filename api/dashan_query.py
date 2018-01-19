@@ -753,9 +753,24 @@ async def get_feature_relevances(db_pool, eid):
   '''
   select feature_relevance from trews_jit_score where model_id=9 and enc_id = (select * from pat_id_to_enc_id('%s'::text)) and twf_raw_values is not null and feature_relevance is not null order by tsp desc limit 1  
   ''' % eid
-  async with db_pool.acquire() as conn:
-    df = await conn.fetch(get_explanations_sql)
-    return json.loads(df[0][0])
+  try:
+    async with db_pool.acquire() as conn:
+      df = await conn.fetch(get_explanations_sql)
+      return json.loads(df[0][0])
+  except:
+    return {}
+
+async def get_static_features(db_pool, eid):
+  get_static_sql = \
+  '''
+  select s_raw_values from trews_jit_score where (model_id=9 or model_id=-9) and enc_id = (select * from pat_id_to_enc_id('%s'::text)) and twf_raw_values is not null and feature_relevance is not null order by tsp desc limit 1  
+  '''%eid
+  try:
+    async with db_pool.acquire() as conn:
+      df = await conn.fetch(get_static_sql)
+      return json.loads(df[0][0])
+  except:
+    return {}
 
 async def get_measurements(db_pool, eid):
   get_measurements_sql = \

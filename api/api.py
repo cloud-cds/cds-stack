@@ -735,7 +735,8 @@ class TREWSAPI(web.View):
     # cache lookup
     pat_values = await pat_cache.get(eid)
 
-    if pat_values is None:
+    #if pat_values is None:
+    if True:
       api_monitor.add_metric('CacheMisses')
 
       # parallel query execution
@@ -746,6 +747,7 @@ class TREWSAPI(web.View):
                       query.get_trews_intervals(db_pool, eid),
                       query.get_feature_relevances(db_pool, eid),
                       query.get_measurements(db_pool, eid),
+                      query.get_static_features(db_pool, eid),
                       query.get_feature_mapping(db_pool),
                       #query.get_trews_jit_score(db_pool, eid, start_hrs=chart_sample_start_hrs, start_day=chart_sample_start_day, end_day=chart_sample_end_day, sample_mins=chart_sample_mins, sample_hrs=chart_sample_hrs)
                     )
@@ -772,8 +774,9 @@ class TREWSAPI(web.View):
     trews_intervals        = pat_values[3]
     feature_relevances     = pat_values[4]
     measurements           = pat_values[5]
-    mapping                = pat_values[6]
-    #chart_values           = pat_values[7]
+    static_features        = pat_values[6]
+    mapping                = pat_values[7]
+    #chart_values           = pat_values[8]
 
     self.update_criteria(criteria_result_set, data)
 
@@ -809,6 +812,7 @@ class TREWSAPI(web.View):
 
       data['feature_relevances'] = explain.thresholdImportances(explain.getMappedImportances(feature_relevances,mapping))
       data['measurements'] = measurements
+      data['static_features'] = static_features
 
       return data
 
