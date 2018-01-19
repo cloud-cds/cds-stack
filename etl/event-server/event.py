@@ -46,7 +46,7 @@ EpicEvents = {
   'Preadmit': full_extraction,
   'Admit': full_extraction,
   'L&D Arrival': full_extraction,
-  'Discharge': {extractor.extract_discharge},,
+  'Discharge': {extractor.extract_discharge},
   'Undo Admit': full_extraction,
   'Undo Discharge': full_extraction,
   'Undo Preadmit': full_extraction,
