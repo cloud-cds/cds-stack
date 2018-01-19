@@ -1345,12 +1345,19 @@ var careSummaryComponent = new function() {
   this.detailSlot = new slotComponent($("[data-trews='care-summary-detail']"), $('#expand-care-detail'), false, false, false, null, false, true);
 
   this.renderDetail = function(alert_as_cms, cms_status) {
+    if ('respiratory rate' in trews.data['feature_relevances']){
+      trews.data['feature_relevances']['resp rate'] = trews.data['feature_relevances']['respiratory rate'];
+    }
+    trews.data['feature_relevances']
     var mark = "<font color='red'><b>!</b></font>";
     var phys_feats = ["BP", "temperature", "heart rate", "SpO2", "PaO2", "PaCO2", "resp rate", "FiO2", "GCS", "RASS"];
     var hem_feats = ["platelets", "WBC", "INR", "hematocrit", "hemoglobin"];
     var chem_feats = ["sodium", "creatinine", "bilirubin", "amylase", "lactate", "BUN", "ALT liver enzymes", "arterial ph", "bicarbonate", "CO2", "AST liver enzymes", "potassium", "lipase"];
     var displayNames = {"ALT liver enzymes": "ALT", "AST liver enzymes": "AST"};
-     
+    var no_features_str = "";
+    if (Object.keys(trews.data['feature_relevances']).length == 0) {
+      no_features_str = '<div style="background-color:yellow"><h3 style="color:black">No relevant features</h3></div>';
+    } 
 
     var phys_table_str = '<table style="width:100%;background-color:white;">'
     for (var i = 0; i < phys_feats.length; i++) {
@@ -1359,7 +1366,7 @@ var careSummaryComponent = new function() {
         phys_table_str += '<td>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</td>';
         phys_table_str += '<td>'+(feat in displayNames ? displayNames[feat]:feat)+'</td>';
         
-        var value = "Not available"
+        var value = 'Not available'
         feat = feat.toLowerCase().replace(/ /g, "_");
         if (feat in trews.data['measurements']) {
           value = trews.data['measurements'][feat]['value']+'@'+trews.data['measurements'][feat]['tsp'].split("+")[0];
@@ -1401,11 +1408,9 @@ var careSummaryComponent = new function() {
         chem_table_str += '</tr>';
     }
     var chem_str = '<div class="explanation-rightcol"><h4 style="text-align:center">Chemistry</h4>'+chem_table_str+'</table></div>'
- 
-
-
 
     var trews_html = '<h3> TREWS Criteria </h3>'
+                   + no_features_str
                    + phys_str
                    + hem_str
                    + chem_str;
