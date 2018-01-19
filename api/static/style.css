@@ -394,7 +394,7 @@ div.manual-override[data-trews="uncertain-sepsis"] {
     font-size: 12px;
 }
 .card tr:nth-child(even){
-    background-color: #f2f2f2;
+    /*background-color: #f2f2f2;*/
 }
 .card[data-trews="septicShock"] {
     margin-top: 15px;
