@@ -436,7 +436,7 @@ class EpicAPIConfig:
     dfs = [pd.DataFrame(r) for r in responses]
     df_raw = self.combine(dfs, pts[['pat_id', 'visit_id']])
     if df_raw is None or df_raw.empty:
-      return None
+      return {'flowsheets_transformed': None}
     else:
       return {'flowsheets_transformed': self.tz_hack(ctxt, self.transform(ctxt, df_raw, 'flowsheet_transforms'))}
 

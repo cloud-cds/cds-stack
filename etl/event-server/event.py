@@ -159,11 +159,13 @@ class Epic(web.View):
     '''
     try:
       event_type = message['eventInfo']['Type']['$value']
-      entity = message['eventInfo']['OtherEntities'][0]['Entity']
-      if isinstance(entity, list):
-        ids = {e['ID']['$value'] for e in entity}
-      else:
-        ids = {entity['ID']['$value']}
+      ids = None
+      if 'OtherEntities' in message['eventInfo']:
+        entity = message['eventInfo']['OtherEntities'][0]['Entity']
+        if isinstance(entity, list):
+          ids = {e['ID']['$value'] for e in entity}
+        else:
+          ids = {entity['ID']['$value']}
       zid = message['eventInfo']['PrimaryEntity']['ID']['$value']
       return {'event_type': event_type, 'zid': zid, 'ids': ids}
     except Exception as ex:
