@@ -7,7 +7,7 @@ import numpy as np
 from pytz import timezone
 from collections import OrderedDict
 import json
-
+import pdb
 #---------------------------------
 ## Metric Classes
 #---------------------------------
@@ -400,6 +400,31 @@ class ed_metrics(metric):
     no_action = set(no_action.loc[no_action['action'] == 0]['enc_id'].unique())
     metric_16 = str(len(no_action))
 
+    ## min, max, median time from alert to evaluation
+    # Only considered eval-ed if SOI is_met is also true
+    evals = merged_df.loc[(merged_df['name'] == 'suspicion_of_infection') & (merged_df['is_met'] == True)]
+
+    first_eval_indices = evals.groupby('enc_id', as_index=False)['update_date'].idxmin()
+    first_evals = evals.loc[evals.index.isin(first_eval_indices)][['enc_id','update_date']]
+    first_evals.columns = ['enc_id', 'first_eval']
+
+    ## If there are no evaluations, then report None for time from alert to eval.
+    if first_evals.empty:
+      metric_17_min = str(None)
+      metric_17_max = str(None)
+      metric_17_median = str(None)
+    else:
+      first_alerts = pd.merge(first_alerts, first_evals, how='left', on=['enc_id']) ## Not every alert had an eval
+      first_alerts['delta'] = (first_alerts['first_eval'] - first_alerts['1st_alert_date']) / pd.to_timedelta('1hr')
+      metric_17_min = '{0:.3f}'.format(first_alerts['delta'].min())
+      metric_17_max = '{0:.3f}'.format(first_alerts['delta'].max())
+      metric_17_median = '{0:.3f}'.format(first_alerts['delta'].median())
+
+    metric_17 = '{0}'.format(', '.join([metric_17_min, metric_17_median, metric_17_max]))
+    eval_patients = set(first_evals['enc_id'].unique())
+
+    ## Remove patients that have been evaluated by a physician
+    no_action = no_action.difference(eval_patients)
     no_action_patients = no_action
 
     ## Segment patients into 3 groups: still in ED, admitted to other care_unit, discharged
@@ -727,27 +752,6 @@ class ed_metrics(metric):
 
     self.all_Providers = all_Providers
 
-    ## min, max, median time from alert to evaluation
-    # Only considered eval-ed if SOI is_met is also true
-    evals = merged_df.loc[(merged_df['name'] == 'suspicion_of_infection') & (merged_df['is_met'] == True)]
-
-    first_eval_indices = evals.groupby('enc_id', as_index=False)['update_date'].idxmin()
-    first_evals = evals.loc[evals.index.isin(first_eval_indices)][['enc_id','update_date']]
-    first_evals.columns = ['enc_id', 'first_eval']
-
-    ## If there are no evaluations, then report None for time from alert to eval.
-    if first_evals.empty:
-      metric_17_min = str(None)
-      metric_17_max = str(None)
-      metric_17_median = str(None)
-    else:
-      first_alerts = pd.merge(first_alerts, first_evals, how='left', on=['enc_id']) ## Not every alert had an eval
-      first_alerts['delta'] = (first_alerts['first_eval'] - first_alerts['1st_alert_date']) / pd.to_timedelta('1hr')
-      metric_17_min = '{0:.3f}'.format(first_alerts['delta'].min())
-      metric_17_max = '{0:.3f}'.format(first_alerts['delta'].max())
-      metric_17_median = '{0:.3f}'.format(first_alerts['delta'].median())
-
-    metric_17 = '{0}'.format(', '.join([metric_17_min, metric_17_median, metric_17_max]))
     ## Get all patients that have a completed bundle
     completed_bundles = [21,23,26,28,31, 33, 35, 41, 43, 45, 51, 53, 61, 63, 65]
     metric_18 = str(search_history_flags('completed_bundle', completed_bundles))
