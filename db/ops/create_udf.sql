@@ -54,14 +54,21 @@ AND p.enc_id NOT IN
 
 
 
-create or replace function pat_id_to_enc_id(_pat_id text)
-RETURNS int
-AS $func$
+create or replace function pat_id_to_enc_id(_pat_id text) RETURNS int AS $func$
 DECLARE _enc_id int;
 BEGIN
 select max(enc_id) from pat_enc where pat_id = _pat_id into _enc_id;
-return _enc_id
-; END $func$ LANGUAGE plpgsql;
+return _enc_id;
+END $func$ LANGUAGE plpgsql;
+
+create or replace function pat_id_to_visit_id(_pat_id text) RETURNS varchar(50) AS $func$
+DECLARE _visit_id varchar(50);
+BEGIN
+select visit_id into _visit_id from pat_enc where pat_id = _pat_id order by enc_id desc limit 1;
+return _visit_id;
+END $func$ LANGUAGE plpgsql;
+
+
 /*
  * UDF used in CDM
  * predefined functions
