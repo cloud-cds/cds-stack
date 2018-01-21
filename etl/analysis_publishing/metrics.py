@@ -227,7 +227,7 @@ class ed_metrics(metric):
     end_tsp = pd.to_datetime(self.last_time_str).tz_localize(timezone('utc'))
 
     start_tsp = end_tsp - self.window
-    
+
     # For generating HTML only
     self.report_start = start_tsp.strftime('%x %X %Z')
     self.report_end = end_tsp.strftime('%x %X %Z')
@@ -286,7 +286,7 @@ class ed_metrics(metric):
       return
     else:
       self.no_alerts = False
-      
+
     ## Metrics 3,4,5,6 need code sepsis data
     metric_3 = None
     metric_4 = None
@@ -553,7 +553,7 @@ class ed_metrics(metric):
     duration['alert_end_ED'] = duration.apply(get_alert_end_ED, axis=1)
     duration['alert_duration_ED'] = (duration['alert_end_ED'] - duration['last_alert_ED']) / pd.to_timedelta('1hour')
 
-    ## Remove patients where they haven't had their alerts go unattended for at least 2 hours 
+    ## Remove patients where they haven't had their alerts go unattended for at least 2 hours
     duration = duration.loc[duration['alert_duration_ED'] >= 2]
     no_action = set(duration['enc_id'].unique())
     no_action_patients = no_action
@@ -562,12 +562,12 @@ class ed_metrics(metric):
     no_action_patients = no_action_patients.difference(transferred_from_ED)
     discharged_from_ED = no_action_patients.intersection(discharged_from_ED)
     no_action_patients = no_action_patients.difference(discharged_from_ED)
-    still_in_ED = no_action_patients    
+    still_in_ED = no_action_patients
 
     ## Alerts that were TREWS and alerts that were CMS
     ## Number of patients that have TREWS vs CMS alerts
     has_TREWS = (merged_df.loc[merged_df['flag'].isin([11])]
-                 .groupby('enc_id', as_index=False)['update_date'] 
+                 .groupby('enc_id', as_index=False)['update_date']
                  .agg({'has_TREWS_alert':min}))
     has_TREWS['has_TREWS_alert'] = 1
     has_CMS = (merged_df.loc[merged_df['flag'].isin([10])]
@@ -586,7 +586,7 @@ class ed_metrics(metric):
                 and enc_id in ({0})""".format(', '.join([str(e) for e in valid_enc_ids]))
     page_gets = pd.read_sql(sqlalchemy.text(query), self.connection, columns=['enc_id', 'tsp', 'uid'])
     ## Remove all dev team member interactions
-    dev_group = ['AZHAN2', 'KHENRY22', 'NRAWAT1', 'EHOOGES1'] 
+    dev_group = ['AZHAN2', 'KHENRY22', 'NRAWAT1', 'EHOOGES1']
     page_gets = page_gets.loc[~page_gets['uid'].isin(dev_group)]
     all_page_gets = page_gets
     alerted_page_gets = pd.merge(page_gets, no_action_metrics[['enc_id','first_alert']], on='enc_id', how='left')
@@ -702,7 +702,7 @@ class ed_metrics(metric):
         target_df: dataframe which gains care_unit_information. Must contain column 'tsp'
         care_unit_df: The desired subset of care_unit_df to use for assigning care_units.
 
-    Returns: 
+    Returns:
         The same target_df but now with added columns of info from care_unit_df.
     '''
     def assign_care_units(target_df, care_unit_df):
@@ -748,7 +748,7 @@ class ed_metrics(metric):
             all_Providers[entry['name']] += 1
           else:
             all_Providers[entry['name']] = 1
-        
+
 
     self.all_Providers = all_Providers
 
@@ -804,11 +804,13 @@ class ed_metrics(metric):
 
     # read lab evals from criteria events using json object key no_lab
     query = """
-                select enc_id, update_date
-                from criteria_events
-                where value ~ '{{.*}}'
-                and value::json ->> 'no_lab' like 'false'
-                and enc_id in ({0})""".format(', '.join([str(e) for e in valid_enc_ids]))
+              select enc_id,
+                     min(update_date::timestamptz) as update_date
+              from criteria_events
+              where name='trews_subalert'
+              and value::json->>'no_lab'='false'
+              and enc_id in ({0})
+              group by enc_id;""".format(', '.join([str(e) for e in valid_enc_ids]))
 
     earliest_lab_evals = pd.read_sql(sqlalchemy.text(query), self.connection, columns=['enc_id', 'update_date'])
     earliest_lab_evals.rename(columns={'update_date':'first_lab_eval'}, inplace=True)
@@ -848,10 +850,10 @@ class ed_metrics(metric):
                                   .groupby('enc_id', as_index=False)['enter_time'].agg('min'))
     try:
       readmits_within_30d = pd.merge(readmits_within_30d, admit_times, on='enc_id', how='left')
-      
+
       ## Get the two most recent admit enc_ids and admit_times
       grouped = readmits_within_30d.groupby('pat_id').apply(lambda x: x.sort_values(by='enter_time', ascending=False).head(2))
-      ## Find whether or not these readmitted patients had an alert while in ED. 
+      ## Find whether or not these readmitted patients had an alert while in ED.
 
       merged_df_30 = merge_with_care_unit(criteria_events_df, care_unit_df_30)
       merged_df_30_ED = merged_df_30.loc[merged_df_30['care_unit'] == 'HCGH EMERGENCY-ADULTS'] ## Check that the name is correct
@@ -887,7 +889,7 @@ class ed_metrics(metric):
 
     except IndexError:
       metric_26_c = str(0)
-      
+
     ## Missing metric_13: repeat lactate
     allMetrics = [metric_1, metric_2, metric_7, metric_8, metric_9, metric_10, metric_11, metric_12, metric_14, metric_15, metric_16, metric_25, metric_17, metric_18, metric_19, metric_20, metric_22, metric_23, metric_24, metric_26_a, metric_26_b, metric_26_c]
     desc1 = 'Total ED patients'
@@ -929,12 +931,12 @@ class ed_metrics(metric):
   def to_html(self):
     pd.set_option('display.max_colwidth', 75)
     txt = '<h3>This section of the report metrics for patients who were in the ED between {s} and {e}</h3>'.format(s=self.report_start, e=self.report_end)
-    
+
     ## Exit if there were no alerts given during the timeframe (metric_2 == 0).
     if self.no_alerts:
       txt += "No alerts were given for TREWS during this time period."
       return txt
-    
+
     txt += self.metrics_DF.to_html()
     txt += '<h3>This table breaks down the patients that were alerted but had no action (metric 10)</h3>' + self.no_action_results.to_html()
     txt += '<h3>This table reports the page views for each patient in the three no action categories.</h3>' + self.all_page_views.to_html()
@@ -1002,26 +1004,25 @@ class alert_performance_metrics(metric):
 
   def get_care_unit(self, cdmt_df):
 
-      care_unit_df = cdmt_df.loc[cdmt_df['fid']=='care_unit', ['enc_id', 'tsp', 'value']].copy()
-      care_unit_df = care_unit_df.sort_values(by=['enc_id', 'tsp'])
-      care_unit_df.rename(columns={'tsp':'enter_time', 'value':'care_unit'}, inplace=True)
+      care_unit_df = cdmt_df.loc[cdmt_df['fid']=='care_unit',
+                    ['enc_id', 'tsp', 'value']].sort_values(by=['enc_id', 'tsp']).rename(columns={'tsp':'enter_time', 'value':'care_unit'})
       care_unit_df['leave_time'] = care_unit_df.groupby('enc_id')['enter_time'].shift(-1)
 
-      # fill in the leave time on the last unit
-      last_unit_tsp = care_unit_df.groupby('enc_id').agg({'enter_time':'max'})
-      last_unit_tsp.reset_index(level=0, inplace=True)
-      last_unit_tsp.rename(columns={'enter_time':'last_unit_tsp'}, inplace=True)
-      discharge_tsp = cdmt_df.loc[cdmt_df['fid']=='discharge', ['enc_id', 'tsp']].copy()
-      df = pd.merge(last_unit_tsp, discharge_tsp, on='enc_id', how='inner')
-
-      # final step
-      if df.shape[0] > 0:
-          care_unit_df = pd.merge(care_unit_df, df, how='outer', on='enc_id')
-          care_unit_df.loc[care_unit_df['last_unit_tsp']==care_unit_df['enter_time'], 'leave_time'] = \
-                                          care_unit_df.loc[care_unit_df['last_unit_tsp']==care_unit_df['enter_time'], 'tsp']
-          care_unit_df.drop(['tsp', 'last_unit_tsp'], axis=1, inplace=True)
-
       care_unit_df = care_unit_df.loc[care_unit_df['care_unit']!='Discharge']
+
+      # To get arrival time: get rows that do not contain dose_order & (either does not contain order or they are blood_cultre/lactate order)
+      exclude_home_meds = cdmt_df.loc[(~(cdmt_df['fid'].str.contains('_order'))|
+                                       (cdmt_df['fid'].str.contains('(blood_culture|lactate)_order')))&
+                                      (~cdmt_df['fid'].str.contains('dose_order'))]
+      with_care_unit_cdmt = exclude_home_meds.loc[exclude_home_meds['enc_id'].isin(care_unit_df['enc_id']), ['enc_id', 'tsp']]
+      max_min_tsp_df = with_care_unit_cdmt.groupby('enc_id', as_index=False)['tsp'].agg({'max_tsp':max, 'min_tsp':min})
+
+      care_unit_df = pd.merge(care_unit_df, max_min_tsp_df, how='left', on='enc_id')
+      idx_max = care_unit_df.groupby('enc_id', as_index=False)['enter_time'].idxmax()
+      idx_min = care_unit_df.groupby('enc_id', as_index=False)['enter_time'].idxmin()
+      care_unit_df.loc[idx_min, 'enter_time'] = care_unit_df.loc[idx_min, 'min_tsp'] - pd.to_timedelta('1min')
+      care_unit_df.loc[idx_max, 'leave_time'] = care_unit_df.loc[idx_max, 'max_tsp'] + pd.to_timedelta('1min')
+      care_unit_df.drop(['min_tsp', 'max_tsp'], axis=1, inplace=True)
 
       return care_unit_df
 
@@ -1295,12 +1296,20 @@ class alert_performance_metrics(metric):
             nFNs = len(np.intersect1d(not_alerted, sep_df['enc_id'].unique()))
             num_alerts = nTPs + nFPs
 
+            care_unit_sep_df = merge_with_care_unit(sep_df.rename(columns={'sepsis_onset':'tsp'}))
+            ED_alerts = main_df.loc[(main_df['union_alert']>0)&(main_df['care_unit']=='HCGH EMERGENCY-ADULTS'), 'enc_id'].unique()
+            ED_sepsis = care_unit_sep_df.loc[care_unit_sep_df['care_unit']=='HCGH EMERGENCY-ADULTS', 'enc_id'].unique()
+            ED_nTPs = len(np.intersect1d(ED_alerts, ED_sepsis))
+            ED_nFPs = len(np.setdiff1d(ED_alerts, ED_sepsis))
+
             cnts = OrderedDict([('# total enc_ids', '%d' %(len(main_df['enc_id'].unique()))),
                                 ('# sepsis', '%d' %(len(sep_df['enc_id'].unique()))),
                                 ('# alerted','%d' %int(num_alerts)),
                                 ('TPR', '%.3f' %(float(nTPs)/(nTPs+nFNs))),
                                 ('FPR', '%.3f' %(float(nFPs)/(nFPs+nTNs))),
-                                ('PPV', '%.3f' %(float(nTPs)/(nTPs+nFPs)))])
+                                ('PPV', '%.3f' %(float(nTPs)/(nTPs+nFPs)))])#,
+                                # ('ED-TPR', '%.3f' %(float(ED_nTPs)/len(ED_sepsis))),
+                                # ('ED-PPV', '%.3f' %(float(ED_nTPs)/len(ED_alerts)))])
 
             cnt_df = main_df.groupby('care_unit')['enc_id'].nunique().reset_index(level=0).copy()
             cnt_df['enc_id'] = cnt_df['enc_id'].fillna(0).astype(int)
@@ -1315,10 +1324,7 @@ class alert_performance_metrics(metric):
             cnt_df['enc_id'] = cnt_df['enc_id'].fillna(0).astype(int)
             cnt_df.rename(columns={'enc_id':'# FPs'}, inplace=True)
 
-            tmp_df = sep_df.copy()
-            tmp_df.rename(columns={'sepsis_onset':'tsp'}, inplace=True)
-            tmp_df = merge_with_care_unit(tmp_df)
-            cnt_df = pd.merge(cnt_df, tmp_df.groupby('care_unit')['enc_id'].nunique().reset_index(level=0),
+            cnt_df = pd.merge(cnt_df, care_unit_sep_df.groupby('care_unit')['enc_id'].nunique().reset_index(level=0),
                                          how='outer', on='care_unit')
             cnt_df['enc_id'] = cnt_df['enc_id'].fillna(0).astype(int)
             cnt_df.rename(columns={'enc_id':'# sepsis cases'}, inplace=True)
@@ -1445,7 +1451,11 @@ class suspicion_of_infection_modified(metric):
                         rank() over (partition by T.enc_id, S.tsp order by T.tsp desc) as row
                 from soi_table S
                 left join
-                (select enc_id, tsp, json_array_elements(value::json) as team from cdm_t where fid='treatment_team') T
+                (
+                    select enc_id, tsp, json_array_elements(value::json) as team
+                    from cdm_t where fid='treatment_team'
+                    and enc_id in (select distinct enc_id from soi_table)
+                ) T
                 on T.enc_id=S.enc_id
                 and T.tsp::timestamptz <= S.tsp::timestamptz
               )
@@ -1600,53 +1610,64 @@ class pats_seen_by_docs(metric):
 
   def calc(self):
     num_pats_seen = """
-            with page_gets as (
-              select U.enc_id as enc_id, U.uid, U.loc, U.tsp,
-                      T.team,
-                      U.name, U.role,
-                      rank() over (partition by U.enc_id, U.tsp order by T.tsp desc) as row
-              from
-              (
-                select P.enc_id, R.action, R.tsp, R.uid, R.loc, U.role, U.name
-                from
-                user_interactions R
-                inner join
-                pat_enc P
-                on P.visit_id::text=R.csn::text
-                inner join
-                user_role U
-                on R.uid=U.id
-                where R.action='page-get'
-                and R.tsp::timestamptz between '{0}'::timestamptz and '{1}'::timestamptz
-              ) U
-              left join
-              (select enc_id, tsp, json_array_elements(value::json) as team from cdm_t where fid='treatment_team') T
-              on U.enc_id=T.enc_id
-              and T.tsp::timestamptz <= U.tsp::timestamptz
-          ),
-          useful_table as
-            (
-            select uid, name, tsp, role, loc,
-                    enc_id,
-                    team::json->>'role' as treatment_team_role
-            from page_gets
-            where row=1
-            and (
-              (team is null) or
-              (
-                team::json->>'id'= uid
-                and char_length((team::json->>'end')::text)=0
-              )
-            )
-          )
-          select uid, max(name) as name,
-                  max(loc) as hospital,
-                  max(role) as role,
-                  count (distinct enc_id) as num_pats_seen,
-                  count(distinct enc_id) filter (where treatment_team_role is not null) num_pats_on_treatment_team,
-                  count(distinct enc_id) filter (where treatment_team_role is null) num_pats_not_on_treatment_team
-          from useful_table
-          group by uid;""".format(self.first_time_str, self.last_time_str)
+                    with page_gets as (
+                        select P.enc_id, R.action, R.tsp, R.uid, R.loc, U.role, U.name
+                        from
+                        (
+                            select enc_id, csn, action, tsp, uid, loc
+                            from user_interactions
+                            where tsp::timestamptz between '{0}'::timestamptz and '{1}'::timestamptz
+                            and action='page-get'
+                        ) R
+                        inner join
+                        pat_enc P
+                        on P.visit_id::text=R.csn::text
+                        inner join
+                        user_role U
+                        on R.uid=U.id
+                    ),
+                    team_members_page_get as (
+
+                      select U.enc_id as enc_id, U.uid, U.loc, U.tsp,
+                              T.team,
+                              U.name, U.role,
+                              rank() over (partition by U.enc_id, U.tsp order by T.tsp desc) as row
+                      from
+                      page_gets U
+                      left join
+                      (
+                          select enc_id, tsp, json_array_elements(value::json) as team
+                          from cdm_t
+                          where fid='treatment_team'
+                          and enc_id in (select distinct enc_id from page_gets)
+                      ) T
+                      on U.enc_id=T.enc_id
+                      and T.tsp::timestamptz <= U.tsp::timestamptz
+                    ),
+                    useful_table as (
+                        select uid, name, tsp, role, loc,
+                                enc_id,
+                                team::json->>'role' as treatment_team_role
+                        from team_members_page_get
+                        where row=1
+                        and
+                        (
+                          (team is null)
+                          or
+                          (
+                            team::json->>'id'= uid
+                            and char_length((team::json->>'end')::text)=0
+                          )
+                        )
+                    )
+                    select uid, max(name) as name,
+                          max(loc) as hospital,
+                          max(role) as role,
+                          count (distinct enc_id) as num_pats_seen,
+                          count(distinct enc_id) filter (where treatment_team_role is not null) num_pats_on_treatment_team,
+                          count(distinct enc_id) filter (where treatment_team_role is null) num_pats_not_on_treatment_team
+                    from useful_table
+                    group by uid;""".format(self.first_time_str, self.last_time_str)
 
     def loc_to_english(str_in):
       loc_dict = {
