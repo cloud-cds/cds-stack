@@ -1353,7 +1353,7 @@ var careSummaryComponent = new function() {
     var phys_feats = ["BP", "temperature", "heart rate", "SpO2", "PaO2", "PaCO2", "resp rate", "FiO2", "GCS", "RASS"];
     var hem_feats = ["platelets", "WBC", "INR", "hematocrit", "hemoglobin"];
     var chem_feats = ["sodium", "creatinine", "bilirubin", "amylase", "lactate", "BUN", "ALT liver enzymes", "arterial ph", "bicarbonate", "CO2", "AST liver enzymes", "potassium", "lipase"];
-    var displayNames = {"ALT liver enzymes": "ALT", "AST liver enzymes": "AST"};
+    var displayNames = {"ALT liver enzymes": "ALT", "AST liver enzymes": "AST", 'temperature':'Temperature', "heart rate": "Heart Rate", "resp rate": "Resp. Rate", "platelets": "Platelets","hematocrit":"hematocrit","hemoglobin":"Hemoglobin","sodium": "Sodium", "creatinine":"Creatinine", "bilirubin":"Bilirubin","amylase":"Amylase", "lactate":"Lactate","arterial ph":"Arterial PH","bicarbonate":"Bicarbonate","potassium":"Potassium","lipase":"Lipase"};
     var no_features_str = "";
     if (Object.keys(trews.data['feature_relevances']).length == 0) {
       no_features_str = '<div style="background-color:yellow"><h3 style="color:black">TREWS alerted based on many factors without a dominant feature</h3></div>';
@@ -1413,8 +1413,8 @@ var careSummaryComponent = new function() {
     for (var feat in trews.data['static_features']) {
       static_table_str += '<tr>'
       static_table_str += '<td>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</td>';
-      static_table_str += '<td>'+ feat.replace(/_/g," ")+'</td>';
-      static_table_str += '<td>' + trews.data['static_features'][feat] + '</td>';
+      static_table_str += '<td>'+ (feat.charAt(0).toUpperCase()+feat.slice(1)).replace(/_/g," ")+'</td>';
+      static_table_str += '<td>' + (trews.data['static_features'][feat]==1 ? "Present":trews.data['static_features'][feat]) + '</td>';
       static_table_str += '</tr>'
     }
    
