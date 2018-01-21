@@ -371,7 +371,8 @@ class AlertServer:
         where s.fid = 'age' and s.value::float >= 18.0
         and s2.fid = 'hospital' and s2.value = 'HCGH'
       '''.format(workspace=self.workspace, job_id=job_id)
-      predict_enc_ids = await conn.fetch(sql)
+      res = await conn.fetch(sql)
+      predict_enc_ids = [row[0] for row in res]
       return predict_enc_ids
 
   async def run_trews_alert(self, job_id, hospital, excluded_enc_ids=None):
@@ -379,9 +380,9 @@ class AlertServer:
       if self.push_based and hospital == 'PUSH':
         # calculate criteria here
         excluded = ''
-        if excluded:
+        if excluded_enc_ids:
           excluded = 'where e.enc_id not in {}'.format(','.join(excluded))
-        await self.calculate_criteria_push(conn, hospital, excluded=excluded)
+        await self.calculate_criteria_push(conn, job_id, excluded=excluded)
         if self.notify_web:
           sql = '''
           with pats as (
@@ -396,7 +397,7 @@ class AlertServer:
             returning id
           )
           select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
-          '''.format(channel=self.channel, model=self.model, where=excluded)
+          '''.format(channel=self.channel, model=self.model, where=excluded, workspace=self.workspace, job_id=job_id)
           logging.info("trews alert sql: {}".format(sql))
           await conn.fetch(sql)
           logging.info("generated trews alert for {} without prediction".format(hospital))
@@ -473,7 +474,7 @@ class AlertServer:
       # }
       if self.model == 'lmc' or self.model == 'trews-jit':
         if message.get('hosp') == 'PUSH' and self.push_based:
-          # TODO: create predict task for predictor
+          # create predict task for predictor
           predict_enc_ids = await self.get_enc_ids_to_predict(message['job_id'])
           t_start = parser.parse(message['job_id'].split('_')[-1])
           if predict_enc_ids:
@@ -483,7 +484,7 @@ class AlertServer:
                                                         time=message['time'],
                                                         job_id=message['job_id'],
                                                         active_encids=predict_enc_ids)
-          # TODO: create criteria update task for patients who do not need to predict
+          # create criteria update task for patients who do not need to predict
           await self.run_trews_alert(message['job_id'],message['hosp'], excluded_enc_ids=predict_enc_ids)
         elif message.get('hosp') in self.hospital_to_predict:
           if self.model == 'lmc':
