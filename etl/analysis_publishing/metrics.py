@@ -7,7 +7,6 @@ import numpy as np
 from pytz import timezone
 from collections import OrderedDict
 import json
-
 #---------------------------------
 ## Metric Classes
 #---------------------------------
@@ -226,6 +225,8 @@ class ed_metrics(metric):
     # Use timestamp of when script is run. Can potentially hardcode instead but should be okay if running as CRON job.
     end_tsp = pd.to_datetime(self.last_time_str).tz_localize(timezone('utc'))
 
+    # Testing only 01/20/18 16:05:11
+    end_tsp = pd.to_datetime('2018-1-20 16:05:11+00:00').tz_localize(timezone('utc'))
     start_tsp = end_tsp - self.window
     
     # For generating HTML only
@@ -656,8 +657,8 @@ class ed_metrics(metric):
                                       'transferred_from_ED': transferred_metrics_results,
                                       'still_in_ED': currentPatients_results},
                                      index=['# of patients','Median alert duration (hrs)',
-                                            '# of TREWS alerts','# of CMS alerts',
-                                            'Median alert duration in ED (hrs)','# of patients with Abx order',
+                                            'Median alert duration in ED (hrs)','# of TREWS alerts',
+                                            '# of CMS alerts','# of patients with Abx order',
                                             '# of patients with lactate order','# of patients transferred to ICU'])
     no_action_results = no_action_results.transpose()
     self.no_action_results = no_action_results
@@ -925,7 +926,7 @@ class ed_metrics(metric):
     ## Missing metric_13: repeat lactate
     allDesc = [desc1, desc2, desc7, desc8, desc9, desc10, desc11, desc12, desc14, desc15, desc16, desc25, desc17, desc18, desc19, desc20, desc22, desc23, desc24, desc26a, desc26b, desc26c]
     self.metrics_DF = pd.DataFrame({'Metrics': allDesc, 'Values': allMetrics})
-
+    
   def to_html(self):
     pd.set_option('display.max_colwidth', 75)
     txt = '<h3>This section of the report metrics for patients who were in the ED between {s} and {e}</h3>'.format(s=self.report_start, e=self.report_end)
