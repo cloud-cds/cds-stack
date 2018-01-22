@@ -494,11 +494,15 @@ BEGIN
           ||
           ') as T
         ) on conflict (enc_id, tsp) do update set ' || set_cols || ';
-        Delete from cdm_twf
-        using (select enc_id, min(tsp) as tsp from ' || workspace ||'.cdm_t
+        drop table if exists ' || workspace || '.' || job_id || '_cdm_twf_del;
+        create table ' || workspace || '.' || job_id || '_cdm_twf_del as
+            select twf.enc_id, twf.tsp from cdm_twf twf
+            inner join (select enc_id, min(tsp) as tsp from ' || workspace ||'.cdm_t
                 where job_id = ''' || job_id || ''' and fid in ' || fid_array || ' group by enc_id
-        ) as min_tsp
-        where cdm_twf.enc_id = min_tsp.enc_id and cdm_twf.tsp >= min_tsp.tsp;
+            ) as min_tsp on twf.enc_id = min_tsp.enc_id and twf.tsp >= min_tsp.tsp;
+        Delete from cdm_twf
+        using ' || workspace || '.' || job_id || '_cdm_twf_del as del
+        where cdm_twf.enc_id = del.enc_id and cdm_twf.tsp = del.tsp;
         '
     into query_str
     from select_insert_cols cross join select_from_cols cross join select_set_cols cross join select_fid_array;
