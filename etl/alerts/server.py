@@ -363,8 +363,9 @@ class AlertServer:
       # 2. adult
       # 3. HCGH patients only
       sql = '''
-        select distinct twf.enc_id
-        from {workspace}.{job_id}_cdm_twf twf
+        select distinct t.enc_id
+        from {workspace}.cdm_t t
+        inner join cdm_twf twf on t.enc_id = twf.enc_id
         inner join cdm_s s on twf.enc_id = s.enc_id
         inner join cdm_s s2 on twf.enc_id = s2.enc_id
         where s.fid = 'age' and s.value::float >= 18.0
@@ -483,6 +484,8 @@ class AlertServer:
                                                         time=message['time'],
                                                         job_id=message['job_id'],
                                                         active_encids=predict_enc_ids)
+          else:
+            logging.info("predict_enc_ids is None or empty")
           # create criteria update task for patients who do not need to predict
           await self.run_trews_alert(message['job_id'],message['hosp'], excluded_enc_ids=predict_enc_ids)
         elif message.get('hosp') in self.hospital_to_predict:

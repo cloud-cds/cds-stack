@@ -64,12 +64,16 @@ def override_empty_doses_with_rates(med_data, fid_col, fids):
 
 def extract_sys_dias_from_bp(df, fid_col, value_col, bp):
     def get_sys(row):
+        if len(row[0]) == 0:
+            return -1 # deleted bp
         if (len(row) != 2) or (not row[0].isdigit()):
             logging.error('Error in systolic.\n' + row.to_string())
             return 0
         return float(row[0])
 
     def get_dias(row):
+        if len(row[0]) == 0:
+            return -1 # deleted bp
         if (len(row) != 2) or (not row[1].isdigit()):
             logging.error('Error in diastolic.\n' + row.to_string())
             return 0

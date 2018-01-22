@@ -450,6 +450,7 @@ $BODY$
 LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION load_delta_cdm_twf_from_cdm_t(twf_fids TEXT[], twf_table TEXT, t_table TEXT, job_id text, workspace text, is_exec boolean default true)
+-- also delete entries in cdm_twf after min_tsp
 RETURNS VOID
 AS $BODY$
 DECLARE
@@ -492,7 +493,13 @@ BEGIN
             ' group by cdm_t.enc_id, cdm_t.tsp'
           ||
           ') as T
-        ) on conflict (enc_id, tsp) do update set ' || set_cols
+        ) on conflict (enc_id, tsp) do update set ' || set_cols || ';
+        Delete from cdm_twf
+        using (select enc_id, min(tsp) as tsp from ' || workspace ||'.cdm_t
+                where job_id = ''' || job_id || ''' and fid in ' || fid_array || ' group by enc_id
+        ) as min_tsp
+        where cdm_twf.enc_id = min_tsp.enc_id and cdm_twf.tsp >= min_tsp.tsp;
+        '
     into query_str
     from select_insert_cols cross join select_from_cols cross join select_set_cols cross join select_fid_array;
     raise notice '%', query_str;

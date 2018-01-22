@@ -36,10 +36,13 @@ var service = {
 
           request(options, function (error, response, body) {
             if (!error && response.statusCode == 200) {
-            console.log("forwarded event type:", args['eventInfo']['Type']['$value']) // Print the shortened url.
+              myMetric.put(1, 'EventCount_FW_SUCCESS');
+              console.log("forwarded event type:", args['eventInfo']['Type']['$value']) // Print the shortened url.
             }
             else {
             console.log("error code:", response.statusCode);
+            myMetric.put(1, 'EventCount_FW_ERROR');
+            myMetric.put(1, 'EventCount_FW_ERROR_' + response.statusCode);
             }
           });
         }
