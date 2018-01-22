@@ -21,6 +21,7 @@ import random
 EPIC_SERVER         = os.environ['epic_server'] if 'epic_server' in os.environ else 'prod'
 NOTIFICATION_SERVER = os.environ['notification_server'] if 'notification_server' in os.environ else None
 v1_flowsheets       = os.environ['v1_flowsheets'].lower() == 'true' if 'v1_flowsheets' in os.environ else False
+soi_flowsheet       = os.environ['soi_flowsheet'].lower() == 'true' if 'soi_flowsheet' in os.environ else False
 
 api_monitor = APIMonitor()
 if api_monitor.enabled:
@@ -773,6 +774,7 @@ async def push_notifications_to_epic(db_pool, eid, notify_future_notification=Tr
 
 async def load_epic_notifications(notifications):
   total = len(notifications)
+  logging.info('load_epic_notifications call %s' % total)
   if total == 0:
     logging.info("No notification need to be updated to Epic")
     return
@@ -826,10 +828,12 @@ async def load_epic_notifications(notifications):
         sleep(wait_time)
 
     for k in success:
+      logging.info('load_epic_notifications result %s %s' % (k, success[k]))
       api_monitor.add_metric('FSPush%sSuccess'  % k.capitalize(), value=success[k])
       api_monitor.add_metric('FSPush%sFailures' % k.capitalize(), value=total-success[k])
 
   else:
+    logging.info('load_epic_notifications result skip')
     logging.info("Skipped pushing to Epic flowsheets")
 
 
@@ -865,7 +869,7 @@ async def load_epic_trewscores(trewscores):
 
 async def load_epic_soi_for_bpa(pat_id, user_id, visit_id, soi):
   logging.info("push soi flowsheets to epic (epic_notifications={}) for {}".format(epic_notifications, pat_id))
-  if epic_notifications is not None and int(epic_notifications) and v1_flowsheets:
+  if epic_notifications is not None and int(epic_notifications) and v1_flowsheets and soi_flowsheet:
     push_tz = pytz.timezone('US/Eastern')
     push_tsp = datetime.datetime.utcnow().astimezone(push_tz)
     epic_tsp = push_tsp.replace(microsecond=0)
