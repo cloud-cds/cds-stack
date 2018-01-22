@@ -178,6 +178,9 @@ module "stage3" {
   scorecard_metric_firing_rate_min  = "${var.scorecard_metric_firing_rate_min}"
   scorecard_metric_firing_rate_expr = "${var.scorecard_metric_firing_rate_expr}"
 
+  s3_weekly_report_firing_rate_min  = "${var.s3_weekly_report_firing_rate_min}"
+  s3_weekly_report_firing_rate_expr = "${var.s3_weekly_report_firing_rate_expr}"
+
   ######################################
   # Alarm2slack
 
@@ -187,6 +190,10 @@ module "stage3" {
   slack_hook              = "${var.slack_hook}"
   slack_channel           = "${var.slack_channel}"
   slack_watchers          = "${var.slack_watchers}"
+
+  info_slack_hook         = "${var.info_slack_hook}"
+  info_slack_channel      = "${var.info_slack_channel}"
+  info_slack_watchers     = "${var.info_slack_watchers}"
 
   ######################################
   # TREWS Capture

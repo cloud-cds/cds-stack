@@ -80,8 +80,10 @@ class JHAPIConfig:
             wait_time = min(((base**i) + random.uniform(0, 1)), max_backoff)
             sleep(wait_time)
           else:
+            logging.error("Request IOError: Request={}".format(setting))
             raise Exception("Fail to request URL {}".format(url))
         except Exception as e:
+          logging.error("Request exception: Request={}".format(setting))
           if i < request_attempts - 1 and str(e) != 'Session is closed':
             logging.error(e)
             wait_time = min(((base**i) + random.uniform(0, 1)), max_backoff)
@@ -264,6 +266,15 @@ class JHAPIConfig:
     dfs = [pd.DataFrame(r) for r in responses]
     return self.combine(dfs, bedded_patients[['pat_id', 'visit_id']])
 
+  def extract_treatmentteam(self, ctxt, bedded_patients):
+    resource = '/patients/treatmentteam'
+    payloads = [{
+      'id': pat['visit_id'],
+      'idtype': 'csn'
+    } for _, pat in bedded_patients.iterrows()]
+    responses = self.make_requests(ctxt, resource, payloads, 'GET')
+    dfs = [pd.DataFrame(r['TreatmentTeam'] if r else None) for r in responses]
+    return self.combine(dfs, bedded_patients[['pat_id', 'visit_id']])
 
   def extract_lab_orders(self, ctxt, bedded_patients):
     resource = '/patients/labs/procedure'
@@ -324,12 +335,19 @@ class JHAPIConfig:
       'dayslookback': str(self.op_lookback_days),
       'searchtype':   'OP'
     } for _, pat in bedded_patients.iterrows()]
-
     responses = self.make_requests(ctxt, resource, payloads, 'GET')
     dfs = [pd.DataFrame(r) for r in responses]
     half = len(dfs)//2
     med_ip = self.combine(dfs[:half], bedded_patients[['pat_id', 'visit_id']])
     med_op = self.combine(dfs[half:], bedded_patients[['pat_id', 'visit_id']])
+    def remove_inpatient(val):
+        if val is None or str(val) == 'nan':
+            return val
+        for item in val:
+          if item == 'OrderMode' and val[item] == 'Outpatient':
+            return val
+        return {}
+    med_op['MedicationOrders'] = med_op['MedicationOrders'].apply(remove_inpatient)
     return pd.concat([med_ip, med_op]).reset_index(drop=True)
 
 

@@ -139,3 +139,4 @@ concourse-keys
 *.pyc
 aws-*env.sh
 cloud/global/lambda/*/dist
+/etl/analysis_publishing/runReport_controller.py

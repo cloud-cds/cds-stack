@@ -54,14 +54,21 @@ AND p.enc_id NOT IN
 
 
 
-create or replace function pat_id_to_enc_id(_pat_id text)
-RETURNS int
-AS $func$
+create or replace function pat_id_to_enc_id(_pat_id text) RETURNS int AS $func$
 DECLARE _enc_id int;
 BEGIN
 select max(enc_id) from pat_enc where pat_id = _pat_id into _enc_id;
-return _enc_id
-; END $func$ LANGUAGE plpgsql;
+return _enc_id;
+END $func$ LANGUAGE plpgsql;
+
+create or replace function pat_id_to_visit_id(_pat_id text) RETURNS varchar(50) AS $func$
+DECLARE _visit_id varchar(50);
+BEGIN
+select visit_id into _visit_id from pat_enc where pat_id = _pat_id order by enc_id desc limit 1;
+return _visit_id;
+END $func$ LANGUAGE plpgsql;
+
+
 /*
  * UDF used in CDM
  * predefined functions
@@ -1866,9 +1873,10 @@ AS $function$
 DECLARE
   -- Criteria Lookbacks.
   initial_lactate_order_lookback       interval := get_parameter('initial_lactate_order_lookback');
-  orders_lookback                interval := get_parameter('orders_lookback');
-  blood_culture_order_lookback   interval := get_parameter('blood_culture_order_lookback');
-  antibiotics_order_lookback     interval := get_parameter('antibiotics_order_lookback');
+  orders_lookback                      interval := get_parameter('orders_lookback');
+  blood_culture_order_lookback         interval := get_parameter('blood_culture_order_lookback');
+  antibiotics_order_lookback           interval := get_parameter('antibiotics_order_lookback');
+  cms_on                               boolean  := get_parameter('cms_on');
 BEGIN
 raise notice 'enc_id:%', this_enc_id;
 return query
@@ -1880,6 +1888,11 @@ return query
         select e.enc_id
         from enc_ids e inner join cdm_s s on e.enc_id = s.enc_id
         where fid ~ 'esrd'
+    ),
+    seizure as (
+        select e.enc_id
+        from enc_ids e inner join cdm_s s on e.enc_id = s.enc_id
+        where s.fid = 'chief_complaint' and s.value ~* 'seizure'
     ),
     pat_urine_output as (
         select enc_ids.enc_id, sum(uo.value::numeric) as value
@@ -2104,7 +2117,7 @@ return query
                     pat_cvalues.c_otime,
                     pat_cvalues.c_ouser,
                     pat_cvalues.c_ovalue,
-                    criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue) as is_met
+                    criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue) and cms_on as is_met
             from pat_cvalues
             where pat_cvalues.name in ('sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc')
             order by pat_cvalues.tsp
@@ -2134,7 +2147,7 @@ return query
                 (case
                     when pat_cvalues.c_ovalue#>>'{0,text}' = 'No Infection' then false
                     else coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value) is not null
-                  end) as is_met
+                  end) and cms_on as is_met
             from pat_cvalues
             inner join pat_enc on pat_cvalues.enc_id = pat_enc.enc_id
             where pat_cvalues.category = 'respiratory_failure'
@@ -2179,11 +2192,14 @@ return query
                             )
                         when pat_cvalues.name = 'creatinine' then
                             criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue) and esrd.enc_id is null -- excluded esrd enc_ids
+                        when pat_cvalues.name = 'lactate' then
+                            criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue) and seizure.enc_id is null -- exclued seizure enc_ids
                         else criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
                         end
-                    ) as is_met
+                    ) and cms_on as is_met
             from pat_cvalues
             left join esrd on pat_cvalues.enc_id = esrd.enc_id
+            left join seizure on pat_cvalues.enc_id = seizure.enc_id
             where pat_cvalues.name in (
               'blood_pressure', 'mean_arterial_pressure', 'decrease_in_sbp',
               'creatinine', 'bilirubin', 'platelet', 'inr', 'lactate'
@@ -3065,23 +3081,41 @@ BEGIN
         from get_states('new_criteria', this_enc_id) live
         left join get_states_snapshot(this_enc_id) snapshot on snapshot.enc_id = live.enc_id
         where snapshot.state is null
+        or ( snapshot.state < 10 and live.state > snapshot.state)
         or ( snapshot.state = 16 and live.state <> snapshot.state)
-        or ( snapshot.state = 10 and snapshot.severe_sepsis_wo_infection_onset < now() - window_size)
-        or ( snapshot.state = 10 and live.state = 16)
+        or ( snapshot.state = 10 and (snapshot.severe_sepsis_wo_infection_onset < now() - window_size or live.state > 10))
         or ( snapshot.state = 11 and live.state <> snapshot.state)
         -- once on cms severe sepsis path way, keep in cms path way
-        or ( snapshot.state between 20 and 24 and ((live.state between 30 and 36) or (live.state between 20 and 24) or (live.state between 60 and 66)) and snapshot.state < live.state)
+        or ( snapshot.state between 20 and 24
+            and (
+                    (live.state between 30 and 36) or
+                    (live.state between 20 and 24 and snapshot.state <> 23) or
+                    (live.state between 60 and 66)
+                )
+            and snapshot.state < live.state)
         -- once on cms septic shock path way, keep in cms path way
-        or ( snapshot.state between 30 and 36 and (live.state between 30 and 36) and snapshot.state < live.state)
+        or ( snapshot.state between 30 and 36 and snapshot.state <> 35
+            and live.state between 30 and 36
+            and snapshot.state < live.state)
         -- once on trews severe sepsis path way, keep in trews path way
-        or ( snapshot.state between 25 and 29 and ((live.state between 40 and 46) or (live.state between 25 and 29) or (live.state between 60 and 66)) and snapshot.state < live.state)
+        or ( snapshot.state between 25 and 29
+            and (
+                    (live.state between 40 and 46) or
+                    (live.state between 25 and 29 and snapshot.state <> 28) or
+                    (live.state between 60 and 66))
+            and snapshot.state < live.state)
         -- once on trews septic shock path way, keep in trews path way
-        or ( snapshot.state between 40 and 46 and (live.state between 40 and 46) and snapshot.state < live.state)
+        or ( snapshot.state between 40 and 46 and snapshot.state <> 45
+            and live.state between 40 and 46
+            and snapshot.state < live.state)
         -- once on ui severe sepsis path way, keep in ui path way
-        or ( snapshot.state between 50 and 54 and (live.state between 50 and 66) and snapshot.state < live.state)
+        or ( snapshot.state between 50 and 54
+            and (
+                    (live.state between 50 and 54 and snapshot.state <> 53) or
+                    (live.state between 60 and 66)
+                ) and snapshot.state < live.state)
         -- once on ui septic shock path way, keep in ui path way
-        or ( snapshot.state between 60 and 66 and (live.state between 60 and 66) and snapshot.state < live.state)
-        or snapshot.state < live.state
+        or ( snapshot.state between 60 and 66 and snapshot.state <> 65 and live.state between 60 and 66 and snapshot.state < live.state)
     ),
     deactivate_old_snapshot as
     (
@@ -3616,6 +3650,7 @@ RETURNS table(
     flag                int
 ) AS $func$ #variable_conflict use_column
 BEGIN
+  LOCK TABLE epic_notifications_history IN EXCLUSIVE MODE;
   RETURN QUERY
   with prev as (
     select p.pat_id, p.visit_id, p.enc_id, coalesce(
@@ -3627,7 +3662,7 @@ BEGIN
     left join epic_notifications_history h on h.enc_id = p.enc_id
     where p.pat_id = coalesce(this_pat_id, p.pat_id)
     and p.pat_id like 'E%'
-    group by p.enc_id, p.visit_id, p.enc_id
+    group by p.pat_id, p.visit_id, p.enc_id
   ),
   compare as
   (
@@ -4896,6 +4931,29 @@ if to_regclass('' || workspace || '.' || job_id || '_chiefcomplaint_transformed'
     inner join pat_enc pe on pe.visit_id = cc.visit_id
     on conflict (job_id, enc_id, fid)
     do update set value = Excluded.value, confidence = excluded.confidence';
+end if;
+
+-- treatment team
+if to_regclass('workspace.' || job_id || '_treatmentteam_transformed') is not null then
+    execute
+    'with treatment_team_raw as (
+        select pe.enc_id, json_array_elements(tt.value::json) tt_json, tt.value
+        from workspace.' || job_id || '_treatmentteam_transformed tt
+        inner join pat_enc pe on pe.visit_id = tt.visit_id
+        where tt.value <> ''[]''
+    ),
+    treatment_team as (
+        select enc_id, greatest(max((tt_json->>''start'')::timestamptz) filter (where tt_json->>''start'' <> ''''),
+                                max((tt_json->>''end'')::timestamptz) filter (where tt_json->>''end'' <> '''')) tsp,
+            first(value) as value
+        from treatment_team_raw ttr
+        group by enc_id
+    )
+    insert into ' || workspace || '.cdm_t (enc_id, tsp, fid, value, confidence)
+    select enc_id, tsp, ''treatment_team'', value, 1
+    from treatment_team where tsp is not null
+    on conflict (enc_id, tsp, fid)
+    do update set value = Excluded.value, confidence = Excluded.confidence';
 end if;
 
 -- med_orders

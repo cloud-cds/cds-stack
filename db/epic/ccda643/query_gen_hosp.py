@@ -508,7 +508,10 @@ and
   'VIRUSCULTRAP',
   'VIRUSCULTURE',
   'VRESURVCULT',
-  'YEASTCUL'
+  'YEASTCUL',
+  'INFLUANAT',
+  'INFLUBNAT',
+  'RSVNAT'
   )
 );
 GO
@@ -1030,9 +1033,9 @@ GO
 # 1101 jhh
 # 1102 bmc
 # 1103 hcgh
-hosp = '1101'
+hosp = '1102'
 start_date = (2016, 1)
-end_date = (2017, 7)
+end_date = (2017, 1)
 num_months = 12
 for year in range(start_date[0], end_date[0]+1):
   for month in range(1,13,num_months):

@@ -46,6 +46,15 @@ chiefcomplaint_transforms = [
     }),
 ]
 
+treatmentteam_transforms = [
+    lambda tt: restructure.select_columns(tt, {
+        'pat_id': 'pat_id',
+        'visit_id': 'visit_id',
+        'TeamMembers': 'value'
+        }),
+    lambda tt: format_data.format_treatmentteam(tt)
+]
+
 flowsheet_transforms = [
     lambda fs: restructure.select_columns(fs, {
         'pat_id':           'pat_id',
@@ -135,7 +144,8 @@ lab_orders_transforms = [
     lambda lp: translate.translate_epic_id_to_fid(lp,
         col = 'component_id', new_col = 'fid',
         config_map = component_ids, drop_original = True,
-        add_string = '_order', add_string_fid=['blood_culture', 'lactate']
+        add_string = '_order', add_string_fid=['blood_culture', 'lactate'],
+        remove_if_not_found = True
     ),
     lambda lp: format_data.format_tsp(lp, 'tsp'),
     lambda lp: format_data.format_tsp(lp, 'res_tsp'),
