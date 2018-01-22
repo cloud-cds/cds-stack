@@ -335,9 +335,15 @@ variable "s3_weekly_report_firing_rate_expr" {}
 # Alarm2Slack
 
 variable "alarm2slack_kms_key_arn" {}
+
 variable "slack_hook" {}
 variable "slack_channel" {}
 variable "slack_watchers" {}
+
+variable "info_slack_hook" {}
+variable "info_slack_channel" {}
+variable "info_slack_watchers" {}
+
 
 ######################################
 # TREWS Capture

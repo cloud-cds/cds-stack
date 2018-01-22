@@ -8,9 +8,17 @@ variable "slack_hook" {}
 variable "slack_channel" {}
 variable "slack_watchers" {}
 
+variable "info_slack_hook" {}
+variable "info_slack_channel" {}
+variable "info_slack_watchers" {}
+
 ## SNS Topic
-resource "aws_sns_topic" "alarm_topic" {
+resource "aws_sns_topic" "alarm_topic" { # Critical channel
   name = "${var.deploy_prefix}-dev-cw-alarms"
+}
+
+resource "aws_sns_topic" "info_alarm_topic" {
+  name = "${var.deploy_prefix}-dev-info-cw-alarms"
 }
 
 ## Cloudwatch to Slack lambda.
@@ -84,6 +92,28 @@ resource "aws_lambda_function" "alarm2slack_lambda" {
     }
 }
 
+resource "aws_lambda_function" "info_alarm2slack_lambda" {
+    function_name    = "${var.deploy_prefix}-dev-info-alarm2slack-lambda"
+    handler          = "lib/index.handler"
+
+    s3_bucket        = "${var.s3_opsdx_lambda}"
+    s3_key           = "${var.aws_alarm2slack_package}"
+
+    role             = "${aws_iam_role.alarm2slack_lambda_role.arn}"
+    runtime          = "nodejs4.3"
+    timeout          = 300
+
+    kms_key_arn      = "${var.alarm2slack_kms_key_arn}"
+
+    environment {
+      variables {
+        SLACK_HOOK     = "${var.info_slack_hook}"
+        SLACK_CHANNEL  = "${var.info_slack_channel}"
+        SLACK_WATCHERS = "${var.info_slack_watchers}"
+      }
+    }
+}
+
 resource "aws_sns_topic_subscription" "alarm2slack_subscription" {
   depends_on = ["aws_lambda_function.alarm2slack_lambda"]
   topic_arn = "${aws_sns_topic.alarm_topic.arn}"
@@ -98,6 +128,22 @@ resource "aws_lambda_permission" "alarm2slack_from_sns" {
   principal     = "sns.amazonaws.com"
   source_arn    = "${aws_sns_topic.alarm_topic.arn}"
 }
+
+resource "aws_sns_topic_subscription" "info_alarm2slack_subscription" {
+  depends_on = ["aws_lambda_function.info_alarm2slack_lambda"]
+  topic_arn = "${aws_sns_topic.info_alarm_topic.arn}"
+  protocol = "lambda"
+  endpoint = "${aws_lambda_function.info_alarm2slack_lambda.arn}"
+}
+
+resource "aws_lambda_permission" "info_alarm2slack_from_sns" {
+  statement_id  = "AllowExecutionFromSNS"
+  action        = "lambda:InvokeFunction"
+  function_name = "${aws_lambda_function.info_alarm2slack_lambda.arn}"
+  principal     = "sns.amazonaws.com"
+  source_arn    = "${aws_sns_topic.info_alarm_topic.arn}"
+}
+
 
 ## Alarms
 
@@ -280,8 +326,8 @@ resource "aws_cloudwatch_metric_alarm" "high_webservice_latency" {
   threshold                 = "1000"
   treat_missing_data        = "notBreaching"
   alarm_description         = "Average webservice latency in the past minute"
-  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
-  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+  alarm_actions             = ["${aws_sns_topic.info_alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.info_alarm_topic.arn}"]
   dimensions {
     API   = "opsdx-dev"
   }
@@ -299,8 +345,8 @@ resource "aws_cloudwatch_metric_alarm" "high_browser_latency" {
   threshold                 = "1000"
   treat_missing_data        = "notBreaching"
   alarm_description         = "Average browser-side latency in the past minute"
-  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
-  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+  alarm_actions             = ["${aws_sns_topic.info_alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.info_alarm_topic.arn}"]
   dimensions {
     Browser = "opsdx-dev"
   }
@@ -411,8 +457,8 @@ resource "aws_cloudwatch_metric_alarm" "jh_api_request_error" {
   statistic                 = "Maximum"
   threshold                 = "1"
   alarm_description         = "Dev JH API request error in the past hour"
-  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
-  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+  alarm_actions             = ["${aws_sns_topic.info_alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.info_alarm_topic.arn}"]
 
   dimensions {
     ETL = "dev"
@@ -525,5 +571,23 @@ resource "aws_cloudwatch_metric_alarm" "trews_alert_count_8hr" {
 
   dimensions {
     analysis = "opsdx-jh-dev"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "event_count_tst" {
+  alarm_name                = "${var.deploy_prefix}-event-count-tst"
+  comparison_operator       = "LessThanOrEqualToThreshold"
+  evaluation_periods        = "5"
+  metric_name               = "EventCount"
+  namespace                 = "OpsDX"
+  period                    = "60"
+  statistic                 = "SampleCount"
+  threshold                 = "0"
+  alarm_description         = "The number of event counts from TST fired in the past 5 minutes"
+  alarm_actions             = ["${aws_sns_topic.info_alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.info_alarm_topic.arn}"]
+
+  dimensions {
+    API = "opsdx-tst"
   }
 }
