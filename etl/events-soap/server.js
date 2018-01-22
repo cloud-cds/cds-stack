@@ -40,9 +40,15 @@ var service = {
               console.log("forwarded event type:", args['eventInfo']['Type']['$value']) // Print the shortened url.
             }
             else {
-            console.log("error code:", response.statusCode);
-            myMetric.put(1, 'EventCount_FW_ERROR');
-            myMetric.put(1, 'EventCount_FW_ERROR_' + response.statusCode);
+              myMetric.put(1, 'EventCount_FW_ERROR');
+              if(!response){
+                console.log("error code: No response");
+                myMetric.put(1, 'EventCount_FW_ERROR_NO_RESP');
+              }
+              else{
+                console.log("error code:" + response.statusCode);
+                myMetric.put(1, 'EventCount_FW_ERROR_' + response.statusCode);
+              }
             }
           });
         }
