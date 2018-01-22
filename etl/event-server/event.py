@@ -164,6 +164,7 @@ class Epic(web.View):
     try:
       event_type = message['eventInfo']['Type']['$value']
       label = event_type.replace('-','_').replace(' ','')
+      logging.info("received event: {}".format(label))
       cloudwatch_logger.push_many(
         dimension_name  = 'ETL',
         metric_names    = ['EventCount', 'EventCount_{}'.format(label)],

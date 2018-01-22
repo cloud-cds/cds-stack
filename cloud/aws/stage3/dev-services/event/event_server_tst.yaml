@@ -58,8 +58,8 @@ spec:
             - "SYS_PTRACE"
         env:
         - name: event_forward
-          value: ""
-          # value: "https://event-rest-tst.jh.opsdx.io/epic"
+          # value: ""
+          value: "https://event-rest-tst.jh.opsdx.io/epic"
         - name: epic_env
           value: "tst"
         - name: NVM_DIR

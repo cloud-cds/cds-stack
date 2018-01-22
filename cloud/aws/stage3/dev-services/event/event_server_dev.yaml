@@ -58,16 +58,14 @@ spec:
             - "SYS_PTRACE"
         env:
         - name: event_forward
-          value: ""
-          # value: "https://event-rest-prod.jh.opsdx.io/epic"
+          # value: ""
+          value: "https://event-rest-dev.jh.opsdx.io/epic"
         - name: epic_env
           value: "dev"
         - name: NVM_DIR
           value: "/root/.nvm"
         - name: metrics_dimension_value
           value: "opsdx-dev"
-        - name: max_count
-          value: "50"
         - name: AWS_DEFAULT_REGION
           valueFrom:
             secretKeyRef:
