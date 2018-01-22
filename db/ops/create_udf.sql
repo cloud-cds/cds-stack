@@ -4868,7 +4868,7 @@ end if;
 if to_regclass('' || workspace || '.' || job_id || '_discharged') is not null then
     execute '
     INSERT INTO ' || workspace || '.cdm_t (job_id, enc_id, tsp, fid, value, confidence)
-    select '''|| job_id ||''', pat_enc.enc_id, disc.tsp::timestamptz, disc.fid, disc.value, disc.confidence from ' || workspace || '.' || job_id || '_discharged disc
+    select '''|| job_id ||''', pat_enc.enc_id, disc.tsp::timestamptz, disc.fid, disc.value, 0 from ' || workspace || '.' || job_id || '_discharged disc
         inner join pat_enc on pat_enc.visit_id = disc.visit_id
     where disc.tsp <> ''NaT'' and disc.tsp::timestamptz < now()
     ON CONFLICT (job_id, enc_id, tsp, fid)

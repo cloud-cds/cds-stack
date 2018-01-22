@@ -5,7 +5,7 @@ from etl.mappings.lab_procedures import lab_procedure_ids
 from etl.transforms.pipelines import epic2op_transform as jhapi_transform_lists
 from etl.core.environment import Environment
 from etl.io_config.cloudwatch import Cloudwatch
-
+import json
 import sys
 import asyncio
 from aiohttp import ClientSession
@@ -184,13 +184,23 @@ class EpicAPIConfig:
       value          = sum(x[1] for x in result),
       unit           = 'Count'
     )
-    label = 'push_' + endpoint.replace('/', '_') + '_' + http_method
-    self.cloudwatch_logger.push_many(
-      dimension_name  = 'ETL',
-      metric_names    = ['{}_success_push'.format(label), '{}_error_push'.format(label), 'jh_api_request_success_push', 'jh_api_request_error_push'],
-      metric_values   = [sum(x[2] for x in result), sum(x[3] for x in result), sum(x[2] for x in result), sum(x[3] for x in result)],
-      metric_units    = ['Count','Count','Count','Count']
-    )
+    if isinstance(endpoint, list):
+      labels = ['push_' + e.replace('/', '_') + '_' + http_method for e in endpoint]
+      for x, label in zip(result, labels):
+        self.cloudwatch_logger.push_many(
+          dimension_name  = 'ETL',
+          metric_names    = ['{}_success_push'.format(label), '{}_error_push'.format(label), 'jh_api_request_success_push', 'jh_api_request_error_push'],
+          metric_values   = [x[2], x[3], x[2], x[3]],
+          metric_units    = ['Count','Count','Count','Count']
+        )
+    else:
+      label = 'push_' + endpoint.replace('/', '_') + '_' + http_method
+      self.cloudwatch_logger.push_many(
+        dimension_name  = 'ETL',
+        metric_names    = ['{}_success_push'.format(label), '{}_error_push'.format(label), 'jh_api_request_success_push', 'jh_api_request_error_push'],
+        metric_values   = [sum(x[2] for x in result), sum(x[3] for x in result), sum(x[2] for x in result), sum(x[3] for x in result)],
+        metric_units    = ['Count','Count','Count','Count']
+      )
     # Return responses
     return [x[0] for x in result]
 
@@ -233,7 +243,7 @@ class EpicAPIConfig:
     return ed_patients
 
   async def extract_active_procedures(self, ctxt, bedded_patients, args):
-    resource = ['/facilities/hospital/{hosp}/orders/activeprocedures'.format(pat['hospital']) for _, pat in beddedpatients.iterrows()]
+    resource = ['/facilities/hospital/{}/orders/activeprocedures'.format(pat['hospital']) for _, pat in bedded_patients.iterrows()]
     payloads = [{'csn': pat['visit_id']} for _, pat in bedded_patients.iterrows()]
     responses = await self.make_requests(ctxt, resource, payloads, 'GET')
     dfs = [pd.DataFrame(r) for r in responses]
@@ -477,6 +487,7 @@ class EpicAPIConfig:
       return None
     resource = '/patients/contacts'
     pat_id_df = pd.DataFrame(pat_id_list)
+    dfs = None
     if idtype == 'csn':
       # Get rid of fake patients by filtering out incorrect pat_ids
       pat_id_df = pat_id_df[pat_id_df['pat_id'].str.contains('E.*')]
@@ -500,15 +511,17 @@ class EpicAPIConfig:
       response_dfs = []
       logging.info(responses)
       for r in responses:
-        if r:
+        if r and r['Contacts']:
           rec = {'CSN': r['Contacts'][0]['CSN'], 'DepartmentName': r['Contacts'][0]['DepartmentName']}
           for item in r['PatientIDs']:
             if item['IDType'] == 'EMRN':
               rec['pat_id'] = item['ID']
           logging.info(rec)
           response_dfs.append(pd.DataFrame([rec]))
-      dfs = pd.concat(response_dfs)
-    if dfs.empty:
+          dfs = pd.concat(response_dfs)
+        else:
+          logging.warn("No Contacts INFO for {}".format(payloads))
+    if dfs is None or dfs.empty:
       return None
     else:
       dfs['hospital'] = dfs.apply(get_hospital, axis=1)
@@ -535,20 +548,21 @@ class EpicAPIConfig:
       discharged = await self.create_discharge_times(ctxt, contacts)
       return {'discharged': discharged}
 
-  async def create_discharge_times(ctxt, contacts_df):
+  async def create_discharge_times(self, ctxt, contacts_df):
     if contacts_df.empty:
       return
-    discharged_df = contacts_df[contacts_df['discharge_date'] != '']
+    discharged_df = contacts_df[contacts_df['DischargeDate'] != '']
     if discharged_df.empty:
       return None
     def build_value(row):
       value      = json.dumps({
-        'disposition':  row['discharge_disposition'],
-        'department': row['department']
+        'disposition':  row['DischargeDisposition'],
+        'department': row['DepartmentName']
       })
       return value
     discharged_df['confidence'] = 1
-    discharged_df['fid'] = 'discharged'
+    discharged_df['fid'] = 'discharge'
+    discharged_df['tsp'] = discharged_df['DischargeDate']
     discharged_df['value'] = discharged_df.apply(build_value, axis=1)
     return discharged_df
 

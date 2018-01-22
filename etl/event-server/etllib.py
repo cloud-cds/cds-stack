@@ -159,6 +159,8 @@ class ETL():
   def load_pt_map(self):
     '''
     TODO: load and create the ZID to EID mapping
+    pt_map contains existing patient info, including
+    pat_id, age, gender, visit_id, hospital
     '''
     self.pt_map = {}
 
@@ -228,7 +230,23 @@ class ETL():
     '''
     pt = await extractor.extract_mrn_by_zid(self.ctxt, zid)
     contacts = await extractor.extract_contacts(self.ctxt, [pt], None, idtype='patient')
-    pt['visit_id'] = contacts.iloc[0]['CSN']
-    pt['hospital'] = contacts.iloc[0]['hospital']
+    if contacts is None:
+      contacts_from_cdm = await self.get_contacts_from_cdm(self.ctxt, pt['pat_id'])
+      pt['visit_id'] = contacts_from_cdm['visit_id']
+      pt['hospital'] = contacts_from_cdm['hospital']
+    else:
+      pt['visit_id'] = contacts.iloc[0]['CSN']
+      pt['hospital'] = contacts.iloc[0]['hospital']
     self.log.info("extract_mrn_by_zid: {}".format(pt))
     return pt
+
+  async def get_contacts_from_cdm(self, ctxt, eid):
+    async with ctxt.db_pool.acquire() as conn:
+      sql = '''
+      select pe.visit_id, s.value as hospital from pat_enc pe inner join cdm_s s on pe.enc_id = s.enc_id
+      where pe.pat_id = '{}' and s.fid = 'hospital' order by pe.enc_id desc limit 1
+      '''.format(eid)
+      self.log.info("start get_contacts_from_cdm: {}".format(sql))
+      result = await conn.fetch(sql)
+      self.log.info("get_contacts_from_cdm result: {}".format(result))
+      return result[0]
