@@ -50,13 +50,15 @@ spec:
         ports:
         - containerPort: 8000
         command: ["/bin/sh","-c"]
-        # args: ["cd etl/event-server;sh start-tst.sh"]
-        args: ["sleep 10000"]
+        args: ["cd etl/event-server;sh start-tst.sh"]
+        # args: ["sleep 10000"]
         securityContext:
           capabilities:
             add:
             - "SYS_PTRACE"
         env:
+        - name: SWITCH_WEB_REQUEST
+          value: "0"
         - name: TREWS_ETL_SERVER
           value: "test"
         - name: TREWS_ALERT_SERVER_IP
