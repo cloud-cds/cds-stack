@@ -4,7 +4,40 @@ kind: ConfigMap
 metadata:
   name: nginx-config
 data:
-  nginx-config: |-
+  nginx-root-config: |-
+    user  nginx;
+    worker_processes  1;
+
+    error_log  /var/log/nginx/error.log warn;
+    pid        /var/run/nginx.pid;
+
+
+    events {
+        worker_connections  16384;
+    }
+
+
+    http {
+        include       /etc/nginx/mime.types;
+        default_type  application/octet-stream;
+
+        log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                          '$status $body_bytes_sent "$http_referer" '
+                          '"$http_user_agent" "$http_x_forwarded_for"';
+
+        access_log  /var/log/nginx/access.log  main;
+
+        sendfile        on;
+        #tcp_nopush     on;
+
+        keepalive_timeout  65;
+
+        #gzip  on;
+
+        include /etc/nginx/conf.d/*.conf;
+    }
+
+  nginx-forward-config: |-
     server {
         listen 80 default_server;
         listen [::]:80 default_server;
@@ -39,7 +72,10 @@ spec:
         ports:
         - containerPort: 80
         volumeMounts:
-          - name: config-volume
+          - name: root-config-volume
+            mountPath: "/etc/nginx/nginx.conf"
+            subpath: "nginx.conf"
+          - name: forward-config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: event-rest-dev
         image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:latest
@@ -128,11 +164,17 @@ spec:
               name: rest-api-db-secrets
               key: trews-admin-key
       volumes:
-        - name: config-volume
+        - name: root-config-volume
           configMap:
             name: nginx-config
             items:
-              - key: nginx-config
+              - key: nginx-root-config
+                path: nginx.conf
+        - name: forward-config-volume
+          configMap:
+            name: nginx-config
+            items:
+              - key: nginx-forward-config
                 path: trews.conf
 ---
 apiVersion: v1
