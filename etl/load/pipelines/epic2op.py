@@ -14,6 +14,8 @@ from etl.io_config import server_protocol as protocol
 import etl.io_config.core as core
 import random
 import pdb
+from etl.io_config.cloudwatch import Cloudwatch
+cloudwatch_logger = Cloudwatch()
 
 async def extract_non_discharged_patients(ctxt, hospital):
   '''
@@ -142,7 +144,7 @@ async def notify_future_notification(ctxt, _):
   else:
     ctxt.log.info("no etl channel found in the environment, skipping etl notifications")
 
-async def epic_2_workspace(ctxt, db_data, sqlalchemy_str, job_id, dtypes=None, workspace='workspace'):
+async def epic_2_workspace(ctxt, db_data, sqlalchemy_str, job_id, dtypes, workspace):
   ''' Push all the dataframes to a workspace table '''
   async with ctxt.db_pool.acquire() as conn:
     for df_name, df in db_data.items():
@@ -167,24 +169,38 @@ def test_data_2_workspace(ctxt, sqlalchemy_str, mode, job_id):
 
 
 
-async def workspace_to_cdm(ctxt, job_id, workspace='workspace', keep_delta_table=True):
+async def workspace_to_cdm(ctxt, job_id, workspace, keep_delta_table=True):
   query = "select * from workspace_to_cdm('{}','{}','{}');".format(job_id, workspace, keep_delta_table)
   async with ctxt.db_pool.acquire() as conn:
     try:
-      await conn.fetch(query)
+      res = await conn.fetch(query)
+      num_delta_t = res[0][0]
+      cloudwatch_logger.push(
+        dimension_name = 'ETL',
+        metric_name    = 'num_delta_t',
+        value          = num_delta_t,
+        unit           = 'Count'
+      )
     except asyncpg.exceptions.UndefinedTableError:
       logging.error("Workspace table does exist for {}".format(query))
     return job_id
 
 
-async def workspace_to_cdm_delta(ctxt, job_id, workspace='workspace', keep_delta_table=False):
+async def workspace_to_cdm_delta(ctxt, job_id, workspace, keep_delta_table=False):
   query = "select * from workspace_to_cdm('{}','{}','{}');".format(job_id, workspace, keep_delta_table)
   async with ctxt.db_pool.acquire() as conn:
     try:
       res = await conn.fetch(query)
+      num_delta_t = res[0][0]
+      cloudwatch_logger.push(
+        dimension_name = 'ETL',
+        metric_name    = 'num_delta_t_push',
+        value          = num_delta_t,
+        unit           = 'Count'
+      )
     except asyncpg.exceptions.UndefinedTableError:
       logging.error("Workspace table does exist for {}".format(query))
-    return res[0][0]
+    return num_delta_t
 
 async def load_online_prediction_parameters(ctxt, job_id):
   async with ctxt.db_pool.acquire() as conn:
@@ -258,7 +274,7 @@ async def load_online_prediction_parameters(ctxt, job_id):
 
 
 
-async def workspace_fillin(ctxt, prediction_params, job_id, workspace='workspace'):
+async def workspace_fillin(ctxt, prediction_params, job_id, workspace):
   ctxt.log.info("start fillin pipeline")
   # we run the optimized fillin in one run, e.g., update set all columns
   fillin_sql = '''
@@ -277,7 +293,7 @@ async def workspace_fillin(ctxt, prediction_params, job_id, workspace='workspace
     return job_id
 
 
-async def workspace_fillin_delta(ctxt, prediction_params, job_id, workspace='workspace'):
+async def workspace_fillin_delta(ctxt, prediction_params, job_id, workspace):
   ctxt.log.info("start fillin pipeline")
   # we run the optimized fillin in one run, e.g., update set all columns
   fillin_sql = '''
@@ -296,7 +312,7 @@ async def workspace_fillin_delta(ctxt, prediction_params, job_id, workspace='wor
     return result[0][0]
 
 
-async def workspace_derive(ctxt, prediction_params, job_id, workspace='workspace'):
+async def workspace_derive(ctxt, prediction_params, job_id, workspace):
   cdm_feature_dict = prediction_params['cdm_feature_dict']
   derive_features = prediction_params['derive_features']
   ctxt.log.info("derive start")
@@ -349,7 +365,7 @@ async def workspace_derive(ctxt, prediction_params, job_id, workspace='workspace
 
 
 
-async def workspace_predict(ctxt, prediction_params, job_id, workspace='workspace'):
+async def workspace_predict(ctxt, prediction_params, job_id, workspace):
   ctxt.log.info("predict start")
   feature_weights = prediction_params['feature_weights']
   cdm_feature_dict = prediction_params['cdm_feature_dict']
@@ -402,7 +418,7 @@ async def workspace_predict(ctxt, prediction_params, job_id, workspace='workspac
 
 
 
-async def workspace_submit_delta(ctxt, job_id, workspace='event_workspace'):
+async def workspace_submit_delta(ctxt, job_id, workspace):
   # submit to cdm_twf
   # submit to trews
   ctxt.log.info("submit delta start")
@@ -417,7 +433,7 @@ async def workspace_submit_delta(ctxt, job_id, workspace='event_workspace'):
     ctxt.log.info("submit completed")
     return job_id
 
-async def workspace_submit(ctxt, job_id, workspace='workspace', drop_workspace_table=True, trews=True):
+async def workspace_submit(ctxt, job_id, workspace, drop_workspace_table=True, trews=True):
   # submit to cdm_twf
   # submit to trews
   ctxt.log.info("submit start")
@@ -524,26 +540,26 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
     Task(name = 'workspace_to_cdm',
          deps = ['epic_2_workspace'],
          coro = workspace_to_cdm,
-         args = ['event_workspace', True]),
+         args = ['workspace', True]),
     Task(name = 'load_online_prediction_parameters',
          deps = ['workspace_to_cdm'],
          coro = load_online_prediction_parameters),
     Task(name = 'workspace_fillin',
          deps = ['load_online_prediction_parameters', 'workspace_to_cdm'],
          coro = workspace_fillin,
-         args = ['event_workspace']),
+         args = ['workspace']),
     Task(name = 'workspace_derive',
          deps = ['load_online_prediction_parameters', 'workspace_fillin'],
          coro = workspace_derive,
-         args = ['event_workspace']),
+         args = ['workspace']),
     Task(name = 'workspace_predict',
          deps = ['load_online_prediction_parameters', 'workspace_derive'],
          coro = workspace_predict,
-         args = ['event_workspace']),
+         args = ['workspace']),
     Task(name = 'workspace_submit',
          deps = ['workspace_predict'],
          coro = workspace_submit_delta,
-         args = ['event_workspace']),
+         args = ['workspace']),
     Task(name = 'load_discharge_times',
          deps = ['contacts_transform'],
          coro = load_discharge_times),
