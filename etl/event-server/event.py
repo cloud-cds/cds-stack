@@ -141,16 +141,13 @@ class Epic(web.View):
           requests = await self.get_web_requests(event)
           if requests and len(requests) > 0:
             self.request.app.web_req_buf.add_requests(requests)
-    except web.HTTPException:
-      raise
-
     except Exception as ex:
       logging.warning(str(ex))
       traceback.print_exc()
       raise web.HTTPBadRequest(body=json.dumps({'message': str(ex)}))
 
     finally:
-      # TODO: define fault tolerant resones
+      # TODO: define fault tolerant responses
       return json_response({})
 
   def parse_epic_event(self, message):
