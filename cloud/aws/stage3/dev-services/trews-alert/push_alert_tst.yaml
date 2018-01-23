@@ -53,11 +53,11 @@ spec:
             memory: "2Gi"
             cpu: "250m"
         command:
-        - sh
-        - -c
-        - sleep 72000
-        # - /usr/local/bin/python3
-        # - /etl/alerts/server.py
+        # - sh
+        # - -c
+        # - sleep 72000
+        - /usr/local/bin/python3
+        - /etl/alerts/server.py
         ports:
           - name: push-alerts-tst
             containerPort: 31000

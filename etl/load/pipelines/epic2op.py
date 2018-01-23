@@ -16,6 +16,7 @@ import random
 import pdb
 from etl.io_config.cloudwatch import Cloudwatch
 cloudwatch_logger = Cloudwatch()
+WORKSPACE = core.get_environment_var('TREWS_ETL_WORKSPACE')
 
 async def extract_non_discharged_patients(ctxt, hospital):
   '''
@@ -524,7 +525,7 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
       name = 'epic_2_workspace_archive',
       deps = [db_raw_data_task],
       coro = epic_2_workspace,
-      args = [sqlalchemy_str, job_id, 'unicode', 'workspace'],
+      args = [sqlalchemy_str, job_id, 'unicode', WORKSPACE],
     ))
   if 'test' in mode:
     all_tasks += [Task(
@@ -536,30 +537,30 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
     Task(name = 'epic_2_workspace',
          deps = [db_data_task],
          coro = epic_2_workspace,
-         args = [sqlalchemy_str, job_id, None, 'workspace']),
+         args = [sqlalchemy_str, job_id, None, WORKSPACE]),
     Task(name = 'workspace_to_cdm',
          deps = ['epic_2_workspace'],
          coro = workspace_to_cdm,
-         args = ['workspace', True]),
+         args = [WORKSPACE, True]),
     Task(name = 'load_online_prediction_parameters',
          deps = ['workspace_to_cdm'],
          coro = load_online_prediction_parameters),
     Task(name = 'workspace_fillin',
          deps = ['load_online_prediction_parameters', 'workspace_to_cdm'],
          coro = workspace_fillin,
-         args = ['workspace']),
+         args = [WORKSPACE]),
     Task(name = 'workspace_derive',
          deps = ['load_online_prediction_parameters', 'workspace_fillin'],
          coro = workspace_derive,
-         args = ['workspace']),
+         args = [WORKSPACE]),
     Task(name = 'workspace_predict',
          deps = ['load_online_prediction_parameters', 'workspace_derive'],
          coro = workspace_predict,
-         args = ['workspace']),
+         args = [WORKSPACE]),
     Task(name = 'workspace_submit',
          deps = ['workspace_predict'],
          coro = workspace_submit_delta,
-         args = ['workspace']),
+         args = [WORKSPACE]),
     Task(name = 'load_discharge_times',
          deps = ['contacts_transform'],
          coro = load_discharge_times),
