@@ -1,3 +1,6 @@
+var http = require('http')
+http.globalAgent.maxSockets = 1024;
+
 var soap = require('soap');
 var express = require('express');
 var app = express();

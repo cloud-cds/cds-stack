@@ -91,6 +91,7 @@ resource "aws_lambda_function" "test_etl_lambda_HCGH" {
         k8s_job_TREWS_ETL_EPIC_NOTIFICATIONS = "${var.DEV_ETL_EPIC_NOTIFICATIONS}" # disabled when suppression <> 0
         k8s_job_TREWS_ETL_SUPPRESSION = "2"
         k8s_job_TREWS_ALERT_SERVER_IP = "push-alerts-tst.default.svc.cluster.local"
+        k8s_job_TREWS_ETL_WORKSPACE = "event_workspace"
       }
     }
 }

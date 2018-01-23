@@ -16,7 +16,7 @@ import random
 import pdb
 from etl.io_config.cloudwatch import Cloudwatch
 cloudwatch_logger = Cloudwatch()
-WORKSPACE = core.get_environment_var('TREWS_ETL_WORKSPACE')
+WORKSPACE = core.get_environment_var('TREWS_ETL_WORKSPACE', 'event_workspace')
 
 async def extract_non_discharged_patients(ctxt, hospital):
   '''
