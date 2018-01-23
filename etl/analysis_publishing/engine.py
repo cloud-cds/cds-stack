@@ -52,7 +52,7 @@ class Engine:
 
     if mode == 'reports':
       metric_list = [
-        metrics.ed_metrics,
+        #metrics.ed_metrics,
         metrics.report_introduction,
         metrics.pats_seen_by_docs,
         metrics.suspicion_of_infection_modified,
