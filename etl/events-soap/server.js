@@ -66,7 +66,7 @@ var service = {
 
             forwarder(options, function (error, response, body) {
               if (!error && response.statusCode == 200) {
-                myMetric.put(1, 'EventCount_FW_SUCCESS');
+                myMetric.put(batch.length, 'EventCount_FW_SUCCESS');
                 console.log("forwarded event type:", args['eventInfo']['Type']['$value']) // Print the shortened url.
 
                 // Clean batch and reset timer.
@@ -74,14 +74,14 @@ var service = {
                 batch_ts = moment();
               }
               else {
-                myMetric.put(1, 'EventCount_FW_ERROR');
+                myMetric.put(batch.length, 'EventCount_FW_ERROR');
                 if(!response){
                   console.log("error code: No response");
-                  myMetric.put(1, 'EventCount_FW_ERROR_NO_RESP');
+                  myMetric.put(batch.length, 'EventCount_FW_ERROR_NO_RESP');
                 }
                 else{
                   console.log("error code:" + response.statusCode);
-                  myMetric.put(1, 'EventCount_FW_ERROR_' + response.statusCode);
+                  myMetric.put(batch.length, 'EventCount_FW_ERROR_' + response.statusCode);
                 }
                 console.log(JSON.stringify(error));
               }
