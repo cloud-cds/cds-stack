@@ -61,7 +61,7 @@ var service = {
             var options = {
               uri: event_forward,
               method: 'POST',
-              json: args
+              json: batch
             };
 
             forwarder(options, function (error, response, body) {
