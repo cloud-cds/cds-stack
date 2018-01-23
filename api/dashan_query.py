@@ -763,10 +763,6 @@ async def push_notifications_to_epic(db_pool, eid, notify_future_notification=Tr
         logging.info("Serialization error, retrying transaction")
         await asyncio.sleep(1)
 
-      except asyncio.TimeoutError:
-        logging.info("Connection timed out, retrying")
-        await asyncio.sleep(1)
-
       except:
         notifications = None
         break
@@ -1001,29 +997,25 @@ async def invalidate_cache_batch(db_pool, pid, channel, serial_id, pat_cache):
   '''.format(serial_id=serial_id, model=model_in_use, channel=channel)
   pat_sql = 'select jsonb_array_elements_text(pats) pat_id from refreshed_pats where id = {}'.format(serial_id)
 
-  async with db_pool.acquire() as conn:
-    while retries < max_retries:
-      retries += 1
-      try:
-        async with conn.transaction(isolation='serializable'):
-          notifications = await conn.fetch(sql)
-          logging.info('get_notifications_for_epic results %s' % len(notifications))
-          await load_epic_notifications(notifications)
-          pats = await conn.fetch(pat_sql)
-          logging.info("Invalidating cache for %s" % ','.join(pat_id['pat_id'] for pat_id in pats))
-          for pat_id in pats:
-            asyncio.ensure_future(pat_cache.delete(pat_id['pat_id']))
-          break
+  try:
+    async with db_pool.acquire() as conn:
+      while retries < max_retries:
+        retries += 1
+        try:
+          async with conn.transaction(isolation='serializable'):
+            notifications = await conn.fetch(sql)
+            logging.info('get_notifications_for_epic results %s' % len(notifications))
+            await load_epic_notifications(notifications)
+            pats = await conn.fetch(pat_sql)
+            logging.info("Invalidating cache for %s" % ','.join(pat_id['pat_id'] for pat_id in pats))
+            for pat_id in pats:
+              asyncio.ensure_future(pat_cache.delete(pat_id['pat_id']))
+            break
 
-      except asyncpg.exceptions.SerializationError:
-        logging.info("Serialization error, retrying transaction")
-        await asyncio.sleep(1)
+        except asyncpg.exceptions.SerializationError:
+          logging.info("Serialization error, retrying transaction")
+          await asyncio.sleep(1)
 
-      except asyncio.TimeoutError:
-        logging.info("Connection timed out, retrying")
-        await asyncio.sleep(1)
-
-      except Exception as ex:
-        logging.warning(str(ex))
-        traceback.print_exc()
-        break
+  except Exception as ex:
+    logging.warning(str(ex))
+    traceback.print_exc()
