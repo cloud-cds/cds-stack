@@ -473,7 +473,7 @@ class AlertServer:
       #   'msg': message, 't_start': dt.datetime.now()
       # }
       if self.model == 'lmc' or self.model == 'trews-jit':
-        if message.get('hosp') == 'PUSH' and self.push_based:
+        if self.push_based:
           # create predict task for predictor
           predict_enc_ids = await self.get_enc_ids_to_predict(message['job_id'])
           t_start = parser.parse(message['job_id'].split('_')[-1])
