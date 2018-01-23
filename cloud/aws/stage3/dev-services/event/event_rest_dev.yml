@@ -1,0 +1,169 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+data:
+  nginx-config: |-
+    server {
+        listen 80 default_server;
+        listen [::]:80 default_server;
+        root /var/www/html;
+        index index.html index.htm index.nginx-debian.html;
+        server_name _;
+        location / {
+          proxy_pass http://127.0.0.1:8000;
+        }
+    }
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: event-rest-dev
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: event-rest-dev
+    spec:
+      nodeSelector:
+        opsdx_nodegroup: spot-nodes
+      containers:
+      - name: trews-nginx
+        image: nginx:alpine
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+        ports:
+        - containerPort: 80
+        volumeMounts:
+          - name: config-volume
+            mountPath: "/etc/nginx/conf.d/"
+      - name: event-rest-dev
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:latest
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+        ports:
+        - containerPort: 8000
+        command: ["/bin/sh","-c"]
+        args: ["cd etl/event-server;sh start.sh"]
+        # args: ["sleep 10000"]
+        securityContext:
+          capabilities:
+            add:
+            - "SYS_PTRACE"
+        env:
+        - name: SWITCH_WEB_REQUEST
+          value: "0"
+        - name: TREWS_ETL_SERVER
+          value: "prod"
+        - name: TREWS_ALERT_SERVER_IP
+          value: "push-alerts-dev.default.svc.cluster.local"
+        - name: TREWS_ETL_HOSPITAL
+          value: "HCGH"
+        - name: TREWS_ETL_HOURS
+          value: "8"
+        - name: TREWS_ETL_MODE
+          value: "1"
+        - name: model_in_use
+          value: "trews-jit"
+        - name: db_host
+          value: "dev.db.jh.opsdx.io"
+        - name: db_port
+          value: "5432"
+        - name: db_name
+          value: "opsdx_dev"
+        - name: db_user
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: db-username
+        - name: db_password
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: db-password
+        - name: jhapi_client_id
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: jhapi-client-id
+        - name: jhapi_client_secret
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: jhapi-client-secret
+        - name: AWS_DEFAULT_REGION
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-region
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-secret-access-key
+        - name: querystring_key
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: querystring-key
+        - name: trews_app_key
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: trews-app-key
+        - name: trews_admin_key
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: trews-admin-key
+      volumes:
+        - name: config-volume
+          configMap:
+            name: nginx-config
+            items:
+              - key: nginx-config
+                path: trews.conf
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: event-rest-svc-dev
+  labels:
+    app: event-rest-dev
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    name: http
+    targetPort: 80
+  selector:
+    app: event-rest-dev
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: event-rest-ingress-dev
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    ingress.kubernetes.io/ssl-redirect: "true"
+    ingrees.kubernetes.io/ingress.allow-http: "false"
+spec:
+  rules:
+  - host: event-rest-dev.jh.opsdx.io
+    http:
+      paths:
+      - backend:
+          serviceName: event-rest-svc-dev
+          servicePort: 80
+        path: /

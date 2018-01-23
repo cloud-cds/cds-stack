@@ -607,21 +607,3 @@ resource "aws_cloudwatch_metric_alarm" "event_count_dev" {
     API = "opsdx-dev"
   }
 }
-
-resource "aws_cloudwatch_metric_alarm" "event_count_tst" {
-  alarm_name                = "${var.deploy_prefix}-event-count-tst"
-  comparison_operator       = "LessThanOrEqualToThreshold"
-  evaluation_periods        = "5"
-  metric_name               = "EventCount"
-  namespace                 = "OpsDX"
-  period                    = "60"
-  statistic                 = "SampleCount"
-  threshold                 = "0"
-  alarm_description         = "The number of event counts from TST fired in the past 5 minutes"
-  alarm_actions             = ["${aws_sns_topic.info_alarm_topic.arn}"]
-  ok_actions                = ["${aws_sns_topic.info_alarm_topic.arn}"]
-
-  dimensions {
-    API = "opsdx-tst"
-  }
-}

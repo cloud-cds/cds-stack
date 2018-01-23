@@ -13,6 +13,7 @@ import json
 from etl.io_config import server_protocol as protocol
 import etl.io_config.core as core
 import random
+import pdb
 
 async def extract_non_discharged_patients(ctxt, hospital):
   '''
@@ -166,7 +167,7 @@ def test_data_2_workspace(ctxt, sqlalchemy_str, mode, job_id):
 
 
 
-async def workspace_to_cdm(ctxt, job_id, workspace='workspace', keep_delta_table=False):
+async def workspace_to_cdm(ctxt, job_id, workspace='workspace', keep_delta_table=True):
   query = "select * from workspace_to_cdm('{}','{}','{}');".format(job_id, workspace, keep_delta_table)
   async with ctxt.db_pool.acquire() as conn:
     try:
@@ -261,7 +262,7 @@ async def workspace_fillin(ctxt, prediction_params, job_id, workspace='workspace
   ctxt.log.info("start fillin pipeline")
   # we run the optimized fillin in one run, e.g., update set all columns
   fillin_sql = '''
-    SELECT * from workspace_fillin({fillin_fids}, {twf_table}, 'cdm_t', '{job_id}', '{workspace}');
+    SELECT * from workspace_fillin_delta({fillin_fids}, {twf_table}, 'cdm_t', '{job_id}', '{workspace}');
     '''.format(
       fillin_fids = 'array[{}]'.format(','.join(["'{}'".format(x) for x in prediction_params['fillin_features']])),
       twf_table   = "'{}.{}_cdm_twf'".format(workspace, job_id),
@@ -507,7 +508,7 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
       name = 'epic_2_workspace_archive',
       deps = [db_raw_data_task],
       coro = epic_2_workspace,
-      args = [sqlalchemy_str, job_id, 'unicode'],
+      args = [sqlalchemy_str, job_id, 'unicode', 'workspace'],
     ))
   if 'test' in mode:
     all_tasks += [Task(
@@ -519,25 +520,30 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
     Task(name = 'epic_2_workspace',
          deps = [db_data_task],
          coro = epic_2_workspace,
-         args = [sqlalchemy_str, job_id, None]),
+         args = [sqlalchemy_str, job_id, None, 'workspace']),
     Task(name = 'workspace_to_cdm',
          deps = ['epic_2_workspace'],
-         coro = workspace_to_cdm),
+         coro = workspace_to_cdm,
+         args = ['event_workspace', True]),
     Task(name = 'load_online_prediction_parameters',
          deps = ['workspace_to_cdm'],
          coro = load_online_prediction_parameters),
     Task(name = 'workspace_fillin',
          deps = ['load_online_prediction_parameters', 'workspace_to_cdm'],
-         coro = workspace_fillin),
+         coro = workspace_fillin,
+         args = ['event_workspace']),
     Task(name = 'workspace_derive',
          deps = ['load_online_prediction_parameters', 'workspace_fillin'],
-         coro = workspace_derive),
+         coro = workspace_derive,
+         args = ['event_workspace']),
     Task(name = 'workspace_predict',
          deps = ['load_online_prediction_parameters', 'workspace_derive'],
-         coro = workspace_predict),
+         coro = workspace_predict,
+         args = ['event_workspace']),
     Task(name = 'workspace_submit',
          deps = ['workspace_predict'],
-         coro = workspace_submit),
+         coro = workspace_submit_delta,
+         args = ['event_workspace']),
     Task(name = 'load_discharge_times',
          deps = ['contacts_transform'],
          coro = load_discharge_times),

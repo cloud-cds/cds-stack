@@ -393,7 +393,7 @@ def get_extraction_tasks(extractor, max_pats=None):
     {
       'name': 'ed_patients_mrn_extract',
       'deps': ['ed_patients_transform'],
-      'fn':   extractor.extract_mrn,
+      'fn':   extractor.extract_ed_patients_mrn,
       'args': [],
     },
     {

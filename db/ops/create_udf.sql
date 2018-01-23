@@ -4777,7 +4777,7 @@ WHERE fid = 'admittime'
 ORDER BY now() - value::timestamptz
 ; END $func$ LANGUAGE plpgsql;
 
-create or replace function workspace_to_cdm(job_id text, workspace text default 'workspace', keep_delta_table boolean default false)
+create or replace function workspace_to_cdm(job_id text, workspace text default 'workspace', keep_delta_table boolean default true)
 returns integer as $func$
 declare
     num_delta integer;
