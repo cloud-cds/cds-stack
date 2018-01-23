@@ -42,7 +42,7 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: trews-rest-api-test
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.651
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.664
         resources:
           requests:
             memory: "2816Mi"
@@ -74,6 +74,10 @@ spec:
           value: "epic2017"
         - name: model_in_use
           value: "trews-jit"
+        - name: v1_flowsheets
+          value: "true"
+        - name: soi_flowsheet
+          value: "true"
         - name: db_host
           value: "dev.db.jh.opsdx.io"
         - name: db_port
@@ -174,8 +178,6 @@ spec:
           value: "30"
         - name: chart_sample_hrs
           value: "4"
-        - name: v1_flowsheets
-          value: "true"
       volumes:
         - name: config-volume
           configMap:
