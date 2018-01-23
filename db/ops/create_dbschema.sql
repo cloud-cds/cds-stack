@@ -150,6 +150,19 @@ CREATE TABLE event_workspace.cdm_notes (
     PRIMARY KEY (job_id, enc_id, note_id, note_type, note_status)
 );
 
+DROP TABLE IF EXISTS workspace.cdm_notes;
+CREATE TABLE workspace.cdm_notes (
+    job_id          text,
+    enc_id          int,
+    note_id         varchar(50),
+    note_type       varchar(50),
+    note_status     varchar(50),
+    note_body       text,
+    dates           json,
+    providers       json,
+    PRIMARY KEY (job_id, enc_id, note_id, note_type, note_status)
+);
+
 DROP TABLE IF EXISTS metrics_events;
 CREATE TABLE metrics_events
 (

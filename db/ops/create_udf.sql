@@ -4949,10 +4949,10 @@ if to_regclass('workspace.' || job_id || '_treatmentteam_transformed') is not nu
         from treatment_team_raw ttr
         group by enc_id
     )
-    insert into ' || workspace || '.cdm_t (enc_id, tsp, fid, value, confidence)
-    select enc_id, tsp, ''treatment_team'', value, 1
+    insert into ' || workspace || '.cdm_t (job_id, enc_id, tsp, fid, value, confidence)
+    select '''|| job_id ||''', enc_id, tsp, ''treatment_team'', value, 1
     from treatment_team where tsp is not null
-    on conflict (enc_id, tsp, fid)
+    on conflict (job_id, enc_id, tsp, fid)
     do update set value = Excluded.value, confidence = Excluded.confidence';
 end if;
 
