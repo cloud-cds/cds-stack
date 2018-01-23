@@ -584,7 +584,7 @@ resource "aws_cloudwatch_metric_alarm" "event_count_tst" {
   alarm_description         = "The number of event counts from TST fired in the past 5 minutes"
   alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
-
+  treat_missing_data        = "ignore"
   dimensions {
     API = "opsdx-tst"
   }
@@ -602,7 +602,7 @@ resource "aws_cloudwatch_metric_alarm" "event_count_dev" {
   alarm_description         = "The number of event counts from DEV fired in the past 5 minutes"
   alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
   ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
-
+  treat_missing_data        = "breaching"
   dimensions {
     API = "opsdx-dev"
   }
