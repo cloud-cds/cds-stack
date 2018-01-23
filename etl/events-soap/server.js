@@ -13,6 +13,22 @@ var myMetric = new cloudwatchMetrics.Metric('OpsDX', 'Count', [{
   console.log(err)
   }
 });
+
+if (!('toJSON' in Error.prototype))
+Object.defineProperty(Error.prototype, 'toJSON', {
+    value: function () {
+        var alt = {};
+
+        Object.getOwnPropertyNames(this).forEach(function (key) {
+            alt[key] = this[key];
+        }, this);
+
+        return alt;
+    },
+    configurable: true,
+    writable: true
+});
+
 var event_forward = process.env.event_forward;
 var request = require('request');
 /**
@@ -49,6 +65,7 @@ var service = {
                 console.log("error code:" + response.statusCode);
                 myMetric.put(1, 'EventCount_FW_ERROR_' + response.statusCode);
               }
+              console.log(JSON.stringify(error));
             }
           });
         }

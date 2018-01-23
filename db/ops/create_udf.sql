@@ -4792,17 +4792,7 @@ insert into etl_job (job_id, tsp, hospital, workspace)
 on conflict (job_id) do update set tsp = excluded.tsp, hospital = excluded.hospital, workspace = excluded.workspace;';
 
 if to_regclass('' || workspace || '.' || job_id || '_bedded_patients_transformed') is not null then
-    if workspace = 'workspace' then
-        execute '
-        --insert_new_patients
-        insert into pat_enc (pat_id, visit_id)
-        select bp.pat_id, bp.visit_id
-        from ' || workspace || '.' || job_id || '_bedded_patients_transformed bp
-        left join pat_enc pe on bp.visit_id = pe.visit_id
-        where pe.enc_id is null
-        on conflict (visit_id, pat_id)
-        do nothing;';
-    else
+    if job_id ~* 'push' then
         execute '
         --insert_new_patients
         insert into pat_enc (pat_id, visit_id, zid)
@@ -4812,6 +4802,16 @@ if to_regclass('' || workspace || '.' || job_id || '_bedded_patients_transformed
         where pe.enc_id is null
         on conflict (visit_id, pat_id)
         do update set zid = excluded.zid;';
+    else
+        execute '
+        --insert_new_patients
+        insert into pat_enc (pat_id, visit_id)
+        select bp.pat_id, bp.visit_id
+        from ' || workspace || '.' || job_id || '_bedded_patients_transformed bp
+        left join pat_enc pe on bp.visit_id = pe.visit_id
+        where pe.enc_id is null
+        on conflict (visit_id, pat_id)
+        do nothing;';
     end if;
     execute '
     -- age
