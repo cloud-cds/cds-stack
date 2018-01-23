@@ -222,7 +222,9 @@ variable "k8s_dev_key" {
   description = "Kubernetes client key data"
 }
 
+
 variable "k8s_dev_image" {}
+variable "k8s_dev_image_dev" {}
 variable "k8s_dev_utilities_image" {}
 variable "k8s_dev_ml_trews_image" {}
 
