@@ -745,9 +745,9 @@ async def push_notifications_to_epic(db_pool, eid, notify_future_notification=Tr
   retries = 0
   max_retries = 5
   notifications = None
-  while retries < max_retries:
-    retries += 1
-    async with db_pool.acquire() as conn:
+  async with db_pool.acquire() as conn:
+    while retries < max_retries:
+      retries += 1
       model = model_in_use
       notifications_sql = \
       '''
@@ -771,23 +771,23 @@ async def push_notifications_to_epic(db_pool, eid, notify_future_notification=Tr
         notifications = None
         break
 
-  if notifications:
-    logging.info("push notifications to epic (epic_notifications={}) for {}".format(epic_notifications, eid))
-    await load_epic_notifications(notifications)
-    etl_channel = os.environ['etl_channel'] if 'etl_channel' in os.environ else None
-    if etl_channel and notify_future_notification:
-      notify_future_notification_sql = \
-      '''
-      select * from notify_future_notification('%s', '%s');
-      ''' % (etl_channel, eid)
-      logging.info("notify future notification: {}".format(notify_future_notification_sql))
-      await conn.fetch(notify_future_notification_sql)
-    elif etl_channel is None:
-      logging.error("Unknown environ Error: etl_channel")
+    if notifications:
+      logging.info("push notifications to epic (epic_notifications={}) for {}".format(epic_notifications, eid))
+      await load_epic_notifications(notifications)
+      etl_channel = os.environ['etl_channel'] if 'etl_channel' in os.environ else None
+      if etl_channel and notify_future_notification:
+        notify_future_notification_sql = \
+        '''
+        select * from notify_future_notification('%s', '%s');
+        ''' % (etl_channel, eid)
+        logging.info("notify future notification: {}".format(notify_future_notification_sql))
+        await conn.fetch(notify_future_notification_sql)
+      elif etl_channel is None:
+        logging.error("Unknown environ Error: etl_channel")
+      else:
+        logging.info("skipping notify_future_notification")
     else:
-      logging.info("skipping notify_future_notification")
-  else:
-    logging.info("skipping notifications (e.g., no update or not in notifications_whitelist)")
+      logging.info("skipping notifications (e.g., no update or not in notifications_whitelist)")
 
 
 async def load_epic_notifications(notifications):
@@ -1001,10 +1001,10 @@ async def invalidate_cache_batch(db_pool, pid, channel, serial_id, pat_cache):
   '''.format(serial_id=serial_id, model=model_in_use, channel=channel)
   pat_sql = 'select jsonb_array_elements_text(pats) pat_id from refreshed_pats where id = {}'.format(serial_id)
 
-  while retries < max_retries:
-    retries += 1
-    try:
-      async with db_pool.acquire() as conn:
+  async with db_pool.acquire() as conn:
+    while retries < max_retries:
+      retries += 1
+      try:
         async with conn.transaction(isolation='serializable'):
           notifications = await conn.fetch(sql)
           logging.info('get_notifications_for_epic results %s' % len(notifications))
@@ -1015,15 +1015,15 @@ async def invalidate_cache_batch(db_pool, pid, channel, serial_id, pat_cache):
             asyncio.ensure_future(pat_cache.delete(pat_id['pat_id']))
           break
 
-    except asyncpg.exceptions.SerializationError:
-      logging.info("Serialization error, retrying transaction")
-      await asyncio.sleep(1)
+      except asyncpg.exceptions.SerializationError:
+        logging.info("Serialization error, retrying transaction")
+        await asyncio.sleep(1)
 
-    except asyncio.TimeoutError:
-      logging.info("Connection timed out, retrying")
-      await asyncio.sleep(1)
+      except asyncio.TimeoutError:
+        logging.info("Connection timed out, retrying")
+        await asyncio.sleep(1)
 
-    except Exception as ex:
-      logging.warning(str(ex))
-      traceback.print_exc()
-      break
+      except Exception as ex:
+        logging.warning(str(ex))
+        traceback.print_exc()
+        break
