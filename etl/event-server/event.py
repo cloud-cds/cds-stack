@@ -135,12 +135,14 @@ class Epic(web.View):
 
   async def post(self):
     try:
-        message = await self.request.json()
-        event = self.parse_epic_event(message)
-        if event and SWITCH_WEB_REQUEST:
-          requests = await self.get_web_requests(event)
-          if requests and len(requests) > 0:
-            self.request.app.web_req_buf.add_requests(requests)
+        message_batch = await self.request.json()
+        for message in message_batch:
+          event = self.parse_epic_event(message)
+          if event and SWITCH_WEB_REQUEST:
+            requests = await self.get_web_requests(event)
+            if requests and len(requests) > 0:
+              self.request.app.web_req_buf.add_requests(requests)
+
     except Exception as ex:
       logging.warning(str(ex))
       traceback.print_exc()
