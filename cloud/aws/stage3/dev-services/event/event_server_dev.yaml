@@ -97,6 +97,8 @@ spec:
           value: "0"
         - name: TREWS_ETL_SERVER
           value: "prod"
+        - name: TREWS_ETL_WORKSPACE
+          value: "event_workspace"
         - name: TREWS_ALERT_SERVER_IP
           value: "push-alerts-dev.default.svc.cluster.local"
         - name: TREWS_ETL_HOSPITAL
