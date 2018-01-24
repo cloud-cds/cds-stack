@@ -345,10 +345,10 @@ class EpicAPIConfig:
       for i, pt in pats.iterrows():
         if len(pt['ids']) == 0 and ('med_order_ids' in args[i]):
           pats.set_value(i, 'ids', [[{'ID': id, 'Type': 'Internal'}] for id in args[i]['med_order_ids']])
-      logging.info(pats)
+      logging.debug(pats)
       return pats[pats.astype(str)['ids'] != '[]']
 
-    logging.info("extracting med admin")
+    logging.debug("extracting med admin")
     med_orders_df = None
     for result in results:
       for name in result:
@@ -356,7 +356,7 @@ class EpicAPIConfig:
           med_orders_df = result[name]
     med_orders = build_med_admin_request_data(ctxt, beddedpatients, med_orders_df, args)
     if med_orders is None or med_orders.empty:
-      logging.info("No med_orders for MAR")
+      logging.debug("No med_orders for MAR")
       return None
     else:
       resource = '/patients/medicationadministrationhistory'
@@ -366,14 +366,14 @@ class EpicAPIConfig:
         'OrderIDs':         list(itertools.chain.from_iterable(order['ids'])),
         'PatientID':        order['pat_id']
       } for _, order in med_orders.iterrows()]
-      logging.info('med_orders: {}'.format(med_orders))
+      logging.debug('med_orders: {}'.format(med_orders))
       responses = await self.make_requests(ctxt, resource, payloads, 'POST')
       dfs = [pd.DataFrame(r) for r in responses]
-      logging.info('dfs: {}'.format(dfs))
+      logging.debug('dfs: {}'.format(dfs))
       df_raw = self.combine(dfs, med_orders[['pat_id', 'visit_id']])
-      logging.info('df_raw: {}'.format(df_raw))
+      logging.debug('df_raw: {}'.format(df_raw))
       df_tran = self.transform(ctxt, df_raw, 'med_admin_transforms')
-      logging.info(df_tran)
+      logging.debug(df_tran)
       if df_tran is not None:
         return {'med_admin_transformed': self.tz_hack(ctxt, df_tran)}
 
@@ -421,8 +421,8 @@ class EpicAPIConfig:
       'dateTo'   : self.dateTo
     } for _, pat in bedded_patients.iterrows()]
     responses = await self.make_requests(ctxt, resource, payloads, 'GET')
-    logging.info('#NOTES PAYLOADS: %s' % len(payloads))
-    logging.info('#NOTES RESPONSES: %s' % len(responses))
+    logging.debug('#NOTES PAYLOADS: %s' % len(payloads))
+    logging.debug('#NOTES RESPONSES: %s' % len(responses))
     dfs = [pd.DataFrame(r['DocumentListData'] if r else None) for r in responses]
     df = self.combine(dfs, bedded_patients[['pat_id']])
     if not df.empty:
@@ -439,8 +439,8 @@ class EpicAPIConfig:
       resource = '/patients/documents/text'
       payloads = [{ 'key' : note['Key'] } for _, note in notes.iterrows()]
       responses = await self.make_requests(ctxt, resource, payloads, 'GET')
-      logging.info('#NOTE TEXTS PAYLOADS: %s' % len(payloads))
-      logging.info('#NOTE TEXTS RESPONSES: %s' % len(responses))
+      logging.debug('#NOTE TEXTS PAYLOADS: %s' % len(payloads))
+      logging.debug('#NOTE TEXTS RESPONSES: %s' % len(responses))
       dfs = [
         pd.DataFrame([{'DocumentText': r['DocumentText']}] if r else None)
         for r in responses
@@ -509,14 +509,14 @@ class EpicAPIConfig:
       } for _, pat in pat_id_df.iterrows()]
       responses = await self.make_requests(ctxt, resource, payloads, 'GET')
       response_dfs = []
-      logging.info(responses)
+      logging.debug(responses)
       for r in responses:
         if r and r['Contacts']:
           rec = {'CSN': r['Contacts'][0]['CSN'], 'DepartmentName': r['Contacts'][0]['DepartmentName']}
           for item in r['PatientIDs']:
             if item['IDType'] == 'EMRN':
               rec['pat_id'] = item['ID']
-          logging.info(rec)
+          logging.debug(rec)
           response_dfs.append(pd.DataFrame([rec]))
           dfs = pd.concat(response_dfs)
         else:
@@ -572,7 +572,7 @@ class EpicAPIConfig:
     try:
       start = dt.datetime.now()
       df = transform_function(df)
-      logging.info("function time: {}".format(dt.datetime.now() - start))
+      logging.debug("function time: {}".format(dt.datetime.now() - start))
       return df
     except Exception as e:
       logging.error("== EXCEPTION CAUGHT ==")

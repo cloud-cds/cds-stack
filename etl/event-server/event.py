@@ -195,7 +195,6 @@ class EventHandler():
         args['med_order_ids'] = event['ids']
       # TODO: lab results
       funcs = EpicEvents[event_type]
-      logging.info(funcs)
       return {event['zid']: {'funcs': funcs, 'args': args}}
     else:
       return None

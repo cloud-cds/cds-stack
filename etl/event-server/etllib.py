@@ -48,7 +48,6 @@ class CDMBuffer():
   def __init__(self, etl):
     self.buf = {}
     self.etl = etl
-    logging.debug("test...............")
 
 
   def add(self, results):
@@ -99,6 +98,8 @@ class ETL():
     self.ctxt = TaskContext('ETL', self.config, log=self.log)
     self.ctxt.loop = self.loop
     self.ctxt.db_pool = self.db_pool
+    self.prediction_params = await loader.load_online_prediction_parameters(self.ctxt, job_id)
+
 
 
   def init_etl(self):
@@ -138,10 +139,9 @@ class ETL():
     num_delta_t = await loader.workspace_to_cdm_delta(self.ctxt, job_id, WORKSPACE, keep_delta_table=True)
     logging.info("{} num_delta_t = {}".format(job_id, num_delta_t))
     if num_delta_t:
-      prediction_params = await loader.load_online_prediction_parameters(self.ctxt, job_id)
-      num_twf_rows = await loader.workspace_fillin_delta(self.ctxt, prediction_params, job_id, WORKSPACE)
+      num_twf_rows = await loader.workspace_fillin_delta(self.ctxt, self.prediction_params, job_id, WORKSPACE)
       if num_twf_rows:
-        await loader.workspace_derive(self.ctxt, prediction_params, job_id, WORKSPACE)
+        await loader.workspace_derive(self.ctxt, self.prediction_params, job_id, WORKSPACE)
         await loader.workspace_submit_delta(self.ctxt, job_id, WORKSPACE)
         await loader.notify_delta_ready_to_trews_alert_server(self.ctxt, job_id, WORKSPACE)
       else:
@@ -221,7 +221,7 @@ class ETL():
     df['history'] = np.nan
     df['problem_all'] = np.nan
     df['problem'] = np.nan
-    logging.info(df)
+    logging.debug(df)
     return df
 
   async def extract_pt(self, zid):
