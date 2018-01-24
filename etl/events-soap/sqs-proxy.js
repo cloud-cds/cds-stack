@@ -40,12 +40,46 @@ var producer = sqs.create({
   secretAccessKey : process.env.AWS_SECRET_ACCESS_KEY
 });
 
+/* Summary logging */
+var type_summary = {};
+var type_overflow = {};
+
+var summary_periods_secs = parseInt(process.env.summary_periods_secs, 30);
+
+function log_summary_loop() {
+  for ( var ty in type_summary ) {
+    var ext = ' (' + ((ty in type_overflow) ? type_overflow[ty] : 0) + ')';
+    console.log(ty + ' => ' + type_summary[ty] + ext);
+  }
+
+  setTimeout(log_summary, summary_periods_secs * 1000);
+}
+
+log_summary_loop();
+
 var service = {
   EventService : {
     EventPort : {
       ProcessEvent: function(args){
-        console.log('new event message:');
-        console.log(JSON.stringify(args, null, 4));
+        var has_event_info = 'eventInfo' in args;
+        var has_ei_type = has_event_info ? 'Type' in args['eventInfo'] : false;
+        var has_eit_value = has_ei_type ? '$value' in args['eventInfo']['Type'] : false;
+
+        if ( !has_eit_value ) {
+          myMetric.put(1, 'EventCount_TYPE_ERROR');
+          return {};
+        }
+
+        var event_type = args['eventInfo']['Type']['$value'].replace('-','_').replace(' ','');
+
+        if ( !(event_type in type_summary) ) { type_summary[event_type] = 0; }
+        type_summary[event_type] += 1;
+
+        if ( type_summary[event_type] < 0 ) {
+          if ( !(event_type in type_overflow) ) { type_overflow[event_type] = 0; }
+          type_overflow[event_type] += 1;
+          type_summary[event_type] = 1;
+        }
 
         producer.send([{
           id: 'id1',
@@ -60,7 +94,7 @@ var service = {
         });
 
         myMetric.put(1, 'EventCount');
-        myMetric.put(1, 'EventCount_'+ args['eventInfo']['Type']['$value'].replace('-','_').replace(' ',''));
+        myMetric.put(1, 'EventCount_'+ event_type);
         return {};
       }
     }
