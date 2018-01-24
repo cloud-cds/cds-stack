@@ -239,6 +239,8 @@ class ETL():
     pt = await extractor.extract_mrn_by_zid(self.ctxt, zid)
     contacts = await extractor.extract_contacts(self.ctxt, [pt], None, idtype='patient')
     if contacts is None:
+      contacts = await extractor.extract_contacts(self.ctxt, [pt], None, idtype='patient', dateFromOneYear=True)
+    if contacts is None:
       contacts_from_cdm = await self.get_contacts_from_cdm(self.ctxt, pt['pat_id'])
       pt['visit_id'] = contacts_from_cdm['visit_id']
       pt['hospital'] = contacts_from_cdm['hospital']

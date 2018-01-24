@@ -120,7 +120,7 @@ class WebRequestBuffer():
             self.buf[zid]['args'][arg] = requests[zid]['args'][arg]
       else:
         self.buf[zid] = requests[zid]
-    logging.info("WebRequestBuffer: update {}".format(self.buf[zid]))
+    logging.debug("WebRequestBuffer: update {}".format(self.buf[zid]))
 
   def get_buf(self):
     buf = self.buf

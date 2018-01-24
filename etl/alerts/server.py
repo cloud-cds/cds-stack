@@ -475,10 +475,11 @@ class AlertServer:
       #   'msg': message, 't_start': dt.datetime.now()
       # }
       if self.model == 'lmc' or self.model == 'trews-jit':
+        job_id_items = message['job_id'].split('_')
+        t_start = parser.parse(job_id_items[-1] if len(job_id_items) == 4 else job_id_items[-2])
         if self.push_based:
           # create predict task for predictor
           predict_enc_ids = await self.get_enc_ids_to_predict(message['job_id'])
-          t_start = parser.parse(message['job_id'].split('_')[-1])
           if predict_enc_ids:
             self.job_status[message['hosp']] = {'t_start': t_start}
             self.predictor_manager.cancel_predict_tasks(hosp=message['hosp'])
@@ -493,7 +494,6 @@ class AlertServer:
         elif message.get('hosp') in self.hospital_to_predict:
           if self.model == 'lmc':
             self.garbage_collect_suppression_tasks(message['hosp'])
-          t_start = parser.parse(message['job_id'].split('_')[-1])
           self.job_status[message['hosp']] = {'t_start': t_start}
           self.predictor_manager.cancel_predict_tasks(hosp=message['hosp'])
           self.predictor_manager.create_predict_tasks(hosp=message['hosp'],
@@ -501,7 +501,6 @@ class AlertServer:
                                                       job_id=message['job_id'])
         else:
           logging.info("skip prediction for msg: {}".format(message))
-          t_start = parser.parse(message['job_id'].split('_')[-1])
           t_fin = dt.datetime.now()
           await self.run_trews_alert(message['job_id'],message['hosp'])
           t_end = dt.datetime.now()

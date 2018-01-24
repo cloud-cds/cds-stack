@@ -41,6 +41,8 @@ class EpicAPIConfig:
     self.from_date = (dt.datetime.now() + dt.timedelta(days=1)).strftime('%Y-%m-%d')
     tomorrow = dt.datetime.now() + dt.timedelta(days=1)
     self.dateFrom = (tomorrow - dt.timedelta(days=self.lookback_days)).strftime('%Y-%m-%d')
+    self.dateFromOneYear = (tomorrow - dt.timedelta(days=365)).strftime('%Y-%m-%d')
+    self.dateFromOneMonth = (tomorrow - dt.timedelta(days=30)).strftime('%Y-%m-%d')
     self.dateTo = tomorrow.strftime('%Y-%m-%d')
     self.headers = {
       'client_id': jhapi_id,
@@ -472,7 +474,7 @@ class EpicAPIConfig:
     else:
       return {'flowsheets_transformed': self.tz_hack(ctxt, self.transform(ctxt, df_raw, 'flowsheet_transforms'))}
 
-  async def extract_contacts(self, ctxt, pat_id_list, args, idtype='csn'):
+  async def extract_contacts(self, ctxt, pat_id_list, args, idtype='csn', dateFromOneYear=False):
     def get_hospital(row):
       dept = row['DepartmentName']
       if dept is not None and len(dept) > 0:
@@ -494,7 +496,7 @@ class EpicAPIConfig:
       payloads = [{
         'id'       : pat['visit_id'],
         'idtype'   : 'csn',
-        'dateFrom' : self.dateFrom,
+        'dateFrom' : self.dateFromOneYear if dateFromOneYear else self.dateFromOneMonth,
         'dateTo'   : self.dateTo,
       } for _, pat in pat_id_df.iterrows()]
       responses = await self.make_requests(ctxt, resource, payloads, 'GET')

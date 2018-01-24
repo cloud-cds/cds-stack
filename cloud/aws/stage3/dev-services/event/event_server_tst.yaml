@@ -63,6 +63,10 @@ spec:
           value: "false"
         - name: SWITCH_WEB_REQUEST
           value: "1"
+        - name: SWITCH_ETL
+          value: "1"
+        - name: SWITCH_ETL_DONE
+          value: "1"
         - name: TREWS_ETL_SERVER
           value: "test"
         - name: TREWS_ALERT_SERVER_IP

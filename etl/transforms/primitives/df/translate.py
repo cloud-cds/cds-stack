@@ -91,7 +91,7 @@ def extract_sys_dias_from_bp(df, fid_col, value_col, bp):
         bp_dias = bp_df.copy().join(bp_dias).assign(fid="{}_dias".format(bp))
         df = df[~bp_rows].append([bp_sys, bp_dias])
     else:
-        logging.warn("bp_df is empty {}".format(bp))
+        logging.debug("bp_df is empty {}".format(bp))
     # # also assign to a new feature called bp -- combine nbp and abp
     # bp_sys = bp_sys.copy().assign(fid="bp_sys")
     # bp_dias = bp_dias.copy().assign(fid="bp_dias")
