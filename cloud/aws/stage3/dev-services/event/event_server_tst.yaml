@@ -42,7 +42,7 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: event-server-tst
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:latest
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.92
         resources:
           requests:
             memory: "256Mi"
@@ -50,13 +50,17 @@ spec:
         ports:
         - containerPort: 8000
         command: ["/bin/sh","-c"]
-        args: ["cd etl/event-server;sh start.sh"]
+        args: ["cd etl/event-server; /usr/local/bin/python3 event-sqs-server.py"]
         # args: ["sleep 10000"]
         securityContext:
           capabilities:
             add:
             - "SYS_PTRACE"
         env:
+        - name: queue_name
+          value: "opsdx-jh-events-tst"
+        - name: log_consumer
+          value: "true"
         - name: SWITCH_WEB_REQUEST
           value: "1"
         - name: TREWS_ETL_SERVER

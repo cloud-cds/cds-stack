@@ -1,7 +1,9 @@
+import os
+import sys
+import json
 import asyncio
 import asyncpg
 import logging
-import sys
 
 import aiobotocore
 import botocore.exceptions
@@ -11,6 +13,7 @@ import event
 
 
 QUEUE_NAME = os.environ['queue_name']
+log_consumer = os.environ['log_consumer'] == 'true' if 'log_consumer' in os.environ else False
 terminated = False
 
 # db parameters
@@ -46,7 +49,7 @@ class App():
 app = App()
 
 async def init_queue(app):
-  # Boto should get credentials from ~/.aws/credentials or the environment
+  loop = asyncio.get_event_loop()
   session = aiobotocore.get_session(loop=loop)
   app.sqs_client = session.create_client('sqs')
   try:
@@ -92,22 +95,23 @@ async def go(loop):
       # This loop wont spin really fast as there is
       # essentially a sleep in the receieve_message call
       response = await app.sqs_client.receive_message(
-          QueueUrl=queue_url,
+          QueueUrl=app.queue_url,
           WaitTimeSeconds=2,
       )
 
       if 'Messages' in response:
         for msg in response['Messages']:
+          if log_consumer:
             app.logger.info('Got msg "{0}"'.format(msg['Body']))
 
-            # Process message
-            await app.event_handler.process(msg)
+          # Process message
+          await app.event_handler.process(msg)
 
-            # Need to remove msg from queue or else it'll reappear
-            await app.sqs_client.delete_message(
-                QueueUrl=queue_url,
-                ReceiptHandle=msg['ReceiptHandle']
-            )
+          # Need to remove msg from queue or else it'll reappear
+          await app.sqs_client.delete_message(
+              QueueUrl=app.queue_url,
+              ReceiptHandle=msg['ReceiptHandle']
+          )
       else:
         app.logger.info('No messages in SQS')
 

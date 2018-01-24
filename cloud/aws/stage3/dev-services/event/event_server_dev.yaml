@@ -31,6 +31,8 @@ data:
         #tcp_nopush     on;
 
         keepalive_timeout  65;
+        client_body_buffer_size  16M;
+        client_max_body_size  0;
 
         #gzip  on;
 
@@ -78,7 +80,7 @@ spec:
           - name: forward-config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: event-server-dev
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:latest
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.92
         resources:
           requests:
             memory: "256Mi"
@@ -86,13 +88,15 @@ spec:
         ports:
         - containerPort: 8000
         command: ["/bin/sh","-c"]
-        args: ["cd etl/event-server;sh start.sh"]
+        args: ["cd etl/event-server; /usr/local/bin/python3 event-sqs-server.py"]
         # args: ["sleep 10000"]
         securityContext:
           capabilities:
             add:
             - "SYS_PTRACE"
         env:
+        - name: queue_name
+          value: "opsdx-jh-events-dev"
         - name: SWITCH_WEB_REQUEST
           value: "0"
         - name: TREWS_ETL_SERVER
