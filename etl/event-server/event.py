@@ -168,7 +168,10 @@ class EventHandler():
         else:
           ids = {entity['ID']['$value']}
       zid = message['eventInfo']['PrimaryEntity']['ID']['$value']
-      return {'event_type': event_type, 'zid': zid, 'ids': ids}
+      if zid.startswith('Z'):
+        return {'event_type': event_type, 'zid': zid, 'ids': ids}
+      else:
+        return None
 
     except Exception as ex:
       logging.warning(str(ex))

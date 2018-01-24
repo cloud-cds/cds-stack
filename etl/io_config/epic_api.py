@@ -506,7 +506,7 @@ class EpicAPIConfig:
       payloads = [{
         'id'       : pat['pat_id'],
         'idtype'   : 'patient',
-        'dateFrom' : self.dateFrom,
+        'dateFrom' : self.dateFromOneYear if dateFromOneYear else self.dateFromOneMonth,
         'dateTo'   : self.dateTo,
       } for _, pat in pat_id_df.iterrows()]
       responses = await self.make_requests(ctxt, resource, payloads, 'GET')

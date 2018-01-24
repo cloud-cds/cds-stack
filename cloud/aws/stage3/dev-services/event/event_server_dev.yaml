@@ -98,7 +98,7 @@ spec:
         - name: queue_name
           value: "opsdx-jh-events-dev"
         - name: SWITCH_WEB_REQUEST
-          value: "1"
+          value: "0"
         - name: SWITCH_ETL
           value: "0"
         - name: SWITCH_ETL_DONE
