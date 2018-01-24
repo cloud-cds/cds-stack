@@ -1370,8 +1370,11 @@ var careSummaryComponent = new function() {
         var value = 'Not available'
         feat = feat.toLowerCase().replace(/ /g, "_");
         if (feat in trews.data['measurements']) {
-          value = trews.data['measurements'][feat]['value']+'@'+trews.data['measurements'][feat]['tsp'].split("+")[0];
+          value = trews.data['measurements'][feat]['value']+' @ '
+          var date = new Date(Date.parse(trews.data['measurements'][feat]['tsp'] + " UTC"));
+          value += strToTime(date.getTime(),true,false);
         }
+
         phys_table_str += '<td>'+value+'</td>';
         phys_table_str += '</tr>';
     }
@@ -1385,7 +1388,9 @@ var careSummaryComponent = new function() {
         var value = "Not available"
         feat = feat.toLowerCase().replace(/ /g, "_");
         if (feat in trews.data['measurements']) {
-          value = trews.data['measurements'][feat]['value']+'@'+trews.data['measurements'][feat]['tsp'].split("+")[0];
+          value = trews.data['measurements'][feat]['value']+' @ '
+          var date = new Date(Date.parse(trews.data['measurements'][feat]['tsp'] + " UTC"));
+          value += strToTime(date.getTime(),true,false);
         }
         hem_table_str += '<td>'+value+'</td>';
         hem_table_str += '</tr>';
@@ -1401,8 +1406,10 @@ var careSummaryComponent = new function() {
         var value = "Not available"
         feat = feat.toLowerCase().replace(/ /g, "_");
         if (feat in trews.data['measurements']) {
-          value = trews.data['measurements'][feat]['value']+'@'+trews.data['measurements'][feat]['tsp'].split("+")[0];
-        }
+          value = trews.data['measurements'][feat]['value']+' @ '
+          var date = new Date(Date.parse(trews.data['measurements'][feat]['tsp'] + " UTC"));
+          value += strToTime(date.getTime(),true,false);
+       }
         chem_table_str += '<td>'+value+'</td>';
         chem_table_str += '</tr>';
     }
