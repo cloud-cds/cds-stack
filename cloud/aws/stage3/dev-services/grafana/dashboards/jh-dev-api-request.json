@@ -8,7 +8,7 @@
   "hideControls": false,
   "id": 7,
   "links": [],
-  "refresh": false,
+  "refresh": "30s",
   "rows": [
     {
       "collapse": false,
@@ -41,7 +41,7 @@
           "renderer": "flot",
           "seriesOverrides": [],
           "spaceLength": 10,
-          "span": 4,
+          "span": 3,
           "stack": false,
           "steppedLine": true,
           "targets": [
@@ -49,85 +49,33 @@
               "dimensions": {
                 "ETL": "dev"
               },
-              "metricName": "HCGH__facilities_hospital_HCGH_beddedpatients_GET_success",
+              "metricName": "jh_api_request_success",
               "namespace": "OpsDX",
               "period": "",
               "refId": "A",
               "region": "us-east-1",
               "statistics": [
-                "Average"
+                "Sum"
               ]
             },
             {
               "dimensions": {
                 "ETL": "dev"
               },
-              "metricName": "HCGH__facilities_hospital_HCGH_beddedpatients_GET_error",
+              "metricName": "jh_api_request_error",
               "namespace": "OpsDX",
               "period": "",
               "refId": "B",
               "region": "us-east-1",
               "statistics": [
-                "Average"
-              ]
-            },
-            {
-              "dimensions": {
-                "ETL": "dev"
-              },
-              "metricName": "JHH__facilities_hospital_JHH_beddedpatients_GET_success",
-              "namespace": "OpsDX",
-              "period": "",
-              "refId": "C",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ]
-            },
-            {
-              "dimensions": {
-                "ETL": "dev"
-              },
-              "metricName": "JHH__facilities_hospital_JHH_beddedpatients_GET_error",
-              "namespace": "OpsDX",
-              "period": "",
-              "refId": "D",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ]
-            },
-            {
-              "dimensions": {
-                "ETL": "dev"
-              },
-              "metricName": "BMC__facilities_hospital_BMC_beddedpatients_GET_success",
-              "namespace": "OpsDX",
-              "period": "",
-              "refId": "E",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
-              ]
-            },
-            {
-              "dimensions": {
-                "ETL": "dev"
-              },
-              "metricName": "BMC__facilities_hospital_BMC_beddedpatients_GET_error",
-              "namespace": "OpsDX",
-              "period": "",
-              "refId": "F",
-              "region": "us-east-1",
-              "statistics": [
-                "Average"
+                "Sum"
               ]
             }
           ],
           "thresholds": [],
           "timeFrom": null,
           "timeShift": null,
-          "title": "Bedded Patients",
+          "title": "Total Requests",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -187,7 +135,7 @@
           "renderer": "flot",
           "seriesOverrides": [],
           "spaceLength": 10,
-          "span": 4,
+          "span": 3,
           "stack": false,
           "steppedLine": false,
           "targets": [
@@ -333,7 +281,7 @@
           "renderer": "flot",
           "seriesOverrides": [],
           "spaceLength": 10,
-          "span": 4,
+          "span": 3,
           "stack": false,
           "steppedLine": false,
           "targets": [
@@ -420,6 +368,152 @@
           "timeFrom": null,
           "timeShift": null,
           "title": "ADT Location History",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ]
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fill": 1,
+          "id": 17,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 2,
+          "links": [],
+          "nullPointMode": "connected",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 3,
+          "stack": false,
+          "steppedLine": true,
+          "targets": [
+            {
+              "dimensions": {
+                "ETL": "dev"
+              },
+              "metricName": "HCGH__facilities_hospital_HCGH_beddedpatients_GET_success",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "dev"
+              },
+              "metricName": "HCGH__facilities_hospital_HCGH_beddedpatients_GET_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "dev"
+              },
+              "metricName": "JHH__facilities_hospital_JHH_beddedpatients_GET_success",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "C",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "dev"
+              },
+              "metricName": "JHH__facilities_hospital_JHH_beddedpatients_GET_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "D",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "dev"
+              },
+              "metricName": "BMC__facilities_hospital_BMC_beddedpatients_GET_success",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "E",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            },
+            {
+              "dimensions": {
+                "ETL": "dev"
+              },
+              "metricName": "BMC__facilities_hospital_BMC_beddedpatients_GET_error",
+              "namespace": "OpsDX",
+              "period": "",
+              "refId": "F",
+              "region": "us-east-1",
+              "statistics": [
+                "Average"
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Bedded Patients",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -1782,6 +1876,570 @@
       "showTitle": true,
       "title": "Notes",
       "titleSize": "h6"
+    },
+    {
+      "collapse": false,
+      "height": 250,
+      "panels": [
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fill": 1,
+          "id": 12,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null as zero",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 3,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "alias": "dev",
+              "dimensions": {
+                "API": "opsdx-dev"
+              },
+              "metricName": "EventCount",
+              "namespace": "OpsDX",
+              "period": "60",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Sum"
+              ]
+            },
+            {
+              "alias": "prod",
+              "dimensions": {
+                "API": "opsdx-prod"
+              },
+              "metricName": "EventCount",
+              "namespace": "OpsDX",
+              "period": "60",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Sum"
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "SOAP Event Counts",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ]
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fill": 1,
+          "id": 14,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null as zero",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 3,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "alias": "total",
+              "dimensions": {
+                "API": "opsdx-prod"
+              },
+              "metricName": "EventCount",
+              "namespace": "OpsDX",
+              "period": "60",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Sum"
+              ]
+            },
+            {
+              "alias": "adt_admit",
+              "dimensions": {
+                "API": "opsdx-prod"
+              },
+              "metricName": "EventCount_ADT_ Admit",
+              "namespace": "OpsDX",
+              "period": "60",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Sum"
+              ]
+            },
+            {
+              "alias": "flo_add",
+              "dimensions": {
+                "API": "opsdx-prod"
+              },
+              "metricName": "EventCount_Flowsheet_ Add",
+              "namespace": "OpsDX",
+              "period": "60",
+              "refId": "C",
+              "region": "us-east-1",
+              "statistics": [
+                "Sum"
+              ]
+            },
+            {
+              "alias": "mar_given",
+              "dimensions": {
+                "API": "opsdx-prod"
+              },
+              "metricName": "EventCount_MedAdmin Notification _ Given",
+              "namespace": "OpsDX",
+              "period": "60",
+              "refId": "D",
+              "region": "us-east-1",
+              "statistics": [
+                "Sum"
+              ]
+            },
+            {
+              "alias": "res_updated",
+              "dimensions": {
+                "API": "opsdx-prod"
+              },
+              "metricName": "EventCount_ResultUpdated",
+              "namespace": "OpsDX",
+              "period": "60",
+              "refId": "E",
+              "region": "us-east-1",
+              "statistics": [
+                "Sum"
+              ]
+            },
+            {
+              "alias": "sign_order",
+              "dimensions": {
+                "API": "opsdx-prod"
+              },
+              "metricName": "EventCount_SignOrder",
+              "namespace": "OpsDX",
+              "period": "60",
+              "refId": "F",
+              "region": "us-east-1",
+              "statistics": [
+                "Sum"
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "SOAP Event Counts Details (Prod)",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ]
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fill": 1,
+          "id": 15,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null as zero",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 3,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "alias": "total",
+              "dimensions": {
+                "API": "opsdx-dev"
+              },
+              "metricName": "EventCount",
+              "namespace": "OpsDX",
+              "period": "60",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Sum"
+              ]
+            },
+            {
+              "alias": "adt_admit",
+              "dimensions": {
+                "API": "opsdx-dev"
+              },
+              "metricName": "EventCount_ADT_ Admit",
+              "namespace": "OpsDX",
+              "period": "60",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Sum"
+              ]
+            },
+            {
+              "alias": "flo_add",
+              "dimensions": {
+                "API": "opsdx-dev"
+              },
+              "metricName": "EventCount_Flowsheet_ Add",
+              "namespace": "OpsDX",
+              "period": "60",
+              "refId": "C",
+              "region": "us-east-1",
+              "statistics": [
+                "Sum"
+              ]
+            },
+            {
+              "alias": "mar_given",
+              "dimensions": {
+                "API": "opsdx-dev"
+              },
+              "metricName": "EventCount_MedAdmin Notification _ Given",
+              "namespace": "OpsDX",
+              "period": "60",
+              "refId": "D",
+              "region": "us-east-1",
+              "statistics": [
+                "Sum"
+              ]
+            },
+            {
+              "alias": "res_updated",
+              "dimensions": {
+                "API": "opsdx-dev"
+              },
+              "metricName": "EventCount_ResultUpdated",
+              "namespace": "OpsDX",
+              "period": "60",
+              "refId": "E",
+              "region": "us-east-1",
+              "statistics": [
+                "Sum"
+              ]
+            },
+            {
+              "alias": "sign_order",
+              "dimensions": {
+                "API": "opsdx-dev"
+              },
+              "metricName": "EventCount_SignOrder",
+              "namespace": "OpsDX",
+              "period": "60",
+              "refId": "F",
+              "region": "us-east-1",
+              "statistics": [
+                "Sum"
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "SOAP Event Counts Details (Dev)",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ]
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fill": 1,
+          "id": 16,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null as zero",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 3,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "alias": "total",
+              "dimensions": {
+                "API": "opsdx-tst"
+              },
+              "metricName": "EventCount",
+              "namespace": "OpsDX",
+              "period": "60",
+              "refId": "A",
+              "region": "us-east-1",
+              "statistics": [
+                "Sum"
+              ]
+            },
+            {
+              "alias": "adt_admit",
+              "dimensions": {
+                "API": "opsdx-tst"
+              },
+              "metricName": "EventCount_ADT_ Admit",
+              "namespace": "OpsDX",
+              "period": "60",
+              "refId": "B",
+              "region": "us-east-1",
+              "statistics": [
+                "Sum"
+              ]
+            },
+            {
+              "alias": "flo_add",
+              "dimensions": {
+                "API": "opsdx-tst"
+              },
+              "metricName": "EventCount_Flowsheet_ Add",
+              "namespace": "OpsDX",
+              "period": "60",
+              "refId": "C",
+              "region": "us-east-1",
+              "statistics": [
+                "Sum"
+              ]
+            },
+            {
+              "alias": "mar_given",
+              "dimensions": {
+                "API": "opsdx-tst"
+              },
+              "metricName": "EventCount_MedAdmin Notification _ Given",
+              "namespace": "OpsDX",
+              "period": "60",
+              "refId": "D",
+              "region": "us-east-1",
+              "statistics": [
+                "Sum"
+              ]
+            },
+            {
+              "alias": "res_updated",
+              "dimensions": {
+                "API": "opsdx-tst"
+              },
+              "metricName": "EventCount_ResultUpdated",
+              "namespace": "OpsDX",
+              "period": "60",
+              "refId": "E",
+              "region": "us-east-1",
+              "statistics": [
+                "Sum"
+              ]
+            },
+            {
+              "alias": "sign_order",
+              "dimensions": {
+                "API": "opsdx-tst"
+              },
+              "metricName": "EventCount_SignOrder",
+              "namespace": "OpsDX",
+              "period": "60",
+              "refId": "F",
+              "region": "us-east-1",
+              "statistics": [
+                "Sum"
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "SOAP Event Counts Details (Test)",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ]
+        }
+      ],
+      "repeat": null,
+      "repeatIteration": null,
+      "repeatRowId": null,
+      "showTitle": false,
+      "title": "Dashboard Row",
+      "titleSize": "h6"
     }
   ],
   "schemaVersion": 14,
@@ -1793,7 +2451,7 @@
     "list": []
   },
   "time": {
-    "from": "now-24h",
+    "from": "now-3h",
     "to": "now"
   },
   "timepicker": {
@@ -1822,6 +2480,6 @@
     ]
   },
   "timezone": "",
-  "title": "OpsDX Dev JH API Request",
-  "version": 18
+  "title": "OpsDX JH Dev API Request",
+  "version": 24
 }

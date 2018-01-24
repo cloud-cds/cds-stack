@@ -242,7 +242,7 @@ resource "aws_lambda_function" "s3_weekly_report_lambda" {
         PYKUBE_KUBERNETES_SERVICE_HOST = "${var.k8s_server_host}"
         PYKUBE_KUBERNETES_SERVICE_PORT = "${var.k8s_server_port}"
 
-        kube_job_name  = "behavior-metrics-dev"
+        kube_job_name  = "patient-report-dev"
         kube_name      = "${var.k8s_name}"
         kube_server    = "${var.k8s_server}"
         kube_cert_auth = "${var.k8s_cert_auth}"

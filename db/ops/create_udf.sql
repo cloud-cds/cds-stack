@@ -54,14 +54,21 @@ AND p.enc_id NOT IN
 
 
 
-create or replace function pat_id_to_enc_id(_pat_id text)
-RETURNS int
-AS $func$
+create or replace function pat_id_to_enc_id(_pat_id text) RETURNS int AS $func$
 DECLARE _enc_id int;
 BEGIN
 select max(enc_id) from pat_enc where pat_id = _pat_id into _enc_id;
-return _enc_id
-; END $func$ LANGUAGE plpgsql;
+return _enc_id;
+END $func$ LANGUAGE plpgsql;
+
+create or replace function pat_id_to_visit_id(_pat_id text) RETURNS varchar(50) AS $func$
+DECLARE _visit_id varchar(50);
+BEGIN
+select visit_id into _visit_id from pat_enc where pat_id = _pat_id order by enc_id desc limit 1;
+return _visit_id;
+END $func$ LANGUAGE plpgsql;
+
+
 /*
  * UDF used in CDM
  * predefined functions
@@ -1674,9 +1681,10 @@ AS $function$
 DECLARE
   -- Criteria Lookbacks.
   initial_lactate_order_lookback       interval := get_parameter('initial_lactate_order_lookback');
-  orders_lookback                interval := get_parameter('orders_lookback');
-  blood_culture_order_lookback   interval := get_parameter('blood_culture_order_lookback');
-  antibiotics_order_lookback     interval := get_parameter('antibiotics_order_lookback');
+  orders_lookback                      interval := get_parameter('orders_lookback');
+  blood_culture_order_lookback         interval := get_parameter('blood_culture_order_lookback');
+  antibiotics_order_lookback           interval := get_parameter('antibiotics_order_lookback');
+  cms_on                               boolean  := get_parameter('cms_on');
 BEGIN
 raise notice 'enc_id:%', this_enc_id;
 return query
@@ -1917,7 +1925,7 @@ return query
                     pat_cvalues.c_otime,
                     pat_cvalues.c_ouser,
                     pat_cvalues.c_ovalue,
-                    criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue) as is_met
+                    criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue) and cms_on as is_met
             from pat_cvalues
             where pat_cvalues.name in ('sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc')
             order by pat_cvalues.tsp
@@ -1947,7 +1955,7 @@ return query
                 (case
                     when pat_cvalues.c_ovalue#>>'{0,text}' = 'No Infection' then false
                     else coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value) is not null
-                  end) as is_met
+                  end) and cms_on as is_met
             from pat_cvalues
             inner join pat_enc on pat_cvalues.enc_id = pat_enc.enc_id
             where pat_cvalues.category = 'respiratory_failure'
@@ -1996,7 +2004,7 @@ return query
                             criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue) and seizure.enc_id is null -- exclued seizure enc_ids
                         else criteria_value_met(pat_cvalues.value, pat_cvalues.c_ovalue, pat_cvalues.d_ovalue)
                         end
-                    ) as is_met
+                    ) and cms_on as is_met
             from pat_cvalues
             left join esrd on pat_cvalues.enc_id = esrd.enc_id
             left join seizure on pat_cvalues.enc_id = seizure.enc_id
@@ -3450,6 +3458,7 @@ RETURNS table(
     flag                int
 ) AS $func$ #variable_conflict use_column
 BEGIN
+  LOCK TABLE epic_notifications_history IN EXCLUSIVE MODE;
   RETURN QUERY
   with prev as (
     select p.pat_id, p.visit_id, p.enc_id, coalesce(
@@ -3490,6 +3499,58 @@ BEGIN
   select c.pat_id, c.visit_id, c.enc_id, c.count, c.trewscore, c.trewscore_threshold, c.alert_flag from compare c inner join update_history uh on c.enc_id = uh.enc_id;
 END $func$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION get_notifications_for_refreshed_pats(serial_id int, model text default 'trews')
+RETURNS table(
+    pat_id              varchar(50),
+    visit_id            varchar(50),
+    enc_id              int,
+    count               int,
+    score               text,
+    threshold           text,
+    flag                int
+) AS $func$ #variable_conflict use_column
+BEGIN
+  LOCK TABLE epic_notifications_history IN EXCLUSIVE MODE;
+  RETURN QUERY
+  with prev as (
+    select p.pat_id, p.visit_id, p.enc_id, coalesce(
+        last(h.count order by h.tsp),
+        0) count_prev
+    from pat_enc p
+    inner join get_latest_enc_ids_within_notification_whitelist() wl
+        on p.enc_id = wl.enc_id
+    inner join (select jsonb_array_elements_text(pats) as pat_id from refreshed_pats where id = serial_id)
+        as rp on p.pat_id = rp.pat_id
+    left join epic_notifications_history h on h.enc_id = p.enc_id
+    where p.pat_id like 'E%'
+    group by p.pat_id, p.visit_id, p.enc_id
+  ),
+  compare as
+  (
+      select prev.pat_id, prev.visit_id, prev.enc_id, prev.count_prev,
+            (case
+                when state in (12,13) then 2
+                when state = 16 then 3
+                when state = 11 then 4
+                when state = 10 then 5
+                when state in (20,21,22,24,25,26,27,29,50,51,52,54) then 6
+                when state in (30,31,32,33,34,36,40,41,42,43,44,46,60,61,62,63,64,66) then 8
+                when state in (23,28,53) then 7
+                when state in (35,45,65) then 9
+              else 1
+            end) count, gss.trewscore, gss.trewscore_threshold, gss.alert_flag
+      from prev
+      left join lateral get_states_snapshot(prev.enc_id) gss on gss.enc_id = prev.enc_id
+  ),
+  update_history as (
+    insert into epic_notifications_history (tsp, enc_id, count, trewscore, threshold, flag)
+    select now() tsp, c.enc_id, c.count, c.trewscore, c.trewscore_threshold, c.alert_flag from compare c
+    where c.count <> c.count_prev
+    on conflict (tsp, enc_id) do update set count = Excluded.count
+    returning *
+  )
+  select c.pat_id, c.visit_id, c.enc_id, c.count, c.trewscore, c.trewscore_threshold, c.alert_flag from compare c inner join update_history uh on c.enc_id = uh.enc_id;
+END $func$ LANGUAGE plpgsql;
 
 -- DEPRECATED
 CREATE OR REPLACE FUNCTION get_notifications_count_for_epic(this_pat_id text default null, model text default 'trews')

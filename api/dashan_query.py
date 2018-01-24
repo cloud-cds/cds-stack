@@ -9,6 +9,7 @@ import logging
 import pytz
 import requests
 import asyncio
+import asyncpg
 
 from jhapi_io import JHAPI
 from monitoring import APIMonitor
@@ -18,9 +19,10 @@ from time import sleep
 import random
 
 # Globals.
-EPIC_SERVER = os.environ['epic_server'] if 'epic_server' in os.environ else 'prod'
+EPIC_SERVER         = os.environ['epic_server'] if 'epic_server' in os.environ else 'prod'
 NOTIFICATION_SERVER = os.environ['notification_server'] if 'notification_server' in os.environ else None
-v1_flowsheets      = os.environ['v1_flowsheets'].lower() == 'true' if 'v1_flowsheets' in os.environ else False
+v1_flowsheets       = os.environ['v1_flowsheets'].lower() == 'true' if 'v1_flowsheets' in os.environ else False
+soi_flowsheet       = os.environ['soi_flowsheet'].lower() == 'true' if 'soi_flowsheet' in os.environ else False
 
 api_monitor = APIMonitor()
 if api_monitor.enabled:
@@ -770,17 +772,30 @@ async def get_explanations(db_pool, eid):
 
 
 async def push_notifications_to_epic(db_pool, eid, notify_future_notification=True):
+  retries = 0
+  max_retries = 5
+  notifications = None
   async with db_pool.acquire() as conn:
-    model = model_in_use
-    notifications_sql = \
-    '''
-    select * from get_notifications_for_epic('%s', '%s');
-    ''' % (eid, model)
-    try:
-      async with conn.transaction(isolation='serializable'):
-        notifications = await conn.fetch(notifications_sql)
-    except:
-      notifications = None
+    while retries < max_retries:
+      retries += 1
+      model = model_in_use
+      notifications_sql = \
+      '''
+      select * from get_notifications_for_epic('%s', '%s');
+      ''' % (eid, model)
+      try:
+        async with conn.transaction(isolation='serializable'):
+          notifications = await conn.fetch(notifications_sql)
+          logging.info('get_notifications_for_epic results %s' % len(notifications))
+          break
+
+      except asyncpg.exceptions.SerializationError:
+        logging.info("Serialization error, retrying transaction")
+        await asyncio.sleep(1)
+
+      except:
+        notifications = None
+        break
 
     if notifications:
       logging.info("push notifications to epic (epic_notifications={}) for {}".format(epic_notifications, eid))
@@ -812,6 +827,7 @@ async def push_notifications_to_epic(db_pool, eid, notify_future_notification=Tr
 
 async def load_epic_notifications(notifications):
   total = len(notifications)
+  logging.info('load_epic_notifications call %s' % total)
   if total == 0:
     logging.info("No notification need to be updated to Epic")
     return
@@ -865,9 +881,20 @@ async def load_epic_notifications(notifications):
         sleep(wait_time)
 
     for k in success:
+      logging.info('load_epic_notifications result %s %s' % (k, success[k]))
       api_monitor.add_metric('FSPush%sSuccess'  % k.capitalize(), value=success[k])
       api_monitor.add_metric('FSPush%sFailures' % k.capitalize(), value=total-success[k])
 
+  else:
+    logging.info('load_epic_notifications result skip')
+    logging.info("Skipped pushing to Epic flowsheets")
+
+
+async def load_epic_trewscores(trewscores):
+  total = len(trewscores)
+  if total == 0:
+    logging.info("No trewscore need to be updated to Epic")
+    return
   if epic_notifications is not None and int(epic_notifications):
     success = []
     patients = [{
@@ -892,10 +919,82 @@ async def load_epic_notifications(notifications):
   api_monitor.add_metric('EpicTrewscoreSuccess', value=len(success))
   api_monitor.add_metric('EpicTrewscoreFailures', value=total-len(success))
 
+
+async def load_epic_soi_for_bpa(pat_id, user_id, visit_id, soi):
+  logging.info("push soi flowsheets to epic (epic_notifications={}) for {}".format(epic_notifications, pat_id))
+  if epic_notifications is not None and int(epic_notifications) and v1_flowsheets and soi_flowsheet:
+    push_tz = pytz.timezone('US/Eastern')
+    push_tsp = datetime.datetime.utcnow().astimezone(push_tz)
+    epic_tsp = push_tsp.replace(microsecond=0)
+
+    flowsheets = {
+      # username
+      'username' : ('94854', { 'pat_id' : pat_id, 'visit_id' : visit_id, 'tsp' : push_tsp, 'value' : user_id }),
+
+      # session start
+      'session_start' : ('94855', { 'pat_id' : pat_id, 'visit_id' : visit_id, 'tsp' : push_tsp, 'value' : str(epic_tsp) }),
+
+      # session end
+      #'session_end' : ('94856', { 'pat_id' : pat_id, 'visit_id' : visit_id, 'tsp' : push_tsp, 'value' : push_tsp }),
+
+      # soi_yn
+      'soi_yn' : ('94857', { 'pat_id' : pat_id, 'visit_id' : visit_id, 'tsp' : push_tsp, 'value' : '1' }),
+
+      # soi
+      'soi' : ('94858', { 'pat_id' : pat_id, 'visit_id' : visit_id, 'tsp' : push_tsp, 'value' : 'null' if not soi else str(soi) }),
+    }
+
+    flowsheet_metrics = {
+      'username'      : 'Username',
+      'session_start' : 'SessionStart',
+      #'session_end'   : 'SessionEnd',
+      'soi_yn'        : 'SoiYN',
+      'soi'           : 'SOI',
+    }
+
+    total = len(flowsheets.keys())
+    success = { k: 0 for k in flowsheets }
+    num_retry = 0
+
+    while min(success.values()) == 0 and num_retry < NUM_RETRY:
+      for k in flowsheets:
+        if success[k] == 0:
+          flowsheet_values = [flowsheets[k][1]]
+          jhapi_loader = JHAPI(NOTIFICATION_SERVER if NOTIFICATION_SERVER else EPIC_SERVER, client_id, client_secret)
+          responses = jhapi_loader.load_flowsheet(flowsheet_values, flowsheet_id=flowsheets[k][0])
+
+          for val, response in zip(flowsheet_values, responses):
+            if response is None:
+              logging.error('Failed to push notifications: %s %s %s' % (val['pat_id'], val['visit_id'], val['value']))
+            elif response.status_code != requests.codes.ok:
+              logging.error('Failed to push notifications: %s %s %s HTTP %s' % (val['pat_id'], val['visit_id'], val['value'], response.status_code))
+            elif response.status_code == requests.codes.ok:
+              success[k] += 1
+      if min(success.values()) > 0:
+        break
+      else:
+        num_retry = num_retry + 1
+        wait_time = min(((BASE**num_retry) + random.uniform(0, 1)), MAX_BACKOFF)
+        logging.warn("retry jhapi to push notifications (%s s)".format(wait_time))
+        sleep(wait_time)
+
+    for k in success:
+      api_monitor.add_metric('FSPush%sSuccess'  % flowsheet_metrics[k], value=success[k])
+      api_monitor.add_metric('FSPush%sFailures' % flowsheet_metrics[k], value=total-success[k])
+
+  else:
+    logging.info("Skipped pushing to Epic SOI flowsheets")
+
+
 async def eid_exist(db_pool, eid):
   async with db_pool.acquire() as conn:
     result = await conn.fetchrow("select * from pat_enc where pat_id = '%s' limit 1" % eid)
     return result is not None
+
+async def eid_visit(db_pool, eid):
+  async with db_pool.acquire() as conn:
+    row = await conn.fetchrow("select pat_id_to_visit_id('%s'::text) as visit_id;" % eid)
+    return row['visit_id'] if row else None
 
 
 async def save_feedback(db_pool, doc_id, pat_id, dep_id, feedback):
@@ -924,12 +1023,13 @@ async def get_recent_pats_from_hosp(db_pool, hosp, model):
     return [row['pat_id'] for row in res]
 
 async def invalidate_cache_batch(db_pool, pid, channel, serial_id, pat_cache):
+  retries = 0
+  max_retries = 5
+
   # run push_notifications_to_epic in a batch way
   logging.info('Invalidating patient cache serial_id %s (via channel %s)' % (serial_id, channel))
   sql = '''with notifications as (
-    select n.* from
-    (select jsonb_array_elements_text(pats) pat_id from refreshed_pats where id = {serial_id}) p
-    inner join (select * from get_notifications_for_epic(null, '{model}')) n on n.pat_id = p.pat_id
+    select * from get_notifications_for_refreshed_pats({serial_id}, '{model}')
   )
   select pat_id, visit_id, enc_id, count, score, threshold, flag from
   (select n.*, notify_future_notification('{channel}', pat_id) from notifications n) M;
@@ -937,13 +1037,24 @@ async def invalidate_cache_batch(db_pool, pid, channel, serial_id, pat_cache):
   pat_sql = 'select jsonb_array_elements_text(pats) pat_id from refreshed_pats where id = {}'.format(serial_id)
 
   try:
-    async with conn.transaction(isolation='serializable'):
-      notifications = await conn.fetch(sql)
-      await load_epic_notifications(notifications)
-      pats = await conn.fetch(pat_sql)
-      logging.info("Invalidating cache for %s" % ','.join(pat_id['pat_id'] for pat_id in pats))
-      for pat_id in pats:
-        asyncio.ensure_future(pat_cache.delete(pat_id['pat_id']))
+    async with db_pool.acquire() as conn:
+      while retries < max_retries:
+        retries += 1
+        try:
+          async with conn.transaction(isolation='serializable'):
+            notifications = await conn.fetch(sql)
+            logging.info('get_notifications_for_epic results %s' % len(notifications))
+            await load_epic_notifications(notifications)
+            pats = await conn.fetch(pat_sql)
+            logging.info("Invalidating cache for %s" % ','.join(pat_id['pat_id'] for pat_id in pats))
+            for pat_id in pats:
+              asyncio.ensure_future(pat_cache.delete(pat_id['pat_id']))
+            break
+
+        except asyncpg.exceptions.SerializationError:
+          logging.info("Serialization error, retrying transaction")
+          await asyncio.sleep(1)
+
   except Exception as ex:
     logging.warning(str(ex))
     traceback.print_exc()

@@ -289,11 +289,19 @@ class TREWSAPI(web.View):
         await query.override_criteria(db_pool, eid, actionData['actionName'], clear=True, user=uid)
       else:
         if "other" in actionData:
-          value = '[{ "text": "%(val)s", "other": true }]' % {'val': actionData['other']}
+          soi = actionData['other']
+          value = '[{ "text": "%(val)s", "other": true }]' % {'val': soi}
           await query.override_criteria(db_pool, eid, actionType, value=value, user=uid)
         else:
-          value = '[{ "text": "%(val)s" }]' % {'val': actionData['value']}
+          soi = actionData['value']
+          value = '[{ "text": "%(val)s" }]' % {'val': soi}
           await query.override_criteria(db_pool, eid, actionType, value=value, user=uid)
+
+        visit_id = await query.eid_visit(db_pool, eid)
+        if soi and visit_id:
+          await query.load_epic_soi_for_bpa(eid, uid, visit_id, soi)
+        else:
+          logging.error('Failed to push SOI marker for BPA for pt:%s user:%s visit:%s soi:%s' % (eid, uid, visit_id, soi))
 
     elif actionType == u'notification':
       if 'id' in actionData and 'read' in actionData:

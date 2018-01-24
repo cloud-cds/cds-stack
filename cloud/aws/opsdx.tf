@@ -191,6 +191,10 @@ module "stage3" {
   slack_channel           = "${var.slack_channel}"
   slack_watchers          = "${var.slack_watchers}"
 
+  info_slack_hook         = "${var.info_slack_hook}"
+  info_slack_channel      = "${var.info_slack_channel}"
+  info_slack_watchers     = "${var.info_slack_watchers}"
+
   ######################################
   # TREWS Capture
   k8s_dev_utilities_image = "${var.k8s_dev_utilities_image}"

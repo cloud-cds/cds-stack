@@ -83,7 +83,7 @@ resource "aws_lambda_function" "trews_labeler_lambda" {
         k8s_job_HOSPITAL_REGEX            = "HCGH"
         k8s_job_DATASET_NAME              = "HCGH"
         k8s_job_DATASET_ID                = "0"
-        k8s_job_LABEL_ID                  = "0"
+        k8s_job_LABEL_ID                  = "-1"
         k8s_job_LMCHOME                   = "/lmc/LMC-Based-On-GPflow/"
         k8s_job_DESCRIP                   = "predict"
         k8s_job_DATASOURCE                = "SQL"

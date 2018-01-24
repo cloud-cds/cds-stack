@@ -83,6 +83,9 @@ model_in_use = os.environ['model_in_use'] if 'model_in_use' in os.environ else N
 
 logging.info('''TREWS Configuration::
   release: %s
+  epic_server: %s
+  v1_flowsheets: %s
+  soi_flowsheet: %s
   encrypted query: %s
   trews_app_key: %s
   trews_admin_key: %s
@@ -98,6 +101,9 @@ logging.info('''TREWS Configuration::
   force_pat_ids: %s
   model_in_use: %s
   ''' % (release,
+         dashan_query.EPIC_SERVER, \
+         dashan_query.v1_flowsheets, \
+         dashan_query.soi_flowsheet, \
          'on' if encrypted_query else 'off', \
          'on' if trews_app_key else 'off', \
          'on' if trews_admin_key else 'off', \
