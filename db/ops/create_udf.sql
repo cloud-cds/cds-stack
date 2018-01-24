@@ -4560,8 +4560,8 @@ BEGIN
         EXECUTE 'DROP TABLE ' || quote_ident(row.table_schema) || '.' || quote_ident(row.table_name);
         RAISE INFO 'Dropped table: %', quote_ident(row.table_schema) || '.' || quote_ident(row.table_name);
     END LOOP;
-    EXECUTE 'delete from ' || _schema || '.cdm_s where job_id ~* ' || pattern;
-    EXECUTE 'delete from ' || _schema || '.cdm_t where job_id ~* ' || pattern;
+    EXECUTE 'delete from ' || _schema || '.cdm_s where job_id ~* ' || quote_literal(pattern);
+    EXECUTE 'delete from ' || _schema || '.cdm_t where job_id ~* ' || quote_literal(pattern);
 END;
 $$;
 

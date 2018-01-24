@@ -50,7 +50,7 @@ spec:
         imagePullPolicy: Always
         resources:
           requests:
-            memory: "2Gi"
+            memory: "256Mi"
             cpu: "250m"
         command:
         # - sh

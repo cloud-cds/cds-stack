@@ -321,7 +321,7 @@ class AlertServer:
     await conn.fetch(sql)
 
   async def calculate_criteria_hospital(self, conn, hospital):
-    sql = "select garbage_collection('{}');".format(hospital)
+    sql = "select garbage_collection('{}', '{}');".format(hospital, self.workspace)
     logging.info("calculate_criteria sql: {}".format(sql))
     await conn.fetch(sql)
     sql = '''

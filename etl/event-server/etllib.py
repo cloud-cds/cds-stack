@@ -12,10 +12,12 @@ import etl.load.pipelines.epic2op as loader
 import datetime as dt
 import numpy as np
 
+SWITCH_ETL = int(core.get_environment_var('SWITCH_ETL', 1))
+SWITCH_ETL_DONE = int(core.get_environment_var('SWITCH_ETL_DONE', 1))
 ETL_INTERVAL_SECS = int(os.environ['ETL_INTERVAL_SECS']) if 'ETL_INTERVAL_SECS' in os.environ else 30
-
+HOSTID = core.get_environment_var('HOSTNAME').split('-')[-1]
 WORKSPACE = core.get_environment_var('TREWS_ETL_WORKSPACE', 'event_workspace')
-
+DEBUG = int(core.get_environment_var(('TREWS_ETL_DEBUG'), 0))
 # Create data for loader
 lookback_hours = core.get_environment_var('TREWS_ETL_HOURS', '8')
 op_lookback_days = int(core.get_environment_var('TREWS_ET_OP_DAYS', 365))
@@ -51,10 +53,10 @@ class CDMBuffer():
 
 
   def add(self, results):
-    self.etl.log.info("add data to buffer: {}".format(results))
+    self.etl.log.debug("add data to buffer: {}".format(results))
     for name in results:
       df = results[name]
-      self.etl.log.info("cdm_buf: adding {}".format(name))
+      self.etl.log.debug("cdm_buf: adding {}".format(name))
       if name in self.buf:
         self.buf[name] = pd.concat([self.buf[name], df]).drop_duplicates().reset_index(drop=True)
       else:
@@ -90,7 +92,7 @@ class ETL():
     self.log.info('create ETL instance')
     self.loop = asyncio.get_event_loop()
     db_name = core.get_environment_var('db_name')
-    self.config = Config(debug=True, db_name=db_name)
+    self.config = Config(debug=True if DEBUG else False, db_name=db_name)
     extractor.log = self.config.log
     self.cdm_buf = CDMBuffer(self)
     self.load_pt_map()
@@ -98,9 +100,7 @@ class ETL():
     self.ctxt = TaskContext('ETL', self.config, log=self.log)
     self.ctxt.loop = self.loop
     self.ctxt.db_pool = self.db_pool
-    self.prediction_params = await loader.load_online_prediction_parameters(self.ctxt, job_id)
-
-
+    self.prediction_params = None
 
   def init_etl(self):
     '''
@@ -132,29 +132,37 @@ class ETL():
     self.log.info("etl end")
 
   async def load_to_cdm(self, buf):
-    start_time = dt.datetime.now()
-    job_id = "job_etl_push_{}".format(dt.datetime.now().strftime('%Y%m%d%H%M%S')).lower()
-    await loader.epic_2_workspace(self.ctxt, buf, self.config.get_db_conn_string_sqlalchemy(), job_id, 'unicode', WORKSPACE)
-    # return number of delta entries in cdm_t
-    num_delta_t = await loader.workspace_to_cdm_delta(self.ctxt, job_id, WORKSPACE, keep_delta_table=True)
-    logging.info("{} num_delta_t = {}".format(job_id, num_delta_t))
-    if num_delta_t:
-      num_twf_rows = await loader.workspace_fillin_delta(self.ctxt, self.prediction_params, job_id, WORKSPACE)
-      if num_twf_rows:
-        await loader.workspace_derive(self.ctxt, self.prediction_params, job_id, WORKSPACE)
-        await loader.workspace_submit_delta(self.ctxt, job_id, WORKSPACE)
-        await loader.notify_delta_ready_to_trews_alert_server(self.ctxt, job_id, WORKSPACE)
+    if SWITCH_ETL:
+      start_time = dt.datetime.now()
+      job_id = "job_etl_push_{}_{}".format(HOSTID, dt.datetime.now().strftime('%Y%m%d%H%M%S')).lower()
+      if self.prediction_params is None:
+        self.prediction_params = await loader.load_online_prediction_parameters(self.ctxt, job_id)
+      await loader.epic_2_workspace(self.ctxt, buf, self.config.get_db_conn_string_sqlalchemy(), job_id, 'unicode', WORKSPACE)
+      # return number of delta entries in cdm_t
+      num_delta_t = await loader.workspace_to_cdm_delta(self.ctxt, job_id, WORKSPACE, keep_delta_table=True)
+      logging.info("{} num_delta_t = {}".format(job_id, num_delta_t))
+      if num_delta_t:
+        num_twf_rows = await loader.workspace_fillin_delta(self.ctxt, self.prediction_params, job_id, WORKSPACE)
+        if num_twf_rows:
+          await loader.workspace_derive(self.ctxt, self.prediction_params, job_id, WORKSPACE)
+          await loader.workspace_submit_delta(self.ctxt, job_id, WORKSPACE)
+          if SWITCH_ETL_DONE:
+            await loader.notify_delta_ready_to_trews_alert_server(self.ctxt, job_id, WORKSPACE)
+          else:
+            logging.info("SWITCH_ETL_DONE is OFF")
+        else:
+          logging.info("No new or updated rows in TWF. Skip ETL {}".format(job_id))
       else:
-        logging.info("No new or updated rows in TWF. Skip ETL {}".format(job_id))
+        logging.info("No change for {}. Skip ETL".format(job_id))
+      end_time = dt.datetime.now()
+      extractor.cloudwatch_logger.push(
+        dimension_name = 'ETL',
+        metric_name    = 'load_to_cdm_time_push',
+        value          = (end_time - start_time).total_seconds(),
+        unit           = 'Seconds'
+      )
     else:
-      logging.info("No change for {}. Skip ETL".format(job_id))
-    end_time = dt.datetime.now()
-    extractor.cloudwatch_logger.push(
-      dimension_name = 'ETL',
-      metric_name    = 'load_to_cdm_time_push',
-      value          = (end_time - start_time).total_seconds(),
-      unit           = 'Seconds'
-    )
+      logging.info("SWITCH_ETL is OFF")
 
   def load_pt_map(self):
     '''
@@ -237,7 +245,7 @@ class ETL():
     else:
       pt['visit_id'] = contacts.iloc[0]['CSN']
       pt['hospital'] = contacts.iloc[0]['hospital']
-    self.log.info("extract_mrn_by_zid: {}".format(pt))
+    self.log.debug("extract_mrn_by_zid: {}".format(pt))
     return pt
 
   async def get_contacts_from_cdm(self, ctxt, eid):
@@ -246,7 +254,7 @@ class ETL():
       select pe.visit_id, s.value as hospital from pat_enc pe inner join cdm_s s on pe.enc_id = s.enc_id
       where pe.pat_id = '{}' and s.fid = 'hospital' order by pe.enc_id desc limit 1
       '''.format(eid)
-      self.log.info("start get_contacts_from_cdm: {}".format(sql))
+      self.log.debug("start get_contacts_from_cdm: {}".format(sql))
       result = await conn.fetch(sql)
-      self.log.info("get_contacts_from_cdm result: {}".format(result))
+      self.log.debug("get_contacts_from_cdm result: {}".format(result))
       return result[0]

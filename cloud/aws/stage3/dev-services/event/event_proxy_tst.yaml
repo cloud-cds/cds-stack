@@ -42,7 +42,7 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: event-proxy-tst
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.97
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:latest
         resources:
           requests:
             memory: "512Mi"
