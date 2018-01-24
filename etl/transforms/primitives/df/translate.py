@@ -118,7 +118,8 @@ def convert_weight_value_to_float(df, fid_col, value_col, fid):
 def convert_units(df, fid_col, fids, unit_col, from_unit, to_unit, value_col, convert_func):
     def convert_val_in_row(row):
         row[unit_col] = to_unit
-        row[value_col] = convert_func(row[value_col])
+        if row[value_col] != '':
+            row[value_col] = convert_func(row[value_col])
         return row
 
     conds = (df[fid_col].isin(fids)) & (df[unit_col] == from_unit)
