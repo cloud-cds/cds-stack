@@ -748,40 +748,24 @@ async def get_feature_mapping(db_pool):
     df = await conn.fetch(get_mapping_sql)
     return json.loads(df[0][0]) 
 
-async def get_feature_relevances(db_pool, eid):
+async def get_explanations(db_pool, eid):
   get_explanations_sql = \
   '''
-  select feature_relevance from trews_jit_score where model_id=9 and enc_id = (select * from pat_id_to_enc_id('%s'::text)) and twf_raw_values is not null and feature_relevance is not null order by tsp desc limit 1  
-  ''' % eid
+  select feature_relevance, twf_raw_values,s_raw_values
+  from trews_jit_score where enc_id = (select * from pat_id_to_enc_id('%s'::text))
+  and tsp = ( select measurement_time from criteria_events where enc_id= (select * from pat_id_to_enc_id('%s'::text)) and name ='trews_subalert' and flag::numeric>0)::timestamptz
+  and model_id = (select value from trews_parameters where name='trews_jit_model_id')
+  order by (orgdf_details::json->>'pred_time')::timestamptz desc
+  limit 1;
+  ''' %(eid, eid)
   try:
     async with db_pool.acquire() as conn:
       df = await conn.fetch(get_explanations_sql)
-      return json.loads(df[0][0])
-  except:
-    return {}
-
-async def get_static_features(db_pool, eid):
-  get_static_sql = \
-  '''
-  select s_raw_values from trews_jit_score where (model_id=9 or model_id=-9) and enc_id = (select * from pat_id_to_enc_id('%s'::text)) and twf_raw_values is not null and feature_relevance is not null order by tsp desc limit 1  
-  '''%eid
-  try:
-    async with db_pool.acquire() as conn:
-      df = await conn.fetch(get_static_sql)
-      return json.loads(df[0][0])
-  except:
-    return {}
-
-async def get_measurements(db_pool, eid):
-  get_measurements_sql = \
-  '''
-  select twf_raw_values from trews_jit_score where (model_id=9 or model_id=-9) and enc_id = (select * from pat_id_to_enc_id('%s'::text)) and twf_raw_values is not null and feature_relevance is not null order by tsp desc limit 1  
-  ''' % eid
-  try:
-    async with db_pool.acquire() as conn:
-      df = await conn.fetch(get_measurements_sql)
-      return json.loads(df[0][0])
-  except:
+      return {"feature_relevance":json.loads(df[0][0]),
+              "twf_raw_values":json.loads(df[0][1]),
+              "s_raw_values":json.loads(df[0][2])}
+  except Exception as e:
+    print(e)
     return {}
 
 
