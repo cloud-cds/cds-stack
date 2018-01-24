@@ -306,7 +306,7 @@ async def workspace_fillin_delta(ctxt, prediction_params, job_id, workspace):
       workspace   = workspace
     )
   async with ctxt.db_pool.acquire() as conn:
-    ctxt.log.info("start fillin: {}".format(fillin_sql))
+    ctxt.log.debug("start fillin: {}".format(fillin_sql))
     result = await conn.execute(fillin_sql)
     ctxt.log.info(result)
     ctxt.log.info("fillin completed")
@@ -346,7 +346,7 @@ async def workspace_derive(ctxt, prediction_params, job_id, workspace):
       attempts = 0
       while True:
         try:
-          ctxt.log.info("deriving fid {}".format(fid))
+          ctxt.log.debug("deriving fid {}".format(fid))
           await derive_feature(ctxt.log, fid, cdm_feature_dict, conn, derive_feature_addr=derive_feature_addr, cdm_t_lookbackhours=lookbackhours)
           break
         except Exception as e:
@@ -422,22 +422,19 @@ async def workspace_predict(ctxt, prediction_params, job_id, workspace):
 async def workspace_submit_delta(ctxt, job_id, workspace):
   # submit to cdm_twf
   # submit to trews
-  ctxt.log.info("submit delta start")
   ctxt.log.info("{}: submitting results ...".format(job_id))
   submit_cdm = '''
   select * from workspace_submit_delta('%(workspace)s.%(job)s_cdm_twf');
   '''
   async with ctxt.db_pool.acquire() as conn:
-    ctxt.log.info(submit_cdm % {'job': job_id, 'workspace': workspace} )
+    ctxt.log.debug(submit_cdm % {'job': job_id, 'workspace': workspace} )
     await conn.execute(submit_cdm % {'job': job_id, 'workspace': workspace} )
     ctxt.log.info("{}: results submitted".format(job_id))
-    ctxt.log.info("submit completed")
     return job_id
 
 async def workspace_submit(ctxt, job_id, workspace, drop_workspace_table=True, trews=True):
   # submit to cdm_twf
   # submit to trews
-  ctxt.log.info("submit start")
   ctxt.log.info("{}: submitting results ...".format(job_id))
   select_all_colnames = """
     SELECT column_name
@@ -468,7 +465,7 @@ async def workspace_submit(ctxt, job_id, workspace, drop_workspace_table=True, t
     twf_set_columns = ",".join([
         "%(col)s = excluded.%(col)s" % {'col': colname} for colname in colnames
     ])
-    ctxt.log.info(submit_cdm % {'job': job_id, 'set_columns': twf_set_columns, 'workspace': workspace} )
+    ctxt.log.debug(submit_cdm % {'job': job_id, 'set_columns': twf_set_columns, 'workspace': workspace} )
     await conn.execute(submit_cdm % {'job': job_id, 'set_columns': twf_set_columns, 'workspace': workspace} )
     if trews:
       records = await conn.fetch(select_all_colnames % {'table': '%s_trews' % job_id})
@@ -477,10 +474,9 @@ async def workspace_submit(ctxt, job_id, workspace, drop_workspace_table=True, t
           "%(col)s = excluded.%(col)s" % {'col': colname} for colname in colnames
       ])
       trews_columns = ",".join(colnames)
-      ctxt.log.info(submit_trews % {'job': job_id, 'set_columns': trews_set_columns, 'columns': trews_columns, 'workspace': workspace} )
+      ctxt.log.debug(submit_trews % {'job': job_id, 'set_columns': trews_set_columns, 'columns': trews_columns, 'workspace': workspace} )
       await conn.execute(submit_trews % {'job': job_id, 'set_columns': trews_set_columns, 'columns': trews_columns, 'workspace': workspace} )
     ctxt.log.info("{}: results submitted".format(job_id))
-    ctxt.log.info("submit completed")
     return job_id
 
 def get_features_with_intermediates(features, dictionary):

@@ -129,13 +129,13 @@ async def derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=None, deri
   derive_func_id = feature['derive_func_id']
   derive_func_input = feature['derive_func_input']
   fid_category = feature['category']
-  log.info("derive feature %s, function %s, inputs (%s) %s" \
+  log.debug("derive feature %s, function %s, inputs (%s) %s" \
   % (fid, derive_func_id, derive_func_input, 'dataset_id %s' % dataset_id if dataset_id is not None else ''))
   if fid in query_config:
     # =================================
     # Query Coinfiguration Path
     # =================================
-    log.info("Derive Function found in Driver")
+    log.debug("Derive Function found in Driver")
     config_entry = query_config[fid]
     fid_input_items = [item.strip() for item in derive_func_input.split(',')]
     clean_sql = ''
@@ -177,11 +177,11 @@ async def derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=None, deri
     # =================================
     # Custom Derive Function
     # =================================
-    log.info("Derive function is not implemented in driver, so we use legacy derive function")
+    log.debug("Derive function is not implemented in driver, so we use legacy derive function")
     await derive_func.derive(fid, derive_func_id, derive_func_input, conn, \
       log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours)
   te = time.time()
-  log.info("derive feature %s end. (%2.2f secs)" % (fid, te-ts))
+  log.debug("derive feature %s end. (%2.2f secs)" % (fid, te-ts))
 
 
 
