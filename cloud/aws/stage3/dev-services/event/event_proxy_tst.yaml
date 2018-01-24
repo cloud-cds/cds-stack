@@ -42,7 +42,7 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: event-proxy-tst
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:latest
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.92
         resources:
           requests:
             memory: "512Mi"
@@ -50,7 +50,7 @@ spec:
         ports:
         - containerPort: 8000
         command: ["/bin/sh","-c"]
-        args: ["cd /etl/events-soap; . $NVM_DIR/nvm.sh; env; sh start.sh"]
+        args: ["cd /etl/events-soap; . $NVM_DIR/nvm.sh; env; node sqs-proxy.js"]
         # args: ["sleep 10000"]
         securityContext:
           capabilities:
@@ -60,6 +60,8 @@ spec:
         - name: event_forward
           # value: ""
           value: "https://event-server-tst.jh.opsdx.io/epic"
+        - name: queue_url
+          value: "https://sqs.us-east-1.amazonaws.com/359300513585/opsdx-jh-events-tst"
         - name: epic_env
           value: "tst"
         - name: NVM_DIR
