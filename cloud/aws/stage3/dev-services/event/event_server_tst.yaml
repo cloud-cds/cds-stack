@@ -60,7 +60,7 @@ spec:
         - name: queue_name
           value: "opsdx-jh-events-tst"
         - name: log_consumer
-          value: "true"
+          value: "false"
         - name: SWITCH_WEB_REQUEST
           value: "1"
         - name: TREWS_ETL_SERVER
