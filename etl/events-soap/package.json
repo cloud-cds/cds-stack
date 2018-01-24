@@ -1,8 +1,8 @@
 {
-  "name": "edsoa-node-soap",
+  "name": "opsdx-epic-event-proxy",
   "version": "1.0.0",
   "description": "",
-  "main": "server.js",
+  "main": "http-proxy.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -15,6 +15,7 @@
     "express": "^4.15.4",
     "express-soap": "^1.0.3",
     "moment": "^2.20.1",
-    "soap": "^0.20.0"
+    "soap": "^0.20.0",
+    "sqs-producer": "^1.6.2"
   }
 }
