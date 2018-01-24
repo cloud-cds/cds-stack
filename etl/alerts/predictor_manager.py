@@ -103,7 +103,7 @@ class Predictor:
       elif message.get('type') == 'FIN':
         # NOTE (andong): we also handle catchup fin message here
         logging.info("{} - received FIN: {}".format(self, message))
-        num_pats = len(message['enc_ids'])
+        num_pats = len(message['predicted_enc_ids'])
         self.total_time = message['total_time']
         self.optimization_time = message['optimization_time']
         self.datainterface_time = message['datainterface_time']
@@ -116,7 +116,8 @@ class Predictor:
           'time': message['time'],
           'hosp': message['hosp'],
           'enc_ids': message['enc_ids'],
-          'job_id': message['job_id']
+          'job_id': message['job_id'],
+          'predicted_enc_ids': message['predicted_enc_ids']
         })
 
       else:

@@ -153,11 +153,13 @@ class AlertServer:
         dimension_name = 'AlertServer',
         metric_names   = [
                           'prediction_time_{}{}'.format(msg['hosp'], '_push' if self.push_based else ''),
-                          'prediction_enc_cnt_{}{}'.format(msg['hosp'], '_push' if self.push_based else '')],
+                          'prediction_enc_cnt_in_{}{}'.format(msg['hosp'], '_push' if self.push_based else ''),
+                          'prediction_enc_cnt_out_{}{}'.format(msg['hosp'], '_push' if self.push_based else '')],
         metric_values  = [
                           (t_fin - t_start).total_seconds(),
-                          len(msg['enc_ids'])],
-        metric_units   = ['Seconds', 'Count']
+                          len(msg['enc_ids']),
+                          len(msg['predicted_enc_ids'])],
+        metric_units   = ['Seconds', 'Count', 'Count']
       )
     logging.info("start to run suppression mode 2 for msg {}".format(msg))
     tsp = msg['time']
@@ -329,7 +331,7 @@ class AlertServer:
     await conn.fetch(sql)
 
   async def calculate_criteria_enc(self, conn, enc_ids):
-    sql = ';'.join(['select garbage_collection({})'.format(enc_id) for enc_id in enc_ids])
+    sql = ';'.join(['select garbage_collection({},''{}'')'.format(enc_id, self.workspace) for enc_id in enc_ids])
     logging.info("calculate_criteria sql: {}".format(sql))
     await conn.fetch(sql)
     sql = ';'.join(['select advance_criteria_snapshot({})'.format(enc_id) for enc_id in enc_ids])
@@ -339,7 +341,7 @@ class AlertServer:
 
   async def calculate_criteria_push(self, conn, job_id, excluded=None):
     sql = '''
-    select garbage_collection(enc_id)
+    select garbage_collection(enc_id, '{workspace}')
     from (select distinct enc_id from {workspace}.cdm_t
           where job_id = '{job_id}') e
     {where};

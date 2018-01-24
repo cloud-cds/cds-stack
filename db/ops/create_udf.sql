@@ -3819,19 +3819,17 @@ END; $func$;
 -- garbage collection
 ------------------------------
 
--- REVIEW: (Yanif)->(Andong): refactor. Having both garbage_collection *and* reactivate is unnecessary.
--- Andong: We may need more functions in the future
-create or replace function garbage_collection(this_enc_id int default null) returns void language plpgsql as $$ begin
+create or replace function garbage_collection(this_enc_id int default null, workspace text default 'workspace') returns void language plpgsql as $$ begin
     perform reactivate(this_enc_id);
     perform reset_soi_pats(this_enc_id);
     perform reset_bundle_expired_pats(this_enc_id);
     perform reset_noinf_expired_pats(this_enc_id);
     perform del_old_refreshed_pats();
-    perform drop_tables_pattern('workspace', '_' || to_char((now() - interval '2 days')::date, 'MMDD'));
+    perform drop_tables_pattern(workspace, '_' || to_char((now() - interval '2 days')::date, 'MMDD'));
 end; $$;
 
 
-create or replace function garbage_collection(hospital text) returns void language plpgsql as $$ begin
+create or replace function garbage_collection(hospital text, workspace text) returns void language plpgsql as $$ begin
     perform reactivate(enc_id),
         reset_soi_pats(enc_id),
         reset_bundle_expired_pats(enc_id),
@@ -3839,7 +3837,7 @@ create or replace function garbage_collection(hospital text) returns void langua
         reset_orgdf_expired_pats(enc_id)
     from get_latest_enc_ids(hospital);
     perform del_old_refreshed_pats();
-    perform drop_tables_pattern('workspace', '_' || to_char((now() - interval '2 days')::date, 'MMDD'));
+    perform drop_tables_pattern(workspace, '_' || to_char((now() - interval '2 days')::date, 'MMDD'));
 end; $$;
 
 create or replace function del_old_refreshed_pats() returns void language plpgsql
@@ -4562,6 +4560,8 @@ BEGIN
         EXECUTE 'DROP TABLE ' || quote_ident(row.table_schema) || '.' || quote_ident(row.table_name);
         RAISE INFO 'Dropped table: %', quote_ident(row.table_schema) || '.' || quote_ident(row.table_name);
     END LOOP;
+    EXECUTE 'delete from ' || _schema || '.cdm_s where job_id ~* ' || pattern;
+    EXECUTE 'delete from ' || _schema || '.cdm_t where job_id ~* ' || pattern;
 END;
 $$;
 
