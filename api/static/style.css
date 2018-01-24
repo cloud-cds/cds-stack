@@ -394,7 +394,7 @@ div.manual-override[data-trews="uncertain-sepsis"] {
     font-size: 12px;
 }
 .card tr:nth-child(even){
-    background-color: #f2f2f2;
+    /*background-color: #f2f2f2;*/
 }
 .card[data-trews="septicShock"] {
     margin-top: 15px;
@@ -579,9 +579,10 @@ div.slot[data-trews="care-summary-detail"] {
     padding-top: 0px;
     padding-bottom: 0px;
     opacity: 0;
-    visibility: hidden;
+    display:none;
 }
 .slot[data-trews="care-summary-detail"].unhidden {
+  display:inline-block;
 }
 .csstransitions .slot[data-trews="care-summary-detail"] {
     -ms-transition: opacity .3s, visibility .3s, max-height .3s, margin-top .3s, padding-top .3s, padding-bottom .3s;
@@ -1343,6 +1344,37 @@ span.criteria-btn p {
     color: #437c90;
 }
 /* End Suppressions */
+/* Explanations*/
+.trews-criteria {
+    overflow-x:scroll;
+}
+.explanation-leftcol {
+    float: left;
+    width: 33%;
+}
+.explanation-rightcol {
+    float: right;
+    width: 33%;
+}
+.explanation-centercol{
+    display: inline-block;
+    width: 33%;
+}
+.explanation-importcol{
+    float: left;
+    width: 5%;
+}
+.explanation-labelcol{
+    display: inline-block;
+    width: 40%;
+}
+.explanation-valuecol{
+    float: right;
+    width: 55%;
+}
+/* End Explanations
+
+
 /*End Components*/
 
 /* Graphs */

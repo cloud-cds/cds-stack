@@ -1345,101 +1345,94 @@ var careSummaryComponent = new function() {
   this.detailSlot = new slotComponent($("[data-trews='care-summary-detail']"), $('#expand-care-detail'), false, false, false, null, false, true);
 
   this.renderDetail = function(alert_as_cms, cms_status) {
-    var score_str = null;
-    var score_str2 = null;
-    var shock_str = null;
-    var lactate_str = null;
-
-    var cms_hr_idx = 1;
-    var cms_sbp_idx = 0;
-    var cms_lactate_idx = 8;
-
-    var trews_sbp_idx = 0;
-    var trews_lactate_idx = 8;
-
-    var pct_mortality = null;
-    var pct_sevsep = null;
-    var heart_rate = null;
-    var sbp = null;
-    var lactate = null;
-    var lactate_tsp = null;
-
-    if ( alert_as_cms ) {
-      heart_rate = trews.data['severe_sepsis']['sirs']['criteria'][cms_hr_idx].value;
-      sbp = trews.data['severe_sepsis']['organ_dysfunction']['criteria'][cms_sbp_idx].value
-
-      lactate = trews.data['severe_sepsis']['organ_dysfunction']['criteria'][cms_lactate_idx].value
-      lactate_tsp = trews.data['severe_sepsis']['organ_dysfunction']['criteria'][cms_lactate_idx].measurement_time;
+    if ('respiratory rate' in trews.data['feature_relevances']){
+      trews.data['feature_relevances']['resp rate'] = trews.data['feature_relevances']['respiratory rate'];
     }
-    else {
-      try {
-        trews_subalert_json = 'trews_subalert' in trews.data['severe_sepsis'] ? trews.data['severe_sepsis']['trews_subalert'].value : null;
+    trews.data['feature_relevances']
+    //var mark = "<font color='red' size=5><b>!</b></font>";
+    var mark = "<font color='red' size=5>&#9733</font>";
+    var phys_feats = ["BP", "temperature", "heart rate", "SpO2", "PaO2", "PaCO2", "resp rate", "FiO2", "GCS", "RASS"];
+    var hem_feats = ["platelets", "WBC", "INR", "hematocrit", "hemoglobin"];
+    var chem_feats = ["sodium", "creatinine", "bilirubin", "amylase", "lactate", "BUN", "ALT liver enzymes", "arterial ph", "bicarbonate", "CO2", "AST liver enzymes", "potassium", "lipase"];
+    var displayNames = {"ALT liver enzymes": "ALT", "AST liver enzymes": "AST", 'temperature':'Temperature', "heart rate": "Heart Rate", "resp rate": "Resp. Rate", "platelets": "Platelets","hematocrit":"hematocrit","hemoglobin":"Hemoglobin","sodium": "Sodium", "creatinine":"Creatinine", "bilirubin":"Bilirubin","amylase":"Amylase", "lactate":"Lactate","arterial ph":"Arterial PH","bicarbonate":"Bicarbonate","potassium":"Potassium","lipase":"Lipase"};
+    var no_features_str = "";
+    if (Object.keys(trews.data['feature_relevances']).length == 0) {
+      no_features_str = '<div style="background-color:yellow"><h3 style="color:black">TREWS alerted based on many factors without a dominant feature</h3></div>';
+    } 
 
-        if ( trews_subalert_json != null ) {
-          trews_subalert_json = JSON.parse(trews_subalert_json);
-          pct_mortality = Number(trews_subalert_json.pct_mortality).toFixed(0);
-          pct_sevsep = Number(trews_subalert_json.pct_sevsep).toFixed(0);
-          heart_rate = trews_subalert_json.heart_rate != null && 'value' in trews_subalert_json.heart_rate ? trews_subalert_json.heart_rate.value : null;
-          if ( 'lactate' in trews_subalert_json && trews_subalert_json.lactate != null ) {
-            lactate = trews_subalert_json.lactate.value;
-            lactate_tsp = new Date(trews_subalert_json.lactate.tsp);
-          }
-          if ( 'sbpm' in trews_subalert_json && trews_subalert_json.sbpm != null ) {
-            sbp = trews_subalert_json.sbpm.value;
-          }
+    var phys_table_str = '<table style="width:100%;background-color:white;">'
+    for (var i = 0; i < phys_feats.length; i++) {
+        phys_table_str += '<tr>'
+        var feat = phys_feats[i];
+        phys_table_str += '<td>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</td>';
+        phys_table_str += '<td>'+(feat in displayNames ? displayNames[feat]:feat)+'</td>';
+        
+        var value = 'Not available'
+        feat = feat.toLowerCase().replace(/ /g, "_");
+        if (feat in trews.data['measurements']) {
+          value = trews.data['measurements'][feat]['value']+' @ '
+          var date = new Date(Date.parse(trews.data['measurements'][feat]['tsp'] + " UTC"));
+          value += strToTime(date.getTime(),true,false);
         }
 
-        if ( sbp == null ) {
-          trews_sbp_json = trews.data['severe_sepsis']['trews_organ_dysfunction']['criteria'][trews_lactate_idx].value;
-          if ( trews_sbp_json != null ) {
-            trews_sbp_json = JSON.parse(trews_sbp_json);
-            sbp = trews_sbp_json.value;
-          }
+        phys_table_str += '<td>'+value+'</td>';
+        phys_table_str += '</tr>';
+    }
+
+    var hem_table_str = '<table style="width:100%">'
+    for (var i = 0; i < hem_feats.length; i++) {
+        hem_table_str += '<tr>'
+        var feat = hem_feats[i];
+        hem_table_str += '<td>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</td>';
+        hem_table_str += '<td>'+(feat in displayNames ? displayNames[feat]:feat)+'</td>';
+        var value = "Not available"
+        feat = feat.toLowerCase().replace(/ /g, "_");
+        if (feat in trews.data['measurements']) {
+          value = trews.data['measurements'][feat]['value']+' @ '
+          var date = new Date(Date.parse(trews.data['measurements'][feat]['tsp'] + " UTC"));
+          value += strToTime(date.getTime(),true,false);
         }
-
-        if ( lactate == null ) {
-          trews_lactate_json = trews.data['severe_sepsis']['trews_organ_dysfunction']['criteria'][trews_lactate_idx].value;
-          if ( trews_lactate_json != null ) {
-            trews_lactate_json = JSON.parse(trews_lactate_json);
-            lactate = trews_lactate_json.value;
-            lactate_tsp = trews.data['severe_sepsis']['trews_organ_dysfunction']['criteria'][trews_lactate_idx].measurement_time;
-          }
-        }
-      } catch (e) {}
+        hem_table_str += '<td>'+value+'</td>';
+        hem_table_str += '</tr>';
     }
 
-    if ( alert_as_cms ) {
-      score_str = 'TREWS Acuity Score does not indicate high risk of severe sepsis';
-    } else if (pct_mortality != null && pct_sevsep != null) {
-      score_str = 'At this TREWS Acuity Score, there is an <b>' + pct_mortality + '%</b> in-hospital mortality rate.';
-      score_str2 = '<b>' + pct_sevsep + '%</b> of individuals experience severe sepsis.';
+    var chem_table_str = '<table style="width:100%">'
+    for (var i = 0; i < chem_feats.length; i++) {
+        chem_table_str += '<tr>'
+        var feat = chem_feats[i];
+        chem_table_str += '<td>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</td>';
+        chem_table_str += '<td>'+(feat in displayNames ? displayNames[feat]:feat)+'</td>';
+        
+        var value = "Not available"
+        feat = feat.toLowerCase().replace(/ /g, "_");
+        if (feat in trews.data['measurements']) {
+          value = trews.data['measurements'][feat]['value']+' @ '
+          var date = new Date(Date.parse(trews.data['measurements'][feat]['tsp'] + " UTC"));
+          value += strToTime(date.getTime(),true,false);
+       }
+        chem_table_str += '<td>'+value+'</td>';
+        chem_table_str += '</tr>';
     }
-
-    if ( heart_rate != null && sbp != null ) {
-      var shock_index_value = Number(heart_rate / sbp).toFixed(3);
-      shock_str = '<b>Shock index</b> is ' + shock_index_value + ' bpm/mmHg';
-    } else {
-      shock_str = 'Either <b>heart rate</b> or <b>systolic blood pressure</b> measurement is currently unavailable.';
+    
+    var static_table_str = '<table style="width:100%">';
+    for (var feat in trews.data['static_features']) {
+      static_table_str += '<tr>'
+      static_table_str += '<td>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</td>';
+      static_table_str += '<td>'+ (feat.charAt(0).toUpperCase()+feat.slice(1)).replace(/_/g," ")+'</td>';
+      static_table_str += '<td>' + (trews.data['static_features'][feat]==1 ? "Present":trews.data['static_features'][feat]) + '</td>';
+      static_table_str += '</tr>'
     }
-
-    if ( lactate != null && lactate_tsp != null ) {
-      lactate_str = 'The most recent <b>lactate</b> level when the alert fired was ' + lactate + ' mmol/L at ' + strToTime(lactate_tsp, true, false);
-    } else {
-      lactate_str = 'No <b>lactate</b> measurements currently available.';
-    }
-
-    var html_str = '<ul>'
-                   + (score_str == null ? '' : '<li>' + score_str + '</li>')
-                   + (score_str2 == null ? ''  : '<br><li>' + score_str2 + '</li>')
-                   + (cms_status != null ? '<br><li>' + cms_status + '</li>' : '')
-                   //+ '<li>' + shock_str + '</li><br><br>'
-                   //+ '<li>' + lactate_str + '</li>'
-                   + '</ul>'
-                   ;
-
-    this.detailSlot.elem.find('.criteria').html(html_str);
-    this.detailSlot.elem.addClass('skip-complete');
-    this.detailSlot.elem.find('.num').hide();
+   
+    var trews_html = '<h3> TREWS Criteria </h3><table style="width:100%">'
+                   + no_features_str
+                   + '<tr><th>Physiology</th><th>Hematology and coagulation</th><th>Chemistry</th><th>Demographics and History</th></tr>'
+                   + '<tr>'
+                   + '<td style="vertical-align:top">' + phys_table_str + '</table></td>'
+                   + '<td style="vertical-align:top">'+hem_table_str + '</table></td>'
+                   + '<td style="vertical-align:top">'+chem_table_str + '</table></td>'
+                   + '<td style="vertical-align:top">'+static_table_str + '</table></td>'
+                   + '</tr></table>'
+    this.detailSlot.elem.find('.trews-criteria').html(trews_html);
   }
 
   this.render = function() {
