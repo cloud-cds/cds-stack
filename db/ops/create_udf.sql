@@ -3819,7 +3819,7 @@ END; $func$;
 -- garbage collection
 ------------------------------
 
-create or replace function garbage_collection(this_enc_id int default null, workspace text) returns void language plpgsql as $$ begin
+create or replace function garbage_collection(this_enc_id int default null, workspace text default 'workspace') returns void language plpgsql as $$ begin
     perform reactivate(this_enc_id);
     perform reset_soi_pats(this_enc_id);
     perform reset_bundle_expired_pats(this_enc_id);

@@ -153,7 +153,7 @@ class AlertServer:
         dimension_name = 'AlertServer',
         metric_names   = [
                           'prediction_time_{}{}'.format(msg['hosp'], '_push' if self.push_based else ''),
-                          'prediction_enc_cnt_in_{}{}'.format(msg['hosp'], '_push' if self.push_based else '')],
+                          'prediction_enc_cnt_in_{}{}'.format(msg['hosp'], '_push' if self.push_based else ''),
                           'prediction_enc_cnt_out_{}{}'.format(msg['hosp'], '_push' if self.push_based else '')],
         metric_values  = [
                           (t_fin - t_start).total_seconds(),
