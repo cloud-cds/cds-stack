@@ -79,7 +79,7 @@ spec:
           - name: forward-config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: event-proxy-dev
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.92
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.97
         resources:
           requests:
             memory: "512Mi"
@@ -120,6 +120,16 @@ spec:
             secretKeyRef:
               name: rest-api-db-secrets
               key: aws-secret-access-key
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - event-proxy-dev
+            topologyKey: kubernetes.io/hostname
       volumes:
         - name: root-config-volume
           configMap:
