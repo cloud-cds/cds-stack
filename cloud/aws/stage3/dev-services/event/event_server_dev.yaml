@@ -88,8 +88,8 @@ spec:
         ports:
         - containerPort: 8000
         command: ["/bin/sh","-c"]
-        args: ["cd etl/event-server; /usr/local/bin/python3 event-sqs-server.py"]
-        # args: ["sleep 10000"]
+        # args: ["cd etl/event-server; /usr/local/bin/python3 event-sqs-server.py"]
+        args: ["sleep 10000"]
         securityContext:
           capabilities:
             add:
@@ -136,12 +136,12 @@ spec:
         - name: jhapi_client_id
           valueFrom:
             secretKeyRef:
-              name: rest-api-db-secrets
+              name: jhapi-sepsis-push
               key: jhapi-client-id
         - name: jhapi_client_secret
           valueFrom:
             secretKeyRef:
-              name: rest-api-db-secrets
+              name: jhapi-sepsis-push
               key: jhapi-client-secret
         - name: AWS_DEFAULT_REGION
           valueFrom:

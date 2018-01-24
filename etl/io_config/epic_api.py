@@ -137,7 +137,7 @@ class EpicAPIConfig:
                 success += 1
               break
         except IOError as e:
-          if i < request_attempts - 1 and not e.errno in (104): # Connection reset by peer
+          if i < request_attempts - 1 and e.errno in [104]: # Connection reset by peer
             logging.error(e)
             logging.error(setting)
             traceback.print_exc()
@@ -245,11 +245,15 @@ class EpicAPIConfig:
     return ed_patients
 
   async def extract_active_procedures(self, ctxt, bedded_patients, args):
-    resource = ['/facilities/hospital/{}/orders/activeprocedures'.format(pat['hospital']) for _, pat in bedded_patients.iterrows()]
-    payloads = [{'csn': pat['visit_id']} for _, pat in bedded_patients.iterrows()]
+    bp_hospital_null = bedded_patients[bedded_patients.hospital.isnull()]
+    if not bp_hospital_null.empty:
+      logging.warn('extract_active_procedures: empty hospital: {}'.format(bp_hospital_null))
+    bp = bedded_patients[~bedded_patients.hospital.isnull()]
+    resource = ['/facilities/hospital/{}/orders/activeprocedures'.format(pat['hospital']) for _, pat in bp.iterrows()]
+    payloads = [{'csn': pat['visit_id']} for _, pat in bp.iterrows()]
     responses = await self.make_requests(ctxt, resource, payloads, 'GET')
     dfs = [pd.DataFrame(r) for r in responses]
-    df_raw = self.combine(dfs, bedded_patients[['pat_id', 'visit_id']])
+    df_raw = self.combine(dfs, bp[['pat_id', 'visit_id']])
     return {'active_procedures_transformed': self.transform(ctxt, df_raw, 'active_procedures_transforms')}
 
   async def extract_chiefcomplaint(self, ctxt, beddedpatients, args):
@@ -345,9 +349,8 @@ class EpicAPIConfig:
           .reset_index()
         pats = pd.merge(pats, med_orders, left_on=['pat_id','visit_id'], right_on=['pat_id', 'visit_id'], how='left')
       for i, pt in pats.iterrows():
-        if len(pt['ids']) == 0 and ('med_order_ids' in args[i]):
+        if pt['ids'] is None or (len(pt['ids']) == 0 and ('med_order_ids' in args[i])):
           pats.set_value(i, 'ids', [[{'ID': id, 'Type': 'Internal'}] for id in args[i]['med_order_ids']])
-      logging.debug(pats)
       return pats[pats.astype(str)['ids'] != '[]']
 
     logging.debug("extracting med admin")
