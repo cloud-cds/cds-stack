@@ -13,7 +13,7 @@ import datetime as dt
 import numpy as np
 
 ETL_INTERVAL_SECS = int(os.environ['ETL_INTERVAL_SECS']) if 'ETL_INTERVAL_SECS' in os.environ else 30
-
+HOSTID = core.get_environment_var('HOSTNAME').split('-')[-1]
 WORKSPACE = core.get_environment_var('TREWS_ETL_WORKSPACE', 'event_workspace')
 DEBUG = int(core.get_environment_var(('TREWS_ETL_DEBUG'), 0))
 # Create data for loader
@@ -131,7 +131,7 @@ class ETL():
 
   async def load_to_cdm(self, buf):
     start_time = dt.datetime.now()
-    job_id = "job_etl_push_{}".format(dt.datetime.now().strftime('%Y%m%d%H%M%S')).lower()
+    job_id = "job_etl_push_{}_{}".format(HOSTID, dt.datetime.now().strftime('%Y%m%d%H%M%S')).lower()
     if self.prediction_params is None:
       self.prediction_params = await loader.load_online_prediction_parameters(self.ctxt, job_id)
     await loader.epic_2_workspace(self.ctxt, buf, self.config.get_db_conn_string_sqlalchemy(), job_id, 'unicode', WORKSPACE)
