@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: nginx-config
+  name: event-proxy-tst-nginx-config
 data:
   nginx-config: |-
     server {
@@ -98,7 +98,7 @@ spec:
       volumes:
         - name: config-volume
           configMap:
-            name: nginx-config
+            name: event-proxy-tst-nginx-config
             items:
               - key: nginx-config
                 path: trews.conf

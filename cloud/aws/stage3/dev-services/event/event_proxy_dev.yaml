@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: nginx-config
+  name: event-proxy-dev-nginx-config
 data:
   nginx-root-config: |-
     user  nginx;
@@ -133,13 +133,13 @@ spec:
       volumes:
         - name: root-config-volume
           configMap:
-            name: nginx-config
+            name: event-proxy-dev-nginx-config
             items:
               - key: nginx-root-config
                 path: nginx.conf
         - name: forward-config-volume
           configMap:
-            name: nginx-config
+            name: event-proxy-dev-nginx-config
             items:
               - key: nginx-forward-config
                 path: trews.conf
