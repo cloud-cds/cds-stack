@@ -98,9 +98,7 @@ class ETL():
     self.ctxt = TaskContext('ETL', self.config, log=self.log)
     self.ctxt.loop = self.loop
     self.ctxt.db_pool = self.db_pool
-    self.prediction_params = await loader.load_online_prediction_parameters(self.ctxt, job_id)
-
-
+    self.prediction_params = None
 
   def init_etl(self):
     '''
@@ -133,6 +131,8 @@ class ETL():
 
   async def load_to_cdm(self, buf):
     start_time = dt.datetime.now()
+    if self.prediction_params is None:
+      self.prediction_params = await loader.load_online_prediction_parameters(self.ctxt, job_id)
     job_id = "job_etl_push_{}".format(dt.datetime.now().strftime('%Y%m%d%H%M%S')).lower()
     await loader.epic_2_workspace(self.ctxt, buf, self.config.get_db_conn_string_sqlalchemy(), job_id, 'unicode', WORKSPACE)
     # return number of delta entries in cdm_t
