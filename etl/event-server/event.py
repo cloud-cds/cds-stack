@@ -136,7 +136,6 @@ class EventHandler():
     self.app = app
 
   async def process(self, msg):
-    logging.info('msg: %s' % msg)
     event = self.parse_epic_event(msg)
     if event and SWITCH_WEB_REQUEST:
       requests = await self.get_web_requests(event)
