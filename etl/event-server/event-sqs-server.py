@@ -1,7 +1,9 @@
+import os
+import sys
+import json
 import asyncio
 import asyncpg
 import logging
-import sys
 
 import aiobotocore
 import botocore.exceptions
@@ -92,7 +94,7 @@ async def go(loop):
       # This loop wont spin really fast as there is
       # essentially a sleep in the receieve_message call
       response = await app.sqs_client.receive_message(
-          QueueUrl=queue_url,
+          QueueUrl=app.queue_url,
           WaitTimeSeconds=2,
       )
 
@@ -105,7 +107,7 @@ async def go(loop):
 
             # Need to remove msg from queue or else it'll reappear
             await app.sqs_client.delete_message(
-                QueueUrl=queue_url,
+                QueueUrl=app.queue_url,
                 ReceiptHandle=msg['ReceiptHandle']
             )
       else:

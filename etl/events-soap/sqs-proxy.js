@@ -35,7 +35,7 @@ var sqs = require('sqs-producer');
 
 var producer = sqs.create({
   queueUrl        : process.env.queue_url,
-  region          : process.env.AWS_REGION,
+  region          : process.env.AWS_DEFAULT_REGION,
   accessKeyId     : process.env.AWS_ACCESS_KEY_ID,
   secretAccessKey : process.env.AWS_SECRET_ACCESS_KEY
 });
@@ -48,7 +48,7 @@ var service = {
         console.log(JSON.stringify(args, null, 4));
 
         producer.send([{
-          id: args['eventInfo']['Type']['$value'],
+          id: 'id1',
           body: JSON.stringify(args)
         }], function(err) {
           if (err) {
