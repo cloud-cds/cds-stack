@@ -234,14 +234,14 @@ async def load_online_prediction_parameters(ctxt, job_id):
     trews_feature_weights = await conn.fetch("select * from trews_feature_weights")
     for weight in trews_feature_weights:
       feature_weights[weight['fid']] = weight['weight']
-      ctxt.log.info("feature: {:30} weight: {}".format(weight['fid'], weight['weight']))
+      ctxt.log.debug("feature: {:30} weight: {}".format(weight['fid'], weight['weight']))
     trews_parameters = await conn.fetch("select * from trews_parameters")
     for parameter in trews_parameters:
       if parameter['name'] == 'max_score':
         max_score = parameter['value']
       if parameter['name'] == 'min_score':
         min_score = parameter['value']
-    ctxt.log.info('set max_score to {} and min_score to {}'.format(max_score, min_score))
+    ctxt.log.debug('set max_score to {} and min_score to {}'.format(max_score, min_score))
 
     # Get cdm feature dict
     cdm_feature = await conn.fetch("select * from cdm_feature")
@@ -251,17 +251,17 @@ async def load_online_prediction_parameters(ctxt, job_id):
     features_with_intermediates = get_features_with_intermediates(\
       required_fids, cdm_feature_dict)
     measured_features = [fid for fid in features_with_intermediates if cdm_feature_dict[fid]["is_measured"]]
-    ctxt.log.info("The measured features in online prediction: {}".format(
+    ctxt.log.debug("The measured features in online prediction: {}".format(
       _get_feature_description_report(measured_features, cdm_feature_dict)))
 
     # list the fillin features for online prediction
     fillin_features = [fid for fid in features_with_intermediates if \
       cdm_feature_dict[fid]["is_measured"] and cdm_feature_dict[fid]["category"] == "TWF"]
-    ctxt.log.info("The fillin features in online prediction: {}".format(fillin_features))
+    ctxt.log.debug("The fillin features in online prediction: {}".format(fillin_features))
 
     # list the derive features for online prediction
     derive_features = [fid for fid in features_with_intermediates if not cdm_feature_dict[fid]["is_measured"]]
-    ctxt.log.info("The derive features in online prediction: {}".format(derive_features))
+    ctxt.log.debug("The derive features in online prediction: {}".format(derive_features))
 
     return {
       'feature_weights'  : dict(feature_weights),

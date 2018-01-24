@@ -15,7 +15,7 @@ import numpy as np
 ETL_INTERVAL_SECS = int(os.environ['ETL_INTERVAL_SECS']) if 'ETL_INTERVAL_SECS' in os.environ else 30
 
 WORKSPACE = core.get_environment_var('TREWS_ETL_WORKSPACE', 'event_workspace')
-
+DEBUG = int(core.get_environment_var(('TREWS_ETL_DEBUG'), 0))
 # Create data for loader
 lookback_hours = core.get_environment_var('TREWS_ETL_HOURS', '8')
 op_lookback_days = int(core.get_environment_var('TREWS_ET_OP_DAYS', 365))
@@ -90,7 +90,7 @@ class ETL():
     self.log.info('create ETL instance')
     self.loop = asyncio.get_event_loop()
     db_name = core.get_environment_var('db_name')
-    self.config = Config(debug=True, db_name=db_name)
+    self.config = Config(debug=True if DEBUG else False, db_name=db_name)
     extractor.log = self.config.log
     self.cdm_buf = CDMBuffer(self)
     self.load_pt_map()

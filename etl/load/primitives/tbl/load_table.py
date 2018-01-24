@@ -17,7 +17,7 @@ async def data_2_workspace(logger, conn, job_id, df_name, df, dtypes=None, if_ex
         %(cols)s
     );
     """ % {'tab': table_name, 'cols': cols, 'workspace': workspace}
-    logger.info("create table: {}".format(prepare_table))
+    logger.debug("create table: {}".format(prepare_table))
     await conn.execute(prepare_table)
     tuples = [tuple([str(y) for y in x]) for x in df.values]
     await conn.copy_records_to_table(table_name, records=tuples, schema_name=workspace)
@@ -32,7 +32,7 @@ async def gen_label_and_report(conn, dataset_id):
         {dataset_id}, {label_des}, {server}, {nprocs})
     '''.format(dataset_id=dataset_id,
         label_des='labels clarity daily on D7', server='dev_dw', nprocs=12)
-    logging.info("gen_label_and_report: {}".format(sql))
+    logging.debug("gen_label_and_report: {}".format(sql))
     await conn.execute(sql)
 
 
