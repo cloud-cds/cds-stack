@@ -131,24 +131,17 @@ class WebRequestBuffer():
 ###########################
 # Handlers.
 
-class Epic(web.View):
+class EventHandler():
+  def __init__(self, app):
+    self.app = app
 
-  async def post(self):
-    try:
-        message = await self.request.json()
-        event = self.parse_epic_event(message)
-        if event and SWITCH_WEB_REQUEST:
-          requests = await self.get_web_requests(event)
-          if requests and len(requests) > 0:
-            self.request.app.web_req_buf.add_requests(requests)
-    except Exception as ex:
-      logging.warning(str(ex))
-      traceback.print_exc()
-      raise web.HTTPBadRequest(body=json.dumps({'message': str(ex)}))
-
-    finally:
-      # TODO: define fault tolerant responses
-      return json_response({})
+  async def process(self, msg):
+    logging.info('msg: %s' % msg)
+    event = self.parse_epic_event(msg)
+    if event and SWITCH_WEB_REQUEST:
+      requests = await self.get_web_requests(event)
+      if requests and len(requests) > 0:
+        self.app.web_req_buf.add_requests(requests)
 
   def parse_epic_event(self, message):
     '''
@@ -177,6 +170,7 @@ class Epic(web.View):
           ids = {entity['ID']['$value']}
       zid = message['eventInfo']['PrimaryEntity']['ID']['$value']
       return {'event_type': event_type, 'zid': zid, 'ids': ids}
+
     except Exception as ex:
       logging.warning(str(ex))
       logging.info(message)
@@ -215,10 +209,19 @@ class Epic(web.View):
           valid_ids.add(id)
     return valid_ids
 
-  def epic_request(self, requests):
-    for req in requests:
-      '''
-      TODO: run request
-      '''
-      #res = extract...
-      self.add_to_buf(res)
+
+class Epic(web.View):
+
+  async def post(self):
+    try:
+      message = await self.request.json()
+      await self.request.app.event_handler.process(message)
+
+    except Exception as ex:
+      logging.warning(str(ex))
+      traceback.print_exc()
+      raise web.HTTPBadRequest(body=json.dumps({'message': str(ex)}))
+
+    finally:
+      # TODO: define fault tolerant responses
+      return json_response({})

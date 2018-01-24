@@ -1,6 +1,6 @@
 import os
 import event
-import asyncio, asyncpg
+import asyncio
 import asyncpg
 from aiohttp import web
 from aiohttp.web import Response, json_response
@@ -40,8 +40,9 @@ async def init_event_loop(app):
 async def init_etl(app):
   app.etl = etllib.ETL(app)
 
-async def init_web_request_buf(app):
+async def init_event_processor(app):
   app.web_req_buf = event.WebRequestBuffer(app)
+  app.event_handler = event.EventHandler(app)
   event.run_epic_web_requests(app)
 
 logging.info("start event server")
@@ -50,5 +51,5 @@ app.on_startup.append(init_db_pool)
 app.on_cleanup.append(cleanup_db_pool)
 app.on_startup.append(init_event_loop)
 app.on_startup.append(init_etl)
-app.on_startup.append(init_web_request_buf)
+app.on_startup.append(init_event_processor)
 app.router.add_route('POST', URL_EPIC_EVENT, event.Epic)
