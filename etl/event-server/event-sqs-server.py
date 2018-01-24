@@ -13,6 +13,7 @@ import event
 
 
 QUEUE_NAME = os.environ['queue_name']
+log_consumer = os.environ['log_consumer'] == 'true' if 'log_consumer' in os.environ else False
 terminated = False
 
 # db parameters
@@ -100,16 +101,17 @@ async def go(loop):
 
       if 'Messages' in response:
         for msg in response['Messages']:
+          if log_consumer:
             app.logger.info('Got msg "{0}"'.format(msg['Body']))
 
-            # Process message
-            await app.event_handler.process(msg)
+          # Process message
+          await app.event_handler.process(msg)
 
-            # Need to remove msg from queue or else it'll reappear
-            await app.sqs_client.delete_message(
-                QueueUrl=app.queue_url,
-                ReceiptHandle=msg['ReceiptHandle']
-            )
+          # Need to remove msg from queue or else it'll reappear
+          await app.sqs_client.delete_message(
+              QueueUrl=app.queue_url,
+              ReceiptHandle=msg['ReceiptHandle']
+          )
       else:
         app.logger.info('No messages in SQS')
 
