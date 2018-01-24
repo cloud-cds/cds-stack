@@ -52,7 +52,7 @@ function log_summary_loop() {
     console.log(ty + ' => ' + type_summary[ty] + ext);
   }
 
-  setTimeout(log_summary, summary_periods_secs * 1000);
+  setTimeout(log_summary_loop, summary_periods_secs * 1000);
 }
 
 log_summary_loop();
