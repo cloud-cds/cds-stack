@@ -80,7 +80,7 @@ spec:
           - name: forward-config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: event-server-dev
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.97
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:latest
         resources:
           requests:
             memory: "2Gi"
@@ -98,7 +98,11 @@ spec:
         - name: queue_name
           value: "opsdx-jh-events-dev"
         - name: SWITCH_WEB_REQUEST
+          value: "1"
+        - name: SWITCH_ETL
           value: "0"
+        - name: SWITCH_ETL_DONE
+          value: "1"
         - name: TREWS_ETL_SERVER
           value: "prod"
         - name: TREWS_ETL_WORKSPACE
