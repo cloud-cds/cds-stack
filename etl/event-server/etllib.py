@@ -51,10 +51,10 @@ class CDMBuffer():
 
 
   def add(self, results):
-    self.etl.log.info("add data to buffer: {}".format(results))
+    self.etl.log.debug("add data to buffer: {}".format(results))
     for name in results:
       df = results[name]
-      self.etl.log.info("cdm_buf: adding {}".format(name))
+      self.etl.log.debug("cdm_buf: adding {}".format(name))
       if name in self.buf:
         self.buf[name] = pd.concat([self.buf[name], df]).drop_duplicates().reset_index(drop=True)
       else:
@@ -237,7 +237,7 @@ class ETL():
     else:
       pt['visit_id'] = contacts.iloc[0]['CSN']
       pt['hospital'] = contacts.iloc[0]['hospital']
-    self.log.info("extract_mrn_by_zid: {}".format(pt))
+    self.log.debug("extract_mrn_by_zid: {}".format(pt))
     return pt
 
   async def get_contacts_from_cdm(self, ctxt, eid):
@@ -246,7 +246,7 @@ class ETL():
       select pe.visit_id, s.value as hospital from pat_enc pe inner join cdm_s s on pe.enc_id = s.enc_id
       where pe.pat_id = '{}' and s.fid = 'hospital' order by pe.enc_id desc limit 1
       '''.format(eid)
-      self.log.info("start get_contacts_from_cdm: {}".format(sql))
+      self.log.debug("start get_contacts_from_cdm: {}".format(sql))
       result = await conn.fetch(sql)
-      self.log.info("get_contacts_from_cdm result: {}".format(result))
+      self.log.debug("get_contacts_from_cdm result: {}".format(result))
       return result[0]
