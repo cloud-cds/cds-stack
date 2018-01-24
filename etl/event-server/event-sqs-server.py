@@ -48,7 +48,7 @@ class App():
 app = App()
 
 async def init_queue(app):
-  # Boto should get credentials from ~/.aws/credentials or the environment
+  loop = asyncio.get_event_loop()
   session = aiobotocore.get_session(loop=loop)
   app.sqs_client = session.create_client('sqs')
   try:
