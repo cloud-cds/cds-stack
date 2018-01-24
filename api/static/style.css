@@ -1345,6 +1345,9 @@ span.criteria-btn p {
 }
 /* End Suppressions */
 /* Explanations*/
+.trews-criteria {
+    overflow-x:scroll;
+}
 .explanation-leftcol {
     float: left;
     width: 33%;
