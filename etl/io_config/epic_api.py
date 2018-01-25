@@ -359,6 +359,7 @@ class EpicAPIConfig:
       for name in result:
         if name == 'med_orders_transformed':
           med_orders_df = result[name]
+          med_orders_df['ids'] = med_orders_df['ids'].astype(list)
     med_orders = build_med_admin_request_data(ctxt, beddedpatients, med_orders_df, args)
     if med_orders is None or med_orders.empty:
       logging.debug("No med_orders for MAR")
@@ -406,6 +407,7 @@ class EpicAPIConfig:
     if not df_raw.empty:
       # self.log.debug('med_order df_raw.med-order: {}'.format(df_raw.MedicationOrders))
       df_tran = self.transform(ctxt, df_raw, 'med_orders_transforms')
+      df_tran['ids'] = df_tran['ids'].astype(str)
       # self.log.debug("med_order df_tran: {}".format(df_tran))
     else:
       self.log.debug("empty raw med_orders")
