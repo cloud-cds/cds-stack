@@ -345,11 +345,11 @@ class EpicAPIConfig:
       else:
         med_orders = med_orders_df[med_orders_df.order_mode == 'Inpatient'][['pat_id', 'visit_id', 'ids']]\
           .groupby(['pat_id', 'visit_id'])['ids']\
-          .apply(list)\
+          .apply(tuple)\
           .reset_index()
         pats = pd.merge(pats, med_orders, left_on=['pat_id','visit_id'], right_on=['pat_id', 'visit_id'], how='left')
       for i, pt in pats.iterrows():
-        if pt['ids'] is None or (len(pt['ids']) == 0 and ('med_order_ids' in args[i])):
+        if (isinstance(pt['ids'], float) or len(pt['ids']) == 0) and ('med_order_ids' in args[i]):
           pats.set_value(i, 'ids', [[{'ID': id, 'Type': 'Internal'}] for id in args[i]['med_order_ids']])
       return pats[pats.astype(str)['ids'] != '[]']
 
