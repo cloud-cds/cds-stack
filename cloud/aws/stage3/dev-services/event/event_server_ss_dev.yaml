@@ -82,7 +82,7 @@ spec:
           - name: forward-config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: event-server-dev
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.132
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.134
         resources:
           requests:
             memory: "2Gi"
@@ -100,9 +100,9 @@ spec:
         - name: queue_name
           value: "opsdx-jh-events-dev"
         - name: ETL_INTERVAL_SECS
-          value: "300"
+          value: "120"
         - name: EPIC_WEB_REQUEST_INTERVAL_SECS
-          value: "60"
+          value: "30"
         - name: SWITCH_WEB_REQUEST
           value: "1"
         - name: SWITCH_ETL
@@ -110,7 +110,7 @@ spec:
         - name: SWITCH_ETL_CDM
           value: "1"
         - name: SWITCH_ETL_DERIVE
-          value: "0"
+          value: "1"
         - name: SWITCH_ETL_DONE
           value: "0"
         - name: TREWS_ETL_DEBUG
