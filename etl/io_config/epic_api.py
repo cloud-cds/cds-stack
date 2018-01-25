@@ -360,10 +360,14 @@ class EpicAPIConfig:
         if name == 'med_orders_transformed':
           med_orders_df = result[name]
           med_orders_df['ids'] = med_orders_df['ids'].astype(list)
+          med_orders_df = med_orders_df[med_orders_df.order_mode == 'Inpatient']
+    if med_orders_df is None or med_orders_df.empty:
+      logging.debug("No med_orders for MAR")
+      return {'med_admin_transformed': None}
     med_orders = build_med_admin_request_data(ctxt, beddedpatients, med_orders_df, args)
     if med_orders is None or med_orders.empty:
       logging.debug("No med_orders for MAR")
-      return None
+      return {'med_admin_transformed': None}
     else:
       resource = '/patients/medicationadministrationhistory'
       payloads = [{
