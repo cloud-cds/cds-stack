@@ -82,7 +82,7 @@ spec:
           - name: forward-config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: event-server-dev
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.127
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.131
         resources:
           requests:
             memory: "2Gi"
@@ -108,6 +108,8 @@ spec:
         - name: SWITCH_ETL
           value: "1"
         - name: SWITCH_ETL_CDM
+          value: "1"
+        - name: SWITCH_ETL_DERIVE
           value: "0"
         - name: SWITCH_ETL_DONE
           value: "0"
