@@ -181,7 +181,7 @@ async def derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=None, deri
     await derive_func.derive(fid, derive_func_id, derive_func_input, conn, \
       log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours)
   te = time.time()
-  log.debug("derive feature %s end. (%2.2f secs)" % (fid, te-ts))
+  log.info("derive feature %s end. (%2.2f secs)" % (fid, te-ts))
 
 
 

@@ -99,6 +99,10 @@ spec:
         env:
         - name: queue_name
           value: "opsdx-jh-events-dev"
+        - name: ETL_INTERVAL_SECS
+          value: 60
+        - name: EPIC_WEB_REQUEST_INTERVAL_SECS
+          value: 30
         - name: SWITCH_WEB_REQUEST
           value: "1"
         - name: SWITCH_ETL

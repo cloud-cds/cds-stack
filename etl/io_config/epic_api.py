@@ -345,7 +345,7 @@ class EpicAPIConfig:
       else:
         med_orders = med_orders_df[med_orders_df.order_mode == 'Inpatient'][['pat_id', 'visit_id', 'ids']]\
           .groupby(['pat_id', 'visit_id'])['ids']\
-          .apply(tuple)\
+          .apply(list)\
           .reset_index()
         pats = pd.merge(pats, med_orders, left_on=['pat_id','visit_id'], right_on=['pat_id', 'visit_id'], how='left')
       for i, pt in pats.iterrows():
