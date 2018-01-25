@@ -343,7 +343,7 @@ class EpicAPIConfig:
       if med_orders_df is None or med_orders_df.empty:
         pats['ids'] = pats.apply(lambda x: [], axis=1)
       else:
-        med_orders = med_orders_df[med_orders_df.order_mode == 'Inpatient'][['pat_id', 'visit_id', 'ids']]\
+        med_orders = med_orders_df[['pat_id', 'visit_id', 'ids']]\
           .groupby(['pat_id', 'visit_id'])['ids']\
           .apply(list)\
           .reset_index()
@@ -364,6 +364,7 @@ class EpicAPIConfig:
     if med_orders_df is None or med_orders_df.empty:
       logging.debug("No med_orders for MAR")
       return {'med_admin_transformed': None}
+    med_orders_df["ids"] = med_orders_df.ids.apply(lambda x: eval(x))
     med_orders = build_med_admin_request_data(ctxt, beddedpatients, med_orders_df, args)
     if med_orders is None or med_orders.empty:
       logging.debug("No med_orders for MAR")
