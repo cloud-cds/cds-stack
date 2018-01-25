@@ -150,6 +150,9 @@ async def epic_2_workspace(ctxt, db_data, sqlalchemy_str, job_id, dtypes, worksp
   async with ctxt.db_pool.acquire() as conn:
     for df_name, df in db_data.items():
       await primitives.data_2_workspace(ctxt.log, conn, job_id, df_name, df, dtypes=dtypes, workspace=workspace)
+    # TODO
+    # copy_tasks = [asyncio.ensure_future(primitives.data_2_workspace(ctxt.log, conn, job_id, df_name, df, dtypes=dtypes, workspace=workspace)) for df_name, df in db_data.items()]
+    # results = await asyncio.gather(*copy_tasks)
     return job_id
 
 

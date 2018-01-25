@@ -14,6 +14,7 @@ import numpy as np
 
 SWITCH_ETL = int(core.get_environment_var('SWITCH_ETL', 1))
 SWITCH_ETL_CDM = int(core.get_environment_var('SWITCH_ETL_CDM', 1))
+SWITCH_ETL_DERIVE = int(core.get_environment_var('SWITCH_ETL_DERIVE', 1))
 SWITCH_ETL_DONE = int(core.get_environment_var('SWITCH_ETL_DONE', 1))
 ETL_INTERVAL_SECS = int(os.environ['ETL_INTERVAL_SECS']) if 'ETL_INTERVAL_SECS' in os.environ else 30
 HOSTID = core.get_environment_var('HOSTNAME').split('-')[-1]
@@ -162,7 +163,7 @@ class ETL():
             value          = (fillin_end - fillin_start).total_seconds(),
             unit           = 'Seconds'
           )
-          if num_twf_rows:
+          if num_twf_rows and SWITCH_ETL_DERIVE:
             derive_start = dt.datetime.now()
             await loader.workspace_derive(self.ctxt, self.prediction_params, job_id, WORKSPACE)
             derive_end = dt.datetime.now()
