@@ -426,7 +426,7 @@ begin
     execute '
     --create_job_cdm_twf_table
     drop table if exists ' || workspace || '.' || job_id || '_cdm_twf;
-    create table unlogged IF NOT EXISTS ' || workspace || '.' || job_id || '_cdm_twf as
+    create unlogged table IF NOT EXISTS ' || workspace || '.' || job_id || '_cdm_twf as
     select * from cdm_twf with no data;
     alter table ' || workspace || '.' || job_id || '_cdm_twf add primary key (enc_id, tsp);
     ';
@@ -5114,7 +5114,9 @@ if to_regclass('' || workspace || '.' || job_id || '_lab_orders_transformed') is
 end if;
 
 -- workspace_notes_2_cdm_notes
-if to_regclass('' || workspace || '.' || job_id || '_notes_transformed') is not null then
+if to_regclass('' || workspace || '.' || job_id || '_notes_transformed') is not null
+and to_regclass('' || workspace || '.' || job_id || '_note_texts_transformed') is not null
+then
     execute
     'insert into ' || workspace || '.cdm_notes
     select ''' || job_id || ''', enc_id, N.note_id, N.note_type, N.note_status, first(NT.note_body) note_body, first(N.dates::json) dates, first(N.providers::json) providers

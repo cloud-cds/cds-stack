@@ -82,7 +82,7 @@ spec:
           - name: forward-config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: event-server-dev
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.131
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.132
         resources:
           requests:
             memory: "2Gi"
@@ -148,12 +148,12 @@ spec:
         - name: jhapi_client_id
           valueFrom:
             secretKeyRef:
-              name: rest-api-db-secrets
+              name: jhapi-sepsis-push
               key: jhapi-client-id
         - name: jhapi_client_secret
           valueFrom:
             secretKeyRef:
-              name: rest-api-db-secrets
+              name: jhapi-sepsis-push
               key: jhapi-client-secret
         - name: AWS_DEFAULT_REGION
           valueFrom:
