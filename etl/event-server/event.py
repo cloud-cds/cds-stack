@@ -13,7 +13,7 @@ import pandas as pd
 from etl.io_config.cloudwatch import Cloudwatch
 
 
-EPIC_WEB_REQUEST_INTERVAL_SECS = core.get_environment_var('EPIC_WEB_REQUEST_INTERVAL_SECS', 10)
+EPIC_WEB_REQUEST_INTERVAL_SECS = int(core.get_environment_var('EPIC_WEB_REQUEST_INTERVAL_SECS', 10))
 SWITCH_WEB_REQUEST = int(core.get_environment_var('SWITCH_WEB_REQUEST', 1))
 
 cloudwatch_logger = Cloudwatch()
