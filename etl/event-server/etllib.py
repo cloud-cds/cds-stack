@@ -89,6 +89,8 @@ class ETL():
     self.app = app
     self.db_pool = app.db_pool
     self.log = self.app.logger
+    if DEBUG:
+      self.log.setLevel(logging.DEBUG)
     self.log.info('create ETL instance')
     self.loop = asyncio.get_event_loop()
     db_name = core.get_environment_var('db_name')

@@ -402,11 +402,11 @@ class EpicAPIConfig:
     med_ip = self.combine(dfs[:half], bedded_patients[['pat_id', 'visit_id']])
     med_op = self.combine(dfs[half:], bedded_patients[['pat_id', 'visit_id']])
     df_raw = pd.concat([med_ip, med_op]).reset_index(drop=True)
-    self.log.debug("med_order df_raw: {}".format(df_raw))
+    # self.log.debug("med_order df_raw: {}".format(df_raw))
     if not df_raw.empty:
-      self.log.debug('med_order df_raw.med-order: {}'.format(df_raw.MedicationOrders))
+      # self.log.debug('med_order df_raw.med-order: {}'.format(df_raw.MedicationOrders))
       df_tran = self.transform(ctxt, df_raw, 'med_orders_transforms')
-      self.log.debug("med_order df_tran: {}".format(df_tran))
+      # self.log.debug("med_order df_tran: {}".format(df_tran))
     else:
       self.log.debug("empty raw med_orders")
       df_tran = None

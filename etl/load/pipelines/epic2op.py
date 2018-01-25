@@ -346,7 +346,7 @@ async def workspace_derive(ctxt, prediction_params, job_id, workspace):
       attempts = 0
       while True:
         try:
-          ctxt.log.debug("deriving fid {}".format(fid))
+          ctxt.log.info("deriving fid {}".format(fid))
           await derive_feature(ctxt.log, fid, cdm_feature_dict, conn, derive_feature_addr=derive_feature_addr, cdm_t_lookbackhours=lookbackhours)
           break
         except Exception as e:
