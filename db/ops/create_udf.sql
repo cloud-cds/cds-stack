@@ -426,7 +426,7 @@ begin
     execute '
     --create_job_cdm_twf_table
     drop table if exists ' || workspace || '.' || job_id || '_cdm_twf;
-    create table IF NOT EXISTS ' || workspace || '.' || job_id || '_cdm_twf as
+    create table unlogged IF NOT EXISTS ' || workspace || '.' || job_id || '_cdm_twf as
     select * from cdm_twf with no data;
     alter table ' || workspace || '.' || job_id || '_cdm_twf add primary key (enc_id, tsp);
     ';
@@ -502,7 +502,7 @@ BEGIN
           ') as T
         ) on conflict (enc_id, tsp) do update set ' || set_cols || ';
         drop table if exists ' || workspace || '.' || job_id || '_cdm_twf_del;
-        create table ' || workspace || '.' || job_id || '_cdm_twf_del as
+        create unlogged table ' || workspace || '.' || job_id || '_cdm_twf_del as
             select twf.enc_id, twf.tsp from cdm_twf twf
             inner join (select enc_id, min(tsp) as tsp from ' || workspace ||'.cdm_t
                 where job_id = ''' || job_id || ''' and fid in ' || fid_array || ' group by enc_id

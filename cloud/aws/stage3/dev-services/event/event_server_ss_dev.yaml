@@ -107,6 +107,8 @@ spec:
           value: "1"
         - name: SWITCH_ETL
           value: "1"
+        - name: SWITCH_ETL_CDM
+          value: "0"
         - name: SWITCH_ETL_DONE
           value: "0"
         - name: TREWS_ETL_DEBUG

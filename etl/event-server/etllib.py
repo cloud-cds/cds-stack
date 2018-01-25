@@ -141,6 +141,13 @@ class ETL():
       if self.prediction_params is None:
         self.prediction_params = await loader.load_online_prediction_parameters(self.ctxt, job_id)
       await loader.epic_2_workspace(self.ctxt, buf, self.config.get_db_conn_string_sqlalchemy(), job_id, 'unicode', WORKSPACE)
+      end_time = dt.datetime.now()
+      extractor.cloudwatch_logger.push(
+        dimension_name = 'ETL',
+        metric_name    = 'load_to_workspace_time_push',
+        value          = (end_time - start_time).total_seconds(),
+        unit           = 'Seconds'
+      )
       if SWITCH_ETL_CDM:
         # return number of delta entries in cdm_t
         num_delta_t = await loader.workspace_to_cdm_delta(self.ctxt, job_id, WORKSPACE, keep_delta_table=True)
