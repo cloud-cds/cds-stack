@@ -165,7 +165,7 @@ class ETL():
           )
           submit_start = dt.datetime.now()
           await loader.workspace_submit_delta(self.ctxt, job_id, WORKSPACE)
-          submit_start = dt.datetime.now()
+          submit_end = dt.datetime.now()
           extractor.cloudwatch_logger.push(
             dimension_name = 'ETL',
             metric_name    = 'submit_time_push',
