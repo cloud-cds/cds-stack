@@ -477,7 +477,11 @@ class EpicAPIConfig:
     if df_raw is None or df_raw.empty:
       return {'flowsheets_transformed': None}
     else:
-      return {'flowsheets_transformed': self.tz_hack(ctxt, self.transform(ctxt, df_raw, 'flowsheet_transforms'))}
+      df_tran = self.transform(ctxt, df_raw, 'flowsheet_transforms')
+      if not df_tran.empty:
+        return {'flowsheets_transformed': self.tz_hack(ctxt, df_tran)}
+      else:
+        return {'flowsheets_transformed': None}
 
   async def extract_contacts(self, ctxt, pat_id_list, args, idtype='csn', dateFromOneYear=False):
     def get_hospital(row):
