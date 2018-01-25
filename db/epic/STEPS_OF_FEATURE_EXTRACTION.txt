@@ -1,0 +1,126 @@
+STEPS OF FEATURE EXTRACTION
+
+taking order details for ventilators as an example
+
+1 locate data in clarity (by using several patient samples)
+
+mycloud.jh.edu
+
+account: azhan2
+password: Sepsis54321
+
+TODO: move epic textbook to S3
+
+e.g., lisa's query:
+
+select a.order_proc_id,a.order_priority_c,c.NAME as "priority",b.DISCR_FREQ_ID
+,d.freq_name,a.order_class_c,e.name order_class
+from ORDER_PROC a with (nolock)
+inner join HV_ORDER_PROC b with (nolock)
+on a.order_proc_id = b.order_proc_id
+inner join ZC_ORDER_PRIORITY c with (nolock)
+on a.ORDER_PRIORITY_C = c.ORDER_PRIORITY_C
+inner join IP_FREQUENCY d with (nolock)
+on b.discr_freq_id = d.freq_id
+inner join ZC_ORDER_CLASS e with (nolock)
+on e.ORDER_CLASS_C = a.ORDER_CLASS_C
+where a.order_proc_id = '290863698'
+
+2 write extraction query (/d-u/db/epic/ccda643/query_gen_hosp.py) and test it on patient samples again
+
+USE Analytics;
+:OUT \\\\Client\F$\clarity\orderproc_new.{idx}.rpt
+SET NOCOUNT ON
+SELECT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
+  ,procs.proc_id OrderProcId
+  ,inst.INSTNTD_ORDER_ID
+  ,inst.order_id as parent_order_id
+  ,procs.chng_order_Proc_id
+  ,procs.display_name
+  ,eap.proc_name
+  ,proccat.proc_cat_name
+  ,freq.display_name FrequencyOfOrder
+  ,procs.ORDER_TIME
+  ,PROCS.RESULT_TIME
+  ,PARENTS.ORDER_TIME ParentOrderTime
+  ,PROCS.PROC_START_TIME
+  ,PROCS.PROC_ENDING_TIME
+  ,PARENTS.proc_start_time ParentStarttime
+  ,PARENTS.PROC_ENDING_TIME ParentEndingTime
+  ,ordstat.NAME OrderStatus
+  ,labstats.NAME LabStatus
+  ,osq.order_id
+  , osq.line
+  , osq.ord_quest_id
+  , osq.IS_ANSWR_BYPROC_YN 
+  , osq.ord_quest_resp
+  , cq.quest_name
+  , tm.question
+  , osq.ORD_QUEST_CMT comment
+FROM CLARITY..ORDER_PROC procs
+INNER JOIN CLARITY..CLARITY_EAP eap ON procs.proc_id = eap.PROC_ID
+LEFT JOIN CLARITY..IP_FREQUENCY freq on freq.FREQ_ID = eap.DFLT_INTER_ID
+INNER JOIN clarity..EDP_PROC_CAT_INFO proccat ON eap.proc_cat_id = proccat.PROC_CAT_ID
+INNER JOIN CCDA643_CSNLookupTable pat_enc_hsp_1 ON pat_enc_hsp_1.pat_enc_csn_id = procs.PAT_ENC_CSN_ID
+LEFT JOIN CLARITY..zc_order_status ordstat on ordstat.ORDER_STATUS_C = procs.order_status_c
+LEFT JOIN CLARITY..zc_lab_status labstats on labstats.LAB_STATUS_C = procs.lab_status_c
+INNER JOIN CLARITY..ORDER_INSTANTIATED inst ON inst.INSTNTD_ORDER_ID = PROCS.ORDER_PROC_ID
+INNER JOIN CLARITY..ORDER_PROC parents on inst.ORDER_ID = parents.ORDER_PROC_ID
+left join clarity.dbo.ORD_SPEC_QUEST osq on osq.ORDER_ID = procs.ORDER_PROC_ID
+left join clarity.dbo.CL_QQUEST cq on osq.ORD_QUEST_ID = cq.QUEST_ID 
+left join clarity.dbo.CL_QQUEST_OVTM tm on tm.QUEST_ID = cq.QUEST_ID
+inner join HV_ORDER_PROC with (nolock)
+on procs.order_proc_id = HV_ORDER_PROC.order_proc_id
+inner join ZC_ORDER_PRIORITY "priority" with (nolock)
+on a.ORDER_PRIORITY_C = c.ORDER_PRIORITY_C
+inner join IP_FREQUENCY freq with (nolock)
+on b.discr_freq_id = d.freq_id
+inner join ZC_ORDER_CLASS e with (nolock)
+on e.ORDER_CLASS_C = a.ORDER_CLASS_C
+where
+procs.proc_id in
+(
+'160318',
+'2015293',
+'67479', '38825', '38817', '38819', '38821', '38823', '55910', '100294', '100296', '100298', '100300', '304267',
+'67413',
+'67415',
+'127058',
+'70027',
+'71988',
+'71990',
+'110189',
+'131944',
+'165547',
+'3041752',
+'22362','22364','22366','22368','22370','22372','22374','22376','66891','66895','66899','66903','66907','66911','66915','66919','66923','66927','66931','66935','66939','66943','66947','66951','66955','66959','66963','66967','291','293','295','297','301','303' -- dialysis
+, '211374','177692','160318','210948','2015293' -- dialysis supplement
+)
+or
+eap.proc_name = 'BIPAP'
+or
+lower(eap.proc_name) like 'wall cpap - adult%' or
+lower(eap.proc_name) like 'cpap continuous%' or
+lower(eap.proc_name) like 'mechanical ventilation - adult cpap%' or
+eap.proc_name = 'ULTRAFILTRATION' or
+eap.proc_name in ('CONTINUOUS VENOVENOUS HEMODIALYSIS', 'HC INPATIENT HEMODIALYSIS', 'HEMODIALYSIS', 'HEMODIALYSIS INPATIENT', 'HEMODIALYSIS OUTPATIENT', 'HEMODIALYSIS INPATIENT - ACADEMIC')
+;
+GO
+
+3 extract from clarity to S3
+generate sql query
+python3 query_gen_hosp.py > clarity_query.sql
+
+put query to SQL Server and make sure the pathes are correct
+
+download tables in rpt files
+
+remove BOM and empty lines (last n lines)
+
+login to S3 and upload to a bucket
+
+4 load from S3 to DB staging table
+
+under /db/epic/ccda643/
+
+5 load from DB staging table to CDM
