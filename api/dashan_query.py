@@ -9,6 +9,7 @@ import logging
 import pytz
 import requests
 import asyncio
+import asyncpg
 
 from jhapi_io import JHAPI
 from monitoring import APIMonitor
@@ -740,17 +741,68 @@ async def get_deterioration_feedback(db_pool, eid):
       }
 
 
-async def push_notifications_to_epic(db_pool, eid, notify_future_notification=True):
+async def get_feature_mapping(db_pool):
+  get_mapping_sql = \
+  '''
+  select value from parameters where name='trews_jit_interpretability_mapping'
+  '''
   async with db_pool.acquire() as conn:
-    model = model_in_use
-    notifications_sql = \
-    '''
-    select * from get_notifications_for_epic('%s', '%s');
-    ''' % (eid, model)
+    df = await conn.fetch(get_mapping_sql)
+    return json.loads(df[0][0]) 
+
+async def get_explanations(db_pool, eid):
+  get_explanations_sql = \
+  '''
+  select feature_relevance, twf_raw_values,s_raw_values
+  from trews_jit_score where enc_id = (select * from pat_id_to_enc_id('%s'::text))
+  and tsp = ( select measurement_time from criteria_events where enc_id= (select * from pat_id_to_enc_id('%s'::text)) and name ='trews_subalert' and flag::numeric>0)::timestamptz
+  and model_id = (select value from trews_parameters where name='trews_jit_model_id')
+  order by (orgdf_details::json->>'pred_time')::timestamptz desc
+  limit 1;
+  ''' %(eid, eid)
+  try:
+    async with db_pool.acquire() as conn:
+      df = await conn.fetch(get_explanations_sql)
+      return {"feature_relevance":json.loads(df[0][0]),
+              "twf_raw_values":json.loads(df[0][1]),
+              "s_raw_values":json.loads(df[0][2])}
+  except Exception as e:
+    print(e)
+    return {}
+
+
+async def push_notifications_to_epic(db_pool, eid, notify_future_notification=True):
+  retries = 0
+  max_retries = 5
+  notifications = None
+  async with db_pool.acquire() as conn:
+    while retries < max_retries:
+      retries += 1
+      model = model_in_use
+      notifications_sql = \
+      '''
+      select * from get_notifications_for_epic('%s', '%s');
+      ''' % (eid, model)
+      try:
+        async with conn.transaction(isolation='serializable'):
+          notifications = await conn.fetch(notifications_sql)
+          logging.info('get_notifications_for_epic results %s' % len(notifications))
+          break
+
+      except asyncpg.exceptions.SerializationError:
+        logging.info("Serialization error, retrying transaction")
+        await asyncio.sleep(1)
+
+      except:
+        notifications = None
+        break
+
+    if notifications:
+      logging.info("push notifications to epic (epic_notifications={}) for {}".format(epic_notifications, eid))
+      #''' % (eid, model)
     try:
       async with conn.transaction(isolation='serializable'):
         notifications = await conn.fetch(notifications_sql)
-        logging.info('get_notifications_for_epic results %s' % len(notifications))
     except:
       notifications = None
 
@@ -971,12 +1023,13 @@ async def get_recent_pats_from_hosp(db_pool, hosp, model):
     return [row['pat_id'] for row in res]
 
 async def invalidate_cache_batch(db_pool, pid, channel, serial_id, pat_cache):
+  retries = 0
+  max_retries = 5
+
   # run push_notifications_to_epic in a batch way
   logging.info('Invalidating patient cache serial_id %s (via channel %s)' % (serial_id, channel))
   sql = '''with notifications as (
-    select n.* from
-    (select jsonb_array_elements_text(pats) pat_id from refreshed_pats where id = {serial_id}) p
-    inner join (select * from get_notifications_for_epic(null, '{model}')) n on n.pat_id = p.pat_id
+    select * from get_notifications_for_refreshed_pats({serial_id}, '{model}')
   )
   select pat_id, visit_id, enc_id, count, score, threshold, flag from
   (select n.*, notify_future_notification('{channel}', pat_id) from notifications n) M;
@@ -985,14 +1038,23 @@ async def invalidate_cache_batch(db_pool, pid, channel, serial_id, pat_cache):
 
   try:
     async with db_pool.acquire() as conn:
-      async with conn.transaction(isolation='serializable'):
-        notifications = await conn.fetch(sql)
-        logging.info('get_notifications_for_epic results %s' % len(notifications))
-        await load_epic_notifications(notifications)
-        pats = await conn.fetch(pat_sql)
-        logging.info("Invalidating cache for %s" % ','.join(pat_id['pat_id'] for pat_id in pats))
-        for pat_id in pats:
-          asyncio.ensure_future(pat_cache.delete(pat_id['pat_id']))
+      while retries < max_retries:
+        retries += 1
+        try:
+          async with conn.transaction(isolation='serializable'):
+            notifications = await conn.fetch(sql)
+            logging.info('get_notifications_for_epic results %s' % len(notifications))
+            await load_epic_notifications(notifications)
+            pats = await conn.fetch(pat_sql)
+            logging.info("Invalidating cache for %s" % ','.join(pat_id['pat_id'] for pat_id in pats))
+            for pat_id in pats:
+              asyncio.ensure_future(pat_cache.delete(pat_id['pat_id']))
+            break
+
+        except asyncpg.exceptions.SerializationError:
+          logging.info("Serialization error, retrying transaction")
+          await asyncio.sleep(1)
+
   except Exception as ex:
     logging.warning(str(ex))
     traceback.print_exc()

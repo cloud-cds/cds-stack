@@ -9,6 +9,7 @@ import pytz
 
 import data_example
 import dashan_query as query
+from utils import explain
 
 from aiohttp import web
 from aiohttp.web import Response, json_response
@@ -743,6 +744,7 @@ class TREWSAPI(web.View):
     pat_values = await pat_cache.get(eid)
 
     if pat_values is None:
+      #if True:
       api_monitor.add_metric('CacheMisses')
 
       # parallel query execution
@@ -750,7 +752,9 @@ class TREWSAPI(web.View):
                       query.get_criteria(db_pool, eid),
                       query.get_patient_events(db_pool, eid),
                       query.get_patient_profile(db_pool, eid),
-                      query.get_trews_intervals(db_pool, eid)
+                      query.get_trews_intervals(db_pool, eid),
+                      query.get_feature_mapping(db_pool),
+                      query.get_explanations(db_pool, eid),
                       #query.get_trews_jit_score(db_pool, eid, start_hrs=chart_sample_start_hrs, start_day=chart_sample_start_day, end_day=chart_sample_end_day, sample_mins=chart_sample_mins, sample_hrs=chart_sample_hrs)
                     )
 
@@ -774,7 +778,13 @@ class TREWSAPI(web.View):
     notifications, history = pat_values[1]
     patient_scalars        = pat_values[2]
     trews_intervals        = pat_values[3]
-    #chart_values           = pat_values[4]
+    mapping                = pat_values[4]
+    explanations           = pat_values[5]
+    #chart_values           = pat_values[6]
+
+    feature_relevances = explanations['feature_relevance']
+    measurements = explanations['twf_raw_values']
+    static_features = explanations['s_raw_values']
 
     self.update_criteria(criteria_result_set, data)
 
@@ -807,6 +817,10 @@ class TREWSAPI(web.View):
 
       # update trews intervals
       data['trews_intervals'] = trews_intervals
+
+      data['feature_relevances'] = explain.thresholdImportances(explain.getMappedImportances(feature_relevances,mapping))
+      data['measurements'] = measurements
+      data['static_features'] = static_features
 
       return data
 
