@@ -13,7 +13,7 @@ async def data_2_workspace(logger, conn, job_id, df_name, df, dtypes=None, if_ex
     cols = ",".join([ "{} text".format(col) for col in df.columns.values.tolist()])
     prepare_table = \
     """DROP table if exists %(workspace)s.%(tab)s;
-    create table %(workspace)s.%(tab)s (
+    create table unlogged %(workspace)s.%(tab)s (
         %(cols)s
     );
     """ % {'tab': table_name, 'cols': cols, 'workspace': workspace}
