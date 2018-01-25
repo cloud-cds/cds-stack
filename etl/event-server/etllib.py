@@ -144,10 +144,34 @@ class ETL():
       num_delta_t = await loader.workspace_to_cdm_delta(self.ctxt, job_id, WORKSPACE, keep_delta_table=True)
       logging.info("{} num_delta_t = {}".format(job_id, num_delta_t))
       if num_delta_t:
+        fillin_start = dt.datetime.now()
         num_twf_rows = await loader.workspace_fillin_delta(self.ctxt, self.prediction_params, job_id, WORKSPACE)
+        fillin_end = dt.datetime.now()
+        extractor.cloudwatch_logger.push(
+          dimension_name = 'ETL',
+          metric_name    = 'fillin_time_push',
+          value          = (fillin_end - fillin_start).total_seconds(),
+          unit           = 'Seconds'
+        )
         if num_twf_rows:
+          derive_start = dt.datetime.now()
           await loader.workspace_derive(self.ctxt, self.prediction_params, job_id, WORKSPACE)
+          derive_end = dt.datetime.now()
+          extractor.cloudwatch_logger.push(
+            dimension_name = 'ETL',
+            metric_name    = 'derive_time_push',
+            value          = (derive_end - derive_start).total_seconds(),
+            unit           = 'Seconds'
+          )
+          submit_start = dt.datetime.now()
           await loader.workspace_submit_delta(self.ctxt, job_id, WORKSPACE)
+          submit_start = dt.datetime.now()
+          extractor.cloudwatch_logger.push(
+            dimension_name = 'ETL',
+            metric_name    = 'submit_time_push',
+            value          = (submit_end - submit_start).total_seconds(),
+            unit           = 'Seconds'
+          )
           if SWITCH_ETL_DONE:
             await loader.notify_delta_ready_to_trews_alert_server(self.ctxt, job_id, WORKSPACE)
           else:
