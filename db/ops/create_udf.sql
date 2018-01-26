@@ -3819,25 +3819,39 @@ END; $func$;
 -- garbage collection
 ------------------------------
 
-create or replace function garbage_collection(this_enc_id int default null, workspace text default 'workspace') returns void language plpgsql as $$ begin
+create or replace function garbage_collection(this_enc_id int default null, workspace text default 'workspace') returns void language plpgsql as $$
+declare
+  gc_workspace boolean;
+begin
     perform reactivate(this_enc_id);
     perform reset_soi_pats(this_enc_id);
     perform reset_bundle_expired_pats(this_enc_id);
     perform reset_noinf_expired_pats(this_enc_id);
-    perform del_old_refreshed_pats();
-    perform drop_tables_pattern(workspace, '_' || to_char((now() - interval '2 days')::date, 'MMDD'));
+
+    gc_workspace := (now() - (select max(tsp) from etl_job)) > (select max(value)::interval from parameters where name = 'gc_workspace_interval');
+    if gc_workspace then
+      perform del_old_refreshed_pats();
+      perform drop_tables_pattern(workspace, '_' || to_char((now() - interval '2 days')::date, 'MMDD'));
+    end if;
 end; $$;
 
 
-create or replace function garbage_collection(hospital text, workspace text) returns void language plpgsql as $$ begin
+create or replace function garbage_collection(hospital text, workspace text) returns void language plpgsql as $$
+declare
+  gc_workspace boolean;
+begin
     perform reactivate(enc_id),
         reset_soi_pats(enc_id),
         reset_bundle_expired_pats(enc_id),
         reset_noinf_expired_pats(enc_id),
         reset_orgdf_expired_pats(enc_id)
     from get_latest_enc_ids(hospital);
-    perform del_old_refreshed_pats();
-    perform drop_tables_pattern(workspace, '_' || to_char((now() - interval '2 days')::date, 'MMDD'));
+
+    gc_workspace := (now() - (select max(tsp) from etl_job)) > (select max(value)::interval from parameters where name = 'gc_workspace_interval');
+    if gc_workspace then
+      perform del_old_refreshed_pats();
+      perform drop_tables_pattern(workspace, '_' || to_char((now() - interval '2 days')::date, 'MMDD'));
+    end if;
 end; $$;
 
 create or replace function del_old_refreshed_pats() returns void language plpgsql
