@@ -490,7 +490,19 @@ class AlertServer:
           else:
             logging.info("predict_enc_ids is None or empty")
           # create criteria update task for patients who do not need to predict
+          t_fin = dt.datetime.now()
           await self.run_trews_alert(message['job_id'],message['hosp'], excluded_enc_ids=predict_enc_ids)
+          t_end = dt.datetime.now()
+          self.cloudwatch_logger.push_many(
+            dimension_name = 'AlertServer',
+            metric_names   = ['e2e_time_{}{}'.format(message['hosp'], '_short' if self.push_based else ''),
+                              'criteria_time_{}{}'.format(message['hosp'], '_short' if self.push_based else ''),
+                              ],
+            metric_values  = [(t_end - t_start).total_seconds(),
+                              (t_end - t_fin).total_seconds(),
+                              ],
+            metric_units   = ['Seconds','Seconds']
+          )
         elif message.get('hosp') in self.hospital_to_predict:
           if self.model == 'lmc':
             self.garbage_collect_suppression_tasks(message['hosp'])
@@ -507,8 +519,8 @@ class AlertServer:
           # if message['hosp']+message['time'] in self.job_status:
           self.cloudwatch_logger.push_many(
             dimension_name = 'AlertServer',
-            metric_names   = ['e2e_time_{}{}'.format(message['hosp'], '_push' if self.push_based else ''),
-                              'criteria_time_{}{}'.format(message['hosp'], '_push' if self.push_based else ''),
+            metric_names   = ['e2e_time_{}'.format(message['hosp']),
+                              'criteria_time_{}'.format(message['hosp']),
                               ],
             metric_values  = [(t_end - t_start).total_seconds(),
                               (t_end - t_fin).total_seconds(),
