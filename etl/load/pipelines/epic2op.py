@@ -222,34 +222,34 @@ async def load_online_prediction_parameters(ctxt, job_id):
     jit_features = await conn.fetch(query_jit_feature)
     jit_features = [f['fid'] for f in jit_features]
     # Load features needed for lmc
-    query_lmc_feature = '''
-    select f.fid
-    from (
-      select column_name fid
-      from information_schema.columns
-      where table_name = 'lmcscore') f
-    inner join cdm_feature cf on f.fid = cf.fid;
-    '''
-    lmc_features = await conn.fetch(query_lmc_feature)
-    lmc_features = [f['fid'] for f in lmc_features]
+    # query_lmc_feature = '''
+    # select f.fid
+    # from (
+    #   select column_name fid
+    #   from information_schema.columns
+    #   where table_name = 'lmcscore') f
+    # inner join cdm_feature cf on f.fid = cf.fid;
+    # '''
+    # lmc_features = await conn.fetch(query_lmc_feature)
+    # lmc_features = [f['fid'] for f in lmc_features]
     # Load features weights from database
-    feature_weights = {}
-    trews_feature_weights = await conn.fetch("select * from trews_feature_weights")
-    for weight in trews_feature_weights:
-      feature_weights[weight['fid']] = weight['weight']
-      ctxt.log.debug("feature: {:30} weight: {}".format(weight['fid'], weight['weight']))
-    trews_parameters = await conn.fetch("select * from trews_parameters")
-    for parameter in trews_parameters:
-      if parameter['name'] == 'max_score':
-        max_score = parameter['value']
-      if parameter['name'] == 'min_score':
-        min_score = parameter['value']
-    ctxt.log.debug('set max_score to {} and min_score to {}'.format(max_score, min_score))
+    # feature_weights = {}
+    # trews_feature_weights = await conn.fetch("select * from trews_feature_weights")
+    # for weight in trews_feature_weights:
+    #   feature_weights[weight['fid']] = weight['weight']
+    #   ctxt.log.debug("feature: {:30} weight: {}".format(weight['fid'], weight['weight']))
+    # trews_parameters = await conn.fetch("select * from trews_parameters")
+    # for parameter in trews_parameters:
+    #   if parameter['name'] == 'max_score':
+    #     max_score = parameter['value']
+    #   if parameter['name'] == 'min_score':
+    #     min_score = parameter['value']
+    # ctxt.log.debug('set max_score to {} and min_score to {}'.format(max_score, min_score))
 
     # Get cdm feature dict
     cdm_feature = await conn.fetch("select * from cdm_feature")
     cdm_feature_dict = {f['fid']:dict(f) for f in cdm_feature}
-    required_fids = set(list(feature_weights.keys()) + lmc_features + criteria_features + jit_features)
+    required_fids = criteria_features + jit_features
     # list the measured features for online prediction
     features_with_intermediates = get_features_with_intermediates(\
       required_fids, cdm_feature_dict)
@@ -267,9 +267,9 @@ async def load_online_prediction_parameters(ctxt, job_id):
     ctxt.log.debug("The derive features in online prediction: {}".format(derive_features))
 
     return {
-      'feature_weights'  : dict(feature_weights),
-      'max_score'        : max_score,
-      'min_score'        : min_score,
+      'feature_weights'  : {}, #dict(feature_weights),
+      'max_score'        : 0, #max_score,
+      'min_score'        : 0, #min_score,
       'cdm_feature_dict' : cdm_feature_dict,
       'fillin_features'  : fillin_features,
       'derive_features'  : derive_features,
