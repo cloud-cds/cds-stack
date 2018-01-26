@@ -152,7 +152,7 @@ async def derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=None, deri
           sql = gen_simple_twf_query(config_entry, fid, dataset_id, \
             derive_feature_addr, cdm_feature_dict, incremental)
         elif config_entry['derive_type'] == 'subquery':
-          sql = gen_subquery_upsert_query(config_entry, fid, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target)
+          sql = gen_subquery_upsert_query(config_entry, fid, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, workspace, job_id)
         log.debug(clean_sql + sql)
         await conn.execute(clean_sql + sql)
       elif fid_category == 'T':
@@ -221,7 +221,7 @@ def gen_simple_twf_query(config_entry, fid, dataset_id, derive_feature_addr, cdm
   }
   return sql
 
-def gen_subquery_upsert_query(config_entry, fid, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target):
+def gen_subquery_upsert_query(config_entry, fid, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, workspace, job_id):
   twf_table = derive_feature_addr[fid]['twf_table']
   twf_table_temp = derive_feature_addr[fid]['twf_table_temp']
   subquery_params = {}
@@ -235,6 +235,8 @@ def gen_subquery_upsert_query(config_entry, fid, dataset_id, derive_feature_addr
   subquery_params['twf_table'] = twf_table
   subquery_params['cdm_t_target'] = cdm_t_target
   subquery_params['dataset_id'] = dataset_id
+  subquery_params['workspace'] = workspace
+  subquery_params['job_id'] = job_id
   subquery_params['with_ds_twf'] = with_ds(dataset_id, table_name='cdm_twf', conjunctive=False)
   subquery_params['and_with_ds_twf'] = with_ds(dataset_id, table_name='cdm_twf', conjunctive=True)
   subquery_params['with_ds_t'] = with_ds(dataset_id, table_name=cdm_t_target, conjunctive=True)
@@ -262,7 +264,7 @@ def gen_subquery_upsert_query(config_entry, fid, dataset_id, derive_feature_addr
   }
   return upsert_clause
 
-def gen_cdm_t_upsert_query(config_entry, fid, dataset_id, incremental, cdm_t_target, cdm_t_lookbackhours):
+def gen_cdm_t_upsert_query(config_entry, fid, dataset_id, incremental, cdm_t_target, cdm_t_lookbackhours, workspace, job_id):
   fid_select_expr = config_entry['fid_select_expr'] % {
     'cdm_t': cdm_t_target,
     'dataset_col_block': 'cdm_t.dataset_id,' if dataset_id is not None else '',

@@ -98,7 +98,7 @@ async def notify_delta_ready_to_trews_alert_server(ctxt, *para):
   message = {
     'type'  : 'ETL',
     'time'  : str(dt.datetime.utcnow()),
-    'hosp'  : job_id.split('_')[-2].upper(),
+    'hosp'  : job_id.split('_')[-3].upper(),
     'job_id': job_id,
   }
   try:
@@ -350,7 +350,7 @@ async def workspace_derive(ctxt, prediction_params, job_id, workspace):
       while True:
         try:
           ctxt.log.info("deriving fid {}".format(fid))
-          await derive_feature(ctxt.log, fid, cdm_feature_dict, conn, derive_feature_addr=derive_feature_addr, cdm_t_lookbackhours=lookbackhours)
+          await derive_feature(ctxt.log, fid, cdm_feature_dict, conn, derive_feature_addr=derive_feature_addr, cdm_t_lookbackhours=lookbackhours, workspace=workspace,job_id=job_id)
           break
         except Exception as e:
           attempts += 1
