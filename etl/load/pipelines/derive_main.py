@@ -1168,7 +1168,7 @@ query_config = {
     'derive_type': 'simple',
     'fid_select_expr': '''
                                 SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_anticoagulant', 'True', max(cdm_t.confidence) confidence FROM %(cdm_t)s as cdm_t %(incremental_enc_id_join)s %(push_delta_cdm_t_join)s
-                                WHERE fid ~ '^(apixaban|dabigatran|rivaroxaban|warfarin|heparin)_dose$' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s %(incremental_enc_id_match)s %(push_delta_cdm_t_match)s %(lookbackhours)s
+                                WHERE cdm_t.fid ~ '^(apixaban|dabigatran|rivaroxaban|warfarin|heparin)_dose$' AND cast(cdm_t.value::json->>'dose' as numeric) > 0 %(dataset_where_block)s %(incremental_enc_id_match)s %(push_delta_cdm_t_match)s %(lookbackhours)s
                                 group by %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp''',
   },
   'any_beta_blocker': {
@@ -1176,7 +1176,7 @@ query_config = {
     'derive_type': 'simple',
     'fid_select_expr': '''
                                 SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_beta_blocker', 'True', max(cdm_t.confidence) confidence FROM %(cdm_t)s as cdm_t %(incremental_enc_id_join)s %(push_delta_cdm_t_join)s
-                                WHERE fid ~ '^(acebutolol|atenolol|bisoprolol|metoprolol|nadolol|propranolol)_dose$' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s %(incremental_enc_id_match)s %(push_delta_cdm_t_match)s %(lookbackhours)s
+                                WHERE cdm_t.fid ~ '^(acebutolol|atenolol|bisoprolol|metoprolol|nadolol|propranolol)_dose$' AND cast(cdm_t.value::json->>'dose' as numeric) > 0 %(dataset_where_block)s %(incremental_enc_id_match)s %(push_delta_cdm_t_match)s %(lookbackhours)s
                                 group by %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp''',
   },
   'any_glucocorticoid': {
@@ -1184,7 +1184,7 @@ query_config = {
     'derive_type': 'simple',
     'fid_select_expr': '''
                                 SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_glucocorticoid', 'True', max(cdm_t.confidence) confidence FROM %(cdm_t)s as cdm_t %(incremental_enc_id_join)s %(push_delta_cdm_t_join)s
-                                WHERE fid ~ '^(hydrocortisone|prednisone|prednisolone|methylprednisolone|dexamethasone|betamethasone|fludrocortisone)_dose$' AND cast(value::json->>'dose' as numeric) > 0 %(dataset_where_block)s %(incremental_enc_id_match)s %(push_delta_cdm_t_match)s %(lookbackhours)s
+                                WHERE cdm_t.fid ~ '^(hydrocortisone|prednisone|prednisolone|methylprednisolone|dexamethasone|betamethasone|fludrocortisone)_dose$' AND cast(cdm_t.value::json->>'dose' as numeric) > 0 %(dataset_where_block)s %(incremental_enc_id_match)s %(push_delta_cdm_t_match)s %(lookbackhours)s
                                 group by %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp''',
   },
   'any_antibiotics': {
@@ -1192,8 +1192,8 @@ query_config = {
     'derive_type': 'simple',
     'fid_select_expr': '''
       SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_antibiotics', 'True', max(cdm_t.confidence) confidence FROM %(cdm_t)s as cdm_t %(incremental_enc_id_join)s %(push_delta_cdm_t_join)s
-      WHERE fid ~ '^(ampicillin|clindamycin|erythromycin|gentamicin|oxacillin|tobramycin|vancomycin|ceftazidime|cefazolin|penicillin_g|meropenem|penicillin|amoxicillin|piperacillin_tazobac|rifampin|meropenem|rapamycin)_dose$'
-       AND ((isnumeric(value) and value::numeric > 0) or (not isnumeric(value) and cast(value::json->>'dose' as numeric) > 0))
+      WHERE cdm_t.fid ~ '^(ampicillin|clindamycin|erythromycin|gentamicin|oxacillin|tobramycin|vancomycin|ceftazidime|cefazolin|penicillin_g|meropenem|penicillin|amoxicillin|piperacillin_tazobac|rifampin|meropenem|rapamycin)_dose$'
+       AND ((isnumeric(cdm_t.value) and cdm_t.value::numeric > 0) or (not isnumeric(cdm_t.value) and cast(cdm_t.value::json->>'dose' as numeric) > 0))
        %(dataset_where_block)s %(incremental_enc_id_match)s %(push_delta_cdm_t_match)s %(lookbackhours)s
       group by %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp''',
   },
@@ -1202,8 +1202,8 @@ query_config = {
     'derive_type': 'simple',
     'fid_select_expr': '''
       SELECT distinct %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp, 'any_antibiotics_order', 'True', max(cdm_t.confidence) confidence FROM %(cdm_t)s as cdm_t %(incremental_enc_id_join)s %(push_delta_cdm_t_join)s
-      WHERE fid ~ '^(ampicillin|clindamycin|erythromycin|gentamicin|oxacillin|tobramycin|vancomycin|ceftazidime|cefazolin|penicillin_g|meropenem|penicillin|amoxicillin|piperacillin_tazobac|rifampin|meropenem|rapamycin)_dose_order$'
-       AND ((isnumeric(value) and value::numeric > 0) or (not isnumeric(value) and cast(value::json->>'dose' as numeric) > 0))
+      WHERE cdm_t.fid ~ '^(ampicillin|clindamycin|erythromycin|gentamicin|oxacillin|tobramycin|vancomycin|ceftazidime|cefazolin|penicillin_g|meropenem|penicillin|amoxicillin|piperacillin_tazobac|rifampin|meropenem|rapamycin)_dose_order$'
+       AND ((isnumeric(cdm_t.value) and cdm_t.value::numeric > 0) or (not isnumeric(cdm_t.value) and cast(cdm_t.value::json->>'dose' as numeric) > 0))
        %(dataset_where_block)s %(incremental_enc_id_match)s %(push_delta_cdm_t_match)s %(lookbackhours)s
       group by %(dataset_col_block)s cdm_t.enc_id, cdm_t.tsp''',
   },
