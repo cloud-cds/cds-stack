@@ -343,16 +343,14 @@ class AlertServer:
     sql = '''
     select garbage_collection(enc_id, '{workspace}')
     from (select distinct enc_id from {workspace}.cdm_t
-          where job_id = '{job_id}') e
-    {where};
+          where job_id = '{job_id}' and {where}) e;
     '''.format(workspace=self.workspace, job_id=job_id, where=excluded)
     logging.info("calculate_criteria sql: {}".format(sql))
     await conn.fetch(sql)
     sql = '''
     select advance_criteria_snapshot(enc_id)
     from (select distinct enc_id from {workspace}.cdm_t
-          where job_id = '{job_id}') e
-    {where};
+          where job_id = '{job_id}' and {where}) e;
     '''.format(workspace=self.workspace, job_id=job_id, where=excluded)
     logging.info("calculate_criteria sql: {}".format(sql))
     await conn.fetch(sql)
@@ -383,15 +381,17 @@ class AlertServer:
         # calculate criteria here
         excluded = ''
         if excluded_enc_ids:
-          excluded = 'where e.enc_id not in ({})'.format(','.join([str(id) for id in excluded_enc_ids]))
+          excluded = 'where enc_id not in ({})'.format(','.join([str(id) for id in excluded_enc_ids]))
         await self.calculate_criteria_push(conn, job_id, excluded=excluded)
         if self.notify_web:
           sql = '''
           with pats as (
-            select e.enc_id, p.pat_id from (select distinct enc_id from {workspace}.cdm_t
-            where job_id = '{job_id}') e
+            select e.enc_id, p.pat_id from (
+              select distinct enc_id from {workspace}.cdm_t
+              where job_id = '{job_id}' and
+              {where}
+            ) e
             inner join pat_enc p on e.enc_id = p.enc_id
-            {where}
           ),
           refreshed as (
             insert into refreshed_pats (refreshed_tsp, pats)

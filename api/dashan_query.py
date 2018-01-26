@@ -1048,7 +1048,7 @@ async def invalidate_cache_batch(db_pool, pid, channel, serial_id, pat_cache):
           async with conn.transaction(isolation='serializable'):
             await conn.execute(lock_sql)
             notifications = await conn.fetch(sql)
-            logging.info('get_notifications_for_epic results %s' % len(notifications))
+            logging.info('get_notifications_for_refreshed_pats results %s' % len(notifications))
             await load_epic_notifications(notifications)
             pats = await conn.fetch(pat_sql)
             logging.info("Invalidating cache for %s" % ','.join(pat_id['pat_id'] for pat_id in pats))
