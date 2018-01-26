@@ -72,11 +72,11 @@ left join clarity.dbo.CL_QQUEST_OVTM tm on tm.QUEST_ID = cq.QUEST_ID
 inner join HV_ORDER_PROC with (nolock)
 on procs.order_proc_id = HV_ORDER_PROC.order_proc_id
 inner join ZC_ORDER_PRIORITY "priority" with (nolock)
-on a.ORDER_PRIORITY_C = c.ORDER_PRIORITY_C
+on HV_ORDER_PROC.ORDER_PRIORITY_C = priority.ORDER_PRIORITY_C
 inner join IP_FREQUENCY freq with (nolock)
-on b.discr_freq_id = d.freq_id
-inner join ZC_ORDER_CLASS e with (nolock)
-on e.ORDER_CLASS_C = a.ORDER_CLASS_C
+on HV_ORDER_PROC.discr_freq_id = freq.freq_id
+inner join ZC_ORDER_CLASS with (nolock)
+on ZC_ORDER_CLASS.ORDER_CLASS_C = ORDER_PROC.ORDER_CLASS_C
 where
 procs.proc_id in
 (
@@ -121,6 +121,16 @@ login to S3 and upload to a bucket
 
 4 load from S3 to DB staging table
 
-under /db/epic/ccda643/
+under /db/test/
 
 5 load from DB staging table to CDM
+
+fid(s): the CDM feature name(s)
+is_no_add: Yes means just upsert the value ; No means aggregate values for the same key (index) assuming index is patient, fid, and time
+is_med_action: Yes for medication adminstrations (feature like *_dose); No for others
+dbtable: staging table or subquery to staging table
+select_cols: visit_id and value.
+where_conditions: conditions or filters
+transform_func_id: transforma func to use
+assert: (TBD)
+
