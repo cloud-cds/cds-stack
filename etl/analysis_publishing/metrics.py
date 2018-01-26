@@ -936,15 +936,15 @@ class ed_metrics(metric):
   def to_html(self):
     pd.set_option('display.max_colwidth', 75)
     txt = '<h3>This section of the report metrics for patients who were in the ED between {s} and {e}</h3>'.format(s=self.report_start, e=self.report_end)
-
     ## Exit if there were no alerts given during the timeframe (metric_2 == 0).
     if self.no_alerts:
       txt += "No alerts were given for TREWS during this time period."
       return txt
-
+    
     txt += self.metrics_DF.to_html()
     txt += '<h3>This table breaks down the patients that were alerted but had no action (metric 10)</h3>' + self.no_action_results.to_html()
     txt += '<h3>This table reports the page views for each patient in the three no action categories.</h3>' + self.all_page_views.to_html()
+      
     txt += '<h3>The following is a list of the (name: # patients) of all {0} attending providers of the no action patients </h3>'.format(str(len(self.all_Providers)))
     txt += str(self.all_Providers)
     return txt
