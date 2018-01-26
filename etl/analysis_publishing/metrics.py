@@ -7,7 +7,6 @@ import numpy as np
 from pytz import timezone
 from collections import OrderedDict
 import json
-
 #---------------------------------
 ## Metric Classes
 #---------------------------------
@@ -85,7 +84,7 @@ class ed_metrics(metric):
             )
             select enc_id
             from (
-                (select d.enc_id from discharged d)
+                (select d.enc_id from discharged d)   
                 union
                 (select b.enc_id from bedded b)
             ) R1""".format(str(discharge_time))
@@ -594,11 +593,15 @@ class ed_metrics(metric):
     alerted_page_gets = pd.merge(page_gets, no_action_metrics[['enc_id','first_alert']], on='enc_id', how='left')
     alerted_page_gets = alerted_page_gets.loc[alerted_page_gets['first_alert'] <= alerted_page_gets['tsp']]
 
-    ## Build dictionary of page views by providers for each patient
-    page_views = alerted_page_gets['uid'].groupby(alerted_page_gets['enc_id']).value_counts().to_frame('page_views')
-
-    ## Add page views to the full metrics.
-    no_action_metrics['page_views'] = no_action_metrics['enc_id'].apply(lambda x, page_views=page_views, alerted_page_gets=alerted_page_gets: page_views.ix[x].to_dict() if x in alerted_page_gets['enc_id'].unique() else False)
+    try:
+      ## Build dictionary of page views by providers for each patient
+      page_views = alerted_page_gets['uid'].groupby(alerted_page_gets['enc_id']).value_counts().to_frame('page_views')
+      ## Add page views to the full metrics.
+      no_action_metrics['page_views'] = no_action_metrics['enc_id'].apply(lambda x, page_views=page_views, alerted_page_gets=alerted_page_gets: page_views.ix[x].to_dict() if x in alerted_page_gets['enc_id'].unique() else False)
+    except IndexError:
+      ## No patient had a page view of alerted_page_gets is an empty dataframe.
+      no_action_metrics['page_views'] = 0
+      
 
     ## Numpy sum function returns 0 for nan. Since we want integer for counts, use helper func to turn nan to 0.
     def clean_sum(value):
@@ -933,15 +936,15 @@ class ed_metrics(metric):
   def to_html(self):
     pd.set_option('display.max_colwidth', 75)
     txt = '<h3>This section of the report metrics for patients who were in the ED between {s} and {e}</h3>'.format(s=self.report_start, e=self.report_end)
-
     ## Exit if there were no alerts given during the timeframe (metric_2 == 0).
     if self.no_alerts:
       txt += "No alerts were given for TREWS during this time period."
       return txt
-
+    
     txt += self.metrics_DF.to_html()
     txt += '<h3>This table breaks down the patients that were alerted but had no action (metric 10)</h3>' + self.no_action_results.to_html()
     txt += '<h3>This table reports the page views for each patient in the three no action categories.</h3>' + self.all_page_views.to_html()
+      
     txt += '<h3>The following is a list of the (name: # patients) of all {0} attending providers of the no action patients </h3>'.format(str(len(self.all_Providers)))
     txt += str(self.all_Providers)
     return txt
