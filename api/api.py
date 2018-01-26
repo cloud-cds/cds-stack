@@ -818,9 +818,9 @@ class TREWSAPI(web.View):
       # update trews intervals
       data['trews_intervals'] = trews_intervals
 
-      data['feature_relevances'] = explain.thresholdImportances(explain.getMappedImportances(feature_relevances,mapping))
-      data['measurements'] = measurements
-      data['static_features'] = static_features
+      data['feature_relevances'] = explain.thresholdImportances(explain.getMappedImportances(feature_relevances,mapping)) if feature_relevances else None
+      data['measurements']       = measurements
+      data['static_features']    = static_features
 
       return data
 
