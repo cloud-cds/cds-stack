@@ -4940,7 +4940,7 @@ if to_regclass('' || workspace || '.' || job_id || '_bedded_patients_transformed
     select '''|| job_id ||''', pe.enc_id, ''hospital'', hospital, 1
     from ' || workspace || '.' || job_id || '_bedded_patients_transformed bp
         inner join pat_enc pe on pe.visit_id = bp.visit_id
-    where hospital is not null and history <> ''nan''
+    where hospital is not null and hospital <> ''nan'' and hospital <> ''None''
     ON CONFLICT (job_id, enc_id, fid)
     DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
 
