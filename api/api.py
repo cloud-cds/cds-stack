@@ -782,9 +782,9 @@ class TREWSAPI(web.View):
     explanations           = pat_values[5]
     #chart_values           = pat_values[6]
 
-    feature_relevances = explanations['feature_relevance']
-    measurements = explanations['twf_raw_values']
-    static_features = explanations['s_raw_values']
+    feature_relevances = explanations['feature_relevance'] if 'feature_relevance' in explanations else None
+    measurements       = explanations['twf_raw_values'] if 'twf_raw_values' in explanations else None
+    static_features    = explanations['s_raw_values'] if 's_raw_values' in explanations else None
 
     self.update_criteria(criteria_result_set, data)
 
