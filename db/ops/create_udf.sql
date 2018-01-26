@@ -3650,7 +3650,6 @@ RETURNS table(
     flag                int
 ) AS $func$ #variable_conflict use_column
 BEGIN
-  LOCK TABLE epic_notifications_history IN EXCLUSIVE MODE;
   RETURN QUERY
   with prev as (
     select p.pat_id, p.visit_id, p.enc_id, coalesce(
@@ -3702,7 +3701,6 @@ RETURNS table(
     flag                int
 ) AS $func$ #variable_conflict use_column
 BEGIN
-  LOCK TABLE epic_notifications_history IN EXCLUSIVE MODE;
   RETURN QUERY
   with prev as (
     select p.pat_id, p.visit_id, p.enc_id, coalesce(
