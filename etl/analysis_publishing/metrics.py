@@ -7,6 +7,7 @@ import numpy as np
 from pytz import timezone
 from collections import OrderedDict
 import json
+import pdb
 #---------------------------------
 ## Metric Classes
 #---------------------------------
@@ -738,7 +739,7 @@ class ed_metrics(metric):
             providers.append(entry['name'])
       return str(providers)
 
-    tt_df['providers'] = tt_df.apply(findProviders, axis=1)
+    ##tt_df['providers'] = tt_df.apply(findProviders, axis=1)
 
 
     all_Providers = {}
