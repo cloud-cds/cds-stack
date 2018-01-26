@@ -2097,6 +2097,7 @@ return query
                 and (count(*) filter (where TOR.override_value#>>'{0,text}' = 'No Infection')) > 0
              from trews_orgdf TOR
         )
+        and ce.event_id = (select max(ce2.event_id) from criteria_events ce2 where ce2.enc_id = trews_live.enc_id)
     ),
     sirs as (
         select
