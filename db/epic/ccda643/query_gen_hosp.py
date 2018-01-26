@@ -781,6 +781,7 @@ USE Analytics;
 SET NOCOUNT ON
 SELECT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
   ,procs.proc_id OrderProcId
+  ,procs.proc_code OrderProcCode
   ,inst.INSTNTD_ORDER_ID
   ,inst.order_id as parent_order_id
   ,procs.chng_order_Proc_id
@@ -834,8 +835,14 @@ procs.proc_id in
 '165547',
 '3041752',
 '22362','22364','22366','22368','22370','22372','22374','22376','66891','66895','66899','66903','66907','66911','66915','66919','66923','66927','66931','66935','66939','66943','66947','66951','66955','66959','66963','66967','291','293','295','297','301','303' -- dialysis
-, '211374','177692','160318','210948','2015293' -- dialysis supplement
+, '211374','177692','160318','210948','2015293', -- dialysis supplement
+'519', '39121324','389874983', '389874983', '6783734684', -- code status (cpr, ...)
+'38374', '114644', '127813', '143925', '150159', '151273', '165545' -- cardiac catheter
 )
+or
+procs.proc_code like 'CON%'
+or
+procs.proc_code like 'SUR%'
 or
 eap.proc_name = 'BIPAP'
 or
@@ -1033,10 +1040,10 @@ GO
 # 1101 jhh
 # 1102 bmc
 # 1103 hcgh
-hosp = '1102'
-start_date = (2016, 1)
-end_date = (2017, 1)
-num_months = 12
+hosp = '1103'
+start_date = (2017, 11)
+end_date = (2018, 1)
+num_months = 2
 for year in range(start_date[0], end_date[0]+1):
   for month in range(1,13,num_months):
     if year == start_date[0] and month < start_date[1]:
