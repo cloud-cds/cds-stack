@@ -370,6 +370,7 @@ class AlertServer:
         inner join cdm_s s2 on twf.enc_id = s2.enc_id
         where s.fid = 'age' and s.value::float >= 18.0
         and s2.fid = 'hospital' and s2.value = 'HCGH'
+        and job_id = '{job_id}'
       '''.format(workspace=self.workspace, job_id=job_id)
       res = await conn.fetch(sql)
       predict_enc_ids = [row[0] for row in res]
