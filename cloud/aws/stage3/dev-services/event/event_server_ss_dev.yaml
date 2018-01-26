@@ -112,7 +112,7 @@ spec:
         - name: SWITCH_ETL_DERIVE
           value: "1"
         - name: SWITCH_ETL_DONE
-          value: "0"
+          value: "1"
         - name: TREWS_ETL_DEBUG
           value: "0"
         - name: TREWS_ETL_SERVER

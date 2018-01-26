@@ -87,6 +87,15 @@ def incremental_enc_id_match(conjunctive, incremental):
   return "{} (pe.meta_data->>'pending')::boolean".format(conjunctive) \
     if incremental else ''
 
+def push_delta_cdm_t_join(table, workspace, job_id):
+  return """
+  inner join {workspace}.cdm_t wt on {table}.enc_id = wt.enc_id
+  """.format(workspace=workspace, table=table) if workspace and job_id else ''
+
+def push_delta_cdm_t_match(conjunctive, workspace, job_id):
+  return "{} wt.job_id = '{}'".format(conjunctive, job_id) \
+    if workspace and job_id else ''
+
 def incremental_enc_id_in(conjunctive, table, dataset_id, incremental):
   return "{con} {tbl}.enc_id in (select enc_id from pat_enc pe where (pe.meta_data->>'pending')::boolean {dataset_id_match})".format(con=conjunctive, tbl=table, dataset_id_match=dataset_id_equal(' and ', 'pe', dataset_id)) \
       if incremental else ''
