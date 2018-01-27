@@ -17,7 +17,8 @@ def get_src_twf_table(derive_feature_addr):
       return derive_feature_addr[fid]['twf_table']
 
 def get_select_table_joins(fid_input_items, derive_feature_addr,
-                           cdm_feature_dict, dataset_id, incremental):
+                           cdm_feature_dict, dataset_id, incremental,
+                           workspace=None, job_id=None):
   src_twf_table = get_src_twf_table(derive_feature_addr)
   twf_table = None
   existing_tables = set()
@@ -71,6 +72,9 @@ def get_select_table_joins(fid_input_items, derive_feature_addr,
       + incremental_enc_id_match(' where ',incremental)
     table_joins += dataset_id_equal(' and ', \
       twf_table if twf_table else src_twf_table, dataset_id)
+  elif workspace is not None and job_id is not None:
+    table_joins += \
+      (" where {twf}.enc_id in (select distinct enc_id from {ws}.cdm_t where job_id = '{job_id}')".format(twf=twf_table if twf_table else src_twf_table, ws=workspace, job_id=job_id))
   else:
     table_joins += dataset_id_equal(' where ', \
       twf_table if twf_table else src_twf_table, dataset_id)

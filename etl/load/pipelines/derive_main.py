@@ -230,7 +230,7 @@ def gen_subquery_upsert_query(config_entry, fid, dataset_id, derive_feature_addr
   fid_input_items = config_entry['fid_input_items']
   # generate twf_table from selection
   subquery_params['twf_table_join'] = '(' + \
-    get_select_table_joins(fid_input_items, derive_feature_addr, cdm_feature_dict, dataset_id, incremental) \
+    get_select_table_joins(fid_input_items, derive_feature_addr, cdm_feature_dict, dataset_id, incremental, workspace=workspace, job_id=job_id) \
     + ')'
   subquery_params['twf_table'] = twf_table
   subquery_params['cdm_t_target'] = cdm_t_target
@@ -239,7 +239,7 @@ def gen_subquery_upsert_query(config_entry, fid, dataset_id, derive_feature_addr
   subquery_params['job_id'] = job_id
   subquery_params['with_ds_twf'] = with_ds(dataset_id, table_name='cdm_twf', conjunctive=False)
   subquery_params['and_with_ds_twf'] = with_ds(dataset_id, table_name='cdm_twf', conjunctive=True)
-  subquery_params['with_ds_t'] = with_ds(dataset_id, table_name=cdm_t_target, conjunctive=True)
+  subquery_params['with_ds_t'] = with_ds(dataset_id, table_name='cdm_t' if '(' in cdm_t_target else cdm_t_target, conjunctive=True)
   subquery_params['with_ds_ttwf'] = (' AND cdm_t.dataset_id = cdm_twf.dataset_id' if dataset_id else '') + with_ds(dataset_id, table_name='cdm_twf', conjunctive=False)
   subquery_params['dataset_id_key'] = dataset_id_key('cdm_twf', dataset_id)
   for fid_input in config_entry['fid_input_items']:
@@ -286,7 +286,7 @@ def gen_cdm_t_upsert_query(config_entry, fid, dataset_id, incremental, cdm_t_tar
   ON CONFLICT (%(dataset_col_block)s enc_id,tsp,fid) DO UPDATE SET
   value = excluded.value, confidence = excluded.confidence;
   """) % {
-    'cdm_t': cdm_t_target,
+    'cdm_t': 'cdm_t' if '(' in cdm_t_target else cdm_t_target,
     'fid':fid,
     'select_expr': fid_select_expr,
     'dataset_col_block': 'dataset_id,' if dataset_id is not None else '',
@@ -667,7 +667,7 @@ query_config = {
     'fid_input_items': ['wbc', 'bands'],
     'derive_type': 'subquery',
     'subquery': lambda para: '''
-      with subquery as (select enc_id, tsp, confidence from %(cdm_t)s where fid = 'bands' and value::numeric > 10 %(dataset_id_equal_t)s)
+      with subquery as (select enc_id, tsp, confidence from %(cdm_t)s as cdm_t where fid = 'bands' and value::numeric > 10 %(dataset_id_equal_t)s)
       select %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
         bool_or(wbc > 12 or wbc < 4 or subquery.enc_id is not null),
         min(wbc_c | coalesce(subquery.confidence, 0))
@@ -721,7 +721,6 @@ query_config = {
       select  %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp, cdm_twf.any_organ_failure_c c
         FROM %(twf_table_join)s cdm_twf
         where cdm_twf.any_organ_failure %(dataset_id_equal)s
-        order by cdm_twf.enc_id, cdm_twf.tsp desc
     )
     SELECT %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
     least(EXTRACT(EPOCH FROM (cdm_twf.tsp - first(subquery.tsp)))/60, 14*24*60) as minutes_since_any_organ_fail,
@@ -774,7 +773,6 @@ query_config = {
       select %(dataset_id_key_t)s cdm_t.enc_id, cdm_t.tsp, cdm_t.confidence c
         from %(cdm_t)s as cdm_t %(incremental_enc_id_join)s
         where cdm_t.fid = 'any_antibiotics' and cdm_t.value::boolean %(dataset_id_equal_t)s %(incremental_enc_id_match)s
-      order by cdm_t.enc_id, cdm_t.tsp desc
     )
     SELECT %(dataset_id_key)s cdm_twf.enc_id, cdm_twf.tsp,
      least(EXTRACT(EPOCH FROM (cdm_twf.tsp - first(subquery.tsp)))/60, 24*60) as minutes_since_any_antibiotics,

@@ -324,6 +324,11 @@ async def workspace_derive(ctxt, prediction_params, job_id, workspace):
   derive_feature_dict = {fid: cdm_feature_dict[fid] for fid in derive_features}
   derive_feature_order = get_derive_seq(derive_feature_dict)
   twf_table = '{}.{}_cdm_twf'.format(workspace, job_id)
+  cdm_t_target = '''
+  (select * from cdm_t where enc_id in
+    (select distinct enc_id from {workspace}.cdm_t wt
+      where wt.job_id = '{job_id}'))
+  '''.format(workspace, job_id)
 
   # get info for old function
   derive_feature_addr = {}
@@ -350,7 +355,7 @@ async def workspace_derive(ctxt, prediction_params, job_id, workspace):
       while True:
         try:
           ctxt.log.info("deriving fid {}".format(fid))
-          await derive_feature(ctxt.log, fid, cdm_feature_dict, conn, derive_feature_addr=derive_feature_addr, cdm_t_lookbackhours=lookbackhours, workspace=workspace,job_id=job_id)
+          await derive_feature(ctxt.log, fid, cdm_feature_dict, conn, derive_feature_addr=derive_feature_addr, cdm_t_lookbackhours=lookbackhours, workspace=workspace,job_id=job_id, cdm_t_target=cdm_t_target)
           break
         except Exception as e:
           attempts += 1
