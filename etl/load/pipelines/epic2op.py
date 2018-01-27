@@ -328,7 +328,7 @@ async def workspace_derive(ctxt, prediction_params, job_id, workspace):
   (select * from cdm_t where enc_id in
     (select distinct enc_id from {workspace}.cdm_t wt
       where wt.job_id = '{job_id}'))
-  '''.format(workspace, job_id)
+  '''.format(workspace=workspace, job_id=job_id)
 
   # get info for old function
   derive_feature_addr = {}
