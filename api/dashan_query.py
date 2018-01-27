@@ -746,9 +746,13 @@ async def get_feature_mapping(db_pool):
   '''
   select value from parameters where name='trews_jit_interpretability_mapping'
   '''
-  async with db_pool.acquire() as conn:
-    df = await conn.fetch(get_mapping_sql)
-    return json.loads(df[0][0]) 
+  try:
+    async with db_pool.acquire() as conn:
+      df = await conn.fetch(get_mapping_sql)
+      return json.loads(df[0][0]) 
+  except Exception as e:
+    print("Exception: " + str(e) + " in get_feature_mapping query")
+    return {}
 
 async def get_explanations(db_pool, eid):
   get_explanations_sql = \
@@ -763,12 +767,15 @@ async def get_explanations(db_pool, eid):
   try:
     async with db_pool.acquire() as conn:
       df = await conn.fetch(get_explanations_sql)
+      print(df)
       return {"feature_relevance":json.loads(df[0][0]),
               "twf_raw_values":json.loads(df[0][1]),
               "s_raw_values":json.loads(df[0][2])}
   except Exception as e:
-    print(e)
-    return {}
+    print("Exception: " + str(e) + " in get_explanations query")
+    return {"feature_relevance": {},
+            "twf_raw_values": {},
+            "s_raw_values": {}}
 
 
 async def push_notifications_to_epic(db_pool, eid, notify_future_notification=True):

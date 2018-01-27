@@ -819,7 +819,11 @@ class TREWSAPI(web.View):
       data['trews_intervals'] = trews_intervals
 
       data['feature_relevances'] = explain.thresholdImportances(explain.getMappedImportances(feature_relevances,mapping))
+      measurements['bp'] = {'value': str(measurements['sbpm']['value']) + '/' + str(measurements['dbpm']['value']),
+                                        'tsp': measurements['sbpm']['tsp']}
       data['measurements'] = measurements
+      if 'gender' in static_features:
+        static_features['gender'] = 'Male' if static_features['gender'] == 1 else 'Female'
       data['static_features'] = static_features
 
       return data
