@@ -1635,6 +1635,7 @@ BEGIN
     drop table new_criteria;
 
     perform order_event_update(enc_id) from adv_enc_ids R(enc_id);
+    drop table adv_enc_ids;
     RETURN;
 END;
 $$ LANGUAGE PLPGSQL;
