@@ -50,7 +50,7 @@ spec:
           name: server
         env:
         - name: TEST_DI
-          value: "2"
+          value: "0"
         - name : NODE_INDEX
           value: '0'
         - name : ALERT_SERVER_DNS
@@ -82,7 +82,7 @@ spec:
         - name : MODEL_DATA_DIR
           value: '/bucket/lmc/model/MixtureModel/jit_0.71_hcgh3yr/model.pkl'
         - name : SIMULATED_TIME
-          value: '5 minutes ago'
+          value: '20 minutes ago'
         - name : WRITE_INTERNAL_STATE
           value: 'True'
         - name : WRITE_ONLY_IF_NOT_EXCLUDED
@@ -119,8 +119,8 @@ spec:
         command:
         - sh
         - -c
-        - sleep 10000
-        # - cd /lmc/LMC-Based-On-GPflow && ./predict_k8s.sh
+        # - sleep 10000
+        - cd /lmc/LMC-Based-On-GPflow && ./predict_k8s.sh
         securityContext:
           privileged: true
       nodeSelector:

@@ -71,7 +71,7 @@ resource "aws_lambda_function" "test_etl_lambda_HCGH" {
         kube_active_deadline_seconds = "300"
         kube_cmd_0 = "sh"
         kube_cmd_1 = "-c"
-        kube_cmd_2 = "/usr/local/bin/python3 /etl/epic2op/engine_pat_only.py --hospital=HCGH"
+        kube_cmd_2 = "/usr/local/bin/python3 /etl/epic2op/engine_pats_only.py --hospital=HCGH"
         k8s_job_db_host     = "${var.dev_db_host}"
         k8s_job_db_port     = "${var.dev_db_port}"
         k8s_job_db_name     = "opsdx_test"
@@ -91,7 +91,7 @@ resource "aws_lambda_function" "test_etl_lambda_HCGH" {
         k8s_job_TREWS_ETL_EPIC_NOTIFICATIONS = "${var.DEV_ETL_EPIC_NOTIFICATIONS}" # disabled when suppression <> 0
         k8s_job_TREWS_ETL_SUPPRESSION = "2"
         k8s_job_TREWS_ALERT_SERVER_IP = "push-alerts-tst.default.svc.cluster.local"
-        k8s_job_TREWS_ETL_WORKSPACE = "event_workspace"
+        k8s_job_TREWS_ETL_WORKSPACE = "workspace"
       }
     }
 }
@@ -125,7 +125,7 @@ resource "aws_lambda_function" "dev_etl_lambda_HCGH" {
 
         kube_cmd_0 = "sh"
         kube_cmd_1 = "-c"
-        kube_cmd_2 = "/usr/local/bin/python3 /etl/epic2op/engine_pat_only.py --hospital=HCGH"
+        kube_cmd_2 = "/usr/local/bin/python3 /etl/epic2op/engine_pats_only.py --hospital=HCGH"
 
         k8s_job_db_host     = "${var.dev_db_host}"
         k8s_job_db_port     = "${var.dev_db_port}"
@@ -148,7 +148,7 @@ resource "aws_lambda_function" "dev_etl_lambda_HCGH" {
         k8s_job_TREWS_ETL_EPIC_NOTIFICATIONS = "${var.DEV_ETL_EPIC_NOTIFICATIONS}" # disabled when suppression <> 0
         k8s_job_TREWS_ETL_SUPPRESSION = "2"
         k8s_job_TREWS_ALERT_SERVER_IP = "push-alerts-dev.default.svc.cluster.local"
-        k8s_job_TREWS_ETL_WORKSPACE = "event_workspace"
+        k8s_job_TREWS_ETL_WORKSPACE = "workspace"
       }
     }
 }
@@ -182,7 +182,7 @@ resource "aws_lambda_function" "dev_etl_lambda_JHH" {
 
         kube_cmd_0 = "sh"
         kube_cmd_1 = "-c"
-        kube_cmd_2 = "/usr/local/bin/python3 /etl/epic2op/engine_pat_only.py --hospital=JHH"
+        kube_cmd_2 = "/usr/local/bin/python3 /etl/epic2op/engine_pats_only.py --hospital=JHH"
 
         k8s_job_db_host     = "${var.dev_db_host}"
         k8s_job_db_port     = "${var.dev_db_port}"
@@ -205,7 +205,7 @@ resource "aws_lambda_function" "dev_etl_lambda_JHH" {
         k8s_job_TREWS_ETL_EPIC_NOTIFICATIONS = "${var.DEV_ETL_EPIC_NOTIFICATIONS}"
         k8s_job_TREWS_ETL_SUPPRESSION = "2"
         k8s_job_TREWS_ALERT_SERVER_IP = "push-alerts-dev.default.svc.cluster.local"
-        k8s_job_TREWS_ETL_WORKSPACE = "event_workspace"
+        k8s_job_TREWS_ETL_WORKSPACE = "workspace"
       }
     }
 }
@@ -239,7 +239,7 @@ resource "aws_lambda_function" "dev_etl_lambda_BMC" {
 
         kube_cmd_0 = "sh"
         kube_cmd_1 = "-c"
-        kube_cmd_2 = "/usr/local/bin/python3 /etl/epic2op/engine_pat_only.py --hospital=BMC"
+        kube_cmd_2 = "/usr/local/bin/python3 /etl/epic2op/engine_pats_only.py --hospital=BMC"
 
         k8s_job_db_host     = "${var.dev_db_host}"
         k8s_job_db_port     = "${var.dev_db_port}"
@@ -262,7 +262,7 @@ resource "aws_lambda_function" "dev_etl_lambda_BMC" {
         k8s_job_TREWS_ETL_EPIC_NOTIFICATIONS = "${var.DEV_ETL_EPIC_NOTIFICATIONS}"
         k8s_job_TREWS_ETL_SUPPRESSION = "2"
         k8s_job_TREWS_ALERT_SERVER_IP = "push-alerts-dev.default.svc.cluster.local"
-        k8s_job_TREWS_ETL_WORKSPACE = "event_workspace"
+        k8s_job_TREWS_ETL_WORKSPACE = "workspace"
       }
     }
 }
