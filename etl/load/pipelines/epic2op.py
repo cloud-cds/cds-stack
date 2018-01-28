@@ -596,3 +596,16 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
   else:
     ctxt.log.error("Unknown suppression alert mode: {}".format(suppression))
   return all_tasks
+
+def get_tasks_pat_only(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_str, deps=[], suppression=0):
+  all_tasks = [
+    Task(name = 'epic_2_workspace',
+         deps = [db_data_task],
+         coro = epic_2_workspace,
+         args = [sqlalchemy_str, job_id, None, WORKSPACE]),
+    Task(name = 'workspace_to_cdm',
+         deps = ['epic_2_workspace'],
+         coro = workspace_to_cdm,
+         args = [WORKSPACE, True]),
+        ]
+  return all_tasks
