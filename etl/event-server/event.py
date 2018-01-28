@@ -153,13 +153,6 @@ class EventHandler():
     try:
       event_type = message['eventInfo']['Type']['$value']
       label = event_type.replace('-','_').replace(' ','')
-      logging.info("received event: {}".format(label))
-      cloudwatch_logger.push_many(
-        dimension_name  = 'ETL',
-        metric_names    = ['EventCount', 'EventCount_{}'.format(label)],
-        metric_values   = [1,1],
-        metric_units    = ['Count','Count']
-      )
       ids = None
       if 'OtherEntities' in message['eventInfo']:
         entity = message['eventInfo']['OtherEntities'][0]['Entity']
@@ -172,6 +165,13 @@ class EventHandler():
         return {'event_type': event_type, 'zid': zid, 'ids': ids}
       else:
         return None
+      logging.info("received event: {} for zid {}".format(label, zid))
+      cloudwatch_logger.push_many(
+        dimension_name  = 'ETL',
+        metric_names    = ['EventCount', 'EventCount_{}'.format(label)],
+        metric_values   = [1,1],
+        metric_units    = ['Count','Count']
+      )
 
     except Exception as ex:
       logging.warning(str(ex))

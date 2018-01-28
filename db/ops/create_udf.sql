@@ -4630,6 +4630,40 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION compare_with_prod_cdm_t(start_tsp text, end_tsp text)
+RETURNS table (type text, visit_id varchar, tsp timestamptz, fid varchar, value text, confidence int)
+LANGUAGE plpgsql
+AS
+$$
+declare
+    local_exprs text := 'visit_id, tsp, fid, value, confidence';
+    local_table text := '(select '|| local_exprs ||' from cdm_t inner join pat_enc pe on cdm_t.enc_id = pe.enc_id where cdm_t.enc_id in (select enc_id from get_latest_enc_ids(''HCGH''))) as cdm_t';
+    with_dst_extension text := ' where tsp between ''' || start_tsp || '''::timestamptz and ''' || end_tsp || '''::timestamptz';
+    query text := 'select ' || local_exprs || ' from ' || local_table || with_dst_extension;
+    finalizer text := 'select * from A_DIFF_B union select * from B_DIFF_A';
+    remote_query text := 'select * from dblink(''opsdx_prod_srv'', ' || quote_literal(query) || ') as remote_fields (visit_id varchar, tsp timestamptz, fid varchar, value text, confidence int)';
+begin
+return query
+execute '
+  WITH A_DIFF_B AS (
+    SELECT ''dev_only'', '|| local_exprs || ' FROM ' || local_table || with_dst_extension || '
+    EXCEPT
+    SELECT ''dev_only'', ' || local_exprs || '
+    FROM (
+      '||remote_query||'
+    ) AS tab_compare
+  ), B_DIFF_A AS (
+    SELECT ''prod_only'', ' || local_exprs || '
+    FROM (
+      '||remote_query||'
+    ) AS tab_compare
+    EXCEPT
+    SELECT ''prod_only'',' || local_exprs || ' FROM ' || local_table || with_dst_extension || '
+  )
+  '|| finalizer;
+end;
+$$;
+
 CREATE OR REPLACE FUNCTION get_latest_enc_ids(hospital text, max_tsp text default null)
 RETURNS table (enc_id int)
 LANGUAGE plpgsql
