@@ -309,6 +309,7 @@ class AlertServer:
       '''.format(server=server,hours=self.lookbackhours,job_id=job_id,nprocs=self.nprocs)
       logging.info("calculate_criteria sql: {}".format(sql))
       await conn.fetch(sql)
+
   async def distribute_calculate_criteria_hospital(self, conn, hospital):
     server = 'dev_db' if 'dev' in self.channel else 'prod_db'
     sql = "select garbage_collection('{}');".format(hospital)
@@ -348,10 +349,15 @@ class AlertServer:
     logging.info("calculate_criteria sql: {}".format(sql))
     await conn.fetch(sql)
     sql = '''
-    select advance_criteria_snapshot(enc_id)
-    from (select distinct enc_id from {workspace}.cdm_t
-          where job_id = '{job_id}' {where}) e;
+    select advance_criteria_snapshot_batch(
+      'select distinct enc_id from {workspace}.cdm_t where job_id = ''{job_id}'' {where}'
+    );
     '''.format(workspace=self.workspace, job_id=job_id, where=excluded)
+    # sql = '''
+    # select advance_criteria_snapshot(enc_id)
+    # from (select distinct enc_id from {workspace}.cdm_t
+    #       where job_id = '{job_id}' {where}) e;
+    # '''.format(workspace=self.workspace, job_id=job_id, where=excluded)
     logging.info("calculate_criteria sql: {}".format(sql))
     await conn.fetch(sql)
     logging.info("complete calculate_criteria_enc")
