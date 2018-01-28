@@ -781,7 +781,6 @@ USE Analytics;
 SET NOCOUNT ON
 SELECT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
   ,procs.proc_id OrderProcId
-  ,procs.proc_code OrderProcCode
   ,inst.INSTNTD_ORDER_ID
   ,inst.order_id as parent_order_id
   ,procs.chng_order_Proc_id
