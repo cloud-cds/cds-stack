@@ -351,7 +351,7 @@ class EpicAPIConfig:
       for i, pt in pats.iterrows():
         if (isinstance(pt['ids'], float) or len(pt['ids']) == 0) and ('med_order_ids' in args[i]):
           pats.set_value(i, 'ids', [[{'ID': id, 'Type': 'Internal'}] for id in args[i]['med_order_ids']])
-      return pats[pats.astype(str)['ids'] != '[]']
+      return pats[(pats.astype(str)['ids'] != '[]') & pats.ids.notnull()]
 
     logging.debug("extracting med admin")
     med_orders_df = None
