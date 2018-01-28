@@ -1,0 +1,127 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: tensorflow-svc
+  labels:
+    app: tensorflow-svc
+spec:
+  ports:
+  - port: 2222
+    name: server
+  clusterIP: None
+  selector:
+    app: tensorflow
+---
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  name: predictdev
+spec:
+  serviceName: tensorflow-svc
+  replicas: 1 # Needs to be twice 'NUM_WORKERS' for an active and backup pod (actual number of pods)
+  template:
+    metadata:
+      labels:
+        app: tensorflow
+      annotations:
+        pod.alpha.kubernetes.io/initialized: "true"
+        scheduler.alpha.kubernetes.io/affinity: >
+            {
+              "podAntiAffinity": {
+                "requiredDuringSchedulingIgnoredDuringExecution": [{
+                  "labelSelector": {
+                    "matchExpressions": [{
+                      "key": "app",
+                      "operator": "In",
+                      "values": ["tensorflow"]
+                    }]
+                  },
+                  "topologyKey": "kubernetes.io/hostname"
+                }]
+              }
+            }
+    spec:
+      containers:
+      - name: tensorflow-long
+        imagePullPolicy: Always
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/ml-trews-dev:latest
+        ports:
+        - containerPort: 2222
+          name: server
+        env:
+        - name: TEST_DI
+          value: "2"
+        - name : NODE_INDEX
+          value: '0'
+        - name : ALERT_SERVER_DNS
+          value: 'push-alerts-dev.default.svc.cluster.local'
+        - name : K8S_DEPLOYMENT
+          value: 'True'
+        - name : COMPUTE_FEATURE_RELEVANCE
+          value: 'True'
+        - name : WRITE_RAW_VALUES
+          value: 'True'
+        - name : MODEL_ID
+          value: '10'
+        - name : NUM_WORKERS
+          value: '1'
+        - name : FEAT_SIZE
+          value: '8'
+        - name : COMMO_PORT
+          value: '8181'
+        - name : ACTIVE_PREDICTOR
+          value: 'True'
+        - name : HOSPITAL_REGEX
+          value: 'HCGH'
+        - name : CALIBRATE_SCORE
+          value: 'False'
+        - name : LMCHOME
+          value: /lmc/LMC-Based-On-GPflow/
+        - name : DESCRIP
+          value: 'predict'
+        - name : MODEL_DATA_DIR
+          value: '/bucket/lmc/model/MixtureModel/jit_0.71_hcgh3yr/model.pkl'
+        - name : SIMULATED_TIME
+          value: '5 minutes ago'
+        - name : WRITE_INTERNAL_STATE
+          value: 'True'
+        - name : WRITE_ONLY_IF_NOT_EXCLUDED
+          value: 'False'
+        - name : THROTTLE_TIME
+          value: '0'
+        - name : PRED_DELTA
+          value: '7'
+        - name : DATASOURCE
+          value: 'SQL'
+        - name : DATABASE
+          value: 'dev'
+        - name : LABEL_ID
+          value: '30'
+        - name : DATASET
+          value: '1'
+        - name : TOTAL_NUM_PATIENTS
+          value: '-1'
+        - name: DB_PASS
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: db-password
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-secret-access-key
+        command:
+        - sh
+        - -c
+        - sleep 10000
+        # - cd /lmc/LMC-Based-On-GPflow && ./predict_k8s.sh
+        securityContext:
+          privileged: true
+      nodeSelector:
+        opsdx_nodegroup: predictor2

@@ -71,7 +71,7 @@ resource "aws_lambda_function" "test_etl_lambda_HCGH" {
         kube_active_deadline_seconds = "300"
         kube_cmd_0 = "sh"
         kube_cmd_1 = "-c"
-        kube_cmd_2 = "/usr/local/bin/python3 /etl/epic2op/engine.py --hospital=HCGH"
+        kube_cmd_2 = "/usr/local/bin/python3 /etl/epic2op/engine_pat_only.py --hospital=HCGH"
         k8s_job_db_host     = "${var.dev_db_host}"
         k8s_job_db_port     = "${var.dev_db_port}"
         k8s_job_db_name     = "opsdx_test"
@@ -125,7 +125,7 @@ resource "aws_lambda_function" "dev_etl_lambda_HCGH" {
 
         kube_cmd_0 = "sh"
         kube_cmd_1 = "-c"
-        kube_cmd_2 = "/usr/local/bin/python3 /etl/epic2op/engine.py --hospital=HCGH"
+        kube_cmd_2 = "/usr/local/bin/python3 /etl/epic2op/engine_pat_only.py --hospital=HCGH"
 
         k8s_job_db_host     = "${var.dev_db_host}"
         k8s_job_db_port     = "${var.dev_db_port}"
@@ -182,7 +182,7 @@ resource "aws_lambda_function" "dev_etl_lambda_JHH" {
 
         kube_cmd_0 = "sh"
         kube_cmd_1 = "-c"
-        kube_cmd_2 = "/usr/local/bin/python3 /etl/epic2op/engine.py --hospital=JHH"
+        kube_cmd_2 = "/usr/local/bin/python3 /etl/epic2op/engine_pat_only.py --hospital=JHH"
 
         k8s_job_db_host     = "${var.dev_db_host}"
         k8s_job_db_port     = "${var.dev_db_port}"
@@ -239,7 +239,7 @@ resource "aws_lambda_function" "dev_etl_lambda_BMC" {
 
         kube_cmd_0 = "sh"
         kube_cmd_1 = "-c"
-        kube_cmd_2 = "/usr/local/bin/python3 /etl/epic2op/engine.py --hospital=BMC"
+        kube_cmd_2 = "/usr/local/bin/python3 /etl/epic2op/engine_pat_only.py --hospital=BMC"
 
         k8s_job_db_host     = "${var.dev_db_host}"
         k8s_job_db_port     = "${var.dev_db_port}"
