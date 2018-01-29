@@ -25,11 +25,10 @@ import etl.io_config.core as core
 import pdb
 
 EPIC_ENV = core.get_environment_var('EPIC_ENV', '')
-ALL_FLO_IDS_DICT = []
+ALL_FLO_IDS_DICT = {}
 for fid, internal_id_list in flowsheet_ids:
   for internal_id in internal_id_list:
-    ALL_FLO_IDS_DICT[internal_id] = {'ID': str(internal_id),
-                  'Type': 'Internal'}
+    ALL_FLO_IDS_DICT[internal_id] = {'ID': str(internal_id), 'Type': 'Internal'}
 ALL_FLO_IDS_LIST = list(ALL_FLO_IDS_DICT.values())
 
 

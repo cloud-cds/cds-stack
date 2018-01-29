@@ -125,9 +125,9 @@ class WebRequestBuffer():
             else:
               self.buf[zid]['args'].pop('flowsheet_ids', None)
 
-          elif func == extractor.medicationadministrationhistory:
+          elif func == extractor.extract_med_admin:
             if 'med_order_ids' in args:
-              if extractor.medicationadministrationhistory in self.buf[zid]['funcs']:
+              if extractor.extract_med_admin in self.buf[zid]['funcs']:
                 if 'med_order_ids' in self.buf[zid]['args']:
                   self.buf[zid]['args']['med_order_ids'].union(args['med_order_ids'])
               else:
