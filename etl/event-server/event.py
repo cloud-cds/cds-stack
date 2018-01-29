@@ -35,7 +35,7 @@ med_admin_extraction = {
 
 note_extraction = {extractor.extract_notes, extractor.extract_note_texts}
 
-full_extraction = {extractor.extract_flowsheets, extractor.extract_chiefcomplaint, extractor.extract_loc_history}.union(order_extraction).union(med_admin_extraction).union(note_extraction)
+full_extraction = {extractor.extract_flowsheets, extractor.extract_chiefcomplaint, extractor.extract_loc_history, extractor.extract_treatmentteam}.union(order_extraction).union(med_admin_extraction).union(note_extraction)
 
 EpicEvents = {
   'Flowsheet - Add': {extractor.extract_flowsheets},
