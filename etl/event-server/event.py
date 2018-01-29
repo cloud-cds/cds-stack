@@ -137,6 +137,7 @@ class EventHandler():
 
   async def process(self, msg):
     event = self.parse_epic_event(msg)
+    logging.info('parsed event: {}'.format(event))
     if event and SWITCH_WEB_REQUEST:
       requests = await self.get_web_requests(event)
       if requests and len(requests) > 0:
@@ -153,6 +154,12 @@ class EventHandler():
     try:
       event_type = message['eventInfo']['Type']['$value']
       label = event_type.replace('-','_').replace(' ','')
+      cloudwatch_logger.push_many(
+        dimension_name  = 'ETL',
+        metric_names    = ['EventCount', 'EventCount_{}'.format(label)],
+        metric_values   = [1,1],
+        metric_units    = ['Count','Count']
+      )
       ids = None
       if 'OtherEntities' in message['eventInfo']:
         entity = message['eventInfo']['OtherEntities'][0]['Entity']
@@ -165,13 +172,6 @@ class EventHandler():
         return {'event_type': event_type, 'zid': zid, 'ids': ids}
       else:
         return None
-      logging.info("received event: {} for zid {}".format(label, zid))
-      cloudwatch_logger.push_many(
-        dimension_name  = 'ETL',
-        metric_names    = ['EventCount', 'EventCount_{}'.format(label)],
-        metric_values   = [1,1],
-        metric_units    = ['Count','Count']
-      )
 
     except Exception as ex:
       logging.warning(str(ex))
