@@ -215,7 +215,8 @@ class ETL():
       return self.pt_map[zid]
     else:
       pt = await self.extract_pt(zid)
-      self.pt_map[zid] = pt
+      if pt:
+        self.pt_map[zid] = pt
       return pt
 
   async def run_requests(self, buf):
@@ -224,13 +225,14 @@ class ETL():
     pats = []
     for zid in buf:
       pt = await self.app.etl.lookup_zid(zid)
-      pats.append(pt)
-      for ext in buf[zid]['funcs']:
-        if ext in extraction_set:
-          extraction_set[ext]['pts'].append(pt)
-          extraction_set[ext]['args'].append(buf[zid]['args'])
-        else:
-          extraction_set[ext] = {'pts': [pt], 'args': [buf[zid]['args']]}
+      if pt:
+        pats.append(pt)
+        for ext in buf[zid]['funcs']:
+          if ext in extraction_set:
+            extraction_set[ext]['pts'].append(pt)
+            extraction_set[ext]['args'].append(buf[zid]['args'])
+          else:
+            extraction_set[ext] = {'pts': [pt], 'args': [buf[zid]['args']]}
     tasks = [asyncio.ensure_future(ext(self.ctxt, pd.DataFrame(extraction_set[ext]['pts']), extraction_set[ext]['args'])) for ext in extraction_set if ext not in Extraction_With_Deps]
     for ext in extraction_set:
       if ext not in Extraction_With_Deps:
@@ -280,17 +282,18 @@ class ETL():
     '''
     pt = await extractor.extract_mrn_by_zid(self.ctxt, zid)
     contacts = await extractor.extract_contacts(self.ctxt, [pt], None, idtype='patient')
-    if contacts is None:
-      contacts = await extractor.extract_contacts(self.ctxt, [pt], None, idtype='patient', dateFromOneYear=True)
-    if contacts is None:
-      contacts_from_cdm = await self.get_contacts_from_cdm(self.ctxt, pt['pat_id'])
-      pt['visit_id'] = contacts_from_cdm['visit_id']
-      pt['hospital'] = contacts_from_cdm['hospital']
+    # if contacts is None:
+    #   contacts = await extractor.extract_contacts(self.ctxt, [pt], None, idtype='patient', dateFromOneYear=True)
+    if contacts is None: # NOTE: contacts is None means there is no inpatient encounter
+      # contacts_from_cdm = await self.get_contacts_from_cdm(self.ctxt, pt['pat_id'])
+      # pt['visit_id'] = contacts_from_cdm['visit_id']
+      # pt['hospital'] = contacts_from_cdm['hospital']
+      return None
     else:
       pt['visit_id'] = contacts.iloc[0]['CSN']
       pt['hospital'] = contacts.iloc[0]['hospital']
-    self.log.debug("extract_mrn_by_zid: {}".format(pt))
-    return pt
+      self.log.debug("extract_mrn_by_zid: {}".format(pt))
+      return pt
 
   async def get_contacts_from_cdm(self, ctxt, eid):
     async with ctxt.db_pool.acquire() as conn:
