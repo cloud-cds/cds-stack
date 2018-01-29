@@ -225,8 +225,6 @@ class ed_metrics(metric):
     # Use timestamp of when script is run. Can potentially hardcode instead but should be okay if running as CRON job.
     end_tsp = pd.to_datetime(self.last_time_str).tz_localize(timezone('utc'))
 
-    # Testing only 01/20/18 16:05:11
-    end_tsp = pd.to_datetime('2018-1-20 16:05:11+00:00').tz_localize(timezone('utc'))
     start_tsp = end_tsp - self.window
 
     # For generating HTML only
