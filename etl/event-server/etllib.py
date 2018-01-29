@@ -134,7 +134,6 @@ class ETL():
     finally:
       # TODO: start the ETL_scheduler 5 minutes later
       self.loop.call_later(later, self.run_etl)
-    self.log.info("etl end")
 
   async def load_to_cdm(self, buf):
     if SWITCH_ETL:
@@ -199,6 +198,7 @@ class ETL():
           value          = (end_time - start_time).total_seconds(),
           unit           = 'Seconds'
         )
+      logging.info("etl end")
     else:
       logging.info("SWITCH_ETL is OFF")
 

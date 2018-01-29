@@ -489,6 +489,24 @@ class EpicAPIConfig:
       else:
         return {'flowsheets_transformed': None}
 
+  async def extract_treatmentteam(self, ctxt, bedded_patients, args):
+    resource = '/patients/treatmentteam'
+    payloads = [{
+      'id': pat['visit_id'],
+      'idtype': 'csn'
+    } for _, pat in bedded_patients.iterrows()]
+    responses = await self.make_requests(ctxt, resource, payloads, 'GET')
+    dfs = [pd.DataFrame(r['TreatmentTeam'] if r else None) for r in responses]
+    df_raw = self.combine(dfs, bedded_patients[['pat_id', 'visit_id']])
+    if df_raw is None or df_raw.empty:
+      return {'treatmentteam_transformed': None}
+    else:
+      df_tran = self.transform(ctxt, df_raw, 'treatmentteam_transforms')
+      if df_tran.empty:
+        return {'treatmentteam_transformed': None}
+      else:
+        return {'treatmentteam_transformed': df_tran}
+
   async def extract_contacts(self, ctxt, pat_id_list, args, idtype='csn', dateFromOneYear=False):
     def get_hospital(row):
       dept = row['DepartmentName']
@@ -529,7 +547,9 @@ class EpicAPIConfig:
       logging.debug(responses)
       for r in responses:
         if r and r['Contacts']:
-          rec = {'CSN': r['Contacts'][0]['CSN'], 'DepartmentName': r['Contacts'][0]['DepartmentName']}
+          for contact in r['Contacts']:
+            if contact['EncounterType'] == 'Hospital Encounter':
+              rec = {'CSN': contact['CSN'], 'DepartmentName': contact['DepartmentName']}
           for item in r['PatientIDs']:
             if item['IDType'] == 'EMRN':
               rec['pat_id'] = item['ID']
