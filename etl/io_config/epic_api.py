@@ -550,19 +550,17 @@ class EpicAPIConfig:
           for contact in r['Contacts']:
             if contact['EncounterType'] == 'Hospital Encounter':
               rec = {'CSN': contact['CSN'], 'DepartmentName': contact['DepartmentName']}
-          for item in r['PatientIDs']:
-            if item['IDType'] == 'EMRN':
-              rec['pat_id'] = item['ID']
-          logging.debug(rec)
-          response_dfs.append(pd.DataFrame([rec]))
-          dfs = pd.concat(response_dfs)
+              for item in r['PatientIDs']:
+                if item['IDType'] == 'EMRN':
+                  rec['pat_id'] = item['ID']
+                  logging.debug(rec)
+                  response_dfs.append(pd.DataFrame([rec]))
+                  dfs = pd.concat(response_dfs)
+                  dfs['hospital'] = dfs.apply(get_hospital, axis=1)
+                  return pd.merge(pat_id_df, dfs, left_on='pat_id', right_on='pat_id')
         else:
           logging.warn("No Contacts INFO for {}".format(payloads))
-    if dfs is None or dfs.empty:
-      return None
-    else:
-      dfs['hospital'] = dfs.apply(get_hospital, axis=1)
-      return pd.merge(pat_id_df, dfs, left_on='pat_id', right_on='pat_id')
+    return None
 
   async def extract_discharge(self, ctxt, pts, args):
     if pts is None or pts.empty:
