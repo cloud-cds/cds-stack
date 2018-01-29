@@ -231,10 +231,14 @@ class ETL():
         else:
           extraction_set[ext] = {'pts': [pt], 'args': [buf[zid]['args']]}
     tasks = [asyncio.ensure_future(ext(self.ctxt, pd.DataFrame(extraction_set[ext]['pts']), extraction_set[ext]['args'])) for ext in extraction_set if ext not in Extraction_With_Deps]
-    logging.info("tasks: {}".format(tasks))
+    for ext in extraction_set:
+      if ext not in Extraction_With_Deps:
+        logging.info("extract task: func {} pts {} args {}".format(ext, extraction_set[ext]['pts'], extraction_set[ext]['args']))
     results = await asyncio.gather(*tasks)
     tasks_with_deps = [asyncio.ensure_future(ext(self.ctxt, pd.DataFrame(extraction_set[ext]['pts']), extraction_set[ext]['args'], results)) for ext in extraction_set if ext in Extraction_With_Deps]
-    logging.info("tasks_with_deps: {}".format(tasks_with_deps))
+    for ext in extraction_set:
+      if ext in Extraction_With_Deps:
+        logging.info("extract task with deps: func {} pts {} args {}".format(ext, extraction_set[ext]['pts'], extraction_set[ext]['args']))
     if tasks_with_deps and len(tasks_with_deps) > 0:
       results_with_deps = await asyncio.gather(*tasks_with_deps)
       results += results_with_deps
