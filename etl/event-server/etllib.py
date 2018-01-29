@@ -84,6 +84,7 @@ class CDMBuffer():
     '''
     if self.buf:
       return True
+    self.buf = {}
     return False
 
 class ETL():

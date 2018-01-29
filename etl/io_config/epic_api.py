@@ -472,7 +472,7 @@ class EpicAPIConfig:
     payloads = [{
       'ContactID':        pat['visit_id'],
       'ContactIDType':    'CSN',
-      'FlowsheetRowIDs':  [flowsheet_row_ids[id] for id in args[i]['flowsheet_ids']] if 'flowsheet_ids' in args[i] else ALL_FLO_IDS_LIST,
+      'FlowsheetRowIDs':  [ALL_FLO_IDS_DICT[id] for id in args[i]['flowsheet_ids']] if 'flowsheet_ids' in args[i] else ALL_FLO_IDS_LIST,
       'LookbackHours':    self.lookback_hours,
       'PatientID':        pat['pat_id'],
       'PatientIDType':    'EMRN'
