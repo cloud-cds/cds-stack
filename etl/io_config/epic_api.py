@@ -25,6 +25,13 @@ import etl.io_config.core as core
 import pdb
 
 EPIC_ENV = core.get_environment_var('EPIC_ENV', '')
+ALL_FLO_IDS_DICT = []
+for fid, internal_id_list in flowsheet_ids:
+  for internal_id in internal_id_list:
+    ALL_FLO_IDS_DICT[internal_id] = {'ID': str(internal_id),
+                  'Type': 'Internal'}
+ALL_FLO_IDS_LIST = list(ALL_FLO_IDS_DICT.values())
+
 
 class EpicAPIConfig:
   def __init__(self, lookback_hours, jhapi_server, jhapi_id,
@@ -463,15 +470,10 @@ class EpicAPIConfig:
 
   async def extract_flowsheets(self, ctxt, pts, args):
     resource = '/patients/flowsheetrows'
-    flowsheet_row_ids = {}
-    for fid, internal_id_list in flowsheet_ids:
-      for internal_id in internal_id_list:
-        flowsheet_row_ids[internal_id] = {'ID': str(internal_id),
-                      'Type': 'Internal'}
     payloads = [{
       'ContactID':        pat['visit_id'],
       'ContactIDType':    'CSN',
-      'FlowsheetRowIDs':  [flowsheet_row_ids[id] for id in args[i]['flowsheet_ids']] if 'flowsheet_ids' in args[i] else list(flowsheet_row_ids.values()),
+      'FlowsheetRowIDs':  [flowsheet_row_ids[id] for id in args[i]['flowsheet_ids']] if 'flowsheet_ids' in args[i] else ALL_FLO_IDS_LIST,
       'LookbackHours':    self.lookback_hours,
       'PatientID':        pat['pat_id'],
       'PatientIDType':    'EMRN'

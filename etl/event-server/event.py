@@ -112,15 +112,32 @@ class WebRequestBuffer():
   def add_requests(self, requests):
     for zid in requests:
       if zid in self.buf:
-        self.buf[zid]['funcs'].union(requests[zid])
-        for arg in requests[zid]['args']:
-          if arg in self.buf[zid]['args']:
-            self.buf[zid]['args'][arg].union(requests[zid]['args'][arg])
-          else:
-            self.buf[zid]['args'][arg] = requests[zid]['args'][arg]
+        funcs = requests[zid]['funcs']
+        args = requests[zid]['args']
+        for func in funcs:
+          if func == extractor.extract_flowsheets:
+            if 'flowsheet_ids' in args:
+              if extractor.extract_flowsheets in self.buf[zid]['funcs']:
+                if 'flowsheet_ids' in self.buf[zid]['args']:
+                  self.buf[zid]['args']['flowsheet_ids'].union(args['flowsheet_ids'])
+              else:
+                self.buf[zid]['args']['flowsheet_ids'] = args['flowsheet_ids']
+            else:
+              self.buf[zid]['args'].pop('flowsheet_ids', None)
+
+          elif func == extractor.medicationadministrationhistory:
+            if 'med_order_ids' in args:
+              if extractor.medicationadministrationhistory in self.buf[zid]['funcs']:
+                if 'med_order_ids' in self.buf[zid]['args']:
+                  self.buf[zid]['args']['med_order_ids'].union(args['med_order_ids'])
+              else:
+                self.buf[zid]['args']['med_order_ids'] = args['med_order_ids']
+            else:
+              self.buf[zid]['args'].pop('med_order_ids', None)
+          self.buf[zid]['funcs'].add(func)
       else:
         self.buf[zid] = requests[zid]
-    logging.debug("WebRequestBuffer: update {}".format(self.buf[zid]))
+    logging.info("WebRequestBuffer: updated zid {} buffer {}".format(zid, self.buf[zid]))
 
   def get_buf(self):
     buf = self.buf
@@ -196,7 +213,6 @@ class EventHandler():
           return None
       elif event_type.startswith('Med Admin Notification'):
         args['med_order_ids'] = event['ids']
-      # TODO: lab results
       funcs = EpicEvents[event_type]
       return {event['zid']: {'funcs': funcs, 'args': args}}
     else:
