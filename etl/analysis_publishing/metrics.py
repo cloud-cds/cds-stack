@@ -7,6 +7,7 @@ import numpy as np
 from pytz import timezone
 from collections import OrderedDict
 import json
+
 #---------------------------------
 ## Metric Classes
 #---------------------------------
@@ -851,6 +852,7 @@ class ed_metrics(metric):
     admit_times = (care_unit_df_30.loc[care_unit_df_30['care_unit'] == 'HCGH EMERGENCY-ADULTS']
                                   .loc[care_unit_df_30['enc_id'].isin(set(readmits_within_30d['enc_id'].unique()))]
                                   .groupby('enc_id', as_index=False)['enter_time'].agg('min'))
+
     try:
       readmits_within_30d = pd.merge(readmits_within_30d, admit_times, on='enc_id', how='left')
 
@@ -890,7 +892,7 @@ class ed_metrics(metric):
         results = results.loc[results <= 30]
         metric_26_c = str(results.index.nunique())
 
-    except IndexError:
+    except:
       metric_26_c = str(0)
 
     ## Missing metric_13: repeat lactate
