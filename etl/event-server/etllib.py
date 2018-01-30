@@ -211,6 +211,7 @@ class ETL():
     self.pt_map = {}
 
   async def lookup_zid(self, zid):
+    # TODO: we need remove discharged pat from pt_map and out-of-date entry in pt_map too
     if zid in self.pt_map:
       return self.pt_map[zid]
     else:

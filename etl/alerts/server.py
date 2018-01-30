@@ -372,11 +372,13 @@ class AlertServer:
         select distinct t.enc_id
         from {workspace}.cdm_t t
         inner join cdm_twf twf on t.enc_id = twf.enc_id
+        left join {workspace}.{job_id}_cdm_twf twf_delta on twf_delta.enc_id = t.enc_id
+        left join {workspace}.{job_id}_cdm_twf_del twf_del on twf_del.enc_id = t.enc_id
         inner join cdm_s s on twf.enc_id = s.enc_id
         inner join cdm_s s2 on twf.enc_id = s2.enc_id
         where s.fid = 'age' and s.value::float >= 18.0
         and s2.fid = 'hospital' and s2.value = 'HCGH'
-        and job_id = '{job_id}'
+        and job_id = '{job_id}' and (twf_delta.enc_id is not null or twf_del.enc_id is not null)
       '''.format(workspace=self.workspace, job_id=job_id)
       res = await conn.fetch(sql)
       predict_enc_ids = [row[0] for row in res]
