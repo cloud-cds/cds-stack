@@ -333,7 +333,7 @@ class AlertServer:
     await conn.fetch(sql)
 
   async def calculate_criteria_enc(self, conn, enc_ids):
-    sql = 'select garbage_collection_enc_ids(array[{}],''''{}'''')'.format(','.join([str(enc_id) for enc_id in enc_ids]), self.workspace)
+    sql = "select garbage_collection_enc_ids(array[{}],'{}')".format(','.join([str(enc_id) for enc_id in enc_ids]), self.workspace)
     logging.info("calculate_criteria sql: {}".format(sql))
     await conn.fetch(sql)
     sql = 'select advance_criteria_snapshot_enc_ids(array[{}])'.format(','.join([str(enc_id) for enc_id in enc_ids]))
