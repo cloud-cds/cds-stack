@@ -3870,6 +3870,11 @@ END; $func$;
 -- garbage collection
 ------------------------------
 
+create or replace function garbage_collection_enc_ids(enc_ids int[], workspace text default 'workspace') returns void language plpgsql as $$
+begin
+    perform garbage_collection(enc_id, workspace) from unnest(enc_ids) as enc_id;
+end; $$;
+
 create or replace function garbage_collection(this_enc_id int default null, workspace text default 'workspace') returns void language plpgsql as $$
 declare
   gc_workspace boolean;
