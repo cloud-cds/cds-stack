@@ -147,8 +147,8 @@ class AlertServer:
   async def run_suppression_mode_2(self, msg):
     t_fin = dt.datetime.now()
     # if msg['hosp']+msg['time'] in self.job_status:
-    if msg['hosp'] in self.job_status:
-      t_start = self.job_status[msg['hosp']]['t_start']
+    if msg['job_id'] in self.job_status:
+      t_start = self.job_status[msg['job_id']]['t_start']
       self.cloudwatch_logger.push_many(
         dimension_name = 'AlertServer',
         metric_names   = [
@@ -204,8 +204,8 @@ class AlertServer:
         logging.info("generated trews alert for {}".format(hospital))
     logging.info("complete to run suppression mode 2 for msg {}".format(msg))
     t_end = dt.datetime.now()
-    if msg['hosp'] in self.job_status:
-      t_start = self.job_status[msg['hosp']]['t_start']
+    if msg['job_id'] in self.job_status:
+      t_start = self.job_status[msg['job_id']]['t_start']
       self.cloudwatch_logger.push_many(
         dimension_name = 'AlertServer',
         metric_names   = ['e2e_time_{}{}'.format(msg['hosp'], '_push' if self.push_based else ''),
@@ -216,6 +216,7 @@ class AlertServer:
                           ],
         metric_units   = ['Seconds','Seconds']
       )
+      self.job_status.pop(msg['job_id'], None)
 
 
   async def run_suppression(self, msg):
@@ -490,8 +491,8 @@ class AlertServer:
           # create predict task for predictor
           predict_enc_ids = await self.get_enc_ids_to_predict(message['job_id'])
           if predict_enc_ids:
-            self.job_status[message['hosp']] = {'t_start': t_start}
-            self.predictor_manager.cancel_predict_tasks(hosp=message['hosp'])
+            self.job_status[message['job_id']] = {'t_start': t_start}
+            self.predictor_manager.cancel_predict_tasks(job_id=message['job_id'])
             self.predictor_manager.create_predict_tasks(hosp=message['hosp'],
                                                         time=message['time'],
                                                         job_id=message['job_id'],
@@ -515,8 +516,8 @@ class AlertServer:
         elif message.get('hosp') in self.hospital_to_predict:
           if self.model == 'lmc':
             self.garbage_collect_suppression_tasks(message['hosp'])
-          self.job_status[message['hosp']] = {'t_start': t_start}
-          self.predictor_manager.cancel_predict_tasks(hosp=message['hosp'])
+          self.job_status[message['job_id']] = {'t_start': t_start}
+          self.predictor_manager.cancel_predict_tasks(job_id=message['hosp'])
           self.predictor_manager.create_predict_tasks(hosp=message['hosp'],
                                                       time=message['time'],
                                                       job_id=message['job_id'])
@@ -525,7 +526,6 @@ class AlertServer:
           t_fin = dt.datetime.now()
           await self.run_trews_alert(message['job_id'],message['hosp'])
           t_end = dt.datetime.now()
-          # if message['hosp']+message['time'] in self.job_status:
           self.cloudwatch_logger.push_many(
             dimension_name = 'AlertServer',
             metric_names   = ['e2e_time_{}'.format(message['hosp']),
@@ -536,7 +536,6 @@ class AlertServer:
                               ],
             metric_units   = ['Seconds','Seconds']
           )
-          # self.job_status.pop(message['hosp']+message['time'],None)
       elif self.model == 'trews':
         await self.run_trews_alert(message['job_id'],message['hosp'])
       else:

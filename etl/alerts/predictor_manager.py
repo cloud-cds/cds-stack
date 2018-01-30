@@ -219,7 +219,7 @@ class PredictorManager:
   def cancel_predict_tasks(self, hosp):
     ''' Cancel the existing tasks for previous ETL '''
     logging.info("cancel the existing tasks for previous ETL")
-    for future in self.predict_task_futures.get(hosp, []):
+    for future in self.predict_task_futures.get(job_id, []):
       future.cancel()
       logging.info("{} cancelled".format(future))
 
@@ -227,13 +227,13 @@ class PredictorManager:
   def create_predict_tasks(self, hosp, time, job_id, active_encids=None):
     ''' Start all predictors '''
     logging.info("Starting all predictors for ETL {} {} {} {}".format(hosp, time, job_id, active_encids))
-    self.predict_task_futures[hosp] = []
+    self.predict_task_futures[job_id] = []
     for pid in self.get_partition_ids():
       for model in self.get_model_types():
         future = asyncio.ensure_future(self.run_predict(pid, model, hosp, time, job_id, active_encids),
                                        loop=self.loop)
-        self.predict_task_futures[hosp].append(future)
-    logging.info("Started {} predictors".format(len(self.predict_task_futures[hosp])))
+        self.predict_task_futures[job_id].append(future)
+    logging.info("Started {} predictors".format(len(self.predict_task_futures[job_id])))
 
 
 
