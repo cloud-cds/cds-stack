@@ -3034,6 +3034,11 @@ begin
 end;
 $$ LANGUAGE PLPGSQL;
 
+create or replace function advance_criteria_snapshot_enc_ids(enc_ids int[]) returns void language plpgsql as $$
+begin
+    perform advance_criteria_snapshot(enc_id) from unnest(enc_ids) as enc_id;
+end; $$;
+
 CREATE OR REPLACE FUNCTION advance_criteria_snapshot(this_enc_id int default null, func_mode text default 'advance')
 RETURNS void AS $$
 DECLARE
