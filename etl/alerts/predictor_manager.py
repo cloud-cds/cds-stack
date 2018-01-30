@@ -216,7 +216,7 @@ class PredictorManager:
     return set([p.model_type for p in self.predictors.values()])
 
 
-  def cancel_predict_tasks(self, hosp):
+  def cancel_predict_tasks(self, job_id):
     ''' Cancel the existing tasks for previous ETL '''
     logging.info("cancel the existing tasks for previous ETL")
     for future in self.predict_task_futures.get(job_id, []):
