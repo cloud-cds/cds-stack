@@ -4670,7 +4670,7 @@ LANGUAGE plpgsql
 AS
 $$
 declare
-    local_exprs text := 'distinct visit_id';
+    local_exprs text := 'visit_id';
     with_dst_extension text := ' tsp between ''' || start_tsp || '''::timestamptz and ''' || end_tsp || '''::timestamptz';
     local_table text := '(select '|| local_exprs ||' from cdm_t inner join pat_enc pe on cdm_t.enc_id = pe.enc_id where cdm_t.enc_id in (select enc_id from get_latest_enc_ids(''HCGH'')) and'|| with_dst_extension || ' ) as cdm_t';
     query text := 'select ' || local_exprs || ' from ' || local_table;
@@ -4680,19 +4680,19 @@ begin
 return query
 execute '
   WITH A_DIFF_B AS (
-    SELECT ''dev_only'', '|| local_exprs || ' FROM ' || local_table || with_dst_extension || '
+    SELECT distinct ''dev_only'', '|| local_exprs || ' FROM ' || local_table || '
     EXCEPT
-    SELECT ''dev_only'', ' || local_exprs || '
+    SELECT distinct ''dev_only'', ' || local_exprs || '
     FROM (
       '||remote_query||'
     ) AS tab_compare
   ), B_DIFF_A AS (
-    SELECT ''prod_only'', ' || local_exprs || '
+    SELECT distinct ''prod_only'', ' || local_exprs || '
     FROM (
       '||remote_query||'
     ) AS tab_compare
     EXCEPT
-    SELECT ''prod_only'',' || local_exprs || ' FROM ' || local_table || with_dst_extension || '
+    SELECT distinct ''prod_only'',' || local_exprs || ' FROM ' || local_table || '
   )
   '|| finalizer;
 end;

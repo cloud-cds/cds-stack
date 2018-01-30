@@ -376,6 +376,7 @@ class EpicAPIConfig:
       logging.debug("No med_orders for MAR")
       return {'med_admin_transformed': None}
     else:
+      med_orders = med_orders.reset_index(drop=True)
       resource = '/patients/medicationadministrationhistory'
       payloads = [{
         'ContactID':        order['visit_id'],
