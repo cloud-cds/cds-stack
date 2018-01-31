@@ -30,7 +30,8 @@ def translate_epic_id_to_fid(df, col, new_col, config_map, drop_original=False,
     if add_string != '' and add_string_fid is not None:
         for fid in add_string_fid:
             fid_rows = (df[new_col] == fid)
-            df.loc[new_col, fid_rows] = df[new_col][fid_rows] + add_string
+            df_temp = df[new_col][fid_rows] + add_string
+            df[new_col][fid_rows] = df_temp
     return df
 
 def translate_med_name_to_fid(med_data):
