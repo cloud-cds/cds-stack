@@ -4,7 +4,7 @@ import json
 import asyncio
 import asyncpg
 import logging
-
+import traceback
 import aiobotocore
 import botocore.exceptions
 
