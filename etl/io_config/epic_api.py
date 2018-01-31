@@ -148,6 +148,7 @@ class EpicAPIConfig:
             logging.error(setting)
             traceback.print_exc()
             wait_time = min(((base**i) + random.uniform(0, 1)), max_backoff)
+            error += 1
             sleep(wait_time)
           else:
             raise Exception("Fail to request URL {}".format(url))
@@ -157,6 +158,7 @@ class EpicAPIConfig:
             logging.error(setting)
             traceback.print_exc()
             wait_time = min(((base**i) + random.uniform(0, 1)), max_backoff)
+            error += 1
             sleep(wait_time)
           else:
             raise Exception("Fail to request URL {}".format(url))
