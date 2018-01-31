@@ -417,6 +417,7 @@ and
   or
   comp.BASE_NAME in
   (
+  'ALKPHOS', -- alkaline phosphatase (issue #115)
   'ACAN',
   'ADENOCULT',
   'AERANACUL',
@@ -624,7 +625,7 @@ USE Analytics;
 :OUT \\\\Client\F$\clarity\ordermed.{idx}.rpt
 SET NOCOUNT ON
 SELECT DISTINCT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
-  ,med.display_name
+  ,coalesce (lower(med.display_name), lower(med.description))
   ,med.ORDER_INST
   ,medrt.NAME MedRoute
   ,med.HV_DISCRETE_DOSE Dose
@@ -635,19 +636,19 @@ FROM CLARITY.dbo.ORDER_MED MED
 INNER JOIN CLARITY.dbo.CLARITY_MEDICATION meds ON med.MEDICATION_ID = meds.MEDICATION_ID
 left JOIN CLARITY.dbo.ZC_PHARM_CLASS pharmClass ON pharmClass.PHARM_CLASS_C = meds.PHARM_CLASS_C
 left JOIN CLARITY.dbo.ZC_THERA_CLASS thera ON thera.THERA_CLASS_C = meds.THERA_CLASS_C
-LEFT JOIN Analytics.dbo.CCDA264_MedicationClasses cohortMedClass ON (
-    cohortMedClass.PharmaceuticalClass = pharmClass.NAME
-    AND thera.NAME = cohortMedClass.TherapeuticClass
-    )
-  OR (
-    pharmClass.Name IS NULL
-    AND thera.NAME = cohortMedClass.TherapeuticClass
-    )
-  OR (
-    thera.Name IS NULL
-    AND pharmClass.NAME = cohortMedClass.PharmaceuticalClass
-    )
-LEFT JOIN Analytics.dbo.CCDA264_MedicationIDs indivMeds ON indivMeds.MedId = med.MEDICATION_ID
+-- LEFT JOIN Analytics.dbo.CCDA264_MedicationClasses cohortMedClass ON (
+--     cohortMedClass.PharmaceuticalClass = pharmClass.NAME
+--     AND thera.NAME = cohortMedClass.TherapeuticClass
+--     )
+--   OR (
+--     pharmClass.Name IS NULL
+--     AND thera.NAME = cohortMedClass.TherapeuticClass
+--     )
+--   OR (
+--     thera.Name IS NULL
+--     AND pharmClass.NAME = cohortMedClass.PharmaceuticalClass
+--     )
+-- LEFT JOIN Analytics.dbo.CCDA264_MedicationIDs indivMeds ON indivMeds.MedId = med.MEDICATION_ID
 LEFT JOIN CLARITY.dbo.ZC_ADMIN_ROUTE medrt ON medrt.MED_ROUTE_C = MED.MED_ROUTE_C
 LEFT JOIN CLARITY.dbo.ZC_MED_UNIT medunit ON medunit.DISP_QTYUNIT_C = MED.HV_DOSE_UNIT_C
 INNER JOIN
@@ -660,19 +661,19 @@ WHERE (
     1
     ,4
     ,7
-    )
-    AND (
-    indivMeds.MedId IS NOT NULL
-    OR cohortMedClass.TherapeuticClass IS NOT NULL
-    OR cohortMedClass.PharmaceuticalClass IS NOT NULL
     );
+    -- AND (
+    -- indivMeds.MedId IS NOT NULL
+    -- OR cohortMedClass.TherapeuticClass IS NOT NULL
+    -- OR cohortMedClass.PharmaceuticalClass IS NOT NULL
+    -- );
 GO
 
 USE Analytics;
 :OUT \\\\Client\F$\clarity\ordermed_home.{idx}.rpt
 SET NOCOUNT ON
 SELECT DISTINCT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
-  ,med.display_name
+  ,coalesce (lower(med.display_name), lower(med.description))
   ,med.ORDER_INST
   ,medrt.NAME MedRoute
   ,med.HV_DISCRETE_DOSE Dose
@@ -683,18 +684,18 @@ FROM CLARITY.dbo.ORDER_MED MED
 INNER JOIN CLARITY.dbo.CLARITY_MEDICATION meds ON med.MEDICATION_ID = meds.MEDICATION_ID
 left JOIN CLARITY.dbo.ZC_PHARM_CLASS pharmClass ON pharmClass.PHARM_CLASS_C = meds.PHARM_CLASS_C
 left JOIN CLARITY.dbo.ZC_THERA_CLASS thera ON thera.THERA_CLASS_C = meds.THERA_CLASS_C
-LEFT JOIN Analytics.dbo.CCDA264_MedicationClasses cohortMedClass ON (
-    cohortMedClass.PharmaceuticalClass = pharmClass.NAME
-    AND thera.NAME = cohortMedClass.TherapeuticClass
-    )
-  OR (
-    pharmClass.Name IS NULL
-    AND thera.NAME = cohortMedClass.TherapeuticClass
-    )
-  OR (
-    thera.Name IS NULL
-    AND pharmClass.NAME = cohortMedClass.PharmaceuticalClass
-    )
+-- LEFT JOIN Analytics.dbo.CCDA264_MedicationClasses cohortMedClass ON (
+--     cohortMedClass.PharmaceuticalClass = pharmClass.NAME
+--     AND thera.NAME = cohortMedClass.TherapeuticClass
+--     )
+--   OR (
+--     pharmClass.Name IS NULL
+--     AND thera.NAME = cohortMedClass.TherapeuticClass
+--     )
+--   OR (
+--     thera.Name IS NULL
+--     AND pharmClass.NAME = cohortMedClass.PharmaceuticalClass
+--     )
 LEFT JOIN CLARITY.dbo.ZC_ADMIN_ROUTE medrt ON medrt.MED_ROUTE_C = MED.MED_ROUTE_C
 LEFT JOIN CLARITY.dbo.ZC_MED_UNIT medunit ON medunit.DISP_QTYUNIT_C = MED.HV_DOSE_UNIT_C
 INNER JOIN
@@ -708,9 +709,9 @@ WHERE (
     1
     ,4
     ,7
-    )
-    AND
-     cohortMedClass.PharmaceuticalClass IS NOT NULL;
+    );
+    -- AND
+    -- cohortMedClass.PharmaceuticalClass IS NOT NULL;
 GO
 
 
@@ -836,7 +837,7 @@ procs.proc_id in
 '22362','22364','22366','22368','22370','22372','22374','22376','66891','66895','66899','66903','66907','66911','66915','66919','66923','66927','66931','66935','66939','66943','66947','66951','66955','66959','66963','66967','291','293','295','297','301','303' -- dialysis
 , '211374','177692','160318','210948','2015293', -- dialysis supplement
 '519', '39121324','389874983', '389874983', '6783734684', -- code status (cpr, ...)
-'38374', '114644', '127813', '143925', '150159', '151273', '165545' -- cardiac catheter
+'38374', '114644', '127813', '143925', '150159', '151273', '165545' -- cardiac catheterization
 )
 or
 procs.proc_code like 'CON%'
@@ -850,6 +851,8 @@ lower(eap.proc_name) like 'cpap continuous%' or
 lower(eap.proc_name) like 'mechanical ventilation - adult cpap%' or
 eap.proc_name = 'ULTRAFILTRATION' or
 eap.proc_name in ('CONTINUOUS VENOVENOUS HEMODIALYSIS', 'HC INPATIENT HEMODIALYSIS', 'HEMODIALYSIS', 'HEMODIALYSIS INPATIENT', 'HEMODIALYSIS OUTPATIENT', 'HEMODIALYSIS INPATIENT - ACADEMIC')
+or lower(eap.proc_name) like '%percuaneous coronary intervention%'
+or proccat.proc_cat_name in ('IMG IR ORDERABLES', 'CV CARDIAC SERVICES ORDERABLES', 'GENERAL SURGICAL ORDERABLES', 'GI PROCEDURE ORDERABLES', 'CV CARDIAC CATH PERFORMABLES', 'CV IR PERFORMABLES', 'CV VASCULAR ORDERABLES')
 ;
 GO
 
@@ -1040,24 +1043,42 @@ GO
 # 1102 bmc
 # 1103 hcgh
 hosp = '1103'
-start_date = (2017, 11)
-end_date = (2018, 1)
-num_months = 2
-for year in range(start_date[0], end_date[0]+1):
-  for month in range(1,13,num_months):
-    if year == start_date[0] and month < start_date[1]:
-      continue
-    if year == end_date[0] and month >= end_date[1]:
-      break
+start_date = [2016, 4]
+end_date = [2017, 6]
+
+end_date[1] += 1
+num_months = 13
+total_num_months = 12*(end_date[0] - start_date[0]) + (end_date[1] - start_date[1])
+import math
+num_splits = math.ceil(total_num_months / float(num_months))
+
+for i in range(num_splits):
+    if i == 0:
+        year = start_date[0]
+        month = start_date[1]
+    else:
+        year = prev_year
+        month = prev_month
+
     this_start_date = "{year}-{month}-01".format(year=year, month=str(month).zfill(2))
     idx = "{year}{month}".format(year=year, month=str(month).zfill(2))
-    if month == 13 - num_months:
-      this_end_date = "{year}-{month}-01".format(year=year+1, month=str(1).zfill(2))
-    else:
-      this_end_date = "{year}-{month}-01".format(year=year, month=str(month + num_months).zfill(2))
+    next_month = (month + num_months) % 12
+    next_year = year + int(month + num_months) // int(12)
+
+    if next_year > end_date[0]:
+        next_year = end_date[0]
+    if next_month > end_date[1]:
+        next_month = end_date[1]
+    this_end_date = "{year}-{month}-01".format(year=next_year, month=str(next_month).zfill(2))
+
+    prev_year = next_year
+    prev_month = next_month
+
     if hosp == '1103':
-      hcgh_specific = HCGH_SPECIFIC
+        hcgh_specific = HCGH_SPECIFIC
     else:
-      hcgh_specific = ''
+        hcgh_specific = ''
+
     print(template.format(start_date=this_start_date, end_date=this_end_date, idx=idx, hosp=hosp, hcgh_specific=hcgh_specific))
+
 print(dict)
