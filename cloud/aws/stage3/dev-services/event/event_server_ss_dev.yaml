@@ -82,7 +82,7 @@ spec:
           - name: forward-config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: event-server-dev
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.187
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.188
         resources:
           requests:
             memory: "2Gi"
@@ -97,12 +97,16 @@ spec:
             add:
             - "SYS_PTRACE"
         env:
+        - name: JHAPI_ATTEMPTS_SESSION
+          value: "3"
+        - name: JHAPI_ATTEMPTS_REQUEST
+          value: "3"
         - name: queue_name
           value: "opsdx-jh-events-dev"
         - name: ETL_INTERVAL_SECS
           value: "180"
         - name: EPIC_WEB_REQUEST_INTERVAL_SECS
-          value: "60"
+          value: "45"
         - name: SWITCH_WEB_REQUEST
           value: "1"
         - name: SWITCH_ETL
