@@ -65,7 +65,7 @@ EpicEvents = {
   'Undo Transfer': full_extraction,
   'ADT Update': full_extraction,
   'Undo Update': full_extraction,
-  'Patient Location Update': {extract.extract_loc_history},
+  'Patient Location Update': {extractor.extract_loc_history},
   'ADT - ED Arrival': full_extraction,
   'ADT - ED Dismiss': full_extraction,
   'ADT - ED Depart': full_extraction,
