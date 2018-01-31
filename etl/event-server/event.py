@@ -137,7 +137,7 @@ class WebRequestBuffer():
           self.buf[zid]['funcs'].add(func)
       else:
         self.buf[zid] = requests[zid]
-    logging.info("WebRequestBuffer: updated zid {} buffer {}".format(zid, self.buf[zid]))
+    # logging.info("WebRequestBuffer: updated zid {} buffer {}".format(zid, self.buf[zid]))
 
   def get_buf(self):
     buf = self.buf
@@ -209,7 +209,7 @@ class EventHandler():
         if valid_ids:
           args['flowsheet_ids'] = valid_ids
         else:
-          logging.info("Discard event with invalid flowsheet id: {}".format(event['ids']))
+          logging.debug("Discard event with invalid flowsheet id: {}".format(event['ids']))
           return None
       elif event_type.startswith('Med Admin Notification'):
         args['med_order_ids'] = event['ids']
