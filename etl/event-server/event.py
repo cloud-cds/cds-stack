@@ -21,7 +21,6 @@ cloudwatch_logger = Cloudwatch()
 order_extraction = {
   extractor.extract_active_procedures,
   extractor.extract_lab_orders,
-  extractor.extract_lab_results,
   extractor.extract_med_orders
 }
 
@@ -36,6 +35,18 @@ med_admin_extraction = {
 note_extraction = {extractor.extract_notes, extractor.extract_note_texts}
 
 full_extraction = {extractor.extract_flowsheets, extractor.extract_chiefcomplaint, extractor.extract_loc_history, extractor.extract_treatmentteam}.union(order_extraction).union(med_admin_extraction).union(note_extraction)
+
+PT_MAP_INVALID_EVENTS = ['Admission Notification',
+                         'Admit',
+                         'L&D Arrival',
+                         'Undo Admit',
+                         'Undo Discharge',
+                         'Undo Preadmit',
+                         'Transfer',
+                         'Undo Transfer',
+                         'ADT Update',
+                         'ADT - ED Arrival',
+                         ]
 
 EpicEvents = {
   'Flowsheet - Add': {extractor.extract_flowsheets},
@@ -54,7 +65,7 @@ EpicEvents = {
   'Undo Transfer': full_extraction,
   'ADT Update': full_extraction,
   'Undo Update': full_extraction,
-  'Patient Location Update': full_extraction,
+  'Patient Location Update': {extract.extract_loc_history},
   'ADT - ED Arrival': full_extraction,
   'ADT - ED Dismiss': full_extraction,
   'ADT - ED Depart': full_extraction,
@@ -156,6 +167,8 @@ class EventHandler():
     event = self.parse_epic_event(msg)
     logging.info('parsed event: {}'.format(event))
     if event and SWITCH_WEB_REQUEST:
+      if event['event_type'] in PT_MAP_INVALID_EVENTS:
+        self.app.etl.invalidate_pt_map(event['zid'])
       requests = await self.get_web_requests(event)
       if requests and len(requests) > 0:
         self.app.web_req_buf.add_requests(requests)

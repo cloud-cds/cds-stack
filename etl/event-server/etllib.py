@@ -220,6 +220,10 @@ class ETL():
         self.pt_map[zid] = pt
       return pt
 
+  def invalidate_pt_map(self, zid):
+    if zid in self.pt_map:
+      self.pt_map.pop(zid, None)
+
   async def run_requests(self, buf):
     start_time = dt.datetime.now()
     extraction_set = {}
