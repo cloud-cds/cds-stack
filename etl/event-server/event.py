@@ -165,8 +165,8 @@ class EventHandler():
 
   async def process(self, msg):
     event = self.parse_epic_event(msg)
-    logging.info('parsed event: {} {} {}'.format(event['zid'], event['event_type'], event['ids']))
     if event and SWITCH_WEB_REQUEST:
+      logging.info('parsed event: {} {} {}'.format(event['zid'], event['event_type'], event['ids']))
       if event['event_type'] in PT_MAP_INVALID_EVENTS:
         self.app.etl.invalidate_pt_map(event['zid'])
       requests = await self.get_web_requests(event)
