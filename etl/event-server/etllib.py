@@ -60,7 +60,13 @@ class CDMBuffer():
       df = results[name]
       self.etl.log.debug("cdm_buf: adding {}".format(name))
       if name in self.buf:
-        self.buf[name] = pd.concat([self.buf[name], df]).drop_duplicates().reset_index(drop=True)
+        try:
+          self.buf[name] = pd.concat([self.buf[name], df]).drop_duplicates().reset_index(drop=True)
+        except Exception as e:
+          self.etl.log.error("buf add error: {}".format(name))
+          self.etl.log.error(e)
+          traceback.print_exc()
+          self.buf[name] = pd.concat([self.buf[name], df]).reset_index(drop=True)
       else:
         self.buf[name] = df
       self.etl.log.info("cdm_buf: added {}".format(name))
