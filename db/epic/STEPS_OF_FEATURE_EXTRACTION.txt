@@ -57,6 +57,9 @@ SELECT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
   , cq.quest_name
   , tm.question
   , osq.ORD_QUEST_CMT comment
+  , priority.name priority
+  , freq.freq_name
+  , ZC_ORDER_CLASS.name
 FROM CLARITY..ORDER_PROC procs
 INNER JOIN CLARITY..CLARITY_EAP eap ON procs.proc_id = eap.PROC_ID
 LEFT JOIN CLARITY..IP_FREQUENCY freq on freq.FREQ_ID = eap.DFLT_INTER_ID
@@ -72,8 +75,8 @@ left join clarity.dbo.CL_QQUEST_OVTM tm on tm.QUEST_ID = cq.QUEST_ID
 inner join HV_ORDER_PROC with (nolock)
 on procs.order_proc_id = HV_ORDER_PROC.order_proc_id
 inner join ZC_ORDER_PRIORITY "priority" with (nolock)
-on HV_ORDER_PROC.ORDER_PRIORITY_C = priority.ORDER_PRIORITY_C
-inner join IP_FREQUENCY freq with (nolock)
+on ORDER_PROC.ORDER_PRIORITY_C = priority.ORDER_PRIORITY_C
+inner join IP_FREQUENCY with (nolock)
 on HV_ORDER_PROC.discr_freq_id = freq.freq_id
 inner join ZC_ORDER_CLASS with (nolock)
 on ZC_ORDER_CLASS.ORDER_CLASS_C = ORDER_PROC.ORDER_CLASS_C

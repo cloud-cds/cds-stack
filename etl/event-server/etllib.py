@@ -220,8 +220,8 @@ class ETL():
     self.pt_map = {}
 
   async def lookup_zid(self, zid):
-    # TODO: we need remove discharged pat from pt_map and out-of-date entry in pt_map too
-    if zid in self.pt_map:
+    # discharged pat will be removed from pt_map
+    if zid in self.pt_map and self.pt_map[zid]['hospital']:
       return self.pt_map[zid]
     else:
       pt = await self.extract_pt(zid)
@@ -282,7 +282,6 @@ class ETL():
     df = pd.DataFrame(pats)
     # append empty columns
     df['admittime'] = np.nan
-    df['patient_class'] = np.nan
     df['diagnosis'] = np.nan
     df['history'] = np.nan
     df['problem_all'] = np.nan
@@ -306,6 +305,7 @@ class ETL():
     else:
       pt['visit_id'] = contacts.iloc[0]['CSN']
       pt['hospital'] = contacts.iloc[0]['hospital']
+      pt['patient_class'] = contacts.iloc[0]['patient_class']
       self.log.debug("extract_mrn_by_zid: {}".format(pt))
       return pt
 

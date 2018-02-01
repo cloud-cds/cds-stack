@@ -514,13 +514,16 @@ class EpicAPIConfig:
     def get_hospital(row):
       dept = row['DepartmentName']
       if dept is not None and len(dept) > 0:
-        if 'HCGH' in dept:
+        if 'HC' in dept:
           return 'HCGH'
-        elif 'JHH' in dept:
+        elif 'JH' in dept:
           return 'JHH'
         elif 'BMC' in dept:
           return 'BMC'
-
+        elif 'SM' in dept:
+          return 'SMH'
+        elif 'SH' in dept:
+          return 'SH'
     if not pat_id_list:
       return None
     resource = '/patients/contacts'
@@ -552,15 +555,18 @@ class EpicAPIConfig:
         if r and r['Contacts']:
           for contact in r['Contacts']:
             if contact['EncounterType'] == 'Hospital Encounter':
-              rec = {'CSN': contact['CSN'], 'DepartmentName': contact['DepartmentName']}
-              for item in r['PatientIDs']:
-                if item['IDType'] == 'EMRN':
-                  rec['pat_id'] = item['ID']
-                  logging.debug(rec)
-                  response_dfs.append(pd.DataFrame([rec]))
-                  dfs = pd.concat(response_dfs)
-                  dfs['hospital'] = dfs.apply(get_hospital, axis=1)
-                  return pd.merge(pat_id_df, dfs, left_on='pat_id', right_on='pat_id')
+              if 'Outpatient' in contact['PatientClass']:
+                return None # ignore outpatient
+              else:
+                rec = {'CSN': contact['CSN'], 'DepartmentName': contact['DepartmentName'], 'patient_class': contact['PatientClass']}
+                for item in r['PatientIDs']:
+                  if item['IDType'] == 'EMRN':
+                    rec['pat_id'] = item['ID']
+                    logging.debug(rec)
+                    response_dfs.append(pd.DataFrame([rec]))
+                    dfs = pd.concat(response_dfs)
+                    dfs['hospital'] = dfs.apply(get_hospital, axis=1)
+                    return pd.merge(pat_id_df, dfs, left_on='pat_id', right_on='pat_id')
         else:
           logging.warn("No Contacts INFO for {}".format(payloads))
     return None

@@ -5069,9 +5069,10 @@ end if;
 if to_regclass('' || workspace || '.' || job_id || '_chiefcomplaint_transformed') is not null then
     execute
     'insert into ' || workspace || '.cdm_s (job_id, enc_id, fid, value, confidence)
-    select '''|| job_id ||''', pe.enc_id, ''chief_complaint'', cc.value, 1
+    select '''|| job_id ||''', pe.enc_id, ''chief_complaint'', last(cc.value), 1
     from ' || workspace || '.' || job_id || '_chiefcomplaint_transformed cc
     inner join pat_enc pe on pe.visit_id = cc.visit_id
+    group by pe.enc_id
     on conflict (job_id, enc_id, fid)
     do update set value = Excluded.value, confidence = excluded.confidence';
 end if;
