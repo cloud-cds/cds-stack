@@ -182,14 +182,14 @@ SELECT DISTINCT CSN.EXTERNAL_ID CSN_ID
   ,dx.Annotation
   ,dx.COMMENTS
   ,DX_CHRONIC_YN
-  ,icdIndex."ICD-9 Code category"
+  ,NULL --icdIndex."ICD-9 Code category"
 FROM Analytics.dbo.CCDA643_CSNLookupTable csn
 INNER JOIN CLARITY.dbo.PAT_ENC_DX dx ON dx.PAT_ENC_CSN_ID = CSN.PAT_ENC_CSN_ID
 INNER JOIN CLARITY.dbo.CLARITY_EDG edg ON dx.DX_ID = edg.DX_ID
 INNER JOIN CLARITY.DBO.EDG_CURRENT_ICD9 icd9 ON dx.DX_ID = icd9.DX_ID
-INNER JOIN Analytics.dbo.CCDA264_ICD9Codes icdIndex ON ISNUMERIC(icd9.Code) = 1
-  AND icd9.Code >= icdIndex."Low Range"
-  AND icd9.Code < icdIndex."High Cutoff";
+-- INNER JOIN Analytics.dbo.CCDA264_ICD9Codes icdIndex ON ISNUMERIC(icd9.Code) = 1
+-- AND icd9.Code >= icdIndex."Low Range"
+-- AND icd9.Code < icdIndex."High Cutoff";
 GO
 
 :OUT \\\\Client\F$\clarity\\flt_lda.{idx}.rpt
@@ -588,7 +588,7 @@ SELECT DISTINCT csn.EXTERNAL_ID CSN_ID
   ,CAST(COALESCE(Encounter.DEPARTMENT_ID, HospitalEncounter.DEPARTMENT_ID) AS VARCHAR(50)) DEPARTMENTID
   ,edg.DX_NAME diagName
   ,icd9.Code
-  ,icdIndex."ICD-9 Code category"
+  ,NULL --icdIndex."ICD-9 Code category"
   ,MedicalHistory.COMMENTS
   ,MedicalHistory.Med_Hx_Annotation Annotation
   ,MedicalHistory.Medical_Hx_Date
@@ -616,9 +616,9 @@ LEFT OUTER JOIN analytics.dbo.CCDA643_CSNLookupTable csn ON MedicalHistory.MINCS
 INNER JOIN analytics.dbo.CCDA643_PatLookupTable pat ON pat.PAT_ID = MedicalHistory.PAT_ID
 INNER JOIN CLARITY.dbo.CLARITY_EDG edg ON MedicalHistory.DX_ID = edg.DX_ID
 INNER JOIN CLARITY.DBO.EDG_CURRENT_ICD9 icd9 ON MedicalHistory.DX_ID = icd9.DX_ID
-INNER JOIN Analytics.dbo.CCDA264_ICD9Codes icdIndex ON ISNUMERIC(icd9.Code) = 1
-  AND icd9.Code >= icdIndex."Low Range"
-  AND icd9.Code < icdIndex."High Cutoff";
+-- INNER JOIN Analytics.dbo.CCDA264_ICD9Codes icdIndex ON ISNUMERIC(icd9.Code) = 1
+--   AND icd9.Code >= icdIndex."Low Range"
+--   AND icd9.Code < icdIndex."High Cutoff";
 GO
 
 USE Analytics;
@@ -785,7 +785,7 @@ SELECT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
   ,inst.INSTNTD_ORDER_ID
   ,inst.order_id as parent_order_id
   ,procs.chng_order_Proc_id
-  ,procs.display_name
+  ,coalesce (procs.display_name, procs.description)
   ,eap.proc_name
   ,proccat.proc_cat_name
   ,freq.display_name FrequencyOfOrder
@@ -846,6 +846,8 @@ procs.proc_code like 'SUR%'
 or
 eap.proc_name = 'BIPAP'
 or
+lower(eap.proc_name) like '%cpr%' or
+lower(procs.display_name) like '%cpr%' or
 lower(eap.proc_name) like 'wall cpap - adult%' or
 lower(eap.proc_name) like 'cpap continuous%' or
 lower(eap.proc_name) like 'mechanical ventilation - adult cpap%' or
@@ -896,7 +898,7 @@ SELECT DISTINCT pat.EXTERNAL_ID PAT_ID
       END AS INTEGER) CHRONIC
   ,edg.DX_NAME diagName
   ,icd9.Code
-  ,icdIndex."ICD-9 Code category"
+  ,NULL --icdIndex."ICD-9 Code category"
 FROM CLARITY.DBO.PROBLEM_LIST ProblemList
 LEFT OUTER JOIN CLARITY.DBO.PROBLEM_LIST_HX FirstHistory ON ProblemList.PROBLEM_LIST_ID = FirstHistory.PROBLEM_LIST_ID
   AND FirstHistory.LINE = 1
@@ -908,9 +910,9 @@ LEFT OUTER JOIN Analytics.dbo.CCDA643_CSNLookupTable csn ON FirstHistory.HX_PROB
 INNER JOIN Analytics.dbo.CCDA643_PatLookupTable pat ON pat.PAT_ID = ProblemList.PAT_ID
 INNER JOIN CLARITY.dbo.CLARITY_EDG edg ON ProblemList.DX_ID = edg.DX_ID
 INNER JOIN CLARITY.DBO.EDG_CURRENT_ICD9 icd9 ON ProblemList.DX_ID = icd9.DX_ID
-INNER JOIN Analytics.dbo.CCDA264_ICD9Codes icdIndex ON ISNUMERIC(icd9.Code) = 1
-  AND icd9.Code >= icdIndex."Low Range"
-  AND icd9.Code < icdIndex."High Cutoff"
+-- INNER JOIN Analytics.dbo.CCDA264_ICD9Codes icdIndex ON ISNUMERIC(icd9.Code) = 1
+--  AND icd9.Code >= icdIndex."Low Range"
+--  AND icd9.Code < icdIndex."High Cutoff"
 WHERE ProblemList.DX_ID IS NOT NULL
   AND NULLIF(ProblemList.PAT_ID, '') IS NOT NULL
   AND NULLIF(3, ProblemList.PROBLEM_STATUS_C) IS NOT NULL;
