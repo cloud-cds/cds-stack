@@ -21,11 +21,12 @@ def predictor_str(partition_index, model_type, is_active):
 
 class Predictor:
   def __init__(self, reader, writer, status, node_index, partition_index,
-               model_type, is_active, ip_address):
+               model_type, is_active, ip_address, manager):
     self.id = (partition_index, model_type, is_active)
     self.reader = reader
     self.writer = writer
     self.shutdown = False
+    self.manager = manager
 
     # Predictor information
     self.model_type = model_type             # Long or short
@@ -128,7 +129,7 @@ class Predictor:
             ('push_datainterface_time_{}'.format(self.model_type), self.datainterface_time, 'Seconds'),
           ]
         # Send all info to cloudwatch
-        self.cloudwatch_logger.push_many(
+        self.manager.cloudwatch_logger.push_many(
           dimension_name = 'LMCPredictors',
           metric_names   = [metric[0] for metric in metric_tuples],
           metric_values  = [metric[1] for metric in metric_tuples],
@@ -198,7 +199,7 @@ class PredictorManager:
     # Create predictor object
     pred = Predictor(reader, writer, msg['status'], msg['node_index'],
                      msg['partition_index'], msg['model_type'],
-                     msg['is_active'], msg['ip_address'])
+                     msg['is_active'], msg['ip_address'], self)
 
     # Cancel any existing predictor with same id
     if pred.id in self.predictors:
