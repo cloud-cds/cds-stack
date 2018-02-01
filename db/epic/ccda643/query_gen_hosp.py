@@ -170,6 +170,63 @@ LEFT JOIN CLARITY.dbo.zc_disch_disp zc_disch_disp ON PAT_ENC_HSP_1.disch_disp_c 
 ORDER BY csn.EXTERNAL_ID;
 GO
 
+USE Analytics;
+:OUT \\\\Client\F$\clarity\vent_info.{idx}.rpt
+SET NOCOUNT ON
+SELECT --PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
+  --,
+  procs.proc_id OrderProcId
+  ,inst.INSTNTD_ORDER_ID
+  ,inst.order_id as parent_order_id
+  ,procs.chng_order_Proc_id
+  ,procs.display_name
+  ,eap.proc_name
+  ,proccat.proc_cat_name
+  ,procs.ORDER_TIME
+  ,PROCS.RESULT_TIME
+  ,PARENTS.ORDER_TIME ParentOrderTime
+  ,PROCS.PROC_START_TIME
+  ,PROCS.PROC_ENDING_TIME
+  ,PARENTS.proc_start_time ParentStarttime
+  ,PARENTS.PROC_ENDING_TIME ParentEndingTime
+  ,ordstat.NAME OrderStatus
+  ,labstats.NAME LabStatus
+  ,osq.order_id
+  , osq.line
+  , osq.ord_quest_id
+  , osq.IS_ANSWR_BYPROC_YN 
+  , osq.ord_quest_resp
+  , cq.quest_name
+  , tm.question
+  , osq.ORD_QUEST_CMT comment
+  , ZC_ORDER_PRIORITY.name "priority"
+  , IP_FREQUENCY.freq_name
+  , ZC_ORDER_CLASS.name
+FROM CLARITY..ORDER_PROC procs
+INNER JOIN CLARITY..CLARITY_EAP eap ON procs.proc_id = eap.PROC_ID
+INNER JOIN clarity..EDP_PROC_CAT_INFO proccat ON eap.proc_cat_id = proccat.PROC_CAT_ID
+INNER JOIN CCDA643_CSNLookupTable pat_enc_hsp_1 ON pat_enc_hsp_1.pat_enc_csn_id = procs.PAT_ENC_CSN_ID
+LEFT JOIN CLARITY..zc_order_status ordstat on ordstat.ORDER_STATUS_C = procs.order_status_c
+LEFT JOIN CLARITY..zc_lab_status labstats on labstats.LAB_STATUS_C = procs.lab_status_c
+INNER JOIN CLARITY..ORDER_INSTANTIATED inst ON inst.INSTNTD_ORDER_ID = PROCS.ORDER_PROC_ID
+INNER JOIN CLARITY..ORDER_PROC parents on inst.ORDER_ID = parents.ORDER_PROC_ID
+left join clarity.dbo.ORD_SPEC_QUEST osq on osq.ORDER_ID = procs.ORDER_PROC_ID
+left join clarity.dbo.CL_QQUEST cq on osq.ORD_QUEST_ID = cq.QUEST_ID 
+left join clarity.dbo.CL_QQUEST_OVTM tm on tm.QUEST_ID = cq.QUEST_ID
+inner join clarity.dbo.HV_ORDER_PROC
+on procs.order_proc_id = HV_ORDER_PROC.order_proc_id
+inner join clarity.dbo.ZC_ORDER_PRIORITY
+on procs.ORDER_PRIORITY_C = ZC_ORDER_PRIORITY.ORDER_PRIORITY_C
+inner join clarity.dbo.IP_FREQUENCY
+on HV_ORDER_PROC.discr_freq_id = IP_FREQUENCY.freq_id
+inner join clarity.dbo.ZC_ORDER_CLASS
+on ZC_ORDER_CLASS.ORDER_CLASS_C = procs.ORDER_CLASS_C
+where
+ procs.proc_id in
+        ('38825','55910','38817','38819','174947','38821','38823','100372','304267','150061', '104569')
+or lower(eap.proc_name) like '%mechanical ventilation%'
+GO
+
 :OUT \\\\Client\F$\clarity\diag.{idx}.rpt
 SET NOCOUNT ON
 SELECT DISTINCT CSN.EXTERNAL_ID CSN_ID

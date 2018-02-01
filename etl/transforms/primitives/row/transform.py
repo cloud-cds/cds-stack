@@ -45,7 +45,11 @@ def transform(fid, func_id, entry, output_data_type, log):
     if func_id:
         # print "transform"
         this_mod = sys.modules[__name__]
-        func = getattr(this_mod, func_id, log)
+        try:
+            func = getattr(this_mod, func_id, log)
+        except:
+            #log.info("OOOOPS: %s, %s, %s", str(this_mod), str(func_id), str(log))
+            return '1'
         try:
             return func(entry, log)
         except Exception as e:
@@ -338,7 +342,7 @@ def convert_amoxicillin_dose_to_mg(entries, log):
                     action)
     return results
 
-def convert_dose_to_mg_and_medroute(entries, log):    
+def convert_dose_to_mg_and_medroute(entries, log):
     global GIVEN_ACTIONS
     results = []
 
@@ -941,7 +945,9 @@ def _convert_to_mg(entry, log):
     action = entry['ActionTaken']
     if dose is None:
         return None
-    log_assert(log, unit == 'kg' or unit == 'g' or unit == 'mg' or unit == 'mcg', "Unknown unit %s" % unit   )
+    #log_assert(log, unit == 'kg' or unit == 'g' or unit == 'mg' or unit == 'mcg' , "Unknown unit %s" % unit   )
+    if unit not in ['kg','g','mg','mcg']:
+        log.warn("Unknown unit %s" % unit)
     if unit == 'kg':
         return [tsp,
                 json.dumps({'dose': 1000*1000*float(dose), \
@@ -965,6 +971,13 @@ def _convert_to_mg(entry, log):
                 json.dumps({'dose':0.001*float(dose), \
                     'order_tsp': order_tsp.strftime("%Y-%m-%d %H:%M:%S"),
                     'action': entry['ActionTaken']}),
+                confidence.NO_TRANSFORM]
+    else:
+        return [tsp,
+                json.dumps({'dose':float(dose), \
+                    'order_tsp': order_tsp.strftime("%Y-%m-%d %H:%M:%S"),
+                    'action': entry['ActionTaken'],
+                    'unit':entry['MedUnit']}),
                 confidence.NO_TRANSFORM]
 
 def convert_to_mmol(entry, log):
@@ -1273,17 +1286,17 @@ def convert_vancomycin_to_real(entry, log):
     value = entry['ResultValue']
     tsp = entry['RESULT_TIME']
 
-    if value.startswith('<') or value.startswith('>'):        
+    if value.startswith('<') or value.startswith('>'):
         return [tsp, float(value[1:]), confidence.NO_TRANSFORM]
     else:
         try:
             value = float(value)
             return [tsp, float(value), confidence.NO_TRANSFORM]
         except:
-            log.warn("Invalid vancomycin_trough entry: %s" % entry)                    
+            log.warn("Invalid vancomycin_trough entry: %s" % entry)
             return None
 
-        
+
 
 
 
@@ -1795,7 +1808,7 @@ def _convert_to_ml(entry, log):
     order_tsp = entry['ORDER_INST']
     action = entry['ActionTaken']
     if dose is None:
-        return None    
+        return None
     log_assert(log, unit == 'L' or unit == 'mL', "Unknown unit %s" % unit   )
     if unit == 'L':
         return [tsp,
