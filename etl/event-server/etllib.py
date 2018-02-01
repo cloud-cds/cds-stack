@@ -61,7 +61,10 @@ class CDMBuffer():
       self.etl.log.debug("cdm_buf: adding {}".format(name))
       if name in self.buf:
         try:
-          self.buf[name] = pd.concat([self.buf[name], df]).drop_duplicates().reset_index(drop=True)
+          if name == 'discharged':
+            self.buf[name] = pd.concat([self.buf[name], df]).reset_index(drop=True)
+          else:
+            self.buf[name] = pd.concat([self.buf[name], df]).drop_duplicates().reset_index(drop=True)
         except Exception as e:
           self.etl.log.error("buf add error: {}".format(name))
           self.etl.log.error(e)
