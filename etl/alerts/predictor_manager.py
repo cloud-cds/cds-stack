@@ -185,7 +185,7 @@ class PredictorManager:
         metric_units   = [metric[2] for metric in metric_tuples]
       )
 
-      await asyncio.sleep(30)
+      await asyncio.sleep(1)
 
 
 

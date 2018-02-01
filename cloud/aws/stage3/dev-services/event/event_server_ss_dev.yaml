@@ -57,7 +57,7 @@ metadata:
   name: event-server-dev
 spec:
   serviceName: event-server-svc-dev
-  replicas: 5
+  replicas: 4
   podManagementPolicy: Parallel
   template:
     metadata:
@@ -82,7 +82,7 @@ spec:
           - name: forward-config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: event-server-dev
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.197
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.198
         resources:
           requests:
             memory: "2Gi"
@@ -90,23 +90,23 @@ spec:
         ports:
         - containerPort: 8000
         command: ["/bin/bash","-c"]
-        # args: ["cd etl/event-server; /usr/local/bin/python3 event-sqs-server.py"]
-        args: ["[[ $(echo $HOSTNAME | sed \"s/.*-\\([0-9]*\\)$/\\1/\") -eq \"0\" ]] && ( sleep 10000 ) || ( cd etl/event-server; /usr/local/bin/python3 event-sqs-server.py )"]
+        args: ["cd etl/event-server; /usr/local/bin/python3 event-sqs-server.py"]
+        # args: ["[[ $(echo $HOSTNAME | sed \"s/.*-\\([0-9]*\\)$/\\1/\") -eq \"0\" ]] && ( sleep 10000 ) || ( cd etl/event-server; /usr/local/bin/python3 event-sqs-server.py )"]
         securityContext:
           capabilities:
             add:
             - "SYS_PTRACE"
         env:
         - name: JHAPI_SEMAPHORE
-          value: "20"
+          value: "40"
         - name: JHAPI_ATTEMPTS_SESSION
-          value: "3"
+          value: "2"
         - name: JHAPI_ATTEMPTS_REQUEST
-          value: "3"
+          value: "2"
         - name: queue_name
           value: "opsdx-jh-events-dev"
         - name: ETL_INTERVAL_SECS
-          value: "120"
+          value: "60"
         - name: EPIC_WEB_REQUEST_INTERVAL_SECS
           value: "30"
         - name: SWITCH_WEB_REQUEST
