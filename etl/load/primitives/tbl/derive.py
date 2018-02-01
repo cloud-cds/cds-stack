@@ -299,7 +299,7 @@ async def hypotension_intp_update(fid, fid_input, conn, log, dataset_id, derive_
             conjunctive=False),
          'incremental_enc_id_in': incremental_enc_id_in(' and ' if dataset_id else ' where ', \
             fid_input_twf_table_temp, dataset_id, incremental)}
-  log.info(select_sql)
+  log.debug(select_sql)
   records = await conn.fetch(select_sql)
   block_start = None
   block_end = None

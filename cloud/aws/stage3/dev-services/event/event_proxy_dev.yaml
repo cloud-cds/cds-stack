@@ -55,7 +55,7 @@ kind: Deployment
 metadata:
   name: event-proxy-dev
 spec:
-  replicas: 2
+  replicas: 4
   template:
     metadata:
       labels:
@@ -82,7 +82,7 @@ spec:
         image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.97
         resources:
           requests:
-            memory: "512Mi"
+            memory: "256Mi"
             cpu: "500m"
         ports:
         - containerPort: 8000

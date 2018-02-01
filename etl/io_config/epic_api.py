@@ -227,8 +227,12 @@ class EpicAPIConfig:
     pat_id = [pid["ID"] for pid in r[0]['IDs'] if pid['Type'] == 'EMRN'][0]
     sex = r[0]['Sex']
     gender = 0 if sex == 'Female' else 1
-    dob = parse(r[0]["DateOfBirth"])
-    age = calculate_age(dob)
+    try:
+      dob = parse(r[0]["DateOfBirth"])
+      age = calculate_age(dob)
+    except ValueError as e:
+      logging.warn("Unknown DOB: {}".format(zid))
+      age = None
     p['pat_id'] = pat_id
     p['age'] = age
     p['gender'] = gender
@@ -421,7 +425,8 @@ class EpicAPIConfig:
     if not df_raw.empty:
       # self.log.debug('med_order df_raw.med-order: {}'.format(df_raw.MedicationOrders))
       df_tran = self.transform(ctxt, df_raw, 'med_orders_transforms')
-      df_tran['ids'] = df_tran['ids'].astype(str)
+      if df_tran is not None:
+        df_tran['ids'] = df_tran['ids'].astype(str)
       # self.log.debug("med_order df_tran: {}".format(df_tran))
     else:
       self.log.debug("empty raw med_orders")
@@ -620,7 +625,6 @@ class EpicAPIConfig:
       return df
     except Exception as e:
       logging.error("== EXCEPTION CAUGHT ==")
-      logging.error("error location:   " + e.func_name)
       logging.error("reason for error: " + e.reason)
       logging.error(e.context)
       traceback.print_exc()
