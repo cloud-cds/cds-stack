@@ -119,7 +119,21 @@ class Predictor:
           'job_id': message['job_id'],
           'predicted_enc_ids': message['predicted_enc_ids']
         })
-
+        metric_tuples = [
+            ('push_avg_total_time_{}'.format(self.model_type), self.avg_total_time, 'Seconds'),
+            ('push_avg_optimization_time_{}'.format(self.model_type), self.avg_optimization_time, 'Seconds'),
+            ('push_avg_datainterface_time_{}'.format(self.model_type), self.avg_datainterface_time, 'Seconds'),
+            ('push_total_time_{}'.format(self.model_type), self.total_time, 'Seconds'),
+            ('push_optimization_time_{}'.format(self.model_type), self.optimization_time, 'Seconds'),
+            ('push_datainterface_time_{}'.format(self.model_type), self.datainterface_time, 'Seconds'),
+          ]
+        # Send all info to cloudwatch
+        self.cloudwatch_logger.push_many(
+          dimension_name = 'LMCPredictors',
+          metric_names   = [metric[0] for metric in metric_tuples],
+          metric_values  = [metric[1] for metric in metric_tuples],
+          metric_units   = [metric[2] for metric in metric_tuples]
+        )
       else:
         logging.error("Can't process this message")
 
@@ -166,16 +180,6 @@ class PredictorManager:
         metric_tuples += [
           ('push_predictor_{}_{}_{}_status'.format(*pred_id), STATUS_DICT[pred.status], 'None'),
         ]
-        if pred.avg_total_time > 0:
-          metric_tuples += [
-            ('push_avg_total_time_{}'.format(pred.model_type), pred.avg_total_time, 'Seconds'),
-            ('push_avg_optimization_time_{}'.format(pred.model_type), pred.avg_optimization_time, 'Seconds'),
-            ('push_avg_datainterface_time_{}'.format(pred.model_type), pred.avg_datainterface_time, 'Seconds'),
-            ('push_total_time_{}'.format(pred.model_type), pred.total_time, 'Seconds'),
-            ('push_optimization_time_{}'.format(pred.model_type), pred.optimization_time, 'Seconds'),
-            ('push_datainterface_time_{}'.format(pred.model_type), pred.datainterface_time, 'Seconds'),
-          ]
-          pred.avg_total_time = 0
       logging.info("cloudwatch metrics: {}".format(metric_tuples))
       # Send all info to cloudwatch
       self.cloudwatch_logger.push_many(
@@ -184,7 +188,6 @@ class PredictorManager:
         metric_values  = [metric[1] for metric in metric_tuples],
         metric_units   = [metric[2] for metric in metric_tuples]
       )
-
       await asyncio.sleep(1)
 
 
