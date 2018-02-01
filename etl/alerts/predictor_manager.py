@@ -276,37 +276,37 @@ class PredictorManager:
     if predictor_started == False:
       return None
 
-    # Monitor predictor
-    logging.info("start monitoring the predictors for {} at {}: partition_id {} model_type {}".format(hosp, time, partition_id, model_type))
+    # # Monitor predictor
+    # logging.info("start monitoring the predictors for {} at {}: partition_id {} model_type {}".format(hosp, time, partition_id, model_type))
 
-    # start_time = dt.datetime.now()
-    timeout = dt.timedelta(seconds = 10)
-    while True:
-      if pred.last_updated - dt.datetime.now() > timeout:
-        logging.error("{} not getting updated - timeout - restart run_predict".format(pred))
-        pred.stop()
-        self.loop.create_task(self.run_predict(partition_id, model_type, hosp,
-                                               time, job_id, active_encids, not active))
-        return
+    # # start_time = dt.datetime.now()
+    # timeout = dt.timedelta(seconds = 10)
+    # while True:
+    #   if pred.last_updated - dt.datetime.now() > timeout:
+    #     logging.error("{} not getting updated - timeout - restart run_predict".format(pred))
+    #     pred.stop()
+    #     self.loop.create_task(self.run_predict(partition_id, model_type, hosp,
+    #                                            time, job_id, active_encids, not active))
+    #     return
 
-      # BUSY - all ok, keep monitoring
-      elif pred.status == 'BUSY':
-        logging.info("{} is busy now".format(pred))
+    #   # BUSY - all ok, keep monitoring
+    #   elif pred.status == 'BUSY':
+    #     logging.info("{} is busy now".format(pred))
 
-      # DEAD - predictor failed, restart run_predict
-      elif pred.status == 'DEAD':
-        pred.stop()
-        if self.model == 'trews-jit':
-          logging.error("{} died.".format(pred))
-        else:
-          logging.error("{} died, trying again".format(pred))
-          self.loop.create_task(self.run_predict(partition_id, model_type, hosp,
-                                               time, job_id, active))
-        return
+    #   # DEAD - predictor failed, restart run_predict
+    #   elif pred.status == 'DEAD':
+    #     pred.stop()
+    #     if self.model == 'trews-jit':
+    #       logging.error("{} died.".format(pred))
+    #     else:
+    #       logging.error("{} died, trying again".format(pred))
+    #       self.loop.create_task(self.run_predict(partition_id, model_type, hosp,
+    #                                            time, job_id, active))
+    #     return
 
-      # FIN - return
-      elif pred.status == 'FIN':
-        logging.info("{} finished task, returning".format(pred))
-        return
+    #   # FIN - return
+    #   elif pred.status == 'FIN':
+    #     logging.info("{} finished task, returning".format(pred))
+    #     return
 
-      await asyncio.sleep(1)
+    #   await asyncio.sleep(1)
