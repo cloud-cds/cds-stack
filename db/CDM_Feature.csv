@@ -59,7 +59,7 @@ bicarbonate,TWF,Real,yes,no,last_value_in_window,28,,,Lab,1,Units/L
 biliary_sepsis,T,String,yes,no,,,,,,,
 biliary_sepsis_approx,T,String,yes,no,,,,,,,
 bilirubin,TWF,Real,yes,no,last_value_in_window,28,,,Lab,1,mg/dl
-bipap,T,Boolean,yes,no,,,,,Order Procedure,1,
+bipap,T,JSON,yes,no,,,,,Order Procedure,1,
 bisoprolol_dose,T,JSON,yes,no,,,,,Medication,1,
 bisoprolol_dose_order,T,String,yes,no,,,,,Medication Order,1,no unit
 blood_culture,T,String,yes,no,,,,,blood culture lab result as used for the online sepsis bundle criteria calculation,1,order state
@@ -115,7 +115,7 @@ cmi,TWF,Boolean,no,no,,,cmi_update,"severe_sepsis, fluid_resuscitation, vasopres
 cms_antibiotics,T,Real,yes,no,,,,,cms anti-biotics as used for the online sepsis bundle criteria calculation,1,mg
 cms_antibiotics_order,T,Real,yes,no,,,,,cms anti-biotics order as used for the online sepsis bundle criteria calculation,1,mg
 co2,TWF,Real,yes,no,last_value_in_window,28,,,"Lab, carbon dioxide",1,mmol/L
-cpap,T,Boolean,yes,no,,,,,Order Procedure,1,
+cpap,T,JSON,yes,no,,,,,Order Procedure,1,
 creatinine,TWF,Real,yes,no,last_value_in_window,28,,,Lab,1,mg/dl
 crystalloid_fluid,T,Real,yes,no,,,,,crystaloid fluid as used for the online sepsis bundle criteria,1,mg
 crystalloid_fluid_order,T,String,yes,no,,,,,crystaloid fluid order as used for the online sepsis bundle criteria,1,mg
@@ -592,8 +592,28 @@ benztropine_dose,T,JSON,yes,no,,,,,Medication,1,
 donepezil_dose,T,JSON,yes,no,,,,,Medication,1,
 galantamine_dose,T,JSON,yes,no,,,,,Medication,1,
 memantine_dose,T,JSON,yes,no,,,,,Medication,1,
-code_status,T,Real,yes,no,,,,,Code status,1,
-haloperidol_decanoate_dose,T,JSON,yes,no,,,,,Medication,1,
 levetiracetam_dose,T,JSON,yes,no,,,,,Medication,1,
-consult,T,JSON,yes,no,,,,,Request for consult and consult type,1,
-angiogram_order,T,JSON,yes,no,,,,,Imaging procedure order,1,
+memantine_donepezil_dose,T,JSON,yes,no,,,,,Medication,1,
+rivastigmine_dose_order,T,JSON,yes,no,,,,,Medication Order,1,
+pantoprazole_dose_order,T,JSON,yes,no,,,,,Medication Order,1,
+adenosine_dose_order,T,JSON,yes,no,,,,,Medication Order,1,
+haloperidol_dose_order,T,JSON,yes,no,,,,,Medication Order,1,
+quetiapine_dose_order,T,JSON,yes,no,,,,,Medication Order,1,
+olanzapine_dose_order,T,JSON,yes,no,,,,,Medication Order,1,
+risperidone_dose_order,T,JSON,yes,no,,,,,Medication Order,1,
+trifluoperazine_dose_order,T,JSON,yes,no,,,,,Medication Order,1,
+valproic_acid_dose_order,T,JSON,yes,no,,,,,Medication Order,1,
+lithium_citrate_dose_order,T,JSON,yes,no,,,,,Medication Order,1,
+lithium_carbonate_dose_order,T,JSON,yes,no,,,,,Medication Order,1,
+benztropine_dose_order,T,JSON,yes,no,,,,,Medication Order,1,
+donepezil_dose_order,T,JSON,yes,no,,,,,Medication Order,1,
+galantamine_dose_order,T,JSON,yes,no,,,,,Medication Order,1,
+memantine_dose_order,T,JSON,yes,no,,,,,Medication Order,1,
+haloperidol_decanoate_dose_order,T,JSON,yes,no,,,,,Medication Order,1,
+levetiracetam_dose_order,T,JSON,yes,no,,,,,Medication Order,1,
+memantine_donepezil_dose_order,T,JSON,yes,no,,,,,Medication Order,1,
+code_status,T,JSON,yes,no,,,,,Code status,1,
+angiogram_order,T,JSON,yes,no,,,,,Procedure,1,
+consult,T,JSON,yes,no,,,,,Procedure,1,
+ircv_case_request,T,JSON,yes,no,,,,,Procedure,1,
+mech_vent,T,JSON,yes,no,,,,,Order Procedure,1,

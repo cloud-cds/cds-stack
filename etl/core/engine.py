@@ -253,6 +253,7 @@ class Engine:
 
       # Execute task_id using outputs from dependencies.
       if task_id in self.tasks:
+        self.log.info(">>>>>>>>>>> task_id %s", str(task_id))
         dependencies, task_body = self.tasks[task_id]
         args = [self.task_results[d] if d in self.task_results else None for d in dependencies]
         if 'args' in task_body:

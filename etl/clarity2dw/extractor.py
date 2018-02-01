@@ -352,8 +352,9 @@ class Extractor:
     is_med_action = bool(mapping['is_med_action'] == "yes")
     log.info('loading feature value fid %s, transform func: %s, is_no_add: %s, is_med_action: %s' \
       % (fid, transform_func_id, is_no_add, is_med_action))
-    if str(transform_func_id) in ('nan', '', 'None'):
+    if str(transform_func_id).lower() in ['nan', '', 'None']:#('nan', '', 'None'):
       transform_func_id = None
+      mapping['transform_func_id'] = None
     fid_info = {'fid':fid, 'category':category, 'is_no_add':is_no_add,
           'data_type':data_type}
     if is_med_action and fid != 'vent':
@@ -511,6 +512,7 @@ class Extractor:
         else:
           # log.debug(intake)
           # dose intake are T category
+          #log.info(">>>>>>>> oops: enc_id: %s, - %s - %s - %s - %s", str(enc_id), str(med_events), str(intake), str(mapping['transform_func_id']), str(fid_info['data_type']))
           tsp = intake[0]
           volume = str(intake[1])
           confidence = intake[2]
