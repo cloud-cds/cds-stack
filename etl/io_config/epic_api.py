@@ -516,9 +516,9 @@ class EpicAPIConfig:
       if dept is not None and len(dept) > 0:
         if 'HC' in dept:
           return 'HCGH'
-        elif 'JH' in dept:
+        elif 'JH' in dept or 'KKI' in dept:
           return 'JHH'
-        elif 'BMC' in dept:
+        elif 'BMC' in dept or 'BV' in dept:
           return 'BMC'
         elif 'SM' in dept:
           return 'SMH'
