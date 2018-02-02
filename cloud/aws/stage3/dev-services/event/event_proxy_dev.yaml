@@ -55,7 +55,7 @@ kind: Deployment
 metadata:
   name: event-proxy-dev
 spec:
-  replicas: 3
+  replicas: 4
   template:
     metadata:
       labels:
