@@ -126,7 +126,7 @@ def clean_units(df, fid_col, unit_col):
     return df[df[unit_col] != 'Invalid Unit']
 
 
-def clean_values(df, fid_col, value_col, bad_values = ['see below', '', 'N/A', None, 'Unable to calculate', '---.--',
+def clean_values(df, fid_col, value_col, bad_values = ['see below', 'N/A', None, 'Unable to calculate', '---.--',
     'SEE COMMENT', 'TNP @COMM', '@COMM', 'Pending']):
     def clean_value(row):
         val = row[value_col]
@@ -135,6 +135,8 @@ def clean_values(df, fid_col, value_col, bad_values = ['see below', '', 'N/A', N
             logging.info('Known bad value:\n' + row.to_string())
             return 'Invalid Value'
         if cdm_defs[fid]['value'] == float:
+            if val == '':
+                return val
             val = str(val).replace('<','').replace('>','').replace(',','')
             if val.replace('.','',1).isdigit():
                 return float(val)
@@ -182,12 +184,13 @@ def threshold_values(df, value_col):
     def apply_threshold(row):
         fid = row['fid']
         low, high = cdm_defs[fid]['thresh']
-        if low and row[value_col] < low:
-            logging.info('Lower than threshold:\n' + row.to_string())
-            return 'Out of bounds'
-        if high and row[value_col] > high:
-            logging.info('Higher than threshold:\n' + row.to_string())
-            return 'Out of bounds'
+        if row[value_col] != '':
+            if low and row[value_col] < low:
+                logging.info('Lower than threshold:\n' + row.to_string())
+                return 'Out of bounds'
+            if high and row[value_col] > high:
+                logging.info('Higher than threshold:\n' + row.to_string())
+                return 'Out of bounds'
         return row[value_col]
 
     df[value_col] = df.apply(apply_threshold, axis=1)

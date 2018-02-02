@@ -18,6 +18,7 @@ variable "k8s_dev_cert_auth" {}
 variable "k8s_dev_cert" {}
 variable "k8s_dev_key" {}
 variable "k8s_dev_image" {}
+variable "k8s_dev_image_dev" {}
 
 variable "dev_db_host" {}
 variable "dev_db_port" { default = 5432 }
@@ -66,7 +67,7 @@ resource "aws_lambda_function" "test_etl_lambda_HCGH" {
         kube_cert_auth = "${var.k8s_dev_cert_auth}"
         kube_user      = "${var.k8s_dev_user}"
         kube_pass      = "${var.k8s_dev_pass}"
-        kube_image     = "${var.k8s_dev_image}"
+        kube_image     = "${var.k8s_dev_image_dev}"
         kube_active_deadline_seconds = "300"
         kube_cmd_0 = "sh"
         kube_cmd_1 = "-c"
@@ -89,7 +90,8 @@ resource "aws_lambda_function" "test_etl_lambda_HCGH" {
         k8s_job_TREWS_ETL_STREAM_SLEEP_SECS  = "${var.DEV_ETL_STREAM_SLEEP_SECS}"
         k8s_job_TREWS_ETL_EPIC_NOTIFICATIONS = "${var.DEV_ETL_EPIC_NOTIFICATIONS}" # disabled when suppression <> 0
         k8s_job_TREWS_ETL_SUPPRESSION = "2"
-        k8s_job_TREWS_ALERT_SERVER_IP = "jit-alerts-test.default.svc.cluster.local"
+        k8s_job_TREWS_ALERT_SERVER_IP = "push-alerts-tst.default.svc.cluster.local"
+        k8s_job_TREWS_ETL_WORKSPACE = "event_workspace"
       }
     }
 }
@@ -118,7 +120,7 @@ resource "aws_lambda_function" "dev_etl_lambda_HCGH" {
         kube_cert_auth = "${var.k8s_dev_cert_auth}"
         kube_user      = "${var.k8s_dev_user}"
         kube_pass      = "${var.k8s_dev_pass}"
-        kube_image     = "${var.k8s_dev_image}"
+        kube_image     = "${var.k8s_dev_image_dev}"
         kube_active_deadline_seconds = "300"
 
         kube_cmd_0 = "sh"
@@ -145,7 +147,8 @@ resource "aws_lambda_function" "dev_etl_lambda_HCGH" {
         k8s_job_TREWS_ETL_STREAM_SLEEP_SECS  = "${var.DEV_ETL_STREAM_SLEEP_SECS}"
         k8s_job_TREWS_ETL_EPIC_NOTIFICATIONS = "${var.DEV_ETL_EPIC_NOTIFICATIONS}" # disabled when suppression <> 0
         k8s_job_TREWS_ETL_SUPPRESSION = "2"
-        k8s_job_TREWS_ALERT_SERVER_IP = "jit-alerts.default.svc.cluster.local"
+        k8s_job_TREWS_ALERT_SERVER_IP = "push-alerts-dev.default.svc.cluster.local"
+        k8s_job_TREWS_ETL_WORKSPACE = "event_workspace"
       }
     }
 }
@@ -174,7 +177,7 @@ resource "aws_lambda_function" "dev_etl_lambda_JHH" {
         kube_cert_auth = "${var.k8s_dev_cert_auth}"
         kube_user      = "${var.k8s_dev_user}"
         kube_pass      = "${var.k8s_dev_pass}"
-        kube_image     = "${var.k8s_dev_image}"
+        kube_image     = "${var.k8s_dev_image_dev}"
         kube_active_deadline_seconds = "300"
 
         kube_cmd_0 = "sh"
@@ -201,7 +204,8 @@ resource "aws_lambda_function" "dev_etl_lambda_JHH" {
         k8s_job_TREWS_ETL_STREAM_SLEEP_SECS  = "${var.DEV_ETL_STREAM_SLEEP_SECS}"
         k8s_job_TREWS_ETL_EPIC_NOTIFICATIONS = "${var.DEV_ETL_EPIC_NOTIFICATIONS}"
         k8s_job_TREWS_ETL_SUPPRESSION = "2"
-        k8s_job_TREWS_ALERT_SERVER_IP = "jit-alerts.default.svc.cluster.local"
+        k8s_job_TREWS_ALERT_SERVER_IP = "push-alerts-dev.default.svc.cluster.local"
+        k8s_job_TREWS_ETL_WORKSPACE = "event_workspace"
       }
     }
 }
@@ -230,7 +234,7 @@ resource "aws_lambda_function" "dev_etl_lambda_BMC" {
         kube_cert_auth = "${var.k8s_dev_cert_auth}"
         kube_user      = "${var.k8s_dev_user}"
         kube_pass      = "${var.k8s_dev_pass}"
-        kube_image     = "${var.k8s_dev_image}"
+        kube_image     = "${var.k8s_dev_image_dev}"
         kube_active_deadline_seconds = "300"
 
         kube_cmd_0 = "sh"
@@ -257,7 +261,8 @@ resource "aws_lambda_function" "dev_etl_lambda_BMC" {
         k8s_job_TREWS_ETL_STREAM_SLEEP_SECS  = "${var.DEV_ETL_STREAM_SLEEP_SECS}"
         k8s_job_TREWS_ETL_EPIC_NOTIFICATIONS = "${var.DEV_ETL_EPIC_NOTIFICATIONS}"
         k8s_job_TREWS_ETL_SUPPRESSION = "2"
-        k8s_job_TREWS_ALERT_SERVER_IP = "jit-alerts.default.svc.cluster.local"
+        k8s_job_TREWS_ALERT_SERVER_IP = "push-alerts-dev.default.svc.cluster.local"
+        k8s_job_TREWS_ETL_WORKSPACE = "event_workspace"
       }
     }
 }

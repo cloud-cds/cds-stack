@@ -1345,93 +1345,100 @@ var careSummaryComponent = new function() {
   this.detailSlot = new slotComponent($("[data-trews='care-summary-detail']"), $('#expand-care-detail'), false, false, false, null, false, true);
 
   this.renderDetail = function(alert_as_cms, cms_status) {
-    if ('respiratory rate' in trews.data['feature_relevances']){
-      trews.data['feature_relevances']['resp rate'] = trews.data['feature_relevances']['respiratory rate'];
-    }
-    trews.data['feature_relevances']
-    //var mark = "<font color='red' size=5><b>!</b></font>";
-    var mark = "<font color='red' size=5>&#9733</font>";
-    var phys_feats = ["BP", "temperature", "heart rate", "SpO2", "PaO2", "PaCO2", "resp rate", "FiO2", "GCS", "RASS"];
-    var hem_feats = ["platelets", "WBC", "INR", "hematocrit", "hemoglobin"];
-    var chem_feats = ["sodium", "creatinine", "bilirubin", "amylase", "lactate", "BUN", "ALT liver enzymes", "arterial ph", "bicarbonate", "CO2", "AST liver enzymes", "potassium", "lipase"];
-    var displayNames = {"ALT liver enzymes": "ALT", "AST liver enzymes": "AST", 'temperature':'Temperature', "heart rate": "Heart Rate", "resp rate": "Resp. Rate", "platelets": "Platelets","hematocrit":"hematocrit","hemoglobin":"Hemoglobin","sodium": "Sodium", "creatinine":"Creatinine", "bilirubin":"Bilirubin","amylase":"Amylase", "lactate":"Lactate","arterial ph":"Arterial PH","bicarbonate":"Bicarbonate","potassium":"Potassium","lipase":"Lipase"};
-    var no_features_str = "";
-    if (Object.keys(trews.data['feature_relevances']).length == 0) {
-      no_features_str = '<div style="background-color:yellow"><h3 style="color:black">TREWS alerted based on many factors without a dominant feature</h3></div>';
-    } 
+    var trews_html = '<h3> TREWS Criteria </h3>';
 
-    var phys_table_str = '<table style="width:100%;background-color:white;">'
-    for (var i = 0; i < phys_feats.length; i++) {
-        phys_table_str += '<tr>'
-        var feat = phys_feats[i];
-        phys_table_str += '<td>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</td>';
-        phys_table_str += '<td>'+(feat in displayNames ? displayNames[feat]:feat)+'</td>';
-        
-        var value = 'Not available'
-        feat = feat.toLowerCase().replace(/ /g, "_");
-        if (feat in trews.data['measurements']) {
-          value = trews.data['measurements'][feat]['value']+' @ '
-          var date = new Date(Date.parse(trews.data['measurements'][feat]['tsp'] + " UTC"));
-          value += strToTime(date.getTime(),true,false);
-        }
+    if ( 'feature_relevances' in trews.data && trews.data['feature_relevances'] != null
+          && 'measurements' in trews.data && trews.data['measurements'] != null
+          && 'static_features' in trews.data && trews.data['static_features'] != null )
+    {
+      if ('respiratory rate' in trews.data['feature_relevances']){
+        trews.data['feature_relevances']['resp rate'] = trews.data['feature_relevances']['respiratory rate'];
+      }
 
-        phys_table_str += '<td>'+value+'</td>';
-        phys_table_str += '</tr>';
-    }
+      //var mark = "<font color='red' size=5><b>!</b></font>";
+      var mark = "<font color='red' size=5>&#9733</font>";
+      var phys_feats = ["BP", "temperature", "heart rate", "SpO2", "PaO2", "PaCO2", "resp rate", "FiO2", "GCS", "RASS"];
+      var hem_feats = ["platelets", "WBC", "INR", "hematocrit", "hemoglobin"];
+      var chem_feats = ["sodium", "creatinine", "bilirubin", "amylase", "lactate", "BUN", "ALT liver enzymes", "arterial ph", "bicarbonate", "CO2", "AST liver enzymes", "potassium", "lipase"];
+      var displayNames = {"ALT liver enzymes": "ALT", "AST liver enzymes": "AST", 'temperature':'Temperature', "heart rate": "Heart Rate", "resp rate": "Resp. Rate", "platelets": "Platelets","hematocrit":"hematocrit","hemoglobin":"Hemoglobin","sodium": "Sodium", "creatinine":"Creatinine", "bilirubin":"Bilirubin","amylase":"Amylase", "lactate":"Lactate","arterial ph":"Arterial PH","bicarbonate":"Bicarbonate","potassium":"Potassium","lipase":"Lipase"};
+      var no_features_str = "";
+      if (Object.keys(trews.data['feature_relevances']).length == 0) {
+        no_features_str = '<div style="background-color:yellow"><h3 style="color:black">TREWS alerted based on many factors without a dominant feature</h3></div>';
+      }
 
-    var hem_table_str = '<table style="width:100%">'
-    for (var i = 0; i < hem_feats.length; i++) {
-        hem_table_str += '<tr>'
-        var feat = hem_feats[i];
-        hem_table_str += '<td>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</td>';
-        hem_table_str += '<td>'+(feat in displayNames ? displayNames[feat]:feat)+'</td>';
-        var value = "Not available"
-        feat = feat.toLowerCase().replace(/ /g, "_");
-        if (feat in trews.data['measurements']) {
-          value = trews.data['measurements'][feat]['value']+' @ '
-          var date = new Date(Date.parse(trews.data['measurements'][feat]['tsp'] + " UTC"));
-          value += strToTime(date.getTime(),true,false);
-        }
-        hem_table_str += '<td>'+value+'</td>';
-        hem_table_str += '</tr>';
-    }
+      var phys_table_str = '<table style="width:100%;background-color:white;">'
+      for (var i = 0; i < phys_feats.length; i++) {
+          phys_table_str += '<tr>'
+          var feat = phys_feats[i];
+          phys_table_str += '<td>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</td>';
+          phys_table_str += '<td>'+(feat in displayNames ? displayNames[feat]:feat)+'</td>';
 
-    var chem_table_str = '<table style="width:100%">'
-    for (var i = 0; i < chem_feats.length; i++) {
-        chem_table_str += '<tr>'
-        var feat = chem_feats[i];
-        chem_table_str += '<td>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</td>';
-        chem_table_str += '<td>'+(feat in displayNames ? displayNames[feat]:feat)+'</td>';
-        
-        var value = "Not available"
-        feat = feat.toLowerCase().replace(/ /g, "_");
-        if (feat in trews.data['measurements']) {
-          value = trews.data['measurements'][feat]['value']+' @ '
-          var date = new Date(Date.parse(trews.data['measurements'][feat]['tsp'] + " UTC"));
-          value += strToTime(date.getTime(),true,false);
-       }
-        chem_table_str += '<td>'+value+'</td>';
-        chem_table_str += '</tr>';
+          var value = 'Not available'
+          feat = feat.toLowerCase().replace(/ /g, "_");
+          if (feat in trews.data['measurements']) {
+            value = trews.data['measurements'][feat]['value']+' @ '
+            var date = new Date(Date.parse(trews.data['measurements'][feat]['tsp'] + " UTC"));
+            value += strToTime(date.getTime(),true,false);
+          }
+
+          phys_table_str += '<td>'+value+'</td>';
+          phys_table_str += '</tr>';
+      }
+
+      var hem_table_str = '<table style="width:100%">'
+      for (var i = 0; i < hem_feats.length; i++) {
+          hem_table_str += '<tr>'
+          var feat = hem_feats[i];
+          hem_table_str += '<td>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</td>';
+          hem_table_str += '<td>'+(feat in displayNames ? displayNames[feat]:feat)+'</td>';
+          var value = "Not available"
+          feat = feat.toLowerCase().replace(/ /g, "_");
+          if (feat in trews.data['measurements']) {
+            value = trews.data['measurements'][feat]['value']+' @ '
+            var date = new Date(Date.parse(trews.data['measurements'][feat]['tsp'] + " UTC"));
+            value += strToTime(date.getTime(),true,false);
+          }
+          hem_table_str += '<td>'+value+'</td>';
+          hem_table_str += '</tr>';
+      }
+
+      var chem_table_str = '<table style="width:100%">'
+      for (var i = 0; i < chem_feats.length; i++) {
+          chem_table_str += '<tr>'
+          var feat = chem_feats[i];
+          chem_table_str += '<td>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</td>';
+          chem_table_str += '<td>'+(feat in displayNames ? displayNames[feat]:feat)+'</td>';
+
+          var value = "Not available"
+          feat = feat.toLowerCase().replace(/ /g, "_");
+          if (feat in trews.data['measurements']) {
+            value = trews.data['measurements'][feat]['value']+' @ '
+            var date = new Date(Date.parse(trews.data['measurements'][feat]['tsp'] + " UTC"));
+            value += strToTime(date.getTime(),true,false);
+         }
+          chem_table_str += '<td>'+value+'</td>';
+          chem_table_str += '</tr>';
+      }
+
+      var static_table_str = '<table style="width:100%">';
+      for (var feat in trews.data['static_features']) {
+        static_table_str += '<tr>'
+        static_table_str += '<td>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</td>';
+        static_table_str += '<td>'+ (feat.charAt(0).toUpperCase()+feat.slice(1)).replace(/_/g," ")+'</td>';
+        static_table_str += '<td>' + (trews.data['static_features'][feat]==1 ? "Present":trews.data['static_features'][feat]) + '</td>';
+        static_table_str += '</tr>'
+      }
+
+      trews_html = '<h3> TREWS Criteria </h3><table style="width:100%">'
+                     + no_features_str
+                     + '<tr><th>Physiology</th><th>Hematology and coagulation</th><th>Chemistry</th><th>Demographics and History</th></tr>'
+                     + '<tr>'
+                     + '<td style="vertical-align:top">' + phys_table_str + '</table></td>'
+                     + '<td style="vertical-align:top">' + hem_table_str + '</table></td>'
+                     + '<td style="vertical-align:top">' + chem_table_str + '</table></td>'
+                     + '<td style="vertical-align:top">' + static_table_str + '</table></td>'
+                     + '</tr></table>';
     }
-    
-    var static_table_str = '<table style="width:100%">';
-    for (var feat in trews.data['static_features']) {
-      static_table_str += '<tr>'
-      static_table_str += '<td>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</td>';
-      static_table_str += '<td>'+ (feat.charAt(0).toUpperCase()+feat.slice(1)).replace(/_/g," ")+'</td>';
-      static_table_str += '<td>' + (trews.data['static_features'][feat]==1 ? "Present":trews.data['static_features'][feat]) + '</td>';
-      static_table_str += '</tr>'
-    }
-   
-    var trews_html = '<h3> TREWS Criteria </h3><table style="width:100%">'
-                   + no_features_str
-                   + '<tr><th>Physiology</th><th>Hematology and coagulation</th><th>Chemistry</th><th>Demographics and History</th></tr>'
-                   + '<tr>'
-                   + '<td style="vertical-align:top">' + phys_table_str + '</table></td>'
-                   + '<td style="vertical-align:top">'+hem_table_str + '</table></td>'
-                   + '<td style="vertical-align:top">'+chem_table_str + '</table></td>'
-                   + '<td style="vertical-align:top">'+static_table_str + '</table></td>'
-                   + '</tr></table>'
     this.detailSlot.elem.find('.trews-criteria').html(trews_html);
   }
 

@@ -17,6 +17,13 @@ resources:
       uri: git@github.com:dashan-emr/dashan-universe.git
       private_key: {{github-private-key}}
 
+  - name: dashan-universe-dev
+    type: git
+    source:
+      branch: develop
+      uri: git@github.com:dashan-emr/dashan-universe.git
+      private_key: {{github-private-key}}
+
   - name: lmc
     type: git
     source:
@@ -31,6 +38,21 @@ resources:
       uri: git@github.com:dashan-emr/LMC-Based-On-GPflow.git
       private_key: {{github-private-key}}
 
+  - name: trews-dev
+    type: git
+    source:
+      branch: develop-experimental
+      uri: git@github.com:dashan-emr/LMC-Based-On-GPflow.git
+      private_key: {{github-private-key}}
+
+  - name: trews-stage
+    type: git
+    source:
+      branch: develop-staging
+      uri: git@github.com:dashan-emr/LMC-Based-On-GPflow.git
+      private_key: {{github-private-key}}
+
+
 ###############
 # Pull requests
 #
@@ -42,6 +64,7 @@ resources:
       access_token: {{github-access-token}}
       private_key: {{github-private-key}}
 
+
 ###############
 # Docker images
 #
@@ -49,6 +72,14 @@ resources:
     type: docker-image
     source:
       repository: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe
+      aws_access_key_id: {{aws-access-key-id}}
+      aws_secret_access_key: {{aws-secret-access-key}}
+      tag: "latest"
+
+  - name: dashan-dev-docker-image
+    type: docker-image
+    source:
+      repository: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev
       aws_access_key_id: {{aws-access-key-id}}
       aws_secret_access_key: {{aws-secret-access-key}}
       tag: "latest"
@@ -69,6 +100,22 @@ resources:
       aws_secret_access_key: {{aws-secret-access-key}}
       tag: "trews-online-latest"
 
+  - name: trews-dev-docker-image
+    type: docker-image
+    source:
+      repository: 359300513585.dkr.ecr.us-east-1.amazonaws.com/ml-trews-dev
+      aws_access_key_id: {{aws-access-key-id}}
+      aws_secret_access_key: {{aws-secret-access-key}}
+      tag: "trews-dev-online-latest"
+
+  - name: trews-stage-docker-image
+    type: docker-image
+    source:
+      repository: 359300513585.dkr.ecr.us-east-1.amazonaws.com/ml-trews-stage
+      aws_access_key_id: {{aws-access-key-id}}
+      aws_secret_access_key: {{aws-secret-access-key}}
+      tag: "trews-stage-online-latest"
+
   - name: trews-chrome-docker-image
     type: docker-image
     source:
@@ -88,6 +135,17 @@ resources:
       initial_version: 1.0.0
       uri: git@github.com:dashan-emr/dashan-universe.git
       branch: version
+      file: version
+      private_key: {{github-private-key}}
+      git_user: CI bot <ci@ci.ci>
+
+  - name: dashan-universe-dev-version
+    type: semver
+    source:
+      driver: git
+      initial_version: 1.0.0
+      uri: git@github.com:dashan-emr/dashan-universe.git
+      branch: dev-version
       file: version
       private_key: {{github-private-key}}
       git_user: CI bot <ci@ci.ci>
@@ -114,6 +172,27 @@ resources:
       private_key: {{github-private-key}}
       git_user: CI bot <ci@ci.ci>
 
+  - name: trews-dev-version
+    type: semver
+    source:
+      driver: git
+      initial_version: 0.0.1
+      uri: git@github.com:dashan-emr/LMC-Based-On-GPflow.git
+      branch: trews-dev-version
+      file: version
+      private_key: {{github-private-key}}
+      git_user: CI bot <ci@ci.ci>
+
+  - name: trews-stage-version
+    type: semver
+    source:
+      driver: git
+      initial_version: 0.0.1
+      uri: git@github.com:dashan-emr/LMC-Based-On-GPflow.git
+      branch: trews-stage-version
+      file: version
+      private_key: {{github-private-key}}
+      git_user: CI bot <ci@ci.ci>
 
 jobs:
 
@@ -214,6 +293,7 @@ jobs:
           put: dashan-universe-pr
           params: {path: dashan-universe-pr, status: failure}
 
+
 ########################
 # Building docker images
 #
@@ -233,6 +313,23 @@ jobs:
           tag: dashan-universe-version/number
       - put: dashan-universe-version
         params: {file: dashan-universe-version/version}
+
+  - name: build-universe-dev-docker-image
+    serial: true
+    plan:
+      - get: dashan-universe
+        resource: dashan-universe-dev
+        trigger: true
+      - get: dashan-universe-dev-version
+        params: {bump: patch}
+      - put: dashan-dev-docker-image
+        params:
+          build: .
+          dockerfile: dashan-universe/Dockerfile
+          tag_as_latest: true
+          tag: dashan-universe-dev-version/number
+      - put: dashan-universe-dev-version
+        params: {file: dashan-universe-dev-version/version}
 
   - name: build-lmc-docker-image
     serial: true
@@ -271,6 +368,45 @@ jobs:
           tag: trews-version/number
       - put: trews-version
         params: {file: trews-version/version}
+
+  - name: build-trews-dev-docker-image
+    serial: true
+    plan:
+      - get: LMC-Based-On-GPflow
+        resource: trews-dev
+        trigger: true
+      - get: dashan-universe
+        resource: dashan-universe-dev
+        trigger: false
+      - get: trews-dev-version
+        params: {bump: patch}
+      - put: trews-dev-docker-image
+        params:
+          build: .
+          dockerfile: LMC-Based-On-GPflow/tools/Dockerfile
+          tag_as_latest: true
+          tag: trews-dev-version/number
+      - put: trews-dev-version
+        params: {file: trews-dev-version/version}
+
+  - name: build-trews-stage-docker-image
+    serial: true
+    plan:
+      - get: LMC-Based-On-GPflow
+        resource: trews-stage
+        trigger: true
+      - get: dashan-universe
+        trigger: false
+      - get: trews-stage-version
+        params: {bump: patch}
+      - put: trews-stage-docker-image
+        params:
+          build: .
+          dockerfile: LMC-Based-On-GPflow/tools/Dockerfile
+          tag_as_latest: true
+          tag: trews-stage-version/number
+      - put: trews-stage-version
+        params: {file: trews-stage-version/version}
 
   - name: build-chrome-docker-image
     serial: true

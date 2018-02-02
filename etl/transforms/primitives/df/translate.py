@@ -64,12 +64,16 @@ def override_empty_doses_with_rates(med_data, fid_col, fids):
 
 def extract_sys_dias_from_bp(df, fid_col, value_col, bp):
     def get_sys(row):
+        if len(row[0]) == 0:
+            return -1 # deleted bp
         if (len(row) != 2) or (not row[0].isdigit()):
             logging.error('Error in systolic.\n' + row.to_string())
             return 0
         return float(row[0])
 
     def get_dias(row):
+        if len(row[0]) == 0:
+            return -1 # deleted bp
         if (len(row) != 2) or (not row[1].isdigit()):
             logging.error('Error in diastolic.\n' + row.to_string())
             return 0
@@ -87,7 +91,7 @@ def extract_sys_dias_from_bp(df, fid_col, value_col, bp):
         bp_dias = bp_df.copy().join(bp_dias).assign(fid="{}_dias".format(bp))
         df = df[~bp_rows].append([bp_sys, bp_dias])
     else:
-        logging.warn("bp_df is empty {}".format(bp))
+        logging.debug("bp_df is empty {}".format(bp))
     # # also assign to a new feature called bp -- combine nbp and abp
     # bp_sys = bp_sys.copy().assign(fid="bp_sys")
     # bp_dias = bp_dias.copy().assign(fid="bp_dias")
@@ -114,7 +118,8 @@ def convert_weight_value_to_float(df, fid_col, value_col, fid):
 def convert_units(df, fid_col, fids, unit_col, from_unit, to_unit, value_col, convert_func):
     def convert_val_in_row(row):
         row[unit_col] = to_unit
-        row[value_col] = convert_func(row[value_col])
+        if row[value_col] != '':
+            row[value_col] = convert_func(row[value_col])
         return row
 
     conds = (df[fid_col].isin(fids)) & (df[unit_col] == from_unit)

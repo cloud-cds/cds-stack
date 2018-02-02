@@ -1,0 +1,113 @@
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: push-alerts-tst
+  labels:
+    app: push-alerts-tst
+spec:
+  type: NodePort
+  ports:
+    - name: push-alerts-tst
+      port: 31000
+  selector:
+    app: push-alerts-tst
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: push-alerts-tst
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: push-alerts-tst
+      annotations:
+        pod.alpha.kubernetes.io/initialized: "true"
+        scheduler.alpha.kubernetes.io/affinity: >
+            {
+              "podAntiAffinity": {
+                "requiredDuringSchedulingIgnoredDuringExecution": [{
+                  "labelSelector": {
+                    "matchExpressions": [{
+                      "key": "app",
+                      "operator": "In",
+                      "values": ["push-alerts-tst"]
+                    }]
+                  },
+                  "topologyKey": "kubernetes.io/hostname"
+                }]
+              }
+            }
+    spec:
+      nodeSelector:
+        opsdx_nodegroup: spot-nodes
+      containers:
+      - name: push-alerts-tst
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:latest
+        imagePullPolicy: Always
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+        command:
+        # - sh
+        # - -c
+        # - sleep 72000
+        - /usr/local/bin/python3
+        - /etl/alerts/server.py
+        ports:
+          - name: push-alerts-tst
+            containerPort: 31000
+        env:
+        - name: push_based
+          value: "1"
+        - name: workspace
+          value: "event_workspace"
+        - name: SUPPRESS_CLOUDWATCH
+          value: "0"
+        - name: etl_channel
+          value: "on_opsdx_dev_etl"
+        - name: suppression_model
+          value: "trews-jit"
+        - name: TREWS_ETL_SUPPRESSION
+          value: "2"
+        - name: nprocs
+          value: "2"
+        - name: TREWS_ETL_HOURS
+          value: "8"
+        - name: notify_web
+          value: "1"
+        - name: db_host
+          value: "dev.db.jh.opsdx.io"
+        - name: db_port
+          value: "5432"
+        - name: db_name
+          value: "opsdx_test"
+        - name: db_user
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: db-username
+        - name: db_password
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: db-password
+        - name: AWS_DEFAULT_REGION
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-region
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-secret-access-key

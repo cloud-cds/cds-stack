@@ -41,6 +41,8 @@ class Predictor:
     self.avg_optimization_time = 0
     self.total_time = 0
     self.optimization_time = 0
+    self.avg_datainterface_time = 0
+    self.datainterface_time = 0
 
   def __str__(self):
     return predictor_str(self.partition_index, self.model_type, self.is_active)
@@ -101,30 +103,36 @@ class Predictor:
       elif message.get('type') == 'FIN':
         # NOTE (andong): we also handle catchup fin message here
         logging.info("{} - received FIN: {}".format(self, message))
-        num_pats = len(message['enc_ids'])
+        num_pats = len(message['predicted_enc_ids'])
         self.total_time = message['total_time']
         self.optimization_time = message['optimization_time']
+        self.datainterface_time = message['datainterface_time']
         self.avg_total_time = message['total_time'] / (num_pats if num_pats > 0 else 1)
         self.avg_optimization_time = message['optimization_time'] / (num_pats if num_pats > 0 else 1)
+        self.avg_datainterface_time = message['datainterface_time'] / (num_pats if num_pats > 0 else 1)
         logging.info("avg_total_time: {}, avg_optimization_time: {}".format(self.avg_total_time, self.avg_optimization_time))
         await queue.put({
           'type': 'FIN',
           'time': message['time'],
           'hosp': message['hosp'],
           'enc_ids': message['enc_ids'],
+          'job_id': message['job_id'],
+          'predicted_enc_ids': message['predicted_enc_ids']
         })
 
       else:
         logging.error("Can't process this message")
 
 
-  async def start_predictor(self, hosp, time):
+  async def start_predictor(self, hosp, time, job_id, active_encids):
     ''' Start the predictor '''
     logging.info("Starting {}".format(self))
     return await protocol.write_message(self.writer, {
       'type': 'ETL',
       'hosp': hosp,
-      'time': time
+      'time': time,
+      'job_id': job_id,
+      'active_encids': active_encids
     })
 
 
@@ -151,19 +159,21 @@ class PredictorManager:
       metric_tuples = []
 
       # Get overall predictor info
-      metric_tuples.append(('num_predictors', int(len(self.predictors)), 'Count'))
+      metric_tuples.append(('push_num_predictors', int(len(self.predictors)), 'Count'))
 
       # Send individual predictor info to cloudwatch
       for pred_id, pred in self.predictors.items():
         metric_tuples += [
-          ('predictor_{}_{}_{}_status'.format(*pred_id), STATUS_DICT[pred.status], 'None'),
+          ('push_predictor_{}_{}_{}_status'.format(*pred_id), STATUS_DICT[pred.status], 'None'),
         ]
         if pred.avg_total_time > 0:
           metric_tuples += [
-            ('avg_total_time_{}'.format(pred.model_type), pred.avg_total_time, 'Seconds'),
-              ('avg_optimization_time_{}'.format(pred.model_type), pred.avg_optimization_time, 'Seconds'),
-              ('total_time_{}'.format(pred.model_type), pred.total_time, 'Seconds'),
-              ('optimization_time_{}'.format(pred.model_type), pred.optimization_time, 'Seconds'),
+            ('push_avg_total_time_{}'.format(pred.model_type), pred.avg_total_time, 'Seconds'),
+            ('push_avg_optimization_time_{}'.format(pred.model_type), pred.avg_optimization_time, 'Seconds'),
+            ('push_avg_datainterface_time_{}'.format(pred.model_type), pred.avg_datainterface_time, 'Seconds'),
+            ('push_total_time_{}'.format(pred.model_type), pred.total_time, 'Seconds'),
+            ('push_optimization_time_{}'.format(pred.model_type), pred.optimization_time, 'Seconds'),
+            ('push_datainterface_time_{}'.format(pred.model_type), pred.datainterface_time, 'Seconds'),
           ]
           pred.avg_total_time = 0
       logging.info("cloudwatch metrics: {}".format(metric_tuples))
@@ -214,13 +224,13 @@ class PredictorManager:
       logging.info("{} cancelled".format(future))
 
 
-  def create_predict_tasks(self, hosp, time, job_id):
+  def create_predict_tasks(self, hosp, time, job_id, active_encids=None):
     ''' Start all predictors '''
-    logging.info("Starting all predictors for ETL {} {} {}".format(hosp, time, job_id))
+    logging.info("Starting all predictors for ETL {} {} {} {}".format(hosp, time, job_id, active_encids))
     self.predict_task_futures[hosp] = []
     for pid in self.get_partition_ids():
       for model in self.get_model_types():
-        future = asyncio.ensure_future(self.run_predict(pid, model, hosp, time, job_id),
+        future = asyncio.ensure_future(self.run_predict(pid, model, hosp, time, job_id, active_encids),
                                        loop=self.loop)
         self.predict_task_futures[hosp].append(future)
     logging.info("Started {} predictors".format(len(self.predict_task_futures[hosp])))
@@ -228,7 +238,7 @@ class PredictorManager:
 
 
 
-  async def run_predict(self, partition_id, model_type, hosp, time, job_id, active=True):
+  async def run_predict(self, partition_id, model_type, hosp, time, job_id, active_encids, active=True):
     ''' Start a predictor for a given partition id and model '''
     backoff = 1
 
@@ -238,7 +248,7 @@ class PredictorManager:
       pred = self.predictors.get((partition_id, model_type, active))
       if pred and pred.status != 'DEAD':
         try:
-          predictor_started = await pred.start_predictor(hosp, time)
+          predictor_started = await pred.start_predictor(hosp, time, job_id, active_encids)
           break
         except (ConnectionRefusedError) as e:
           err = e
@@ -273,7 +283,7 @@ class PredictorManager:
         logging.error("{} not getting updated - timeout - restart run_predict".format(pred))
         pred.stop()
         self.loop.create_task(self.run_predict(partition_id, model_type, hosp,
-                                               time, job_id, not active))
+                                               time, job_id, active_encids, not active))
         return
 
       # BUSY - all ok, keep monitoring

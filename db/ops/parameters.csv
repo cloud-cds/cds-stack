@@ -9,6 +9,7 @@ deactivate_expire_hours,72 hours
 suppression_timeout,1 hour
 etl_workspace_submit_hours,10 hours
 etl_workspace_lookbackhours,32 hours
+gc_workspace_interval,1 hour
 notifications_whitelist,%HCGH%
 criteria_required_derive_fids,"stroke,gi_bleed,sbpm"
 jit_required_twf_fids,"arterial_ph,bilirubin,bun,bun_to_cr,creatinine,fluids_intake_24hr,gcs,heart_rate,hypotension_intp,hypotension_raw,inr,lactate,map,paco2,pao2,platelets,ptt,rass,resp_rate,sbpm,shock_idx,spo2,temperature,wbc,weight,alt_liver_enzymes,ast_liver_enzymes,bicarbonate,co2,dbpm"

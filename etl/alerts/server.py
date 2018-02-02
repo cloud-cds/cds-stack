@@ -45,6 +45,8 @@ class AlertServer:
     self.lookbackhours          = int(os.getenv('TREWS_ETL_HOURS', 24))
     self.nprocs                 = int(os.getenv('nprocs', 2))
     self.hospital_to_predict    = os.getenv('hospital_to_predict', 'HCGH')
+    self.push_based             = bool(os.getenv('push_based', 0))
+    self.workspace              = os.getenv('workspace', 'workspace')
     self.cloudwatch_logger      = Cloudwatch()
     self.job_status = {}
 
@@ -150,12 +152,14 @@ class AlertServer:
       self.cloudwatch_logger.push_many(
         dimension_name = 'AlertServer',
         metric_names   = [
-                          'prediction_time_{}'.format(msg['hosp']),
-                          'prediction_enc_cnt_{}'.format(msg['hosp'])],
+                          'prediction_time_{}{}'.format(msg['hosp'], '_push' if self.push_based else ''),
+                          'prediction_enc_cnt_in_{}{}'.format(msg['hosp'], '_push' if self.push_based else ''),
+                          'prediction_enc_cnt_out_{}{}'.format(msg['hosp'], '_push' if self.push_based else '')],
         metric_values  = [
                           (t_fin - t_start).total_seconds(),
-                          len(msg['enc_ids'])],
-        metric_units   = ['Seconds', 'Count']
+                          len(msg['enc_ids']),
+                          len(msg['predicted_enc_ids'])],
+        metric_units   = ['Seconds', 'Count', 'Count']
       )
     logging.info("start to run suppression mode 2 for msg {}".format(msg))
     tsp = msg['time']
@@ -163,33 +167,37 @@ class AlertServer:
     hospital = msg['hosp']
     logging.info("received FIN for enc_ids: {}".format(enc_id_str))
     # calculate criteria here
-    # NOTE: I don't turst the enc_ids from FIN msg
+    # NOTE: I turst the enc_ids from FIN msg
     async with self.db_pool.acquire() as conn:
-      await self.calculate_criteria_hospital(conn, hospital)
       if self.notify_web:
-        # sql = '''
-        # with pats as (
-        #   select p.enc_id, p.pat_id from pat_enc p
-        #   where p.enc_id in ({enc_id_str})
-        # ),
-        # refreshed as (
-        #   insert into refreshed_pats (refreshed_tsp, pats)
-        #   select now(), jsonb_agg(pat_id) from pats
-        #   returning id
-        # )
-        # select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
-        # '''.format(channel=self.channel, model=self.model, enc_id_str=enc_id_str)
-        sql = '''
-        with pats as (
-          select p.enc_id, p.pat_id from pat_enc p
-          inner join get_latest_enc_ids('{hosp}') e on p.enc_id = e.enc_id
-        ),
-        refreshed as (
-          insert into refreshed_pats (refreshed_tsp, pats)
-          select now(), jsonb_agg(pat_id) from pats
-          returning id
-        )
-        select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
+        if self.push_based:
+          job_id = msg['job_id']
+          await self.calculate_criteria_enc(conn, msg['enc_ids'])
+          sql = '''
+          with pats as (
+            select p.enc_id, p.pat_id from pat_enc p
+            where p.enc_id in ({enc_ids})
+          ),
+          refreshed as (
+            insert into refreshed_pats (refreshed_tsp, pats)
+            select now(), jsonb_agg(pat_id) from pats
+            returning id
+          )
+          select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
+          '''.format(channel=self.channel, model=self.model, enc_ids=enc_id_str)
+        else:
+          await self.calculate_criteria_hospital(conn, hospital)
+          sql = '''
+          with pats as (
+            select p.enc_id, p.pat_id from pat_enc p
+            inner join get_latest_enc_ids('{hosp}') e on p.enc_id = e.enc_id
+          ),
+          refreshed as (
+            insert into refreshed_pats (refreshed_tsp, pats)
+            select now(), jsonb_agg(pat_id) from pats
+            returning id
+          )
+          select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
         '''.format(channel=self.channel, model=self.model, enc_id_str=enc_id_str, hosp=msg['hosp'])
         logging.info("trews alert sql: {}".format(sql))
         await conn.fetch(sql)
@@ -200,8 +208,8 @@ class AlertServer:
       t_start = self.job_status[msg['hosp']]['t_start']
       self.cloudwatch_logger.push_many(
         dimension_name = 'AlertServer',
-        metric_names   = ['e2e_time_{}'.format(msg['hosp']),
-                          'criteria_time_{}'.format(msg['hosp']),
+        metric_names   = ['e2e_time_{}{}'.format(msg['hosp'], '_push' if self.push_based else ''),
+                          'criteria_time_{}{}'.format(msg['hosp'], '_push' if self.push_based else ''),
                           ],
         metric_values  = [(t_end - t_start).total_seconds(),
                           (t_end - t_fin).total_seconds(),
@@ -313,7 +321,7 @@ class AlertServer:
     await conn.fetch(sql)
 
   async def calculate_criteria_hospital(self, conn, hospital):
-    sql = "select garbage_collection('{}');".format(hospital)
+    sql = "select garbage_collection('{}', '{}');".format(hospital, self.workspace)
     logging.info("calculate_criteria sql: {}".format(sql))
     await conn.fetch(sql)
     sql = '''
@@ -322,21 +330,81 @@ class AlertServer:
     logging.info("calculate_criteria sql: {}".format(sql))
     await conn.fetch(sql)
 
-  async def calculate_criteria_enc(self, conn, enc_id_str):
-    server = 'dev_db' if 'dev' in self.channel else 'prod_db'
-    sql = 'select garbage_collection();'
+  async def calculate_criteria_enc(self, conn, enc_ids):
+    sql = ';'.join(['select garbage_collection({},''{}'')'.format(enc_id, self.workspace) for enc_id in enc_ids])
     logging.info("calculate_criteria sql: {}".format(sql))
     await conn.fetch(sql)
-    sql = '''
-    select distribute_advance_criteria_snapshot_for_enc('{server}', {hours}, '{enc_id_str}', {nprocs});
-    '''.format(server=server,hours=self.lookbackhours,enc_id_str=enc_id_str,nprocs=self.nprocs)
+    sql = ';'.join(['select advance_criteria_snapshot({})'.format(enc_id) for enc_id in enc_ids])
     logging.info("calculate_criteria sql: {}".format(sql))
     await conn.fetch(sql)
     logging.info("complete calculate_criteria_enc")
 
-  async def run_trews_alert(self, job_id, hospital):
+  async def calculate_criteria_push(self, conn, job_id, excluded=None):
+    sql = '''
+    select garbage_collection(enc_id, '{workspace}')
+    from (select distinct enc_id from {workspace}.cdm_t
+          where job_id = '{job_id}' {where}) e;
+    '''.format(workspace=self.workspace, job_id=job_id, where=excluded)
+    logging.info("calculate_criteria sql: {}".format(sql))
+    await conn.fetch(sql)
+    sql = '''
+    select advance_criteria_snapshot(enc_id)
+    from (select distinct enc_id from {workspace}.cdm_t
+          where job_id = '{job_id}' {where}) e;
+    '''.format(workspace=self.workspace, job_id=job_id, where=excluded)
+    logging.info("calculate_criteria sql: {}".format(sql))
+    await conn.fetch(sql)
+    logging.info("complete calculate_criteria_enc")
+
+  async def get_enc_ids_to_predict(self, job_id):
     async with self.db_pool.acquire() as conn:
-      if self.TREWS_ETL_SUPPRESSION == 2:
+      # rule to select predictable enc_ids:
+      # 1. has changes delta twf > 0
+      # 2. adult
+      # 3. HCGH patients only
+      sql = '''
+        select distinct t.enc_id
+        from {workspace}.cdm_t t
+        inner join cdm_twf twf on t.enc_id = twf.enc_id
+        inner join cdm_s s on twf.enc_id = s.enc_id
+        inner join cdm_s s2 on twf.enc_id = s2.enc_id
+        where s.fid = 'age' and s.value::float >= 18.0
+        and s2.fid = 'hospital' and s2.value = 'HCGH'
+        and job_id = '{job_id}'
+      '''.format(workspace=self.workspace, job_id=job_id)
+      res = await conn.fetch(sql)
+      predict_enc_ids = [row[0] for row in res]
+      return predict_enc_ids
+
+  async def run_trews_alert(self, job_id, hospital, excluded_enc_ids=None):
+    async with self.db_pool.acquire() as conn:
+      if self.push_based and hospital == 'PUSH':
+        # calculate criteria here
+        excluded = ''
+        if excluded_enc_ids:
+          excluded = 'and enc_id not in ({})'.format(','.join([str(id) for id in excluded_enc_ids]))
+        await self.calculate_criteria_push(conn, job_id, excluded=excluded)
+        if self.notify_web:
+          sql = '''
+          with pats as (
+            select e.enc_id, p.pat_id from (
+              select distinct enc_id from {workspace}.cdm_t
+              where job_id = '{job_id}'
+              {where}
+            ) e
+            inner join pat_enc p on e.enc_id = p.enc_id
+          ),
+          refreshed as (
+            insert into refreshed_pats (refreshed_tsp, pats)
+            select now(), jsonb_agg(pat_id) from pats
+            returning id
+          )
+          select pg_notify('{channel}', 'invalidate_cache_batch:' || id || ':' || '{model}') from refreshed;
+          '''.format(channel=self.channel, model=self.model, where=excluded, workspace=self.workspace, job_id=job_id)
+          logging.info("trews alert sql: {}".format(sql))
+          await conn.fetch(sql)
+          logging.info("generated trews alert for {} without prediction".format(hospital))
+      elif self.TREWS_ETL_SUPPRESSION == 2:
         # calculate criteria here
         await self.calculate_criteria_hospital(conn, hospital)
         if self.notify_web:
@@ -408,18 +476,44 @@ class AlertServer:
       #   'msg': message, 't_start': dt.datetime.now()
       # }
       if self.model == 'lmc' or self.model == 'trews-jit':
-        if message.get('hosp') in self.hospital_to_predict:
+        job_id_items = message['job_id'].split('_')
+        t_start = parser.parse(job_id_items[-1] if len(job_id_items) == 4 else job_id_items[-2])
+        if self.push_based:
+          # create predict task for predictor
+          predict_enc_ids = await self.get_enc_ids_to_predict(message['job_id'])
+          if predict_enc_ids:
+            self.job_status[message['hosp']] = {'t_start': t_start}
+            self.predictor_manager.cancel_predict_tasks(hosp=message['hosp'])
+            self.predictor_manager.create_predict_tasks(hosp=message['hosp'],
+                                                        time=message['time'],
+                                                        job_id=message['job_id'],
+                                                        active_encids=predict_enc_ids)
+          else:
+            logging.info("predict_enc_ids is None or empty")
+          # create criteria update task for patients who do not need to predict
+          t_fin = dt.datetime.now()
+          await self.run_trews_alert(message['job_id'],message['hosp'], excluded_enc_ids=predict_enc_ids)
+          t_end = dt.datetime.now()
+          self.cloudwatch_logger.push_many(
+            dimension_name = 'AlertServer',
+            metric_names   = ['e2e_time_{}{}'.format(message['hosp'], '_short' if self.push_based else ''),
+                              'criteria_time_{}{}'.format(message['hosp'], '_short' if self.push_based else ''),
+                              ],
+            metric_values  = [(t_end - t_start).total_seconds(),
+                              (t_end - t_fin).total_seconds(),
+                              ],
+            metric_units   = ['Seconds','Seconds']
+          )
+        elif message.get('hosp') in self.hospital_to_predict:
           if self.model == 'lmc':
             self.garbage_collect_suppression_tasks(message['hosp'])
-          t_start = parser.parse(message['job_id'].split('_')[-1])
           self.job_status[message['hosp']] = {'t_start': t_start}
           self.predictor_manager.cancel_predict_tasks(hosp=message['hosp'])
           self.predictor_manager.create_predict_tasks(hosp=message['hosp'],
-                                                    time=message['time'],
-                                                    job_id=message['job_id'])
+                                                      time=message['time'],
+                                                      job_id=message['job_id'])
         else:
           logging.info("skip prediction for msg: {}".format(message))
-          t_start = parser.parse(message['job_id'].split('_')[-1])
           t_fin = dt.datetime.now()
           await self.run_trews_alert(message['job_id'],message['hosp'])
           t_end = dt.datetime.now()

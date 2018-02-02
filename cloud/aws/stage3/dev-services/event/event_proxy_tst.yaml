@@ -1,0 +1,137 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: event-proxy-tst-nginx-config
+data:
+  nginx-config: |-
+    server {
+        listen 80 default_server;
+        listen [::]:80 default_server;
+        root /var/www/html;
+        index index.html index.htm index.nginx-debian.html;
+        server_name _;
+        location / {
+          proxy_pass http://127.0.0.1:8000;
+        }
+    }
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: event-proxy-tst
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: event-proxy-tst
+    spec:
+      nodeSelector:
+        opsdx_nodegroup: spot-nodes
+      containers:
+      - name: trews-nginx
+        image: nginx:alpine
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+        ports:
+        - containerPort: 80
+        volumeMounts:
+          - name: config-volume
+            mountPath: "/etc/nginx/conf.d/"
+      - name: event-proxy-tst
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:latest
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+        ports:
+        - containerPort: 8000
+        command: ["/bin/sh","-c"]
+        args: ["cd /etl/events-soap; . $NVM_DIR/nvm.sh; env; node sqs-proxy.js"]
+        # args: ["sleep 10000"]
+        securityContext:
+          capabilities:
+            add:
+            - "SYS_PTRACE"
+        env:
+        - name: event_forward
+          # value: ""
+          value: "https://event-server-tst.jh.opsdx.io/epic"
+        - name: queue_url
+          value: "https://sqs.us-east-1.amazonaws.com/359300513585/opsdx-jh-events-tst"
+        - name: epic_env
+          value: "tst"
+        - name: NVM_DIR
+          value: "/root/.nvm"
+        - name: metrics_dimension_value
+          value: "opsdx-tst"
+        - name: max_count
+          value: "1"
+        - name: AWS_DEFAULT_REGION
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-region
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-secret-access-key
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - event-proxy-tst
+            topologyKey: kubernetes.io/hostname
+      volumes:
+        - name: config-volume
+          configMap:
+            name: event-proxy-tst-nginx-config
+            items:
+              - key: nginx-config
+                path: trews.conf
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: event-svc-tst
+  labels:
+    app: event-proxy-tst
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    name: http
+    targetPort: 80
+  selector:
+    app: event-proxy-tst
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: event-proxy-ingress-tst
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    ingress.kubernetes.io/ssl-redirect: "true"
+    ingrees.kubernetes.io/ingress.allow-http: "false"
+spec:
+  rules:
+  - host: event-tst.jh.opsdx.io
+    http:
+      paths:
+      - backend:
+          serviceName: event-svc-tst
+          servicePort: 80
+        path: /

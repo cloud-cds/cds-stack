@@ -11,7 +11,7 @@ var service = {
         EventPort : {
             ProcessEvent:function(args){
                 console.log(JSON.stringify(args));
-                return {};
+                return "succeed!";
             }
         }
     }
@@ -22,4 +22,5 @@ var server = app.listen(8000,function(){
     var host = "127.0.0.1";
     var port = server.address().port;
 });
+console.log('start local server')
 soap.listen(server,'/',service,xml);

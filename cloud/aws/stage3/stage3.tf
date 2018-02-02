@@ -16,6 +16,7 @@ module "dev_etl" {
   k8s_dev_user      = "${var.k8s_dev_user}"
   k8s_dev_pass      = "${var.k8s_dev_pass}"
   k8s_dev_image     = "${var.k8s_dev_image}"
+  k8s_dev_image_dev     = "${var.k8s_dev_image_dev}"
   k8s_dev_cert_auth = "${var.k8s_dev_cert_auth}"
   k8s_dev_cert      = "${var.k8s_dev_cert}"
   k8s_dev_key       = "${var.k8s_dev_key}"

@@ -37,16 +37,19 @@ def listen():
 ####################
 # Utility methods.
 class TaskContext:
-  def __init__(self, name, config):
+  def __init__(self, name, config, log=None):
     self.name = name
     self.config = config
-    self.log = logging.getLogger(self.name)
-    self.log.setLevel(logging.DEBUG)
-    sh = logging.StreamHandler()
-    formatter = logging.Formatter(ENGINE_LOG_FMT)
-    sh.setFormatter(formatter)
-    self.log.addHandler(sh)
-    self.log.propagate = False
+    if log:
+      self.log = log
+    else:
+      self.log = logging.getLogger(self.name)
+      self.log.setLevel(logging.DEBUG)
+      sh = logging.StreamHandler()
+      formatter = logging.Formatter(ENGINE_LOG_FMT)
+      sh.setFormatter(formatter)
+      self.log.addHandler(sh)
+      self.log.propagate = False
     self.flags = Environment()
 
   async def async_init(self, loop=None):
