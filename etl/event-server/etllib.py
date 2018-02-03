@@ -150,7 +150,11 @@ class ETL():
       if self.prediction_params is None:
         self.prediction_params = await loader.load_online_prediction_parameters(self.ctxt, job_id)
       self.log.info("load_to_cdm started {}".format(job_id))
-      await loader.epic_2_workspace(self.ctxt, buf, job_id, 'unicode', WORKSPACE)
+      try:
+        await loader.epic_2_workspace(self.ctxt, buf, job_id, 'unicode', WORKSPACE)
+      except Exception as ex:
+        self.log.warning(str(ex))
+        traceback.print_exc()
       self.log.info("epic_2_workspace completed {}".format(job_id))
       end_time = dt.datetime.now()
       extractor.cloudwatch_logger.push(
