@@ -94,7 +94,7 @@ def main(max_pats=None, hospital=None, lookback_hours=None, db_name=None, repl=F
       })
 
 
-  loading_tasks  = loader.get_tasks_pat_only(job_id, 'combine_db_data', 'combine_extract_data', mode, archive, config.get_db_conn_string_sqlalchemy(), suppression=suppression)
+  loading_tasks  = loader.get_tasks_pat_only(job_id, 'combine_db_data', 'combine_extract_data', mode, archive, suppression=suppression)
   criteria_tasks = get_criteria_tasks(job_id,
     dependency      = 'workspace_submit',
     lookback_hours  = lookback_hours,

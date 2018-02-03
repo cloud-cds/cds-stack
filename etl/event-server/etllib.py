@@ -141,17 +141,16 @@ class ETL():
       traceback.print_exc()
 
     finally:
-      # TODO: start the ETL_scheduler 5 minutes later
       self.loop.call_later(later, self.run_etl)
 
   async def load_to_cdm(self, buf):
     if SWITCH_ETL:
       start_time = dt.datetime.now()
       job_id = "job_etl_push_{}_{}".format(dt.datetime.now().strftime('%Y%m%d%H%M%S'), HOSTID).lower()
-      self.log.info("load_to_cdm started {}".format(job_id))
       if self.prediction_params is None:
         self.prediction_params = await loader.load_online_prediction_parameters(self.ctxt, job_id)
-      await loader.epic_2_workspace(self.ctxt, buf, self.config.get_db_conn_string_sqlalchemy(), job_id, 'unicode', WORKSPACE)
+      self.log.info("load_to_cdm started {}".format(job_id))
+      await loader.epic_2_workspace(self.ctxt, buf, job_id, 'unicode', WORKSPACE)
       self.log.info("epic_2_workspace completed {}".format(job_id))
       end_time = dt.datetime.now()
       extractor.cloudwatch_logger.push(
@@ -251,12 +250,12 @@ class ETL():
     tasks = [asyncio.ensure_future(ext(self.ctxt, pd.DataFrame(extraction_set[ext]['pts']), extraction_set[ext]['args'])) for ext in extraction_set if ext not in Extraction_With_Deps]
     for ext in extraction_set:
       if ext not in Extraction_With_Deps:
-        logging.info("extract task: func {} pts {} args {}".format(ext, extraction_set[ext]['pts'], extraction_set[ext]['args']))
+        logging.debug("extract task: func {} pts {} args {}".format(ext, extraction_set[ext]['pts'], extraction_set[ext]['args']))
     results = await asyncio.gather(*tasks)
     tasks_with_deps = [asyncio.ensure_future(ext(self.ctxt, pd.DataFrame(extraction_set[ext]['pts']), extraction_set[ext]['args'], results)) for ext in extraction_set if ext in Extraction_With_Deps]
     for ext in extraction_set:
       if ext in Extraction_With_Deps:
-        logging.info("extract task with deps: func {} pts {} args {}".format(ext, extraction_set[ext]['pts'], extraction_set[ext]['args']))
+        logging.debug("extract task with deps: func {} pts {} args {}".format(ext, extraction_set[ext]['pts'], extraction_set[ext]['args']))
     if tasks_with_deps and len(tasks_with_deps) > 0:
       results_with_deps = await asyncio.gather(*tasks_with_deps)
       results += results_with_deps
@@ -269,7 +268,7 @@ class ETL():
             results_dict[k] = r[k]
     self.log.info("load data to cdm_buf")
     for k in results_dict:
-      self.log.info(k)
+      self.log.debug(k)
     self.cdm_buf.add(results_dict)
     end_time = dt.datetime.now()
     extractor.cloudwatch_logger.push(

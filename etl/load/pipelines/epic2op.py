@@ -145,14 +145,11 @@ async def notify_future_notification(ctxt, _):
   else:
     ctxt.log.info("no etl channel found in the environment, skipping etl notifications")
 
-async def epic_2_workspace(ctxt, db_data, sqlalchemy_str, job_id, dtypes, workspace):
+async def epic_2_workspace(ctxt, db_data, job_id, dtypes, workspace):
   ''' Push all the dataframes to a workspace table '''
   async with ctxt.db_pool.acquire() as conn:
     for df_name, df in db_data.items():
       await primitives.data_2_workspace(ctxt.log, conn, job_id, df_name, df, dtypes=dtypes, workspace=workspace)
-    # TODO
-    # copy_tasks = [asyncio.ensure_future(primitives.data_2_workspace(ctxt.log, conn, job_id, df_name, df, dtypes=dtypes, workspace=workspace)) for df_name, df in db_data.items()]
-    # results = await asyncio.gather(*copy_tasks)
     return job_id
 
 
@@ -529,7 +526,7 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
       name = 'epic_2_workspace_archive',
       deps = [db_raw_data_task],
       coro = epic_2_workspace,
-      args = [sqlalchemy_str, job_id, 'unicode', WORKSPACE],
+      args = [job_id, 'unicode', WORKSPACE],
     ))
   if 'test' in mode:
     all_tasks += [Task(
@@ -597,12 +594,12 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
     ctxt.log.error("Unknown suppression alert mode: {}".format(suppression))
   return all_tasks
 
-def get_tasks_pat_only(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_str, deps=[], suppression=0):
+def get_tasks_pat_only(job_id, db_data_task, db_raw_data_task, mode, archive, deps=[], suppression=0):
   all_tasks = [
     Task(name = 'epic_2_workspace',
          deps = [db_data_task],
          coro = epic_2_workspace,
-         args = [sqlalchemy_str, job_id, None, WORKSPACE]),
+         args = [job_id, None, WORKSPACE]),
     Task(name = 'workspace_to_cdm',
          deps = ['epic_2_workspace'],
          coro = workspace_to_cdm,

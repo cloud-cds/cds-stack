@@ -4678,6 +4678,40 @@ execute '
 end;
 $$;
 
+CREATE OR REPLACE FUNCTION compare_with_prod_cdm_twf(fid text, start_tsp text, end_tsp text)
+RETURNS table (type text, visit_id varchar, tsp timestamptz, heart_rate real, heart_rate_c int)
+LANGUAGE plpgsql
+AS
+$$
+declare
+    local_exprs text := 'visit_id, tsp, '|| fid || ', '|| fid || '_c';
+    local_table text := '(select '|| local_exprs ||' from cdm_twf inner join pat_enc pe on cdm_twf.enc_id = pe.enc_id where cdm_twf.enc_id in (select enc_id from get_latest_enc_ids(''HCGH''))) as cdm_twf';
+    with_dst_extension text := ' where tsp between ''' || start_tsp || '''::timestamptz and ''' || end_tsp || '''::timestamptz';
+    query text := 'select ' || local_exprs || ' from ' || local_table || with_dst_extension;
+    finalizer text := 'select * from A_DIFF_B union select * from B_DIFF_A';
+    remote_query text := 'select * from dblink(''opsdx_prod_srv'', ' || quote_literal(query) || ') as remote_fields (visit_id varchar, tsp timestamptz, '|| fid || ' real, ' || fid || '_c int)';
+begin
+return query
+execute '
+  WITH A_DIFF_B AS (
+    SELECT ''dev_only'', '|| local_exprs || ' FROM ' || local_table || with_dst_extension || '
+    EXCEPT
+    SELECT ''dev_only'', ' || local_exprs || '
+    FROM (
+      '||remote_query||'
+    ) AS tab_compare
+  ), B_DIFF_A AS (
+    SELECT ''prod_only'', ' || local_exprs || '
+    FROM (
+      '||remote_query||'
+    ) AS tab_compare
+    EXCEPT
+    SELECT ''prod_only'',' || local_exprs || ' FROM ' || local_table || with_dst_extension || '
+  )
+  '|| finalizer;
+end;
+$$;
+
 CREATE OR REPLACE FUNCTION compare_with_prod_cdm_s()
 RETURNS table (type text, visit_id varchar, fid varchar, value text, confidence int)
 LANGUAGE plpgsql
@@ -5013,10 +5047,12 @@ if to_regclass('' || workspace || '.' || job_id || '_bedded_patients_transformed
 
     -- diagnosis
     INSERT INTO ' || workspace || '.cdm_s (job_id, enc_id, fid, value, confidence)
-    select '''|| job_id ||''', pe.enc_id, json_object_keys(diagnosis::json), (diagnosis::json)->>(json_object_keys(diagnosis::json)) as value, 1
+    select job_id, enc_id, fid, (case when value = ''true'' then ''True'' else value end) as value, confidence
+    from
+    (select '''|| job_id ||''' as job_id, pe.enc_id, json_object_keys(diagnosis::json) as fid, (diagnosis::json)->>(json_object_keys(diagnosis::json)) as value, 1 as confidence
     from ' || workspace || '.' || job_id || '_bedded_patients_transformed bp
         inner join pat_enc pe on pe.visit_id = bp.visit_id
-    where diagnosis is not null and diagnosis <> ''nan''
+    where diagnosis is not null and diagnosis <> ''nan'') as D
     ON CONFLICT (job_id, enc_id, fid)
     DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
 
