@@ -146,9 +146,9 @@ class ETL():
 
   async def load_to_cdm(self, buf):
     if SWITCH_ETL:
-      self.log.info("load_to_cdm started {}".format(job_id))
       start_time = dt.datetime.now()
       job_id = "job_etl_push_{}_{}".format(dt.datetime.now().strftime('%Y%m%d%H%M%S'), HOSTID).lower()
+      self.log.info("load_to_cdm started {}".format(job_id))
       if self.prediction_params is None:
         self.prediction_params = await loader.load_online_prediction_parameters(self.ctxt, job_id)
       await loader.epic_2_workspace(self.ctxt, buf, self.config.get_db_conn_string_sqlalchemy(), job_id, 'unicode', WORKSPACE)
