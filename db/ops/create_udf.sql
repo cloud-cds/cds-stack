@@ -3893,6 +3893,9 @@ begin
     if gc_workspace then
       perform del_old_refreshed_pats();
       perform drop_tables_pattern(workspace, '_' || to_char((now() - interval '2 days')::date, 'MMDD'));
+      if workspace <> 'workspace' then
+        perform drop_tables_pattern('workspace', '_' || to_char((now() - interval '2 days')::date, 'MMDD'));
+      end if;
     end if;
 end; $$;
 
@@ -4637,6 +4640,7 @@ BEGIN
     END LOOP;
     EXECUTE 'delete from ' || _schema || '.cdm_s where job_id ~* ' || quote_literal(pattern);
     EXECUTE 'delete from ' || _schema || '.cdm_t where job_id ~* ' || quote_literal(pattern);
+    EXECUTE 'delete from ' || _schema || '.cdm_notes where job_id ~* ' || quote_literal(pattern);
 END;
 $$;
 
@@ -4673,6 +4677,40 @@ execute '
   '|| finalizer;
 end;
 $$;
+
+CREATE OR REPLACE FUNCTION compare_with_prod_cdm_s()
+RETURNS table (type text, visit_id varchar, fid varchar, value text, confidence int)
+LANGUAGE plpgsql
+AS
+$$
+declare
+    local_exprs text := 'visit_id, fid, value, confidence';
+    local_table text := '(select '|| local_exprs ||' from cdm_s inner join pat_enc pe on cdm_s.enc_id = pe.enc_id where cdm_s.enc_id in (select enc_id from get_latest_enc_ids(''HCGH''))) as cdm_s';
+    query text := 'select ' || local_exprs || ' from ' || local_table;
+    finalizer text := 'select * from A_DIFF_B union select * from B_DIFF_A';
+    remote_query text := 'select * from dblink(''opsdx_prod_srv'', ' || quote_literal(query) || ') as remote_fields (visit_id varchar, fid varchar, value text, confidence int)';
+begin
+return query
+execute '
+  WITH A_DIFF_B AS (
+    SELECT ''dev_only'', '|| local_exprs || ' FROM ' || local_table || '
+    EXCEPT
+    SELECT ''dev_only'', ' || local_exprs || '
+    FROM (
+      '||remote_query||'
+    ) AS tab_compare
+  ), B_DIFF_A AS (
+    SELECT ''prod_only'', ' || local_exprs || '
+    FROM (
+      '||remote_query||'
+    ) AS tab_compare
+    EXCEPT
+    SELECT ''prod_only'',' || local_exprs || ' FROM ' || local_table || '
+  )
+  '|| finalizer;
+end;
+$$;
+
 
 CREATE OR REPLACE FUNCTION compare_with_prod_visit_id(start_tsp text, end_tsp text)
 RETURNS table (type text, visit_id varchar)
@@ -4975,7 +5013,7 @@ if to_regclass('' || workspace || '.' || job_id || '_bedded_patients_transformed
 
     -- diagnosis
     INSERT INTO ' || workspace || '.cdm_s (job_id, enc_id, fid, value, confidence)
-    select '''|| job_id ||''', pe.enc_id, json_object_keys(diagnosis::json), ''True'', 1
+    select '''|| job_id ||''', pe.enc_id, json_object_keys(diagnosis::json), (diagnosis::json)->>(json_object_keys(diagnosis::json)) as value, 1
     from ' || workspace || '.' || job_id || '_bedded_patients_transformed bp
         inner join pat_enc pe on pe.visit_id = bp.visit_id
     where diagnosis is not null and diagnosis <> ''nan''
