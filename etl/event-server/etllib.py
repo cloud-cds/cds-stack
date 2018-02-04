@@ -145,7 +145,7 @@ class ETL():
 
   async def load_to_cdm(self, buf):
     if SWITCH_ETL:
-      async with ctxt.db_pool.acquire() as conn:
+      async with self.ctxt.db_pool.acquire() as conn:
         start_time = dt.datetime.now()
         job_id = "job_etl_push_{}_{}".format(dt.datetime.now().strftime('%Y%m%d%H%M%S'), HOSTID).lower()
         if self.prediction_params is None:
