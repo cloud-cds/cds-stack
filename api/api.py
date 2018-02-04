@@ -781,7 +781,7 @@ class TREWSAPI(web.View):
     mapping                = pat_values[4]
     explanations           = pat_values[5]
     #chart_values           = pat_values[6]
-
+    print(explanations)
     feature_relevances = explanations['feature_relevance'] if 'feature_relevance' in explanations else None
     measurements       = explanations['twf_raw_values'] if 'twf_raw_values' in explanations else None
     static_features    = explanations['s_raw_values'] if 's_raw_values' in explanations else None
@@ -817,8 +817,8 @@ class TREWSAPI(web.View):
 
       # update trews intervals
       data['trews_intervals'] = trews_intervals
-
-      measurements['bp'] = {'value': str(measurements['sbpm']['value']) + '/' + str(measurements['dbpm']['value']),
+      if 'sbpm' in measurements and 'dbpm' in measurements:
+        measurements['bp'] = {'value': str(measurements['sbpm']['value']) + '/' + str(measurements['dbpm']['value']),
                                         'tsp': measurements['sbpm']['tsp']}
       data['measurements'] = measurements
 
