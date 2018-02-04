@@ -145,73 +145,74 @@ class ETL():
 
   async def load_to_cdm(self, buf):
     if SWITCH_ETL:
-      start_time = dt.datetime.now()
-      job_id = "job_etl_push_{}_{}".format(dt.datetime.now().strftime('%Y%m%d%H%M%S'), HOSTID).lower()
-      if self.prediction_params is None:
-        self.prediction_params = await loader.load_online_prediction_parameters(self.ctxt, job_id)
-      self.log.info("load_to_cdm started {}".format(job_id))
-      try:
-        await loader.epic_2_workspace(self.ctxt, buf, job_id, 'unicode', WORKSPACE)
-      except Exception as ex:
-        self.log.warning(str(ex))
-        traceback.print_exc()
-      self.log.info("epic_2_workspace completed {}".format(job_id))
-      end_time = dt.datetime.now()
-      extractor.cloudwatch_logger.push(
-        dimension_name = 'ETL',
-        metric_name    = 'load_to_workspace_time_push',
-        value          = (end_time - start_time).total_seconds(),
-        unit           = 'Seconds'
-      )
-      if SWITCH_ETL_CDM:
-        # return number of delta entries in cdm_t
-        num_delta_t = await loader.workspace_to_cdm_delta(self.ctxt, job_id, WORKSPACE, keep_delta_table=True)
-        logging.info("{} num_delta_t = {}".format(job_id, num_delta_t))
-        if num_delta_t:
-          fillin_start = dt.datetime.now()
-          num_twf_rows = await loader.workspace_fillin_delta(self.ctxt, self.prediction_params, job_id, WORKSPACE)
-          fillin_end = dt.datetime.now()
-          extractor.cloudwatch_logger.push(
-            dimension_name = 'ETL',
-            metric_name    = 'fillin_time_push',
-            value          = (fillin_end - fillin_start).total_seconds(),
-            unit           = 'Seconds'
-          )
-          if num_twf_rows and SWITCH_ETL_DERIVE:
-            derive_start = dt.datetime.now()
-            await loader.workspace_derive(self.ctxt, self.prediction_params, job_id, WORKSPACE)
-            derive_end = dt.datetime.now()
-            extractor.cloudwatch_logger.push(
-              dimension_name = 'ETL',
-              metric_name    = 'derive_time_push',
-              value          = (derive_end - derive_start).total_seconds(),
-              unit           = 'Seconds'
-            )
-            submit_start = dt.datetime.now()
-            await loader.workspace_submit_delta(self.ctxt, job_id, WORKSPACE)
-            submit_end = dt.datetime.now()
-            extractor.cloudwatch_logger.push(
-              dimension_name = 'ETL',
-              metric_name    = 'submit_time_push',
-              value          = (submit_end - submit_start).total_seconds(),
-              unit           = 'Seconds'
-            )
-            if SWITCH_ETL_DONE:
-              await loader.notify_delta_ready_to_trews_alert_server(self.ctxt, job_id, WORKSPACE)
-            else:
-              logging.info("SWITCH_ETL_DONE is OFF")
-          else:
-            logging.info("No new or updated rows in TWF. Skip ETL {}".format(job_id))
-        else:
-          logging.info("No change for {}. Skip ETL".format(job_id))
+      async with ctxt.db_pool.acquire() as conn:
+        start_time = dt.datetime.now()
+        job_id = "job_etl_push_{}_{}".format(dt.datetime.now().strftime('%Y%m%d%H%M%S'), HOSTID).lower()
+        if self.prediction_params is None:
+          self.prediction_params = await loader.load_online_prediction_parameters(self.ctxt, job_id, conn)
+        self.log.info("load_to_cdm started {}".format(job_id))
+        try:
+          await loader.epic_2_workspace(self.ctxt, buf, job_id, 'unicode', WORKSPACE, conn)
+        except Exception as ex:
+          self.log.warning(str(ex))
+          traceback.print_exc()
+        self.log.info("epic_2_workspace completed {}".format(job_id))
         end_time = dt.datetime.now()
         extractor.cloudwatch_logger.push(
           dimension_name = 'ETL',
-          metric_name    = 'load_to_cdm_time_push',
+          metric_name    = 'load_to_workspace_time_push',
           value          = (end_time - start_time).total_seconds(),
           unit           = 'Seconds'
         )
-      logging.info("etl end")
+        if SWITCH_ETL_CDM:
+          # return number of delta entries in cdm_t
+          num_delta_t = await loader.workspace_to_cdm_delta(self.ctxt, job_id, WORKSPACE, conn, keep_delta_table=True)
+          logging.info("{} num_delta_t = {}".format(job_id, num_delta_t))
+          if num_delta_t:
+            fillin_start = dt.datetime.now()
+            num_twf_rows = await loader.workspace_fillin_delta(self.ctxt, self.prediction_params, job_id, WORKSPACE, conn)
+            fillin_end = dt.datetime.now()
+            extractor.cloudwatch_logger.push(
+              dimension_name = 'ETL',
+              metric_name    = 'fillin_time_push',
+              value          = (fillin_end - fillin_start).total_seconds(),
+              unit           = 'Seconds'
+            )
+            if num_twf_rows and SWITCH_ETL_DERIVE:
+              derive_start = dt.datetime.now()
+              await loader.workspace_derive(self.ctxt, self.prediction_params, job_id, WORKSPACE, conn)
+              derive_end = dt.datetime.now()
+              extractor.cloudwatch_logger.push(
+                dimension_name = 'ETL',
+                metric_name    = 'derive_time_push',
+                value          = (derive_end - derive_start).total_seconds(),
+                unit           = 'Seconds'
+              )
+              submit_start = dt.datetime.now()
+              await loader.workspace_submit_delta(self.ctxt, job_id, WORKSPACE, conn)
+              submit_end = dt.datetime.now()
+              extractor.cloudwatch_logger.push(
+                dimension_name = 'ETL',
+                metric_name    = 'submit_time_push',
+                value          = (submit_end - submit_start).total_seconds(),
+                unit           = 'Seconds'
+              )
+              if SWITCH_ETL_DONE:
+                await loader.notify_delta_ready_to_trews_alert_server(self.ctxt, job_id, WORKSPACE)
+              else:
+                logging.info("SWITCH_ETL_DONE is OFF")
+            else:
+              logging.info("No new or updated rows in TWF. Skip ETL {}".format(job_id))
+          else:
+            logging.info("No change for {}. Skip ETL".format(job_id))
+          end_time = dt.datetime.now()
+          extractor.cloudwatch_logger.push(
+            dimension_name = 'ETL',
+            metric_name    = 'load_to_cdm_time_push',
+            value          = (end_time - start_time).total_seconds(),
+            unit           = 'Seconds'
+          )
+        logging.info("etl end")
     else:
       logging.info("SWITCH_ETL is OFF")
 

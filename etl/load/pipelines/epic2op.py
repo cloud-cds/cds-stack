@@ -154,6 +154,12 @@ async def epic_2_workspace(ctxt, db_data, job_id, dtypes, workspace):
     return job_id
 
 
+async def epic_2_workspace(ctxt, db_data, job_id, dtypes, workspace, conn):
+  ''' Push all the dataframes to a workspace table '''
+  ctxt.log.info("enter epic_2_workspace")
+  for df_name, df in db_data.items():
+    await primitives.data_2_workspace(ctxt.log, conn, job_id, df_name, df, dtypes=dtypes, workspace=workspace)
+  return job_id
 
 
 def test_data_2_workspace(ctxt, sqlalchemy_str, mode, job_id):
@@ -203,6 +209,21 @@ async def workspace_to_cdm_delta(ctxt, job_id, workspace, keep_delta_table=False
     except asyncpg.exceptions.UndefinedTableError:
       logging.error("Workspace table does exist for {}".format(query))
     return num_delta_t
+
+async def workspace_to_cdm_delta(ctxt, job_id, workspace, conn, keep_delta_table=False):
+  query = "select * from workspace_to_cdm('{}','{}','{}');".format(job_id, workspace, keep_delta_table)
+  try:
+    res = await conn.fetch(query)
+    num_delta_t = res[0][0]
+    cloudwatch_logger.push(
+      dimension_name = 'ETL',
+      metric_name    = 'num_delta_t_push',
+      value          = num_delta_t,
+      unit           = 'Count'
+    )
+  except asyncpg.exceptions.UndefinedTableError:
+    logging.error("Workspace table does exist for {}".format(query))
+  return num_delta_t
 
 async def load_online_prediction_parameters(ctxt, job_id):
   async with ctxt.db_pool.acquire() as conn:
@@ -273,7 +294,49 @@ async def load_online_prediction_parameters(ctxt, job_id):
       'derive_features'  : derive_features,
     }
 
+async def load_online_prediction_parameters(ctxt, job_id, conn):
+  ctxt.log.info("load online_prediction_features")
+  # Load features needed for criteria
+  query_criteria_feature = '''
+  select unnest(string_to_array(value, ',')) fid from parameters where name = 'criteria_required_derive_fids'
+  '''
+  criteria_features = await conn.fetch(query_criteria_feature)
+  criteria_features = [f['fid'] for f in criteria_features]
+  # Load features needed for jit
+  query_jit_feature = '''
+  select unnest(string_to_array(value, ',')) fid from parameters where name = 'jit_required_twf_fids'
+  '''
+  jit_features = await conn.fetch(query_jit_feature)
+  jit_features = [f['fid'] for f in jit_features]
 
+  # Get cdm feature dict
+  cdm_feature = await conn.fetch("select * from cdm_feature")
+  cdm_feature_dict = {f['fid']:dict(f) for f in cdm_feature}
+  required_fids = criteria_features + jit_features
+  # list the measured features for online prediction
+  features_with_intermediates = get_features_with_intermediates(\
+    required_fids, cdm_feature_dict)
+  measured_features = [fid for fid in features_with_intermediates if cdm_feature_dict[fid]["is_measured"]]
+  ctxt.log.debug("The measured features in online prediction: {}".format(
+    _get_feature_description_report(measured_features, cdm_feature_dict)))
+
+  # list the fillin features for online prediction
+  fillin_features = [fid for fid in features_with_intermediates if \
+    cdm_feature_dict[fid]["is_measured"] and cdm_feature_dict[fid]["category"] == "TWF"]
+  ctxt.log.debug("The fillin features in online prediction: {}".format(fillin_features))
+
+  # list the derive features for online prediction
+  derive_features = [fid for fid in features_with_intermediates if not cdm_feature_dict[fid]["is_measured"]]
+  ctxt.log.debug("The derive features in online prediction: {}".format(derive_features))
+
+  return {
+    'feature_weights'  : {}, #dict(feature_weights),
+    'max_score'        : 0, #max_score,
+    'min_score'        : 0, #min_score,
+    'cdm_feature_dict' : cdm_feature_dict,
+    'fillin_features'  : fillin_features,
+    'derive_features'  : derive_features,
+  }
 
 
 async def workspace_fillin(ctxt, prediction_params, job_id, workspace):
@@ -313,6 +376,22 @@ async def workspace_fillin_delta(ctxt, prediction_params, job_id, workspace):
     ctxt.log.info("fillin completed")
     return result[0][0]
 
+async def workspace_fillin_delta(ctxt, prediction_params, job_id, workspace, conn):
+  ctxt.log.info("start fillin pipeline")
+  # we run the optimized fillin in one run, e.g., update set all columns
+  fillin_sql = '''
+    SELECT * from workspace_fillin_delta({fillin_fids}, {twf_table}, 'cdm_t', '{job_id}', '{workspace}');
+    '''.format(
+      fillin_fids = 'array[{}]'.format(','.join(["'{}'".format(x) for x in prediction_params['fillin_features']])),
+      twf_table   = "'{}.{}_cdm_twf'".format(workspace, job_id),
+      job_id      = job_id,
+      workspace   = workspace
+    )
+  ctxt.log.debug("start fillin: {}".format(fillin_sql))
+  result = await conn.execute(fillin_sql)
+  ctxt.log.info(result)
+  ctxt.log.info("fillin completed")
+  return result[0][0]
 
 async def workspace_derive(ctxt, prediction_params, job_id, workspace):
   cdm_feature_dict = prediction_params['cdm_feature_dict']
@@ -369,7 +448,58 @@ async def workspace_derive(ctxt, prediction_params, job_id, workspace):
     return job_id
 
 
+async def workspace_derive(ctxt, prediction_params, job_id, workspace, conn):
+  cdm_feature_dict = prediction_params['cdm_feature_dict']
+  derive_features = prediction_params['derive_features']
+  ctxt.log.info("derive start")
+  # get derive order based on the input derive_features
+  derive_feature_dict = {fid: cdm_feature_dict[fid] for fid in derive_features}
+  derive_feature_order = get_derive_seq(derive_feature_dict)
+  twf_table = '{}.{}_cdm_twf'.format(workspace, job_id)
+  cdm_t_target = '''
+  (select * from cdm_t where enc_id in
+    (select distinct enc_id from {workspace}.cdm_t wt
+      where wt.job_id = '{job_id}'))
+  '''.format(workspace=workspace, job_id=job_id)
 
+  # get info for old function
+  derive_feature_addr = {}
+  for fid in derive_feature_order:
+    table = twf_table if derive_feature_dict[fid]['category'] == 'TWF' else None
+    derive_feature_addr[fid] = {
+      'twf_table': table,
+      'twf_table_temp': table,
+      'category': derive_feature_dict[fid]['category'],
+    }
+
+
+
+  # derive the features sequentially
+  # retry parameters
+  base = 2
+  max_backoff = 60
+
+  res = await conn.fetchrow("select value from parameters where name = 'etl_workspace_lookbackhours'")
+  lookbackhours = res['value']
+  for fid in derive_feature_order:
+    attempts = 0
+    while True:
+      try:
+        ctxt.log.info("deriving fid {}".format(fid))
+        await derive_feature(ctxt.log, fid, cdm_feature_dict, conn, derive_feature_addr=derive_feature_addr, cdm_t_lookbackhours=lookbackhours, workspace=workspace,job_id=job_id, cdm_t_target=cdm_t_target)
+        break
+      except Exception as e:
+        attempts += 1
+        ctxt.log.exception("PSQL Error derive: %s %s" % (fid if fid else 'run_derive', e))
+        random_secs = random.uniform(0, 10)
+        wait_time = min(((base**attempts) + random_secs), max_backoff)
+        await asyncio.sleep(wait_time)
+        ctxt.log.info("run_derive {} attempts {}".format(fid or '', attempts))
+        if fid is None:
+          raise Exception('batch derive stopped due to exception')
+        continue
+    ctxt.log.info("derive completed")
+    return job_id
 
 
 async def workspace_predict(ctxt, prediction_params, job_id, workspace):
@@ -437,6 +567,18 @@ async def workspace_submit_delta(ctxt, job_id, workspace):
     await conn.execute(submit_cdm % {'job': job_id, 'workspace': workspace} )
     ctxt.log.info("{}: results submitted".format(job_id))
     return job_id
+
+async def workspace_submit_delta(ctxt, job_id, workspace, conn):
+  # submit to cdm_twf
+  # submit to trews
+  ctxt.log.info("{}: submitting results ...".format(job_id))
+  submit_cdm = '''
+  select * from workspace_submit_delta('%(workspace)s.%(job)s_cdm_twf');
+  '''
+  ctxt.log.debug(submit_cdm % {'job': job_id, 'workspace': workspace} )
+  await conn.execute(submit_cdm % {'job': job_id, 'workspace': workspace} )
+  ctxt.log.info("{}: results submitted".format(job_id))
+  return job_id
 
 async def workspace_submit(ctxt, job_id, workspace, drop_workspace_table=True, trews=True):
   # submit to cdm_twf

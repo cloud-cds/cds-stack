@@ -22,6 +22,7 @@ host = os.environ['db_host']
 db   = os.environ['db_name']
 port = os.environ['db_port']
 pw   = os.environ['db_password']
+MAX_DB_CONN = os.environ['max_db_conn'] if 'max_db_conn' in os.environ else 50
 
 class SQSHandler():
   def __init__(self, app):
@@ -65,7 +66,7 @@ async def init_queue(app):
   app.queue_url = response['QueueUrl']
 
 async def init_db_pool(app):
-  app.db_pool = await asyncpg.create_pool(database=db, user=user, password=pw, host=host, port=port)
+  app.db_pool = await asyncpg.create_pool(database=db, user=user, password=pw, host=host, port=port, max_size=MAX_DB_CONN)
 
 async def cleanup_db_pool(app):
   if 'pool' in app:
