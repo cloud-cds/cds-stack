@@ -173,13 +173,12 @@ GO
 USE Analytics;
 :OUT \\\\Client\F$\clarity\vent_info.{idx}.rpt
 SET NOCOUNT ON
-SELECT --PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
-  --,
-  procs.proc_id OrderProcId
+SELECT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
+  ,procs.proc_id OrderProcId
   ,inst.INSTNTD_ORDER_ID
   ,inst.order_id as parent_order_id
   ,procs.chng_order_Proc_id
-  ,procs.display_name
+  ,coalesce (procs.display_name, procs.description)
   ,eap.proc_name
   ,proccat.proc_cat_name
   ,procs.ORDER_TIME
@@ -226,6 +225,7 @@ where
         ('38825','55910','38817','38819','174947','38821','38823','100372','304267','150061', '104569')
 or lower(eap.proc_name) like '%mechanical ventilation%'
 GO
+
 
 :OUT \\\\Client\F$\clarity\diag.{idx}.rpt
 SET NOCOUNT ON

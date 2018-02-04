@@ -2,8 +2,8 @@
 
 --1) write vent_info into a temp table
 
-drop table if exists clarity_1y."tmp_vent";
-create table clarity_1y."tmp_vent"
+drop table if exists clarity_3y."tmp_vent";
+create table clarity_3y."tmp_vent"
 (
  "CSN_ID"          text                        ,
  "OrderProcId"     text                        ,
@@ -34,12 +34,15 @@ create table clarity_1y."tmp_vent"
  "FrequencyOfOrder" text      ,
  "ORDER_CLASS_NAME" text
 );
-\copy clarity_1y."tmp_vent" from '/home/ubuntu/zad/mnt/clarity-1y/01-30-2018/vent.rpt' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy clarity_3y."tmp_vent" from '/home/ubuntu/zad/mnt/clarity-3y/02-03-2018/vent_info.201309.rpt' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy clarity_3y."tmp_vent" from '/home/ubuntu/zad/mnt/clarity-3y/02-03-2018/vent_info.201406.rpt' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy clarity_3y."tmp_vent" from '/home/ubuntu/zad/mnt/clarity-3y/02-03-2018/vent_info.201506.rpt' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy clarity_3y."tmp_vent" from '/home/ubuntu/zad/mnt/clarity-3y/02-03-2018/vent_info.201606.rpt' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 
 
 -- 2) delete any row already in orderprocs_643 that has vent data
 delete
-from clarity_1y."OrderProcs_643"
+from clarity_3y."OrderProcs_643"
 where
 lower(proc_name)='bipap' or
 lower(proc_name) like 'wall cpap - adult%' or
@@ -49,7 +52,7 @@ lower(proc_name) like 'mechanical ventilation - adult cpap%';
 
 -- 3) write rows from tmp_vent into orderprocs_643 and make a new json column
 
-insert into clarity_1y."OrderProcs_643"
+insert into clarity_3y."OrderProcs_643"
 ("CSN_ID",
 "OrderProcId",
 "INSTNTD_ORDER_ID",
@@ -103,4 +106,4 @@ select
  quest_name,
  question,
  comment
-from clarity_1y."tmp_vent";
+from clarity_3y."tmp_vent";
