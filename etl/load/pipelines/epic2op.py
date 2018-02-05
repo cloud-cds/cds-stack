@@ -156,7 +156,7 @@ async def epic_2_workspace(ctxt, db_data, job_id, dtypes, workspace):
 
 async def epic_2_workspace(ctxt, db_data, job_id, dtypes, workspace, conn):
   ''' Push all the dataframes to a workspace table '''
-  ctxt.log.info("enter epic_2_workspace")
+  ctxt.log.debug("enter epic_2_workspace")
   for df_name, df in db_data.items():
     await primitives.data_2_workspace(ctxt.log, conn, job_id, df_name, df, dtypes=dtypes, workspace=workspace)
   return job_id

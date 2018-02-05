@@ -21,7 +21,7 @@ async def data_2_workspace(logger, conn, job_id, df_name, df, dtypes=None, if_ex
     await conn.execute(prepare_table)
     tuples = [tuple([str(y) for y in x]) for x in df.values]
     await conn.copy_records_to_table(table_name, records=tuples, schema_name=workspace)
-    logger.info(table_name + " saved: nrows = {}".format(nrows))
+    logger.info("{}: {} saved: nrows = {}".format(job_id, table_name, nrows))
 
 async def calculate_historical_criteria(conn):
     sql = 'select * from calculate_historical_criteria(NULL);'
