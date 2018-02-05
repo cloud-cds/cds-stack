@@ -498,7 +498,7 @@ async def workspace_derive(ctxt, prediction_params, job_id, workspace, conn):
         if fid is None:
           raise Exception('batch derive stopped due to exception')
         continue
-    return job_id
+  return job_id
 
 
 async def workspace_predict(ctxt, prediction_params, job_id, workspace):
