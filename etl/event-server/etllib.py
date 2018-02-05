@@ -181,6 +181,7 @@ class ETL():
             if num_twf_rows and SWITCH_ETL_DERIVE:
               derive_start = dt.datetime.now()
               await loader.workspace_derive(self.ctxt, self.prediction_params, job_id, WORKSPACE, conn)
+              self.log.info("derive completed {}".format(job_id))
               derive_end = dt.datetime.now()
               extractor.cloudwatch_logger.push(
                 dimension_name = 'ETL',

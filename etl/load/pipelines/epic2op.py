@@ -295,7 +295,7 @@ async def load_online_prediction_parameters(ctxt, job_id):
     }
 
 async def load_online_prediction_parameters(ctxt, job_id, conn):
-  ctxt.log.info("load online_prediction_features")
+  ctxt.log.info("{} load online_prediction_features".format(job_id))
   # Load features needed for criteria
   query_criteria_feature = '''
   select unnest(string_to_array(value, ',')) fid from parameters where name = 'criteria_required_derive_fids'
@@ -317,17 +317,17 @@ async def load_online_prediction_parameters(ctxt, job_id, conn):
   features_with_intermediates = get_features_with_intermediates(\
     required_fids, cdm_feature_dict)
   measured_features = [fid for fid in features_with_intermediates if cdm_feature_dict[fid]["is_measured"]]
-  ctxt.log.debug("The measured features in online prediction: {}".format(
+  ctxt.log.info("{}: The measured features in online prediction: {}".format(job_id,
     _get_feature_description_report(measured_features, cdm_feature_dict)))
 
   # list the fillin features for online prediction
   fillin_features = [fid for fid in features_with_intermediates if \
     cdm_feature_dict[fid]["is_measured"] and cdm_feature_dict[fid]["category"] == "TWF"]
-  ctxt.log.debug("The fillin features in online prediction: {}".format(fillin_features))
+  ctxt.log.info("{}: The fillin features in online prediction: {}".format(job_id, fillin_features))
 
   # list the derive features for online prediction
   derive_features = [fid for fid in features_with_intermediates if not cdm_feature_dict[fid]["is_measured"]]
-  ctxt.log.debug("The derive features in online prediction: {}".format(derive_features))
+  ctxt.log.info("{}: The derive features in online prediction: {}".format(job_id, derive_features))
 
   return {
     'feature_weights'  : {}, #dict(feature_weights),
@@ -451,7 +451,7 @@ async def workspace_derive(ctxt, prediction_params, job_id, workspace):
 async def workspace_derive(ctxt, prediction_params, job_id, workspace, conn):
   cdm_feature_dict = prediction_params['cdm_feature_dict']
   derive_features = prediction_params['derive_features']
-  ctxt.log.info("derive start")
+  ctxt.log.info("{} derive start".format(job_id))
   # get derive order based on the input derive_features
   derive_feature_dict = {fid: cdm_feature_dict[fid] for fid in derive_features}
   derive_feature_order = get_derive_seq(derive_feature_dict)
@@ -474,7 +474,7 @@ async def workspace_derive(ctxt, prediction_params, job_id, workspace, conn):
 
 
 
-  # derive the features sequentially
+  ctxt.log.info("{} derive the features sequentially: {}".format(job_id, derive_feature_order))
   # retry parameters
   base = 2
   max_backoff = 60
@@ -485,7 +485,7 @@ async def workspace_derive(ctxt, prediction_params, job_id, workspace, conn):
     attempts = 0
     while True:
       try:
-        ctxt.log.info("deriving fid {}".format(fid))
+        ctxt.log.info("{} deriving fid {}".format(job_id, fid))
         await derive_feature(ctxt.log, fid, cdm_feature_dict, conn, derive_feature_addr=derive_feature_addr, cdm_t_lookbackhours=lookbackhours, workspace=workspace,job_id=job_id, cdm_t_target=cdm_t_target)
         break
       except Exception as e:
@@ -498,7 +498,6 @@ async def workspace_derive(ctxt, prediction_params, job_id, workspace, conn):
         if fid is None:
           raise Exception('batch derive stopped due to exception')
         continue
-    ctxt.log.info("derive completed")
     return job_id
 
 
