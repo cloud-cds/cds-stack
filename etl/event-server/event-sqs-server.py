@@ -47,6 +47,10 @@ class App():
     self.sqs_client = None
     self.queue_url = None
 
+  def recreate_dbpool(self):
+    await self.db_pool.close()
+    self.db_pool = await asyncpg.create_pool(database=db, user=user, password=pw, host=host, port=port, max_size=MAX_DB_CONN)
+
 app = App()
 
 async def init_queue(app):
