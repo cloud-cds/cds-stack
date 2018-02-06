@@ -214,6 +214,7 @@ class ETL():
             unit           = 'Seconds'
           )
         logging.info("etl end")
+        await self.ctxt.db_pool.release(conn)
     else:
       logging.info("SWITCH_ETL is OFF")
 
