@@ -145,14 +145,14 @@ class ETL():
 
   async def load_to_cdm(self, buf):
     if SWITCH_ETL:
+      start_time = dt.datetime.now()
+      job_id = "job_etl_push_{}_{}".format(dt.datetime.now().strftime('%Y%m%d%H%M%S'), HOSTID).lower()
+      self.log.info("load_to_cdm started {}".format(job_id))
       while True:
         try:
           async with self.ctxt.db_pool.acquire(timeout=5) as conn:
-            start_time = dt.datetime.now()
-            job_id = "job_etl_push_{}_{}".format(dt.datetime.now().strftime('%Y%m%d%H%M%S'), HOSTID).lower()
             if self.prediction_params is None:
               self.prediction_params = await loader.load_online_prediction_parameters(self.ctxt, job_id, conn)
-            self.log.info("load_to_cdm started {}".format(job_id))
             await loader.epic_2_workspace(self.ctxt, buf, job_id, 'unicode', WORKSPACE, conn)
             self.log.info("epic_2_workspace completed {}".format(job_id))
             end_time = dt.datetime.now()
