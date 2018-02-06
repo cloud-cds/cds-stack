@@ -218,7 +218,7 @@ class ETL():
           self.log.warning(str(ex))
           traceback.print_exc()
           self.log.warning("{} acquire timeout. recreate db pool".format(job_id))
-          self.app.recreate_dbpool()
+          await self.app.recreate_dbpool()
           self.log.warning("{} recreated db pool".format(job_id))
     else:
       logging.info("SWITCH_ETL is OFF")
