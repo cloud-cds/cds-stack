@@ -11,6 +11,8 @@ import traceback
 import etl.load.pipelines.epic2op as loader
 import datetime as dt
 import numpy as np
+from time import sleep
+import random
 
 SWITCH_ETL = int(core.get_environment_var('SWITCH_ETL', 1))
 SWITCH_ETL_CDM = int(core.get_environment_var('SWITCH_ETL_CDM', 1))
@@ -46,7 +48,7 @@ mode = MODE[int(core.get_environment_var('TREWS_ETL_MODE', '1'))]
 
 # Get suppression alert mode
 suppression = int(core.get_environment_var('TREWS_ETL_SUPPRESSION', '0'))
-
+TIMEOUT = 5
 
 class CDMBuffer():
   def __init__(self, etl):
@@ -148,9 +150,11 @@ class ETL():
       start_time = dt.datetime.now()
       job_id = "job_etl_push_{}_{}".format(dt.datetime.now().strftime('%Y%m%d%H%M%S'), HOSTID).lower()
       self.log.info("load_to_cdm started {}".format(job_id))
+      base = ctxt.flags.JHAPI_BACKOFF_BASE
+      max_backoff = ctxt.flags.JHAPI_BACKOFF_MAX
       while True:
         try:
-          async with self.ctxt.db_pool.acquire(timeout=5) as conn:
+          async with self.ctxt.db_pool.acquire(timeout=TIMEOUT) as conn:
             if self.prediction_params is None:
               self.prediction_params = await loader.load_online_prediction_parameters(self.ctxt, job_id, conn)
             await loader.epic_2_workspace(self.ctxt, buf, job_id, 'unicode', WORKSPACE, conn)
@@ -217,9 +221,9 @@ class ETL():
         except Exception as ex:
           self.log.warning(str(ex))
           traceback.print_exc()
-          self.log.warning("{} acquire timeout. recreate db pool".format(job_id))
-          await self.app.recreate_dbpool()
-          self.log.warning("{} recreated db pool".format(job_id))
+          wait_time = min(((base**i) + random.uniform(0, 1)), max_backoff)
+          self.log.warning("{} acquire timeout. waiting for {} seconds".format(job_id, wait_time))
+          sleep(wait_time)
     else:
       logging.info("SWITCH_ETL is OFF")
 
