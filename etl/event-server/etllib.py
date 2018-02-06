@@ -150,8 +150,8 @@ class ETL():
       start_time = dt.datetime.now()
       job_id = "job_etl_push_{}_{}".format(dt.datetime.now().strftime('%Y%m%d%H%M%S'), HOSTID).lower()
       self.log.info("load_to_cdm started {}".format(job_id))
-      base = ctxt.flags.JHAPI_BACKOFF_BASE
-      max_backoff = ctxt.flags.JHAPI_BACKOFF_MAX
+      base = self.ctxt.flags.JHAPI_BACKOFF_BASE
+      max_backoff = self.ctxt.flags.JHAPI_BACKOFF_MAX
       while True:
         try:
           async with self.ctxt.db_pool.acquire(timeout=TIMEOUT) as conn:
