@@ -152,6 +152,7 @@ class ETL():
       self.log.info("load_to_cdm started {}".format(job_id))
       base = self.ctxt.flags.JHAPI_BACKOFF_BASE
       max_backoff = self.ctxt.flags.JHAPI_BACKOFF_MAX
+      i = 1
       while True:
         try:
           async with self.ctxt.db_pool.acquire(timeout=TIMEOUT) as conn:
@@ -222,6 +223,7 @@ class ETL():
           self.log.warning(str(ex))
           traceback.print_exc()
           wait_time = min(((base**i) + random.uniform(0, 1)), max_backoff)
+          i += 1
           self.log.warning("{} acquire timeout. waiting for {} seconds".format(job_id, wait_time))
           sleep(wait_time)
     else:
