@@ -560,9 +560,8 @@ class EpicAPIConfig:
         if r and r['Contacts']:
           for contact in r['Contacts']:
             if contact['EncounterType'] == 'Hospital Encounter' and not contact['IsCancelled']:
-              if 'Outpatient' in contact['PatientClass']:
-                return None # ignore outpatient
-              else:
+              if not 'Outpatient' in contact['PatientClass']:
+                # ignore outpatient
                 rec = {'CSN': contact['CSN'], 'DepartmentName': contact['DepartmentName'], 'patient_class': contact['PatientClass']}
                 for item in r['PatientIDs']:
                   if item['IDType'] == 'EMRN':
