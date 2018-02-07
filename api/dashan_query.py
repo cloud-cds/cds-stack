@@ -767,7 +767,6 @@ async def get_explanations(db_pool, eid):
   try:
     async with db_pool.acquire() as conn:
       df = await conn.fetch(get_explanations_sql)
-      print(df)
       return {"feature_relevance":json.loads(df[0][0]),
               "twf_raw_values":json.loads(df[0][1]),
               "s_raw_values":json.loads(df[0][2])}

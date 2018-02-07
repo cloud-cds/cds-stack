@@ -971,7 +971,9 @@ class TREWSAPI(web.View):
                       'vasopressors_order'      : { k: data['vasopressors_order'][k]      for k in ['status', 'time', 'user'] },
                       'ui'                      : { 'ui_severe_sepsis': { 'is_met': data['ui']['ui_severe_sepsis']['is_met'] },
                                                     'ui_septic_shock': { 'is_met': data['ui']['ui_septic_shock']['is_met'] }
-                                                  }
+                                                  },
+                      'explanations'            : { 'feature_relevance': data['feature_relevances'],
+                                                    'static_features'  : data['static_features']}
                     }
 
                 else:
