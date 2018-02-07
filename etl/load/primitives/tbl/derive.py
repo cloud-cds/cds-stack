@@ -1176,7 +1176,7 @@ async def gi_bleed_update(fid, fid_input, conn, log, dataset_id, derive_feature_
     if len(evidence) > 0:
       tsp_first = evidence[0]['tsp']
 
-    await load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf], dataset_id=dataset_id, cdm_t_target=cdm_t_target)
+    await load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf], dataset_id=dataset_id, cdm_t_target='cdm_t' if 'select' in cdm_t_target else cdm_t_target)
 
 
 
