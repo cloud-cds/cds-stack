@@ -559,7 +559,7 @@ class EpicAPIConfig:
       for r in responses:
         if r and r['Contacts']:
           for contact in r['Contacts']:
-            if contact['EncounterType'] == 'Hospital Encounter':
+            if contact['EncounterType'] == 'Hospital Encounter' and not contact['IsCancelled']:
               if 'Outpatient' in contact['PatientClass']:
                 return None # ignore outpatient
               else:

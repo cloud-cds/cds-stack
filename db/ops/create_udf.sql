@@ -3892,9 +3892,9 @@ begin
     gc_workspace := (now() - (select max(tsp) from etl_job)) > (select max(value)::interval from parameters where name = 'gc_workspace_interval');
     if gc_workspace then
       perform del_old_refreshed_pats();
-      perform drop_tables_pattern(workspace, '_' || to_char((now() - interval '2 days')::date, 'MMDD'));
+      perform drop_tables_pattern(workspace, '\_' || to_char((now() - interval '2 days')::date, 'YYYYMMDD'));
       if workspace <> 'workspace' then
-        perform drop_tables_pattern('workspace', '_' || to_char((now() - interval '2 days')::date, 'MMDD'));
+        perform drop_tables_pattern('workspace', '\_' || to_char((now() - interval '2 days')::date, 'YYYYMMDD'));
       end if;
     end if;
 end; $$;
@@ -3914,7 +3914,7 @@ begin
     gc_workspace := (now() - (select max(tsp) from etl_job)) > (select max(value)::interval from parameters where name = 'gc_workspace_interval');
     if gc_workspace then
       perform del_old_refreshed_pats();
-      perform drop_tables_pattern(workspace, '_' || to_char((now() - interval '2 days')::date, 'MMDD'));
+      perform drop_tables_pattern(workspace, '\_' || to_char((now() - interval '2 days')::date, 'YYYYMMDD'));
     end if;
 end; $$;
 
@@ -4614,7 +4614,7 @@ END;
 $$;
 
 
-CREATE OR REPLACE FUNCTION drop_tables_pattern(IN _schema TEXT, IN pattern TEXT)
+CREATE OR REPLACE FUNCTION drop_tables_pattern(IN _schema TEXT, IN pattern TEXT, max_num_tables int default 1000)
 RETURNS void
 LANGUAGE plpgsql
 AS
@@ -4633,7 +4633,8 @@ BEGIN
         AND
             table_schema = _schema
         AND
-            table_name ILIKE pattern || '%'
+            table_name ILIKE '%' || pattern || '%'
+        limit max_num_tables
     LOOP
         EXECUTE 'DROP TABLE ' || quote_ident(row.table_schema) || '.' || quote_ident(row.table_name);
         RAISE INFO 'Dropped table: %', quote_ident(row.table_schema) || '.' || quote_ident(row.table_name);
