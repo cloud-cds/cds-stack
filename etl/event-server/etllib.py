@@ -216,8 +216,8 @@ class ETL():
                 value          = (end_time - start_time).total_seconds(),
                 unit           = 'Seconds'
               )
-            logging.info("etl end")
             await self.ctxt.db_pool.release(conn)
+            logging.info("etl end")
             break
         except Exception as ex:
           self.log.warning(str(ex))

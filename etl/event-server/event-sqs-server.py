@@ -22,7 +22,7 @@ host = os.environ['db_host']
 db   = os.environ['db_name']
 port = os.environ['db_port']
 pw   = os.environ['db_password']
-MAX_DB_CONN = os.environ['max_db_conn'] if 'max_db_conn' in os.environ else 50
+MAX_DB_CONN = int(os.environ['max_db_conn']) if 'max_db_conn' in os.environ else 50
 
 class SQSHandler():
   def __init__(self, app):
