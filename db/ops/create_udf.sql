@@ -5282,7 +5282,13 @@ end if;
 if to_regclass('' || workspace || '.' || job_id || '_flowsheets_transformed') is not null then
     execute
     'INSERT INTO ' || workspace || '.cdm_t (job_id, enc_id, tsp, fid, value, confidence)
-    select '''|| job_id ||''', pat_enc.enc_id, fs.tsp::timestamptz, fs.fid, last(fs.value), 0 from ' || workspace || '.' || job_id || '_flowsheets_transformed fs
+    select '''|| job_id ||''', pat_enc.enc_id, fs.tsp::timestamptz, fs.fid,
+    (case when
+        fid = ''map'' then coalesce(last(fs.value) filter (where name = ''Arterial Line 1 MAP''), last(fs.value))
+    else last(fs.value)
+    ),
+    0
+    from ' || workspace || '.' || job_id || '_flowsheets_transformed fs
         inner join pat_enc on pat_enc.visit_id = fs.visit_id
         where fs.tsp <> ''NaT'' and fs.tsp::timestamptz < now()
         and fs.fid <> ''fluids_intake'' and fs.value <> ''''

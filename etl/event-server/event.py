@@ -236,7 +236,7 @@ class EventHandler():
     for id in ids:
       for item in flowsheet_ids:
         if id in item[1]:
-          if item[0] in ['urine_output', 'fluids_intake']:
+          if item[0] in ['urine_output', 'fluids_intake', 'map']:
             # make sure extract all urine_output/fluids_intake at the same time so we can sum them up
             valid_ids.union(item[1])
           else:
