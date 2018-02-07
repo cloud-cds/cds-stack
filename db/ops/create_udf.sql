@@ -5285,7 +5285,7 @@ if to_regclass('' || workspace || '.' || job_id || '_flowsheets_transformed') is
     select '''|| job_id ||''', pat_enc.enc_id, fs.tsp::timestamptz, fs.fid,
     (case when
         fid = ''map'' then coalesce(last(fs.value) filter (where name = ''Arterial Line 1 MAP''), last(fs.value))
-    else last(fs.value)
+    else last(fs.value) end
     ),
     0
     from ' || workspace || '.' || job_id || '_flowsheets_transformed fs
