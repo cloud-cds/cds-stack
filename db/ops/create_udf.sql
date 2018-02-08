@@ -1839,7 +1839,11 @@ create or replace function dose_order_met(order_fid text, override_value_text te
     returns boolean language plpgsql as $func$
 DECLARE
     order_status text := dose_order_status(order_fid, value, override_value_text);
-    dose_value numeric := (case when value ~ 'dose' then ((value::json)#>>'{dose}')::numeric else value::numeric end);
+    dose_value numeric := (
+        case when value ~ 'dose' and ((value::json)#>>'{dose}') = 'None' then 0
+        when value ~ 'dose' then ((value::json)#>>'{dose}')::numeric
+        when value = 'None' then 0
+            else value::numeric end);
 BEGIN
     return case when override_value_text = 'Not Indicated' or override_value_text ~* 'Clinically Inappropriate' then true
                 when order_status = 'Completed' then dose_value > dose_limit and dose_value <> 'NaN'::numeric
@@ -4614,7 +4618,7 @@ END;
 $$;
 
 
-CREATE OR REPLACE FUNCTION drop_tables_pattern(IN _schema TEXT, IN pattern TEXT, max_num_tables int default 1000)
+CREATE OR REPLACE FUNCTION drop_tables_pattern(IN _schema TEXT, IN pattern TEXT, max_num_tables int default 10230)
 RETURNS void
 LANGUAGE plpgsql
 AS
@@ -4680,17 +4684,17 @@ end;
 $$;
 
 CREATE OR REPLACE FUNCTION compare_with_prod_cdm_twf(fid text, start_tsp text, end_tsp text)
-RETURNS table (type text, visit_id varchar, tsp timestamptz, heart_rate real, heart_rate_c int)
+RETURNS table (type text, visit_id varchar, tsp timestamptz, value text, confidence int)
 LANGUAGE plpgsql
 AS
 $$
 declare
-    local_exprs text := 'visit_id, tsp, '|| fid || ', '|| fid || '_c';
+    local_exprs text := 'visit_id, tsp, '|| fid || '::text, '|| fid || '_c';
     local_table text := '(select '|| local_exprs ||' from cdm_twf inner join pat_enc pe on cdm_twf.enc_id = pe.enc_id where cdm_twf.enc_id in (select enc_id from get_latest_enc_ids(''HCGH''))) as cdm_twf';
     with_dst_extension text := ' where tsp between ''' || start_tsp || '''::timestamptz and ''' || end_tsp || '''::timestamptz';
     query text := 'select ' || local_exprs || ' from ' || local_table || with_dst_extension;
     finalizer text := 'select * from A_DIFF_B union select * from B_DIFF_A';
-    remote_query text := 'select * from dblink(''opsdx_prod_srv'', ' || quote_literal(query) || ') as remote_fields (visit_id varchar, tsp timestamptz, '|| fid || ' real, ' || fid || '_c int)';
+    remote_query text := 'select * from dblink(''opsdx_prod_srv'', ' || quote_literal(query) || ') as remote_fields (visit_id varchar, tsp timestamptz, '|| fid || ' text, ' || fid || '_c int)';
 begin
 return query
 execute '

@@ -145,9 +145,9 @@ async def notify_future_notification(ctxt, _):
   else:
     ctxt.log.info("no etl channel found in the environment, skipping etl notifications")
 
-async def epic_2_workspace(ctxt, db_data, job_id, dtypes, workspace):
+async def epic_2_workspace_pull(ctxt, db_data, job_id, dtypes, workspace):
   ''' Push all the dataframes to a workspace table '''
-  async with ctxt.db_pool.acquire(timeout=2.0) as conn:
+  async with ctxt.db_pool.acquire() as conn:
     ctxt.log.info("enter epic_2_workspace")
     for df_name, df in db_data.items():
       await primitives.data_2_workspace(ctxt.log, conn, job_id, df_name, df, dtypes=dtypes, workspace=workspace)
@@ -740,7 +740,7 @@ def get_tasks_pat_only(job_id, db_data_task, db_raw_data_task, mode, archive, de
   all_tasks = [
     Task(name = 'epic_2_workspace',
          deps = [db_data_task],
-         coro = epic_2_workspace,
+         coro = epic_2_workspace_pull,
          args = [job_id, None, WORKSPACE]),
     Task(name = 'workspace_to_cdm',
          deps = ['epic_2_workspace'],
