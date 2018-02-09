@@ -54,6 +54,7 @@ class CDMBuffer():
   def __init__(self, etl):
     self.buf = {}
     self.etl = etl
+    self.running = False
 
 
   def add(self, results):
@@ -93,7 +94,7 @@ class CDMBuffer():
     '''
     TODO: buffer is ready to run etl, e.g., buffer need to have enough data to start etl
     '''
-    if self.buf:
+    if self.buf and not self.running:
       return True
     self.buf = {}
     return False
@@ -134,6 +135,7 @@ class ETL():
     try:
       if self.cdm_buf.is_ready():
         # start ETL for current buffer
+        self.cdm_buf.running = True
         self.log.info("buffer is ready for etl")
         asyncio.ensure_future(self.load_to_cdm(self.cdm_buf.get()))
       else:
@@ -228,6 +230,7 @@ class ETL():
           sleep(wait_time)
     else:
       logging.info("SWITCH_ETL is OFF")
+    self.cdm_buf.running = False
 
   def load_pt_map(self):
     '''
