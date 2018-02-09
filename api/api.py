@@ -781,10 +781,10 @@ class TREWSAPI(web.View):
     mapping                = pat_values[4]
     explanations           = pat_values[5]
     #chart_values           = pat_values[6]
-    print(explanations)
     feature_relevances = explanations['feature_relevance'] if 'feature_relevance' in explanations else None
     measurements       = explanations['twf_raw_values'] if 'twf_raw_values' in explanations else None
     static_features    = explanations['s_raw_values'] if 's_raw_values' in explanations else None
+    orgdfs             = explanations['orgdfs'] if 'orgdfs' in explanations else None
 
     self.update_criteria(criteria_result_set, data)
 
@@ -827,6 +827,13 @@ class TREWSAPI(web.View):
       data['static_features'] = static_features
 
       data['feature_relevances'] = explain.thresholdImportances(explain.getMappedImportances(feature_relevances,mapping)) if feature_relevances else None
+      # Mark orgdfs as important if present
+      if orgdfs is not None:
+        for orgdf, value in orgdfs:
+          if value == 1 and orgdf in mapping:
+            data['feature_relevances'][mapping[orgdf]] = 1
+        
+      
 
       return data
 
