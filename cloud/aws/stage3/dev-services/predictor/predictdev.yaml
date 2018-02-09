@@ -119,8 +119,8 @@ spec:
         command:
         - sh
         - -c
-        # - sleep 10000
-        - cd /lmc/LMC-Based-On-GPflow && ./predict_k8s.sh
+        - sleep 10000
+        # - cd /lmc/LMC-Based-On-GPflow && ./predict_k8s.sh
         securityContext:
           privileged: true
       nodeSelector:

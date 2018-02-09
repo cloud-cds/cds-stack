@@ -426,17 +426,16 @@ class Session():
             %s
         ),
         SELECT %s
-        FROM %s as cdm_twf
+        FROM sub_twf left join sub_s on sub_twf.enc_id = sub_s.enc_id
         ''' % (enc_ids,
                and_dataset_id,
                and_max_tsp,
                and_dataset_id,
-               ",".join(columns),
-               cdm_twf)
+               ",".join(columns))
         for f in s_features:
             sql += """
             left outer join %(cdm_s)s as %(fid)s
-            ON cdm_twf.enc_id = %(fid)s.enc_id
+            ON sub_twf.enc_id = %(fid)s.enc_id
             AND %(fid)s.fid = '%(fid)s'
             """% {'fid': f, 'cdm_s': cdm_s}
         sql += " order by enc_id, tsp"

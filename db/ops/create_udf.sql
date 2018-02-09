@@ -3893,7 +3893,7 @@ begin
     perform reset_bundle_expired_pats(this_enc_id);
     perform reset_noinf_expired_pats(this_enc_id);
 
-    gc_workspace := extract(minute from now())::numeric % 10;
+    gc_workspace := extract(minute from now())::numeric % 10 = 0;
     if gc_workspace then
       perform del_old_refreshed_pats();
       perform drop_tables_pattern(workspace, '\_' || to_char((now() - interval '2 days')::date, 'YYYYMMDD'));
@@ -4618,7 +4618,7 @@ END;
 $$;
 
 
-CREATE OR REPLACE FUNCTION drop_tables_pattern(IN _schema TEXT, IN pattern TEXT, max_num_tables int default 10230)
+CREATE OR REPLACE FUNCTION drop_tables_pattern(IN _schema TEXT, IN pattern TEXT, max_num_tables int default 1010)
 RETURNS void
 LANGUAGE plpgsql
 AS
