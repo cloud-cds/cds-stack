@@ -406,7 +406,7 @@ class Session():
         # cdm_twf = '{}.{}_cdm_twf'.format(workspace, job_id) if job_id else 'cdm_twf'
         cdm_twf = 'cdm_twf'
         cdm_s = 'sub_s'
-        enc_ids = 'unnest(array[{}])'.format(','.join([str(e) for e in active_encid])) if active_encid else "get_latest_enc_ids('{}') where (select enc_id from cdm_s where fid='age' and value::float>=18.0)".format(hospital)
+        enc_ids = 'unnest(array[{}]) as enc_id'.format(','.join([str(e) for e in active_encid])) if active_encid else "get_latest_enc_ids('{}') where enc_id in (select enc_id from cdm_s where fid='age' and value::float>=18.0)".format(hospital)
         and_dataset_id = ' and dataset_id = {}'.format(dataset_id) if dataset_id else ''
         and_max_tsp = " and tsp <= '{}'::timestamptz".format(max_tsp) if max_tsp else ''
         sql = '''
@@ -417,16 +417,16 @@ class Session():
         sub_twf as (
             SELECT *
             FROM cdm_twf
-            where enc_ids in (select enc_id from enc_ids)
+            where enc_id in (select enc_id from enc_ids)
             %s%s
         ),
         sub_s as (
             select *
             from cdm_s where enc_id in (select enc_id from enc_ids)
             %s
-        ),
+        )
         SELECT %s
-        FROM sub_twf left join sub_s on sub_twf.enc_id = sub_s.enc_id
+        FROM sub_twf
         ''' % (enc_ids,
                and_dataset_id,
                and_max_tsp,
