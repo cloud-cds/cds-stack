@@ -337,6 +337,7 @@ class EpicAPIConfig:
     component_types = []
     for _, cidl in component_ids:
       component_types += ({'Type': 'INTERNAL', 'Value': str(x)} for x in cidl)
+    logging.info("extract_lab_results: {} {}".format(self.from_date, self.lookback_days))
     payloads = [{
       'Id':                   pat['pat_id'],
       'IdType':               'patient',
