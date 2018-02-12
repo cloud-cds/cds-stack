@@ -449,6 +449,9 @@ begin
     FROM information_schema.columns
     WHERE table_name = 'cdm_twf' and column_name <> 'enc_id' and column_name <> 'tsp';
     execute '
+    Delete from cdm_twf
+    using ' || twf_table || '_del as del
+        where cdm_twf.enc_id = del.enc_id and cdm_twf.tsp = del.tsp;
     INSERT INTO cdm_twf
       SELECT * FROM ' || twf_table || '
     ON conflict (enc_id, tsp) do UPDATE SET ' || cols;
@@ -506,11 +509,7 @@ BEGIN
             select twf.enc_id, twf.tsp from cdm_twf twf
             inner join (select enc_id, min(tsp) as tsp from ' || workspace ||'.cdm_t
                 where job_id = ''' || job_id || ''' and fid in ' || fid_array || ' group by enc_id
-            ) as min_tsp on twf.enc_id = min_tsp.enc_id and twf.tsp >= min_tsp.tsp;
-        Delete from cdm_twf
-        using ' || workspace || '.' || job_id || '_cdm_twf_del as del
-        where cdm_twf.enc_id = del.enc_id and cdm_twf.tsp = del.tsp;
-        '
+            ) as min_tsp on twf.enc_id = min_tsp.enc_id and twf.tsp >= min_tsp.tsp;'
     into query_str
     from select_insert_cols cross join select_from_cols cross join select_set_cols cross join select_fid_array;
     raise notice '%', query_str;
