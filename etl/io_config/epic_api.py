@@ -42,7 +42,7 @@ class EpicAPIConfig:
     self.jhapi_server = jhapi_server
     self.server = servers[jhapi_server]
     self.lookback_hours = int(lookback_hours)
-    self.lookback_days = int(lookback_days) if lookback_days else int(int(lookback_hours)/24.0 + 1)
+    self.lookback_days = int(lookback_days) if lookback_days else int(int(lookback_hours)/24.0 + 2)
     self.op_lookback_days = op_lookback_days
     self.from_date = (dt.datetime.now() + dt.timedelta(days=1)).strftime('%Y-%m-%d')
     tomorrow = dt.datetime.now() + dt.timedelta(days=1)
@@ -337,11 +337,11 @@ class EpicAPIConfig:
     component_types = []
     for _, cidl in component_ids:
       component_types += ({'Type': 'INTERNAL', 'Value': str(x)} for x in cidl)
-    logging.info("extract_lab_results: {} {}".format(self.from_date, self.lookback_days))
+    # logging.info("extract_lab_results: {} {}".format(self.from_date, self.lookback_days))
     payloads = [{
       'Id':                   pat['pat_id'],
       'IdType':               'patient',
-      'FromDate':             self.from_date,
+      # 'FromDate':             self.from_date,
       'MaxNumberOfResults':   200,
       'NumberDaysToLookBack': self.lookback_days,
       'ComponentTypes':       component_types
