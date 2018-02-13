@@ -337,7 +337,7 @@ class EpicAPIConfig:
     component_types = []
     for _, cidl in component_ids:
       component_types += ({'Type': 'INTERNAL', 'Value': str(x)} for x in cidl)
-    # logging.info("extract_lab_results: {} {}".format(self.from_date, self.lookback_days))
+    logging.info("extract_lab_results: {} {}".format(self.from_date, self.lookback_days))
     payloads = [{
       'Id':                   pat['pat_id'],
       'IdType':               'patient',
@@ -348,6 +348,7 @@ class EpicAPIConfig:
     } for _, pat in bedded_patients.iterrows()]
     responses = await self.make_requests(ctxt, resource, payloads, 'POST')
     dfs = [pd.DataFrame(r['ResultComponents'] if r else None) for r in responses]
+    logging.info("lab results head 3: {}".format(dfs.head(3)))
     df_raw = self.combine(dfs, bedded_patients[['pat_id', 'visit_id']])
     return {'lab_results_transformed': self.transform(ctxt, df_raw, 'lab_results_transforms')}
 
