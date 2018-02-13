@@ -348,8 +348,9 @@ class EpicAPIConfig:
     } for _, pat in bedded_patients.iterrows()]
     responses = await self.make_requests(ctxt, resource, payloads, 'POST')
     dfs = [pd.DataFrame(r['ResultComponents'] if r else None) for r in responses]
-    logging.info("lab results head 3: {}".format(dfs.head(3)))
     df_raw = self.combine(dfs, bedded_patients[['pat_id', 'visit_id']])
+    for df in df_raw:
+      logging.info("lab results detail: {}".format(df))
     return {'lab_results_transformed': self.transform(ctxt, df_raw, 'lab_results_transforms')}
 
   async def extract_med_admin(self, ctxt, beddedpatients, args, results):
