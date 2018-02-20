@@ -92,7 +92,7 @@ class CDMBuffer():
 
   def is_ready(self):
     '''
-    TODO: buffer is ready to run etl, e.g., buffer need to have enough data to start etl
+    buffer is ready to run etl, e.g., buffer need to have enough data to start etl
     '''
     if self.buf and not self.running:
       return True
@@ -121,7 +121,7 @@ class ETL():
 
   def init_etl(self):
     '''
-    TODO: initialize attributes
+    initialize attributes
     '''
     # start etl perioidically
     self.log.info('start etl perioidically (every {} seconds)'.format(ETL_INTERVAL_SECS))
@@ -298,6 +298,7 @@ class ETL():
       value          = (end_time - start_time).total_seconds(),
       unit           = 'Seconds'
     )
+    self.app.web_req_buf.running = False
 
   def gen_bedded_patients_transformed(self, pats):
     df = pd.DataFrame(pats)

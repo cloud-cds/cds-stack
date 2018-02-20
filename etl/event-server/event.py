@@ -96,9 +96,10 @@ def run_epic_web_requests(app, later=EPIC_WEB_REQUEST_INTERVAL_SECS):
   '''
   app.logger.info("start to run web requests")
   try:
-    if not app.web_req_buf.is_empty():
-        # TODO: start extraction for current buffer
+    if not app.web_req_buf.is_running():
+        # start extraction for current buffer
         app.logger.info("web_req_buf is ready for extraction")
+        app.web_req_buf.running = True
         asyncio.ensure_future(app.etl.run_requests(app.web_req_buf.get_buf()))
     else:
       app.logger.info("web_req_buf is not ready, so skip extraction.")
@@ -116,9 +117,13 @@ class WebRequestBuffer():
   def __init__(self, app):
     self.buf = {}
     self.app = app
+    self.running = False
 
   def is_empty(self):
     return len(self.buf) == 0
+
+  def is_ready(self):
+    return not self.running and not self.is_empty()
 
   def add_requests(self, requests):
     for zid in requests:
