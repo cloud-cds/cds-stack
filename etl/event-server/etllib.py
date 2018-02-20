@@ -255,6 +255,7 @@ class ETL():
       self.pt_map.pop(zid, None)
 
   async def run_requests(self, buf):
+    logging.info("run_requests starts")
     start_time = dt.datetime.now()
     extraction_set = {}
     pats = []
@@ -299,6 +300,7 @@ class ETL():
       unit           = 'Seconds'
     )
     self.app.web_req_buf.running = False
+    logging.info("run_requests end")
 
   def gen_bedded_patients_transformed(self, pats):
     df = pd.DataFrame(pats)
