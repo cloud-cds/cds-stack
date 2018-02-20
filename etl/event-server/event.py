@@ -96,7 +96,7 @@ def run_epic_web_requests(app, later=EPIC_WEB_REQUEST_INTERVAL_SECS):
   '''
   app.logger.info("start to run web requests")
   try:
-    if not app.web_req_buf.is_ready():
+    if app.web_req_buf.is_ready():
         # start extraction for current buffer
         app.logger.info("web_req_buf is ready for extraction")
         app.web_req_buf.running = True
