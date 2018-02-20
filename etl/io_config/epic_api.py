@@ -371,7 +371,7 @@ class EpicAPIConfig:
     med_orders_df = None
     for result in results:
       for name in result:
-        if name == 'med_orders_transformed':
+        if name == 'med_orders_transformed' and result[name] is not None:
           med_orders_df = result[name]
           med_orders_df['ids'] = med_orders_df['ids'].astype(list)
           med_orders_df = med_orders_df[med_orders_df.order_mode == 'Inpatient']
