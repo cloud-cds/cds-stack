@@ -82,7 +82,7 @@ spec:
           - name: forward-config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: event-server-dev
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.239
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.240
         resources:
           requests:
             memory: "2Gi"
