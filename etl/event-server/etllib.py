@@ -318,6 +318,9 @@ class ETL():
     TODO: extract eid by using contact api
     '''
     pt = await extractor.extract_mrn_by_zid(self.ctxt, zid)
+    if pt is None:
+      logging.warn("No EID found for zid {}".format(zid))
+      return None
     contacts = await extractor.extract_contacts(self.ctxt, [pt], None, idtype='patient')
     # if contacts is None:
     #   contacts = await extractor.extract_contacts(self.ctxt, [pt], None, idtype='patient', dateFromOneYear=True)

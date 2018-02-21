@@ -224,7 +224,12 @@ class EpicAPIConfig:
 
     p = {'zid': zid}
     r = responses[0]
-    pat_id = [pid["ID"] for pid in r[0]['IDs'] if pid['Type'] == 'EMRN'][0]
+    try:
+      pat_id = [pid["ID"] for pid in r[0]['IDs'] if pid['Type'] == 'EMRN'][0]
+    except Exception as e:
+      logging.error(e.context)
+      traceback.print_exc()
+      return None
     sex = r[0]['Sex']
     gender = 0 if sex == 'Female' else 1
     try:
