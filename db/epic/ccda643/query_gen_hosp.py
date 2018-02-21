@@ -99,6 +99,64 @@ FROM
 ) A (pat_id, pat_mrn_id, identity_id);
 GO
 
+
+USE Analytics;
+:OUT \\\\Client\F$\clarity\\vent_info.{idx}.rpt
+SET NOCOUNT ON
+SELECT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
+  ,procs.proc_id OrderProcId
+  ,inst.INSTNTD_ORDER_ID
+  ,inst.order_id as parent_order_id
+  ,procs.chng_order_Proc_id
+  ,coalesce (procs.display_name, procs.description)
+  ,eap.proc_name
+  ,proccat.proc_cat_name
+  ,procs.ORDER_TIME
+  ,PROCS.RESULT_TIME
+  ,PARENTS.ORDER_TIME ParentOrderTime
+  ,PROCS.PROC_START_TIME
+  ,PROCS.PROC_ENDING_TIME
+  ,PARENTS.proc_start_time ParentStarttime
+  ,PARENTS.PROC_ENDING_TIME ParentEndingTime
+  ,ordstat.NAME OrderStatus
+  ,labstats.NAME LabStatus
+  ,osq.order_id
+  , osq.line
+  , osq.ord_quest_id
+  , osq.IS_ANSWR_BYPROC_YN 
+  , osq.ord_quest_resp
+  , cq.quest_name
+  , tm.question
+  , osq.ORD_QUEST_CMT comment
+  , ZC_ORDER_PRIORITY.name "priority"
+  , IP_FREQUENCY.freq_name
+  , ZC_ORDER_CLASS.name
+FROM CLARITY..ORDER_PROC procs
+INNER JOIN CLARITY..CLARITY_EAP eap ON procs.proc_id = eap.PROC_ID
+INNER JOIN clarity..EDP_PROC_CAT_INFO proccat ON eap.proc_cat_id = proccat.PROC_CAT_ID
+INNER JOIN CCDA643_CSNLookupTable pat_enc_hsp_1 ON pat_enc_hsp_1.pat_enc_csn_id = procs.PAT_ENC_CSN_ID
+LEFT JOIN CLARITY..zc_order_status ordstat on ordstat.ORDER_STATUS_C = procs.order_status_c
+LEFT JOIN CLARITY..zc_lab_status labstats on labstats.LAB_STATUS_C = procs.lab_status_c
+INNER JOIN CLARITY..ORDER_INSTANTIATED inst ON inst.INSTNTD_ORDER_ID = PROCS.ORDER_PROC_ID
+INNER JOIN CLARITY..ORDER_PROC parents on inst.ORDER_ID = parents.ORDER_PROC_ID
+left join clarity.dbo.ORD_SPEC_QUEST osq on osq.ORDER_ID = procs.ORDER_PROC_ID
+left join clarity.dbo.CL_QQUEST cq on osq.ORD_QUEST_ID = cq.QUEST_ID 
+left join clarity.dbo.CL_QQUEST_OVTM tm on tm.QUEST_ID = cq.QUEST_ID
+inner join clarity.dbo.HV_ORDER_PROC
+on procs.order_proc_id = HV_ORDER_PROC.order_proc_id
+inner join clarity.dbo.ZC_ORDER_PRIORITY
+on procs.ORDER_PRIORITY_C = ZC_ORDER_PRIORITY.ORDER_PRIORITY_C
+inner join clarity.dbo.IP_FREQUENCY
+on HV_ORDER_PROC.discr_freq_id = IP_FREQUENCY.freq_id
+inner join clarity.dbo.ZC_ORDER_CLASS
+on ZC_ORDER_CLASS.ORDER_CLASS_C = procs.ORDER_CLASS_C
+where
+ procs.proc_id in
+        ('38825','55910','38817','38819','174947','38821','38823','100372','304267','150061', '104569')
+or lower(eap.proc_name) like '%mechanical ventilation%'
+GO
+
+
 :OUT \\\\Client\F$\clarity\\adt.{idx}.rpt
 SET NOCOUNT ON
 SELECT CSN.EXTERNAL_ID CSN_ID
@@ -170,63 +228,6 @@ LEFT JOIN CLARITY.dbo.zc_disch_disp zc_disch_disp ON PAT_ENC_HSP_1.disch_disp_c 
 ORDER BY csn.EXTERNAL_ID;
 GO
 
-USE Analytics;
-:OUT \\\\Client\F$\clarity\vent_info.{idx}.rpt
-SET NOCOUNT ON
-SELECT PAT_ENC_HSP_1.EXTERNAL_ID CSN_ID
-  ,procs.proc_id OrderProcId
-  ,inst.INSTNTD_ORDER_ID
-  ,inst.order_id as parent_order_id
-  ,procs.chng_order_Proc_id
-  ,coalesce (procs.display_name, procs.description)
-  ,eap.proc_name
-  ,proccat.proc_cat_name
-  ,procs.ORDER_TIME
-  ,PROCS.RESULT_TIME
-  ,PARENTS.ORDER_TIME ParentOrderTime
-  ,PROCS.PROC_START_TIME
-  ,PROCS.PROC_ENDING_TIME
-  ,PARENTS.proc_start_time ParentStarttime
-  ,PARENTS.PROC_ENDING_TIME ParentEndingTime
-  ,ordstat.NAME OrderStatus
-  ,labstats.NAME LabStatus
-  ,osq.order_id
-  , osq.line
-  , osq.ord_quest_id
-  , osq.IS_ANSWR_BYPROC_YN 
-  , osq.ord_quest_resp
-  , cq.quest_name
-  , tm.question
-  , osq.ORD_QUEST_CMT comment
-  , ZC_ORDER_PRIORITY.name "priority"
-  , IP_FREQUENCY.freq_name
-  , ZC_ORDER_CLASS.name
-FROM CLARITY..ORDER_PROC procs
-INNER JOIN CLARITY..CLARITY_EAP eap ON procs.proc_id = eap.PROC_ID
-INNER JOIN clarity..EDP_PROC_CAT_INFO proccat ON eap.proc_cat_id = proccat.PROC_CAT_ID
-INNER JOIN CCDA643_CSNLookupTable pat_enc_hsp_1 ON pat_enc_hsp_1.pat_enc_csn_id = procs.PAT_ENC_CSN_ID
-LEFT JOIN CLARITY..zc_order_status ordstat on ordstat.ORDER_STATUS_C = procs.order_status_c
-LEFT JOIN CLARITY..zc_lab_status labstats on labstats.LAB_STATUS_C = procs.lab_status_c
-INNER JOIN CLARITY..ORDER_INSTANTIATED inst ON inst.INSTNTD_ORDER_ID = PROCS.ORDER_PROC_ID
-INNER JOIN CLARITY..ORDER_PROC parents on inst.ORDER_ID = parents.ORDER_PROC_ID
-left join clarity.dbo.ORD_SPEC_QUEST osq on osq.ORDER_ID = procs.ORDER_PROC_ID
-left join clarity.dbo.CL_QQUEST cq on osq.ORD_QUEST_ID = cq.QUEST_ID 
-left join clarity.dbo.CL_QQUEST_OVTM tm on tm.QUEST_ID = cq.QUEST_ID
-inner join clarity.dbo.HV_ORDER_PROC
-on procs.order_proc_id = HV_ORDER_PROC.order_proc_id
-inner join clarity.dbo.ZC_ORDER_PRIORITY
-on procs.ORDER_PRIORITY_C = ZC_ORDER_PRIORITY.ORDER_PRIORITY_C
-inner join clarity.dbo.IP_FREQUENCY
-on HV_ORDER_PROC.discr_freq_id = IP_FREQUENCY.freq_id
-inner join clarity.dbo.ZC_ORDER_CLASS
-on ZC_ORDER_CLASS.ORDER_CLASS_C = procs.ORDER_CLASS_C
-where
- procs.proc_id in
-        ('38825','55910','38817','38819','174947','38821','38823','100372','304267','150061', '104569')
-or lower(eap.proc_name) like '%mechanical ventilation%'
-GO
-
-
 :OUT \\\\Client\F$\clarity\diag.{idx}.rpt
 SET NOCOUNT ON
 SELECT DISTINCT CSN.EXTERNAL_ID CSN_ID
@@ -248,6 +249,7 @@ INNER JOIN CLARITY.DBO.EDG_CURRENT_ICD9 icd9 ON dx.DX_ID = icd9.DX_ID
 -- AND icd9.Code >= icdIndex."Low Range"
 -- AND icd9.Code < icdIndex."High Cutoff";
 GO
+
 
 :OUT \\\\Client\F$\clarity\\flt_lda.{idx}.rpt
 SET NOCOUNT ON
@@ -474,7 +476,6 @@ and
   or
   comp.BASE_NAME in
   (
-  'ALKPHOS', -- alkaline phosphatase (issue #115)
   'ACAN',
   'ADENOCULT',
   'AERANACUL',
@@ -637,6 +638,7 @@ WHERE (
   AND mar.TAKEN_TIME <= CURRENT_TIMESTAMP
 ORDER BY mar.TAKEN_TIME;
 GO
+
 
 :OUT \\\\Client\F$\clarity\hist.{idx}.rpt
 SET NOCOUNT ON
@@ -915,6 +917,51 @@ or proccat.proc_cat_name in ('IMG IR ORDERABLES', 'CV CARDIAC SERVICES ORDERABLE
 ;
 GO
 
+:OUT \\\\Client\F$\clarity\code_rrt_events.{idx}.rpt
+SET NOCOUNT ON
+SELECT PAT_ENC_HSP_1.EXTERNAL_ID csn_id 
+,b.pat_id
+,b.pat_csn csn_id_verify
+,a.event_id
+,a.EVENT_TYPE event_type
+,a.event_display_name
+,a.event_time
+,a.EVENT_RECORD_TIME event_record_time
+,a.event_user_id
+,a.event_cmt
+,d.DEPARTMENT_NAME department_name
+,e.inpatient_data_id
+,g.FLO_MEAS_ID flo_meas_id
+,h.DISP_NAME disp_name
+,g.MEAS_COMMENT meas_comment 
+,g.MEAS_VALUE meas_value 
+from ED_IEV_EVENT_INFO a with (nolock)
+inner join ED_IEV_PAT_INFO b with (nolock) on a.event_id = b.EVENT_ID
+inner join PATIENT c with (nolock) on b.pat_id = c.pat_id 
+inner join Analytics.dbo.CCDA643_CSNLookupTable pat_enc_hsp_1 on pat_enc_hsp_1.pat_enc_csn_id = b.pat_csn 
+inner join CLARITY_DEP d with (nolock) on a.EVENT_DEPT_ID = d.DEPARTMENT_ID
+inner join IP_DATA_STORE e with (nolock) on b.PAT_CSN = e.EPT_CSN
+inner join IP_FLWSHT_REC f with (nolock) on e.inpatient_data_id = f.inpatient_data_id
+inner join IP_FLWSHT_MEAS g with (nolock) on f.fsd_id = g.FSD_ID
+inner join IP_FLO_GP_DATA h with (nolock) on h.FLO_MEAS_ID = g.FLO_MEAS_ID 
+where event_type in (
+'34370',
+'34371',
+'34380',
+'34381'
+)
+and h.FLO_MEAS_ID in (
+'1600075003'
+,'1600075020'
+,'1600075021'
+,'1600075023'
+,'1600075055'
+)
+order by PAT_ENC_HSP_1.EXTERNAL_ID, a.event_id,a.line
+;
+GO
+
+
 :OUT \\\\Client\F$\clarity\prob.{idx}.rpt
 SET NOCOUNT ON
 SELECT DISTINCT pat.EXTERNAL_ID PAT_ID
@@ -974,6 +1021,7 @@ WHERE ProblemList.DX_ID IS NOT NULL
   AND NULLIF(ProblemList.PAT_ID, '') IS NOT NULL
   AND NULLIF(3, ProblemList.PROBLEM_STATUS_C) IS NOT NULL;
 GO
+
 
 
 USE CLARITY;
@@ -1041,7 +1089,6 @@ inner join Clarity.dbo.ED_IEV_EVENT_INFO ein on ein.EVENT_ID = pin.EVENT_ID
 where EVENT_RECORD_TIME is not null;
 GO
 
-
 :OUT \\\\Client\F$\clarity\\final_dx.{idx}.rpt
 SET NOCOUNT ON
 select
@@ -1102,8 +1149,8 @@ GO
 # 1102 bmc
 # 1103 hcgh
 hosp = '1103'
-start_date = [2016, 4]
-end_date = [2017, 6]
+start_date = [2017, 9]
+end_date = [2018, 3]
 
 end_date[1] += 1
 num_months = 13
