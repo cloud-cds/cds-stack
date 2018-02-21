@@ -62,9 +62,9 @@ spec:
         - name: log_consumer
           value: "true"
         - name: SWITCH_WEB_REQUEST
-          value: "1"
+          value: "0"
         - name: SWITCH_ETL
-          value: "1"
+          value: "0"
         - name: SWITCH_ETL_DONE
           value: "1"
         - name: TREWS_ETL_SERVER
