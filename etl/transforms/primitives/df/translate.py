@@ -15,9 +15,9 @@ def translate_epic_id_to_fid(df, col, new_col, config_map, drop_original=False,
                 return fid
         if name_col is not None and name_config_map is not None:
             for epic_regex_dict in name_config_map:
-                if re.search(epic_regex_dict['pos'], name_col, flags=re.I):
+                if re.search(epic_regex_dict['pos'], row[name_col], flags=re.I):
                     if 'neg' in epic_regex_dict and len(epic_regex_dict['neg']) > 0 and \
-                        re.search(epic_regex_dict['neg'], name_col, flags=re.I):
+                        re.search(epic_regex_dict['neg'], row[name_col], flags=re.I):
                         return 'INVALID FID'
                     return epic_regex_dict['fid']
         if remove_if_not_found:

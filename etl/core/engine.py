@@ -318,7 +318,7 @@ class Engine:
 
       self.log.info('Engine (iter %s) completed %s' % (iteration, str([f[0] for f in finished])))
       if self.with_graph:
-        # self.log.debug('finished nodes: {}'.format(finished))
+        self.log.debug('finished nodes: {}'.format(finished))
         for idf in finished:
           res = idf[1].result()
           if isinstance(res, dict) and 'duration' in res:
