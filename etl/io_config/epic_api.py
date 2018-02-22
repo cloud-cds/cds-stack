@@ -227,7 +227,7 @@ class EpicAPIConfig:
     try:
       pat_id = [pid["ID"] for pid in r[0]['IDs'] if pid['Type'] == 'EMRN'][0]
     except Exception as e:
-      logging.error(e.context)
+      logging.error("MRN Error: EID not found for zid {}".format(zid))
       traceback.print_exc()
       return None
     sex = r[0]['Sex']
