@@ -585,6 +585,7 @@ var controller = new function() {
     timeline.render(globalJson);
     treatmentOverrideComponent.render(globalJson["severe_sepsis"], globalJson["septic_shock"], globalJson['ui']);
     careSummaryComponent.render();
+	nursingWorkflowComponent.render();
 
     // Adjust column components as necessary.
     var hdrHeight = getHeaderHeight()['total'];
@@ -1490,6 +1491,25 @@ var careSummaryComponent = new function() {
     }
   }
 }
+
+/**
+ *  Nursing workflow component
+ *  Allows nurses to evaluate the patient
+ */
+
+var nursingWorkflowComponent = new function() {
+	this.ctn = $("[data-trews='nurse-workflow']");
+	this.render = function() {
+		var html = '<div class ="nurse-workflow">';
+		var switch_str = '<div class="onoffswitctch <input type="checkbox" name="onoffswitch" class="onoffswitch-checkbox" id="septic-shock-toggle"><label class="onoffswitch-label" for="septic-shock-toggle"><span class="onoffswitch-inner">::before ::after</span><span class="onoffswitch-switch"></span></label></div>';
+		html += "<p>Does the patient have new or altered mental status?"+switch_str+"</p>";
+		html += "<p>Does the patient have a known infection or signs/symptoms of a new infection?</p>"
+		html += '</div>';
+		this.ctn.find('.nurse-workflow').html(html);
+	}
+
+}
+
 
 
 /**

@@ -1344,6 +1344,16 @@ span.criteria-btn p {
     color: #437c90;
 }
 /* End Suppressions */
+
+/* Nursing Workflow*/
+div.nursing-question {
+    float: left;
+    margin-top: 10px;
+    position: relative;
+    z-index: 1;
+    user-select: none;
+    cursor: default;
+}
 /* Explanations*/
 .trews-criteria {
     overflow-x:scroll;
