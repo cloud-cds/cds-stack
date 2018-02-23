@@ -499,7 +499,7 @@ class EpicAPIConfig:
       return {'flowsheets_transformed': None}
     else:
       df_tran = self.transform(ctxt, df_raw, 'flowsheet_transforms')
-      if not df_tran.empty:
+      if df_tran is not None and not df_tran.empty:
         return {'flowsheets_transformed': self.tz_hack(ctxt, df_tran)}
       else:
         return {'flowsheets_transformed': None}
