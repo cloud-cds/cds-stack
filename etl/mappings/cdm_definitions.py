@@ -692,6 +692,12 @@ cdm_defs = {
         'thresh':   (None, None),
         'human_readable':   'Mechanical Ventilation',
     },
+    'mech_vent': {
+        'unit':     '',
+        'value':    str,
+        'thresh':   (None, None),
+        'human_readable':   'Mechanical Ventilation',
+    },
     'verapamil_dose': {
         'unit':     'mg',
         'value':    float,

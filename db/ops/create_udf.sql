@@ -4833,7 +4833,8 @@ if to_regclass('workspace.' || job_id || '_active_procedures_transformed') is no
     -- where tsp <> ''NaT'' and tsp::timestamptz < now() and fid not in (''lactate_order'', ''blood_culture_order'')
     -- group by enc_id, tsp, fid
     -- ON CONFLICT (enc_id, tsp, fid)
-    -- DO UPDATE SET value = EXCLUDED.value, confidence=0';
+    -- DO UPDATE SET value = EXCLUDED.value, confidence=0
+    ';
 end if;
 
 
