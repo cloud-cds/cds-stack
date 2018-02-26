@@ -4798,7 +4798,10 @@ if to_regclass('workspace.' || job_id || '_active_procedures_transformed') is no
     'INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
     select t.enc_id, t.tsp, t.fid,
         jsonb_build_object(''status'',
-            last(case when t.value ~ ''status'' then (t.value::json)#>>''{status}'' else t.value end), ''discontinue_tsp'', now(), ''end_tsp'', now()),
+            last(case when t.value ~ ''status'' then (t.value::json)#>>''{status}'' else t.value end),
+            ''name'',
+            last(case when t.value ~ ''name'' then (t.value::json)#>>''{name}'' else t.fid end),
+            ''discontinue_tsp'', now(), ''end_tsp'', now()),
     0
     from cdm_t t inner join pat_enc p on t.enc_id = p.enc_id
     inner join workspace.' || job_id || '_active_procedures_transformed p2
@@ -4813,22 +4816,25 @@ if to_regclass('workspace.' || job_id || '_active_procedures_transformed') is no
 
     -- insert currently acitve ones
     INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
-    select enc_id, tsp::timestamptz, fid, jsonb_build_object(''status'', last(lo.status order by lo.tsp)), 0
+    select enc_id, tsp::timestamptz, fid,
+          jsonb_build_object(''status'', last(lo.status order by lo.tsp),
+                             ''name'', last(lo.procedure_name order by lo.tsp)), 0
     from workspace.' || job_id || '_active_procedures_transformed lo
     inner join pat_enc p on lo.visit_id = p.visit_id
-    where tsp <> ''NaT'' and tsp::timestamptz < now() and fid in (''lactate_order'', ''blood_culture_order'')
+    where tsp <> ''NaT'' and tsp::timestamptz < now() -- and fid in (''lactate_order'', ''blood_culture_order'')
     group by enc_id, tsp, fid
     ON CONFLICT (enc_id, tsp, fid)
     DO UPDATE SET value = EXCLUDED.value, confidence=0;
 
-    INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
-    select enc_id, tsp::timestamptz, fid, last(lo.status order by lo.tsp), 0
-    from workspace.' || job_id || '_active_procedures_transformed lo
-    inner join pat_enc p on lo.visit_id = p.visit_id
-    where tsp <> ''NaT'' and tsp::timestamptz < now() and fid not in (''lactate_order'', ''blood_culture_order'')
-    group by enc_id, tsp, fid
-    ON CONFLICT (enc_id, tsp, fid)
-    DO UPDATE SET value = EXCLUDED.value, confidence=0';
+    -- INSERT INTO cdm_t (enc_id, tsp, fid, value, confidence)
+    -- select enc_id, tsp::timestamptz, fid, last(lo.status order by lo.tsp), 0
+    -- from workspace.' || job_id || '_active_procedures_transformed lo
+    -- inner join pat_enc p on lo.visit_id = p.visit_id
+    -- where tsp <> ''NaT'' and tsp::timestamptz < now() and fid not in (''lactate_order'', ''blood_culture_order'')
+    -- group by enc_id, tsp, fid
+    -- ON CONFLICT (enc_id, tsp, fid)
+    -- DO UPDATE SET value = EXCLUDED.value, confidence=0
+    ';
 end if;
 
 

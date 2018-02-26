@@ -8,21 +8,28 @@ import etl.transforms.primitives.df.filter_rows as filter_rows
 import functools
 
 def translate_epic_id_to_fid(df, col, new_col, config_map, drop_original=False,
-        add_string='', add_string_fid=None, remove_if_not_found=False):
-    def convert_id(epic_id):
+        add_string='', add_string_fid=None, remove_if_not_found=False, name_col=None, name_config_map=None):
+    def convert_id(row):
         for fid, epic_id_list in config_map:
-            if epic_id in epic_id_list:
+            if row[col] in epic_id_list:
                 return fid
+        if name_col is not None and name_config_map is not None:
+            for epic_regex_dict in name_config_map:
+                if re.search(epic_regex_dict['pos'], row[name_col], flags=re.I):
+                    if 'neg' in epic_regex_dict and len(epic_regex_dict['neg']) > 0 and \
+                        re.search(epic_regex_dict['neg'], row[name_col], flags=re.I):
+                        return 'INVALID FID'
+                    return epic_regex_dict['fid']
         if remove_if_not_found:
             return 'INVALID FID'
         raise TransformError(
             'translate.translate_epic_id_to_fid',
             'Could not find an fid for this ID.',
-            col + " = " + epic_id
+            col + " = " + row['epic_id']
         )
 
     pandas_utils.check_column_name(df, col)
-    df[new_col] = df[col].apply(convert_id)
+    df[new_col] = df.apply(convert_id, axis=1)
     if drop_original:
         df.drop(col, axis=1, inplace=True)
     if remove_if_not_found:
