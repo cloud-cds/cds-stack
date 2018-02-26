@@ -311,6 +311,9 @@ class TREWSAPI(web.View):
         logging.error(msg)
         return {'message': msg}
 
+    elif actionType == u'update_nursing_eval':
+        await query.update_nursing_eval(db_pool,eid,actionData)
+
     elif actionType == u'place_order':
 
       order_type = actionData['actionName']
@@ -743,8 +746,8 @@ class TREWSAPI(web.View):
     # cache lookup
     pat_values = await pat_cache.get(eid)
 
-    if pat_values is None:
-      #if True:
+    #if pat_values is None:
+    if True:
       api_monitor.add_metric('CacheMisses')
 
       # parallel query execution
@@ -829,7 +832,7 @@ class TREWSAPI(web.View):
       data['feature_relevances'] = explain.thresholdImportances(explain.getMappedImportances(feature_relevances,mapping)) if feature_relevances else None
       # Mark orgdfs as important if present
       if orgdfs is not None:
-        for orgdf, value in orgdfs:
+        for orgdf, value in orgdfs.items():
           if value == 1 and orgdf in mapping:
             data['feature_relevances'][mapping[orgdf]] = 1
         

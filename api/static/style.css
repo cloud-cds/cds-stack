@@ -1346,14 +1346,82 @@ span.criteria-btn p {
 /* End Suppressions */
 
 /* Nursing Workflow*/
-div.nursing-question {
+.nursing-question {
     float: left;
-    margin-top: 10px;
+    /*margin-top: 10px;*/
+    display:inline-block;
     position: relative;
     z-index: 1;
     user-select: none;
     cursor: default;
 }
+.eval-container {
+    display: inline-block;
+    position: relative;
+    padding-left: 5px;
+    /*margin-bottom: 12px;*/
+    cursor: pointer;
+    font-size: 12px;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    
+}
+
+/* Hide the browser's default radio button */
+.eval-container input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+}
+
+/* Create a custom radio button */
+.eval-checkmark {
+    background-color: #e7e7e7; /* Grey */1
+    border: none;
+    color: white;
+    padding: 8px 16px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 12px;
+    cursor: pointer;
+    float: left;
+    border-radius: 8px;
+}
+
+/* On mouse-over, add a grey background color */
+.eval-container:hover input ~ .eval-checkmark {
+    background-color: #ccc;
+}
+
+/* When the radio button is checked, add a dark grey background */
+.eval-container input:checked ~ .eval-checkmark {
+    background-color: #999999;
+}
+
+/* Create the indicator (the dot/circle - hidden when not checked) */
+.eval-checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+}
+
+/* Show the indicator (dot/circle) when checked */
+.eval-container input:checked ~ .eval-checkmark:after {
+    display: inline-block;
+}
+
+/* Style the indicator (dot/circle) */
+.eval-container .eval-checkmark:after {
+ 	/*top: 9px;
+	left: 9px;*/
+	width: 16px;
+	height: 8px;
+	border-radius: 8px;
+}
+
 /* Explanations*/
 .trews-criteria {
     overflow-x:scroll;

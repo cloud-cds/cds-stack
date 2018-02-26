@@ -585,7 +585,7 @@ var controller = new function() {
     timeline.render(globalJson);
     treatmentOverrideComponent.render(globalJson["severe_sepsis"], globalJson["septic_shock"], globalJson['ui']);
     careSummaryComponent.render();
-	nursingWorkflowComponent.render();
+    nursingWorkflowComponent.render();
 
     // Adjust column components as necessary.
     var hdrHeight = getHeaderHeight()['total'];
@@ -1499,18 +1499,65 @@ var careSummaryComponent = new function() {
 
 var nursingWorkflowComponent = new function() {
 	this.ctn = $("[data-trews='nurse-workflow']");
+        this.status_buttons = {"Yes": '#yes_mental_stat', "No":'#no_mental_stat', "Unknown":'#unk_mental_stat'};
+        this.inf_buttons = {"Yes":'#yes_inf', "No":'#no_inf'};
 	this.render = function() {
-		var html = '<div class ="nurse-workflow">';
-		var switch_str = '<div class="onoffswitctch <input type="checkbox" name="onoffswitch" class="onoffswitch-checkbox" id="septic-shock-toggle"><label class="onoffswitch-label" for="septic-shock-toggle"><span class="onoffswitch-inner">::before ::after</span><span class="onoffswitch-switch"></span></label></div>';
-		html += "<p>Does the patient have new or altered mental status?"+switch_str+"</p>";
-		html += "<p>Does the patient have a known infection or signs/symptoms of a new infection?</p>"
-		html += '</div>';
-		this.ctn.find('.nurse-workflow').html(html);
+		this.yes_mental_btn = $('#yes_mental_stat');
+		this.yes_mental_btn.click(function(e){mental_status_click("Yes")});
+		this.no_mental_btn = $('#no_mental_stat');
+		this.no_mental_btn.click(function(e){mental_status_click("No")});
+		this.unk_mental_btn = $('#unk_mental_stat');
+		this.unk_mental_btn.click(function(e){mental_status_click("Unknown")});
+		this.no_inf_btn = $('#no_inf');
+		this.no_inf_btn.click(function(e){infection_click("No")});
+		this.yes_inf_btn = $('#yes_inf');
+		this.yes_inf_btn.click(function(e){infection_click("Yes")});
+		this.eval_box = $('#eval_comments')
+		this.save_btn = $('#save_comment');
+		this.save_btn.click(function(e){save_comment($('#eval_comments')[0].value)});
+                //Set states
+		if ("nursing_eval" in trews.data && "comments" in trews.data["nursing_eval"]) {
+			this.eval_box[0].value = trews.data["nursing_eval"]["comments"];
+		}
+                if ("nursing_eval" in trews.data) {
+                  if ("mental_status" in trews.data["nursing_eval"] && trews.data["nursing_eval"]["mental_status"] in this.status_buttons) {
+			$(this.status_buttons[trews.data["nursing_eval"]["mental_status"]]).checked=true;
+		   }
+		  if ("known_infection" in trews.data["nursing_eval"] && trews.data["nursing_eval"]["known_infection"] in this.status_buttons) {
+			$(this.inf_buttons[trews.data["nursing_eval"]["known_infection"]]).checked=true;
+		   }
+		}
 	}
-
 }
 
+var mental_status_click = function(stat) {
+	if (!("nursing_eval" in trews.data)){
+		trews.data["nursing_eval"] = {};
+	}
+	trews.data["nursing_eval"]["mental_status"] = stat;
+	updateNursingEval()
+	
+}
+var infection_click = function(stat) {
+	if (!("nursing_eval" in trews.data)){
+		trews.data["nursing_eval"] = {};
+	}
+	trews.data["nursing_eval"]["known_infection"] = stat;
+	updateNursingEval()
 
+}
+var save_comment = function(comment) {
+	if (!("nursing_eval" in trews.data)){
+		trews.data["nursing_eval"] = {};
+	}
+	trews.data["nursing_eval"]["comments"] = comment;
+	updateNursingEval()
+	
+}
+
+var updateNursingEval = function() {
+      	endpoints.getPatientData("update_nursing_eval",trews.data["nursing_eval"]);
+}
 
 /**
  * Treatment override component.

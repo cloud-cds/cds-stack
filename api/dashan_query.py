@@ -781,7 +781,9 @@ async def get_explanations(db_pool, eid):
             "orgdfs" : {orgdf:0 for orgdf in org_dfs}}
     return result
     
-
+async def update_nursing_eval(db_pool,eid, data):
+    print("updating eval", eid, data)
+    return
 
 async def push_notifications_to_epic(db_pool, eid, notify_future_notification=True):
   retries = 0
