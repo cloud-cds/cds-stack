@@ -94,13 +94,8 @@ spec:
             add:
             - "SYS_PTRACE"
         env:
-        - name: event_forward
-          # value: ""
-          value: "https://event-server-dev.jh.opsdx.io/epic"
         - name: queue_url
           value: "https://sqs.us-east-1.amazonaws.com/359300513585/opsdx-jh-events-dev"
-        - name: epic_env
-          value: "dev"
         - name: NVM_DIR
           value: "/root/.nvm"
         - name: metrics_dimension_value
