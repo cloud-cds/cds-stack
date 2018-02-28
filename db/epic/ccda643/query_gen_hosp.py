@@ -921,8 +921,6 @@ GO
 :OUT \\\\Client\F$\clarity\code_rrt_events.{idx}.rpt
 SET NOCOUNT ON
 SELECT PAT_ENC_HSP_1.EXTERNAL_ID csn_id 
-,b.pat_id
-,b.pat_csn csn_id_verify
 ,a.event_id
 ,a.EVENT_TYPE event_type
 ,a.event_display_name
@@ -931,7 +929,6 @@ SELECT PAT_ENC_HSP_1.EXTERNAL_ID csn_id
 ,a.event_user_id
 ,a.event_cmt
 ,d.DEPARTMENT_NAME department_name
-,e.inpatient_data_id
 ,g.FLO_MEAS_ID flo_meas_id
 ,h.DISP_NAME disp_name
 ,g.MEAS_COMMENT meas_comment 
