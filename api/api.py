@@ -312,7 +312,7 @@ class TREWSAPI(web.View):
         return {'message': msg}
 
     elif actionType == u'update_nursing_eval':
-        await query.update_nursing_eval(db_pool,eid,actionData)
+        await query.update_nursing_eval(db_pool,eid,actionData,uid)
 
     elif actionType == u'place_order':
 
@@ -758,6 +758,7 @@ class TREWSAPI(web.View):
                       query.get_trews_intervals(db_pool, eid),
                       query.get_feature_mapping(db_pool),
                       query.get_explanations(db_pool, eid),
+                      query.get_nursing_eval(db_pool, eid),
                       #query.get_trews_jit_score(db_pool, eid, start_hrs=chart_sample_start_hrs, start_day=chart_sample_start_day, end_day=chart_sample_end_day, sample_mins=chart_sample_mins, sample_hrs=chart_sample_hrs)
                     )
 
@@ -783,7 +784,7 @@ class TREWSAPI(web.View):
     trews_intervals        = pat_values[3]
     mapping                = pat_values[4]
     explanations           = pat_values[5]
-    #chart_values           = pat_values[6]
+    nurse_eval             = pat_values[6]
     feature_relevances = explanations['feature_relevance'] if 'feature_relevance' in explanations else None
     measurements       = explanations['twf_raw_values'] if 'twf_raw_values' in explanations else None
     static_features    = explanations['s_raw_values'] if 's_raw_values' in explanations else None
@@ -836,7 +837,7 @@ class TREWSAPI(web.View):
           if value == 1 and orgdf in mapping:
             data['feature_relevances'][mapping[orgdf]] = 1
         
-      
+      data['nursing_eval'] = nurse_eval
 
       return data
 

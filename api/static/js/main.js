@@ -1521,7 +1521,9 @@ var nursingWorkflowComponent = new function() {
 		}
                 if ("nursing_eval" in trews.data) {
                   if ("mental_status" in trews.data["nursing_eval"] && trews.data["nursing_eval"]["mental_status"] in this.status_buttons) {
-			$(this.status_buttons[trews.data["nursing_eval"]["mental_status"]]).checked=true;
+			console.log("Toggling class");
+			//$(this.status_buttons[trews.data["nursing_eval"]["mental_status"]]).checked=true;
+			$(this.status_buttons[trews.data["nursing_eval"]["mental_status"]]).toggleClass('after');
 		   }
 		  if ("known_infection" in trews.data["nursing_eval"] && trews.data["nursing_eval"]["known_infection"] in this.status_buttons) {
 			$(this.inf_buttons[trews.data["nursing_eval"]["known_infection"]]).checked=true;
