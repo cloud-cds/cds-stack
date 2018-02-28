@@ -74,7 +74,7 @@ CREATE TEMP TABLE parameters_temp (
   name text,
   value text
 );
- \COPY parameters_temp FROM 'parameters.csv' WITH csv header DELIMITER AS ',';
+ \COPY parameters_temp FROM 'dw/parameters.csv' WITH csv header DELIMITER AS ',';
 
 insert into parameters (dataset_id, name, value)
   select 15, name, value from parameters_temp
@@ -98,9 +98,7 @@ WHERE dataset_id = 15;
  \COPY criteria_default_temp FROM 'criteria_default.csv' WITH csv header DELIMITER AS ',';
 
 insert into criteria_default (dataset_id, name, fid, override_value, category)
-  select 15, name, fid, override_value, category from criteria_default_temp
-  on conflict (dataset_id, name, fid, category)
-  do update set override_value = excluded.override_value;
+  select 15, name, fid, override_value, category from criteria_default_temp;
 -- ======================================
 -- Upsert CDM_g
 -- ======================================
@@ -114,7 +112,7 @@ CREATE TEMP TABLE cdm_g_temp (
   confidence int
 );
 
- \COPY cdm_g_temp FROM 'CDM_G.csv' WITH csv header DELIMITER AS ',';
+ \COPY cdm_g_temp FROM 'dw/CDM_G.csv' WITH csv header DELIMITER AS ',';
 
 insert into cdm_g (dataset_id, fid, value, confidence)
   select 15, fid, value, confidence from cdm_g_temp
