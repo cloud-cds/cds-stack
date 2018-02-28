@@ -98,9 +98,7 @@ WHERE dataset_id = 15;
  \COPY criteria_default_temp FROM 'criteria_default.csv' WITH csv header DELIMITER AS ',';
 
 insert into criteria_default (dataset_id, name, fid, override_value, category)
-  select 15, name, fid, override_value, category from criteria_default_temp
-  on conflict (dataset_id, name, fid, category)
-  do update set override_value = excluded.override_value;
+  select 15, name, fid, override_value, category from criteria_default_temp;
 -- ======================================
 -- Upsert CDM_g
 -- ======================================
