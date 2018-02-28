@@ -226,8 +226,8 @@ immunodeficiency_hist,S,Boolean,yes,no,,,,,History,1,no unit
 immunodeficiency_prob,S,Boolean,yes,no,,,,,ProblemList,1,no unit
 infections_angus_diag,S,String,yes,no,,,,,Diagnoses,1,no unit
 infections_angus_hist,S,String,yes,no,,,,,History,1,no unit
-influanat,T,String,yes,no,,,,viral infection,1,no unit
-influbnat,T,String,yes,no,,,,viral infection,1,no unit
+influanat,T,String,yes,no,,,,,viral infection,1,no unit
+influbnat,T,String,yes,no,,,,,viral infection,1,no unit
 inr,TWF,Real,yes,no,last_value_in_window,28,,,Lab,1,no unit
 insulin_dose,T,JSON,yes,no,,,,,Medication,1,
 intra_abdominal_sepsis,T,String,yes,no,,,,,,,
@@ -338,7 +338,7 @@ resp_sofa,TWF,Integer,no,no,,,resp_sofa_update,"vent, pao2_to_fio2",,1,no unit
 rifampin_dose,T,JSON,yes,no,,3,,,Medication,1,mg
 rifampin_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 rivaroxaban_dose,T,JSON,yes,no,,,,,Medication,1,
-rsvnat,T,String,yes,no,,,,viral infection,1,no unit
+rsvnat,T,String,yes,no,,,,,viral infection,1,no unit
 salmeterol_dose,T,JSON,yes,no,,,,,Medication,1,Puff
 sbpm,TWF,Real,no,no,,,sbpm_update,"abp_sys, nbp_sys","Systolic blood pressure,  it should not be sparse",1,mmHg
 sepsis_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
