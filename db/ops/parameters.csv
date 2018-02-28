@@ -12,4 +12,4 @@ etl_workspace_lookbackhours,32 hours
 gc_workspace_interval,1 hour
 notifications_whitelist,%HCGH%
 criteria_required_derive_fids,"stroke,gi_bleed,sbpm"
-jit_required_twf_fids,"arterial_ph,bilirubin,bun,bun_to_cr,creatinine,fluids_intake_24hr,gcs,heart_rate,hypotension_intp,hypotension_raw,inr,lactate,map,paco2,pao2,platelets,ptt,rass,resp_rate,sbpm,shock_idx,spo2,temperature,wbc,weight,alt_liver_enzymes,ast_liver_enzymes,bicarbonate,co2,dbpm"
+jit_required_twf_fids,"apao2,shock_idx,weight,hemoglobin,paco2,platelets,arterial_ph,inr,amylase,creatinine,fluids_intake_24hr,hematocrit,co2,temperature,dbpm,bilirubin,ast_liver_enzymes,alt_liver_enzymes,mapm,gcs,rass,pao2_to_fio2,resp_rate,map,bicarbonate,fio2,potassium,bun_to_cr,bun,lipase,sbpm,sodium,heart_rate,wbc,lactate,spo2,hypotension_intp,hypotension_raw"
