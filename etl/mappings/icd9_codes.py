@@ -27,6 +27,16 @@ DX_ICD9_MAPPING = [
     ('convulsions_diag', '^780\.3'),
     ('tia_diag', '^435'),
     ('epilepsy_diag', '^345'),
+    ('asthma_diag', '^493'),
+    ('bladder_cancer_icd9_diag', '^188'),
+    ('prostate_cancer_icd9_diag', '^185'),
+    ('kidney_cancer_icd9_diag', '^189.'),
+    ('cardiac_arrest_icd9_diag', '^427\.5'),
+    ('cardiogenic_shock_icd9_diag', '^785\.51'),
+    ('other_shock_icd9_diag', '^785\.59'),
+    ('pancreatic_cancer_icd9_diag', '^157'),
+    ('bronchiectasis_diag', '^494'),
+    ('chronic_airway_obstruction_diag', '^496'),
 ]
 
 HX_ICD9_MAPPING = [
@@ -52,6 +62,16 @@ HX_ICD9_MAPPING = [
     ('convulsions_hist', '^780\.3'),
     ('tia_hist', '^435'),
     ('epilepsy_hist', '^345'),
+    ('asthma_hist', '^493'),
+    ('bladder_cancer_icd9_hist', '^188'),
+    ('prostate_cancer_icd9_hist', '^185'),
+    ('kidney_cancer_icd9_hist', '^189.'),
+    ('cardiac_arrest_icd9_hist', '^427\.5'),
+    ('cardiogenic_shock_icd9_hist', '^785\.51'),
+    ('other_shock_icd9_hist', '^785\.59'),
+    ('pancreatic_cancer_icd9_hist', '^157'),
+    ('bronchiectasis_hist', '^494'),
+    ('chronic_airway_obstruction_hist', '^496'),
 ]
 
 PL_ICD9_MAPPING = [
@@ -71,4 +91,13 @@ PL_ICD9_MAPPING = [
     ('convulsions_prob', '^780\.3'),
     ('tia_prob', '^435'),
     ('epilepsy_prob', '^345'),
+    ('asthma_prob', '^493'),
+    ('bladder_cancer_icd9_prob', '^188'),
+    ('prostate_cancer_icd9_prob', '^185'),
+    ('kidney_cancer_icd9_prob', '^189.'),
+    ('cardiac_arrest_icd9_prob', '^427\.5'),
+    ('cardiogenic_shock_icd9_prob', '^785\.51'),
+    ('other_shock_icd9_prob', '^785\.59'),
+    ('pancreatic_cancer_icd9_prob', '^157'),
+    ('bronchiectasis_prob', '^494'),
 ]
