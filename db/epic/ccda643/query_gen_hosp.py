@@ -917,7 +917,7 @@ or proccat.proc_cat_name in ('IMG IR ORDERABLES', 'CV CARDIAC SERVICES ORDERABLE
 ;
 GO
 
-
+USE CLARITY;
 :OUT \\\\Client\F$\clarity\code_rrt_events.{idx}.rpt
 SET NOCOUNT ON
 SELECT PAT_ENC_HSP_1.EXTERNAL_ID csn_id 
@@ -1147,7 +1147,7 @@ GO
 # 1102 bmc
 # 1103 hcgh
 hosp = '1103'
-start_date = [2017, 9]
+start_date = [2014, 2]
 end_date = [2018, 3]
 
 end_date[1] += 1
