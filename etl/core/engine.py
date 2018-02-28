@@ -326,6 +326,7 @@ class Engine:
           res = idf[1].result()
           if isinstance(res, dict) and 'duration' in res:
             node_name = '{} {:.2f}s'.format(idf[0], res['duration'])
+            self.log.info("Engine Task: {}".format(node_name))
             self.graph.node(idf[0], label=node_name,
                             color='green', style='filled')
           else:
@@ -333,11 +334,13 @@ class Engine:
             task_id = idf[0]
             duration = now - self.timer[task_id]["start"]
             node_name = '{} {:.2f}s'.format(task_id, duration)
+            self.log.info("Engine Task: {}".format(node_name))
             self.graph.node(idf[0], label=node_name, color='green', style='filled')
           # self.log.debug('res: {}'.format(res))
           if isinstance(res, dict) and 'done' in res:
             for nd in res['done']:
               nd_name = '{} {:.2f}s'.format(nd[0], nd[1])
+              self.log.info("Engine Subtask: {}".format(nd_name))
               self.graph.node(nd[0], label=nd_name,
                               color='green', style='filled')
               self.graph.edge(idf[0], nd[0])
