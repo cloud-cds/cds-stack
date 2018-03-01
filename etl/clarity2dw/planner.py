@@ -43,9 +43,10 @@ job_config = {
       'fid': os.environ['transform_fids'].split(';') \
         if 'transform_fids' in os.environ else None,
       'nprocs': int(os.environ['nprocs']) if 'nprocs' in os.environ else 2,
+      'shuffle': True if 'transform_shuffle' in os.environ and os.environ['transform_shuffle'] == 'True' else None,
     },
     'min_tsp': os.environ['min_tsp'] if 'min_tsp' in os.environ else None,
-    'feature_mapping': os.environ['feature_mapping'] if 'feature_mapping' in os.environ else 'feature_mapping.csv'
+    'feature_mapping': os.environ['feature_mapping'] if 'feature_mapping' in os.environ else 'feature_mapping.csv',
   },
   'fillin': False if 'fillin' in os.environ \
     and os.environ['fillin'] == 'False' else \

@@ -210,6 +210,7 @@ class Extractor:
   def partition(self, lst, n, random_shuffle=False):
     if random_shuffle:
       random.shuffle(lst)
+      logging.info("Randomly shuffle transform fids")
     division = max(1, round(len(lst) / n))
     return [lst[i:i + division] for i in range(0, len(lst), division)]
 
