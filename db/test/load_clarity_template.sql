@@ -497,6 +497,7 @@ create index ede_idx_event_disp_name on {workspace}."EdEvents" ("event_display_n
 drop index if exists fd_idx_id;
 drop index if exists fd_idx_icd9;
 drop index if exists fd_idx_icd10;
+drop table if exists {workspace}."FinalDiagnosis";
 create table {workspace}."FinalDiagnosis"
 (
   CSN_ID    text,

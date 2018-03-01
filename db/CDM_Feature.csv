@@ -169,6 +169,7 @@ erythromycin_dose_order,T,String,yes,no,,,,,used in the online sepsis bundle cri
 esrd_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
 esrd_hist,S,Boolean,yes,no,,,,,History,1,no unit
 esrd_prob,S,Boolean,yes,no,,,,,ProblemList,1,no unit
+esrd_final_diag,S,Boolean,yes,no,,,,,Final Diagnosis,1,no unit
 etomidate_dose,T,JSON,yes,no,,,,,Medication,1,mg
 fio2,TWF,Real,yes,no,last_value_in_window,28,,,Physiologic,1,%
 fludrocortisone_dose,T,JSON,yes,no,,,,,Medication,1,
@@ -674,3 +675,11 @@ polythiazide_dose,T,JSON,yes,no,,,,,Medication,1,
 tolvaptan_dose,T,JSON,yes,no,,,,,Medication,1,
 torsemide_dose,T,JSON,yes,no,,,,,Medication,1,
 trichlormethiazide_dose,T,JSON,yes,no,,,,,Medication,1,
+cdiff_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
+cdiff_hist,S,Boolean,yes,no,,,,,History,1,no unit
+cdiff_prob,S,Boolean,yes,no,,,,,ProblemList,1,no unit
+cidff_final_diag,S,Boolean,yes,no,,,,,Code,1,
+rrt_start,T,JSON,yes,no,,,,,Order Procedure,1,
+rrt_end,T,JSON,yes,no,,,,,Order Procedure,1,
+code_start,T,JSON,yes,no,,,,,Order Procedure,1,
+code_end,T,JSON,yes,no,,,,,Order Procedure,1,

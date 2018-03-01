@@ -497,6 +497,7 @@ create index ede_idx_event_disp_name on clarity_4y."EdEvents" ("event_display_na
 drop index if exists fd_idx_id;
 drop index if exists fd_idx_icd9;
 drop index if exists fd_idx_icd10;
+drop table if exists clarity_4y."FinalDiagnosis";
 create table clarity_4y."FinalDiagnosis"
 (
   CSN_ID    text,
