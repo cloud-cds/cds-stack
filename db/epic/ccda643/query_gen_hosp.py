@@ -642,7 +642,7 @@ GO
 
 :OUT \\\\Client\F$\clarity\hist.{idx}.rpt
 SET NOCOUNT ON
-SELECT DISTINCT csn.EXTERNAL_ID CSN_ID
+SELECT DISTINCT coalesce(csn.EXTERNAL_ID, Encounter.PAT_ENC_CSN_ID) CSN_ID 
   ,pat.EXTERNAL_ID PATIENTID
   ,CAST(COALESCE(Encounter.DEPARTMENT_ID, HospitalEncounter.DEPARTMENT_ID) AS VARCHAR(50)) DEPARTMENTID
   ,edg.DX_NAME diagName
@@ -678,6 +678,7 @@ INNER JOIN CLARITY.DBO.EDG_CURRENT_ICD9 icd9 ON MedicalHistory.DX_ID = icd9.DX_I
 -- INNER JOIN Analytics.dbo.CCDA264_ICD9Codes icdIndex ON ISNUMERIC(icd9.Code) = 1
 --   AND icd9.Code >= icdIndex."Low Range"
 --   AND icd9.Code < icdIndex."High Cutoff";
+WHERE not csn.EXTERNAL_ID is null or not Encounter.PAT_ENC_CSN_ID is null;
 GO
 
 USE Analytics;
