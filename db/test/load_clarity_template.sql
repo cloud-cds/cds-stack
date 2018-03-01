@@ -15,7 +15,11 @@ create table {workspace}."Demographics"
  "DischargeDepartment"   text,
  "DischargeDisposition"  text
  );
-\copy {workspace}."Demographics" from '{folder}demo.{ext}' with csv delimiter as E'\t' NULL 'NULL';
+\copy {workspace}."Demographics" from '{folder}demo.201402.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."Demographics" from '{folder}demo.201503.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."Demographics" from '{folder}demo.201604.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."Demographics" from '{folder}demo.201704.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+
 
 drop table if exists {workspace}."ADT_Feed";
 create table {workspace}."ADT_Feed"
@@ -27,7 +31,10 @@ create table {workspace}."ADT_Feed"
 "DEPARTMENT_NAME"   text,
 "ROOM_NAME"    text
 );
-\copy {workspace}."ADT_Feed" from '{folder}adt.{ext}' with csv delimiter as E'\t' NULL 'NULL';
+\copy {workspace}."ADT_Feed" from '{folder}adt.201402.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."ADT_Feed" from '{folder}adt.201503.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."ADT_Feed" from '{folder}adt.201604.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."ADT_Feed" from '{folder}adt.201704.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 
 drop table if exists {workspace}."Diagnoses";
 drop index if exists diag_idx_code;
@@ -46,7 +53,10 @@ create table {workspace}."Diagnoses"
  ,"DX_CHRONIC_YN" text
  ,"ICD-9 Code category" text
 );
-\copy {workspace}."Diagnoses" from '{folder}diag.{ext}' with csv delimiter as E'\t' NULL 'NULL';
+\copy {workspace}."Diagnoses" from '{folder}diag.201402.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."Diagnoses" from '{folder}diag.201503.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."Diagnoses" from '{folder}diag.201604.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."Diagnoses" from '{folder}diag.201704.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 create index diag_idx_code on {workspace}."Diagnoses" ("Code");
 create index diag_idx_name on {workspace}."Diagnoses" ("diagName");
 
@@ -76,7 +86,10 @@ create table {workspace}."FlowsheetValue-LDA"
  "LDAFLOMEASNAME"       text      ,
  "LDAGRPDISPNAME"       text
 );
-\copy {workspace}."FlowsheetValue-LDA" from '{folder}flt_lda.{ext}' with csv delimiter as E'\t' NULL 'NULL';
+\copy {workspace}."FlowsheetValue-LDA" from '{folder}flt_lda.201402.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."FlowsheetValue-LDA" from '{folder}flt_lda.201503.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."FlowsheetValue-LDA" from '{folder}flt_lda.201604.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."FlowsheetValue-LDA" from '{folder}flt_lda.201704.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 create index flt_lda_idx_name on {workspace}."FlowsheetValue-LDA" ("FLO_MEAS_NAME");
 create index flt_lda_idx_id on {workspace}."FlowsheetValue-LDA" ("FLO_MEAS_ID");
 
@@ -101,7 +114,10 @@ create table {workspace}."FlowsheetValue"
  "TEMPLATE_NAME"        text      ,
  "TEMPLATE_DISP_NAME"   text
 );
-\copy {workspace}."FlowsheetValue" from '{folder}flt.{ext}' with csv delimiter as E'\t' NULL 'NULL' QUOTE E'\b';
+\copy {workspace}."FlowsheetValue" from '{folder}flt.201402.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."FlowsheetValue" from '{folder}flt.201503.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."FlowsheetValue" from '{folder}flt.201604.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."FlowsheetValue" from '{folder}flt.201704.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 create index flt_idx_name on {workspace}."FlowsheetValue" ("FLO_MEAS_NAME");
 create index flt_idx_id on {workspace}."FlowsheetValue" ("FLO_MEAS_ID");
 
@@ -126,7 +142,10 @@ create table {workspace}."FlowsheetValue_643"
  "TEMPLATE_NAME"        text      ,
  "TEMPLATE_DISP_NAME"   text
 );
-\copy {workspace}."FlowsheetValue_643" from '{folder}flt_new.{ext}' with csv delimiter as E'\t' NULL 'NULL';
+\copy {workspace}."FlowsheetValue_643" from '{folder}flt_new.201402.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."FlowsheetValue_643" from '{folder}flt_new.201503.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."FlowsheetValue_643" from '{folder}flt_new.201604.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."FlowsheetValue_643" from '{folder}flt_new.201704.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 create index flt_643_idx_name on {workspace}."FlowsheetValue_643" ("FLO_MEAS_NAME");
 create index flt_643_idx_id on {workspace}."FlowsheetValue_643" ("FLO_MEAS_ID");
 
@@ -149,7 +168,10 @@ create table {workspace}."Labs"
  "COMPONENT_COMMENT" text,
  "ORDER_PROC_ID"     text
 );
-\copy {workspace}."Labs" from '{folder}labs.{ext}' with NULL 'NULL' csv delimiter as E'\t';
+\copy {workspace}."Labs" from '{folder}labs.201402.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."Labs" from '{folder}labs.201503.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."Labs" from '{folder}labs.201604.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."Labs" from '{folder}labs.201704.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 create index labs_idx_name on {workspace}."Labs" ("BASE_NAME");
 create index labs_idx_id on {workspace}."Labs" ("COMPONENT_ID");
 
@@ -169,7 +191,10 @@ create table {workspace}."Labs_643"
  "COMPONENT_COMMENT" text,
  "ORDER_PROC_ID"     text
 );
-\copy {workspace}."Labs_643" from '{folder}labs_new.{ext}' with NULL 'NULL' csv delimiter as E'\t';
+\copy {workspace}."Labs_643" from '{folder}labs_new.201402.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."Labs_643" from '{folder}labs_new.201503.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."Labs_643" from '{folder}labs_new.201604.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."Labs_643" from '{folder}labs_new.201704.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 create index labs_643_idx_name on {workspace}."Labs_643" ("BASE_NAME");
 create index labs_643_idx_id on {workspace}."Labs_643" ("COMPONENT_ID");
 
@@ -185,7 +210,10 @@ create table {workspace}."LDAs"
  "SITE"                text,
  "REMOVAL_DTTM"        timestamp with    time zone
 );
-\copy {workspace}."LDAs" from '{folder}lda.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."LDAs" from '{folder}lda.201402.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."LDAs" from '{folder}lda.201503.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."LDAs" from '{folder}lda.201604.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."LDAs" from '{folder}lda.201704.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 create index ldas_idx_name on {workspace}."LDAs" ("FLO_MEAS_NAME");
 
 drop index if exists mar_idx_name;
@@ -214,7 +242,10 @@ create table {workspace}."MedicationAdministration"
  "MIN_DISCRETE_DOSE"  text,
  "MAX_DISCRETE_DOSE"  text
 );
-\copy {workspace}."MedicationAdministration" from '{folder}mar.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."MedicationAdministration" from '{folder}mar.201402.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."MedicationAdministration" from '{folder}mar.201503.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."MedicationAdministration" from '{folder}mar.201604.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."MedicationAdministration" from '{folder}mar.201704.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 create index mar_idx_name on {workspace}."MedicationAdministration" ("display_name");
 create index mar_idx_id on {workspace}."MedicationAdministration" ("MEDICATION_ID");
 
@@ -233,7 +264,10 @@ create table {workspace}."MedicalHistory"
  "Medical_Hx_Date"      text,
  "ENC_Date"             timestamp with time zone
 );
-\copy {workspace}."MedicalHistory" from '{folder}hist.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."MedicalHistory" from '{folder}hist.201402.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."MedicalHistory" from '{folder}hist.201503.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."MedicalHistory" from '{folder}hist.201604.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."MedicalHistory" from '{folder}hist.201704.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 create index hist_idx on {workspace}."MedicalHistory" ("Code");
 
 drop table if exists {workspace}."Notes";
@@ -251,7 +285,10 @@ create table {workspace}."Notes"
  "SPEC_NOTE_TIME_DTTM"  timestamp without time zone ,
  "ENTRY_ISTANT_DTTM"    timestamp without time zone
 );
-\copy {workspace}."Notes" from '{folder}note.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."Notes" from '{folder}note.201402.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."Notes" from '{folder}note.201503.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."Notes" from '{folder}note.201604.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."Notes" from '{folder}note.201704.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 
 drop table if exists {workspace}."OrderMed";
 create table {workspace}."OrderMed"
@@ -265,7 +302,10 @@ create table {workspace}."OrderMed"
  "MIN_DISCRETE_DOSE" real                       ,
  "MAX_DISCRETE_DOSE" real
 );
-\copy {workspace}."OrderMed" from '{folder}ordermed.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."OrderMed" from '{folder}ordermed.201402.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."OrderMed" from '{folder}ordermed.201503.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."OrderMed" from '{folder}ordermed.201604.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."OrderMed" from '{folder}ordermed.201704.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 
 drop table if exists {workspace}."OrderMedHome";
 create table {workspace}."OrderMedHome"
@@ -279,7 +319,10 @@ create table {workspace}."OrderMedHome"
  "MIN_DISCRETE_DOSE" real                       ,
  "MAX_DISCRETE_DOSE" real
 );
-\copy {workspace}."OrderMedHome" from '{folder}ordermed_home.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."OrderMedHome" from '{folder}ordermed_home.201402.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."OrderMedHome" from '{folder}ordermed_home.201503.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."OrderMedHome" from '{folder}ordermed_home.201604.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."OrderMedHome" from '{folder}ordermed_home.201704.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 
 drop index if exists op_idx_name;
 drop index if exists op_idx_id;
@@ -304,7 +347,10 @@ create table {workspace}."OrderProcs"
  "LabStatus"     text,
  "SPECIMN_TAKEN_TIME"  timestamp without time zone
 );
-\copy {workspace}."OrderProcs" from '{folder}orderproc.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."OrderProcs" from '{folder}orderproc.201402.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."OrderProcs" from '{folder}orderproc.201503.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."OrderProcs" from '{folder}orderproc.201604.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."OrderProcs" from '{folder}orderproc.201704.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 create index op_idx_name on {workspace}."OrderProcs" ("display_name");
 create index op_idx_id on {workspace}."OrderProcs" ("OrderProcId");
 create index op_idx_cat on {workspace}."OrderProcs" ("proc_cat_name");
@@ -329,7 +375,10 @@ create table {workspace}."OrderProcsImage"
  "LINE"              integer                    ,
  "NOTE_TEXT"         text
 );
-\copy {workspace}."OrderProcsImage" from '{folder}orderproc_img.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."OrderProcsImage" from '{folder}orderproc_img.201402.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."OrderProcsImage" from '{folder}orderproc_img.201503.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."OrderProcsImage" from '{folder}orderproc_img.201604.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."OrderProcsImage" from '{folder}orderproc_img.201704.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 create index op_img_idx_name on {workspace}."OrderProcsImage" ("display_name");
 create index op_img_idx_id on {workspace}."OrderProcsImage" ("OrderProcId");
 create index op_img_idx_cat on {workspace}."OrderProcsImage" ("proc_cat_name");
@@ -367,7 +416,10 @@ create table {workspace}."OrderProcs_643"
  question       text,
  comment        text
 );
-\copy {workspace}."OrderProcs_643" from '{folder}orderproc_new.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."OrderProcs_643" from '{folder}orderproc_new.201402.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."OrderProcs_643" from '{folder}orderproc_new.201503.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."OrderProcs_643" from '{folder}orderproc_new.201604.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."OrderProcs_643" from '{folder}orderproc_new.201704.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 create index op_643_idx_name on {workspace}."OrderProcs_643" ("display_name");
 create index op_643_idx_id on {workspace}."OrderProcs_643" ("OrderProcId");
 create index op_643_idx_cat on {workspace}."OrderProcs_643" ("proc_cat_name");
@@ -390,7 +442,10 @@ create table {workspace}."ProblemList"
  code                   text     ,
  codecategory           text
 );
-\copy {workspace}."ProblemList" from '{folder}prob.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."ProblemList" from '{folder}prob.201402.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."ProblemList" from '{folder}prob.201503.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."ProblemList" from '{folder}prob.201604.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."ProblemList" from '{folder}prob.201704.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 create index prob_idx_name on {workspace}."ProblemList" ("diagname");
 create index prob_idx_code on {workspace}."ProblemList" ("code");
 
@@ -409,7 +464,10 @@ create table {workspace}."ChiefComplaint"
  ,DISPLAY_TEXT       text
  ,COMMENTS           text
 );
-\copy {workspace}."ChiefComplaint" from '{folder}chief_complaint.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."ChiefComplaint" from '{folder}chief_complaint.201402.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."ChiefComplaint" from '{folder}chief_complaint.201503.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."ChiefComplaint" from '{folder}chief_complaint.201604.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."ChiefComplaint" from '{folder}chief_complaint.201704.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 create index cc_idx_id on {workspace}."ChiefComplaint" ("enc_reason_id");
 create index cc_idx_name on {workspace}."ChiefComplaint" ("enc_reason_name");
 create index cc_idx_display on {workspace}."ChiefComplaint" ("display_text");
@@ -428,7 +486,10 @@ create table {workspace}."EdEvents"
  ,EVENT_TIME           timestamp without time zone
  ,EVENT_RECORD_TIME    timestamp without time zone
 );
-\copy {workspace}."EdEvents" from '{folder}ed_events.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."EdEvents" from '{folder}ed_events.201402.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."EdEvents" from '{folder}ed_events.201503.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."EdEvents" from '{folder}ed_events.201604.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."EdEvents" from '{folder}ed_events.201704.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 create index ede_idx_id on {workspace}."EdEvents" ("csn_id");
 create index ede_idx_event_id on {workspace}."EdEvents" ("event_id");
 create index ede_idx_event_disp_name on {workspace}."EdEvents" ("event_display_name");
@@ -444,7 +505,10 @@ create table {workspace}."FinalDiagnosis"
   icd9      text,
   icd10     text
 );
-\copy {workspace}."FinalDiagnosis" from '{folder}final_dx.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."FinalDiagnosis" from '{folder}final_dx.201402.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."FinalDiagnosis" from '{folder}final_dx.201503.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."FinalDiagnosis" from '{folder}final_dx.201604.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
+\copy {workspace}."FinalDiagnosis" from '{folder}final_dx.201704.{ext}' with NULL 'NULL' csv delimiter as E'\t' QUOTE E'\b'; -- a ugly but working solution to ignore quotes
 create index fd_idx_id on {workspace}."FinalDiagnosis"(csn_id);
 create index fd_idx_icd9 on {workspace}."FinalDiagnosis"(icd9);
 create index fd_idx_icd10 on {workspace}."FinalDiagnosis"(icd10);
