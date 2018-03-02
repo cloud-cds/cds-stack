@@ -1501,7 +1501,29 @@ var nursingWorkflowComponent = new function() {
 	this.ctn = $("[data-trews='nurse-workflow']");
         this.status_buttons = {"Yes": '#yes_mental_stat', "No":'#no_mental_stat', "Unknown":'#unk_mental_stat'};
         this.inf_buttons = {"Yes":'#yes_inf', "No":'#no_inf'};
+	this.notif_buttons = {"Yes":'#yes_notif', "No":'#no_notif'};
 	this.render = function() {
+               //Set states
+		console.log("setting states");
+		$('#save_comment').click();
+		this.eval_box = $('#eval_comments')
+		if ("nursing_eval" in trews.data && "comments" in trews.data["nursing_eval"]) {
+			this.eval_box[0].value = trews.data["nursing_eval"]["comments"];
+		}
+                if ("nursing_eval" in trews.data) {
+                  if ("mental_status" in trews.data["nursing_eval"] && trews.data["nursing_eval"]["mental_status"] in this.status_buttons) {
+			
+			$(this.status_buttons[trews.data["nursing_eval"]["mental_status"]]).click();
+		   }
+		  if ("known_infection" in trews.data["nursing_eval"] && trews.data["nursing_eval"]["known_infection"] in this.status_buttons) {
+
+			$(this.inf_buttons[trews.data["nursing_eval"]["known_infection"]]).click();
+		   }
+		  if ("provider_notified" in trews.data["nursing_eval"] && trews.data["nursing_eval"]["provider_notified"] in this.status_buttons) {
+			$(this.notif_buttons[trews.data["nursing_eval"]["provider_notified"]]).click();
+		   }
+		}
+		console.log("done setting states");
 		this.yes_mental_btn = $('#yes_mental_stat');
 		this.yes_mental_btn.click(function(e){mental_status_click("Yes")});
 		this.no_mental_btn = $('#no_mental_stat');
@@ -1512,24 +1534,13 @@ var nursingWorkflowComponent = new function() {
 		this.no_inf_btn.click(function(e){infection_click("No")});
 		this.yes_inf_btn = $('#yes_inf');
 		this.yes_inf_btn.click(function(e){infection_click("Yes")});
-		this.eval_box = $('#eval_comments')
+		this.yes_notif_btn = $('#yes_notif');
+		this.no_notif_btn = $('#no_notif');
+		this.no_notif_btn.click(function(e){notif_click("No")});
+		this.yes_notif_btn.click(function(e){notif_click("Yes")});
 		this.save_btn = $('#save_comment');
 		this.save_btn.click(function(e){save_comment($('#eval_comments')[0].value)});
-                //Set states
-		if ("nursing_eval" in trews.data && "comments" in trews.data["nursing_eval"]) {
-			this.eval_box[0].value = trews.data["nursing_eval"]["comments"];
-		}
-                if ("nursing_eval" in trews.data) {
-                  if ("mental_status" in trews.data["nursing_eval"] && trews.data["nursing_eval"]["mental_status"] in this.status_buttons) {
-			console.log("Toggling class");
-			//$(this.status_buttons[trews.data["nursing_eval"]["mental_status"]]).checked=true;
-			$(this.status_buttons[trews.data["nursing_eval"]["mental_status"]]).toggleClass('after');
-		   }
-		  if ("known_infection" in trews.data["nursing_eval"] && trews.data["nursing_eval"]["known_infection"] in this.status_buttons) {
-			$(this.inf_buttons[trews.data["nursing_eval"]["known_infection"]]).checked=true;
-		   }
-		}
-	}
+ 	}
 }
 
 var mental_status_click = function(stat) {
@@ -1548,6 +1559,14 @@ var infection_click = function(stat) {
 	updateNursingEval()
 
 }
+var notif_click = function(stat) {
+	if (!("nursing_eval" in trews.data)){
+		trews.data["nursing_eval"] = {};
+	}
+	trews.data["nursing_eval"]["provider_notified"] = stat;
+	updateNursingEval()
+
+}
 var save_comment = function(comment) {
 	if (!("nursing_eval" in trews.data)){
 		trews.data["nursing_eval"] = {};
@@ -1558,6 +1577,7 @@ var save_comment = function(comment) {
 }
 
 var updateNursingEval = function() {
+	console.log("updating nurse eval");
       	endpoints.getPatientData("update_nursing_eval",trews.data["nursing_eval"]);
 }
 

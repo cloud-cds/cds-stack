@@ -78,23 +78,36 @@
   					<span class="eval-checkmark">Unknown</span>
 					</label>
 
+					<br>
 					<div class='nursing-quesiton' style='display:inline-block'>Does the patient have a known infection or signs/symptoms of a new infection?</div>
 					<label class="eval-container">
   					<input type="radio" name="infection" id ="yes_inf">
   					<span class="eval-checkmark">Yes</span>
 					</label>
+
 					<label class="eval-container">
   					<input type="radio" name="infection" id="no_inf">
   					<span class="eval-checkmark">No</span>
 					</label>
+
 					<br>
-					<div class='nursing-question'><p>Comments</p></div>
+                                        <div class = 'nursing-question' style='display:inline-block'> Has the provider been notified?</div>
+                                        <label class="eval-container">
+  					<input type="radio" name="provider-notified" id="yes_notif">
+  					<span class="eval-checkmark">Yes</span>
+					</label>
+					<label class="eval-container">
+  					<input type="radio" name="provider-notified" id="no_notif">
+  					<span class="eval-checkmark">No</span>
+					</label>
+
+					<br>
+					<div class='nursing-question'>Comments</div>
 					<textarea name="nurse-eval-comments" id = "eval_comments" style="width:100%;height 300px;"></textarea>
 					<label class="eval-container">
   					<input type="radio" name="save" id="save_comment">
   					<span class="eval-checkmark">Save Comment</span>
 					</label>
-
 					
 				</form>
 				</div>

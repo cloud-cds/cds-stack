@@ -1378,17 +1378,17 @@ span.criteria-btn p {
 
 /* Create a custom radio button */
 .eval-checkmark {
-    background-color: #e7e7e7; /* Grey */1
+    background-color: #e7e7e7; /* Grey */
     border: none;
     color: white;
-    padding: 8px 16px;
+    padding: 6px 10px;
     text-align: center;
     text-decoration: none;
     display: inline-block;
     font-size: 12px;
     cursor: pointer;
     float: left;
-    border-radius: 8px;
+    border-radius: 6px;
 }
 
 /* On mouse-over, add a grey background color */
@@ -1417,9 +1417,9 @@ span.criteria-btn p {
 .eval-container .eval-checkmark:after {
  	/*top: 9px;
 	left: 9px;*/
-	width: 16px;
-	height: 8px;
-	border-radius: 8px;
+	width: 10px;
+	height: 6px;
+	border-radius: 6px;
 }
 
 /* Explanations*/
