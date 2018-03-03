@@ -5,6 +5,7 @@ import etl.transforms.primitives.df.restructure as restructure
 import etl.transforms.primitives.df.translate as translate
 from etl.mappings.flowsheet_ids import flowsheet_ids
 from etl.mappings.active_procedure_ids import active_procedure_ids
+from etl.mappings.active_procedure_names import active_procedure_names
 from etl.mappings.component_ids import component_ids
 from etl.mappings.med_regex import med_regex
 
@@ -112,11 +113,13 @@ active_procedures_transforms = [
         'OrderStatus':              'order_status',
         'ProcedureResultStatus':    'proc_status',
         'OrderId':                  'order_id',
+        'ProcedureName':            'procedure_name',
     }),
     lambda lo: translate.translate_epic_id_to_fid(lo,
         col = 'procedure_id', new_col = 'fid',
         config_map = active_procedure_ids, drop_original = True,
-        add_string = '_order', add_string_fid=['blood_culture', 'lactate', 'culture'], remove_if_not_found = True
+        add_string = '_order', add_string_fid=['blood_culture', 'lactate', 'culture'], remove_if_not_found = True,
+        name_col= 'procedure_name', name_config_map=active_procedure_names
     ),
     lambda lo: derive.derive_procedure_status(lo),
 ]

@@ -353,9 +353,8 @@ class Session():
         else:
             return data
 
-    def build_sql_string(self, feature_lst, nrows=None, where=None,
-                         includeConfidances=False, dataset_id=None,
-                         workspace=None, job_id=None, online=True, hospital='hcgh'):
+    def build_sql_string(self, feature_lst, nrows=None, where=None, includeConfidances=False, dataset_id=None,
+                         max_tsp=None, active_encid=None):
         #--------------------------------------------------------------------------
         # setup for requested features
         #--------------------------------------------------------------------------
@@ -387,7 +386,7 @@ class Session():
         #--------------------------------------------------------------------------
         # build Query
         #--------------------------------------------------------------------------
-        columns = ['cdm_twf.enc_id', 'cdm_twf.tsp'] + twf_features + featureConfidances
+        columns = ['sub_twf.enc_id', 'sub_twf.tsp'] + twf_features + featureConfidances
         #for f in s_features:
         #    if data_types[f] == 'String':
         #        columns.append("%s.value as %s" % (f, f))
@@ -402,25 +401,44 @@ class Session():
                 columns.append("cast(%s.value as %s) as %s" % (f, data_types[f], f))
 
         feature_name_lst = twf_features + featureConfidances + s_features
-        cdm_twf = '{}.{}_cdm_twf'.format(workspace, job_id) if job_id else 'cdm_twf'
-        cdm_s = 'cdm_s'
+
+        if dataset_id is None and active_encid is None:
+            raise ValueError('Either dataset_id or active_encids should be provided.')
+
+        and_dataset_id = ' and dataset_id = {}'.format(dataset_id) if dataset_id else ''
+        enc_ids = 'unnest(array[{}]) as enc_id'.format(','.join([str(e) for e in active_encid])) if active_encid else 'cdm_twf where dataset_id=%d' %dataset_id
+        and_max_tsp = " and tsp <= '{}'::timestamptz".format(max_tsp) if max_tsp else ''
         sql = '''
+        with enc_ids as (
+            select distinct enc_id from
+            %s
+        ),
+        sub_twf as (
+            SELECT *
+            FROM cdm_twf
+            where enc_id in (select enc_id from enc_ids)
+            %s%s
+        ),
+        sub_s as (
+            select *
+            from cdm_s where enc_id in (select enc_id from enc_ids)
+            %s
+        )
         SELECT %s
-        FROM %s as cdm_twf
-        ''' % (",".join(columns), cdm_twf)
+        FROM sub_twf
+        ''' % (enc_ids,
+               and_dataset_id,
+               and_max_tsp,
+               and_dataset_id,
+               ",".join(columns))
         for f in s_features:
             sql += """
-            left outer join %(cdm_s)s as %(fid)s
-            ON cdm_twf.enc_id = %(fid)s.enc_id
-            AND %(fid)s.fid = '%(fid)s' %(dataset_id)s
-            """% {'fid': f, 'cdm_s': cdm_s,
-                  'dataset_id': " and {}.dataset_id = cdm_twf.dataset_id".format(f) if dataset_id else ''}
-        if where:
-            where += " and cdm_twf.dataset_id = {}".format(dataset_id) if dataset_id else ''
-        else:
-            where = " where cdm_twf.dataset_id = {}".format(dataset_id) if dataset_id else ''
-        sql += where
+            left outer join sub_s as %(fid)s
+            ON sub_twf.enc_id = %(fid)s.enc_id
+            AND %(fid)s.fid = '%(fid)s'
+            """% {'fid': f}
         sql += " order by enc_id, tsp"
+
         if nrows and nrows > 0:
             sql += " limit %d" % nrows
 
