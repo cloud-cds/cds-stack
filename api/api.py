@@ -785,6 +785,7 @@ class TREWSAPI(web.View):
     mapping                = pat_values[4]
     explanations           = pat_values[5]
     nurse_eval             = pat_values[6]
+    print("nurse_eval",nurse_eval)
     feature_relevances = explanations['feature_relevance'] if 'feature_relevance' in explanations else None
     measurements       = explanations['twf_raw_values'] if 'twf_raw_values' in explanations else None
     static_features    = explanations['s_raw_values'] if 's_raw_values' in explanations else None
