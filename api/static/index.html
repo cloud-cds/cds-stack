@@ -64,7 +64,6 @@
 				
 				<div class="slot last-child nurse-workflow">
 				<div class="row" id="time_stat"></div>
-				<form>
 					<div class='nursing-quesiton' style='display:inline-block'>Does the patient have a new or altered mental status?</div>
 					<label class="eval-container">
   					<input type="radio" name="mental" id="yes_mental_stat">
@@ -90,28 +89,21 @@
   					<input type="radio" name="infection" id="no_inf">
   					<span class="eval-checkmark">No</span>
 					</label>
-					<!--
 					<br>
-                                        <div class = 'nursing-question' style='display:inline-block'> Has the provider been notified?</div>
-                                        <label class="eval-container">
-  					<input type="radio" name="provider-notified" id="yes_notif">
-  					<span class="eval-checkmark">Yes</span>
-					</label>
-					<label class="eval-container">
-  					<input type="radio" name="provider-notified" id="no_notif">
-  					<span class="eval-checkmark">No</span>
-					</label>
-					!-->
-					<br>
+                                        					<br>
 					<div class='nursing-question'>Comments</div>
 					<textarea name="nurse-eval-comments" id = "eval_comments" style="width:100%;height 300px;"></textarea>
 					<label class="eval-container">
   					<input type="radio" name="save" id="save_comment">
   					<span class="eval-checkmark">Save Comment</span>
 					</label>
-					
-				</form>
 				<div class="row" id="notify_stat"></div>
+				<div style="display:inline-block" id="provider-notified-block"> Has the provider been notified?
+                                        <label class="eval-container">
+  					<input type="radio" name="provider-notified" id="yes_notif">
+  					<span class="eval-checkmark">Yes</span>
+					</label>
+				</div>
 				</div>
 				</div>
 				<!-- Treatment Override Card -->

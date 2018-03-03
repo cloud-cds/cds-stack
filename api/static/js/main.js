@@ -1522,23 +1522,26 @@ var nursingWorkflowComponent = new function() {
 		
                //Set states
 		console.log("setting states");
-		$('#save_comment').click();
+		$('#save_comment').checked="true";
+		console.log("set save_comment");
+		console.log($('#save_comment').checked);
 		this.eval_box = $('#eval_comments')
 		if ("nursing_eval" in trews.data && "comments" in trews.data["nursing_eval"]) {
 			this.eval_box[0].value = trews.data["nursing_eval"]["comments"];
 		}
                 if ("nursing_eval" in trews.data) {
                   if ("mental_status" in trews.data["nursing_eval"] && trews.data["nursing_eval"]["mental_status"] in this.status_buttons) {
+			console.log("setting status button");
+			$(this.status_buttons[trews.data["nursing_eval"]["mental_status"]])[0].checked="true";
 			
-			$(this.status_buttons[trews.data["nursing_eval"]["mental_status"]]).click();
 		   }
-		  if ("known_infection" in trews.data["nursing_eval"] && trews.data["nursing_eval"]["known_infection"] in this.status_buttons) {
-
-			$(this.inf_buttons[trews.data["nursing_eval"]["known_infection"]]).click();
+		  if ("known_infection" in trews.data["nursing_eval"] && trews.data["nursing_eval"]["known_infection"] in this.inf_buttons) {
+			console.log("setting inf button");
+			$(this.inf_buttons[trews.data["nursing_eval"]["known_infection"]])[0].checked="true";
 		   }
-		  /*if ("provider_notified" in trews.data["nursing_eval"] && trews.data["nursing_eval"]["provider_notified"] in this.status_buttons) {
-			$(this.notif_buttons[trews.data["nursing_eval"]["provider_notified"]]).click();
-		   }*/
+		  if ("provider_notified" in trews.data["nursing_eval"]) {
+			$('#provider-notified')[0].checked="true";
+		   }
 		}
 		this.update_notification_prompt();
 		
@@ -1553,10 +1556,7 @@ var nursingWorkflowComponent = new function() {
 		this.no_inf_btn.click(function(e){infection_click("No")});
 		this.yes_inf_btn = $('#yes_inf');
 		this.yes_inf_btn.click(function(e){infection_click("Yes")});
-		/*this.yes_notif_btn = $('#yes_notif');
-		this.no_notif_btn = $('#no_notif');
-		this.no_notif_btn.click(function(e){notif_click("No")});
-		this.yes_notif_btn.click(function(e){notif_click("Yes")});*/
+		$('#provider-notified').click(function(e){notify_click()});
 		this.save_btn = $('#save_comment');
 		this.save_btn.click(function(e){save_comment($('#eval_comments')[0].value)});
  	}
@@ -1567,22 +1567,30 @@ var nursingWorkflowComponent = new function() {
 		console.log("updating notif");
 		if ("mental_status" in trews.data["nursing_eval"] && "known_infection" in trews.data["nursing_eval"]) {
 			if ( trews.data["nursing_eval"]["mental_status"] == 'Yes' || trews.data["nursing_eval"]["known_infection"] == 'Yes') {
-				trews.data["nursing_eval"]["notified"] = true;
+				trews.data["nursing_eval"]["advise_notify"] = true;
 				console.log("updating to notif_txt from yes");
 				result_txt = notify_txt;
-			} else if (Math.random() > JSON.parse(trews["data"]["severe_sepsis"]["trews_subalert"]["value"])["pct_sevsep"]) {
-				trews.data["nursing_eval"]["notified"] = true;
+			} else if (Math.random() < JSON.parse(trews["data"]["severe_sepsis"]["trews_subalert"]["value"])["pct_sevsep"]/100) {
+				trews.data["nursing_eval"]["advise_notify"] = true;
 				console.log("updating to notif_txt from prob");
 				result_txt = notify_txt;
 			} else {
-				trews.data["nursing_eval"]["notified"] = false;
+				trews.data["nursing_eval"]["advise_notify"] = false;
 				console.log("updating to no_notif");
 				result_txt = no_notify_txt;
 			}
 		} else { 
-			trews.data["nursing_eval"]["notified"] = true;
+			trews.data["nursing_eval"]["advise_notify"] = true;
 		}
 		this.ctn.find("#notify_stat").text(result_txt);
+		console.log("Advise_notify:" + trews.data["nursing_eval"]["advise_notify"])
+		if (trews.data["nursing_eval"]["advise_notify"]) {
+			console.log("setting to advise")
+			$('#provider-notified-block')[0].style="display:inline-block;";
+		} else {
+			console.log("setting to hidden")
+			$('#provider-notified-block')[0].style="display:none;";
+		}
 	}
 }
 
@@ -1602,11 +1610,11 @@ var infection_click = function(stat) {
 	updateNursingEval()
 
 }
-var notif_click = function(stat) {
+var notif_click = function() {
 	if (!("nursing_eval" in trews.data)){
 		trews.data["nursing_eval"] = {};
 	}
-	trews.data["nursing_eval"]["provider_notified"] = stat;
+	trews.data["nursing_eval"]["provider_notified"] = true;
 	updateNursingEval()
 
 }
