@@ -1131,3 +1131,11 @@ var FID_TO_HUMAN_READABLE = {
   "heart_rate": "Heart Rate",
   "urine_output": "Urine Output"
 }
+
+var PHYS_FEATS = ["BP", "temperature", "heart rate", "SpO2", "PaO2", "PaCO2", "resp rate", "FiO2", "GCS", "RASS"];
+
+var HEM_FEATS = ["platelets", "WBC", "INR", "hemoglobin"];
+
+var CHEM_FEATS = ["sodium", "creatinine","bilirubin", "amylase", "lactate", "BUN", "ALT liver enzymes", "arterial ph", "bicarbonate", "CO2", "AST liver enzymes", "potassium", "lipase"];
+
+

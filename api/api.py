@@ -311,6 +311,9 @@ class TREWSAPI(web.View):
         logging.error(msg)
         return {'message': msg}
 
+    elif actionType == u'update_nursing_eval':
+        await query.update_nursing_eval(db_pool,eid,actionData,uid)
+
     elif actionType == u'place_order':
 
       order_type = actionData['actionName']
@@ -743,8 +746,8 @@ class TREWSAPI(web.View):
     # cache lookup
     pat_values = await pat_cache.get(eid)
 
-    if pat_values is None:
-      #if True:
+    #if pat_values is None:
+    if True:
       api_monitor.add_metric('CacheMisses')
 
       # parallel query execution
@@ -755,6 +758,7 @@ class TREWSAPI(web.View):
                       query.get_trews_intervals(db_pool, eid),
                       query.get_feature_mapping(db_pool),
                       query.get_explanations(db_pool, eid),
+                      query.get_nursing_eval(db_pool, eid),
                       #query.get_trews_jit_score(db_pool, eid, start_hrs=chart_sample_start_hrs, start_day=chart_sample_start_day, end_day=chart_sample_end_day, sample_mins=chart_sample_mins, sample_hrs=chart_sample_hrs)
                     )
 
@@ -780,11 +784,12 @@ class TREWSAPI(web.View):
     trews_intervals        = pat_values[3]
     mapping                = pat_values[4]
     explanations           = pat_values[5]
-    #chart_values           = pat_values[6]
-
-    feature_relevances = explanations['feature_relevance']
-    measurements = explanations['twf_raw_values']
-    static_features = explanations['s_raw_values']
+    nurse_eval             = pat_values[6]
+    print("nurse_eval",nurse_eval)
+    feature_relevances = explanations['feature_relevance'] if 'feature_relevance' in explanations else None
+    measurements       = explanations['twf_raw_values'] if 'twf_raw_values' in explanations else None
+    static_features    = explanations['s_raw_values'] if 's_raw_values' in explanations else None
+    orgdfs             = explanations['orgdfs'] if 'orgdfs' in explanations else None
 
     self.update_criteria(criteria_result_set, data)
 
@@ -817,10 +822,23 @@ class TREWSAPI(web.View):
 
       # update trews intervals
       data['trews_intervals'] = trews_intervals
-
-      data['feature_relevances'] = explain.thresholdImportances(explain.getMappedImportances(feature_relevances,mapping))
+      if 'sbpm' in measurements and 'dbpm' in measurements:
+        measurements['bp'] = {'value': str(measurements['sbpm']['value']) + '/' + str(measurements['dbpm']['value']),
+                                        'tsp': measurements['sbpm']['tsp']}
       data['measurements'] = measurements
+
+      if 'gender' in static_features:
+        static_features['gender'] = 'Male' if static_features['gender'] == 1 else 'Female'
       data['static_features'] = static_features
+
+      data['feature_relevances'] = explain.thresholdImportances(explain.getMappedImportances(feature_relevances,mapping)) if feature_relevances else None
+      # Mark orgdfs as important if present
+      if orgdfs is not None:
+        for orgdf, value in orgdfs.items():
+          if value == 1 and orgdf in mapping:
+            data['feature_relevances'][mapping[orgdf]] = 1
+        
+      data['nursing_eval'] = nurse_eval
 
       return data
 
@@ -965,7 +983,9 @@ class TREWSAPI(web.View):
                       'vasopressors_order'      : { k: data['vasopressors_order'][k]      for k in ['status', 'time', 'user'] },
                       'ui'                      : { 'ui_severe_sepsis': { 'is_met': data['ui']['ui_severe_sepsis']['is_met'] },
                                                     'ui_septic_shock': { 'is_met': data['ui']['ui_septic_shock']['is_met'] }
-                                                  }
+                                                  },
+                      'explanations'            : { 'feature_relevance': data['feature_relevances'],
+                                                    'static_features'  : data['static_features']}
                     }
 
                 else:
