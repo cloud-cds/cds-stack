@@ -814,6 +814,7 @@ async def update_nursing_eval(db_pool,eid, data,uid):
       #print("Exception: " + str(e) + " in update_nursing_eval")
     return
 
+
 async def push_notifications_to_epic(db_pool, eid, notify_future_notification=True):
   retries = 0
   max_retries = 5
@@ -822,14 +823,12 @@ async def push_notifications_to_epic(db_pool, eid, notify_future_notification=Tr
     while retries < max_retries:
       retries += 1
       model = model_in_use
-      lock_sql = 'LOCK TABLE epic_notifications_history IN EXCLUSIVE MODE'
       notifications_sql = \
       '''
       select * from get_notifications_for_epic('%s', '%s');
       ''' % (eid, model)
       try:
         async with conn.transaction(isolation='serializable'):
-          await conn.execute(lock_sql)
           notifications = await conn.fetch(notifications_sql)
           logging.info('get_notifications_for_epic results %s' % len(notifications))
           break
@@ -1073,9 +1072,7 @@ async def invalidate_cache_batch(db_pool, pid, channel, serial_id, pat_cache):
 
   # run push_notifications_to_epic in a batch way
   logging.info('Invalidating patient cache serial_id %s (via channel %s)' % (serial_id, channel))
-  lock_sql = 'LOCK TABLE epic_notifications_history IN EXCLUSIVE MODE'
-  sql = '''
-  with notifications as (
+  sql = '''with notifications as (
     select * from get_notifications_for_refreshed_pats({serial_id}, '{model}')
   )
   select pat_id, visit_id, enc_id, count, score, threshold, flag from
@@ -1089,9 +1086,8 @@ async def invalidate_cache_batch(db_pool, pid, channel, serial_id, pat_cache):
         retries += 1
         try:
           async with conn.transaction(isolation='serializable'):
-            await conn.execute(lock_sql)
             notifications = await conn.fetch(sql)
-            logging.info('get_notifications_for_refreshed_pats results %s' % len(notifications))
+            logging.info('get_notifications_for_epic results %s' % len(notifications))
             await load_epic_notifications(notifications)
             pats = await conn.fetch(pat_sql)
             logging.info("Invalidating cache for %s" % ','.join(pat_id['pat_id'] for pat_id in pats))
