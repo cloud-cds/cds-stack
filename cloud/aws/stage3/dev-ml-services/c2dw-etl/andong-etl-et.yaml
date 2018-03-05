@@ -15,19 +15,10 @@ spec:
       containers:
       - name: hcgh-1m-t-p2
         image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:latest
-        resources:
-          limits:
-            cpu: "4"
-          requests:
-            cpu: "4"
-        args:
-        - -cpus
-        - "4"
         command:
           - "sh"
           - "-c"
-          - "service rsyslog start && sleep 5 && ./bin/goofys opsdx-clarity-etl-stage /mnt && sleep 5 && ./bin/run_c2dw_test.sh p2 8"
-          #nice -20 python -q -X faulthandler ./etl/clarity2dw/planner.py 2>&1 | tee -a /mnt/c2dw-test/hcgh-1m-t-p2.log"
+          - "service rsyslog start && sleep 5 && ./bin/goofys opsdx-clarity-etl-stage /mnt && sleep 5 && ./bin/run_c2dw_test.sh p2 1"
         securityContext:
           privileged: true
         env:
@@ -39,10 +30,11 @@ spec:
           value: "True"
         - name: transform
           value: "True"
-        - name: transform_shuffle
-          value: "True"
-        # - name: transform_fids
-        #   value: "temperature;heart_rate;resp_rate;nbp_sys;nbp_dias;chronic_kidney_diag;chronic_kidney_prob;chronic_kidney_hist;lactate_order,blood_culture_order,cbc_order,metabolic_panel_order,culture_order;sepsis_diag;sepsis_hist;sepsis_prob;septic_shock_diag;septic_shock_hist;septic_shock_prob"
+        # - name: transform_shuffle
+        #   value: "True"
+        - name: transform_fids
+          value: "temperature;heart_rate;resp_rate;nbp_sys;"
+            # "temperature;heart_rate;resp_rate;nbp_sys;nbp_dias;chronic_kidney_diag;chronic_kidney_prob;chronic_kidney_hist;lactate_order,blood_culture_order,cbc_order,metabolic_panel_order,culture_order;sepsis_diag;sepsis_hist;sepsis_prob;septic_shock_diag;septic_shock_hist;septic_shock_prob"
         - name: fillin
           value: "False"
         - name: derive
