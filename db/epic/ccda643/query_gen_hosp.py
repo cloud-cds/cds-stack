@@ -642,7 +642,7 @@ GO
 
 :OUT \\\\Client\F$\clarity\hist.{idx}.rpt
 SET NOCOUNT ON
-SELECT DISTINCT coalesce(csn.EXTERNAL_ID, Encounter.PAT_ENC_CSN_ID) CSN_ID 
+SELECT DISTINCT coalesce(csn.EXTERNAL_ID, Encounter.PAT_ENC_CSN_ID) CSN_ID
   ,pat.EXTERNAL_ID PATIENTID
   ,CAST(COALESCE(Encounter.DEPARTMENT_ID, HospitalEncounter.DEPARTMENT_ID) AS VARCHAR(50)) DEPARTMENTID
   ,edg.DX_NAME diagName
@@ -921,7 +921,7 @@ GO
 USE CLARITY;
 :OUT \\\\Client\F$\clarity\code_rrt_events.{idx}.rpt
 SET NOCOUNT ON
-SELECT PAT_ENC_HSP_1.EXTERNAL_ID csn_id 
+SELECT PAT_ENC_HSP_1.EXTERNAL_ID csn_id
 ,a.event_id
 ,a.EVENT_TYPE event_type
 ,a.event_display_name
@@ -932,17 +932,17 @@ SELECT PAT_ENC_HSP_1.EXTERNAL_ID csn_id
 ,d.DEPARTMENT_NAME department_name
 ,g.FLO_MEAS_ID flo_meas_id
 ,h.DISP_NAME disp_name
-,g.MEAS_COMMENT meas_comment 
-,g.MEAS_VALUE meas_value 
+,g.MEAS_COMMENT meas_comment
+,g.MEAS_VALUE meas_value
 from ED_IEV_EVENT_INFO a with (nolock)
 inner join ED_IEV_PAT_INFO b with (nolock) on a.event_id = b.EVENT_ID
-inner join PATIENT c with (nolock) on b.pat_id = c.pat_id 
-inner join Analytics.dbo.CCDA643_CSNLookupTable pat_enc_hsp_1 on pat_enc_hsp_1.pat_enc_csn_id = b.pat_csn 
+inner join PATIENT c with (nolock) on b.pat_id = c.pat_id
+inner join Analytics.dbo.CCDA643_CSNLookupTable pat_enc_hsp_1 on pat_enc_hsp_1.pat_enc_csn_id = b.pat_csn
 inner join CLARITY_DEP d with (nolock) on a.EVENT_DEPT_ID = d.DEPARTMENT_ID
 inner join IP_DATA_STORE e with (nolock) on b.PAT_CSN = e.EPT_CSN
 inner join IP_FLWSHT_REC f with (nolock) on e.inpatient_data_id = f.inpatient_data_id
 inner join IP_FLWSHT_MEAS g with (nolock) on f.fsd_id = g.FSD_ID
-inner join IP_FLO_GP_DATA h with (nolock) on h.FLO_MEAS_ID = g.FLO_MEAS_ID 
+inner join IP_FLO_GP_DATA h with (nolock) on h.FLO_MEAS_ID = g.FLO_MEAS_ID
 where event_type in (
 '34370',
 '34371',
@@ -1170,9 +1170,8 @@ for i in range(num_splits):
     next_month = (month + num_months) % 12
     next_year = year + int(month + num_months) // int(12)
 
-    if next_year > end_date[0]:
+    if next_year > end_date[0] or (next_year > end_date[0] and next_month > end_date[1]):
         next_year = end_date[0]
-    if next_month > end_date[1]:
         next_month = end_date[1]
     this_end_date = "{year}-{month}-01".format(year=next_year, month=str(next_month).zfill(2))
 

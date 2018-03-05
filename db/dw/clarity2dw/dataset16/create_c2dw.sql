@@ -74,7 +74,7 @@ CREATE TEMP TABLE parameters_temp (
   name text,
   value text
 );
- \COPY parameters_temp FROM 'parameters.csv' WITH csv header DELIMITER AS ',';
+ \COPY parameters_temp FROM 'dw/parameters.csv' WITH csv header DELIMITER AS ',';
 
 insert into parameters (dataset_id, name, value)
   select 16, name, value from parameters_temp
@@ -88,7 +88,7 @@ CREATE TEMP TABLE criteria_default_temp (
   category  varchar(50)
 );
 
--- ======================================
+-- =====================================
 -- Upsert criteria_default
 -- ======================================
 DELETE
@@ -98,9 +98,8 @@ WHERE dataset_id = 16;
  \COPY criteria_default_temp FROM 'criteria_default.csv' WITH csv header DELIMITER AS ',';
 
 insert into criteria_default (dataset_id, name, fid, override_value, category)
-  select 16, name, fid, override_value, category from criteria_default_temp
-  on conflict (dataset_id, name, fid, category)
-  do update set override_value = excluded.override_value;
+  select 16, name, fid, override_value, category from criteria_default_temp;
+
 -- ======================================
 -- Upsert CDM_g
 -- ======================================
@@ -109,7 +108,7 @@ FROM cdm_g
 WHERE dataset_id = 16;
 
 
- \COPY cdm_g FROM 'CDM_G.csv' WITH csv header DELIMITER AS ',';
+ \COPY cdm_g FROM 'dw/clarity2dw/dataset16/CDM_G.csv' WITH csv header DELIMITER AS ',';
 
 
 -- drop table if exists flowsheet_dict;

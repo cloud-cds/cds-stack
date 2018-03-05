@@ -336,7 +336,7 @@ vancomycin_trough,yes,no,"""Labs""","""BASE_NAME"", ""RESULT_TIME"", ""ResultVal
 influanat,yes,no,"""Labs_643""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue""","WHERE ""BASE_NAME"" = 'INFLUANAT'",
 influbnat,yes,no,"""Labs_643""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue""","WHERE ""BASE_NAME"" = 'INFLUBNAT'",
 rsvnat,yes,no,"""Labs_643""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue""","WHERE ""BASE_NAME"" = 'RSVNAT'",
-glucose,yes,no,"""Labs_643""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue""","WHERE ""BASE_NAME"" = 'GLU'",convert_lab_value_to_real
+glucose,yes,no,"""Labs""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue""","WHERE ""BASE_NAME"" = 'GLU'",convert_lab_value_to_real
 amikacin_peak,yes,no,"""Labs_643""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue""","WHERE ""BASE_NAME"" = 'AMIKPEAK'",convert_lab_value_to_real
 amikacin_trough,yes,no,"""Labs_643""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue""","WHERE ""BASE_NAME"" = 'AMIKTROUGH'",convert_lab_value_to_real
 gentamicin_peak,yes,no,"""Labs_643""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue""","WHERE ""BASE_NAME"" = 'GENTPEAK'",convert_lab_value_to_real
