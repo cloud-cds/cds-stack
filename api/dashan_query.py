@@ -803,9 +803,10 @@ async def update_nursing_eval(db_pool,eid, data,uid):
     insert_str = \
     '''
     INSERT INTO nurse_eval (enc_id, tsp, uid, eval)
-    VALUES ((select enc_id from pat_enc where pat_id='%s' order by enc_id desc limit 1),now(), %s, '%s');
+    VALUES ((select enc_id from pat_enc where pat_id='%s' order by enc_id desc limit 1),now(), '%s', '%s');
     ''' %(eid,uid,str(data).replace("'", '"'))
     try:
+      print(insert_str)
       async with db_pool.acquire() as conn:
         await conn.execute(insert_str)
     except Exception as e:

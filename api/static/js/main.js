@@ -1567,24 +1567,24 @@ var nursingWorkflowComponent = new function() {
 		console.log("updating notif");
 		if ("mental_status" in trews.data["nursing_eval"] && "known_infection" in trews.data["nursing_eval"]) {
 			if ( trews.data["nursing_eval"]["mental_status"] == 'Yes' || trews.data["nursing_eval"]["known_infection"] == 'Yes') {
-				trews.data["nursing_eval"]["advise_notify"] = true;
+				trews.data["nursing_eval"]["advise_notify"] = "true";
 				console.log("updating to notif_txt from yes");
 				result_txt = notify_txt;
 			} else if (Math.random() < JSON.parse(trews["data"]["severe_sepsis"]["trews_subalert"]["value"])["pct_sevsep"]/100) {
-				trews.data["nursing_eval"]["advise_notify"] = true;
+				trews.data["nursing_eval"]["advise_notify"] = "true";
 				console.log("updating to notif_txt from prob");
 				result_txt = notify_txt;
 			} else {
-				trews.data["nursing_eval"]["advise_notify"] = false;
+				trews.data["nursing_eval"]["advise_notify"] = "false";
 				console.log("updating to no_notif");
 				result_txt = no_notify_txt;
 			}
 		} else { 
-			trews.data["nursing_eval"]["advise_notify"] = true;
+			trews.data["nursing_eval"]["advise_notify"] = "true";
 		}
 		this.ctn.find("#notify_stat").text(result_txt);
 		console.log("Advise_notify:" + trews.data["nursing_eval"]["advise_notify"])
-		if (trews.data["nursing_eval"]["advise_notify"]) {
+		if (trews.data["nursing_eval"]["advise_notify"] == "true") {
 			console.log("setting to advise")
 			$('#provider-notified-block')[0].style="display:inline-block;";
 		} else {
@@ -1614,7 +1614,7 @@ var notif_click = function() {
 	if (!("nursing_eval" in trews.data)){
 		trews.data["nursing_eval"] = {};
 	}
-	trews.data["nursing_eval"]["provider_notified"] = true;
+	trews.data["nursing_eval"]["provider_notified"] = "true";
 	updateNursingEval()
 
 }
