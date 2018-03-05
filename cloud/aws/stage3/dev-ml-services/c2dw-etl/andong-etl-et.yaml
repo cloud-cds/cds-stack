@@ -1,0 +1,98 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: hcgh-1m-t-p2-job
+spec:
+  template: # create pods using pod definition in this template
+    metadata:
+      # unlike pod-nginx.yaml, the name is not included in the meta data as a unique name is
+      # generated from the deployment name
+      name: hcgh-1m-t-p2
+    spec:
+      nodeSelector:
+        opsdx_nodegroup: c2dw-etl
+      containers:
+      - name: hcgh-1m-t-p2
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:latest
+        resources:
+          limits:
+            cpu: "4"
+          requests:
+            cpu: "4"
+        args:
+        - -cpus
+        - "4"
+        command:
+          - "sh"
+          - "-c"
+          - "service rsyslog start && sleep 5 && ./bin/goofys opsdx-clarity-etl-stage /mnt && sleep 5 && ./bin/run_c2dw_test.sh p2 8"
+          #nice -20 python -q -X faulthandler ./etl/clarity2dw/planner.py 2>&1 | tee -a /mnt/c2dw-test/hcgh-1m-t-p2.log"
+        securityContext:
+          privileged: true
+        env:
+        - name: feature_mapping
+          value: "feature_mapping_test.csv"
+        - name: extract_init
+          value: "True"
+        - name: populate_patients
+          value: "True"
+        - name: transform
+          value: "True"
+        - name: transform_shuffle
+          value: "True"
+        # - name: transform_fids
+        #   value: "temperature;heart_rate;resp_rate;nbp_sys;nbp_dias;chronic_kidney_diag;chronic_kidney_prob;chronic_kidney_hist;lactate_order,blood_culture_order,cbc_order,metabolic_panel_order,culture_order;sepsis_diag;sepsis_hist;sepsis_prob;septic_shock_diag;septic_shock_hist;septic_shock_prob"
+        - name: fillin
+          value: "False"
+        - name: derive
+          value: "False"
+        - name: derive_fids
+          value: "pao2;hepatic_sofa;paco2;abp_mean;sodium;rass;sirs_raw;pao2_to_fio2;qsofa;fio2;neurologic_sofa;hematologic_sofa;renal_sofa;nbp_sys;sirs_hr_oor;resp_sofa;cardio_sofa;hematocrit;wbc;shock_idx;weight;platelets;arterial_ph;nbp_dias;fluids_intake_1hr;co2;dbpm;fluids_intake_24hr;ptt;abp_sys;magnesium;bicarbonate;hypotension_raw;sbpm;heart_rate;nbp_mean;urine_output_24hr;temperature;sirs_wbc_oor;urine_output_6hr;spo2;resp_rate;potassium;bun;hypotension_intp;abp_dias;acute_organ_failure;worst_sofa;hemoglobin;inr;creatinine;fluid_resuscitation;bilirubin;mapm;map;gcs;sirs_intp;minutes_since_any_antibiotics;fluids_intake_3hr;sirs_temperature_oor;sirs_resp_oor;lactate;minutes_since_any_organ_fail"
+        - name: offline_criteria_processing
+          value: "False"
+        - name: dataset_id
+          value: "15"
+        - name: clarity_workspace
+          value: "clarity_1m"
+        - name: etl_graph
+          value: "/mnt/c2dw-test/hcgh-1m-t-p2"
+        - name: nprocs
+          value: "2"
+        - name: num_derive_groups
+          value: "8"
+        - name: vacuum_temp_table
+          value: "True"
+        - name: db_host
+          value: "dw.jh.opsdx.io"
+        - name: db_port
+          value: "5432"
+        - name: db_name
+          value: "opsdx_dev_dw"
+        - name: db_user
+          valueFrom:
+            secretKeyRef:
+              name: c2dw-etl-secrets
+              key: db-username
+        - name: db_password
+          valueFrom:
+            secretKeyRef:
+              name: c2dw-etl-secrets
+              key: db-password
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: c2dw-etl-secrets
+              key: AWS_ACCESS_KEY_ID
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: c2dw-etl-secrets
+              key: AWS_SECRET_ACCESS_KEY
+        - name: AWS_DEFAULT_REGION
+          valueFrom:
+            secretKeyRef:
+              name: c2dw-etl-secrets
+              key: AWS_DEFAULT_REGION
+      restartPolicy: Never
+---
