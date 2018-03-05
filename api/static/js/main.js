@@ -1561,6 +1561,7 @@ var nursingWorkflowComponent = new function() {
 		this.save_btn.click(function(e){save_comment($('#eval_comments')[0].value)});
  	}
 	this.update_notification_prompt = function () {
+		var no_threshold = 20;
 		var notify_txt = "TREWS indicates high risk of sepsis, please notify the patient's provider";
 		var no_notify_txt = "TREWS does not indicate high risk of sepsis at this time.";
 		var result_txt = "";
@@ -1570,7 +1571,7 @@ var nursingWorkflowComponent = new function() {
 				trews.data["nursing_eval"]["advise_notify"] = "true";
 				console.log("updating to notif_txt from yes");
 				result_txt = notify_txt;
-			} else if (Math.random() < JSON.parse(trews["data"]["severe_sepsis"]["trews_subalert"]["value"])["pct_sevsep"]/100) {
+			} else if (JSON.parse(trews["data"]["severe_sepsis"]["trews_subalert"]["value"])["pct_sevsep"]>no_threshold) {
 				trews.data["nursing_eval"]["advise_notify"] = "true";
 				console.log("updating to notif_txt from prob");
 				result_txt = notify_txt;
