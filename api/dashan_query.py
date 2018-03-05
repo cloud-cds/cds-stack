@@ -751,7 +751,7 @@ async def get_feature_mapping(db_pool):
       df = await conn.fetch(get_mapping_sql)
       return json.loads(df[0][0]) 
   except Exception as e:
-    print("Exception: " + str(e) + " in get_feature_mapping query")
+    #print("Exception: " + str(e) + " in get_feature_mapping query")
     return {}
 
 async def get_explanations(db_pool, eid):
@@ -774,7 +774,7 @@ async def get_explanations(db_pool, eid):
               "orgdfs": { orgdf: val for orgdf,val in zip(org_dfs, df[0][2:])}}
       return result
   except Exception as e:
-    print("Exception: " + str(e) + " in get_explanations query")
+    #print("Exception: " + str(e) + " in get_explanations query")
     result = {"feature_relevance": {},
             "twf_raw_values": {},
             "s_raw_values": {},
@@ -793,10 +793,10 @@ async def get_nursing_eval(db_pool,eid):
       data = json.loads(df[0][0])
       #epoch = datetime.datetime.utcfromtimestamp(0).replace(tzinfo=pytz.UTC)
       data['tsp'] = df[0][1]
-      print("succes nurse eval", data)
+      #print("success nurse eval", data)
       return data;
   except Exception as e:
-    print("Exception: " + str(e) + " in get_nursing_eval")
+    #print("Exception: " + str(e) + " in get_nursing_eval")
     return {}
 
 async def update_nursing_eval(db_pool,eid, data,uid):
@@ -806,11 +806,11 @@ async def update_nursing_eval(db_pool,eid, data,uid):
     VALUES ((select enc_id from pat_enc where pat_id='%s' order by enc_id desc limit 1),now(), '%s', '%s');
     ''' %(eid,uid,str(data).replace("'", '"'))
     try:
-      print(insert_str)
+      #print(insert_str)
       async with db_pool.acquire() as conn:
         await conn.execute(insert_str)
     except Exception as e:
-      print("Exception: " + str(e) + " in update_nursing_eval")
+      #print("Exception: " + str(e) + " in update_nursing_eval")
     return
 
 async def push_notifications_to_epic(db_pool, eid, notify_future_notification=True):
