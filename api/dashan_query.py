@@ -785,14 +785,15 @@ async def get_explanations(db_pool, eid):
 async def get_nursing_eval(db_pool,eid):
   get_eval_str = \
   '''
-  select eval,date_part('epoch', tsp) tsp from nurse_eval where enc_id = (select enc_id from pat_enc where pat_id = '%s') order by tsp::timestamptz desc limit 1;
+  select eval,uid, date_part('epoch', tsp) tsp from nurse_eval where enc_id = (select enc_id from pat_enc where pat_id = '%s') order by tsp::timestamptz desc limit 1;
   '''%(eid)
   try:
     async with db_pool.acquire() as conn:
       df = await conn.fetch(get_eval_str)
       data = json.loads(df[0][0])
       #epoch = datetime.datetime.utcfromtimestamp(0).replace(tzinfo=pytz.UTC)
-      data['tsp'] = df[0][1]
+      data['tsp'] = df[0][2]
+      data['uid'] = df[0][1]
       #print("success nurse eval", data)
       return data;
   except Exception as e:

@@ -1518,7 +1518,7 @@ var nursingWorkflowComponent = new function() {
 			if (Date.now()-date.getTime() > (12 * 60*60*1000)) {
 				time_txt += ", over 12 hours ago. Please confirm and resubmit the evaluation";
 			}
-			time_txt += ".";
+			time_txt += " by " + trews.data["nursing_eval"]["uid"];
 		} else {
 			date = null;
 			time_txt = "An evaluation has not been completed";
