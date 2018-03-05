@@ -1540,7 +1540,7 @@ var nursingWorkflowComponent = new function() {
 			$(this.inf_buttons[trews.data["nursing_eval"]["known_infection"]])[0].checked="true";
 		   }
 		  if ("provider_notified" in trews.data["nursing_eval"]) {
-			$('#provider-notified')[0].checked="true";
+			$('#yes_notif')[0].checked="true";
 		   }
 		}
 		this.update_notification_prompt();
@@ -1556,7 +1556,7 @@ var nursingWorkflowComponent = new function() {
 		this.no_inf_btn.click(function(e){infection_click("No")});
 		this.yes_inf_btn = $('#yes_inf');
 		this.yes_inf_btn.click(function(e){infection_click("Yes")});
-		$('#provider-notified').click(function(e){notify_click()});
+		$('#yes_notif').click(function(e){notify_click()});
 		this.save_btn = $('#save_comment');
 		this.save_btn.click(function(e){save_comment($('#eval_comments')[0].value)});
  	}
@@ -1610,7 +1610,7 @@ var infection_click = function(stat) {
 	updateNursingEval()
 
 }
-var notif_click = function() {
+var notify_click = function() {
 	if (!("nursing_eval" in trews.data)){
 		trews.data["nursing_eval"] = {};
 	}
