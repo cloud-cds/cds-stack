@@ -1503,6 +1503,12 @@ var nursingWorkflowComponent = new function() {
         this.inf_buttons = {"Yes":'#yes_inf', "No":'#no_inf'};
 	//this.notif_buttons = {"Yes":'#yes_notif', "No":'#no_notif'};
 	this.render = function() {
+		//hide the display if no alert
+		if (!trews.data["severe_sepsis"]["trews_subalert"]["is_met"]) {
+			console.log("Seting display to none");
+			this.ctn.html("");
+			return;
+		}
 		//timestamp of the last evaluation
 		var time_txt = "";
 		if ("nursing_eval" in trews.data && "tsp" in trews.data["nursing_eval"]) {
