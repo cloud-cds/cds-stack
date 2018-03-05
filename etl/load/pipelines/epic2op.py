@@ -178,34 +178,35 @@ async def load_online_prediction_parameters(ctxt, job_id):
     jit_features = await conn.fetch(query_jit_feature)
     jit_features = [f['fid'] for f in jit_features]
     # Load features needed for lmc
-    query_lmc_feature = '''
-    select f.fid
-    from (
-      select column_name fid
-      from information_schema.columns
-      where table_name = 'lmcscore') f
-    inner join cdm_feature cf on f.fid = cf.fid;
-    '''
-    lmc_features = await conn.fetch(query_lmc_feature)
-    lmc_features = [f['fid'] for f in lmc_features]
+    # query_lmc_feature = '''
+    # select f.fid
+    # from (
+    #   select column_name fid
+    #   from information_schema.columns
+    #   where table_name = 'lmcscore') f
+    # inner join cdm_feature cf on f.fid = cf.fid;
+    # '''
+    # lmc_features = await conn.fetch(query_lmc_feature)
+    # lmc_features = [f['fid'] for f in lmc_features]
     # Load features weights from database
-    feature_weights = {}
-    trews_feature_weights = await conn.fetch("select * from trews_feature_weights")
-    for weight in trews_feature_weights:
-      feature_weights[weight['fid']] = weight['weight']
-      ctxt.log.info("feature: {:30} weight: {}".format(weight['fid'], weight['weight']))
-    trews_parameters = await conn.fetch("select * from trews_parameters")
-    for parameter in trews_parameters:
-      if parameter['name'] == 'max_score':
-        max_score = parameter['value']
-      if parameter['name'] == 'min_score':
-        min_score = parameter['value']
-    ctxt.log.info('set max_score to {} and min_score to {}'.format(max_score, min_score))
+    # feature_weights = {}
+    # trews_feature_weights = await conn.fetch("select * from trews_feature_weights")
+    # for weight in trews_feature_weights:
+    #   feature_weights[weight['fid']] = weight['weight']
+    #   ctxt.log.info("feature: {:30} weight: {}".format(weight['fid'], weight['weight']))
+    # trews_parameters = await conn.fetch("select * from trews_parameters")
+    # for parameter in trews_parameters:
+    #   if parameter['name'] == 'max_score':
+    #     max_score = parameter['value']
+    #   if parameter['name'] == 'min_score':
+    #     min_score = parameter['value']
+    # ctxt.log.info('set max_score to {} and min_score to {}'.format(max_score, min_score))
 
     # Get cdm feature dict
     cdm_feature = await conn.fetch("select * from cdm_feature")
     cdm_feature_dict = {f['fid']:dict(f) for f in cdm_feature}
-    required_fids = set(list(feature_weights.keys()) + lmc_features + criteria_features + jit_features)
+    required_fids = set(criteria_features + jit_features)
+    # required_fids = set(list(feature_weights.keys()) + lmc_features + criteria_features + jit_features)
     # list the measured features for online prediction
     features_with_intermediates = get_features_with_intermediates(\
       required_fids, cdm_feature_dict)
@@ -381,18 +382,18 @@ async def workspace_submit(ctxt, job_id):
     ON conflict (enc_id, tsp) do UPDATE SET %(set_columns)s;
     SELECT drop_tables('workspace', '%(job)s_cdm_twf');
   """
-  submit_trews = """
-    CREATE TABLE if not exists trews (LIKE workspace.%(job)s_trews,
-        unique (enc_id, tsp)
-        );
-    INSERT into trews (enc_id, tsp, %(columns)s) (
-        SELECT enc_id, tsp, %(columns)s FROM workspace.%(job)s_trews
-        where now() - tsp < (select value::interval from parameters where name = 'etl_workspace_submit_hours')
-        )
-    ON conflict (enc_id, tsp)
-        do UPDATE SET %(set_columns)s;
-    SELECT drop_tables('workspace', '%(job)s_trews');
-  """
+  # submit_trews = """
+  #   CREATE TABLE if not exists trews (LIKE workspace.%(job)s_trews,
+  #       unique (enc_id, tsp)
+  #       );
+  #   INSERT into trews (enc_id, tsp, %(columns)s) (
+  #       SELECT enc_id, tsp, %(columns)s FROM workspace.%(job)s_trews
+  #       where now() - tsp < (select value::interval from parameters where name = 'etl_workspace_submit_hours')
+  #       )
+  #   ON conflict (enc_id, tsp)
+  #       do UPDATE SET %(set_columns)s;
+  #   SELECT drop_tables('workspace', '%(job)s_trews');
+  # """
   async with ctxt.db_pool.acquire() as conn:
     records = await conn.fetch(select_all_colnames % {'table': 'cdm_twf'})
     colnames = [row[0] for row in records if row[0] != 'enc_id' and row[0] != 'tsp']
@@ -408,8 +409,8 @@ async def workspace_submit(ctxt, job_id):
     ])
     trews_columns = ",".join(colnames)
 
-    ctxt.log.info(submit_trews % {'job': job_id, 'set_columns': trews_set_columns, 'columns': trews_columns} )
-    await conn.execute(submit_trews % {'job': job_id, 'set_columns': trews_set_columns, 'columns': trews_columns} )
+    # ctxt.log.info(submit_trews % {'job': job_id, 'set_columns': trews_set_columns, 'columns': trews_columns} )
+    # await conn.execute(submit_trews % {'job': job_id, 'set_columns': trews_set_columns, 'columns': trews_columns} )
     ctxt.log.info("{}: results submitted".format(job_id))
     ctxt.log.info("submit completed")
     return job_id
@@ -481,11 +482,11 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
     Task(name = 'workspace_derive',
          deps = ['load_online_prediction_parameters', 'workspace_fillin'],
          coro = workspace_derive),
-    Task(name = 'workspace_predict',
-         deps = ['load_online_prediction_parameters', 'workspace_derive'],
-         coro = workspace_predict),
+    # Task(name = 'workspace_predict',
+    #      deps = ['load_online_prediction_parameters', 'workspace_derive'],
+    #      coro = workspace_predict),
     Task(name = 'workspace_submit',
-         deps = ['workspace_predict'],
+         deps = ['load_online_prediction_parameters', 'workspace_derive'],
          coro = workspace_submit),
     Task(name = 'load_discharge_times',
          deps = ['contacts_transform'],
