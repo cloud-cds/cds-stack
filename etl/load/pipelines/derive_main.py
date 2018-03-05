@@ -1051,113 +1051,113 @@ query_config = {
     },
     'clean': {'value': 0, 'confidence': 0},
   },
-  'organ_dysfunction': {
-    'fid_input_items': ['resp_sofa', 'renal_sofa', 'hepatic_sofa', 'hematologic_sofa', 'neurologic_sofa', 'inr'],
-    'derive_type': 'subquery',
-    'subquery': lambda para: '''
-    with S as (
-      select * from %(twf_table_join)s cdm_twf
-    ),
-    enc_ids as (
-      select distinct enc_id
-      from S
-    ),
-    diagnosis as (
-    select e.enc_id,
-      max(case when fid ~ '^chronic_kidney' then value::boolean::int else 0 end) chronic_kidney,
-      max(case when fid ~ '^renal_insufficiency' then value::boolean::int else 0 end) renal_insufficiency,
-      max(case when fid ~ '^diabetes' then value::boolean::int else 0 end) diabetes,
-      max(case when fid ~ '^esrd' then value::boolean::int else 0 end) esrd,
-      max(case when fid ~ '^liver_disease' then value::boolean::int else 0 end) liver_disease,
-      max(case when fid ~ '^hem_malig' then value::boolean::int else 0 end) hem_malig
-    from enc_ids e left join cdm_s s on e.enc_id = s.enc_id
-    and fid ~ '_hist|_diag|_prob' %(dataset_id_equal_s)s
-    group by e.enc_id
-    ),
-    baseline as (
-      select D.*,
-        (case when baseline_hematologic_sofa > 0 then 1 else 300 end) baseline_platelets,
-        (case when baseline_renal_sofa > 0 then 1.2 else 0.6 end) baseline_creatinine,
-        (case when baseline_hematologic_sofa > 0 then 1.2 else 1 end) baseline_bilirubin,
-        0 baseline_resp_sofa,
-        0 baseline_cardio_sofa,
-        0 baseline_neurologic_sofa,
-        0 baseline_inr_sofa
-      from (
-        select diagnosis.*,
-          (case when 0.02424718*(chronic_kidney-0.01644633)/0.12718431 + 0.02340346*(renal_insufficiency-0.01042278)/0.10155857 + 0.01904245*(diabetes-0.14447503)/0.35157075 > 0.1617511 then 1 else 0 end) baseline_renal_sofa,
-          (case when esrd = 1 then 4 else 0 end) baseline_hepatic_sofa,
-          (case when 0.00719707*(liver_disease-0.00985877)/0.0988007 + 0.00224878*(hem_malig-0.08369806)/0.27693445 > 0.18768301 then 1 else 0 end) baseline_hematologic_sofa,
-          (case when 0.01025011*(diabetes-0.14447503)/0.35157075 + 0.01315644*(hem_malig-0.08369806)/0.27693445 + 0.01247086*(liver_disease-0.00985877)/0.0988007 > 0.17795244 then 1.2 else 0.95 end) baseline_inr
-        from diagnosis) D
-    ),
-    vent as (
-      select enc_id, tsp
-      from %(cdm_t)s
-      where fid = 'vent'
-      %(dataset_id_equal_t)s
-    ),
-    warfarin_dose as (
-      select enc_id, tsp
-      from %(cdm_t)s
-      where fid = 'warfarin_dose' and value::json->>'action' = 'Given'
-      %(dataset_id_equal_t)s
-    ),
-    vasopressors as (
-      select distinct enc_id
-      from %(cdm_t)s
-      where fid in ('dopamine_dose','vasopressin_dose','epinephrine_dose','levophed_infusion_dose','neosynephrine_dose')
-      %(dataset_id_equal_t)s
-    ),
-    sofa_score as (
-      select distinct cdm_twf.enc_id, cdm_twf.tsp,
-        (case
-          when vent.tsp is null then cdm_twf.resp_sofa
-          else bs.baseline_resp_sofa + 2
-        end) resp_sofa,
-        (case when esrd > 0 then 4 else cdm_twf.renal_sofa end) renal_sofa,
-        cdm_twf.hepatic_sofa hepatic_sofa,
-        cdm_twf.hematologic_sofa hematologic_sofa,
-        cdm_twf.neurologic_sofa neurologic_sofa,
-        (case when cdm_twf.inr > 1.5 and cdm_twf.inr > 0.5 * bs.baseline_inr and warfarin_dose.tsp is null then bs.baseline_inr_sofa + 2
-         else 0 end) inr_sofa,
-        (case when vasopressors.enc_id is not null then bs.baseline_cardio_sofa + 2
-         else 0 end) cardio_sofa
-      from S cdm_twf
-      inner join baseline bs on cdm_twf.enc_id = bs.enc_id
-      left join vent on cdm_twf.enc_id = vent.enc_id and cdm_twf.tsp between vent.tsp and vent.tsp + '48 hours'::interval
-      left join warfarin_dose on cdm_twf.enc_id = warfarin_dose.enc_id and cdm_twf.tsp between warfarin_dose.tsp and warfarin_dose.tsp + '24 hours'::interval
-      left join vasopressors on cdm_twf.enc_id = vasopressors.enc_id
-    )
-    select %(dataset_id)s s.enc_id, s.tsp,
-      (
-        s.renal_sofa +
-        s.resp_sofa +
-        s.cardio_sofa +
-        s.neurologic_sofa +
-        s.hepatic_sofa +
-        s.hematologic_sofa +
-        s.inr_sofa
-        >= 2 + b.baseline_renal_sofa
-             + b.baseline_resp_sofa
-             + b.baseline_cardio_sofa
-             + b.baseline_neurologic_sofa
-             + b.baseline_hepatic_sofa
-             + b.baseline_hematologic_sofa
-             + b.baseline_inr_sofa
-      )::int organ_dysfunction,
-      0 organ_dysfunction_c
-    from sofa_score s inner join baseline b on s.enc_id = b.enc_id
-    ''' % {
-      'dataset_id': '{},'.format(para.get("dataset_id")) if para.get("dataset_id") else '',
-      'twf_table_join': para.get('twf_table_join'),
-      'cdm_t': para.get('cdm_t_target'),
-      'dataset_id_equal_t': dataset_id_equal(" and ", "cdm_t", para.get("dataset_id")),
-      'dataset_id_equal_s': dataset_id_equal(" and ", "s", para.get("dataset_id")),
-      'where_dataset_id_equal': dataset_id_equal(" where ", "cdm_twf", para.get("dataset_id")),
-    },
-    'clean': {'value': 'null', 'confidence': 'null'}
-  },
+  # 'organ_dysfunction': {
+  #   'fid_input_items': ['resp_sofa', 'renal_sofa', 'hepatic_sofa', 'hematologic_sofa', 'neurologic_sofa', 'inr'],
+  #   'derive_type': 'subquery',
+  #   'subquery': lambda para: '''
+  #   with S as (
+  #     select * from %(twf_table_join)s cdm_twf
+  #   ),
+  #   enc_ids as (
+  #     select distinct enc_id
+  #     from S
+  #   ),
+  #   diagnosis as (
+  #   select e.enc_id,
+  #     max(case when fid ~ '^chronic_kidney' then value::boolean::int else 0 end) chronic_kidney,
+  #     max(case when fid ~ '^renal_insufficiency' then value::boolean::int else 0 end) renal_insufficiency,
+  #     max(case when fid ~ '^diabetes' then value::boolean::int else 0 end) diabetes,
+  #     max(case when fid ~ '^esrd' then value::boolean::int else 0 end) esrd,
+  #     max(case when fid ~ '^liver_disease' then value::boolean::int else 0 end) liver_disease,
+  #     max(case when fid ~ '^hem_malig' then value::boolean::int else 0 end) hem_malig
+  #   from enc_ids e left join cdm_s s on e.enc_id = s.enc_id
+  #   and fid ~ '_hist|_diag|_prob' %(dataset_id_equal_s)s
+  #   group by e.enc_id
+  #   ),
+  #   baseline as (
+  #     select D.*,
+  #       (case when baseline_hematologic_sofa > 0 then 1 else 300 end) baseline_platelets,
+  #       (case when baseline_renal_sofa > 0 then 1.2 else 0.6 end) baseline_creatinine,
+  #       (case when baseline_hematologic_sofa > 0 then 1.2 else 1 end) baseline_bilirubin,
+  #       0 baseline_resp_sofa,
+  #       0 baseline_cardio_sofa,
+  #       0 baseline_neurologic_sofa,
+  #       0 baseline_inr_sofa
+  #     from (
+  #       select diagnosis.*,
+  #         (case when 0.02424718*(chronic_kidney-0.01644633)/0.12718431 + 0.02340346*(renal_insufficiency-0.01042278)/0.10155857 + 0.01904245*(diabetes-0.14447503)/0.35157075 > 0.1617511 then 1 else 0 end) baseline_renal_sofa,
+  #         (case when esrd = 1 then 4 else 0 end) baseline_hepatic_sofa,
+  #         (case when 0.00719707*(liver_disease-0.00985877)/0.0988007 + 0.00224878*(hem_malig-0.08369806)/0.27693445 > 0.18768301 then 1 else 0 end) baseline_hematologic_sofa,
+  #         (case when 0.01025011*(diabetes-0.14447503)/0.35157075 + 0.01315644*(hem_malig-0.08369806)/0.27693445 + 0.01247086*(liver_disease-0.00985877)/0.0988007 > 0.17795244 then 1.2 else 0.95 end) baseline_inr
+  #       from diagnosis) D
+  #   ),
+  #   vent as (
+  #     select enc_id, tsp
+  #     from %(cdm_t)s
+  #     where fid = 'vent'
+  #     %(dataset_id_equal_t)s
+  #   ),
+  #   warfarin_dose as (
+  #     select enc_id, tsp
+  #     from %(cdm_t)s
+  #     where fid = 'warfarin_dose' and value::json->>'action' = 'Given'
+  #     %(dataset_id_equal_t)s
+  #   ),
+  #   vasopressors as (
+  #     select distinct enc_id
+  #     from %(cdm_t)s
+  #     where fid in ('dopamine_dose','vasopressin_dose','epinephrine_dose','levophed_infusion_dose','neosynephrine_dose')
+  #     %(dataset_id_equal_t)s
+  #   ),
+  #   sofa_score as (
+  #     select distinct cdm_twf.enc_id, cdm_twf.tsp,
+  #       (case
+  #         when vent.tsp is null then cdm_twf.resp_sofa
+  #         else bs.baseline_resp_sofa + 2
+  #       end) resp_sofa,
+  #       (case when esrd > 0 then 4 else cdm_twf.renal_sofa end) renal_sofa,
+  #       cdm_twf.hepatic_sofa hepatic_sofa,
+  #       cdm_twf.hematologic_sofa hematologic_sofa,
+  #       cdm_twf.neurologic_sofa neurologic_sofa,
+  #       (case when cdm_twf.inr > 1.5 and cdm_twf.inr > 0.5 * bs.baseline_inr and warfarin_dose.tsp is null then bs.baseline_inr_sofa + 2
+  #        else 0 end) inr_sofa,
+  #       (case when vasopressors.enc_id is not null then bs.baseline_cardio_sofa + 2
+  #        else 0 end) cardio_sofa
+  #     from S cdm_twf
+  #     inner join baseline bs on cdm_twf.enc_id = bs.enc_id
+  #     left join vent on cdm_twf.enc_id = vent.enc_id and cdm_twf.tsp between vent.tsp and vent.tsp + '48 hours'::interval
+  #     left join warfarin_dose on cdm_twf.enc_id = warfarin_dose.enc_id and cdm_twf.tsp between warfarin_dose.tsp and warfarin_dose.tsp + '24 hours'::interval
+  #     left join vasopressors on cdm_twf.enc_id = vasopressors.enc_id
+  #   )
+  #   select %(dataset_id)s s.enc_id, s.tsp,
+  #     (
+  #       s.renal_sofa +
+  #       s.resp_sofa +
+  #       s.cardio_sofa +
+  #       s.neurologic_sofa +
+  #       s.hepatic_sofa +
+  #       s.hematologic_sofa +
+  #       s.inr_sofa
+  #       >= 2 + b.baseline_renal_sofa
+  #            + b.baseline_resp_sofa
+  #            + b.baseline_cardio_sofa
+  #            + b.baseline_neurologic_sofa
+  #            + b.baseline_hepatic_sofa
+  #            + b.baseline_hematologic_sofa
+  #            + b.baseline_inr_sofa
+  #     )::int organ_dysfunction,
+  #     0 organ_dysfunction_c
+  #   from sofa_score s inner join baseline b on s.enc_id = b.enc_id
+  #   ''' % {
+  #     'dataset_id': '{},'.format(para.get("dataset_id")) if para.get("dataset_id") else '',
+  #     'twf_table_join': para.get('twf_table_join'),
+  #     'cdm_t': para.get('cdm_t_target'),
+  #     'dataset_id_equal_t': dataset_id_equal(" and ", "cdm_t", para.get("dataset_id")),
+  #     'dataset_id_equal_s': dataset_id_equal(" and ", "s", para.get("dataset_id")),
+  #     'where_dataset_id_equal': dataset_id_equal(" where ", "cdm_twf", para.get("dataset_id")),
+  #   },
+  #   'clean': {'value': 'null', 'confidence': 'null'}
+  # },
   #####################
   # cdm_t features
   #####################
