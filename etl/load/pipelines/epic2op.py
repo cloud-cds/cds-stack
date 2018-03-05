@@ -224,9 +224,6 @@ async def load_online_prediction_parameters(ctxt, job_id):
     ctxt.log.info("The derive features in online prediction: {}".format(derive_features))
 
     return {
-      'feature_weights'  : dict(feature_weights),
-      'max_score'        : max_score,
-      'min_score'        : min_score,
       'cdm_feature_dict' : cdm_feature_dict,
       'fillin_features'  : fillin_features,
       'derive_features'  : derive_features,
@@ -364,7 +361,7 @@ async def workspace_predict(ctxt, prediction_params, job_id):
 
 
 
-async def workspace_submit(ctxt, job_id):
+async def workspace_submit(ctxt, prediction_params, job_id):
   # submit to cdm_twf
   # submit to trews
   ctxt.log.info("submit start")
