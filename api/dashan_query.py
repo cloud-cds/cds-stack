@@ -812,7 +812,7 @@ async def update_nursing_eval(db_pool,eid, data,uid):
         await conn.execute(insert_str)
     except Exception as e:
       #print("Exception: " + str(e) + " in update_nursing_eval")
-    return
+      return
 
 
 async def push_notifications_to_epic(db_pool, eid, notify_future_notification=True):
