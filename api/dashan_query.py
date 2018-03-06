@@ -746,29 +746,73 @@ async def get_feature_mapping(db_pool):
   '''
   select value from parameters where name='trews_jit_interpretability_mapping'
   '''
-  async with db_pool.acquire() as conn:
-    df = await conn.fetch(get_mapping_sql)
-    return json.loads(df[0][0]) 
+  try:
+    async with db_pool.acquire() as conn:
+      df = await conn.fetch(get_mapping_sql)
+      return json.loads(df[0][0]) 
+  except Exception as e:
+    #print("Exception: " + str(e) + " in get_feature_mapping query")
+    return {}
 
 async def get_explanations(db_pool, eid):
+  org_dfs = ['creatinine_orgdf', 'bilirubin_orgdf', 'platelets_orgdf','gcs_orgdf', 'inr_orgdf','hypotension_orgdf','lactate_orgdf']
   get_explanations_sql = \
   '''
-  select feature_relevance, twf_raw_values,s_raw_values
+  select feature_relevance, twf_raw_values,s_raw_values,%s
   from trews_jit_score where enc_id = (select * from pat_id_to_enc_id('%s'::text))
   and tsp = ( select measurement_time from criteria_events where enc_id= (select * from pat_id_to_enc_id('%s'::text)) and name ='trews_subalert' and flag::numeric>0)::timestamptz
   and model_id = (select value from trews_parameters where name='trews_jit_model_id')
   order by (orgdf_details::json->>'pred_time')::timestamptz desc
   limit 1;
-  ''' %(eid, eid)
+  ''' %(','.join(org_dfs), eid, eid)
   try:
     async with db_pool.acquire() as conn:
       df = await conn.fetch(get_explanations_sql)
-      return {"feature_relevance":json.loads(df[0][0]),
+      result = {"feature_relevance":json.loads(df[0][0]),
               "twf_raw_values":json.loads(df[0][1]),
-              "s_raw_values":json.loads(df[0][2])}
+              "s_raw_values":json.loads(df[0][2]),
+              "orgdfs": { orgdf: val for orgdf,val in zip(org_dfs, df[0][2:])}}
+      return result
   except Exception as e:
-    print(e)
+    #print("Exception: " + str(e) + " in get_explanations query")
+    result = {"feature_relevance": {},
+            "twf_raw_values": {},
+            "s_raw_values": {},
+            "orgdfs" : {orgdf:0 for orgdf in org_dfs}}
+    return result
+    
+
+async def get_nursing_eval(db_pool,eid):
+  get_eval_str = \
+  '''
+  select eval,uid, date_part('epoch', tsp) tsp from nurse_eval where enc_id = (select enc_id from pat_enc where pat_id = '%s') order by tsp::timestamptz desc limit 1;
+  '''%(eid)
+  try:
+    async with db_pool.acquire() as conn:
+      df = await conn.fetch(get_eval_str)
+      data = json.loads(df[0][0])
+      #epoch = datetime.datetime.utcfromtimestamp(0).replace(tzinfo=pytz.UTC)
+      data['tsp'] = df[0][2]
+      data['uid'] = df[0][1]
+      #print("success nurse eval", data)
+      return data;
+  except Exception as e:
+    #print("Exception: " + str(e) + " in get_nursing_eval")
     return {}
+
+async def update_nursing_eval(db_pool,eid, data,uid):
+    insert_str = \
+    '''
+    INSERT INTO nurse_eval (enc_id, tsp, uid, eval)
+    VALUES ((select enc_id from pat_enc where pat_id='%s' order by enc_id desc limit 1),now(), '%s', '%s');
+    ''' %(eid,uid,str(data).replace("'", '"'))
+    try:
+      #print(insert_str)
+      async with db_pool.acquire() as conn:
+        await conn.execute(insert_str)
+    except Exception as e:
+      #print("Exception: " + str(e) + " in update_nursing_eval")
+    return
 
 
 async def push_notifications_to_epic(db_pool, eid, notify_future_notification=True):

@@ -640,3 +640,11 @@ CREATE TABLE etl_job(
     tsp             timestamptz,
     hospital        text
 );
+
+DROP TABLE IF EXISTS nurse_eval;
+CREATE TABLE nurse_eval(
+    enc_id           int,
+    tsp              timestamptz,
+    uid              str,
+    eval             json
+);
