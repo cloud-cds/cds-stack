@@ -318,40 +318,10 @@ class Extractor:
               else:
                 futures_a = futures_total[:limit - len(futures)]
                 futures_total = futures_total[limit - len(futures):]
-              if len(futures) > 0:
-                done_a, pending_a = await asyncio.wait(futures_a, return_when = asyncio.FIRST_COMPLETED)
-                for future in done_a:
-                  ctxt.log.info("run_transform_task completed: {}".format(future.result()))
-                  res = future.result()
-                  graph['done'].append((res[0]['fid(s)'], res[1]))
-                futures |= pending_a
-              else:
-                futures = futures_a
+              futures_a = set([asyncio.ensure_future(f) for f in futures_a])
+              futures |= futures_a
             # ctxt.log.info("futures: {}".format(futures))
             ctxt.log.info("remaining transform_tasks: {}".format(len(futures)))
-        # elif mode == 'sem':
-        #   tasks = []
-        #   # create instance of Semaphore
-        #   limit = int(self.job.get('transform').get('sem_limit'))
-        #   sem = asyncio.Semaphore(limit)
-
-        #   async def map_f(sem, mapping_row):
-        #     async with sem:
-        #       await self.run_feature_mapping_row(ctxt, mapping_row)
-
-        #   for mapping_row in task:
-        #       # pass Semaphore and session to every GET request
-        #       t = asyncio.ensure_future(
-        #           map_f(sem, mapping_row))
-        #       tasks.append(t)
-        #   # responses = asyncio.gather(*tasks)
-        #   done, pending = await asyncio.wait(tasks, return_when = asyncio.FIRST_COMPLETED)
-        #   for future in done:
-        #     ctxt.log.info("run_transform_task completed: {}".format(future.result()))
-        #     res = future.result()
-        #     graph['done'].append((res[0]['fid(s)'], res[1]))
-        #   futures = pending
-        #   ctxt.log.info("remaining transform_tasks: {}".format(len(futures)))
         else:
           for mapping_row in task:
             futures = self.run_feature_mapping_row(ctxt, mapping_row)
