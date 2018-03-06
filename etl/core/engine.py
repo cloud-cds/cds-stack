@@ -14,7 +14,7 @@ from graphviz import Digraph
 import time
 
 ENGINE_LOG_FMT = '%(asctime)s|%(name)s|%(process)s-%(thread)s|%(levelname)s|%(message)s'
-
+DB_POOL_MAX_SIZE = int(os.environ['DB_POOL_MAX_SIZE']) if 'DB_POOL_MAX_SIZE' in os.environ else 10
 import code, traceback, signal
 
 #####################
@@ -60,14 +60,14 @@ class TaskContext:
                       password=self.config['db_pass'], \
                       host=self.config['db_host'], \
                       port=self.config['db_port'], \
-                      loop=loop)
+                      loop=loop, max_size=DB_POOL_MAX_SIZE)
     else:
       self.db_pool = await asyncpg.create_pool( \
                       database=self.config['db_name'], \
                       user=self.config['db_user'], \
                       password=self.config['db_pass'], \
                       host=self.config['db_host'], \
-                      port=self.config['db_port'])
+                      port=self.config['db_port'], max_size=DB_POOL_MAX_SIZE)
 
 
 def run_fn_with_context(fn, name, config, *args):
