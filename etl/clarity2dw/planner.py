@@ -47,7 +47,8 @@ job_config = {
     },
     'min_tsp': os.environ['min_tsp'] if 'min_tsp' in os.environ else None,
     'feature_mapping': os.environ['feature_mapping'] if 'feature_mapping' in os.environ else 'feature_mapping.csv',
-    'transform_mode': os.environ['transform_mode'] if 'transform_mode' in os.environ else 'async'
+    'transform_mode': os.environ['transform_mode'] if 'transform_mode' in os.environ else 'async',
+    'sem_limit': os.environ['sem_limit'] if 'sem_limit' in os.environ else 0
   },
   'fillin': False if 'fillin' in os.environ \
     and os.environ['fillin'] == 'False' else \
