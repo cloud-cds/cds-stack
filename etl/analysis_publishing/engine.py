@@ -73,8 +73,8 @@ class Engine:
       # ]
       metric_list = [
         metrics.alert_stats_by_unit,
-        metrics.alert_count_8hr,
-        metrics.alert_performance_metrics
+        metrics.alert_count_8hr#,
+        #metrics.alert_performance_metrics
       ]
 
     elif mode == 'weekly-report':
