@@ -1305,6 +1305,7 @@ class alert_performance_metrics(metric):
                                            float(join_df.loc[has_alert, 'enc_id'].nunique()))
 
       self.perf_metrics = perf_metrics
+
       ###*********************** Alert counts
       # get additonal tsps to see if they have active alerts in other units
       sub_care_unit = care_unit_df.loc[care_unit_df['enc_id'].isin(criteria_events_df['enc_id'])]
@@ -1354,6 +1355,11 @@ class alert_performance_metrics(metric):
 
       self.cnt_df = cnt_df.sort_values(by='care_unit')
 
+      self.total_cnts = pd.DataFrame()
+      self.total_cnts.loc[0, 'total # enc_ids'] = '%d' %(care_unit_df['enc_id'].nunique())
+      self.total_cnts.loc[0, '# enc_ids with alert present'] = '%d' %(alert_df.loc[alert_df['alert']==1, 'enc_id'].nunique())
+      self.total_cnts.loc[0, '# enc_ids with alert fired'] = '%d' %(alert_df.loc[alert_df['new_alert']==1, 'enc_id'].nunique())
+
       ## prepare df to write into DB
       cnt_df['end_tsp'] = str(self.now)
       # create table if not exists
@@ -1396,12 +1402,12 @@ class alert_performance_metrics(metric):
       for u0, unit in enumerate(unq_units):
           hist_df.loc[hist_df[unit].isnull(), unit] = "%03d|%02d|%02d" %(0,0,0)
 
-      self.hist_df = hist_df.sort_values(by='end_tsp')
+      self.hist_df = hist_df.reset_index(drop=True).sort_values(by='end_tsp', ascending=False).loc[::2,:]
 
   def to_html(self):
 
-      # txt = "<h3>Total Number of Alerts</h3>" + self.cnt_df.to_html()
-      txt = "<h3>Number of Alerts by Care Unit</h3>" + self.cnt_df.to_html()
+      txt = "<h3>Total Number of Alerts</h3>" + self.total_cnts.to_html(index=False)
+      txt += "<h3>Number of Alerts by Care Unit</h3>" + self.cnt_df.to_html(index=False)
       txt += "<h5># alerts fired = # enc_ids on whom the alert went from Off to On in this period."
       txt += "<br/># alerts On = # enc_ids whose alert was On at some time during this period but may have been fired before.</h5>"
       txt += "<h3>Alert statistics in each unit within 6-hour windows over the past 48 hours.</h3>"
