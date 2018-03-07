@@ -202,13 +202,26 @@ class Extractor:
     nprocs = 1
     shuffle = False
     if self.job.get('transform', False):
-      nprocs = int(self.job.get('transform').get('populate_measured_features').get('nprocs', nprocs))
+      # nprocs = int(self.job.get('transform').get('populate_measured_features').get('nprocs', nprocs))
       shuffle = self.job.get('transform').get('populate_measured_features').get('shuffle', False)
     specified_fid = self.job.get('transform').get('populate_measured_features').get('fid', None)
     if specified_fid:
       self.feature_mapping = [fm for fm in self.feature_mapping if fm['fid(s)'] in specified_fid]
     transform_tasks = self.partition(self.feature_mapping,  nprocs, random_shuffle=shuffle)
     return transform_tasks
+
+  def get_transform_task(self):
+    nprocs = 1
+    shuffle = False
+    if self.job.get('transform', False):
+      # nprocs = int(self.job.get('transform').get('populate_measured_features').get('nprocs', nprocs))
+      shuffle = self.job.get('transform').get('populate_measured_features').get('shuffle', False)
+    specified_fid = self.job.get('transform').get('populate_measured_features').get('fid', None)
+    if specified_fid:
+      self.feature_mapping = [fm for fm in self.feature_mapping if fm['fid(s)'] in specified_fid]
+    if shuffle:
+      random.shuffle(self.feature_mapping)
+    return self.feature_mapping
 
   def partition(self, lst, n, random_shuffle=False):
     if random_shuffle:

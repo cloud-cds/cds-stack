@@ -172,8 +172,13 @@ class Planner():
                             if 'populate_patients' in all_tasks else all_tasks,
                            coro=self.extractor.transform_init))
 
-        for i, transform_task in enumerate(self.extractor.get_transform_tasks()):
-          self.plan.add(Task('transform_task_{}'.format(i), \
+        # for i, transform_task in enumerate(self.extractor.get_transform_tasks()):
+        #   self.plan.add(Task('transform_task_{}'.format(i), \
+        #     deps=['transform_init'], coro=self.extractor.run_transform_task,
+        #     args=[transform_task]))
+        transform_task = self.extractor.get_transform_task()
+        print(transform_task)
+        self.plan.add(Task('transform_task', \
             deps=['transform_init'], coro=self.extractor.run_transform_task,
             args=[transform_task]))
 
