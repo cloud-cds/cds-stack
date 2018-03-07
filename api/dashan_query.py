@@ -797,7 +797,7 @@ async def get_nursing_eval(db_pool,eid):
       #print("success nurse eval", data)
       return data;
   except Exception as e:
-    #print("Exception: " + str(e) + " in get_nursing_eval")
+    logging.info("Exception: " + str(e) + " in get_nursing_eval")
     return {}
 
 async def update_nursing_eval(db_pool,eid, data,uid):
@@ -805,13 +805,14 @@ async def update_nursing_eval(db_pool,eid, data,uid):
     '''
     INSERT INTO nurse_eval (enc_id, tsp, uid, eval)
     VALUES ((select enc_id from pat_enc where pat_id='%s' order by enc_id desc limit 1),now(), '%s', '%s');
-    ''' %(eid,uid,str(data).replace("'", '"'))
+    ''' %(eid,uid,json.dumps(data).replace("'", '"'))
     try:
       #print(insert_str)
+      logging.info("Updated nurse_eval with command: %s" %insert_str)
       async with db_pool.acquire() as conn:
         await conn.execute(insert_str)
     except Exception as e:
-      #print("Exception: " + str(e) + " in update_nursing_eval")
+      logging.info("Exception: " + str(e) + " in update_nursing_eval")
       return
 
 
