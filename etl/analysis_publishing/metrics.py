@@ -1256,7 +1256,7 @@ class alert_performance_metrics(metric):
 
       has_alert = ~join_df['alert_tsp'].isnull()
       has_event = ~join_df['event_tsp'].isnull()
-      alert_before_event = join_df['alert_tsp'] < join_df['event_tsp'] + pd.to_timedelta('6 hour')
+      alert_before_event = join_df['alert_tsp'] < join_df['event_tsp'] + pd.to_timedelta('3 hour')
 
       join_df.loc[has_alert & has_event & alert_before_event, 'TP'] = True
       join_df.loc[has_alert & has_event & (~alert_before_event), 'late_TP'] = True
@@ -1389,7 +1389,7 @@ class alert_performance_metrics(metric):
                                 columns=['end_tsp', 'care_unit', 'total_enc_ids', 'alerts_present', 'alerts_fired'])
       cnt_df_hist['end_tsp'] = pd.to_datetime(cnt_df_hist['end_tsp']).dt.tz_convert(timezone('utc'))
 
-      cnt_df_hist['txt'] = cnt_df_hist.apply(lambda x: "%03d|%02d|%02d" %(x['total_enc_ids'], x['alerts_present'], x['alerts_fired']), axis=1)
+      cnt_df_hist['txt'] = cnt_df_hist.apply(lambda x: "%3d| %2d| %2d" %(x['total_enc_ids'], x['alerts_present'], x['alerts_fired']), axis=1)
 
       unq_units = cnt_df_hist['care_unit'].unique()
       for u0, unit in enumerate(unq_units):
@@ -1400,9 +1400,11 @@ class alert_performance_metrics(metric):
                                  cnt_df_hist.loc[cnt_df_hist['care_unit']==unit, ['end_tsp', 'txt']].rename(columns={'txt':unit}),
                                  how='outer', on='end_tsp')
       for u0, unit in enumerate(unq_units):
-          hist_df.loc[hist_df[unit].isnull(), unit] = "%03d|%02d|%02d" %(0,0,0)
+          hist_df.loc[hist_df[unit].isnull(), unit] = "%3d| %2d| %2d" %(0,0,0)
 
-      self.hist_df = hist_df.reset_index(drop=True).sort_values(by='end_tsp', ascending=False).loc[::2,:]
+      self.hist_df = hist_df.reset_index(drop=True).sort_values(by='end_tsp', ascending=False).loc[:12:2,:]
+      self.hist_tsp_range = {'min':self.hist_df['end_tsp'].min(), 'max':self.hist_df['end_tsp'].max()}
+      self.hist_df.rename(columns={'end_tsp':'End Time'}, inplace=True)
 
   def to_html(self):
 
@@ -1410,13 +1412,12 @@ class alert_performance_metrics(metric):
       txt += "<h3>Number of Alerts by Care Unit</h3>" + self.cnt_df.to_html(index=False)
       txt += "<h5># alerts fired = # enc_ids on whom the alert went from Off to On in this period."
       txt += "<br/># alerts On = # enc_ids whose alert was On at some time during this period but may have been fired before.</h5>"
-      txt += "<h3>Alert statistics in each unit within 6-hour windows over the past 48 hours.</h3>"
-      txt += "<h5># enc_ids| # alerts present| # alerts fired </h5> " +  self.hist_df.to_html(index=False)
       txt += "<h3>Performance Measures Over a 7-Day Period" + self.perf_metrics.to_html(index=False)
       txt += "<h3>Performance Measures Over a 7-Day Period by Care Unit" + self.perf_cnt_df.to_html(index=False)
+      txt += "<h3>History of alert statistics in each unit from %s to %s.</h3>" %(str(self.hist_tsp_range['min']), str(self.hist_tsp_range['max']))
+      txt += "<h5># enc_ids| # alerts present| # alerts fired </h5> " +  self.hist_df.to_html(index=False)
 
       return txt
-
 
 class suspicion_of_infection_modified(metric):
   def __init__(self,connection, first_time_str, last_time_str):
