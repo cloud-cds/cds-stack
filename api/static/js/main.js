@@ -1345,6 +1345,25 @@ var careSummaryComponent = new function() {
   this.detailVisible = false;
   this.detailSlot = new slotComponent($("[data-trews='care-summary-detail']"), $('#expand-care-detail'), false, false, false, null, false, true);
 
+  this.createExplanationString = function(feat) {
+        measure_feat = feat.toLowerCase().replace(/ /g, "_");
+        var mark = "<font color='red' size=3>&#9733</font>";
+	var table_str = "";
+        table_str += '<tr>'
+        table_str += '<td>' +(feat in trews.data['feature_relevances'] && measure_feat in trews.data['measurements']? mark:"&nbsp")+'</td>';
+        table_str += '<td>'+(feat in DISPLAY_NAMES ? DISPLAY_NAMES[feat]:feat)+'</td>';
+
+        var value = 'Not available'
+        if (measure_feat in trews.data['measurements']) {
+            value = trews.data['measurements'][measure_feat]['value']+' @ '
+            var date = new Date(Date.parse(trews.data['measurements'][measure_feat]['tsp'] + " UTC"));
+            value += strToTime(date.getTime(),true,false);
+        }
+
+        table_str += '<td>'+value+'</td>';
+        table_str += '</tr>';
+	return table_str;
+  }
   this.renderDetail = function(alert_as_cms, cms_status) {
     //Summary
     var summary_html = "";
@@ -1367,7 +1386,7 @@ var careSummaryComponent = new function() {
                      +'</ul>';
     } catch(e) {console.log("Exception while loading mortality summary");}
 
-
+    var trews_html = "";
     //Set up feature relevances 
     if ( 'feature_relevances' in trews.data && trews.data['feature_relevances'] != null
           && 'measurements' in trews.data && trews.data['measurements'] != null
@@ -1378,10 +1397,16 @@ var careSummaryComponent = new function() {
       }
 
       var mark = "<font color='red' size=3>&#9733</font>";
-      var phys_feats = ["BP", "temperature", "heart rate", "SpO2", "PaO2", "PaCO2", "resp rate", "FiO2", "GCS", "RASS"];
+      /*var phys_feats = ["BP", "temperature", "heart rate", "SpO2", "PaO2", "PaCO2", "resp rate", "FiO2", "GCS", "RASS"];
       var hem_feats = ["platelets", "WBC", "INR", "hematocrit", "hemoglobin"];
       var chem_feats = ["sodium", "creatinine", "bilirubin", "amylase", "lactate", "BUN", "ALT liver enzymes", "arterial ph", "bicarbonate", "CO2", "AST liver enzymes", "potassium", "lipase"];
       var displayNames = {"ALT liver enzymes": "ALT", "AST liver enzymes": "AST", 'temperature':'Temperature', "heart rate": "Heart Rate", "resp rate": "Resp. Rate", "platelets": "Platelets","hematocrit":"hematocrit","hemoglobin":"Hemoglobin","sodium": "Sodium", "creatinine":"Creatinine", "bilirubin":"Bilirubin","amylase":"Amylase", "lactate":"Lactate","arterial ph":"Arterial PH","bicarbonate":"Bicarbonate","potassium":"Potassium","lipase":"Lipase"};
+      
+      */
+      var phys_feats = PHYS_FEATS;
+      var hem_feats = HEM_FEATS;
+      var chem_feats = CHEM_FEATS;
+      var displayNames = DISPLAY_NAMES;
       var no_features_str = "";
       if (Object.keys(trews.data['feature_relevances']).length == 0) {
         no_features_str = '<div style="background-color:yellow"><h3 style="color:black">TREWS alerted based on many factors without a dominant feature</h3></div>';
@@ -1389,68 +1414,29 @@ var careSummaryComponent = new function() {
 
       var phys_table_str = '<table style="width:100%;background-color:white;">'
       for (var i = 0; i < phys_feats.length; i++) {
-          phys_table_str += '<tr>'
-          var feat = phys_feats[i];
-          phys_table_str += '<td>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</td>';
-          phys_table_str += '<td>'+(feat in displayNames ? displayNames[feat]:feat)+'</td>';
-
-          var value = 'Not available'
-          feat = feat.toLowerCase().replace(/ /g, "_");
-          if (feat in trews.data['measurements']) {
-            value = trews.data['measurements'][feat]['value']+' @ '
-            var date = new Date(Date.parse(trews.data['measurements'][feat]['tsp'] + " UTC"));
-            value += strToTime(date.getTime(),true,false);
-          }
-
-          phys_table_str += '<td>'+value+'</td>';
-          phys_table_str += '</tr>';
+	  phys_table_str += this.createExplanationString(phys_feats[i]);
       }
 
       var hem_table_str = '<table style="width:100%">'
       for (var i = 0; i < hem_feats.length; i++) {
-          hem_table_str += '<tr>'
-          var feat = hem_feats[i];
-          hem_table_str += '<td>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</td>';
-          hem_table_str += '<td>'+(feat in displayNames ? displayNames[feat]:feat)+'</td>';
-          var value = "Not available"
-          feat = feat.toLowerCase().replace(/ /g, "_");
-          if (feat in trews.data['measurements']) {
-            value = trews.data['measurements'][feat]['value']+' @ '
-            var date = new Date(Date.parse(trews.data['measurements'][feat]['tsp'] + " UTC"));
-            value += strToTime(date.getTime(),true,false);
-          }
-          hem_table_str += '<td>'+value+'</td>';
-          hem_table_str += '</tr>';
+	 hem_table_str += this.createExplanationString(hem_feats[i]);
       }
 
       var chem_table_str = '<table style="width:100%">'
       for (var i = 0; i < chem_feats.length; i++) {
-          chem_table_str += '<tr>'
-          var feat = chem_feats[i];
-          chem_table_str += '<td>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</td>';
-          chem_table_str += '<td>'+(feat in displayNames ? displayNames[feat]:feat)+'</td>';
-
-          var value = "Not available"
-          feat = feat.toLowerCase().replace(/ /g, "_");
-          if (feat in trews.data['measurements']) {
-            value = trews.data['measurements'][feat]['value']+' @ '
-            var date = new Date(Date.parse(trews.data['measurements'][feat]['tsp'] + " UTC"));
-            value += strToTime(date.getTime(),true,false);
-         }
-          chem_table_str += '<td>'+value+'</td>';
-          chem_table_str += '</tr>';
+	 chem_table_str += this.createExplanationString(chem_feats[i]);
       }
 
       var static_table_str = '<table style="width:100%">';
       for (var feat in trews.data['static_features']) {
-        static_table_str += '<tr>'
+        static_table_str += '<tr style="height:30px">'
         static_table_str += '<td>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</td>';
         static_table_str += '<td>'+ (feat.charAt(0).toUpperCase()+feat.slice(1)).replace(/_/g," ")+'</td>';
         static_table_str += '<td>' + (trews.data['static_features'][feat]==1 ? "Present":trews.data['static_features'][feat]) + '</td>';
         static_table_str += '</tr>'
       }
 
-      trews_html = '<h3> TREWS Criteria </h3><table style="width:100%">'
+     trews_html = '<h3> TREWS Criteria </h3><table style="width:100%">'
                      + no_features_str
                      + '<tr><th>Physiology</th><th>Hematology and coagulation</th><th>Chemistry</th><th>Demographics and History</th></tr>'
                      + '<tr>'
@@ -1529,30 +1515,34 @@ var nursingWorkflowComponent = new function() {
 			this.ctn.html("");
 			return;
 		}
+		console.log("Before restructure");
+		console.log(trews.data["nursing_eval"]);
 		//Hacky way to deal with buug where nursing_eval structure is flattened
+		/*
 		if (!("eval" in trews.data["nursing_eval"])) {
 			trews.data["nursing_eval"]["eval"] = {}
 			for (var key in trews.data["nursing_eval"]) {
 				if (key != "tsp" && key != "uid" && key != "eval") {
 					trews.data["nursing_eval"]["eval"][key] = trews.data["nursing_eval"][key];
+					console.log("Deleting key: " + key);
 					delete trews.data["nursing_eval"][key]
 				}
 			}
 		} 
-		console.log("rendering");
+		*/
+		console.log("After");
 		console.log(trews.data["nursing_eval"]);
-		//timestamp of the last evaluation
 		var time_txt = "";
 		if ("nursing_eval" in trews.data && "tsp" in trews.data["nursing_eval"]) {
             		//var date = new Date(Date.parse(trews.data['nursing_eval']['tsp'] + " UTC"));
 			var date = new Date(1000*trews.data['nursing_eval']['tsp']);
 			time_txt = "The last evaluation was at " + strToTime(date.getTime(),true,false);
-			if (Date.now()-date.getTime() > (12 * 60*60*1000)) {
-				time_txt += ", over 12 hours ago. Please confirm and resubmit the evaluation";
+			time_txt += " by " + trews.data["nursing_eval"]["uid"] + ".";
+			if (true || Date.now()-date.getTime() > (12 * 60*60*1000)) {
+				time_txt += " The last evaluation was over 12 hours ago. Please confirm and resubmit the evaluation";
+				document.getElementById('time_stat').style.height="40px";
 			}
-			time_txt += " by " + trews.data["nursing_eval"]["uid"];
 		} else {
-			date = null;
 			time_txt = "An evaluation has not been completed";
 		}
 		this.ctn.find('#time_stat').text(time_txt);
@@ -1611,6 +1601,9 @@ var nursingWorkflowComponent = new function() {
 		var no_notify_txt = "TREWS does not indicate high risk of sepsis at this time.";
 		var result_txt = "";
 		console.log("updating notif");
+		if (!("eval" in trews.data["nursing_eval"])) {
+			trews.data["nursing_eval"]["eval"]={}
+		}
 		if ("mental_status" in trews.data["nursing_eval"]["eval"] && "known_infection" in trews.data["nursing_eval"]["eval"]) {
 			if ( trews.data["nursing_eval"]["eval"]["mental_status"] == 'Yes' || trews.data["nursing_eval"]["eval"]["known_infection"] == 'Yes') {
 				trews.data["nursing_eval"]["eval"]["advise_notify"] = true;
@@ -1668,6 +1661,7 @@ var save_comment = function(comment) {
 
 var updateNursingEval = function() {
 	console.log("updating nurse eval");
+	console.log(trews.data["nursing_eval"]["eval"]);
 	nursingWorkflowComponent.update_notification_prompt();
       	endpoints.getPatientData("update_nursing_eval",trews.data["nursing_eval"]["eval"]);
 }

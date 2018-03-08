@@ -803,7 +803,7 @@ async def update_nursing_eval(db_pool,eid, data,uid):
     insert_str = \
     '''
     INSERT INTO nurse_eval (enc_id, tsp, uid, eval)
-    VALUES ((select enc_id from pat_enc where pat_id='%s' order by enc_id desc limit 1),now(), '%s', '%s');
+    VALUES ((select * from pat_id_to_enc_id('%s'::text)),now(), '%s', '%s');
     ''' %(eid,uid,json.dumps(data).replace("'", '"'))
     try:
       #print(insert_str)

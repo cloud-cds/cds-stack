@@ -1138,4 +1138,4 @@ var HEM_FEATS = ["platelets", "WBC", "INR", "hemoglobin"];
 
 var CHEM_FEATS = ["sodium", "creatinine","bilirubin", "amylase", "lactate", "BUN", "ALT liver enzymes", "arterial ph", "bicarbonate", "CO2", "AST liver enzymes", "potassium", "lipase"];
 
-
+var DISPLAY_NAMES = {"ALT liver enzymes": "ALT", "AST liver enzymes": "AST", 'temperature':'Temperature', "heart rate": "Heart Rate", "resp rate": "Resp. Rate", "platelets": "Platelets","hematocrit":"hematocrit","hemoglobin":"Hemoglobin","sodium": "Sodium", "creatinine":"Creatinine", "bilirubin":"Bilirubin","amylase":"Amylase", "lactate":"Lactate","arterial ph":"Arterial PH","bicarbonate":"Bicarbonate","potassium":"Potassium","lipase":"Lipase"};

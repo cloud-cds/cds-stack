@@ -312,6 +312,8 @@ class TREWSAPI(web.View):
         return {'message': msg}
 
     elif actionType == u'update_nursing_eval':
+        logging.info("updating nursing eval")
+        logging.info(str(actionData));
         await query.update_nursing_eval(db_pool,eid,actionData,uid)
 
     elif actionType == u'place_order':
@@ -745,7 +747,6 @@ class TREWSAPI(web.View):
 
     # cache lookup
     pat_values = await pat_cache.get(eid)
-
     if pat_values is None:
       api_monitor.add_metric('CacheMisses')
 
