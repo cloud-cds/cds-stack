@@ -790,6 +790,7 @@ class TREWSAPI(web.View):
     orgdfs             = explanations['orgdfs'] if 'orgdfs' in explanations else None
 
     self.update_criteria(criteria_result_set, data)
+    logging.info(str(nurse_eval))
 
     try:
       # update chart data
@@ -837,6 +838,7 @@ class TREWSAPI(web.View):
             data['feature_relevances'][mapping[orgdf]] = 1
         
       data['nursing_eval'] = nurse_eval
+      logging.info("Before sending nurse_eval: " + str(data['nursing_eval']))
 
       return data
 

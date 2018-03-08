@@ -1347,9 +1347,10 @@ span.criteria-btn p {
 
 /* Nursing Workflow*/
 .nursing-question {
-    float: left;
-    /*margin-top: 10px;*/
-    display:inline-block;
+    font-size: 15px;
+    vertical-align:middle;
+    height: 25.6px;
+    display: inline-block;
     position: relative;
     z-index: 1;
     user-select: none;
