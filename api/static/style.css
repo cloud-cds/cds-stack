@@ -1428,6 +1428,12 @@ span.criteria-btn p {
 .trews-criteria {
     overflow-x:scroll;
 }
+.trews-criteria td {
+    text-align: left;
+    padding: 1px;
+    font-size: 12px;
+}
+
 .explanation-leftcol {
     float: left;
     width: 33%;
