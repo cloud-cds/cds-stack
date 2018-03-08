@@ -1346,8 +1346,29 @@ var careSummaryComponent = new function() {
   this.detailSlot = new slotComponent($("[data-trews='care-summary-detail']"), $('#expand-care-detail'), false, false, false, null, false, true);
 
   this.renderDetail = function(alert_as_cms, cms_status) {
-    var trews_html = '<h3> TREWS Criteria </h3>';
+    //Summary
+    var summary_html = "";
+    try {
+        trews_subalert_json = 'trews_subalert' in trews.data['severe_sepsis'] ? trews.data['severe_sepsis']['trews_subalert'].value : null;
 
+        if ( trews_subalert_json != null ) {
+          trews_subalert_json = JSON.parse(trews_subalert_json);
+          pct_mortality = Number(trews_subalert_json.pct_mortality).toFixed(0);
+          pct_sevsep = Number(trews_subalert_json.pct_sevsep).toFixed(0);
+        }
+        if (pct_mortality != null && pct_sevsep != null) {
+          score_str = 'At this TREWS Acuity Score, there is an <b>' + pct_mortality + '%</b> in-hospital mortality rate.';
+          score_str2 = '<b>' + pct_sevsep + '%</b> of individuals experience severe sepsis.';
+        }
+        summary_html = '<h3>Summary</h3>'
+	 	     +' <ul>'
+		     + '<li>'+score_str+'</li>'
+                     + '<li>'+score_str2+'</li>'
+                     +'</ul>';
+    } catch(e) {console.log("Exception while loading mortality summary");}
+
+
+    //Set up feature relevances 
     if ( 'feature_relevances' in trews.data && trews.data['feature_relevances'] != null
           && 'measurements' in trews.data && trews.data['measurements'] != null
           && 'static_features' in trews.data && trews.data['static_features'] != null )
@@ -1356,7 +1377,6 @@ var careSummaryComponent = new function() {
         trews.data['feature_relevances']['resp rate'] = trews.data['feature_relevances']['respiratory rate'];
       }
 
-      //var mark = "<font color='red' size=5><b>!</b></font>";
       var mark = "<font color='red' size=3>&#9733</font>";
       var phys_feats = ["BP", "temperature", "heart rate", "SpO2", "PaO2", "PaCO2", "resp rate", "FiO2", "GCS", "RASS"];
       var hem_feats = ["platelets", "WBC", "INR", "hematocrit", "hemoglobin"];
@@ -1440,7 +1460,7 @@ var careSummaryComponent = new function() {
                      + '<td style="vertical-align:top">' + static_table_str + '</table></td>'
                      + '</tr></table>';
     }
-    this.detailSlot.elem.find('.trews-criteria').html(trews_html);
+    this.detailSlot.elem.find('.trews-criteria').html(summary_html+trews_html);
   }
 
   this.render = function() {
