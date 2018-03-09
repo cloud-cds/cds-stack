@@ -790,9 +790,12 @@ async def get_nursing_eval(db_pool,eid):
   try:
     async with db_pool.acquire() as conn:
       df = await conn.fetch(get_eval_str)
-      data = {'eval': json.loads(df[0][0]),
-              'uid': df[0][1],
-              'tsp': df[0][2]}
+      data = json.loads(df[0][0])
+      data['uid'] = df[0][1]
+      data['tsp'] = df[0][2]
+      #data = {'eval': json.loads(df[0][0]),
+      #        'uid': df[0][1],
+      #        'tsp': df[0][2]}
       logging.info("nurse eval: " + str(data))
       return data;
   except Exception as e:

@@ -839,7 +839,6 @@ class TREWSAPI(web.View):
             data['feature_relevances'][mapping[orgdf]] = 1
         
       data['nursing_eval'] = nurse_eval
-      logging.info("Before sending nurse_eval: " + str(data['nursing_eval']))
 
       return data
 
@@ -999,7 +998,6 @@ class TREWSAPI(web.View):
 
           else:
             response_body = {'message': 'Invalid TREWS REST API request'}
-
           return json_response(response_body)
 
         else:
