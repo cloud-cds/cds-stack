@@ -1650,7 +1650,11 @@ var infection_click = function(stat) {
 	updateNursingEval()
 }
 var notify_click = function() {
-	trews.data["nursing_eval"]["provider_notified"] = true;
+	if ("provider_notified" in trews.data["nursing_eval"]) {
+		trews.data["nursing_eval"]["provider_notified"] = ! trews.data["nursing_eval"]["provider_notified"];
+	} else{
+		trews.data["nursing_eval"]["provider_notified"] = true;
+	}
 	updateNursingEval()
 
 }
