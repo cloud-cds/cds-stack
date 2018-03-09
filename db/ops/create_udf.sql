@@ -3476,7 +3476,7 @@ BEGIN
   (
       select prev.pat_id, prev.visit_id, prev.enc_id, prev.count_prev,
             (case
-                when state in (12,13) then 2
+                when state in (12,13) or nurse_eval = 0 then 2
                 when state = 16 then 3
                 when state = 11 then 4
                 when state = 10 then 5
@@ -3488,6 +3488,12 @@ BEGIN
             end) count, gss.trewscore, gss.trewscore_threshold, gss.alert_flag
       from prev
       left join lateral get_states_snapshot(prev.enc_id) gss on gss.enc_id = prev.enc_id
+      left join lateral (
+                            select enc_id, last ((eval->>'advise_notify')::boolean::integer order by tsp) nurse_eval
+                            from nurse_eval
+                            where enc_id in (select distinct enc_id from prev)
+                            group by enc_id
+                        ) rn on rn.enc_id=prev.enc_id
   ),
   update_history as (
     insert into epic_notifications_history (tsp, enc_id, count, trewscore, threshold, flag)
@@ -3529,7 +3535,7 @@ BEGIN
   (
       select prev.pat_id, prev.visit_id, prev.enc_id, prev.count_prev,
             (case
-                when state in (12,13) then 2
+                when state in (12,13) or nurse_eval = 0 then 2
                 when state = 16 then 3
                 when state = 11 then 4
                 when state = 10 then 5
@@ -3541,6 +3547,12 @@ BEGIN
             end) count, gss.trewscore, gss.trewscore_threshold, gss.alert_flag
       from prev
       left join lateral get_states_snapshot(prev.enc_id) gss on gss.enc_id = prev.enc_id
+      left join lateral (
+                            select enc_id, last ((eval->>'advise_notify')::boolean::integer order by tsp) nurse_eval
+                            from nurse_eval
+                            where enc_id in (select distinct enc_id from prev)
+                            group by enc_id
+                        ) rn on rn.enc_id=prev.enc_id
   ),
   update_history as (
     insert into epic_notifications_history (tsp, enc_id, count, trewscore, threshold, flag)
