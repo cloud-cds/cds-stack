@@ -3,18 +3,19 @@ var express = require('express');
 var app = express();
 var cloudwatchMetrics = require('cloudwatch-metrics');
 var moment = require('moment');
-
-var myMetric = new cloudwatchMetrics.Metric('OpsDX', 'Count', [{
-  Name: 'API',
-  Value: process.env.metrics_dimension_value
-}], {
-  sendInterval: 1 * 1000, // It's specified in milliseconds.
-  sendCallback: (err) => {
-  if (!err) return;
-  // Do your error handling here.
-  console.log(err)
-  }
-});
+var cloudwatch_on = parseInt(process.env.cloudwatch_on, 0);
+if(cloudwatch_on)
+  var myMetric = new cloudwatchMetrics.Metric('OpsDX', 'Count', [{
+    Name: 'API',
+    Value: process.env.metrics_dimension_value
+  }], {
+    sendInterval: 1 * 1000, // It's specified in milliseconds.
+    sendCallback: (err) => {
+    if (!err) return;
+    // Do your error handling here.
+    console.log(err)
+    }
+  });
 
 if (!('toJSON' in Error.prototype))
 Object.defineProperty(Error.prototype, 'toJSON', {
@@ -66,7 +67,7 @@ var service = {
         var has_eit_value = has_ei_type ? '$value' in args['eventInfo']['Type'] : false;
 
         if ( !has_eit_value ) {
-          myMetric.put(1, 'EventCount_TYPE_ERROR');
+          if(cloudwatch_on) myMetric.put(1, 'EventCount_TYPE_ERROR');
           return {};
         }
 
@@ -86,15 +87,15 @@ var service = {
           body: JSON.stringify(args)
         }], function(err) {
           if (err) {
-            myMetric.put(1, 'EventCount_FW_ERROR');
+            if(cloudwatch_on) myMetric.put(1, 'EventCount_FW_ERROR');
             console.log(err);
           } else {
-            myMetric.put(1, 'EventCount_FW_SUCCESS');
+            if(cloudwatch_on) myMetric.put(1, 'EventCount_FW_SUCCESS');
           }
         });
 
-        myMetric.put(1, 'EventCount');
-        myMetric.put(1, 'EventCount_'+ event_type);
+        if(cloudwatch_on) myMetric.put(1, 'EventCount');
+        if(cloudwatch_on) myMetric.put(1, 'EventCount_'+ event_type);
         return {};
       }
     }
