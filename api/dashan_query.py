@@ -791,8 +791,8 @@ async def get_nursing_eval(db_pool,eid):
     async with db_pool.acquire() as conn:
       df = await conn.fetch(get_eval_str)
       data = json.loads(df[0][0])
-      data['uid'] = df[0][1]
-      data['tsp'] = df[0][2]
+      #data['uid'] = df[0][1]
+      #data['tsp'] = df[0][2]
       #data = {'eval': json.loads(df[0][0]),
       #        'uid': df[0][1],
       #        'tsp': df[0][2]}
@@ -807,7 +807,7 @@ async def update_nursing_eval(db_pool,eid, data,uid):
     '''
     INSERT INTO nurse_eval (enc_id, tsp, uid, eval)
     VALUES ((select * from pat_id_to_enc_id('%s'::text)),now(), '%s', '%s');
-    ''' %(eid,uid,json.dumps(data).replace("'", '"'))
+    ''' %(eid,uid,json.dumps(data))#.replace("'", '"'))
     try:
       #print(insert_str)
       logging.info("Updated nurse_eval with command: %s" %insert_str)
