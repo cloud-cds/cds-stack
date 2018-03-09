@@ -1359,7 +1359,7 @@ var careSummaryComponent = new function() {
 
         var value = 'Not available'
         if (measure_feat in trews.data['measurements']) {
-            value = trews.data['measurements'][measure_feat]['value']+' @ '
+            value = trews.data['measurements'][measure_feat]['value']+' @ <br>'
             var date = new Date(Date.parse(trews.data['measurements'][measure_feat]['tsp'] + " UTC"));
             value += strToTime(date.getTime(),true,false);
         }
@@ -1383,27 +1383,32 @@ var careSummaryComponent = new function() {
           score_str = 'At this TREWS Acuity Score, there is an <b>' + pct_mortality + '%</b> in-hospital mortality rate.';
           score_str2 = '<b>' + pct_sevsep + '%</b> of individuals experience severe sepsis.';
         }
-        summary_html = '<h3>Summary</h3>'
+        summary_html = '<h3 style="margin: 0 0 0 0;">Summary</h3>'
+		     +'<div class="stats-summary">'
 	 	     +' <ul>'
 		     + '<li>'+score_str+'</li>'
                      + '<li>'+score_str2+'</li>'
                      +'</ul>';
+		     +'</div>';
     } catch(e) {console.log("Exception while loading mortality summary");}
 
 
     var demographics_html = "";
     if('static_features' in trews.data && trews.data['static_features'] != null) {
-    	var feat_row = '<tr style="height:30px">';
-    	var value_row = '<tr style="height:30px">';
+    	//var feat_row = '<tr style="height:30px">';
+    	//var value_row = '<tr style="height:30px">';
+	var feat_row = '';
     	for (var feat in trews.data['static_features']) {
-        	feat_row += '<td>'+ (feat.charAt(0).toUpperCase()+feat.slice(1)).replace(/_/g," ")+'</td>';
-       	 	value_row += '<td>' + (trews.data['static_features'][feat]==1 ? "Present":trews.data['static_features'][feat]) + '</td>';
+        	//feat_row += '<td>'+ (feat.charAt(0).toUpperCase()+feat.slice(1)).replace(/_/g," ")+'</td>';
+        	feat_row += '<tr><td>'+ (feat.charAt(0).toUpperCase()+feat.slice(1)).replace(/_/g," ")+': ';
+       	 	feat_row += (trews.data['static_features'][feat]==1 ? "Present":trews.data['static_features'][feat]) + '</td></tr>';
+       	 	//value_row += '<td>' + (trews.data['static_features'][feat]==1 ? "Present":trews.data['static_features'][feat]) + '</td>';
       	}
      	demographics_html = '<h3> Demographics and History </h3>'
 		          + '<table style="width:100%">'
-		          + feat_row + '</tr>'
-        	          + value_row + '</tr>'
-    	                  +'</table>';
+		          + feat_row
+        	          //+ value_row + '</tr>'
+    	                  +'</table><br>';
     }
  
 
@@ -1443,14 +1448,14 @@ var careSummaryComponent = new function() {
 
       trews_html = '<h3> TREWS Criteria </h3><table style="width:100%">'
                      + no_features_str
-                     + '<tr><th>Physiology</th><th>Hematology and coagulation</th><th>Chemistry</th></tr>'
+                     + '<tr><th style="width:33%">Physiology</th><th style="width:34%">Hem. and Coag.</th><th style="width:33%">Chemistry</th></tr>'
                      + '<tr>'
                      + '<td style="vertical-align:top">' + phys_table_str + '</table></td>'
                      + '<td style="vertical-align:top">' + hem_table_str + '</table></td>'
                      + '<td style="vertical-align:top">' + chem_table_str + '</table></td>'
                      + '</tr></table>';
     }
-    this.detailSlot.elem.find('.trews-criteria').html(summary_html+demographics_html+trews_html);
+    this.detailSlot.elem.find('.trews-criteria').html(demographics_html+trews_html+summary_html);
   }
 
   this.render = function() {

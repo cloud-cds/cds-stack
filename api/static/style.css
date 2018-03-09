@@ -1344,7 +1344,11 @@ span.criteria-btn p {
     color: #437c90;
 }
 /* End Suppressions */
-
+.stats-summary {
+    font-size: 14px;
+    vertical-align:middle;
+    display: inline-block;
+}
 /* Nursing Workflow*/
 .nursing-question {
     font-size: 15px;
