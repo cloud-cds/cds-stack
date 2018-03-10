@@ -1368,6 +1368,15 @@ var careSummaryComponent = new function() {
         table_str += '</tr>';
 	return table_str;
   }
+  this.getStaticFeatureDisplay = function(feat) {
+	if (feat == "age") {
+		return trews.data["static_features"]["age"];
+	} else if (feat == "gender") {
+		return trews.data["static_features"]["gender"]==1 ? "Male":"Female";
+	} else {
+		return trews.data["static_features"][feat] == 1 ? "Present":"Not Present";
+	}
+  }	
   this.renderDetail = function(alert_as_cms, cms_status) {
     //Summary
     var summary_html = "";
@@ -1395,19 +1404,14 @@ var careSummaryComponent = new function() {
 
     var demographics_html = "";
     if('static_features' in trews.data && trews.data['static_features'] != null) {
-    	//var feat_row = '<tr style="height:30px">';
-    	//var value_row = '<tr style="height:30px">';
 	var feat_row = '';
     	for (var feat in trews.data['static_features']) {
-        	//feat_row += '<td>'+ (feat.charAt(0).toUpperCase()+feat.slice(1)).replace(/_/g," ")+'</td>';
         	feat_row += '<tr><td>'+ (feat.charAt(0).toUpperCase()+feat.slice(1)).replace(/_/g," ")+': ';
        	 	feat_row += (trews.data['static_features'][feat]==1 ? "Present":trews.data['static_features'][feat]) + '</td></tr>';
-       	 	//value_row += '<td>' + (trews.data['static_features'][feat]==1 ? "Present":trews.data['static_features'][feat]) + '</td>';
       	}
      	demographics_html = '<h3> Demographics and History </h3>'
 		          + '<table style="width:100%">'
 		          + feat_row
-        	          //+ value_row + '</tr>'
     	                  +'</table><br>';
     }
  
