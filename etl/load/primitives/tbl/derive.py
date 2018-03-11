@@ -25,9 +25,12 @@ def derive(fid, func_id, fid_input, conn, log, dataset_id, derive_feature_addr, 
   return func(fid, fid_input, conn, log, dataset_id, derive_feature_addr,
               cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours)
 
-def with_ds(dataset_id, table_name=None, conjunctive=True):
+def with_ds(dataset_id, table_name=None, conjunctive=True, parallel=None):
   if dataset_id is not None:
-    return '%s %sdataset_id = %s' % (' and' if conjunctive else ' where', '' if table_name is None else table_name+'.', dataset_id)
+    sql = '%s %sdataset_id = %s' % (' and' if conjunctive else ' where', '' if table_name is None else table_name+'.', dataset_id)
+    if parallel is not None:
+      sql += ' and {}enc_id % {} = {}'.format('' if table_name is None else table_name+'.', parallel[0], parallel[1])
+    return sql
   return ''
 
 async def lookup_population_mean(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):

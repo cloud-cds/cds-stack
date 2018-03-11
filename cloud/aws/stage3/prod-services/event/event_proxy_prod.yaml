@@ -55,7 +55,7 @@ kind: Deployment
 metadata:
   name: event-proxy-prod
 spec:
-  replicas: 4
+  replicas: 2
   template:
     metadata:
       labels:
@@ -79,7 +79,7 @@ spec:
           - name: forward-config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: event-proxy-prod
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.97
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.270
         resources:
           requests:
             memory: "256Mi"

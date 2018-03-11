@@ -57,7 +57,7 @@ metadata:
   name: event-server-dev
 spec:
   serviceName: event-server-svc-dev
-  replicas: 4
+  replicas: 2
   podManagementPolicy: Parallel
   template:
     metadata:
@@ -82,7 +82,7 @@ spec:
           - name: forward-config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: event-server-dev
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.247
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.270
         resources:
           requests:
             memory: "2Gi"
@@ -112,9 +112,9 @@ spec:
         - name: EPIC_WEB_REQUEST_INTERVAL_SECS
           value: "15"
         - name: SWITCH_WEB_REQUEST
-          value: "1"
+          value: "0"
         - name: SWITCH_ETL
-          value: "1"
+          value: "0"
         - name: SWITCH_ETL_CDM
           value: "1"
         - name: SWITCH_ETL_DERIVE

@@ -55,7 +55,7 @@ kind: Deployment
 metadata:
   name: event-proxy-dev
 spec:
-  replicas: 4
+  replicas: 2
   template:
     metadata:
       labels:
@@ -79,7 +79,7 @@ spec:
           - name: forward-config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: event-proxy-dev
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.97
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.270
         resources:
           requests:
             memory: "256Mi"
@@ -98,6 +98,8 @@ spec:
           value: "https://sqs.us-east-1.amazonaws.com/359300513585/opsdx-jh-events-dev"
         - name: NVM_DIR
           value: "/root/.nvm"
+        # - name: cloudwatch_on
+        #   value: "0"
         - name: metrics_dimension_value
           value: "opsdx-dev"
         - name: AWS_DEFAULT_REGION

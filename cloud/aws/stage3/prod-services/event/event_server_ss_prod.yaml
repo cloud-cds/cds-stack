@@ -57,7 +57,7 @@ metadata:
   name: event-server-prod
 spec:
   serviceName: event-server-svc-prod
-  replicas: 4
+  replicas: 2
   podManagementPolicy: Parallel
   template:
     metadata:
@@ -82,7 +82,7 @@ spec:
           - name: forward-config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: event-server-prod
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.247
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.270
         resources:
           requests:
             memory: "2Gi"

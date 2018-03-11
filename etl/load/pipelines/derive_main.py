@@ -5,6 +5,11 @@ from etl.load.primitives.tbl.derive import with_ds
 from etl.load.primitives.tbl.derive_helper import *
 
 import time
+import os
+CLEAN_SQL = False
+IGNORE_LEGACY_DERIVE = True
+PARRALELL = 16
+n_conn = int(os.environ['n_conn']) if 'n_conn' in os.environ else 2
 
 async def derive_main(log, conn, cdm_feature_dict, mode=None, fid=None,
                       dataset_id=None, derive_feature_addr=None,
@@ -146,8 +151,9 @@ async def derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=None, deri
         twf_table_temp = derive_feature_addr[fid]['twf_table_temp']
         if 'clean' in config_entry:
           clean_args = config_entry['clean']
-          clean_sql = clean_tbl.cdm_twf_clean(fid, twf_table=twf_table_temp, \
-            dataset_id = dataset_id, incremental=incremental, **clean_args)
+          if CLEAN_SQL:
+            clean_sql = clean_tbl.cdm_twf_clean(fid, twf_table=twf_table_temp, \
+              dataset_id = dataset_id, incremental=incremental, **clean_args)
         if config_entry['derive_type'] == 'simple':
           sql = gen_simple_twf_query(config_entry, fid, dataset_id, \
             derive_feature_addr, cdm_feature_dict, incremental)
@@ -178,8 +184,9 @@ async def derive_feature(log, fid, cdm_feature_dict, conn, dataset_id=None, deri
     # Custom Derive Function
     # =================================
     log.debug("Derive function is not implemented in driver, so we use legacy derive function")
-    await derive_func.derive(fid, derive_func_id, derive_func_input, conn, \
-      log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours)
+    if not IGNORE_LEGACY_DERIVE:
+      await derive_func.derive(fid, derive_func_id, derive_func_input, conn, \
+        log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours)
   te = time.time()
   log.info("derive feature %s end. (%2.2f secs)" % (fid, te-ts))
 
@@ -189,8 +196,6 @@ def gen_simple_twf_query(config_entry, fid, dataset_id, derive_feature_addr, cdm
   twf_table = derive_feature_addr[fid]['twf_table']
   twf_table_temp = derive_feature_addr[fid]['twf_table_temp']
   fid_input_items = config_entry['fid_input_items']
-  select_table_joins = get_select_table_joins(fid_input_items, \
-    derive_feature_addr, cdm_feature_dict, dataset_id, incremental)
   update_expr = config_entry['fid_update_expr']
   update_expr_params = {}
   if '%(twf_table)s' in update_expr:
@@ -204,96 +209,206 @@ def gen_simple_twf_query(config_entry, fid, dataset_id, derive_feature_addr, cdm
   c_update_expr = config_entry['fid_c_update_expr']
   if '%(twf_table)s' in c_update_expr:
     c_update_expr = c_update_expr % {'twf_table': twf_table}
-  sql = """
-  INSERT INTO %(twf_table_temp)s (%(dataset_id_key)s enc_id, tsp, %(insert_cols)s)
-  SELECT %(dataset_id_key)s enc_id, tsp, %(select_cols)s FROM
-  (%(select_table_joins)s) source
-  ON CONFLICT (%(dataset_id_key)s enc_id, tsp) DO UPDATE SET
-  %(update_cols)s
-  """ % {
-    'twf_table_temp'     : twf_table_temp,
-    'dataset_id_key'     : dataset_id_key(None, dataset_id),
-    'select_table_joins' : select_table_joins,
-    'select_cols'        : '({update_expr}) as {fid}, ({c_update_expr}) as {fid}_c'.format(\
-                                  update_expr=update_expr, fid=fid, c_update_expr=c_update_expr),
-    'update_cols'        : '{fid} = excluded.{fid}, {fid}_c = excluded.{fid}_c'.format(fid=fid),
-    'insert_cols'        : '{fid}, {fid}_c'.format(fid=fid)
-  }
-  return sql
+  if PARRALELL:
+    sql = []
+    for i in range(PARRALELL):
+      sql += ["""
+      INSERT INTO %(twf_table_temp)s (%(dataset_id_key)s enc_id, tsp, %(insert_cols)s)
+      SELECT %(dataset_id_key)s enc_id, tsp, %(select_cols)s FROM
+      (%(select_table_joins)s) source
+      ON CONFLICT (%(dataset_id_key)s enc_id, tsp) DO UPDATE SET
+      %(update_cols)s
+      """ % {
+        'twf_table_temp'     : twf_table_temp,
+        'dataset_id_key'     : dataset_id_key(None, dataset_id),
+        'select_table_joins' : get_select_table_joins(fid_input_items, \
+                                  derive_feature_addr, cdm_feature_dict, dataset_id, incremental, parallel=(PARRALELL, i)),
+        'select_cols'        : '({update_expr}) as {fid}, ({c_update_expr}) as {fid}_c'.format(\
+                                      update_expr=update_expr, fid=fid, c_update_expr=c_update_expr),
+        'update_cols'        : '{fid} = excluded.{fid}, {fid}_c = excluded.{fid}_c'.format(fid=fid),
+        'insert_cols'        : '{fid}, {fid}_c'.format(fid=fid)
+      }]
+    sql = ','.join(["'{}'".format(s.replace("'", "''")) for s in sql])
+    sql_parallel = """
+    select * from distribute('dblink_dist', array[{}], {});
+    """.format(sql, n_conn)
+    return sql_parallel
+  else:
+    select_table_joins = get_select_table_joins(fid_input_items, \
+                                  derive_feature_addr, cdm_feature_dict, dataset_id, incremental)
+    sql = """
+    INSERT INTO %(twf_table_temp)s (%(dataset_id_key)s enc_id, tsp, %(insert_cols)s)
+    SELECT %(dataset_id_key)s enc_id, tsp, %(select_cols)s FROM
+    (%(select_table_joins)s) source
+    ON CONFLICT (%(dataset_id_key)s enc_id, tsp) DO UPDATE SET
+    %(update_cols)s
+    """ % {
+      'twf_table_temp'     : twf_table_temp,
+      'dataset_id_key'     : dataset_id_key(None, dataset_id),
+      'select_table_joins' : select_table_joins,
+      'select_cols'        : '({update_expr}) as {fid}, ({c_update_expr}) as {fid}_c'.format(\
+                                    update_expr=update_expr, fid=fid, c_update_expr=c_update_expr),
+      'update_cols'        : '{fid} = excluded.{fid}, {fid}_c = excluded.{fid}_c'.format(fid=fid),
+      'insert_cols'        : '{fid}, {fid}_c'.format(fid=fid)
+    }
+    return sql
 
 def gen_subquery_upsert_query(config_entry, fid, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, workspace, job_id):
-  twf_table = derive_feature_addr[fid]['twf_table']
-  twf_table_temp = derive_feature_addr[fid]['twf_table_temp']
-  subquery_params = {}
-  subquery_params['incremental'] = incremental
-  subquery_params['fid'] = fid
-  fid_input_items = config_entry['fid_input_items']
-  # generate twf_table from selection
-  subquery_params['twf_table_join'] = '(' + \
-    get_select_table_joins(fid_input_items, derive_feature_addr, cdm_feature_dict, dataset_id, incremental, workspace=workspace, job_id=job_id) \
-    + ')'
-  subquery_params['twf_table'] = twf_table
-  subquery_params['cdm_t_target'] = cdm_t_target
-  subquery_params['dataset_id'] = dataset_id
-  subquery_params['workspace'] = workspace
-  subquery_params['job_id'] = job_id
-  subquery_params['with_ds_twf'] = with_ds(dataset_id, table_name='cdm_twf', conjunctive=False)
-  subquery_params['and_with_ds_twf'] = with_ds(dataset_id, table_name='cdm_twf', conjunctive=True)
-  subquery_params['with_ds_t'] = with_ds(dataset_id, table_name='cdm_t' if '(' in cdm_t_target else cdm_t_target, conjunctive=True)
-  subquery_params['with_ds_ttwf'] = (' AND cdm_t.dataset_id = cdm_twf.dataset_id' if dataset_id else '') + with_ds(dataset_id, table_name='cdm_twf', conjunctive=False)
-  subquery_params['dataset_id_key'] = dataset_id_key('cdm_twf', dataset_id)
-  for fid_input in config_entry['fid_input_items']:
-    if fid_input in derive_feature_addr:
-      subquery_params['twf_table_{}'.format(fid_input)] = derive_feature_addr[fid_input]['twf_table']
-      subquery_params['twf_table_temp_{}'.format(fid_input)] = derive_feature_addr[fid_input]['twf_table_temp']
-  subquery_params['derive_feature_addr'] = derive_feature_addr
-  subquery = config_entry['subquery'](subquery_params)
-  upsert_clause = '''
-  INSERT INTO %(twf_table_temp)s (%(dataset_id_key)s enc_id, tsp,%(fid)s, %(fid)s_c)
-  (
-    %(subquery)s
-  )
-  ON CONFLICT (%(dataset_id_key)s enc_id, tsp) DO UPDATE SET
-  %(fid)s = excluded.%(fid)s,
-  %(fid)s_c = excluded.%(fid)s_c
-  ''' % {
-    'fid':fid,
-    'twf_table_temp': twf_table_temp,
-    'subquery': subquery,
-    'dataset_id_key': 'dataset_id, ' if dataset_id is not None else ''
-  }
-  return upsert_clause
+  if PARRALELL:
+    sql = []
+    for i in range(PARRALELL):
+      twf_table = derive_feature_addr[fid]['twf_table']
+      twf_table_temp = derive_feature_addr[fid]['twf_table_temp']
+      subquery_params = {}
+      subquery_params['incremental'] = incremental
+      subquery_params['fid'] = fid
+      fid_input_items = config_entry['fid_input_items']
+      # generate twf_table from selection
+      subquery_params['twf_table_join'] = '(' + \
+        get_select_table_joins(fid_input_items, derive_feature_addr, cdm_feature_dict, dataset_id, incremental, workspace=workspace, job_id=job_id, parallel=(PARRALELL, i)) \
+        + ')'
+      subquery_params['twf_table'] = twf_table
+      subquery_params['cdm_t_target'] = cdm_t_target
+      subquery_params['dataset_id'] = dataset_id
+      subquery_params['workspace'] = workspace
+      subquery_params['job_id'] = job_id
+      subquery_params['with_ds_twf'] = with_ds(dataset_id, table_name='cdm_twf', conjunctive=False, parallel=(PARRALELL, i))
+      subquery_params['and_with_ds_twf'] = with_ds(dataset_id, table_name='cdm_twf', conjunctive=True, parallel=(PARRALELL, i))
+      subquery_params['with_ds_t'] = with_ds(dataset_id, table_name='cdm_t' if '(' in cdm_t_target else cdm_t_target, conjunctive=True, parallel=(PARRALELL, i))
+      subquery_params['with_ds_ttwf'] = (' AND cdm_t.dataset_id = cdm_twf.dataset_id' if dataset_id else '') + with_ds(dataset_id, table_name='cdm_twf', conjunctive=False, parallel=(PARRALELL, i))
+      subquery_params['parallel'] = (PARRALELL, i)
+      subquery_params['dataset_id_key'] = dataset_id_key('cdm_twf', dataset_id)
+      for fid_input in config_entry['fid_input_items']:
+        if fid_input in derive_feature_addr:
+          subquery_params['twf_table_{}'.format(fid_input)] = derive_feature_addr[fid_input]['twf_table']
+          subquery_params['twf_table_temp_{}'.format(fid_input)] = derive_feature_addr[fid_input]['twf_table_temp']
+      subquery_params['derive_feature_addr'] = derive_feature_addr
+      subquery = config_entry['subquery'](subquery_params)
+      upsert_clause = '''
+      INSERT INTO %(twf_table_temp)s (%(dataset_id_key)s enc_id, tsp,%(fid)s, %(fid)s_c)
+      (
+        %(subquery)s
+      )
+      ON CONFLICT (%(dataset_id_key)s enc_id, tsp) DO UPDATE SET
+      %(fid)s = excluded.%(fid)s,
+      %(fid)s_c = excluded.%(fid)s_c
+      ''' % {
+        'fid':fid,
+        'twf_table_temp': twf_table_temp,
+        'subquery': subquery,
+        'dataset_id_key': 'dataset_id, ' if dataset_id is not None else ''
+      }
+      sql.append("'{}'".format(upsert_clause.replace("'", "''")))
+    sql_parallel = """
+    select * from distribute('dblink_dist', array[{}], {});
+    """.format(','.join(sql), n_conn)
+    return sql_parallel
+  else:
+    twf_table = derive_feature_addr[fid]['twf_table']
+    twf_table_temp = derive_feature_addr[fid]['twf_table_temp']
+    subquery_params = {}
+    subquery_params['incremental'] = incremental
+    subquery_params['fid'] = fid
+    fid_input_items = config_entry['fid_input_items']
+    # generate twf_table from selection
+    subquery_params['twf_table_join'] = '(' + \
+      get_select_table_joins(fid_input_items, derive_feature_addr, cdm_feature_dict, dataset_id, incremental, workspace=workspace, job_id=job_id) \
+      + ')'
+    subquery_params['twf_table'] = twf_table
+    subquery_params['cdm_t_target'] = cdm_t_target
+    subquery_params['dataset_id'] = dataset_id
+    subquery_params['workspace'] = workspace
+    subquery_params['job_id'] = job_id
+    subquery_params['with_ds_twf'] = with_ds(dataset_id, table_name='cdm_twf', conjunctive=False)
+    subquery_params['and_with_ds_twf'] = with_ds(dataset_id, table_name='cdm_twf', conjunctive=True)
+    subquery_params['with_ds_t'] = with_ds(dataset_id, table_name='cdm_t' if '(' in cdm_t_target else cdm_t_target, conjunctive=True)
+    subquery_params['with_ds_ttwf'] = (' AND cdm_t.dataset_id = cdm_twf.dataset_id' if dataset_id else '') + with_ds(dataset_id, table_name='cdm_twf', conjunctive=False)
+    subquery_params['dataset_id_key'] = dataset_id_key('cdm_twf', dataset_id)
+    for fid_input in config_entry['fid_input_items']:
+      if fid_input in derive_feature_addr:
+        subquery_params['twf_table_{}'.format(fid_input)] = derive_feature_addr[fid_input]['twf_table']
+        subquery_params['twf_table_temp_{}'.format(fid_input)] = derive_feature_addr[fid_input]['twf_table_temp']
+    subquery_params['derive_feature_addr'] = derive_feature_addr
+    subquery_params['parallel'] = None
+    subquery = config_entry['subquery'](subquery_params)
+    upsert_clause = '''
+    INSERT INTO %(twf_table_temp)s (%(dataset_id_key)s enc_id, tsp,%(fid)s, %(fid)s_c)
+    (
+      %(subquery)s
+    )
+    ON CONFLICT (%(dataset_id_key)s enc_id, tsp) DO UPDATE SET
+    %(fid)s = excluded.%(fid)s,
+    %(fid)s_c = excluded.%(fid)s_c
+    ''' % {
+      'fid':fid,
+      'twf_table_temp': twf_table_temp,
+      'subquery': subquery,
+      'dataset_id_key': 'dataset_id, ' if dataset_id is not None else ''
+    }
+    return upsert_clause
 
 def gen_cdm_t_upsert_query(config_entry, fid, dataset_id, incremental, cdm_t_target, cdm_t_lookbackhours, workspace, job_id):
-  fid_select_expr = config_entry['fid_select_expr'] % {
-    'cdm_t': cdm_t_target,
-    'dataset_col_block': 'cdm_t.dataset_id,' if dataset_id is not None else '',
-    'dataset_where_block': (' and cdm_t.dataset_id = %s' % dataset_id) if dataset_id is not None else '',
-    'incremental_enc_id_join': incremental_enc_id_join('cdm_t', dataset_id, incremental),
-    'incremental_enc_id_match': incremental_enc_id_match(' and ', incremental),
-    'lookbackhours': " and now() - cdm_t.tsp <= '{}'::interval".format(cdm_t_lookbackhours) if cdm_t_lookbackhours is not None else '',
-    'push_delta_cdm_t_join': push_delta_cdm_t_join('cdm_t', workspace, job_id),
-    'push_delta_cdm_t_match': push_delta_cdm_t_match(' and ', workspace, job_id)
-  }
-  # print(fid_select_expr)
-  delete_clause = ''
-  if dataset_id and not incremental:
-    # only delete existing data in offline full load mode
-    delete_clause = "DELETE FROM %(cdm_t)s where fid = '%(fid)s' %(dataset_where_block)s;\n"
+  if PARRALELL:
+    sql = []
+    for i in range(PARRALELL):
+      fid_select_expr = config_entry['fid_select_expr'] % {
+        'cdm_t': cdm_t_target,
+        'dataset_col_block': 'cdm_t.dataset_id,' if dataset_id is not None else '',
+        'dataset_where_block': (' and cdm_t.dataset_id = %s and cdm_t.enc_id %% %s = %s' % (dataset_id, PARRALELL, i)) if dataset_id is not None else '',
+        'incremental_enc_id_join': incremental_enc_id_join('cdm_t', dataset_id, incremental),
+        'incremental_enc_id_match': incremental_enc_id_match(' and ', incremental),
+        'lookbackhours': " and now() - cdm_t.tsp <= '{}'::interval".format(cdm_t_lookbackhours) if cdm_t_lookbackhours is not None else '',
+        'push_delta_cdm_t_join': push_delta_cdm_t_join('cdm_t', workspace, job_id),
+        'push_delta_cdm_t_match': push_delta_cdm_t_match(' and ', workspace, job_id)
+      }
+      upsert_clause = ("""
+      INSERT INTO %(cdm_t)s (%(dataset_col_block)s enc_id,tsp,fid,value,confidence) (%(select_expr)s)
+      ON CONFLICT (%(dataset_col_block)s enc_id,tsp,fid) DO UPDATE SET
+      value = excluded.value, confidence = excluded.confidence;
+      """) % {
+        'cdm_t': 'cdm_t' if '(' in cdm_t_target else cdm_t_target,
+        'fid':fid,
+        'select_expr': fid_select_expr,
+        'dataset_col_block': 'dataset_id,' if dataset_id is not None else '',
+        'dataset_where_block': (' and dataset_id = %s' % dataset_id) if dataset_id is not None else '',
+        'incremental_enc_id_in': incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental)
+      }
+      upsert_clause = "'{}'".format(upsert_clause.replace("'","''"))
+      sql.append(upsert_clause)
+    sql_parallel = """
+    select * from distribute('dblink_dist', array[{}], {});
+    """.format(','.join(sql), n_conn)
+    return sql_parallel
+  else:
+    fid_select_expr = config_entry['fid_select_expr'] % {
+      'cdm_t': cdm_t_target,
+      'dataset_col_block': 'cdm_t.dataset_id,' if dataset_id is not None else '',
+      'dataset_where_block': (' and cdm_t.dataset_id = %s' % dataset_id) if dataset_id is not None else '',
+      'incremental_enc_id_join': incremental_enc_id_join('cdm_t', dataset_id, incremental),
+      'incremental_enc_id_match': incremental_enc_id_match(' and ', incremental),
+      'lookbackhours': " and now() - cdm_t.tsp <= '{}'::interval".format(cdm_t_lookbackhours) if cdm_t_lookbackhours is not None else '',
+      'push_delta_cdm_t_join': push_delta_cdm_t_join('cdm_t', workspace, job_id),
+      'push_delta_cdm_t_match': push_delta_cdm_t_match(' and ', workspace, job_id)
+    }
+    # print(fid_select_expr)
+    delete_clause = ''
+    if dataset_id and not incremental and CLEAN_SQL:
+      # only delete existing data in offline full load mode
+      delete_clause = "DELETE FROM %(cdm_t)s where fid = '%(fid)s' %(dataset_where_block)s;\n"
 
-  upsert_clause = (delete_clause + """
-  INSERT INTO %(cdm_t)s (%(dataset_col_block)s enc_id,tsp,fid,value,confidence) (%(select_expr)s)
-  ON CONFLICT (%(dataset_col_block)s enc_id,tsp,fid) DO UPDATE SET
-  value = excluded.value, confidence = excluded.confidence;
-  """) % {
-    'cdm_t': 'cdm_t' if '(' in cdm_t_target else cdm_t_target,
-    'fid':fid,
-    'select_expr': fid_select_expr,
-    'dataset_col_block': 'dataset_id,' if dataset_id is not None else '',
-    'dataset_where_block': (' and dataset_id = %s' % dataset_id) if dataset_id is not None else '',
-    'incremental_enc_id_in': incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental)
-  }
-  return upsert_clause
+    upsert_clause = (delete_clause + """
+    INSERT INTO %(cdm_t)s (%(dataset_col_block)s enc_id,tsp,fid,value,confidence) (%(select_expr)s)
+    ON CONFLICT (%(dataset_col_block)s enc_id,tsp,fid) DO UPDATE SET
+    value = excluded.value, confidence = excluded.confidence;
+    """) % {
+      'cdm_t': 'cdm_t' if '(' in cdm_t_target else cdm_t_target,
+      'fid':fid,
+      'select_expr': fid_select_expr,
+      'dataset_col_block': 'dataset_id,' if dataset_id is not None else '',
+      'dataset_where_block': (' and dataset_id = %s' % dataset_id) if dataset_id is not None else '',
+      'incremental_enc_id_in': incremental_enc_id_in(' and ', 'cdm_t', dataset_id, incremental)
+    }
+    return upsert_clause
 
 query_config = {
   # 'bun_to_cr': {
@@ -522,9 +637,9 @@ query_config = {
       'twf_table_join'      : para.get("twf_table_join"),
       'dataset_id_key'      : para.get("dataset_id_key"),
       'dataset_id_match'    : dataset_id_match(" and ", "cdm_twf", "S", para.get("dataset_id")),
-      'dataset_id_equal'    : dataset_id_equal(" WHERE ", "cdm_twf", para.get("dataset_id")),
-      'sub_dataset_id_equal': dataset_id_equal(" and " if para.get("incremental") else "WHERE " , "cdm_twf", para.get("dataset_id")),
-      'with_ds_s'           : dataset_id_equal(" and ", "cdm_s", para.get("dataset_id")),
+      'dataset_id_equal'    : dataset_id_equal(" WHERE ", "cdm_twf", para.get("dataset_id"), parallel=para.get('parallel')),
+      'sub_dataset_id_equal': dataset_id_equal(" and " if para.get("incremental") else "WHERE " , "cdm_twf", para.get("dataset_id"), parallel=para.get('parallel')),
+      'with_ds_s'           : dataset_id_equal(" and ", "cdm_s", para.get("dataset_id"), parallel=para.get('parallel')),
       'incremental_enc_id_join'         : incremental_enc_id_join('cdm_twf', para.get("dataset_id"), para.get("incremental")),
       'incremental_enc_id_match': incremental_enc_id_match(' and ', para.get("incremental"))
     },
@@ -679,8 +794,8 @@ query_config = {
       'cdm_t'             : para['cdm_t_target'],
       'twf_table_join'    : para['twf_table_join'],
       'dataset_id_key'    : para['dataset_id_key'],
-      'dataset_id_equal'  : dataset_id_equal(" where ", "cdm_twf", para.get("dataset_id")),
-      'dataset_id_equal_t': dataset_id_equal('and ', 'cdm_t', para.get("dataset_id")),
+      'dataset_id_equal'  : dataset_id_equal(" where ", "cdm_twf", para.get("dataset_id"), parallel=para.get('parallel')),
+      'dataset_id_equal_t': dataset_id_equal('and ', 'cdm_t', para.get("dataset_id"), parallel=para.get('parallel')),
     }
 
   },
@@ -709,7 +824,7 @@ query_config = {
           'twf_table_temp_ss'    : para['twf_table_temp_severe_sepsis'] if 'twf_table_temp_severe_sepsis' in para else para['twf_table'],
           'twf_table_join'       : para['twf_table_join'],
           'dataset_id_key'       : para['dataset_id_key'],
-          'and_with_ds_twf'      : dataset_id_equal(" and ", "cdm_twf", para['dataset_id']),
+          'and_with_ds_twf'      : dataset_id_equal(" and ", "cdm_twf", para['dataset_id'], parallel=para.get('parallel')),
           'dataset_id_match'     : dataset_id_match(" and ", "cdm_twf", "subquery", para['dataset_id'])
         },
   },
@@ -734,8 +849,8 @@ query_config = {
     ''' % {
       'twf_table_join'    : para.get("twf_table_join"),
       'dataset_id_key'    : para.get("dataset_id_key"),
-      'dataset_id_equal'  : dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id")),
-      'dataset_id_equal_w': dataset_id_equal(" where ", "cdm_twf", para.get("dataset_id")),
+      'dataset_id_equal'  : dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id"), parallel=para.get('parallel')),
+      'dataset_id_equal_w': dataset_id_equal(" where ", "cdm_twf", para.get("dataset_id"), parallel=para.get('parallel')),
       'dataset_id_match'  : dataset_id_match(" and ", "cdm_twf", "subquery", para.get("dataset_id")),
     },
     'clean': {'value': 14*24*60, 'confidence': 0},
@@ -761,7 +876,7 @@ query_config = {
     ''' % {
       'dataset_id_key': para.get("dataset_id_key"),
       'twf_table_join': para.get('twf_table_join'),
-      'dataset_id_equal': dataset_id_equal(' and ', 'cdm_twf', para.get("dataset_id")),
+      'dataset_id_equal': dataset_id_equal(' and ', 'cdm_twf', para.get("dataset_id"), parallel=para.get('parallel')),
       'dataset_id_match': dataset_id_match(' and ', 'cdm_twf', 'subquery', para.get("dataset_id")),
     }
   },
@@ -786,8 +901,8 @@ query_config = {
       'cdm_t'         : para.get('cdm_t_target'),
       'dataset_id_key': para.get("dataset_id_key"),
       'dataset_id_key_t': dataset_id_key('cdm_t', para.get('dataset_id')),
-      'dataset_id_equal_t': dataset_id_equal('and ', 'cdm_t', para.get("dataset_id")),
-      'dataset_id_equal': dataset_id_equal(' and ', 'cdm_twf', para.get("dataset_id")),
+      'dataset_id_equal_t': dataset_id_equal('and ', 'cdm_t', para.get("dataset_id"), parallel=para.get('parallel')),
+      'dataset_id_equal': dataset_id_equal(' and ', 'cdm_twf', para.get("dataset_id"), parallel=para.get('parallel')),
       'twf_table_join': para.get('twf_table_join'),
       'dataset_id_match': dataset_id_match(" and ", "cdm_twf", "subquery", para.get("dataset_id")),
       'incremental_enc_id_join': incremental_enc_id_join('cdm_t', para.get("dataset_id"), para.get("incremental")),
@@ -832,10 +947,10 @@ query_config = {
     %(dataset_id_equal)s
     ''' % {
       'dataset_id_key': para.get('dataset_id_key'),
-      'dataset_id_equal_t': dataset_id_equal(' and ', 'cdm_t', para.get('dataset_id')),
+      'dataset_id_equal_t': dataset_id_equal(' and ', 'cdm_t', para.get('dataset_id'), parallel=para.get('parallel')),
       'twf_table_join': para.get('twf_table_join'),
       'dataset_id_match': dataset_id_match(' and ', 'cdm_twf', 'subquery', para.get('dataset_id')),
-      'dataset_id_equal': dataset_id_equal(' and ', 'cdm_twf', para.get('dataset_id')),
+      'dataset_id_equal': dataset_id_equal(' and ', 'cdm_twf', para.get('dataset_id'), parallel=para.get('parallel')),
       'incremental_enc_id_join': incremental_enc_id_join('cdm_t', para.get("dataset_id"), para.get("incremental")),
       'incremental_enc_id_match': incremental_enc_id_match(' and ', para.get('incremental'))
     }
@@ -858,7 +973,7 @@ query_config = {
       'twf_table_join': para.get('twf_table_join'),
       'with_ds_ttwf': para.get('with_ds_ttwf'),
       'dataset_id_match': dataset_id_match(' and ','cdm_t', 'cdm_twf', para.get("dataset_id")),
-      'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id")),
+      'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id"), parallel=para.get('parallel')),
     },
     'clean': {'value': 0, 'confidence': 0},
   },
@@ -915,8 +1030,8 @@ query_config = {
   #     'twf_table': para.get('twf_table'),
   #     'twf_table_uo': para.get('derive_feature_addr')['urine_output_24hr']['twf_table_temp'] if 'urine_output_24hr' in para.get('derive_feature_addr') else para.get('twf_table'),
   #     'dataset_id_match': dataset_id_match(' and ','S', 'cdm_twf', para.get("dataset_id")),
-  #     'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id")),
-  #     'where_dataset_id_equal': dataset_id_equal(" where ", "cdm_twf", para.get("dataset_id")),
+  #     'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id"), parallel=para.get('parallel')),
+  #     'where_dataset_id_equal': dataset_id_equal(" where ", "cdm_twf", para.get("dataset_id"), parallel=para.get('parallel')),
   #     'incremental_enc_id_join': incremental_enc_id_join('cdm_twf', para.get("dataset_id"), para.get("incremental")),
   #     'incremental_enc_id_match': incremental_enc_id_match(' and ', para.get('incremental'))
   #   },
@@ -938,7 +1053,7 @@ query_config = {
       'twf_table_join': para.get('twf_table_join'),
       'with_ds_ttwf': para.get('with_ds_ttwf'),
       'dataset_id_match': dataset_id_match(' and ','cdm_t', 'cdm_twf', para.get("dataset_id")),
-      'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id")),
+      'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id"), parallel=para.get('parallel')),
     },
     'clean': {'value': 0, 'confidence': 0},
   },
@@ -961,7 +1076,7 @@ query_config = {
       'twf_table_join': para.get('twf_table_join'),
       'with_ds_ttwf': para.get('with_ds_ttwf'),
       'dataset_id_match': dataset_id_match(' and ','cdm_t', 'cdm_twf', para.get("dataset_id")),
-      'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id")),
+      'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id"), parallel=para.get('parallel')),
     },
     'clean': {'value': 0, 'confidence': 0},
   },
@@ -1001,8 +1116,8 @@ query_config = {
       'twf_table_join': para.get('twf_table_join'),
       'with_ds_ttwf': para.get('with_ds_ttwf'),
       'dataset_id_match': dataset_id_match(' and ','cdm_t', 'cdm_twf', para.get("dataset_id")),
-      'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id")),
-      'dataset_id_equal_t': dataset_id_equal(" and ", "cdm_t", para.get("dataset_id")),
+      'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id"), parallel=para.get('parallel')),
+      'dataset_id_equal_t': dataset_id_equal(" and ", "cdm_t", para.get("dataset_id"), parallel=para.get('parallel')),
       'push_delta_cdm_t_join': push_delta_cdm_t_join("cdm_t", para.get('workspace'), para.get('job_id')),
       'push_delta_cdm_t_match': push_delta_cdm_t_match(" and ", para.get('workspace'), para.get('job_id'))
     },
@@ -1044,8 +1159,8 @@ query_config = {
       'twf_table_join': para.get('twf_table_join'),
       'with_ds_ttwf': para.get('with_ds_ttwf'),
       'dataset_id_match': dataset_id_match(' and ','cdm_t', 'cdm_twf', para.get("dataset_id")),
-      'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id")),
-      'dataset_id_equal_t': dataset_id_equal(" and ", "cdm_t", para.get("dataset_id")),
+      'dataset_id_equal': dataset_id_equal(" and ", "cdm_twf", para.get("dataset_id"), parallel=para.get('parallel')),
+      'dataset_id_equal_t': dataset_id_equal(" and ", "cdm_t", para.get("dataset_id"), parallel=para.get('parallel')),
       'push_delta_cdm_t_join': push_delta_cdm_t_join("cdm_t", para.get('workspace'), para.get('job_id')),
       'push_delta_cdm_t_match': push_delta_cdm_t_match(" and ", para.get('workspace'), para.get('job_id'))
     },
@@ -1152,9 +1267,9 @@ query_config = {
   #     'dataset_id': '{},'.format(para.get("dataset_id")) if para.get("dataset_id") else '',
   #     'twf_table_join': para.get('twf_table_join'),
   #     'cdm_t': para.get('cdm_t_target'),
-  #     'dataset_id_equal_t': dataset_id_equal(" and ", "cdm_t", para.get("dataset_id")),
-  #     'dataset_id_equal_s': dataset_id_equal(" and ", "s", para.get("dataset_id")),
-  #     'where_dataset_id_equal': dataset_id_equal(" where ", "cdm_twf", para.get("dataset_id")),
+  #     'dataset_id_equal_t': dataset_id_equal(" and ", "cdm_t", para.get("dataset_id"), parallel=para.get('parallel')),
+  #     'dataset_id_equal_s': dataset_id_equal(" and ", "s", para.get("dataset_id"), parallel=para.get('parallel')),
+  #     'where_dataset_id_equal': dataset_id_equal(" where ", "cdm_twf", para.get("dataset_id"), parallel=para.get('parallel')),
   #   },
   #   'clean': {'value': 'null', 'confidence': 'null'}
   # },

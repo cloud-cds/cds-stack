@@ -2,8 +2,11 @@
 # query helper functions
 #########################
 
-def dataset_id_equal(prefix, table, dataset_id_val):
-  return "{}{}.dataset_id = {}".format(prefix, table, dataset_id_val) if dataset_id_val else ''
+def dataset_id_equal(prefix, table, dataset_id_val, parallel=None):
+  sql = "{}{}.dataset_id = {}".format(prefix, table, dataset_id_val) if dataset_id_val else ''
+  if parallel is not None:
+    sql += ' and {}.enc_id % {} = {}'.format(table, parallel[0], parallel[1])
+  return sql
 
 def dataset_id_match(prefix, left_table, right_table, dataset_id_val):
   return "{}{}.dataset_id = {}.dataset_id".format(prefix, left_table, right_table) if dataset_id_val else ''
@@ -18,7 +21,7 @@ def get_src_twf_table(derive_feature_addr):
 
 def get_select_table_joins(fid_input_items, derive_feature_addr,
                            cdm_feature_dict, dataset_id, incremental,
-                           workspace=None, job_id=None):
+                           workspace=None, job_id=None, parallel=None):
   src_twf_table = get_src_twf_table(derive_feature_addr)
   twf_table = None
   existing_tables = set()
@@ -78,6 +81,8 @@ def get_select_table_joins(fid_input_items, derive_feature_addr,
   else:
     table_joins += dataset_id_equal(' where ', \
       twf_table if twf_table else src_twf_table, dataset_id)
+    if parallel is not None:
+      table_joins += ' and {}.enc_id % {} = {}'.format(twf_table if twf_table else src_twf_table, parallel[0], parallel[1])
   return sql_template.format(cols=cols, table_joins=table_joins)
 
 def incremental_enc_id_join(table, dataset_id, incremental):
