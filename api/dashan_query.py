@@ -749,7 +749,7 @@ async def get_feature_mapping(db_pool):
   try:
     async with db_pool.acquire() as conn:
       df = await conn.fetch(get_mapping_sql)
-      return json.loads(df[0][0]) 
+      return json.loads(df[0][0])
   except Exception as e:
     #print("Exception: " + str(e) + " in get_feature_mapping query")
     return {}
@@ -780,12 +780,12 @@ async def get_explanations(db_pool, eid):
             "s_raw_values": {},
             "orgdfs" : {orgdf:0 for orgdf in org_dfs}}
     return result
-    
+
 
 async def get_nursing_eval(db_pool,eid):
   get_eval_str = \
   '''
-  select eval,uid, date_part('epoch', tsp) tsp from nurse_eval where enc_id = (select * from pat_id_to_enc_id('%s'::text)) order by tsp::timestamptz desc limit 1;
+  select eval, uid, date_part('epoch', tsp) tsp from nurse_eval where enc_id = (select * from pat_id_to_enc_id('%s'::text)) order by tsp::timestamptz desc limit 1;
   '''%(eid)
   try:
     async with db_pool.acquire() as conn:
@@ -802,7 +802,7 @@ async def get_nursing_eval(db_pool,eid):
     logging.info("Exception: " + str(e) + " in get_nursing_eval")
     return {}
 
-async def update_nursing_eval(db_pool,eid, data,uid):
+async def update_nursing_eval(db_pool, eid, data, uid):
     insert_str = \
     '''
     INSERT INTO nurse_eval (enc_id, tsp, uid, eval)

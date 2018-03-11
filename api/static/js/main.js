@@ -474,11 +474,11 @@ var endpoints = new function() {
       else {
         if ( result.hasOwnProperty('trewsData') ) {
           $('#loading').removeClass('waiting').spin(false); // Remove any spinner from the page
-	  console.log("Received trewsData");
-	  console.log(result.trewsData);
+          console.log("Received trewsData");
+          console.log(result.trewsData);
           trews.setData(result.trewsData);
-	  console.log("After setting");
-	  console.log(trews.data);
+          console.log("After setting");
+          console.log(trews.data);
           if ( trews.data && trews.data.profile['refresh_time'] != null ) { // Update the Epic refresh time.
             var refreshMsg = 'Last refreshed from Epic at ' + strToTime(new Date(trews.data.profile['refresh_time']*1000), true, true) + '.';
             $('h1 #header-refresh-time').text(refreshMsg);
@@ -1647,11 +1647,11 @@ var nursingWorkflowComponent = new function() {
 }
 
 var mental_status_click = function(stat) {
-	console.log("Setting mental status" + String(stat));
-	console.log("Before: " + trews.data["nursing_eval"]["mental_status"])
-	trews.data["nursing_eval"]["mental_status"] = stat;
-	console.log("After: " + trews.data["nursing_eval"]["mental_status"])
-	updateNursingEval()
+	// console.log("Setting mental status" + String(stat));
+	// console.log("Before: " + trews.data["nursing_eval"]["mental_status"])
+	// trews.data["nursing_eval"]["mental_status"] = stat;
+	// console.log("After: " + trews.data["nursing_eval"]["mental_status"])
+	updateNursingEval("mental_status", stat)
 
 }
 var infection_click = function(stat) {
@@ -1659,27 +1659,35 @@ var infection_click = function(stat) {
 	updateNursingEval()
 }
 var notify_click = function() {
+  key = "provider_notified"
 	if ("provider_notified" in trews.data["nursing_eval"]) {
-		trews.data["nursing_eval"]["provider_notified"] = ! trews.data["nursing_eval"]["provider_notified"];
+		value = ! trews.data["nursing_eval"]["provider_notified"];
 	} else{
-		trews.data["nursing_eval"]["provider_notified"] = true;
+		value = true;
 	}
-	updateNursingEval()
+	updateNursingEval(key, value)
 
 }
 var save_comment = function(comment) {
-	trews.data["nursing_eval"]["comments"] = comment;
-	updateNursingEval()
+	// trews.data["nursing_eval"]["comments"] = comment;
+	updateNursingEval("comments", comment)
 
 }
 
-var updateNursingEval = function() {
-	console.log("updating nurse eval");
-      	trews.data["nursing_eval"]["uid"]=(getQueryVariable('USERID') === false) ? null : cleanUserId(getQueryVariable('USERID'));
-	trews.data["nursing_eval"]["tsp"] = Date.now().toString();
-	nursingWorkflowComponent.update_notification_prompt();
-	console.log(trews.data["nursing_eval"]);
-      	endpoints.getPatientData("update_nursing_eval",trews.data["nursing_eval"]);
+var updateNursingEval = function(key, value) {
+  console.log("updating nurse eval");
+  trews.data["nursing_eval"]["uid"]=(getQueryVariable('USERID') === false) ? null : cleanUserId(getQueryVariable('USERID'));
+  trews.data["nursing_eval"]["tsp"] = Date.now().toString();
+  nursingWorkflowComponent.update_notification_prompt();
+  console.log(trews.data["nursing_eval"]);
+  var actionData = { };
+  for (var fid in trews.data["nursing_eval"]) {
+    actionData[fid] = trews.data["nursing_eval"][fid]
+  }
+  actionData[key] = value
+  console.log("actiondata created")
+  console.log(actionData);
+  endpoints.getPatientData("update_nursing_eval", actionData);
 }
 
 /**
