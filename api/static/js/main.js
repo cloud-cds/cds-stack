@@ -1517,148 +1517,96 @@ var careSummaryComponent = new function() {
  */
 
 var nursingWorkflowComponent = new function() {
-	this.ctn = $("[data-trews='nurse-workflow']");
-        this.status_buttons = {"Yes": '#yes_mental_stat', "No":'#no_mental_stat', "Unknown":'#unk_mental_stat'};
-        this.inf_buttons = {"Yes":'#yes_inf', "No":'#no_inf'};
-	//this.notif_buttons = {"Yes":'#yes_notif', "No":'#no_notif'};
-	this.render = function() {
-		//hide the display if no alert
-		if (!trews.data["severe_sepsis"]["trews_subalert"]["is_met"]) {
-			console.log("Seting display to none");
-			this.ctn.html("");
-			return;
-		}
-		console.log("Before restructure");
-		console.log(trews.data["nursing_eval"]);
-		//Hacky way to deal with buug where nursing_eval structure is flattened
-		/*
-		if (!("eval" in trews.data["nursing_eval"])) {
-			trews.data["nursing_eval"] = {}
-			for (var key in trews.data["nursing_eval"]) {
-				if (key != "tsp" && key != "uid" && key != "eval") {
-					trews.data["nursing_eval"][key] = trews.data["nursing_eval"][key];
-					console.log("Deleting key: " + key);
-					delete trews.data["nursing_eval"][key]
-				}
-			}
-		}
-		*/
-		console.log("After");
-		console.log(trews.data["nursing_eval"]);
-		var time_txt = "";
-		if ("nursing_eval" in trews.data && "tsp" in trews.data["nursing_eval"]) {
-            		//var date = new Date(Date.parse(trews.data['nursing_eval']['tsp'] + " UTC"));
-			var date = new Date(Number(trews.data['nursing_eval']['tsp']));
-			time_txt = "The last evaluation was at " + strToTime(date.getTime(),true,false);
-			time_txt += " by " + trews.data["nursing_eval"]["uid"] + ".";
-			if (Date.now()-date.getTime() > (12 * 60*60*1000)) {
-				time_txt += " The last evaluation was over 12 hours ago. Please confirm and resubmit the evaluation.";
-				document.getElementById('time_stat').style.height="40px";
-			}
-		} else {
-			time_txt = "An evaluation has not been completed.";
-		}
-		this.ctn.find('#time_stat').text(time_txt);
-		/*
-		if (!("nursing_eval" in trews.data)){
-			trews.data["nursing_eval"] = {};
-		}
+  this.ctn = $("[data-trews='nurse-workflow']");
+  this.status_buttons = {"Yes": '#yes_mental_stat', "No":'#no_mental_stat', "Unknown":'#unk_mental_stat'};
+  this.inf_buttons = {"Yes":'#yes_inf', "No":'#no_inf'};
+  //this.notif_buttons = {"Yes":'#yes_notif', "No":'#no_notif'};
 
-		if (!("eval" in trews.data["nursing_eval"])) {
-			trews.data["nursing_eval"] = {};
-			trews.data["nursing_eval"]["advise_notify"]=true;
-		}
-		*/
-               //Set states
-		console.log("setting states");
-		$('#save_comment').checked="true";
-		console.log("set save_comment");
- 		if ("nursing_eval" in trews.data) {
-			this.eval_box = $('#eval_comments')
-			if ("comments" in trews.data["nursing_eval"]) {
-				this.eval_box[0].value = trews.data["nursing_eval"]["comments"];
-			}
-                  	if ("mental_status" in trews.data["nursing_eval"] && trews.data["nursing_eval"]["mental_status"] in this.status_buttons) {
-				console.log("setting status button");
-				$(this.status_buttons[trews.data["nursing_eval"]["mental_status"]])[0].checked="true";
+  this.render = function() {
+    //hide the display if no alert
+    if (!trews.data["severe_sepsis"]["trews_subalert"]["is_met"]) {
+      this.ctn.html("");
+      return;
+    }
+    var time_txt = "";
+    if ("nursing_eval" in trews.data && "tsp" in trews.data["nursing_eval"]) {
+      var date = new Date(Number(trews.data['nursing_eval']['tsp']));
+      time_txt = "The last evaluation was at " + strToTime(date.getTime(), true, false);
+      time_txt += " by " + trews.data["nursing_eval"]["uid"] + ".";
+      if (Date.now() - date.getTime() > (12 * 60*60*1000)) {
+        time_txt += " The last evaluation was over 12 hours ago. Please confirm and resubmit the evaluation.";
+        document.getElementById('time_stat').style.height="40px";
+      }
+    } else {
+      time_txt = "An evaluation has not been completed.";
+    }
+    this.ctn.find('#time_stat').text(time_txt);
+    //Set states
+    $('#save_comment').checked="true";
+    if ("nursing_eval" in trews.data) {
+      this.eval_box = $('#eval_comments')
+      if ("comments" in trews.data["nursing_eval"]) {
+        this.eval_box[0].value = trews.data["nursing_eval"]["comments"];
+      }
+      if ("mental_status" in trews.data["nursing_eval"] && trews.data["nursing_eval"]["mental_status"] in this.status_buttons) {
+        console.log("setting status button");
+        $(this.status_buttons[trews.data["nursing_eval"]["mental_status"]])[0].checked="true";
+      }
+      if ("known_infection" in trews.data["nursing_eval"] && trews.data["nursing_eval"]["known_infection"] in this.inf_buttons) {
+        console.log("setting inf button");
+        $(this.inf_buttons[trews.data["nursing_eval"]["known_infection"]])[0].checked="true";
+      }
+      if ("provider_notified" in trews.data["nursing_eval"]) {
+        $('#yes_notif')[0].checked="true";
+      }
+    }
 
-		   	}
-		 	if ("known_infection" in trews.data["nursing_eval"] && trews.data["nursing_eval"]["known_infection"] in this.inf_buttons) {
-				console.log("setting inf button");
-				$(this.inf_buttons[trews.data["nursing_eval"]["known_infection"]])[0].checked="true";
-		   	}
-		  	if ("provider_notified" in trews.data["nursing_eval"]) {
-				$('#yes_notif')[0].checked="true";
-		   	}
-		}
-		this.update_notification_prompt();
+    this.update_notification_prompt();
 
 		console.log("done setting states");
-		this.yes_mental_btn = $('#yes_mental_stat');
-		this.yes_mental_btn.click(function(e){mental_status_click("Yes")});
-		this.no_mental_btn = $('#no_mental_stat');
-		this.no_mental_btn.click(function(e){mental_status_click("No")});
-		this.unk_mental_btn = $('#unk_mental_stat');
-		this.unk_mental_btn.click(function(e){mental_status_click("Unknown")});
-		this.no_inf_btn = $('#no_inf');
-		this.no_inf_btn.click(function(e){infection_click("No")});
-		this.yes_inf_btn = $('#yes_inf');
-		this.yes_inf_btn.click(function(e){infection_click("Yes")});
-		$('#yes_notif').click(function(e){notify_click()});
-		this.save_btn = $('#save_comment');
-		this.save_btn.click(function(e){save_comment($('#eval_comments')[0].value)});
+    this.yes_mental_btn = $('#yes_mental_stat');
+    this.yes_mental_btn.click(function(e){mental_status_click("Yes")});
+    this.no_mental_btn = $('#no_mental_stat');
+    this.no_mental_btn.click(function(e){mental_status_click("No")});
+    this.unk_mental_btn = $('#unk_mental_stat');
+    this.unk_mental_btn.click(function(e){mental_status_click("Unknown")});
+    this.no_inf_btn = $('#no_inf');
+    this.no_inf_btn.click(function(e){infection_click("No")});
+    this.yes_inf_btn = $('#yes_inf');
+    this.yes_inf_btn.click(function(e){infection_click("Yes")});
+    $('#yes_notif').click(function(e){notify_click()});
+    this.save_btn = $('#save_comment');
+    this.save_btn.click(function(e){save_comment($('#eval_comments')[0].value)});
  	}
-	this.update_notification_prompt = function () {
-		var no_threshold = 20;
-		var notify_txt = "TREWS indicates high risk of sepsis, please notify the patient's provider.";
-		var no_notify_txt = "TREWS does not indicate high risk of sepsis at this time.";
-		var result_txt = "";
-		console.log("updating notif");
-		if ("mental_status" in trews.data["nursing_eval"] && "known_infection" in trews.data["nursing_eval"]) {
-			if ( trews.data["nursing_eval"]["mental_status"] == 'Yes' || trews.data["nursing_eval"]["known_infection"] == 'Yes') {
-				trews.data["nursing_eval"]["advise_notify"] = true;
-				console.log("updating to notif_txt from yes");
-			} else if (JSON.parse(trews["data"]["severe_sepsis"]["trews_subalert"]["value"])["pct_sevsep"]>no_threshold) {
-				trews.data["nursing_eval"]["advise_notify"] = true;
-				console.log("updating to notif_txt from prob");
-			} else {
-				trews.data["nursing_eval"]["advise_notify"] = false;
-				console.log("updating to no_notif");
-			}
-		} else {
-			trews.data["nursing_eval"]["advise_notify"] = true;
-		}
-		if (trews.data["nursing_eval"]["advise_notify"]) {
-			result_txt = notify_txt;
-		} else {
-			result_text = no_notify_txt;
-		}
-		console.log("notify txt " + result_txt);
-		this.ctn.find("#notify_stat").text(result_txt);
-		console.log("Advise_notify:" + trews.data["nursing_eval"]["advise_notify"])
-		if (trews.data["nursing_eval"]["advise_notify"]) {
-			console.log("setting to advise")
-			$('#provider-notified-block')[0].style="display:inline-block;";
-		} else {
-			console.log("setting to hidden")
-			$('#provider-notified-block')[0].style="display:none;";
-		}
-	}
+
+  this.update_notification_prompt = function () {
+    var no_threshold = 20;
+    var notify_txt = "TREWS indicates high risk of sepsis, please notify the patient's provider.";
+    var no_notify_txt = "TREWS does not indicate high risk of sepsis at this time.";
+    trews.data["nursing_eval"]["advise_notify"] = true;
+    if (JSON.parse(trews["data"]["severe_sepsis"]["trews_subalert"]["value"])["pct_sevsep"]<no_threshold && "mental_status" in trews.data["nursing_eval"] && trews.data["nursing_eval"]["mental_status"] == 'No' && "known_infection" in trews.data["nursing_eval"] && trews.data["nursing_eval"]["known_infection"] == 'No') {
+      trews.data["nursing_eval"]["advise_notify"] = false;
+      this.ctn.find("#notify_stat").text(no_notify_txt);
+      $('#provider-notified-block')[0].style="display:none;";
+    } else {
+      this.ctn.find("#notify_stat").text(notify_txt);
+      $('#provider-notified-block')[0].style="display:inline-block;";
+    }
+  }
 }
 
 var mental_status_click = function(stat) {
-	// console.log("Setting mental status" + String(stat));
-	// console.log("Before: " + trews.data["nursing_eval"]["mental_status"])
-	// trews.data["nursing_eval"]["mental_status"] = stat;
-	// console.log("After: " + trews.data["nursing_eval"]["mental_status"])
+
 	updateNursingEval("mental_status", stat)
 
 }
 var infection_click = function(stat) {
-	trews.data["nursing_eval"]["known_infection"] = stat;
-	updateNursingEval()
+
+	updateNursingEval("known_infection", stat)
+
 }
 var notify_click = function() {
+
   key = "provider_notified"
 	if ("provider_notified" in trews.data["nursing_eval"]) {
 		value = ! trews.data["nursing_eval"]["provider_notified"];
@@ -1669,7 +1617,7 @@ var notify_click = function() {
 
 }
 var save_comment = function(comment) {
-	// trews.data["nursing_eval"]["comments"] = comment;
+
 	updateNursingEval("comments", comment)
 
 }
@@ -1686,6 +1634,7 @@ var updateNursingEval = function(key, value) {
   }
   actionData[key] = value
   console.log("actiondata created")
+  console.log(key, value)
   console.log(actionData);
   endpoints.getPatientData("update_nursing_eval", actionData);
 }
