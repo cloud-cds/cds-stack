@@ -840,7 +840,7 @@ class TREWSAPI(web.View):
         for orgdf, value in orgdfs.items():
           if value == 1 and orgdf in mapping:
             data['feature_relevances'][mapping[orgdf]] = 1
-        
+
       data['nursing_eval'] = nurse_eval
 
       return data
@@ -874,7 +874,7 @@ class TREWSAPI(web.View):
 
           if request_key:
             self.request.app['body'][request_key] = req_body
-	
+
           logging.info('%(date)s %(method)s %(host)s HDR %(headers)s BODY %(body)s'
               % { 'date'         : srvnow,
                   'method'       : self.request.method,

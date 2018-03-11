@@ -1368,15 +1368,15 @@ var careSummaryComponent = new function() {
         table_str += '</tr>';
 	return table_str;
   }
-  this.getStaticFeatureDisplay = function(feat) {
-	if (feat == "age") {
-		return trews.data["static_features"]["age"];
-	} else if (feat == "gender") {
-		return trews.data["static_features"]["gender"]==1 ? "Male":"Female";
-	} else {
-		return trews.data["static_features"][feat] == 1 ? "Present":"Not Present";
-	}
-  }	
+  this.getStaticFeatureDisplay = function(feat, value) {
+  	if (feat == "age") {
+  		return value;
+  	} else if (feat == "gender") {
+  		return value==1 ? "Male":"Female";
+  	} else {
+  		return value == 1 ? "Present":"Not Present";
+  	}
+  }
   this.renderDetail = function(alert_as_cms, cms_status) {
     //Summary
     var summary_html = "";
@@ -1404,21 +1404,21 @@ var careSummaryComponent = new function() {
 
     var demographics_html = "";
     if('static_features' in trews.data && trews.data['static_features'] != null) {
-	var feat_row = '';
+	    var feat_row = '';
     	for (var feat in trews.data['static_features']) {
-        	feat_row += '<tr><td>'+ (feat.charAt(0).toUpperCase()+feat.slice(1)).replace(/_/g," ")+': ';
-       	 	feat_row += (trews.data['static_features'][feat]==1 ? "Present":trews.data['static_features'][feat]) + '</td></tr>';
+          feat_row += '<tr><td>'+ (feat.charAt(0).toUpperCase()+feat.slice(1)).replace(/_/g," ")+': ';
+          feat_row += this.getStaticFeatureDisplay(feat, trews.data['static_features'][feat]) + '</td></tr>';
       	}
      	demographics_html = '<h3> Demographics and History </h3>'
 		          + '<table style="width:100%">'
 		          + feat_row
     	                  +'</table><br>';
     }
- 
+
 
 
     var trews_html = "";
-    //Set up feature relevances 
+    //Set up feature relevances
     if ( 'feature_relevances' in trews.data && trews.data['feature_relevances'] != null
           && 'measurements' in trews.data && trews.data['measurements'] != null)
     {
@@ -1541,7 +1541,7 @@ var nursingWorkflowComponent = new function() {
 					delete trews.data["nursing_eval"][key]
 				}
 			}
-		} 
+		}
 		*/
 		console.log("After");
 		console.log(trews.data["nursing_eval"]);
@@ -1562,12 +1562,12 @@ var nursingWorkflowComponent = new function() {
 		/*
 		if (!("nursing_eval" in trews.data)){
 			trews.data["nursing_eval"] = {};
-		}	
-	
+		}
+
 		if (!("eval" in trews.data["nursing_eval"])) {
 			trews.data["nursing_eval"] = {};
 			trews.data["nursing_eval"]["advise_notify"]=true;
-		}	
+		}
 		*/
                //Set states
 		console.log("setting states");
@@ -1581,7 +1581,7 @@ var nursingWorkflowComponent = new function() {
                   	if ("mental_status" in trews.data["nursing_eval"] && trews.data["nursing_eval"]["mental_status"] in this.status_buttons) {
 				console.log("setting status button");
 				$(this.status_buttons[trews.data["nursing_eval"]["mental_status"]])[0].checked="true";
-			
+
 		   	}
 		 	if ("known_infection" in trews.data["nursing_eval"] && trews.data["nursing_eval"]["known_infection"] in this.inf_buttons) {
 				console.log("setting inf button");
@@ -1592,7 +1592,7 @@ var nursingWorkflowComponent = new function() {
 		   	}
 		}
 		this.update_notification_prompt();
-		
+
 		console.log("done setting states");
 		this.yes_mental_btn = $('#yes_mental_stat');
 		this.yes_mental_btn.click(function(e){mental_status_click("Yes")});
@@ -1625,7 +1625,7 @@ var nursingWorkflowComponent = new function() {
 				trews.data["nursing_eval"]["advise_notify"] = false;
 				console.log("updating to no_notif");
 			}
-		} else { 
+		} else {
 			trews.data["nursing_eval"]["advise_notify"] = true;
 		}
 		if (trews.data["nursing_eval"]["advise_notify"]) {
@@ -1652,7 +1652,7 @@ var mental_status_click = function(stat) {
 	trews.data["nursing_eval"]["mental_status"] = stat;
 	console.log("After: " + trews.data["nursing_eval"]["mental_status"])
 	updateNursingEval()
-	
+
 }
 var infection_click = function(stat) {
 	trews.data["nursing_eval"]["known_infection"] = stat;
@@ -1670,7 +1670,7 @@ var notify_click = function() {
 var save_comment = function(comment) {
 	trews.data["nursing_eval"]["comments"] = comment;
 	updateNursingEval()
-	
+
 }
 
 var updateNursingEval = function() {
