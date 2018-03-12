@@ -1541,14 +1541,14 @@ var nursingWorkflowComponent = new function() {
     var time_txt = "";
     if ("tsp" in eval) {
       var date = new Date(Number(eval['tsp']));
-      time_txt = "The last evaluation was at " + strToTime(date.getTime(), true, false);
+      time_txt = "The last assessment was at " + strToTime(date.getTime(), true, false);
       time_txt += " by " + eval["uid"] + ".";
       if (Date.now() - date.getTime() > (12 * 60*60*1000)) {
-        time_txt += " The last evaluation was over 12 hours ago. Please confirm and resubmit the evaluation.";
+        time_txt += " The last assessment was over 12 hours ago. Please confirm and resubmit the assessment.";
         document.getElementById('time_stat').style.height="40px";
       }
     } else {
-      time_txt = "An evaluation has not been completed.";
+      time_txt = "An assessment has not been completed.";
     }
     this.ctn.find('#time_stat').text(time_txt);
     //Set states
