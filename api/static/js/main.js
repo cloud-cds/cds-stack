@@ -1363,8 +1363,8 @@ var careSummaryComponent = new function() {
             value = trews.data['measurements'][measure_feat]['value']+' @ '//<br>'
             var date = new Date(Date.parse(trews.data['measurements'][measure_feat]['tsp'] + " UTC"));
             value += strToTime(date.getTime(),true,false);
-            console.log("tsp: " + date.toString());
-            console.log("tsp: " + date.getTime());
+            //console.log("tsp: " + date.toString());
+            //console.log("tsp: " + date.getTime());
         }
 
         table_str += '<td>'+value+'</td>';
@@ -1524,13 +1524,14 @@ var nursingWorkflowComponent = new function() {
     this.ctn = $("[data-trews='nurse-workflow']");
     this.status_buttons = {"Yes": '#yes_mental_stat', "No":'#no_mental_stat', "Unknown":'#unk_mental_stat'};
     this.inf_buttons = {"Yes":'#yes_inf', "No":'#no_inf'};
-    document.getElementById('yes_mental_stat').onclick = function(e){mental_status_click("Yes")};
-    document.getElementById('no_mental_stat').onclick = function(e){mental_status_click("No")};
-    document.getElementById('unk_mental_stat').onclick = function(e){mental_status_click("Unknown")};
-    document.getElementById('no_inf').onclick = function(e){infection_click("No")};
-    document.getElementById('yes_inf').onclick = function(e){infection_click("Yes")};
+    document.getElementById('yes_mental_stat').onclick = function(e){updateNursingEval("mental_status","Yes")};
+    document.getElementById('no_mental_stat').onclick = function(e){updateNursingEval("mental_status","No")};
+    document.getElementById('unk_mental_stat').onclick = function(e){updateNursingEval("mental_status","Unknown")};
+    document.getElementById('no_inf').onclick = function(e){updateNursingEval("known_infection","No")};
+    document.getElementById('yes_inf').onclick = function(e){updateNursingEval("known_infection","Yes")};
     document.getElementById('yes_notif').onclick= function(e){notify_click()};
-    document.getElementById('save_comment').onclick = function(e){save_comment($('#eval_comments')[0].value)};
+    document.getElementById('submit_eval').onclick = function(e){updateNursingEval("comments",$('#eval_comments')[0].value);
+                                                                 submitNursingEval();};
   }
   this.render = function(eval) {
     //hide the display if no alert
@@ -1552,7 +1553,7 @@ var nursingWorkflowComponent = new function() {
     }
     this.ctn.find('#time_stat').text(time_txt);
     //Set states
-    document.getElementById('save_comment').checked="true";
+    document.getElementById('submit_eval').checked="true";
     if ("nursing_eval" in trews.data) {
       this.eval_box = $('#eval_comments')
       if ("comments" in eval) {
@@ -1565,6 +1566,9 @@ var nursingWorkflowComponent = new function() {
       if ("known_infection" in eval && eval["known_infection"] in this.inf_buttons) {
         //console.log("setting inf button");
         $(this.inf_buttons[eval["known_infection"]])[0].checked="true";
+      }
+      if ("known_infection" in eval && "mental_status" in eval) {
+        document.getElementById("nurse-eval-submit").innerHTML="Resubmit";
       }
       if ("provider_notified" in eval) {
         $('#yes_notif')[0].checked=eval["provider_notified"];
@@ -1590,7 +1594,7 @@ var nursingWorkflowComponent = new function() {
     }
   }
 }
-
+/*
 var mental_status_click = function(stat) {
   updateNursingEval("mental_status", stat)
 }
@@ -1598,39 +1602,29 @@ var mental_status_click = function(stat) {
 var infection_click = function(stat) {
   updateNursingEval("known_infection", stat)
 }
-
+*/
 var notify_click = function() {
-
   key = "provider_notified"
-	if ("provider_notified" in trews.data["nursing_eval"]) {
-		value = ! trews.data["nursing_eval"]["provider_notified"];
-	} else{
-		value = true;
-	}
-	updateNursingEval(key, value)
-
-}
-var save_comment = function(comment) {
-
-	updateNursingEval("comments", comment)
-
+  if ("provider_notified" in trews.data["nursing_eval"]) {
+    value = ! trews.data["nursing_eval"]["provider_notified"];
+  } else{
+    value = true;
+  }
+  updateNursingEval(key, value)
 }
 
-var updateNursingEval = function(key, value) {
-  //console.log("updating nurse eval");
+var updateNursingEval = function(key,value) {
+  trews.data["nursing_eval"][key] = value;
+}
+
+var submitNursingEval = function(key, value) {
   trews.data["nursing_eval"]["uid"]=(getQueryVariable('USERID') === false) ? null : cleanUserId(getQueryVariable('USERID'));
   trews.data["nursing_eval"]["tsp"] = Date.now().toString();
   nursingWorkflowComponent.update_notification_prompt(trews.data["nursing_eval"]);
-  //console.log(trews.data["nursing_eval"]);
   var actionData = { };
-  trews.data["nursing_eval"][key] = value;
   for (var fid in trews.data["nursing_eval"]) {
     actionData[fid] = trews.data["nursing_eval"][fid]
   }
-  //actionData[key] = value
-  //console.log("actiondata created")
-  //console.log(key, value)
-  //console.log(actionData);
   endpoints.getPatientData("update_nursing_eval", actionData);
 }
 
