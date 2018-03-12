@@ -1520,7 +1520,13 @@ var nursingWorkflowComponent = new function() {
   this.ctn = $("[data-trews='nurse-workflow']");
   this.status_buttons = {"Yes": '#yes_mental_stat', "No":'#no_mental_stat', "Unknown":'#unk_mental_stat'};
   this.inf_buttons = {"Yes":'#yes_inf', "No":'#no_inf'};
-  //this.notif_buttons = {"Yes":'#yes_notif', "No":'#no_notif'};
+  document.getElementById('yes_mental_stat').onclick = function(e){mental_status_click("Yes")};
+  document.getElementById('no_mental_stat').onclick = function(e){mental_status_click("No")};
+  document.getElementById('unk_mental_stat').onclick = function(e){mental_status_click("Unknown")};
+  document.getElementById('no_inf').onclick = function(e){infection_click("No")};
+  document.getElementById('yes_inf').onclick = function(e){infection_click("Yes")};
+  document.getElementById('yes_notif').onclick= function(e){notify_click()};
+  document.getElementById('save_comment').onclick = function(e){save_comment($('#eval_comments')[0].value)};
 
   this.render = function() {
     //hide the display if no alert
@@ -1542,7 +1548,7 @@ var nursingWorkflowComponent = new function() {
     }
     this.ctn.find('#time_stat').text(time_txt);
     //Set states
-    $('#save_comment').checked="true";
+    document.getElementById('save_comment').checked="true";
     if ("nursing_eval" in trews.data) {
       this.eval_box = $('#eval_comments')
       if ("comments" in trews.data["nursing_eval"]) {
@@ -1557,27 +1563,14 @@ var nursingWorkflowComponent = new function() {
         $(this.inf_buttons[trews.data["nursing_eval"]["known_infection"]])[0].checked="true";
       }
       if ("provider_notified" in trews.data["nursing_eval"]) {
-        $('#yes_notif')[0].checked="true";
+        $('#yes_notif')[0].checked=trews.data["nursing_eval"]["provider_notified"];
       }
     }
 
     this.update_notification_prompt();
 
 		console.log("done setting states");
-    this.yes_mental_btn = $('#yes_mental_stat');
-    this.yes_mental_btn.click(function(e){mental_status_click("Yes")});
-    this.no_mental_btn = $('#no_mental_stat');
-    this.no_mental_btn.click(function(e){mental_status_click("No")});
-    this.unk_mental_btn = $('#unk_mental_stat');
-    this.unk_mental_btn.click(function(e){mental_status_click("Unknown")});
-    this.no_inf_btn = $('#no_inf');
-    this.no_inf_btn.click(function(e){infection_click("No")});
-    this.yes_inf_btn = $('#yes_inf');
-    this.yes_inf_btn.click(function(e){infection_click("Yes")});
-    $('#yes_notif').click(function(e){notify_click()});
-    this.save_btn = $('#save_comment');
-    this.save_btn.click(function(e){save_comment($('#eval_comments')[0].value)});
- 	}
+    	}
 
   this.update_notification_prompt = function () {
     var no_threshold = 20;
