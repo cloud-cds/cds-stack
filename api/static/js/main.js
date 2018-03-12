@@ -1363,6 +1363,8 @@ var careSummaryComponent = new function() {
             value = trews.data['measurements'][measure_feat]['value']+' @ '//<br>'
             var date = new Date(Date.parse(trews.data['measurements'][measure_feat]['tsp'] + " UTC"));
             value += strToTime(date.getTime(),true,false);
+            console.log("tsp: " + date.toString());
+            console.log("tsp: " + date.getTime());
         }
 
         table_str += '<td>'+value+'</td>';
@@ -1404,8 +1406,8 @@ var careSummaryComponent = new function() {
 
 
     var demographics_html = "";
-    if('static_features' in trews.data && trews.data['static_features'] != null) {
-	    var feat_row = '';
+    if('static_features' in trews.data && trews.data['static_features'] != null && Object.keys(trews.data['static_features']).length > 0) {
+	var feat_row = '';
     	for (var feat in trews.data['static_features']) {
           feat_row += '<tr><td>'+ (feat.charAt(0).toUpperCase()+feat.slice(1)).replace(/_/g," ")+': ';
           feat_row += this.getStaticFeatureDisplay(feat, trews.data['static_features'][feat]) + '</td></tr>';
