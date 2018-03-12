@@ -1584,7 +1584,10 @@ var nursingWorkflowComponent = new function() {
     var notify_txt = "TREWS indicates high risk of sepsis, please notify the patient's provider.";
     var no_notify_txt = "TREWS does not indicate high risk of sepsis at this time.";
     trews["data"]["nursing_eval"]["advise_notify"] = true;
-    if (JSON.parse(trews["data"]["severe_sepsis"]["trews_subalert"]["value"])["pct_sevsep"]<no_threshold && "mental_status" in eval && eval["mental_status"] == 'No' && "known_infection" in eval && eval["known_infection"] == 'No') {
+    if ( !("mental_status" in eval && "known_infection" in eval)) {
+      this.ctn.find("#notify_stat").text = "";
+      $('#provider-notified-block')[0].style="display:none;";
+    } else if (JSON.parse(trews["data"]["severe_sepsis"]["trews_subalert"]["value"])["pct_sevsep"]<no_threshold && eval["mental_status"] == 'No' && eval["known_infection"] == 'No') {
       trews["data"]["nursing_eval"]["advise_notify"] = false;
       this.ctn.find("#notify_stat").text(no_notify_txt);
       $('#provider-notified-block')[0].style="display:none;";
@@ -1611,13 +1614,14 @@ var notify_click = function() {
     value = true;
   }
   updateNursingEval(key, value)
+  submitNursingEval();
 }
 
 var updateNursingEval = function(key,value) {
   trews.data["nursing_eval"][key] = value;
 }
 
-var submitNursingEval = function(key, value) {
+var submitNursingEval = function() {
   trews.data["nursing_eval"]["uid"]=(getQueryVariable('USERID') === false) ? null : cleanUserId(getQueryVariable('USERID'));
   trews.data["nursing_eval"]["tsp"] = Date.now().toString();
   nursingWorkflowComponent.update_notification_prompt(trews.data["nursing_eval"]);
