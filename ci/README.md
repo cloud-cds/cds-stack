@@ -2,6 +2,10 @@
 
 Yay. We now have continuous integration using Concourse. ([website](https://concourse.ci/), [github](https://github.com/concourse/concourse))
 
+This README describes operations related to setting up the concourse pipeline;
+for instructions on how to deploy concourse,
+see `cloud/aws/stage3/dev-services/concourse/README.md`
+
 ---
 
 ## Getting started
@@ -29,14 +33,23 @@ _don't forget the pipe -->_  |
 
 ## How to use:
 
-It should be all set to run for any commit to a pull-request. However if changes need to be made to the pipeline you will need to set them with [fly-cli](https://concourse.ci/fly-cli.html).
+It should be all set to run for any commit to a pull-request. 
+However if changes need to be made to the pipeline you will need to set them 
+with [fly-cli](https://concourse.ci/fly-cli.html).
 
-`fly -t opsdx_dev login -c http://concourse.dev.opsdx.io`
+For example, to set up the pipeline specified in `pipeline.yml`, you'll
+need to obtain `concourse-dev-vars.yaml` and run the following commands
+to authenticate, set up the pipeline, and unpause it
+(when prompted, choose 1. Github and go to the provided URL to authenticate.)
+
+```
+fly -t opsdx_dev login https://concourse-dev.jh.opsdx.io/
+fly -t opsdx_dev sp -p main -c pipeline.yml -l concourse-dev-vars.yaml
+fly -t opsdx_dev up -p main
+``` 
+
+Other useful commands:
 
 `fly -t opsdx_dev destroy-pipeline -p main-pipeline`
-
-`fly -t opsdx_dev set-pipeline -p main-pipeline -c pipeline.yml -l credentials.yml`
-
-`fly -t opsdx_dev unpause-pipeline -p main-pipeline`
 
 `fly -t opsdx_dev expose-pipeline --pipeline main-pipeline`
