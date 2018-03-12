@@ -63,8 +63,8 @@
 				<h2>Nursing Evaluation</h2>
 				
 				<div class="slot last-child nurse-workflow">
-				<div class="row" id="time_stat"></div>
-					<div class='nursing-quesiton' style='display:inline-block'>Does the patient have a new or altered mental status?</div>
+				<span class="nursing-question" id="time_stat"></span><br>
+					<span class='nursing-question'>Does the patient have a new or altered mental status?</span>
 					<label class="eval-container">
   					<input type="radio" name="mental" id="yes_mental_stat">
   					<span class="eval-checkmark">Yes</span>
@@ -77,9 +77,9 @@
   					<input type="radio" name="mental" id = "unk_mental_stat">
   					<span class="eval-checkmark">Unknown</span>
 					</label>
-
+					
 					<br>
-					<div class='nursing-quesiton' style='display:inline-block'>Does the patient have a known infection or signs/symptoms of a new infection?</div>
+					<span class='nursing-question' style='display:inline-block'>Does the patient have a known infection or signs/symptoms of a new infection?</span>
 					<label class="eval-container">
   					<input type="radio" name="infection" id ="yes_inf">
   					<span class="eval-checkmark">Yes</span>
@@ -90,8 +90,7 @@
   					<span class="eval-checkmark">No</span>
 					</label>
 					<br>
-                                        					<br>
-					<div class='nursing-question'>Comments</div>
+					<span class='nursing-question'>Comments</span>
                                         					<br>
 					<textarea name="nurse-eval-comments" id = "eval_comments" style="width:100%;height 300px;"></textarea>
                                         					<br>
@@ -99,10 +98,12 @@
   					<input type="radio" name="save" id="save_comment">
   					<span class="eval-checkmark">Save Comment</span>
 					</label>
-				<div class="row" id="notify_stat"></div>
-				<div style="display:inline-block" id="provider-notified-block"> Has the provider been notified?
+				<br><br>
+				<span class="nursing-question" id="notify_stat"></span>
+				<br>
+				<div style="display:inline-block" id="provider-notified-block"> <span class='nursing-question'> Has the provider been notified?</span>
                                         <label class="eval-container">
-  					<input type="radio" name="provider-notified" id="yes_notif">
+  					<input type="checkbox" name="provider-notified" id="yes_notif">
   					<span class="eval-checkmark">Yes</span>
 					</label>
 				</div>

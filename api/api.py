@@ -312,6 +312,8 @@ class TREWSAPI(web.View):
         return {'message': msg}
 
     elif actionType == u'update_nursing_eval':
+        logging.info("updating nursing eval")
+        logging.info(str(actionData));
         await query.update_nursing_eval(db_pool,eid,actionData,uid)
 
     elif actionType == u'place_order':
@@ -745,7 +747,7 @@ class TREWSAPI(web.View):
 
     # cache lookup
     pat_values = await pat_cache.get(eid)
-
+    #pat_values = None;
     if pat_values is None:
       api_monitor.add_metric('CacheMisses')
 
@@ -760,7 +762,7 @@ class TREWSAPI(web.View):
                       query.get_nursing_eval(db_pool, eid),
                       #query.get_trews_jit_score(db_pool, eid, start_hrs=chart_sample_start_hrs, start_day=chart_sample_start_day, end_day=chart_sample_end_day, sample_mins=chart_sample_mins, sample_hrs=chart_sample_hrs)
                     )
-
+      #print("No cache: " + str(pat_values[6]))
       if pat_values[0] is None or len(pat_values[0]) == 0:
         # cannot find data for this eid
         data = None
@@ -768,6 +770,7 @@ class TREWSAPI(web.View):
       await pat_cache.set(eid, pat_values, ttl=300)
 
     else:
+      #print("Hit cache: " + str(pat_values[6]))
       api_monitor.add_metric('CacheHits')
 
     sz = await pat_cache.raw('__len__')
@@ -790,6 +793,7 @@ class TREWSAPI(web.View):
     orgdfs             = explanations['orgdfs'] if 'orgdfs' in explanations else None
 
     self.update_criteria(criteria_result_set, data)
+    logging.info(str(nurse_eval))
 
     try:
       # update chart data
@@ -825,8 +829,9 @@ class TREWSAPI(web.View):
                                         'tsp': measurements['sbpm']['tsp']}
       data['measurements'] = measurements
 
-      if 'gender' in static_features:
-        static_features['gender'] = 'Male' if static_features['gender'] == 1 else 'Female'
+      #if 'gender' in static_features:
+      #  logging.info("Static features['gender'] is" + str(static_features['gender']))
+      #  static_features['gender'] = 'Male' if static_features['gender'] == 1 else 'Female'
       data['static_features'] = static_features
 
       data['feature_relevances'] = explain.thresholdImportances(explain.getMappedImportances(feature_relevances,mapping)) if feature_relevances else None
@@ -835,7 +840,7 @@ class TREWSAPI(web.View):
         for orgdf, value in orgdfs.items():
           if value == 1 and orgdf in mapping:
             data['feature_relevances'][mapping[orgdf]] = 1
-        
+
       data['nursing_eval'] = nurse_eval
 
       return data
@@ -996,7 +1001,6 @@ class TREWSAPI(web.View):
 
           else:
             response_body = {'message': 'Invalid TREWS REST API request'}
-
           return json_response(response_body)
 
         else:

@@ -1344,12 +1344,17 @@ span.criteria-btn p {
     color: #437c90;
 }
 /* End Suppressions */
-
+.stats-summary {
+    font-size: 14px;
+    vertical-align:middle;
+    display: inline-block;
+}
 /* Nursing Workflow*/
 .nursing-question {
-    float: left;
-    /*margin-top: 10px;*/
-    display:inline-block;
+    font-size: 15px;
+    vertical-align:middle;
+    height: 25.6px;
+    display: inline-block;
     position: relative;
     z-index: 1;
     user-select: none;
@@ -1425,8 +1430,13 @@ span.criteria-btn p {
 
 /* Explanations*/
 .trews-criteria {
-    overflow-x:scroll;
 }
+.trews-criteria td {
+    text-align: left;
+    padding: 1px;
+    font-size: 12px;
+}
+
 .explanation-leftcol {
     float: left;
     width: 33%;

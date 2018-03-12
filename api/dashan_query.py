@@ -749,7 +749,7 @@ async def get_feature_mapping(db_pool):
   try:
     async with db_pool.acquire() as conn:
       df = await conn.fetch(get_mapping_sql)
-      return json.loads(df[0][0]) 
+      return json.loads(df[0][0])
   except Exception as e:
     #print("Exception: " + str(e) + " in get_feature_mapping query")
     return {}
@@ -780,38 +780,42 @@ async def get_explanations(db_pool, eid):
             "s_raw_values": {},
             "orgdfs" : {orgdf:0 for orgdf in org_dfs}}
     return result
-    
+
 
 async def get_nursing_eval(db_pool,eid):
   get_eval_str = \
   '''
-  select eval,uid, date_part('epoch', tsp) tsp from nurse_eval where enc_id = (select enc_id from pat_enc where pat_id = '%s') order by tsp::timestamptz desc limit 1;
+  select eval, uid, date_part('epoch', tsp) tsp from nurse_eval where enc_id = (select * from pat_id_to_enc_id('%s'::text)) order by tsp::timestamptz desc limit 1;
   '''%(eid)
   try:
     async with db_pool.acquire() as conn:
       df = await conn.fetch(get_eval_str)
       data = json.loads(df[0][0])
-      #epoch = datetime.datetime.utcfromtimestamp(0).replace(tzinfo=pytz.UTC)
-      data['tsp'] = df[0][2]
-      data['uid'] = df[0][1]
-      #print("success nurse eval", data)
+      #data['uid'] = df[0][1]
+      #data['tsp'] = df[0][2]
+      #data = {'eval': json.loads(df[0][0]),
+      #        'uid': df[0][1],
+      #        'tsp': df[0][2]}
+      logging.info("nurse eval: " + str(data))
       return data;
   except Exception as e:
-    #print("Exception: " + str(e) + " in get_nursing_eval")
+    logging.info("Exception: " + str(e) + " in get_nursing_eval")
     return {}
 
-async def update_nursing_eval(db_pool,eid, data,uid):
+async def update_nursing_eval(db_pool, eid, data, uid):
+    logging.info("********data coming in: %s", str(data))
     insert_str = \
     '''
     INSERT INTO nurse_eval (enc_id, tsp, uid, eval)
-    VALUES ((select enc_id from pat_enc where pat_id='%s' order by enc_id desc limit 1),now(), '%s', '%s');
-    ''' %(eid,uid,str(data).replace("'", '"'))
+    VALUES ((select * from pat_id_to_enc_id('%s'::text)), now(), '%s', '%s');
+    ''' %(eid, uid, json.dumps(data))#.replace("'", '"'))
     try:
       #print(insert_str)
+      logging.info("Updated nurse_eval with command: %s" %insert_str)
       async with db_pool.acquire() as conn:
         await conn.execute(insert_str)
     except Exception as e:
-      #print("Exception: " + str(e) + " in update_nursing_eval")
+      logging.info("Exception: " + str(e) + " in update_nursing_eval")
       return
 
 
