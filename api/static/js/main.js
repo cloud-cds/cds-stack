@@ -1543,7 +1543,7 @@ var nursingWorkflowComponent = new function() {
       nursingWorkflowComponent.eval = eval;
     }
     eval = nursingWorkflowComponent.eval;
-    console.log("Rerendering nurse eval");
+    // console.log("Rerendering nurse eval");
     if (!trews.data["severe_sepsis"]["trews_subalert"]["is_met"]) {
       this.ctn.html("");
       return;
