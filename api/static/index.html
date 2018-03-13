@@ -60,9 +60,9 @@
 					<div style="clear: both;"></div>
 				</div>
 				<div class= "card" data-trews="nurse-workflow">
-				<h2>Nursing Evaluation</h2>
-				
-				<div class="slot last-child nurse-workflow">
+				<h2>Nursing Assessment</h2>
+				<span class="summary-more-detail" id="expand_eval">Expand</span>
+				<div class="slot last-child nurse-workflow" id="nurse-workflow-card">
 				<span class="nursing-question" id="time_stat"></span><br>
 					<span class='nursing-question'>Does the patient have a new or altered mental status?</span>
 					<label class="eval-container">
@@ -93,10 +93,10 @@
 					<span class='nursing-question'>Comments</span>
                                         					<br>
 					<textarea name="nurse-eval-comments" id = "eval_comments" style="width:100%;height 300px;"></textarea>
-                                        					<br>
+                                        					<br><br>
 					<label class="eval-container">
-  					<input type="radio" name="save" id="save_comment">
-  					<span class="eval-checkmark">Save Comment</span>
+  					<input type="radio" name="save" id="submit_eval">
+  					<span class="eval-checkmark" id="nurse-eval-submit">Submit</span>
 					</label>
 				<br><br>
 				<span class="nursing-question" id="notify_stat"></span>

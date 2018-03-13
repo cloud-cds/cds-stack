@@ -1350,6 +1350,16 @@ span.criteria-btn p {
     display: inline-block;
 }
 /* Nursing Workflow*/
+.card span.summary-more-detail {
+    margin: 0 0 0 5px;
+    font-weight: normal;
+    line-height: 2;
+    text-decoration: underline;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+
 .nursing-question {
     font-size: 15px;
     vertical-align:middle;
