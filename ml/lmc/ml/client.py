@@ -439,6 +439,7 @@ class Session():
             AND %(fid)s.fid = '%(fid)s'
             """% {'fid': f, 'cdm_s': cdm_s}
         sql += " order by enc_id, tsp"
+
         if nrows and nrows > 0:
             sql += " limit %d" % nrows
 

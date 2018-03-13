@@ -52,7 +52,7 @@ class Engine:
 
     if mode == 'reports':
       metric_list = [
-        #metrics.ed_metrics,
+        metrics.ed_metrics,
         metrics.report_introduction,
         metrics.pats_seen_by_docs,
         metrics.suspicion_of_infection_modified,
@@ -73,8 +73,8 @@ class Engine:
       # ]
       metric_list = [
         metrics.alert_stats_by_unit,
-        metrics.alert_count_8hr,
-        metrics.alert_performance_metrics
+        metrics.alert_count_8hr#,
+        #metrics.alert_performance_metrics
       ]
 
     elif mode == 'weekly-report':

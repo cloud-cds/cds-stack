@@ -726,3 +726,11 @@ CREATE TABLE etl_job(
     workspace       text,
     unique          (job_id)
 );
+
+DROP TABLE IF EXISTS nurse_eval;
+CREATE TABLE nurse_eval(
+    enc_id           int,
+    tsp              timestamptz,
+    uid              str,
+    eval             json
+);

@@ -1344,10 +1344,109 @@ span.criteria-btn p {
     color: #437c90;
 }
 /* End Suppressions */
+.stats-summary {
+    font-size: 14px;
+    vertical-align:middle;
+    display: inline-block;
+}
+/* Nursing Workflow*/
+.card span.summary-more-detail {
+    margin: 0 0 0 5px;
+    font-weight: normal;
+    line-height: 2;
+    text-decoration: underline;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+
+.nursing-question {
+    font-size: 15px;
+    vertical-align:middle;
+    height: 25.6px;
+    display: inline-block;
+    position: relative;
+    z-index: 1;
+    user-select: none;
+    cursor: default;
+}
+.eval-container {
+    display: inline-block;
+    vertical-align: middle;
+    position: relative;
+    padding-left: 5px;
+    /*margin-bottom: 12px;*/
+    cursor: pointer;
+    font-size: 12px;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    
+}
+
+/* Hide the browser's default radio button */
+.eval-container input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+}
+
+/* Create a custom radio button */
+.eval-checkmark {
+    background-color: #e7e7e7; /* Grey */
+    border: none;
+    color: white;
+    padding: 6px 10px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 12px;
+    cursor: pointer;
+    float: left;
+    border-radius: 6px;
+}
+
+/* On mouse-over, add a grey background color */
+.eval-container:hover input ~ .eval-checkmark {
+    background-color: #ccc;
+}
+
+/* When the radio button is checked, add a dark grey background */
+.eval-container input:checked ~ .eval-checkmark {
+    background-color: #999999;
+}
+
+/* Create the indicator (the dot/circle - hidden when not checked) */
+.eval-checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+}
+
+/* Show the indicator (dot/circle) when checked */
+.eval-container input:checked ~ .eval-checkmark:after {
+    display: inline-block;
+}
+
+/* Style the indicator (dot/circle) */
+.eval-container .eval-checkmark:after {
+ 	/*top: 9px;
+	left: 9px;*/
+	width: 10px;
+	height: 6px;
+	border-radius: 6px;
+}
+
 /* Explanations*/
 .trews-criteria {
-    overflow-x:scroll;
 }
+.trews-criteria td {
+    text-align: left;
+    padding: 1px;
+    font-size: 12px;
+}
+
 .explanation-leftcol {
     float: left;
     width: 33%;

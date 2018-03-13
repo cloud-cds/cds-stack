@@ -43,7 +43,9 @@ translation_map = [
     ('tablet',          ['tablet']),
 # DDimer
     ('mg/L',            ['mg/l']),
-    ('mg/L FEU',        ['mg/l feu'])
+    ('mg/L FEU',        ['mg/l feu']),
+# Troponin
+    ('ng/mL',           ['ng/ml'])
 ]
 
 empty_translation_map = {
@@ -65,4 +67,7 @@ empty_translation_map = {
     'neosynephrine_dose':   '',
     'alt_liver_enzymes':    'Units/L',
     'ast_liver_enzymes':    'Units/L',
+    'influbnat':         '',
+    'influanat':         '',
+    'rsvnat':         '',
 }

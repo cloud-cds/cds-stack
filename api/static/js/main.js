@@ -191,6 +191,7 @@ window.onload = function() {
   deterioration.init();
   timeline.init();
   treatmentOverrideComponent.init();
+  nursingWorkflowComponent.init();
   $('#fake-console').text(window.location);
   $('#fake-console').hide();
   $('#show-console').click(function() {
@@ -474,7 +475,11 @@ var endpoints = new function() {
       else {
         if ( result.hasOwnProperty('trewsData') ) {
           $('#loading').removeClass('waiting').spin(false); // Remove any spinner from the page
+          //console.log("Received trewsData");
+          //console.log(result.trewsData);
           trews.setData(result.trewsData);
+          //console.log("After setting");
+          //console.log(trews.data);
           if ( trews.data && trews.data.profile['refresh_time'] != null ) { // Update the Epic refresh time.
             var refreshMsg = 'Last refreshed from Epic at ' + strToTime(new Date(trews.data.profile['refresh_time']*1000), true, true) + '.';
             $('h1 #header-refresh-time').text(refreshMsg);
@@ -585,6 +590,7 @@ var controller = new function() {
     timeline.render(globalJson);
     treatmentOverrideComponent.render(globalJson["severe_sepsis"], globalJson["septic_shock"], globalJson['ui']);
     careSummaryComponent.render();
+    nursingWorkflowComponent.render(globalJson["nursing_eval"]);
 
     // Adjust column components as necessary.
     var hdrHeight = getHeaderHeight()['total'];
@@ -1344,23 +1350,87 @@ var careSummaryComponent = new function() {
   this.detailVisible = false;
   this.detailSlot = new slotComponent($("[data-trews='care-summary-detail']"), $('#expand-care-detail'), false, false, false, null, false, true);
 
-  this.renderDetail = function(alert_as_cms, cms_status) {
-    var trews_html = '<h3> TREWS Criteria </h3>';
+  this.createExplanationString = function(feat) {
+        measure_feat = feat.toLowerCase().replace(/ /g, "_");
+        var mark = "<font color='red' size=3>&#9733</font>";
+	var table_str = "";
+        table_str += '<tr>'
+        table_str += '<td>' +(feat in trews.data['feature_relevances'] && measure_feat in trews.data['measurements']? mark:"&nbsp")+'</td>';
+        table_str += '<td>'+(feat in DISPLAY_NAMES ? DISPLAY_NAMES[feat]:feat)+'</td>';
 
+        var value = 'Not available'
+        if (measure_feat in trews.data['measurements']) {
+            value = trews.data['measurements'][measure_feat]['value']+' @ '//<br>'
+            var meas_time = new Date(trews.data['measurements'][measure_feat]['tsp'] * 1000);
+            value += strToTime(meas_time, true, false)
+        }
+
+        table_str += '<td>'+value+'</td>';
+        table_str += '</tr>';
+	return table_str;
+  }
+  this.getStaticFeatureDisplay = function(feat, value) {
+  	if (feat == "age") {
+  		return value;
+  	} else if (feat == "gender") {
+  		return value==1 ? "Male":"Female";
+  	} else {
+  		return value == 1 ? "Present":"Not Present";
+  	}
+  }
+  this.renderDetail = function(alert_as_cms, cms_status) {
+    //Summary
+    var summary_html = "";
+    try {
+        trews_subalert_json = 'trews_subalert' in trews.data['severe_sepsis'] ? trews.data['severe_sepsis']['trews_subalert'].value : null;
+
+        if ( trews_subalert_json != null ) {
+          trews_subalert_json = JSON.parse(trews_subalert_json);
+          pct_mortality = Number(trews_subalert_json.pct_mortality).toFixed(0);
+          pct_sevsep = Number(trews_subalert_json.pct_sevsep).toFixed(0);
+        }
+        if (pct_mortality != null && pct_sevsep != null) {
+          score_str = 'At this TREWS Acuity Score, there is an <b>' + pct_mortality + '%</b> in-hospital mortality rate.';
+          score_str2 = '<b>' + pct_sevsep + '%</b> of individuals experience severe sepsis.';
+        }
+        summary_html = '<h3 style="margin: 0 0 0 0;">Summary</h3>'
+		     +'<div class="stats-summary">'
+	 	     +' <ul>'
+		     + '<li>'+score_str+'</li>'
+                     + '<li>'+score_str2+'</li>'
+                     +'</ul>';
+		     +'</div>';
+    } catch(e) {console.log("Exception while loading mortality summary");}
+
+
+    var demographics_html = "";
+    if('static_features' in trews.data && trews.data['static_features'] != null && Object.keys(trews.data['static_features']).length > 0) {
+	var feat_row = '';
+    	for (var feat in trews.data['static_features']) {
+          feat_row += '<tr><td>'+ (feat.charAt(0).toUpperCase()+feat.slice(1)).replace(/_/g," ")+': ';
+          feat_row += this.getStaticFeatureDisplay(feat, trews.data['static_features'][feat]) + '</td></tr>';
+      	}
+     	demographics_html = '<h3> Demographics and History </h3>'
+		          + '<table style="width:100%">'
+		          + feat_row
+    	                  +'</table><br>';
+    }
+
+
+
+    var trews_html = "";
+    //Set up feature relevances
     if ( 'feature_relevances' in trews.data && trews.data['feature_relevances'] != null
-          && 'measurements' in trews.data && trews.data['measurements'] != null
-          && 'static_features' in trews.data && trews.data['static_features'] != null )
+          && 'measurements' in trews.data && trews.data['measurements'] != null)
     {
       if ('respiratory rate' in trews.data['feature_relevances']){
         trews.data['feature_relevances']['resp rate'] = trews.data['feature_relevances']['respiratory rate'];
       }
 
-      //var mark = "<font color='red' size=5><b>!</b></font>";
-      var mark = "<font color='red' size=5>&#9733</font>";
-      var phys_feats = ["BP", "temperature", "heart rate", "SpO2", "PaO2", "PaCO2", "resp rate", "FiO2", "GCS", "RASS"];
-      var hem_feats = ["platelets", "WBC", "INR", "hematocrit", "hemoglobin"];
-      var chem_feats = ["sodium", "creatinine", "bilirubin", "amylase", "lactate", "BUN", "ALT liver enzymes", "arterial ph", "bicarbonate", "CO2", "AST liver enzymes", "potassium", "lipase"];
-      var displayNames = {"ALT liver enzymes": "ALT", "AST liver enzymes": "AST", 'temperature':'Temperature', "heart rate": "Heart Rate", "resp rate": "Resp. Rate", "platelets": "Platelets","hematocrit":"hematocrit","hemoglobin":"Hemoglobin","sodium": "Sodium", "creatinine":"Creatinine", "bilirubin":"Bilirubin","amylase":"Amylase", "lactate":"Lactate","arterial ph":"Arterial PH","bicarbonate":"Bicarbonate","potassium":"Potassium","lipase":"Lipase"};
+      var phys_feats = PHYS_FEATS;
+      var hem_feats = HEM_FEATS;
+      var chem_feats = CHEM_FEATS;
+      var displayNames = DISPLAY_NAMES;
       var no_features_str = "";
       if (Object.keys(trews.data['feature_relevances']).length == 0) {
         no_features_str = '<div style="background-color:yellow"><h3 style="color:black">TREWS alerted based on many factors without a dominant feature</h3></div>';
@@ -1368,78 +1438,29 @@ var careSummaryComponent = new function() {
 
       var phys_table_str = '<table style="width:100%;background-color:white;">'
       for (var i = 0; i < phys_feats.length; i++) {
-          phys_table_str += '<tr>'
-          var feat = phys_feats[i];
-          phys_table_str += '<td>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</td>';
-          phys_table_str += '<td>'+(feat in displayNames ? displayNames[feat]:feat)+'</td>';
-
-          var value = 'Not available'
-          feat = feat.toLowerCase().replace(/ /g, "_");
-          if (feat in trews.data['measurements']) {
-            value = trews.data['measurements'][feat]['value']+' @ '
-            var date = new Date(Date.parse(trews.data['measurements'][feat]['tsp'] + " UTC"));
-            value += strToTime(date.getTime(),true,false);
-          }
-
-          phys_table_str += '<td>'+value+'</td>';
-          phys_table_str += '</tr>';
+	  phys_table_str += this.createExplanationString(phys_feats[i]);
       }
 
       var hem_table_str = '<table style="width:100%">'
       for (var i = 0; i < hem_feats.length; i++) {
-          hem_table_str += '<tr>'
-          var feat = hem_feats[i];
-          hem_table_str += '<td>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</td>';
-          hem_table_str += '<td>'+(feat in displayNames ? displayNames[feat]:feat)+'</td>';
-          var value = "Not available"
-          feat = feat.toLowerCase().replace(/ /g, "_");
-          if (feat in trews.data['measurements']) {
-            value = trews.data['measurements'][feat]['value']+' @ '
-            var date = new Date(Date.parse(trews.data['measurements'][feat]['tsp'] + " UTC"));
-            value += strToTime(date.getTime(),true,false);
-          }
-          hem_table_str += '<td>'+value+'</td>';
-          hem_table_str += '</tr>';
+	 hem_table_str += this.createExplanationString(hem_feats[i]);
       }
 
       var chem_table_str = '<table style="width:100%">'
       for (var i = 0; i < chem_feats.length; i++) {
-          chem_table_str += '<tr>'
-          var feat = chem_feats[i];
-          chem_table_str += '<td>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</td>';
-          chem_table_str += '<td>'+(feat in displayNames ? displayNames[feat]:feat)+'</td>';
-
-          var value = "Not available"
-          feat = feat.toLowerCase().replace(/ /g, "_");
-          if (feat in trews.data['measurements']) {
-            value = trews.data['measurements'][feat]['value']+' @ '
-            var date = new Date(Date.parse(trews.data['measurements'][feat]['tsp'] + " UTC"));
-            value += strToTime(date.getTime(),true,false);
-         }
-          chem_table_str += '<td>'+value+'</td>';
-          chem_table_str += '</tr>';
-      }
-
-      var static_table_str = '<table style="width:100%">';
-      for (var feat in trews.data['static_features']) {
-        static_table_str += '<tr>'
-        static_table_str += '<td>' +(feat in trews.data['feature_relevances']? mark:"&nbsp")+'</td>';
-        static_table_str += '<td>'+ (feat.charAt(0).toUpperCase()+feat.slice(1)).replace(/_/g," ")+'</td>';
-        static_table_str += '<td>' + (trews.data['static_features'][feat]==1 ? "Present":trews.data['static_features'][feat]) + '</td>';
-        static_table_str += '</tr>'
+	 chem_table_str += this.createExplanationString(chem_feats[i]);
       }
 
       trews_html = '<h3> TREWS Criteria </h3><table style="width:100%">'
                      + no_features_str
-                     + '<tr><th>Physiology</th><th>Hematology and coagulation</th><th>Chemistry</th><th>Demographics and History</th></tr>'
+                     + '<tr><th style="width:33%">Physiology</th><th style="width:34%">Hem. and Coag.</th><th style="width:33%">Chemistry</th></tr>'
                      + '<tr>'
                      + '<td style="vertical-align:top">' + phys_table_str + '</table></td>'
                      + '<td style="vertical-align:top">' + hem_table_str + '</table></td>'
                      + '<td style="vertical-align:top">' + chem_table_str + '</table></td>'
-                     + '<td style="vertical-align:top">' + static_table_str + '</table></td>'
                      + '</tr></table>';
     }
-    this.detailSlot.elem.find('.trews-criteria').html(trews_html);
+    this.detailSlot.elem.find('.trews-criteria').html(demographics_html+trews_html+summary_html);
   }
 
   this.render = function() {
@@ -1491,6 +1512,144 @@ var careSummaryComponent = new function() {
   }
 }
 
+/**
+ *  Nursing workflow component
+ *  Allows nurses to evaluate the patient
+ */
+
+var nursingWorkflowComponent = new function() {
+  this.init = function() {
+    this.ctn = $("[data-trews='nurse-workflow']");
+    this.status_buttons = {"Yes": '#yes_mental_stat', "No":'#no_mental_stat', "Unknown":'#unk_mental_stat'};
+    this.inf_buttons = {"Yes":'#yes_inf', "No":'#no_inf'};
+    this.detailVisible = false;
+    this.eval = null;
+    document.getElementById('yes_mental_stat').onclick = function(e){updateNursingEval("mental_status","Yes")};
+    document.getElementById('no_mental_stat').onclick = function(e){updateNursingEval("mental_status","No")};
+    document.getElementById('unk_mental_stat').onclick = function(e){updateNursingEval("mental_status","Unknown")};
+    document.getElementById('no_inf').onclick = function(e){updateNursingEval("known_infection","No")};
+    document.getElementById('yes_inf').onclick = function(e){updateNursingEval("known_infection","Yes")};
+    document.getElementById('yes_notif').onclick= function(e){notify_click()};
+    document.getElementById('submit_eval').onclick = function(e){updateNursingEval("comments",$('#eval_comments')[0].value);
+                                                                 submitNursingEval();};
+    document.getElementById('expand_eval').onclick = function(e){
+                                                                 nursingWorkflowComponent.detailVisible = !nursingWorkflowComponent.detailVisible;
+                                                                 nursingWorkflowComponent.render(trews.data["nursing_eval"]);
+                                                                  }
+  }
+  this.render = function(eval) {
+    //hide the display if no alert
+    if (nursingWorkflowComponent.eval == null) {
+      nursingWorkflowComponent.eval = eval;
+    }
+    eval = nursingWorkflowComponent.eval;
+    // console.log("Rerendering nurse eval");
+    if (!trews.data["severe_sepsis"]["trews_subalert"]["is_met"]) {
+      this.ctn.html("");
+      return;
+    } else if (!nursingWorkflowComponent.detailVisible) {
+      document.getElementById("nurse-workflow-card").style="display:None;"
+      document.getElementById('expand_eval').innerHTML="Expand";
+      return;
+    } else {
+      document.getElementById("nurse-workflow-card").style=""
+      document.getElementById('expand_eval').innerHTML="Hide";
+    }
+    var time_txt = "";
+    if ("tsp" in eval) {
+      var date = new Date(Number(eval['tsp']));
+      time_txt = "The last assessment was at " + strToTime(date.getTime(), true, false);
+      time_txt += " by " + eval["uid"] + ".";
+      if (Date.now() - date.getTime() > (12 * 60*60*1000)) {
+        time_txt += " The last assessment was over 12 hours ago. Please confirm and resubmit the assessment.";
+        document.getElementById('time_stat').style.height="40px";
+      }
+    } else {
+      time_txt = "An assessment has not been completed.";
+    }
+    this.ctn.find('#time_stat').text(time_txt);
+    //Set states
+    document.getElementById('submit_eval').checked="true";
+    if ("nursing_eval" in trews.data && nursingWorkflowComponent.eval != null) {
+      this.eval_box = $('#eval_comments')
+      if ("comments" in eval) {
+        this.eval_box[0].value = eval["comments"];
+      }
+      if ("mental_status" in eval && eval["mental_status"] in this.status_buttons) {
+        //console.log("setting status button");
+        $(this.status_buttons[eval["mental_status"]])[0].checked="true";
+      }
+      if ("known_infection" in eval && eval["known_infection"] in this.inf_buttons) {
+        //console.log("setting inf button");
+        $(this.inf_buttons[eval["known_infection"]])[0].checked="true";
+      }
+      if ("known_infection" in trews.data["nursing_eval"] && "mental_status" in trews.data["nursing_eval"]) {
+        document.getElementById("nurse-eval-submit").innerHTML="Resubmit";
+      }
+      if ("provider_notified" in eval) {
+        $('#yes_notif')[0].checked=eval["provider_notified"];
+      }
+    }
+
+    this.update_notification_prompt(trews.data["nursing_eval"]);
+    //console.log("done setting states");
+   }
+
+  this.update_notification_prompt = function (eval) {
+    var no_threshold = 20;
+    var notify_txt = "TREWS indicates high risk of sepsis, please notify the patient's provider.";
+    var no_notify_txt = "TREWS does not require any further action at this time.";
+    if ( !("mental_status" in eval && "known_infection" in eval)) {
+      this.ctn.find("#notify_stat").text = "";
+      $('#provider-notified-block')[0].style="display:none;";
+    } else if (JSON.parse(trews["data"]["severe_sepsis"]["trews_subalert"]["value"])["pct_sevsep"]<no_threshold && eval["mental_status"] == 'No' && eval["known_infection"] == 'No') {
+      nursingWorkflowComponent.eval["advise_notify"] = true;
+      //trews["data"]["nursing_eval"]["advise_notify"] = false;
+      this.ctn.find("#notify_stat").text(no_notify_txt);
+      $('#provider-notified-block')[0].style="display:none;";
+    } else {
+      nursingWorkflowComponent.eval["advise_notify"] = true;
+      this.ctn.find("#notify_stat").text(notify_txt);
+      $('#provider-notified-block')[0].style="display:inline-block;";
+    }
+  }
+}
+
+var notify_click = function() {
+
+  key = "provider_notified"
+  /*if ("provider_notified" in trews.data["nursing_eval"]) {
+    value = ! trews.data["nursing_eval"]["provider_notified"];
+  } else{
+    value = true;
+  }*/
+  if (key in nursingWorkflowComponent.eval) {
+    value = !nursingWorkflowComponent.eval[key];
+  } else {
+    value = true;
+  }
+  updateNursingEval(key, value)
+  submitNursingEval();
+}
+
+var updateNursingEval = function(key,value) {
+  //trews.data["nursing_eval"][key] = value;
+  nursingWorkflowComponent.eval[key] = value;
+
+}
+
+var submitNursingEval = function() {
+  //trews.data["nursing_eval"]["uid"]=(getQueryVariable('USERID') === false) ? null : cleanUserId(getQueryVariable('USERID'));
+  nursingWorkflowComponent.eval["uid"]=(getQueryVariable('USERID') === false) ? null : cleanUserId(getQueryVariable('USERID'));
+  //trews.data["nursing_eval"]["tsp"] = Date.now().toString();
+  nursingWorkflowComponent.eval["tsp"] = Date.now().toString();
+  nursingWorkflowComponent.update_notification_prompt(nursingWorkflowComponent.eval);
+  var actionData = { };
+  for (var fid in nursingWorkflowComponent.eval) {
+    actionData[fid] = nursingWorkflowComponent.eval[fid]
+  }
+  endpoints.getPatientData("update_nursing_eval", actionData);
+}
 
 /**
  * Treatment override component.
