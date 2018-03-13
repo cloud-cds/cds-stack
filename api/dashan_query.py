@@ -772,9 +772,18 @@ async def get_explanations(db_pool, eid):
               "twf_raw_values":json.loads(df[0][1]),
               "s_raw_values":json.loads(df[0][2]),
               "orgdfs": { orgdf: val for orgdf,val in zip(org_dfs, df[0][2:])}}
+
+      epoch = datetime.datetime.utcfromtimestamp(0).replace(tzinfo=pytz.UTC)
+
+      for key in result['twf_raw_values'].keys():
+        tsp = result['twf_raw_values'][key]['tsp']
+        tsp = tsp[:-3]+tsp[-2:] if ":" == tsp[-3:-2] else tsp # Format tz for parsing
+        tsp = datetime.datetime.strptime(tsp, '%Y-%m-%d %H:%M:%S%z')
+        result['twf_raw_values'][key]['tsp'] = int((tsp - epoch).total_seconds())
+
       return result
+
   except Exception as e:
-    #print("Exception: " + str(e) + " in get_explanations query")
     result = {"feature_relevance": {},
             "twf_raw_values": {},
             "s_raw_values": {},

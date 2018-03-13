@@ -1361,10 +1361,8 @@ var careSummaryComponent = new function() {
         var value = 'Not available'
         if (measure_feat in trews.data['measurements']) {
             value = trews.data['measurements'][measure_feat]['value']+' @ '//<br>'
-            var date = new Date(Date.parse(trews.data['measurements'][measure_feat]['tsp'] + " UTC"));
-            value += strToTime(date.getTime(),true,false);
-            //console.log("tsp: " + date.toString());
-            //console.log("tsp: " + date.getTime());
+            var meas_time = new Date(trews.data['measurements'][measure_feat]['tsp'] * 1000);
+            value += strToTime(meas_time, true, false)
         }
 
         table_str += '<td>'+value+'</td>';
@@ -1618,7 +1616,7 @@ var nursingWorkflowComponent = new function() {
 }
 
 var notify_click = function() {
-  
+
   key = "provider_notified"
   /*if ("provider_notified" in trews.data["nursing_eval"]) {
     value = ! trews.data["nursing_eval"]["provider_notified"];
@@ -1627,7 +1625,7 @@ var notify_click = function() {
   }*/
   if (key in nursingWorkflowComponent.eval) {
     value = !nursingWorkflowComponent.eval[key];
-  } else { 
+  } else {
     value = true;
   }
   updateNursingEval(key, value)
