@@ -1594,7 +1594,7 @@ var nursingWorkflowComponent = new function() {
   this.update_notification_prompt = function (eval) {
     var no_threshold = 20;
     var notify_txt = "TREWS indicates high risk of sepsis, please notify the patient's provider.";
-    var no_notify_txt = "TREWS does not indicate high risk of sepsis at this time.";
+    var no_notify_txt = "TREWS does not require any further action at this time.";
     trews["data"]["nursing_eval"]["advise_notify"] = true;
     if ( !("mental_status" in eval && "known_infection" in eval)) {
       this.ctn.find("#notify_stat").text = "";
