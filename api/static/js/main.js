@@ -1524,6 +1524,7 @@ var nursingWorkflowComponent = new function() {
     this.ctn = $("[data-trews='nurse-workflow']");
     this.status_buttons = {"Yes": '#yes_mental_stat', "No":'#no_mental_stat', "Unknown":'#unk_mental_stat'};
     this.inf_buttons = {"Yes":'#yes_inf', "No":'#no_inf'};
+    this.detailVisible = false;
     document.getElementById('yes_mental_stat').onclick = function(e){updateNursingEval("mental_status","Yes")};
     document.getElementById('no_mental_stat').onclick = function(e){updateNursingEval("mental_status","No")};
     document.getElementById('unk_mental_stat').onclick = function(e){updateNursingEval("mental_status","Unknown")};
@@ -1532,12 +1533,23 @@ var nursingWorkflowComponent = new function() {
     document.getElementById('yes_notif').onclick= function(e){notify_click()};
     document.getElementById('submit_eval').onclick = function(e){updateNursingEval("comments",$('#eval_comments')[0].value);
                                                                  submitNursingEval();};
+    document.getElementById('expand_eval').onclick = function(e){
+                                                                 nursingWorkflowComponent.detailVisible = !nursingWorkflowComponent.detailVisible;
+                                                                 nursingWorkflowComponent.render(trews.data["nursing_eval"]);
+                                                                  }
   }
   this.render = function(eval) {
     //hide the display if no alert
     if (!trews.data["severe_sepsis"]["trews_subalert"]["is_met"]) {
       this.ctn.html("");
       return;
+    } else if (!nursingWorkflowComponent.detailVisible) {
+      document.getElementById("nurse-workflow-card").style="display:None;"
+      document.getElementById('expand_eval').innerHTML="Expand";
+      return;
+    } else {
+      document.getElementById("nurse-workflow-card").style=""
+      document.getElementById('expand_eval').innerHTML="Hide";
     }
     var time_txt = "";
     if ("tsp" in eval) {
@@ -1597,15 +1609,7 @@ var nursingWorkflowComponent = new function() {
     }
   }
 }
-/*
-var mental_status_click = function(stat) {
-  updateNursingEval("mental_status", stat)
-}
 
-var infection_click = function(stat) {
-  updateNursingEval("known_infection", stat)
-}
-*/
 var notify_click = function() {
   key = "provider_notified"
   if ("provider_notified" in trews.data["nursing_eval"]) {
