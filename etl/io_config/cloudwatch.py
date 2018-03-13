@@ -90,7 +90,7 @@ class Cloudwatch:
       # Push to cloudwatch
       try:
         self.get_client().put_metric_data(Namespace='OpsDX', MetricData=metric_data)
-        logging.info('Successfully pushed to cloudwatch')
+        logging.debug('Successfully pushed to cloudwatch')
       except botocore.exceptions.EndpointConnectionError as e:
         logging.error('Unsuccessfully pushed to cloudwatch')
         logging.error(e)

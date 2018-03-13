@@ -43,9 +43,12 @@ job_config = {
       'fid': os.environ['transform_fids'].split(';') \
         if 'transform_fids' in os.environ else None,
       'nprocs': int(os.environ['nprocs']) if 'nprocs' in os.environ else 2,
+      'shuffle': True if 'transform_shuffle' in os.environ and os.environ['transform_shuffle'] == 'True' else None,
     },
     'min_tsp': os.environ['min_tsp'] if 'min_tsp' in os.environ else None,
-    'feature_mapping': os.environ['feature_mapping'] if 'feature_mapping' in os.environ else 'feature_mapping.csv'
+    'feature_mapping': os.environ['feature_mapping'] if 'feature_mapping' in os.environ else 'feature_mapping.csv',
+    'transform_mode': os.environ['transform_mode'] if 'transform_mode' in os.environ else 'async',
+    'sem_limit': os.environ['sem_limit'] if 'sem_limit' in os.environ else 0
   },
   'fillin': False if 'fillin' in os.environ \
     and os.environ['fillin'] == 'False' else \
@@ -169,8 +172,13 @@ class Planner():
                             if 'populate_patients' in all_tasks else all_tasks,
                            coro=self.extractor.transform_init))
 
-        for i, transform_task in enumerate(self.extractor.get_transform_tasks()):
-          self.plan.add(Task('transform_task_{}'.format(i), \
+        # for i, transform_task in enumerate(self.extractor.get_transform_tasks()):
+        #   self.plan.add(Task('transform_task_{}'.format(i), \
+        #     deps=['transform_init'], coro=self.extractor.run_transform_task,
+        #     args=[transform_task]))
+        transform_task = self.extractor.get_transform_task()
+        print(transform_task)
+        self.plan.add(Task('transform_task', \
             deps=['transform_init'], coro=self.extractor.run_transform_task,
             args=[transform_task]))
 

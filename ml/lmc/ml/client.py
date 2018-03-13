@@ -6,6 +6,7 @@ import csv
 import datetime
 from config import Config
 from sqlalchemy import create_engine, text
+import pandas as pd
 
 class DataFrameFactory():
     def load_csv(self, fname):
@@ -337,20 +338,24 @@ class Session():
 
     def download_data_frame(self, feature_lst, nrows=None, where=None,
                             as_data_frame=True):
-
         sql = self.build_sql_string(feature_lst, nrows=nrows, where=where)
-        return self.download_sql_string(sql, as_data_frame = as_data_frame)
+        return self.download_sql_string(sql, feature_lst, as_data_frame = as_data_frame)
 
     def download_sql_string(self, sql, colnames, as_data_frame=True):
         # self.log.info('query data frame:' + sql)
         cursor = self.conn.execute(sql)
         data = cursor.fetchall()
         if as_data_frame:
-            return DataFrame(np.asarray(data), colnames)
+            if len(data) == 0:
+                return pd.DataFrame(columns=colnames)
+            else:
+                return pd.DataFrame(np.asarray(data), columns=colnames)
         else:
             return data
 
-    def build_sql_string(self, feature_lst, nrows=None, where=None, includeConfidances=False, dataset_id=None,
+    def build_sql_string(self, feature_lst, nrows=None, where=None,
+                         includeConfidances=False, dataset_id=None,
+                         workspace=None, job_id=None, online=True, hospital='hcgh',
                          max_tsp=None, active_encid=None):
         #--------------------------------------------------------------------------
         # setup for requested features
@@ -398,16 +403,15 @@ class Session():
                 columns.append("cast(%s.value as %s) as %s" % (f, data_types[f], f))
 
         feature_name_lst = twf_features + featureConfidances + s_features
-
-        if dataset_id is None and active_encid is None:
-            raise ValueError('Either dataset_id or active_encids should be provided.')
-
+        # cdm_twf = '{}.{}_cdm_twf'.format(workspace, job_id) if job_id else 'cdm_twf'
+        cdm_twf = 'cdm_twf'
+        cdm_s = 'sub_s'
+        enc_ids = 'unnest(array[{}]) as enc_id'.format(','.join([str(e) for e in active_encid])) if active_encid else "get_latest_enc_ids('{}') where enc_id in (select enc_id from cdm_s where fid='age' and value::float>=18.0)".format(hospital)
         and_dataset_id = ' and dataset_id = {}'.format(dataset_id) if dataset_id else ''
-        enc_ids = 'unnest(array[{}]) as enc_id'.format(','.join([str(e) for e in active_encid])) if active_encid else 'cdm_twf where dataset_id=%d' %dataset_id
         and_max_tsp = " and tsp <= '{}'::timestamptz".format(max_tsp) if max_tsp else ''
         sql = '''
         with enc_ids as (
-            select distinct enc_id from
+            select enc_id from
             %s
         ),
         sub_twf as (
@@ -430,10 +434,10 @@ class Session():
                ",".join(columns))
         for f in s_features:
             sql += """
-            left outer join sub_s as %(fid)s
+            left outer join %(cdm_s)s as %(fid)s
             ON sub_twf.enc_id = %(fid)s.enc_id
             AND %(fid)s.fid = '%(fid)s'
-            """% {'fid': f}
+            """% {'fid': f, 'cdm_s': cdm_s}
         sql += " order by enc_id, tsp"
 
         if nrows and nrows > 0:

@@ -254,7 +254,8 @@ resource "aws_lambda_function" "s3_weekly_report_lambda" {
 
         kube_cmd_0 = "sh"
         kube_cmd_1 = "-c"
-        kube_cmd_2 = "service rsyslog start && sleep 5 && ./bin/goofys jh-opsdx-report /mnt && sleep 5 && /usr/local/bin/python3 /etl/analysis_publishing/engine.py weekly-report 0"
+        # kube_cmd_2 = "service rsyslog start && sleep 5 && ./bin/goofys jh-opsdx-report /mnt && sleep 5 && /usr/local/bin/python3 /etl/analysis_publishing/engine.py weekly-report 0"
+        kube_cmd_2 = "sleep 100000"
         # ETL Environment Variables
         k8s_job_BEHAMON_STACK                      = "${var.deploy_prefix}-dev"
         k8s_job_REPORT_RECEIVING_EMAIL_ADDRESS     = "trews-jhu@opsdx.io"

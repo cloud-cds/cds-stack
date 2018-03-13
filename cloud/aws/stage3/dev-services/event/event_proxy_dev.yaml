@@ -1,0 +1,175 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: event-proxy-dev-nginx-config
+data:
+  nginx-root-config: |-
+    user  nginx;
+    worker_processes  1;
+
+    error_log  /var/log/nginx/error.log warn;
+    pid        /var/run/nginx.pid;
+
+
+    events {
+        worker_connections  1024;
+    }
+
+
+    http {
+        include       /etc/nginx/mime.types;
+        default_type  application/octet-stream;
+
+        log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                          '$status $body_bytes_sent "$http_referer" '
+                          '"$http_user_agent" "$http_x_forwarded_for"';
+
+        access_log  /var/log/nginx/access.log  main;
+
+        sendfile        on;
+        #tcp_nopush     on;
+
+        keepalive_timeout  65;
+        client_body_buffer_size  1M;
+
+        #gzip  on;
+
+        include /etc/nginx/conf.d/*.conf;
+    }
+
+  nginx-forward-config: |-
+    server {
+        listen 80 default_server;
+        listen [::]:80 default_server;
+        root /var/www/html;
+        index index.html index.htm index.nginx-debian.html;
+        server_name _;
+        location / {
+          proxy_pass http://127.0.0.1:8000;
+        }
+    }
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: event-proxy-dev
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: event-proxy-dev
+    spec:
+      nodeSelector:
+        opsdx_nodegroup: spot-nodes
+      containers:
+      - name: trews-nginx
+        image: nginx:alpine
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+        ports:
+        - containerPort: 80
+        volumeMounts:
+          - name: root-config-volume
+            mountPath: "/etc/nginx/nginx.conf"
+            subPath: "nginx.conf"
+          - name: forward-config-volume
+            mountPath: "/etc/nginx/conf.d/"
+      - name: event-proxy-dev
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.270
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 8000
+        command: ["/bin/sh","-c"]
+        args: ["cd /etl/events-soap; . $NVM_DIR/nvm.sh; env; node sqs-proxy.js"]
+        # args: ["sleep 10000"]
+        securityContext:
+          capabilities:
+            add:
+            - "SYS_PTRACE"
+        env:
+        - name: queue_url
+          value: "https://sqs.us-east-1.amazonaws.com/359300513585/opsdx-jh-events-dev"
+        - name: NVM_DIR
+          value: "/root/.nvm"
+        # - name: cloudwatch_on
+        #   value: "0"
+        - name: metrics_dimension_value
+          value: "opsdx-dev"
+        - name: AWS_DEFAULT_REGION
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-region
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-secret-access-key
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - event-proxy-dev
+            topologyKey: kubernetes.io/hostname
+      volumes:
+        - name: root-config-volume
+          configMap:
+            name: event-proxy-dev-nginx-config
+            items:
+              - key: nginx-root-config
+                path: nginx.conf
+        - name: forward-config-volume
+          configMap:
+            name: event-proxy-dev-nginx-config
+            items:
+              - key: nginx-forward-config
+                path: trews.conf
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: event-svc-dev
+  labels:
+    app: event-proxy-dev
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    name: http
+    targetPort: 80
+  selector:
+    app: event-proxy-dev
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: event-proxy-ingress-dev
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    ingress.kubernetes.io/ssl-redirect: "true"
+    ingrees.kubernetes.io/ingress.allow-http: "false"
+spec:
+  rules:
+  - host: event-dev.jh.opsdx.io
+    http:
+      paths:
+      - backend:
+          serviceName: event-svc-dev
+          servicePort: 80
+        path: /

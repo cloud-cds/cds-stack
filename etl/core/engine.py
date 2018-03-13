@@ -14,7 +14,7 @@ from graphviz import Digraph
 import time
 
 ENGINE_LOG_FMT = '%(asctime)s|%(name)s|%(process)s-%(thread)s|%(levelname)s|%(message)s'
-
+DB_POOL_MAX_SIZE = int(os.environ['DB_POOL_MAX_SIZE']) if 'DB_POOL_MAX_SIZE' in os.environ else 10
 import code, traceback, signal
 
 #####################
@@ -37,16 +37,19 @@ def listen():
 ####################
 # Utility methods.
 class TaskContext:
-  def __init__(self, name, config):
+  def __init__(self, name, config, log=None):
     self.name = name
     self.config = config
-    self.log = logging.getLogger(self.name)
-    self.log.setLevel(logging.DEBUG)
-    sh = logging.StreamHandler()
-    formatter = logging.Formatter(ENGINE_LOG_FMT)
-    sh.setFormatter(formatter)
-    self.log.addHandler(sh)
-    self.log.propagate = False
+    if log:
+      self.log = log
+    else:
+      self.log = logging.getLogger(self.name)
+      self.log.setLevel(logging.DEBUG)
+      sh = logging.StreamHandler()
+      formatter = logging.Formatter(ENGINE_LOG_FMT)
+      sh.setFormatter(formatter)
+      self.log.addHandler(sh)
+      self.log.propagate = False
     self.flags = Environment()
 
   async def async_init(self, loop=None):
@@ -57,14 +60,14 @@ class TaskContext:
                       password=self.config['db_pass'], \
                       host=self.config['db_host'], \
                       port=self.config['db_port'], \
-                      loop=loop)
+                      loop=loop, max_size=DB_POOL_MAX_SIZE)
     else:
       self.db_pool = await asyncpg.create_pool( \
                       database=self.config['db_name'], \
                       user=self.config['db_user'], \
                       password=self.config['db_pass'], \
                       host=self.config['db_host'], \
-                      port=self.config['db_port'])
+                      port=self.config['db_port'], max_size=DB_POOL_MAX_SIZE)
 
 
 def run_fn_with_context(fn, name, config, *args):
@@ -323,6 +326,7 @@ class Engine:
           res = idf[1].result()
           if isinstance(res, dict) and 'duration' in res:
             node_name = '{} {:.2f}s'.format(idf[0], res['duration'])
+            self.log.info("Engine Task: {}".format(node_name))
             self.graph.node(idf[0], label=node_name,
                             color='green', style='filled')
           else:
@@ -330,11 +334,13 @@ class Engine:
             task_id = idf[0]
             duration = now - self.timer[task_id]["start"]
             node_name = '{} {:.2f}s'.format(task_id, duration)
+            self.log.info("Engine Task: {}".format(node_name))
             self.graph.node(idf[0], label=node_name, color='green', style='filled')
           # self.log.debug('res: {}'.format(res))
           if isinstance(res, dict) and 'done' in res:
             for nd in res['done']:
               nd_name = '{} {:.2f}s'.format(nd[0], nd[1])
+              self.log.info("Engine Subtask: {}".format(nd_name))
               self.graph.node(nd[0], label=nd_name,
                               color='green', style='filled')
               self.graph.edge(idf[0], nd[0])

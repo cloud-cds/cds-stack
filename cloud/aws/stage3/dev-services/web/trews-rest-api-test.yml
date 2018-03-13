@@ -21,7 +21,7 @@ kind: Deployment
 metadata:
   name: trews-rest-api-test
 spec:
-  replicas: 1
+  replicas: 2
   template:
     metadata:
       labels:
@@ -42,7 +42,7 @@ spec:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
       - name: trews-rest-api-test
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.664
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:latest
         resources:
           requests:
             memory: "2816Mi"

@@ -13,6 +13,10 @@ import json
 from etl.io_config import server_protocol as protocol
 import etl.io_config.core as core
 import random
+import pdb
+from etl.io_config.cloudwatch import Cloudwatch
+cloudwatch_logger = Cloudwatch()
+WORKSPACE = core.get_environment_var('TREWS_ETL_WORKSPACE', 'event_workspace')
 
 async def extract_non_discharged_patients(ctxt, hospital):
   '''
@@ -89,6 +93,22 @@ async def notify_data_ready_to_trews_alert_server(ctxt, *para):
     ctxt.log.exception(e)
     ctxt.log.error("Fail to notify trews alert server")
 
+async def notify_delta_ready_to_trews_alert_server(ctxt, *para):
+  job_id = para[0]
+  message = {
+    'type'  : 'ETL',
+    'time'  : str(dt.datetime.utcnow()),
+    'hosp'  : job_id.split('_')[-3].upper(),
+    'job_id': job_id,
+  }
+  try:
+    logging.info('Notify trews alert server that the push-based ETL is done: {}'.format(message))
+    reader, writer = await asyncio.open_connection(protocol.TREWS_ALERT_SERVER_IP, protocol.TREWS_ALERT_SERVER_PORT, loop=ctxt.loop)
+    await protocol.write_message(writer, message)
+    writer.close()
+  except Exception as e:
+    ctxt.log.exception(e)
+    ctxt.log.error("Fail to notify trews alert server")
 
 # async def notify_criteria_ready_to_alert_server(ctxt, job_id, _):
 #   message = {
@@ -125,14 +145,21 @@ async def notify_future_notification(ctxt, _):
   else:
     ctxt.log.info("no etl channel found in the environment, skipping etl notifications")
 
-async def epic_2_workspace(ctxt, db_data, sqlalchemy_str, job_id, dtypes=None):
+async def epic_2_workspace_pull(ctxt, db_data, job_id, dtypes, workspace):
   ''' Push all the dataframes to a workspace table '''
   async with ctxt.db_pool.acquire() as conn:
+    ctxt.log.info("enter epic_2_workspace")
     for df_name, df in db_data.items():
-      await primitives.data_2_workspace(ctxt.log, conn, job_id, df_name, df, dtypes=dtypes)
+      await primitives.data_2_workspace(ctxt.log, conn, job_id, df_name, df, dtypes=dtypes, workspace=workspace)
     return job_id
 
 
+async def epic_2_workspace(ctxt, db_data, job_id, dtypes, workspace, conn):
+  ''' Push all the dataframes to a workspace table '''
+  ctxt.log.debug("enter epic_2_workspace")
+  for df_name, df in db_data.items():
+    await primitives.data_2_workspace(ctxt.log, conn, job_id, df_name, df, dtypes=dtypes, workspace=workspace)
+  return job_id
 
 
 def test_data_2_workspace(ctxt, sqlalchemy_str, mode, job_id):
@@ -150,17 +177,53 @@ def test_data_2_workspace(ctxt, sqlalchemy_str, mode, job_id):
 
 
 
-async def workspace_to_cdm(ctxt, job_id):
-  query = "select * from workspace_to_cdm('{}');".format(job_id)
+async def workspace_to_cdm(ctxt, job_id, workspace, keep_delta_table=True):
+  query = "select * from workspace_to_cdm('{}','{}','{}');".format(job_id, workspace, keep_delta_table)
   async with ctxt.db_pool.acquire() as conn:
     try:
-      await conn.fetch(query)
+      res = await conn.fetch(query)
+      num_delta_t = res[0][0]
+      cloudwatch_logger.push(
+        dimension_name = 'ETL',
+        metric_name    = 'num_delta_t',
+        value          = num_delta_t,
+        unit           = 'Count'
+      )
     except asyncpg.exceptions.UndefinedTableError:
       logging.error("Workspace table does exist for {}".format(query))
     return job_id
 
 
+async def workspace_to_cdm_delta(ctxt, job_id, workspace, keep_delta_table=False):
+  query = "select * from workspace_to_cdm('{}','{}','{}');".format(job_id, workspace, keep_delta_table)
+  async with ctxt.db_pool.acquire() as conn:
+    try:
+      res = await conn.fetch(query)
+      num_delta_t = res[0][0]
+      cloudwatch_logger.push(
+        dimension_name = 'ETL',
+        metric_name    = 'num_delta_t_push',
+        value          = num_delta_t,
+        unit           = 'Count'
+      )
+    except asyncpg.exceptions.UndefinedTableError:
+      logging.error("Workspace table does exist for {}".format(query))
+    return num_delta_t
 
+async def workspace_to_cdm_delta(ctxt, job_id, workspace, conn, keep_delta_table=False):
+  query = "select * from workspace_to_cdm('{}','{}','{}');".format(job_id, workspace, keep_delta_table)
+  try:
+    res = await conn.fetch(query)
+    num_delta_t = res[0][0]
+    cloudwatch_logger.push(
+      dimension_name = 'ETL',
+      metric_name    = 'num_delta_t_push',
+      value          = num_delta_t,
+      unit           = 'Count'
+    )
+  except asyncpg.exceptions.UndefinedTableError:
+    logging.error("Workspace table does exist for {}".format(query))
+  return num_delta_t
 
 async def load_online_prediction_parameters(ctxt, job_id):
   async with ctxt.db_pool.acquire() as conn:
@@ -182,21 +245,22 @@ async def load_online_prediction_parameters(ctxt, job_id):
     cdm_feature = await conn.fetch("select * from cdm_feature")
     cdm_feature_dict = {f['fid']:dict(f) for f in cdm_feature}
     required_fids = set(criteria_features + jit_features)
+
     # list the measured features for online prediction
     features_with_intermediates = get_features_with_intermediates(\
       required_fids, cdm_feature_dict)
     measured_features = [fid for fid in features_with_intermediates if cdm_feature_dict[fid]["is_measured"]]
-    ctxt.log.info("The measured features in online prediction: {}".format(
+    ctxt.log.debug("The measured features in online prediction: {}".format(
       _get_feature_description_report(measured_features, cdm_feature_dict)))
 
     # list the fillin features for online prediction
     fillin_features = [fid for fid in features_with_intermediates if \
       cdm_feature_dict[fid]["is_measured"] and cdm_feature_dict[fid]["category"] == "TWF"]
-    ctxt.log.info("The fillin features in online prediction: {}".format(fillin_features))
+    ctxt.log.debug("The fillin features in online prediction: {}".format(fillin_features))
 
     # list the derive features for online prediction
     derive_features = [fid for fid in features_with_intermediates if not cdm_feature_dict[fid]["is_measured"]]
-    ctxt.log.info("The derive features in online prediction: {}".format(derive_features))
+    ctxt.log.debug("The derive features in online prediction: {}".format(derive_features))
 
     return {
       'cdm_feature_dict' : cdm_feature_dict,
@@ -204,18 +268,61 @@ async def load_online_prediction_parameters(ctxt, job_id):
       'derive_features'  : derive_features,
     }
 
+async def load_online_prediction_parameters(ctxt, job_id, conn):
+  ctxt.log.info("{} load online_prediction_features".format(job_id))
+  # Load features needed for criteria
+  query_criteria_feature = '''
+  select unnest(string_to_array(value, ',')) fid from parameters where name = 'criteria_required_derive_fids'
+  '''
+  criteria_features = await conn.fetch(query_criteria_feature)
+  criteria_features = [f['fid'] for f in criteria_features]
+  # Load features needed for jit
+  query_jit_feature = '''
+  select unnest(string_to_array(value, ',')) fid from parameters where name = 'jit_required_twf_fids'
+  '''
+  jit_features = await conn.fetch(query_jit_feature)
+  jit_features = [f['fid'] for f in jit_features]
+
+  # Get cdm feature dict
+  cdm_feature = await conn.fetch("select * from cdm_feature")
+  cdm_feature_dict = {f['fid']:dict(f) for f in cdm_feature}
+  required_fids = criteria_features + jit_features
+  # list the measured features for online prediction
+  features_with_intermediates = get_features_with_intermediates(\
+    required_fids, cdm_feature_dict)
+  measured_features = [fid for fid in features_with_intermediates if cdm_feature_dict[fid]["is_measured"]]
+  ctxt.log.info("{}: The measured features in online prediction: {}".format(job_id,
+    _get_feature_description_report(measured_features, cdm_feature_dict)))
+
+  # list the fillin features for online prediction
+  fillin_features = [fid for fid in features_with_intermediates if \
+    cdm_feature_dict[fid]["is_measured"] and cdm_feature_dict[fid]["category"] == "TWF"]
+  ctxt.log.info("{}: The fillin features in online prediction: {}".format(job_id, fillin_features))
+
+  # list the derive features for online prediction
+  derive_features = [fid for fid in features_with_intermediates if not cdm_feature_dict[fid]["is_measured"]]
+  ctxt.log.info("{}: The derive features in online prediction: {}".format(job_id, derive_features))
+
+  return {
+    'feature_weights'  : {}, #dict(feature_weights),
+    'max_score'        : 0, #max_score,
+    'min_score'        : 0, #min_score,
+    'cdm_feature_dict' : cdm_feature_dict,
+    'fillin_features'  : fillin_features,
+    'derive_features'  : derive_features,
+  }
 
 
-
-async def workspace_fillin(ctxt, prediction_params, job_id):
+async def workspace_fillin(ctxt, prediction_params, job_id, workspace):
   ctxt.log.info("start fillin pipeline")
   # we run the optimized fillin in one run, e.g., update set all columns
   fillin_sql = '''
-    SELECT * from workspace_fillin({fillin_fids}, {twf_table}, 'cdm_t', '{job_id}');
+    SELECT * from workspace_fillin_delta({fillin_fids}, {twf_table}, 'cdm_t', '{job_id}', '{workspace}');
     '''.format(
       fillin_fids = 'array[{}]'.format(','.join(["'{}'".format(x) for x in prediction_params['fillin_features']])),
-      twf_table   = "'workspace.{}_cdm_twf'".format(job_id),
-      job_id      = job_id
+      twf_table   = "'{}.{}_cdm_twf'".format(workspace, job_id),
+      job_id      = job_id,
+      workspace   = workspace
     )
   async with ctxt.db_pool.acquire() as conn:
     ctxt.log.info("start fillin: {}".format(fillin_sql))
@@ -225,17 +332,54 @@ async def workspace_fillin(ctxt, prediction_params, job_id):
     return job_id
 
 
+async def workspace_fillin_delta(ctxt, prediction_params, job_id, workspace):
+  ctxt.log.info("start fillin pipeline")
+  # we run the optimized fillin in one run, e.g., update set all columns
+  fillin_sql = '''
+    SELECT * from workspace_fillin_delta({fillin_fids}, {twf_table}, 'cdm_t', '{job_id}', '{workspace}');
+    '''.format(
+      fillin_fids = 'array[{}]'.format(','.join(["'{}'".format(x) for x in prediction_params['fillin_features']])),
+      twf_table   = "'{}.{}_cdm_twf'".format(workspace, job_id),
+      job_id      = job_id,
+      workspace   = workspace
+    )
+  async with ctxt.db_pool.acquire() as conn:
+    ctxt.log.debug("start fillin: {}".format(fillin_sql))
+    result = await conn.execute(fillin_sql)
+    ctxt.log.info(result)
+    ctxt.log.info("fillin completed")
+    return result[0][0]
 
+async def workspace_fillin_delta(ctxt, prediction_params, job_id, workspace, conn):
+  ctxt.log.info("{} start fillin pipeline".format(job_id))
+  # we run the optimized fillin in one run, e.g., update set all columns
+  fillin_sql = '''
+    SELECT * from workspace_fillin_delta({fillin_fids}, {twf_table}, 'cdm_t', '{job_id}', '{workspace}');
+    '''.format(
+      fillin_fids = 'array[{}]'.format(','.join(["'{}'".format(x) for x in prediction_params['fillin_features']])),
+      twf_table   = "'{}.{}_cdm_twf'".format(workspace, job_id),
+      job_id      = job_id,
+      workspace   = workspace
+    )
+  ctxt.log.debug("start fillin: {}".format(fillin_sql))
+  result = await conn.execute(fillin_sql)
+  ctxt.log.info(result)
+  ctxt.log.info("{} fillin completed".format(job_id))
+  return result[0][0]
 
-
-async def workspace_derive(ctxt, prediction_params, job_id):
+async def workspace_derive(ctxt, prediction_params, job_id, workspace):
   cdm_feature_dict = prediction_params['cdm_feature_dict']
   derive_features = prediction_params['derive_features']
   ctxt.log.info("derive start")
   # get derive order based on the input derive_features
   derive_feature_dict = {fid: cdm_feature_dict[fid] for fid in derive_features}
   derive_feature_order = get_derive_seq(derive_feature_dict)
-  twf_table = 'workspace.{}_cdm_twf'.format(job_id)
+  twf_table = '{}.{}_cdm_twf'.format(workspace, job_id)
+  cdm_t_target = '''
+  (select * from cdm_t where enc_id in
+    (select distinct enc_id from {workspace}.cdm_t wt
+      where wt.job_id = '{job_id}'))
+  '''.format(workspace=workspace, job_id=job_id)
 
   # get info for old function
   derive_feature_addr = {}
@@ -262,7 +406,7 @@ async def workspace_derive(ctxt, prediction_params, job_id):
       while True:
         try:
           ctxt.log.info("deriving fid {}".format(fid))
-          await derive_feature(ctxt.log, fid, cdm_feature_dict, conn, derive_feature_addr=derive_feature_addr, cdm_t_lookbackhours=lookbackhours)
+          await derive_feature(ctxt.log, fid, cdm_feature_dict, conn, derive_feature_addr=derive_feature_addr, cdm_t_lookbackhours=lookbackhours, workspace=workspace,job_id=job_id, cdm_t_target=cdm_t_target)
           break
         except Exception as e:
           attempts += 1
@@ -278,10 +422,60 @@ async def workspace_derive(ctxt, prediction_params, job_id):
     return job_id
 
 
+async def workspace_derive(ctxt, prediction_params, job_id, workspace, conn):
+  cdm_feature_dict = prediction_params['cdm_feature_dict']
+  derive_features = prediction_params['derive_features']
+  ctxt.log.info("{} derive start".format(job_id))
+  # get derive order based on the input derive_features
+  derive_feature_dict = {fid: cdm_feature_dict[fid] for fid in derive_features}
+  derive_feature_order = get_derive_seq(derive_feature_dict)
+  twf_table = '{}.{}_cdm_twf'.format(workspace, job_id)
+  cdm_t_target = '''
+  (select * from cdm_t where enc_id in
+    (select distinct enc_id from {workspace}.cdm_t wt
+      where wt.job_id = '{job_id}'))
+  '''.format(workspace=workspace, job_id=job_id)
+
+  # get info for old function
+  derive_feature_addr = {}
+  for fid in derive_feature_order:
+    table = twf_table if derive_feature_dict[fid]['category'] == 'TWF' else None
+    derive_feature_addr[fid] = {
+      'twf_table': table,
+      'twf_table_temp': table,
+      'category': derive_feature_dict[fid]['category'],
+    }
 
 
 
-async def workspace_predict(ctxt, prediction_params, job_id):
+  ctxt.log.info("{} derive the features sequentially: {}".format(job_id, derive_feature_order))
+  # retry parameters
+  base = 2
+  max_backoff = 60
+
+  res = await conn.fetchrow("select value from parameters where name = 'etl_workspace_lookbackhours'")
+  lookbackhours = res['value']
+  for fid in derive_feature_order:
+    attempts = 0
+    while True:
+      try:
+        ctxt.log.info("{} deriving fid {}".format(job_id, fid))
+        await derive_feature(ctxt.log, fid, cdm_feature_dict, conn, derive_feature_addr=derive_feature_addr, cdm_t_lookbackhours=lookbackhours, workspace=workspace,job_id=job_id, cdm_t_target=cdm_t_target)
+        break
+      except Exception as e:
+        attempts += 1
+        ctxt.log.exception("PSQL Error derive: %s %s" % (fid if fid else 'run_derive', e))
+        random_secs = random.uniform(0, 10)
+        wait_time = min(((base**attempts) + random_secs), max_backoff)
+        await asyncio.sleep(wait_time)
+        ctxt.log.info("run_derive {} attempts {}".format(fid or '', attempts))
+        if fid is None:
+          raise Exception('batch derive stopped due to exception')
+        continue
+  return job_id
+
+
+async def workspace_predict(ctxt, prediction_params, job_id, workspace):
   ctxt.log.info("predict start")
   feature_weights = prediction_params['feature_weights']
   cdm_feature_dict = prediction_params['cdm_feature_dict']
@@ -308,7 +502,7 @@ async def workspace_predict(ctxt, prediction_params, job_id):
   # select feature values
   # calculate the trewscores
   weight_sum = "+".join(['coalesce(%s,0)'  % col for col in feature_weight_colnames])
-  target    = 'workspace.{}'.format(job_id)
+  target    = '{}.{}'.format(workspace, job_id)
   table     = '{}_trews'.format(target)
   twf_table = '{}_cdm_twf'.format(target)
   sql = """
@@ -334,12 +528,34 @@ async def workspace_predict(ctxt, prediction_params, job_id):
 
 
 
-
-
-async def workspace_submit(ctxt, prediction_params, job_id):
+async def workspace_submit_delta(ctxt, job_id, workspace):
   # submit to cdm_twf
   # submit to trews
-  ctxt.log.info("submit start")
+  ctxt.log.info("{}: submitting results ...".format(job_id))
+  submit_cdm = '''
+  select * from workspace_submit_delta('%(workspace)s.%(job)s_cdm_twf');
+  '''
+  async with ctxt.db_pool.acquire() as conn:
+    ctxt.log.debug(submit_cdm % {'job': job_id, 'workspace': workspace} )
+    await conn.execute(submit_cdm % {'job': job_id, 'workspace': workspace} )
+    ctxt.log.info("{}: results submitted".format(job_id))
+    return job_id
+
+async def workspace_submit_delta(ctxt, job_id, workspace, conn):
+  # submit to cdm_twf
+  # submit to trews
+  ctxt.log.info("{}: submitting results ...".format(job_id))
+  submit_cdm = '''
+  select * from workspace_submit_delta('%(workspace)s.%(job)s_cdm_twf');
+  '''
+  ctxt.log.debug(submit_cdm % {'job': job_id, 'workspace': workspace} )
+  await conn.execute(submit_cdm % {'job': job_id, 'workspace': workspace} )
+  ctxt.log.info("{}: results submitted".format(job_id))
+  return job_id
+
+async def workspace_submit(ctxt, job_id, workspace, drop_workspace_table=True, trews=True):
+  # submit to cdm_twf
+  # submit to trews
   ctxt.log.info("{}: submitting results ...".format(job_id))
   select_all_colnames = """
     SELECT column_name
@@ -348,29 +564,40 @@ async def workspace_submit(ctxt, prediction_params, job_id):
   """
   submit_cdm = """
     INSERT INTO cdm_twf
-      (SELECT * FROM workspace.%(job)s_cdm_twf
+      (SELECT * FROM %(workspace)s.%(job)s_cdm_twf
        where now() - tsp < (select value::interval from parameters where name = 'etl_workspace_submit_hours')
       )
     ON conflict (enc_id, tsp) do UPDATE SET %(set_columns)s;
-    SELECT drop_tables('workspace', '%(job)s_cdm_twf');
-  """
+  """ + ("SELECT drop_tables('%(workspace)s', '%(job)s_cdm_twf');" if drop_workspace_table else '')
+  submit_trews = """
+    CREATE TABLE if not exists trews (LIKE %(workspace)s.%(job)s_trews,
+        unique (enc_id, tsp)
+        );
+    INSERT into trews (enc_id, tsp, %(columns)s) (
+        SELECT enc_id, tsp, %(columns)s FROM %(workspace)s.%(job)s_trews
+        where now() - tsp < (select value::interval from parameters where name = 'etl_workspace_submit_hours')
+        )
+    ON conflict (enc_id, tsp)
+        do UPDATE SET %(set_columns)s;
+  """ + ("SELECT drop_tables('%(workspace)s', '%(job)s_trews');" if drop_workspace_table else '')
   async with ctxt.db_pool.acquire() as conn:
     records = await conn.fetch(select_all_colnames % {'table': 'cdm_twf'})
     colnames = [row[0] for row in records if row[0] != 'enc_id' and row[0] != 'tsp']
     twf_set_columns = ",".join([
         "%(col)s = excluded.%(col)s" % {'col': colname} for colname in colnames
     ])
-    ctxt.log.info(submit_cdm % {'job': job_id, 'set_columns': twf_set_columns} )
-    await conn.execute(submit_cdm % {'job': job_id, 'set_columns': twf_set_columns} )
-    records = await conn.fetch(select_all_colnames % {'table': '%s_trews' % job_id})
-    colnames = [row[0] for row in records if row[0] != 'enc_id' and row[0] != 'tsp']
-    trews_set_columns = ",".join([
-        "%(col)s = excluded.%(col)s" % {'col': colname} for colname in colnames
-    ])
-    trews_columns = ",".join(colnames)
-
+    ctxt.log.debug(submit_cdm % {'job': job_id, 'set_columns': twf_set_columns, 'workspace': workspace} )
+    await conn.execute(submit_cdm % {'job': job_id, 'set_columns': twf_set_columns, 'workspace': workspace} )
+    if trews:
+      records = await conn.fetch(select_all_colnames % {'table': '%s_trews' % job_id})
+      colnames = [row[0] for row in records if row[0] != 'enc_id' and row[0] != 'tsp']
+      trews_set_columns = ",".join([
+          "%(col)s = excluded.%(col)s" % {'col': colname} for colname in colnames
+      ])
+      trews_columns = ",".join(colnames)
+      ctxt.log.debug(submit_trews % {'job': job_id, 'set_columns': trews_set_columns, 'columns': trews_columns, 'workspace': workspace} )
+      await conn.execute(submit_trews % {'job': job_id, 'set_columns': trews_set_columns, 'columns': trews_columns, 'workspace': workspace} )
     ctxt.log.info("{}: results submitted".format(job_id))
-    ctxt.log.info("submit completed")
     return job_id
 
 def get_features_with_intermediates(features, dictionary):
@@ -415,7 +642,7 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
       name = 'epic_2_workspace_archive',
       deps = [db_raw_data_task],
       coro = epic_2_workspace,
-      args = [sqlalchemy_str, job_id, 'unicode'],
+      args = [job_id, 'unicode', WORKSPACE],
     ))
   if 'test' in mode:
     all_tasks += [Task(
@@ -427,25 +654,30 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
     Task(name = 'epic_2_workspace',
          deps = [db_data_task],
          coro = epic_2_workspace,
-         args = [sqlalchemy_str, job_id, None]),
+         args = [sqlalchemy_str, job_id, None, WORKSPACE]),
     Task(name = 'workspace_to_cdm',
          deps = ['epic_2_workspace'],
-         coro = workspace_to_cdm),
+         coro = workspace_to_cdm,
+         args = [WORKSPACE, True]),
     Task(name = 'load_online_prediction_parameters',
          deps = ['workspace_to_cdm'],
          coro = load_online_prediction_parameters),
     Task(name = 'workspace_fillin',
          deps = ['load_online_prediction_parameters', 'workspace_to_cdm'],
-         coro = workspace_fillin),
+         coro = workspace_fillin,
+         args = [WORKSPACE]),
     Task(name = 'workspace_derive',
          deps = ['load_online_prediction_parameters', 'workspace_fillin'],
-         coro = workspace_derive),
-    # Task(name = 'workspace_predict',
-    #      deps = ['load_online_prediction_parameters', 'workspace_derive'],
-    #      coro = workspace_predict),
-    Task(name = 'workspace_submit',
+         coro = workspace_derive,
+         args = [WORKSPACE]),
+    Task(name = 'workspace_predict',
          deps = ['load_online_prediction_parameters', 'workspace_derive'],
-         coro = workspace_submit),
+         coro = workspace_predict,
+         args = [WORKSPACE]),
+    Task(name = 'workspace_submit',
+         deps = ['workspace_predict'],
+         coro = workspace_submit_delta,
+         args = [WORKSPACE]),
     Task(name = 'load_discharge_times',
          deps = ['contacts_transform'],
          coro = load_discharge_times),
@@ -476,4 +708,17 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
                   ]
   else:
     ctxt.log.error("Unknown suppression alert mode: {}".format(suppression))
+  return all_tasks
+
+def get_tasks_pat_only(job_id, db_data_task, db_raw_data_task, mode, archive, deps=[], suppression=0):
+  all_tasks = [
+    Task(name = 'epic_2_workspace',
+         deps = [db_data_task],
+         coro = epic_2_workspace_pull,
+         args = [job_id, None, WORKSPACE]),
+    Task(name = 'workspace_to_cdm',
+         deps = ['epic_2_workspace'],
+         coro = workspace_to_cdm,
+         args = [WORKSPACE, True]),
+        ]
   return all_tasks

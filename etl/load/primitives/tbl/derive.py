@@ -25,9 +25,12 @@ def derive(fid, func_id, fid_input, conn, log, dataset_id, derive_feature_addr, 
   return func(fid, fid_input, conn, log, dataset_id, derive_feature_addr,
               cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours)
 
-def with_ds(dataset_id, table_name=None, conjunctive=True):
+def with_ds(dataset_id, table_name=None, conjunctive=True, parallel=None):
   if dataset_id is not None:
-    return '%s %sdataset_id = %s' % (' and' if conjunctive else ' where', '' if table_name is None else table_name+'.', dataset_id)
+    sql = '%s %sdataset_id = %s' % (' and' if conjunctive else ' where', '' if table_name is None else table_name+'.', dataset_id)
+    if parallel is not None:
+      sql += ' and {}enc_id % {} = {}'.format('' if table_name is None else table_name+'.', parallel[0], parallel[1])
+    return sql
   return ''
 
 async def lookup_population_mean(fid, fid_input, conn, log, dataset_id, derive_feature_addr, cdm_feature_dict, incremental, cdm_t_target, cdm_t_lookbackhours):
@@ -299,7 +302,7 @@ async def hypotension_intp_update(fid, fid_input, conn, log, dataset_id, derive_
             conjunctive=False),
          'incremental_enc_id_in': incremental_enc_id_in(' and ' if dataset_id else ' where ', \
             fid_input_twf_table_temp, dataset_id, incremental)}
-  log.info(select_sql)
+  log.debug(select_sql)
   records = await conn.fetch(select_sql)
   block_start = None
   block_end = None
@@ -1176,7 +1179,7 @@ async def gi_bleed_update(fid, fid_input, conn, log, dataset_id, derive_feature_
     if len(evidence) > 0:
       tsp_first = evidence[0]['tsp']
 
-    await load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf], dataset_id=dataset_id, cdm_t_target=cdm_t_target)
+    await load_row.upsert_t(conn, [enc_id, tsp_first, fid, 'True', conf], dataset_id=dataset_id, cdm_t_target='cdm_t' if 'select' in cdm_t_target else cdm_t_target)
 
 
 

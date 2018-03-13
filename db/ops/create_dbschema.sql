@@ -3,6 +3,9 @@
  * create relation database for the dashan instance
  * NOTE: cdm_twf is not created here
  */
+CREATE SCHEMA IF NOT EXISTS event_workspace;
+CREATE SCHEMA IF NOT EXISTS workspace;
+
 
 DROP TABLE IF EXISTS pat_enc CASCADE;
 CREATE TABLE pat_enc (
@@ -10,6 +13,7 @@ CREATE TABLE pat_enc (
     visit_id        varchar(50) NOT NULL,
     pat_id          varchar(50) NOT NULL,
     dept_id         varchar(50),
+    zid             varchar(50),
     UNIQUE          (visit_id, pat_id),
     UNIQUE          (enc_id, visit_id, pat_id)
 );
@@ -57,6 +61,26 @@ CREATE TABLE cdm_s (
     PRIMARY KEY (enc_id, fid)
 );
 
+DROP TABLE IF EXISTS event_workspace.cdm_s;
+CREATE TABLE event_workspace.cdm_s (
+    job_id          text,
+    enc_id          integer REFERENCES pat_enc(enc_id),
+    fid             varchar(50) REFERENCES cdm_feature(fid),
+    value           text,
+    confidence      integer,
+    PRIMARY KEY (job_id, enc_id, fid)
+);
+
+DROP TABLE IF EXISTS workspace.cdm_s;
+CREATE TABLE workspace.cdm_s (
+    job_id          text,
+    enc_id          integer REFERENCES pat_enc(enc_id),
+    fid             varchar(50) REFERENCES cdm_feature(fid),
+    value           text,
+    confidence      integer,
+    PRIMARY KEY (job_id, enc_id, fid)
+);
+
 DROP TABLE IF EXISTS cdm_t;
 CREATE TABLE cdm_t (
     enc_id          integer REFERENCES pat_enc(enc_id),
@@ -65,6 +89,28 @@ CREATE TABLE cdm_t (
     value           text,
     confidence      integer,
     PRIMARY KEY (enc_id, tsp, fid)
+);
+
+DROP TABLE IF EXISTS event_workspace.cdm_t;
+CREATE TABLE event_workspace.cdm_t (
+    job_id          text,
+    enc_id          integer REFERENCES pat_enc(enc_id),
+    tsp             timestamptz,
+    fid             varchar(50) REFERENCES cdm_feature(fid),
+    value           text,
+    confidence      integer,
+    PRIMARY KEY (job_id, enc_id, tsp, fid)
+);
+
+DROP TABLE IF EXISTS workspace.cdm_t;
+CREATE TABLE workspace.cdm_t (
+    job_id          text,
+    enc_id          integer REFERENCES pat_enc(enc_id),
+    tsp             timestamptz,
+    fid             varchar(50) REFERENCES cdm_feature(fid),
+    value           text,
+    confidence      integer,
+    PRIMARY KEY (job_id, enc_id, tsp, fid)
 );
 
 DROP TABLE IF EXISTS cdm_notes;
@@ -77,6 +123,45 @@ CREATE TABLE cdm_notes (
     dates           json,
     providers       json,
     PRIMARY KEY (enc_id, note_id, note_type, note_status)
+);
+
+DROP TABLE IF EXISTS workspace.cdm_notes;
+CREATE TABLE workspace.cdm_notes (
+    job_id          text,
+    enc_id          int,
+    note_id         varchar(50),
+    note_type       varchar(50),
+    note_status     varchar(50),
+    note_body       text,
+    dates           json,
+    providers       json,
+    PRIMARY KEY (job_id, enc_id, note_id, note_type, note_status)
+);
+
+DROP TABLE IF EXISTS event_workspace.cdm_notes;
+CREATE TABLE event_workspace.cdm_notes (
+    job_id          text,
+    enc_id          int,
+    note_id         varchar(50),
+    note_type       varchar(50),
+    note_status     varchar(50),
+    note_body       text,
+    dates           json,
+    providers       json,
+    PRIMARY KEY (job_id, enc_id, note_id, note_type, note_status)
+);
+
+DROP TABLE IF EXISTS workspace.cdm_notes;
+CREATE TABLE workspace.cdm_notes (
+    job_id          text,
+    enc_id          int,
+    note_id         varchar(50),
+    note_type       varchar(50),
+    note_status     varchar(50),
+    note_body       text,
+    dates           json,
+    providers       json,
+    PRIMARY KEY (job_id, enc_id, note_id, note_type, note_status)
 );
 
 DROP TABLE IF EXISTS metrics_events;
@@ -362,7 +447,6 @@ CREATE TABLE trews (
 );
 
 
-CREATE SCHEMA IF NOT EXISTS workspace;
 
 DROP TABLE IF EXISTS pat_status;
 CREATE TABLE pat_status (
@@ -638,7 +722,9 @@ CREATE TABLE etl_job(
     serial_id       serial primary key,
     job_id          text,
     tsp             timestamptz,
-    hospital        text
+    hospital        text,
+    workspace       text,
+    unique          (job_id)
 );
 
 DROP TABLE IF EXISTS nurse_eval;

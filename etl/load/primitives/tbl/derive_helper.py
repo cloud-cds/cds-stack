@@ -2,8 +2,11 @@
 # query helper functions
 #########################
 
-def dataset_id_equal(prefix, table, dataset_id_val):
-  return "{}{}.dataset_id = {}".format(prefix, table, dataset_id_val) if dataset_id_val else ''
+def dataset_id_equal(prefix, table, dataset_id_val, parallel=None):
+  sql = "{}{}.dataset_id = {}".format(prefix, table, dataset_id_val) if dataset_id_val else ''
+  if parallel is not None:
+    sql += ' and {}.enc_id % {} = {}'.format(table, parallel[0], parallel[1])
+  return sql
 
 def dataset_id_match(prefix, left_table, right_table, dataset_id_val):
   return "{}{}.dataset_id = {}.dataset_id".format(prefix, left_table, right_table) if dataset_id_val else ''
@@ -17,7 +20,8 @@ def get_src_twf_table(derive_feature_addr):
       return derive_feature_addr[fid]['twf_table']
 
 def get_select_table_joins(fid_input_items, derive_feature_addr,
-                           cdm_feature_dict, dataset_id, incremental):
+                           cdm_feature_dict, dataset_id, incremental,
+                           workspace=None, job_id=None, parallel=None):
   src_twf_table = get_src_twf_table(derive_feature_addr)
   twf_table = None
   existing_tables = set()
@@ -71,9 +75,14 @@ def get_select_table_joins(fid_input_items, derive_feature_addr,
       + incremental_enc_id_match(' where ',incremental)
     table_joins += dataset_id_equal(' and ', \
       twf_table if twf_table else src_twf_table, dataset_id)
+  elif workspace is not None and job_id is not None:
+    table_joins += \
+      (" where {twf}.enc_id in (select distinct enc_id from {ws}.cdm_t where job_id = '{job_id}')".format(twf=twf_table if twf_table else src_twf_table, ws=workspace, job_id=job_id))
   else:
     table_joins += dataset_id_equal(' where ', \
       twf_table if twf_table else src_twf_table, dataset_id)
+    if parallel is not None:
+      table_joins += ' and {}.enc_id % {} = {}'.format(twf_table if twf_table else src_twf_table, parallel[0], parallel[1])
   return sql_template.format(cols=cols, table_joins=table_joins)
 
 def incremental_enc_id_join(table, dataset_id, incremental):
@@ -86,6 +95,15 @@ def incremental_enc_id_join(table, dataset_id, incremental):
 def incremental_enc_id_match(conjunctive, incremental):
   return "{} (pe.meta_data->>'pending')::boolean".format(conjunctive) \
     if incremental else ''
+
+def push_delta_cdm_t_join(table, workspace, job_id):
+  return """
+  inner join {workspace}.cdm_t wt on {table}.enc_id = wt.enc_id
+  """.format(workspace=workspace, table=table) if workspace and job_id else ''
+
+def push_delta_cdm_t_match(conjunctive, workspace, job_id):
+  return "{} wt.job_id = '{}'".format(conjunctive, job_id) \
+    if workspace and job_id else ''
 
 def incremental_enc_id_in(conjunctive, table, dataset_id, incremental):
   return "{con} {tbl}.enc_id in (select enc_id from pat_enc pe where (pe.meta_data->>'pending')::boolean {dataset_id_match})".format(con=conjunctive, tbl=table, dataset_id_match=dataset_id_equal(' and ', 'pe', dataset_id)) \

@@ -1,0 +1,251 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: event-server-prod-nginx-config
+data:
+  nginx-root-config: |-
+    user  nginx;
+    worker_processes  1;
+
+    error_log  /var/log/nginx/error.log warn;
+    pid        /var/run/nginx.pid;
+
+
+    events {
+        worker_connections  16384;
+    }
+
+
+    http {
+        include       /etc/nginx/mime.types;
+        default_type  application/octet-stream;
+
+        log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                          '$status $body_bytes_sent "$http_referer" '
+                          '"$http_user_agent" "$http_x_forwarded_for"';
+
+        access_log  /var/log/nginx/access.log  main;
+
+        sendfile        on;
+        #tcp_nopush     on;
+
+        keepalive_timeout  65;
+        client_body_buffer_size  16M;
+        client_max_body_size  0;
+
+        #gzip  on;
+
+        include /etc/nginx/conf.d/*.conf;
+    }
+
+  nginx-forward-config: |-
+    server {
+        listen 80 default_server;
+        listen [::]:80 default_server;
+        root /var/www/html;
+        index index.html index.htm index.nginx-debian.html;
+        server_name _;
+        location / {
+          proxy_pass http://127.0.0.1:8000;
+        }
+    }
+---
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  name: event-server-prod
+spec:
+  serviceName: event-server-svc-prod
+  replicas: 2
+  podManagementPolicy: Parallel
+  template:
+    metadata:
+      labels:
+        app: event-server-prod
+    spec:
+      nodeSelector:
+        opsdx_nodegroup: spot-nodes
+      containers:
+      - name: trews-nginx
+        image: nginx:alpine
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+        ports:
+        - containerPort: 80
+        volumeMounts:
+          - name: root-config-volume
+            mountPath: "/etc/nginx/nginx.conf"
+            subPath: "nginx.conf"
+          - name: forward-config-volume
+            mountPath: "/etc/nginx/conf.d/"
+      - name: event-server-prod
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:1.0.270
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+        ports:
+        - containerPort: 8000
+        command: ["/bin/bash","-c"]
+        args: ["cd etl/event-server; /usr/local/bin/python3 event-sqs-server.py"]
+        # args: ["[[ $(echo $HOSTNAME | sed \"s/.*-\\([0-9]*\\)$/\\1/\") -eq \"0\" ]] && ( sleep 10000 ) || ( cd etl/event-server; /usr/local/bin/python3 event-sqs-server.py )"]
+        securityContext:
+          capabilities:
+            add:
+            - "SYS_PTRACE"
+        env:
+        - name: max_db_conn
+          value: "100"
+        - name: JHAPI_SEMAPHORE
+          value: "50"
+        - name: JHAPI_ATTEMPTS_SESSION
+          value: "2"
+        - name: JHAPI_ATTEMPTS_REQUEST
+          value: "2"
+        - name: queue_name
+          value: "opsdx-jh-events-prod"
+        - name: ETL_INTERVAL_SECS
+          value: "30"
+        - name: EPIC_WEB_REQUEST_INTERVAL_SECS
+          value: "15"
+        - name: SWITCH_WEB_REQUEST
+          value: "0"
+        - name: SWITCH_ETL
+          value: "0"
+        - name: SWITCH_ETL_CDM
+          value: "0"
+        - name: SWITCH_ETL_DERIVE
+          value: "0"
+        - name: SWITCH_ETL_DONE
+          value: "0"
+        - name: TREWS_ETL_DEBUG
+          value: "0"
+        - name: TREWS_ETL_SERVER
+          value: "prod"
+        - name: TREWS_ETL_WORKSPACE
+          value: "event_workspace"
+        - name: TREWS_ALERT_SERVER_IP
+          value: "push-alerts-prod.default.svc.cluster.local"
+        - name: TREWS_ETL_HOSPITAL
+          value: "HCGH"
+        - name: TREWS_ETL_HOURS
+          value: "8"
+        - name: TREWS_ETL_MODE
+          value: "1"
+        - name: model_in_use
+          value: "trews-jit"
+        - name: db_host
+          value: "prod.db.jh.opsdx.io"
+        - name: db_port
+          value: "5432"
+        - name: db_name
+          value: "opsdx_prod"
+        - name: db_user
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: db-username
+        - name: db_password
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: db-password
+        - name: jhapi_client_id
+          valueFrom:
+            secretKeyRef:
+              name: jhapi-sepsis-push
+              key: jhapi-client-id
+        - name: jhapi_client_secret
+          valueFrom:
+            secretKeyRef:
+              name: jhapi-sepsis-push
+              key: jhapi-client-secret
+        - name: AWS_DEFAULT_REGION
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-region
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-secret-access-key
+        - name: querystring_key
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: querystring-key
+        - name: trews_app_key
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: trews-app-key
+        - name: trews_admin_key
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: trews-admin-key
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - event-server-prod
+            topologyKey: kubernetes.io/hostname
+      volumes:
+        - name: root-config-volume
+          configMap:
+            name: event-server-prod-nginx-config
+            items:
+              - key: nginx-root-config
+                path: nginx.conf
+        - name: forward-config-volume
+          configMap:
+            name: event-server-prod-nginx-config
+            items:
+              - key: nginx-forward-config
+                path: trews.conf
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: event-server-svc-prod
+  labels:
+    app: event-server-prod
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    name: http
+    targetPort: 80
+  selector:
+    app: event-server-prod
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: event-server-ingress-prod
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    ingress.kubernetes.io/ssl-redirect: "true"
+    ingrees.kubernetes.io/ingress.allow-http: "false"
+spec:
+  rules:
+  - host: event-server-prod.jh.opsdx.io
+    http:
+      paths:
+      - backend:
+          serviceName: event-server-svc-prod
+          servicePort: 80
+        path: /

@@ -19,13 +19,13 @@ data:
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: event-server-poc
+  name: event-server-prod
 spec:
-  replicas: 1
+  replicas: 4
   template:
     metadata:
       labels:
-        app: event-server-poc
+        app: event-server-prod
     spec:
       nodeSelector:
         opsdx_nodegroup: spot-nodes
@@ -35,18 +35,18 @@ spec:
         resources:
           requests:
             memory: "256Mi"
-            cpu: "100m"
+            cpu: "200m"
         ports:
         - containerPort: 80
         volumeMounts:
           - name: config-volume
             mountPath: "/etc/nginx/conf.d/"
-      - name: event-server-poc
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:1.0.561
+      - name: event-server-prod
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe-dev:latest
         resources:
           requests:
-            memory: "512Mi"
-            cpu: "200m"
+            memory: "2816Mi"
+            cpu: "1000m"
         ports:
         - containerPort: 8000
         command: ["/bin/sh","-c"]
@@ -57,10 +57,30 @@ spec:
             add:
             - "SYS_PTRACE"
         env:
+        - name: event_forward
+          value: ""
+          # value: "https://event-rest-prod.jh.opsdx.io/epic"
         - name: epic_env
-          value: "poc"
+          value: "prod"
         - name: NVM_DIR
           value: "/root/.nvm"
+        - name: metrics_dimension_value
+          value: "opsdx-prod"
+        - name: AWS_DEFAULT_REGION
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-region
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: rest-api-db-secrets
+              key: aws-secret-access-key
       volumes:
         - name: config-volume
           configMap:
@@ -72,9 +92,9 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: event-svc-poc
+  name: event-svc-prod
   labels:
-    app: event-server-poc
+    app: event-server-prod
 spec:
   type: NodePort
   ports:
@@ -82,24 +102,22 @@ spec:
     name: http
     targetPort: 80
   selector:
-    app: event-server-poc
+    app: event-server-prod
 ---
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: event-server-ingress-poc
+  name: event-server-ingress
   annotations:
     kubernetes.io/ingress.class: "nginx"
-    ingress.kubernetes.io/affinity: "cookie"
-    ingress.kubernetes.io/session-cookie-name: "route"
-    ingress.kubernetes.io/session-cookie-hash: "sha1"
     ingress.kubernetes.io/ssl-redirect: "true"
+    ingrees.kubernetes.io/ingress.allow-http: "false"
 spec:
   rules:
-  - host: event-poc.jh.opsdx.io
+  - host: event-prod.jh.opsdx.io
     http:
       paths:
       - backend:
-          serviceName: event-svc-poc
+          serviceName: event-svc-prod
           servicePort: 80
         path: /

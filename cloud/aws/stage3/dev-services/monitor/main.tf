@@ -484,23 +484,22 @@ resource "aws_cloudwatch_metric_alarm" "trews_alert_count_on_hcgh_ed" {
   }
 }
 
-resource "aws_cloudwatch_metric_alarm" "cms_alert_count_on_hcgh_ed" {
-  alarm_name                = "${var.deploy_prefix}-dev-cms-alert-count-hcgh-ed"
-  comparison_operator       = "LessThanOrEqualToThreshold"
-  evaluation_periods        = "2"
-  metric_name               = "alert_count_any_cms_HCGH_EMERGENCY-ADULTS"
-  namespace                 = "OpsDX"
-  period                    = "3600"
-  statistic                 = "Minimum"
-  threshold                 = "4"
-  alarm_description         = "The number of CMS alerts fired at HCGH ED in the past hour"
-  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
-  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
-
-  dimensions {
-    analysis = "opsdx-jh-dev"
-  }
-}
+#resource "aws_cloudwatch_metric_alarm" "cms_alert_count_on_hcgh_ed" {
+#  alarm_name                = "${var.deploy_prefix}-dev-cms-alert-count-hcgh-ed"
+#  comparison_operator       = "LessThanOrEqualToThreshold"
+#  evaluation_periods        = "2"
+#  metric_name               = "alert_count_any_cms_HCGH_EMERGENCY-ADULTS"
+#  namespace                 = "OpsDX"
+#  period                    = "3600"
+#  statistic                 = "Minimum"
+#  threshold                 = "4"
+#  alarm_description         = "The number of CMS alerts fired at HCGH ED in the past hour"
+#  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+#  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+#  dimensions {
+#    analysis = "opsdx-jh-dev"
+#  }
+#}
 
 resource "aws_cloudwatch_metric_alarm" "trews_alert_count_on_hcgh_3c_icu" {
   alarm_name                = "${var.deploy_prefix}-dev-trews-alert-count-hcgh-3c-icu"
@@ -520,41 +519,40 @@ resource "aws_cloudwatch_metric_alarm" "trews_alert_count_on_hcgh_3c_icu" {
   }
 }
 
-resource "aws_cloudwatch_metric_alarm" "cms_alert_count_on_hcgh_3c_icu" {
-  alarm_name                = "${var.deploy_prefix}-dev-cms-alert-count-hcgh-3c-icu"
-  comparison_operator       = "LessThanOrEqualToThreshold"
-  evaluation_periods        = "2"
-  metric_name               = "alert_count_any_cms_HCGH_3C_ICU"
-  namespace                 = "OpsDX"
-  period                    = "3600"
-  statistic                 = "Minimum"
-  threshold                 = "4"
-  alarm_description         = "The number of CMS alerts fired at HCGH 3C ICU in the past hour"
-  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
-  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+#resource "aws_cloudwatch_metric_alarm" "cms_alert_count_on_hcgh_3c_icu" {
+#  alarm_name                = "${var.deploy_prefix}-dev-cms-alert-count-hcgh-3c-icu"
+#  comparison_operator       = "LessThanOrEqualToThreshold"
+#  evaluation_periods        = "2"
+#  metric_name               = "alert_count_any_cms_HCGH_3C_ICU"
+#  namespace                 = "OpsDX"
+#  period                    = "3600"
+#  statistic                 = "Minimum"
+#  threshold                 = "4"
+#  alarm_description         = "The number of CMS alerts fired at HCGH 3C ICU in the past hour"
+#  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+#  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+#  dimensions {
+#    analysis = "opsdx-jh-dev"
+#  }
+#}
 
-  dimensions {
-    analysis = "opsdx-jh-dev"
-  }
-}
-
-resource "aws_cloudwatch_metric_alarm" "cms_alert_count_8hr" {
-  alarm_name                = "${var.deploy_prefix}-dev-cms-alert-count-8hr"
-  comparison_operator       = "LessThanOrEqualToThreshold"
-  evaluation_periods        = "2"
-  metric_name               = "alert_count_cms_8hr"
-  namespace                 = "OpsDX"
-  period                    = "3600"
-  statistic                 = "Minimum"
-  threshold                 = "1"
-  alarm_description         = "The number of CMS alerts fired in the past 8 hours"
-  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
-  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
-
-  dimensions {
-    analysis = "opsdx-jh-dev"
-  }
-}
+#resource "aws_cloudwatch_metric_alarm" "cms_alert_count_8hr" {
+#  alarm_name                = "${var.deploy_prefix}-dev-cms-alert-count-8hr"
+#  comparison_operator       = "LessThanOrEqualToThreshold"
+#  evaluation_periods        = "2"
+#  metric_name               = "alert_count_cms_8hr"
+#  namespace                 = "OpsDX"
+#  period                    = "3600"
+#  statistic                 = "Minimum"
+#  threshold                 = "1"
+#  alarm_description         = "The number of CMS alerts fired in the past 8 hours"
+#  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+#  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+#
+#  dimensions {
+#    analysis = "opsdx-jh-dev"
+#  }
+#}
 
 resource "aws_cloudwatch_metric_alarm" "trews_alert_count_8hr" {
   alarm_name                = "${var.deploy_prefix}-dev-trews-alert-count-8hr"
@@ -584,10 +582,28 @@ resource "aws_cloudwatch_metric_alarm" "event_count_tst" {
   statistic                 = "SampleCount"
   threshold                 = "0"
   alarm_description         = "The number of event counts from TST fired in the past 5 minutes"
-  alarm_actions             = ["${aws_sns_topic.info_alarm_topic.arn}"]
-  ok_actions                = ["${aws_sns_topic.info_alarm_topic.arn}"]
-
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+  treat_missing_data        = "ignore"
   dimensions {
     API = "opsdx-tst"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "event_count_dev" {
+  alarm_name                = "${var.deploy_prefix}-event-count-dev"
+  comparison_operator       = "LessThanOrEqualToThreshold"
+  evaluation_periods        = "5"
+  metric_name               = "EventCount"
+  namespace                 = "OpsDX"
+  period                    = "60"
+  statistic                 = "SampleCount"
+  threshold                 = "400"
+  alarm_description         = "The number of event counts from DEV fired in the past 5 minutes"
+  alarm_actions             = ["${aws_sns_topic.alarm_topic.arn}"]
+  ok_actions                = ["${aws_sns_topic.alarm_topic.arn}"]
+  treat_missing_data        = "breaching"
+  dimensions {
+    API = "opsdx-dev"
   }
 }

@@ -202,14 +202,31 @@ class Extractor:
     nprocs = 1
     shuffle = False
     if self.job.get('transform', False):
-      nprocs = int(self.job.get('transform').get('populate_measured_features').get('nprocs', nprocs))
+      # nprocs = int(self.job.get('transform').get('populate_measured_features').get('nprocs', nprocs))
       shuffle = self.job.get('transform').get('populate_measured_features').get('shuffle', False)
+    specified_fid = self.job.get('transform').get('populate_measured_features').get('fid', None)
+    if specified_fid:
+      self.feature_mapping = [fm for fm in self.feature_mapping if fm['fid(s)'] in specified_fid]
     transform_tasks = self.partition(self.feature_mapping,  nprocs, random_shuffle=shuffle)
     return transform_tasks
+
+  def get_transform_task(self):
+    nprocs = 1
+    shuffle = False
+    if self.job.get('transform', False):
+      # nprocs = int(self.job.get('transform').get('populate_measured_features').get('nprocs', nprocs))
+      shuffle = self.job.get('transform').get('populate_measured_features').get('shuffle', False)
+    specified_fid = self.job.get('transform').get('populate_measured_features').get('fid', None)
+    if specified_fid:
+      self.feature_mapping = [fm for fm in self.feature_mapping if fm['fid(s)'] in specified_fid]
+    if shuffle:
+      random.shuffle(self.feature_mapping)
+    return self.feature_mapping
 
   def partition(self, lst, n, random_shuffle=False):
     if random_shuffle:
       random.shuffle(lst)
+      logging.info("Randomly shuffle transform fids")
     division = max(1, round(len(lst) / n))
     return [lst[i:i + division] for i in range(0, len(lst), division)]
 
@@ -264,27 +281,71 @@ class Extractor:
       if self.job.get('transform').get('populate_measured_features', False):
         graph = {'done': []}
         specified_fid = self.job.get('transform').get('populate_measured_features').get('fid', None)
+        mode = self.job.get('transform').get('transform_mode')
         self.visit_id_to_enc_id = pat_mappings['visit_id_to_enc_id']
         self.pat_id_to_enc_ids = pat_mappings['pat_id_to_enc_ids']
         self.min_tsp = self.job.get('transform').get('min_tsp')
         async with ctxt.db_pool.acquire() as conn:
           await self.query_cdm_feature_dict(conn)
-        futures = []
-        for mapping_row in task:
-          if specified_fid is None or mapping_row['fid(s)'] in specified_fid:
-            futures.extend(self.run_feature_mapping_row(ctxt, mapping_row))
-        ctxt.log.info("run_transform_task futures: {}".format(', '.join([m['fid(s)'] for m in task])))
-        # done, _ = await asyncio.wait(futures)
-        # for future in done:
-        #   ctxt.log.info("run_transform_task completed: {}".format(future.result()))
-        while len(futures) > 0:
-          done, pending = await asyncio.wait(futures, return_when = asyncio.FIRST_COMPLETED)
-          for future in done:
-            ctxt.log.info("run_transform_task completed: {}".format(future.result()))
-            res = future.result()
-            graph['done'].append((res[0]['fid(s)'], res[1]))
-          futures = pending
-          ctxt.log.info("remaining transform_tasks: {}".format(len(futures)))
+        futures_total = []
+        limit = int(self.job.get('transform').get('sem_limit'))
+        # if mode == 'async':
+        #   for mapping_row in task:
+        #     if specified_fid is None or mapping_row['fid(s)'] in specified_fid:
+        #       futures_total.extend(self.run_feature_mapping_row(ctxt, mapping_row))
+        #   ctxt.log.info("run_transform_task futures: {}".format(', '.join([m['fid(s)'] for m in task])))
+        #   # done, _ = await asyncio.wait(futures)
+        #   # for future in done:
+        #   #   ctxt.log.info("run_transform_task completed: {}".format(future.result()))
+        #   while len(futures) > 0:
+        #     done, pending = await asyncio.wait(futures, return_when = asyncio.FIRST_COMPLETED)
+        #     for future in done:
+        #       ctxt.log.info("run_transform_task completed: {}".format(future.result()))
+        #       res = future.result()
+        #       graph['done'].append((res[0]['fid(s)'], res[1]))
+        #     futures = pending
+        #     ctxt.log.info("remaining transform_tasks: {}".format(len(futures)))
+        if mode == 'async':
+          for mapping_row in task:
+            if specified_fid is None or mapping_row['fid(s)'] in specified_fid:
+              futures_total.extend(self.run_feature_mapping_row(ctxt, mapping_row))
+          ctxt.log.info("run_transform_task futures: {}".format(', '.join([m['fid(s)'] for m in task])))
+          limit = int(self.job.get('transform').get('sem_limit'))
+          if len(futures_total) <= limit:
+            futures = futures_total
+            futures_total = []
+          else:
+            futures = futures_total[:limit]
+            futures_total = futures_total[limit:]
+          while len(futures) > 0:
+            done, pending = await asyncio.wait(futures, return_when = asyncio.FIRST_COMPLETED)
+            for future in done:
+              ctxt.log.info("run_transform_task completed: {}".format(future.result()))
+              res = future.result()
+              graph['done'].append((res[0]['fid(s)'], res[1]))
+            futures = pending
+            if len(futures_total)>0:
+              if len(futures_total) < limit - len(futures):
+                futures_a = futures_total
+                futures_total = []
+              else:
+                futures_a = futures_total[:limit - len(futures)]
+                futures_total = futures_total[limit - len(futures):]
+              futures_a = set([asyncio.ensure_future(f) for f in futures_a])
+              futures |= futures_a
+            # ctxt.log.info("futures: {}".format(futures))
+            ctxt.log.info("remaining transform_tasks: {}".format(len(futures)))
+        else:
+          for mapping_row in task:
+            futures = self.run_feature_mapping_row(ctxt, mapping_row)
+            while len(futures) > 0:
+              done, pending = await asyncio.wait(futures, return_when = asyncio.FIRST_COMPLETED)
+              for future in done:
+                ctxt.log.info("run_transform_task completed: {}".format(future.result()))
+                res = future.result()
+                graph['done'].append((res[0]['fid(s)'], res[1]))
+              futures = pending
+              ctxt.log.info("remaining transform_tasks: {}".format(len(futures)))
     else:
       ctxt.log.info("transform task skipped")
     return graph

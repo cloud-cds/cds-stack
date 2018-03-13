@@ -4,9 +4,13 @@ import numpy as np
 import logging
 
 def select_columns(df, selection_dict):
-    df = df[list(selection_dict.keys())]\
-        .rename(index=str, columns=selection_dict)\
-        .reset_index(drop=True)
+    try:
+        df = df[list(selection_dict.keys())]\
+            .rename(index=str, columns=selection_dict)\
+            .reset_index(drop=True)
+    except KeyError as e:
+        for col in selection_dict.values():
+            df[col] = np.nan
     return df
 
 def unlist(df, unlist_col):
