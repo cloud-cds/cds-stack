@@ -858,15 +858,6 @@ async def push_notifications_to_epic(db_pool, eid, notify_future_notification=Tr
 
     if notifications:
       logging.info("push notifications to epic (epic_notifications={}) for {}".format(epic_notifications, eid))
-      #''' % (eid, model)
-    try:
-      async with conn.transaction(isolation='serializable'):
-        notifications = await conn.fetch(notifications_sql)
-    except:
-      notifications = None
-
-    if notifications:
-      logging.info("push notifications to epic (epic_notifications={}) for {}".format(epic_notifications, eid))
       await load_epic_notifications(notifications)
       etl_channel = os.environ['etl_channel'] if 'etl_channel' in os.environ else None
       if etl_channel and notify_future_notification:
