@@ -152,16 +152,6 @@ def mg_per_l_to_mg_per_l_feu(value):
 
 def rass_str_to_number(rass_str):
     rass_dict = {
-        'Combative':        '4',
-        'Very Agitated':    '3',
-        'Agitated':         '2',
-        'Restless':         '1',
-        'Alert and Calm':   '0',
-        'Drowsy':           '-1',
-        'Light Sedation':   '-2',
-        'Moderate Sedation':'-3',
-        'Deep Sedation':    '-4',
-        'Unarousable':      '-5',
     }
     if rass_str in rass_dict:
         return rass_dict[rass_str]

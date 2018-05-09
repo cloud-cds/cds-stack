@@ -1,9 +1,0 @@
-"""
-The confidence flag settings
-"""
-NULL = 0
-NO_TRANSFORM = 1
-UNIT_TRANSFORMED = 2
-VALUE_TRANSFORMED = 4
-FILLEDIN = 8
-POPMEAN = 16

@@ -620,15 +620,9 @@ class DBCompareTest():
     print(pat_id_range)
     # enc_id_range = 'enc_id < 31'
 
-    cdm_s_online_features = ['age','gender',
-    'heart_failure_hist', 'chronic_pulmonary_hist', 'emphysema_hist',
-    'heart_arrhythmias_prob',
-    'esrd_prob' 'esrd_diag', 'chronic_bronchitis_diag', 'heart_arrhythmias_diag', 'heart_failure_diag']
-    cdm_t_online_features = ['urine_output', 'dobutamine_dose',
-    'epinephrine_dose',
-    'levophed_infusion_dose',
-    'dopamine_dose','vent','fluids_intake',]
-    cdm_twf_online_features = ['rass', 'resp_rate', 'abp_sys', 'nbp_sys', 'gcs', 'temperature', 'amylase', 'map',   'weight', 'pao2', 'abp_dias', 'nbp_dias', 'hemoglobin',  'wbc', 'bilirubin', 'lipase', 'sodium', 'creatinine',  'spo2',  'heart_rate', 'paco2', 'bun', 'platelets', 'fio2']
+    cdm_s_online_features = ['age','gender']
+    cdm_t_online_features = []
+    cdm_twf_online_features = []
 
     pat_enc_fields = [
       ['enc_id'                             ,     'integer'     ],
@@ -690,64 +684,11 @@ class DBCompareTest():
       if field[0] in cdm_twf_dependent_expr_map:
         field[0] = cdm_twf_dependent_expr_map[field[0]][0]
 
-    cdm_dependent_fields = {
-      'value': ('fid', cdm_dependent_expr_map)
-    }
 
     cdm_twf_dependent_fields = {
       'value': ('fid', cdm_twf_dependent_expr_map)
     }
 
-    cdm_s_fields1 = [
-      ['enc_id'                             , 'enc_id',     'integer'     ],
-      ['fid'                                , 'fid',        'varchar(50)' ],
-      ['value'           , 'text',        ],
-      # ['confidence'                         , 'confidence', 'integer'     ],
-    ]
-    #
-    cdm_s_query1 = (cdm_s_fields1, (cdm_s_range + ' and ' if cdm_s_range is not None else '') + enc_id_range, 'fid, enc_id', cdm_s_dependent_fields)
-
-    cdm_t_fields1 = [
-      ['enc_id'                             , 'enc_id',     'integer'     ],
-      ['tsp'                                , 'tsp',        'timestamptz' ],
-      ['fid'                                , 'fid',        'varchar(50)' ],
-      ["(value::json)#>>'{dose}'"           , 'dose',       'text'        ],
-      ["(value::json)#>>'{action}'"         , 'action',     'text'        ],
-      ["(value::json)#>>'{order_tsp}'"      , 'order_tsp',  'text'        ],
-      # ['confidence'                         , 'confidence', 'integer'     ],
-    ]
-    cdm_t_query1 = (cdm_t_fields1, 'fid like \'%_dose\' and ' + (cdm_t_range + ' and ' if cdm_t_range is not None else '') + enc_id_range, 'fid, enc_id, tsp', cdm_t_dose_dependent_fields)
-
-    cdm_t_fields2 = [
-      ['enc_id'          ,'enc_id'          , 'integer',     ],
-      ['tsp'             ,'tsp'             , 'timestamptz', ],
-      ['fid'             ,'fid'             , 'varchar(50)', ],
-      ['value'           ,'value'           , 'text',        ],
-      # ['confidence'      ,'confidence'      , 'integer',     ],
-    ]
-
-    cdm_t_query2 = (cdm_t_fields2, 'fid !~ \'dose|inhosp|bacterial_culture|_proc|culture_order|pneumonia_sepsis|uro_sepsis|biliary_sepsis|intra_abdominal_sepsis\' and ' + (cdm_t_range + ' and ' if cdm_t_range is not None else '')+ enc_id_range, 'fid, enc_id, tsp', cdm_t_dependent_fields)
-
-    cdm_t_fields3 = [
-      ['enc_id'                             , 'enc_id',     'integer'     ],
-      ['tsp'                                , 'tsp',        'timestamptz' ],
-      ['fid'                                , 'fid',        'varchar(50)' ],
-      ["(value::json)#>>'{diagname}'"           , 'diagname',       'text'        ],
-      ["(value::json)#>>'{ischronic}'"         , 'ischronic',     'text'        ],
-      ["""(value::json)#>>'{"present on admission"}'"""      , 'present_on_admission',  'text'        ],
-      # ['confidence'                         , 'confidence', 'integer'     ],
-    ]
-    cdm_t_query3 = (cdm_t_fields3, 'fid like \'%_inhosp|pneumonia_sepsis|uro_sepsis|biliary_sepsis|intra_abdominal_sepsis\' and ' + (cdm_t_range + ' and ' if cdm_t_range is not None else '') + enc_id_range, 'fid, enc_id, tsp', cdm_dependent_fields)
-
-    cdm_t_fields4 = [
-      ['enc_id'                             , 'enc_id',     'integer'     ],
-      ['tsp'                                , 'tsp',        'timestamptz' ],
-      ['fid'                                , 'fid',        'varchar(50)' ],
-      ["(value::json)#>>'{status}'"           , 'status',       'text'        ],
-      ["(value::json)#>>'{name}'"         , 'name',     'text'        ],
-      # ['confidence'                         , 'confidence', 'integer'     ],
-    ]
-    cdm_t_query4 = (cdm_t_fields4, 'fid like \'bacterial_culture|_proc|culture_order\' and ' + (cdm_t_range + ' and ' if cdm_t_range is not None else '') + enc_id_range, 'fid, enc_id, tsp', cdm_dependent_fields)
 
     cdm_twf_field_index = [
       ['enc_id'                             , 'enc_id',     'integer'     ],
@@ -755,46 +696,6 @@ class DBCompareTest():
     ]
 
     confidence_range = '%s < 8'
-
-    criteria_meas_fields = [
-      ['pat_id'          ,'pat_id'          , 'varchar(50)',     ],
-      ['tsp'             ,'tsp'             , 'timestamptz', ],
-      ['fid'             ,'fid'             , 'varchar(50)', ],
-      ['value'           ,'value'           , 'text',        ]
-    ]
-
-    crit_meas_dep_values = {
-      'shock_idx': ['(round(value::numeric, 4))', '='],
-      'weight': ['(round(value::numeric, 4))', '='],
-      'nbp_mean': ['(round(value::numeric, 4))', '='],
-      'bands' : ['(round(value::numeric, 0))', '='],
-      'cms_antibiotics' : ['round(value::numeric,3)','='],
-      'crystalloid_fluid': ['round(value::numeric,1)', '='],
-      'crystalloid_fluid_order': ['round(value::numeric,1)', '='],
-      'creatinine':['round(value::numeric,1)', '='],
-      'fluids_intake': ['(round(value::numeric, 2))', '='],
-      'heart_rate': ['(round(value::numeric, 1))', '='],
-      'inr': ['(round(value::numeric, 2))', '='],
-      'lactate': ['(round(value::numeric, 1))', '='],
-       'mapm': ['(round(value::numeric, 4))', '='],
-      'bp_sys': ['(round(value::numeric, 1))', '='],
-      'pao2_to_fio2': ['(round(value::numeric, 4))', '='],
-      'platelets':['(round(value::numeric, 1))', '='],
-      'ptt': ['(round(value::numeric, 1))', '='],
-      'resp_rate': ['(round(value::numeric, 1))', '='],
-      'temperature': ['(round(value::numeric, 0))', '='],
-      'vasopressors_dose': ['(round(value::numeric, 1))', '='],
-      'vasopressors_dose_order': ['(round(value::numeric, 1))', '='],
-      'wbc': ['(round(value::numeric, 2))', '='],
-    }
-
-    crit_meas_dep_fields = {
-      'value': ('fid', crit_meas_dep_values)
-    }
-
-    after_admission_crit_meas_constraint = " tsp >= coalesce((select min(ct.tsp) from cdm_t ct inner join pat_enc pe on ct.enc_id = pe.enc_id where ct.fid = 'care_unit' and pe.pat_id = criteria_meas.pat_id), tsp) "
-
-    criteria_meas_query = (criteria_meas_fields, after_admission_crit_meas_constraint + ' and ' + tsp_range + ' and ' + pat_id_range + ' and (fid = \'bp_sys\' or fid = \'map\' or fid = \'lactate\' or fid = \'suspicion_of_infection\' or fid = \'crystalloid_fluid_order\' or fid = \'bands\' or fid = \'cms_antibiotics\' or fid = \'heart_rate\' or fid = \'creatinine\' or fid = \'resp_rate\' or fid = \'inr\' or fid = \'fluids_intake\' or fid = \'blood_culture_order\' or fid = \'platelets\' or fid = \'wbc\' or fid = \'vasopressors_dose\' or fid = \'pao2_to_fio2\' or fid = \'crystalloid_fluid\' or fid = \'cms_antibiotics_order\' or fid = \'lactate_order\' or fid = \'bilirubin\' or fid = \'ptt\' or fid = \'vasopressors_dose_order\' or fid = \'temperature\')', 'fid, pat_id, tsp', crit_meas_dep_fields)
 
     cdm_twf_queries = [(cdm_twf_field_index + [cdm_twf_fields[2*i]], enc_id_range + ' and ' + tsp_range + ' and ' + (confidence_range % cdm_twf_fields[2*i+1][0]) + ' and ' + after_admission_constraint.format(cdm='cdm_twf'), 'enc_id, tsp', cdm_twf_dependent_fields) for i in range(len(cdm_twf_fields)//2)]
 
@@ -808,13 +709,6 @@ class DBCompareTest():
       # 'cdm_s'                    : ('dataset', [cdm_s_query1]),
       # 'cdm_m'                    : ('dataset', []),
       # 'cdm_t'                    : ('dataset', [cdm_t_query1, cdm_t_query2, cdm_t_query3, cdm_t_query4]),
-      'criteria_meas'            : ('dataset',   [criteria_meas_query]),
-      # 'criteria'                 : ('dataset', []),
-      # 'criteria_events'          : ('dataset', []),
-      # 'criteria_log'             : ('dataset', []),
-      # 'criteria_meas_archive'    : ('dataset', []),
-      # 'criteria_archive'         : ('dataset', []),
-      # 'criteria_default'         : ('dataset', []),
       # 'notifications'            : ('dataset', []),
       # 'parameters'               : ('dataset', []),
       # 'trews_scaler'             : ('model'  , []),

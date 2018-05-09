@@ -18,76 +18,10 @@ SWITCH_WEB_REQUEST = int(core.get_environment_var('SWITCH_WEB_REQUEST', 1))
 CLOUDWATCH_ON = int(core.get_environment_var('CLOUDWATCH_ON', 0))
 cloudwatch_logger = Cloudwatch()
 
-order_extraction = {
-  extractor.extract_active_procedures,
-  extractor.extract_lab_orders,
-  extractor.extract_med_orders
-}
 
-med_order_extraction = {
-  extractor.extract_med_orders
-}
+PT_MAP_INVALID_EVENTS = []
 
-med_admin_extraction = {
-  extractor.extract_med_admin
-}
-
-note_extraction = {extractor.extract_notes, extractor.extract_note_texts}
-
-full_extraction = {extractor.extract_flowsheets, extractor.extract_chiefcomplaint, extractor.extract_loc_history, extractor.extract_treatmentteam}.union(order_extraction).union(med_admin_extraction).union(note_extraction)
-
-PT_MAP_INVALID_EVENTS = ['Admission Notification',
-                         'Admit',
-                         'L&D Arrival',
-                         'Undo Admit',
-                         'Undo Discharge',
-                         'Undo Preadmit',
-                         'Transfer',
-                         'Undo Transfer',
-                         'ADT Update',
-                         'ADT - ED Arrival',
-                         ]
-
-EpicEvents = {
-  'Flowsheet - Add': {extractor.extract_flowsheets},
-  'Flowsheet - Update': {extractor.extract_flowsheets},
-  'Flowsheet - Delete': {extractor.extract_flowsheets},
-  'Admission Notification': {extractor.extract_flowsheets},
-  'Discharge Notification': {extractor.extract_discharge},
-  'Preadmit': full_extraction,
-  'Admit': full_extraction,
-  'L&D Arrival': full_extraction,
-  'Discharge': {extractor.extract_discharge},
-  'Undo Admit': full_extraction,
-  'Undo Discharge': full_extraction,
-  'Undo Preadmit': full_extraction,
-  'Transfer': full_extraction,
-  'Undo Transfer': full_extraction,
-  'ADT Update': full_extraction,
-  'Undo Update': full_extraction,
-  'Patient Location Update': {extractor.extract_loc_history},
-  'ADT - ED Arrival': full_extraction,
-  'ADT - ED Dismiss': full_extraction,
-  'ADT - ED Depart': full_extraction,
-  'ADT - ED Department Change': full_extraction,
-  'ADT - ED Encounter Creation': full_extraction,
-  'ADT - ED Undo Arrival': full_extraction,
-  'ADT - ED Undo Dismiss': full_extraction,
-  'ADT - Discharge': {extractor.extract_discharge},
-  'Sign Order': order_extraction,
-  'Cancel Order': order_extraction,
-  'Med Admin Notification - Given': med_admin_extraction,
-  'Med Admin Notification - Cancel': med_admin_extraction,
-  'Med Admin Notification - New Bag': med_admin_extraction,
-  'Med Admin Notification - Restarted': med_admin_extraction,
-  'Med Admin Notification - Stopped': med_admin_extraction,
-  'Med Admin Notification - Rate Change': med_admin_extraction,
-  'Med Admin Notification - Bolus': med_admin_extraction,
-  'Med Admin Notification - Push': med_admin_extraction,
-  'Med Admin Notification - Paused': med_admin_extraction,
-  'UCN Note Updated': note_extraction,
-  'Result Updated': {extractor.extract_lab_results}
-}
+EpicEvents = {}
 
 
 def run_epic_web_requests(app, later=EPIC_WEB_REQUEST_INTERVAL_SECS):

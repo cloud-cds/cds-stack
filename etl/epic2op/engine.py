@@ -141,123 +141,41 @@ def main(max_pats=None, hospital=None, lookback_hours=None, db_name=None, repl=F
 
 
 
-def combine_extract_data(ctxt, pats, ed_pats, flowsheets, active_procedures, lab_orders,
-                      lab_results, med_orders, med_admin, loc_history, notes,
-                      note_texts, chiefcomplaint, treatmentteam):
+def combine_extract_data(ctxt, lab_results):
   return {
-    'bedded_patients': pats,
-    'ed_patients': ed_pats,
-    'flowsheets': flowsheets,
-    'active_procedures': active_procedures,
-    'lab_orders': lab_orders,
-    'lab_results': lab_results,
-    'med_orders': med_orders,
-    'med_admin': med_admin,
-    'location_history': loc_history,
-    'notes': notes,
-    'note_texts': note_texts,
-    'chiefcomplaint': chiefcomplaint,
-    'treatmentteam': treatmentteam
+    'lab_results': lab_results
   }
 
 
-def combine_db_data(ctxt, pats_t, flowsheets_t, active_procedures_t, lab_orders_t,
-                 lab_results_t, med_orders_t, med_admin_t, loc_history_t,
-                 notes_t, note_texts_t, chiefcomplaint_t, treatmentteam_t):
-  pats_t.diagnosis = pats_t.diagnosis.apply(json.dumps)
-  pats_t.history = pats_t.history.apply(json.dumps)
-  pats_t.problem = pats_t.problem.apply(json.dumps)
-  pats_t.problem_all = pats_t.problem_all.apply(json.dumps)
-  if not med_orders_t.empty:
-    med_orders_t['ids'] = med_orders_t['ids'].apply(json.dumps)
+def combine_db_data(ctxt, lab_results_t):
   db_data = {
-    'bedded_patients_transformed': pats_t,
-    'flowsheets_transformed': flowsheets_t,
-    'active_procedures_transformed': active_procedures_t,
-    'lab_orders_transformed': lab_orders_t,
-    'lab_results_transformed': lab_results_t,
-    'med_orders_transformed': med_orders_t,
-    'med_admin_transformed': med_admin_t,
-    'location_history_transformed': loc_history_t,
-    'notes_transformed': notes_t,
-    'note_texts_transformed': note_texts_t,
-    'chiefcomplaint_transformed': chiefcomplaint_t,
-    'treatmentteam_transformed': treatmentteam_t
+    'lab_results_transformed': lab_results_t
   }
   return db_data
 
 
-def combine_cloudwatch_data(ctxt, pats_t, flowsheets_t, active_procedures_t,
-                            lab_orders_t, lab_results_t, med_orders_t,
-                            med_admin_t, loc_history_t, notes_t, note_texts_t,
-                            chiefcomplaint_t, treatmentteam_t):
+def combine_cloudwatch_data(ctxt, lab_results_t):
   return {
-    'bedded_pats'       : len(pats_t.index),
-    'flowsheets'        : len(flowsheets_t.index),
-    'lab_orders'        : len(lab_orders_t.index),
-    'active_procedures' : len(active_procedures_t.index),
-    'lab_results'       : len(lab_results_t.index),
-    'med_orders'        : len(med_orders_t.index),
-    'med_admin'         : len(med_admin_t.index),
-    'loc_history'       : len(loc_history_t.index),
-    'notes'             : len(notes_t.index),
-    'note_texts'        : len(note_texts_t.index),
-    'chiefcomplaint'    : len(chiefcomplaint_t.index),
-    'treatmentteam'     : len(treatmentteam_t.index)
-  }
+    'lab_results'       : len(lab_results_t.index)  }
 
 
 def get_combine_tasks():
   return [{
     'name': 'combine_db_data',
     'deps': [
-      'patients_combine',
-      'timezone_hack_flowsheets',
-      'active_procedures_transform',
-      'lab_orders_transform',
       'lab_results_transform',
-      'med_orders_transform',
-      'timezone_hack_med_admin',
-      'loc_history_transform',
-      'notes_transform',
-      'notes_texts_transform',
-      'chiefcomplaint_transform',
-      'treatmentteam_transform'
     ], # ORDER MATTERS! - because Engine breaks if we use **kwargs'
     'fn':   combine_db_data
   }, {
     'name': 'combine_cloudwatch_data',
     'deps': [
-      'patients_combine',
-      'timezone_hack_flowsheets',
-      'active_procedures_transform',
-      'lab_orders_transform',
       'lab_results_transform',
-      'med_orders_transform',
-      'timezone_hack_med_admin',
-      'loc_history_transform',
-      'notes_transform',
-      'notes_texts_transform',
-      'chiefcomplaint_transform',
-      'treatmentteam_transform'
     ], # ORDER MATTERS! - because Engine breaks if we use **kwargs'
     'fn':   combine_cloudwatch_data
   }, {
     'name': 'combine_extract_data',
     'deps': [
-      'bedded_patients_extract',
-      'ed_patients_extract',
-      'flowsheets_extract',
-      'active_procedures_extract',
-      'lab_orders_extract',
       'lab_results_extract',
-      'med_orders_extract',
-      'med_admin_extract',
-      'loc_history_extract',
-      'notes_extract',
-      'notes_texts_extract',
-      'chiefcomplaint_extract',
-      'treatmentteam_extract'
     ], # ORDER MATTERS! - because Engine breaks if we use **kwargs'
     'fn':   combine_extract_data
   }]
@@ -269,13 +187,7 @@ def push_cloudwatch_metrics(ctxt, stats, aws_region, prod_or_dev, hospital):
   metric_data = [
     { 'MetricName': 'ExtractTime', 'Value': (dt.datetime.now() - start_time).total_seconds(), 'Unit': 'Seconds'},
     { 'MetricName': 'NumBeddedPatients', 'Value': stats['bedded_pats'], 'Unit': 'Count'},
-    { 'MetricName': 'NumFlowsheets', 'Value': stats['flowsheets'], 'Unit': 'Count'},
-    { 'MetricName': 'NumActiveProcedures', 'Value': stats['active_procedures'], 'Unit': 'Count'},
-    { 'MetricName': 'NumLabOrders', 'Value': stats['lab_orders'], 'Unit': 'Count'},
     { 'MetricName': 'NumLabResults', 'Value': stats['lab_results'], 'Unit': 'Count'},
-    { 'MetricName': 'NumLocationHistory', 'Value': stats['loc_history'], 'Unit': 'Count'},
-    { 'MetricName': 'NumMedAdmin', 'Value': stats['med_admin'], 'Unit': 'Count'},
-    { 'MetricName': 'NumMedOrders', 'Value': stats['med_orders'], 'Unit': 'Count'},
   ]
   for md in metric_data:
     md['MetricName'] = '{}_{}'.format(hospital, md['MetricName'])
@@ -402,133 +314,17 @@ def get_extraction_tasks(extractor, max_pats=None):
       'deps': ['bedded_patients_transform', 'ed_patients_mrn_extract'],
       'args': []
     },
-    { # Barrier 2
-      'name': 'flowsheets_extract',
-      'deps': ['patients_combine'],
-      'fn':   extractor.extract_flowsheets,
-    }, {
-      'name': 'active_procedures_extract',
-      'deps': ['patients_combine'],
-      'fn':   extractor.extract_active_procedures,
-    }, {
-      'name': 'lab_orders_extract',
-      'deps': ['patients_combine'],
-      'fn':   extractor.extract_lab_orders,
-    }, {
+    {
       'name': 'lab_results_extract',
       'deps': ['patients_combine'],
       'fn':   extractor.extract_lab_results,
-    }, {
-      'name': 'loc_history_extract',
-      'deps': ['patients_combine'],
-      'fn':   extractor.extract_loc_history,
-    }, {
-      'name': 'med_orders_extract',
-      'deps': ['patients_combine'],
-      'fn':   extractor.extract_med_orders,
-    }, {
-      'name': 'notes_extract',
-      'deps': ['patients_combine'],
-      'fn':   extractor.extract_notes,
-    }, {
-      'name': 'chiefcomplaint_extract',
-      'deps': ['patients_combine'],
-      'fn':   extractor.extract_chiefcomplaint,
-    }, {
-      'name': 'treatmentteam_extract',
-      'deps': ['patients_combine'],
-      'fn':   extractor.extract_treatmentteam,
-    }, { # Barrier 3
-      'name': 'flowsheets_transform',
-      'deps': ['flowsheets_extract'],
-      'fn':   transform,
-      'args': ['flowsheet_transforms'],
-    }, {
-      'name': 'treatmentteam_transform',
-      'deps': ['treatmentteam_extract'],
-      'fn': transform,
-      'args': ['treatmentteam_transforms']
-    }, {
-      'name': 'chiefcomplaint_transform',
-      'deps': ['chiefcomplaint_extract'],
-      'fn': transform,
-      'args': ['chiefcomplaint_transforms']
-    }, {
-      'name': 'active_procedures_transform',
-      'deps': ['active_procedures_extract'],
-      'fn':   transform,
-      'args': ['active_procedures_transforms'],
-    }, {
-      'name': 'lab_orders_transform',
-      'deps': ['lab_orders_extract'],
-      'fn':   transform,
-      'args': ['lab_orders_transforms'],
-    }, {
+    },
+    {
       'name': 'lab_results_transform',
       'deps': ['lab_results_extract'],
       'fn':   transform,
       'args': ['lab_results_transforms'],
-    }, {
-      'name': 'loc_history_transform',
-      'deps': ['loc_history_extract'],
-      'fn':   transform,
-      'args': ['loc_history_transforms'],
-    }, {
-      'name': 'med_orders_transform',
-      'deps': ['med_orders_extract'],
-      'fn':   transform,
-      'args': ['med_orders_transforms'],
-    }, {
-      'name': 'notes_transform',
-      'deps': ['notes_extract'],
-      'fn':   transform,
-      'args': ['notes_transforms'],
-    }, { # Barrier 4
-      'name': 'build_med_admin_request_data',
-      'deps': ['med_orders_transform'],
-      'fn':   build_med_admin_request_data,
-    }, {
-      'name': 'notes_texts_extract',
-      'deps': ['notes_extract'],
-      'fn':   extractor.extract_note_texts,
-    }, { # Barrier 5
-      'name': 'med_admin_extract',
-      'deps': ['build_med_admin_request_data'],
-      'fn':   extractor.extract_med_admin,
-    }, {
-      'name': 'notes_texts_transform',
-      'deps': ['notes_texts_extract'],
-      'fn':   transform,
-      'args': ['note_texts_transforms'],
-    }, { # Barrier 6
-      'name': 'med_admin_transform',
-      'deps': ['med_admin_extract'],
-      'fn':   transform,
-      'args': ['med_admin_transforms'],
-    }, { # Barrier 7
-      'name': 'timezone_hack_flowsheets',
-      'deps': ['flowsheets_transform'],
-      'fn':   tz_hack,
-    }, {
-      'name': 'timezone_hack_med_admin',
-      'deps': ['med_admin_transform'],
-      'fn':   tz_hack,
     },
-    # Discharge time stuff
-    {
-      'name': 'non_discharged_patients_extract',
-      'coro':  loader.extract_non_discharged_patients,
-      'args': [extractor.hospital]
-    }, {
-      'name': 'contacts_extract',
-      'deps': ['non_discharged_patients_extract'],
-      'fn':   extractor.extract_contacts,
-    }, {
-      'name': 'contacts_transform',
-      'deps': ['contacts_extract'],
-      'fn':   transform,
-      'args': ['contacts_transforms']
-    }
   ]
 
 

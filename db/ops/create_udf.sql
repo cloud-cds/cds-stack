@@ -1085,49 +1085,40 @@ AS $func$ BEGIN
       ICE.enc_id,
       max(flag) flag,
       GREATEST( max(case when name = 'suspicion_of_infection' then override_time else null end),
-                (array_agg(measurement_time order by measurement_time)  filter (where name in ('sirs_temp','heart_rate','respiratory_rate','wbc') and is_met ) )[2],
-                min(measurement_time) filter (where name in ('blood_pressure','mean_arterial_pressure','decrease_in_sbp','respiratory_failure','creatinine','bilirubin','platelet','inr','lactate') and is_met ))
+                (array_agg(measurement_time order by measurement_time)  filter (where name in ('sirs_temp','heart_rate','respiratory_rate','wbc') and is_met ) )[2],)
       as severe_sepsis_onset,
       max(override_time) filter (where name = 'ui_severe_sepsis') ui_severe_sepsis_onset,
       max(override_time) filter (where name = 'ui_septic_shock') ui_septic_shock_onset,
       LEAST(
           min(measurement_time) filter (where name in ('systolic_bp','hypotension_map','hypotension_dsbp') and is_met ),
-          min(measurement_time) filter (where name = 'initial_lactate' and is_met)
       ) as septic_shock_onset,
 
       GREATEST(
           (array_agg(measurement_time order by measurement_time)  filter (where name in ('sirs_temp','heart_rate','respiratory_rate','wbc') and is_met ) )[2],
-          min(measurement_time) filter (where name in ('blood_pressure','mean_arterial_pressure','decrease_in_sbp','respiratory_failure','creatinine','bilirubin','platelet','inr','lactate') and is_met ))
       as severe_sepsis_wo_infection_onset,
 
       LEAST(
           (array_agg(measurement_time order by measurement_time)  filter (where name in ('sirs_temp','heart_rate','respiratory_rate','wbc') and is_met ) )[1],
-          min(measurement_time) filter (where name in ('blood_pressure','mean_arterial_pressure','decrease_in_sbp','respiratory_failure','creatinine','bilirubin','platelet','inr','lactate') and is_met ))
       as severe_sepsis_wo_infection_initial,
 
       LEAST( max(case when name = 'suspicion_of_infection' then override_time else null end),
              (array_agg(measurement_time order by measurement_time)  filter (where name in ('sirs_temp','heart_rate','respiratory_rate','wbc') and is_met ) )[2],
-             min(measurement_time) filter (where name in ('blood_pressure','mean_arterial_pressure','decrease_in_sbp','respiratory_failure','creatinine','bilirubin','platelet','inr','lactate') and is_met ))
       as severe_sepsis_lead_time,
       -- new trews timestamp
       GREATEST( max(case when name = 'suspicion_of_infection' then override_time else null end),
                 min(measurement_time) filter (where name = 'trews_subalert' and is_met),
-                min(measurement_time) filter (where name in ('trews_bilirubin','trews_creatinine','trews_gcs','trews_inr','trews_lactate','trews_platelet','trews_vent') and is_met ))
       as trews_severe_sepsis_onset,
 
       GREATEST(
           min(measurement_time) filter (where name = 'trews_subalert' and is_met),
-          min(measurement_time) filter (where name in ('trews_bilirubin','trews_creatinine','trews_gcs','trews_inr','trews_lactate','trews_platelet','trews_vent') and is_met ))
       as trews_severe_sepsis_wo_infection_onset,
 
       LEAST(
           min(measurement_time) filter (where name = 'trews_subalert' and is_met),
-          min(measurement_time) filter (where name in ('trews_bilirubin','trews_creatinine','trews_gcs','trews_inr','trews_lactate','trews_platelet','trews_vent') and is_met ))
       as trews_severe_sepsis_wo_infection_initial,
 
       LEAST( max(case when name = 'suspicion_of_infection' then override_time else null end),
              min(measurement_time) filter (where name = 'trews_subalert' and is_met),
-             min(measurement_time) filter (where name in ('trews_bilirubin','trews_creatinine','trews_gcs','trews_inr','trews_lactate','trews_platelet','trews_vent') and is_met ))
       as trews_severe_sepsis_lead_time,
       first((value::json)#>>'{score}') filter (where name = 'trews_subalert') trewscore,
       first((value::json)#>>'{threshold}') filter (where name = 'trews_subalert') trewscore_threshold,
@@ -1413,39 +1404,7 @@ format('select stats.enc_id,
     end) as state
 from
 (
-select %I.enc_id,
-    count(*) filter (where name = ''suspicion_of_infection'' and is_met) as sus_count,
-    count(*) filter (where name = ''suspicion_of_infection'' and (not is_met) and override_value#>>''{0,text}'' = ''No Infection'') as sus_noinf_count,
-    count(*) filter (where name = ''suspicion_of_infection'' and (not is_met) and override_value is null) as sus_null_count,
-    count(*) filter (where name = ''crystalloid_fluid'' and is_met) as fluid_count,
-    count(*) filter (where name = ''initial_lactate'' and is_met) as hypoperfusion_count,
-    count(*) filter (where name in (''sirs_temp'',''heart_rate'',''respiratory_rate'',''wbc'') and is_met ) as sirs_count,
-    count(*) filter (where name in (''blood_pressure'',''mean_arterial_pressure'',''decrease_in_sbp'',''respiratory_failure'',''creatinine'',''bilirubin'',''platelet'',''inr'',''lactate'') and is_met ) as organ_count,
-    count(*) filter (where name in (''systolic_bp'',''hypotension_map'',''hypotension_dsbp'') and is_met ) as hypotension_count,
-    count(*) filter (where name in (''initial_lactate_order'',''blood_culture_order'',''antibiotics_order'', ''crystalloid_fluid_order'') and is_met ) as sev_sep_3hr_count,
-    count(*) filter (where name = ''repeat_lactate_order'' and is_met) as sev_sep_6hr_count,
-    count(*) filter (where name = ''vasopressors_order'' and is_met ) as sep_sho_6hr_count,
-    first(override_time) filter (where name = ''suspicion_of_infection'' and is_met) as sus_onset,
-    (array_agg(measurement_time order by measurement_time)  filter (where name in (''sirs_temp'',''heart_rate'',''respiratory_rate'',''wbc'') and is_met ) )[2]   as sirs_onset,
-    min(measurement_time) filter (where name in (''blood_pressure'',''mean_arterial_pressure'',''decrease_in_sbp'',''respiratory_failure'',''creatinine'',''bilirubin'',''platelet'',''inr'',''lactate'') and is_met ) as organ_onset,
-    count(*) filter (where name in (''blood_pressure'',''mean_arterial_pressure'',''decrease_in_sbp'',''respiratory_failure'',''creatinine'',''bilirubin'',''platelet'',''inr'',''lactate'') and not is_met and override_value#>>''{0,text}'' = ''No Infection'') as orgdf_override,
-    min(measurement_time) filter (where name in (''systolic_bp'',''hypotension_map'',''hypotension_dsbp'') and is_met ) as hypotension_onset,
-    min(measurement_time) filter (where name = ''initial_lactate'' and is_met) as hypoperfusion_onset,
-    count(*) filter (where name = ''trews_subalert'' and is_met) as trews_subalert_met,
-    count(*) filter (where name ~ ''trews_'' and name <> ''trews_subalert'' and is_met) as trews_orgdf_met,
-    count(*) filter (where name ~ ''trews_'' and name <> ''trews_subalert'' and not is_met and override_value#>>''{0,text}'' = ''No Infection'') as trews_orgdf_override,
-    min(measurement_time) filter (where name = ''trews_subalert'' and is_met) as trews_subalert_onset,
-    count(*) filter (where name = ''ui_severe_sepsis'' and is_met) as ui_severe_sepsis_cnt,
-    min(override_time) filter (where name = ''ui_severe_sepsis'' and is_met) as ui_severe_sepsis_onset,
-    count(*) filter (where name = ''ui_septic_shock'' and is_met) as ui_septic_shock_cnt,
-    min(override_time) filter (where name = ''ui_septic_shock'' and is_met) as ui_septic_shock_onset,
-    count(*) filter (where name = ''ui_deactivate'' and is_met) as ui_deactivate_cnt,
-    first(GSS.state) state,
-    first(GSS.severe_sepsis_onset) severe_sepsis_onset,
-    first(GSS.septic_shock_onset) septic_shock_onset,
-    first(GSS.severe_sepsis_wo_infection_onset) severe_sepsis_wo_infection_onset,
-    first(GSS.severe_sepsis_wo_infection_initial) severe_sepsis_wo_infection_initial,
-    first(GSS.severe_sepsis_lead_time) severe_sepsis_lead_time
+select %I.enc_id
 from %I
 left join get_states_snapshot(%I.enc_id) GSS on GSS.enc_id = %I.enc_id
 where %I.enc_id = coalesce($1, %I.enc_id)
@@ -1513,144 +1472,6 @@ on c.enc_id = e.enc_id and c.name = e.name
 END $func$ LANGUAGE plpgsql;
 
 
--- Criteria retrieval with recent values.
--- TODO: replace get_criteria when API server has been updated.
-CREATE OR REPLACE FUNCTION get_criteria_v2(this_enc_id int)
-RETURNS table(
-    enc_id                   int,
-    event_id                 int,
-    name                     varchar(50),
-    is_met                   boolean,
-    measurement_time         timestamptz,
-    override_time            timestamptz,
-    override_user            text,
-    override_value           json,
-    value                    text,
-    recent_measurement_time  timestamptz,
-    recent_value             text,
-    recent_baseline_time     timestamptz,
-    recent_baseline_value    text,
-    trigger_baseline_time    timestamptz,
-    trigger_baseline_value   text,
-    update_date              timestamptz
-) AS $func$ BEGIN RETURN QUERY
-SELECT
-    coalesce(e.enc_id, c.enc_id)                     as enc_id,
-    e.event_id                                       as event_id,
-    coalesce(e.name, c.name)                         as name,
-    coalesce(e.is_met, c.is_met)                     as is_met,
-    coalesce(e.measurement_time, c.measurement_time) as measurement_time,
-    coalesce(e.override_time, c.override_time)       as override_time,
-    coalesce(e.override_user, c.override_user)       as override_user,
-    coalesce(e.override_value, c.override_value)     as override_value,
-    coalesce(e.value, c.value)                       as value,
-    recent.tsp                                       as recent_measurement_time,
-    recent.value                                     as recent_value,
-    recent.recent_baseline_time                      as recent_baseline_time,
-    recent.recent_baseline_value                     as recent_baseline_value,
-
-    (case
-      when coalesce(e.name, c.name) in ('trews_bilirubin', 'trews_creatinine', 'trews_platelet')
-      then
-        -- first occurrence of largest value, excluding latest observation
-        (select min(R.t order by R.v desc)
-          from unnest(recent.tsp_by_tsp, recent.value_by_tsp) R(t,v)
-          where R.t < coalesce(e.measurement_time, c.measurement_time))
-
-      else
-        (select first(R.t order by R.t desc)
-          from unnest(recent.tsp_by_tsp) as R(t)
-          where R.t < coalesce(e.measurement_time, c.measurement_time))
-     end
-    ) as trigger_baseline_time,
-
-    (case
-      when coalesce(e.name, c.name) in ('trews_bilirubin', 'trews_creatinine', 'trews_platelet')
-      then
-        -- max value before triggering value
-        (select max(R.v)
-          from unnest(recent.tsp_by_tsp, recent.value_by_tsp) R(t,v)
-          where R.t < coalesce(e.measurement_time, c.measurement_time))
-
-      else
-        (select first(R.v order by R.t desc)
-          from unnest(recent.tsp_by_tsp, recent.value_by_tsp) as R(t,v)
-          where R.t < coalesce(e.measurement_time, c.measurement_time))
-     end
-    ) as trigger_baseline_value,
-
-    coalesce(e.update_date, c.update_date)           as update_date
-FROM (
-    select * from criteria c2 where c2.enc_id = coalesce(this_enc_id, c2.enc_id)
-) c
-full JOIN
-(
-    with max_event_id_by_enc as (
-        select ce2.enc_id, max(ce2.event_id) as event_id from criteria_events ce2
-        where ce2.enc_id = coalesce(this_enc_id, ce2.enc_id) and ce2.flag > 0
-        group by ce2.enc_id
-    )
-    select  ce.enc_id,
-            ce.name,
-            ce.event_id,
-            ce.is_met,
-            ce.measurement_time,
-            ce.override_time,
-            ce.override_user,
-            ce.override_value,
-            ce.value,
-            ce.update_date
-    from criteria_events ce
-    inner join max_event_id_by_enc m
-      on ce.enc_id = m.enc_id and ce.event_id = m.event_id
-    where ce.enc_id = coalesce(this_enc_id, ce.enc_id)
-) as e
-on c.enc_id = e.enc_id and c.name = e.name
-left join
-(
-  -- Retrieve most recent value, even if it falls outside the 6hr window
-  -- of criteria calculation.
-  select enc_ids.enc_id,
-         cd.name,
-         first(cdm_t.tsp order by cdm_t.tsp desc) as tsp,
-         first(cdm_t.value order by cdm_t.tsp desc) as value,
-         (case
-            when cd.name in ('trews_bilirubin', 'trews_creatinine', 'trews_platelet')
-              then
-                -- first occurrence of largest value, excluding latest observation
-                (select min(R.t order by R.v desc)
-                  from unnest(array_agg(cdm_t.tsp order by cdm_t.value desc nulls last),
-                              array_agg(cdm_t.value order by cdm_t.value desc nulls last)) R(t,v)
-                  where R.t <> max(cdm_t.tsp))
-
-            else (array_agg(cdm_t.tsp order by cdm_t.tsp desc nulls last))[2]
-          end)
-          as recent_baseline_time,
-
-         (case
-            when cd.name in ('trews_bilirubin', 'trews_creatinine', 'trews_platelet')
-              then
-              -- max value excluding latest observation
-              (select max(x) from unnest((array_agg(cdm_t.value order by cdm_t.tsp desc nulls last))[2:]) R(x))
-
-            else (array_agg(cdm_t.value order by cdm_t.tsp desc nulls last))[2]
-          end)
-          as recent_baseline_value,
-
-          array_agg(cdm_t.tsp order by cdm_t.tsp desc nulls last) as tsp_by_tsp,
-          array_agg(cdm_t.value order by cdm_t.tsp desc nulls last) as value_by_tsp
-
-  from criteria_default cd
-  cross join ( select distinct cdm_t.enc_id from cdm_t where cdm_t.enc_id = coalesce(this_enc_id, cdm_t.enc_id) ) enc_ids
-  left join cdm_t
-    on cd.fid = cdm_t.fid and enc_ids.enc_id = cdm_t.enc_id
-  where cd.name not like '%_order'
-  group by cd.name, enc_ids.enc_id
-) as recent
-on coalesce(c.enc_id, e.enc_id) = recent.enc_id and coalesce(e.name, c.name) = recent.name
-;
-END $func$ LANGUAGE plpgsql;
-
 
 ----------------------------------------------
 -- Criteria calculation helpers.
@@ -1673,15 +1494,6 @@ create or replace function decrease_in_sbp_met(pat_sbp numeric, m_value text, c_
 BEGIN
     return coalesce( pat_sbp - m_value::numeric
             > (coalesce((c_ovalue#>>'{0,upper}')::numeric, (d_ovalue#>>'{upper}')::numeric, m_value::numeric)
-    ), false);
-END; $func$;
-
-create or replace function urine_output_met(urine_output numeric, weight numeric)
-    returns boolean language plpgsql as $func$
-BEGIN
-    return coalesce((
-        urine_output / coalesce( weight, ( select value::numeric from cdm_g where fid = 'weight_popmean' ) )
-            < 0.5
     ), false);
 END; $func$;
 
@@ -1737,45 +1549,6 @@ BEGIN
             end;
 END; $func$;
 
-create or replace function dose_order_status(order_fid text, order_value text, override_value_text text)
-    returns text language plpgsql as $func$
-BEGIN
-    return case when override_value_text = 'Not Indicated' then 'Completed'
-                when override_value_text ~* 'Clinically Inappropriate' then 'Completed'
-                when order_fid in ('cms_antibiotics_order', 'crystalloid_fluid_order', 'vasopressors_dose_order') and (order_value ~ 'discontinue_tsp' and (order_value::json)#>>'{discontinue_tsp}' is not null) then 'Discontinued'
-                when order_fid in ('cms_antibiotics_order', 'crystalloid_fluid_order', 'vasopressors_dose_order') and (order_value ~ 'end_tsp' and (order_value::json)#>>'{end_tsp}' is not null) then 'Ended'
-                when order_fid in ('cms_antibiotics_order', 'crystalloid_fluid_order', 'vasopressors_dose_order',
-                                   'aminoglycosides_dose_order', 'aztreonam_dose_order', 'ciprofloxacin_dose_order',
-                                   'cephalosporins_1st_gen_dose_order',
-                                   'cephalosporins_2nd_gen_dose_order',
-                                   'clindamycin_dose_order',
-                                   'daptomycin_dose_order',
-                                   'glycopeptides_dose_order',
-                                   'linezolid_dose_order',
-                                   'macrolides_dose_order',
-                                   'penicillin_dose_order') then 'Ordered'
-                when order_fid in ('cms_antibiotics', 'crystalloid_fluid', 'vasopressors_dose',
-                                   'aminoglycosides_dose', 'aztreonam_dose', 'ciprofloxacin_dose',
-                                   'cephalosporins_1st_gen_dose',
-                                   'cephalosporins_2nd_gen_dose',
-                                   'clindamycin_dose',
-                                   'daptomycin_dose',
-                                   'glycopeptides_dose',
-                                   'linezolid_dose',
-                                   'macrolides_dose',
-                                   'penicillin_dose')
-                        and (
-                                (order_fid ~ '_dose$'
-                                and (order_value::json)#>>'{action}' !~* 'cancel|stop'
-                                and (order_value::json)#>>'{dose}' <> 'NaN'
-                                and ((order_value::json)#>>'{dose}')::numeric > 0)
-                            or
-                                (order_fid !~ '_dose$' and order_value <> 'NaN')
-                            )
-                        then 'Completed'
-                else null
-            end;
-END; $func$;
 
 -- 'In process', 'In  process', 'Sent', 'Preliminary', 'Preliminary result'
 -- 'Final', 'Final result', 'Edited Result - FINAL',
@@ -1875,10 +1648,6 @@ CREATE OR REPLACE FUNCTION calculate_criteria(this_enc_id int, ts_start timestam
 AS $function$
 DECLARE
   -- Criteria Lookbacks.
-  initial_lactate_order_lookback       interval := get_parameter('initial_lactate_order_lookback');
-  orders_lookback                      interval := get_parameter('orders_lookback');
-  blood_culture_order_lookback         interval := get_parameter('blood_culture_order_lookback');
-  antibiotics_order_lookback           interval := get_parameter('antibiotics_order_lookback');
   cms_on                               boolean  := get_parameter('cms_on');
 BEGIN
 raise notice 'enc_id:%', this_enc_id;
@@ -1892,20 +1661,6 @@ return query
         from enc_ids e inner join cdm_s s on e.enc_id = s.enc_id
         where fid ~ 'esrd'
     ),
-    seizure as (
-        select e.enc_id
-        from enc_ids e inner join cdm_s s on e.enc_id = s.enc_id
-        where s.fid = 'chief_complaint' and s.value ~* 'seizure'
-    ),
-    pat_urine_output as (
-        select enc_ids.enc_id, sum(uo.value::numeric) as value
-        from enc_ids
-        inner join cdm_t uo on enc_ids.enc_id = uo.enc_id
-        where uo.fid = 'urine_output'
-        and isnumeric(uo.value)
-        and ts_end - uo.tsp < interval '2 hours'
-        group by enc_ids.enc_id
-    ),
     pat_weights as (
         select ordered.enc_id, first(ordered.value) as value
         from (
@@ -1916,13 +1671,6 @@ return query
             order by weights.tsp
         ) as ordered
         group by ordered.enc_id
-    ),
-    pat_bp_sys as (
-        select enc_ids.enc_id, avg(t.value::numeric) as value
-        from enc_ids
-        inner join cdm_t t on enc_ids.enc_id = t.enc_id
-        where isnumeric(t.value) and (t.fid = 'abp_sys' or t.fid = 'nbp_sys')
-        group by enc_ids.enc_id
     ),
     pat_cvalues as (
         select enc_ids.enc_id,
@@ -1978,66 +1726,6 @@ return query
         ) as ordered
         group by ordered.enc_id, ordered.name
     ),
-    trews_orgdf as (
-        select
-            ordered.enc_id,
-            ordered.name,
-            (case
-                when ordered.name = 'trews_bilirubin' then last(((ordered.orgdf_details::json)#>>'{bilirubin_trigger,tsp}')::timestamptz ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_creatinine' then last(((ordered.orgdf_details::json)#>>'{creatinine_trigger,tsp}')::timestamptz ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_dsbp' then last(((ordered.orgdf_details::json)#>>'{delta_hypotetrigger,tsp}' )::timestamptz ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_gcs' then last(((ordered.orgdf_details::json)#>>'{gcs_trigger,tsp}')::timestamptz ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_inr' then last(((ordered.orgdf_details::json)#>>'{inr_trigger,tsp}')::timestamptz ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_lactate' then last(((ordered.orgdf_details::json)#>>'{lactate_trigger,tsp}')::timestamptz ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_map' then last(((ordered.orgdf_details::json)#>>'{map_hypotetrigger,tsp}')::timestamptz ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_platelet' then last(((ordered.orgdf_details::json)#>>'{platelets_trigger,tsp}')::timestamptz ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_sbpm' then last(((ordered.orgdf_details::json)#>>'{sbpm_hypotetrigger,tsp}')::timestamptz ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_vasopressors' then last(((ordered.orgdf_details::json)#>>'{vasopressors_trigger,tsp}')::timestamptz ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_vent' then last(((ordered.orgdf_details::json)#>>'{vent_trigger,tsp}')::timestamptz ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                else null end
-            )::timestamptz as measurement_time,
-            (case when ordered.name = 'trews_bilirubin' then last(((ordered.orgdf_details::jsonb)#>'{bilirubin_trigger}' #- '{tsp}')::text ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_creatinine' then last(((ordered.orgdf_details::jsonb)#>'{creatinine_trigger}' #- '{tsp}')::text ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_dsbp' then last(((ordered.orgdf_details::jsonb)#>'{delta_hypotetrigger}' #- '{tsp}')::text ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_gcs' then last(((ordered.orgdf_details::jsonb)#>'{gcs_trigger}' #- '{tsp}')::text ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_inr' then last(((ordered.orgdf_details::jsonb)#>'{inr_trigger}' #- '{tsp}')::text ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_lactate' then last(((ordered.orgdf_details::jsonb)#>'{lactate_trigger}' #- '{tsp}')::text ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_map' then last(((ordered.orgdf_details::jsonb)#>'{map_hypotetrigger}' #- '{tsp}')::text ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_platelet' then last(((ordered.orgdf_details::jsonb)#>'{platelets_trigger}' #- '{tsp}')::text ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_sbpm' then last(((ordered.orgdf_details::jsonb)#>'{sbpm_hypotetrigger}' #- '{tsp}')::text ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_vasopressors' then last(((ordered.orgdf_details::jsonb)#>'{vasopressors_trigger}' #- '{tsp}')::text ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_vent' then last(((ordered.orgdf_details::jsonb)#>'{vent_trigger}' #- '{tsp}')::text ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-            else null end) as value,
-            (last(ordered.c_otime ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)) as override_time,
-            (last(ordered.c_ouser ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)) as override_user,
-            (last(ordered.c_ovalue ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)) as override_value,
-            coalesce((case when last(ordered.c_ovalue#>>'{0,text}' ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz) = 'No Infection' then false
-                when ordered.name = 'trews_bilirubin' then last(ordered.bilirubin_orgdf::numeric = 1 ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_creatinine' then last(ordered.creatinine_orgdf::numeric = 1 ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_dsbp' then last(ordered.delta_hypotension::numeric = 1 ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_gcs' then last(ordered.gcs_orgdf::numeric = 1 ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_inr' then last(ordered.inr_orgdf::numeric = 1 ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_lactate' then last(ordered.lactate_orgdf::numeric = 1 ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_map' then last(ordered.map_hypotension::numeric = 1 ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_platelet' then last(ordered.platelets_orgdf::numeric = 1 ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_sbpm' then last(ordered.sbpm_hypotension::numeric = 1 ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_vasopressors' then last(ordered.vasopressors_orgdf::numeric = 1 ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-                when ordered.name = 'trews_vent' then last(ordered.vent_orgdf::numeric = 1 ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
-            else false end), false) as is_met,
-            now() as update_date,
-            false as is_acute -- NOTE: not implemented
-        from (
-            select pc.enc_id, pc.name,
-            pc.c_otime, pc.c_ouser, pc.c_ovalue,
-            ts.tsp, ts.score, ts.odds_ratio, ts.creatinine_orgdf,
-            ts.bilirubin_orgdf, ts.platelets_orgdf, ts.gcs_orgdf, ts.inr_orgdf, ts.sbpm_hypotension, ts.map_hypotension, ts.delta_hypotension, ts.vasopressors_orgdf, ts.lactate_orgdf, ts.vent_orgdf,ts.orgdf_details
-            from pat_cvalues pc
-            left join trews_jit_score ts on pc.enc_id = ts.enc_id
-            and ts.model_id = get_trews_parameter('trews_jit_model_id') and orgdf_details !~ '"tsp":"null"'
-            where pc.name ~* 'trews_' and pc.name <> 'trews_subalert'
-        ) ordered
-        group by ordered.enc_id, ordered.name
-    ),
     trews_subalert as (
         select
             ordered.enc_id,
@@ -2047,12 +1735,7 @@ return query
             last(json_build_object('score', ordered.score,
                                    'threshold', (ordered.orgdf_details::jsonb)#>'{th}',
                                    'alert', (ordered.orgdf_details::jsonb)#>'{alert}',
-                                   'pct_mortality', (ordered.orgdf_details::jsonb)#>'{percent_mortality}',
-                                   'pct_sevsep', (ordered.orgdf_details::jsonb)#>'{percent_sevsep}',
-                                   'heart_rate', (ordered.orgdf_details::jsonb)#>'{heart_rate}',
-                                   'lactate', (ordered.orgdf_details::jsonb)#>'{lactate}',
-                                   'no_lab', (ordered.orgdf_details::jsonb)#>'{no_lab}',
-                                   'sbpm', (ordered.orgdf_details::jsonb)#>'{sbpm}')::text ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
+                                   )::text ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)
                 as value,
             (last(ordered.c_otime ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)) as override_time,
             (last(ordered.c_ouser ORDER BY tsp, ((orgdf_details::jsonb)#>>'{pred_time}')::timestamptz)) as override_user,
@@ -2068,7 +1751,6 @@ return query
             select pc.enc_id, pc.name,
             pc.c_otime, pc.c_ouser, pc.c_ovalue,
             ts.tsp, ts.score, ts.odds_ratio, ts.creatinine_orgdf,
-            ts.bilirubin_orgdf, ts.platelets_orgdf, ts.gcs_orgdf, ts.inr_orgdf, ts.sbpm_hypotension, ts.map_hypotension, ts.delta_hypotension, ts.vasopressors_orgdf, ts.lactate_orgdf, ts.vent_orgdf,ts.orgdf_details,
             trews_orgdf.is_met trews_is_met
             from pat_cvalues pc
             left join trews_orgdf on pc.enc_id = trews_orgdf.enc_id
@@ -2128,37 +1810,6 @@ return query
         ) as ordered
         group by ordered.enc_id, ordered.name
     ),
-    respiratory_failures as (
-        select
-            ordered.enc_id,
-            ordered.name,
-            (first(ordered.tsp order by ordered.tsp) filter (where ordered.is_met)) as measurement_time,
-            (first(ordered.value order by ordered.tsp) filter (where ordered.is_met))::text as value,
-            (first(ordered.c_otime order by ordered.tsp) filter (where ordered.is_met)) as override_time,
-            (first(ordered.c_ouser order by ordered.tsp) filter (where ordered.is_met)) as override_user,
-            (first(ordered.c_ovalue order by ordered.tsp) filter (where ordered.is_met)) as override_value,
-            coalesce(bool_or(ordered.is_met), false) as is_met,
-            now() as update_date
-        from (
-            select
-                pat_cvalues.enc_id,
-                pat_cvalues.name,
-                pat_cvalues.tsp,
-                (coalesce(pat_cvalues.c_ovalue#>>'{0,text}', (pat_cvalues.fid ||': '|| pat_cvalues.value))) as value,
-                pat_cvalues.c_otime,
-                pat_cvalues.c_ouser,
-                pat_cvalues.c_ovalue,
-                (case
-                    when pat_cvalues.c_ovalue#>>'{0,text}' = 'No Infection' then false
-                    else coalesce(pat_cvalues.c_ovalue#>>'{0,text}', pat_cvalues.value) is not null
-                  end) and cms_on as is_met
-            from pat_cvalues
-            inner join pat_enc on pat_cvalues.enc_id = pat_enc.enc_id
-            where pat_cvalues.category = 'respiratory_failure'
-            order by pat_cvalues.tsp
-        ) as ordered
-        group by ordered.enc_id, ordered.name
-    ),
     organ_dysfunction_except_rf as (
         select
             ordered.enc_id,
@@ -2204,10 +1855,6 @@ return query
             from pat_cvalues
             left join esrd on pat_cvalues.enc_id = esrd.enc_id
             left join seizure on pat_cvalues.enc_id = seizure.enc_id
-            where pat_cvalues.name in (
-              'blood_pressure', 'mean_arterial_pressure', 'decrease_in_sbp',
-              'creatinine', 'bilirubin', 'platelet', 'inr', 'lactate'
-            )
             order by pat_cvalues.tsp
         ) as ordered
         group by ordered.enc_id, ordered.name
@@ -3179,80 +2826,6 @@ END;
 $$ LANGUAGE PLPGSQL;
 
 
-CREATE OR REPLACE FUNCTION override_criteria_snapshot(this_enc_id int default null)
-    RETURNS void LANGUAGE plpgsql AS $function$
-DECLARE
-    ts_end timestamptz := now();
-    window_size interval := get_parameter('lookbackhours')::interval;
-BEGIN
-    create temporary table new_criteria as
-    select * from calculate_criteria(this_enc_id, ts_end - window_size, ts_end);
-
-    -- Deactivate old snapshots, and add a new snapshot.
-    with pat_states as (
-        select * from get_states('new_criteria', this_enc_id)
-    ),
-    criteria_inserts as (
-        insert into criteria (enc_id, name, is_met, measurement_time, value, override_time, override_user, override_value, update_date, is_acute)
-        select enc_id, name, is_met, measurement_time, value, override_time, override_user, override_value, update_date, is_acute
-        from new_criteria
-        -- NOTE: currently allow all criteria being updated
-        -- name in ( 'suspicion_of_infection', 'crystalloid_fluid')
-        on conflict (enc_id, name) do update
-        set is_met              = excluded.is_met,
-            measurement_time    = excluded.measurement_time,
-            value               = excluded.value,
-            update_date         = excluded.update_date,
-            is_acute            = excluded.is_acute
-        returning *
-    ),
-    deactivate_old_snapshot as (
-        update criteria_events
-        set flag = flag - 1000
-        from new_criteria
-        where criteria_events.event_id = (
-            select max(event_id) from criteria_events ce
-            where ce.enc_id = new_criteria.enc_id and ce.flag >= 0
-        )
-        and criteria_events.enc_id = new_criteria.enc_id
-    ),
-    notified_patients as (
-        select distinct pat_states.enc_id
-        from pat_states
-        inner join (
-            select  new_criteria.enc_id,
-                    first(new_criteria.severe_sepsis_onset) severe_sepsis_onset,
-                    first(new_criteria.septic_shock_onset) septic_shock_onset,
-                    first(new_criteria.severe_sepsis_wo_infection_onset) severe_sepsis_wo_infection_onset,
-                    first(new_criteria.severe_sepsis_wo_infection_initial) severe_sepsis_wo_infection_initial
-            from new_criteria
-            group by new_criteria.enc_id
-        ) nc on pat_states.enc_id = nc.enc_id
-        left join lateral update_notifications(pat_states.enc_id, flag_to_alert_codes(pat_states.state),
-            nc.severe_sepsis_onset,
-            nc.septic_shock_onset,
-            nc.severe_sepsis_wo_infection_onset,
-            nc.severe_sepsis_wo_infection_initial,
-            'override') n
-        on pat_states.enc_id = n.enc_id
-    )
-    insert into criteria_events (event_id, enc_id, name, measurement_time, value,
-                                 override_time, override_user, override_value, is_met, update_date, is_acute, flag)
-    select ssid.event_id, NC.enc_id, NC.name, NC.measurement_time, NC.value,
-           (case when NC.override_value#>>'{0,text}' in ('Ordering', 'Ordered') then null else NC.override_time end),
-           (case when NC.override_value#>>'{0,text}' in ('Ordering', 'Ordered') then null else NC.override_user end),
-           (case when NC.override_value#>>'{0,text}' in ('Ordering', 'Ordered') then null else NC.override_value end),
-           NC.is_met, NC.update_date, NC.is_acute,
-           pat_states.state as flag
-    from new_criteria NC
-    cross join (select nextval('criteria_event_ids') event_id) ssid
-    inner join pat_states on NC.enc_id = pat_states.enc_id
-    left join notified_patients np on NC.enc_id = np.enc_id
-    where not NC.name like '%_order';
-    drop table new_criteria;
-    perform order_event_update(this_enc_id);
-    return;
-END; $function$;
 
 
 -----------------------------------------------
@@ -4003,69 +3576,6 @@ begin
     return;
 end; $$;
 
-create or replace function reset_noinf_expired_pats(this_enc_id int default null)
-returns void language plpgsql as $$
-declare res text;
--- reset patients who are in state 12,13,14 and expired for lookbackhours
-begin
-    with pats as (
-    select distinct e.enc_id
-        from criteria_events e
-        inner join criteria c on e.enc_id = c.enc_id
-        where flag in (12,13,14) and c.name = 'suspicion_of_infection'
-        and now() - c.override_time::timestamptz
-            > get_parameter('deactivate_expire_hours')::interval
-        and e.enc_id = coalesce(this_enc_id, e.enc_id)
-    ),
-    logging as (
-        insert into criteria_log (enc_id, tsp, event, update_date)
-        select
-              enc_id,
-              now(),
-              '{"event_type": "reset_noinf_expired_pats", "uid":"dba"}',
-              now()
-        from pats
-    )
-    select reset_patient(enc_id) from pats into res;
-    return;
-end; $$;
-
-create or replace function reset_orgdf_expired_pats(this_enc_id int default null)
-returns void language plpgsql as $$
-declare res text;
--- Add 72 hr reset when all orgdf have been marked as not acute (issue #128)
-begin
-    with pats as (
-        select enc_id
-        from
-        (
-            select enc_id,
-            coalesce(bool_or(c.is_met) filter (where c.name ~ 'trews'), false) is_any_trews_orgdf_met,
-            coalesce(bool_or(c.is_met) filter (where c.name !~ 'trews'), false) is_any_cms_orgdf_met,
-            count(*) filter (where c.override_value#>>'{0,text}' = 'No Infection') override_cnt,
-            coalesce(now() - min(c.override_time::timestamptz) > get_parameter('deactivate_expire_hours')::interval, false) expired
-            from criteria c
-            where c.name in (
-                'blood_pressure', 'mean_arterial_pressure', 'decrease_in_sbp',
-                'creatinine', 'bilirubin', 'platelet', 'inr', 'lactate', 'respiratory_failure'
-                'trews_bilirubin', 'trews_creatinine', 'trews_dsbp', 'trews_gcs', 'trews_inr',
-                'trews_lactate', 'trews_map', 'trews_platelet', 'trews_sbpm', 'trews_vasopressors', 'trews_vent')
-            and c.enc_id = coalesce(this_enc_id, c.enc_id)
-            group by enc_id
-        ) S where (not is_any_trews_orgdf_met or not is_any_cms_orgdf_met) and expired and override_cnt > 0
-    ),
-    logging as (
-        insert into criteria_log (enc_id, tsp, event, update_date)
-        select
-              enc_id,
-              now(),
-              '{"event_type": "reset_orgdf_expired_pats", "uid":"dba"}',
-              now()
-        from pats
-    )
-    select reset_patient(enc_id) from pats into res;
-    return;
-end; $$;
 
 create or replace function reset_patient(this_enc_id int, _event_id int default null)
 returns void language plpgsql as $$
@@ -4108,393 +3618,6 @@ AS $$ BEGIN
              json_build_object('event_type', 'set_deterioration_feedback', 'uid', uid, 'value', deterioration),
              now() );
 END; $$;
-
-
-----------------------------------------------------------------------
--- calculate_trews_contributors
--- Returns a time-series of top 'rank_limit' features and values that
--- contribute to a patient's trewscore.
--- This query is used to generate the frontend chart.
---
--- TODO: use 'information_schema.columns' to dynamically
--- pull out columns in the 'trews' table for array unnesting.
------------------------------------------------------------------------
-
-create or replace function calculate_trews_contributors(this_pat_id text, rank_limit int)
-returns table(enc_id int, tsp timestamptz, trewscore numeric, fid text, trews_value double precision, cdm_value text, rnk bigint)
-as $func$
-declare
-    twf_fid_names text[];
-    twf_fid_exprs text[];
-    fid_query text;
-begin
-    create temporary table twf_rank as
-    select *
-    from
-    (
-        select KV.*,
-                rank() over ( partition by KV.enc_id, KV.tsp order by KV.trews_value desc nulls last ) as rnk
-        from (
-            select R.enc_id, R.tsp, R.trewscore, S.* from (
-                select trews.enc_id, trews.tsp, trews.trewscore,
-                ARRAY[
-                 'shock_idx',
-                 'hemoglobin',
-                 'spo2',
-                 'platelets',
-                 'sodium',
-                 'fluids_intake_24hr',
-                 'rass',
-                 'urine_output_6hr',
-                 'neurologic_sofa',
-                 'bun_to_cr',
-                 'heart_rate',
-                 'lactate',
-                 'minutes_since_any_organ_fail',
-                 'sirs_raw',
-                 'sirs_temperature_oor',
-                 'sirs_resp_oor',
-                 'hypotension_raw',
-                 'hypotension_intp',
-                 'age',
-                 'chronic_pulmonary_hist',
-                 'chronic_bronchitis_diag',
-                 'esrd_diag',
-                 'heart_arrhythmias_diag',
-                 'heart_failure_diag',
-                 'bun',
-                 'cardio_sofa',
-                 'creatinine',
-                 'emphysema_hist',
-                 'esrd_prob',
-                 'gcs',
-                 'gender',
-                 'heart_arrhythmias_prob',
-                 'heart_failure_hist',
-                 'hematologic_sofa',
-                 'lipase',
-                 'mapm',
-                 'paco2',
-                 'resp_rate',
-                 'resp_sofa',
-                 'sirs_hr_oor',
-                 'sirs_wbc_oor',
-                 'temperature',
-                 'wbc',
-                 'amylase',
-                 'nbp_dias',
-                 'renal_sofa',
-                 'urine_output_24hr',
-                 'worst_sofa',
-                 'pao2'
-                ]::text[] as names,
-                ARRAY[
-                    trews.shock_idx,
-                    trews.hemoglobin,
-                    trews.spo2,
-                    trews.platelets,
-                    trews.sodium,
-                    trews.fluids_intake_24hr,
-                    trews.rass,
-                    trews.urine_output_6hr,
-                    trews.neurologic_sofa,
-                    trews.bun_to_cr,
-                    trews.heart_rate,
-                    trews.lactate,
-                    trews.minutes_since_any_organ_fail,
-                    trews.sirs_raw,
-                    trews.sirs_temperature_oor,
-                    trews.sirs_resp_oor,
-                    trews.hypotension_raw,
-                    trews.hypotension_intp,
-                    trews.age,
-                    trews.chronic_pulmonary_hist,
-                    trews.chronic_bronchitis_diag,
-                    trews.esrd_diag,
-                    trews.heart_arrhythmias_diag,
-                    trews.heart_failure_diag,
-                    trews.bun,
-                    trews.cardio_sofa,
-                    trews.creatinine,
-                    trews.emphysema_hist,
-                    trews.esrd_prob,
-                    trews.gcs,
-                    trews.gender,
-                    trews.heart_arrhythmias_prob,
-                    trews.heart_failure_hist,
-                    trews.hematologic_sofa,
-                    trews.lipase,
-                    trews.mapm,
-                    trews.paco2,
-                    trews.resp_rate,
-                    trews.resp_sofa,
-                    trews.sirs_hr_oor,
-                    trews.sirs_wbc_oor,
-                    trews.temperature,
-                    trews.wbc,
-                    trews.amylase,
-                    trews.nbp_dias,
-                    trews.renal_sofa,
-                    trews.urine_output_24hr,
-                    trews.worst_sofa,
-                    trews.pao2
-                ]::double precision[] as trews_values
-                from pat_enc
-                inner join trews on pat_enc.enc_id = trews.enc_id
-                where pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id)
-            ) R, lateral unnest(R.names, R.trews_values) S(fid, trews_value)
-        ) KV
-    ) RKV
-    where RKV.rnk <= rank_limit;
-
-    select array_agg(distinct 'TWF.' || twf_rank.fid), array_agg(distinct quote_literal(twf_rank.fid))
-            into twf_fid_exprs, twf_fid_names
-    from twf_rank
-    where twf_rank.fid not in (
-        'age', 'chronic_bronchitis_diag', 'chronic_pulmonary_hist', 'emphysema_hist',
-        'esrd_diag', 'esrd_prob', 'gender', 'heart_arrhythmias_diag', 'heart_arrhythmias_prob', 'heart_failure_diag', 'heart_failure_hist'
-    );
-
-    fid_query := format(
-        'select R.enc_id, R.tsp, R.trewscore, R.fid, R.trews_value, S.cdm_value, R.rnk'
-        || ' from ('
-        || ' select T.enc_id, T.tsp, T.trewscore, T.fid, T.trews_value, T.rnk,'
-        || ' array_cat(T.cdm_s_names, ARRAY[%s]::text[]) as cdm_names,'
-        || ' array_cat(T.cdm_s_values, ARRAY[%s]::text[]) as cdm_values'
-        || ' from ('
-        ||   ' select T1.enc_id, T1.tsp, T1.trewscore, T1.fid, T1.trews_value, T1.rnk,'
-        ||          ' array_agg(S.fid)::text[] as cdm_s_names,'
-        ||          ' array_agg(S.value)::text[] as cdm_s_values'
-        ||   ' from twf_rank T1 inner join cdm_s S on T1.enc_id = S.enc_id'
-        ||   ' group by T1.enc_id, T1.tsp, T1.trewscore, T1.fid, T1.trews_value, T1.rnk'
-        || ') T'
-        || ' inner join cdm_twf TWF on T.enc_id = TWF.enc_id and T.tsp = TWF.tsp'
-        || ') R'
-        || ' inner join lateral unnest(R.cdm_names, R.cdm_values) as S(fid, cdm_value)'
-        || ' on R.fid = S.fid'
-        , array_to_string(twf_fid_names, ','), array_to_string(twf_fid_exprs, ',') );
-
-    return query execute fid_query;
-
-    drop table twf_rank;
-    return;
-end $func$ LANGUAGE plpgsql;
-
-
-create or replace function calculate_lmc_contributors(this_pat_id text, rank_limit int, add_tz boolean default false)
-  returns table(enc_id      int,
-                tsp         timestamptz,
-                trewscore   numeric,
-                fid         text,
-                trews_value double precision,
-                cdm_value   text,
-                rnk         bigint)
-as $func$
-declare
-    twf_fid_names text[];
-    twf_fid_exprs text[];
-    fid_query text;
-begin
-    create temporary table twf_rank as
-    select *
-    from
-    (
-        select KV.*,
-                rank() over ( partition by KV.enc_id, KV.tsp order by KV.model_id, KV.score_part desc nulls last ) as rnk
-        from (
-            select R.model_id, R.enc_id, R.tsp, R.score, S.fid, S.score_part
-            from (
-                select SCORE.model_id,
-                       SCORE.enc_id,
-                       (case when add_tz then SCORE.tsp at time zone 'UTC' else SCORE.tsp end) as tsp,
-                       SCORE.score::numeric as score,
-                ARRAY[
-                 'shock_idx',
-                 'hemoglobin',
-                 'spo2',
-                 'sodium',
-                 'fluids_intake_24hr',
-                 'rass',
-                 'urine_output_6hr',
-                 'neurologic_sofa',
-                 'bun_to_cr',
-                 'heart_rate',
-                 'minutes_since_any_organ_fail',
-                 'sirs_raw',
-                 'sirs_temperature_oor',
-                 'sirs_resp_oor',
-                 'hypotension_raw',
-                 'age',
-                 'chronic_pulmonary_hist',
-                 'chronic_bronchitis_diag',
-                 'esrd_diag',
-                 'heart_arrhythmias_diag',
-                 'heart_failure_diag',
-                 'bun',
-                 'cardio_sofa',
-                 'creatinine',
-                 'emphysema_hist',
-                 'esrd_prob',
-                 'gcs',
-                 'gender',
-                 'heart_arrhythmias_prob',
-                 'heart_failure_hist',
-                 'hematologic_sofa',
-                 'lipase',
-                 'mapm',
-                 'paco2',
-                 'resp_rate',
-                 'resp_sofa',
-                 'sirs_hr_oor',
-                 'sirs_wbc_oor',
-                 'temperature',
-                 'wbc',
-                 'amylase',
-                 'nbp_dias',
-                 'renal_sofa',
-                 'urine_output_24hr',
-                 'worst_sofa',
-                 'pao2',
-                 'fluids_intake_1hr',
-                 'arterial_ph',
-                 'qsofa',
-                 'organ_insufficiency_hist',
-                 'organ_insufficiency_diag',
-                 'chronic_kidney_hist',
-                 'liver_disease_hist',
-                 'diabetes_hist',
-                 'renal_insufficiency_diag',
-                 'diabetes_diag',
-                 'liver_disease_diag',
-                 'renal_insufficiency_hist',
-                 'minutes_since_any_antibiotics',
-                 'acute_liver_failure',
-                 'acute_organ_failure',
-                 'any_organ_failure',
-                 'weight'
-                ]::text[] as names,
-                ARRAY[
-                    SCORE.shock_idx,
-                    SCORE.hemoglobin,
-                    SCORE.spo2,
-                    SCORE.sodium,
-                    SCORE.fluids_intake_24hr,
-                    SCORE.rass,
-                    SCORE.urine_output_6hr,
-                    SCORE.neurologic_sofa,
-                    SCORE.bun_to_cr,
-                    SCORE.heart_rate,
-                    SCORE.minutes_since_any_organ_fail,
-                    SCORE.sirs_raw,
-                    SCORE.sirs_temperature_oor,
-                    SCORE.sirs_resp_oor,
-                    SCORE.hypotension_raw,
-                    SCORE.age,
-                    SCORE.chronic_pulmonary_hist,
-                    SCORE.chronic_bronchitis_diag,
-                    SCORE.esrd_diag,
-                    SCORE.heart_arrhythmias_diag,
-                    SCORE.heart_failure_diag,
-                    SCORE.bun,
-                    SCORE.cardio_sofa,
-                    SCORE.creatinine,
-                    SCORE.emphysema_hist,
-                    SCORE.esrd_prob,
-                    SCORE.gcs,
-                    SCORE.gender,
-                    SCORE.heart_arrhythmias_prob,
-                    SCORE.heart_failure_hist,
-                    SCORE.hematologic_sofa,
-                    SCORE.lipase,
-                    SCORE.mapm,
-                    SCORE.paco2,
-                    SCORE.resp_rate,
-                    SCORE.resp_sofa,
-                    SCORE.sirs_hr_oor,
-                    SCORE.sirs_wbc_oor,
-                    SCORE.temperature,
-                    SCORE.wbc,
-                    SCORE.amylase,
-                    SCORE.nbp_dias,
-                    SCORE.renal_sofa,
-                    SCORE.urine_output_24hr,
-                    SCORE.worst_sofa,
-                    SCORE.pao2,
-                    SCORE.fluids_intake_1hr,
-                    SCORE.arterial_ph,
-                    SCORE.qsofa,
-                    SCORE.organ_insufficiency_hist,
-                    SCORE.organ_insufficiency_diag,
-                    SCORE.chronic_kidney_hist,
-                    SCORE.liver_disease_hist,
-                    SCORE.diabetes_hist,
-                    SCORE.renal_insufficiency_diag,
-                    SCORE.diabetes_diag,
-                    SCORE.liver_disease_diag,
-                    SCORE.renal_insufficiency_hist,
-                    SCORE.minutes_since_any_antibiotics,
-                    SCORE.acute_liver_failure,
-                    SCORE.acute_organ_failure,
-                    SCORE.any_organ_failure,
-                    SCORE.weight
-                ]::double precision[] as score_parts
-                from pat_enc
-                inner join lmcscore SCORE on pat_enc.enc_id = SCORE.enc_id
-                where pat_enc.pat_id = coalesce(this_pat_id, pat_enc.pat_id)
-            ) R, lateral unnest(R.names, R.score_parts) S(fid, score_part)
-        ) KV
-    ) RKV
-    where RKV.rnk <= rank_limit;
-
-    select array_agg(distinct 'TWF.' || twf_rank.fid), array_agg(distinct quote_literal(twf_rank.fid))
-            into twf_fid_exprs, twf_fid_names
-    from twf_rank
-    where twf_rank.fid not in (
-        'age', 'gender',
-        'chronic_pulmonary_hist',
-        'emphysema_hist',
-        'heart_failure_hist',
-        'organ_insufficiency_hist',
-        'chronic_kidney_hist',
-        'liver_disease_hist',
-        'diabetes_hist',
-        'renal_insufficiency_hist',
-        'chronic_bronchitis_diag',
-        'esrd_diag',
-        'heart_arrhythmias_diag',
-        'heart_failure_diag',
-        'organ_insufficiency_diag',
-        'renal_insufficiency_diag',
-        'diabetes_diag',
-        'liver_disease_diag',
-        'esrd_prob',
-        'heart_arrhythmias_prob'
-    );
-
-    fid_query := format(
-        'select R.enc_id, R.tsp, R.score, R.fid, R.score_part, S.cdm_value, R.rnk'
-        || ' from ('
-        || ' select T.enc_id, T.tsp, T.score, T.fid, T.score_part, T.rnk,'
-        || ' array_cat(T.cdm_s_names, ARRAY[%s]::text[]) as cdm_names,'
-        || ' array_cat(T.cdm_s_values, ARRAY[%s]::text[]) as cdm_values'
-        || ' from ('
-        ||   ' select T1.enc_id, T1.tsp, T1.score, T1.fid, T1.score_part, T1.rnk,'
-        ||          ' array_agg(S.fid)::text[] as cdm_s_names,'
-        ||          ' array_agg(S.value)::text[] as cdm_s_values'
-        ||   ' from twf_rank T1 inner join cdm_s S on T1.enc_id = S.enc_id'
-        ||   ' group by T1.enc_id, T1.tsp, T1.score, T1.fid, T1.score_part, T1.rnk'
-        || ') T'
-        || ' inner join cdm_twf TWF on T.enc_id = TWF.enc_id and T.tsp = TWF.tsp'
-        || ') R'
-        || ' inner join lateral unnest(R.cdm_names, R.cdm_values) as S(fid, cdm_value)'
-        || ' on R.fid = S.fid'
-        , array_to_string(twf_fid_names, ','), array_to_string(twf_fid_exprs, ',') );
-
-    return query execute fid_query;
-
-    drop table twf_rank;
-    return;
-end $func$ LANGUAGE plpgsql;
 
 
 ------------------------------
@@ -5427,50 +4550,6 @@ end if;
 return num_delta;
 END $func$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION update_orgdf_baselines(job_id text, workspace text)
-RETURNS void AS $func$ #variable_conflict use_column
-BEGIN
-if to_regclass('' || workspace || '.' || job_id || '_bedded_patients_transformed') is not null then
-    execute
-    'with discharged as (
-      select p.pat_id,
-      last(t.enc_id order by t.tsp) enc_id
-      from cdm_t t inner join pat_enc p on t.enc_id = p.enc_id
-      inner join ' || workspace || '.' || job_id || '_bedded_patients_transformed bp on bp.pat_id = p.pat_id
-      where fid = ''discharge''
-      and tsp between now() - ''4 months''::interval and now()
-      group by p.pat_id
-    ),
-    baseline as (
-      select d.pat_id, d.enc_id,
-      first(t.value::numeric order by t.value::numeric) filter (where t.fid = ''bilirubin'') bilirubin,
-      first(t.tsp order by t.value::numeric) filter (where t.fid = ''bilirubin'') bilirubin_tsp,
-      first(t.value::numeric order by t.value::numeric) filter (where t.fid = ''creatinine'') creatinine,
-      first(t.tsp order by t.value::numeric) filter (where t.fid = ''creatinine'') creatinine_tsp,
-      first(t.value::numeric order by t.value::numeric) filter (where t.fid = ''inr'') inr,
-      first(t.tsp order by t.value::numeric) filter (where t.fid = ''inr'') inr_tsp,
-      last(t.value::numeric order by t.value::numeric) filter (where t.fid = ''platelets'') platelets,
-      last(t.tsp order by t.value::numeric) filter (where t.fid = ''platelets'') platelets_tsp
-      from discharged d
-      left join cdm_t t on d.enc_id = t.enc_id
-      where t.fid in (''creatinine'', ''bilirubin'', ''inr'', ''platelets'')
-      group by d.pat_id, d.enc_id
-    )
-    insert into orgdf_baselines (pat_id, bilirubin, bilirubin_tsp, creatinine, creatinine_tsp, inr, inr_tsp, platelets, platelets_tsp)
-    select b.pat_id, b.bilirubin, b.bilirubin_tsp, b.creatinine, b.creatinine_tsp, b.inr, b.inr_tsp, b.platelets, b.platelets_tsp
-    from baseline b
-    on conflict (pat_id) do update set
-    bilirubin = (case when Excluded.bilirubin is null then orgdf_baselines.bilirubin else Excluded.bilirubin end),
-    bilirubin_tsp = (case when Excluded.bilirubin_tsp is null then orgdf_baselines.bilirubin_tsp else Excluded.bilirubin_tsp end),
-    creatinine = (case when Excluded.creatinine is null then orgdf_baselines.creatinine else Excluded.creatinine end),
-    creatinine_tsp = (case when Excluded.creatinine_tsp is null then orgdf_baselines.creatinine_tsp else Excluded.creatinine_tsp end),
-    inr = (case when Excluded.inr is null then orgdf_baselines.inr else Excluded.inr end),
-    inr_tsp = (case when Excluded.inr_tsp is null then orgdf_baselines.inr_tsp else Excluded.inr_tsp end),
-    platelets = (case when Excluded.platelets is null then orgdf_baselines.platelets else Excluded.platelets end),
-    platelets_tsp = (case when Excluded.platelets_tsp is null then orgdf_baselines.platelets_tsp else Excluded.platelets_tsp end)';
-end if;
-END $func$ LANGUAGE plpgsql;
-
 
 
 create or replace function post_prediction(hospital text,
@@ -5597,396 +4676,10 @@ begin
 end;
 $$;
 
-create or replace function shift_to_now(this_enc_id int, now_tsp timestamptz default now())
-returns void language plpgsql as $$
-declare shift_interval interval;
-begin
-select now_tsp - greatest(max(t.tsp), coalesce(max(c.override_time), max(c.measurement_time), max(t.tsp) )) from cdm_t t left join criteria c on t.enc_id = c.enc_id and c.override_user is not null where t.enc_id = this_enc_id into shift_interval;
-update cdm_t set tsp = tsp + shift_interval where enc_id = this_enc_id;
-update cdm_twf set tsp = tsp + shift_interval where enc_id = this_enc_id;
-update criteria set override_time = override_time + shift_interval where enc_id = this_enc_id and override_user is not null;
-update criteria_events set override_time = override_time + shift_interval,
-    measurement_time = measurement_time + shift_interval,
-    update_date = update_date + shift_interval
-    where enc_id = this_enc_id;
-update orgdf_baselines set
-    creatinine_tsp = creatinine_tsp + shift_interval,
-    inr_tsp = inr_tsp + shift_interval,
-    bilirubin_tsp = bilirubin_tsp + shift_interval,
-    platelets_tsp = platelets_tsp + shift_interval
-    where pat_id = (select pat_id from pat_enc where enc_id = this_enc_id);
-update notifications set
-    message = message::jsonb #- '{timestamp}' || jsonb_build_object('timestamp',((message#>>'{timestamp}')::numeric + EXTRACT(EPOCH FROM shift_interval)));
-end;
-$$;
-
-create or replace function refresh_enc(this_enc_id int, offset_interval text default '0')
-returns void language plpgsql as $$
-begin
-    perform shift_to_now(this_enc_id, now() - offset_interval::interval);
-    perform pg_notify('on_opsdx_dev_etl', 'invalidate_cache:' || pat_id || ':trews-jit')
-    from pat_enc where enc_id = this_enc_id;
-end;
-$$;
-------------------------------------------------
--- Alert Statistics
-
-
--- For each pat/enc/unit, count trews/cms snapshots that fired within the stay in that unit.
--- Also returns earliest time of trews/cms firing within that unit.
---
-CREATE OR REPLACE FUNCTION get_alert_stats_by_enc(ts_start timestamptz, ts_end timestamptz)
-RETURNS table(
-    pat_id              character varying(50),
-    enc_id              integer,
-    care_unit           text,
-    enter_time          timestamp with time zone,
-    leave_time          timestamp with time zone,
-    trews_no_cms        bigint,
-    cms_no_trews        bigint,
-    trews_and_cms       bigint,
-    any_trews           bigint,
-    any_cms             bigint,
-    earliest_trews      timestamp with time zone,
-    earliest_cms        timestamp with time zone
-) AS $func$ BEGIN RETURN QUERY
-
-with raw_care_unit_tbl as (
-  select R.enc_id, R.enter_time, (case when R.leave_time is null then date_trunc('second', now()) else R.leave_time end) as leave_time, R.care_unit
-  from (
-    select R.enc_id,
-           R.tsp as enter_time,
-           lead(R.tsp,1) OVER (PARTITION BY R.enc_id ORDER BY R.tsp) as leave_time,
-           (case when R.care_unit = 'Arrival' then R.next_unit else R.care_unit end) as care_unit
-    from (
-      select R.enc_id, R.tsp, R.care_unit,
-             lead(R.tsp,1) OVER (PARTITION BY R.enc_id ORDER BY R.tsp,
-                (case when R.care_unit = 'Arrival' then 0 when R.care_unit = 'Discharge' then 2 else 1 end)
-             ) as next_tsp,
-             lead(R.care_unit,1) OVER (PARTITION BY R.enc_id ORDER BY R.tsp,
-                (case when R.care_unit = 'Arrival' then 0 when R.care_unit = 'Discharge' then 2 else 1 end)
-             ) as next_unit,
-             first_value(R.care_unit) over (PARTITION by R.enc_id order by R.tsp,
-                (case when R.care_unit = 'Arrival' then 0 when R.care_unit = 'Discharge' then 2 else 1 end)
-             ) as first_unit
-      from (
-        select cdm_s.enc_id, cdm_s.value::timestamptz as tsp, 'Arrival' as care_unit
-        from cdm_s
-        where cdm_s.fid = 'admittime'
-        union all
-        select cdm_t.enc_id, cdm_t.tsp, (case when cdm_t.fid = 'discharge' then 'Discharge' else cdm_t.value end) as care_unit
-        from cdm_t
-        where ( cdm_t.fid = 'care_unit' or cdm_t.fid = 'discharge' )
-      ) R
-      order by
-        R.enc_id, R.tsp,
-        (case when R.care_unit = 'Arrival' then 0 when R.care_unit = 'Discharge' then 2 else 1 end)
-    ) R
-    where not (R.care_unit = 'Arrival' and R.first_unit <> 'Arrival')
-    and (R.next_tsp is null or R.tsp <> R.next_tsp)
-    order by R.enc_id, enter_time
-  ) R
-),
-discharge_filtered as (
-  select R.*
-  from raw_care_unit_tbl R
-  where R.care_unit != 'Discharge' and R.leave_time is not null
-),
-care_unit as (
-  select D.enc_id, D.enter_time, D.leave_time, D.care_unit
-  from discharge_filtered D
-),
-snapshots as (
-  select R.pat_id, R.enc_id, R.event_id,
-         max(R.update_date) as update_date,
-         count(*) filter (where R.trews_subalert > 0 and ( R.sirs < 2 or R.orgdf < 1 )) as trews_no_cms,
-         count(*) filter (where R.sirs > 1 and R.orgdf > 0 and R.trews_subalert = 0) as cms_no_trews,
-         count(*) filter (where R.trews_subalert > 0 and R.sirs > 1 and R.orgdf > 0) as trews_and_cms,
-         count(*) filter (where R.trews_subalert > 0) as any_trews,
-         count(*) filter (where R.sirs > 1 and R.orgdf > 0) as any_cms,
-         min(R.trews_subalert_onset) filter (where R.trews_subalert > 0) as trews_subalert_onset,
-         min(greatest(R.sirs_onset, R.organ_onset)) filter (where R.sirs > 1 and R.orgdf > 0) as cms_onset
-  from (
-    select p.pat_id, C.enc_id, C.event_id, C.flag,
-           max(C.update_date) as update_date,
-           count(*) filter (where C.name like 'trews_subalert' and C.is_met) as trews_subalert,
-           count(*) filter (where C.name in ('sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc') and C.is_met) as sirs,
-           count(*) filter (where C.name in ('blood_pressure', 'mean_arterial_pressure', 'decrease_in_sbp', 'respiratory_failure', 'creatinine', 'bilirubin', 'platelet', 'inr', 'lactate') and C.is_met) as orgdf,
-           (array_agg(C.measurement_time order by C.measurement_time)  filter (where C.name in ('sirs_temp','heart_rate','respiratory_rate','wbc') and C.is_met ) )[2]   as sirs_onset,
-           min(C.measurement_time) filter (where C.name in ('blood_pressure','mean_arterial_pressure','decrease_in_sbp','respiratory_failure','creatinine','bilirubin','platelet','inr','lactate') and C.is_met ) as organ_onset,
-           min(C.measurement_time) filter (where C.name = 'trews_subalert' and C.is_met) as trews_subalert_onset
-    from criteria_events C
-    inner join (
-      select distinct cdm_t.enc_id
-      from cdm_t where cdm_t.fid =  'care_unit' and cdm_t.value like '%HCGH%'
-      and cdm_t.enc_id not in ( select distinct R.enc_id from get_latest_enc_ids('HCGH') R  )
-      union
-      select distinct BP.enc_id from get_latest_enc_ids('HCGH') BP
-    ) R on C.enc_id = R.enc_id
-    inner join pat_enc p on c.enc_id = p.enc_id
-    group by p.pat_id, C.enc_id, C.event_id, C.flag
-    having max(C.update_date) between ts_start and ts_end
-  ) R
-  group by R.pat_id, R.enc_id, R.event_id
-)
-select R.pat_id, R.enc_id, care_unit.care_unit,
-       min(care_unit.enter_time) as enter_time,
-       max(care_unit.leave_time) as leave_time,
-       count(distinct R.event_id) filter (where R.trews_no_cms > 0 and R.trews_subalert_onset between care_unit.enter_time and care_unit.leave_time) as trews_no_cms,
-       count(distinct R.event_id) filter (where R.cms_no_trews > 0 and R.cms_onset between care_unit.enter_time and care_unit.leave_time) as cms_no_trews,
-       count(distinct R.event_id) filter (where R.trews_and_cms > 0 and R.trews_subalert_onset between care_unit.enter_time and care_unit.leave_time and R.cms_onset between care_unit.enter_time and care_unit.leave_time) as trews_and_cms,
-       count(distinct R.event_id) filter (where R.any_trews > 0 and R.trews_subalert_onset between care_unit.enter_time and care_unit.leave_time) as any_trews,
-       count(distinct R.event_id) filter (where R.any_cms > 0 and R.cms_onset between care_unit.enter_time and care_unit.leave_time) as any_cms,
-       min(R.trews_subalert_onset) filter (where R.any_trews > 0 and R.trews_subalert_onset between care_unit.enter_time and care_unit.leave_time) as earliest_trews,
-       min(R.cms_onset) filter (where R.any_cms > 0 and R.cms_onset between care_unit.enter_time and care_unit.leave_time) as earliest_cms
-from snapshots R
-inner join care_unit
-on R.enc_id = care_unit.enc_id
-and (
-   (R.trews_subalert_onset between care_unit.enter_time and care_unit.leave_time)
-or (R.cms_onset between care_unit.enter_time and care_unit.leave_time)
-)
-group by R.pat_id, R.enc_id, care_unit.care_unit
-;
-END $func$ LANGUAGE plpgsql;
-
-
--- For each unit, count # of pats/encs with trews/cms alerts that fired within the stay in that unit.
---
-CREATE OR REPLACE FUNCTION get_alert_stats_by_unit(ts_start timestamptz, ts_end timestamptz)
-RETURNS table(
-    care_unit                 text,
-    total_encs_with_alerts    bigint,
-    trews_no_cms              bigint,
-    cms_no_trews              bigint,
-    trews_and_cms             bigint,
-    any_trews                 bigint,
-    any_cms                   bigint
-) AS $func$ BEGIN RETURN QUERY
-with raw_care_unit_tbl as (
-  select R.enc_id, R.enter_time, (case when R.leave_time is null then date_trunc('second', now()) else R.leave_time end) as leave_time, R.care_unit
-  from (
-    select R.enc_id,
-           R.tsp as enter_time,
-           lead(R.tsp,1) OVER (PARTITION BY R.enc_id ORDER BY R.tsp) as leave_time,
-           (case when R.care_unit = 'Arrival' then R.next_unit else R.care_unit end) as care_unit
-    from (
-      select R.enc_id, R.tsp, R.care_unit,
-             lead(R.tsp,1) OVER (PARTITION BY R.enc_id ORDER BY R.tsp,
-                (case when R.care_unit = 'Arrival' then 0 when R.care_unit = 'Discharge' then 2 else 1 end)
-             ) as next_tsp,
-             lead(R.care_unit,1) OVER (PARTITION BY R.enc_id ORDER BY R.tsp,
-                (case when R.care_unit = 'Arrival' then 0 when R.care_unit = 'Discharge' then 2 else 1 end)
-             ) as next_unit,
-             first_value(R.care_unit) over (PARTITION by R.enc_id order by R.tsp,
-                (case when R.care_unit = 'Arrival' then 0 when R.care_unit = 'Discharge' then 2 else 1 end)
-             ) as first_unit
-      from (
-        select cdm_s.enc_id, cdm_s.value::timestamptz as tsp, 'Arrival' as care_unit
-        from cdm_s
-        where cdm_s.fid = 'admittime'
-        union all
-        select cdm_t.enc_id, cdm_t.tsp, (case when cdm_t.fid = 'discharge' then 'Discharge' else cdm_t.value end) as care_unit
-        from cdm_t
-        where ( cdm_t.fid = 'care_unit' or cdm_t.fid = 'discharge' )
-      ) R
-      order by
-        R.enc_id, R.tsp,
-        (case when R.care_unit = 'Arrival' then 0 when R.care_unit = 'Discharge' then 2 else 1 end)
-    ) R
-    where not (R.care_unit = 'Arrival' and R.first_unit <> 'Arrival')
-    and (R.next_tsp is null or R.tsp <> R.next_tsp)
-    order by R.enc_id, enter_time
-  ) R
-),
-discharge_filtered as (
-  select R.*
-  from raw_care_unit_tbl R
-  where R.care_unit != 'Discharge' and R.leave_time is not null
-),
-care_unit as (
-  select D.enc_id, D.enter_time, D.leave_time, D.care_unit
-  from discharge_filtered D
-),
-bp_included as (
-  select distinct BP.enc_id
-  from get_latest_enc_ids('HCGH') BP
-  inner join cdm_s on cdm_s.enc_id = BP.enc_id and cdm_s.fid = 'age'
-  inner join cdm_t on cdm_t.enc_id = BP.enc_id and cdm_t.fid = 'care_unit'
-  group by BP.enc_id
-  having count(*) filter (where cdm_s.value::numeric <= 18) = 0
-  and count(*) filter(where cdm_t.value in ('HCGH LABOR & DELIVERY', 'HCGH EMERGENCY-PEDS', 'HCGH 2C NICU', 'HCGH 1CX PEDIATRICS', 'HCGH 2N MCU')) = 0
-),
-hcgh_discharged as (
-  select distinct cdm_t.enc_id
-  from cdm_t
-  where cdm_t.fid =  'care_unit' and cdm_t.value like '%HCGH%'
-  and cdm_t.enc_id not in (
-    select distinct enc_id
-    from (
-      select enc_id from bp_included
-      union all
-      select cdm_t.enc_id
-      from cdm_t
-      where cdm_t.fid = 'care_unit'
-      and cdm_t.value in ('HCGH LABOR & DELIVERY', 'HCGH EMERGENCY-PEDS', 'HCGH 2C NICU', 'HCGH 1CX PEDIATRICS', 'HCGH 2N MCU')
-      group by cdm_t.enc_id
-      union all
-      select cdm_s.enc_id
-      from cdm_s
-      where cdm_s.fid = 'age' and cdm_s.value::numeric <= 18
-    ) R
-  )
-),
-enc_included as (
-  select distinct enc_id from hcgh_discharged
-  union
-  select distinct enc_id from bp_included
-),
-snapshots as (
-  select R.pat_id, R.enc_id, R.event_id,
-         max(R.update_date) as update_date,
-         count(*) filter (where R.trews_subalert > 0 and ( R.sirs < 2 or R.orgdf < 1 )) as trews_no_cms,
-         count(*) filter (where R.sirs > 1 and R.orgdf > 0 and R.trews_subalert = 0) as cms_no_trews,
-         count(*) filter (where R.trews_subalert > 0 and R.sirs > 1 and R.orgdf > 0) as trews_and_cms,
-         count(*) filter (where R.trews_subalert > 0) as any_trews,
-         count(*) filter (where R.sirs > 1 and R.orgdf > 0) as any_cms,
-         min(R.trews_subalert_onset) filter (where R.trews_subalert > 0) as trews_subalert_onset,
-         min(greatest(R.sirs_onset, R.organ_onset)) filter (where R.sirs > 1 and R.orgdf > 0) as cms_onset
-  from (
-    select p.pat_id, C.enc_id, C.event_id, C.flag,
-           max(C.update_date) as update_date,
-           count(*) filter (where C.name like 'trews_subalert' and C.is_met) as trews_subalert,
-           count(*) filter (where C.name in ('sirs_temp', 'heart_rate', 'respiratory_rate', 'wbc') and C.is_met) as sirs,
-           count(*) filter (where C.name in ('blood_pressure', 'mean_arterial_pressure', 'decrease_in_sbp', 'respiratory_failure', 'creatinine', 'bilirubin', 'platelet', 'inr', 'lactate') and C.is_met) as orgdf,
-           (array_agg(C.measurement_time order by C.measurement_time)  filter (where C.name in ('sirs_temp','heart_rate','respiratory_rate','wbc') and C.is_met ) )[2]   as sirs_onset,
-           min(C.measurement_time) filter (where C.name in ('blood_pressure','mean_arterial_pressure','decrease_in_sbp','respiratory_failure','creatinine','bilirubin','platelet','inr','lactate') and C.is_met ) as organ_onset,
-           min(C.measurement_time) filter (where C.name = 'trews_subalert' and C.is_met) as trews_subalert_onset
-    from criteria_events C
-    inner join enc_included R on C.enc_id = R.enc_id
-    inner join pat_enc p on c.enc_id = p.enc_id
-    group by p.pat_id, C.enc_id, C.event_id, C.flag
-    having max(C.update_date) between ts_start and ts_end
-  ) R
-  group by R.pat_id, R.enc_id, R.event_id
-)
-select care_unit.care_unit,
-       count(distinct R.enc_id) as total_encs,
-       count(distinct R.enc_id) filter (where R.trews_no_cms > 0 and R.trews_subalert_onset between care_unit.enter_time and care_unit.leave_time) as trews_no_cms,
-       count(distinct R.enc_id) filter (where R.cms_no_trews > 0 and R.cms_onset between care_unit.enter_time and care_unit.leave_time) as cms_no_trews,
-       count(distinct R.enc_id) filter (where R.trews_and_cms > 0 and R.trews_subalert_onset between care_unit.enter_time and care_unit.leave_time and R.cms_onset between care_unit.enter_time and care_unit.leave_time) as trews_and_cms,
-       count(distinct R.enc_id) filter (where R.any_trews > 0 and R.trews_subalert_onset between care_unit.enter_time and care_unit.leave_time) as any_trews,
-       count(distinct R.enc_id) filter (where R.any_cms > 0 and R.cms_onset between care_unit.enter_time and care_unit.leave_time) as any_cms
-from snapshots R
-inner join care_unit
-on R.enc_id = care_unit.enc_id
-and (
-   (R.trews_subalert_onset between care_unit.enter_time and care_unit.leave_time)
-or (R.cms_onset between care_unit.enter_time and care_unit.leave_time)
-)
-group by care_unit.care_unit
-;
-END $func$ LANGUAGE plpgsql;
 
 
 
-------------------------------------------------
--- Timeline helpers.
 
--- TREWS alert and organ dysfunction interval construction
-CREATE OR REPLACE FUNCTION get_trews_orgdf_intervals(this_enc_id integer)
-RETURNS table(
-    name      text,
-    intervals json
-) AS $func$ BEGIN RETURN QUERY
-with enc_states as (
-  select S.name, R.tsp, S.state
-  from (
-    select tsp,
-           ARRAY[
-             'trews_creatinine',
-             'trews_bilirubin',
-             'trews_platelet',
-             'trews_gcs',
-             'trews_inr',
-             'trews_lactate',
-             'trews_sbpm',
-             'trews_map',
-             'trews_dsbp',
-             'trews_vasopressors',
-             'trews_vent',
-             'trews_subalert'
-           ]::text[] as names,
-           ARRAY[
-              creatinine_orgdf::int,
-              bilirubin_orgdf::int,
-              platelets_orgdf::int,
-              gcs_orgdf::int,
-              inr_orgdf::int,
-              lactate_orgdf::int,
-              sbpm_hypotension::int,
-              map_hypotension::int,
-              delta_hypotension::int,
-              vasopressors_orgdf::int,
-              vent_orgdf::int,
-              ((orgdf_details::jsonb)#>>'{alert}')::bool::int
-           ]::int[] as states
-    from trews_jit_score s
-    where s.enc_id = this_enc_id
-    and s.model_id = (select max(P.value) from trews_parameters P where P.name = 'trews_jit_model_id')
-  ) R, lateral unnest(R.names, R.states) S(name, state)
-),
-state_nb as (
-  select C.name,
-         C.tsp,
-         C.state,
-         lead(C.state, 1) over (partition by C.name order by C.tsp rows between current row and 1 following) as next,
-         lead(C.tsp, 1)   over (partition by C.name order by C.tsp rows between current row and 1 following) as next_tsp,
-         lag(C.state, 1)  over (partition by C.name order by C.tsp rows 1 preceding) as previous,
-         lag(C.tsp, 1)    over (partition by C.name order by C.tsp rows 1 preceding) as previous_tsp
-  from enc_states C
-),
-edges as (
-  select NB.name,
-         NB.tsp,
-         (case
-            when NB.next_tsp is null then now()
-            when NB.state <> NB.next then NB.next_tsp
-            else NB.tsp
-          end) as cf_tsp,
-         NB.state,
-         NB.next,
-         NB.next_tsp
-  from state_nb NB
-  where NB.state <> NB.next or NB.next is null
-  or NB.state <> NB.previous or NB.previous is null
-  order by NB.name, NB.tsp
-),
-edge_pairs as (
-  select E.*,
-         lead(E.state, 1)  over (partition by E.name order by E.tsp rows between current row and 1 following) as next_edge_state,
-         lead(E.tsp, 1)    over (partition by E.name order by E.tsp rows between current row and 1 following) as next_edge_tsp,
-         lead(E.cf_tsp, 1) over (partition by E.name order by E.tsp rows between current row and 1 following) as next_edge_cf_tsp,
-         lag(E.state, 1)   over (partition by E.name order by E.tsp rows 1 preceding) as prev_edge_label,
-         lag(E.tsp, 1)     over (partition by E.name order by E.tsp rows 1 preceding) as prev_edge_tsp
-  from edges E
-),
-intervals as (
-  select E.name, E.state,
-         E.tsp as ts_start,
-         (case
-            when E.next_edge_tsp is null and (E.prev_edge_tsp is null or E.state <> E.prev_edge_label) then E.cf_tsp
-            when E.state = E.next_edge_state then E.next_edge_cf_tsp
-            else E.next_edge_tsp
-          end) as ts_end
-  from edge_pairs E
-  where (E.prev_edge_tsp is null or E.state <> E.prev_edge_label)
-  order by E.name, E.tsp
-)
-select I.name,
-       json_agg(json_build_object('value', I.state, 'ts_start', I.ts_start, 'ts_end', I.ts_end) order by I.ts_start) filter (where I.state = 1)
-       as last_interval
-from intervals I
-group by I.name
-;
-END $func$ LANGUAGE plpgsql;
+
+
+
