@@ -29,7 +29,7 @@ spec:
         - name: populate_patients
           value: "False"
         - name: transform_fids
-          value: "temperature;heart_rate;resp_rate;nbp_sys;nbp_dias"
+          value: "f1;f2;f3"
         - name: fillin
           value: "False"
         - name: derive

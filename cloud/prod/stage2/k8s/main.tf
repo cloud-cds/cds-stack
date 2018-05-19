@@ -1,1 +1,0 @@
-variable "dummy_file" {}

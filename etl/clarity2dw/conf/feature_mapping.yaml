@@ -1,6 +1,6 @@
 mappings:
   - mapping:
-    fid(s): chief_complaint
+    fid(s): A
     dbtable: |
-      (select cc.csn_id, ee.event_record_time tsp, json_agg(json_build_object('reason', cc.display_text,'comments', cc.comments)) as value from $clarity_workspace."ChiefComplaint" cc inner join $clarity_workspace."EdEvents" ee on cc.csn_id = ee.csn_id where ee.event_display_name = 'Chief Complaint Filed' group by cc.csn_id, ee.event_record_time) as sub
-    select_cols: csn_id as visit_id, tsp, value
+      (QUERY) as sub
+    select_cols: enc_id, tsp, fid

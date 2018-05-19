@@ -46,11 +46,7 @@ ORDER_FILENAME = 'orders.html'
 
 # default keys for JHH-BMC
 KEYS = {
-  'lactate'       : '2',
-  'blood_culture' : '4',
-  'fluid'         : '1',
-  'antibiotics'   : '12',
-  'vasopressors'  : '13'
+  # key value pairs
 }
 
 release = os.environ['release'] if 'release' in os.environ else 'development'
@@ -136,12 +132,7 @@ class TREWSStaticResource(web.View):
       loc = parameters['LOC']
       if len(loc) == 6:
         loc_prefixes = {
-          '1101': 'JHH',
-          '1102': 'BMC',
-          '1103': 'HCGH',
-          '1104': 'Sibley',
-          '1105': 'Suburban',
-          '1107': 'KKI',
+          # id to hospital mappings
         }
 
         for pfx, loc_name in loc_prefixes.items():

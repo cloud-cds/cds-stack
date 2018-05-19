@@ -338,7 +338,7 @@ def convert_amoxicillin_dose_to_mg(entries, log):
                     action)
     return results
 
-def convert_dose_to_mg_and_medroute(entries, log):    
+def convert_dose_to_mg_and_medroute(entries, log):
     global GIVEN_ACTIONS
     results = []
 
@@ -398,7 +398,7 @@ def convert_dose_to_mg_and_medroute(entries, log):
 
 
 def convert_penicillin_dose(entries, log):
-    # TODO convert mg to million unit
+    # convert mg to million unit
     global GIVEN_ACTIONS, IV_START_ACTIONS
     intake_actions = GIVEN_ACTIONS + IV_START_ACTIONS
     results = []
@@ -567,19 +567,6 @@ def piperacillin_tazobac_dose_to_mg(entries, log):
             if result:
                 results.append(result)
     return results
-    # global GIVEN_ACTIONS
-    # results = []
-    # for entry in entries:
-    #     tsp = entry['TimeActionTaken']
-    #     dose = entry['Dose']
-    #     unit = entry['MedUnit']
-    #     if action in GIVEN_ACTIONS:
-    #         if dose:
-    #             if unit == 'mg of piperacillin':
-    #                 results.append([tsp, dose, confidence.UNIT_TRANSFORMED])
-    #             else:
-    #                 results.append(_convert_to_mg(entry, log))
-    # return results
 
 def convert_salmeterol_dose(entries, log):
     results = default_convert_dose(entries, log)
@@ -1015,41 +1002,6 @@ def convert_care_unit_hc_epic(entry, log):
         return [dept, confidence.NO_TRANSFORM]
 
 
-# def extract_fluids_intake(entries, log):
-#     global STOPPED_ACTIONS
-#     global GIVEN_ACTIONS
-#     global IV_START_ACTIONS
-#     global RATE_ACTIONS
-#     # print "extract_fluids_intake"
-#     on_actions = GIVEN_ACTIONS + IV_START_ACTIONS + RATE_ACTIONS
-#     volumes = []
-#     entry_pre = None
-#     remain_vol = None
-#     recent_dose = None
-#     recent_unit = None
-#     for entry in entries:
-#         if entry_pre:
-#             if entry_pre['ActionTaken'] in on_actions:
-#                 if remain_vol:
-#                     remain_vol = _calculate_volume_in_ml(volumes, entry_pre, \
-#                         entry, remain_vol, recent_dose, recent_unit, log)
-#                 else:
-#                     remain_vol = _calculate_volume_in_ml(volumes, entry_pre, \
-#                         entry, None, recent_dose, recent_unit, log)
-#         entry_pre = entry
-#         if entry['ActionTaken'] in on_actions and entry['Dose'] is not None and \
-#             entry['Dose'] > 0:
-#             recent_dose = entry['Dose']
-#             recent_unit = entry['MedUnit']
-#     # last one
-#     if entry_pre['ActionTaken'] in on_actions:
-#         if remain_vol:
-#             _calculate_volume_in_ml(volumes, entry_pre, None, remain_vol, \
-#                 recent_dose, recent_unit, log)
-#         else:
-#             _calculate_volume_in_ml(volumes, entry_pre, None, None, \
-#                 recent_dose, recent_unit, log)
-#     return volumes
 
 def extract_fluids_intake(entries, log):
     '''
@@ -1077,41 +1029,6 @@ def extract_fluids_intake(entries, log):
                 volumes.append([tsp, dose, confidence.VALUE_TRANSFORMED])
     return volumes
 
-# def extract_fluids_intake_df(entries, log):
-#     global STOPPED_ACTIONS
-#     global GIVEN_ACTIONS
-#     global IV_START_ACTIONS
-#     global RATE_ACTIONS
-#     # print "extract_fluids_intake"
-#     on_actions = GIVEN_ACTIONS + IV_START_ACTIONS + RATE_ACTIONS
-#     volumes = pd.DataFrame([])
-#     entry_pre = None
-#     remain_vol = None
-#     recent_dose = None
-#     recent_unit = None
-#     for i, entry in entries.iterrows():
-#         if entry_pre:
-#             if entry_pre['action'] in on_actions:
-#                 if remain_vol:
-#                     remain_vol = _calculate_volume_in_ml_df(volumes, entry_pre, \
-#                         entry, remain_vol, recent_dose, recent_unit, log, df=True)
-#                 else:
-#                     remain_vol = _calculate_volume_in_ml_df(volumes, entry_pre, \
-#                         entry, None, recent_dose, recent_unit, log, df=True)
-#         entry_pre = entry
-#         if entry['action'] in on_actions and entry['dose'] is not None and \
-#             entry['dose'] > 0:
-#             recent_dose = entry['dose']
-#             recent_unit = entry['dose_unit']
-#     # last one
-#     if entry_pre['action'] in on_actions:
-#         if remain_vol:
-#             _calculate_volume_in_ml_df(volumes, entry_pre, None, remain_vol, \
-#                 recent_dose, recent_unit, log, df=True)
-#         else:
-#             _calculate_volume_in_ml_df(volumes, entry_pre, None, None, \
-#                 recent_dose, recent_unit, log, df=True)
-#     return volumes
 
 def _get_max_vol_ml(med):
     items = med.split(' ')
@@ -1273,17 +1190,17 @@ def convert_vancomycin_to_real(entry, log):
     value = entry['ResultValue']
     tsp = entry['RESULT_TIME']
 
-    if value.startswith('<') or value.startswith('>'):        
+    if value.startswith('<') or value.startswith('>'):
         return [tsp, float(value[1:]), confidence.NO_TRANSFORM]
     else:
         try:
             value = float(value)
             return [tsp, float(value), confidence.NO_TRANSFORM]
         except:
-            log.warn("Invalid vancomycin_trough entry: %s" % entry)                    
+            log.warn("Invalid vancomycin_trough entry: %s" % entry)
             return None
 
-        
+
 
 
 
@@ -1795,7 +1712,7 @@ def _convert_to_ml(entry, log):
     order_tsp = entry['ORDER_INST']
     action = entry['ActionTaken']
     if dose is None:
-        return None    
+        return None
     log_assert(log, unit == 'L' or unit == 'mL', "Unknown unit %s" % unit   )
     if unit == 'L':
         return [tsp,
