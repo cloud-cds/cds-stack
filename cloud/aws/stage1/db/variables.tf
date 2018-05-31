@@ -68,7 +68,7 @@ variable "db_engine_version" {
 }
 
 variable "db_instance_class" {
-  default = "db.m4.xlarge"
+  default = "db.t2.large"
   description = "Instance class"
 }
 

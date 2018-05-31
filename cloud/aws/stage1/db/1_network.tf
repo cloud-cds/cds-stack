@@ -39,7 +39,7 @@ resource "aws_db_subnet_group" "db_subnet_group" {
 resource "aws_security_group" "db_sg" {
   name        = "${var.deploy_prefix}-db-sg"
   description = "${var.deploy_name} ${var.deploy_stack} DB SG"
-  vpc_id      = "${data.aws_vpc.main.id}"
+  vpc_id      =  "vpc-1eaaf17a" #"${data.aws_vpc.main.id}"
 
   # Postgres access from within the VPC.
   ingress {

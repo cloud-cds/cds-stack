@@ -3,7 +3,7 @@
 
 resource "aws_ami_copy" "controller_ami" {
     name              = "${var.deploy_prefix}-controller-ami"
-    description       = "An encrypted AMI for the OpsDX controller"
+    description       = "An encrypted AMI for the MC controller"
     source_ami_id     = "${lookup(var.aws_base_ami, var.aws_region)}"
     source_ami_region = "${var.aws_region}"
     encrypted         = true
@@ -21,7 +21,7 @@ resource "aws_ami_copy" "controller_ami" {
 # Our controller security group, to access the instance over SSH.
 resource "aws_security_group" "controller_sg" {
   name        = "${var.deploy_prefix}-controller-sg"
-  description = "OpsDX Controller SG"
+  description = "MC Controller SG"
   vpc_id      = "${aws_vpc.main.id}"
 
   # SSH access from anywhere

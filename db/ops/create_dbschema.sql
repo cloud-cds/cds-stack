@@ -298,35 +298,10 @@ CREATE  TABLE parameters
 -- tables for trews model
 -----------------------------------
 
-DROP TABLE IF EXISTS trews_scaler;
-CREATE  TABLE trews_scaler
-(
-    fid     text PRIMARY KEY,
-    mean      real,
-    var real,
-    scale real
-);
-
-DROP TABLE IF EXISTS trews_feature_weights;
-CREATE  TABLE trews_feature_weights
-(
-    fid     text PRIMARY KEY,
-    weight      real
-);
-
-DROP TABLE IF EXISTS trews_parameters;
-CREATE  TABLE trews_parameters
-(
-    name     text PRIMARY KEY,
-    value      real
-);
 
 \copy cdm_function     from 'CDM_Function.csv' with csv header delimiter as ',';
 \copy cdm_feature      from 'CDM_Feature.csv' with csv header delimiter as ',';
 \copy parameters       from 'ops/parameters.csv' with csv header delimiter as ',';
-\copy trews_parameters       from 'ops/trews-model/trews_parameters.csv' with csv header delimiter as ',';
-\copy trews_scaler      from 'ops/trews-model/lactateConstrStdScale.csv' with csv header delimiter as ',';
-\copy trews_feature_weights     from 'ops/trews-model/lactateConstrFeatureWeights.csv' with csv header delimiter as ',';
 \copy criteria_default from 'criteria_default.csv' with csv header delimiter as ',';
 \copy cdm_g from 'ops/CDM_G.csv' with csv header delimiter as ',';
 
@@ -339,112 +314,7 @@ CREATE TABLE cdm_twf (
     PRIMARY KEY (enc_id, tsp)
 );
 
-DROP TABLE IF EXISTS trews;
-CREATE TABLE trews (
-    enc_id  integer REFERENCES pat_enc(enc_id),
-    tsp                                    timestamptz,
-    trewscore                              numeric,
-    age                                    double precision,
-    gender                                 double precision,
-    chronic_pulmonary_hist                 double precision,
-    chronic_bronchitis_diag                double precision,
-    esrd_prob                              double precision,
-    esrd_diag                              double precision,
-    emphysema_hist                         double precision,
-    heart_arrhythmias_prob                 double precision,
-    heart_arrhythmias_diag                 double precision,
-    heart_failure_hist                     double precision,
-    heart_failure_diag                     double precision,
-    pao2                                   double precision,
-    hepatic_sofa                           double precision,
-    paco2                                  double precision,
-    abp_mean                               double precision,
-    sodium                                 double precision,
-    obstructive_pe_shock                   double precision,
-    metabolic_acidosis                     double precision,
-    troponin                               double precision,
-    rass                                   double precision,
-    sirs_raw                               double precision,
-    pao2_to_fio2                           double precision,
-    qsofa                                  double precision,
-    fio2                                   double precision,
-    neurologic_sofa                        double precision,
-    hematologic_sofa                       double precision,
-    renal_sofa                             double precision,
-    nbp_sys                                double precision,
-    sirs_hr_oor                            double precision,
-    resp_sofa                              double precision,
-    bun_to_cr                              double precision,
-    cmi                                    double precision,
-    cardio_sofa                            double precision,
-    acute_pancreatitis                     double precision,
-    wbc                                    double precision,
-    shock_idx                              double precision,
-    weight                                 double precision,
-    platelets                              double precision,
-    arterial_ph                            double precision,
-    nbp_dias                               double precision,
-    fluids_intake_1hr                      double precision,
-    co2                                    double precision,
-    dbpm                                   double precision,
-    ddimer                                 double precision,
-    ast_liver_enzymes                      double precision,
-    fluids_intake_24hr                     double precision,
-    ptt                                    double precision,
-    abp_sys                                double precision,
-    magnesium                              double precision,
-    severe_sepsis                          double precision,
-    bicarbonate                            double precision,
-    lipase                                 double precision,
-    hypotension_raw                        double precision,
-    sbpm                                   double precision,
-    heart_rate                             double precision,
-    nbp_mean                               double precision,
-    anion_gap                              double precision,
-    vasopressor_resuscitation              double precision,
-    urine_output_24hr                      double precision,
-    amylase                                double precision,
-    septic_shock_iii                       double precision,
-    hematocrit                             double precision,
-    temperature                            double precision,
-    sirs_wbc_oor                           double precision,
-    hemoglobin_minutes_since_measurement   double precision,
-    urine_output_6hr                       double precision,
-    chloride                               double precision,
-    spo2                                   double precision,
-    resp_rate                              double precision,
-    hemorrhagic_shock                      double precision,
-    potassium                              double precision,
-    acute_liver_failure                    double precision,
-    bun                                    double precision,
-    hemoglobin_change                      double precision,
-    mi                                     double precision,
-    hypotension_intp                       double precision,
-    calcium                                double precision,
-    abp_dias                               double precision,
-    acute_organ_failure                    double precision,
-    worst_sofa                             double precision,
-    hemoglobin                             double precision,
-    any_organ_failure                      double precision,
-    inr                                    double precision,
-    creatinine                             double precision,
-    fluid_resuscitation                    double precision,
-    bilirubin                              double precision,
-    alt_liver_enzymes                      double precision,
-    mapm                                   double precision,
-    map                                   double precision,
-    gcs                                    double precision,
-    sirs_intp                              double precision,
-    minutes_since_any_antibiotics          double precision,
-    fluids_intake_3hr                      double precision,
-    sirs_temperature_oor                   double precision,
-    sirs_resp_oor                          double precision,
-    septic_shock                           double precision,
-    lactate                                double precision,
-    minutes_since_any_organ_fail           double precision,
-    organ_dysfunction                      double precision,
-    PRIMARY KEY     (enc_id, tsp)
-);
+
 
 
 
@@ -502,124 +372,11 @@ CREATE TABLE user_interactions (
 );
 
 
-DROP TABLE IF EXISTS lmcscore;
-CREATE TABLE lmcscore (
-    enc_id integer NOT NULL,
-    tsp timestamp without time zone NOT NULL,
-    mean double precision,
-    var double precision,
-    score double precision,
-    lower_score double precision,
-    upper_score double precision,
-    temperature double precision,
-    resp_rate double precision,
-    shock_idx double precision,
-    mapm double precision,
-    nbp_dias double precision,
-    spo2 double precision,
-    heart_rate double precision,
-    urine_output_24hr double precision,
-    urine_output_6hr double precision,
-    fluids_intake_1hr double precision,
-    fluids_intake_24hr double precision,
-    rass double precision,
-    hematologic_sofa double precision,
-    neurologic_sofa double precision,
-    renal_sofa double precision,
-    resp_sofa double precision,
-    worst_sofa double precision,
-    cardio_sofa double precision,
-    bun double precision,
-    creatinine double precision,
-    gcs double precision,
-    hemoglobin double precision,
-    paco2 double precision,
-    pao2 double precision,
-    sodium double precision,
-    wbc double precision,
-    amylase double precision,
-    lipase double precision,
-    arterial_ph double precision,
-    bun_to_cr double precision,
-    hypotension_raw double precision,
-    qsofa double precision,
-    organ_insufficiency_hist double precision,
-    chronic_pulmonary_hist double precision,
-    organ_insufficiency_diag double precision,
-    chronic_kidney_hist double precision,
-    gender double precision,
-    heart_arrhythmias_prob double precision,
-    heart_failure_hist double precision,
-    esrd_diag double precision,
-    liver_disease_hist double precision,
-    diabetes_hist double precision,
-    heart_failure_diag double precision,
-    renal_insufficiency_diag double precision,
-    emphysema_hist double precision,
-    diabetes_diag double precision,
-    liver_disease_diag double precision,
-    esrd_prob double precision,
-    chronic_bronchitis_diag double precision,
-    heart_arrhythmias_diag double precision,
-    renal_insufficiency_hist double precision,
-    age double precision,
-    sirs_raw double precision,
-    sirs_hr_oor double precision,
-    sirs_wbc_oor double precision,
-    sirs_temperature_oor double precision,
-    sirs_resp_oor double precision,
-    minutes_since_any_organ_fail double precision,
-    minutes_since_any_antibiotics double precision,
-    acute_liver_failure double precision,
-    acute_organ_failure double precision,
-    any_organ_failure double precision,
-    weight double precision
-);
 
-DROP TABLE IF EXISTS orgdf_baselines;
-CREATE TABLE orgdf_baselines (
-    pat_id          varchar(50) primary key,
-    creatinine      real,
-    inr             real,
-    bilirubin       real,
-    platelets       real,
-    creatinine_tsp  timestamptz,
-    inr_tsp         timestamptz,
-    bilirubin_tsp   timestamptz,
-    platelets_tsp   timestamptz
-);
 
-DROP TABLE IF EXISTS trews_jit_score;
-CREATE TABLE trews_jit_score(
-model_id           integer                 ,
-enc_id             integer                 ,
-tsp                timestamp with time zone,
-score              double precision        ,
-odds_ratio         double precision        ,
-creatinine_orgdf   double precision        ,
-bilirubin_orgdf    double precision        ,
-platelets_orgdf    double precision        ,
-gcs_orgdf          double precision        ,
-inr_orgdf          double precision        ,
-hypotension_orgdf  double precision        ,
-sbpm_hypotension   double precision        ,
-map_hypotension    double precision        ,
-delta_hypotension  double precision        ,
-vasopressors_orgdf double precision        ,
-lactate_orgdf      double precision        ,
-orgdf_details      text                    ,
-vent_orgdf         integer                 ,
-alert_state        integer                 DEFAULT -1,
-orgdf_state        bigint                  DEFAULT -1,
-feature_relevance  text                    ,
-PRIMARY KEY (model_id, enc_id, tsp, alert_state, orgdf_state)
-);
 
-DROP TABLE IF EXISTS predictor_times;
-CREATE TABLE predictor_times (
-    name        varchar(40) primary key,
-    tsp         timestamptz
-);
+
+
 
 
 ----------------------------------
@@ -731,6 +488,6 @@ DROP TABLE IF EXISTS nurse_eval;
 CREATE TABLE nurse_eval(
     enc_id           int,
     tsp              timestamptz,
-    uid              str,
+    uid              text,
     eval             json
 );

@@ -5,8 +5,17 @@ variable "deploy_prefix" {}
 #####################################
 # S3 buckets
 
-resource "aws_s3_bucket" "kops-state" {
-    bucket = "${var.deploy_prefix}-kops-state"
+resource "aws_s3_bucket" "kops-state-dev" {
+    bucket = "${var.deploy_prefix}-kops-dev"
+    acl = "private"
+
+    versioning {
+        enabled = true
+    }
+}
+
+resource "aws_s3_bucket" "kops-state-prod" {
+    bucket = "${var.deploy_prefix}-kops-prod"
     acl = "private"
 
     versioning {

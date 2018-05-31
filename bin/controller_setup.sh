@@ -19,8 +19,8 @@ echo "export VIRTUALENVWRAPPER_PYTHON=\"/usr/bin/python3\"" >> ~/.bashrc
 echo "source /usr/local/bin/virtualenvwrapper.sh" >> ~/.bashrc
 echo "export EDITOR=vim" >> ~/.bashrc
 
-mkvirtualenv -p python3.6 dashan
+mkvirtualenv -p python3.6 cds
 
 sudo mv /usr/bin/x86_64-linux-gnu-gcc /usr/bin/x86_64-linux-gnu-gcc-bak
 sudo ln -s /usr/bin/x86_64-linux-gnu-gcc-4.9 /usr/bin/x86_64-linux-gnu-gcc
-pip3 install -r dashan-universe/requirements.txt
+pip3 install -r cds-stack/requirements.txt

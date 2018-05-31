@@ -14,7 +14,7 @@ variable "audit_sns_endpoint" {}
 
 # Terraform construction of KMS log encryption key.
 resource "aws_kms_key" "audit_log" {
-    description         = "Log encryption key for OpsDX"
+    description         = "Log encryption key for MC"
     enable_key_rotation = true
     policy = <<POLICY
 {
@@ -34,8 +34,7 @@ resource "aws_kms_key" "audit_log" {
       "Effect": "Allow",
       "Principal": {
         "AWS": [
-          "arn:aws:iam::${var.aws_id}:user/andong",
-          "arn:aws:iam::${var.aws_id}:user/yanif"
+          "arn:aws:iam::${var.aws_id}:user/zad",
         ]
       },
       "Action": [
@@ -59,8 +58,7 @@ resource "aws_kms_key" "audit_log" {
       "Effect": "Allow",
       "Principal": {
         "AWS": [
-          "arn:aws:iam::${var.aws_id}:user/andong",
-          "arn:aws:iam::${var.aws_id}:user/yanif"
+          "arn:aws:iam::${var.aws_id}:user/zad",
         ]
       },
       "Action": [
@@ -77,8 +75,7 @@ resource "aws_kms_key" "audit_log" {
       "Effect": "Allow",
       "Principal": {
         "AWS": [
-          "arn:aws:iam::${var.aws_id}:user/andong",
-          "arn:aws:iam::${var.aws_id}:user/yanif"
+          "arn:aws:iam::${var.aws_id}:user/zad",
         ]
       },
       "Action": [
@@ -112,8 +109,7 @@ resource "aws_kms_key" "audit_log" {
       "Effect": "Allow",
       "Principal": {
         "AWS": [
-          "arn:aws:iam::${var.aws_id}:user/andong",
-          "arn:aws:iam::${var.aws_id}:user/yanif"
+          "arn:aws:iam::${var.aws_id}:user/zad",
         ]
       },
       "Action": "kms:Decrypt",

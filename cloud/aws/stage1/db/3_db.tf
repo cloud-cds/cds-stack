@@ -17,7 +17,7 @@ resource "aws_db_instance" "dev_db" {
   db_subnet_group_name    = "${aws_db_subnet_group.db_subnet_group.id}"
   backup_retention_period = 2
   multi_az                = false
-  publicly_accessible     = false
+  publicly_accessible     = true
   storage_encrypted       = true
   skip_final_snapshot     = true
   parameter_group_name    = "${var.db_parameter_group}"
