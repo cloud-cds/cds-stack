@@ -7,7 +7,7 @@ data "aws_route53_zone" "root" {
 
 resource "aws_route53_zone" "main" {
    name = "${var.domain}"
-   comment = "DNS Zone for OpsDX"
+   comment = "Metabolic Compass DNS"
 }
 
 resource "aws_route53_record" "main-ns" {
