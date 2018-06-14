@@ -25,7 +25,7 @@ def translate_epic_id_to_fid(df, col, new_col, config_map, drop_original=False,
         raise TransformError(
             'translate.translate_epic_id_to_fid',
             'Could not find an fid for this ID.',
-            col + " = " + row['epic_id']
+            col + " = " + row[col]
         )
 
     pandas_utils.check_column_name(df, col)
@@ -50,6 +50,7 @@ def translate_med_name_to_fid(med_data):
         else:
             return 'Unknown Medication'
     res = None
+    logging.debug("translate_med_name_to_fid: {}".format(med_data))
     for med in med_regex:
         this_med_data = med_data.copy()
         this_med_data['fid'] = this_med_data['full_name'].apply(functools.partial(find_fid_with_regex, med=med))
@@ -127,7 +128,7 @@ def convert_units(df, fid_col, fids, unit_col, from_unit, to_unit, value_col, co
         if row[value_col] != '':
             row[value_col] = convert_func(row[value_col])
         return row
-
+    # logging.debug("convert_units: {}".format(df))
     conds = (df[fid_col].isin(fids)) & (df[unit_col] == from_unit)
     df[conds] = df[conds].apply(convert_val_in_row, axis=1)
     return df[~df[value_col].isin(['Invalid Value',])]

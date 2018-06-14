@@ -33,14 +33,24 @@ ALL_FLO_IDS_LIST = list(ALL_FLO_IDS_DICT.values())
 
 
 class EpicAPIConfig:
-  def __init__(self, lookback_hours, jhapi_server, jhapi_id,
-               jhapi_secret, lookback_days=None, op_lookback_days=None):
+  def __init__(self, lookback_hours,
+               jhapi_server, jhapi_id, jhapi_secret,
+               systemlist_id, systemlist_id_type,
+               user_id, user_id_type,
+               dept_id, dept_id_type,
+               lookback_days=None, op_lookback_days=None):
     if jhapi_server not in servers:
       raise ValueError("Incorrect server provided")
     if int(lookback_hours) > 72:
       raise ValueError("Lookback hours must be less than 72 hours")
     self.jhapi_server = jhapi_server
     self.server = servers[jhapi_server]
+    self.systemlist_id = systemlist_id
+    self.systemlist_id_type = systemlist_id_type
+    self.user_id = user_id
+    self.user_id_type = user_id_type
+    self.dept_id = dept_id
+    self.dept_id_type = dept_id_type
     self.lookback_hours = int(lookback_hours)
     self.lookback_days = int(lookback_days) if lookback_days else int(int(lookback_hours)/24.0 + 2)
     self.op_lookback_days = op_lookback_days
@@ -66,6 +76,9 @@ class EpicAPIConfig:
           if 'api-test' in u and EPIC_ENV:
             u += ('&' if '&' in u else '?') + 'env=' + EPIC_ENV
           request_settings.append({'method': http_method,'url': u})
+      elif http_method == 'GET':
+        for u in url:
+          request_settings.append({'method': http_method, 'url': u})
       else:
         if 'api-test' in url and EPIC_ENV:
           url += ('&' if '&' in url else '?') + 'env=' + EPIC_ENV
@@ -85,6 +98,8 @@ class EpicAPIConfig:
           if 'api-test' in url and EPIC_ENV:
             url += ('&' if '&' in url else '?') + 'env=' + EPIC_ENV
           request_settings.append({'method': http_method,'url': url})
+      elif http_method == 'GET':
+        request_settings.append({'method': http_method, 'url': url})
       else:
         if 'api-test' in url and EPIC_ENV:
           url += ('&' if '&' in url else '?') + 'env=' + EPIC_ENV
@@ -120,6 +135,7 @@ class EpicAPIConfig:
     else:
       url = "{}{}".format(server, endpoint)
     request_settings = self.generate_request_settings(http_method, url, payloads, url_type)
+    logging.debug("make_requests: {}".format(request_settings))
     semaphore = asyncio.Semaphore(ctxt.flags.JHAPI_SEMAPHORE, loop=ctxt.loop)
     base = ctxt.flags.JHAPI_BACKOFF_BASE
     max_backoff = ctxt.flags.JHAPI_BACKOFF_MAX
@@ -522,7 +538,7 @@ class EpicAPIConfig:
       else:
         return {'treatmentteam_transformed': df_tran}
 
-  async def extract_contacts(self, ctxt, pat_id_list, args, idtype='csn', dateFromOneYear=False):
+  async def extract_ip_contacts(self, ctxt, pat_id_list, args, idtype='csn', dateFromOneYear=False):
     def get_hospital(row):
       dept = row['DepartmentName']
       if dept is not None and len(dept) > 0:
@@ -643,3 +659,164 @@ class EpicAPIConfig:
     for transform_fn in getattr(jhapi_transform_lists, transform_list_name):
       df = self.skip_none(df, transform_fn)
     return df
+
+  '''
+  General Epic APIs delivered by JH API team
+  '''
+  async def extract_systemlist(self, ctxt):
+    resource = '/patients/systemlist?SystemListID={}&SystemListIDType={}&UserID={}&UserIDType={}&DepartmentID={}&DepartmentIDType={}'.format(
+      self.systemlist_id, self.systemlist_id_type,
+      self.user_id, self.user_id_type,
+      self.dept_id, self.dept_id_type
+      )
+    responses = await self.make_requests(ctxt, resource, [], 'GET')
+    dfs = [pd.DataFrame(r) for r in responses]
+    logging.debug("extract_systemlist: {}".format(dfs))
+    return dfs
+
+
+  async def extract_systemlist_tst(self, ctxt):
+    df = pd.DataFrame({'Patients': [{
+        'Age': "50 y.o.",
+        'Name': "TST 0",
+        'Sex': "F",
+        'PatientID': [
+            {
+                "PatientID": "E100069103",
+                "PatientIDType": "EMRN"
+            },
+            {
+                "PatientID": "JH47537115",
+                "PatientIDType": "JHHMRN"
+            },
+            {
+                "PatientID": "BV00007027",
+                "PatientIDType": "BMCMRN"
+            },
+            {
+                "PatientID": "HC00017047",
+                "PatientIDType": "HCGHMRN"
+            },
+            {
+                "PatientID": "SH2403107",
+                "PatientIDType": "SHMRN"
+            }
+        ]
+      }]})
+    dfs = [df]
+    logging.debug("extract_systemlist_tst: {}".format(dfs))
+    return dfs
+
+  async def extract_contacts(self, ctxt, pl):
+    resource = '/patients/contacts?PatientID={}&PatientIDType=EMRN&UserID={}&UserIDType={}'
+    resources = pl.apply(lambda pl: resource.format(pl['pat_id'], self.user_id, self.user_id_type), axis=1).tolist()
+    logging.debug("extract_contacts_resources: {}".format(resources))
+    responses = await self.make_requests(ctxt, resources, [], 'GET')
+    dfs = [pd.DataFrame(r) for r in responses]
+    dfs = self.combine(dfs, pl).reset_index(drop=False)
+    logging.debug("extract_contacts: {}".format(dfs))
+    return dfs
+
+  async def extract_active_problem_list(self, ctxt, pl):
+    resource = '/patients/activeproblemlist'
+    payloads = pl.apply(lambda pl: {
+      "PatientID": {
+        "ID": pl.pat_id,
+        "IDType": "EMRN"
+      }
+    }, axis=1).tolist()
+    responses = await self.make_requests(ctxt, resource, payloads, 'POST')
+    dfs = [pd.DataFrame(r) for r in responses]
+    logging.debug(dfs)
+    dfs = self.combine(dfs, pl[['pat_id', 'visit_id']]).reset_index(drop=True)
+    logging.debug("extract_active_problem_list: {}".format(dfs))
+    return dfs
+
+  async def extract_flowsheetrows(self, ctxt, pts):
+    resource = '/patients/flowsheetrows'
+    payloads = pts.apply(lambda pat: {
+      'ContactID':        pat['visit_id'],
+      'ContactIDType':    'CSN',
+      'FlowsheetRowIDs':  ALL_FLO_IDS_LIST,
+      'LookbackHours':    self.lookback_hours,
+      'PatientID':        pat['pat_id'],
+      'PatientIDType':    'EMRN',
+      'UserID':           self.user_id,
+      'UserIDType':       self.user_id_type
+    }, axis=1).tolist()
+    responses = await self.make_requests(ctxt, resource, payloads, 'POST')
+    dfs = [pd.DataFrame(r) for r in responses]
+    df_raw = self.combine(dfs, pts[['pat_id', 'visit_id']])
+    logging.debug("extract_flowsheetrows: {}".format(df_raw))
+    return df_raw
+
+  async def extract_lab_component(self, ctxt, pl):
+    resource = '/patients/labs/component'
+    component_types = []
+    for _, cidl in component_ids:
+      component_types += ({'Type': 'INTERNAL', 'Value': str(x)} for x in cidl)
+    logging.info("extract_lab_results: {} {}".format(self.from_date, self.lookback_days))
+    payloads = pl.apply(lambda pat: {
+      'PatientID':                   pat['pat_id'],
+      'PatientIDType':               'EMRN',
+      # "FromInstant":"\/Date(928164000000-0400)\/",
+      'MaxNumberOfResults':   200,
+      'NumberDaysToLookBack': self.lookback_days,
+      'ComponentTypes':       component_types,
+      'UserID': self.user_id,
+      'UserIDType': self.user_id_type
+    }, axis=1).tolist()
+    responses = await self.make_requests(ctxt, resource, payloads, 'POST')
+    dfs = [pd.DataFrame(r['ResultComponents'] if r else None) for r in responses]
+    df_raw = self.combine(dfs, pl[['pat_id', 'visit_id']])
+    logging.debug("extract_lab_component: {}".format(df_raw))
+    return df_raw
+
+  async def extract_medications(self, ctxt, pl):
+    resource = '/patients/medications'
+    payloads = pl.apply(lambda pat: {
+      'PatientID':           pat['pat_id'],
+      'PatientIDType':       'EMRN',
+      'ProfileView':          3,
+      'NumberDaysToIncludeDiscontinuedAndEndedOrders': self.lookback_days,
+    }, axis=1).tolist()
+    logging.debug("med_order payloads: {}".format(payloads))
+    responses = await self.make_requests(ctxt, resource, payloads, 'POST')
+    dfs = [pd.DataFrame(r) for r in responses]
+    df_raw = self.combine(dfs, pl[['pat_id', 'visit_id']]).reset_index()
+    logging.debug("extract_medications: {}".format(df_raw))
+    return df_raw
+
+  async def extract_medicationadministrationhistory(self, ctxt, med_orders_df):
+    def build_med_admin_request_data(ctxt, pats, med_orders_df, args):
+      if med_orders_df is None or med_orders_df.empty:
+        pats['ids'] = pats.apply(lambda x: [], axis=1)
+      else:
+        med_orders = med_orders_df[['pat_id', 'visit_id', 'ids']]\
+          .groupby(['pat_id', 'visit_id'])['ids']\
+          .apply(list)\
+          .reset_index()
+        pats = pd.merge(pats, med_orders, left_on=['pat_id','visit_id'], right_on=['pat_id', 'visit_id'], how='left')
+      for i, pt in pats.iterrows():
+        if (isinstance(pt['ids'], float) or len(pt['ids']) == 0) and ('med_order_ids' in args[i]):
+          pats.set_value(i, 'ids', [[{'ID': id, 'Type': 'Internal'}] for id in args[i]['med_order_ids']])
+      return pats[(pats.astype(str)['ids'] != '[]') & pats.ids.notnull()]
+    logging.debug("extracting medicationadministrationhistory: {}".format(med_orders_df))
+    if med_orders_df is None or med_orders_df.empty:
+      logging.debug("No med_orders for MAR")
+      return {'med_admin_transformed': None}
+    else:
+      resource = '/patients/medicationadministrationhistory'
+      payloads = med_orders_df.apply(lambda order: {
+        'ContactID':        order['visit_id'],
+        'ContactIDType':    'CSN',
+        'OrderIDs':         order['ids'],
+        'PatientID':        order['pat_id'],
+        'PatientIDType':    'EMRN'
+      }, axis=1).tolist()
+      responses = await self.make_requests(ctxt, resource, payloads, 'POST')
+      dfs = [pd.DataFrame(r) for r in responses]
+      df_raw = self.combine(dfs, med_orders_df[['pat_id', 'visit_id', 'fid']]).reset_index()
+      df_raw['fid'] = df_raw['fid'].str.replace('_order', '')
+      logging.debug('extract_medicationadministrationhistory: {}'.format(df_raw))
+      return df_raw

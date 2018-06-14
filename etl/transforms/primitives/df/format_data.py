@@ -33,6 +33,12 @@ def format_treatmentteam(df, column='value'):
     df[column] = df[column].apply(lambda x: _format_treatmentteam(x))
     return df
 
+def format_active_problem_list(df, column='active_problem_list'):
+    df[column] = df.apply(\
+        lambda row: {'name'         : row['prob_name'],
+                     row['dx_id']['IDType']  : row['dx_id']['ID']}, axis=1)
+    return df#[['pat_id', 'visit_id', column]].groupby(['pat_id', 'visit_id'])[column].apply(list).to_frame().reset_index()
+
 def add_order_to_fid(df):
     df['fid'] += '_order'
     return df
@@ -41,8 +47,15 @@ def format_numeric(df, column):
     df[column] = pd.to_numeric(df[column])
     return df
 
+def format_age(df, column):
+    df[column] = pd.to_numeric(df[column].str.replace('y.o.',''))
+    return df
+
 def format_gender_to_string(df, column):
-    gender_map = {'Female': '0', 'Male': '1'}
+    gender_map = {'Female': '0',
+                  'Male': '1',
+                  'F': '0',
+                  'M': '1'}
     df[column] = df[column].map(lambda g: gender_map.get(g) if g in gender_map else None)
     return df
 
@@ -51,6 +64,12 @@ def format_tsp(df, column, no_NaT=False):
     df[column] = df[column].dt.tz_localize(app_config.TIMEZONE, ambiguous='NaT', errors='coerce').dt.strftime(app_config.tsp_fmt)
     if no_NaT:
         df[column] = df[column].apply(lambda x: '' if x == 'NaT' else x)
+    return df
+
+def tsp_to_datetime(df, column):
+    df[column] = df[column].apply(\
+        lambda ts: dt.datetime.fromtimestamp(int(ts[6:-7]) / 1e3).strftime('%Y-%m-%d %H:%M:%S') + ts[-7:-4] if ts is not None else 'NaT'
+    )
     return df
 
 def base64_decode(df, column):

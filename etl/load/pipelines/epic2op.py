@@ -16,7 +16,7 @@ import random
 import pdb
 from etl.io_config.cloudwatch import Cloudwatch
 cloudwatch_logger = Cloudwatch()
-WORKSPACE = core.get_environment_var('TREWS_ETL_WORKSPACE', 'event_workspace')
+WORKSPACE = core.get_environment_var('ETL_WORKSPACE', 'event_workspace')
 
 async def extract_non_discharged_patients(ctxt, hospital):
   '''
@@ -150,7 +150,8 @@ async def epic_2_workspace_pull(ctxt, db_data, job_id, dtypes, workspace):
   async with ctxt.db_pool.acquire() as conn:
     ctxt.log.info("enter epic_2_workspace")
     for df_name, df in db_data.items():
-      await primitives.data_2_workspace(ctxt.log, conn, job_id, df_name, df, dtypes=dtypes, workspace=workspace)
+      if df is not None and not df.empty:
+        await primitives.data_2_workspace(ctxt.log, conn, job_id, df_name, df, dtypes=dtypes, workspace=workspace)
     return job_id
 
 
@@ -181,6 +182,7 @@ async def workspace_to_cdm(ctxt, job_id, workspace, keep_delta_table=True):
   query = "select * from workspace_to_cdm('{}','{}','{}');".format(job_id, workspace, keep_delta_table)
   async with ctxt.db_pool.acquire() as conn:
     try:
+      logging.debug("workspace_to_cdm: {}".format(query))
       res = await conn.fetch(query)
       num_delta_t = res[0][0]
       cloudwatch_logger.push(
@@ -193,6 +195,22 @@ async def workspace_to_cdm(ctxt, job_id, workspace, keep_delta_table=True):
       logging.error("Workspace table does exist for {}".format(query))
     return job_id
 
+async def epic_to_cdm(ctxt, job_id, workspace, keep_delta_table=True):
+  query = "select * from epic_to_cdm('{}','{}','{}');".format(job_id, workspace, keep_delta_table)
+  async with ctxt.db_pool.acquire() as conn:
+    try:
+      logging.debug("epic_to_cdm: {}".format(query))
+      res = await conn.fetch(query)
+      num_delta_t = res[0][0]
+      cloudwatch_logger.push(
+        dimension_name = 'ETL',
+        metric_name    = 'num_delta_t',
+        value          = num_delta_t,
+        unit           = 'Count'
+      )
+    except asyncpg.exceptions.UndefinedTableError:
+      logging.error("Workspace table does exist for {}".format(query))
+    return job_id
 
 async def workspace_to_cdm_delta(ctxt, job_id, workspace, keep_delta_table=False):
   query = "select * from workspace_to_cdm('{}','{}','{}');".format(job_id, workspace, keep_delta_table)
@@ -641,7 +659,7 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
     all_tasks.append(Task(
       name = 'epic_2_workspace_archive',
       deps = [db_raw_data_task],
-      coro = epic_2_workspace,
+      coro = epic_2_workspace_pull,
       args = [job_id, 'unicode', WORKSPACE],
     ))
   if 'test' in mode:
@@ -650,38 +668,50 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
       fn   = test_data_2_workspace,
       args = [sqlalchemy_str, mode, job_id],
     )]
-  all_tasks += [
-    Task(name = 'epic_2_workspace',
-         deps = [db_data_task],
-         coro = epic_2_workspace,
-         args = [sqlalchemy_str, job_id, None, WORKSPACE]),
-    Task(name = 'workspace_to_cdm',
-         deps = ['epic_2_workspace'],
-         coro = workspace_to_cdm,
-         args = [WORKSPACE, True]),
-    Task(name = 'load_online_prediction_parameters',
-         deps = ['workspace_to_cdm'],
-         coro = load_online_prediction_parameters),
-    Task(name = 'workspace_fillin',
-         deps = ['load_online_prediction_parameters', 'workspace_to_cdm'],
-         coro = workspace_fillin,
-         args = [WORKSPACE]),
-    Task(name = 'workspace_derive',
-         deps = ['load_online_prediction_parameters', 'workspace_fillin'],
-         coro = workspace_derive,
-         args = [WORKSPACE]),
-    Task(name = 'workspace_predict',
-         deps = ['load_online_prediction_parameters', 'workspace_derive'],
-         coro = workspace_predict,
-         args = [WORKSPACE]),
-    Task(name = 'workspace_submit',
-         deps = ['workspace_predict'],
-         coro = workspace_submit_delta,
-         args = [WORKSPACE]),
-    Task(name = 'load_discharge_times',
-         deps = ['contacts_transform'],
-         coro = load_discharge_times),
-        ]
+  if 'mc' in mode:
+    all_tasks += [
+      Task(name = 'epic_2_workspace',
+           deps = [db_data_task],
+           coro = epic_2_workspace_pull,
+           args = [job_id, None, WORKSPACE]),
+      Task(name = 'epic_to_cdm',
+           deps = ['epic_2_workspace'],
+           coro = epic_to_cdm,
+           args = [WORKSPACE, True]),
+    ]
+  else:
+    all_tasks += [
+      Task(name = 'epic_2_workspace',
+           deps = [db_data_task],
+           coro = epic_2_workspace_pull,
+           args = [job_id, None, WORKSPACE]),
+      Task(name = 'workspace_to_cdm',
+           deps = ['epic_2_workspace'],
+           coro = workspace_to_cdm,
+           args = [WORKSPACE, True]),
+      Task(name = 'load_online_prediction_parameters',
+           deps = ['workspace_to_cdm'],
+           coro = load_online_prediction_parameters),
+      Task(name = 'workspace_fillin',
+           deps = ['load_online_prediction_parameters', 'workspace_to_cdm'],
+           coro = workspace_fillin,
+           args = [WORKSPACE]),
+      Task(name = 'workspace_derive',
+           deps = ['load_online_prediction_parameters', 'workspace_fillin'],
+           coro = workspace_derive,
+           args = [WORKSPACE]),
+      Task(name = 'workspace_predict',
+           deps = ['load_online_prediction_parameters', 'workspace_derive'],
+           coro = workspace_predict,
+           args = [WORKSPACE]),
+      Task(name = 'workspace_submit',
+           deps = ['workspace_predict'],
+           coro = workspace_submit_delta,
+           args = [WORKSPACE]),
+      Task(name = 'load_discharge_times',
+           deps = ['contacts_transform'],
+           coro = load_discharge_times),
+          ]
   if suppression == 0:
     all_tasks += [
                   Task(name = 'get_notifications_for_epic',
@@ -707,7 +737,7 @@ def get_tasks(job_id, db_data_task, db_raw_data_task, mode, archive, sqlalchemy_
                        coro = notify_data_ready_to_trews_alert_server)
                   ]
   else:
-    ctxt.log.error("Unknown suppression alert mode: {}".format(suppression))
+    logging.info("No suppression.")
   return all_tasks
 
 def get_tasks_pat_only(job_id, db_data_task, db_raw_data_task, mode, archive, deps=[], suppression=0):

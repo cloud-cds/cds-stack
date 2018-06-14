@@ -321,7 +321,7 @@ class ETL():
     if pt is None:
       logging.warn("No EID found for zid {}".format(zid))
       return None
-    contacts = await extractor.extract_contacts(self.ctxt, [pt], None, idtype='patient')
+    contacts = await extractor.extract_ip_contacts(self.ctxt, [pt], None, idtype='patient')
     # if contacts is None:
     #   contacts = await extractor.extract_contacts(self.ctxt, [pt], None, idtype='patient', dateFromOneYear=True)
     if contacts is None: # NOTE: contacts is None means there is no inpatient encounter

@@ -25,6 +25,8 @@ def extract(df, dict_column, selection_dict):
     new_cols = pd.DataFrame(df[dict_column].tolist())
     new_cols = select_columns(new_cols, selection_dict)
     old_cols = df.drop(dict_column, axis=1)
+    # logging.debug(old_cols)
+    # logging.debug(new_cols)
     return pd.concat([old_cols, new_cols], axis=1)
 
 def concat_str(df, new_col, col_1, col_2, drop_original=True):
@@ -38,11 +40,11 @@ def make_null_time_midnight(df):
     df['time'] = df['time'].apply(lambda x: '12:00 AM' if x is None else x)
     return df
 
-def extract_id_from_list(df, id_column, id_type):
+def extract_id_from_list(df, id_column, id_type, id_name='ID', type_name='Type'):
     def get_id(id_list):
         for x in id_list:
-            if x.get('Type') == id_type:
-                return str(x['ID'])
+            if x.get(type_name) == id_type:
+                return str(x[id_name])
         logging.error('Could not find an ID. Throwing away row.')
         return 'Invalid ID'
 

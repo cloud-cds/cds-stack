@@ -7,6 +7,9 @@ med_regex = [
         'pos': '^albumin human \(PLASBUMIN\)',
         'neg': 'injection|flush syringe|nebulizer',
     }, {
+        'fid': 'aliskiren_dose',
+        'pos': '^aliskiren',
+    }, {
         'fid': 'amlodipine_dose',
         'pos': '^amlodipine.*norvasc',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
@@ -30,6 +33,9 @@ med_regex = [
         'pos': '^atorvastatin',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
     }, {
+        'fid': 'azilsartan_dose',
+        'pos': '^azilsartan',
+    }, {
         'fid': 'azithromycin_dose',
         'pos': '^azithromycin',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
@@ -48,8 +54,17 @@ med_regex = [
         'pos': '^bisoprolol',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
     }, {
+        'fid': 'bumetanide_dose',
+        'pos': '^bumetanide',
+    }, {
+        'fid': 'candesartan_dose',
+        'pos': '^candesartan',
+    }, {
         'fid': 'captopril_dose',
         'pos': '^captopril',
+    }, {
+        'fid': 'carvedilol_dose',
+        'pos': '^carvedilol',
     }, {
         'fid': 'cefazolin_dose',
         'pos': '^cefazolin',
@@ -77,6 +92,12 @@ med_regex = [
         'pos': '^(ceclor|cefaclor|cefamandole|cefonicid|cefotan|cefotetan|cefoxitin|cefprozil|ceftin|cefuroxime|cefzil|kefurox|lorabid|loracarbef|mandol|mefoxin|raniclor|zinacef)',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
     }, {
+        'fid': 'chlorothiazide_dose',
+        'pos': '^chlorothiazide',
+    }, {
+        'fid': 'chlorthalidone_dose',
+        'pos': '^chlorthalidone',
+    }, {
         'fid': 'ciprofloxacin_dose',
         'pos': '^ciprofloxacin',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
@@ -85,6 +106,9 @@ med_regex = [
         'fid': 'clindamycin_dose',
         'pos': '^clindamycin',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop'
+    }, {
+        'fid': 'clonidine_dose',
+        'pos': '^clonidine',
     }, {
         'fid': 'diltiazem_dose',
         'pos': '^(diltiazem|cardizem)',
@@ -113,11 +137,17 @@ med_regex = [
         'pos': 'dopamine',
         'part_of': ['vasopressors_dose']
     }, {
+        'fid': 'doxazosin_dose',
+        'pos': '^doxazosin ',
+    }, {
         'fid': 'enalapril_dose',
         'pos': '^enalapril ',
     }, {
         'fid': 'enalaprilat_dose',
         'pos': 'enalaprilat',
+    }, {
+        'fid': 'eprosartan_dose',
+        'pos': '^eprosartan',
     }, {
         'fid': 'epinephrine_dose',
         'pos': '^epinephrine',
@@ -127,9 +157,24 @@ med_regex = [
         'pos': '^erythromycin',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
     }, {
+        'fid': 'esmilol_dose',
+        'pos': '^esmilol ',
+    }, {
+        'fid': 'exenatide_dose',
+        'pos': '^exenatide ',
+    }, {
         'fid': 'ezetimibe_dose',
         'pos': '^ezetimibe',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
+    }, {
+        'fid': 'felodipine_dose',
+        'pos': '^felodipine ',
+    }, {
+        'fid': 'fosinopril_dose',
+        'pos': '^fosinopril ',
+    }, {
+        'fid': 'furosemide_dose',
+        'pos': '^furosemide ',
     }, {
         'fid': 'gentamicin_dose',
         'pos': '^gentamicin',
@@ -140,6 +185,9 @@ med_regex = [
         'pos': '^(vancocin|dalvanc|orbactiv|vibativ)',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
     },{
+        'fid': 'guanfacine_dose',
+        'pos': 'guanfacine'
+    }, {
         'fid': 'heparin_dose',
         'pos': 'heparin'
     }, {
@@ -147,6 +195,24 @@ med_regex = [
         'pos': '^hetastarch',
         'neg': 'injection|flush syringe|nebulizer',
         # 'part_of': ['fluids_intake'],
+    }, {
+        'fid': 'hydralazine_dose',
+        'pos': '^hydralazine'
+    }, {
+        'fid': 'hydrochlorothiazide_dose',
+        'pos': '^hydrochlorothiazide'
+    }, {
+        'fid': 'irbesartan_dose',
+        'pos': '^irbesartan'
+    }, {
+        'fid': 'indapamide_dose',
+        'pos': '^indapamide'
+    }, {
+        'fid': 'isradipine_dose',
+        'pos': '^isradipine'
+    }, {
+        'fid': 'labetalol_dose',
+        'pos': '^labetalol',
     }, {
         'fid': 'lactated_ringers',
         'pos': '^lactated ringers|^dextrose 5( %|%) in lactated ringers bolus',
@@ -171,26 +237,44 @@ med_regex = [
         'pos': '^linezolid',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
     }, {
+        'fid': 'losartan_dose',
+        'pos': 'losartan',
+    }, {
         'fid': 'macrolides_dose',
         'pos': '^(azithromycin|biaxin|clarithromycin|dificid|dirithromycin|dynabac|e\.e\.s\.|e-mycin|ery|eryc|eryped|ery-tab|erythrocin|erythrocot|erythromycin|eryzole|fidaxomicin|pce|pediazole|tao|troleandomycin|zithromax|zmax)',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
     }, {
+        'fid': 'minoxidil_dose',
+        'pos': 'minoxidil',
+    }, {
         'fid': 'norepinephrine_dose',
         'pos': '^norepinephrine',
         'part_of': ['vasopressors_dose']
+    }, {
+        'fid': 'meglitinide_dose',
+        'pos': '^meglitinide',
     }, {
         'fid': 'meropenem_dose',
         'pos': '^meropenem',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
         'part_of': ['cms_antibiotics']
     }, {
+        'fid': 'methcyclothiazide_dose',
+        'pos': '^methcyclothiazide',
+    }, {
         'fid': 'metoprolol_dose',
         'pos': 'metoprolol',
+    }, {
+        'fid': 'metformin_dose',
+        'pos': 'metformin',
     }, {
         'fid': 'metronidazole_dose',
         'pos': '^metronidazole',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
         'part_of': ['cms_antibiotics'],
+    }, {
+        'fid': 'methyldopa_dose',
+        'pos': 'methyldopa',
     }, {
         'fid': 'milrinone_dose',
         'pos': '^milrinone',
@@ -216,6 +300,12 @@ med_regex = [
         'pos': 'nifedipine',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
     }, {
+        'fid': 'nisoldipine_dose',
+        'pos': '^nisoldipine',
+    }, {
+        'fid': 'olmesartan_dose',
+        'pos': '^olmesaratn',
+    }, {
         'fid': 'oxacillin_dose',
         'pos': '^oxacillin',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
@@ -237,11 +327,17 @@ med_regex = [
         'pos': '^pravastatin',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
     }, {
+        'fid': 'prazosin_dose',
+        'pos': 'prazosin'
+    }, {
         'fid': 'propofol_dose',
         'pos': 'propofol'
     }, {
         'fid': 'propranolol_dose',
         'pos': 'propranolol'
+    }, {
+        'fid': 'ramipril_dose',
+        'pos': '^ramipril'
     }, {
         'fid': 'rifampin_dose',
         'pos': '^rifampin',
@@ -251,9 +347,15 @@ med_regex = [
         'pos': '^rosuvastatin',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
     }, {
+        'fid': 'semaglutide_dose',
+        'pos': '^semaglutide'
+    }, {
         'fid': 'simvastatin_dose',
         'pos': '^simvastatin',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
+    }, {
+        'fid': 'sitagliptin_dose',
+        'pos': '^sitagliptin'
     }, {
         'fid': 'sodium_bicarbonate',
         'pos': '^sodium bicarbonate.*infusion$',
@@ -267,9 +369,33 @@ med_regex = [
         # 'part_of': ['fluids_intake', 'crystalloid_fluid'],
         'part_of': ['crystalloid_fluid'],
     }, {
+        'fid': 'sotalol_dose',
+        'pos': '^sotalol'
+    }, {
+        'fid': 'spironolactone_dose',
+        'pos': '^spironolactone'
+    }, {
+        'fid': 'sulfonyulurea_dose',
+        'pos': '^sulfonylurea'
+    }, {
+        'fid': 'telmisartan_dose',
+        'pos': '^telmisartan'
+    }, {
+        'fid': 'terazosin_dose',
+        'pos': '^terazosin'
+    }, {
+        'fid': 'thiazolidenedione_dose',
+        'pos': '^thiazolidenedione'
+    }, {
         'fid': 'tobramycin_dose',
         'pos': '^tobramycin',
         'neg': 'gel|vaginal|cream|ophthalmic|ointment|nebulizer|drop',
+    }, {
+        'fid': 'triamterene_dose',
+        'pos': '^triamterene'
+    }, {
+        'fid': 'valsartan_dose',
+        'pos': '^valsartan'
     }, {
         'fid': 'vancomycin_dose',
         'pos': '^vancomycin',
@@ -285,6 +411,9 @@ med_regex = [
     }, {
         'fid': 'warfarin_dose',
         'pos': 'warfarin.* tablet'
+    },
+        'fid': 'ziac_dose',
+        'pos': 'ziac'
     },
     {'fid':'rivastigmine_dose', 'pos':'rivastigmine'},
     {'fid':'pantoprazole_dose', 'pos':'pantoprazole'},

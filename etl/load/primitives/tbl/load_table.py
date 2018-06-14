@@ -6,10 +6,10 @@ async def data_2_workspace(logger, conn, job_id, df_name, df, dtypes=None, if_ex
     if df is None or df.empty or len(df) == 0:
         logger.error('Failed to load table {} (invalid dataframe)'.format(df_name))
         return
-
+    logger.debug("data_2_workspace {}: {} {}".format(df_name, df, type(df)))
+    logger.debug("data_2_workspace {}: {}".format(df_name, df.columns))
     nrows = len(df)
     table_name = "{}_{}".format(job_id, df_name)
-
     cols = ",".join([ "{} text".format(col) for col in df.columns.values.tolist()])
     prepare_table = \
     """DROP table if exists %(workspace)s.%(tab)s;

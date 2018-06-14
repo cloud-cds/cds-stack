@@ -39,6 +39,44 @@ ed_patients_transforms = [
     lambda bp: restructure.extract_id_from_list(bp, 'pat_id', 'EMRN')
 ]
 
+systemlist_transforms = [
+    lambda pl: restructure.extract(pl, 'Patients', {
+        'Age': 'age',
+        'Name': 'name',
+        'Sex': 'gender',
+        'PatientID': 'pat_id'}),
+    lambda pl: restructure.extract_id_from_list(
+        pl, 'pat_id', 'EMRN', type_name='PatientIDType', id_name='PatientID'),
+    lambda pl: format_data.format_age(pl, 'age'),
+    lambda pl: format_data.format_gender_to_string(pl, 'gender'),
+]
+
+csn_transforms = [
+    lambda ct: restructure.extract(ct, 'Contacts', {
+        'DateTime': 'dt',
+        'Type': 'type',
+        'DepartmentName': 'dept_name',
+        'IDs': 'visit_id',
+        'PatientClass': 'patient_class'
+        }),
+    lambda ct: restructure.extract_id_from_list(ct, 'visit_id', 'CSN'),
+    # NOTE: here simply select the latest CSN ID for each patient
+    lambda ct: ct[ct.groupby(['pat_id'])['dt'].transform(max) == ct['dt']].reset_index()
+]
+
+active_problem_list_transforms = [
+    lambda pl: restructure.select_columns(pl, {
+        'pat_id':   'pat_id',
+        'visit_id': 'visit_id',
+        'DiagnosisIDs': 'dx_ids',
+        'ProblemName': 'prob_name',
+        'DateEntered': 'tsp',
+        }),
+    lambda pl: restructure.extract(pl, 'dx_ids', {'Diagnosis': 'dx_id'}),
+    lambda pl: format_data.format_active_problem_list(pl),
+    lambda pl: format_data.json_encode(pl, 'active_problem_list')
+]
+
 chiefcomplaint_transforms = [
     lambda cc: restructure.select_columns(cc, {
         'pat_id':   'pat_id',
@@ -104,6 +142,142 @@ flowsheet_transforms = [
     # ),
 ]
 
+flowsheetrows_transforms = [
+    lambda fs: restructure.select_columns(fs, {
+        'pat_id':           'pat_id',
+        'visit_id':         'visit_id',
+        'FlowsheetRowID':   'flowsheet_id',
+        'FlowsheetColumns': 'flowsheet_columns',
+        'Unit':             'unit',
+        'Name':             'name',
+    }),
+    lambda fs: restructure.extract_id_from_list(fs, 'flowsheet_id', 'INTERNAL'),
+    lambda fs: restructure.unlist(fs, 'flowsheet_columns'),
+    lambda fs: restructure.extract(fs, 'flowsheet_columns', {
+        'Instant':          'tsp',
+        'RawValue':         'value',
+    }),
+    lambda fs: translate.translate_epic_id_to_fid(fs,
+        col = 'flowsheet_id', new_col = 'fid',
+        config_map = flowsheet_ids,
+        drop_original = True,
+    ),
+    lambda fs: format_data.clean_units(fs, 'fid', 'unit'),
+    lambda fs: translate.convert_weight_value_to_float(fs, 'fid', 'value', 'weight'),
+    lambda fs: format_data.clean_values(fs, 'fid', 'value'),
+    lambda fs: translate.extract_sys_dias_from_bp(fs, 'fid', 'value', 'nbp'),
+    lambda fs: translate.extract_sys_dias_from_bp(fs, 'fid', 'value', 'abp'),
+    lambda fs: translate.convert_units(fs,
+        fid_col = 'fid', fids = ['temperature'],
+        unit_col = 'unit', from_unit = 'Celcius', to_unit = 'Fahrenheit',
+        value_col = 'value', convert_func = translate.celcius_to_fahrenheit
+    ),
+    lambda fs: translate.convert_units(fs,
+        fid_col = 'fid', fids = ['rass'],
+        unit_col = 'unit', from_unit = '', to_unit = '',
+        value_col = 'value', convert_func = translate.rass_str_to_number
+    ),
+    lambda fs: translate.convert_units(fs,
+        fid_col = 'fid', fids = ['dialysis'],
+        unit_col = 'unit', from_unit = '', to_unit = '',
+        value_col = 'value', convert_func = translate.ml_to_boolean
+    ),
+    lambda fs: format_data.filter_to_final_units(fs, 'unit'),
+    lambda fs: format_data.threshold_values(fs, 'value'),
+    lambda fs: translate.convert_to_boolean(fs, 'fid', 'value', 'dialysis')
+    # lambda fs: derive.sum_values_at_same_tsp(fs,
+    #     ['urine_output', 'fluids_intake']
+    # ),
+]
+
+medications_transforms = [
+    lambda mo: restructure.select_columns(mo, {
+        'pat_id':           'pat_id',
+        'visit_id':         'visit_id',
+        'MedicationOrders': 'orders',
+    }),
+    lambda mo: restructure.extract(mo, 'orders', {
+        'StartDateTime':         'tsp',
+        'Name':                 'full_name',
+        'PatientFriendlyName':  'friendly_name',
+        'OrderedDose':          'dose',
+        'OrderedDoseUnit':      'dose_unit',
+        'Frequency':            'frequency',
+        'IDs':                  'ids',
+        'DiscontinueInstant':   'discontinue_tsp',
+        'EndDateTime':          'end_tsp',
+        'OrderMode':            'order_mode'
+    }),
+    lambda mo: restructure.extract(mo, 'dose_unit', {'Title': 'dose_unit'}),
+    lambda mo: restructure.extract(mo, 'frequency', {'Name': 'frequency'}),
+    lambda mo: translate.translate_med_name_to_fid(mo),
+    # lambda mo: filter_rows.filter_medications(mo),
+    # lambda mo: format_data.clean_units(mo, 'fid', 'dose_unit'),
+    lambda mo: format_data.to_numeric(mo, 'fid', 'dose', default_value=99),
+    lambda mo: translate.convert_units(mo,
+        fid_col = 'fid',
+        fids = ['piperacillin_tazobac_dose', 'vancomycin_dose',
+                'cefazolin_dose', 'cefepime_dose', 'ceftriaxone_dose',
+                'ampicillin_dose'],
+        unit_col = 'dose_unit', from_unit = 'g', to_unit = 'mg',
+        value_col = 'dose', convert_func = translate.g_to_mg
+    ),
+    # lambda mo: derive.combine(mo, 'fluids_intake', fluids_intake_fids),
+    lambda mo: derive.combine(mo, 'vasopressors_dose', vasopressors_fids),
+    lambda mo: derive.combine(mo, 'crystalloid_fluid', crystalloid_fluid_fids),
+    lambda mo: derive.combine(mo, 'cms_antibiotics', cms_antibiotics_fids),
+    lambda mo: format_data.add_order_to_fid(mo),
+    # lambda mo: format_data.threshold_values(mo, 'dose'),
+    lambda mo: format_data.tsp_to_datetime(mo, 'tsp'),
+    lambda mo: format_data.tsp_to_datetime(mo, 'end_tsp'),
+    lambda mo: format_data.tsp_to_datetime(mo, 'discontinue_tsp')
+]
+
+medicationadministrationhistory_transforms = [
+    lambda ma: restructure.extract(ma, 'Orders', {
+        'MedicationAdministrations': 'admin',
+    }),
+    lambda ma: restructure.unlist(ma, 'admin'),
+    lambda ma: restructure.extract(ma, 'admin', {
+        'Action':                   'action',
+        'Dose':                     'dose',
+        'Rate':                     'rate',
+        'AdministrationInstant':    'tsp',
+    }),
+    lambda ma: restructure.extract(ma, 'dose', {
+        'Value':    'dose_value',
+        'Unit':     'dose_unit',
+    }),
+    lambda ma: restructure.extract(ma, 'rate', {
+        'Value':    'rate_value',
+        'Unit':     'rate_unit',
+    }),
+    # lambda ma: translate.translate_med_name_to_fid(ma),
+    # lambda ma: filter_rows.filter_medications(ma),
+    #lambda ma: filter_rows.filter_stopped_medications(ma),
+    #lambda ma: translate.override_empty_doses_with_rates(ma, fid_col='fid', fids=['sodium_bicarbonate']),
+    #lambda ma: filter_rows.filter_by_doses(ma),
+    lambda ma: translate.convert_units(ma,
+        fid_col = 'fid',
+        fids = ['piperacillin_tazobac_dose', 'vancomycin_dose',
+                'cefazolin_dose', 'cefepime_dose', 'ceftriaxone_dose',
+                'ampicillin_dose'],
+        unit_col = 'dose_unit', from_unit = 'g', to_unit = 'mg',
+        value_col = 'dose_value', convert_func = translate.g_to_mg
+    ),
+    lambda ma: translate.convert_units(ma,
+       fid_col = 'fid',
+       fids = crystalloid_fluid_fids,
+       unit_col = 'dose_unit', from_unit = 'mL/hr', to_unit = 'mL',
+       value_col = 'dose_value', convert_func = translate.ml_per_hr_to_ml_for_1hr
+    ),
+    # lambda ma: derive.combine(ma, 'fluids_intake', fluids_intake_fids),
+    lambda ma: derive.combine(ma, 'vasopressors_dose', vasopressors_fids),
+    lambda ma: derive.combine(ma, 'crystalloid_fluid', crystalloid_fluid_fids),
+    lambda ma: derive.combine(ma, 'cms_antibiotics', cms_antibiotics_fids),
+    # lambda ma: format_data.threshold_values(ma, 'dose_value')
+]
+
 active_procedures_transforms = [
     lambda lo: restructure.select_columns(lo, {
         'pat_id':                   'pat_id',
@@ -156,6 +330,44 @@ lab_orders_transforms = [
 ]
 
 lab_results_transforms = [
+    lambda lr: restructure.select_columns(lr, {
+        'pat_id':           'pat_id',
+        'visit_id':         'visit_id',
+        'ComponentID':      'component_id',
+        'CollectionDate':   'date',
+        'CollectionTime':   'time',
+        'ResultDate':       'res_date',
+        'ResultTime':       'res_time',
+        'Value':            'value',
+        'Units':            'unit',
+    }),
+    lambda lr: restructure.unlist(lr, 'value'),
+    lambda lr: restructure.make_null_time_midnight(lr), # TEMPORARY WORKAROUND
+    lambda lr: restructure.concat_str(lr, 'tsp', 'date', 'time'),
+    lambda lr: restructure.concat_str(lr, 'res_tsp', 'res_date', 'res_time'),
+    lambda lr: translate.translate_epic_id_to_fid(lr,
+        col = 'component_id', new_col = 'fid',
+        config_map = component_ids,
+        drop_original = True,
+    ),
+    lambda lr: format_data.filter_empty_values(lr, 'tsp'),
+    lambda lr: format_data.clean_units(lr, 'fid', 'unit'),
+    lambda lr: format_data.clean_values(lr, 'fid', 'value'),
+    lambda lr: format_data.threshold_values(lr, 'value'),
+    lambda lr: translate.convert_units(lr,
+        fid_col = 'fid',
+        fids = ['ddimer'],
+        unit_col = 'unit', from_unit = 'mg/L', to_unit = 'mg/L FEU',
+        value_col = 'value',
+        convert_func = translate.mg_per_l_to_mg_per_l_feu
+    ),
+    lambda lr: format_data.filter_to_final_units(lr, 'unit'),
+    lambda lr: format_data.format_tsp(lr, 'tsp'),
+    lambda lr: format_data.format_tsp(lr, 'res_tsp'),
+    lambda lr: derive.use_correct_tsp(lr, first='tsp', second='res_tsp'),
+]
+
+lab_component_transforms = [
     lambda lr: restructure.select_columns(lr, {
         'pat_id':           'pat_id',
         'visit_id':         'visit_id',
@@ -332,3 +544,4 @@ contacts_transforms = [
     }),
     lambda c: format_data.format_tsp(c, 'discharge_date', no_NaT=True),
 ]
+

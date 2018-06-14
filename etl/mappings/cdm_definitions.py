@@ -26,6 +26,12 @@ cdm_defs = {
         'thresh':   (None, None),
         'human_readable':   'Albumin',
     },
+    'aliskiren_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Aliskiren',
+    },
     'acebutolol_dose': {
         'unit':     '',
         'value':    float,
@@ -92,6 +98,12 @@ cdm_defs = {
         'thresh':   (None, None),
         'human_readable':   'Atorvastatin',
     },
+    'azilsartan_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Azilsartan',
+    },
     'azithromycin_dose': {
         'unit':     '',
         'value':    float,
@@ -146,6 +158,12 @@ cdm_defs = {
         'thresh':   (None, None),
         'human_readable':   'Blood Cultures',
     },
+    'bumetanide_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Bumetanide',
+    },
     'bun': {
         'unit':     'mg/dL',
         'value':    float,
@@ -158,11 +176,23 @@ cdm_defs = {
         'thresh':   (None, None),
         'human_readable':   'BUN to Creatinine Ratio',
     },
+    'candesartan_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Candesartan',
+    },
     'captopril_dose': {
         'unit':     '',
         'value':    float,
         'thresh':   (None, None),
         'human_readable':   'Captopril',
+    },
+    'carvedilol_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Carvedilol',
     },
     'cefazolin_dose': {
         'unit':     'mg',
@@ -200,6 +230,18 @@ cdm_defs = {
         'thresh':   (None, None),
         'human_readable':   'Cephalosporins 2ND Generation',
     },
+    'chlorothiazide_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Chlorothiazide',
+    },
+    'chlorthalidone_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Chlorthalidone',
+    },
     'ciprofloxacin_dose': {
         'unit':     'mg',
         'value':    float,
@@ -211,6 +253,12 @@ cdm_defs = {
         'value':    float,
         'thresh':   (None, None),
         'human_readable':   'Clindamycin',
+    },
+    'clonidine_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Clonidine',
     },
     'cms_antibiotics': {
         'unit':     'mg',
@@ -278,6 +326,12 @@ cdm_defs = {
         'thresh':   (None, None),
         'human_readable':   'Dobutamine',
     },
+    'doxazosin_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Doxazosin',
+    },
     'diltiazem_dose': {
         'unit':     'mg',
         'value':    float,
@@ -308,17 +362,53 @@ cdm_defs = {
         'thresh':   (None, None),
         'human_readable':   'Epinephrine',
     },
+    'eprosartan_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Eprosartan',
+    },
     'erythromycin_dose': {
         'unit':     'mg',
         'value':    float,
         'thresh':   (None, None),
         'human_readable':   'Erythromycin',
     },
+    'esmilol_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Esmilol',
+    },
+    'exenatide_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Exenatide',
+    },
     'ezetimibe_dose': {
         'unit':     'mg',
         'value':    float,
         'thresh':   (None, None),
         'human_readable':   'Ezetimibe',
+    },
+    'felodipine_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Felodipine',
+    },
+    'fosinopril_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Fosinopril',
+    },
+    'furosemide_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Furosemide',
     },
     'fio2': {
         'unit':     '%',
@@ -350,6 +440,12 @@ cdm_defs = {
         'thresh':   (None, None),
         'human_readable':   'Glycopeptides'
     },
+    'guanfacine_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Guanfacine',
+    },
     'heart_rate': {
         'unit':     'beats per min',
         'value':    float,
@@ -373,6 +469,48 @@ cdm_defs = {
         'value':    float,
         'thresh':   (None, None),
         'human_readable':   'Hetastarch',
+    },
+    'hydralazine_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Hydralazine',
+    },
+    'hydrochlorothiazide_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Hydrochlorothiazide',
+    },
+    'irbesartan_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Irbesartan',
+    },
+    'indapamide_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Indapamide',
+    },
+    'isradipine_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Isradipine',
+    },
+    'labetalol_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Labetalol',
+    },
+    'losartan_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Losartan',
     },
     'inr': {
         'unit':     'Ratio',
@@ -440,6 +578,30 @@ cdm_defs = {
         'thresh':   (None, None),
         'human_readable':   'MAPM',
     },
+    'meglitinide_dose': {
+        'unit':     'mg',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Meglitinide',
+    },
+    'methcyclothiazide_dose': {
+        'unit':     'mg',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Methcyclothiazide',
+    },
+    'metformin_dose': {
+        'unit':     'mg',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Metformin',
+    },
+    'methyldopa_dose': {
+        'unit':     'mg',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Methyldopa',
+    },
     'meropenem_dose': {
         'unit':     'mg',
         'value':    float,
@@ -463,6 +625,12 @@ cdm_defs = {
         'value':    float,
         'thresh':   (None, None),
         'human_readable':   'Milrinone',
+    },
+    'minoxidil_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Minoxidil',
     },
     'moxifloxacin_dose': {
         'unit':     'mg',
@@ -511,6 +679,18 @@ cdm_defs = {
         'value':    float,
         'thresh':   (None, None),
         'human_readable':   'Nifedipine',
+    },
+    'nisoldipine_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Nisoldipine',
+    },
+    'olmesartan_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Olmesartan',
     },
     'norepinephrine_dose': {
         'unit':     '',
@@ -572,6 +752,12 @@ cdm_defs = {
         'thresh':   (None, None),
         'human_readable':   'Pravastatin',
     },
+    'prazosin_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Prazosin',
+    },
     'propofol_dose': {
         'unit':     'mg',
         'value':    float,
@@ -589,6 +775,12 @@ cdm_defs = {
         'value':    float,
         'thresh':   (None, None),
         'human_readable':   'Rapamycin',
+    },
+    'ramipril_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Ramipril',
     },
     'rass': {
         'unit':     '',
@@ -614,6 +806,18 @@ cdm_defs = {
         'thresh':   (None, None),
         'human_readable':   'Rosuvastatin',
     },
+    'semaglutide_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Semaglutide',
+    },
+    'sitagliptin_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Sitagliptin',
+    },
     'simvastatin_dose': {
         'unit':     'mg',
         'value':    float,
@@ -637,6 +841,54 @@ cdm_defs = {
         'value':    float,
         'thresh':   (None, None),
         'human_readable':   'Saline',
+    },
+    'sotalol_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Sotalol',
+    },
+    'spironolactone_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Spironolactone',
+    },
+    'sulfonyulurea_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Sulfonyulurea',
+    },
+    'telmisartan_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Telmisartan',
+    },
+    'terazosin_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Terazosin',
+    },
+    'thiazolidenedione_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Thiazolidenedione',
+    },
+    'triamterene_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Triamterene',
+    },
+    'valsartan_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Valsartan',
     },
     'spo2': {
         'unit':     '%',
@@ -769,6 +1021,12 @@ cdm_defs = {
         'value':    float,
         'thresh':   (None, None),
         'human_readable':   'Potassium',
+    },
+    'ziac_dose': {
+        'unit':     '',
+        'value':    float,
+        'thresh':   (None, None),
+        'human_readable':   'Ziac',
     },
     'rivastigmine_dose': {'unit':'mg', 'value':float, 'thresh': (None, None), 'human_readable':'Rivastigmine'},
     'pantoprazole_dose': {'unit':'mg', 'value':float, 'thresh': (None, None), 'human_readable':'Pantoprazole'},
