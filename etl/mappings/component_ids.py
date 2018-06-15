@@ -168,5 +168,50 @@ component_ids = [
         '6000000385', '7000002306', '7100000224', '7200000037', '7200002559', '8100000246',
         '8100004428', '8200000023', '8200005218', '9000000154', '9000000299', '9000000452',
         '9700000001',
-    ])
+    ]),
+    ("external_diabetes_eye_exam", [
+        '259'
+    ]),
+    ("external_hm_diabetes_foot_exam", [
+        '260'
+    ]),
+    ("heart_rate_at_rest_without_o2", [
+        '315'
+    ]),
+    ("sao2_during_exercise_with_o2", [
+        '318'
+    ]),
+    ("predicted_fev1", [
+        '345'
+    ]),
+    ("fev1_ratio", [
+        '349'
+    ]),
+    ("mvv", [
+        '350'
+    ]),
+    ("predicted_vo2", [
+        '351'
+    ]),
+    ("percent_of_predicted_vo2_max", [
+        '352'
+    ]),
+    ("dyspnea_index", [
+        '355'
+    ]),
+    ("end_systolic", [
+        '360'
+    ]),
+    ("end_diastolic", [
+        '361'
+    ]),
+    ("hm_diabetes_eye_exam", [
+        '790'
+    ]),
+    ("hm_diabetes_foot_exam", [
+        '790'
+    ]),
+    ("a1c", [
+        '1810006'
+    ]),
 ]
