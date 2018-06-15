@@ -978,13 +978,6 @@ select value from parameters where name = key;
 $$
 LANGUAGE sql;
 
-CREATE OR REPLACE FUNCTION get_trews_parameter(key text)
-RETURNS real as
-$$
-select value from trews_parameters where name = key;
-$$
-LANGUAGE sql;
-
 CREATE OR REPLACE FUNCTION reset_parameter()
 RETURNS void as
 $$
@@ -4996,6 +4989,410 @@ WHERE fid = 'admittime'
 ORDER BY now() - value::timestamptz
 ; END $func$ LANGUAGE plpgsql;
 
+create or replace function epic_to_cdm(job_id text, workspace text default 'workspace', keep_delta_table boolean default true)
+returns integer as $func$
+declare
+    num_delta integer;
+BEGIN
+execute
+'--insert new jobs
+insert into etl_job (job_id, tsp, hospital, workspace)
+    values (''' || job_id ||''',
+            to_timestamp(''' || split_part(job_id, '_', 4) || ''', ''YYYYMMDDHH24MISS''),
+            ''' || split_part(job_id, '_', 3) || ''',
+            ''' || workspace || ''')
+on conflict (job_id) do update set tsp = excluded.tsp, hospital = excluded.hospital, workspace = excluded.workspace;';
+
+if to_regclass('' || workspace || '.' || job_id || '_patients_transformed') is not null then
+    if job_id ~* 'push' then
+        execute '
+        --insert_new_patients
+        insert into pat_enc (pat_id, visit_id, zid)
+        select bp.pat_id, bp.visit_id, bp.zid
+        from ' || workspace || '.' || job_id || '_patients_transformed bp
+        left join pat_enc pe on bp.visit_id = pe.visit_id and bp.zid = pe.zid
+        where pe.enc_id is null
+        on conflict (visit_id, pat_id)
+        do update set zid = excluded.zid;';
+    else
+        execute '
+        --insert_new_patients
+        insert into pat_enc (pat_id, visit_id)
+        select bp.pat_id, bp.visit_id
+        from ' || workspace || '.' || job_id || '_patients_transformed bp
+        left join pat_enc pe on bp.visit_id = pe.visit_id
+        where pe.enc_id is null
+        on conflict (visit_id, pat_id)
+        do nothing;';
+    end if;
+    execute '
+    -- age
+    INSERT INTO ' || workspace || '.cdm_s (job_id, enc_id, fid, value, confidence)
+    select '''|| job_id ||''', pe.enc_id, ''age'', bp.age, 1 as c from ' || workspace || '.' || job_id || '_patients_transformed bp
+        inner join pat_enc pe on pe.visit_id = bp.visit_id
+        where bp.age is not null and bp.age <> ''nan''
+    ON CONFLICT (job_id, enc_id, fid)
+    DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+
+    -- gender
+    INSERT INTO ' || workspace || '.cdm_s (job_id, enc_id, fid, value, confidence)
+    select '''|| job_id ||''', pe.enc_id, ''gender'', bp.gender::numeric::int, 1 as c from ' || workspace || '.' || job_id || '_patients_transformed bp
+        inner join pat_enc pe on pe.visit_id = bp.visit_id
+        where bp.gender is not null and isnumeric(bp.gender) and lower(bp.gender) <> ''nan''
+    ON CONFLICT (job_id, enc_id, fid)
+    DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+
+    -- -- diagnosis
+    -- INSERT INTO ' || workspace || '.cdm_s (job_id, enc_id, fid, value, confidence)
+    -- select job_id, enc_id, fid, (case when value = ''true'' then ''True'' else value end) as value, confidence
+    -- from
+    -- (select '''|| job_id ||''' as job_id, pe.enc_id, json_object_keys(diagnosis::json) as fid, (diagnosis::json)->>(json_object_keys(diagnosis::json)) as value, 1 as confidence
+    -- from ' || workspace || '.' || job_id || '_patients_transformed bp
+    --     inner join pat_enc pe on pe.visit_id = bp.visit_id
+    -- where diagnosis is not null and diagnosis <> ''nan'') as D
+    -- ON CONFLICT (job_id, enc_id, fid)
+    -- DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+
+    -- -- problem
+    -- INSERT INTO ' || workspace || '.cdm_s (job_id, enc_id, fid, value, confidence)
+    -- select '''|| job_id ||''', * from
+    -- (select pe.enc_id, json_object_keys(problem_all::json) fid, ''True'', 1
+    -- from ' || workspace || '.' || job_id || '_patients_transformed bp
+    --     inner join pat_enc pe on pe.visit_id = bp.visit_id
+    -- where problem_all is not null and problem_all <> ''nan'') PL
+    -- where not fid in (''gi_bleed_inhosp'',''stroke_inhosp'')
+    -- ON CONFLICT (job_id, enc_id, fid)
+    -- DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+
+    -- active problem
+    INSERT INTO ' || workspace || '.cdm_t (job_id, enc_id, tsp, fid, value, confidence)
+    select '''|| job_id ||''', * from
+    (select pe.enc_id, tsp::timestamptz, ''active_problem'', active_problem_list, 1
+    from ' || workspace || '.' || job_id || '_problem_list_transformed bp
+        inner join pat_enc pe on pe.visit_id = bp.visit_id
+    ) PL
+    ON CONFLICT (job_id, enc_id, tsp, fid)
+    DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+
+
+    -- patient class
+    INSERT INTO ' || workspace || '.cdm_s (job_id, enc_id, fid, value, confidence)
+    select '''|| job_id ||''', pe.enc_id, ''patient_class'', patient_class, 1
+    from ' || workspace || '.' || job_id || '_patients_transformed bp
+        inner join pat_enc pe on pe.visit_id = bp.visit_id
+    where patient_class is not null and patient_class <> ''nan''
+    ON CONFLICT (job_id, enc_id, fid)
+    DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+    ';
+end if;
+
+-- if to_regclass('' || workspace || '.' || job_id || '_location_history_transformed') is not null then
+--     execute '
+--     -- workspace_location_history_2_cdm_t
+--     INSERT INTO ' || workspace || '.cdm_t (job_id, enc_id, tsp, fid, value, confidence)
+--     select '''|| job_id ||''', pat_enc.enc_id, lr.tsp::timestamptz, lr.fid, lr.value, 0 from ' || workspace || '.' || job_id || '_location_history_transformed lr
+--         inner join pat_enc on pat_enc.visit_id = lr.visit_id
+--     where lr.tsp <> ''NaT'' and lr.tsp::timestamptz < now()
+--     ON CONFLICT (job_id, enc_id, tsp, fid)
+--        DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+--     ';
+-- end if;
+
+-- if to_regclass('' || workspace || '.' || job_id || '_discharged') is not null then
+--     execute '
+--     INSERT INTO ' || workspace || '.cdm_t (job_id, enc_id, tsp, fid, value, confidence)
+--     select distinct '''|| job_id ||''', pat_enc.enc_id, disc.tsp::timestamptz, disc.fid, disc.value, 0 from ' || workspace || '.' || job_id || '_discharged disc
+--         inner join pat_enc on pat_enc.visit_id = disc.visit_id
+--     where disc.tsp <> ''NaT'' and disc.tsp::timestamptz < now()
+--     ON CONFLICT (job_id, enc_id, tsp, fid)
+--        DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+--     ';
+-- end if;
+
+-- -- chief_complaint
+-- if to_regclass('' || workspace || '.' || job_id || '_chiefcomplaint_transformed') is not null then
+--     execute
+--     'insert into ' || workspace || '.cdm_s (job_id, enc_id, fid, value, confidence)
+--     select '''|| job_id ||''', pe.enc_id, ''chief_complaint'', last(cc.value), 1
+--     from ' || workspace || '.' || job_id || '_chiefcomplaint_transformed cc
+--     inner join pat_enc pe on pe.visit_id = cc.visit_id
+--     group by pe.enc_id
+--     on conflict (job_id, enc_id, fid)
+--     do update set value = Excluded.value, confidence = excluded.confidence';
+-- end if;
+
+-- -- treatment team
+-- if to_regclass('workspace.' || job_id || '_treatmentteam_transformed') is not null then
+--     execute
+--     'with treatment_team_raw as (
+--         select pe.enc_id, json_array_elements(tt.value::json) tt_json, tt.value
+--         from workspace.' || job_id || '_treatmentteam_transformed tt
+--         inner join pat_enc pe on pe.visit_id = tt.visit_id
+--         where tt.value <> ''[]''
+--     ),
+--     treatment_team as (
+--         select enc_id, greatest(max((tt_json->>''start'')::timestamptz) filter (where tt_json->>''start'' <> ''''),
+--                                 max((tt_json->>''end'')::timestamptz) filter (where tt_json->>''end'' <> '''')) tsp,
+--             first(value) as value
+--         from treatment_team_raw ttr
+--         group by enc_id
+--     )
+--     insert into ' || workspace || '.cdm_t (job_id, enc_id, tsp, fid, value, confidence)
+--     select '''|| job_id ||''', enc_id, tsp, ''treatment_team'', value, 1
+--     from treatment_team where tsp is not null
+--     on conflict (job_id, enc_id, tsp, fid)
+--     do update set value = Excluded.value, confidence = Excluded.confidence';
+-- end if;
+
+-- med_orders
+if to_regclass('' || workspace || '.' || job_id || '_med_orders_transformed') is not null then
+    execute
+    'INSERT INTO ' || workspace || '.cdm_t (job_id, enc_id, tsp, fid, value, confidence)
+    select '''|| job_id ||''', enc_id, tsp::timestamptz, fid,
+    json_build_object(
+        ''dose'', last(mo.dose order by mo.tsp),
+        ''discontinue_tsp'', last((case when mo.discontinue_tsp = ''None'' then null else mo.discontinue_tsp end) order by mo.tsp),
+        ''end_tsp'', last((case when mo.end_tsp = ''None'' then null else mo.end_tsp end) order by mo.tsp),
+        ''order_mode'', last(mo.order_mode order by mo.tsp)
+    ),
+    0
+    from ' || workspace || '.' || job_id || '_med_orders_transformed mo
+    inner join pat_enc p on mo.visit_id = p.visit_id
+    where tsp <> ''NaT'' and tsp::timestamptz < now() and mo.dose is not null and mo.dose <> ''''
+    group by enc_id, tsp, fid
+    ON CONFLICT (job_id, enc_id, tsp, fid)
+    DO UPDATE SET value = EXCLUDED.value, confidence=0';
+end if;
+
+-- -- active_procedures
+-- -- modify existing but inactive ones
+-- if to_regclass('' || workspace || '.' || job_id || '_active_procedures_transformed') is not null then
+--     execute
+--     'INSERT INTO ' || workspace || '.cdm_t (job_id, enc_id, tsp, fid, value, confidence)
+--     select '''|| job_id ||''', t.enc_id, t.tsp, t.fid,
+--         jsonb_build_object(''status'',
+--             last(case when t.value ~ ''status'' then (t.value::json)#>>''{status}'' else t.value end),
+--             ''name'',
+--             last(case when t.value ~ ''name'' then (t.value::json)#>>''{name}'' else t.fid end),
+--             ''discontinue_tsp'', now(), ''end_tsp'', now()),
+--     0
+--     from cdm_t t inner join pat_enc p on t.enc_id = p.enc_id
+--     inner join ' || workspace || '.' || job_id || '_active_procedures_transformed p2
+--         on p.visit_id = p2.visit_id
+--     left join ' || workspace || '.' || job_id || '_active_procedures_transformed lo
+--         on lo.visit_id = p.visit_id and lo.fid = t.fid and lo.tsp::timestamptz = t.tsp
+--     where lo.tsp is null and (t.value !~ ''end_tsp'' or (t.value::json)#>>''{end_tsp}'' is null)
+--     and t.fid in (''lactate_order'', ''blood_culture_order'')
+--     group by t.enc_id, t.tsp, t.fid
+--     ON CONFLICT (job_id, enc_id, tsp, fid)
+--     DO UPDATE SET value = EXCLUDED.value, confidence=0;
+
+--     -- insert currently acitve ones
+--     INSERT INTO ' || workspace || '.cdm_t (job_id, enc_id, tsp, fid, value, confidence)
+--     select '''|| job_id ||''', enc_id, tsp::timestamptz, fid, jsonb_build_object(''status'', last(lo.status order by lo.tsp)), 0
+--     from ' || workspace || '.' || job_id || '_active_procedures_transformed lo
+--     inner join pat_enc p on lo.visit_id = p.visit_id
+--     where tsp <> ''NaT'' and tsp::timestamptz < now() -- and fid in (''lactate_order'', ''blood_culture_order'')
+--     group by enc_id, tsp, fid
+--     ON CONFLICT (job_id, enc_id, tsp, fid)
+--     DO UPDATE SET value = EXCLUDED.value, confidence=0;
+
+--     INSERT INTO ' || workspace || '.cdm_t (job_id, enc_id, tsp, fid, value, confidence)
+--     select '''|| job_id ||''', enc_id, tsp::timestamptz, fid, last(lo.status order by lo.tsp), 0
+--     from ' || workspace || '.' || job_id || '_active_procedures_transformed lo
+--     inner join pat_enc p on lo.visit_id = p.visit_id
+--     where tsp <> ''NaT'' and tsp::timestamptz < now() and fid not in (''lactate_order'', ''blood_culture_order'')
+--     group by enc_id, tsp, fid
+--     ON CONFLICT (job_id, enc_id, tsp, fid)
+--     DO UPDATE SET value = EXCLUDED.value, confidence=0';
+-- end if;
+
+
+-- workspace_medication_administration_2_cdm_t
+-- workspace_fluids_intake_2_cdm_t
+if to_regclass('' || workspace || '.' || job_id || '_med_admin_transformed') is not null then
+    execute
+    'INSERT INTO ' || workspace || '.cdm_t (job_id, enc_id, tsp, fid, value, confidence)
+    select '''|| job_id ||''', pat_enc.enc_id, mar.tsp::timestamptz, mar.fid,
+        json_build_object(''dose'',SUM(mar.dose_value::numeric),''action'',last(mar.action))
+        , 0
+    from ' || workspace || '.' || job_id || '_med_admin_transformed mar
+        inner join pat_enc on pat_enc.visit_id = mar.visit_id
+    where isnumeric(mar.dose_value) and mar.tsp <> ''NaT'' and mar.tsp::timestamptz < now() and mar.fid ~ ''dose''
+    group by pat_enc.enc_id, tsp, mar.fid
+    ON CONFLICT (job_id, enc_id, tsp, fid)
+    DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+    -- others excluded fluids
+    INSERT INTO ' || workspace || '.cdm_t (job_id, enc_id, tsp, fid, value, confidence)
+    select '''|| job_id ||''', pat_enc.enc_id, mar.tsp::timestamptz, mar.fid,
+        max(mar.dose_value::numeric), 0
+    from ' || workspace || '.' || job_id || '_med_admin_transformed mar
+        inner join pat_enc on pat_enc.visit_id = mar.visit_id
+    where isnumeric(mar.dose_value) and mar.tsp <> ''NaT'' and mar.tsp::timestamptz < now() and mar.fid not ilike ''%_dose'' and mar.fid <> ''fluids_intake''
+    group by pat_enc.enc_id, tsp, mar.fid
+    ON CONFLICT (job_id, enc_id, tsp, fid)
+    DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+    -- workspace_fluids_intake_2_cdm_t
+    with u as (
+    select pat_enc.enc_id, mar.tsp::timestamptz, mar.fid, mar.dose_value as value
+        from ' || workspace || '.' || job_id || '_med_admin_transformed mar
+            inner join pat_enc on pat_enc.visit_id = mar.visit_id
+        where isnumeric(mar.dose_value) and mar.tsp <> ''NaT'' and mar.tsp::timestamptz < now() and mar.fid = ''fluids_intake''
+                    and mar.dose_value::numeric > 0
+    )
+    INSERT INTO ' || workspace || '.cdm_t (job_id, enc_id, tsp, fid, value, confidence)
+    select '''|| job_id ||''', u.enc_id, u.tsp, u.fid,
+            sum(u.value::numeric), 0
+    from u
+    group by u.enc_id, u.tsp, u.fid
+    ON CONFLICT (job_id, enc_id, tsp, fid)
+    DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;';
+end if;
+
+
+-- workspace_flowsheets_2_cdm_t
+if to_regclass('' || workspace || '.' || job_id || '_flowsheets_transformed') is not null then
+    execute
+    'INSERT INTO ' || workspace || '.cdm_t (job_id, enc_id, tsp, fid, value, confidence)
+    select '''|| job_id ||''', pat_enc.enc_id, fs.tsp::timestamptz, fs.fid,
+    (case when
+        fid = ''map'' then coalesce(last(fs.value) filter (where name = ''Arterial Line 1 MAP''), last(fs.value))
+    else last(fs.value) end
+    ),
+    0
+    from ' || workspace || '.' || job_id || '_flowsheets_transformed fs
+        inner join pat_enc on pat_enc.visit_id = fs.visit_id
+        where fs.tsp <> ''NaT'' and fs.tsp::timestamptz < now()
+        and fs.fid <> ''fluids_intake'' and fs.value <> ''''
+    group by pat_enc.enc_id, tsp, fs.fid
+    ON CONFLICT (job_id, enc_id, tsp, fid)
+    DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+
+    -- workspace_fluids_intake_2_cdm_t
+    with u as (
+    select pat_enc.enc_id, fs.tsp::timestamptz, fs.fid, fs.value::text
+        from ' || workspace || '.' || job_id || '_flowsheets_transformed fs
+            inner join pat_enc on pat_enc.visit_id = fs.visit_id
+            where fs.tsp <> ''NaT'' and fs.tsp::timestamptz < now()
+            and fs.fid = ''fluids_intake'' and fs.value <> ''''
+            and fs.value::numeric > 0
+    )
+    INSERT INTO ' || workspace || '.cdm_t (job_id, enc_id, tsp, fid, value, confidence)
+    select '''|| job_id ||''', u.enc_id, u.tsp, u.fid,
+            sum(u.value::numeric), 0
+    from u
+    group by u.enc_id, u.tsp, u.fid
+    ON CONFLICT (job_id, enc_id, tsp, fid)
+    DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+
+    -- deleted entries
+    INSERT INTO ' || workspace || '.cdm_t (job_id, enc_id, tsp, fid, value, confidence)
+    select '''|| job_id ||''', pat_enc.enc_id, fs.tsp::timestamptz, fs.fid, last(''DELETE''::text), 0 from ' || workspace || '.' || job_id || '_flowsheets_transformed fs
+        inner join pat_enc on pat_enc.visit_id = fs.visit_id
+        where fs.tsp <> ''NaT'' and fs.tsp::timestamptz < now()
+        and fs.value = ''''
+    group by pat_enc.enc_id, tsp, fs.fid
+    ON CONFLICT (job_id, enc_id, tsp, fid)
+    DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
+';
+end if;
+
+if to_regclass('' || workspace || '.' || job_id || '_lab_orders_transformed') is not null then
+    execute
+    '-- lab_orders
+    INSERT INTO ' || workspace || '.cdm_t (job_id, enc_id, tsp, fid, value, confidence)
+    select '''|| job_id ||''', enc_id, tsp::timestamptz, fid, last(lo.status), 0
+    from ' || workspace || '.' || job_id || '_lab_orders_transformed lo
+    inner join pat_enc p on lo.visit_id = p.visit_id
+    where tsp <> ''NaT'' and tsp::timestamptz < now()
+    group by enc_id, tsp, fid
+    ON CONFLICT (job_id, enc_id, tsp, fid)
+    DO UPDATE SET value = EXCLUDED.value, confidence=0;';
+end if;
+
+-- workspace_notes_2_cdm_notes
+if to_regclass('' || workspace || '.' || job_id || '_notes_transformed') is not null
+and to_regclass('' || workspace || '.' || job_id || '_note_texts_transformed') is not null
+then
+    execute
+    'insert into ' || workspace || '.cdm_notes
+    select ''' || job_id || ''', enc_id, N.note_id, N.note_type, N.note_status, first(NT.note_body) note_body, first(N.dates::json) dates, first(N.providers::json) providers
+    from ' || workspace || '.' || job_id || '_notes_transformed N
+    inner join pat_enc p on p.visit_id = N.visit_id
+    left join ' || workspace || '.' || job_id || '_note_texts_transformed NT on N.note_id = NT.note_id
+    group by enc_id, N.note_id, N.note_type, N.note_status
+    on conflict (job_id, enc_id, note_id, note_type, note_status) do update
+    set note_body = excluded.note_body,
+        dates = excluded.dates,
+        providers = excluded.providers;';
+end if;
+
+-- workspace_lab_results_2_cdm_t
+if to_regclass('' || workspace || '.' || job_id || '_lab_results_transformed') is not null then
+    execute '
+    INSERT INTO ' || workspace || '.cdm_t (job_id, enc_id, tsp, fid, value, confidence)
+    select '''|| job_id ||''', pat_enc.enc_id, lr.tsp::timestamptz, lr.fid, first(lr.value order by lr.tsp::timestamptz), 0 from ' || workspace || '.' || job_id || '_lab_results_transformed lr
+        inner join pat_enc on pat_enc.visit_id = lr.visit_id
+    where lr.tsp <> ''NaT'' and lr.tsp::timestamptz < now()
+    group by pat_enc.enc_id, lr.tsp, lr.fid
+    ON CONFLICT (job_id, enc_id, tsp, fid)
+    DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;';
+end if;
+
+if keep_delta_table then
+    -- make sure all rows in delta cdm_t tables are real delta rows, i.e., remove existing rows
+    -- update main tables from workspace delta tables
+    execute
+    '
+    insert into cdm_s (enc_id, fid, value, confidence)
+        select enc_id, fid, value, confidence from ' || workspace || '.cdm_s
+        where job_id = ''' || job_id || ''' and value <> ''DELETE''
+    on conflict (enc_id, fid) do update set value = excluded.value, confidence = excluded.confidence;
+    delete from cdm_s using (select * from ' || workspace || '.cdm_s
+        where value = ''DELETE'') as del
+    where cdm_s.enc_id = del.enc_id and cdm_s.fid = del.fid ;
+
+    delete from ' || workspace || '.cdm_t t
+    using (
+        select tt.enc_id, tt.tsp, tt.fid
+        from ' || workspace || '.cdm_t tt
+        inner join cdm_t ttt on tt.enc_id = ttt.enc_id and tt.tsp = ttt.tsp and tt.fid = ttt.fid and tt.value = ttt.value
+        where tt.job_id = ''' || job_id || '''
+    ) as e
+    where t.job_id = ''' || job_id || ''' and t.enc_id = e.enc_id and t.tsp = e.tsp and t.fid = e.fid;
+
+    insert into cdm_t (enc_id, tsp, fid, value, confidence)
+        select enc_id, tsp, fid, value, confidence from ' || workspace || '.cdm_t
+        where job_id = ''' || job_id || ''' and value <> ''DELETE''
+    on conflict (enc_id, tsp, fid) do update set value = excluded.value, confidence = excluded.confidence ;
+    delete from cdm_t using (select * from ' || workspace || '.cdm_t
+        where job_id = ''' || job_id || ''' and  value = ''DELETE'') as del
+    where cdm_t.enc_id = del.enc_id and cdm_t.tsp = del.tsp and cdm_t.fid = del.fid ;
+
+    insert into cdm_notes (enc_id, note_id, note_type, note_status, note_body, dates, providers)
+        select enc_id, note_id, note_type, note_status, note_body, dates, providers from ' || workspace || '.cdm_notes
+        where job_id = ''' || job_id || ''' and note_body <> ''DELETE''
+    on conflict (enc_id, note_id, note_type, note_status) do update set note_body = excluded.note_body, dates = excluded.dates, providers = excluded.providers ;
+    delete from cdm_notes using (select * from ' || workspace || '.cdm_notes
+        where job_id = ''' || job_id || ''' and note_body = ''DELETE'') as del
+    where cdm_notes.enc_id = del.enc_id and cdm_notes.note_id = del.note_id and cdm_notes.note_type = del.note_type and cdm_notes.note_status = del.note_status ;
+    ';
+else
+    execute
+    'delete from '|| workspace || '.cdm_s where job_id = ''' || job_id || ''';
+    delete from '|| workspace || '.cdm_t where job_id = ''' || job_id || ''';
+    delete from '|| workspace || '.cdm_t where job_id = ''' || job_id || ''';';
+end if;
+
+execute 'select count(*) from '|| workspace || '.cdm_t where job_id = ''' || job_id || '''' into num_delta;
+
+if num_delta > 0 then
+    -- update orgdf baselines
+    execute 'select * from update_orgdf_baselines(''' || job_id || ''', ''' || workspace || ''')';
+end if;
+return num_delta;
+END $func$ LANGUAGE plpgsql;
+
 create or replace function workspace_to_cdm(job_id text, workspace text default 'workspace', keep_delta_table boolean default true)
 returns integer as $func$
 declare
@@ -5885,108 +6282,5 @@ and (
 or (R.cms_onset between care_unit.enter_time and care_unit.leave_time)
 )
 group by care_unit.care_unit
-;
-END $func$ LANGUAGE plpgsql;
-
-
-
-------------------------------------------------
--- Timeline helpers.
-
--- TREWS alert and organ dysfunction interval construction
-CREATE OR REPLACE FUNCTION get_trews_orgdf_intervals(this_enc_id integer)
-RETURNS table(
-    name      text,
-    intervals json
-) AS $func$ BEGIN RETURN QUERY
-with enc_states as (
-  select S.name, R.tsp, S.state
-  from (
-    select tsp,
-           ARRAY[
-             'trews_creatinine',
-             'trews_bilirubin',
-             'trews_platelet',
-             'trews_gcs',
-             'trews_inr',
-             'trews_lactate',
-             'trews_sbpm',
-             'trews_map',
-             'trews_dsbp',
-             'trews_vasopressors',
-             'trews_vent',
-             'trews_subalert'
-           ]::text[] as names,
-           ARRAY[
-              creatinine_orgdf::int,
-              bilirubin_orgdf::int,
-              platelets_orgdf::int,
-              gcs_orgdf::int,
-              inr_orgdf::int,
-              lactate_orgdf::int,
-              sbpm_hypotension::int,
-              map_hypotension::int,
-              delta_hypotension::int,
-              vasopressors_orgdf::int,
-              vent_orgdf::int,
-              ((orgdf_details::jsonb)#>>'{alert}')::bool::int
-           ]::int[] as states
-    from trews_jit_score s
-    where s.enc_id = this_enc_id
-    and s.model_id = (select max(P.value) from trews_parameters P where P.name = 'trews_jit_model_id')
-  ) R, lateral unnest(R.names, R.states) S(name, state)
-),
-state_nb as (
-  select C.name,
-         C.tsp,
-         C.state,
-         lead(C.state, 1) over (partition by C.name order by C.tsp rows between current row and 1 following) as next,
-         lead(C.tsp, 1)   over (partition by C.name order by C.tsp rows between current row and 1 following) as next_tsp,
-         lag(C.state, 1)  over (partition by C.name order by C.tsp rows 1 preceding) as previous,
-         lag(C.tsp, 1)    over (partition by C.name order by C.tsp rows 1 preceding) as previous_tsp
-  from enc_states C
-),
-edges as (
-  select NB.name,
-         NB.tsp,
-         (case
-            when NB.next_tsp is null then now()
-            when NB.state <> NB.next then NB.next_tsp
-            else NB.tsp
-          end) as cf_tsp,
-         NB.state,
-         NB.next,
-         NB.next_tsp
-  from state_nb NB
-  where NB.state <> NB.next or NB.next is null
-  or NB.state <> NB.previous or NB.previous is null
-  order by NB.name, NB.tsp
-),
-edge_pairs as (
-  select E.*,
-         lead(E.state, 1)  over (partition by E.name order by E.tsp rows between current row and 1 following) as next_edge_state,
-         lead(E.tsp, 1)    over (partition by E.name order by E.tsp rows between current row and 1 following) as next_edge_tsp,
-         lead(E.cf_tsp, 1) over (partition by E.name order by E.tsp rows between current row and 1 following) as next_edge_cf_tsp,
-         lag(E.state, 1)   over (partition by E.name order by E.tsp rows 1 preceding) as prev_edge_label,
-         lag(E.tsp, 1)     over (partition by E.name order by E.tsp rows 1 preceding) as prev_edge_tsp
-  from edges E
-),
-intervals as (
-  select E.name, E.state,
-         E.tsp as ts_start,
-         (case
-            when E.next_edge_tsp is null and (E.prev_edge_tsp is null or E.state <> E.prev_edge_label) then E.cf_tsp
-            when E.state = E.next_edge_state then E.next_edge_cf_tsp
-            else E.next_edge_tsp
-          end) as ts_end
-  from edge_pairs E
-  where (E.prev_edge_tsp is null or E.state <> E.prev_edge_label)
-  order by E.name, E.tsp
-)
-select I.name,
-       json_agg(json_build_object('value', I.state, 'ts_start', I.ts_start, 'ts_end', I.ts_end) order by I.ts_start) filter (where I.state = 1)
-       as last_interval
-from intervals I
-group by I.name
 ;
 END $func$ LANGUAGE plpgsql;

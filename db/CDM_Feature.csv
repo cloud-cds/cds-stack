@@ -17,6 +17,7 @@ age,S,Real,yes,no,,,,,Demographic,1,year
 aids_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
 aids_hist,S,Boolean,yes,no,,,,,History,1,no unit
 albumin_dose,T,json,yes,no,,,,,Medication,,TBD
+active_problem,T,json,yes,no,,,,,Problem List,,TBD
 albumin_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 albuterol_dose,T,json,yes,no,,,,,Medication,,mg
 alt_liver_enzymes,TWF,Real,yes,no,last_value_in_window,28,,,Physiologic,1,
@@ -536,3 +537,113 @@ codeine_morphine,T,String,yes,no,,,,,Lab,,
 phencyclidine_screen,T,String,yes,no,,,,,Lab,,
 naloxone_dose,T,JSON,yes,no,,,,,Medication,,
 flumazenil_dose,T,JSON,yes,no,,,,,Medication,,
+aliskiren_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+azilsartan_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+bumetanide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+candesartan_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+carvedilol_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+chlorothiazide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+chlorthalidone_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+clonidine_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+doxazosin_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+eprosartan_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+esmilol_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+exenatide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+felodipine_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+fosinopril_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+furosemide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+guanfacine_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+hydralazine_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+hydrochlorothiazide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+irbesartan_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+indapamide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+isradipine_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+labetalol_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+losartan_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+meglitinide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+methcyclothiazide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+metformin_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+methyldopa_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+minoxidil_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+nisoldipine_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+olmesartan_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+prazosin_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+ramipril_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+semaglutide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+sitagliptin_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+sotalol_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+spironolactone_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+sulfonyulurea_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+telmisartan_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+terazosin_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+thiazolidenedione_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+triamterene_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+valsartan_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+ziac_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+aliskiren_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+azilsartan_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+bumetanide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+candesartan_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+carvedilol_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+chlorothiazide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+chlorthalidone_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+clonidine_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+doxazosin_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+eprosartan_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+esmilol_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+exenatide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+felodipine_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+fosinopril_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+furosemide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+guanfacine_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+hydralazine_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+hydrochlorothiazide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+irbesartan_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+indapamide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+isradipine_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+labetalol_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+losartan_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+meglitinide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+methcyclothiazide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+metformin_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+methyldopa_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+minoxidil_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+nisoldipine_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+olmesartan_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+prazosin_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+ramipril_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+semaglutide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+sitagliptin_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+sotalol_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+spironolactone_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+sulfonyulurea_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+telmisartan_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+terazosin_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+thiazolidenedione_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+triamterene_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+valsartan_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+ziac_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+height,T,Real,yes,no,,,,,Phyiologic,1,no unit
+pain_location,T,String,yes,no,,,,,Pain,1,no unit
+oral_intake,T,Real,yes,no,,,,,IO,1,no unit
+fev1,T,Real,yes,no,,,,,FEV1,1,liters
+sleep_apnea,T,String,yes,no,,,,,Sleep,1,no unit
+diabetes_status,T,String,yes,no,,,,,Diabetes,1,no unit
+home_oxygen,T,String,yes,no,,,,,Home Oxygen,1,no unit
+response_to_medications,T,String,yes,no,,,,,Medication Response,1,no unit
+high_blood_pressure,T,String,yes,no,,,,,Blood Pressure,1,no unit
+external_diabetes_eye_exam,T,String,yes,no,,,,,Diabetes,1,no unit
+external_hm_diabetes_foot_exam,T,String,yes,no,,,,,Diabetes,1,no unit
+heart_rate_at_rest_without_o2,T,Real,yes,no,,,,,heart rate,1,BPM
+sao2_during_exercise_with_o2,T,String,yes,no,,,,,SAO2,1,%
+predicted_fev1,T,Real,yes,no,,,,,FEV1,1,liters
+fev1_ratio,T,Real,yes,no,,,,,FEV1,1,%
+mvv,T,Real,yes,no,,,,,mvv,1,L/min
+predicted_vo2,T,Real,yes,no,,,,,vo2,1,mL/kg/min
+percent_of_predicted_vo2_max,T,Real,yes,no,,,,,vo2,1,%
+dyspnea_index,T,Real,yes,no,,,,,dyspnea,1,%
+end_systolic,T,Real,yes,no,,,,,systolic,1,mL
+end_diastolic,T,Real,yes,no,,,,,diastolic,1,mL
+hm_diabetes_eye_exam,T,String,yes,no,,,,,Diabetes,1,no unit
+hm_diabetes_foot_exam,T,String,yes,no,,,,,Diabetes,1,no unit
+a1c,T,String,yes,no,,,,,A1C,1,no unit
