@@ -49,3 +49,8 @@ variable "private_key_path" {
 variable "controller_dns_name" {
   description = "OpsDX controller instance dns name"
 }
+
+#########################################
+# Windows instance.
+variable "windows_username" { default = "admin" }
+variable "windows_password" { }

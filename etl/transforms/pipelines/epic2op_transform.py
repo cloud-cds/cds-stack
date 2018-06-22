@@ -143,13 +143,19 @@ flowsheet_transforms = [
 ]
 
 flowsheetrows_transforms = [
+    lambda fs: restructure.extract(fs, 'FlowsheetRows', {
+        'Name':          'name',
+        'Unit':          'unit',
+        'FlowsheetRowID':   'flowsheet_id',
+        'FlowsheetColumns': 'flowsheet_columns',
+    }),
     lambda fs: restructure.select_columns(fs, {
         'pat_id':           'pat_id',
         'visit_id':         'visit_id',
-        'FlowsheetRowID':   'flowsheet_id',
-        'FlowsheetColumns': 'flowsheet_columns',
-        'Unit':             'unit',
-        'Name':             'name',
+        'flowsheet_id':   'flowsheet_id',
+        'flowsheet_columns': 'flowsheet_columns',
+        'unit':             'unit',
+        'name':             'name',
     }),
     lambda fs: restructure.extract_id_from_list(fs, 'flowsheet_id', 'INTERNAL'),
     lambda fs: restructure.unlist(fs, 'flowsheet_columns'),

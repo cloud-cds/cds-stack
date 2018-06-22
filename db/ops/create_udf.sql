@@ -5065,13 +5065,14 @@ if to_regclass('' || workspace || '.' || job_id || '_patients_transformed') is n
     -- DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
 
     -- active problem
-    INSERT INTO ' || workspace || '.cdm_t (job_id, enc_id, tsp, fid, value, confidence)
-    select '''|| job_id ||''', * from
-    (select pe.enc_id, tsp::timestamptz, ''active_problem'', active_problem_list, 1
+    INSERT INTO ' || workspace || '.cdm_s (job_id, enc_id, fid, value, confidence)
+    select '''|| job_id ||''', *, 1 from
+    (select pe.enc_id, ''active_problem'', json_agg(active_problem_list::json)
     from ' || workspace || '.' || job_id || '_problem_list_transformed bp
         inner join pat_enc pe on pe.visit_id = bp.visit_id
+    group by pe.enc_id
     ) PL
-    ON CONFLICT (job_id, enc_id, tsp, fid)
+    ON CONFLICT (job_id, enc_id, fid)
     DO UPDATE SET value = EXCLUDED.value, confidence = EXCLUDED.confidence;
 
 

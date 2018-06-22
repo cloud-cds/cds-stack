@@ -708,8 +708,9 @@ class EpicAPIConfig:
     return dfs
 
   async def extract_contacts(self, ctxt, pl):
-    resource = '/patients/contacts?PatientID={}&PatientIDType=EMRN&UserID={}&UserIDType={}'
-    resources = pl.apply(lambda pl: resource.format(pl['pat_id'], self.user_id, self.user_id_type), axis=1).tolist()
+    resource = '/patients/contacts?PatientID={}&PatientIDType=EMRN&UserID={}&UserIDType={}&From={}&To={}'
+    resources = pl.apply(lambda pl: resource.format(\
+      pl['pat_id'], self.user_id, self.user_id_type, self.dateFromOneYear, self.dateTo), axis=1).tolist()
     logging.debug("extract_contacts_resources: {}".format(resources))
     responses = await self.make_requests(ctxt, resources, [], 'GET')
     dfs = [pd.DataFrame(r) for r in responses]
@@ -746,7 +747,7 @@ class EpicAPIConfig:
     }, axis=1).tolist()
     responses = await self.make_requests(ctxt, resource, payloads, 'POST')
     dfs = [pd.DataFrame(r) for r in responses]
-    df_raw = self.combine(dfs, pts[['pat_id', 'visit_id']])
+    df_raw = self.combine(dfs, pts[['pat_id', 'visit_id']]).reset_index(drop=True)
     logging.debug("extract_flowsheetrows: {}".format(df_raw))
     return df_raw
 
@@ -804,7 +805,7 @@ class EpicAPIConfig:
     logging.debug("extracting medicationadministrationhistory: {}".format(med_orders_df))
     if med_orders_df is None or med_orders_df.empty:
       logging.debug("No med_orders for MAR")
-      return {'med_admin_transformed': None}
+      return None
     else:
       resource = '/patients/medicationadministrationhistory'
       payloads = med_orders_df.apply(lambda order: {
@@ -817,6 +818,7 @@ class EpicAPIConfig:
       responses = await self.make_requests(ctxt, resource, payloads, 'POST')
       dfs = [pd.DataFrame(r) for r in responses]
       df_raw = self.combine(dfs, med_orders_df[['pat_id', 'visit_id', 'fid']]).reset_index()
-      df_raw['fid'] = df_raw['fid'].str.replace('_order', '')
+      if not df_raw.empty:
+        df_raw['fid'] = df_raw['fid'].str.replace('_order', '')
       logging.debug('extract_medicationadministrationhistory: {}'.format(df_raw))
       return df_raw

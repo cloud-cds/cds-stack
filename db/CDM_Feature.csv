@@ -17,7 +17,7 @@ age,S,Real,yes,no,,,,,Demographic,1,year
 aids_diag,S,Boolean,yes,no,,,,,Diagnoses,1,no unit
 aids_hist,S,Boolean,yes,no,,,,,History,1,no unit
 albumin_dose,T,json,yes,no,,,,,Medication,,TBD
-active_problem,T,json,yes,no,,,,,Problem List,,TBD
+active_problem,S,json,yes,no,,,,,Problem List,,TBD
 albumin_dose_order,T,String,yes,no,,,,,Medication Orders,1,no unit
 albuterol_dose,T,json,yes,no,,,,,Medication,,mg
 alt_liver_enzymes,TWF,Real,yes,no,last_value_in_window,28,,,Physiologic,1,

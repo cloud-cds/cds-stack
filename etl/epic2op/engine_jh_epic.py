@@ -337,13 +337,14 @@ def skip_none(df, transform_function):
     traceback.print_exc()
 
 def transform(ctxt, df, transform_list_name):
+  logging.debug("transform begin: {} {}".format(transform_list_name, df))
   if df is None:
     return pd.DataFrame()
   if type(df) == list:
     df = pd.concat(df)
   for transform_fn in getattr(jhapi_transform_lists, transform_list_name):
     df = skip_none(df, transform_fn)
-  logging.debug("{}:{}".format(transform_list_name, df))
+  logging.debug("transform end: {}:{}".format(transform_list_name, df))
   return df
 
 def patients_combine(ctxt, df, df2):
