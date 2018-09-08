@@ -1,5 +1,0 @@
-fid(s),is_no_add,is_med_action,dbtable,select_cols,where_conditions,transform_func_id,assert
-chronic_kidney_diag,yes,no,"""Diagnoses""","""Code""","WHERE ""Code"" ~ '^585.'",,
-chronic_kidney_prob,yes,no,"""ProblemList""","""csn_id"" visit_id, code","WHERE ""code"" ~ '^585.'",,
-chronic_kidney_final_diag,yes,no,"""FinalDiagnosis""","csn_id visit_id, icd10","WHERE icd10 ~ '^N18.(1|2|3|4|5|9)$'",,
-esrd_final_diag,yes,no,"""FinalDiagnosis""","csn_id visit_id, icd10","WHERE icd10 = 'N18.6'",,

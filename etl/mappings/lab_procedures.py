@@ -1,10 +1,9 @@
 lab_procedure_ids = [
-    ( 'blood_culture', [
-        '7564',
+    ( 'fid a', [
+        'id',
     ]),
-    ( 'lactate', [
-        '1022',
-        '838',
-        '64630',
+    ( 'fid b', [
+        'id 1',
+        'id 2',
     ])
 ]

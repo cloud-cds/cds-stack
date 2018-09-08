@@ -1,4 +1,0 @@
-fid(s),is_no_add,is_med_action,dbtable,select_cols,where_conditions,transform_func_id
-influanat,yes,no,"""Labs_643""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue""","WHERE ""BASE_NAME"" = 'INFLUANAT'",
-influbnat,yes,no,"""Labs_643""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue""","WHERE ""BASE_NAME"" = 'INFLUBNAT'",
-rsvnat,yes,no,"""Labs_643""","""BASE_NAME"", ""RESULT_TIME"", ""ResultValue""","WHERE ""BASE_NAME"" = 'RSVNAT'",

@@ -8,29 +8,29 @@ spec:
       # unlike pod-nginx.yaml, the name is not included in the meta data as a unique name is
       # generated from the deployment name
       name: cardiac-etl
-    spec: 
+    spec:
       nodeSelector:
         opsdx_nodegroup: c2dw-etl
       containers:
       - name: cardiac-etl-1m
-        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:latest 
+        image: 359300513585.dkr.ecr.us-east-1.amazonaws.com/universe:latest
         command:
-          - "sh"  
+          - "sh"
           - "-c"
           - "service rsyslog start && sleep 5 && ./bin/goofys opsdx-clarity-etl-stage-cardiac /mnt && sleep 5 && nice -20 python -q -X faulthandler ./etl/clarity2dw/planner.py 2>&1 | tee /mnt/c2dw/c2dw-etl-1m.log"
         securityContext:
           privileged: true
         env:
         - name: min_tsp
-          value: "2017-05-15"                     
+          value: "2017-05-15"
         - name: dataset_id
-          value: "1001"       
+          value: "1001"
         - name: feature_mapping
-          value: "feature_mapping.csv,feature_mapping_cardiac.csv"        
+          value: "feature_mapping.csv,feature_mapping_cardiac.csv"
         - name: clarity_workspace
           value: "public"  #public or cardiac_jhh_1y
         - name: etl_graph
-          value: "/mnt/c2dw/c2dw-etl-1m"  
+          value: "/mnt/c2dw/c2dw-etl-1m"
         - name: nprocs
           value: "8"
         - name: num_derive_groups

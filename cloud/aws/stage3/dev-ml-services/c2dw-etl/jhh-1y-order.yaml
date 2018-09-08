@@ -27,7 +27,7 @@ spec:
         - name: populate_patients
           value: "False"
         - name: transform_fids
-          value: "lactate_order,blood_culture_order,cbc_order,metabolic_panel_order,culture_order"
+          value: "f1,f2,f3"
         - name: fillin
           value: "False"
         - name: derive
