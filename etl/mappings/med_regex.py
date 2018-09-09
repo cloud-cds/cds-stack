@@ -411,7 +411,7 @@ med_regex = [
     }, {
         'fid': 'warfarin_dose',
         'pos': 'warfarin.* tablet'
-    },
+    }, {
         'fid': 'ziac_dose',
         'pos': 'ziac'
     },
