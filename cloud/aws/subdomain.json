@@ -1,0 +1,27 @@
+{
+  "Comment": "Create a subdomain NS record in the parent domain",
+  "Changes": [
+    {
+      "Action": "CREATE",
+      "ResourceRecordSet": {
+        "Name": "cluster.dev.metaboliccompass.com",
+        "Type": "NS",
+        "TTL": 300,
+        "ResourceRecords": [
+          {
+            "Value": "ns-1031.awsdns-00.org"
+          },
+          {
+            "Value": "ns-260.awsdns-32.com"
+          },
+          {
+            "Value": "ns-1950.awsdns-51.co.uk"
+          },
+          {
+            "Value": "ns-704.awsdns-24.net"
+          }
+        ]
+      }
+    }
+  ]
+}

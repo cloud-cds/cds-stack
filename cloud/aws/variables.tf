@@ -294,6 +294,8 @@ variable "prod_etl_lambda_firing_rate_mins" {}
 # Lambda packages
 
 variable "s3_opsdx_lambda" {}
+variable "s3_mc_lambda" {}
+
 
 variable "lambda_subnet1_id" {}
 variable "lambda_subnet2_id" {}

@@ -15,3 +15,9 @@ module "k8s_dev_ml" {
   node_sg_id = "sg-cbd8d9b8"
   controller_sg_id = "sg-6592cb15"
 }
+
+module "k8s_dev_mc" {
+	source = "./k8s-dev-mc"
+  node_sg_id = "sg-b8d1f6f0"
+  controller_sg_id = "sg-3df2ad75"
+}

@@ -647,3 +647,261 @@ end_diastolic,T,Real,yes,no,,,,,diastolic,1,mL
 hm_diabetes_eye_exam,T,String,yes,no,,,,,Diabetes,1,no unit
 hm_diabetes_foot_exam,T,String,yes,no,,,,,Diabetes,1,no unit
 a1c,T,String,yes,no,,,,,A1C,1,no unit
+rivastigmine_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+pantoprazole_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+adenosine_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+haloperidol_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+quetiapine_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+olanzapine_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+risperidone_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+trifluoperazine_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+valproic_acid_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+lithium_citrate_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+lithium_carbonate_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+benztropine_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+donepezil_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+galantamine_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+memantine_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+memantine_donepezil_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+levetiracetam_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+anagrelide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+aspirin_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+clopidogrel_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+prasugrel_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+ticagrelor_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+tirofiban_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+vorapaxar_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+dipyridamole_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+disopyramide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+mexiletine_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+quinidine_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+procainamide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+propafenone_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+flecainide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+betaxolol_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+labetolol_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+nebivolol_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+penbutolol_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+timolol_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+pindolol_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+dronedarone_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+edoxaban_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+enoxaparin_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+dalteparin_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+fondaparinux_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+fosinopril_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+moexipril_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+perindopril_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+quinapril_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+trandolapril_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+brivaracetam_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+carbamazepine_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+clobazam_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+clonazepam_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+divalproex_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+eslicarbazepine_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+ethosuximide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+ethotoin_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+ezogabine_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+felbamate_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+fosphenytoin_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+gabapentin_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+lacosamide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+lamotrigine_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+mephenytoin_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+mephobarbital_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+methsuximide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+oxcarbazepine_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+paramethadione_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+perampanel_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+phenacemide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+pregabalin_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+primidone_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+rufinamide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+tiagabine_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+trimethadione_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+valproate_sodium_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+vigabatrin_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+acarbose_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+acetohexamide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+albiglutide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+alogliptin_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+bromocriptine_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+canagliflozin_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+chlorpropamide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+dapagliflozin_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+dulaglutide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+empagliflozin_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+exenatide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+glimepiride_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+glipizide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+glyburide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+linagliptin_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+liraglutide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+lixisenatide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+mifepristone_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+miglitol_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+nateglinide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+pioglitazone_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+pramlintide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+repaglinide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+rosiglitazone_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+saxagliptin_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+sitagliptin_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+tolazamide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+tolbutamide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+troglitazone_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+amiloride_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+ammonium_chloride_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+bendroflumethiazide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+chlorthalidone_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+conivaptan_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+dichlorphenamide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+eplerenone_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+ethacrynate_sodium_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+ethacrynic_acid_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+hydroflumethiazide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+methazolamide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+methyclothiazide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+metolazone_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+pamabrom_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+polythiazide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+tolvaptan_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+torsemide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+trichlormethiazide_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+flumazenil_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+nitroglycerin_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+nitroprusside_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+phentolamine_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+digoxin_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+magnesium_sulfate_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+alteplase_dose,T,JSON,yes,no,,,,,Medication,1,TBD
+rivastigmine_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+pantoprazole_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+adenosine_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+haloperidol_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+quetiapine_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+olanzapine_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+risperidone_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+trifluoperazine_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+valproic_acid_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+lithium_citrate_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+lithium_carbonate_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+benztropine_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+donepezil_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+galantamine_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+memantine_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+memantine_donepezil_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+levetiracetam_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+anagrelide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+aspirin_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+clopidogrel_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+prasugrel_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+ticagrelor_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+tirofiban_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+vorapaxar_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+dipyridamole_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+disopyramide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+mexiletine_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+quinidine_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+procainamide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+propafenone_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+flecainide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+betaxolol_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+labetolol_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+nebivolol_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+penbutolol_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+timolol_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+pindolol_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+dronedarone_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+edoxaban_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+enoxaparin_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+dalteparin_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+fondaparinux_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+fosinopril_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+moexipril_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+perindopril_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+quinapril_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+trandolapril_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+brivaracetam_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+carbamazepine_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+clobazam_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+clonazepam_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+divalproex_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+eslicarbazepine_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+ethosuximide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+ethotoin_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+ezogabine_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+felbamate_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+fosphenytoin_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+gabapentin_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+lacosamide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+lamotrigine_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+mephenytoin_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+mephobarbital_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+methsuximide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+oxcarbazepine_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+paramethadione_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+perampanel_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+phenacemide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+pregabalin_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+primidone_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+rufinamide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+tiagabine_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+trimethadione_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+valproate_sodium_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+vigabatrin_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+acarbose_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+acetohexamide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+albiglutide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+alogliptin_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+bromocriptine_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+canagliflozin_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+chlorpropamide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+dapagliflozin_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+dulaglutide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+empagliflozin_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+exenatide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+glimepiride_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+glipizide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+glyburide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+linagliptin_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+liraglutide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+lixisenatide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+mifepristone_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+miglitol_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+nateglinide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+pioglitazone_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+pramlintide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+repaglinide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+rosiglitazone_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+saxagliptin_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+sitagliptin_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+tolazamide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+tolbutamide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+troglitazone_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+amiloride_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+ammonium_chloride_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+bendroflumethiazide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+chlorthalidone_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+conivaptan_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+dichlorphenamide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+eplerenone_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+ethacrynate_sodium_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+ethacrynic_acid_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+hydroflumethiazide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+methazolamide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+methyclothiazide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+metolazone_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+pamabrom_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+polythiazide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+tolvaptan_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+torsemide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+trichlormethiazide_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+flumazenil_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+nitroglycerin_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+nitroprusside_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+phentolamine_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+digoxin_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+magnesium_sulfate_dose_order,T,String,yes,no,,,,,Medication,1,no unit
+alteplase_dose_order,T,String,yes,no,,,,,Medication,1,no unit

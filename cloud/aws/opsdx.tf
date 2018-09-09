@@ -95,8 +95,8 @@ module "stage3" {
   k8s_dev_ml_cert_auth = "${var.k8s_dev_ml_cert_auth}"
 
   # databases
-  dev_db_host             = "dev.db.${var.domain}"
-  dev_db_name             = "opsdx_dev"
+  dev_db_host             = "mcdb.metaboliccompass.com"
+  dev_db_name             = "metabolic_compass"
   dev_db_username         = "${var.dev_db_username}"
   dev_db_password         = "${var.dev_db_password}"
   dev_etl_channel         = "${var.dev_etl_channel}"
@@ -139,7 +139,7 @@ module "stage3" {
 
   ######################################
   # Lambda functions.
-
+  s3_mc_lambda = "${var.s3_mc_lambda}"
   s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
 
   lambda_subnet1_id = "${var.lambda_subnet1_id}"

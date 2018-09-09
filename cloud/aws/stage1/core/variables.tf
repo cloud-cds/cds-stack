@@ -52,5 +52,8 @@ variable "controller_dns_name" {
 
 #########################################
 # Windows instance.
-variable "windows_username" { default = "admin" }
-variable "windows_password" { }
+#variable "windows_username" {}
+#variable "windows_password" {}
+variable "windows_dns_name" {
+  description = "OpsDX windows instance dns name"
+}

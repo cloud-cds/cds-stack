@@ -1,6 +1,9 @@
 variable "access_key" {}
 variable "secret_key" {}
-variable "aws_region" {}
+variable "aws_region" {
+  description = "AWS region to launch servers."
+  default = "us-east-1"
+}
 
 ###################################
 # K8s
@@ -149,9 +152,12 @@ variable "PROD_ETL_STREAM_SLEEP_SECS" {}
 # dev db
 variable "dev_db_username" {}
 variable "dev_db_password" {}
-variable "dev_db_host" {}
-variable "dev_db_name" {}
-
+variable "dev_db_host" {
+  default = "mcdb.metaboliccompass.com"
+}
+variable "dev_db_name" {
+  default = "metabolic_compass"
+}
 variable "dev_etl_channel" {}
 variable "dev_etl_lambda_firing_rate_mins" {}
 
@@ -159,9 +165,12 @@ variable "dev_etl_lambda_firing_rate_mins" {}
 # prod db
 variable "prod_db_username" {}
 variable "prod_db_password" {}
-variable "prod_db_host" {}
-variable "prod_db_name" {}
-
+variable "prod_db_host" {
+  default = "mcdb.metaboliccompass.com"
+}
+variable "prod_db_name" {
+  default = "metabolic_compass"
+}
 variable "prod_etl_channel" {}
 variable "prod_etl_lambda_firing_rate_mins" {}
 
@@ -170,6 +179,7 @@ variable "prod_etl_lambda_firing_rate_mins" {}
 # Lambda packages
 
 variable "s3_opsdx_lambda" {}
+variable "s3_mc_lambda" {}
 
 variable "lambda_subnet1_id" {}
 variable "lambda_subnet2_id" {}

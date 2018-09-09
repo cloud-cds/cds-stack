@@ -26,6 +26,7 @@ module "core" {
 
   domain_zone_id      = "${module.dns.zone_id}"
   controller_dns_name = "controller.${var.domain}"
+  windows_dns_name = "windows.${var.domain}"
 }
 
 ###########

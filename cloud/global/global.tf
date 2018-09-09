@@ -1,8 +1,8 @@
 terraform {
   backend "s3" {
     encrypt = "true"
-    bucket  = "opsdx-terraform"
-    key     = "terraform_state/opsdx-common"
+    bucket  = "mc-terraform"
+    key     = "terraform_state/mc"
     region  = "us-east-1"
   }
 }

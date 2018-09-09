@@ -25,8 +25,6 @@ def extract(df, dict_column, selection_dict):
     new_cols = pd.DataFrame(df[dict_column].tolist())
     new_cols = select_columns(new_cols, selection_dict)
     old_cols = df.drop(dict_column, axis=1)
-    # logging.debug('debug1: {}'.format(old_cols))
-    # logging.debug('debug1: {}'.format(new_cols))
     return pd.concat([old_cols, new_cols], axis=1)
 
 def concat_str(df, new_col, col_1, col_2, drop_original=True):
@@ -47,6 +45,5 @@ def extract_id_from_list(df, id_column, id_type, id_name='ID', type_name='Type')
                 return str(x[id_name])
         logging.error('Could not find an ID. Throwing away row.')
         return 'Invalid ID'
-    logging.debug("debug1: {}".format(df))
     df[id_column] = df[id_column].apply(get_id)
     return df[~(df[id_column] == 'Invalid ID')]
