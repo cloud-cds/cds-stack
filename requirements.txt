@@ -34,7 +34,7 @@ prometheus-client==0.0.19
 psutil==5.2.2
 psycopg2==2.7.1
 pyasn1==0.2.3
-pycrypto==2.6.1
+pycryptodome==3.6.6
 pyparsing==2.2.0
 pytest-cov==2.5.1
 pytest==3.0.7
