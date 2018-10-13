@@ -49,10 +49,12 @@ def main(max_pats=None, hospital=None, lookback_hours=None, db_name=None, repl=F
   archive = int(core.get_environment_var('ETL_ARCHIVE', 0))
   lookback_hours = lookback_hours or core.get_environment_var('ETL_HOURS')
   op_lookback_days = int(core.get_environment_var('ET_OP_DAYS', 365))
+  etl_server = core.get_environment_var('ETL_SERVER', 'prod')
+  etl_name = core.get_environment_var('ETL_NAME', 'UNNAMED')
   # Create jhapi_extractor
   extractor = EpicAPIConfig(
     lookback_hours = lookback_hours,
-    jhapi_server   = core.get_environment_var('ETL_SERVER', 'prod'),
+    jhapi_server   = etl_server,
     jhapi_id       = core.get_environment_var('jhapi_client_id'),
     jhapi_secret   = core.get_environment_var('jhapi_client_secret'),
     systemlist_id  = core.get_environment_var('ETL_SYSTEMLIST_ID'),
@@ -141,7 +143,7 @@ def main(max_pats=None, hospital=None, lookback_hours=None, db_name=None, repl=F
   ########################
   # Submit total time to cloudwatch
   if 'real' in mode:
-    submit_time_to_cloudwatch(aws_region, prod_or_dev, dept_id)
+    submit_time_to_cloudwatch(aws_region, etl_server, etl_name, dept_id)
 
   return engine
 
@@ -260,7 +262,7 @@ def get_combine_tasks():
 
 
 
-def push_cloudwatch_metrics(ctxt, stats, aws_region, prod_or_dev, hospital):
+def push_cloudwatch_metrics(ctxt, stats, aws_region, etl_server, etl_name, hospital):
   boto_client = boto3.client('cloudwatch', region_name=aws_region)
   metric_data = [
     { 'MetricName': 'ExtractTime', 'Value': (dt.datetime.now() - start_time).total_seconds(), 'Unit': 'Seconds'},
@@ -275,27 +277,27 @@ def push_cloudwatch_metrics(ctxt, stats, aws_region, prod_or_dev, hospital):
   ]
   for md in metric_data:
     md['MetricName'] = '{}_{}'.format(hospital, md['MetricName'])
-    md['Dimensions'] = [{'Name': 'ETL', 'Value': prod_or_dev}]
+    md['Dimensions'] = [{'Name': 'ETL', 'Value': etl_name}]
     md['Timestamp'] = dt.datetime.utcnow()
   try:
-    boto_client.put_metric_data(Namespace='OpsDX', MetricData=metric_data)
+    boto_client.put_metric_data(Namespace=etl_server, MetricData=metric_data)
     ctxt.log.info('successfully pushed cloudwatch metrics')
   except botocore.exceptions.EndpointConnectionError as e:
     ctxt.log.error('unsuccessfully pushed cloudwatch metrics')
     ctxt.log.error(e)
 
 
-def submit_time_to_cloudwatch(aws_region, prod_or_dev, hospital):
+def submit_time_to_cloudwatch(aws_region, etl_server, etl_name, hospital):
   boto_client = boto3.client('cloudwatch', region_name=aws_region)
   metric_data = [{
-    'MetricName': '{}_TotalTime'.format(hospital),
+    'MetricName': '{}_{}_TotalTime'.format(etl_server, hospital),
     'Value':      (dt.datetime.now() - start_time).total_seconds(),
     'Unit':       'Seconds',
-    'Dimensions': [{'Name': 'ETL', 'Value': prod_or_dev}],
+    'Dimensions': [{'Name': 'ETL', 'Value': etl_name}],
     'Timestamp':  dt.datetime.utcnow(),
   }]
   try:
-    boto_client.put_metric_data(Namespace='OpsDX', MetricData=metric_data)
+    boto_client.put_metric_data(Namespace=etl_server, MetricData=metric_data)
     logging.info('successfully pushed total time to cloudwatch')
   except botocore.exceptions.EndpointConnectionError as e:
     logging.error('unsuccessfully pushed total time cloudwatch metrics')

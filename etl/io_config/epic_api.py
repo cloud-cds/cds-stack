@@ -40,7 +40,7 @@ class EpicAPIConfig:
                dept_id, dept_id_type,
                lookback_days=None, op_lookback_days=None):
     if jhapi_server not in servers:
-      raise ValueError("Incorrect server provided")
+      raise ValueError("Incorrect server provided:{}".format(jhapi_server))
     if int(lookback_hours) > 72:
       raise ValueError("Lookback hours must be less than 72 hours")
     self.jhapi_server = jhapi_server
@@ -211,11 +211,11 @@ class EpicAPIConfig:
       unit           = 'Count'
     )
     if isinstance(endpoint, list):
-      labels = ['push_' + e.replace('/', '_') + '_' + http_method for e in endpoint]
-      for x, label in zip(result, labels):
+      label = 'push_' + '_'.join(endpoint[0].split('/')[:2]) + '_' + http_method + " multiple"
+      for x in result:
         self.cloudwatch_logger.push_many(
           dimension_name  = 'ETL',
-          metric_names    = ['{}_success_push'.format(label), '{}_error_push'.format(label), 'jh_api_request_success_push', 'jh_api_request_error_push'],
+          metric_names    = ['{}_success_push'.format(label), '{}_error_push'.format(label), 'epic_api_request_success_push', 'epic_api_request_error_push'],
           metric_values   = [x[2], x[3], x[2], x[3]],
           metric_units    = ['Count','Count','Count','Count']
         )
@@ -223,7 +223,7 @@ class EpicAPIConfig:
       label = 'push_' + endpoint.replace('/', '_') + '_' + http_method
       self.cloudwatch_logger.push_many(
         dimension_name  = 'ETL',
-        metric_names    = ['{}_success_push'.format(label), '{}_error_push'.format(label), 'jh_api_request_success_push', 'jh_api_request_error_push'],
+        metric_names    = ['{}_success_push'.format(label), '{}_error_push'.format(label), 'epic_api_request_success_push', 'epic_api_request_error_push'],
         metric_values   = [sum(x[2] for x in result), sum(x[3] for x in result), sum(x[2] for x in result), sum(x[3] for x in result)],
         metric_units    = ['Count','Count','Count','Count']
       )
