@@ -13,16 +13,15 @@ class Cloudwatch:
     self.client = None
     self.suppress_logging = FLAGS.SUPPRESS_CLOUDWATCH
 
-
-
   def get_client(self):
+    FLAGS = Environment()
     if not self.client:
-      flags = Environment()
       self.client = boto3.client('cloudwatch',
-        region_name           = flags.AWS_DEFAULT_REGION,
-        aws_access_key_id     = flags.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key = flags.AWS_SECRET_ACCESS_KEY,
+        region_name           = FLAGS.AWS_DEFAULT_REGION,
+        aws_access_key_id     = FLAGS.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key = FLAGS.AWS_SECRET_ACCESS_KEY,
       )
+      logging.info("created cloudwatch logger client")
     return self.client
 
 
@@ -44,15 +43,16 @@ class Cloudwatch:
 
   def push(self, dimension_name, metric_name, value, unit='None'):
     ''' Push a metric to cloudwatch '''
+    logging.info("cloudwatch pushing")
 
     if self.suppress_logging:
       logging.info("Cloudwatch suppression is turned on - not pushing stats")
       return
 
     metric_data = [self.build_metric_data(dimension_name, metric_name, value, unit)]
-
+    FLAGS = Environment()
     try:
-      self.get_client().put_metric_data(Namespace='OpsDX', MetricData=metric_data)
+      self.get_client().put_metric_data(Namespace=FLAGS.ETL_NAME, MetricData=metric_data)
       logging.info('Successfully pushed {} to cloudwatch'.format(metric_name))
     except botocore.exceptions.EndpointConnectionError as e:
       logging.error('Unsuccessfully pushed {} to cloudwatch'.format(metric_name))
@@ -63,7 +63,7 @@ class Cloudwatch:
 
   def push_many(self, dimension_name, metric_names, metric_values, metric_units):
     ''' Push a list of metrics to cloudwatch '''
-
+    FLAGS = Environment()
     if self.suppress_logging:
       logging.info("Cloudwatch suppression is turned on - not pushing stats")
       return
@@ -89,7 +89,7 @@ class Cloudwatch:
 
       # Push to cloudwatch
       try:
-        self.get_client().put_metric_data(Namespace='OpsDX', MetricData=metric_data)
+        self.get_client().put_metric_data(Namespace=FLAGS.ETL_NAME, MetricData=metric_data)
         logging.debug('Successfully pushed to cloudwatch')
       except botocore.exceptions.EndpointConnectionError as e:
         logging.error('Unsuccessfully pushed to cloudwatch')

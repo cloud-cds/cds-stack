@@ -43,6 +43,9 @@ class Environment:
       ("JHAPI_BACKOFF_MAX",            "integer",  60,  "The maximum backoff seconds"),
       ("JHAPI_ATTEMPTS_SESSION",       "integer",  5,   "The number of retry attempts for a session"),
       ("JHAPI_ATTEMPTS_REQUEST",       "integer",  5,   "The number of retry attempts for a URL request"),
+
+      # ETL flags
+      ("ETL_NAME",  "string", None,   "ETL Namespace"),
     ]
     self.set_vars(self.all_vars)
 

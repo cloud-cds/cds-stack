@@ -669,6 +669,7 @@ class EpicAPIConfig:
       self.user_id, self.user_id_type,
       self.dept_id, self.dept_id_type
       )
+    logging.debug("extract_systemlist: {}".format(resource))
     responses = await self.make_requests(ctxt, resource, [], 'GET')
     dfs = [pd.DataFrame(r) for r in responses]
     logging.debug("extract_systemlist: {}".format(dfs))

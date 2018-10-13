@@ -280,7 +280,7 @@ def push_cloudwatch_metrics(ctxt, stats, aws_region, etl_server, etl_name, hospi
     md['Dimensions'] = [{'Name': 'ETL', 'Value': etl_name}]
     md['Timestamp'] = dt.datetime.utcnow()
   try:
-    boto_client.put_metric_data(Namespace=etl_server, MetricData=metric_data)
+    boto_client.put_metric_data(Namespace=etl_name, MetricData=metric_data)
     ctxt.log.info('successfully pushed cloudwatch metrics')
   except botocore.exceptions.EndpointConnectionError as e:
     ctxt.log.error('unsuccessfully pushed cloudwatch metrics')
@@ -297,7 +297,7 @@ def submit_time_to_cloudwatch(aws_region, etl_server, etl_name, hospital):
     'Timestamp':  dt.datetime.utcnow(),
   }]
   try:
-    boto_client.put_metric_data(Namespace=etl_server, MetricData=metric_data)
+    boto_client.put_metric_data(Namespace=etl_name, MetricData=metric_data)
     logging.info('successfully pushed total time to cloudwatch')
   except botocore.exceptions.EndpointConnectionError as e:
     logging.error('unsuccessfully pushed total time cloudwatch metrics')
