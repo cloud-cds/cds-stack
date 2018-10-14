@@ -49,7 +49,7 @@ module "dev_etl" {
   deploy_prefix = "${var.deploy_prefix}"
   local_shell   = "${var.local_shell}"
 
-  s3_opsdx_lambda = "${var.s3_opsdx_lambda}"
+  s3_mc_lambda = "${var.s3_mc_lambda}"
   aws_klaunch_lambda_package = "${var.aws_klaunch_lambda_package}"
   aws_klaunch_lambda_role_arn = "${var.aws_klaunch_lambda_role_arn}"
 

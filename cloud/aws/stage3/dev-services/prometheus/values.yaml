@@ -72,8 +72,8 @@ alertmanager:
   ## Node labels for alertmanager pod assignment
   ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
   ##
-  nodeSelector:
-    opsdx_nodegroup: nodes
+  # nodeSelector:
+  #   opsdx_nodegroup: nodes
 
   persistentVolume:
     ## If true, alertmanager will create/use a Persistent Volume Claim

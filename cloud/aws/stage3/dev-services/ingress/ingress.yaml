@@ -191,8 +191,8 @@ spec:
         k8s-addon: ingress-nginx.addons.k8s.io
         app: nginx-default-backend
     spec:
-      nodeSelector:
-        opsdx_nodegroup: spot-nodes
+      # nodeSelector:
+      #   opsdx_nodegroup: spot-nodes
       terminationGracePeriodSeconds: 60
       containers:
       - name: default-http-backend
@@ -238,7 +238,7 @@ metadata:
   labels:
     k8s-addon: ingress-nginx.addons.k8s.io
   annotations:
-    dns.alpha.kubernetes.io/external: ingress-dev.jh.opsdx.io
+    dns.alpha.kubernetes.io/external: ingress-dev.metaboliccompass.com
     service.beta.kubernetes.io/aws-load-balancer-proxy-protocol: '*'
     service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:acm:us-east-1:359300513585:certificate/dcf49691-7312-43ac-8f15-dfb345884d3b
     service.beta.kubernetes.io/aws-load-balancer-ssl-ports: https
@@ -277,8 +277,8 @@ spec:
         prometheus.io/port: '10254'
         prometheus.io/scrape: 'true'
     spec:
-      nodeSelector:
-        opsdx_nodegroup: spot-nodes
+      # nodeSelector:
+      #   opsdx_nodegroup: spot-nodes
       terminationGracePeriodSeconds: 60
       serviceAccountName: nginx-ingress-controller
       containers:

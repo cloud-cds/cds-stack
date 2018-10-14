@@ -80,6 +80,7 @@ resource "aws_lambda_function" "stage_etl_lambda" {
         k8s_job_jhapi_client_id     = "${var.dev_jhapi_client_id}"
         k8s_job_jhapi_client_secret = "${var.dev_jhapi_client_secret}"
         k8s_job_etl_channel         = "${var.dev_etl_channel}"
+        k8s_job_ETL_NAME               = "stage"
         k8s_job_ETL_SERVER             = "epic-stage"
         k8s_job_ETL_HOURS              = "${var.DEV_ETL_HOURS}"
         k8s_job_ETL_ARCHIVE            = "${var.DEV_ETL_ARCHIVE}"
