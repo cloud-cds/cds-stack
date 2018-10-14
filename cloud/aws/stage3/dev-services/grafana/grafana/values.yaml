@@ -107,12 +107,13 @@ server:
 
     ## Grafana service type
     ##
-    type: ClusterIP
+    type: NodePort
 
     ## Grafana service port
     ##
-    httpPort: 80
-
+    # httpPort: 80
+    port: 3000
+    targetPort: 3000
     ## Load balancer IP address
     ## Is not required, but allows for static address with
     ## serviceType LoadBalancer.
@@ -133,7 +134,7 @@ server:
     ## Is not required, but allows for static port assignment with
     ## serviceType NodePort.
     ## Default: nil
-    # nodePort: 30000
+    nodePort: 30000
 
   ## Grafana local config path
   ## Default '/etc/grafana'

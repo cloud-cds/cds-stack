@@ -8,8 +8,8 @@ server:
   ##
   image: "grafana/grafana:latest"
 
-  nodeSelector:
-    opsdx_nodegroup: spot-nodes
+  # nodeSelector:
+  #   opsdx_nodegroup: spot-nodes
 
   ingress:
     ## If true, Grafana Ingress will be created
@@ -26,7 +26,7 @@ server:
     ## Must be provided if Ingress is enabled
     ##
     hosts:
-      - grafana-dev.jh.opsdx.io
+      - grafana.api.cluster.dev.metaboliccompass.com
 
     ## Grafana Ingress TLS configuration
     ## Secrets must be manually created in the namespace
@@ -94,11 +94,11 @@ server:
     ## Grafana service annotations
     ##
     annotations: {}
-    #  dns.alpha.kubernetes.io/external: grafana.dev.opsdx.io
+    dns.alpha.kubernetes.io/external: grafana.api.cluster.dev.metaboliccompass.com
 
     ## Grafana service type
     ##
-    type: ClusterIP
+    type: LoadBalancer
 
 
     ## Grafana service port
@@ -111,7 +111,7 @@ server:
     ## If not supported by cloud provider, this field is ignored.
     ## Default: nil
     ##
-    # loadBalancerIP: 130.211.x.x
+    # loadBalancerIP: 130.211.1.5
 
     ## This will restrict traffic through the cloud-provider load-balancer
     ## to the specified client IPs.
@@ -125,7 +125,7 @@ server:
     ## Is not required, but allows for static port assignment with
     ## serviceType NodePort.
     ## Default: nil
-    # nodePort: 30000
+    nodePort: 30603
 
 
   ## Grafana local config path
